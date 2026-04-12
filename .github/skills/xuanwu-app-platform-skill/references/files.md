@@ -180,6 +180,100 @@ export function createPlatformFacade(ports: {
 }
 ````
 
+## File: modules/platform/api/platform-service.ts
+````typescript
+/**
+ * createPlatformService — Composition Root
+ *
+ * Wires all infrastructure adapters to use cases via the command/query dispatchers,
+ * then builds and returns a PlatformFacade ready for use by api/ consumers.
+ *
+ * Lives in api/ because the api boundary is the legitimate composition root:
+ *   api → infrastructure → application → domain (all inward dependencies preserved).
+ */
+
+import { createPlatformFacade } from "./facade";
+import type { PlatformFacade } from "./facade";
+import { PlatformCommandDispatcher } from "../application/handlers/PlatformCommandDispatcher";
+import { PlatformQueryDispatcher } from "../application/handlers/PlatformQueryDispatcher";
+import {
+	FirebasePlatformContextRepository,
+	FirebasePolicyCatalogRepository,
+	FirebaseIntegrationContractRepository,
+	FirebaseSubscriptionAgreementRepository,
+	FirebaseWorkflowPolicyRepository,
+	FirebaseConfigurationProfileStore,
+	EnvSecretReferenceResolver,
+} from "../infrastructure/db";
+import {
+	CachedPlatformContextViewRepository,
+	CachedPolicyCatalogViewRepository,
+	CachedUsageMeterRepository,
+} from "../infrastructure/cache";
+import {
+	QStashDomainEventPublisher,
+	QStashWorkflowDispatcher,
+} from "../infrastructure/messaging";
+import { FirebaseObservabilitySink } from "../infrastructure/monitoring";
+import { FirebaseStorageAuditSignalStore } from "../infrastructure/storage";
+import { SmtpNotificationGateway } from "../infrastructure/email";
+
+let _platformFacade: PlatformFacade | undefined;
+
+/**
+ * createPlatformService — creates a singleton PlatformFacade with all adapters wired.
+ *
+ * Call this once at module startup. Subsequent calls return the cached instance.
+ */
+export function createPlatformService(): PlatformFacade {
+	if (_platformFacade) return _platformFacade;
+
+	// Output ports — infrastructure adapters
+	const contextRepo = new FirebasePlatformContextRepository();
+	const catalogRepo = new FirebasePolicyCatalogRepository();
+	const contractRepo = new FirebaseIntegrationContractRepository();
+	const agreementRepo = new FirebaseSubscriptionAgreementRepository();
+	const workflowPolicyRepo = new FirebaseWorkflowPolicyRepository();
+	const configProfileStore = new FirebaseConfigurationProfileStore();
+	const secretResolver = new EnvSecretReferenceResolver();
+	const contextViewRepo = new CachedPlatformContextViewRepository();
+	const catalogViewRepo = new CachedPolicyCatalogViewRepository();
+	const usageMeterRepo = new CachedUsageMeterRepository();
+	const eventPublisher = new QStashDomainEventPublisher();
+	const workflowDispatcher = new QStashWorkflowDispatcher();
+	const observabilitySink = new FirebaseObservabilitySink();
+	const auditStore = new FirebaseStorageAuditSignalStore();
+	const notificationGateway = new SmtpNotificationGateway();
+
+	// Input ports — application dispatchers wired to use cases
+	const commandPort = new PlatformCommandDispatcher({
+		contextRepo,
+		catalogRepo,
+		contractRepo,
+		agreementRepo,
+		workflowPolicyRepo,
+		configProfileStore,
+		secretResolver,
+		eventPublisher,
+		workflowDispatcher,
+		notificationGateway,
+		catalogViewRepo,
+		auditStore,
+		observabilitySink,
+	});
+
+	const queryPort = new PlatformQueryDispatcher({
+		contextViewRepo,
+		catalogViewRepo,
+		usageMeterRepo,
+		workflowPolicyRepo,
+	});
+
+	_platformFacade = createPlatformFacade({ commandPort, queryPort });
+	return _platformFacade;
+}
+````
+
 ## File: modules/platform/application/dtos/index.ts
 ````typescript
 /**
@@ -703,6 +797,787 @@ export type PlatformEventMapperFunction = (typeof PLATFORM_EVENT_MAPPER_FUNCTION
  */
 
 // TODO: implement mapIngressEventToCommand mapper function
+````
+
+## File: modules/platform/application/handlers/index.ts
+````typescript
+/**
+ * platform application handlers barrel.
+ */
+
+export { PlatformCommandDispatcher } from "./PlatformCommandDispatcher";
+export type { PlatformCommandDispatcherDeps } from "./PlatformCommandDispatcher";
+export { PlatformQueryDispatcher } from "./PlatformQueryDispatcher";
+export type { PlatformQueryDispatcherDeps } from "./PlatformQueryDispatcher";
+````
+
+## File: modules/platform/application/handlers/PlatformCommandDispatcher.ts
+````typescript
+/**
+ * PlatformCommandDispatcher — Application-layer Command Router
+ *
+ * Implements: PlatformCommandPort
+ * Routes commands by name to the appropriate use case class.
+ *
+ * This is the primary driving adapter for the platform module's command side.
+ * Called by: api/facade.ts via PlatformCommandPort
+ */
+
+import type { PlatformCommandPort, PlatformCommand, PlatformCommandResult } from "../../domain/ports/input";
+import type {
+	PlatformContextRepository,
+	PolicyCatalogRepository,
+	IntegrationContractRepository,
+	SubscriptionAgreementRepository,
+	WorkflowPolicyRepository,
+	ConfigurationProfileStore,
+	SecretReferenceResolver,
+	DomainEventPublisher,
+	WorkflowDispatcherPort,
+	NotificationGateway,
+	PolicyCatalogViewRepository,
+	AuditSignalStore,
+	ObservabilitySink,
+} from "../../domain/ports/output";
+import { RegisterPlatformContextUseCase } from "../use-cases/register-platform-context.use-cases";
+import { PublishPolicyCatalogUseCase } from "../use-cases/publish-policy-catalog.use-cases";
+import { ApplyConfigurationProfileUseCase } from "../use-cases/apply-configuration-profile.use-cases";
+import { RegisterIntegrationContractUseCase } from "../use-cases/register-integration-contract.use-cases";
+import { ActivateSubscriptionAgreementUseCase } from "../use-cases/activate-subscription-agreement.use-cases";
+import { FireWorkflowTriggerUseCase } from "../use-cases/fire-workflow-trigger.use-cases";
+import { RequestNotificationDispatchUseCase } from "../use-cases/request-notification-dispatch.use-cases";
+import { RecordAuditSignalUseCase } from "../use-cases/record-audit-signal.use-cases";
+import { EmitObservabilitySignalUseCase } from "../use-cases/emit-observability-signal.use-cases";
+
+export interface PlatformCommandDispatcherDeps {
+	contextRepo: PlatformContextRepository;
+	catalogRepo: PolicyCatalogRepository;
+	contractRepo: IntegrationContractRepository;
+	agreementRepo: SubscriptionAgreementRepository;
+	workflowPolicyRepo: WorkflowPolicyRepository;
+	configProfileStore: ConfigurationProfileStore;
+	secretResolver: SecretReferenceResolver;
+	eventPublisher: DomainEventPublisher;
+	workflowDispatcher: WorkflowDispatcherPort;
+	notificationGateway: NotificationGateway;
+	catalogViewRepo: PolicyCatalogViewRepository;
+	auditStore: AuditSignalStore;
+	observabilitySink: ObservabilitySink;
+}
+
+export class PlatformCommandDispatcher implements PlatformCommandPort {
+	constructor(private readonly deps: PlatformCommandDispatcherDeps) {}
+
+	async executeCommand<TCommand extends PlatformCommand>(
+		command: TCommand,
+	): Promise<PlatformCommandResult> {
+		const { deps } = this;
+		switch (command.name) {
+			case "registerPlatformContext":
+				return new RegisterPlatformContextUseCase(
+					deps.contextRepo,
+					deps.eventPublisher,
+				).execute(command.payload as Parameters<RegisterPlatformContextUseCase["execute"]>[0]);
+
+			case "publishPolicyCatalog":
+				return new PublishPolicyCatalogUseCase(
+					deps.catalogRepo,
+					deps.eventPublisher,
+				).execute(command.payload as Parameters<PublishPolicyCatalogUseCase["execute"]>[0]);
+
+			case "applyConfigurationProfile":
+				return new ApplyConfigurationProfileUseCase(
+					deps.contextRepo,
+					deps.configProfileStore,
+					deps.eventPublisher,
+				).execute(command.payload as Parameters<ApplyConfigurationProfileUseCase["execute"]>[0]);
+
+			case "registerIntegrationContract":
+				return new RegisterIntegrationContractUseCase(
+					deps.contractRepo,
+					deps.secretResolver,
+					deps.eventPublisher,
+				).execute(command.payload as Parameters<RegisterIntegrationContractUseCase["execute"]>[0]);
+
+			case "activateSubscriptionAgreement":
+				return new ActivateSubscriptionAgreementUseCase(
+					deps.agreementRepo,
+					deps.contextRepo,
+					deps.eventPublisher,
+				).execute(command.payload as Parameters<ActivateSubscriptionAgreementUseCase["execute"]>[0]);
+
+			case "fireWorkflowTrigger":
+				return new FireWorkflowTriggerUseCase(
+					deps.workflowPolicyRepo,
+					deps.workflowDispatcher,
+					deps.eventPublisher,
+				).execute(command.payload as Parameters<FireWorkflowTriggerUseCase["execute"]>[0]);
+
+			case "requestNotificationDispatch":
+				return new RequestNotificationDispatchUseCase(
+					deps.notificationGateway,
+					deps.catalogViewRepo,
+					deps.auditStore,
+					deps.eventPublisher,
+				).execute(command.payload as Parameters<RequestNotificationDispatchUseCase["execute"]>[0]);
+
+			case "recordAuditSignal":
+				return new RecordAuditSignalUseCase(
+					deps.auditStore,
+					deps.eventPublisher,
+				).execute(command.payload as Parameters<RecordAuditSignalUseCase["execute"]>[0]);
+
+			case "emitObservabilitySignal":
+				return new EmitObservabilitySignalUseCase(
+					deps.observabilitySink,
+					deps.auditStore,
+					deps.eventPublisher,
+				).execute(command.payload as Parameters<EmitObservabilitySignalUseCase["execute"]>[0]);
+
+			default:
+				return {
+					ok: false,
+					code: "UNKNOWN_COMMAND",
+					message: `Unknown platform command: '${String((command as PlatformCommand).name)}'`,
+				};
+		}
+	}
+}
+````
+
+## File: modules/platform/application/index.ts
+````typescript
+/**
+ * platform application layer barrel.
+ */
+
+export * from "./dtos";
+export * from "./services";
+export * from "./use-cases";
+export * from "./handlers";
+````
+
+## File: modules/platform/application/services/build-causation-id.ts
+````typescript
+/**
+ * buildCausationId — derive a causation identifier from a triggering event or command.
+ *
+ * Application-level helper used when publishing domain events: links each
+ * event back to the command or event that triggered it, forming an observable
+ * causal chain.
+ *
+ * Convention:
+ *   commandCausation — pass the commandId from the triggering PlatformCommand.
+ *   eventCausation   — pass the eventId from the triggering PlatformDomainEvent.
+ *
+ * @see shared/types/CorrelationContext.ts
+ */
+export function buildCausationId(triggeringId: string): string {
+	return `caused-by:${triggeringId}`;
+}
+````
+
+## File: modules/platform/application/services/build-correlation-id.ts
+````typescript
+/**
+ * buildCorrelationId — generate a new UUID v4 correlation identifier.
+ *
+ * Application-level helper used when a new command arrives at the driving
+ * adapter without an existing correlation chain, or when starting a new
+ * batch of domain events not caused by an existing event.
+ *
+ * @see shared/types/CorrelationContext.ts
+ */
+export function buildCorrelationId(): string {
+	return crypto.randomUUID();
+}
+````
+
+## File: modules/platform/application/use-cases/activate-subscription-agreement.use-cases.ts
+````typescript
+/**
+ * activate-subscription-agreement — use case.
+ *
+ * Command:  ActivateSubscriptionAgreement
+ * Purpose:  Activates, renews, or suspends a subscription agreement.
+ */
+
+import type { PlatformCommandResult, ActivateSubscriptionAgreementInput } from "../dtos";
+import type { SubscriptionAgreementRepository, PlatformContextRepository, DomainEventPublisher } from "../../domain/ports/output";
+import { SUBSCRIPTION_AGREEMENT_ACTIVATED_EVENT_TYPE } from "../../domain/events";
+import { buildCorrelationId } from "../services";
+
+export class ActivateSubscriptionAgreementUseCase {
+	constructor(
+		private readonly agreementRepo: SubscriptionAgreementRepository,
+		private readonly contextRepo: PlatformContextRepository,
+		private readonly eventPublisher: DomainEventPublisher,
+	) {}
+
+	async execute(input: ActivateSubscriptionAgreementInput): Promise<PlatformCommandResult> {
+		try {
+			const context = await this.contextRepo.findById(input.contextId);
+			if (!context) {
+				return { ok: false, code: "PLATFORM_CONTEXT_NOT_FOUND", message: `Context '${input.contextId}' not found.` };
+			}
+			const existing = await this.agreementRepo.findEffectiveByContextId(input.contextId);
+			const now = new Date().toISOString();
+			const agreementSnapshot = {
+				...(existing as Record<string, unknown> ?? {}),
+				subscriptionAgreementId: input.subscriptionAgreementId,
+				contextId: input.contextId,
+				planCode: input.planCode,
+				billingState: "active",
+				updatedAt: now,
+			};
+			await this.agreementRepo.save(agreementSnapshot);
+			const contextSnapshot = {
+				...(context as Record<string, unknown>),
+				subscriptionAgreementId: input.subscriptionAgreementId,
+				updatedAt: now,
+			};
+			await this.contextRepo.save(contextSnapshot);
+			await this.eventPublisher.publish([
+				{
+					type: SUBSCRIPTION_AGREEMENT_ACTIVATED_EVENT_TYPE,
+					aggregateType: "SubscriptionAgreement",
+					aggregateId: input.subscriptionAgreementId,
+					contextId: input.contextId,
+					occurredAt: now,
+					version: 1,
+					correlationId: buildCorrelationId(),
+					payload: { subscriptionAgreementId: input.subscriptionAgreementId, planCode: input.planCode },
+				},
+			]);
+			return {
+				ok: true,
+				code: "SUBSCRIPTION_AGREEMENT_ACTIVATED",
+				metadata: { subscriptionAgreementId: input.subscriptionAgreementId, planCode: input.planCode },
+			};
+		} catch (err) {
+			return {
+				ok: false,
+				code: "ACTIVATE_SUBSCRIPTION_AGREEMENT_FAILED",
+				message: err instanceof Error ? err.message : "Unexpected error",
+			};
+		}
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/apply-configuration-profile.use-cases.ts
+````typescript
+/**
+ * apply-configuration-profile — use case.
+ *
+ * Command:  ApplyConfigurationProfile
+ * Purpose:  Applies a configuration profile and updates capability toggles.
+ */
+
+import type { PlatformCommandResult, ApplyConfigurationProfileInput } from "../dtos";
+import type { PlatformContextRepository, ConfigurationProfileStore, DomainEventPublisher } from "../../domain/ports/output";
+import { CONFIG_PROFILE_APPLIED_EVENT_TYPE } from "../../domain/events";
+import { buildCorrelationId } from "../services";
+
+export class ApplyConfigurationProfileUseCase {
+	constructor(
+		private readonly contextRepo: PlatformContextRepository,
+		private readonly profileStore: ConfigurationProfileStore,
+		private readonly eventPublisher: DomainEventPublisher,
+	) {}
+
+	async execute(input: ApplyConfigurationProfileInput): Promise<PlatformCommandResult> {
+		try {
+			const profile = await this.profileStore.getProfile(input.profileRef);
+			if (!profile) {
+				return { ok: false, code: "CONFIGURATION_PROFILE_NOT_FOUND", message: `Profile '${input.profileRef}' not found.` };
+			}
+			const existing = await this.contextRepo.findById(input.contextId);
+			if (!existing) {
+				return { ok: false, code: "PLATFORM_CONTEXT_NOT_FOUND", message: `Context '${input.contextId}' not found.` };
+			}
+			const now = new Date().toISOString();
+			const snapshot = {
+				...(existing as Record<string, unknown>),
+				configurationProfileRef: input.profileRef,
+				updatedAt: now,
+			};
+			await this.contextRepo.save(snapshot);
+			await this.eventPublisher.publish([
+				{
+					type: CONFIG_PROFILE_APPLIED_EVENT_TYPE,
+					aggregateType: "PlatformContext",
+					aggregateId: input.contextId,
+					contextId: input.contextId,
+					occurredAt: now,
+					version: 1,
+					correlationId: buildCorrelationId(),
+					payload: { profileRef: input.profileRef },
+				},
+			]);
+			return {
+				ok: true,
+				code: "CONFIGURATION_PROFILE_APPLIED",
+				metadata: { contextId: input.contextId, profileRef: input.profileRef },
+			};
+		} catch (err) {
+			return {
+				ok: false,
+				code: "APPLY_CONFIGURATION_PROFILE_FAILED",
+				message: err instanceof Error ? err.message : "Unexpected error",
+			};
+		}
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/emit-observability-signal.use-cases.ts
+````typescript
+/**
+ * emit-observability-signal — use case.
+ *
+ * Command:  EmitObservabilitySignal
+ * Purpose:  Emits metrics / trace / alert signals.
+ */
+
+import type { PlatformCommandResult, EmitObservabilitySignalInput } from "../dtos";
+import type { ObservabilitySink, AuditSignalStore, DomainEventPublisher } from "../../domain/ports/output";
+import { OBSERVABILITY_SIGNAL_EMITTED_EVENT_TYPE } from "../../domain/events";
+import { buildCorrelationId } from "../services";
+
+const AUDIT_SIGNAL_LEVELS = new Set(["error", "critical", "fatal"]);
+
+export class EmitObservabilitySignalUseCase {
+	constructor(
+		private readonly observabilitySink: ObservabilitySink,
+		private readonly auditStore: AuditSignalStore,
+		private readonly eventPublisher: DomainEventPublisher,
+	) {}
+
+	async execute(input: EmitObservabilitySignalInput): Promise<PlatformCommandResult> {
+		try {
+			const now = new Date().toISOString();
+			await this.observabilitySink.emit({
+				signalName: input.signalName,
+				signalLevel: input.signalLevel,
+				sourceRef: input.sourceRef,
+				contextId: input.contextId,
+				occurredAt: now,
+			});
+			if (AUDIT_SIGNAL_LEVELS.has(input.signalLevel.toLowerCase())) {
+				await this.auditStore.write({
+					signalType: "observability.signal_emitted",
+					severity: input.signalLevel,
+					contextId: input.contextId,
+					signalName: input.signalName,
+					occurredAt: now,
+				});
+			}
+			await this.eventPublisher.publish([
+				{
+					type: OBSERVABILITY_SIGNAL_EMITTED_EVENT_TYPE,
+					aggregateType: "Observability",
+					aggregateId: input.contextId,
+					contextId: input.contextId,
+					occurredAt: now,
+					version: 1,
+					correlationId: buildCorrelationId(),
+					payload: { signalName: input.signalName, signalLevel: input.signalLevel, sourceRef: input.sourceRef },
+				},
+			]);
+			return {
+				ok: true,
+				code: "OBSERVABILITY_SIGNAL_EMITTED",
+				metadata: { signalName: input.signalName, signalLevel: input.signalLevel },
+			};
+		} catch (err) {
+			return {
+				ok: false,
+				code: "EMIT_OBSERVABILITY_SIGNAL_FAILED",
+				message: err instanceof Error ? err.message : "Unexpected error",
+			};
+		}
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/fire-workflow-trigger.use-cases.ts
+````typescript
+/**
+ * fire-workflow-trigger — use case.
+ *
+ * Command:  FireWorkflowTrigger
+ * Purpose:  Emits a workflow trigger and delegates execution to downstream adapter.
+ */
+
+import type { PlatformCommandResult, FireWorkflowTriggerInput } from "../dtos";
+import type { WorkflowPolicyRepository, WorkflowDispatcherPort, DomainEventPublisher } from "../../domain/ports/output";
+import { WORKFLOW_TRIGGER_FIRED_EVENT_TYPE } from "../../domain/events";
+import { buildCorrelationId } from "../services";
+
+export class FireWorkflowTriggerUseCase {
+	constructor(
+		private readonly policyRepo: WorkflowPolicyRepository,
+		private readonly dispatcher: WorkflowDispatcherPort,
+		private readonly eventPublisher: DomainEventPublisher,
+	) {}
+
+	async execute(input: FireWorkflowTriggerInput): Promise<PlatformCommandResult> {
+		try {
+			const policyView = await this.policyRepo.getView(input.contextId, input.triggerKey);
+			if (!policyView?.enabled) {
+				return {
+					ok: false,
+					code: "WORKFLOW_TRIGGER_NOT_ALLOWED",
+					message: `Trigger '${input.triggerKey}' is not enabled by policy.`,
+				};
+			}
+			const dispatchResult = await this.dispatcher.dispatch(input.triggerKey, {
+				contextId: input.contextId,
+				triggeredBy: input.triggeredBy,
+			});
+			if (!dispatchResult.ok) {
+				return dispatchResult;
+			}
+			const now = new Date().toISOString();
+			await this.eventPublisher.publish([
+				{
+					type: WORKFLOW_TRIGGER_FIRED_EVENT_TYPE,
+					aggregateType: "Workflow",
+					aggregateId: input.triggerKey,
+					contextId: input.contextId,
+					occurredAt: now,
+					version: 1,
+					correlationId: buildCorrelationId(),
+					payload: { triggerKey: input.triggerKey, triggeredBy: input.triggeredBy },
+				},
+			]);
+			return {
+				ok: true,
+				code: "WORKFLOW_TRIGGER_FIRED",
+				metadata: { triggerKey: input.triggerKey, contextId: input.contextId },
+			};
+		} catch (err) {
+			return {
+				ok: false,
+				code: "FIRE_WORKFLOW_TRIGGER_FAILED",
+				message: err instanceof Error ? err.message : "Unexpected error",
+			};
+		}
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/publish-policy-catalog.use-cases.ts
+````typescript
+/**
+ * publish-policy-catalog — use case.
+ *
+ * Command:  PublishPolicyCatalog
+ * Purpose:  Publishes a new PolicyCatalog revision.
+ */
+
+import type { PlatformCommandResult, PublishPolicyCatalogInput } from "../dtos";
+import type { PolicyCatalogRepository, DomainEventPublisher } from "../../domain/ports/output";
+import { POLICY_CATALOG_PUBLISHED_EVENT_TYPE } from "../../domain/events";
+import { buildCorrelationId } from "../services";
+
+export class PublishPolicyCatalogUseCase {
+	constructor(
+		private readonly catalogRepo: PolicyCatalogRepository,
+		private readonly eventPublisher: DomainEventPublisher,
+	) {}
+
+	async execute(input: PublishPolicyCatalogInput): Promise<PlatformCommandResult> {
+		try {
+			const existing = await this.catalogRepo.findActiveByContextId(input.contextId);
+			const now = new Date().toISOString();
+			const snapshot = {
+				...(existing as Record<string, unknown> ?? {}),
+				contextId: input.contextId,
+				revision: input.revision,
+				permissionRuleCount: (existing as Record<string, unknown> | null)?.permissionRuleCount ?? 0,
+				workflowRuleCount: (existing as Record<string, unknown> | null)?.workflowRuleCount ?? 0,
+				notificationRuleCount: (existing as Record<string, unknown> | null)?.notificationRuleCount ?? 0,
+				auditRuleCount: (existing as Record<string, unknown> | null)?.auditRuleCount ?? 0,
+				publishedAt: now,
+			};
+			await this.catalogRepo.saveRevision(snapshot);
+			await this.eventPublisher.publish([
+				{
+					type: POLICY_CATALOG_PUBLISHED_EVENT_TYPE,
+					aggregateType: "PolicyCatalog",
+					aggregateId: input.contextId,
+					contextId: input.contextId,
+					occurredAt: now,
+					version: input.revision,
+					correlationId: buildCorrelationId(),
+					payload: { revision: input.revision, publishedAt: now },
+				},
+			]);
+			return {
+				ok: true,
+				code: "POLICY_CATALOG_PUBLISHED",
+				metadata: { contextId: input.contextId, revision: input.revision },
+			};
+		} catch (err) {
+			return {
+				ok: false,
+				code: "PUBLISH_POLICY_CATALOG_FAILED",
+				message: err instanceof Error ? err.message : "Unexpected error",
+			};
+		}
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/record-audit-signal.use-cases.ts
+````typescript
+/**
+ * record-audit-signal — use case.
+ *
+ * Command:  RecordAuditSignal
+ * Purpose:  Writes a decision or behavior as an immutable audit signal.
+ */
+
+import type { PlatformCommandResult, RecordAuditSignalInput } from "../dtos";
+import type { AuditSignalStore, DomainEventPublisher } from "../../domain/ports/output";
+import { AUDIT_SIGNAL_RECORDED_EVENT_TYPE } from "../../domain/events";
+import { buildCorrelationId } from "../services";
+
+export class RecordAuditSignalUseCase {
+	constructor(
+		private readonly auditStore: AuditSignalStore,
+		private readonly eventPublisher: DomainEventPublisher,
+	) {}
+
+	async execute(input: RecordAuditSignalInput): Promise<PlatformCommandResult> {
+		try {
+			const now = new Date().toISOString();
+			await this.auditStore.write({
+				signalType: input.signalType,
+				severity: input.severity,
+				contextId: input.contextId,
+				occurredAt: now,
+			});
+			await this.eventPublisher.publish([
+				{
+					type: AUDIT_SIGNAL_RECORDED_EVENT_TYPE,
+					aggregateType: "AuditLog",
+					aggregateId: input.contextId,
+					contextId: input.contextId,
+					occurredAt: now,
+					version: 1,
+					correlationId: buildCorrelationId(),
+					payload: { signalType: input.signalType, severity: input.severity },
+				},
+			]);
+			return {
+				ok: true,
+				code: "AUDIT_SIGNAL_RECORDED",
+				metadata: { signalType: input.signalType, contextId: input.contextId },
+			};
+		} catch (err) {
+			return {
+				ok: false,
+				code: "RECORD_AUDIT_SIGNAL_FAILED",
+				message: err instanceof Error ? err.message : "Unexpected error",
+			};
+		}
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/register-integration-contract.use-cases.ts
+````typescript
+/**
+ * register-integration-contract — use case.
+ *
+ * Command:  RegisterIntegrationContract
+ * Purpose:  Creates or updates an external integration contract.
+ */
+
+import type { PlatformCommandResult, RegisterIntegrationContractInput } from "../dtos";
+import type { IntegrationContractRepository, SecretReferenceResolver, DomainEventPublisher } from "../../domain/ports/output";
+import { INTEGRATION_CONTRACT_REGISTERED_EVENT_TYPE } from "../../domain/events";
+import { buildCorrelationId } from "../services";
+
+export class RegisterIntegrationContractUseCase {
+	constructor(
+		private readonly contractRepo: IntegrationContractRepository,
+		private readonly secretResolver: SecretReferenceResolver,
+		private readonly eventPublisher: DomainEventPublisher,
+	) {}
+
+	async execute(input: RegisterIntegrationContractInput): Promise<PlatformCommandResult> {
+		try {
+			const authRef = await this.secretResolver.resolve(input.integrationContractId);
+			const existing = await this.contractRepo.findById(input.integrationContractId);
+			const now = new Date().toISOString();
+			const snapshot = {
+				...(existing as Record<string, unknown> ?? {}),
+				integrationContractId: input.integrationContractId,
+				contextId: input.contextId,
+				endpointRef: input.endpointRef,
+				protocol: input.protocol,
+				authenticationRef: authRef,
+				contractState: "active",
+				updatedAt: now,
+			};
+			await this.contractRepo.save(snapshot);
+			await this.eventPublisher.publish([
+				{
+					type: INTEGRATION_CONTRACT_REGISTERED_EVENT_TYPE,
+					aggregateType: "IntegrationContract",
+					aggregateId: input.integrationContractId,
+					contextId: input.contextId,
+					occurredAt: now,
+					version: 1,
+					correlationId: buildCorrelationId(),
+					payload: { integrationContractId: input.integrationContractId, protocol: input.protocol },
+				},
+			]);
+			return {
+				ok: true,
+				code: "INTEGRATION_CONTRACT_REGISTERED",
+				metadata: { integrationContractId: input.integrationContractId },
+			};
+		} catch (err) {
+			return {
+				ok: false,
+				code: "REGISTER_INTEGRATION_CONTRACT_FAILED",
+				message: err instanceof Error ? err.message : "Unexpected error",
+			};
+		}
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/register-platform-context.use-cases.ts
+````typescript
+/**
+ * register-platform-context — use case.
+ *
+ * Command:  RegisterPlatformContext
+ * Purpose:  Creates a PlatformContext or re-activates a platform scope.
+ */
+
+import type { PlatformCommandResult, RegisterPlatformContextInput } from "../dtos";
+import type { PlatformContextRepository, DomainEventPublisher } from "../../domain/ports/output";
+import { PLATFORM_CONTEXT_REGISTERED_EVENT_TYPE } from "../../domain/events";
+import { buildCorrelationId } from "../services";
+
+export class RegisterPlatformContextUseCase {
+	constructor(
+		private readonly contextRepo: PlatformContextRepository,
+		private readonly eventPublisher: DomainEventPublisher,
+	) {}
+
+	async execute(input: RegisterPlatformContextInput): Promise<PlatformCommandResult> {
+		try {
+			const existing = await this.contextRepo.findById(input.contextId);
+			const now = new Date().toISOString();
+			const snapshot = {
+				...(existing as Record<string, unknown> ?? {}),
+				contextId: input.contextId,
+				subjectScope: input.subjectScope,
+				lifecycleState: "active",
+				capabilityKeys: (existing as Record<string, unknown> | null)?.capabilityKeys ?? [],
+				updatedAt: now,
+			};
+			await this.contextRepo.save(snapshot);
+			await this.eventPublisher.publish([
+				{
+					type: PLATFORM_CONTEXT_REGISTERED_EVENT_TYPE,
+					aggregateType: "PlatformContext",
+					aggregateId: input.contextId,
+					contextId: input.contextId,
+					occurredAt: now,
+					version: 1,
+					correlationId: buildCorrelationId(),
+					payload: { subjectScope: input.subjectScope, lifecycleState: "active" },
+				},
+			]);
+			return { ok: true, code: "PLATFORM_CONTEXT_REGISTERED", metadata: { contextId: input.contextId } };
+		} catch (err) {
+			return {
+				ok: false,
+				code: "REGISTER_PLATFORM_CONTEXT_FAILED",
+				message: err instanceof Error ? err.message : "Unexpected error",
+			};
+		}
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/request-notification-dispatch.use-cases.ts
+````typescript
+/**
+ * request-notification-dispatch — use case.
+ *
+ * Command:  RequestNotificationDispatch
+ * Purpose:  Creates a notification dispatch request.
+ */
+
+import type { PlatformCommandResult, RequestNotificationDispatchInput } from "../dtos";
+import type { NotificationGateway, PolicyCatalogViewRepository, AuditSignalStore, DomainEventPublisher } from "../../domain/ports/output";
+import { NOTIFICATION_DISPATCH_REQUESTED_EVENT_TYPE } from "../../domain/events";
+import { buildCorrelationId } from "../services";
+
+export class RequestNotificationDispatchUseCase {
+	constructor(
+		private readonly notificationGateway: NotificationGateway,
+		private readonly catalogViewRepo: PolicyCatalogViewRepository,
+		private readonly auditStore: AuditSignalStore,
+		private readonly eventPublisher: DomainEventPublisher,
+	) {}
+
+	async execute(input: RequestNotificationDispatchInput): Promise<PlatformCommandResult> {
+		try {
+			await this.catalogViewRepo.getView(input.contextId);
+			const dispatchResult = await this.notificationGateway.dispatch({
+				contextId: input.contextId,
+				channel: input.channel,
+				recipientRef: input.recipientRef,
+				templateKey: input.templateKey,
+			});
+			if (!dispatchResult.ok) {
+				return dispatchResult;
+			}
+			const now = new Date().toISOString();
+			await this.auditStore.write({
+				signalType: "notification.dispatch_requested",
+				severity: "info",
+				contextId: input.contextId,
+				recipientRef: input.recipientRef,
+				occurredAt: now,
+			});
+			await this.eventPublisher.publish([
+				{
+					type: NOTIFICATION_DISPATCH_REQUESTED_EVENT_TYPE,
+					aggregateType: "Notification",
+					aggregateId: input.recipientRef,
+					contextId: input.contextId,
+					occurredAt: now,
+					version: 1,
+					correlationId: buildCorrelationId(),
+					payload: { channel: input.channel, recipientRef: input.recipientRef, templateKey: input.templateKey },
+				},
+			]);
+			return {
+				ok: true,
+				code: "NOTIFICATION_DISPATCH_REQUESTED",
+				metadata: { channel: input.channel, recipientRef: input.recipientRef },
+			};
+		} catch (err) {
+			return {
+				ok: false,
+				code: "REQUEST_NOTIFICATION_DISPATCH_FAILED",
+				message: err instanceof Error ? err.message : "Unexpected error",
+			};
+		}
+	}
+}
 ````
 
 ## File: modules/platform/docs/README.md
@@ -2948,6 +3823,30 @@ export interface SearchIndexPort {
 // TODO: implement / re-export WorkflowPolicyRepository interface
 ````
 
+## File: modules/platform/domain/services/assert-never.ts
+````typescript
+/**
+ * assertNever — exhaustive union check utility.
+ *
+ * TypeScript compile-time guard: throws a runtime Error if a discriminated
+ * union branch is reached that should be unreachable.  Useful in domain
+ * switch/if chains to guarantee all variants of a discriminated type are
+ * handled.
+ *
+ * Usage:
+ *   switch (state) {
+ *     case "active":  ...
+ *     case "draft":   ...
+ *     default: assertNever(state); // compile error when new states are added
+ *   }
+ *
+ * @see shared/value-objects/PlatformLifecycleState.ts — example usage
+ */
+export function assertNever(value: never): never {
+	throw new Error(`Unexpected value: ${JSON.stringify(value)}`);
+}
+````
+
 ## File: modules/platform/domain/services/AuditClassificationService.ts
 ````typescript
 /**
@@ -3001,6 +3900,19 @@ export interface SearchIndexPort {
  */
 
 // TODO: implement ConfigurationCompositionService domain service
+````
+
+## File: modules/platform/domain/services/index.ts
+````typescript
+/**
+ * platform domain services barrel.
+ *
+ * Domain Services carry business rules and invariants that cannot naturally
+ * fall on a single Entity or Value Object.
+ */
+
+export { assertNever } from "./assert-never";
+export { toIsoTimestamp } from "./to-iso-timestamp";
 ````
 
 ## File: modules/platform/domain/services/IntegrationCompatibilityService.ts
@@ -3075,6 +3987,23 @@ export interface SearchIndexPort {
  */
 
 // TODO: implement PermissionResolutionService domain service
+````
+
+## File: modules/platform/domain/services/to-iso-timestamp.ts
+````typescript
+/**
+ * toIsoTimestamp — convert a Date or Unix ms timestamp to an ISO 8601 string.
+ *
+ * All `occurredAt` and `publishedAt` fields in the platform domain must use
+ * ISO 8601 strings, never Date objects, to ensure safe serialisation across
+ * the server/client boundary.  This is a domain-level invariant.
+ *
+ * @see instructions — occurredAt must be ISO string (not Date)
+ */
+export function toIsoTimestamp(value: Date | number): string {
+	const date = typeof value === "number" ? new Date(value) : value;
+	return date.toISOString();
+}
 ````
 
 ## File: modules/platform/domain/services/WorkflowDispatchPolicy.ts
@@ -3572,6 +4501,401 @@ export type PlatformDomainValueObjectFactoryFunction =
 // TODO: implement UsageLimit value object
 ````
 
+## File: modules/platform/infrastructure/cache/CachedPlatformContextViewRepository.ts
+````typescript
+/**
+ * CachedPlatformContextViewRepository — Firestore-backed View Repository (Driven Adapter)
+ *
+ * Implements: PlatformContextViewRepository
+ * Reads PlatformContextView from "platform-contexts" collection.
+ */
+
+import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { PlatformContextViewRepository, PlatformContextView } from "../../domain/ports/output";
+
+export class CachedPlatformContextViewRepository implements PlatformContextViewRepository {
+	private get db() {
+		return getFirestore(firebaseClientApp);
+	}
+
+	async getView(contextId: string): Promise<PlatformContextView | null> {
+		const snap = await getDoc(doc(this.db, "platform-contexts", contextId));
+		if (!snap.exists()) return null;
+		const data = snap.data() as Record<string, unknown>;
+		return {
+			contextId,
+			lifecycleState: typeof data.lifecycleState === "string" ? data.lifecycleState : "unknown",
+			capabilityKeys: Array.isArray(data.capabilityKeys) ? (data.capabilityKeys as string[]) : [],
+		};
+	}
+}
+````
+
+## File: modules/platform/infrastructure/cache/CachedPolicyCatalogViewRepository.ts
+````typescript
+/**
+ * CachedPolicyCatalogViewRepository — Firestore-backed View Repository (Driven Adapter)
+ *
+ * Implements: PolicyCatalogViewRepository
+ * Reads PolicyCatalogView from "policy-catalogs" collection (latest active revision).
+ */
+
+import { getFirestore, collection, query, orderBy, limit, getDocs } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { PolicyCatalogViewRepository, PolicyCatalogView } from "../../domain/ports/output";
+
+export class CachedPolicyCatalogViewRepository implements PolicyCatalogViewRepository {
+private get db() {
+return getFirestore(firebaseClientApp);
+}
+
+async getView(contextId: string): Promise<PolicyCatalogView | null> {
+const q = query(
+collection(this.db, "policy-catalogs"),
+orderBy("revision", "desc"),
+limit(1),
+);
+const snap = await getDocs(q);
+if (snap.empty) return null;
+const data = snap.docs[0].data() as Record<string, unknown>;
+return {
+contextId,
+revision: typeof data.revision === "number" ? data.revision : 0,
+permissionRuleCount: typeof data.permissionRuleCount === "number" ? data.permissionRuleCount : 0,
+workflowRuleCount: typeof data.workflowRuleCount === "number" ? data.workflowRuleCount : 0,
+notificationRuleCount: typeof data.notificationRuleCount === "number" ? data.notificationRuleCount : 0,
+auditRuleCount: typeof data.auditRuleCount === "number" ? data.auditRuleCount : 0,
+};
+}
+}
+````
+
+## File: modules/platform/infrastructure/cache/CachedUsageMeterRepository.ts
+````typescript
+/**
+ * CachedUsageMeterRepository — Firestore-backed View Repository (Driven Adapter)
+ *
+ * Implements: UsageMeterRepository
+ * Reads SubscriptionEntitlementsView from "subscription-agreements" collection.
+ */
+
+import { getFirestore, collection, query, where, getDocs, limit } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { UsageMeterRepository, SubscriptionEntitlementsView } from "../../domain/ports/output";
+
+export class CachedUsageMeterRepository implements UsageMeterRepository {
+private get db() {
+return getFirestore(firebaseClientApp);
+}
+
+async getEntitlementsView(contextId: string): Promise<SubscriptionEntitlementsView | null> {
+const q = query(
+collection(this.db, "subscription-agreements"),
+where("contextId", "==", contextId),
+where("billingState", "==", "active"),
+limit(1),
+);
+const snap = await getDocs(q);
+if (snap.empty) return null;
+const data = snap.docs[0].data() as Record<string, unknown>;
+return {
+contextId,
+planCode: typeof data.planCode === "string" ? data.planCode : "free",
+entitlements: Array.isArray(data.entitlements) ? (data.entitlements as string[]) : [],
+usageLimits: Array.isArray(data.usageLimits) ? (data.usageLimits as string[]) : [],
+};
+}
+}
+````
+
+## File: modules/platform/infrastructure/cache/index.ts
+````typescript
+/**
+ * platform cache infrastructure barrel.
+ */
+
+export { CachedPlatformContextViewRepository } from "./CachedPlatformContextViewRepository";
+export { CachedPolicyCatalogViewRepository } from "./CachedPolicyCatalogViewRepository";
+export { CachedUsageMeterRepository } from "./CachedUsageMeterRepository";
+````
+
+## File: modules/platform/infrastructure/db/EnvSecretReferenceResolver.ts
+````typescript
+/**
+ * EnvSecretReferenceResolver — Environment-based Adapter (Driven Adapter)
+ *
+ * Implements: SecretReferenceResolver
+ * Resolves secret references from environment variables.
+ */
+
+import type { SecretReferenceResolver } from "../../domain/ports/output";
+
+export class EnvSecretReferenceResolver implements SecretReferenceResolver {
+async resolve(secretRef: string): Promise<string> {
+const envKey = secretRef.toUpperCase().replace(/-/g, "_");
+return process.env[envKey] ?? "";
+}
+}
+````
+
+## File: modules/platform/infrastructure/db/FirebaseConfigurationProfileStore.ts
+````typescript
+/**
+ * FirebaseConfigurationProfileStore — Firestore Store (Driven Adapter)
+ *
+ * Implements: ConfigurationProfileStore
+ * Collection: "config-profiles"
+ */
+
+import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { ConfigurationProfileStore } from "../../domain/ports/output";
+
+export class FirebaseConfigurationProfileStore implements ConfigurationProfileStore {
+	private get db() {
+		return getFirestore(firebaseClientApp);
+	}
+
+	async getProfile(profileRef: string): Promise<unknown | null> {
+		const snap = await getDoc(doc(this.db, "config-profiles", profileRef));
+		if (!snap.exists()) return null;
+		return { profileRef, ...(snap.data() as Record<string, unknown>) };
+	}
+}
+````
+
+## File: modules/platform/infrastructure/db/FirebaseIntegrationContractRepository.ts
+````typescript
+/**
+ * FirebaseIntegrationContractRepository — Firestore Repository (Driven Adapter)
+ *
+ * Implements: IntegrationContractRepository
+ * Collection: "integration-contracts"
+ */
+
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { IntegrationContractRepository } from "../../domain/ports/output";
+
+export class FirebaseIntegrationContractRepository implements IntegrationContractRepository {
+	private get db() {
+		return getFirestore(firebaseClientApp);
+	}
+
+	async findById(integrationContractId: string): Promise<unknown | null> {
+		const snap = await getDoc(doc(this.db, "integration-contracts", integrationContractId));
+		if (!snap.exists()) return null;
+		return { integrationContractId, ...(snap.data() as Record<string, unknown>) };
+	}
+
+	async save(contract: unknown): Promise<void> {
+		const record = contract as Record<string, unknown>;
+		const id = record.integrationContractId as string;
+		await setDoc(doc(this.db, "integration-contracts", id), record, { merge: true });
+	}
+}
+````
+
+## File: modules/platform/infrastructure/db/FirebasePlatformContextRepository.ts
+````typescript
+/**
+ * FirebasePlatformContextRepository — Firestore Repository (Driven Adapter)
+ *
+ * Implements: PlatformContextRepository
+ * Collection: "platform-contexts"
+ */
+
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { PlatformContextRepository } from "../../domain/ports/output";
+
+export class FirebasePlatformContextRepository implements PlatformContextRepository {
+	private get db() {
+		return getFirestore(firebaseClientApp);
+	}
+
+	async findById(contextId: string): Promise<unknown | null> {
+		const snap = await getDoc(doc(this.db, "platform-contexts", contextId));
+		if (!snap.exists()) return null;
+		return { contextId, ...(snap.data() as Record<string, unknown>) };
+	}
+
+	async save(context: unknown): Promise<void> {
+		const record = context as Record<string, unknown>;
+		const contextId = record.contextId as string;
+		await setDoc(doc(this.db, "platform-contexts", contextId), record, { merge: true });
+	}
+}
+````
+
+## File: modules/platform/infrastructure/db/FirebasePolicyCatalogRepository.ts
+````typescript
+/**
+ * FirebasePolicyCatalogRepository — Firestore Repository (Driven Adapter)
+ *
+ * Implements: PolicyCatalogRepository
+ * Collection: "policy-catalogs"
+ */
+
+import { getFirestore, collection, query, orderBy, limit, getDocs, setDoc, doc } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { PolicyCatalogRepository } from "../../domain/ports/output";
+
+export class FirebasePolicyCatalogRepository implements PolicyCatalogRepository {
+	private get db() {
+		return getFirestore(firebaseClientApp);
+	}
+
+	async findActiveByContextId(contextId: string): Promise<unknown | null> {
+		const q = query(
+			collection(this.db, "policy-catalogs"),
+			orderBy("revision", "desc"),
+			limit(1),
+		);
+		const snap = await getDocs(q);
+		if (snap.empty) return null;
+		const d = snap.docs[0];
+		return { contextId, ...(d.data() as Record<string, unknown>), id: d.id };
+	}
+
+	async saveRevision(catalog: unknown): Promise<void> {
+		const record = catalog as Record<string, unknown>;
+		const contextId = record.contextId as string;
+		const revision = record.revision as number;
+		const id = `${contextId}__rev${revision}`;
+		await setDoc(doc(this.db, "policy-catalogs", id), record, { merge: true });
+	}
+}
+````
+
+## File: modules/platform/infrastructure/db/FirebaseSubscriptionAgreementRepository.ts
+````typescript
+/**
+ * FirebaseSubscriptionAgreementRepository — Firestore Repository (Driven Adapter)
+ *
+ * Implements: SubscriptionAgreementRepository
+ * Collection: "subscription-agreements"
+ */
+
+import { getFirestore, collection, query, where, getDocs, limit, setDoc, doc } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { SubscriptionAgreementRepository } from "../../domain/ports/output";
+
+export class FirebaseSubscriptionAgreementRepository implements SubscriptionAgreementRepository {
+	private get db() {
+		return getFirestore(firebaseClientApp);
+	}
+
+	async findEffectiveByContextId(contextId: string): Promise<unknown | null> {
+		const q = query(
+			collection(this.db, "subscription-agreements"),
+			where("contextId", "==", contextId),
+			where("billingState", "==", "active"),
+			limit(1),
+		);
+		const snap = await getDocs(q);
+		if (snap.empty) return null;
+		const d = snap.docs[0];
+		return { ...(d.data() as Record<string, unknown>), subscriptionAgreementId: d.id };
+	}
+
+	async save(agreement: unknown): Promise<void> {
+		const record = agreement as Record<string, unknown>;
+		const id = record.subscriptionAgreementId as string;
+		await setDoc(doc(this.db, "subscription-agreements", id), record, { merge: true });
+	}
+}
+````
+
+## File: modules/platform/infrastructure/db/FirebaseWorkflowPolicyRepository.ts
+````typescript
+/**
+ * FirebaseWorkflowPolicyRepository — Firestore Repository (Driven Adapter)
+ *
+ * Implements: WorkflowPolicyRepository
+ * Collection: "workflow-policies"
+ */
+
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { WorkflowPolicyRepository, WorkflowPolicyView } from "../../domain/ports/output";
+
+export class FirebaseWorkflowPolicyRepository implements WorkflowPolicyRepository {
+	private get db() {
+		return getFirestore(firebaseClientApp);
+	}
+
+	private makeId(contextId: string, triggerKey: string): string {
+		return `${contextId}__${triggerKey}`;
+	}
+
+	async getView(contextId: string, triggerKey: string): Promise<WorkflowPolicyView | null> {
+		const id = this.makeId(contextId, triggerKey);
+		const snap = await getDoc(doc(this.db, "workflow-policies", id));
+		if (!snap.exists()) return null;
+		const data = snap.data() as Record<string, unknown>;
+		return {
+			contextId,
+			triggerKey,
+			enabled: Boolean(data.enabled),
+		};
+	}
+
+	async save(policy: WorkflowPolicyView): Promise<void> {
+		const id = this.makeId(policy.contextId, policy.triggerKey);
+		await setDoc(doc(this.db, "workflow-policies", id), policy, { merge: true });
+	}
+}
+````
+
+## File: modules/platform/infrastructure/db/index.ts
+````typescript
+/**
+ * platform database infrastructure barrel.
+ */
+
+export { FirebasePlatformContextRepository } from "./FirebasePlatformContextRepository";
+export { FirebasePolicyCatalogRepository } from "./FirebasePolicyCatalogRepository";
+export { FirebaseIntegrationContractRepository } from "./FirebaseIntegrationContractRepository";
+export { FirebaseSubscriptionAgreementRepository } from "./FirebaseSubscriptionAgreementRepository";
+export { FirebaseWorkflowPolicyRepository } from "./FirebaseWorkflowPolicyRepository";
+export { FirebaseConfigurationProfileStore } from "./FirebaseConfigurationProfileStore";
+export { EnvSecretReferenceResolver } from "./EnvSecretReferenceResolver";
+````
+
+## File: modules/platform/infrastructure/email/index.ts
+````typescript
+/**
+ * platform email infrastructure barrel.
+ */
+
+export { SmtpNotificationGateway } from "./SmtpNotificationGateway";
+````
+
+## File: modules/platform/infrastructure/email/SmtpNotificationGateway.ts
+````typescript
+/**
+ * SmtpNotificationGateway — Email Adapter (Driven Adapter)
+ *
+ * Implements: NotificationGateway
+ * Delivers notifications. In production, replace console.info with
+ * a Resend / SendGrid / SMTP relay API call.
+ */
+
+import type { NotificationGateway } from "../../domain/ports/output";
+import type { PlatformCommandResult } from "../../domain/ports/input";
+
+export class SmtpNotificationGateway implements NotificationGateway {
+async dispatch(request: Record<string, unknown>): Promise<PlatformCommandResult> {
+if (process.env.NODE_ENV !== "test") {
+console.info("[SmtpNotificationGateway] dispatch", request);
+}
+return { ok: true, code: "NOTIFICATION_DISPATCHED" };
+}
+}
+````
+
 ## File: modules/platform/infrastructure/events/ingress/index.ts
 ````typescript
 /**
@@ -3922,6 +5246,217 @@ export * from "./monitoring";
 export * from "./storage";
 ````
 
+## File: modules/platform/infrastructure/messaging/index.ts
+````typescript
+/**
+ * platform messaging infrastructure barrel.
+ */
+
+export { QStashDomainEventPublisher } from "./QStashDomainEventPublisher";
+export { QStashWorkflowDispatcher } from "./QStashWorkflowDispatcher";
+export { QStashJobQueuePort } from "./QStashJobQueuePort";
+````
+
+## File: modules/platform/infrastructure/messaging/QStashDomainEventPublisher.ts
+````typescript
+/**
+ * QStashDomainEventPublisher — Messaging Adapter (Driven Adapter)
+ *
+ * Implements: DomainEventPublisher
+ * Publishes platform domain events via Upstash QStash.
+ */
+
+import type { DomainEventPublisher } from "../../domain/ports/output";
+import type { PlatformDomainEvent } from "../../domain/events";
+
+const QSTASH_ENDPOINT = "https://qstash.upstash.io/v2/publish/";
+
+export class QStashDomainEventPublisher implements DomainEventPublisher {
+	constructor(
+		private readonly destinationUrl: string = process.env.QSTASH_DESTINATION_URL ?? "",
+		private readonly token: string = process.env.QSTASH_TOKEN ?? "",
+	) {}
+
+	async publish(events: PlatformDomainEvent[]): Promise<void> {
+		if (events.length === 0) return;
+
+		if (!this.destinationUrl || !this.token) {
+			if (process.env.NODE_ENV !== "production") {
+				for (const event of events) {
+					console.warn(
+						`[QStashDomainEventPublisher] QSTASH_DESTINATION_URL or QSTASH_TOKEN not set. ` +
+							`Skipping publish of event '${event.type}' (${event.aggregateId}).`,
+					);
+				}
+			}
+			return;
+		}
+
+		for (const event of events) {
+			const body = JSON.stringify(event);
+			const dedupeId = `${event.aggregateType}:${event.aggregateId}:${event.occurredAt}`;
+			const response = await fetch(
+				`${QSTASH_ENDPOINT}${encodeURIComponent(this.destinationUrl)}`,
+				{
+					method: "POST",
+					headers: {
+						Authorization: `Bearer ${this.token}`,
+						"Content-Type": "application/json",
+						"Upstash-Retries": "3",
+						"Upstash-Deduplication-Id": dedupeId,
+					},
+					body,
+				},
+			);
+			if (!response.ok) {
+				const text = await response.text().catch(() => response.statusText);
+				throw new Error(
+					`QStashDomainEventPublisher: failed to publish '${event.type}'. ` +
+						`HTTP ${response.status}: ${text}`,
+				);
+			}
+		}
+	}
+}
+````
+
+## File: modules/platform/infrastructure/messaging/QStashJobQueuePort.ts
+````typescript
+/**
+ * QStashJobQueuePort — Messaging Adapter (Driven Adapter)
+ *
+ * Implements: JobQueuePort
+ * Transport:  Upstash QStash job queue
+ */
+
+import type { JobQueuePort } from "../../domain/ports/output";
+import type { PlatformCommandResult } from "../../domain/ports/input";
+
+const QSTASH_ENDPOINT = "https://qstash.upstash.io/v2/publish/";
+
+export class QStashJobQueuePort implements JobQueuePort {
+constructor(
+private readonly jobWorkerUrl: string = process.env.JOB_WORKER_URL ?? "",
+private readonly token: string = process.env.QSTASH_TOKEN ?? "",
+) {}
+
+async enqueue(job: Record<string, unknown>): Promise<PlatformCommandResult> {
+const jobType = typeof job.jobType === "string" ? job.jobType : "unknown";
+
+if (!this.jobWorkerUrl || !this.token) {
+if (process.env.NODE_ENV !== "production") {
+console.warn(
+`[QStashJobQueuePort] JOB_WORKER_URL or QSTASH_TOKEN not set. ` +
+`Skipping enqueue of job '${jobType}'.`,
+);
+}
+return { ok: true, code: "JOB_ENQUEUED_NOOP", metadata: { jobType } };
+}
+
+const destinationUrl = `${this.jobWorkerUrl}/api/jobs/${encodeURIComponent(jobType)}`;
+const response = await fetch(`${QSTASH_ENDPOINT}${encodeURIComponent(destinationUrl)}`, {
+method: "POST",
+headers: {
+Authorization: `Bearer ${this.token}`,
+"Content-Type": "application/json",
+"Upstash-Retries": "3",
+},
+body: JSON.stringify(job),
+});
+
+if (!response.ok) {
+const text = await response.text().catch(() => response.statusText);
+return { ok: false, code: "JOB_ENQUEUE_FAILED", message: `HTTP ${response.status}: ${text}` };
+}
+
+return { ok: true, code: "JOB_ENQUEUED", metadata: { jobType } };
+}
+}
+````
+
+## File: modules/platform/infrastructure/messaging/QStashWorkflowDispatcher.ts
+````typescript
+/**
+ * QStashWorkflowDispatcher — Messaging Adapter (Driven Adapter)
+ *
+ * Implements: WorkflowDispatcherPort
+ * Dispatches workflow triggers via Upstash QStash.
+ */
+
+import type { WorkflowDispatcherPort } from "../../domain/ports/output";
+import type { PlatformCommandResult } from "../../domain/ports/input";
+
+const QSTASH_ENDPOINT = "https://qstash.upstash.io/v2/publish/";
+
+export class QStashWorkflowDispatcher implements WorkflowDispatcherPort {
+constructor(
+private readonly workflowBaseUrl: string = process.env.WORKFLOW_BASE_URL ?? "",
+private readonly token: string = process.env.QSTASH_TOKEN ?? "",
+) {}
+
+async dispatch(triggerKey: string, payload: Record<string, unknown>): Promise<PlatformCommandResult> {
+if (!this.workflowBaseUrl || !this.token) {
+if (process.env.NODE_ENV !== "production") {
+console.warn(
+`[QStashWorkflowDispatcher] WORKFLOW_BASE_URL or QSTASH_TOKEN not set. ` +
+`Skipping workflow dispatch for key '${triggerKey}'.`,
+);
+}
+return { ok: true, code: "WORKFLOW_DISPATCHED_NOOP", metadata: { triggerKey } };
+}
+
+const destinationUrl = `${this.workflowBaseUrl}/api/workflows/${encodeURIComponent(triggerKey)}`;
+const response = await fetch(`${QSTASH_ENDPOINT}${encodeURIComponent(destinationUrl)}`, {
+method: "POST",
+headers: {
+Authorization: `Bearer ${this.token}`,
+"Content-Type": "application/json",
+"Upstash-Retries": "3",
+},
+body: JSON.stringify({ triggerKey, ...payload }),
+});
+
+if (!response.ok) {
+const text = await response.text().catch(() => response.statusText);
+return { ok: false, code: "WORKFLOW_DISPATCH_FAILED", message: `HTTP ${response.status}: ${text}` };
+}
+
+return { ok: true, code: "WORKFLOW_DISPATCHED", metadata: { triggerKey } };
+}
+}
+````
+
+## File: modules/platform/infrastructure/monitoring/FirebaseObservabilitySink.ts
+````typescript
+/**
+ * FirebaseObservabilitySink — Monitoring Adapter (Driven Adapter)
+ *
+ * Implements: ObservabilitySink
+ * Emits observability signals as structured console telemetry suitable for
+ * Cloud Logging ingestion. Extend with a provider SDK (Datadog, GCM, etc.) as needed.
+ */
+
+import type { ObservabilitySink } from "../../domain/ports/output";
+
+export class FirebaseObservabilitySink implements ObservabilitySink {
+async emit(signal: Record<string, unknown>): Promise<void> {
+const entry = { type: "observability", ...signal, emittedAt: new Date().toISOString() };
+if (process.env.NODE_ENV !== "test") {
+console.info("[ObservabilitySink]", JSON.stringify(entry));
+}
+}
+}
+````
+
+## File: modules/platform/infrastructure/monitoring/index.ts
+````typescript
+/**
+ * platform monitoring infrastructure barrel.
+ */
+
+export { FirebaseObservabilitySink } from "./FirebaseObservabilitySink";
+````
+
 ## File: modules/platform/infrastructure/persistence/index.ts
 ````typescript
 /**
@@ -4028,6 +5563,42 @@ export type PlatformAdapterPersistenceFunction = (typeof PLATFORM_ADAPTER_PERSIS
  */
 
 // TODO: implement mapSubscriptionAgreementToPersistenceRecord serialisation function
+````
+
+## File: modules/platform/infrastructure/storage/FirebaseStorageAuditSignalStore.ts
+````typescript
+/**
+ * FirebaseStorageAuditSignalStore — Storage Adapter (Driven Adapter)
+ *
+ * Implements: AuditSignalStore
+ * Appends immutable audit signals to "audit-signals" Firestore collection.
+ */
+
+import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { AuditSignalStore } from "../../domain/ports/output";
+
+export class FirebaseStorageAuditSignalStore implements AuditSignalStore {
+private get db() {
+return getFirestore(firebaseClientApp);
+}
+
+async write(signal: Record<string, unknown>): Promise<void> {
+await addDoc(collection(this.db, "audit-signals"), {
+...signal,
+recordedAt: serverTimestamp(),
+});
+}
+}
+````
+
+## File: modules/platform/infrastructure/storage/index.ts
+````typescript
+/**
+ * platform storage infrastructure barrel.
+ */
+
+export { FirebaseStorageAuditSignalStore } from "./FirebaseStorageAuditSignalStore";
 ````
 
 ## File: modules/platform/interfaces/api/handlePlatformCommandHttp.ts
@@ -4237,57 +5808,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/account-profile/api/index.ts
-````typescript
-/**
- * Public API boundary for the account-profile subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Composition root lives in infrastructure/account-profile-service.ts;
- * this boundary is intentionally thin — it only re-exports public contracts.
- */
-
-import {
-	getAccountProfileFromService,
-	subscribeToAccountProfileFromService,
-	updateAccountProfileFromService,
-} from "../infrastructure";
-import type { AccountProfile, Unsubscribe } from "../domain";
-import type { UpdateAccountProfileInput } from "../application";
-import type { CommandResult } from "@shared-types";
-
-// ── Use-case delegators ──────────────────────────────────────────────────
-
-export async function getAccountProfile(actorId: string): Promise<AccountProfile | null> {
-	return getAccountProfileFromService(actorId);
-}
-
-export function subscribeToAccountProfile(
-	actorId: string,
-	onUpdate: (profile: AccountProfile | null) => void,
-): Unsubscribe {
-	return subscribeToAccountProfileFromService(actorId, onUpdate);
-}
-
-export async function updateAccountProfile(
-	actorId: string,
-	input: UpdateAccountProfileInput,
-): Promise<CommandResult> {
-	return updateAccountProfileFromService(actorId, input);
-}
-
-// Legacy compatibility exports for migration window.
-export const getUserProfile = getAccountProfile;
-export const subscribeToUserProfile = subscribeToAccountProfile;
-
-export { getProfile, subscribeToProfile, updateProfile } from "../interfaces";
-
-export * from "../application";
-export * from "../domain";
-export { SettingsProfileRouteScreen } from "../interfaces";
-export type { LegacyAccountProfileDataSource } from "../infrastructure";
-````
-
 ## File: modules/platform/subdomains/account-profile/application/use-cases/get-account-profile.use-case.ts
 ````typescript
 import {
@@ -4386,6 +5906,112 @@ export class UpdateAccountProfileUseCase {
 }
 ````
 
+## File: modules/platform/subdomains/account-profile/domain/aggregates/AccountProfileAggregate.ts
+````typescript
+import type {
+  AccountProfileDomainEventType,
+  AccountProfileUpdatedEvent,
+} from "../events/AccountProfileDomainEvent";
+import { createProfileId, createProfileDisplayName } from "../value-objects";
+import type { ProfileId } from "../value-objects";
+import type {
+  AccountProfile,
+  UpdateAccountProfileInput,
+} from "../entities/AccountProfile";
+
+export interface AccountProfileAggregateSnapshot {
+  readonly id: string;
+  readonly displayName: string;
+  readonly email: string | null;
+  readonly photoURL: string | null;
+  readonly bio: string | null;
+  readonly theme: AccountProfile["theme"] | null;
+  readonly updatedAtISO: string;
+}
+
+export class AccountProfileAggregate {
+  private readonly _domainEvents: AccountProfileDomainEventType[] = [];
+
+  private constructor(private _props: AccountProfileAggregateSnapshot) {}
+
+  static create(id: string, profile: AccountProfile): AccountProfileAggregate {
+    createProfileId(id);
+    createProfileDisplayName(profile.displayName);
+    return new AccountProfileAggregate({
+      id,
+      displayName: profile.displayName,
+      email: profile.email ?? null,
+      photoURL: profile.photoURL ?? null,
+      bio: profile.bio ?? null,
+      theme: profile.theme ?? null,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  static reconstitute(
+    snapshot: AccountProfileAggregateSnapshot,
+  ): AccountProfileAggregate {
+    return new AccountProfileAggregate({ ...snapshot });
+  }
+
+  update(input: UpdateAccountProfileInput): void {
+    const changedFields: string[] = [];
+    const now = new Date().toISOString();
+    if (input.displayName !== undefined && input.displayName !== this._props.displayName) {
+      createProfileDisplayName(input.displayName);
+      changedFields.push("displayName");
+    }
+    if (input.bio !== undefined && input.bio !== this._props.bio) changedFields.push("bio");
+    if (input.photoURL !== undefined && input.photoURL !== this._props.photoURL) changedFields.push("photoURL");
+    if (input.theme !== undefined) changedFields.push("theme");
+    this._props = {
+      ...this._props,
+      displayName: input.displayName ?? this._props.displayName,
+      bio: input.bio ?? this._props.bio,
+      photoURL: input.photoURL ?? this._props.photoURL,
+      theme: input.theme ?? this._props.theme,
+      updatedAtISO: now,
+    };
+    this.recordEvent<AccountProfileUpdatedEvent>({
+      type: "platform.account-profile.updated",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { profileId: this._props.id, fields: changedFields },
+    });
+  }
+
+  get id(): ProfileId {
+    return createProfileId(this._props.id);
+  }
+
+  get displayName(): string {
+    return this._props.displayName;
+  }
+
+  getSnapshot(): Readonly<AccountProfileAggregateSnapshot> {
+    return Object.freeze({ ...this._props });
+  }
+
+  pullDomainEvents(): AccountProfileDomainEventType[] {
+    const events = [...this._domainEvents];
+    this._domainEvents.length = 0;
+    return events;
+  }
+
+  private recordEvent<TEvent extends AccountProfileDomainEventType>(
+    event: TEvent,
+  ): void {
+    this._domainEvents.push(event);
+  }
+}
+````
+
+## File: modules/platform/subdomains/account-profile/domain/aggregates/index.ts
+````typescript
+export { AccountProfileAggregate } from "./AccountProfileAggregate";
+export type { AccountProfileAggregateSnapshot } from "./AccountProfileAggregate";
+````
+
 ## File: modules/platform/subdomains/account-profile/domain/entities/AccountProfile.ts
 ````typescript
 import { z } from "@lib-zod";
@@ -4437,6 +6063,72 @@ export function createUpdateAccountProfileInput(
 }
 ````
 
+## File: modules/platform/subdomains/account-profile/domain/events/AccountProfileDomainEvent.ts
+````typescript
+export interface AccountProfileDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
+}
+
+export interface AccountProfileUpdatedEvent extends AccountProfileDomainEvent {
+  readonly type: "platform.account-profile.updated";
+  readonly payload: {
+    readonly profileId: string;
+    readonly fields: string[];
+  };
+}
+
+export type AccountProfileDomainEventType = AccountProfileUpdatedEvent;
+````
+
+## File: modules/platform/subdomains/account-profile/domain/events/index.ts
+````typescript
+export type {
+  AccountProfileDomainEvent,
+  AccountProfileUpdatedEvent,
+  AccountProfileDomainEventType,
+} from "./AccountProfileDomainEvent";
+````
+
+## File: modules/platform/subdomains/account-profile/domain/index.ts
+````typescript
+export {
+	AccountProfileIdSchema,
+	AccountProfileSchema,
+	createAccountProfile,
+	createAccountProfileId,
+	createUpdateAccountProfileInput,
+} from "./entities/AccountProfile";
+export type {
+	AccountProfile,
+	AccountProfileId,
+	AccountProfileTheme,
+	UpdateAccountProfileInput,
+} from "./entities/AccountProfile";
+
+export type { Unsubscribe, AccountProfileQueryRepository } from "./repositories/AccountProfileQueryRepository";
+export type { AccountProfileCommandRepository } from "./repositories/AccountProfileCommandRepository";
+export type { IAccountProfileQueryPort, IAccountProfileCommandPort } from "./ports";
+export * from "./aggregates";
+export * from "./events";
+export * from "./value-objects";
+````
+
+## File: modules/platform/subdomains/account-profile/domain/ports/index.ts
+````typescript
+/**
+ * account-profile domain/ports — driven port interfaces for the account-profile subdomain.
+ *
+ * These re-export the repository contracts from domain/repositories/, making
+ * the Ports layer explicitly visible in the directory structure.
+ * New code should import port interfaces from this directory.
+ */
+export type { AccountProfileQueryRepository as IAccountProfileQueryPort } from "../repositories/AccountProfileQueryRepository";
+export type { AccountProfileCommandRepository as IAccountProfileCommandPort } from "../repositories/AccountProfileCommandRepository";
+````
+
 ## File: modules/platform/subdomains/account-profile/domain/repositories/AccountProfileCommandRepository.ts
 ````typescript
 import type {
@@ -4467,103 +6159,43 @@ export interface AccountProfileQueryRepository {
 }
 ````
 
-## File: modules/platform/subdomains/account-profile/infrastructure/account-profile-service.ts
+## File: modules/platform/subdomains/account-profile/domain/value-objects/index.ts
 ````typescript
-/**
- * AccountProfileService — Composition root for account-profile subdomain.
- *
- * Wires the legacy account data-source (from the account subdomain bridge)
- * into domain-port-conforming adapters and use cases. This keeps infrastructure
- * wiring inside the infrastructure layer, off the api boundary.
- */
+export { ProfileIdSchema, createProfileId } from "./ProfileId";
+export type { ProfileId } from "./ProfileId";
+export {
+  ProfileDisplayNameSchema,
+  createProfileDisplayName,
+} from "./ProfileDisplayName";
+export type { ProfileDisplayName } from "./ProfileDisplayName";
+````
 
-import {
-	GetAccountProfileUseCase,
-	SubscribeAccountProfileUseCase,
-	UpdateAccountProfileUseCase,
-} from "../application";
-import {
-	createLegacyAccountProfileCommandRepository,
-	createLegacyAccountProfileQueryRepository,
-	type LegacyAccountProfileDataSource,
-} from "./create-legacy-account-profile-application.adapter";
-import {
-	getLegacyUserProfile,
-	subscribeToLegacyUserProfile,
-	updateLegacyUserProfile,
-} from "../../account/api/legacy-account-profile.bridge";
-import type { AccountProfile, Unsubscribe } from "../domain";
-import type { UpdateAccountProfileInput } from "../application";
-import type { CommandResult } from "@shared-types";
+## File: modules/platform/subdomains/account-profile/domain/value-objects/ProfileDisplayName.ts
+````typescript
+import { z } from "@lib-zod";
 
-// ── Lazy singletons ──────────────────────────────────────────────────────
+export const ProfileDisplayNameSchema = z
+  .string()
+  .min(1)
+  .max(100)
+  .trim()
+  .brand("ProfileDisplayName");
+export type ProfileDisplayName = z.infer<typeof ProfileDisplayNameSchema>;
 
-let _legacyDataSource: LegacyAccountProfileDataSource | undefined;
-let _getAccountProfileUseCase: GetAccountProfileUseCase | undefined;
-let _subscribeAccountProfileUseCase: SubscribeAccountProfileUseCase | undefined;
-let _updateAccountProfileUseCase: UpdateAccountProfileUseCase | undefined;
-
-function getLegacyDataSource(): LegacyAccountProfileDataSource {
-	if (_legacyDataSource) {
-		return _legacyDataSource;
-	}
-
-	_legacyDataSource = {
-		getUserProfile: getLegacyUserProfile,
-		subscribeToUserProfile: subscribeToLegacyUserProfile,
-		updateUserProfile: updateLegacyUserProfile,
-	};
-	return _legacyDataSource;
+export function createProfileDisplayName(raw: string): ProfileDisplayName {
+  return ProfileDisplayNameSchema.parse(raw);
 }
+````
 
-function getGetAccountProfileUseCase(): GetAccountProfileUseCase {
-	if (_getAccountProfileUseCase) {
-		return _getAccountProfileUseCase;
-	}
+## File: modules/platform/subdomains/account-profile/domain/value-objects/ProfileId.ts
+````typescript
+import { z } from "@lib-zod";
 
-	const repository = createLegacyAccountProfileQueryRepository(getLegacyDataSource());
-	_getAccountProfileUseCase = new GetAccountProfileUseCase(repository);
-	return _getAccountProfileUseCase;
-}
+export const ProfileIdSchema = z.string().min(1).brand("ProfileId");
+export type ProfileId = z.infer<typeof ProfileIdSchema>;
 
-function getSubscribeAccountProfileUseCase(): SubscribeAccountProfileUseCase {
-	if (_subscribeAccountProfileUseCase) {
-		return _subscribeAccountProfileUseCase;
-	}
-
-	const repository = createLegacyAccountProfileQueryRepository(getLegacyDataSource());
-	_subscribeAccountProfileUseCase = new SubscribeAccountProfileUseCase(repository);
-	return _subscribeAccountProfileUseCase;
-}
-
-function getUpdateAccountProfileUseCase(): UpdateAccountProfileUseCase {
-	if (_updateAccountProfileUseCase) {
-		return _updateAccountProfileUseCase;
-	}
-
-	const repository = createLegacyAccountProfileCommandRepository(getLegacyDataSource());
-	_updateAccountProfileUseCase = new UpdateAccountProfileUseCase(repository);
-	return _updateAccountProfileUseCase;
-}
-
-// ── Public service API ───────────────────────────────────────────────────
-
-export async function getAccountProfile(actorId: string): Promise<AccountProfile | null> {
-	return getGetAccountProfileUseCase().execute(actorId);
-}
-
-export function subscribeToAccountProfile(
-	actorId: string,
-	onUpdate: (profile: AccountProfile | null) => void,
-): Unsubscribe {
-	return getSubscribeAccountProfileUseCase().execute(actorId, onUpdate);
-}
-
-export async function updateAccountProfile(
-	actorId: string,
-	input: UpdateAccountProfileInput,
-): Promise<CommandResult> {
-	return getUpdateAccountProfileUseCase().execute(actorId, input);
+export function createProfileId(raw: string): ProfileId {
+  return ProfileIdSchema.parse(raw);
 }
 ````
 
@@ -4692,22 +6324,6 @@ export function createLegacyAccountProfileCommandRepository(
 ): AccountProfileCommandRepository {
 	return new LegacyAccountProfileCommandAdapter(legacyDataSource);
 }
-````
-
-## File: modules/platform/subdomains/account-profile/infrastructure/index.ts
-````typescript
-export {
-	createLegacyAccountProfileCommandRepository,
-	createLegacyAccountProfileQueryRepository,
-} from "./create-legacy-account-profile-application.adapter";
-export type {
-	LegacyAccountProfileDataSource,
-} from "./create-legacy-account-profile-application.adapter";
-export {
-	getAccountProfile as getAccountProfileFromService,
-	subscribeToAccountProfile as subscribeToAccountProfileFromService,
-	updateAccountProfile as updateAccountProfileFromService,
-} from "./account-profile-service";
 ````
 
 ## File: modules/platform/subdomains/account-profile/interfaces/components/screens/SettingsProfileRouteScreen.tsx
@@ -4918,37 +6534,6 @@ User profile preferences and settings.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/account/api/index.ts
-````typescript
-/**
- * Public API boundary for the account subdomain.
- * Cross-module consumers must import through this entry point.
- */
-
-export * from "../application";
-export { accountService, createClientAccountUseCases, createAccountQueryRepository } from "../infrastructure";
-export type {
-  AccountEntity,
-  AccountType,
-  OrganizationRole,
-  AccountRoleRecord,
-  UpdateProfileInput,
-  WalletTransaction,
-  ThemeConfig,
-  Wallet,
-} from "../domain/entities/Account";
-export type {
-  AccountPolicy,
-  PolicyRule,
-  PolicyEffect,
-  CreatePolicyInput,
-  UpdatePolicyInput,
-} from "../domain/entities/AccountPolicy";
-export type { WalletBalanceSnapshot, Unsubscribe } from "../domain/repositories/AccountQueryRepository";
-export type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
-export * from "../interfaces";
 ````
 
 ## File: modules/platform/subdomains/account/application/use-cases/account-policy.use-cases.ts
@@ -5669,6 +7254,56 @@ export type AccountDomainEventType =
 export * from "./AccountDomainEvent";
 ````
 
+## File: modules/platform/subdomains/account/domain/index.ts
+````typescript
+export type {
+  AccountType,
+  OrganizationRole,
+  Presence,
+  ThemeConfig,
+  Wallet,
+  ExpertiseBadge,
+  MemberReference,
+  Team,
+  AccountEntity,
+  AccountRoleRecord,
+  UpdateProfileInput,
+  WalletTransaction,
+} from "./entities/Account";
+
+export type {
+  PolicyEffect,
+  PolicyRule,
+  AccountPolicy,
+  CreatePolicyInput,
+  UpdatePolicyInput,
+} from "./entities/AccountPolicy";
+
+export type { AccountRepository } from "./repositories/AccountRepository";
+export type { AccountQueryRepository, WalletBalanceSnapshot, Unsubscribe } from "./repositories/AccountQueryRepository";
+export type { AccountPolicyRepository } from "./repositories/AccountPolicyRepository";
+export type { TokenRefreshPort, TokenRefreshSignalInput } from "./ports/TokenRefreshPort";
+export type { IAccountPort, IAccountQueryPort, IAccountPolicyPort } from "./ports";
+export * from "./aggregates";
+export * from "./events";
+export * from "./value-objects";
+````
+
+## File: modules/platform/subdomains/account/domain/ports/index.ts
+````typescript
+/**
+ * account domain/ports — driven port interfaces for the account subdomain.
+ *
+ * These re-export the repository contracts from domain/repositories/, making
+ * the Ports layer explicitly visible in the directory structure.
+ * New code should import port interfaces from this directory.
+ */
+export type { AccountRepository as IAccountPort } from "../repositories/AccountRepository";
+export type { AccountQueryRepository as IAccountQueryPort } from "../repositories/AccountQueryRepository";
+export type { AccountPolicyRepository as IAccountPolicyPort } from "../repositories/AccountPolicyRepository";
+export type { TokenRefreshPort } from "./TokenRefreshPort";
+````
+
 ## File: modules/platform/subdomains/account/domain/ports/TokenRefreshPort.ts
 ````typescript
 /**
@@ -5831,6 +7466,97 @@ export type WalletAmount = z.infer<typeof WalletAmountSchema>;
 
 export function createWalletAmount(raw: number): WalletAmount {
 	return WalletAmountSchema.parse(raw);
+}
+````
+
+## File: modules/platform/subdomains/account/infrastructure/account-service.ts
+````typescript
+/**
+ * AccountService — Composition root for account use cases.
+ * Wires repositories and ports; provides a unified service interface.
+ */
+
+import {
+  CreateUserAccountUseCase,
+  UpdateUserProfileUseCase,
+  CreditWalletUseCase,
+  DebitWalletUseCase,
+  AssignAccountRoleUseCase,
+  RevokeAccountRoleUseCase,
+} from "../application/use-cases/account.use-cases";
+import {
+  CreateAccountPolicyUseCase,
+  UpdateAccountPolicyUseCase,
+  DeleteAccountPolicyUseCase,
+} from "../application/use-cases/account-policy.use-cases";
+import { FirebaseAccountRepository } from "./firebase/FirebaseAccountRepository";
+import { FirebaseAccountQueryRepository } from "./firebase/FirebaseAccountQueryRepository";
+import { FirebaseAccountPolicyRepository } from "./firebase/FirebaseAccountPolicyRepository";
+import { tokenRefreshAdapter } from "./identity-token-refresh.adapter";
+import type { UpdateProfileInput, OrganizationRole } from "../domain/entities/Account";
+import type { CreatePolicyInput, UpdatePolicyInput } from "../domain/entities/AccountPolicy";
+import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
+import type { CommandResult } from "@shared-types";
+
+let _accountRepo: FirebaseAccountRepository | undefined;
+let _policyRepo: FirebaseAccountPolicyRepository | undefined;
+
+function getAccountRepo(): FirebaseAccountRepository {
+  if (!_accountRepo) _accountRepo = new FirebaseAccountRepository();
+  return _accountRepo;
+}
+
+function getAcctPolicyRepo(): FirebaseAccountPolicyRepository {
+  if (!_policyRepo) _policyRepo = new FirebaseAccountPolicyRepository();
+  return _policyRepo;
+}
+
+export const accountService = {
+  createUserAccount: (userId: string, name: string, email: string): Promise<CommandResult> =>
+    new CreateUserAccountUseCase(getAccountRepo()).execute(userId, name, email),
+
+  updateUserProfile: (userId: string, data: UpdateProfileInput): Promise<CommandResult> =>
+    new UpdateUserProfileUseCase(getAccountRepo()).execute(userId, data),
+
+  creditWallet: (accountId: string, amount: number, description: string): Promise<CommandResult> =>
+    new CreditWalletUseCase(getAccountRepo()).execute(accountId, amount, description),
+
+  debitWallet: (accountId: string, amount: number, description: string): Promise<CommandResult> =>
+    new DebitWalletUseCase(getAccountRepo()).execute(accountId, amount, description),
+
+  assignRole: (accountId: string, role: OrganizationRole, grantedBy: string, traceId?: string): Promise<CommandResult> =>
+    new AssignAccountRoleUseCase(getAccountRepo(), tokenRefreshAdapter).execute(accountId, role, grantedBy, traceId),
+
+  revokeRole: (accountId: string): Promise<CommandResult> =>
+    new RevokeAccountRoleUseCase(getAccountRepo(), tokenRefreshAdapter).execute(accountId),
+
+  createPolicy: (input: CreatePolicyInput): Promise<CommandResult> =>
+    new CreateAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(input),
+
+  updatePolicy: (policyId: string, accountId: string, data: UpdatePolicyInput, traceId?: string): Promise<CommandResult> =>
+    new UpdateAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(policyId, accountId, data, traceId),
+
+  deletePolicy: (policyId: string, accountId: string): Promise<CommandResult> =>
+    new DeleteAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(policyId, accountId),
+};
+
+/**
+ * Creates a wired set of client-side account use cases.
+ * Keeps infrastructure wiring in the module boundary rather than in UI files.
+ */
+export function createClientAccountUseCases() {
+  const repo = new FirebaseAccountRepository();
+  return {
+    createUserAccountUseCase: new CreateUserAccountUseCase(repo),
+  };
+}
+
+// Internal re-export for the legacy bridge within this subdomain only.
+export { FirebaseAccountQueryRepository };
+
+/** Factory that returns a wired AccountQueryRepository without leaking the concrete class. */
+export function createAccountQueryRepository(): AccountQueryRepository {
+  return new FirebaseAccountQueryRepository();
 }
 ````
 
@@ -6312,25 +8038,6 @@ export class FirebaseAccountRepository implements AccountRepository {
 }
 ````
 
-## File: modules/platform/subdomains/account/infrastructure/identity-token-refresh.adapter.ts
-````typescript
-/**
- * IdentityTokenRefreshAdapter — Implements TokenRefreshPort using the platform identity subdomain.
- * This adapter lives in the adapters layer so the application layer stays clean.
- */
-
-import { identityApi } from "@/modules/platform/subdomains/identity/api";
-import type { TokenRefreshPort, TokenRefreshSignalInput } from "../domain/ports/TokenRefreshPort";
-
-export class IdentityTokenRefreshAdapter implements TokenRefreshPort {
-  async emitTokenRefreshSignal(input: TokenRefreshSignalInput): Promise<void> {
-    await identityApi.emitTokenRefreshSignal(input);
-  }
-}
-
-export const tokenRefreshAdapter = new IdentityTokenRefreshAdapter();
-````
-
 ## File: modules/platform/subdomains/account/infrastructure/index.ts
 ````typescript
 export { accountService, createClientAccountUseCases } from "./account-service";
@@ -6642,6 +8349,21 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/platform/subdomains/background-job/api/index.ts
+````typescript
+/**
+ * Public API boundary for the background-job subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+
+export * from "../application";
+export { ingestionService } from "../infrastructure/ingestion-service";
+export type { IngestionDocument } from "../domain/entities/IngestionDocument";
+export type { IngestionChunk, IngestionChunkMetadata } from "../domain/entities/IngestionChunk";
+export type { IngestionJob, IngestionStatus } from "../domain/entities/IngestionJob";
+export { canTransitionIngestionStatus } from "../domain/entities/IngestionJob";
+````
+
 ## File: modules/platform/subdomains/background-job/application/index.ts
 ````typescript
 export {
@@ -6915,6 +8637,88 @@ export interface IngestionJob {
   /** ISO-8601 timestamp of last status update. */
   readonly updatedAtISO: string;
 }
+````
+
+## File: modules/platform/subdomains/background-job/domain/events/index.ts
+````typescript
+export type {
+  IngestionJobDomainEvent,
+  IngestionJobRegisteredEvent,
+  IngestionJobAdvancedEvent,
+  IngestionJobFailedEvent,
+  IngestionJobDomainEventType,
+} from "./IngestionJobDomainEvent";
+````
+
+## File: modules/platform/subdomains/background-job/domain/events/IngestionJobDomainEvent.ts
+````typescript
+import type { IngestionStatus } from "../entities/IngestionJob";
+
+export interface IngestionJobDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
+}
+
+export interface IngestionJobRegisteredEvent extends IngestionJobDomainEvent {
+  readonly type: "platform.background-job.ingestion_registered";
+  readonly payload: {
+    readonly jobId: string;
+    readonly documentId: string;
+    readonly organizationId: string;
+    readonly workspaceId: string;
+    readonly title: string;
+    readonly mimeType: string;
+  };
+}
+
+export interface IngestionJobAdvancedEvent extends IngestionJobDomainEvent {
+  readonly type: "platform.background-job.ingestion_advanced";
+  readonly payload: {
+    readonly jobId: string;
+    readonly documentId: string;
+    readonly previousStatus: IngestionStatus;
+    readonly nextStatus: IngestionStatus;
+  };
+}
+
+export interface IngestionJobFailedEvent extends IngestionJobDomainEvent {
+  readonly type: "platform.background-job.ingestion_failed";
+  readonly payload: {
+    readonly jobId: string;
+    readonly documentId: string;
+    readonly reason: string;
+  };
+}
+
+export type IngestionJobDomainEventType =
+  | IngestionJobRegisteredEvent
+  | IngestionJobAdvancedEvent
+  | IngestionJobFailedEvent;
+````
+
+## File: modules/platform/subdomains/background-job/domain/index.ts
+````typescript
+export type { IngestionDocument } from "./entities/IngestionDocument";
+export type { IngestionChunk, IngestionChunkMetadata } from "./entities/IngestionChunk";
+export type { IngestionJob, IngestionStatus } from "./entities/IngestionJob";
+export { canTransitionIngestionStatus } from "./entities/IngestionJob";
+export type { IIngestionJobRepository } from "./repositories/IIngestionJobRepository";
+export type { IIngestionJobPort } from "./ports";
+export * from "./events";
+````
+
+## File: modules/platform/subdomains/background-job/domain/ports/index.ts
+````typescript
+/**
+ * background-job domain/ports — driven port interfaces for the background-job subdomain.
+ *
+ * These re-export the repository contracts from domain/repositories/, making
+ * the Ports layer explicitly visible in the directory structure.
+ * New code should import port interfaces from this directory.
+ */
+export type { IIngestionJobRepository as IIngestionJobPort } from "../repositories/IIngestionJobRepository";
 ````
 
 ## File: modules/platform/subdomains/background-job/domain/repositories/IIngestionJobRepository.ts
@@ -7828,6 +9632,31 @@ export type IdentityDomainEventType =
 export * from "./IdentityDomainEvent";
 ````
 
+## File: modules/platform/subdomains/identity/domain/index.ts
+````typescript
+export type { IdentityEntity, RegistrationInput, SignInCredentials } from "./entities/Identity";
+export type { TokenRefreshReason, TokenRefreshSignal } from "./entities/TokenRefreshSignal";
+export type { IdentityRepository } from "./repositories/IdentityRepository";
+export type { TokenRefreshRepository } from "./repositories/TokenRefreshRepository";
+export type { IIdentityPort, ITokenRefreshPort } from "./ports";
+export * from "./aggregates";
+export * from "./events";
+export * from "./value-objects";
+````
+
+## File: modules/platform/subdomains/identity/domain/ports/index.ts
+````typescript
+/**
+ * identity domain/ports — driven port interfaces for the identity subdomain.
+ *
+ * These re-export the repository contracts from domain/repositories/, making
+ * the Ports layer explicitly visible in the directory structure.
+ * New code should import port interfaces from this directory.
+ */
+export type { IdentityRepository as IIdentityPort } from "../repositories/IdentityRepository";
+export type { TokenRefreshRepository as ITokenRefreshPort } from "../repositories/TokenRefreshRepository";
+````
+
 ## File: modules/platform/subdomains/identity/domain/repositories/IdentityRepository.ts
 ````typescript
 import type { IdentityEntity, RegistrationInput, SignInCredentials } from "../entities/Identity";
@@ -8651,6 +10480,26 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/platform/subdomains/notification/api/index.ts
+````typescript
+/**
+ * Public API boundary for the notification subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+
+export * from "../application";
+export { notificationService } from "../infrastructure/notification-service";
+export type {
+  NotificationEntity,
+  NotificationType,
+  DispatchNotificationInput,
+} from "../domain/entities/Notification";
+export { NotificationBell } from "../interfaces/components/NotificationBell";
+export { NotificationsPage } from "../interfaces/components/NotificationsPage";
+export type { NotificationsPageProps } from "../interfaces/components/NotificationsPage";
+export * from "../interfaces";
+````
+
 ## File: modules/platform/subdomains/notification/application/index.ts
 ````typescript
 export {
@@ -8658,6 +10507,116 @@ export {
   MarkNotificationReadUseCase,
   MarkAllNotificationsReadUseCase,
 } from "./use-cases/notification.use-cases";
+````
+
+## File: modules/platform/subdomains/notification/domain/aggregates/index.ts
+````typescript
+export { NotificationAggregate } from "./NotificationAggregate";
+export type { NotificationAggregateSnapshot } from "./NotificationAggregate";
+````
+
+## File: modules/platform/subdomains/notification/domain/aggregates/NotificationAggregate.ts
+````typescript
+import type {
+  NotificationDomainEventType,
+  NotificationDispatchedEvent,
+  NotificationReadEvent,
+} from "../events/NotificationDomainEvent";
+import { createNotificationId } from "../value-objects";
+import type { NotificationId } from "../value-objects";
+import type {
+  NotificationEntity,
+  DispatchNotificationInput,
+} from "../entities/Notification";
+
+export interface NotificationAggregateSnapshot {
+  readonly id: string;
+  readonly recipientId: string;
+  readonly title: string;
+  readonly message: string;
+  readonly type: NotificationEntity["type"];
+  readonly read: boolean;
+  readonly timestamp: number;
+  readonly sourceEventType: string | undefined;
+  readonly metadata: Record<string, unknown> | undefined;
+}
+
+export class NotificationAggregate {
+  private readonly _domainEvents: NotificationDomainEventType[] = [];
+
+  private constructor(private _props: NotificationAggregateSnapshot) {}
+
+  static create(id: string, input: DispatchNotificationInput): NotificationAggregate {
+    createNotificationId(id);
+    const aggregate = new NotificationAggregate({
+      id,
+      recipientId: input.recipientId,
+      title: input.title,
+      message: input.message,
+      type: input.type,
+      read: false,
+      timestamp: Date.now(),
+      sourceEventType: input.sourceEventType,
+      metadata: input.metadata,
+    });
+    aggregate.recordEvent<NotificationDispatchedEvent>({
+      type: "platform.notification.dispatched",
+      eventId: crypto.randomUUID(),
+      occurredAt: new Date().toISOString(),
+      payload: {
+        notificationId: id,
+        recipientId: input.recipientId,
+        notificationType: input.type,
+      },
+    });
+    return aggregate;
+  }
+
+  static reconstitute(snapshot: NotificationAggregateSnapshot): NotificationAggregate {
+    return new NotificationAggregate({ ...snapshot });
+  }
+
+  markRead(): void {
+    if (this._props.read) return;
+    const now = new Date().toISOString();
+    this._props = { ...this._props, read: true };
+    this.recordEvent<NotificationReadEvent>({
+      type: "platform.notification.read",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: {
+        notificationId: this._props.id,
+        recipientId: this._props.recipientId,
+      },
+    });
+  }
+
+  get id(): NotificationId {
+    return createNotificationId(this._props.id);
+  }
+
+  get recipientId(): string {
+    return this._props.recipientId;
+  }
+
+  get read(): boolean {
+    return this._props.read;
+  }
+
+  getSnapshot(): Readonly<NotificationAggregateSnapshot> {
+    return Object.freeze({ ...this._props });
+  }
+
+  pullDomainEvents(): NotificationDomainEventType[] {
+    const events = [...this._domainEvents];
+    this._domainEvents.length = 0;
+    return events;
+  }
+
+  private recordEvent<TEvent extends NotificationDomainEventType>(event: TEvent): void {
+    this._domainEvents.push(event);
+  }
+}
 ````
 
 ## File: modules/platform/subdomains/notification/domain/entities/Notification.ts
@@ -8690,6 +10649,84 @@ export interface DispatchNotificationInput {
 }
 ````
 
+## File: modules/platform/subdomains/notification/domain/events/index.ts
+````typescript
+export type {
+  NotificationDomainEvent,
+  NotificationDispatchedEvent,
+  NotificationReadEvent,
+  AllNotificationsReadEvent,
+  NotificationDomainEventType,
+} from "./NotificationDomainEvent";
+````
+
+## File: modules/platform/subdomains/notification/domain/events/NotificationDomainEvent.ts
+````typescript
+import type { NotificationType } from "../entities/Notification";
+
+export interface NotificationDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
+}
+
+export interface NotificationDispatchedEvent extends NotificationDomainEvent {
+  readonly type: "platform.notification.dispatched";
+  readonly payload: {
+    readonly notificationId: string;
+    readonly recipientId: string;
+    readonly notificationType: NotificationType;
+  };
+}
+
+export interface NotificationReadEvent extends NotificationDomainEvent {
+  readonly type: "platform.notification.read";
+  readonly payload: {
+    readonly notificationId: string;
+    readonly recipientId: string;
+  };
+}
+
+export interface AllNotificationsReadEvent extends NotificationDomainEvent {
+  readonly type: "platform.notification.all_read";
+  readonly payload: {
+    readonly recipientId: string;
+  };
+}
+
+export type NotificationDomainEventType =
+  | NotificationDispatchedEvent
+  | NotificationReadEvent
+  | AllNotificationsReadEvent;
+````
+
+## File: modules/platform/subdomains/notification/domain/index.ts
+````typescript
+export type {
+  NotificationEntity,
+  NotificationType,
+  DispatchNotificationInput,
+} from "./entities/Notification";
+export type { NotificationRepository } from "./repositories/NotificationRepository";
+export type { INotificationPort } from "./ports";
+export * from "./aggregates";
+export * from "./events";
+export * from "./value-objects";
+````
+
+## File: modules/platform/subdomains/notification/domain/ports/index.ts
+````typescript
+/**
+ * notification domain/ports — driven port interfaces for the notification subdomain.
+ *
+ * These re-export the repository contracts from domain/repositories/, making
+ * the Ports layer explicitly visible in the directory structure.
+ * New code should import port interfaces from this directory.
+ */
+export type { NotificationRepository as INotificationPort } from "../repositories/NotificationRepository";
+````
+
 ## File: modules/platform/subdomains/notification/domain/repositories/NotificationRepository.ts
 ````typescript
 /**
@@ -8704,6 +10741,24 @@ export interface NotificationRepository {
   markAllAsRead(recipientId: string): Promise<void>;
   findByRecipient(recipientId: string, limit?: number): Promise<NotificationEntity[]>;
   getUnreadCount(recipientId: string): Promise<number>;
+}
+````
+
+## File: modules/platform/subdomains/notification/domain/value-objects/index.ts
+````typescript
+export { NotificationIdSchema, createNotificationId } from "./NotificationId";
+export type { NotificationId } from "./NotificationId";
+````
+
+## File: modules/platform/subdomains/notification/domain/value-objects/NotificationId.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const NotificationIdSchema = z.string().min(1).brand("NotificationId");
+export type NotificationId = z.infer<typeof NotificationIdSchema>;
+
+export function createNotificationId(raw: string): NotificationId {
+  return NotificationIdSchema.parse(raw);
 }
 ````
 
@@ -8818,6 +10873,48 @@ export class FirebaseNotificationRepository implements NotificationRepository {
 ## File: modules/platform/subdomains/notification/infrastructure/index.ts
 ````typescript
 export { notificationService } from "./notification-service";
+````
+
+## File: modules/platform/subdomains/notification/infrastructure/notification-service.ts
+````typescript
+/**
+ * NotificationService — Composition root for notification use cases.
+ */
+
+import { FirebaseNotificationRepository } from "./firebase/FirebaseNotificationRepository";
+import {
+  DispatchNotificationUseCase,
+  GetNotificationsForRecipientUseCase,
+  GetUnreadCountUseCase,
+  MarkNotificationReadUseCase,
+  MarkAllNotificationsReadUseCase,
+} from "../application/use-cases/notification.use-cases";
+import type { DispatchNotificationInput, NotificationEntity } from "../domain/entities/Notification";
+import type { CommandResult } from "@shared-types";
+
+let _notificationRepo: FirebaseNotificationRepository | undefined;
+
+function getNotifRepo(): FirebaseNotificationRepository {
+  if (!_notificationRepo) _notificationRepo = new FirebaseNotificationRepository();
+  return _notificationRepo;
+}
+
+export const notificationService = {
+  dispatch: (input: DispatchNotificationInput): Promise<CommandResult> =>
+    new DispatchNotificationUseCase(getNotifRepo()).execute(input),
+
+  markAsRead: (notificationId: string, recipientId: string): Promise<CommandResult> =>
+    new MarkNotificationReadUseCase(getNotifRepo()).execute(notificationId, recipientId),
+
+  markAllAsRead: (recipientId: string): Promise<CommandResult> =>
+    new MarkAllNotificationsReadUseCase(getNotifRepo()).execute(recipientId),
+
+  getForRecipient: (recipientId: string, maxCount?: number): Promise<NotificationEntity[]> =>
+    new GetNotificationsForRecipientUseCase(getNotifRepo()).execute(recipientId, maxCount),
+
+  getUnreadCount: (recipientId: string): Promise<number> =>
+    new GetUnreadCountUseCase(getNotifRepo()).execute(recipientId),
+};
 ````
 
 ## File: modules/platform/subdomains/notification/interfaces/index.ts
@@ -8942,80 +11039,6 @@ User and organization onboarding flows.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/organization/api/index.ts
-````typescript
-/**
- * Public API boundary for the organization subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * NOTE: We avoid `export * from "../infrastructure"` here because the
- * infrastructure barrel pulls in Firebase repository constructors during
- * module evaluation, which causes failures during Next.js static
- * prerendering. Infrastructure exports are available in the server barrel
- * (./server.ts) or via direct import from action / service files.
- */
-
-// --- Domain types ---
-export type {
-  OrganizationEntity,
-  OrganizationRole,
-  Presence,
-  InviteState,
-  PolicyEffect,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  ThemeConfig,
-  OrgPolicy,
-  OrgPolicyRule,
-  OrgPolicyScope,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "../domain";
-export type { OrganizationRepository, Unsubscribe } from "../domain";
-export type { OrgPolicyRepository } from "../domain";
-
-// --- Application use cases ---
-export {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-} from "../application";
-export {
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-} from "../application";
-export {
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "../application";
-export {
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "../application";
-export {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "../application";
-
-// --- Infrastructure (lazy, safe for SSR) ---
-export { organizationService, organizationQueryService } from "../infrastructure";
-
-// --- Interfaces (UI, queries, actions) ---
-export * from "../interfaces";
 ````
 
 ## File: modules/platform/subdomains/organization/application/index.ts
@@ -9278,6 +11301,79 @@ export class DeleteOrgPolicyUseCase {
       return commandSuccess(policyId, Date.now());
     } catch (err) {
       return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Failed to delete org policy");
+    }
+  }
+}
+````
+
+## File: modules/platform/subdomains/organization/application/use-cases/organization-team.use-cases.ts
+````typescript
+/**
+ * Organization Team Use Cases — team-scoped operations owned by the organization subdomain.
+ *
+ * These use cases depend only on IOrganizationTeamPort (defined in organization's own
+ * domain/ports/), keeping the application layer free from direct peer-subdomain imports.
+ * The infrastructure composition root (organization-service.ts) injects the concrete
+ * team adapter that satisfies the port.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { IOrganizationTeamPort } from "../../domain/ports/IOrganizationTeamPort";
+import type { CreateTeamInput } from "../../domain/entities/Organization";
+
+export class CreateTeamUseCase {
+  constructor(private readonly teamPort: IOrganizationTeamPort) {}
+
+  async execute(input: CreateTeamInput): Promise<CommandResult> {
+    try {
+      const teamId = await this.teamPort.createTeam(input);
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CREATE_TEAM_FAILED",
+        err instanceof Error ? err.message : "Failed to create team",
+      );
+    }
+  }
+}
+
+export class DeleteTeamUseCase {
+  constructor(private readonly teamPort: IOrganizationTeamPort) {}
+
+  async execute(organizationId: string, teamId: string): Promise<CommandResult> {
+    try {
+      await this.teamPort.deleteTeam(organizationId, teamId);
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "DELETE_TEAM_FAILED",
+        err instanceof Error ? err.message : "Failed to delete team",
+      );
+    }
+  }
+}
+
+export class UpdateTeamMembersUseCase {
+  constructor(private readonly teamPort: IOrganizationTeamPort) {}
+
+  async execute(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+    action: "add" | "remove",
+  ): Promise<CommandResult> {
+    try {
+      if (action === "add") {
+        await this.teamPort.addMemberToTeam(organizationId, teamId, memberId);
+      } else {
+        await this.teamPort.removeMemberFromTeam(organizationId, teamId, memberId);
+      }
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "UPDATE_TEAM_MEMBERS_FAILED",
+        err instanceof Error ? err.message : "Failed to update team members",
+      );
     }
   }
 }
@@ -9883,6 +11979,63 @@ export type OrganizationDomainEventType =
 	| OrganizationSuspendedEvent
 	| OrganizationDissolvedEvent
 	| OrganizationReactivatedEvent;
+````
+
+## File: modules/platform/subdomains/organization/domain/index.ts
+````typescript
+export type { OrganizationEntity,
+  OrganizationRole,
+  Presence,
+  InviteState,
+  PolicyEffect,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  ThemeConfig,
+  OrgPolicy,
+  OrgPolicyRule,
+  OrgPolicyScope,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "./entities/Organization";
+export type { OrganizationRepository, Unsubscribe } from "./repositories/OrganizationRepository";
+export type { OrgPolicyRepository } from "./repositories/OrgPolicyRepository";
+export type { IOrganizationTeamPort } from "./ports/IOrganizationTeamPort";
+export * from "./aggregates";
+export * from "./events";
+export * from "./value-objects";
+````
+
+## File: modules/platform/subdomains/organization/domain/ports/index.ts
+````typescript
+export type { IOrganizationTeamPort } from "./IOrganizationTeamPort";
+````
+
+## File: modules/platform/subdomains/organization/domain/ports/IOrganizationTeamPort.ts
+````typescript
+/**
+ * IOrganizationTeamPort — driven port for organization-scoped team operations.
+ *
+ * Defined in organization's domain layer so the application layer can depend on
+ * this interface without importing from a peer subdomain (team).
+ * The infrastructure composition root (organization-service.ts) wires the
+ * concrete team subdomain adapter as the implementation.
+ */
+
+import type { Team, CreateTeamInput } from "../entities/Organization";
+
+export interface IOrganizationTeamPort {
+  createTeam(input: CreateTeamInput): Promise<string>;
+  deleteTeam(organizationId: string, teamId: string): Promise<void>;
+  addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
+  removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
+  getTeams(organizationId: string): Promise<Team[]>;
+}
 ````
 
 ## File: modules/platform/subdomains/organization/domain/repositories/OrganizationRepository.ts
@@ -12021,6 +14174,164 @@ export class UpdateTeamMembersUseCase {
 }
 ````
 
+## File: modules/platform/subdomains/team/domain/aggregates/index.ts
+````typescript
+export { OrganizationTeam } from "./OrganizationTeam";
+export type { OrganizationTeamSnapshot, CreateOrganizationTeamProps } from "./OrganizationTeam";
+````
+
+## File: modules/platform/subdomains/team/domain/aggregates/OrganizationTeam.ts
+````typescript
+/**
+ * OrganizationTeam — Aggregate Root
+ *
+ * Represents a named grouping of members within an Organization boundary.
+ * OrganizationTeam is a subdomain concept of platform/team; it is NOT an
+ * independent Tenant. Teams may be internal (org-only members) or external
+ * (partner/guest actors included).
+ *
+ * Invariants:
+ *   - A team must belong to exactly one Organization (organizationId is immutable)
+ *   - A member may appear in a team's memberIds at most once
+ *   - teamType cannot change after creation (replace-and-recreate pattern)
+ *   - addMember and removeMember are idempotent: duplicate/absent memberId is a no-op (no event)
+ */
+
+import { randomUUID } from "crypto";
+import type { TeamId } from "../value-objects/TeamId";
+import type { TeamType } from "../value-objects/TeamType";
+import type { OrganizationTeamDomainEvent } from "../events/OrganizationTeamDomainEvent";
+
+export interface OrganizationTeamSnapshot {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly name: string;
+  readonly description: string;
+  readonly teamType: TeamType;
+  readonly memberIds: readonly string[];
+}
+
+export interface CreateOrganizationTeamProps {
+  readonly organizationId: string;
+  readonly name: string;
+  readonly description?: string;
+  readonly teamType: TeamType;
+}
+
+export class OrganizationTeam {
+  private _domainEvents: OrganizationTeamDomainEvent[] = [];
+
+  private constructor(private _props: OrganizationTeamSnapshot) {}
+
+  // ── Factory — new team ────────────────────────────────────────────────────
+
+  static create(id: TeamId, props: CreateOrganizationTeamProps): OrganizationTeam {
+    const team = new OrganizationTeam({
+      id,
+      organizationId: props.organizationId,
+      name: props.name,
+      description: props.description ?? "",
+      teamType: props.teamType,
+      memberIds: [],
+    });
+    team._domainEvents.push({
+      type: "team.created",
+      eventId: randomUUID(),
+      occurredAt: new Date().toISOString(),
+      payload: {
+        teamId: id,
+        organizationId: props.organizationId,
+        name: props.name,
+        teamType: props.teamType,
+      },
+    });
+    return team;
+  }
+
+  // ── Factory — reconstitute from persistence ───────────────────────────────
+
+  static reconstitute(snapshot: OrganizationTeamSnapshot): OrganizationTeam {
+    return new OrganizationTeam(snapshot);
+  }
+
+  // ── Commands ──────────────────────────────────────────────────────────────
+
+  /**
+   * Add a member to the team.
+   * Idempotent: if memberId is already in the team the call is a no-op and
+   * no domain event is emitted, so callers may safely call this multiple times.
+   */
+  addMember(memberId: string): void {
+    if (this._props.memberIds.includes(memberId)) return; // idempotent, no event emitted
+    this._props = {
+      ...this._props,
+      memberIds: [...this._props.memberIds, memberId],
+    };
+    this._domainEvents.push({
+      type: "team.member-added",
+      eventId: randomUUID(),
+      occurredAt: new Date().toISOString(),
+      payload: {
+        teamId: this._props.id,
+        organizationId: this._props.organizationId,
+        memberId,
+      },
+    });
+  }
+
+  /**
+   * Remove a member from the team.
+   * Idempotent: if memberId is not in the team the call is a no-op and
+   * no domain event is emitted, supporting at-least-once removal semantics.
+   */
+  removeMember(memberId: string): void {
+    if (!this._props.memberIds.includes(memberId)) return; // idempotent, no event emitted
+    this._props = {
+      ...this._props,
+      memberIds: this._props.memberIds.filter((id) => id !== memberId),
+    };
+    this._domainEvents.push({
+      type: "team.member-removed",
+      eventId: randomUUID(),
+      occurredAt: new Date().toISOString(),
+      payload: {
+        teamId: this._props.id,
+        organizationId: this._props.organizationId,
+        memberId,
+      },
+    });
+  }
+
+  delete(): void {
+    this._domainEvents.push({
+      type: "team.deleted",
+      eventId: randomUUID(),
+      occurredAt: new Date().toISOString(),
+      payload: {
+        teamId: this._props.id,
+        organizationId: this._props.organizationId,
+      },
+    });
+  }
+
+  // ── Read ──────────────────────────────────────────────────────────────────
+
+  get id(): TeamId {
+    return this._props.id as TeamId;
+  }
+
+  getSnapshot(): Readonly<OrganizationTeamSnapshot> {
+    return Object.freeze({ ...this._props, memberIds: [...this._props.memberIds] });
+  }
+
+  pullDomainEvents(): OrganizationTeamDomainEvent[] {
+    const events = [...this._domainEvents];
+    this._domainEvents = [];
+    return events;
+  }
+}
+````
+
 ## File: modules/platform/subdomains/team/domain/entities/Team.ts
 ````typescript
 /**
@@ -12045,6 +14356,120 @@ export interface CreateTeamInput {
 }
 ````
 
+## File: modules/platform/subdomains/team/domain/events/index.ts
+````typescript
+export type {
+  OrganizationTeamDomainEvent,
+  OrganizationTeamCreatedEvent,
+  OrganizationTeamDeletedEvent,
+  OrganizationTeamMemberAddedEvent,
+  OrganizationTeamMemberRemovedEvent,
+} from "./OrganizationTeamDomainEvent";
+````
+
+## File: modules/platform/subdomains/team/domain/events/OrganizationTeamDomainEvent.ts
+````typescript
+/**
+ * OrganizationTeamDomainEvent — domain events produced by the OrganizationTeam aggregate.
+ *
+ * Naming: past-tense, format `<module>.<action>`.
+ * occurredAt: ISO 8601 string (not Date) per platform event convention.
+ */
+import { z } from "zod";
+
+// ── OrganizationTeamCreated ──────────────────────────────────────────────────
+
+export const OrganizationTeamCreatedEventSchema = z.object({
+  type: z.literal("team.created"),
+  eventId: z.string().uuid(),
+  occurredAt: z.string().datetime(),
+  payload: z.object({
+    teamId: z.string().uuid(),
+    organizationId: z.string(),
+    name: z.string(),
+    teamType: z.enum(["internal", "external"]),
+  }),
+});
+export type OrganizationTeamCreatedEvent = z.infer<typeof OrganizationTeamCreatedEventSchema>;
+
+// ── OrganizationTeamDeleted ──────────────────────────────────────────────────
+
+export const OrganizationTeamDeletedEventSchema = z.object({
+  type: z.literal("team.deleted"),
+  eventId: z.string().uuid(),
+  occurredAt: z.string().datetime(),
+  payload: z.object({
+    teamId: z.string().uuid(),
+    organizationId: z.string(),
+  }),
+});
+export type OrganizationTeamDeletedEvent = z.infer<typeof OrganizationTeamDeletedEventSchema>;
+
+// ── OrganizationTeamMemberAdded ──────────────────────────────────────────────
+
+export const OrganizationTeamMemberAddedEventSchema = z.object({
+  type: z.literal("team.member-added"),
+  eventId: z.string().uuid(),
+  occurredAt: z.string().datetime(),
+  payload: z.object({
+    teamId: z.string().uuid(),
+    organizationId: z.string(),
+    memberId: z.string(),
+  }),
+});
+export type OrganizationTeamMemberAddedEvent = z.infer<typeof OrganizationTeamMemberAddedEventSchema>;
+
+// ── OrganizationTeamMemberRemoved ────────────────────────────────────────────
+
+export const OrganizationTeamMemberRemovedEventSchema = z.object({
+  type: z.literal("team.member-removed"),
+  eventId: z.string().uuid(),
+  occurredAt: z.string().datetime(),
+  payload: z.object({
+    teamId: z.string().uuid(),
+    organizationId: z.string(),
+    memberId: z.string(),
+  }),
+});
+export type OrganizationTeamMemberRemovedEvent = z.infer<
+  typeof OrganizationTeamMemberRemovedEventSchema
+>;
+
+// ── Union ────────────────────────────────────────────────────────────────────
+
+export type OrganizationTeamDomainEvent =
+  | OrganizationTeamCreatedEvent
+  | OrganizationTeamDeletedEvent
+  | OrganizationTeamMemberAddedEvent
+  | OrganizationTeamMemberRemovedEvent;
+````
+
+## File: modules/platform/subdomains/team/domain/index.ts
+````typescript
+/**
+ * team subdomain — domain layer public exports.
+ */
+
+export type { Team, CreateTeamInput } from "./entities/Team";
+export type { TeamRepository } from "./repositories/TeamRepository";
+export type { ITeamPort } from "./ports";
+export * from "./aggregates";
+export * from "./events";
+export * from "./value-objects";
+````
+
+## File: modules/platform/subdomains/team/domain/ports/index.ts
+````typescript
+/**
+ * team domain/ports — driven port interfaces for the team subdomain.
+ *
+ * These re-export the repository contracts from domain/repositories/, making
+ * the Ports layer explicitly visible in the directory structure.
+ * New code should import port interfaces from this directory.
+ */
+export type { TeamRepository as ITeamPort } from "../repositories/TeamRepository";
+````
+
 ## File: modules/platform/subdomains/team/domain/repositories/TeamRepository.ts
 ````typescript
 /**
@@ -12063,6 +14488,43 @@ export interface TeamRepository {
   removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
   getTeams(organizationId: string): Promise<Team[]>;
 }
+````
+
+## File: modules/platform/subdomains/team/domain/value-objects/index.ts
+````typescript
+export type { TeamId } from "./TeamId";
+export { TeamIdSchema, createTeamId } from "./TeamId";
+export type { TeamType } from "./TeamType";
+export { TeamTypeSchema } from "./TeamType";
+````
+
+## File: modules/platform/subdomains/team/domain/value-objects/TeamId.ts
+````typescript
+/**
+ * TeamId — branded value object for OrganizationTeam identity.
+ */
+import { z } from "zod";
+
+export const TeamIdSchema = z.string().uuid().brand("TeamId");
+export type TeamId = z.infer<typeof TeamIdSchema>;
+
+export function createTeamId(raw: string): TeamId {
+  return TeamIdSchema.parse(raw);
+}
+````
+
+## File: modules/platform/subdomains/team/domain/value-objects/TeamType.ts
+````typescript
+/**
+ * TeamType — value object representing the membership scope of an OrganizationTeam.
+ *
+ * - internal: members belong to the same Organization
+ * - external: members include partner/guest actors outside the Organization
+ */
+import { z } from "zod";
+
+export const TeamTypeSchema = z.enum(["internal", "external"]);
+export type TeamType = z.infer<typeof TeamTypeSchema>;
 ````
 
 ## File: modules/platform/subdomains/team/infrastructure/firebase/FirebaseTeamRepository.ts
@@ -12138,6 +14600,79 @@ export class FirebaseTeamRepository implements TeamRepository {
     return snaps.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>));
   }
 }
+````
+
+## File: modules/platform/subdomains/team/interfaces/_actions/team.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import {
+  createTeamRepository,
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "../../api";
+import type { CreateTeamInput } from "../../api";
+
+function getRepo() {
+  return createTeamRepository();
+}
+
+export async function createTeamAction(input: CreateTeamInput): Promise<CommandResult> {
+  try {
+    return await new CreateTeamUseCase(getRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CREATE_TEAM_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function deleteTeamAction(
+  organizationId: string,
+  teamId: string,
+): Promise<CommandResult> {
+  try {
+    return await new DeleteTeamUseCase(getRepo()).execute(organizationId, teamId);
+  } catch (err) {
+    return commandFailureFrom(
+      "DELETE_TEAM_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function updateTeamMembersAction(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+  action: "add" | "remove",
+): Promise<CommandResult> {
+  try {
+    return await new UpdateTeamMembersUseCase(getRepo()).execute(
+      organizationId,
+      teamId,
+      memberId,
+      action,
+    );
+  } catch (err) {
+    return commandFailureFrom(
+      "UPDATE_TEAM_MEMBERS_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+````
+
+## File: modules/platform/subdomains/team/interfaces/index.ts
+````typescript
+export {
+  createTeamAction,
+  deleteTeamAction,
+  updateTeamMembersAction,
+} from "./_actions/team.actions";
 ````
 
 ## File: modules/platform/subdomains/team/README.md
@@ -12264,100 +14799,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/platform/api/platform-service.ts
-````typescript
-/**
- * createPlatformService — Composition Root
- *
- * Wires all infrastructure adapters to use cases via the command/query dispatchers,
- * then builds and returns a PlatformFacade ready for use by api/ consumers.
- *
- * Lives in api/ because the api boundary is the legitimate composition root:
- *   api → infrastructure → application → domain (all inward dependencies preserved).
- */
-
-import { createPlatformFacade } from "./facade";
-import type { PlatformFacade } from "./facade";
-import { PlatformCommandDispatcher } from "../application/handlers/PlatformCommandDispatcher";
-import { PlatformQueryDispatcher } from "../application/handlers/PlatformQueryDispatcher";
-import {
-	FirebasePlatformContextRepository,
-	FirebasePolicyCatalogRepository,
-	FirebaseIntegrationContractRepository,
-	FirebaseSubscriptionAgreementRepository,
-	FirebaseWorkflowPolicyRepository,
-	FirebaseConfigurationProfileStore,
-	EnvSecretReferenceResolver,
-} from "../infrastructure/db";
-import {
-	CachedPlatformContextViewRepository,
-	CachedPolicyCatalogViewRepository,
-	CachedUsageMeterRepository,
-} from "../infrastructure/cache";
-import {
-	QStashDomainEventPublisher,
-	QStashWorkflowDispatcher,
-} from "../infrastructure/messaging";
-import { FirebaseObservabilitySink } from "../infrastructure/monitoring";
-import { FirebaseStorageAuditSignalStore } from "../infrastructure/storage";
-import { SmtpNotificationGateway } from "../infrastructure/email";
-
-let _platformFacade: PlatformFacade | undefined;
-
-/**
- * createPlatformService — creates a singleton PlatformFacade with all adapters wired.
- *
- * Call this once at module startup. Subsequent calls return the cached instance.
- */
-export function createPlatformService(): PlatformFacade {
-	if (_platformFacade) return _platformFacade;
-
-	// Output ports — infrastructure adapters
-	const contextRepo = new FirebasePlatformContextRepository();
-	const catalogRepo = new FirebasePolicyCatalogRepository();
-	const contractRepo = new FirebaseIntegrationContractRepository();
-	const agreementRepo = new FirebaseSubscriptionAgreementRepository();
-	const workflowPolicyRepo = new FirebaseWorkflowPolicyRepository();
-	const configProfileStore = new FirebaseConfigurationProfileStore();
-	const secretResolver = new EnvSecretReferenceResolver();
-	const contextViewRepo = new CachedPlatformContextViewRepository();
-	const catalogViewRepo = new CachedPolicyCatalogViewRepository();
-	const usageMeterRepo = new CachedUsageMeterRepository();
-	const eventPublisher = new QStashDomainEventPublisher();
-	const workflowDispatcher = new QStashWorkflowDispatcher();
-	const observabilitySink = new FirebaseObservabilitySink();
-	const auditStore = new FirebaseStorageAuditSignalStore();
-	const notificationGateway = new SmtpNotificationGateway();
-
-	// Input ports — application dispatchers wired to use cases
-	const commandPort = new PlatformCommandDispatcher({
-		contextRepo,
-		catalogRepo,
-		contractRepo,
-		agreementRepo,
-		workflowPolicyRepo,
-		configProfileStore,
-		secretResolver,
-		eventPublisher,
-		workflowDispatcher,
-		notificationGateway,
-		catalogViewRepo,
-		auditStore,
-		observabilitySink,
-	});
-
-	const queryPort = new PlatformQueryDispatcher({
-		contextViewRepo,
-		catalogViewRepo,
-		usageMeterRepo,
-		workflowPolicyRepo,
-	});
-
-	_platformFacade = createPlatformFacade({ commandPort, queryPort });
-	return _platformFacade;
-}
-````
-
 ## File: modules/platform/application/application.instructions.md
 ````markdown
 ---
@@ -12384,135 +14825,72 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/platform/application/handlers/PlatformCommandDispatcher.ts
+## File: modules/platform/application/handlers/PlatformQueryDispatcher.ts
 ````typescript
 /**
- * PlatformCommandDispatcher — Application-layer Command Router
+ * PlatformQueryDispatcher — Application-layer Query Router
  *
- * Implements: PlatformCommandPort
- * Routes commands by name to the appropriate use case class.
+ * Implements: PlatformQueryPort
+ * Routes queries by name to the appropriate use case class.
  *
- * This is the primary driving adapter for the platform module's command side.
- * Called by: api/facade.ts via PlatformCommandPort
+ * Called by: api/facade.ts via PlatformQueryPort
  */
 
-import type { PlatformCommandPort, PlatformCommand, PlatformCommandResult } from "../../domain/ports/input";
+import type { PlatformQueryPort, PlatformQuery } from "../../domain/ports/input";
 import type {
-	PlatformContextRepository,
-	PolicyCatalogRepository,
-	IntegrationContractRepository,
-	SubscriptionAgreementRepository,
-	WorkflowPolicyRepository,
-	ConfigurationProfileStore,
-	SecretReferenceResolver,
-	DomainEventPublisher,
-	WorkflowDispatcherPort,
-	NotificationGateway,
+	PlatformContextViewRepository,
 	PolicyCatalogViewRepository,
-	AuditSignalStore,
-	ObservabilitySink,
+	UsageMeterRepository,
+	WorkflowPolicyRepository,
 } from "../../domain/ports/output";
-import { RegisterPlatformContextUseCase } from "../use-cases/register-platform-context.use-cases";
-import { PublishPolicyCatalogUseCase } from "../use-cases/publish-policy-catalog.use-cases";
-import { ApplyConfigurationProfileUseCase } from "../use-cases/apply-configuration-profile.use-cases";
-import { RegisterIntegrationContractUseCase } from "../use-cases/register-integration-contract.use-cases";
-import { ActivateSubscriptionAgreementUseCase } from "../use-cases/activate-subscription-agreement.use-cases";
-import { FireWorkflowTriggerUseCase } from "../use-cases/fire-workflow-trigger.use-cases";
-import { RequestNotificationDispatchUseCase } from "../use-cases/request-notification-dispatch.use-cases";
-import { RecordAuditSignalUseCase } from "../use-cases/record-audit-signal.use-cases";
-import { EmitObservabilitySignalUseCase } from "../use-cases/emit-observability-signal.use-cases";
+import { GetPlatformContextViewUseCase } from "../queries/get-platform-context-view.queries";
+import { ListEnabledCapabilitiesUseCase } from "../queries/list-enabled-capabilities.queries";
+import { GetPolicyCatalogViewUseCase } from "../queries/get-policy-catalog-view.queries";
+import { GetSubscriptionEntitlementsUseCase } from "../queries/get-subscription-entitlements.queries";
+import { GetWorkflowPolicyViewUseCase } from "../queries/get-workflow-policy-view.queries";
 
-export interface PlatformCommandDispatcherDeps {
-	contextRepo: PlatformContextRepository;
-	catalogRepo: PolicyCatalogRepository;
-	contractRepo: IntegrationContractRepository;
-	agreementRepo: SubscriptionAgreementRepository;
-	workflowPolicyRepo: WorkflowPolicyRepository;
-	configProfileStore: ConfigurationProfileStore;
-	secretResolver: SecretReferenceResolver;
-	eventPublisher: DomainEventPublisher;
-	workflowDispatcher: WorkflowDispatcherPort;
-	notificationGateway: NotificationGateway;
+export interface PlatformQueryDispatcherDeps {
+	contextViewRepo: PlatformContextViewRepository;
 	catalogViewRepo: PolicyCatalogViewRepository;
-	auditStore: AuditSignalStore;
-	observabilitySink: ObservabilitySink;
+	usageMeterRepo: UsageMeterRepository;
+	workflowPolicyRepo: WorkflowPolicyRepository;
 }
 
-export class PlatformCommandDispatcher implements PlatformCommandPort {
-	constructor(private readonly deps: PlatformCommandDispatcherDeps) {}
+export class PlatformQueryDispatcher implements PlatformQueryPort {
+	constructor(private readonly deps: PlatformQueryDispatcherDeps) {}
 
-	async executeCommand<TCommand extends PlatformCommand>(
-		command: TCommand,
-	): Promise<PlatformCommandResult> {
+	async executeQuery<TResult, TQuery extends PlatformQuery>(
+		queryMsg: TQuery,
+	): Promise<TResult> {
 		const { deps } = this;
-		switch (command.name) {
-			case "registerPlatformContext":
-				return new RegisterPlatformContextUseCase(
-					deps.contextRepo,
-					deps.eventPublisher,
-				).execute(command.payload as Parameters<RegisterPlatformContextUseCase["execute"]>[0]);
+		switch (queryMsg.name) {
+			case "getPlatformContextView":
+				return new GetPlatformContextViewUseCase(deps.contextViewRepo).execute(
+					queryMsg.payload as Parameters<GetPlatformContextViewUseCase["execute"]>[0],
+				) as Promise<TResult>;
 
-			case "publishPolicyCatalog":
-				return new PublishPolicyCatalogUseCase(
-					deps.catalogRepo,
-					deps.eventPublisher,
-				).execute(command.payload as Parameters<PublishPolicyCatalogUseCase["execute"]>[0]);
+			case "listEnabledCapabilities":
+				return new ListEnabledCapabilitiesUseCase(deps.contextViewRepo).execute(
+					queryMsg.payload as Parameters<ListEnabledCapabilitiesUseCase["execute"]>[0],
+				) as Promise<TResult>;
 
-			case "applyConfigurationProfile":
-				return new ApplyConfigurationProfileUseCase(
-					deps.contextRepo,
-					deps.configProfileStore,
-					deps.eventPublisher,
-				).execute(command.payload as Parameters<ApplyConfigurationProfileUseCase["execute"]>[0]);
+			case "getPolicyCatalogView":
+				return new GetPolicyCatalogViewUseCase(deps.catalogViewRepo).execute(
+					queryMsg.payload as Parameters<GetPolicyCatalogViewUseCase["execute"]>[0],
+				) as Promise<TResult>;
 
-			case "registerIntegrationContract":
-				return new RegisterIntegrationContractUseCase(
-					deps.contractRepo,
-					deps.secretResolver,
-					deps.eventPublisher,
-				).execute(command.payload as Parameters<RegisterIntegrationContractUseCase["execute"]>[0]);
+			case "getSubscriptionEntitlements":
+				return new GetSubscriptionEntitlementsUseCase(deps.usageMeterRepo).execute(
+					queryMsg.payload as Parameters<GetSubscriptionEntitlementsUseCase["execute"]>[0],
+				) as Promise<TResult>;
 
-			case "activateSubscriptionAgreement":
-				return new ActivateSubscriptionAgreementUseCase(
-					deps.agreementRepo,
-					deps.contextRepo,
-					deps.eventPublisher,
-				).execute(command.payload as Parameters<ActivateSubscriptionAgreementUseCase["execute"]>[0]);
-
-			case "fireWorkflowTrigger":
-				return new FireWorkflowTriggerUseCase(
-					deps.workflowPolicyRepo,
-					deps.workflowDispatcher,
-					deps.eventPublisher,
-				).execute(command.payload as Parameters<FireWorkflowTriggerUseCase["execute"]>[0]);
-
-			case "requestNotificationDispatch":
-				return new RequestNotificationDispatchUseCase(
-					deps.notificationGateway,
-					deps.catalogViewRepo,
-					deps.auditStore,
-					deps.eventPublisher,
-				).execute(command.payload as Parameters<RequestNotificationDispatchUseCase["execute"]>[0]);
-
-			case "recordAuditSignal":
-				return new RecordAuditSignalUseCase(
-					deps.auditStore,
-					deps.eventPublisher,
-				).execute(command.payload as Parameters<RecordAuditSignalUseCase["execute"]>[0]);
-
-			case "emitObservabilitySignal":
-				return new EmitObservabilitySignalUseCase(
-					deps.observabilitySink,
-					deps.auditStore,
-					deps.eventPublisher,
-				).execute(command.payload as Parameters<EmitObservabilitySignalUseCase["execute"]>[0]);
+			case "getWorkflowPolicyView":
+				return new GetWorkflowPolicyViewUseCase(deps.workflowPolicyRepo).execute(
+					queryMsg.payload as Parameters<GetWorkflowPolicyViewUseCase["execute"]>[0],
+				) as Promise<TResult>;
 
 			default:
-				return {
-					ok: false,
-					code: "UNKNOWN_COMMAND",
-					message: `Unknown platform command: '${String((command as PlatformCommand).name)}'`,
-				};
+				throw new Error(`Unknown platform query: '${String((queryMsg as PlatformQuery).name)}'`);
 		}
 	}
 }
@@ -12602,6 +14980,15 @@ export class GetWorkflowPolicyViewUseCase {
 }
 ````
 
+## File: modules/platform/application/queries/index.ts
+````typescript
+export { GetPlatformContextViewUseCase } from "./get-platform-context-view.queries";
+export { ListEnabledCapabilitiesUseCase } from "./list-enabled-capabilities.queries";
+export { GetPolicyCatalogViewUseCase } from "./get-policy-catalog-view.queries";
+export { GetSubscriptionEntitlementsUseCase } from "./get-subscription-entitlements.queries";
+export { GetWorkflowPolicyViewUseCase } from "./get-workflow-policy-view.queries";
+````
+
 ## File: modules/platform/application/queries/list-enabled-capabilities.queries.ts
 ````typescript
 /**
@@ -12624,86 +15011,64 @@ export class ListEnabledCapabilitiesUseCase {
 }
 ````
 
-## File: modules/platform/application/services/build-causation-id.ts
+## File: modules/platform/application/services/index.ts
 ````typescript
 /**
- * buildCausationId — derive a causation identifier from a triggering event or command.
+ * platform application services barrel.
  *
- * Application-level helper used when publishing domain events: links each
- * event back to the command or event that triggered it, forming an observable
- * causal chain.
- *
- * Convention:
- *   commandCausation — pass the commandId from the triggering PlatformCommand.
- *   eventCausation   — pass the eventId from the triggering PlatformDomainEvent.
- *
- * @see shared/types/CorrelationContext.ts
+ * Application Services handle flow coordination, transaction boundaries and
+ * cross-aggregate orchestration.  They do not carry core business invariants.
  */
-export function buildCausationId(triggeringId: string): string {
-	return `caused-by:${triggeringId}`;
-}
+
+export { buildCausationId } from "./build-causation-id";
+export { buildCorrelationId } from "./build-correlation-id";
+export {
+  quickCreateKnowledgePage,
+  type QuickCreatePageInput,
+  type QuickCreatePageResult,
+} from "./shell-quick-create";
 ````
 
-## File: modules/platform/application/services/build-correlation-id.ts
+## File: modules/platform/application/use-cases/index.ts
 ````typescript
 /**
- * buildCorrelationId — generate a new UUID v4 correlation identifier.
+ * platform application use-cases barrel.
  *
- * Application-level helper used when a new command arrives at the driving
- * adapter without an existing correlation chain, or when starting a new
- * batch of domain events not caused by an existing event.
+ * Each file follows the kebab-case convention: verb-noun.use-cases.ts
  *
- * @see shared/types/CorrelationContext.ts
+ * Commands:
+ *   register-platform-context
+ *   publish-policy-catalog
+ *   apply-configuration-profile
+ *   register-integration-contract
+ *   activate-subscription-agreement
+ *   fire-workflow-trigger
+ *   request-notification-dispatch
+ *   record-audit-signal
+ *   emit-observability-signal
+ *
+ * Queries:
+ *   get-platform-context-view
+ *   list-enabled-capabilities
+ *   get-policy-catalog-view
+ *   get-subscription-entitlements
+ *   get-workflow-policy-view
  */
-export function buildCorrelationId(): string {
-	return crypto.randomUUID();
-}
-````
 
-## File: modules/platform/application/services/shell-quick-create.ts
-````typescript
-/**
- * Shell quick-create orchestrator.
- *
- * Context-wide application service that coordinates cross-bounded-context
- * creation actions triggered from the platform shell UI.
- * Delegates to the target module's public API boundary only.
- */
-
-import { createKnowledgePage } from "@/modules/notion/api";
-
-// ── Input / output contracts ──────────────────────────────────────────────────
-
-export interface QuickCreatePageInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly createdByUserId: string;
-}
-
-export interface QuickCreatePageResult {
-  readonly success: boolean;
-  readonly error?: { message: string };
-}
-
-// ── Orchestration ─────────────────────────────────────────────────────────────
-
-export async function quickCreateKnowledgePage(
-  input: QuickCreatePageInput,
-): Promise<QuickCreatePageResult> {
-  if (!input.accountId) {
-    return { success: false, error: { message: "目前沒有 active account，無法建立" } };
-  }
-  if (!input.workspaceId) {
-    return { success: false, error: { message: "請先切換到工作區，再建立頁面" } };
-  }
-  return createKnowledgePage({
-    accountId: input.accountId,
-    workspaceId: input.workspaceId,
-    title: "未命名頁面",
-    parentPageId: null,
-    createdByUserId: input.createdByUserId,
-  });
-}
+export { RegisterPlatformContextUseCase } from "./register-platform-context.use-cases";
+export { PublishPolicyCatalogUseCase } from "./publish-policy-catalog.use-cases";
+export { ApplyConfigurationProfileUseCase } from "./apply-configuration-profile.use-cases";
+export { RegisterIntegrationContractUseCase } from "./register-integration-contract.use-cases";
+export { ActivateSubscriptionAgreementUseCase } from "./activate-subscription-agreement.use-cases";
+export { FireWorkflowTriggerUseCase } from "./fire-workflow-trigger.use-cases";
+export { RequestNotificationDispatchUseCase } from "./request-notification-dispatch.use-cases";
+export { RecordAuditSignalUseCase } from "./record-audit-signal.use-cases";
+export { EmitObservabilitySignalUseCase } from "./emit-observability-signal.use-cases";
+export { GetPlatformContextViewUseCase } from "../queries/get-platform-context-view.queries";
+export { ListEnabledCapabilitiesUseCase } from "../queries/list-enabled-capabilities.queries";
+export { GetPolicyCatalogViewUseCase } from "../queries/get-policy-catalog-view.queries";
+export { GetSubscriptionEntitlementsUseCase } from "../queries/get-subscription-entitlements.queries";
+export { GetWorkflowPolicyViewUseCase } from "../queries/get-workflow-policy-view.queries";
 ````
 
 ## File: modules/platform/docs/docs.instructions.md
@@ -12751,60 +15116,6 @@ For full reference, align with `.github/instructions/domain-modeling.instruction
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
-````
-
-## File: modules/platform/domain/services/assert-never.ts
-````typescript
-/**
- * assertNever — exhaustive union check utility.
- *
- * TypeScript compile-time guard: throws a runtime Error if a discriminated
- * union branch is reached that should be unreachable.  Useful in domain
- * switch/if chains to guarantee all variants of a discriminated type are
- * handled.
- *
- * Usage:
- *   switch (state) {
- *     case "active":  ...
- *     case "draft":   ...
- *     default: assertNever(state); // compile error when new states are added
- *   }
- *
- * @see shared/value-objects/PlatformLifecycleState.ts — example usage
- */
-export function assertNever(value: never): never {
-	throw new Error(`Unexpected value: ${JSON.stringify(value)}`);
-}
-````
-
-## File: modules/platform/domain/services/index.ts
-````typescript
-/**
- * platform domain services barrel.
- *
- * Domain Services carry business rules and invariants that cannot naturally
- * fall on a single Entity or Value Object.
- */
-
-export { assertNever } from "./assert-never";
-export { toIsoTimestamp } from "./to-iso-timestamp";
-````
-
-## File: modules/platform/domain/services/to-iso-timestamp.ts
-````typescript
-/**
- * toIsoTimestamp — convert a Date or Unix ms timestamp to an ISO 8601 string.
- *
- * All `occurredAt` and `publishedAt` fields in the platform domain must use
- * ISO 8601 strings, never Date objects, to ensure safe serialisation across
- * the server/client boundary.  This is a domain-level invariant.
- *
- * @see instructions — occurredAt must be ISO string (not Date)
- */
-export function toIsoTimestamp(value: Date | number): string {
-	const date = typeof value === "number" ? new Date(value) : value;
-	return date.toISOString();
-}
 ````
 
 ## File: modules/platform/domain/value-objects/Entitlement.ts
@@ -12959,401 +15270,6 @@ export function isExceeded(constraint: PlanConstraint, usage: number): boolean {
 export * from "./api";
 ````
 
-## File: modules/platform/infrastructure/cache/CachedPlatformContextViewRepository.ts
-````typescript
-/**
- * CachedPlatformContextViewRepository — Firestore-backed View Repository (Driven Adapter)
- *
- * Implements: PlatformContextViewRepository
- * Reads PlatformContextView from "platform-contexts" collection.
- */
-
-import { getFirestore, doc, getDoc } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { PlatformContextViewRepository, PlatformContextView } from "../../domain/ports/output";
-
-export class CachedPlatformContextViewRepository implements PlatformContextViewRepository {
-	private get db() {
-		return getFirestore(firebaseClientApp);
-	}
-
-	async getView(contextId: string): Promise<PlatformContextView | null> {
-		const snap = await getDoc(doc(this.db, "platform-contexts", contextId));
-		if (!snap.exists()) return null;
-		const data = snap.data() as Record<string, unknown>;
-		return {
-			contextId,
-			lifecycleState: typeof data.lifecycleState === "string" ? data.lifecycleState : "unknown",
-			capabilityKeys: Array.isArray(data.capabilityKeys) ? (data.capabilityKeys as string[]) : [],
-		};
-	}
-}
-````
-
-## File: modules/platform/infrastructure/cache/CachedPolicyCatalogViewRepository.ts
-````typescript
-/**
- * CachedPolicyCatalogViewRepository — Firestore-backed View Repository (Driven Adapter)
- *
- * Implements: PolicyCatalogViewRepository
- * Reads PolicyCatalogView from "policy-catalogs" collection (latest active revision).
- */
-
-import { getFirestore, collection, query, orderBy, limit, getDocs } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { PolicyCatalogViewRepository, PolicyCatalogView } from "../../domain/ports/output";
-
-export class CachedPolicyCatalogViewRepository implements PolicyCatalogViewRepository {
-private get db() {
-return getFirestore(firebaseClientApp);
-}
-
-async getView(contextId: string): Promise<PolicyCatalogView | null> {
-const q = query(
-collection(this.db, "policy-catalogs"),
-orderBy("revision", "desc"),
-limit(1),
-);
-const snap = await getDocs(q);
-if (snap.empty) return null;
-const data = snap.docs[0].data() as Record<string, unknown>;
-return {
-contextId,
-revision: typeof data.revision === "number" ? data.revision : 0,
-permissionRuleCount: typeof data.permissionRuleCount === "number" ? data.permissionRuleCount : 0,
-workflowRuleCount: typeof data.workflowRuleCount === "number" ? data.workflowRuleCount : 0,
-notificationRuleCount: typeof data.notificationRuleCount === "number" ? data.notificationRuleCount : 0,
-auditRuleCount: typeof data.auditRuleCount === "number" ? data.auditRuleCount : 0,
-};
-}
-}
-````
-
-## File: modules/platform/infrastructure/cache/CachedUsageMeterRepository.ts
-````typescript
-/**
- * CachedUsageMeterRepository — Firestore-backed View Repository (Driven Adapter)
- *
- * Implements: UsageMeterRepository
- * Reads SubscriptionEntitlementsView from "subscription-agreements" collection.
- */
-
-import { getFirestore, collection, query, where, getDocs, limit } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { UsageMeterRepository, SubscriptionEntitlementsView } from "../../domain/ports/output";
-
-export class CachedUsageMeterRepository implements UsageMeterRepository {
-private get db() {
-return getFirestore(firebaseClientApp);
-}
-
-async getEntitlementsView(contextId: string): Promise<SubscriptionEntitlementsView | null> {
-const q = query(
-collection(this.db, "subscription-agreements"),
-where("contextId", "==", contextId),
-where("billingState", "==", "active"),
-limit(1),
-);
-const snap = await getDocs(q);
-if (snap.empty) return null;
-const data = snap.docs[0].data() as Record<string, unknown>;
-return {
-contextId,
-planCode: typeof data.planCode === "string" ? data.planCode : "free",
-entitlements: Array.isArray(data.entitlements) ? (data.entitlements as string[]) : [],
-usageLimits: Array.isArray(data.usageLimits) ? (data.usageLimits as string[]) : [],
-};
-}
-}
-````
-
-## File: modules/platform/infrastructure/cache/index.ts
-````typescript
-/**
- * platform cache infrastructure barrel.
- */
-
-export { CachedPlatformContextViewRepository } from "./CachedPlatformContextViewRepository";
-export { CachedPolicyCatalogViewRepository } from "./CachedPolicyCatalogViewRepository";
-export { CachedUsageMeterRepository } from "./CachedUsageMeterRepository";
-````
-
-## File: modules/platform/infrastructure/db/EnvSecretReferenceResolver.ts
-````typescript
-/**
- * EnvSecretReferenceResolver — Environment-based Adapter (Driven Adapter)
- *
- * Implements: SecretReferenceResolver
- * Resolves secret references from environment variables.
- */
-
-import type { SecretReferenceResolver } from "../../domain/ports/output";
-
-export class EnvSecretReferenceResolver implements SecretReferenceResolver {
-async resolve(secretRef: string): Promise<string> {
-const envKey = secretRef.toUpperCase().replace(/-/g, "_");
-return process.env[envKey] ?? "";
-}
-}
-````
-
-## File: modules/platform/infrastructure/db/FirebaseConfigurationProfileStore.ts
-````typescript
-/**
- * FirebaseConfigurationProfileStore — Firestore Store (Driven Adapter)
- *
- * Implements: ConfigurationProfileStore
- * Collection: "config-profiles"
- */
-
-import { getFirestore, doc, getDoc } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { ConfigurationProfileStore } from "../../domain/ports/output";
-
-export class FirebaseConfigurationProfileStore implements ConfigurationProfileStore {
-	private get db() {
-		return getFirestore(firebaseClientApp);
-	}
-
-	async getProfile(profileRef: string): Promise<unknown | null> {
-		const snap = await getDoc(doc(this.db, "config-profiles", profileRef));
-		if (!snap.exists()) return null;
-		return { profileRef, ...(snap.data() as Record<string, unknown>) };
-	}
-}
-````
-
-## File: modules/platform/infrastructure/db/FirebaseIntegrationContractRepository.ts
-````typescript
-/**
- * FirebaseIntegrationContractRepository — Firestore Repository (Driven Adapter)
- *
- * Implements: IntegrationContractRepository
- * Collection: "integration-contracts"
- */
-
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { IntegrationContractRepository } from "../../domain/ports/output";
-
-export class FirebaseIntegrationContractRepository implements IntegrationContractRepository {
-	private get db() {
-		return getFirestore(firebaseClientApp);
-	}
-
-	async findById(integrationContractId: string): Promise<unknown | null> {
-		const snap = await getDoc(doc(this.db, "integration-contracts", integrationContractId));
-		if (!snap.exists()) return null;
-		return { integrationContractId, ...(snap.data() as Record<string, unknown>) };
-	}
-
-	async save(contract: unknown): Promise<void> {
-		const record = contract as Record<string, unknown>;
-		const id = record.integrationContractId as string;
-		await setDoc(doc(this.db, "integration-contracts", id), record, { merge: true });
-	}
-}
-````
-
-## File: modules/platform/infrastructure/db/FirebasePlatformContextRepository.ts
-````typescript
-/**
- * FirebasePlatformContextRepository — Firestore Repository (Driven Adapter)
- *
- * Implements: PlatformContextRepository
- * Collection: "platform-contexts"
- */
-
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { PlatformContextRepository } from "../../domain/ports/output";
-
-export class FirebasePlatformContextRepository implements PlatformContextRepository {
-	private get db() {
-		return getFirestore(firebaseClientApp);
-	}
-
-	async findById(contextId: string): Promise<unknown | null> {
-		const snap = await getDoc(doc(this.db, "platform-contexts", contextId));
-		if (!snap.exists()) return null;
-		return { contextId, ...(snap.data() as Record<string, unknown>) };
-	}
-
-	async save(context: unknown): Promise<void> {
-		const record = context as Record<string, unknown>;
-		const contextId = record.contextId as string;
-		await setDoc(doc(this.db, "platform-contexts", contextId), record, { merge: true });
-	}
-}
-````
-
-## File: modules/platform/infrastructure/db/FirebasePolicyCatalogRepository.ts
-````typescript
-/**
- * FirebasePolicyCatalogRepository — Firestore Repository (Driven Adapter)
- *
- * Implements: PolicyCatalogRepository
- * Collection: "policy-catalogs"
- */
-
-import { getFirestore, collection, query, orderBy, limit, getDocs, setDoc, doc } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { PolicyCatalogRepository } from "../../domain/ports/output";
-
-export class FirebasePolicyCatalogRepository implements PolicyCatalogRepository {
-	private get db() {
-		return getFirestore(firebaseClientApp);
-	}
-
-	async findActiveByContextId(contextId: string): Promise<unknown | null> {
-		const q = query(
-			collection(this.db, "policy-catalogs"),
-			orderBy("revision", "desc"),
-			limit(1),
-		);
-		const snap = await getDocs(q);
-		if (snap.empty) return null;
-		const d = snap.docs[0];
-		return { contextId, ...(d.data() as Record<string, unknown>), id: d.id };
-	}
-
-	async saveRevision(catalog: unknown): Promise<void> {
-		const record = catalog as Record<string, unknown>;
-		const contextId = record.contextId as string;
-		const revision = record.revision as number;
-		const id = `${contextId}__rev${revision}`;
-		await setDoc(doc(this.db, "policy-catalogs", id), record, { merge: true });
-	}
-}
-````
-
-## File: modules/platform/infrastructure/db/FirebaseSubscriptionAgreementRepository.ts
-````typescript
-/**
- * FirebaseSubscriptionAgreementRepository — Firestore Repository (Driven Adapter)
- *
- * Implements: SubscriptionAgreementRepository
- * Collection: "subscription-agreements"
- */
-
-import { getFirestore, collection, query, where, getDocs, limit, setDoc, doc } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { SubscriptionAgreementRepository } from "../../domain/ports/output";
-
-export class FirebaseSubscriptionAgreementRepository implements SubscriptionAgreementRepository {
-	private get db() {
-		return getFirestore(firebaseClientApp);
-	}
-
-	async findEffectiveByContextId(contextId: string): Promise<unknown | null> {
-		const q = query(
-			collection(this.db, "subscription-agreements"),
-			where("contextId", "==", contextId),
-			where("billingState", "==", "active"),
-			limit(1),
-		);
-		const snap = await getDocs(q);
-		if (snap.empty) return null;
-		const d = snap.docs[0];
-		return { ...(d.data() as Record<string, unknown>), subscriptionAgreementId: d.id };
-	}
-
-	async save(agreement: unknown): Promise<void> {
-		const record = agreement as Record<string, unknown>;
-		const id = record.subscriptionAgreementId as string;
-		await setDoc(doc(this.db, "subscription-agreements", id), record, { merge: true });
-	}
-}
-````
-
-## File: modules/platform/infrastructure/db/FirebaseWorkflowPolicyRepository.ts
-````typescript
-/**
- * FirebaseWorkflowPolicyRepository — Firestore Repository (Driven Adapter)
- *
- * Implements: WorkflowPolicyRepository
- * Collection: "workflow-policies"
- */
-
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { WorkflowPolicyRepository, WorkflowPolicyView } from "../../domain/ports/output";
-
-export class FirebaseWorkflowPolicyRepository implements WorkflowPolicyRepository {
-	private get db() {
-		return getFirestore(firebaseClientApp);
-	}
-
-	private makeId(contextId: string, triggerKey: string): string {
-		return `${contextId}__${triggerKey}`;
-	}
-
-	async getView(contextId: string, triggerKey: string): Promise<WorkflowPolicyView | null> {
-		const id = this.makeId(contextId, triggerKey);
-		const snap = await getDoc(doc(this.db, "workflow-policies", id));
-		if (!snap.exists()) return null;
-		const data = snap.data() as Record<string, unknown>;
-		return {
-			contextId,
-			triggerKey,
-			enabled: Boolean(data.enabled),
-		};
-	}
-
-	async save(policy: WorkflowPolicyView): Promise<void> {
-		const id = this.makeId(policy.contextId, policy.triggerKey);
-		await setDoc(doc(this.db, "workflow-policies", id), policy, { merge: true });
-	}
-}
-````
-
-## File: modules/platform/infrastructure/db/index.ts
-````typescript
-/**
- * platform database infrastructure barrel.
- */
-
-export { FirebasePlatformContextRepository } from "./FirebasePlatformContextRepository";
-export { FirebasePolicyCatalogRepository } from "./FirebasePolicyCatalogRepository";
-export { FirebaseIntegrationContractRepository } from "./FirebaseIntegrationContractRepository";
-export { FirebaseSubscriptionAgreementRepository } from "./FirebaseSubscriptionAgreementRepository";
-export { FirebaseWorkflowPolicyRepository } from "./FirebaseWorkflowPolicyRepository";
-export { FirebaseConfigurationProfileStore } from "./FirebaseConfigurationProfileStore";
-export { EnvSecretReferenceResolver } from "./EnvSecretReferenceResolver";
-````
-
-## File: modules/platform/infrastructure/email/index.ts
-````typescript
-/**
- * platform email infrastructure barrel.
- */
-
-export { SmtpNotificationGateway } from "./SmtpNotificationGateway";
-````
-
-## File: modules/platform/infrastructure/email/SmtpNotificationGateway.ts
-````typescript
-/**
- * SmtpNotificationGateway — Email Adapter (Driven Adapter)
- *
- * Implements: NotificationGateway
- * Delivers notifications. In production, replace console.info with
- * a Resend / SendGrid / SMTP relay API call.
- */
-
-import type { NotificationGateway } from "../../domain/ports/output";
-import type { PlatformCommandResult } from "../../domain/ports/input";
-
-export class SmtpNotificationGateway implements NotificationGateway {
-async dispatch(request: Record<string, unknown>): Promise<PlatformCommandResult> {
-if (process.env.NODE_ENV !== "test") {
-console.info("[SmtpNotificationGateway] dispatch", request);
-}
-return { ok: true, code: "NOTIFICATION_DISPATCHED" };
-}
-}
-````
-
 ## File: modules/platform/infrastructure/infrastructure.instructions.md
 ````markdown
 ---
@@ -13379,253 +15295,6 @@ For full reference, align with `.github/instructions/firestore-schema.instructio
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill xuanwu-development-contracts
-````
-
-## File: modules/platform/infrastructure/messaging/index.ts
-````typescript
-/**
- * platform messaging infrastructure barrel.
- */
-
-export { QStashDomainEventPublisher } from "./QStashDomainEventPublisher";
-export { QStashWorkflowDispatcher } from "./QStashWorkflowDispatcher";
-export { QStashJobQueuePort } from "./QStashJobQueuePort";
-````
-
-## File: modules/platform/infrastructure/messaging/QStashDomainEventPublisher.ts
-````typescript
-/**
- * QStashDomainEventPublisher — Messaging Adapter (Driven Adapter)
- *
- * Implements: DomainEventPublisher
- * Publishes platform domain events via Upstash QStash.
- */
-
-import type { DomainEventPublisher } from "../../domain/ports/output";
-import type { PlatformDomainEvent } from "../../domain/events";
-
-const QSTASH_ENDPOINT = "https://qstash.upstash.io/v2/publish/";
-
-export class QStashDomainEventPublisher implements DomainEventPublisher {
-	constructor(
-		private readonly destinationUrl: string = process.env.QSTASH_DESTINATION_URL ?? "",
-		private readonly token: string = process.env.QSTASH_TOKEN ?? "",
-	) {}
-
-	async publish(events: PlatformDomainEvent[]): Promise<void> {
-		if (events.length === 0) return;
-
-		if (!this.destinationUrl || !this.token) {
-			if (process.env.NODE_ENV !== "production") {
-				for (const event of events) {
-					console.warn(
-						`[QStashDomainEventPublisher] QSTASH_DESTINATION_URL or QSTASH_TOKEN not set. ` +
-							`Skipping publish of event '${event.type}' (${event.aggregateId}).`,
-					);
-				}
-			}
-			return;
-		}
-
-		for (const event of events) {
-			const body = JSON.stringify(event);
-			const dedupeId = `${event.aggregateType}:${event.aggregateId}:${event.occurredAt}`;
-			const response = await fetch(
-				`${QSTASH_ENDPOINT}${encodeURIComponent(this.destinationUrl)}`,
-				{
-					method: "POST",
-					headers: {
-						Authorization: `Bearer ${this.token}`,
-						"Content-Type": "application/json",
-						"Upstash-Retries": "3",
-						"Upstash-Deduplication-Id": dedupeId,
-					},
-					body,
-				},
-			);
-			if (!response.ok) {
-				const text = await response.text().catch(() => response.statusText);
-				throw new Error(
-					`QStashDomainEventPublisher: failed to publish '${event.type}'. ` +
-						`HTTP ${response.status}: ${text}`,
-				);
-			}
-		}
-	}
-}
-````
-
-## File: modules/platform/infrastructure/messaging/QStashJobQueuePort.ts
-````typescript
-/**
- * QStashJobQueuePort — Messaging Adapter (Driven Adapter)
- *
- * Implements: JobQueuePort
- * Transport:  Upstash QStash job queue
- */
-
-import type { JobQueuePort } from "../../domain/ports/output";
-import type { PlatformCommandResult } from "../../domain/ports/input";
-
-const QSTASH_ENDPOINT = "https://qstash.upstash.io/v2/publish/";
-
-export class QStashJobQueuePort implements JobQueuePort {
-constructor(
-private readonly jobWorkerUrl: string = process.env.JOB_WORKER_URL ?? "",
-private readonly token: string = process.env.QSTASH_TOKEN ?? "",
-) {}
-
-async enqueue(job: Record<string, unknown>): Promise<PlatformCommandResult> {
-const jobType = typeof job.jobType === "string" ? job.jobType : "unknown";
-
-if (!this.jobWorkerUrl || !this.token) {
-if (process.env.NODE_ENV !== "production") {
-console.warn(
-`[QStashJobQueuePort] JOB_WORKER_URL or QSTASH_TOKEN not set. ` +
-`Skipping enqueue of job '${jobType}'.`,
-);
-}
-return { ok: true, code: "JOB_ENQUEUED_NOOP", metadata: { jobType } };
-}
-
-const destinationUrl = `${this.jobWorkerUrl}/api/jobs/${encodeURIComponent(jobType)}`;
-const response = await fetch(`${QSTASH_ENDPOINT}${encodeURIComponent(destinationUrl)}`, {
-method: "POST",
-headers: {
-Authorization: `Bearer ${this.token}`,
-"Content-Type": "application/json",
-"Upstash-Retries": "3",
-},
-body: JSON.stringify(job),
-});
-
-if (!response.ok) {
-const text = await response.text().catch(() => response.statusText);
-return { ok: false, code: "JOB_ENQUEUE_FAILED", message: `HTTP ${response.status}: ${text}` };
-}
-
-return { ok: true, code: "JOB_ENQUEUED", metadata: { jobType } };
-}
-}
-````
-
-## File: modules/platform/infrastructure/messaging/QStashWorkflowDispatcher.ts
-````typescript
-/**
- * QStashWorkflowDispatcher — Messaging Adapter (Driven Adapter)
- *
- * Implements: WorkflowDispatcherPort
- * Dispatches workflow triggers via Upstash QStash.
- */
-
-import type { WorkflowDispatcherPort } from "../../domain/ports/output";
-import type { PlatformCommandResult } from "../../domain/ports/input";
-
-const QSTASH_ENDPOINT = "https://qstash.upstash.io/v2/publish/";
-
-export class QStashWorkflowDispatcher implements WorkflowDispatcherPort {
-constructor(
-private readonly workflowBaseUrl: string = process.env.WORKFLOW_BASE_URL ?? "",
-private readonly token: string = process.env.QSTASH_TOKEN ?? "",
-) {}
-
-async dispatch(triggerKey: string, payload: Record<string, unknown>): Promise<PlatformCommandResult> {
-if (!this.workflowBaseUrl || !this.token) {
-if (process.env.NODE_ENV !== "production") {
-console.warn(
-`[QStashWorkflowDispatcher] WORKFLOW_BASE_URL or QSTASH_TOKEN not set. ` +
-`Skipping workflow dispatch for key '${triggerKey}'.`,
-);
-}
-return { ok: true, code: "WORKFLOW_DISPATCHED_NOOP", metadata: { triggerKey } };
-}
-
-const destinationUrl = `${this.workflowBaseUrl}/api/workflows/${encodeURIComponent(triggerKey)}`;
-const response = await fetch(`${QSTASH_ENDPOINT}${encodeURIComponent(destinationUrl)}`, {
-method: "POST",
-headers: {
-Authorization: `Bearer ${this.token}`,
-"Content-Type": "application/json",
-"Upstash-Retries": "3",
-},
-body: JSON.stringify({ triggerKey, ...payload }),
-});
-
-if (!response.ok) {
-const text = await response.text().catch(() => response.statusText);
-return { ok: false, code: "WORKFLOW_DISPATCH_FAILED", message: `HTTP ${response.status}: ${text}` };
-}
-
-return { ok: true, code: "WORKFLOW_DISPATCHED", metadata: { triggerKey } };
-}
-}
-````
-
-## File: modules/platform/infrastructure/monitoring/FirebaseObservabilitySink.ts
-````typescript
-/**
- * FirebaseObservabilitySink — Monitoring Adapter (Driven Adapter)
- *
- * Implements: ObservabilitySink
- * Emits observability signals as structured console telemetry suitable for
- * Cloud Logging ingestion. Extend with a provider SDK (Datadog, GCM, etc.) as needed.
- */
-
-import type { ObservabilitySink } from "../../domain/ports/output";
-
-export class FirebaseObservabilitySink implements ObservabilitySink {
-async emit(signal: Record<string, unknown>): Promise<void> {
-const entry = { type: "observability", ...signal, emittedAt: new Date().toISOString() };
-if (process.env.NODE_ENV !== "test") {
-console.info("[ObservabilitySink]", JSON.stringify(entry));
-}
-}
-}
-````
-
-## File: modules/platform/infrastructure/monitoring/index.ts
-````typescript
-/**
- * platform monitoring infrastructure barrel.
- */
-
-export { FirebaseObservabilitySink } from "./FirebaseObservabilitySink";
-````
-
-## File: modules/platform/infrastructure/storage/FirebaseStorageAuditSignalStore.ts
-````typescript
-/**
- * FirebaseStorageAuditSignalStore — Storage Adapter (Driven Adapter)
- *
- * Implements: AuditSignalStore
- * Appends immutable audit signals to "audit-signals" Firestore collection.
- */
-
-import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { AuditSignalStore } from "../../domain/ports/output";
-
-export class FirebaseStorageAuditSignalStore implements AuditSignalStore {
-private get db() {
-return getFirestore(firebaseClientApp);
-}
-
-async write(signal: Record<string, unknown>): Promise<void> {
-await addDoc(collection(this.db, "audit-signals"), {
-...signal,
-recordedAt: serverTimestamp(),
-});
-}
-}
-````
-
-## File: modules/platform/infrastructure/storage/index.ts
-````typescript
-/**
- * platform storage infrastructure barrel.
- */
-
-export { FirebaseStorageAuditSignalStore } from "./FirebaseStorageAuditSignalStore";
 ````
 
 ## File: modules/platform/interfaces/interfaces.instructions.md
@@ -13838,6 +15507,44 @@ export function ShellTranslationSwitcher() {
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+````
+
+## File: modules/platform/interfaces/web/shell/navigation/services/shell-quick-create.ts
+````typescript
+import { createKnowledgePage } from "@/modules/notion/api";
+
+export interface QuickCreatePageInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly createdByUserId: string;
+}
+
+export interface QuickCreatePageResult {
+  readonly success: boolean;
+  readonly error?: { message: string };
+}
+
+/**
+ * Shell-level quick create adapter.
+ * Kept in interfaces layer so cross-context API calls happen at composition edge.
+ */
+export async function quickCreateKnowledgePage(
+  input: QuickCreatePageInput,
+): Promise<QuickCreatePageResult> {
+  if (!input.accountId) {
+    return { success: false, error: { message: "目前沒有 active account，無法建立" } };
+  }
+  if (!input.workspaceId) {
+    return { success: false, error: { message: "請先切換到工作區，再建立頁面" } };
+  }
+  return createKnowledgePage({
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    title: "未命名頁面",
+    parentPageId: null,
+    createdByUserId: input.createdByUserId,
+  });
 }
 ````
 
@@ -14056,35 +15763,6 @@ export interface PermissionEvaluationView {
 ## File: modules/platform/subdomains/access-control/application/dtos/index.ts
 ````typescript
 export * from "./access-control.dto";
-````
-
-## File: modules/platform/subdomains/access-control/application/services/shell-account-access.ts
-````typescript
-export interface ShellAccountActor {
-  readonly id: string;
-  readonly accountType?: string;
-}
-
-export function isOrganizationActor(
-  account: ShellAccountActor | null | undefined,
-): account is ShellAccountActor & { accountType: "organization" } {
-  return account?.accountType === "organization";
-}
-
-/**
- * Keep shell fallback behavior centralized so route access rules are not
- * duplicated across layout components.
- */
-export function resolveOrganizationRouteFallback(
-  pathname: string,
-  account: ShellAccountActor | null | undefined,
-): string | null {
-  if (pathname === "/organization" && !isOrganizationActor(account)) {
-    return "/workspace";
-  }
-
-  return null;
-}
 ````
 
 ## File: modules/platform/subdomains/access-control/application/use-cases/index.ts
@@ -14495,6 +16173,69 @@ export * from "./access-control-service";
 export { FirebaseAccessPolicyRepository } from "./firebase/FirebaseAccessPolicyRepository";
 ````
 
+## File: modules/platform/subdomains/account-profile/api/index.ts
+````typescript
+/**
+ * Public API boundary for the account-profile subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Composition root lives in infrastructure/account-profile-service.ts;
+ * this boundary is intentionally thin — it only re-exports public contracts.
+ */
+
+import {
+	getAccountProfileFromService,
+	subscribeToAccountProfileFromService,
+	updateAccountProfileFromService,
+	configureLegacyAccountProfileDataSource,
+} from "../infrastructure";
+import {
+	getLegacyUserProfile,
+	subscribeToLegacyUserProfile,
+	updateLegacyUserProfile,
+} from "../../account/api/legacy-account-profile.bridge";
+import type { AccountProfile, Unsubscribe } from "../domain";
+import type { UpdateAccountProfileInput } from "../application";
+import type { CommandResult } from "@shared-types";
+
+configureLegacyAccountProfileDataSource({
+	getUserProfile: getLegacyUserProfile,
+	subscribeToUserProfile: subscribeToLegacyUserProfile,
+	updateUserProfile: updateLegacyUserProfile,
+});
+
+// ── Use-case delegators ──────────────────────────────────────────────────
+
+export async function getAccountProfile(actorId: string): Promise<AccountProfile | null> {
+	return getAccountProfileFromService(actorId);
+}
+
+export function subscribeToAccountProfile(
+	actorId: string,
+	onUpdate: (profile: AccountProfile | null) => void,
+): Unsubscribe {
+	return subscribeToAccountProfileFromService(actorId, onUpdate);
+}
+
+export async function updateAccountProfile(
+	actorId: string,
+	input: UpdateAccountProfileInput,
+): Promise<CommandResult> {
+	return updateAccountProfileFromService(actorId, input);
+}
+
+// Legacy compatibility exports for migration window.
+export const getUserProfile = getAccountProfile;
+export const subscribeToUserProfile = subscribeToAccountProfile;
+
+export { getProfile, subscribeToProfile, updateProfile } from "../interfaces";
+
+export * from "../application";
+export * from "../domain";
+export { SettingsProfileRouteScreen } from "../interfaces";
+export type { LegacyAccountProfileDataSource } from "../infrastructure";
+````
+
 ## File: modules/platform/subdomains/account-profile/application/dtos/account-profile.dto.ts
 ````typescript
 /**
@@ -14523,92 +16264,21 @@ export type {
 } from "./dtos/account-profile.dto";
 ````
 
-## File: modules/platform/subdomains/account-profile/domain/aggregates/index.ts
+## File: modules/platform/subdomains/account-profile/infrastructure/index.ts
 ````typescript
-export { AccountProfileAggregate } from "./AccountProfileAggregate";
-export type { AccountProfileAggregateSnapshot } from "./AccountProfileAggregate";
-````
-
-## File: modules/platform/subdomains/account-profile/domain/events/AccountProfileDomainEvent.ts
-````typescript
-export interface AccountProfileDomainEvent {
-  readonly eventId: string;
-  readonly occurredAt: string;
-  readonly type: string;
-  readonly payload: object;
-}
-
-export interface AccountProfileUpdatedEvent extends AccountProfileDomainEvent {
-  readonly type: "platform.account-profile.updated";
-  readonly payload: {
-    readonly profileId: string;
-    readonly fields: string[];
-  };
-}
-
-export type AccountProfileDomainEventType = AccountProfileUpdatedEvent;
-````
-
-## File: modules/platform/subdomains/account-profile/domain/events/index.ts
-````typescript
-export type {
-  AccountProfileDomainEvent,
-  AccountProfileUpdatedEvent,
-  AccountProfileDomainEventType,
-} from "./AccountProfileDomainEvent";
-````
-
-## File: modules/platform/subdomains/account-profile/domain/ports/index.ts
-````typescript
-/**
- * account-profile domain/ports — driven port interfaces for the account-profile subdomain.
- *
- * These re-export the repository contracts from domain/repositories/, making
- * the Ports layer explicitly visible in the directory structure.
- * New code should import port interfaces from this directory.
- */
-export type { AccountProfileQueryRepository as IAccountProfileQueryPort } from "../repositories/AccountProfileQueryRepository";
-export type { AccountProfileCommandRepository as IAccountProfileCommandPort } from "../repositories/AccountProfileCommandRepository";
-````
-
-## File: modules/platform/subdomains/account-profile/domain/value-objects/index.ts
-````typescript
-export { ProfileIdSchema, createProfileId } from "./ProfileId";
-export type { ProfileId } from "./ProfileId";
 export {
-  ProfileDisplayNameSchema,
-  createProfileDisplayName,
-} from "./ProfileDisplayName";
-export type { ProfileDisplayName } from "./ProfileDisplayName";
-````
-
-## File: modules/platform/subdomains/account-profile/domain/value-objects/ProfileDisplayName.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const ProfileDisplayNameSchema = z
-  .string()
-  .min(1)
-  .max(100)
-  .trim()
-  .brand("ProfileDisplayName");
-export type ProfileDisplayName = z.infer<typeof ProfileDisplayNameSchema>;
-
-export function createProfileDisplayName(raw: string): ProfileDisplayName {
-  return ProfileDisplayNameSchema.parse(raw);
-}
-````
-
-## File: modules/platform/subdomains/account-profile/domain/value-objects/ProfileId.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const ProfileIdSchema = z.string().min(1).brand("ProfileId");
-export type ProfileId = z.infer<typeof ProfileIdSchema>;
-
-export function createProfileId(raw: string): ProfileId {
-  return ProfileIdSchema.parse(raw);
-}
+	createLegacyAccountProfileCommandRepository,
+	createLegacyAccountProfileQueryRepository,
+} from "./create-legacy-account-profile-application.adapter";
+export type {
+	LegacyAccountProfileDataSource,
+} from "./create-legacy-account-profile-application.adapter";
+export {
+	getAccountProfile as getAccountProfileFromService,
+	subscribeToAccountProfile as subscribeToAccountProfileFromService,
+	updateAccountProfile as updateAccountProfileFromService,
+	configureLegacyAccountProfileDataSource,
+} from "./account-profile-service";
 ````
 
 ## File: modules/platform/subdomains/account-profile/interfaces/_actions/account-profile.actions.ts
@@ -14657,6 +16327,42 @@ export function subscribeToProfile(
 ): Unsubscribe {
   return subscribeToAccountProfile(actorId, onUpdate);
 }
+````
+
+## File: modules/platform/subdomains/account/api/index.ts
+````typescript
+/**
+ * Public API boundary for the account subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+
+import { identityApi } from "../../identity/api";
+import { configureTokenRefreshEmitter } from "../infrastructure/identity-token-refresh.adapter";
+
+configureTokenRefreshEmitter(identityApi.emitTokenRefreshSignal);
+
+export * from "../application";
+export { accountService, createClientAccountUseCases, createAccountQueryRepository } from "../infrastructure";
+export type {
+  AccountEntity,
+  AccountType,
+  OrganizationRole,
+  AccountRoleRecord,
+  UpdateProfileInput,
+  WalletTransaction,
+  ThemeConfig,
+  Wallet,
+} from "../domain/entities/Account";
+export type {
+  AccountPolicy,
+  PolicyRule,
+  PolicyEffect,
+  CreatePolicyInput,
+  UpdatePolicyInput,
+} from "../domain/entities/AccountPolicy";
+export type { WalletBalanceSnapshot, Unsubscribe } from "../domain/repositories/AccountQueryRepository";
+export type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
+export * from "../interfaces";
 ````
 
 ## File: modules/platform/subdomains/account/api/legacy-account-profile.bridge.ts
@@ -14732,145 +16438,33 @@ export {
 } from "./services/resolve-active-account";
 ````
 
-## File: modules/platform/subdomains/account/domain/index.ts
-````typescript
-export type {
-  AccountType,
-  OrganizationRole,
-  Presence,
-  ThemeConfig,
-  Wallet,
-  ExpertiseBadge,
-  MemberReference,
-  Team,
-  AccountEntity,
-  AccountRoleRecord,
-  UpdateProfileInput,
-  WalletTransaction,
-} from "./entities/Account";
-
-export type {
-  PolicyEffect,
-  PolicyRule,
-  AccountPolicy,
-  CreatePolicyInput,
-  UpdatePolicyInput,
-} from "./entities/AccountPolicy";
-
-export type { AccountRepository } from "./repositories/AccountRepository";
-export type { AccountQueryRepository, WalletBalanceSnapshot, Unsubscribe } from "./repositories/AccountQueryRepository";
-export type { AccountPolicyRepository } from "./repositories/AccountPolicyRepository";
-export type { TokenRefreshPort, TokenRefreshSignalInput } from "./ports/TokenRefreshPort";
-export type { IAccountPort, IAccountQueryPort, IAccountPolicyPort } from "./ports";
-export * from "./aggregates";
-export * from "./events";
-export * from "./value-objects";
-````
-
-## File: modules/platform/subdomains/account/domain/ports/index.ts
+## File: modules/platform/subdomains/account/infrastructure/identity-token-refresh.adapter.ts
 ````typescript
 /**
- * account domain/ports — driven port interfaces for the account subdomain.
- *
- * These re-export the repository contracts from domain/repositories/, making
- * the Ports layer explicitly visible in the directory structure.
- * New code should import port interfaces from this directory.
- */
-export type { AccountRepository as IAccountPort } from "../repositories/AccountRepository";
-export type { AccountQueryRepository as IAccountQueryPort } from "../repositories/AccountQueryRepository";
-export type { AccountPolicyRepository as IAccountPolicyPort } from "../repositories/AccountPolicyRepository";
-export type { TokenRefreshPort } from "./TokenRefreshPort";
-````
-
-## File: modules/platform/subdomains/account/infrastructure/account-service.ts
-````typescript
-/**
- * AccountService — Composition root for account use cases.
- * Wires repositories and ports; provides a unified service interface.
+ * IdentityTokenRefreshAdapter — Implements TokenRefreshPort using the platform identity subdomain.
+ * This adapter lives in the adapters layer so the application layer stays clean.
  */
 
-import {
-  CreateUserAccountUseCase,
-  UpdateUserProfileUseCase,
-  CreditWalletUseCase,
-  DebitWalletUseCase,
-  AssignAccountRoleUseCase,
-  RevokeAccountRoleUseCase,
-} from "../application/use-cases/account.use-cases";
-import {
-  CreateAccountPolicyUseCase,
-  UpdateAccountPolicyUseCase,
-  DeleteAccountPolicyUseCase,
-} from "../application/use-cases/account-policy.use-cases";
-import { FirebaseAccountRepository } from "./firebase/FirebaseAccountRepository";
-import { FirebaseAccountQueryRepository } from "./firebase/FirebaseAccountQueryRepository";
-import { FirebaseAccountPolicyRepository } from "./firebase/FirebaseAccountPolicyRepository";
-import { tokenRefreshAdapter } from "./identity-token-refresh.adapter";
-import type { UpdateProfileInput, OrganizationRole } from "../domain/entities/Account";
-import type { CreatePolicyInput, UpdatePolicyInput } from "../domain/entities/AccountPolicy";
-import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
-import type { CommandResult } from "@shared-types";
+import type { TokenRefreshPort, TokenRefreshSignalInput } from "../domain/ports/TokenRefreshPort";
 
-let _accountRepo: FirebaseAccountRepository | undefined;
-let _policyRepo: FirebaseAccountPolicyRepository | undefined;
+type EmitTokenRefreshSignal = (input: TokenRefreshSignalInput) => Promise<void>;
 
-function getAccountRepo(): FirebaseAccountRepository {
-  if (!_accountRepo) _accountRepo = new FirebaseAccountRepository();
-  return _accountRepo;
+let _emitTokenRefreshSignal: EmitTokenRefreshSignal | undefined;
+
+export function configureTokenRefreshEmitter(emitFn: EmitTokenRefreshSignal): void {
+  _emitTokenRefreshSignal = emitFn;
 }
 
-function getAcctPolicyRepo(): FirebaseAccountPolicyRepository {
-  if (!_policyRepo) _policyRepo = new FirebaseAccountPolicyRepository();
-  return _policyRepo;
+export class IdentityTokenRefreshAdapter implements TokenRefreshPort {
+  async emitTokenRefreshSignal(input: TokenRefreshSignalInput): Promise<void> {
+    if (!_emitTokenRefreshSignal) {
+      throw new Error("Token refresh emitter is not configured.");
+    }
+    await _emitTokenRefreshSignal(input);
+  }
 }
 
-export const accountService = {
-  createUserAccount: (userId: string, name: string, email: string): Promise<CommandResult> =>
-    new CreateUserAccountUseCase(getAccountRepo()).execute(userId, name, email),
-
-  updateUserProfile: (userId: string, data: UpdateProfileInput): Promise<CommandResult> =>
-    new UpdateUserProfileUseCase(getAccountRepo()).execute(userId, data),
-
-  creditWallet: (accountId: string, amount: number, description: string): Promise<CommandResult> =>
-    new CreditWalletUseCase(getAccountRepo()).execute(accountId, amount, description),
-
-  debitWallet: (accountId: string, amount: number, description: string): Promise<CommandResult> =>
-    new DebitWalletUseCase(getAccountRepo()).execute(accountId, amount, description),
-
-  assignRole: (accountId: string, role: OrganizationRole, grantedBy: string, traceId?: string): Promise<CommandResult> =>
-    new AssignAccountRoleUseCase(getAccountRepo(), tokenRefreshAdapter).execute(accountId, role, grantedBy, traceId),
-
-  revokeRole: (accountId: string): Promise<CommandResult> =>
-    new RevokeAccountRoleUseCase(getAccountRepo(), tokenRefreshAdapter).execute(accountId),
-
-  createPolicy: (input: CreatePolicyInput): Promise<CommandResult> =>
-    new CreateAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(input),
-
-  updatePolicy: (policyId: string, accountId: string, data: UpdatePolicyInput, traceId?: string): Promise<CommandResult> =>
-    new UpdateAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(policyId, accountId, data, traceId),
-
-  deletePolicy: (policyId: string, accountId: string): Promise<CommandResult> =>
-    new DeleteAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(policyId, accountId),
-};
-
-/**
- * Creates a wired set of client-side account use cases.
- * Keeps infrastructure wiring in the module boundary rather than in UI files.
- */
-export function createClientAccountUseCases() {
-  const repo = new FirebaseAccountRepository();
-  return {
-    createUserAccountUseCase: new CreateUserAccountUseCase(repo),
-  };
-}
-
-// Internal re-export for the legacy bridge within this subdomain only.
-export { FirebaseAccountQueryRepository };
-
-/** Factory that returns a wired AccountQueryRepository without leaking the concrete class. */
-export function createAccountQueryRepository(): AccountQueryRepository {
-  return new FirebaseAccountQueryRepository();
-}
+export const tokenRefreshAdapter = new IdentityTokenRefreshAdapter();
 ````
 
 ## File: modules/platform/subdomains/account/interfaces/_actions/account-policy.actions.ts
@@ -15073,92 +16667,6 @@ export async function getAccountPolicies(_accountId: string): Promise<AccountPol
 export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
   return [];
 }
-````
-
-## File: modules/platform/subdomains/background-job/api/index.ts
-````typescript
-/**
- * Public API boundary for the background-job subdomain.
- * Cross-module consumers must import through this entry point.
- */
-
-export * from "../application";
-export { ingestionService } from "../infrastructure/ingestion-service";
-export type { IngestionDocument } from "../domain/entities/IngestionDocument";
-export type { IngestionChunk, IngestionChunkMetadata } from "../domain/entities/IngestionChunk";
-export type { IngestionJob, IngestionStatus } from "../domain/entities/IngestionJob";
-export { canTransitionIngestionStatus } from "../domain/entities/IngestionJob";
-````
-
-## File: modules/platform/subdomains/background-job/domain/events/index.ts
-````typescript
-export type {
-  IngestionJobDomainEvent,
-  IngestionJobRegisteredEvent,
-  IngestionJobAdvancedEvent,
-  IngestionJobFailedEvent,
-  IngestionJobDomainEventType,
-} from "./IngestionJobDomainEvent";
-````
-
-## File: modules/platform/subdomains/background-job/domain/events/IngestionJobDomainEvent.ts
-````typescript
-import type { IngestionStatus } from "../entities/IngestionJob";
-
-export interface IngestionJobDomainEvent {
-  readonly eventId: string;
-  readonly occurredAt: string;
-  readonly type: string;
-  readonly payload: object;
-}
-
-export interface IngestionJobRegisteredEvent extends IngestionJobDomainEvent {
-  readonly type: "platform.background-job.ingestion_registered";
-  readonly payload: {
-    readonly jobId: string;
-    readonly documentId: string;
-    readonly organizationId: string;
-    readonly workspaceId: string;
-    readonly title: string;
-    readonly mimeType: string;
-  };
-}
-
-export interface IngestionJobAdvancedEvent extends IngestionJobDomainEvent {
-  readonly type: "platform.background-job.ingestion_advanced";
-  readonly payload: {
-    readonly jobId: string;
-    readonly documentId: string;
-    readonly previousStatus: IngestionStatus;
-    readonly nextStatus: IngestionStatus;
-  };
-}
-
-export interface IngestionJobFailedEvent extends IngestionJobDomainEvent {
-  readonly type: "platform.background-job.ingestion_failed";
-  readonly payload: {
-    readonly jobId: string;
-    readonly documentId: string;
-    readonly reason: string;
-  };
-}
-
-export type IngestionJobDomainEventType =
-  | IngestionJobRegisteredEvent
-  | IngestionJobAdvancedEvent
-  | IngestionJobFailedEvent;
-````
-
-## File: modules/platform/subdomains/background-job/domain/ports/index.ts
-````typescript
-/**
- * background-job domain/ports — driven port interfaces for the background-job subdomain.
- *
- * These re-export the repository contracts from domain/repositories/, making
- * the Ports layer explicitly visible in the directory structure.
- * New code should import port interfaces from this directory.
- */
-export type { IIngestionJobRepository as IIngestionJobPort } from "../repositories/IIngestionJobRepository";
 ````
 
 ## File: modules/platform/subdomains/entitlement/api/index.ts
@@ -15614,51 +17122,6 @@ export * from "./entitlement-service";
 export { FirebaseEntitlementGrantRepository } from "./firebase/FirebaseEntitlementGrantRepository";
 ````
 
-## File: modules/platform/subdomains/identity/domain/index.ts
-````typescript
-export type { IdentityEntity, RegistrationInput, SignInCredentials } from "./entities/Identity";
-export type { TokenRefreshReason, TokenRefreshSignal } from "./entities/TokenRefreshSignal";
-export type { IdentityRepository } from "./repositories/IdentityRepository";
-export type { TokenRefreshRepository } from "./repositories/TokenRefreshRepository";
-export type { IIdentityPort, ITokenRefreshPort } from "./ports";
-export * from "./aggregates";
-export * from "./events";
-export * from "./value-objects";
-````
-
-## File: modules/platform/subdomains/identity/domain/ports/index.ts
-````typescript
-/**
- * identity domain/ports — driven port interfaces for the identity subdomain.
- *
- * These re-export the repository contracts from domain/repositories/, making
- * the Ports layer explicitly visible in the directory structure.
- * New code should import port interfaces from this directory.
- */
-export type { IdentityRepository as IIdentityPort } from "../repositories/IdentityRepository";
-export type { TokenRefreshRepository as ITokenRefreshPort } from "../repositories/TokenRefreshRepository";
-````
-
-## File: modules/platform/subdomains/notification/api/index.ts
-````typescript
-/**
- * Public API boundary for the notification subdomain.
- * Cross-module consumers must import through this entry point.
- */
-
-export * from "../application";
-export { notificationService } from "../infrastructure/notification-service";
-export type {
-  NotificationEntity,
-  NotificationType,
-  DispatchNotificationInput,
-} from "../domain/entities/Notification";
-export { NotificationBell } from "../interfaces/components/NotificationBell";
-export { NotificationsPage } from "../interfaces/components/NotificationsPage";
-export type { NotificationsPageProps } from "../interfaces/components/NotificationsPage";
-export * from "../interfaces";
-````
-
 ## File: modules/platform/subdomains/notification/application/dtos/notification.dto.ts
 ````typescript
 /**
@@ -15690,238 +17153,58 @@ export class GetUnreadCountUseCase {
 }
 ````
 
-## File: modules/platform/subdomains/notification/domain/aggregates/index.ts
-````typescript
-export { NotificationAggregate } from "./NotificationAggregate";
-export type { NotificationAggregateSnapshot } from "./NotificationAggregate";
-````
-
-## File: modules/platform/subdomains/notification/domain/aggregates/NotificationAggregate.ts
-````typescript
-import type {
-  NotificationDomainEventType,
-  NotificationDispatchedEvent,
-  NotificationReadEvent,
-} from "../events/NotificationDomainEvent";
-import { createNotificationId } from "../value-objects";
-import type { NotificationId } from "../value-objects";
-import type {
-  NotificationEntity,
-  DispatchNotificationInput,
-} from "../entities/Notification";
-
-export interface NotificationAggregateSnapshot {
-  readonly id: string;
-  readonly recipientId: string;
-  readonly title: string;
-  readonly message: string;
-  readonly type: NotificationEntity["type"];
-  readonly read: boolean;
-  readonly timestamp: number;
-  readonly sourceEventType: string | undefined;
-  readonly metadata: Record<string, unknown> | undefined;
-}
-
-export class NotificationAggregate {
-  private readonly _domainEvents: NotificationDomainEventType[] = [];
-
-  private constructor(private _props: NotificationAggregateSnapshot) {}
-
-  static create(id: string, input: DispatchNotificationInput): NotificationAggregate {
-    createNotificationId(id);
-    const aggregate = new NotificationAggregate({
-      id,
-      recipientId: input.recipientId,
-      title: input.title,
-      message: input.message,
-      type: input.type,
-      read: false,
-      timestamp: Date.now(),
-      sourceEventType: input.sourceEventType,
-      metadata: input.metadata,
-    });
-    aggregate.recordEvent<NotificationDispatchedEvent>({
-      type: "platform.notification.dispatched",
-      eventId: crypto.randomUUID(),
-      occurredAt: new Date().toISOString(),
-      payload: {
-        notificationId: id,
-        recipientId: input.recipientId,
-        notificationType: input.type,
-      },
-    });
-    return aggregate;
-  }
-
-  static reconstitute(snapshot: NotificationAggregateSnapshot): NotificationAggregate {
-    return new NotificationAggregate({ ...snapshot });
-  }
-
-  markRead(): void {
-    if (this._props.read) return;
-    const now = new Date().toISOString();
-    this._props = { ...this._props, read: true };
-    this.recordEvent<NotificationReadEvent>({
-      type: "platform.notification.read",
-      eventId: crypto.randomUUID(),
-      occurredAt: now,
-      payload: {
-        notificationId: this._props.id,
-        recipientId: this._props.recipientId,
-      },
-    });
-  }
-
-  get id(): NotificationId {
-    return createNotificationId(this._props.id);
-  }
-
-  get recipientId(): string {
-    return this._props.recipientId;
-  }
-
-  get read(): boolean {
-    return this._props.read;
-  }
-
-  getSnapshot(): Readonly<NotificationAggregateSnapshot> {
-    return Object.freeze({ ...this._props });
-  }
-
-  pullDomainEvents(): NotificationDomainEventType[] {
-    const events = [...this._domainEvents];
-    this._domainEvents.length = 0;
-    return events;
-  }
-
-  private recordEvent<TEvent extends NotificationDomainEventType>(event: TEvent): void {
-    this._domainEvents.push(event);
-  }
-}
-````
-
-## File: modules/platform/subdomains/notification/domain/events/index.ts
-````typescript
-export type {
-  NotificationDomainEvent,
-  NotificationDispatchedEvent,
-  NotificationReadEvent,
-  AllNotificationsReadEvent,
-  NotificationDomainEventType,
-} from "./NotificationDomainEvent";
-````
-
-## File: modules/platform/subdomains/notification/domain/events/NotificationDomainEvent.ts
-````typescript
-import type { NotificationType } from "../entities/Notification";
-
-export interface NotificationDomainEvent {
-  readonly eventId: string;
-  readonly occurredAt: string;
-  readonly type: string;
-  readonly payload: object;
-}
-
-export interface NotificationDispatchedEvent extends NotificationDomainEvent {
-  readonly type: "platform.notification.dispatched";
-  readonly payload: {
-    readonly notificationId: string;
-    readonly recipientId: string;
-    readonly notificationType: NotificationType;
-  };
-}
-
-export interface NotificationReadEvent extends NotificationDomainEvent {
-  readonly type: "platform.notification.read";
-  readonly payload: {
-    readonly notificationId: string;
-    readonly recipientId: string;
-  };
-}
-
-export interface AllNotificationsReadEvent extends NotificationDomainEvent {
-  readonly type: "platform.notification.all_read";
-  readonly payload: {
-    readonly recipientId: string;
-  };
-}
-
-export type NotificationDomainEventType =
-  | NotificationDispatchedEvent
-  | NotificationReadEvent
-  | AllNotificationsReadEvent;
-````
-
-## File: modules/platform/subdomains/notification/domain/ports/index.ts
+## File: modules/platform/subdomains/notification/application/use-cases/notification.use-cases.ts
 ````typescript
 /**
- * notification domain/ports — driven port interfaces for the notification subdomain.
- *
- * These re-export the repository contracts from domain/repositories/, making
- * the Ports layer explicitly visible in the directory structure.
- * New code should import port interfaces from this directory.
- */
-export type { NotificationRepository as INotificationPort } from "../repositories/NotificationRepository";
-````
-
-## File: modules/platform/subdomains/notification/domain/value-objects/index.ts
-````typescript
-export { NotificationIdSchema, createNotificationId } from "./NotificationId";
-export type { NotificationId } from "./NotificationId";
-````
-
-## File: modules/platform/subdomains/notification/domain/value-objects/NotificationId.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const NotificationIdSchema = z.string().min(1).brand("NotificationId");
-export type NotificationId = z.infer<typeof NotificationIdSchema>;
-
-export function createNotificationId(raw: string): NotificationId {
-  return NotificationIdSchema.parse(raw);
-}
-````
-
-## File: modules/platform/subdomains/notification/infrastructure/notification-service.ts
-````typescript
-/**
- * NotificationService — Composition root for notification use cases.
+ * Notification Application Use Cases — orchestrate domain intent without framework concerns.
  */
 
-import { FirebaseNotificationRepository } from "./firebase/FirebaseNotificationRepository";
-import {
-  DispatchNotificationUseCase,
-  GetNotificationsForRecipientUseCase,
-  GetUnreadCountUseCase,
-  MarkNotificationReadUseCase,
-  MarkAllNotificationsReadUseCase,
-} from "../application/use-cases/notification.use-cases";
-import type { DispatchNotificationInput, NotificationEntity } from "../domain/entities/Notification";
+import { commandSuccess, commandFailureFrom } from "@shared-types";
 import type { CommandResult } from "@shared-types";
+import type { NotificationRepository } from "../../domain/repositories/NotificationRepository";
+import type { DispatchNotificationInput } from "../../domain/entities/Notification";
 
-let _notificationRepo: FirebaseNotificationRepository | undefined;
+export class DispatchNotificationUseCase {
+  constructor(private readonly repo: NotificationRepository) {}
 
-function getNotifRepo(): FirebaseNotificationRepository {
-  if (!_notificationRepo) _notificationRepo = new FirebaseNotificationRepository();
-  return _notificationRepo;
+  async execute(input: DispatchNotificationInput): Promise<CommandResult> {
+    try {
+      const notification = await this.repo.dispatch(input);
+      return commandSuccess(notification.id, 1);
+    } catch (err) {
+      return commandFailureFrom("DISPATCH_NOTIFICATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
+    }
+  }
 }
 
-export const notificationService = {
-  dispatch: (input: DispatchNotificationInput): Promise<CommandResult> =>
-    new DispatchNotificationUseCase(getNotifRepo()).execute(input),
+export class MarkNotificationReadUseCase {
+  constructor(private readonly repo: NotificationRepository) {}
 
-  markAsRead: (notificationId: string, recipientId: string): Promise<CommandResult> =>
-    new MarkNotificationReadUseCase(getNotifRepo()).execute(notificationId, recipientId),
+  async execute(notificationId: string, recipientId: string): Promise<CommandResult> {
+    try {
+      await this.repo.markAsRead(notificationId, recipientId);
+      return commandSuccess(notificationId, 1);
+    } catch (err) {
+      return commandFailureFrom("MARK_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
+    }
+  }
+}
 
-  markAllAsRead: (recipientId: string): Promise<CommandResult> =>
-    new MarkAllNotificationsReadUseCase(getNotifRepo()).execute(recipientId),
+export class MarkAllNotificationsReadUseCase {
+  constructor(private readonly repo: NotificationRepository) {}
 
-  getForRecipient: (recipientId: string, maxCount?: number): Promise<NotificationEntity[]> =>
-    new GetNotificationsForRecipientUseCase(getNotifRepo()).execute(recipientId, maxCount),
+  async execute(recipientId: string): Promise<CommandResult> {
+    try {
+      await this.repo.markAllAsRead(recipientId);
+      return commandSuccess(recipientId, 1);
+    } catch (err) {
+      return commandFailureFrom("MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
+    }
+  }
+}
 
-  getUnreadCount: (recipientId: string): Promise<number> =>
-    new GetUnreadCountUseCase(getNotifRepo()).execute(recipientId),
-};
+// Re-export read queries for backward compatibility
+export { GetNotificationsForRecipientUseCase, GetUnreadCountUseCase } from "../queries/notification.queries";
 ````
 
 ## File: modules/platform/subdomains/notification/interfaces/_actions/notification.actions.ts
@@ -16337,102 +17620,27 @@ export async function getNotificationsForRecipient(recipientId: string, maxCount
 }
 ````
 
-## File: modules/platform/subdomains/organization/application/dtos/organization.dto.ts
+## File: modules/platform/subdomains/organization/api/index.ts
 ````typescript
 /**
- * Application-layer DTO re-exports for the organization subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type {
-  MemberReference,
-  Team,
-  OrgPolicy,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-} from "../../domain/entities/Organization";
-````
-
-## File: modules/platform/subdomains/organization/application/use-cases/organization-team.use-cases.ts
-````typescript
-/**
- * Organization Team Use Cases — team-scoped operations owned by the organization subdomain.
+ * Public API boundary for the organization subdomain.
+ * Cross-module consumers must import through this entry point.
  *
- * These use cases depend only on IOrganizationTeamPort (defined in organization's own
- * domain/ports/), keeping the application layer free from direct peer-subdomain imports.
- * The infrastructure composition root (organization-service.ts) injects the concrete
- * team adapter that satisfies the port.
+ * NOTE: We avoid `export * from "../infrastructure"` here because the
+ * infrastructure barrel pulls in Firebase repository constructors during
+ * module evaluation, which causes failures during Next.js static
+ * prerendering. Infrastructure exports are available in the server barrel
+ * (./server.ts) or via direct import from action / service files.
  */
 
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { IOrganizationTeamPort } from "../../domain/ports/IOrganizationTeamPort";
-import type { CreateTeamInput } from "../../domain/entities/Organization";
+import { createTeamRepository } from "../../team/api";
+import { configureOrganizationTeamPortFactory } from "../infrastructure/organization-service";
 
-export class CreateTeamUseCase {
-  constructor(private readonly teamPort: IOrganizationTeamPort) {}
+configureOrganizationTeamPortFactory(createTeamRepository);
 
-  async execute(input: CreateTeamInput): Promise<CommandResult> {
-    try {
-      const teamId = await this.teamPort.createTeam(input);
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_TEAM_FAILED",
-        err instanceof Error ? err.message : "Failed to create team",
-      );
-    }
-  }
-}
-
-export class DeleteTeamUseCase {
-  constructor(private readonly teamPort: IOrganizationTeamPort) {}
-
-  async execute(organizationId: string, teamId: string): Promise<CommandResult> {
-    try {
-      await this.teamPort.deleteTeam(organizationId, teamId);
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "DELETE_TEAM_FAILED",
-        err instanceof Error ? err.message : "Failed to delete team",
-      );
-    }
-  }
-}
-
-export class UpdateTeamMembersUseCase {
-  constructor(private readonly teamPort: IOrganizationTeamPort) {}
-
-  async execute(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-    action: "add" | "remove",
-  ): Promise<CommandResult> {
-    try {
-      if (action === "add") {
-        await this.teamPort.addMemberToTeam(organizationId, teamId, memberId);
-      } else {
-        await this.teamPort.removeMemberFromTeam(organizationId, teamId, memberId);
-      }
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_TEAM_MEMBERS_FAILED",
-        err instanceof Error ? err.message : "Failed to update team members",
-      );
-    }
-  }
-}
-````
-
-## File: modules/platform/subdomains/organization/domain/index.ts
-````typescript
-export type { OrganizationEntity,
+// --- Domain types ---
+export type {
+  OrganizationEntity,
   OrganizationRole,
   Presence,
   InviteState,
@@ -16451,178 +17659,64 @@ export type { OrganizationEntity,
   CreateTeamInput,
   CreateOrgPolicyInput,
   UpdateOrgPolicyInput,
-} from "./entities/Organization";
-export type { OrganizationRepository, Unsubscribe } from "./repositories/OrganizationRepository";
-export type { OrgPolicyRepository } from "./repositories/OrgPolicyRepository";
-export type { IOrganizationTeamPort } from "./ports/IOrganizationTeamPort";
-export * from "./aggregates";
-export * from "./events";
-export * from "./value-objects";
-````
+} from "../domain";
+export type { OrganizationRepository, Unsubscribe } from "../domain";
+export type { OrgPolicyRepository } from "../domain";
 
-## File: modules/platform/subdomains/organization/domain/ports/index.ts
-````typescript
-export type { IOrganizationTeamPort } from "./IOrganizationTeamPort";
-````
-
-## File: modules/platform/subdomains/organization/domain/ports/IOrganizationTeamPort.ts
-````typescript
-/**
- * IOrganizationTeamPort — driven port for organization-scoped team operations.
- *
- * Defined in organization's domain layer so the application layer can depend on
- * this interface without importing from a peer subdomain (team).
- * The infrastructure composition root (organization-service.ts) wires the
- * concrete team subdomain adapter as the implementation.
- */
-
-import type { Team, CreateTeamInput } from "../entities/Organization";
-
-export interface IOrganizationTeamPort {
-  createTeam(input: CreateTeamInput): Promise<string>;
-  deleteTeam(organizationId: string, teamId: string): Promise<void>;
-  addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
-  removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
-  getTeams(organizationId: string): Promise<Team[]>;
-}
-````
-
-## File: modules/platform/subdomains/organization/infrastructure/organization-service.ts
-````typescript
-/**
- * OrganizationService — Composition root for organization use cases.
- */
-
-import { FirebaseOrganizationRepository } from "./firebase/FirebaseOrganizationRepository";
-import { FirebaseOrgPolicyRepository } from "./firebase/FirebaseOrgPolicyRepository";
-import {
+// --- Application use cases ---
+export {
   CreateOrganizationUseCase,
   CreateOrganizationWithTeamUseCase,
   UpdateOrganizationSettingsUseCase,
   DeleteOrganizationUseCase,
-} from "../application/use-cases/organization-lifecycle.use-cases";
-import {
+} from "../application";
+export {
   InviteMemberUseCase,
   RecruitMemberUseCase,
   RemoveMemberUseCase,
   UpdateMemberRoleUseCase,
-} from "../application/use-cases/organization-member.use-cases";
-import {
+} from "../application";
+export {
   CreateTeamUseCase,
   DeleteTeamUseCase,
   UpdateTeamMembersUseCase,
-} from "../application/use-cases/organization-team.use-cases";
-import type { IOrganizationTeamPort } from "../domain/ports/IOrganizationTeamPort";
-import { createTeamRepository } from "../../team/api";
-import {
+} from "../application";
+export {
   CreatePartnerGroupUseCase,
   SendPartnerInviteUseCase,
   DismissPartnerMemberUseCase,
-} from "../application/use-cases/organization-partner.use-cases";
-import {
+} from "../application";
+export {
   CreateOrgPolicyUseCase,
   UpdateOrgPolicyUseCase,
   DeleteOrgPolicyUseCase,
-} from "../application/use-cases/organization-policy.use-cases";
-import type {
+} from "../application";
+
+// --- Infrastructure (lazy, safe for SSR) ---
+export { organizationService, organizationQueryService } from "../infrastructure";
+
+// --- Interfaces (UI, queries, actions) ---
+export * from "../interfaces";
+````
+
+## File: modules/platform/subdomains/organization/application/dtos/organization.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the organization subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type {
+  MemberReference,
+  Team,
+  OrgPolicy,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
   CreateOrganizationCommand,
   UpdateOrganizationSettingsCommand,
   InviteMemberInput,
   UpdateMemberRoleInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "../domain/entities/Organization";
-import type { CreateTeamInput } from "../domain/entities/Organization";
-import type { CommandResult } from "@shared-types";
-
-let _orgRepo: FirebaseOrganizationRepository | undefined;
-let _policyRepo: FirebaseOrgPolicyRepository | undefined;
-let _teamPort: IOrganizationTeamPort | undefined;
-
-function getOrgRepo(): FirebaseOrganizationRepository {
-  if (!_orgRepo) _orgRepo = new FirebaseOrganizationRepository();
-  return _orgRepo;
-}
-
-function getPolicyRepo(): FirebaseOrgPolicyRepository {
-  if (!_policyRepo) _policyRepo = new FirebaseOrgPolicyRepository();
-  return _policyRepo;
-}
-
-function getTeamPort(): IOrganizationTeamPort {
-  // createTeamRepository() returns a TeamRepository that structurally satisfies IOrganizationTeamPort.
-  // The infrastructure layer is the correct place to wire cross-subdomain adapters.
-  if (!_teamPort) _teamPort = createTeamRepository();
-  return _teamPort;
-}
-
-export const organizationService = {
-  createOrganization: (cmd: CreateOrganizationCommand): Promise<CommandResult> =>
-    new CreateOrganizationUseCase(getOrgRepo()).execute(cmd),
-
-  createOrganizationWithTeam: (
-    cmd: CreateOrganizationCommand,
-    teamName: string,
-    teamType: "internal" | "external" = "internal",
-  ): Promise<CommandResult> =>
-    new CreateOrganizationWithTeamUseCase(getOrgRepo()).execute(cmd, teamName, teamType),
-
-  updateSettings: (cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> =>
-    new UpdateOrganizationSettingsUseCase(getOrgRepo()).execute(cmd),
-
-  deleteOrganization: (orgId: string): Promise<CommandResult> =>
-    new DeleteOrganizationUseCase(getOrgRepo()).execute(orgId),
-
-  inviteMember: (input: InviteMemberInput): Promise<CommandResult> =>
-    new InviteMemberUseCase(getOrgRepo()).execute(input),
-
-  recruitMember: (orgId: string, memberId: string, name: string, email: string): Promise<CommandResult> =>
-    new RecruitMemberUseCase(getOrgRepo()).execute(orgId, memberId, name, email),
-
-  removeMember: (orgId: string, memberId: string): Promise<CommandResult> =>
-    new RemoveMemberUseCase(getOrgRepo()).execute(orgId, memberId),
-
-  updateMemberRole: (input: UpdateMemberRoleInput): Promise<CommandResult> =>
-    new UpdateMemberRoleUseCase(getOrgRepo()).execute(input),
-
-  createTeam: (input: CreateTeamInput): Promise<CommandResult> =>
-    new CreateTeamUseCase(getTeamPort()).execute(input),
-
-  deleteTeam: (orgId: string, teamId: string): Promise<CommandResult> =>
-    new DeleteTeamUseCase(getTeamPort()).execute(orgId, teamId),
-
-  updateTeamMembers: (orgId: string, teamId: string, memberId: string, action: "add" | "remove"): Promise<CommandResult> =>
-    new UpdateTeamMembersUseCase(getTeamPort()).execute(orgId, teamId, memberId, action),
-
-  createPartnerGroup: (orgId: string, groupName: string): Promise<CommandResult> =>
-    new CreatePartnerGroupUseCase(getOrgRepo()).execute(orgId, groupName),
-
-  sendPartnerInvite: (orgId: string, teamId: string, email: string): Promise<CommandResult> =>
-    new SendPartnerInviteUseCase(getOrgRepo()).execute(orgId, teamId, email),
-
-  dismissPartnerMember: (orgId: string, teamId: string, memberId: string): Promise<CommandResult> =>
-    new DismissPartnerMemberUseCase(getOrgRepo()).execute(orgId, teamId, memberId),
-
-  createOrgPolicy: (input: CreateOrgPolicyInput): Promise<CommandResult> =>
-    new CreateOrgPolicyUseCase(getPolicyRepo()).execute(input),
-
-  updateOrgPolicy: (policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> =>
-    new UpdateOrgPolicyUseCase(getPolicyRepo()).execute(policyId, data),
-
-  deleteOrgPolicy: (policyId: string): Promise<CommandResult> =>
-    new DeleteOrgPolicyUseCase(getPolicyRepo()).execute(policyId),
-};
-
-/**
- * OrganizationQueryService — read-model queries for client-side data.
- * Composition root: wires Firebase repos for queries; interfaces/ must use this
- * via the subdomain api/ boundary instead of importing infrastructure directly.
- */
-export const organizationQueryService = {
-  getMembers: (organizationId: string) => getOrgRepo().getMembers(organizationId),
-  getTeams: (organizationId: string) => getOrgRepo().getTeams(organizationId),
-  getOrgPolicies: (orgId: string) => getPolicyRepo().getPolicies(orgId),
-};
+  CreateTeamInput,
+} from "../../domain/entities/Organization";
 ````
 
 ## File: modules/platform/subdomains/organization/interfaces/_actions/organization-policy.actions.ts
@@ -17378,236 +18472,6 @@ export const subscriptionService = {
 };
 ````
 
-## File: modules/platform/subdomains/team/domain/aggregates/index.ts
-````typescript
-export { OrganizationTeam } from "./OrganizationTeam";
-export type { OrganizationTeamSnapshot, CreateOrganizationTeamProps } from "./OrganizationTeam";
-````
-
-## File: modules/platform/subdomains/team/domain/events/index.ts
-````typescript
-export type {
-  OrganizationTeamDomainEvent,
-  OrganizationTeamCreatedEvent,
-  OrganizationTeamDeletedEvent,
-  OrganizationTeamMemberAddedEvent,
-  OrganizationTeamMemberRemovedEvent,
-} from "./OrganizationTeamDomainEvent";
-````
-
-## File: modules/platform/subdomains/team/domain/events/OrganizationTeamDomainEvent.ts
-````typescript
-/**
- * OrganizationTeamDomainEvent — domain events produced by the OrganizationTeam aggregate.
- *
- * Naming: past-tense, format `<module>.<action>`.
- * occurredAt: ISO 8601 string (not Date) per platform event convention.
- */
-import { z } from "zod";
-
-// ── OrganizationTeamCreated ──────────────────────────────────────────────────
-
-export const OrganizationTeamCreatedEventSchema = z.object({
-  type: z.literal("team.created"),
-  eventId: z.string().uuid(),
-  occurredAt: z.string().datetime(),
-  payload: z.object({
-    teamId: z.string().uuid(),
-    organizationId: z.string(),
-    name: z.string(),
-    teamType: z.enum(["internal", "external"]),
-  }),
-});
-export type OrganizationTeamCreatedEvent = z.infer<typeof OrganizationTeamCreatedEventSchema>;
-
-// ── OrganizationTeamDeleted ──────────────────────────────────────────────────
-
-export const OrganizationTeamDeletedEventSchema = z.object({
-  type: z.literal("team.deleted"),
-  eventId: z.string().uuid(),
-  occurredAt: z.string().datetime(),
-  payload: z.object({
-    teamId: z.string().uuid(),
-    organizationId: z.string(),
-  }),
-});
-export type OrganizationTeamDeletedEvent = z.infer<typeof OrganizationTeamDeletedEventSchema>;
-
-// ── OrganizationTeamMemberAdded ──────────────────────────────────────────────
-
-export const OrganizationTeamMemberAddedEventSchema = z.object({
-  type: z.literal("team.member-added"),
-  eventId: z.string().uuid(),
-  occurredAt: z.string().datetime(),
-  payload: z.object({
-    teamId: z.string().uuid(),
-    organizationId: z.string(),
-    memberId: z.string(),
-  }),
-});
-export type OrganizationTeamMemberAddedEvent = z.infer<typeof OrganizationTeamMemberAddedEventSchema>;
-
-// ── OrganizationTeamMemberRemoved ────────────────────────────────────────────
-
-export const OrganizationTeamMemberRemovedEventSchema = z.object({
-  type: z.literal("team.member-removed"),
-  eventId: z.string().uuid(),
-  occurredAt: z.string().datetime(),
-  payload: z.object({
-    teamId: z.string().uuid(),
-    organizationId: z.string(),
-    memberId: z.string(),
-  }),
-});
-export type OrganizationTeamMemberRemovedEvent = z.infer<
-  typeof OrganizationTeamMemberRemovedEventSchema
->;
-
-// ── Union ────────────────────────────────────────────────────────────────────
-
-export type OrganizationTeamDomainEvent =
-  | OrganizationTeamCreatedEvent
-  | OrganizationTeamDeletedEvent
-  | OrganizationTeamMemberAddedEvent
-  | OrganizationTeamMemberRemovedEvent;
-````
-
-## File: modules/platform/subdomains/team/domain/index.ts
-````typescript
-/**
- * team subdomain — domain layer public exports.
- */
-
-export type { Team, CreateTeamInput } from "./entities/Team";
-export type { TeamRepository } from "./repositories/TeamRepository";
-export type { ITeamPort } from "./ports";
-export * from "./aggregates";
-export * from "./events";
-export * from "./value-objects";
-````
-
-## File: modules/platform/subdomains/team/domain/ports/index.ts
-````typescript
-/**
- * team domain/ports — driven port interfaces for the team subdomain.
- *
- * These re-export the repository contracts from domain/repositories/, making
- * the Ports layer explicitly visible in the directory structure.
- * New code should import port interfaces from this directory.
- */
-export type { TeamRepository as ITeamPort } from "../repositories/TeamRepository";
-````
-
-## File: modules/platform/subdomains/team/domain/value-objects/index.ts
-````typescript
-export type { TeamId } from "./TeamId";
-export { TeamIdSchema, createTeamId } from "./TeamId";
-export type { TeamType } from "./TeamType";
-export { TeamTypeSchema } from "./TeamType";
-````
-
-## File: modules/platform/subdomains/team/domain/value-objects/TeamId.ts
-````typescript
-/**
- * TeamId — branded value object for OrganizationTeam identity.
- */
-import { z } from "zod";
-
-export const TeamIdSchema = z.string().uuid().brand("TeamId");
-export type TeamId = z.infer<typeof TeamIdSchema>;
-
-export function createTeamId(raw: string): TeamId {
-  return TeamIdSchema.parse(raw);
-}
-````
-
-## File: modules/platform/subdomains/team/domain/value-objects/TeamType.ts
-````typescript
-/**
- * TeamType — value object representing the membership scope of an OrganizationTeam.
- *
- * - internal: members belong to the same Organization
- * - external: members include partner/guest actors outside the Organization
- */
-import { z } from "zod";
-
-export const TeamTypeSchema = z.enum(["internal", "external"]);
-export type TeamType = z.infer<typeof TeamTypeSchema>;
-````
-
-## File: modules/platform/subdomains/team/interfaces/_actions/team.actions.ts
-````typescript
-"use server";
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import {
-  createTeamRepository,
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "../../api";
-import type { CreateTeamInput } from "../../api";
-
-function getRepo() {
-  return createTeamRepository();
-}
-
-export async function createTeamAction(input: CreateTeamInput): Promise<CommandResult> {
-  try {
-    return await new CreateTeamUseCase(getRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CREATE_TEAM_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function deleteTeamAction(
-  organizationId: string,
-  teamId: string,
-): Promise<CommandResult> {
-  try {
-    return await new DeleteTeamUseCase(getRepo()).execute(organizationId, teamId);
-  } catch (err) {
-    return commandFailureFrom(
-      "DELETE_TEAM_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function updateTeamMembersAction(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-  action: "add" | "remove",
-): Promise<CommandResult> {
-  try {
-    return await new UpdateTeamMembersUseCase(getRepo()).execute(
-      organizationId,
-      teamId,
-      memberId,
-      action,
-    );
-  } catch (err) {
-    return commandFailureFrom(
-      "UPDATE_TEAM_MEMBERS_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-````
-
-## File: modules/platform/subdomains/team/interfaces/index.ts
-````typescript
-export {
-  createTeamAction,
-  deleteTeamAction,
-  updateTeamMembersAction,
-} from "./_actions/team.actions";
-````
-
 ## File: modules/platform/api/index.ts
 ````typescript
 /**
@@ -17715,703 +18579,65 @@ export * from "../subdomains/background-job/api";
 
 // Cross-module and app-composition hooks from interfaces layer.
 // Only selective exports — do NOT wildcard re-export "../interfaces".
-export { useApp, Providers, ShellLayout, isActiveOrganizationAccount } from "../interfaces";
-````
-
-## File: modules/platform/application/handlers/index.ts
-````typescript
-/**
- * platform application handlers barrel.
- */
-
-export { PlatformCommandDispatcher } from "./PlatformCommandDispatcher";
-export type { PlatformCommandDispatcherDeps } from "./PlatformCommandDispatcher";
-export { PlatformQueryDispatcher } from "./PlatformQueryDispatcher";
-export type { PlatformQueryDispatcherDeps } from "./PlatformQueryDispatcher";
-````
-
-## File: modules/platform/application/handlers/PlatformQueryDispatcher.ts
-````typescript
-/**
- * PlatformQueryDispatcher — Application-layer Query Router
- *
- * Implements: PlatformQueryPort
- * Routes queries by name to the appropriate use case class.
- *
- * Called by: api/facade.ts via PlatformQueryPort
- */
-
-import type { PlatformQueryPort, PlatformQuery } from "../../domain/ports/input";
-import type {
-	PlatformContextViewRepository,
-	PolicyCatalogViewRepository,
-	UsageMeterRepository,
-	WorkflowPolicyRepository,
-} from "../../domain/ports/output";
-import { GetPlatformContextViewUseCase } from "../queries/get-platform-context-view.queries";
-import { ListEnabledCapabilitiesUseCase } from "../queries/list-enabled-capabilities.queries";
-import { GetPolicyCatalogViewUseCase } from "../queries/get-policy-catalog-view.queries";
-import { GetSubscriptionEntitlementsUseCase } from "../queries/get-subscription-entitlements.queries";
-import { GetWorkflowPolicyViewUseCase } from "../queries/get-workflow-policy-view.queries";
-
-export interface PlatformQueryDispatcherDeps {
-	contextViewRepo: PlatformContextViewRepository;
-	catalogViewRepo: PolicyCatalogViewRepository;
-	usageMeterRepo: UsageMeterRepository;
-	workflowPolicyRepo: WorkflowPolicyRepository;
-}
-
-export class PlatformQueryDispatcher implements PlatformQueryPort {
-	constructor(private readonly deps: PlatformQueryDispatcherDeps) {}
-
-	async executeQuery<TResult, TQuery extends PlatformQuery>(
-		queryMsg: TQuery,
-	): Promise<TResult> {
-		const { deps } = this;
-		switch (queryMsg.name) {
-			case "getPlatformContextView":
-				return new GetPlatformContextViewUseCase(deps.contextViewRepo).execute(
-					queryMsg.payload as Parameters<GetPlatformContextViewUseCase["execute"]>[0],
-				) as Promise<TResult>;
-
-			case "listEnabledCapabilities":
-				return new ListEnabledCapabilitiesUseCase(deps.contextViewRepo).execute(
-					queryMsg.payload as Parameters<ListEnabledCapabilitiesUseCase["execute"]>[0],
-				) as Promise<TResult>;
-
-			case "getPolicyCatalogView":
-				return new GetPolicyCatalogViewUseCase(deps.catalogViewRepo).execute(
-					queryMsg.payload as Parameters<GetPolicyCatalogViewUseCase["execute"]>[0],
-				) as Promise<TResult>;
-
-			case "getSubscriptionEntitlements":
-				return new GetSubscriptionEntitlementsUseCase(deps.usageMeterRepo).execute(
-					queryMsg.payload as Parameters<GetSubscriptionEntitlementsUseCase["execute"]>[0],
-				) as Promise<TResult>;
-
-			case "getWorkflowPolicyView":
-				return new GetWorkflowPolicyViewUseCase(deps.workflowPolicyRepo).execute(
-					queryMsg.payload as Parameters<GetWorkflowPolicyViewUseCase["execute"]>[0],
-				) as Promise<TResult>;
-
-			default:
-				throw new Error(`Unknown platform query: '${String((queryMsg as PlatformQuery).name)}'`);
-		}
-	}
-}
-````
-
-## File: modules/platform/application/queries/index.ts
-````typescript
-export { GetPlatformContextViewUseCase } from "./get-platform-context-view.queries";
-export { ListEnabledCapabilitiesUseCase } from "./list-enabled-capabilities.queries";
-export { GetPolicyCatalogViewUseCase } from "./get-policy-catalog-view.queries";
-export { GetSubscriptionEntitlementsUseCase } from "./get-subscription-entitlements.queries";
-export { GetWorkflowPolicyViewUseCase } from "./get-workflow-policy-view.queries";
-````
-
-## File: modules/platform/application/services/index.ts
-````typescript
-/**
- * platform application services barrel.
- *
- * Application Services handle flow coordination, transaction boundaries and
- * cross-aggregate orchestration.  They do not carry core business invariants.
- */
-
-export { buildCausationId } from "./build-causation-id";
-export { buildCorrelationId } from "./build-correlation-id";
 export {
+  useApp,
+  Providers,
+  ShellLayout,
+  isActiveOrganizationAccount,
   quickCreateKnowledgePage,
   type QuickCreatePageInput,
   type QuickCreatePageResult,
-} from "./shell-quick-create";
+} from "../interfaces";
 ````
 
-## File: modules/platform/application/use-cases/activate-subscription-agreement.use-cases.ts
+## File: modules/platform/application/services/shell-quick-create.ts
 ````typescript
 /**
- * activate-subscription-agreement — use case.
+ * Shell quick-create orchestrator.
  *
- * Command:  ActivateSubscriptionAgreement
- * Purpose:  Activates, renews, or suspends a subscription agreement.
+ * Context-wide application service that coordinates cross-bounded-context
+ * creation actions triggered from the platform shell UI.
+ * Delegates to the target module's public API boundary only.
  */
 
-import type { PlatformCommandResult, ActivateSubscriptionAgreementInput } from "../dtos";
-import type { SubscriptionAgreementRepository, PlatformContextRepository, DomainEventPublisher } from "../../domain/ports/output";
-import { SUBSCRIPTION_AGREEMENT_ACTIVATED_EVENT_TYPE } from "../../domain/events";
-import { buildCorrelationId } from "../services";
+// ── Input / output contracts ──────────────────────────────────────────────────
 
-export class ActivateSubscriptionAgreementUseCase {
-	constructor(
-		private readonly agreementRepo: SubscriptionAgreementRepository,
-		private readonly contextRepo: PlatformContextRepository,
-		private readonly eventPublisher: DomainEventPublisher,
-	) {}
-
-	async execute(input: ActivateSubscriptionAgreementInput): Promise<PlatformCommandResult> {
-		try {
-			const context = await this.contextRepo.findById(input.contextId);
-			if (!context) {
-				return { ok: false, code: "PLATFORM_CONTEXT_NOT_FOUND", message: `Context '${input.contextId}' not found.` };
-			}
-			const existing = await this.agreementRepo.findEffectiveByContextId(input.contextId);
-			const now = new Date().toISOString();
-			const agreementSnapshot = {
-				...(existing as Record<string, unknown> ?? {}),
-				subscriptionAgreementId: input.subscriptionAgreementId,
-				contextId: input.contextId,
-				planCode: input.planCode,
-				billingState: "active",
-				updatedAt: now,
-			};
-			await this.agreementRepo.save(agreementSnapshot);
-			const contextSnapshot = {
-				...(context as Record<string, unknown>),
-				subscriptionAgreementId: input.subscriptionAgreementId,
-				updatedAt: now,
-			};
-			await this.contextRepo.save(contextSnapshot);
-			await this.eventPublisher.publish([
-				{
-					type: SUBSCRIPTION_AGREEMENT_ACTIVATED_EVENT_TYPE,
-					aggregateType: "SubscriptionAgreement",
-					aggregateId: input.subscriptionAgreementId,
-					contextId: input.contextId,
-					occurredAt: now,
-					version: 1,
-					correlationId: buildCorrelationId(),
-					payload: { subscriptionAgreementId: input.subscriptionAgreementId, planCode: input.planCode },
-				},
-			]);
-			return {
-				ok: true,
-				code: "SUBSCRIPTION_AGREEMENT_ACTIVATED",
-				metadata: { subscriptionAgreementId: input.subscriptionAgreementId, planCode: input.planCode },
-			};
-		} catch (err) {
-			return {
-				ok: false,
-				code: "ACTIVATE_SUBSCRIPTION_AGREEMENT_FAILED",
-				message: err instanceof Error ? err.message : "Unexpected error",
-			};
-		}
-	}
+export interface QuickCreatePageInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly createdByUserId: string;
 }
-````
 
-## File: modules/platform/application/use-cases/apply-configuration-profile.use-cases.ts
-````typescript
-/**
- * apply-configuration-profile — use case.
- *
- * Command:  ApplyConfigurationProfile
- * Purpose:  Applies a configuration profile and updates capability toggles.
- */
-
-import type { PlatformCommandResult, ApplyConfigurationProfileInput } from "../dtos";
-import type { PlatformContextRepository, ConfigurationProfileStore, DomainEventPublisher } from "../../domain/ports/output";
-import { CONFIG_PROFILE_APPLIED_EVENT_TYPE } from "../../domain/events";
-import { buildCorrelationId } from "../services";
-
-export class ApplyConfigurationProfileUseCase {
-	constructor(
-		private readonly contextRepo: PlatformContextRepository,
-		private readonly profileStore: ConfigurationProfileStore,
-		private readonly eventPublisher: DomainEventPublisher,
-	) {}
-
-	async execute(input: ApplyConfigurationProfileInput): Promise<PlatformCommandResult> {
-		try {
-			const profile = await this.profileStore.getProfile(input.profileRef);
-			if (!profile) {
-				return { ok: false, code: "CONFIGURATION_PROFILE_NOT_FOUND", message: `Profile '${input.profileRef}' not found.` };
-			}
-			const existing = await this.contextRepo.findById(input.contextId);
-			if (!existing) {
-				return { ok: false, code: "PLATFORM_CONTEXT_NOT_FOUND", message: `Context '${input.contextId}' not found.` };
-			}
-			const now = new Date().toISOString();
-			const snapshot = {
-				...(existing as Record<string, unknown>),
-				configurationProfileRef: input.profileRef,
-				updatedAt: now,
-			};
-			await this.contextRepo.save(snapshot);
-			await this.eventPublisher.publish([
-				{
-					type: CONFIG_PROFILE_APPLIED_EVENT_TYPE,
-					aggregateType: "PlatformContext",
-					aggregateId: input.contextId,
-					contextId: input.contextId,
-					occurredAt: now,
-					version: 1,
-					correlationId: buildCorrelationId(),
-					payload: { profileRef: input.profileRef },
-				},
-			]);
-			return {
-				ok: true,
-				code: "CONFIGURATION_PROFILE_APPLIED",
-				metadata: { contextId: input.contextId, profileRef: input.profileRef },
-			};
-		} catch (err) {
-			return {
-				ok: false,
-				code: "APPLY_CONFIGURATION_PROFILE_FAILED",
-				message: err instanceof Error ? err.message : "Unexpected error",
-			};
-		}
-	}
+export interface QuickCreatePageResult {
+  readonly success: boolean;
+  readonly error?: { message: string };
 }
-````
 
-## File: modules/platform/application/use-cases/emit-observability-signal.use-cases.ts
-````typescript
-/**
- * emit-observability-signal — use case.
- *
- * Command:  EmitObservabilitySignal
- * Purpose:  Emits metrics / trace / alert signals.
- */
+// ── Orchestration ─────────────────────────────────────────────────────────────
 
-import type { PlatformCommandResult, EmitObservabilitySignalInput } from "../dtos";
-import type { ObservabilitySink, AuditSignalStore, DomainEventPublisher } from "../../domain/ports/output";
-import { OBSERVABILITY_SIGNAL_EMITTED_EVENT_TYPE } from "../../domain/events";
-import { buildCorrelationId } from "../services";
-
-const AUDIT_SIGNAL_LEVELS = new Set(["error", "critical", "fatal"]);
-
-export class EmitObservabilitySignalUseCase {
-	constructor(
-		private readonly observabilitySink: ObservabilitySink,
-		private readonly auditStore: AuditSignalStore,
-		private readonly eventPublisher: DomainEventPublisher,
-	) {}
-
-	async execute(input: EmitObservabilitySignalInput): Promise<PlatformCommandResult> {
-		try {
-			const now = new Date().toISOString();
-			await this.observabilitySink.emit({
-				signalName: input.signalName,
-				signalLevel: input.signalLevel,
-				sourceRef: input.sourceRef,
-				contextId: input.contextId,
-				occurredAt: now,
-			});
-			if (AUDIT_SIGNAL_LEVELS.has(input.signalLevel.toLowerCase())) {
-				await this.auditStore.write({
-					signalType: "observability.signal_emitted",
-					severity: input.signalLevel,
-					contextId: input.contextId,
-					signalName: input.signalName,
-					occurredAt: now,
-				});
-			}
-			await this.eventPublisher.publish([
-				{
-					type: OBSERVABILITY_SIGNAL_EMITTED_EVENT_TYPE,
-					aggregateType: "Observability",
-					aggregateId: input.contextId,
-					contextId: input.contextId,
-					occurredAt: now,
-					version: 1,
-					correlationId: buildCorrelationId(),
-					payload: { signalName: input.signalName, signalLevel: input.signalLevel, sourceRef: input.sourceRef },
-				},
-			]);
-			return {
-				ok: true,
-				code: "OBSERVABILITY_SIGNAL_EMITTED",
-				metadata: { signalName: input.signalName, signalLevel: input.signalLevel },
-			};
-		} catch (err) {
-			return {
-				ok: false,
-				code: "EMIT_OBSERVABILITY_SIGNAL_FAILED",
-				message: err instanceof Error ? err.message : "Unexpected error",
-			};
-		}
-	}
-}
-````
-
-## File: modules/platform/application/use-cases/fire-workflow-trigger.use-cases.ts
-````typescript
-/**
- * fire-workflow-trigger — use case.
- *
- * Command:  FireWorkflowTrigger
- * Purpose:  Emits a workflow trigger and delegates execution to downstream adapter.
- */
-
-import type { PlatformCommandResult, FireWorkflowTriggerInput } from "../dtos";
-import type { WorkflowPolicyRepository, WorkflowDispatcherPort, DomainEventPublisher } from "../../domain/ports/output";
-import { WORKFLOW_TRIGGER_FIRED_EVENT_TYPE } from "../../domain/events";
-import { buildCorrelationId } from "../services";
-
-export class FireWorkflowTriggerUseCase {
-	constructor(
-		private readonly policyRepo: WorkflowPolicyRepository,
-		private readonly dispatcher: WorkflowDispatcherPort,
-		private readonly eventPublisher: DomainEventPublisher,
-	) {}
-
-	async execute(input: FireWorkflowTriggerInput): Promise<PlatformCommandResult> {
-		try {
-			const policyView = await this.policyRepo.getView(input.contextId, input.triggerKey);
-			if (!policyView?.enabled) {
-				return {
-					ok: false,
-					code: "WORKFLOW_TRIGGER_NOT_ALLOWED",
-					message: `Trigger '${input.triggerKey}' is not enabled by policy.`,
-				};
-			}
-			const dispatchResult = await this.dispatcher.dispatch(input.triggerKey, {
-				contextId: input.contextId,
-				triggeredBy: input.triggeredBy,
-			});
-			if (!dispatchResult.ok) {
-				return dispatchResult;
-			}
-			const now = new Date().toISOString();
-			await this.eventPublisher.publish([
-				{
-					type: WORKFLOW_TRIGGER_FIRED_EVENT_TYPE,
-					aggregateType: "Workflow",
-					aggregateId: input.triggerKey,
-					contextId: input.contextId,
-					occurredAt: now,
-					version: 1,
-					correlationId: buildCorrelationId(),
-					payload: { triggerKey: input.triggerKey, triggeredBy: input.triggeredBy },
-				},
-			]);
-			return {
-				ok: true,
-				code: "WORKFLOW_TRIGGER_FIRED",
-				metadata: { triggerKey: input.triggerKey, contextId: input.contextId },
-			};
-		} catch (err) {
-			return {
-				ok: false,
-				code: "FIRE_WORKFLOW_TRIGGER_FAILED",
-				message: err instanceof Error ? err.message : "Unexpected error",
-			};
-		}
-	}
-}
-````
-
-## File: modules/platform/application/use-cases/publish-policy-catalog.use-cases.ts
-````typescript
-/**
- * publish-policy-catalog — use case.
- *
- * Command:  PublishPolicyCatalog
- * Purpose:  Publishes a new PolicyCatalog revision.
- */
-
-import type { PlatformCommandResult, PublishPolicyCatalogInput } from "../dtos";
-import type { PolicyCatalogRepository, DomainEventPublisher } from "../../domain/ports/output";
-import { POLICY_CATALOG_PUBLISHED_EVENT_TYPE } from "../../domain/events";
-import { buildCorrelationId } from "../services";
-
-export class PublishPolicyCatalogUseCase {
-	constructor(
-		private readonly catalogRepo: PolicyCatalogRepository,
-		private readonly eventPublisher: DomainEventPublisher,
-	) {}
-
-	async execute(input: PublishPolicyCatalogInput): Promise<PlatformCommandResult> {
-		try {
-			const existing = await this.catalogRepo.findActiveByContextId(input.contextId);
-			const now = new Date().toISOString();
-			const snapshot = {
-				...(existing as Record<string, unknown> ?? {}),
-				contextId: input.contextId,
-				revision: input.revision,
-				permissionRuleCount: (existing as Record<string, unknown> | null)?.permissionRuleCount ?? 0,
-				workflowRuleCount: (existing as Record<string, unknown> | null)?.workflowRuleCount ?? 0,
-				notificationRuleCount: (existing as Record<string, unknown> | null)?.notificationRuleCount ?? 0,
-				auditRuleCount: (existing as Record<string, unknown> | null)?.auditRuleCount ?? 0,
-				publishedAt: now,
-			};
-			await this.catalogRepo.saveRevision(snapshot);
-			await this.eventPublisher.publish([
-				{
-					type: POLICY_CATALOG_PUBLISHED_EVENT_TYPE,
-					aggregateType: "PolicyCatalog",
-					aggregateId: input.contextId,
-					contextId: input.contextId,
-					occurredAt: now,
-					version: input.revision,
-					correlationId: buildCorrelationId(),
-					payload: { revision: input.revision, publishedAt: now },
-				},
-			]);
-			return {
-				ok: true,
-				code: "POLICY_CATALOG_PUBLISHED",
-				metadata: { contextId: input.contextId, revision: input.revision },
-			};
-		} catch (err) {
-			return {
-				ok: false,
-				code: "PUBLISH_POLICY_CATALOG_FAILED",
-				message: err instanceof Error ? err.message : "Unexpected error",
-			};
-		}
-	}
-}
-````
-
-## File: modules/platform/application/use-cases/record-audit-signal.use-cases.ts
-````typescript
-/**
- * record-audit-signal — use case.
- *
- * Command:  RecordAuditSignal
- * Purpose:  Writes a decision or behavior as an immutable audit signal.
- */
-
-import type { PlatformCommandResult, RecordAuditSignalInput } from "../dtos";
-import type { AuditSignalStore, DomainEventPublisher } from "../../domain/ports/output";
-import { AUDIT_SIGNAL_RECORDED_EVENT_TYPE } from "../../domain/events";
-import { buildCorrelationId } from "../services";
-
-export class RecordAuditSignalUseCase {
-	constructor(
-		private readonly auditStore: AuditSignalStore,
-		private readonly eventPublisher: DomainEventPublisher,
-	) {}
-
-	async execute(input: RecordAuditSignalInput): Promise<PlatformCommandResult> {
-		try {
-			const now = new Date().toISOString();
-			await this.auditStore.write({
-				signalType: input.signalType,
-				severity: input.severity,
-				contextId: input.contextId,
-				occurredAt: now,
-			});
-			await this.eventPublisher.publish([
-				{
-					type: AUDIT_SIGNAL_RECORDED_EVENT_TYPE,
-					aggregateType: "AuditLog",
-					aggregateId: input.contextId,
-					contextId: input.contextId,
-					occurredAt: now,
-					version: 1,
-					correlationId: buildCorrelationId(),
-					payload: { signalType: input.signalType, severity: input.severity },
-				},
-			]);
-			return {
-				ok: true,
-				code: "AUDIT_SIGNAL_RECORDED",
-				metadata: { signalType: input.signalType, contextId: input.contextId },
-			};
-		} catch (err) {
-			return {
-				ok: false,
-				code: "RECORD_AUDIT_SIGNAL_FAILED",
-				message: err instanceof Error ? err.message : "Unexpected error",
-			};
-		}
-	}
-}
-````
-
-## File: modules/platform/application/use-cases/register-integration-contract.use-cases.ts
-````typescript
-/**
- * register-integration-contract — use case.
- *
- * Command:  RegisterIntegrationContract
- * Purpose:  Creates or updates an external integration contract.
- */
-
-import type { PlatformCommandResult, RegisterIntegrationContractInput } from "../dtos";
-import type { IntegrationContractRepository, SecretReferenceResolver, DomainEventPublisher } from "../../domain/ports/output";
-import { INTEGRATION_CONTRACT_REGISTERED_EVENT_TYPE } from "../../domain/events";
-import { buildCorrelationId } from "../services";
-
-export class RegisterIntegrationContractUseCase {
-	constructor(
-		private readonly contractRepo: IntegrationContractRepository,
-		private readonly secretResolver: SecretReferenceResolver,
-		private readonly eventPublisher: DomainEventPublisher,
-	) {}
-
-	async execute(input: RegisterIntegrationContractInput): Promise<PlatformCommandResult> {
-		try {
-			const authRef = await this.secretResolver.resolve(input.integrationContractId);
-			const existing = await this.contractRepo.findById(input.integrationContractId);
-			const now = new Date().toISOString();
-			const snapshot = {
-				...(existing as Record<string, unknown> ?? {}),
-				integrationContractId: input.integrationContractId,
-				contextId: input.contextId,
-				endpointRef: input.endpointRef,
-				protocol: input.protocol,
-				authenticationRef: authRef,
-				contractState: "active",
-				updatedAt: now,
-			};
-			await this.contractRepo.save(snapshot);
-			await this.eventPublisher.publish([
-				{
-					type: INTEGRATION_CONTRACT_REGISTERED_EVENT_TYPE,
-					aggregateType: "IntegrationContract",
-					aggregateId: input.integrationContractId,
-					contextId: input.contextId,
-					occurredAt: now,
-					version: 1,
-					correlationId: buildCorrelationId(),
-					payload: { integrationContractId: input.integrationContractId, protocol: input.protocol },
-				},
-			]);
-			return {
-				ok: true,
-				code: "INTEGRATION_CONTRACT_REGISTERED",
-				metadata: { integrationContractId: input.integrationContractId },
-			};
-		} catch (err) {
-			return {
-				ok: false,
-				code: "REGISTER_INTEGRATION_CONTRACT_FAILED",
-				message: err instanceof Error ? err.message : "Unexpected error",
-			};
-		}
-	}
-}
-````
-
-## File: modules/platform/application/use-cases/register-platform-context.use-cases.ts
-````typescript
-/**
- * register-platform-context — use case.
- *
- * Command:  RegisterPlatformContext
- * Purpose:  Creates a PlatformContext or re-activates a platform scope.
- */
-
-import type { PlatformCommandResult, RegisterPlatformContextInput } from "../dtos";
-import type { PlatformContextRepository, DomainEventPublisher } from "../../domain/ports/output";
-import { PLATFORM_CONTEXT_REGISTERED_EVENT_TYPE } from "../../domain/events";
-import { buildCorrelationId } from "../services";
-
-export class RegisterPlatformContextUseCase {
-	constructor(
-		private readonly contextRepo: PlatformContextRepository,
-		private readonly eventPublisher: DomainEventPublisher,
-	) {}
-
-	async execute(input: RegisterPlatformContextInput): Promise<PlatformCommandResult> {
-		try {
-			const existing = await this.contextRepo.findById(input.contextId);
-			const now = new Date().toISOString();
-			const snapshot = {
-				...(existing as Record<string, unknown> ?? {}),
-				contextId: input.contextId,
-				subjectScope: input.subjectScope,
-				lifecycleState: "active",
-				capabilityKeys: (existing as Record<string, unknown> | null)?.capabilityKeys ?? [],
-				updatedAt: now,
-			};
-			await this.contextRepo.save(snapshot);
-			await this.eventPublisher.publish([
-				{
-					type: PLATFORM_CONTEXT_REGISTERED_EVENT_TYPE,
-					aggregateType: "PlatformContext",
-					aggregateId: input.contextId,
-					contextId: input.contextId,
-					occurredAt: now,
-					version: 1,
-					correlationId: buildCorrelationId(),
-					payload: { subjectScope: input.subjectScope, lifecycleState: "active" },
-				},
-			]);
-			return { ok: true, code: "PLATFORM_CONTEXT_REGISTERED", metadata: { contextId: input.contextId } };
-		} catch (err) {
-			return {
-				ok: false,
-				code: "REGISTER_PLATFORM_CONTEXT_FAILED",
-				message: err instanceof Error ? err.message : "Unexpected error",
-			};
-		}
-	}
-}
-````
-
-## File: modules/platform/application/use-cases/request-notification-dispatch.use-cases.ts
-````typescript
-/**
- * request-notification-dispatch — use case.
- *
- * Command:  RequestNotificationDispatch
- * Purpose:  Creates a notification dispatch request.
- */
-
-import type { PlatformCommandResult, RequestNotificationDispatchInput } from "../dtos";
-import type { NotificationGateway, PolicyCatalogViewRepository, AuditSignalStore, DomainEventPublisher } from "../../domain/ports/output";
-import { NOTIFICATION_DISPATCH_REQUESTED_EVENT_TYPE } from "../../domain/events";
-import { buildCorrelationId } from "../services";
-
-export class RequestNotificationDispatchUseCase {
-	constructor(
-		private readonly notificationGateway: NotificationGateway,
-		private readonly catalogViewRepo: PolicyCatalogViewRepository,
-		private readonly auditStore: AuditSignalStore,
-		private readonly eventPublisher: DomainEventPublisher,
-	) {}
-
-	async execute(input: RequestNotificationDispatchInput): Promise<PlatformCommandResult> {
-		try {
-			await this.catalogViewRepo.getView(input.contextId);
-			const dispatchResult = await this.notificationGateway.dispatch({
-				contextId: input.contextId,
-				channel: input.channel,
-				recipientRef: input.recipientRef,
-				templateKey: input.templateKey,
-			});
-			if (!dispatchResult.ok) {
-				return dispatchResult;
-			}
-			const now = new Date().toISOString();
-			await this.auditStore.write({
-				signalType: "notification.dispatch_requested",
-				severity: "info",
-				contextId: input.contextId,
-				recipientRef: input.recipientRef,
-				occurredAt: now,
-			});
-			await this.eventPublisher.publish([
-				{
-					type: NOTIFICATION_DISPATCH_REQUESTED_EVENT_TYPE,
-					aggregateType: "Notification",
-					aggregateId: input.recipientRef,
-					contextId: input.contextId,
-					occurredAt: now,
-					version: 1,
-					correlationId: buildCorrelationId(),
-					payload: { channel: input.channel, recipientRef: input.recipientRef, templateKey: input.templateKey },
-				},
-			]);
-			return {
-				ok: true,
-				code: "NOTIFICATION_DISPATCH_REQUESTED",
-				metadata: { channel: input.channel, recipientRef: input.recipientRef },
-			};
-		} catch (err) {
-			return {
-				ok: false,
-				code: "REQUEST_NOTIFICATION_DISPATCH_FAILED",
-				message: err instanceof Error ? err.message : "Unexpected error",
-			};
-		}
-	}
+export async function quickCreateKnowledgePage(
+  input: QuickCreatePageInput,
+  createPage: (input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    parentPageId: null;
+    createdByUserId: string;
+  }) => Promise<QuickCreatePageResult>,
+): Promise<QuickCreatePageResult> {
+  if (!input.accountId) {
+    return { success: false, error: { message: "目前沒有 active account，無法建立" } };
+  }
+  if (!input.workspaceId) {
+    return { success: false, error: { message: "請先切換到工作區，再建立頁面" } };
+  }
+  return createPage({
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    title: "未命名頁面",
+    parentPageId: null,
+    createdByUserId: input.createdByUserId,
+  });
 }
 ````
 
@@ -18970,26 +19196,6 @@ export function ShellContextNavSection({
 }
 ````
 
-## File: modules/platform/subdomains/access-control/api/index.ts
-````typescript
-/**
- * Public API boundary for the access-control subdomain.
- */
-export * from "../application";
-export { accessControlService } from "../infrastructure";
-export type { AccessPolicySnapshot, CreateAccessPolicyInput } from "../domain/aggregates/AccessPolicy";
-export type { AccessPolicyDomainEventType } from "../domain/events/AccessPolicyDomainEvent";
-export type { AccessPolicyRepository } from "../domain/repositories/AccessPolicyRepository";
-export type { SubjectRef } from "../domain/value-objects/SubjectRef";
-export type { ResourceRef } from "../domain/value-objects/ResourceRef";
-export type { PolicyEffect } from "../domain/value-objects/PolicyEffect";
-export {
-	isOrganizationActor,
-	resolveOrganizationRouteFallback,
-	type ShellAccountActor,
-} from "../application/services/shell-account-access";
-````
-
 ## File: modules/platform/subdomains/access-control/application/index.ts
 ````typescript
 export * from "./dtos";
@@ -18997,128 +19203,144 @@ export * from "./use-cases";
 export * from "./services/shell-account-access";
 ````
 
-## File: modules/platform/subdomains/account-profile/domain/aggregates/AccountProfileAggregate.ts
+## File: modules/platform/subdomains/access-control/application/services/shell-account-access.ts
 ````typescript
-import type {
-  AccountProfileDomainEventType,
-  AccountProfileUpdatedEvent,
-} from "../events/AccountProfileDomainEvent";
-import { createProfileId, createProfileDisplayName } from "../value-objects";
-import type { ProfileId } from "../value-objects";
-import type {
-  AccountProfile,
-  UpdateAccountProfileInput,
-} from "../entities/AccountProfile";
-
-export interface AccountProfileAggregateSnapshot {
+export interface ShellAccountActor {
   readonly id: string;
-  readonly displayName: string;
-  readonly email: string | null;
-  readonly photoURL: string | null;
-  readonly bio: string | null;
-  readonly theme: AccountProfile["theme"] | null;
-  readonly updatedAtISO: string;
+  readonly accountType?: string;
 }
 
-export class AccountProfileAggregate {
-  private readonly _domainEvents: AccountProfileDomainEventType[] = [];
+export function isOrganizationActor(
+  account: ShellAccountActor | null | undefined,
+): account is ShellAccountActor & { accountType: "organization" } {
+  return account?.accountType === "organization";
+}
 
-  private constructor(private _props: AccountProfileAggregateSnapshot) {}
+/**
+ * Type-narrowing guard for ActiveAccount (union of AccountEntity | AuthUser).
+ * Returns true when the active account is an organization account.
+ */
+export function isActiveOrganizationAccount(
+  activeAccount: { id: string; accountType?: string } | null,
+): activeAccount is { id: string; accountType: "organization" } & Record<string, unknown> {
+  return isOrganizationActor(activeAccount);
+}
 
-  static create(id: string, profile: AccountProfile): AccountProfileAggregate {
-    createProfileId(id);
-    createProfileDisplayName(profile.displayName);
-    return new AccountProfileAggregate({
-      id,
-      displayName: profile.displayName,
-      email: profile.email ?? null,
-      photoURL: profile.photoURL ?? null,
-      bio: profile.bio ?? null,
-      theme: profile.theme ?? null,
-      updatedAtISO: new Date().toISOString(),
-    });
+/**
+ * Keep shell fallback behavior centralized so route access rules are not
+ * duplicated across layout components.
+ */
+export function resolveOrganizationRouteFallback(
+  pathname: string,
+  account: ShellAccountActor | null | undefined,
+): string | null {
+  if (pathname === "/organization" && !isOrganizationActor(account)) {
+    return "/workspace";
   }
 
-  static reconstitute(
-    snapshot: AccountProfileAggregateSnapshot,
-  ): AccountProfileAggregate {
-    return new AccountProfileAggregate({ ...snapshot });
-  }
-
-  update(input: UpdateAccountProfileInput): void {
-    const changedFields: string[] = [];
-    const now = new Date().toISOString();
-    if (input.displayName !== undefined && input.displayName !== this._props.displayName) {
-      createProfileDisplayName(input.displayName);
-      changedFields.push("displayName");
-    }
-    if (input.bio !== undefined && input.bio !== this._props.bio) changedFields.push("bio");
-    if (input.photoURL !== undefined && input.photoURL !== this._props.photoURL) changedFields.push("photoURL");
-    if (input.theme !== undefined) changedFields.push("theme");
-    this._props = {
-      ...this._props,
-      displayName: input.displayName ?? this._props.displayName,
-      bio: input.bio ?? this._props.bio,
-      photoURL: input.photoURL ?? this._props.photoURL,
-      theme: input.theme ?? this._props.theme,
-      updatedAtISO: now,
-    };
-    this.recordEvent<AccountProfileUpdatedEvent>({
-      type: "platform.account-profile.updated",
-      eventId: crypto.randomUUID(),
-      occurredAt: now,
-      payload: { profileId: this._props.id, fields: changedFields },
-    });
-  }
-
-  get id(): ProfileId {
-    return createProfileId(this._props.id);
-  }
-
-  get displayName(): string {
-    return this._props.displayName;
-  }
-
-  getSnapshot(): Readonly<AccountProfileAggregateSnapshot> {
-    return Object.freeze({ ...this._props });
-  }
-
-  pullDomainEvents(): AccountProfileDomainEventType[] {
-    const events = [...this._domainEvents];
-    this._domainEvents.length = 0;
-    return events;
-  }
-
-  private recordEvent<TEvent extends AccountProfileDomainEventType>(
-    event: TEvent,
-  ): void {
-    this._domainEvents.push(event);
-  }
+  return null;
 }
 ````
 
-## File: modules/platform/subdomains/account-profile/domain/index.ts
+## File: modules/platform/subdomains/account-profile/infrastructure/account-profile-service.ts
 ````typescript
-export {
-	AccountProfileIdSchema,
-	AccountProfileSchema,
-	createAccountProfile,
-	createAccountProfileId,
-	createUpdateAccountProfileInput,
-} from "./entities/AccountProfile";
-export type {
-	AccountProfile,
-	AccountProfileId,
-	AccountProfileTheme,
-	UpdateAccountProfileInput,
-} from "./entities/AccountProfile";
+/**
+ * AccountProfileService — Composition root for account-profile subdomain.
+ *
+ * Wires the legacy account data-source (from the account subdomain bridge)
+ * into domain-port-conforming adapters and use cases. This keeps infrastructure
+ * wiring inside the infrastructure layer, off the api boundary.
+ */
 
-export type { Unsubscribe, AccountProfileQueryRepository } from "./repositories/AccountProfileQueryRepository";
-export type { AccountProfileCommandRepository } from "./repositories/AccountProfileCommandRepository";
-export type { IAccountProfileQueryPort, IAccountProfileCommandPort } from "./ports";
-export * from "./aggregates";
-export * from "./events";
-export * from "./value-objects";
+import {
+	GetAccountProfileUseCase,
+	SubscribeAccountProfileUseCase,
+	UpdateAccountProfileUseCase,
+} from "../application";
+import {
+	createLegacyAccountProfileCommandRepository,
+	createLegacyAccountProfileQueryRepository,
+	type LegacyAccountProfileDataSource,
+} from "./create-legacy-account-profile-application.adapter";
+import type { AccountProfile, Unsubscribe } from "../domain";
+import type { UpdateAccountProfileInput } from "../application";
+import type { CommandResult } from "@shared-types";
+
+// ── Lazy singletons ──────────────────────────────────────────────────────
+
+let _legacyDataSource: LegacyAccountProfileDataSource | undefined;
+let _getAccountProfileUseCase: GetAccountProfileUseCase | undefined;
+let _subscribeAccountProfileUseCase: SubscribeAccountProfileUseCase | undefined;
+let _updateAccountProfileUseCase: UpdateAccountProfileUseCase | undefined;
+
+export function configureLegacyAccountProfileDataSource(
+	legacyDataSource: LegacyAccountProfileDataSource,
+): void {
+	_legacyDataSource = legacyDataSource;
+	_getAccountProfileUseCase = undefined;
+	_subscribeAccountProfileUseCase = undefined;
+	_updateAccountProfileUseCase = undefined;
+}
+
+function getLegacyDataSource(): LegacyAccountProfileDataSource {
+	if (_legacyDataSource) {
+		return _legacyDataSource;
+	}
+
+	throw new Error(
+		"LegacyAccountProfileDataSource is not configured. Configure it in account-profile/api composition root.",
+	);
+}
+
+function getGetAccountProfileUseCase(): GetAccountProfileUseCase {
+	if (_getAccountProfileUseCase) {
+		return _getAccountProfileUseCase;
+	}
+
+	const repository = createLegacyAccountProfileQueryRepository(getLegacyDataSource());
+	_getAccountProfileUseCase = new GetAccountProfileUseCase(repository);
+	return _getAccountProfileUseCase;
+}
+
+function getSubscribeAccountProfileUseCase(): SubscribeAccountProfileUseCase {
+	if (_subscribeAccountProfileUseCase) {
+		return _subscribeAccountProfileUseCase;
+	}
+
+	const repository = createLegacyAccountProfileQueryRepository(getLegacyDataSource());
+	_subscribeAccountProfileUseCase = new SubscribeAccountProfileUseCase(repository);
+	return _subscribeAccountProfileUseCase;
+}
+
+function getUpdateAccountProfileUseCase(): UpdateAccountProfileUseCase {
+	if (_updateAccountProfileUseCase) {
+		return _updateAccountProfileUseCase;
+	}
+
+	const repository = createLegacyAccountProfileCommandRepository(getLegacyDataSource());
+	_updateAccountProfileUseCase = new UpdateAccountProfileUseCase(repository);
+	return _updateAccountProfileUseCase;
+}
+
+// ── Public service API ───────────────────────────────────────────────────
+
+export async function getAccountProfile(actorId: string): Promise<AccountProfile | null> {
+	return getGetAccountProfileUseCase().execute(actorId);
+}
+
+export function subscribeToAccountProfile(
+	actorId: string,
+	onUpdate: (profile: AccountProfile | null) => void,
+): Unsubscribe {
+	return getSubscribeAccountProfileUseCase().execute(actorId, onUpdate);
+}
+
+export async function updateAccountProfile(
+	actorId: string,
+	input: UpdateAccountProfileInput,
+): Promise<CommandResult> {
+	return getUpdateAccountProfileUseCase().execute(actorId, input);
+}
 ````
 
 ## File: modules/platform/subdomains/account/application/services/resolve-active-account.ts
@@ -19181,17 +19403,6 @@ export function resolveActiveAccount(input: ResolveActiveAccountInput): Selectab
 
   return currentActive ?? personalAccount;
 }
-````
-
-## File: modules/platform/subdomains/background-job/domain/index.ts
-````typescript
-export type { IngestionDocument } from "./entities/IngestionDocument";
-export type { IngestionChunk, IngestionChunkMetadata } from "./entities/IngestionChunk";
-export type { IngestionJob, IngestionStatus } from "./entities/IngestionJob";
-export { canTransitionIngestionStatus } from "./entities/IngestionJob";
-export type { IIngestionJobRepository } from "./repositories/IIngestionJobRepository";
-export type { IIngestionJobPort } from "./ports";
-export * from "./events";
 ````
 
 ## File: modules/platform/subdomains/entitlement/application/use-cases/entitlement.use-cases.ts
@@ -19315,72 +19526,150 @@ export class CheckFeatureEntitlementUseCase {
 }
 ````
 
-## File: modules/platform/subdomains/notification/application/use-cases/notification.use-cases.ts
+## File: modules/platform/subdomains/organization/infrastructure/organization-service.ts
 ````typescript
 /**
- * Notification Application Use Cases — orchestrate domain intent without framework concerns.
+ * OrganizationService — Composition root for organization use cases.
  */
 
-import { commandSuccess, commandFailureFrom } from "@shared-types";
+import { FirebaseOrganizationRepository } from "./firebase/FirebaseOrganizationRepository";
+import { FirebaseOrgPolicyRepository } from "./firebase/FirebaseOrgPolicyRepository";
+import {
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+} from "../application/use-cases/organization-lifecycle.use-cases";
+import {
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+} from "../application/use-cases/organization-member.use-cases";
+import {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "../application/use-cases/organization-team.use-cases";
+import type { IOrganizationTeamPort } from "../domain/ports/IOrganizationTeamPort";
+import {
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "../application/use-cases/organization-partner.use-cases";
+import {
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+} from "../application/use-cases/organization-policy.use-cases";
+import type {
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "../domain/entities/Organization";
+import type { CreateTeamInput } from "../domain/entities/Organization";
 import type { CommandResult } from "@shared-types";
-import type { NotificationRepository } from "../../domain/repositories/NotificationRepository";
-import type { DispatchNotificationInput } from "../../domain/entities/Notification";
 
-export class DispatchNotificationUseCase {
-  constructor(private readonly repo: NotificationRepository) {}
+let _orgRepo: FirebaseOrganizationRepository | undefined;
+let _policyRepo: FirebaseOrgPolicyRepository | undefined;
+let _teamPort: IOrganizationTeamPort | undefined;
+let _teamPortFactory: (() => IOrganizationTeamPort) | undefined;
 
-  async execute(input: DispatchNotificationInput): Promise<CommandResult> {
-    try {
-      const notification = await this.repo.dispatch(input);
-      return commandSuccess(notification.id, 1);
-    } catch (err) {
-      return commandFailureFrom("DISPATCH_NOTIFICATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
-    }
-  }
+export function configureOrganizationTeamPortFactory(
+  factory: () => IOrganizationTeamPort,
+): void {
+  _teamPortFactory = factory;
+  _teamPort = undefined;
 }
 
-export class MarkNotificationReadUseCase {
-  constructor(private readonly repo: NotificationRepository) {}
-
-  async execute(notificationId: string, recipientId: string): Promise<CommandResult> {
-    try {
-      await this.repo.markAsRead(notificationId, recipientId);
-      return commandSuccess(notificationId, 1);
-    } catch (err) {
-      return commandFailureFrom("MARK_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
-    }
-  }
+function getOrgRepo(): FirebaseOrganizationRepository {
+  if (!_orgRepo) _orgRepo = new FirebaseOrganizationRepository();
+  return _orgRepo;
 }
 
-export class MarkAllNotificationsReadUseCase {
-  constructor(private readonly repo: NotificationRepository) {}
-
-  async execute(recipientId: string): Promise<CommandResult> {
-    try {
-      await this.repo.markAllAsRead(recipientId);
-      return commandSuccess(recipientId, 1);
-    } catch (err) {
-      return commandFailureFrom("MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
-    }
-  }
+function getPolicyRepo(): FirebaseOrgPolicyRepository {
+  if (!_policyRepo) _policyRepo = new FirebaseOrgPolicyRepository();
+  return _policyRepo;
 }
 
-// Re-export read queries for backward compatibility
-export { GetNotificationsForRecipientUseCase, GetUnreadCountUseCase } from "../queries/notification.queries";
-````
+function getTeamPort(): IOrganizationTeamPort {
+  if (!_teamPortFactory) {
+    throw new Error("Organization team port factory is not configured.");
+  }
+  if (!_teamPort) _teamPort = _teamPortFactory();
+  return _teamPort;
+}
 
-## File: modules/platform/subdomains/notification/domain/index.ts
-````typescript
-export type {
-  NotificationEntity,
-  NotificationType,
-  DispatchNotificationInput,
-} from "./entities/Notification";
-export type { NotificationRepository } from "./repositories/NotificationRepository";
-export type { INotificationPort } from "./ports";
-export * from "./aggregates";
-export * from "./events";
-export * from "./value-objects";
+export const organizationService = {
+  createOrganization: (cmd: CreateOrganizationCommand): Promise<CommandResult> =>
+    new CreateOrganizationUseCase(getOrgRepo()).execute(cmd),
+
+  createOrganizationWithTeam: (
+    cmd: CreateOrganizationCommand,
+    teamName: string,
+    teamType: "internal" | "external" = "internal",
+  ): Promise<CommandResult> =>
+    new CreateOrganizationWithTeamUseCase(getOrgRepo()).execute(cmd, teamName, teamType),
+
+  updateSettings: (cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> =>
+    new UpdateOrganizationSettingsUseCase(getOrgRepo()).execute(cmd),
+
+  deleteOrganization: (orgId: string): Promise<CommandResult> =>
+    new DeleteOrganizationUseCase(getOrgRepo()).execute(orgId),
+
+  inviteMember: (input: InviteMemberInput): Promise<CommandResult> =>
+    new InviteMemberUseCase(getOrgRepo()).execute(input),
+
+  recruitMember: (orgId: string, memberId: string, name: string, email: string): Promise<CommandResult> =>
+    new RecruitMemberUseCase(getOrgRepo()).execute(orgId, memberId, name, email),
+
+  removeMember: (orgId: string, memberId: string): Promise<CommandResult> =>
+    new RemoveMemberUseCase(getOrgRepo()).execute(orgId, memberId),
+
+  updateMemberRole: (input: UpdateMemberRoleInput): Promise<CommandResult> =>
+    new UpdateMemberRoleUseCase(getOrgRepo()).execute(input),
+
+  createTeam: (input: CreateTeamInput): Promise<CommandResult> =>
+    new CreateTeamUseCase(getTeamPort()).execute(input),
+
+  deleteTeam: (orgId: string, teamId: string): Promise<CommandResult> =>
+    new DeleteTeamUseCase(getTeamPort()).execute(orgId, teamId),
+
+  updateTeamMembers: (orgId: string, teamId: string, memberId: string, action: "add" | "remove"): Promise<CommandResult> =>
+    new UpdateTeamMembersUseCase(getTeamPort()).execute(orgId, teamId, memberId, action),
+
+  createPartnerGroup: (orgId: string, groupName: string): Promise<CommandResult> =>
+    new CreatePartnerGroupUseCase(getOrgRepo()).execute(orgId, groupName),
+
+  sendPartnerInvite: (orgId: string, teamId: string, email: string): Promise<CommandResult> =>
+    new SendPartnerInviteUseCase(getOrgRepo()).execute(orgId, teamId, email),
+
+  dismissPartnerMember: (orgId: string, teamId: string, memberId: string): Promise<CommandResult> =>
+    new DismissPartnerMemberUseCase(getOrgRepo()).execute(orgId, teamId, memberId),
+
+  createOrgPolicy: (input: CreateOrgPolicyInput): Promise<CommandResult> =>
+    new CreateOrgPolicyUseCase(getPolicyRepo()).execute(input),
+
+  updateOrgPolicy: (policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> =>
+    new UpdateOrgPolicyUseCase(getPolicyRepo()).execute(policyId, data),
+
+  deleteOrgPolicy: (policyId: string): Promise<CommandResult> =>
+    new DeleteOrgPolicyUseCase(getPolicyRepo()).execute(policyId),
+};
+
+/**
+ * OrganizationQueryService — read-model queries for client-side data.
+ * Composition root: wires Firebase repos for queries; interfaces/ must use this
+ * via the subdomain api/ boundary instead of importing infrastructure directly.
+ */
+export const organizationQueryService = {
+  getMembers: (organizationId: string) => getOrgRepo().getMembers(organizationId),
+  getTeams: (organizationId: string) => getOrgRepo().getTeams(organizationId),
+  getOrgPolicies: (orgId: string) => getPolicyRepo().getPolicies(orgId),
+};
 ````
 
 ## File: modules/platform/subdomains/platform-config/application/index.ts
@@ -19738,155 +20027,81 @@ export class MarkSubscriptionPastDueUseCase {
 }
 ````
 
-## File: modules/platform/subdomains/team/domain/aggregates/OrganizationTeam.ts
+## File: modules/platform/interfaces/web/providers/ShellAppContext.ts
 ````typescript
+"use client";
+
 /**
- * OrganizationTeam — Aggregate Root
+ * ShellAppContext — platform/interfaces/web layer
  *
- * Represents a named grouping of members within an Organization boundary.
- * OrganizationTeam is a subdomain concept of platform/team; it is NOT an
- * independent Tenant. Teams may be internal (org-only members) or external
- * (partner/guest actors included).
+ * Context definition, types, and the useApp() hook.
+ * Owns NO workspace-module dependencies — workspace state is managed by
+ * WorkspaceContextProvider in the workspace bounded context.
  *
- * Invariants:
- *   - A team must belong to exactly one Organization (organizationId is immutable)
- *   - A member may appear in a team's memberIds at most once
- *   - teamType cannot change after creation (replace-and-recreate pattern)
- *   - addMember and removeMember are idempotent: duplicate/absent memberId is a no-op (no event)
+ * The AppProvider that creates this context lives in app/(shell)/ where
+ * cross-module composition is allowed.
  */
 
-import { randomUUID } from "crypto";
-import type { TeamId } from "../value-objects/TeamId";
-import type { TeamType } from "../value-objects/TeamType";
-import type { OrganizationTeamDomainEvent } from "../events/OrganizationTeamDomainEvent";
+import {
+  createContext,
+  useContext,
+  type Dispatch,
+} from "react";
 
-export interface OrganizationTeamSnapshot {
-  readonly id: string;
-  readonly organizationId: string;
-  readonly name: string;
-  readonly description: string;
-  readonly teamType: TeamType;
-  readonly memberIds: readonly string[];
+import type { AccountEntity } from "../../../subdomains/account/api";
+import type { ActiveAccount } from "../../../api/contracts";
+
+// ── State ────────────────────────────────────────────────────────────────────
+
+export interface AppState {
+  /** All organization accounts visible to the signed-in user. */
+  accounts: Record<string, AccountEntity>;
+  /** True once the first Firestore snapshot has been received. */
+  accountsHydrated: boolean;
+  /** Bootstrap phase for optimistic seeding. */
+  bootstrapPhase: "idle" | "seeded" | "hydrated";
+  /** Currently selected account (personal user account or an organization). */
+  activeAccount: ActiveAccount | null;
 }
 
-export interface CreateOrganizationTeamProps {
-  readonly organizationId: string;
-  readonly name: string;
-  readonly description?: string;
-  readonly teamType: TeamType;
+export type AppAction =
+  | {
+      type: "SEED_ACTIVE_ACCOUNT";
+      payload: { user: { id: string; name: string; email: string } };
+    }
+  | {
+      type: "SET_ACCOUNTS";
+      payload: {
+        accounts: Record<string, AccountEntity>;
+        user: { id: string; name: string; email: string };
+        preferredActiveAccountId?: string | null;
+      };
+    }
+  | { type: "SET_ACTIVE_ACCOUNT"; payload: ActiveAccount | null }
+  | { type: "RESET_STATE" };
+
+export interface AppContextValue {
+  state: AppState;
+  dispatch: Dispatch<AppAction>;
 }
 
-export class OrganizationTeam {
-  private _domainEvents: OrganizationTeamDomainEvent[] = [];
+export const AppContext = createContext<AppContextValue | null>(null);
 
-  private constructor(private _props: OrganizationTeamSnapshot) {}
+// ── Initial State ────────────────────────────────────────────────────────────
 
-  // ── Factory — new team ────────────────────────────────────────────────────
+export const APP_INITIAL_STATE: AppState = {
+  accounts: {},
+  accountsHydrated: false,
+  bootstrapPhase: "idle",
+  activeAccount: null,
+};
 
-  static create(id: TeamId, props: CreateOrganizationTeamProps): OrganizationTeam {
-    const team = new OrganizationTeam({
-      id,
-      organizationId: props.organizationId,
-      name: props.name,
-      description: props.description ?? "",
-      teamType: props.teamType,
-      memberIds: [],
-    });
-    team._domainEvents.push({
-      type: "team.created",
-      eventId: randomUUID(),
-      occurredAt: new Date().toISOString(),
-      payload: {
-        teamId: id,
-        organizationId: props.organizationId,
-        name: props.name,
-        teamType: props.teamType,
-      },
-    });
-    return team;
-  }
+// ── Hook ─────────────────────────────────────────────────────────────────────
 
-  // ── Factory — reconstitute from persistence ───────────────────────────────
-
-  static reconstitute(snapshot: OrganizationTeamSnapshot): OrganizationTeam {
-    return new OrganizationTeam(snapshot);
-  }
-
-  // ── Commands ──────────────────────────────────────────────────────────────
-
-  /**
-   * Add a member to the team.
-   * Idempotent: if memberId is already in the team the call is a no-op and
-   * no domain event is emitted, so callers may safely call this multiple times.
-   */
-  addMember(memberId: string): void {
-    if (this._props.memberIds.includes(memberId)) return; // idempotent, no event emitted
-    this._props = {
-      ...this._props,
-      memberIds: [...this._props.memberIds, memberId],
-    };
-    this._domainEvents.push({
-      type: "team.member-added",
-      eventId: randomUUID(),
-      occurredAt: new Date().toISOString(),
-      payload: {
-        teamId: this._props.id,
-        organizationId: this._props.organizationId,
-        memberId,
-      },
-    });
-  }
-
-  /**
-   * Remove a member from the team.
-   * Idempotent: if memberId is not in the team the call is a no-op and
-   * no domain event is emitted, supporting at-least-once removal semantics.
-   */
-  removeMember(memberId: string): void {
-    if (!this._props.memberIds.includes(memberId)) return; // idempotent, no event emitted
-    this._props = {
-      ...this._props,
-      memberIds: this._props.memberIds.filter((id) => id !== memberId),
-    };
-    this._domainEvents.push({
-      type: "team.member-removed",
-      eventId: randomUUID(),
-      occurredAt: new Date().toISOString(),
-      payload: {
-        teamId: this._props.id,
-        organizationId: this._props.organizationId,
-        memberId,
-      },
-    });
-  }
-
-  delete(): void {
-    this._domainEvents.push({
-      type: "team.deleted",
-      eventId: randomUUID(),
-      occurredAt: new Date().toISOString(),
-      payload: {
-        teamId: this._props.id,
-        organizationId: this._props.organizationId,
-      },
-    });
-  }
-
-  // ── Read ──────────────────────────────────────────────────────────────────
-
-  get id(): TeamId {
-    return this._props.id as TeamId;
-  }
-
-  getSnapshot(): Readonly<OrganizationTeamSnapshot> {
-    return Object.freeze({ ...this._props, memberIds: [...this._props.memberIds] });
-  }
-
-  pullDomainEvents(): OrganizationTeamDomainEvent[] {
-    const events = [...this._domainEvents];
-    this._domainEvents = [];
-    return events;
-  }
+export function useApp() {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error("useApp must be used within AppProvider");
+  return ctx;
 }
 ````
 
@@ -20359,6 +20574,27 @@ export function DashboardSidebarBody({
 }
 ````
 
+## File: modules/platform/subdomains/access-control/api/index.ts
+````typescript
+/**
+ * Public API boundary for the access-control subdomain.
+ */
+export * from "../application";
+export { accessControlService } from "../infrastructure";
+export type { AccessPolicySnapshot, CreateAccessPolicyInput } from "../domain/aggregates/AccessPolicy";
+export type { AccessPolicyDomainEventType } from "../domain/events/AccessPolicyDomainEvent";
+export type { AccessPolicyRepository } from "../domain/repositories/AccessPolicyRepository";
+export type { SubjectRef } from "../domain/value-objects/SubjectRef";
+export type { ResourceRef } from "../domain/value-objects/ResourceRef";
+export type { PolicyEffect } from "../domain/value-objects/PolicyEffect";
+export {
+	isOrganizationActor,
+	isActiveOrganizationAccount,
+	resolveOrganizationRouteFallback,
+	type ShellAccountActor,
+} from "../application/services/shell-account-access";
+````
+
 ## File: modules/platform/subdomains/access-control/application/use-cases/access-control.use-cases.ts
 ````typescript
 /**
@@ -20496,48 +20732,6 @@ export class DeactivateAccessPolicyUseCase {
 }
 ````
 
-## File: modules/platform/application/use-cases/index.ts
-````typescript
-/**
- * platform application use-cases barrel.
- *
- * Each file follows the kebab-case convention: verb-noun.use-cases.ts
- *
- * Commands:
- *   register-platform-context
- *   publish-policy-catalog
- *   apply-configuration-profile
- *   register-integration-contract
- *   activate-subscription-agreement
- *   fire-workflow-trigger
- *   request-notification-dispatch
- *   record-audit-signal
- *   emit-observability-signal
- *
- * Queries:
- *   get-platform-context-view
- *   list-enabled-capabilities
- *   get-policy-catalog-view
- *   get-subscription-entitlements
- *   get-workflow-policy-view
- */
-
-export { RegisterPlatformContextUseCase } from "./register-platform-context.use-cases";
-export { PublishPolicyCatalogUseCase } from "./publish-policy-catalog.use-cases";
-export { ApplyConfigurationProfileUseCase } from "./apply-configuration-profile.use-cases";
-export { RegisterIntegrationContractUseCase } from "./register-integration-contract.use-cases";
-export { ActivateSubscriptionAgreementUseCase } from "./activate-subscription-agreement.use-cases";
-export { FireWorkflowTriggerUseCase } from "./fire-workflow-trigger.use-cases";
-export { RequestNotificationDispatchUseCase } from "./request-notification-dispatch.use-cases";
-export { RecordAuditSignalUseCase } from "./record-audit-signal.use-cases";
-export { EmitObservabilitySignalUseCase } from "./emit-observability-signal.use-cases";
-export { GetPlatformContextViewUseCase } from "../queries/get-platform-context-view.queries";
-export { ListEnabledCapabilitiesUseCase } from "../queries/list-enabled-capabilities.queries";
-export { GetPolicyCatalogViewUseCase } from "../queries/get-policy-catalog-view.queries";
-export { GetSubscriptionEntitlementsUseCase } from "../queries/get-subscription-entitlements.queries";
-export { GetWorkflowPolicyViewUseCase } from "../queries/get-workflow-policy-view.queries";
-````
-
 ## File: modules/platform/interfaces/web/shell/navigation/components/ShellDashboardSidebar.tsx
 ````typescript
 "use client";
@@ -20554,7 +20748,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-import { quickCreateKnowledgePage } from "@/modules/platform/application/services/shell-quick-create";
+import { quickCreateKnowledgePage } from "@/modules/platform/api";
 import {
   buildWorkspaceQuickAccessItems,
   CustomizeNavigationDialog,
@@ -20775,18 +20969,6 @@ export function ShellDashboardSidebar({
 }
 ````
 
-## File: modules/platform/application/index.ts
-````typescript
-/**
- * platform application layer barrel.
- */
-
-export * from "./dtos";
-export * from "./services";
-export * from "./use-cases";
-export * from "./handlers";
-````
-
 ## File: modules/platform/interfaces/web/shell/navigation/data/ShellSidebarNavData.tsx
 ````typescript
 import {
@@ -20922,44 +21104,6 @@ export function SimpleNavLinks({
     </nav>
   );
 }
-````
-
-## File: modules/platform/interfaces/web/index.ts
-````typescript
-export { ShellHeaderControls } from "./shell/header/components/ShellHeaderControls";
-export { ShellThemeToggle } from "./shell/header/components/ShellThemeToggle";
-export { ShellNotificationButton } from "./shell/header/components/ShellNotificationButton";
-export { ShellUserAvatar } from "./shell/header/components/ShellUserAvatar";
-export { ShellTranslationSwitcher } from "./shell/header/components/ShellTranslationSwitcher";
-export { ShellAppBreadcrumbs } from "./shell/breadcrumbs/ShellAppBreadcrumbs";
-export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./shell/search/ShellGlobalSearchDialog";
-export { AppRail } from "./shell/sidebar/ShellAppRail";
-export { ShellDashboardSidebar } from "./shell/navigation/components/ShellDashboardSidebar";
-export { ShellLayout } from "./shell/layout/ShellRootLayout";
-export type { DashboardSidebarProps, NavSection } from "./shell/navigation/data/ShellSidebarNavData";
-export {
-  resolveNavSection,
-  isActiveOrganizationAccount,
-  SECTION_TITLES,
-  ACCOUNT_NAV_ITEMS,
-  ACCOUNT_SECTION_MATCHERS,
-  ORGANIZATION_MANAGEMENT_ITEMS,
-  sidebarItemClass,
-  sidebarSectionTitleClass,
-  sidebarGroupButtonClass,
-  SimpleNavLinks,
-} from "./shell/navigation/data/ShellSidebarNavData";
-
-// providers
-export {
-  AppContext,
-  type AppState,
-  type AppAction,
-  type AppContextValue,
-  type ActiveAccount,
-} from "./providers/ShellAppProvider";
-export { AppProvider, useApp } from "./providers/ShellAppProvider";
-export { Providers } from "./providers/ShellProviders";
 ````
 
 ## File: modules/platform/interfaces/web/shell/layout/ShellRootLayout.tsx
@@ -21248,4 +21392,47 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
     </ShellGuard>
   );
 }
+````
+
+## File: modules/platform/interfaces/web/index.ts
+````typescript
+export { ShellHeaderControls } from "./shell/header/components/ShellHeaderControls";
+export { ShellThemeToggle } from "./shell/header/components/ShellThemeToggle";
+export { ShellNotificationButton } from "./shell/header/components/ShellNotificationButton";
+export { ShellUserAvatar } from "./shell/header/components/ShellUserAvatar";
+export { ShellTranslationSwitcher } from "./shell/header/components/ShellTranslationSwitcher";
+export { ShellAppBreadcrumbs } from "./shell/breadcrumbs/ShellAppBreadcrumbs";
+export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./shell/search/ShellGlobalSearchDialog";
+export { AppRail } from "./shell/sidebar/ShellAppRail";
+export { ShellDashboardSidebar } from "./shell/navigation/components/ShellDashboardSidebar";
+export {
+  quickCreateKnowledgePage,
+  type QuickCreatePageInput,
+  type QuickCreatePageResult,
+} from "./shell/navigation/services/shell-quick-create";
+export { ShellLayout } from "./shell/layout/ShellRootLayout";
+export type { DashboardSidebarProps, NavSection } from "./shell/navigation/data/ShellSidebarNavData";
+export {
+  resolveNavSection,
+  isActiveOrganizationAccount,
+  SECTION_TITLES,
+  ACCOUNT_NAV_ITEMS,
+  ACCOUNT_SECTION_MATCHERS,
+  ORGANIZATION_MANAGEMENT_ITEMS,
+  sidebarItemClass,
+  sidebarSectionTitleClass,
+  sidebarGroupButtonClass,
+  SimpleNavLinks,
+} from "./shell/navigation/data/ShellSidebarNavData";
+
+// providers
+export {
+  AppContext,
+  type AppState,
+  type AppAction,
+  type AppContextValue,
+  type ActiveAccount,
+} from "./providers/ShellAppProvider";
+export { AppProvider, useApp } from "./providers/ShellAppProvider";
+export { Providers } from "./providers/ShellProviders";
 ````

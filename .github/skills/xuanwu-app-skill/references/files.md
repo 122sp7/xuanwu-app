@@ -1,5 +1,297 @@
 # Files
 
+## File: app/(public)/page.tsx
+````typescript
+"use client";
+
+/**
+ * app/(public)/page.tsx
+ * Public landing page with top-right auth entry and inline auth panel.
+ * Uses identity module use cases directly on the client so Firebase auth state
+ * actually updates AuthProvider via onAuthStateChanged.
+ */
+
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, ShieldCheck } from "lucide-react";
+
+import {
+  useAuth,
+  createClientAuthUseCases,
+  createClientAccountUseCases,
+  createDevDemoUser,
+  isDevDemoCredential,
+  isLocalDevDemoAllowed,
+  writeDevDemoSession,
+} from "@/modules/platform/api";
+
+type Tab = "login" | "register";
+
+export default function PublicPage() {
+  const { state, dispatch } = useAuth();
+  const router = useRouter();
+
+  const [tab, setTab] = useState<Tab>("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
+  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
+
+  const {
+    signInUseCase,
+    signInAnonymouslyUseCase,
+    registerUseCase,
+    sendPasswordResetEmailUseCase,
+    createUserAccountUseCase,
+  } =
+    useMemo(() => ({
+      ...createClientAuthUseCases(),
+      ...createClientAccountUseCases(),
+    }), []);
+
+  useEffect(() => {
+    if (state.status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [state.status, router]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
+        writeDevDemoSession(createDevDemoUser());
+        window.location.assign("/dashboard");
+        return;
+      }
+
+      const result =
+        tab === "login"
+          ? await signInUseCase.execute({ email, password })
+          : await registerUseCase.execute({ email, password, name });
+
+      if (!result.success) {
+        setError(result.error.message);
+        return;
+      }
+
+      if (tab === "register") {
+        const accountResult = await createUserAccountUseCase.execute(
+          result.aggregateId,
+          name,
+          email,
+        );
+        if (!accountResult.success) {
+          setError(accountResult.error.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleGuestAccess() {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const result = await signInAnonymouslyUseCase.execute();
+      if (!result.success) {
+        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
+        // blocked in sandboxes), create a local guest session so the shell can be tested.
+        if (isLocalDevDemoAllowed()) {
+          const guestUser = createDevDemoUser();
+          writeDevDemoSession(guestUser);
+          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
+        } else {
+          setError(result.error.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handlePasswordReset() {
+    if (!email) {
+      setError("Enter your email address first.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await sendPasswordResetEmailUseCase.execute(email);
+      if (result.success) {
+        setResetSent(true);
+        setError(null);
+      } else {
+        setError(result.error.message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  if (state.status === "initializing") {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-background">
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setResetSent(false);
+            setIsAuthPanelOpen((prev) => !prev);
+          }}
+          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+        >
+          {isAuthPanelOpen ? "Close" : "Sign In"}
+        </button>
+      </header>
+
+      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
+        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
+          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
+            Unified Hexagonal Architecture with DDD workspace for identity, account, and organization modules.
+            Use the top-right sign in button to access your dashboard.
+          </p>
+        </div>
+
+        {isAuthPanelOpen && (
+          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
+            <div className="flex flex-col items-center pb-4 pt-8">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
+                <ShieldCheck className="h-7 w-7 text-primary/90" />
+              </div>
+            </div>
+
+            <div className="px-6">
+              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
+                {(["login", "register"] as Tab[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                      setTab(t);
+                      setError(null);
+                    }}
+                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
+                      tab === t
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t === "login" ? "Sign In" : "Register"}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                {tab === "register" && (
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="register-name" className="text-xs font-semibold text-muted-foreground">Name</label>
+                    <input
+                      id="register-name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Your display name"
+                      required
+                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="auth-email" className="text-xs font-semibold text-muted-foreground">Email</label>
+                  <input
+                    id="auth-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    autoComplete="email"
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="auth-password" className="text-xs font-semibold text-muted-foreground">Password</label>
+                    {tab === "login" && (
+                      <button
+                        type="button"
+                        onClick={handlePasswordReset}
+                        className="text-xs text-primary/70 hover:text-primary"
+                      >
+                        {resetSent ? "Email sent!" : "Forgot password?"}
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    id="auth-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    autoComplete={tab === "login" ? "current-password" : "new-password"}
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                {error && (
+                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : tab === "login" ? (
+                    "Enter Dimension"
+                  ) : (
+                    "Create Account"
+                  )}
+                </button>
+              </form>
+            </div>
+
+            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
+              <button
+                type="button"
+                onClick={handleGuestAccess}
+                disabled={isLoading}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+````
+
 ## File: app/(shell)/ai-chat/page.tsx
 ````typescript
 "use client";
@@ -348,485 +640,6 @@ export function DevToolsParsedDocsSection({
 }
 ````
 
-## File: app/(shell)/dev-tools/page.tsx
-````typescript
-"use client";
-
-/**
- * Module: dev-tools page — /dev-tools
- * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
- * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
- * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
- *   Doc-list state and operations → useDevToolsDocList hook.
- *   Parsed-docs table → DevToolsParsedDocsSection component.
- */
-
-import { useRef, useState, useEffect } from "react";
-import {
-  FlaskConical,
-  FileUp,
-  AlertCircle,
-  FileText,
-  Trash2,
-  Code2,
-  ExternalLink,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-} from "lucide-react";
-
-import { useApp } from "@/modules/platform/api";
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  UPLOAD_BUCKET,
-  WATCH_PATH,
-  ACCEPTED_MIME,
-  ACCEPTED_EXTS,
-  asRecord,
-  asString,
-  asNumber,
-  type ParseResult,
-  type UploadStatus,
-} from "./dev-tools-helpers";
-import { StatusBadge, RagBadge } from "./dev-tools-badges";
-import { useDevToolsDocList, formatDateTime } from "./use-dev-tools-doc-list";
-import { DevToolsParsedDocsSection } from "./dev-tools-parsed-docs-section";
-
-// ── Page component ─────────────────────────────────────────────────────────
-
-export default function DevToolsPage() {
-  const { state: appState } = useApp();
-  const activeAccountId = appState.activeAccount?.id ?? "";
-  const activeWorkspaceId = appState.activeWorkspaceId ?? "";
-
-  // ── Upload state ──────────────────────────────────────────────────────────
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<UploadStatus>("idle");
-  const [result, setResult] = useState<ParseResult | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [logs, setLogs] = useState<string[]>([]);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
-
-  // ── Doc list + operations (extracted hook) ────────────────────────────────
-  const {
-    allDocs,
-    selectedDocId,
-    selectedDoc,
-    jsonContent,
-    jsonLoading,
-    deletingId,
-    reindexingId,
-    handleViewOriginal,
-    handleViewJson,
-    handleDeleteDoc,
-    handleManualProcess,
-    closeJsonPreview,
-    formatNormalizationRatio,
-  } = useDevToolsDocList(activeAccountId);
-
-  // Cleanup upload subscription on unmount
-  useEffect(() => {
-    return () => { if (unsubscribeRef.current) unsubscribeRef.current(); };
-  }, []);
-
-  function appendLog(msg: string) {
-    setLogs((prev) => [
-      ...prev,
-      `[${new Date().toISOString().split("T")[1]?.slice(0, 8)}] ${msg}`,
-    ]);
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null;
-    setSelectedFile(file);
-    setResult(null);
-    setErrorMsg(null);
-    setStatus("idle");
-    setLogs([]);
-    if (file) appendLog(`已選取：${file.name}（${(file.size / 1024).toFixed(1)} KB）`);
-  }
-
-  function buildUuidUploadPath(accountId: string, file: File) {
-    const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
-    const docId = crypto.randomUUID();
-    return { uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`, docId };
-  }
-
-  function watchDocument(docId: string) {
-    if (!activeAccountId) {
-      appendLog("❌ 缺少 active account，無法監聽文件狀態");
-      return;
-    }
-    try {
-      const db = getFirebaseFirestore();
-      const docRef = firestoreApi.doc(db, "accounts", activeAccountId, "documents", docId);
-      if (unsubscribeRef.current) unsubscribeRef.current();
-      unsubscribeRef.current = firestoreApi.onSnapshot(docRef, (snapshot) => {
-        if (!snapshot.exists()) { appendLog("等待 Firestore 初始化…"); return; }
-        const data = asRecord(snapshot.data());
-        const docStatus = asString(data.status, "unknown");
-        appendLog(`Firestore update: status=${docStatus}`);
-        if (docStatus === "completed") {
-          const parsed = asRecord(data.parsed);
-          const r: ParseResult = {
-            doc_id: docId,
-            status: "completed",
-            page_count: asNumber(parsed.page_count) ?? 0,
-            json_gcs_uri: asString(parsed.json_gcs_uri),
-          };
-          setResult(r);
-          setStatus("done");
-          appendLog(`✅ 解析完成：${asNumber(parsed.page_count) ?? 0} 頁`);
-          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-        } else if (docStatus === "error") {
-          const error = asRecord(data.error);
-          const msg = asString(error.message, "未知錯誤");
-          setErrorMsg(msg);
-          setStatus("error");
-          appendLog(`❌ 錯誤：${msg}`);
-          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-        }
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      appendLog(`❌ 監聽失敗：${msg}`);
-      setErrorMsg(msg);
-      setStatus("error");
-    }
-  }
-
-  async function handleUploadAndParse() {
-    if (!selectedFile) return;
-    if (!activeAccountId) {
-      setErrorMsg("缺少 active account，無法上傳與解析");
-      setStatus("error");
-      return;
-    }
-    setStatus("uploading");
-    setResult(null);
-    setErrorMsg(null);
-    appendLog("📤 上傳檔案到 Cloud Storage…");
-    try {
-      // Step 1: Upload to GCS
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const { uploadPath, docId } = buildUuidUploadPath(activeAccountId, selectedFile);
-      const fileRef = storageApi.ref(storage, uploadPath);
-      const snap = await storageApi.uploadBytes(fileRef, selectedFile, {
-        contentType: ACCEPTED_MIME[selectedFile.name.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream",
-        customMetadata: {
-          account_id: activeAccountId,
-          workspace_id: activeWorkspaceId,
-          filename: selectedFile.name,
-        },
-      });
-      appendLog(`✅ 上傳完成：${snap.ref.fullPath}`);
-      // Step 2: Watch Firestore for status updates
-      setStatus("waiting");
-      appendLog("⏳ 等待 parse_document 處理…");
-      watchDocument(docId);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setErrorMsg(msg);
-      setStatus("error");
-      appendLog(`❌ 上傳失敗：${msg}`);
-    }
-  }
-
-  function reset() {
-    if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-    setSelectedFile(null);
-    setResult(null);
-    setErrorMsg(null);
-    setStatus("idle");
-    setLogs([]);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
-
-  const isLoading = status === "uploading" || status === "waiting";
-  const parsedDocs = allDocs.filter((doc) => doc.status === "completed");
-  const ragReadyCount = allDocs.filter((doc) => doc.rag_status === "ready").length;
-  const ragErrorCount = allDocs.filter((doc) => doc.rag_status === "error").length;
-
-  return (
-    <div className="mx-auto max-w-2xl space-y-8">
-      {/* ── Header ─────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10">
-          <FlaskConical className="size-5 text-amber-500" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Dev Tools</h1>
-          <p className="text-xs text-muted-foreground">
-            py_fn · parse_document · Document AI · Firestore 實時監聽
-          </p>
-        </div>
-      </div>
-
-      {/* ── Stats ──────────────────────────────────────────────────── */}
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-border/60 bg-card px-3 py-2">
-          <p className="text-[11px] text-muted-foreground">全部文件</p>
-          <p className="text-lg font-semibold tracking-tight">{allDocs.length}</p>
-        </div>
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
-          <p className="text-[11px] text-emerald-700">解析完成</p>
-          <p className="text-lg font-semibold tracking-tight text-emerald-700">{parsedDocs.length}</p>
-        </div>
-        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-3 py-2">
-          <p className="text-[11px] text-blue-700">RAG Ready</p>
-          <p className="text-lg font-semibold tracking-tight text-blue-700">{ragReadyCount}</p>
-        </div>
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2">
-          <p className="text-[11px] text-destructive">RAG Error</p>
-          <p className="text-lg font-semibold tracking-tight text-destructive">{ragErrorCount}</p>
-        </div>
-      </section>
-
-      {/* ── File picker ────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-          1. 選擇檔案
-        </h2>
-        <label
-          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-8 transition
-            ${selectedFile ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
-        >
-          <FileUp className="size-8 text-muted-foreground" />
-          <div className="text-center">
-            <p className="text-sm font-medium">
-              {selectedFile ? selectedFile.name : "點擊或拖曳上傳"}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={Object.keys(ACCEPTED_MIME).join(",")}
-            className="sr-only"
-            onChange={handleFileChange}
-          />
-        </label>
-      </section>
-
-      {/* ── Actions ────────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-          2. 執行上傳 &amp; 解析
-        </h2>
-        <div className="flex gap-3">
-          <Button onClick={handleUploadAndParse} disabled={!selectedFile || isLoading} className="gap-2">
-            {isLoading ? <Loader2 className="size-4 animate-spin" /> : <FlaskConical className="size-4" />}
-            {status === "uploading" ? "上傳中…" : status === "waiting" ? "等待中…" : "開始"}
-          </Button>
-          <Button variant="outline" onClick={reset} disabled={isLoading}>
-            重置
-          </Button>
-        </div>
-      </section>
-
-      {/* ── Result ─────────────────────────────────────────────────── */}
-      {(status === "done" || status === "error") && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            3. 結果
-          </h2>
-          {status === "done" && result && (
-            <div className="rounded-xl border border-border/60 bg-card p-5 space-y-4">
-              <div className="flex items-center gap-2 text-emerald-600">
-                <CheckCircle2 className="size-4 shrink-0" />
-                <span className="text-sm font-medium">解析成功</span>
-              </div>
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <dt className="text-muted-foreground">doc_id</dt>
-                <dd className="font-mono text-xs">{result.doc_id}</dd>
-                <dt className="text-muted-foreground">page_count</dt>
-                <dd className="font-bold">{result.page_count}</dd>
-                <dt className="text-muted-foreground">JSON 位置</dt>
-                <dd className="font-mono text-xs break-all">{result.json_gcs_uri || "—"}</dd>
-              </dl>
-            </div>
-          )}
-          {status === "error" && (
-            <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-              <XCircle className="mt-0.5 size-4 shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-        </section>
-      )}
-
-      {status === "waiting" && (
-        <section className="space-y-3">
-          <div className="flex items-start gap-2 rounded-xl border border-blue-300/30 bg-blue-500/5 p-4 text-sm text-blue-600">
-            <AlertCircle className="mt-0.5 size-4 shrink-0 animate-pulse" />
-            <div>
-              <p className="font-medium">處理中…</p>
-              <p className="mt-1 text-xs opacity-75">Document AI 正在解析檔案，請稍候</p>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── All uploaded docs table ─────────────────────────────────── */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <FileText className="size-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            已上傳檔案（{allDocs.length}）
-          </h2>
-        </div>
-        {allDocs.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-            尚無上傳記錄
-          </p>
-        ) : (
-          <div className="space-y-0 overflow-hidden rounded-xl border border-border/60">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead>
-                  <tr className="border-b border-border/60 bg-muted/40">
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allDocs.map((doc, i) => (
-                    <tr
-                      key={doc.id}
-                      className={`border-b border-border/40 last:border-0 transition-colors ${
-                        selectedDocId === doc.id
-                          ? "bg-primary/8 ring-1 ring-inset ring-primary/20"
-                          : i % 2 === 0 ? "bg-background" : "bg-muted/20"
-                      }`}
-                    >
-                      <td className="px-4 py-2.5 font-mono text-xs max-w-[180px] truncate" title={doc.filename}>
-                        {doc.filename}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <StatusBadge status={doc.status} errorMessage={doc.error_message} />
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <RagBadge status={doc.rag_status} error={doc.rag_error} />
-                      </td>
-                      <td className="px-4 py-2.5 text-xs">
-                        {doc.page_count != null ? doc.page_count : "—"}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                        {formatDateTime(doc.uploaded_at)}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => { void handleViewOriginal(doc); }}
-                            disabled={!doc.gcs_uri}
-                            title="查看原始檔案"
-                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
-                          >
-                            <ExternalLink className="size-3.5" />
-                          </button>
-                          <button
-                            onClick={() => { void handleViewJson(doc); }}
-                            disabled={doc.status !== "completed" || !doc.json_gcs_uri}
-                            title="查看 JSON 解析結果"
-                            className={`inline-flex size-7 items-center justify-center rounded-md transition hover:bg-muted disabled:opacity-30 ${
-                              selectedDocId === doc.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                            }`}
-                          >
-                            <Code2 className="size-3.5" />
-                          </button>
-                          <button
-                            onClick={() => { void handleDeleteDoc(doc); }}
-                            disabled={deletingId === doc.id}
-                            title="刪除"
-                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
-                          >
-                            {deletingId === doc.id
-                              ? <Loader2 className="size-3.5 animate-spin" />
-                              : <Trash2 className="size-3.5" />}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* JSON preview panel */}
-            {selectedDocId && (
-              <div className="border-t border-border/60 bg-[#0d1117]">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
-                  <div className="flex items-center gap-2 text-xs text-green-400">
-                    <Code2 className="size-3.5" />
-                    <span className="font-mono">
-                      {selectedDoc?.filename ?? selectedDocId} — JSON
-                    </span>
-                  </div>
-                  <button
-                    onClick={closeJsonPreview}
-                    className="text-white/30 hover:text-white/70 transition text-xs"
-                  >
-                    ✕ 關閉
-                  </button>
-                </div>
-                {selectedDoc?.rag_status === "error" && (
-                  <div className="border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs text-destructive">
-                    RAG 失敗：{selectedDoc.rag_error || "未知錯誤"}
-                  </div>
-                )}
-                <div className="max-h-80 overflow-y-auto p-4">
-                  {jsonLoading ? (
-                    <div className="flex items-center gap-2 text-green-400/60 text-xs">
-                      <Loader2 className="size-3.5 animate-spin" /> 載入中…
-                    </div>
-                  ) : (
-                    <pre className="font-mono text-xs leading-relaxed text-green-400 whitespace-pre-wrap break-words">
-                      {jsonContent}
-                    </pre>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* ── Parsed docs table (extracted component) ─────────────────── */}
-      <DevToolsParsedDocsSection
-        parsedDocs={parsedDocs}
-        reindexingId={reindexingId}
-        onViewJson={(doc) => { void handleViewJson(doc); }}
-        onManualProcess={(doc) => { void handleManualProcess(doc, appendLog); }}
-        formatNormalizationRatio={formatNormalizationRatio}
-      />
-
-      {/* ── Console log ────────────────────────────────────────────── */}
-      {logs.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            Console
-          </h2>
-          <div className="max-h-48 overflow-y-auto rounded-xl bg-[#0d1117] p-4">
-            {logs.map((line, i) => (
-              <p key={i} className="font-mono text-xs leading-relaxed text-green-400">
-                {line}
-              </p>
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
-  );
-}
-````
-
 ## File: app/(shell)/dev-tools/use-dev-tools-doc-list.ts
 ````typescript
 "use client";
@@ -1034,31 +847,6 @@ export function useDevToolsDocList(activeAccountId: string): DocListState & DocL
 export { formatDateTime };
 ````
 
-## File: app/(shell)/knowledge-base/articles/[articleId]/page.tsx
-````typescript
-"use client";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import { ArticleDetailPage } from "@/modules/notion/api";
-
-export default function ArticleDetailPageRoute() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  return (
-    <ArticleDetailPage
-      accountId={accountId}
-      workspaceId={workspaceId}
-      currentUserId={currentUserId}
-    />
-  );
-}
-````
-
 ## File: app/(shell)/knowledge-base/articles/page.tsx
 ````typescript
 "use client";
@@ -1076,56 +864,6 @@ import { redirect } from "next/navigation";
 
 export default function KnowledgeBasePage() {
   redirect("/knowledge-base/articles");
-}
-````
-
-## File: app/(shell)/knowledge-database/databases/[databaseId]/forms/page.tsx
-````typescript
-"use client";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import { DatabaseFormsPage } from "@/modules/notion/api";
-
-export default function DatabaseFormsPageRoute() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  return (
-    <DatabaseFormsPage
-      accountId={accountId}
-      workspaceId={workspaceId}
-      currentUserId={currentUserId}
-    />
-  );
-}
-````
-
-## File: app/(shell)/knowledge-database/databases/[databaseId]/page.tsx
-````typescript
-"use client";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import { DatabaseDetailPage } from "@/modules/notion/api";
-
-export default function DatabaseDetailPageRoute() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  return (
-    <DatabaseDetailPage
-      accountId={accountId}
-      workspaceId={workspaceId}
-      currentUserId={currentUserId}
-    />
-  );
 }
 ````
 
@@ -1172,31 +910,6 @@ export default function KnowledgeBlockEditorPage() {
 }
 ````
 
-## File: app/(shell)/knowledge/pages/[pageId]/page.tsx
-````typescript
-"use client";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import { KnowledgePageDetailPage } from "@/modules/notion/api";
-
-export default function KnowledgePageDetailPageRoute() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const activeWorkspaceId = appState.activeWorkspaceId ?? null;
-  const currentUserId = authState.user?.id ?? "";
-
-  return (
-    <KnowledgePageDetailPage
-      accountId={accountId}
-      activeWorkspaceId={activeWorkspaceId}
-      currentUserId={currentUserId}
-    />
-  );
-}
-````
-
 ## File: app/(shell)/knowledge/pages/page.tsx
 ````typescript
 "use client";
@@ -1214,37 +927,6 @@ import { redirect } from "next/navigation";
 
 export default function NotebookPage() {
   redirect("/notebook/rag-query");
-}
-````
-
-## File: app/(shell)/notebook/rag-query/page.tsx
-````typescript
-"use client";
-
-import { useSearchParams } from "next/navigation";
-
-import { useApp } from "@/modules/platform/api";
-import { resolveWorkspaceFromMap } from "@/modules/workspace/api";
-import { RagQueryView } from "@/modules/notebooklm/api";
-
-export default function NotebookRagQueryPage() {
-  const searchParams = useSearchParams();
-  const { state: appState } = useApp();
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const resolvedWorkspace = resolveWorkspaceFromMap(appState.workspaces, requestedWorkspaceId);
-  const workspaceId = resolvedWorkspace?.id ?? appState.activeWorkspaceId ?? undefined;
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Notebook</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
-        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
-      </header>
-
-      <RagQueryView workspaceId={workspaceId} />
-    </div>
-  );
 }
 ````
 
@@ -1741,45 +1423,6 @@ export default function SourceDocumentsPage() {
 }
 ````
 
-## File: app/(shell)/source/libraries/page.tsx
-````typescript
-"use client";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import { LibrariesView, LibraryTableView } from "@/modules/notebooklm/api";
-
-export default function SourceLibrariesPage() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? undefined;
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Source</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
-        <p className="text-sm text-muted-foreground">
-          對齊資料庫／資料來源能力的 MVP，產品命名統一為 Libraries。
-        </p>
-      </header>
-
-      {accountId ? (
-        <>
-          <LibraryTableView accountId={accountId} workspaceId={workspaceId} />
-          <LibrariesView accountId={accountId} workspaceId={workspaceId} />
-        </>
-      ) : (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號情境，請先登入或切換帳號。
-        </p>
-      )}
-    </div>
-  );
-}
-````
-
 ## File: app/(shell)/source/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
@@ -2101,36 +1744,6 @@ export default function WorkspacePage() {
 .tiptap-editor .ProseMirror .toc-block::before {
   content: "📋 目錄（自動產生）";
   @apply block text-xs font-semibold text-muted-foreground mb-1;
-}
-````
-
-## File: app/layout.tsx
-````typescript
-import type { Metadata } from "next";
-import "./globals.css";
-import { Geist } from "next/font/google";
-import { cn } from "@shared-utils";
-import { Providers } from "@/modules/platform/api";
-
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
-
-export const metadata: Metadata = {
-  title: "Xuanwu App",
-  description: "Xuanwu App - Modular Domain-Driven Design template",
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className={cn("font-sans", geist.variable)}>
-      <body className="antialiased">
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
 }
 ````
 
@@ -16633,71 +16246,6 @@ export function useWorkspaceSettingsSave({
 }
 ````
 
-## File: modules/workspace/interfaces/web/index.ts
-````typescript
-/**
- * workspace interfaces/web public boundary.
- *
- * Web-layer components, hooks, navigation, state helpers and utilities.
- * App-layer and cross-module consumers that need UI composition must import
- * from this path instead of reaching into individual sub-directories.
- */
-
-export { WorkspaceDetailScreen } from "./components/screens/WorkspaceDetailScreen";
-export { WorkspaceDetailRouteScreen } from "./components/screens/WorkspaceDetailRouteScreen";
-export { WorkspaceHubScreen } from "./components/screens/WorkspaceHubScreen";
-export { WorkspaceMembersTab } from "./components/tabs/WorkspaceMembersTab";
-export { WorkspaceSidebarSection } from "./components/layout/WorkspaceSidebarSection";
-export { CreateWorkspaceDialogRail } from "./components/rails/CreateWorkspaceDialogRail";
-export { OrganizationWorkspacesScreen } from "./components/screens/OrganizationWorkspacesScreen";
-export { WorkspaceContextCard } from "./components/cards/WorkspaceContextCard";
-
-export {
-	WORKSPACE_TAB_GROUPS,
-	WORKSPACE_TAB_META,
-	WORKSPACE_TAB_VALUES,
-	getWorkspaceTabLabel,
-	getWorkspaceTabMeta,
-	getWorkspaceTabPrefId,
-	getWorkspaceTabStatus,
-	getWorkspaceTabsByGroup,
-	isWorkspaceTabValue,
-} from "./navigation/workspace-tabs";
-
-export { getWorkspaceStorageKey } from "./state/workspace-session";
-
-export {
-	resolveWorkspaceFromMap,
-	toWorkspaceMap,
-} from "./utils/workspace-map";
-
-export type { WorkspaceNavItem } from "./navigation/workspace-nav-items";
-export {
-	WORKSPACE_NAV_ITEMS,
-	normalizeWorkspaceOrder,
-} from "./navigation/workspace-nav-items";
-
-export type {
-	WorkspaceQuickAccessItem,
-	WorkspaceQuickAccessMatcherOptions,
-} from "./components/navigation/workspace-quick-access";
-
-export { buildWorkspaceQuickAccessItems } from "./components/navigation/workspace-quick-access";
-
-export type {
-	WorkspaceTabDevStatus,
-	WorkspaceTabGroup,
-	WorkspaceTabValue,
-} from "./navigation/workspace-tabs";
-
-export { useWorkspaceHub } from "./hooks/useWorkspaceHub";
-export {
-	MAX_VISIBLE_RECENT_WORKSPACES,
-	getWorkspaceIdFromPath,
-	useRecentWorkspaces,
-} from "./hooks/useRecentWorkspaces";
-````
-
 ## File: modules/workspace/interfaces/web/navigation/use-sidebar-locale.ts
 ````typescript
 "use client";
@@ -30339,311 +29887,2205 @@ export const VisTimeline: FC<VisTimelineProps> = ({
 export default VisTimeline;
 ````
 
-## File: app/(public)/page.tsx
+## File: app/_providers/index.tsx
 ````typescript
 "use client";
 
 /**
- * app/(public)/page.tsx
- * Public landing page with top-right auth entry and inline auth panel.
- * Uses identity module use cases directly on the client so Firebase auth state
- * actually updates AuthProvider via onAuthStateChanged.
+ * Root providers composition — app/_providers
+ *
+ * Assembles the full provider tree for the application:
+ *   AuthProvider (platform) → AppProvider (platform accounts) → WorkspaceContextProvider (workspace)
+ *
+ * Lives in app/ because it composes providers from multiple bounded contexts.
  */
 
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck } from "lucide-react";
+import type { ReactNode } from "react";
+import { Toaster } from "@ui-shadcn/ui/sonner";
+import { AuthProvider } from "@/modules/platform/api";
+import { WorkspaceContextProvider } from "@/modules/workspace/api";
+import { AppProvider } from "../(shell)/_providers/AppProvider";
 
-import {
-  useAuth,
-  createClientAuthUseCases,
-  createClientAccountUseCases,
-  createDevDemoUser,
-  isDevDemoCredential,
-  isLocalDevDemoAllowed,
-  writeDevDemoSession,
-} from "@/modules/platform/api";
-
-type Tab = "login" | "register";
-
-export default function PublicPage() {
-  const { state, dispatch } = useAuth();
-  const router = useRouter();
-
-  const [tab, setTab] = useState<Tab>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [resetSent, setResetSent] = useState(false);
-  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
-
-  const {
-    signInUseCase,
-    signInAnonymouslyUseCase,
-    registerUseCase,
-    sendPasswordResetEmailUseCase,
-    createUserAccountUseCase,
-  } =
-    useMemo(() => ({
-      ...createClientAuthUseCases(),
-      ...createClientAccountUseCases(),
-    }), []);
-
-  useEffect(() => {
-    if (state.status === "authenticated") {
-      router.replace("/dashboard");
-    }
-  }, [state.status, router]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-    try {
-      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
-        writeDevDemoSession(createDevDemoUser());
-        window.location.assign("/dashboard");
-        return;
-      }
-
-      const result =
-        tab === "login"
-          ? await signInUseCase.execute({ email, password })
-          : await registerUseCase.execute({ email, password, name });
-
-      if (!result.success) {
-        setError(result.error.message);
-        return;
-      }
-
-      if (tab === "register") {
-        const accountResult = await createUserAccountUseCase.execute(
-          result.aggregateId,
-          name,
-          email,
-        );
-        if (!accountResult.success) {
-          setError(accountResult.error.message);
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleGuestAccess() {
-    setError(null);
-    setIsLoading(true);
-    try {
-      const result = await signInAnonymouslyUseCase.execute();
-      if (!result.success) {
-        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
-        // blocked in sandboxes), create a local guest session so the shell can be tested.
-        if (isLocalDevDemoAllowed()) {
-          const guestUser = createDevDemoUser();
-          writeDevDemoSession(guestUser);
-          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
-        } else {
-          setError(result.error.message);
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handlePasswordReset() {
-    if (!email) {
-      setError("Enter your email address first.");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const result = await sendPasswordResetEmailUseCase.execute(email);
-      if (result.success) {
-        setResetSent(true);
-        setError(null);
-      } else {
-        setError(result.error.message);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  if (state.status === "initializing") {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
+export function Providers({ children }: { children: ReactNode }) {
   return (
-    <main className="min-h-screen bg-background">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
-        <button
-          type="button"
-          onClick={() => {
-            setError(null);
-            setResetSent(false);
-            setIsAuthPanelOpen((prev) => !prev);
-          }}
-          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
-        >
-          {isAuthPanelOpen ? "Close" : "Sign In"}
-        </button>
-      </header>
-
-      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
-        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
-            Unified Hexagonal Architecture with DDD workspace for identity, account, and organization modules.
-            Use the top-right sign in button to access your dashboard.
-          </p>
-        </div>
-
-        {isAuthPanelOpen && (
-          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
-            <div className="flex flex-col items-center pb-4 pt-8">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
-                <ShieldCheck className="h-7 w-7 text-primary/90" />
-              </div>
-            </div>
-
-            <div className="px-6">
-              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
-                {(["login", "register"] as Tab[]).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => {
-                      setTab(t);
-                      setError(null);
-                    }}
-                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
-                      tab === t
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {t === "login" ? "Sign In" : "Register"}
-                  </button>
-                ))}
-              </div>
-
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                {tab === "register" && (
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="register-name" className="text-xs font-semibold text-muted-foreground">Name</label>
-                    <input
-                      id="register-name"
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Your display name"
-                      required
-                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    />
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="auth-email" className="text-xs font-semibold text-muted-foreground">Email</label>
-                  <input
-                    id="auth-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@example.com"
-                    autoComplete="email"
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="auth-password" className="text-xs font-semibold text-muted-foreground">Password</label>
-                    {tab === "login" && (
-                      <button
-                        type="button"
-                        onClick={handlePasswordReset}
-                        className="text-xs text-primary/70 hover:text-primary"
-                      >
-                        {resetSent ? "Email sent!" : "Forgot password?"}
-                      </button>
-                    )}
-                  </div>
-                  <input
-                    id="auth-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    autoComplete={tab === "login" ? "current-password" : "new-password"}
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                {error && (
-                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    {error}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : tab === "login" ? (
-                    "Enter Dimension"
-                  ) : (
-                    "Create Account"
-                  )}
-                </button>
-              </form>
-            </div>
-
-            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
-              <button
-                type="button"
-                onClick={handleGuestAccess}
-                disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
-              >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
-    </main>
+    <AuthProvider>
+      <AppProvider>
+        <WorkspaceContextProvider>
+          {children}
+        </WorkspaceContextProvider>
+      </AppProvider>
+      <Toaster richColors closeButton />
+    </AuthProvider>
   );
 }
 ````
 
-## File: app/(shell)/layout.tsx
+## File: app/(shell)/_providers/AppProvider.tsx
 ````typescript
 "use client";
 
 /**
- * app/(shell)/layout.tsx — Next.js route layout shim.
- * Canonical implementation: modules/platform/interfaces/web/components/ShellRootLayout.tsx
+ * AppProvider — app/(shell)/ composition layer
+ *
+ * Manages the platform-owned account lifecycle (auth → accounts → activeAccount).
+ * Lives in app/ because the cross-module composition root is the correct owner
+ * of account-state wiring that reads from platform subdomain queries.
+ *
+ * Workspace state is managed by WorkspaceContextProvider from workspace module.
  */
 
-import { ShellLayout } from "@/modules/platform/api";
+import { useReducer, useEffect, type ReactNode } from "react";
 
-export default function Layout({ children }: { children: React.ReactNode }) {
-  return <ShellLayout>{children}</ShellLayout>;
+import {
+  AppContext,
+  APP_INITIAL_STATE,
+  type AppState,
+  type AppAction,
+} from "@/modules/platform/interfaces/web/providers/ShellAppContext";
+import {
+  resolveActiveAccount,
+  subscribeToAccountsForUser,
+} from "@/modules/platform/api";
+import { useAuth } from "@/modules/platform/api";
+
+const LAST_ACTIVE_ACCOUNT_STORAGE_KEY = "xuanwu_last_active_account";
+
+function appReducer(state: AppState, action: AppAction): AppState {
+  switch (action.type) {
+    case "SEED_ACTIVE_ACCOUNT":
+      return {
+        ...state,
+        accounts: {},
+        accountsHydrated: false,
+        bootstrapPhase: "seeded",
+        activeAccount: action.payload.user,
+      };
+    case "SET_ACCOUNTS": {
+      const { accounts, user, preferredActiveAccountId } = action.payload;
+      return {
+        ...state,
+        accounts,
+        accountsHydrated: true,
+        bootstrapPhase: "hydrated",
+        activeAccount: resolveActiveAccount({
+          currentActiveAccount: state.activeAccount,
+          accounts,
+          personalAccount: user,
+          preferredActiveAccountId,
+          bootstrapPhase: state.bootstrapPhase,
+        }),
+      };
+    }
+    case "SET_ACTIVE_ACCOUNT":
+      if (state.activeAccount?.id === action.payload?.id) return state;
+      return {
+        ...state,
+        activeAccount: action.payload,
+      };
+    case "RESET_STATE":
+      return APP_INITIAL_STATE;
+    default:
+      return state;
+  }
+}
+
+export function AppProvider({ children }: { children: ReactNode }) {
+  const { state: authState } = useAuth();
+  const { user, status } = authState;
+  const [state, dispatch] = useReducer(appReducer, APP_INITIAL_STATE);
+
+  useEffect(() => {
+    if (status === "initializing") return;
+
+    if (!user) {
+      dispatch({ type: "RESET_STATE" });
+      return;
+    }
+
+    dispatch({ type: "SEED_ACTIVE_ACCOUNT", payload: { user } });
+    const preferredActiveAccountId =
+      typeof window === "undefined"
+        ? null
+        : window.localStorage.getItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY);
+
+    const unsubscribe = subscribeToAccountsForUser(user.id, (accounts) => {
+      dispatch({
+        type: "SET_ACCOUNTS",
+        payload: { accounts, user, preferredActiveAccountId },
+      });
+    });
+
+    return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, user?.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const activeAccountId = state.activeAccount?.id;
+
+    if (!user || !activeAccountId) {
+      window.localStorage.removeItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY, activeAccountId);
+  }, [state.activeAccount?.id, user]);
+
+  return (
+    <AppContext.Provider value={{ state, dispatch }}>
+      {children}
+    </AppContext.Provider>
+  );
+}
+````
+
+## File: app/(shell)/_shell/index.ts
+````typescript
+/**
+ * Shell composition barrel — app/(shell)/_shell
+ *
+ * Cross-module shell layout components that compose platform, workspace,
+ * and notion modules. Lives in app/ (the composition layer) instead of
+ * inside any single module to respect upstream/downstream boundaries.
+ */
+
+export { ShellLayout } from "./ShellRootLayout";
+export { quickCreateKnowledgePage, type QuickCreatePageInput, type QuickCreatePageResult } from "./shell-quick-create";
+export { isActiveOrganizationAccount } from "./ShellSidebarNavData";
+````
+
+## File: app/(shell)/_shell/shell-quick-create.ts
+````typescript
+/**
+ * shell-quick-create — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it imports notion's createKnowledgePage.
+ * Kept as a composition adapter at the app boundary.
+ */
+
+import { createKnowledgePage } from "@/modules/notion/api";
+
+export interface QuickCreatePageInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly createdByUserId: string;
+}
+
+export interface QuickCreatePageResult {
+  readonly success: boolean;
+  readonly error?: { message: string };
+}
+
+export async function quickCreateKnowledgePage(
+  input: QuickCreatePageInput,
+): Promise<QuickCreatePageResult> {
+  if (!input.accountId) {
+    return { success: false, error: { message: "目前沒有 active account，無法建立" } };
+  }
+  if (!input.workspaceId) {
+    return { success: false, error: { message: "請先切換到工作區，再建立頁面" } };
+  }
+  return createKnowledgePage({
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    title: "未命名頁面",
+    parentPageId: null,
+    createdByUserId: input.createdByUserId,
+  });
+}
+````
+
+## File: app/(shell)/_shell/ShellAppRail.tsx
+````typescript
+"use client";
+
+/**
+ * ShellAppRail — app/(shell)/_shell composition layer.
+ * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
+ * because it composes downstream modules (workspace).
+ *
+ * Platform is upstream and must not import downstream modules.
+ * app/ is the designated composition layer.
+ */
+
+import Link from "next/link";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
+import { CreateOrganizationDialog } from "@/modules/platform/api";
+import {
+  listShellRailCatalogItems,
+  isExactOrChildPath,
+  type ShellRailCatalogItem,
+} from "@/modules/platform/subdomains/platform-config/api";
+import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+
+interface RailItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+
+function getInitial(name: string | undefined | null): string {
+  return name?.trim().charAt(0).toUpperCase() || "U";
+}
+
+const RAIL_ICON_MAP: Record<string, React.ReactNode> = {
+  workspace: <Building2 className="size-[18px]" />,
+  "org-members": <UserRound className="size-[18px]" />,
+  "org-teams": <Users className="size-[18px]" />,
+  "org-daily": <NotebookText className="size-[18px]" />,
+  "org-schedule": <CalendarDays className="size-[18px]" />,
+  "org-audit": <ClipboardList className="size-[18px]" />,
+  "org-permissions": <SlidersHorizontal className="size-[18px]" />,
+  "dev-tools": <FlaskConical className="size-[18px]" />,
+};
+
+export function AppRail({
+  pathname,
+  user,
+  activeAccount,
+  organizationAccounts,
+  workspaces,
+  workspacesHydrated,
+  isOrganizationAccount,
+  onSelectPersonal,
+  onSelectOrganization,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onOrganizationCreated,
+  onSignOut: _onSignOut,
+}: AppRailProps) {
+  const router = useRouter();
+  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  const visibleRailItems: RailItem[] = useMemo(() => {
+    const catalogItems = listShellRailCatalogItems(isOrganizationAccount);
+    return catalogItems.map((item: ShellRailCatalogItem) => ({
+      href: item.href,
+      label: item.label,
+      icon: RAIL_ICON_MAP[item.id] ?? null,
+      isActive: item.activeRoutePrefix
+        ? (currentPathname: string) => isExactOrChildPath(item.activeRoutePrefix!, currentPathname)
+        : undefined,
+    }));
+  }, [isOrganizationAccount]);
+
+  const sortedWorkspaces = useMemo(
+    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces],
+  );
+
+  const accountName = activeAccount?.name ?? user?.name ?? "—";
+
+  return (
+    <TooltipProvider delayDuration={400}>
+      <aside
+        aria-label="App navigation rail"
+        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
+      >
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="切換帳號情境"
+                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {getInitial(accountName)}
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[180px]">
+              <p className="text-xs font-medium">{accountName}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+
+          <DropdownMenuContent side="right" align="start" className="w-52">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
+            {user && (
+              <DropdownMenuItem
+                onClick={onSelectPersonal}
+                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{user.name} (Personal)</span>
+              </DropdownMenuItem>
+            )}
+            {organizationAccounts.map((account) => (
+              <DropdownMenuItem
+                key={account.id}
+                onClick={() => { onSelectOrganization(account); }}
+                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{account.name}</span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => { setIsCreateOrgOpen(true); }}
+              className="gap-2 text-primary"
+            >
+              <Plus className="size-3.5 shrink-0" />
+              <span>建立組織</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="my-2 h-px w-7 bg-border/50" />
+
+        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
+          {visibleRailItems.map((item) => {
+            const active = item.isActive?.(pathname) ?? isActive(item.href);
+
+            if (item.href === "/workspace") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="工作區中心：切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">工作區中心：切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => { router.push("/workspace"); }}
+                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
+                    >
+                      工作區中心
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(`/workspace/${workspace.id}`);
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => { setIsCreateWorkspaceOpen(true); }}
+                      className="gap-2 text-primary"
+                    >
+                      <Plus className="size-3.5 shrink-0" />
+                      <span>建立工作區</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            return (
+              <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={item.label}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="text-xs">{item.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
+
+        <div className="flex-1" />
+        <div className="h-1" />
+      </aside>
+
+      <CreateOrganizationDialog
+        open={isCreateOrgOpen}
+        onOpenChange={setIsCreateOrgOpen}
+        user={user}
+        onOrganizationCreated={onOrganizationCreated}
+        onNavigate={(href) => { router.push(href); }}
+      />
+
+      <CreateWorkspaceDialogRail
+        open={isCreateWorkspaceOpen}
+        onOpenChange={setIsCreateWorkspaceOpen}
+        accountId={activeAccount?.id ?? null}
+        accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
+        creatorUserId={user?.id}
+        onNavigate={(href: string) => { router.push(href); }}
+      />
+    </TooltipProvider>
+  );
+}
+````
+
+## File: app/(shell)/_shell/ShellContextNavSection.tsx
+````typescript
+"use client";
+
+/**
+ * ShellContextNavSection — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it imports from workspace module.
+ */
+
+import Link from "next/link";
+import { appendWorkspaceContextQuery } from "@/modules/workspace/api";
+
+interface ContextScopedNavItem {
+  href: string;
+  label: string;
+}
+
+interface ShellContextNavSectionProps {
+  title: string;
+  items: readonly ContextScopedNavItem[];
+  isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
+  activeWorkspaceId: string | null;
+}
+
+export function ShellContextNavSection({
+  title,
+  items,
+  isActiveRoute,
+  activeAccountId,
+  activeWorkspaceId,
+}: ShellContextNavSectionProps) {
+  return (
+    <nav className="space-y-0.5" aria-label={`${title}導覽`}>
+      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+        {title}
+      </p>
+      {(activeAccountId || activeWorkspaceId) && (
+        <p className="px-2 pb-1 text-[11px] text-muted-foreground">
+          {activeAccountId ? `帳號: ${activeAccountId.slice(0, 8)}` : "帳號: -"}
+          {" · "}
+          {activeWorkspaceId ? `工作區: ${activeWorkspaceId.slice(0, 8)}` : "工作區: -"}
+        </p>
+      )}
+      {items.map((item) => {
+        const active = isActiveRoute(item.href);
+        const contextualHref = appendWorkspaceContextQuery(item.href, {
+          accountId: activeAccountId,
+          workspaceId: activeWorkspaceId,
+        });
+        return (
+          <Link
+            key={item.href}
+            href={contextualHref}
+            aria-current={active ? "page" : undefined}
+            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+              active
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+````
+
+## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
+````typescript
+"use client";
+
+/**
+ * ShellDashboardSidebar — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it composes workspace module components.
+ */
+
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+
+import {
+  buildWorkspaceQuickAccessItems,
+  CustomizeNavigationDialog,
+  getWorkspaceIdFromPath,
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  readNavPreferences,
+  buildWorkspaceContextHref,
+  supportsWorkspaceSearchContext,
+  type NavPreferences,
+  useRecentWorkspaces,
+  useSidebarLocale,
+  WorkspaceQuickAccessRow,
+} from "@/modules/workspace/api";
+
+import {
+  quickCreateKnowledgePage,
+} from "./shell-quick-create";
+import {
+  type DashboardSidebarProps,
+  ORGANIZATION_MANAGEMENT_ITEMS,
+  ACCOUNT_NAV_ITEMS,
+  SECTION_TITLES,
+  resolveNavSection,
+  isActiveRoute,
+  isActiveOrganizationAccount,
+} from "./ShellSidebarNavData";
+import { ShellSidebarHeader } from "./ShellSidebarHeader";
+import { DashboardSidebarBody } from "./ShellSidebarBody";
+
+export function ShellDashboardSidebar({
+  pathname,
+  userId,
+  activeAccount,
+  workspaces,
+  workspacesHydrated,
+  activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
+  onSelectWorkspace,
+}: DashboardSidebarProps) {
+  const searchParams = useSearchParams();
+
+  const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
+    activeAccount?.id,
+    pathname,
+    workspaces,
+  );
+  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
+  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const localeBundle = useSidebarLocale();
+
+  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
+
+  const visibleOrganizationManagementItems = useMemo(
+    () => ORGANIZATION_MANAGEMENT_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
+    [navPrefs.pinnedWorkspace],
+  );
+
+  const visibleAccountItems = useMemo(
+    () => ACCOUNT_NAV_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
+    [navPrefs.pinnedWorkspace],
+  );
+
+  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
+
+  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
+    ? navPrefs.maxWorkspaces
+    : MAX_VISIBLE_RECENT_WORKSPACES;
+
+  const currentSearchWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+
+  useEffect(() => {
+    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
+    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(pathWorkspaceId);
+      return;
+    }
+
+    if (!supportsWorkspaceSearchContext(pathname)) {
+      return;
+    }
+
+    if (currentSearchWorkspaceId && currentSearchWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(currentSearchWorkspaceId);
+    }
+  }, [pathname, activeWorkspaceId, currentSearchWorkspaceId, onSelectWorkspace]);
+
+  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
+  const visibleRecentWorkspaceLinks = isExpanded
+    ? recentWorkspaceLinks
+    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
+
+  const allWorkspaceLinks = useMemo(
+    () =>
+      workspaces
+        .map((workspace) => ({
+          id: workspace.id,
+          name: workspace.name,
+          href: buildWorkspaceContextHref(pathname, workspace.id),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces, pathname],
+  );
+
+  const section = resolveNavSection(pathname);
+  const sectionMeta = SECTION_TITLES[section];
+  const workspacePathId = getWorkspaceIdFromPath(pathname);
+  const currentPanel = searchParams.get("panel");
+  const currentWorkspaceTab = searchParams.get("tab");
+  const hasSingleWorkspaceContext = section === "workspace" && Boolean(workspacePathId);
+  const hasWorkspaceToolContext =
+    Boolean(activeWorkspaceId || currentSearchWorkspaceId) &&
+    (section === "knowledge" ||
+      section === "knowledge-base" ||
+      section === "source" ||
+      section === "notebook");
+  const workspaceQuickAccessId =
+    workspacePathId || currentSearchWorkspaceId || (hasWorkspaceToolContext ? activeWorkspaceId ?? "" : "");
+  const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
+  const workspaceSettingsHref = workspaceQuickAccessId
+    ? `/workspace/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
+    : "";
+  const workspaceQuickAccessItems = useMemo(
+    () =>
+      showWorkspaceQuickAccess && workspaceQuickAccessId
+        ? buildWorkspaceQuickAccessItems(workspaceQuickAccessId)
+        : [],
+    [showWorkspaceQuickAccess, workspaceQuickAccessId],
+  );
+
+  async function handleQuickCreatePage() {
+    const accountId = activeAccount?.id ?? "";
+    if (!accountId || !activeWorkspaceId) {
+      toast.error(!accountId ? "目前沒有 active account，無法建立" : "請先切換到工作區，再建立頁面");
+      return;
+    }
+    setCreatingKind("page");
+    try {
+      const result = await quickCreateKnowledgePage({
+        accountId,
+        workspaceId: activeWorkspaceId,
+        createdByUserId: userId ?? accountId,
+      });
+      if (result.success) {
+        toast.success("已建立頁面");
+      } else {
+        toast.error(result.error?.message ?? "建立頁面失敗");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("建立頁面失敗");
+    } finally {
+      setCreatingKind(null);
+    }
+  }
+
+  return (
+    <div className="contents">
+      <aside
+        aria-label="Secondary navigation"
+        className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
+          collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
+        }`}
+      >
+        <ShellSidebarHeader
+          sectionLabel={sectionMeta.label}
+          sectionIcon={sectionMeta.icon}
+          onOpenCustomize={() => {
+            setCustomizeOpen(true);
+          }}
+          onToggleCollapsed={onToggleCollapsed}
+        />
+
+        <WorkspaceQuickAccessRow
+          items={workspaceQuickAccessItems}
+          pathname={pathname}
+          currentPanel={currentPanel}
+          currentWorkspaceTab={currentWorkspaceTab}
+          workspaceSettingsHref={workspaceSettingsHref}
+          isActiveRoute={(href) => isActiveRoute(pathname, href)}
+        />
+
+        <DashboardSidebarBody
+          section={section}
+          isActiveRoute={(href) => isActiveRoute(pathname, href)}
+          activeAccountId={activeAccount?.id ?? null}
+          showAccountManagement={showAccountManagement}
+          visibleAccountItems={visibleAccountItems}
+          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
+          workspacePathId={workspacePathId}
+          navPrefs={navPrefs}
+          localeBundle={localeBundle}
+          showRecentWorkspaces={showRecentWorkspaces}
+          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+          hasOverflow={hasOverflow}
+          isExpanded={isExpanded}
+          activeWorkspaceId={activeWorkspaceId}
+          onSelectWorkspace={onSelectWorkspace}
+          onToggleExpanded={() => {
+            setIsExpanded((prev) => !prev);
+          }}
+          pathname={pathname}
+          workspacesHydrated={workspacesHydrated}
+          allWorkspaceLinks={allWorkspaceLinks}
+          currentSearchWorkspaceId={currentSearchWorkspaceId}
+          creatingKind={creatingKind}
+          onQuickCreatePage={() => {
+            void handleQuickCreatePage();
+          }}
+        />
+      </aside>
+
+      <CustomizeNavigationDialog
+        open={customizeOpen}
+        onOpenChange={setCustomizeOpen}
+        onPreferencesChange={setNavPrefs}
+      />
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/_shell/ShellRootLayout.tsx
+````typescript
+"use client";
+
+/**
+ * ShellRootLayout — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it composes downstream modules.
+ *
+ * Uses useApp() from platform (accounts/auth) and useWorkspaceContext()
+ * from workspace (workspaces/activeWorkspaceId).
+ */
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { PanelLeftOpen, Search } from "lucide-react";
+
+import {
+  useApp,
+  useAuth,
+  ShellGuard,
+  type AccountEntity,
+  subscribeToProfile,
+  type AccountProfile,
+  isOrganizationActor,
+  resolveOrganizationRouteFallback,
+  AccountSwitcher,
+} from "@/modules/platform/api";
+import {
+  resolveShellPageTitle,
+  isExactOrChildPath,
+  SHELL_MOBILE_NAV_ITEMS,
+  SHELL_ORG_PRIMARY_NAV_ITEMS,
+  SHELL_ORG_SECONDARY_NAV_ITEMS,
+} from "@/modules/platform/subdomains/platform-config/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
+import { ShellAppBreadcrumbs } from "@/modules/platform/interfaces/web/shell/breadcrumbs/ShellAppBreadcrumbs";
+import { ShellGlobalSearchDialog, useShellGlobalSearch } from "@/modules/platform/interfaces/web/shell/search/ShellGlobalSearchDialog";
+import { ShellHeaderControls } from "@/modules/platform/interfaces/web/shell/header/components/ShellHeaderControls";
+import { ShellUserAvatar } from "@/modules/platform/interfaces/web/shell/header/components/ShellUserAvatar";
+
+import { AppRail } from "./ShellAppRail";
+import { ShellDashboardSidebar } from "./ShellDashboardSidebar";
+
+export function ShellLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { state: authState, logout } = useAuth();
+  const { state: appState, dispatch: appDispatch } = useApp();
+  const { state: wsState, dispatch: wsDispatch } = useWorkspaceContext();
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [accountProfileState, setAccountProfileState] = useState<{ actorId: string; profile: AccountProfile | null } | null>(null);
+  const { open: searchOpen, setOpen: setSearchOpen } = useShellGlobalSearch();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
+  });
+  function toggleSidebar() {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("xuanwu:sidebar-collapsed", String(next));
+      }
+      return next;
+    });
+  }
+
+  const pageTitle = resolveShellPageTitle(pathname);
+  const organizationAccounts = Object.values(appState.accounts ?? {});
+  const accountWorkspaces = Object.values(wsState.workspaces ?? {});
+  const showAccountManagement = isOrganizationActor(appState.activeAccount);
+
+  function handleSelectOrganization(account: AccountEntity) {
+    appDispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+    const nextRoute = resolveOrganizationRouteFallback(pathname, account);
+    if (nextRoute) {
+      router.replace(nextRoute);
+    }
+  }
+
+  function handleSelectPersonal() {
+    if (!authState.user) return;
+    appDispatch({ type: "SET_ACTIVE_ACCOUNT", payload: authState.user });
+    const nextRoute = resolveOrganizationRouteFallback(pathname, authState.user);
+    if (nextRoute) {
+      router.replace(nextRoute);
+    }
+  }
+
+  function handleOrganizationCreated(account: AccountEntity) {
+    appDispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+  }
+
+  function handleSelectWorkspace(workspaceId: string | null) {
+    wsDispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspaceId });
+  }
+
+  useEffect(() => {
+    if (!appState.accountsHydrated || !appState.activeAccount) {
+      return;
+    }
+
+    const nextRoute = resolveOrganizationRouteFallback(pathname, appState.activeAccount);
+    if (nextRoute && nextRoute !== pathname) {
+      router.replace(nextRoute);
+    }
+  }, [appState.accountsHydrated, appState.activeAccount, pathname, router]);
+
+  useEffect(() => {
+    const actorId = authState.user?.id;
+    if (!actorId) {
+      return;
+    }
+
+    const unsubscribe = subscribeToProfile(actorId, (profile) => setAccountProfileState({ actorId, profile }));
+
+    return () => unsubscribe();
+  }, [authState.user?.id]);
+
+  const scopedProfile = accountProfileState && accountProfileState.actorId === authState.user?.id
+    ? accountProfileState.profile
+    : null;
+
+  async function handleLogout() {
+    setLogoutError(null);
+    try {
+      await logout();
+    } catch {
+      setLogoutError("登出失敗，請稍後再試。");
+    }
+  }
+
+  return (
+    <ShellGuard>
+      <ShellGlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      <div className="flex h-screen overflow-hidden bg-background">
+        <AppRail
+          pathname={pathname}
+          user={authState.user}
+          activeAccount={appState.activeAccount}
+          organizationAccounts={organizationAccounts}
+          workspaces={accountWorkspaces}
+          workspacesHydrated={wsState.workspacesHydrated}
+          isOrganizationAccount={showAccountManagement}
+          onSelectPersonal={handleSelectPersonal}
+          onSelectOrganization={handleSelectOrganization}
+          activeWorkspaceId={wsState.activeWorkspaceId}
+          onSelectWorkspace={handleSelectWorkspace}
+          onOrganizationCreated={handleOrganizationCreated}
+          onSignOut={() => {
+            void handleLogout();
+          }}
+        />
+        <ShellDashboardSidebar
+          userId={authState.user?.id ?? null}
+          pathname={pathname}
+          activeAccount={appState.activeAccount}
+          workspaces={accountWorkspaces}
+          workspacesHydrated={wsState.workspacesHydrated}
+          activeWorkspaceId={wsState.activeWorkspaceId}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={toggleSidebar}
+          onSelectWorkspace={handleSelectWorkspace}
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
+            <div className="flex h-12 items-center justify-between gap-4">
+              <div className="min-w-0 flex items-center gap-3">
+                {sidebarCollapsed && (
+                  <button
+                    type="button"
+                    onClick={toggleSidebar}
+                    aria-label="展開側欄"
+                    title="展開側欄"
+                    className="hidden size-7 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground md:flex"
+                  >
+                    <PanelLeftOpen className="size-4" />
+                  </button>
+                )}
+                <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
+                <ShellAppBreadcrumbs />
+                <button
+                  type="button"
+                  aria-label="全域搜尋"
+                  className="hidden items-center gap-1.5 rounded-md border border-border/50 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-border hover:bg-muted sm:flex"
+                  onClick={() => setSearchOpen(true)}
+                >
+                  <Search className="size-3 shrink-0" />
+                  <span>搜尋…</span>
+                  <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground/60">⌘K</kbd>
+                </button>
+              </div>
+
+              <div className="ml-auto flex items-center gap-3">
+                <ShellHeaderControls />
+                <ShellUserAvatar
+                  name={scopedProfile?.displayName ?? authState.user?.name ?? "Dimension Member"}
+                  email={scopedProfile?.email ?? authState.user?.email ?? "—"}
+                  onSignOut={() => {
+                    void handleLogout();
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3 pb-3 md:hidden">
+              <AccountSwitcher
+                personalAccount={authState.user}
+                organizationAccounts={organizationAccounts}
+                activeAccountId={appState.activeAccount?.id ?? null}
+                onSelectPersonal={handleSelectPersonal}
+                onSelectOrganization={handleSelectOrganization}
+                onOrganizationCreated={handleOrganizationCreated}
+              />
+            </div>
+
+            {showAccountManagement && (
+              <>
+                <nav aria-label="Organization primary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
+                  {SHELL_ORG_PRIMARY_NAV_ITEMS.map((item) => {
+                    const isActive = isExactOrChildPath(item.href, pathname);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "border border-border/60 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+                <nav aria-label="Organization secondary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
+                  {SHELL_ORG_SECONDARY_NAV_ITEMS.map((item) => {
+                    const isActive = isExactOrChildPath(item.href, pathname);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "border border-border/60 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </>
+            )}
+            <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
+              {SHELL_MOBILE_NAV_ITEMS.map((item) => {
+                const isActive = isExactOrChildPath(item.href, pathname);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "border border-border/60 text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </header>
+
+          {logoutError && (
+            <div className="shrink-0 px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
+          )}
+
+          <main className="flex-1 overflow-auto p-6">{children}</main>
+        </div>
+      </div>
+    </ShellGuard>
+  );
+}
+````
+
+## File: app/(shell)/_shell/ShellSidebarBody.tsx
+````typescript
+"use client";
+
+/**
+ * ShellSidebarBody — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it imports from workspace and notion modules.
+ */
+
+import Link from "next/link";
+
+import { KnowledgeSidebarSection } from "@/modules/notion/api";
+import {
+  WorkspaceSectionContent,
+  type NavPreferences,
+  type SidebarLocaleBundle,
+} from "@/modules/workspace/api";
+import { SHELL_CONTEXT_SECTION_CONFIG } from "@/modules/platform/subdomains/platform-config/api";
+
+import {
+  type NavSection,
+  sidebarItemClass,
+  sidebarSectionTitleClass,
+} from "./ShellSidebarNavData";
+import { ShellContextNavSection } from "./ShellContextNavSection";
+
+interface NavItem {
+  id: string;
+  label: string;
+  href: string;
+}
+
+interface WorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+
+interface ShellSidebarBodyProps {
+  section: NavSection;
+  isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
+  showAccountManagement: boolean;
+  visibleAccountItems: readonly NavItem[];
+  visibleOrganizationManagementItems: readonly NavItem[];
+  workspacePathId: string | null;
+  navPrefs: NavPreferences;
+  localeBundle: SidebarLocaleBundle | null;
+  showRecentWorkspaces: boolean;
+  visibleRecentWorkspaceLinks: WorkspaceLink[];
+  hasOverflow: boolean;
+  isExpanded: boolean;
+  activeWorkspaceId: string | null;
+  onSelectWorkspace: (workspaceId: string | null) => void;
+  onToggleExpanded: () => void;
+  pathname: string;
+  workspacesHydrated: boolean;
+  allWorkspaceLinks: WorkspaceLink[];
+  currentSearchWorkspaceId: string;
+  creatingKind: "page" | "database" | null;
+  onQuickCreatePage: () => void;
+}
+
+function ManagedNavGroup({
+  title,
+  ariaLabel,
+  items,
+  isActiveRoute,
+}: {
+  title: string;
+  ariaLabel: string;
+  items: readonly NavItem[];
+  isActiveRoute: (href: string) => boolean;
+}) {
+  return (
+    <nav className="space-y-0.5" aria-label={ariaLabel}>
+      <p className={sidebarSectionTitleClass}>{title}</p>
+      {items.map((item) => {
+        const active = isActiveRoute(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            className={sidebarItemClass(active)}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+export function DashboardSidebarBody({
+  section,
+  isActiveRoute,
+  activeAccountId,
+  showAccountManagement,
+  visibleAccountItems,
+  visibleOrganizationManagementItems,
+  workspacePathId,
+  navPrefs,
+  localeBundle,
+  showRecentWorkspaces,
+  visibleRecentWorkspaceLinks,
+  hasOverflow,
+  isExpanded,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onToggleExpanded,
+  pathname,
+  workspacesHydrated,
+  allWorkspaceLinks,
+  currentSearchWorkspaceId,
+  creatingKind,
+  onQuickCreatePage,
+}: ShellSidebarBodyProps) {
+  const contextSection = SHELL_CONTEXT_SECTION_CONFIG[section];
+
+  return (
+    <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
+      {section === "account" && (
+        <div className="space-y-2">
+          {showAccountManagement && visibleAccountItems.length > 0 && (
+            <ManagedNavGroup
+              title="帳號"
+              ariaLabel="帳號導覽"
+              items={visibleAccountItems}
+              isActiveRoute={isActiveRoute}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看帳號選項。
+            </p>
+          )}
+        </div>
+      )}
+
+      {section === "organization" && (
+        <div className="space-y-2">
+          {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
+            <ManagedNavGroup
+              title="組織管理"
+              ariaLabel="組織管理導覽"
+              items={visibleOrganizationManagementItems}
+              isActiveRoute={isActiveRoute}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看管理選項。
+            </p>
+          )}
+        </div>
+      )}
+
+      {section === "workspace" && (
+        <div className="space-y-2">
+          <WorkspaceSectionContent
+            workspacePathId={workspacePathId}
+            navPrefs={navPrefs}
+            localeBundle={localeBundle}
+            showRecentWorkspaces={showRecentWorkspaces}
+            visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+            hasOverflow={hasOverflow}
+            isExpanded={isExpanded}
+            activeWorkspaceId={activeWorkspaceId}
+            isActiveRoute={isActiveRoute}
+            onSelectWorkspace={onSelectWorkspace}
+            onToggleExpanded={onToggleExpanded}
+            getItemClassName={sidebarItemClass}
+            sectionTitleClassName={sidebarSectionTitleClass}
+          />
+        </div>
+      )}
+
+      {section === "knowledge" && (
+        <KnowledgeSidebarSection
+          pathname={pathname}
+          workspacesHydrated={workspacesHydrated}
+          allWorkspaceLinks={allWorkspaceLinks}
+          activeAccountId={activeAccountId}
+          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
+          creatingKind={creatingKind}
+          onSelectWorkspace={onSelectWorkspace}
+          onQuickCreatePage={onQuickCreatePage}
+        />
+      )}
+
+      {contextSection && (
+        <ShellContextNavSection
+          title={contextSection.title}
+          items={contextSection.items}
+          isActiveRoute={isActiveRoute}
+          activeAccountId={activeAccountId}
+          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
+        />
+      )}
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/_shell/ShellSidebarHeader.tsx
+````typescript
+"use client";
+
+/**
+ * ShellSidebarHeader — app/(shell)/_shell composition layer.
+ * Moved from modules/platform alongside sibling shell files.
+ * Pure UI component with no downstream imports.
+ */
+
+import { PanelLeftClose, SlidersHorizontal } from "lucide-react";
+
+interface ShellSidebarHeaderProps {
+  sectionLabel: string;
+  sectionIcon: React.ReactNode;
+  onOpenCustomize: () => void;
+  onToggleCollapsed: () => void;
+}
+
+export function ShellSidebarHeader({
+  sectionLabel,
+  sectionIcon,
+  onOpenCustomize,
+  onToggleCollapsed,
+}: ShellSidebarHeaderProps) {
+  return (
+    <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
+      <span className="flex flex-1 items-center gap-1.5 px-1 text-[11px] font-semibold tracking-tight text-foreground/80">
+        {sectionIcon}
+        {sectionLabel}
+      </span>
+      <div className="flex items-center gap-0.5">
+        <button
+          type="button"
+          title="設定"
+          aria-label="設定"
+          onClick={onOpenCustomize}
+          className="flex size-6 items-center justify-center rounded text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
+        >
+          <SlidersHorizontal className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          aria-label="收起側欄"
+          title="收起側欄"
+          className="flex size-6 items-center justify-center rounded text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
+        >
+          <PanelLeftClose className="size-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/_shell/ShellSidebarNavData.tsx
+````typescript
+import {
+  BookOpen,
+  Bot,
+  Brain,
+  Building2,
+  Database,
+  FileText,
+  UserRound,
+  Users,
+} from "lucide-react";
+import Link from "next/link";
+
+import type { AccountEntity, ActiveAccount } from "@/modules/platform/api";
+import {
+  isOrganizationActor,
+  isActiveOrganizationAccount,
+} from "@/modules/platform/subdomains/access-control/api";
+import {
+  SHELL_ACCOUNT_SECTION_MATCHERS,
+  SHELL_ACCOUNT_NAV_ITEMS,
+  SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
+  SHELL_SECTION_LABELS,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  type ShellNavSection,
+} from "@/modules/platform/subdomains/platform-config/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly userId: string | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+}
+
+export type NavSection = ShellNavSection;
+
+// ── Static nav constants ──────────────────────────────────────────────────────
+
+export const ORGANIZATION_MANAGEMENT_ITEMS = SHELL_ORGANIZATION_MANAGEMENT_ITEMS;
+
+export const ACCOUNT_NAV_ITEMS = SHELL_ACCOUNT_NAV_ITEMS;
+
+export const ACCOUNT_SECTION_MATCHERS = SHELL_ACCOUNT_SECTION_MATCHERS;
+
+export const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
+  workspace: { label: SHELL_SECTION_LABELS.workspace, icon: <Building2 className="size-3" /> },
+  knowledge: { label: SHELL_SECTION_LABELS.knowledge, icon: <BookOpen className="size-3" /> },
+  "knowledge-base": { label: SHELL_SECTION_LABELS["knowledge-base"], icon: <BookOpen className="size-3" /> },
+  "knowledge-database": {
+    label: SHELL_SECTION_LABELS["knowledge-database"],
+    icon: <Database className="size-3" />,
+  },
+  source: { label: SHELL_SECTION_LABELS.source, icon: <FileText className="size-3" /> },
+  notebook: { label: SHELL_SECTION_LABELS.notebook, icon: <Brain className="size-3" /> },
+  "ai-chat": { label: SHELL_SECTION_LABELS["ai-chat"], icon: <Bot className="size-3" /> },
+  account: { label: SHELL_SECTION_LABELS.account, icon: <UserRound className="size-3" /> },
+  organization: { label: SHELL_SECTION_LABELS.organization, icon: <Users className="size-3" /> },
+  other: { label: SHELL_SECTION_LABELS.other, icon: null },
+};
+
+// ── CSS class helpers ─────────────────────────────────────────────────────────
+
+export function sidebarItemClass(active: boolean) {
+  return `group flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition ${
+    active
+      ? "border-primary/30 bg-primary/10 text-primary"
+      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
+  }`;
+}
+
+export const sidebarSectionTitleClass =
+  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
+
+export const sidebarGroupButtonClass =
+  "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
+
+// ── Pure section helpers ──────────────────────────────────────────────────────
+
+export function resolveNavSection(pathname: string): NavSection {
+  return resolveShellNavSection(pathname);
+}
+
+export function isActiveRoute(pathname: string, href: string) {
+  return isExactOrChildPath(href, pathname);
+}
+
+export { isActiveOrganizationAccount, isOrganizationActor };
+
+// ── Simple section nav component ──────────────────────────────────────────────
+
+export function SimpleNavLinks({
+  items,
+  title,
+  isActiveRoute,
+}: {
+  items: readonly { href: string; label: string }[];
+  title: string;
+  isActiveRoute: (href: string) => boolean;
+}) {
+  return (
+    <nav className="space-y-0.5" aria-label={`${title}導覽`}>
+      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+        {title}
+      </p>
+      {items.map((item) => {
+        const active = isActiveRoute(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+              active
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+````
+
+## File: app/(shell)/dev-tools/page.tsx
+````typescript
+"use client";
+
+/**
+ * Module: dev-tools page — /dev-tools
+ * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
+ * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
+ * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
+ *   Doc-list state and operations → useDevToolsDocList hook.
+ *   Parsed-docs table → DevToolsParsedDocsSection component.
+ */
+
+import { useRef, useState, useEffect } from "react";
+import {
+  FlaskConical,
+  FileUp,
+  AlertCircle,
+  FileText,
+  Trash2,
+  Code2,
+  ExternalLink,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
+
+import { useApp } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  UPLOAD_BUCKET,
+  WATCH_PATH,
+  ACCEPTED_MIME,
+  ACCEPTED_EXTS,
+  asRecord,
+  asString,
+  asNumber,
+  type ParseResult,
+  type UploadStatus,
+} from "./dev-tools-helpers";
+import { StatusBadge, RagBadge } from "./dev-tools-badges";
+import { useDevToolsDocList, formatDateTime } from "./use-dev-tools-doc-list";
+import { DevToolsParsedDocsSection } from "./dev-tools-parsed-docs-section";
+
+// ── Page component ─────────────────────────────────────────────────────────
+
+export default function DevToolsPage() {
+  const { state: appState } = useApp();
+  const { state: wsState } = useWorkspaceContext();
+  const activeAccountId = appState.activeAccount?.id ?? "";
+  const activeWorkspaceId = wsState.activeWorkspaceId ?? "";
+
+  // ── Upload state ──────────────────────────────────────────────────────────
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<UploadStatus>("idle");
+  const [result, setResult] = useState<ParseResult | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [logs, setLogs] = useState<string[]>([]);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
+
+  // ── Doc list + operations (extracted hook) ────────────────────────────────
+  const {
+    allDocs,
+    selectedDocId,
+    selectedDoc,
+    jsonContent,
+    jsonLoading,
+    deletingId,
+    reindexingId,
+    handleViewOriginal,
+    handleViewJson,
+    handleDeleteDoc,
+    handleManualProcess,
+    closeJsonPreview,
+    formatNormalizationRatio,
+  } = useDevToolsDocList(activeAccountId);
+
+  // Cleanup upload subscription on unmount
+  useEffect(() => {
+    return () => { if (unsubscribeRef.current) unsubscribeRef.current(); };
+  }, []);
+
+  function appendLog(msg: string) {
+    setLogs((prev) => [
+      ...prev,
+      `[${new Date().toISOString().split("T")[1]?.slice(0, 8)}] ${msg}`,
+    ]);
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setSelectedFile(file);
+    setResult(null);
+    setErrorMsg(null);
+    setStatus("idle");
+    setLogs([]);
+    if (file) appendLog(`已選取：${file.name}（${(file.size / 1024).toFixed(1)} KB）`);
+  }
+
+  function buildUuidUploadPath(accountId: string, file: File) {
+    const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
+    const docId = crypto.randomUUID();
+    return { uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`, docId };
+  }
+
+  function watchDocument(docId: string) {
+    if (!activeAccountId) {
+      appendLog("❌ 缺少 active account，無法監聽文件狀態");
+      return;
+    }
+    try {
+      const db = getFirebaseFirestore();
+      const docRef = firestoreApi.doc(db, "accounts", activeAccountId, "documents", docId);
+      if (unsubscribeRef.current) unsubscribeRef.current();
+      unsubscribeRef.current = firestoreApi.onSnapshot(docRef, (snapshot) => {
+        if (!snapshot.exists()) { appendLog("等待 Firestore 初始化…"); return; }
+        const data = asRecord(snapshot.data());
+        const docStatus = asString(data.status, "unknown");
+        appendLog(`Firestore update: status=${docStatus}`);
+        if (docStatus === "completed") {
+          const parsed = asRecord(data.parsed);
+          const r: ParseResult = {
+            doc_id: docId,
+            status: "completed",
+            page_count: asNumber(parsed.page_count) ?? 0,
+            json_gcs_uri: asString(parsed.json_gcs_uri),
+          };
+          setResult(r);
+          setStatus("done");
+          appendLog(`✅ 解析完成：${asNumber(parsed.page_count) ?? 0} 頁`);
+          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+        } else if (docStatus === "error") {
+          const error = asRecord(data.error);
+          const msg = asString(error.message, "未知錯誤");
+          setErrorMsg(msg);
+          setStatus("error");
+          appendLog(`❌ 錯誤：${msg}`);
+          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+        }
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      appendLog(`❌ 監聽失敗：${msg}`);
+      setErrorMsg(msg);
+      setStatus("error");
+    }
+  }
+
+  async function handleUploadAndParse() {
+    if (!selectedFile) return;
+    if (!activeAccountId) {
+      setErrorMsg("缺少 active account，無法上傳與解析");
+      setStatus("error");
+      return;
+    }
+    setStatus("uploading");
+    setResult(null);
+    setErrorMsg(null);
+    appendLog("📤 上傳檔案到 Cloud Storage…");
+    try {
+      // Step 1: Upload to GCS
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const { uploadPath, docId } = buildUuidUploadPath(activeAccountId, selectedFile);
+      const fileRef = storageApi.ref(storage, uploadPath);
+      const snap = await storageApi.uploadBytes(fileRef, selectedFile, {
+        contentType: ACCEPTED_MIME[selectedFile.name.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream",
+        customMetadata: {
+          account_id: activeAccountId,
+          workspace_id: activeWorkspaceId,
+          filename: selectedFile.name,
+        },
+      });
+      appendLog(`✅ 上傳完成：${snap.ref.fullPath}`);
+      // Step 2: Watch Firestore for status updates
+      setStatus("waiting");
+      appendLog("⏳ 等待 parse_document 處理…");
+      watchDocument(docId);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setErrorMsg(msg);
+      setStatus("error");
+      appendLog(`❌ 上傳失敗：${msg}`);
+    }
+  }
+
+  function reset() {
+    if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+    setSelectedFile(null);
+    setResult(null);
+    setErrorMsg(null);
+    setStatus("idle");
+    setLogs([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  const isLoading = status === "uploading" || status === "waiting";
+  const parsedDocs = allDocs.filter((doc) => doc.status === "completed");
+  const ragReadyCount = allDocs.filter((doc) => doc.rag_status === "ready").length;
+  const ragErrorCount = allDocs.filter((doc) => doc.rag_status === "error").length;
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-8">
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3">
+        <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10">
+          <FlaskConical className="size-5 text-amber-500" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Dev Tools</h1>
+          <p className="text-xs text-muted-foreground">
+            py_fn · parse_document · Document AI · Firestore 實時監聽
+          </p>
+        </div>
+      </div>
+
+      {/* ── Stats ──────────────────────────────────────────────────── */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-border/60 bg-card px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">全部文件</p>
+          <p className="text-lg font-semibold tracking-tight">{allDocs.length}</p>
+        </div>
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+          <p className="text-[11px] text-emerald-700">解析完成</p>
+          <p className="text-lg font-semibold tracking-tight text-emerald-700">{parsedDocs.length}</p>
+        </div>
+        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-3 py-2">
+          <p className="text-[11px] text-blue-700">RAG Ready</p>
+          <p className="text-lg font-semibold tracking-tight text-blue-700">{ragReadyCount}</p>
+        </div>
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2">
+          <p className="text-[11px] text-destructive">RAG Error</p>
+          <p className="text-lg font-semibold tracking-tight text-destructive">{ragErrorCount}</p>
+        </div>
+      </section>
+
+      {/* ── File picker ────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+          1. 選擇檔案
+        </h2>
+        <label
+          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-8 transition
+            ${selectedFile ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
+        >
+          <FileUp className="size-8 text-muted-foreground" />
+          <div className="text-center">
+            <p className="text-sm font-medium">
+              {selectedFile ? selectedFile.name : "點擊或拖曳上傳"}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={Object.keys(ACCEPTED_MIME).join(",")}
+            className="sr-only"
+            onChange={handleFileChange}
+          />
+        </label>
+      </section>
+
+      {/* ── Actions ────────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+          2. 執行上傳 &amp; 解析
+        </h2>
+        <div className="flex gap-3">
+          <Button onClick={handleUploadAndParse} disabled={!selectedFile || isLoading} className="gap-2">
+            {isLoading ? <Loader2 className="size-4 animate-spin" /> : <FlaskConical className="size-4" />}
+            {status === "uploading" ? "上傳中…" : status === "waiting" ? "等待中…" : "開始"}
+          </Button>
+          <Button variant="outline" onClick={reset} disabled={isLoading}>
+            重置
+          </Button>
+        </div>
+      </section>
+
+      {/* ── Result ─────────────────────────────────────────────────── */}
+      {(status === "done" || status === "error") && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            3. 結果
+          </h2>
+          {status === "done" && result && (
+            <div className="rounded-xl border border-border/60 bg-card p-5 space-y-4">
+              <div className="flex items-center gap-2 text-emerald-600">
+                <CheckCircle2 className="size-4 shrink-0" />
+                <span className="text-sm font-medium">解析成功</span>
+              </div>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <dt className="text-muted-foreground">doc_id</dt>
+                <dd className="font-mono text-xs">{result.doc_id}</dd>
+                <dt className="text-muted-foreground">page_count</dt>
+                <dd className="font-bold">{result.page_count}</dd>
+                <dt className="text-muted-foreground">JSON 位置</dt>
+                <dd className="font-mono text-xs break-all">{result.json_gcs_uri || "—"}</dd>
+              </dl>
+            </div>
+          )}
+          {status === "error" && (
+            <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+              <XCircle className="mt-0.5 size-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+        </section>
+      )}
+
+      {status === "waiting" && (
+        <section className="space-y-3">
+          <div className="flex items-start gap-2 rounded-xl border border-blue-300/30 bg-blue-500/5 p-4 text-sm text-blue-600">
+            <AlertCircle className="mt-0.5 size-4 shrink-0 animate-pulse" />
+            <div>
+              <p className="font-medium">處理中…</p>
+              <p className="mt-1 text-xs opacity-75">Document AI 正在解析檔案，請稍候</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── All uploaded docs table ─────────────────────────────────── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <FileText className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            已上傳檔案（{allDocs.length}）
+          </h2>
+        </div>
+        {allDocs.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+            尚無上傳記錄
+          </p>
+        ) : (
+          <div className="space-y-0 overflow-hidden rounded-xl border border-border/60">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead>
+                  <tr className="border-b border-border/60 bg-muted/40">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allDocs.map((doc, i) => (
+                    <tr
+                      key={doc.id}
+                      className={`border-b border-border/40 last:border-0 transition-colors ${
+                        selectedDocId === doc.id
+                          ? "bg-primary/8 ring-1 ring-inset ring-primary/20"
+                          : i % 2 === 0 ? "bg-background" : "bg-muted/20"
+                      }`}
+                    >
+                      <td className="px-4 py-2.5 font-mono text-xs max-w-[180px] truncate" title={doc.filename}>
+                        {doc.filename}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <StatusBadge status={doc.status} errorMessage={doc.error_message} />
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <RagBadge status={doc.rag_status} error={doc.rag_error} />
+                      </td>
+                      <td className="px-4 py-2.5 text-xs">
+                        {doc.page_count != null ? doc.page_count : "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                        {formatDateTime(doc.uploaded_at)}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => { void handleViewOriginal(doc); }}
+                            disabled={!doc.gcs_uri}
+                            title="查看原始檔案"
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
+                          >
+                            <ExternalLink className="size-3.5" />
+                          </button>
+                          <button
+                            onClick={() => { void handleViewJson(doc); }}
+                            disabled={doc.status !== "completed" || !doc.json_gcs_uri}
+                            title="查看 JSON 解析結果"
+                            className={`inline-flex size-7 items-center justify-center rounded-md transition hover:bg-muted disabled:opacity-30 ${
+                              selectedDocId === doc.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            <Code2 className="size-3.5" />
+                          </button>
+                          <button
+                            onClick={() => { void handleDeleteDoc(doc); }}
+                            disabled={deletingId === doc.id}
+                            title="刪除"
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
+                          >
+                            {deletingId === doc.id
+                              ? <Loader2 className="size-3.5 animate-spin" />
+                              : <Trash2 className="size-3.5" />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* JSON preview panel */}
+            {selectedDocId && (
+              <div className="border-t border-border/60 bg-[#0d1117]">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
+                  <div className="flex items-center gap-2 text-xs text-green-400">
+                    <Code2 className="size-3.5" />
+                    <span className="font-mono">
+                      {selectedDoc?.filename ?? selectedDocId} — JSON
+                    </span>
+                  </div>
+                  <button
+                    onClick={closeJsonPreview}
+                    className="text-white/30 hover:text-white/70 transition text-xs"
+                  >
+                    ✕ 關閉
+                  </button>
+                </div>
+                {selectedDoc?.rag_status === "error" && (
+                  <div className="border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs text-destructive">
+                    RAG 失敗：{selectedDoc.rag_error || "未知錯誤"}
+                  </div>
+                )}
+                <div className="max-h-80 overflow-y-auto p-4">
+                  {jsonLoading ? (
+                    <div className="flex items-center gap-2 text-green-400/60 text-xs">
+                      <Loader2 className="size-3.5 animate-spin" /> 載入中…
+                    </div>
+                  ) : (
+                    <pre className="font-mono text-xs leading-relaxed text-green-400 whitespace-pre-wrap break-words">
+                      {jsonContent}
+                    </pre>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ── Parsed docs table (extracted component) ─────────────────── */}
+      <DevToolsParsedDocsSection
+        parsedDocs={parsedDocs}
+        reindexingId={reindexingId}
+        onViewJson={(doc) => { void handleViewJson(doc); }}
+        onManualProcess={(doc) => { void handleManualProcess(doc, appendLog); }}
+        formatNormalizationRatio={formatNormalizationRatio}
+      />
+
+      {/* ── Console log ────────────────────────────────────────────── */}
+      {logs.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            Console
+          </h2>
+          <div className="max-h-48 overflow-y-auto rounded-xl bg-[#0d1117] p-4">
+            {logs.map((line, i) => (
+              <p key={i} className="font-mono text-xs leading-relaxed text-green-400">
+                {line}
+              </p>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/knowledge-base/articles/[articleId]/page.tsx
+````typescript
+"use client";
+
+import { useApp, useAuth } from "@/modules/platform/api"
+import { useWorkspaceContext } from "@/modules/workspace/api";
+import { ArticleDetailPage } from "@/modules/notion/api";
+
+export default function ArticleDetailPageRoute() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = wsState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  return (
+    <ArticleDetailPage
+      accountId={accountId}
+      workspaceId={workspaceId}
+      currentUserId={currentUserId}
+    />
+  );
+}
+````
+
+## File: app/(shell)/knowledge-database/databases/[databaseId]/forms/page.tsx
+````typescript
+"use client";
+
+import { useApp, useAuth } from "@/modules/platform/api"
+import { useWorkspaceContext } from "@/modules/workspace/api";
+import { DatabaseFormsPage } from "@/modules/notion/api";
+
+export default function DatabaseFormsPageRoute() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = wsState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  return (
+    <DatabaseFormsPage
+      accountId={accountId}
+      workspaceId={workspaceId}
+      currentUserId={currentUserId}
+    />
+  );
+}
+````
+
+## File: app/(shell)/knowledge-database/databases/[databaseId]/page.tsx
+````typescript
+"use client";
+
+import { useApp, useAuth } from "@/modules/platform/api"
+import { useWorkspaceContext } from "@/modules/workspace/api";
+import { DatabaseDetailPage } from "@/modules/notion/api";
+
+export default function DatabaseDetailPageRoute() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = wsState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  return (
+    <DatabaseDetailPage
+      accountId={accountId}
+      workspaceId={workspaceId}
+      currentUserId={currentUserId}
+    />
+  );
+}
+````
+
+## File: app/(shell)/knowledge/pages/[pageId]/page.tsx
+````typescript
+"use client";
+
+import { useApp, useAuth } from "@/modules/platform/api"
+import { useWorkspaceContext } from "@/modules/workspace/api";
+import { KnowledgePageDetailPage } from "@/modules/notion/api";
+
+export default function KnowledgePageDetailPageRoute() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const activeWorkspaceId = wsState.activeWorkspaceId ?? null;
+  const currentUserId = authState.user?.id ?? "";
+
+  return (
+    <KnowledgePageDetailPage
+      accountId={accountId}
+      activeWorkspaceId={activeWorkspaceId}
+      currentUserId={currentUserId}
+    />
+  );
+}
+````
+
+## File: app/(shell)/notebook/rag-query/page.tsx
+````typescript
+"use client";
+
+import { useSearchParams } from "next/navigation";
+
+import { useApp } from "@/modules/platform/api";
+import { resolveWorkspaceFromMap, useWorkspaceContext } from "@/modules/workspace/api";
+import { RagQueryView } from "@/modules/notebooklm/api";
+
+export default function NotebookRagQueryPage() {
+  const searchParams = useSearchParams();
+  const { state: wsState } = useWorkspaceContext();
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const resolvedWorkspace = resolveWorkspaceFromMap(wsState.workspaces, requestedWorkspaceId);
+  const workspaceId = resolvedWorkspace?.id ?? wsState.activeWorkspaceId ?? undefined;
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Notebook</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
+        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
+      </header>
+
+      <RagQueryView workspaceId={workspaceId} />
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/source/libraries/page.tsx
+````typescript
+"use client";
+
+import { useApp, useAuth } from "@/modules/platform/api"
+import { useWorkspaceContext } from "@/modules/workspace/api";
+import { LibrariesView, LibraryTableView } from "@/modules/notebooklm/api";
+
+export default function SourceLibrariesPage() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = wsState.activeWorkspaceId ?? undefined;
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Source</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
+        <p className="text-sm text-muted-foreground">
+          對齊資料庫／資料來源能力的 MVP，產品命名統一為 Libraries。
+        </p>
+      </header>
+
+      {accountId ? (
+        <>
+          <LibraryTableView accountId={accountId} workspaceId={workspaceId} />
+          <LibrariesView accountId={accountId} workspaceId={workspaceId} />
+        </>
+      ) : (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號情境，請先登入或切換帳號。
+        </p>
+      )}
+    </div>
+  );
+}
+````
+
+## File: app/layout.tsx
+````typescript
+import type { Metadata } from "next";
+import "./globals.css";
+import { Geist } from "next/font/google";
+import { cn } from "@shared-utils";
+import { Providers } from "./_providers";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+
+export const metadata: Metadata = {
+  title: "Xuanwu App",
+  description: "Xuanwu App - Modular Domain-Driven Design template",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en" className={cn("font-sans", geist.variable)}>
+      <body className="antialiased">
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
 }
 ````
 
@@ -35527,209 +36969,6 @@ function CategoryNodeRow({ node, selectedId, onSelect }: CategoryNodeRowProps) {
 }
 ````
 
-## File: modules/notion/subdomains/authoring/interfaces/components/KnowledgeBaseArticlesRouteScreen.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
-
-import { useApp } from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
-import { getArticles, getCategories } from "../queries";
-import { ArticleDialog } from "./ArticleDialog";
-import { CategoryTreePanel } from "./CategoryTreePanel";
-
-const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  draft: { label: "草稿", variant: "outline" },
-  published: { label: "已發佈", variant: "default" },
-  archived: { label: "已封存", variant: "secondary" },
-};
-
-const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
-  verified: { label: "已驗證", icon: BadgeCheck },
-  needs_review: { label: "待審查", icon: FileClock },
-  unverified: { label: "未驗證", icon: CircleDot },
-};
-
-/**
- * KnowledgeBaseArticlesRouteScreen
- * Route-level screen component for /knowledge-base/articles.
- * Encapsulates data-loading, filtering and layout so the Next.js route
- * file stays thin (params/context wiring only).
- */
-export function KnowledgeBaseArticlesRouteScreen() {
-  const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    if (!accountId || !workspaceId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const [arts, cats] = await Promise.all([
-        getArticles({ accountId, workspaceId }),
-        getCategories(accountId, workspaceId),
-      ]);
-      setArticles(arts);
-      setCategories(cats);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, workspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const filteredArticles = useMemo(() => {
-    if (!selectedCategoryId) return articles;
-    const cat = categories.find((c) => c.id === selectedCategoryId);
-    if (!cat) return articles;
-    return articles.filter((a) => cat.articleIds.includes(a.id));
-  }, [articles, categories, selectedCategoryId]);
-
-  function handleSuccess(articleId?: string) {
-    if (articleId) {
-      router.push(`/knowledge-base/articles/${articleId}`);
-    } else {
-      load();
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
-        <p className="text-sm text-muted-foreground">
-          組織知識庫的 SOP 文章、通用文件與驗證管治。
-        </p>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push("/knowledge")}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-        <Button
-          size="sm"
-          className="ml-auto"
-          disabled={!accountId || !workspaceId}
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增文章
-        </Button>
-      </div>
-
-      <ArticleDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        categories={categories}
-        onSuccess={handleSuccess}
-      />
-
-      {!accountId || !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
-        </p>
-      ) : loading ? (
-        <div className="flex gap-4">
-          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
-          <div className="grid flex-1 gap-3 sm:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 w-full rounded-lg" />
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="flex gap-4">
-          <CategoryTreePanel
-            categories={categories}
-            selectedId={selectedCategoryId}
-            onSelect={setSelectedCategoryId}
-          />
-
-          <div className="flex-1">
-            {filteredArticles.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">
-                  {selectedCategoryId ? "此分類尚無文章。" : "尚無文章。點擊「新增文章」開始建立。"}
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {filteredArticles.map((article) => {
-                  const status = STATUS_CONFIG[article.status];
-                  const veri = VERIFICATION_CONFIG[article.verificationState];
-                  const VeriIcon = veri.icon;
-                  return (
-                    <Card
-                      key={article.id}
-                      className="cursor-pointer hover:bg-muted/10 transition-colors"
-                      onClick={() => router.push(`/knowledge-base/articles/${article.id}`)}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
-                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <VeriIcon className="h-3 w-3" />
-                          <span>{veri.label}</span>
-                        </div>
-                        {article.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {article.tags.slice(0, 3).map((tag) => (
-                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <p className="text-[10px] text-muted-foreground/70">
-                          v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-````
-
 ## File: modules/notion/subdomains/collaboration/api/factories.ts
 ````typescript
 import { FirebaseCommentRepository } from "../infrastructure/firebase/FirebaseCommentRepository";
@@ -36778,156 +38017,6 @@ export function DatabaseFormView({ database, accountId, workspaceId, submitterId
           {isPending ? "提交中…" : "送出表單"}
         </Button>
       </form>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/KnowledgeDatabasesRouteScreen.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Table2 } from "lucide-react";
-
-import { useApp } from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import type { DatabaseSnapshot as Database } from "../../application/dto/database.dto";
-import { getDatabases } from "../queries";
-import { DatabaseDialog } from "./DatabaseDialog";
-
-/**
- * KnowledgeDatabasesRouteScreen
- * Route-level screen component for /knowledge-database/databases.
- * Encapsulates data-loading and layout so the Next.js route file stays thin.
- */
-export function KnowledgeDatabasesRouteScreen() {
-  const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  const [databases, setDatabases] = useState<Database[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-
-  const load = useCallback(async () => {
-    if (!accountId || !workspaceId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const data = await getDatabases(accountId, workspaceId);
-      setDatabases(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, workspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  function handleSuccess(databaseId?: string) {
-    if (databaseId) {
-      router.push(`/knowledge-database/databases/${databaseId}`);
-    } else {
-      load();
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Database</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
-        <p className="text-sm text-muted-foreground">
-          結構化資料表、看板、日曆與多視圖管理，對應 Notion Database 能力。
-        </p>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push("/knowledge")}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-        <Button
-          size="sm"
-          className="ml-auto"
-          disabled={!accountId || !workspaceId}
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增資料庫
-        </Button>
-      </div>
-
-      <DatabaseDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        onSuccess={handleSuccess}
-      />
-
-      {!accountId || !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
-        </p>
-      ) : loading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : databases.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-          <Table2 className="h-8 w-8 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">尚無資料庫。點擊「新增資料庫」開始建立。</p>
-        </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {databases.map((db) => (
-            <Card
-              key={db.id}
-              className="cursor-pointer hover:bg-muted/10 transition-colors"
-              onClick={() => router.push(`/knowledge-database/databases/${db.id}`)}
-            >
-              <CardHeader className="pb-2">
-                <div className="flex items-start gap-2">
-                  {db.icon ? (
-                    <span className="text-lg leading-none">{db.icon}</span>
-                  ) : (
-                    <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  )}
-                  <CardTitle className="line-clamp-1 text-sm font-medium">{db.name}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {db.description && (
-                  <p className="line-clamp-2 text-xs text-muted-foreground">{db.description}</p>
-                )}
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
-                  <span>{db.fields.length} 個欄位</span>
-                  <span>·</span>
-                  <span>{db.viewIds.length} 個視圖</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground/50">
-                  {new Date(db.updatedAtISO).toLocaleDateString("zh-TW")}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -39230,127 +40319,6 @@ export async function addCollectionColumn(input: AddCollectionColumnDto): Promis
 export async function archiveKnowledgeCollection(input: ArchiveKnowledgeCollectionDto): Promise<CommandResult> {
   try { return await new ArchiveKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input); }
   catch (e) { return commandFailureFrom("COLLECTION_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgePagesRouteScreen.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-
-import { useApp } from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import type { KnowledgePageTreeNode } from "../../application/dto/knowledge.dto";
-import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
-import { PageTreeView } from "./PageTreeView";
-
-/**
- * KnowledgePagesRouteScreen
- * Route-level screen component for /knowledge/pages.
- * Encapsulates data-loading, scope resolution and layout so that the
- * Next.js route file stays thin (params/context wiring only).
- */
-export function KnowledgePagesRouteScreen() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-  const scopeParam = searchParams.get("scope")?.trim() ?? "";
-  const isAccountSummary = scopeParam === "account";
-  const workspaceId = isAccountSummary ? "" : requestedWorkspaceId || appState.activeWorkspaceId || "";
-  const currentUserId = authState.user?.id ?? "";
-
-  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    if (!accountId) { setLoading(false); return; }
-    if (!isAccountSummary && !workspaceId) {
-      setNodes([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const tree = isAccountSummary
-        ? await getKnowledgePageTree(accountId)
-        : await getKnowledgePageTreeByWorkspace(accountId, workspaceId);
-      setNodes(tree);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, isAccountSummary, workspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={isAccountSummary ? "secondary" : "outline"}>
-            {isAccountSummary ? "Account Summary" : "Workspace Scope"}
-          </Badge>
-          <p className="text-sm text-muted-foreground">
-            {isAccountSummary
-              ? "這是顯式 account summary mode。僅用於跨工作區總覽，預設不在此建立新頁面。"
-              : "知識頁面階層樹預設綁定目前工作區。點選頁面進入內容編輯器。"}
-          </p>
-        </div>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push("/knowledge")}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-      </div>
-
-      {!accountId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號情境，請先登入。
-        </p>
-      ) : !isAccountSummary && !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未選定工作區。請先從工作區進入知識頁面，或在網址帶入 workspaceId 後再查看頁面樹。
-        </p>
-      ) : loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-8 w-full" />
-          ))}
-        </div>
-      ) : (
-        <PageTreeView
-          nodes={nodes}
-          accountId={accountId}
-          workspaceId={workspaceId || undefined}
-          currentUserId={currentUserId}
-          allowCreate={!isAccountSummary && Boolean(workspaceId)}
-          emptyStateDescription={
-            isAccountSummary
-              ? "這個 account summary 目前沒有可顯示的頁面。請改從工作區建立與維護頁面。"
-              : "這個工作區尚無頁面。點擊「新增頁面」開始建立。"
-          }
-          onPageClick={(pageId) => router.push(`/knowledge/pages/${pageId}`)}
-          onCreated={() => load()}
-        />
-      )}
-    </div>
-  );
 }
 ````
 
@@ -43872,35 +44840,6 @@ export interface PermissionEvaluationView {
 ## File: modules/platform/subdomains/access-control/application/dtos/index.ts
 ````typescript
 export * from "./access-control.dto";
-````
-
-## File: modules/platform/subdomains/access-control/application/services/shell-account-access.ts
-````typescript
-export interface ShellAccountActor {
-  readonly id: string;
-  readonly accountType?: string;
-}
-
-export function isOrganizationActor(
-  account: ShellAccountActor | null | undefined,
-): account is ShellAccountActor & { accountType: "organization" } {
-  return account?.accountType === "organization";
-}
-
-/**
- * Keep shell fallback behavior centralized so route access rules are not
- * duplicated across layout components.
- */
-export function resolveOrganizationRouteFallback(
-  pathname: string,
-  account: ShellAccountActor | null | undefined,
-): string | null {
-  if (pathname === "/organization" && !isOrganizationActor(account)) {
-    return "/workspace";
-  }
-
-  return null;
-}
 ````
 
 ## File: modules/platform/subdomains/access-control/application/use-cases/index.ts
@@ -50518,289 +51457,72 @@ export function buildWorkspaceQuickAccessItems(workspaceId: string): WorkspaceQu
 }
 ````
 
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
+## File: modules/workspace/interfaces/web/index.ts
 ````typescript
-"use client";
+/**
+ * workspace interfaces/web public boundary.
+ *
+ * Web-layer components, hooks, navigation, state helpers and utilities.
+ * App-layer and cross-module consumers that need UI composition must import
+ * from this path instead of reaching into individual sub-directories.
+ */
 
-import Link from "next/link";
-import { useMemo, useState } from "react";
+export { WorkspaceDetailScreen } from "./components/screens/WorkspaceDetailScreen";
+export { WorkspaceDetailRouteScreen } from "./components/screens/WorkspaceDetailRouteScreen";
+export { WorkspaceHubScreen } from "./components/screens/WorkspaceHubScreen";
+export { WorkspaceMembersTab } from "./components/tabs/WorkspaceMembersTab";
+export { WorkspaceSidebarSection } from "./components/layout/WorkspaceSidebarSection";
+export { CreateWorkspaceDialogRail } from "./components/rails/CreateWorkspaceDialogRail";
+export { OrganizationWorkspacesScreen } from "./components/screens/OrganizationWorkspacesScreen";
+export { WorkspaceContextCard } from "./components/cards/WorkspaceContextCard";
 
-import {
-  Card,
-  CardContent,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { WorkspaceAuditTab } from "@/modules/workspace/api";
-import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
-import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
-import { WorkspaceFlowTab } from "@/modules/workspace/api";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
-import { useApp } from "@/modules/platform/api";
+export {
+	WORKSPACE_TAB_GROUPS,
+	WORKSPACE_TAB_META,
+	WORKSPACE_TAB_VALUES,
+	getWorkspaceTabLabel,
+	getWorkspaceTabMeta,
+	getWorkspaceTabPrefId,
+	getWorkspaceTabStatus,
+	getWorkspaceTabsByGroup,
+	isWorkspaceTabValue,
+} from "./navigation/workspace-tabs";
 
-import {
-  createSettingsDraft,
-  type WorkspaceSettingsDraft,
-} from "../../state/workspace-settings";
-import {
-  getWorkspaceAddressLines,
-  getWorkspacePersonnelEntries,
-} from "../../view-models/workspace-supporting-records";
-import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabValue,
-} from "../../navigation/workspace-tabs";
-import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
-import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
-import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
-import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
-import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
+export { getWorkspaceStorageKey } from "./state/workspace-session";
 
-interface WorkspaceDetailScreenProps {
-  readonly workspaceId: string;
-  readonly accountId: string | null | undefined;
-  readonly accountsHydrated: boolean;
-  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-  readonly initialTab?: string;
-  readonly initialOverviewPanel?: string;
-}
+export {
+	resolveWorkspaceFromMap,
+	toWorkspaceMap,
+} from "./utils/workspace-map";
 
-export function WorkspaceDetailScreen({
-  workspaceId,
-  accountId,
-  accountsHydrated,
-  initialTab,
-  initialOverviewPanel,
-}: WorkspaceDetailScreenProps) {
-  const { state: appState, dispatch } = useApp();
-  const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
-    workspaceId,
-    accountId,
-    accountsHydrated,
-  );
-  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
-  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
+export type { WorkspaceNavItem } from "./navigation/workspace-nav-items";
+export {
+	WORKSPACE_NAV_ITEMS,
+	normalizeWorkspaceOrder,
+} from "./navigation/workspace-nav-items";
 
-  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
-    workspace,
-    accountId,
-    onSaved: (updated) => {
-      setWorkspace(updated);
-      setSettingsDraft(createSettingsDraft(updated));
-      setIsEditWorkspaceOpen(false);
-    },
-  });
+export type {
+	WorkspaceQuickAccessItem,
+	WorkspaceQuickAccessMatcherOptions,
+} from "./components/navigation/workspace-quick-access";
 
-  const personnelEntries = useMemo(() => {
-    return workspace ? getWorkspacePersonnelEntries(workspace) : [];
-  }, [workspace]);
+export { buildWorkspaceQuickAccessItems } from "./components/navigation/workspace-quick-access";
 
-  const addressLines = useMemo(() => {
-    return workspace ? getWorkspaceAddressLines(workspace) : [];
-  }, [workspace]);
+export type {
+	WorkspaceTabDevStatus,
+	WorkspaceTabGroup,
+	WorkspaceTabValue,
+} from "./navigation/workspace-tabs";
 
-  function renderTabContent(tab: WorkspaceTabValue) {
-    if (!workspace) return null;
+export { WorkspaceContextProvider, useWorkspaceContext } from "./providers/WorkspaceContextProvider";
+export type { WorkspaceContextState, WorkspaceContextAction, WorkspaceContextValue } from "./providers/WorkspaceContextProvider";
 
-    switch (tab) {
-      case "Overview":
-        return (
-          <WorkspaceOverviewTab
-            workspace={workspace}
-            activeWorkspaceId={appState.activeWorkspaceId}
-            personnelEntries={personnelEntries}
-            addressLines={addressLines}
-            showSettingsPanel={initialOverviewPanel === "settings"}
-            onEditClick={() => {
-              setSettingsDraft(createSettingsDraft(workspace));
-              clearSaveError();
-              setIsEditWorkspaceOpen(true);
-            }}
-            onSetActiveWorkspace={() =>
-              dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
-            }
-          />
-        );
-      case "Members":
-        return <WorkspaceMembersTab workspace={workspace} />;
-      case "Daily":
-        return <WorkspaceDailyTab workspace={workspace} />;
-      case "Files":
-        return <WorkspaceFilesTab workspace={workspace} />;
-      case "Schedule":
-        return (
-          <WorkspaceSchedulingTab
-            workspace={workspace}
-            accountId={accountId ?? workspace.accountId}
-            currentUserId={accountId ?? "anonymous"}
-          />
-        );
-      case "Audit":
-        return <WorkspaceAuditTab workspaceId={workspace.id} />;
-      case "Tasks":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="tasks"
-          />
-        );
-      case "TaskQa":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="qa"
-          />
-        );
-      case "TaskAcceptance":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="acceptance"
-          />
-        );
-      case "TaskIssues":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="issues"
-          />
-        );
-      case "TaskFinance":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="invoices"
-          />
-        );
-      case "Feed":
-        return (
-          <WorkspaceFeedWorkspaceView
-            accountId={accountId ?? workspace.accountId}
-            workspaceId={workspace.id}
-            workspaceName={workspace.name}
-          />
-        );
-      default:
-        return null;
-    }
-  }
-
-  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
-    ? initialTab
-    : "Overview";
-
-  return (
-    <div className="space-y-6">
-      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
-        ← 返回 Workspace Hub
-      </Link>
-
-      {!accountsHydrated && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          正在同步帳號內容…
-        </div>
-      )}
-
-      {loadState === "loading" && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            Loading workspace detail…
-          </CardContent>
-        </Card>
-      )}
-
-      {loadState === "error" && (
-        <Card className="border border-destructive/30">
-          <CardContent className="px-6 py-5 text-sm text-destructive">
-            無法載入工作區資料，請返回清單後重試。
-          </CardContent>
-        </Card>
-      )}
-
-      {loadState === "loaded" && !workspace && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            找不到此工作區。
-          </CardContent>
-        </Card>
-      )}
-
-      {workspace && (
-        <div className="space-y-6">
-          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
-          <nav
-            aria-label="Workspace tab navigation"
-            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
-          >
-            <div className="flex min-w-max items-center gap-0.5">
-              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
-                const tabs = getWorkspaceTabsByGroup(group);
-                const links = tabs.map((tab) => {
-                  const isActive = resolvedTab === tab;
-                  return (
-                    <Link
-                      key={tab}
-                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
-                      aria-current={isActive ? "page" : undefined}
-                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {getWorkspaceTabLabel(tab)}
-                    </Link>
-                  );
-                });
-                if (groupIndex > 0) {
-                  return [
-                    <div
-                      key={`sep-${group}`}
-                      aria-hidden="true"
-                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
-                    />,
-                    ...links,
-                  ];
-                }
-                return links;
-              })}
-            </div>
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
-          </div>
-          {renderTabContent(resolvedTab)}
-        </div>
-      )}
-
-      <WorkspaceSettingsDialog
-        open={isEditWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsEditWorkspaceOpen(open);
-          if (!open) {
-            clearSaveError();
-            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
-          }
-        }}
-        settingsDraft={settingsDraft}
-        setSettingsDraft={setSettingsDraft}
-        isSaving={isSavingWorkspace}
-        saveError={saveError}
-        onSubmit={(event) => void handleSave(event, settingsDraft)}
-      />
-    </div>
-  );
-}
+export { useWorkspaceHub } from "./hooks/useWorkspaceHub";
+export {
+	MAX_VISIBLE_RECENT_WORKSPACES,
+	getWorkspaceIdFromPath,
+	useRecentWorkspaces,
+} from "./hooks/useRecentWorkspaces";
 ````
 
 ## File: modules/workspace/interfaces/web/navigation/nav-preferences-data.ts
@@ -51012,6 +51734,169 @@ export function appendWorkspaceContextQuery(
 
   const query = params.toString();
   return query.length > 0 ? `${path}?${query}` : path;
+}
+````
+
+## File: modules/workspace/interfaces/web/providers/WorkspaceContextProvider.tsx
+````typescript
+"use client";
+
+/**
+ * WorkspaceContextProvider — workspace/interfaces/web layer
+ *
+ * Owns workspace-scoped state for the authenticated shell:
+ *   - workspaces visible under the active account
+ *   - active workspace selection and localStorage persistence
+ *
+ * Reads `activeAccount` from platform's useApp(); subscribes to workspaces
+ * via workspace-owned query functions. This keeps workspace state ownership
+ * inside the workspace bounded context instead of leaking into platform.
+ */
+
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useReducer,
+  type Dispatch,
+  type ReactNode,
+} from "react";
+
+import { useApp } from "@/modules/platform/api";
+import type { WorkspaceEntity } from "../../api/contracts";
+import { subscribeToWorkspacesForAccount } from "../../../application/queries/workspace.queries";
+import { toWorkspaceMap } from "../utils/workspace-map";
+import { getWorkspaceStorageKey } from "../state/workspace-session";
+
+// ── State ────────────────────────────────────────────────────────────────────
+
+export interface WorkspaceContextState {
+  /** Workspaces visible under the active account. */
+  workspaces: Record<string, WorkspaceEntity>;
+  /** True once the first active-account workspace snapshot has been received. */
+  workspacesHydrated: boolean;
+  /** Currently selected workspace context under the active account. */
+  activeWorkspaceId: string | null;
+}
+
+export type WorkspaceContextAction =
+  | {
+      type: "SET_WORKSPACES";
+      payload: { workspaces: Record<string, WorkspaceEntity>; hydrated: boolean };
+    }
+  | { type: "SET_ACTIVE_WORKSPACE"; payload: string | null }
+  | { type: "RESET" };
+
+export interface WorkspaceContextValue {
+  state: WorkspaceContextState;
+  dispatch: Dispatch<WorkspaceContextAction>;
+}
+
+const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
+
+const initialState: WorkspaceContextState = {
+  workspaces: {},
+  workspacesHydrated: false,
+  activeWorkspaceId: null,
+};
+
+function workspaceReducer(
+  state: WorkspaceContextState,
+  action: WorkspaceContextAction,
+): WorkspaceContextState {
+  switch (action.type) {
+    case "SET_WORKSPACES":
+      return {
+        ...state,
+        workspaces: action.payload.workspaces,
+        workspacesHydrated: action.payload.hydrated,
+      };
+    case "SET_ACTIVE_WORKSPACE":
+      if (state.activeWorkspaceId === action.payload) return state;
+      return { ...state, activeWorkspaceId: action.payload };
+    case "RESET":
+      return initialState;
+    default:
+      return state;
+  }
+}
+
+// ── Provider ─────────────────────────────────────────────────────────────────
+
+export function WorkspaceContextProvider({ children }: { children: ReactNode }) {
+  const { state: appState } = useApp();
+  const activeAccountId = appState.activeAccount?.id ?? null;
+  const [state, dispatch] = useReducer(workspaceReducer, initialState);
+
+  // Reset workspace state when account changes
+  useEffect(() => {
+    if (!activeAccountId) {
+      dispatch({ type: "RESET" });
+      return;
+    }
+    dispatch({ type: "SET_WORKSPACES", payload: { workspaces: {}, hydrated: false } });
+  }, [activeAccountId]);
+
+  // Restore active workspace from localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!activeAccountId) {
+      dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: null });
+      return;
+    }
+    const storedWorkspaceId = window.localStorage.getItem(
+      getWorkspaceStorageKey(activeAccountId),
+    );
+    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: storedWorkspaceId || null });
+  }, [activeAccountId]);
+
+  // Persist active workspace to localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!activeAccountId) return;
+    const storageKey = getWorkspaceStorageKey(activeAccountId);
+    if (!state.activeWorkspaceId) {
+      window.localStorage.removeItem(storageKey);
+      return;
+    }
+    window.localStorage.setItem(storageKey, state.activeWorkspaceId);
+  }, [activeAccountId, state.activeWorkspaceId]);
+
+  // Subscribe to workspaces for the active account
+  useEffect(() => {
+    if (!activeAccountId) {
+      dispatch({ type: "SET_WORKSPACES", payload: { workspaces: {}, hydrated: true } });
+      return;
+    }
+
+    const unsubscribe = subscribeToWorkspacesForAccount(
+      activeAccountId,
+      (workspaces) => {
+        dispatch({
+          type: "SET_WORKSPACES",
+          payload: { workspaces: toWorkspaceMap(workspaces), hydrated: true },
+        });
+      },
+    );
+
+    return () => unsubscribe();
+  }, [activeAccountId]);
+
+  return (
+    <WorkspaceContext.Provider value={{ state, dispatch }}>
+      {children}
+    </WorkspaceContext.Provider>
+  );
+}
+
+// ── Hook ─────────────────────────────────────────────────────────────────────
+
+export function useWorkspaceContext() {
+  const ctx = useContext(WorkspaceContext);
+  if (!ctx) {
+    throw new Error("useWorkspaceContext must be used within WorkspaceContextProvider");
+  }
+  return ctx;
 }
 ````
 
@@ -55520,288 +56405,19 @@ export class SimpleEventBus {
 }
 ````
 
-## File: app/(shell)/knowledge/page.tsx
+## File: app/(shell)/layout.tsx
 ````typescript
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { Brain, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
+/**
+ * app/(shell)/layout.tsx — Next.js route layout shim.
+ * Canonical implementation: app/(shell)/_shell/ShellRootLayout.tsx
+ */
 
-import { useApp, useAuth } from "@/modules/platform/api"
-import { buildWikiContentTree } from "@/modules/workspace/api";
-import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { ShellLayout } from "./_shell";
 
-const QUICK_ACCESS = [
-  {
-    href: "/knowledge/pages?scope=account",
-    title: "Pages",
-    description: "顯式 account summary 的頁面樹檢視與維運工具；日常建立與整理請從工作區進入。",
-    icon: FileText,
-  },
-  {
-    href: "/source/libraries",
-    title: "Libraries",
-    description: "維持 schema / table 型知識資產。",
-    icon: Database,
-  },
-  {
-    href: "/knowledge-base/articles",
-    title: "Articles",
-    description: "組織知識庫 SOP 文章、驗證管治與分類樹。",
-    icon: FolderKanban,
-  },
-  {
-    href: "/knowledge-database/databases",
-    title: "Databases",
-    description: "結構化資料庫、多視圖（表格、看板、日曆）管理。",
-    icon: Brain,
-  },
-  {
-    href: "/notebook/rag-query",
-    title: "Ask / Cite",
-    description: "查詢、引用與回答檢視。",
-    icon: MessageSquare,
-  },
-] as const;
-
-export default function KnowledgeHubPage() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const [contentTree, setContentTree] = useState<WikiAccountContentNode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const accountSeeds = useMemo<WikiAccountSeed[]>(() => {
-    const personalUser = authState.user;
-    const activeAccountId = appState.activeAccount?.id;
-    const seeds: WikiAccountSeed[] = [];
-
-    if (personalUser) {
-      seeds.push({
-        accountId: personalUser.id,
-        accountName: personalUser.name,
-        accountType: "personal",
-        isActive: activeAccountId === personalUser.id,
-      });
-    }
-
-    const organizations = Object.values(appState.accounts);
-    for (const organization of organizations) {
-      seeds.push({
-        accountId: organization.id,
-        accountName: organization.name,
-        accountType: "organization",
-        isActive: activeAccountId === organization.id,
-      });
-    }
-
-    return seeds;
-  }, [appState.accounts, appState.activeAccount?.id, authState.user]);
-
-  useEffect(() => {
-    let disposed = false;
-
-    async function load() {
-      setLoading(true);
-      try {
-        const result = await buildWikiContentTree(accountSeeds);
-        if (!disposed) {
-          setContentTree(result);
-        }
-      } catch {
-        if (!disposed) {
-          setContentTree([]);
-        }
-      } finally {
-        if (!disposed) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void load();
-
-    return () => {
-      disposed = true;
-    };
-  }, [accountSeeds]);
-
-  const activeAccount = contentTree.find((node) => node.isActive);
-  const highlightedWorkspace =
-    activeAccount?.workspaces.find((workspace) => workspace.workspaceId === appState.activeWorkspaceId) ??
-    activeAccount?.workspaces[0];
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Hub</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Knowledge Hub</h1>
-        <p className="text-sm text-muted-foreground">
-          從這裡進入 Knowledge、Knowledge Base、Knowledge Database、Source 與 Notebook 各模組。
-        </p>
-      </header>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Workspace-first entry</CardTitle>
-          <CardDescription>先鎖定 active account，再選擇要進入的工作區，最後才分流到 Knowledge、知識頁面、Notebook / AI。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loading ? (
-            <Skeleton className="h-6 w-48" />
-          ) : activeAccount ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Active Account</p>
-                <div className="mt-2 flex items-center gap-2 text-sm">
-                  <Building2 className="size-4 text-primary" />
-                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
-                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
-                </div>
-              </div>
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
-                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
-                  <FolderKanban className="size-4 text-primary" />
-                  <span>{activeAccount.workspaces.length} 個工作區可直接進入各自的知識頁面</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
-          )}
-
-          {highlightedWorkspace && (
-            <div className="grid gap-3 lg:grid-cols-[1fr_1.1fr]">
-              <div className="rounded-xl border border-border/60 px-4 py-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Highlighted workspace</p>
-                <p className="mt-2 text-sm font-semibold text-foreground">{highlightedWorkspace.workspaceName}</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  先把這個工作區當成知識主樞紐，再從裡面打開知識頁面與 Notebook / AI。
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Button asChild size="sm">
-                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}`}>進入工作區</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>知識頁面</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/ai-chat?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>
-                      Notebook / AI
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">Knowledge</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    先整理文件來源、Libraries 與 upload / ingest。
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">知識頁面</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    再用頁面樹與內容脈絡整理知識結構。
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    最後才消費這些知識做問答、摘要與洞察。
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {QUICK_ACCESS.map((item) => (
-              <Link key={item.href} href={item.href} className="group">
-                <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-                        <item.icon className="size-4" />
-                      </div>
-                      <CardTitle className="text-sm">{item.title}</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Workspace Snapshot</CardTitle>
-          <CardDescription>以下工作區皆屬於目前 active account；請優先從工作區進入，再分流到 Knowledge、知識頁面與 Notebook / AI。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-            </div>
-          ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
-            <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {activeAccount.workspaces.map((workspace) => (
-                <Card key={workspace.workspaceId} className="transition-colors hover:border-primary/40 hover:shadow-sm">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex flex-wrap gap-1">
-                      {workspace.contentBaseItems
-                        .filter((item) => item.enabled)
-                        .map((item) => (
-                          <Badge key={item.key} variant="secondary" className="text-[10px]">
-                            {item.label}
-                          </Badge>
-                        ))}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/workspace/${workspace.workspaceId}`}>Workspace</Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>知識頁面</Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/workspace/${workspace.workspaceId}?tab=Files`}>
-                          Files
-                        </Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
-                          <Brain className="mr-1 size-3.5" />
-                          Notebook
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return <ShellLayout>{children}</ShellLayout>;
 }
 ````
 
@@ -57143,6 +57759,211 @@ export function ArticleDetailPage({
         article={article}
         onSuccess={() => void load()}
       />
+    </div>
+  );
+}
+````
+
+## File: modules/notion/subdomains/authoring/interfaces/components/KnowledgeBaseArticlesRouteScreen.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
+
+import { useApp } from "@/modules/platform/api";
+import { useAuth } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
+import { getArticles, getCategories } from "../queries";
+import { ArticleDialog } from "./ArticleDialog";
+import { CategoryTreePanel } from "./CategoryTreePanel";
+
+const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  draft: { label: "草稿", variant: "outline" },
+  published: { label: "已發佈", variant: "default" },
+  archived: { label: "已封存", variant: "secondary" },
+};
+
+const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
+  verified: { label: "已驗證", icon: BadgeCheck },
+  needs_review: { label: "待審查", icon: FileClock },
+  unverified: { label: "未驗證", icon: CircleDot },
+};
+
+/**
+ * KnowledgeBaseArticlesRouteScreen
+ * Route-level screen component for /knowledge-base/articles.
+ * Encapsulates data-loading, filtering and layout so the Next.js route
+ * file stays thin (params/context wiring only).
+ */
+export function KnowledgeBaseArticlesRouteScreen() {
+  const router = useRouter();
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = wsState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!accountId || !workspaceId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const [arts, cats] = await Promise.all([
+        getArticles({ accountId, workspaceId }),
+        getCategories(accountId, workspaceId),
+      ]);
+      setArticles(arts);
+      setCategories(cats);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, workspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filteredArticles = useMemo(() => {
+    if (!selectedCategoryId) return articles;
+    const cat = categories.find((c) => c.id === selectedCategoryId);
+    if (!cat) return articles;
+    return articles.filter((a) => cat.articleIds.includes(a.id));
+  }, [articles, categories, selectedCategoryId]);
+
+  function handleSuccess(articleId?: string) {
+    if (articleId) {
+      router.push(`/knowledge-base/articles/${articleId}`);
+    } else {
+      load();
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
+        <p className="text-sm text-muted-foreground">
+          組織知識庫的 SOP 文章、通用文件與驗證管治。
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push("/knowledge")}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!accountId || !workspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          新增文章
+        </Button>
+      </div>
+
+      <ArticleDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        categories={categories}
+        onSuccess={handleSuccess}
+      />
+
+      {!accountId || !workspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號/工作區情境，請先登入或切換帳號。
+        </p>
+      ) : loading ? (
+        <div className="flex gap-4">
+          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
+          <div className="grid flex-1 gap-3 sm:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-4">
+          <CategoryTreePanel
+            categories={categories}
+            selectedId={selectedCategoryId}
+            onSelect={setSelectedCategoryId}
+          />
+
+          <div className="flex-1">
+            {filteredArticles.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  {selectedCategoryId ? "此分類尚無文章。" : "尚無文章。點擊「新增文章」開始建立。"}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {filteredArticles.map((article) => {
+                  const status = STATUS_CONFIG[article.status];
+                  const veri = VERIFICATION_CONFIG[article.verificationState];
+                  const VeriIcon = veri.icon;
+                  return (
+                    <Card
+                      key={article.id}
+                      className="cursor-pointer hover:bg-muted/10 transition-colors"
+                      onClick={() => router.push(`/knowledge-base/articles/${article.id}`)}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
+                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <VeriIcon className="h-3 w-3" />
+                          <span>{veri.label}</span>
+                        </div>
+                        {article.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {article.tags.slice(0, 3).map((tag) => (
+                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-muted-foreground/70">
+                          v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -58578,6 +59399,158 @@ export function DatabaseTableView({ database, accountId, workspaceId, currentUse
 }
 ````
 
+## File: modules/notion/subdomains/database/interfaces/components/KnowledgeDatabasesRouteScreen.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Table2 } from "lucide-react";
+
+import { useApp } from "@/modules/platform/api";
+import { useAuth } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import type { DatabaseSnapshot as Database } from "../../application/dto/database.dto";
+import { getDatabases } from "../queries";
+import { DatabaseDialog } from "./DatabaseDialog";
+
+/**
+ * KnowledgeDatabasesRouteScreen
+ * Route-level screen component for /knowledge-database/databases.
+ * Encapsulates data-loading and layout so the Next.js route file stays thin.
+ */
+export function KnowledgeDatabasesRouteScreen() {
+  const router = useRouter();
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = wsState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  const [databases, setDatabases] = useState<Database[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!accountId || !workspaceId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const data = await getDatabases(accountId, workspaceId);
+      setDatabases(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, workspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function handleSuccess(databaseId?: string) {
+    if (databaseId) {
+      router.push(`/knowledge-database/databases/${databaseId}`);
+    } else {
+      load();
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Database</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
+        <p className="text-sm text-muted-foreground">
+          結構化資料表、看板、日曆與多視圖管理，對應 Notion Database 能力。
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push("/knowledge")}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!accountId || !workspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          新增資料庫
+        </Button>
+      </div>
+
+      <DatabaseDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        onSuccess={handleSuccess}
+      />
+
+      {!accountId || !workspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號/工作區情境，請先登入或切換帳號。
+        </p>
+      ) : loading ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : databases.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+          <Table2 className="h-8 w-8 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">尚無資料庫。點擊「新增資料庫」開始建立。</p>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {databases.map((db) => (
+            <Card
+              key={db.id}
+              className="cursor-pointer hover:bg-muted/10 transition-colors"
+              onClick={() => router.push(`/knowledge-database/databases/${db.id}`)}
+            >
+              <CardHeader className="pb-2">
+                <div className="flex items-start gap-2">
+                  {db.icon ? (
+                    <span className="text-lg leading-none">{db.icon}</span>
+                  ) : (
+                    <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <CardTitle className="line-clamp-1 text-sm font-medium">{db.name}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {db.description && (
+                  <p className="line-clamp-2 text-xs text-muted-foreground">{db.description}</p>
+                )}
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
+                  <span>{db.fields.length} 個欄位</span>
+                  <span>·</span>
+                  <span>{db.viewIds.length} 個視圖</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground/50">
+                  {new Date(db.updatedAtISO).toLocaleDateString("zh-TW")}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
 ## File: modules/notion/subdomains/database/interfaces/queries/index.ts
 ````typescript
 /**
@@ -58990,6 +59963,129 @@ export function KnowledgePageDetailPage({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgePagesRouteScreen.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import { useApp } from "@/modules/platform/api";
+import { useAuth } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import type { KnowledgePageTreeNode } from "../../application/dto/knowledge.dto";
+import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
+import { PageTreeView } from "./PageTreeView";
+
+/**
+ * KnowledgePagesRouteScreen
+ * Route-level screen component for /knowledge/pages.
+ * Encapsulates data-loading, scope resolution and layout so that the
+ * Next.js route file stays thin (params/context wiring only).
+ */
+export function KnowledgePagesRouteScreen() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+  const scopeParam = searchParams.get("scope")?.trim() ?? "";
+  const isAccountSummary = scopeParam === "account";
+  const workspaceId = isAccountSummary ? "" : requestedWorkspaceId || wsState.activeWorkspaceId || "";
+  const currentUserId = authState.user?.id ?? "";
+
+  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    if (!accountId) { setLoading(false); return; }
+    if (!isAccountSummary && !workspaceId) {
+      setNodes([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const tree = isAccountSummary
+        ? await getKnowledgePageTree(accountId)
+        : await getKnowledgePageTreeByWorkspace(accountId, workspaceId);
+      setNodes(tree);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, isAccountSummary, workspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={isAccountSummary ? "secondary" : "outline"}>
+            {isAccountSummary ? "Account Summary" : "Workspace Scope"}
+          </Badge>
+          <p className="text-sm text-muted-foreground">
+            {isAccountSummary
+              ? "這是顯式 account summary mode。僅用於跨工作區總覽，預設不在此建立新頁面。"
+              : "知識頁面階層樹預設綁定目前工作區。點選頁面進入內容編輯器。"}
+          </p>
+        </div>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push("/knowledge")}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+      </div>
+
+      {!accountId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號情境，請先登入。
+        </p>
+      ) : !isAccountSummary && !workspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未選定工作區。請先從工作區進入知識頁面，或在網址帶入 workspaceId 後再查看頁面樹。
+        </p>
+      ) : loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-full" />
+          ))}
+        </div>
+      ) : (
+        <PageTreeView
+          nodes={nodes}
+          accountId={accountId}
+          workspaceId={workspaceId || undefined}
+          currentUserId={currentUserId}
+          allowCreate={!isAccountSummary && Boolean(workspaceId)}
+          emptyStateDescription={
+            isAccountSummary
+              ? "這個 account summary 目前沒有可顯示的頁面。請改從工作區建立與維護頁面。"
+              : "這個工作區尚無頁面。點擊「新增頁面」開始建立。"
+          }
+          onPageClick={(pageId) => router.push(`/knowledge/pages/${pageId}`)}
+          onCreated={() => load()}
+        />
+      )}
     </div>
   );
 }
@@ -60809,6 +61905,45 @@ export function ShellContextNavSection({
 export * from "./dtos";
 export * from "./use-cases";
 export * from "./services/shell-account-access";
+````
+
+## File: modules/platform/subdomains/access-control/application/services/shell-account-access.ts
+````typescript
+export interface ShellAccountActor {
+  readonly id: string;
+  readonly accountType?: string;
+}
+
+export function isOrganizationActor(
+  account: ShellAccountActor | null | undefined,
+): account is ShellAccountActor & { accountType: "organization" } {
+  return account?.accountType === "organization";
+}
+
+/**
+ * Type-narrowing guard for ActiveAccount (union of AccountEntity | AuthUser).
+ * Returns true when the active account is an organization account.
+ */
+export function isActiveOrganizationAccount(
+  activeAccount: { id: string; accountType?: string } | null,
+): activeAccount is { id: string; accountType: "organization" } & Record<string, unknown> {
+  return isOrganizationActor(activeAccount);
+}
+
+/**
+ * Keep shell fallback behavior centralized so route access rules are not
+ * duplicated across layout components.
+ */
+export function resolveOrganizationRouteFallback(
+  pathname: string,
+  account: ShellAccountActor | null | undefined,
+): string | null {
+  if (pathname === "/organization" && !isOrganizationActor(account)) {
+    return "/workspace";
+  }
+
+  return null;
+}
 ````
 
 ## File: modules/platform/subdomains/access-control/infrastructure/index.ts
@@ -64296,6 +65431,293 @@ export function createWorkspaceSessionContext(
 }
 ````
 
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState } from "react";
+
+import {
+  Card,
+  CardContent,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { WorkspaceAuditTab } from "@/modules/workspace/api";
+import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
+import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
+import { WorkspaceFlowTab } from "@/modules/workspace/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
+import { useApp } from "@/modules/platform/api";
+import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
+
+import {
+  createSettingsDraft,
+  type WorkspaceSettingsDraft,
+} from "../../state/workspace-settings";
+import {
+  getWorkspaceAddressLines,
+  getWorkspacePersonnelEntries,
+} from "../../view-models/workspace-supporting-records";
+import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
+import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabValue,
+} from "../../navigation/workspace-tabs";
+import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
+import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
+import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
+import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
+import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
+
+interface WorkspaceDetailScreenProps {
+  readonly workspaceId: string;
+  readonly accountId: string | null | undefined;
+  readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
+  readonly initialOverviewPanel?: string;
+}
+
+export function WorkspaceDetailScreen({
+  workspaceId,
+  accountId,
+  accountsHydrated,
+  initialTab,
+  initialOverviewPanel,
+}: WorkspaceDetailScreenProps) {
+  const { state: appState, dispatch } = useApp();
+  const { state: wsState } = useWorkspaceContext();
+  const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
+    workspaceId,
+    accountId,
+    accountsHydrated,
+  );
+  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
+
+  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
+    workspace,
+    accountId,
+    onSaved: (updated) => {
+      setWorkspace(updated);
+      setSettingsDraft(createSettingsDraft(updated));
+      setIsEditWorkspaceOpen(false);
+    },
+  });
+
+  const personnelEntries = useMemo(() => {
+    return workspace ? getWorkspacePersonnelEntries(workspace) : [];
+  }, [workspace]);
+
+  const addressLines = useMemo(() => {
+    return workspace ? getWorkspaceAddressLines(workspace) : [];
+  }, [workspace]);
+
+  function renderTabContent(tab: WorkspaceTabValue) {
+    if (!workspace) return null;
+
+    switch (tab) {
+      case "Overview":
+        return (
+          <WorkspaceOverviewTab
+            workspace={workspace}
+            activeWorkspaceId={wsState.activeWorkspaceId}
+            personnelEntries={personnelEntries}
+            addressLines={addressLines}
+            showSettingsPanel={initialOverviewPanel === "settings"}
+            onEditClick={() => {
+              setSettingsDraft(createSettingsDraft(workspace));
+              clearSaveError();
+              setIsEditWorkspaceOpen(true);
+            }}
+            onSetActiveWorkspace={() =>
+              dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
+            }
+          />
+        );
+      case "Members":
+        return <WorkspaceMembersTab workspace={workspace} />;
+      case "Daily":
+        return <WorkspaceDailyTab workspace={workspace} />;
+      case "Files":
+        return <WorkspaceFilesTab workspace={workspace} />;
+      case "Schedule":
+        return (
+          <WorkspaceSchedulingTab
+            workspace={workspace}
+            accountId={accountId ?? workspace.accountId}
+            currentUserId={accountId ?? "anonymous"}
+          />
+        );
+      case "Audit":
+        return <WorkspaceAuditTab workspaceId={workspace.id} />;
+      case "Tasks":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="tasks"
+          />
+        );
+      case "TaskQa":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="qa"
+          />
+        );
+      case "TaskAcceptance":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="acceptance"
+          />
+        );
+      case "TaskIssues":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="issues"
+          />
+        );
+      case "TaskFinance":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="invoices"
+          />
+        );
+      case "Feed":
+        return (
+          <WorkspaceFeedWorkspaceView
+            accountId={accountId ?? workspace.accountId}
+            workspaceId={workspace.id}
+            workspaceName={workspace.name}
+          />
+        );
+      default:
+        return null;
+    }
+  }
+
+  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
+    ? initialTab
+    : "Overview";
+
+  return (
+    <div className="space-y-6">
+      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
+        ← 返回 Workspace Hub
+      </Link>
+
+      {!accountsHydrated && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          正在同步帳號內容…
+        </div>
+      )}
+
+      {loadState === "loading" && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            Loading workspace detail…
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "error" && (
+        <Card className="border border-destructive/30">
+          <CardContent className="px-6 py-5 text-sm text-destructive">
+            無法載入工作區資料，請返回清單後重試。
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "loaded" && !workspace && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            找不到此工作區。
+          </CardContent>
+        </Card>
+      )}
+
+      {workspace && (
+        <div className="space-y-6">
+          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+          <nav
+            aria-label="Workspace tab navigation"
+            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
+          >
+            <div className="flex min-w-max items-center gap-0.5">
+              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
+                const tabs = getWorkspaceTabsByGroup(group);
+                const links = tabs.map((tab) => {
+                  const isActive = resolvedTab === tab;
+                  return (
+                    <Link
+                      key={tab}
+                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {getWorkspaceTabLabel(tab)}
+                    </Link>
+                  );
+                });
+                if (groupIndex > 0) {
+                  return [
+                    <div
+                      key={`sep-${group}`}
+                      aria-hidden="true"
+                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
+                    />,
+                    ...links,
+                  ];
+                }
+                return links;
+              })}
+            </div>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
+          </div>
+          {renderTabContent(resolvedTab)}
+        </div>
+      )}
+
+      <WorkspaceSettingsDialog
+        open={isEditWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsEditWorkspaceOpen(open);
+          if (!open) {
+            clearSaveError();
+            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
+          }
+        }}
+        settingsDraft={settingsDraft}
+        setSettingsDraft={setSettingsDraft}
+        isSaving={isSavingWorkspace}
+        saveError={saveError}
+        onSubmit={(event) => void handleSave(event, settingsDraft)}
+      />
+    </div>
+  );
+}
+````
+
 ## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
 ````typescript
 export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
@@ -65362,6 +66784,292 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: app/(shell)/knowledge/page.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { Brain, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
+
+import { useApp, useAuth } from "@/modules/platform/api"
+import { buildWikiContentTree, useWorkspaceContext } from "@/modules/workspace/api";
+import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+const QUICK_ACCESS = [
+  {
+    href: "/knowledge/pages?scope=account",
+    title: "Pages",
+    description: "顯式 account summary 的頁面樹檢視與維運工具；日常建立與整理請從工作區進入。",
+    icon: FileText,
+  },
+  {
+    href: "/source/libraries",
+    title: "Libraries",
+    description: "維持 schema / table 型知識資產。",
+    icon: Database,
+  },
+  {
+    href: "/knowledge-base/articles",
+    title: "Articles",
+    description: "組織知識庫 SOP 文章、驗證管治與分類樹。",
+    icon: FolderKanban,
+  },
+  {
+    href: "/knowledge-database/databases",
+    title: "Databases",
+    description: "結構化資料庫、多視圖（表格、看板、日曆）管理。",
+    icon: Brain,
+  },
+  {
+    href: "/notebook/rag-query",
+    title: "Ask / Cite",
+    description: "查詢、引用與回答檢視。",
+    icon: MessageSquare,
+  },
+] as const;
+
+export default function KnowledgeHubPage() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
+  const [contentTree, setContentTree] = useState<WikiAccountContentNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const accountSeeds = useMemo<WikiAccountSeed[]>(() => {
+    const personalUser = authState.user;
+    const activeAccountId = appState.activeAccount?.id;
+    const seeds: WikiAccountSeed[] = [];
+
+    if (personalUser) {
+      seeds.push({
+        accountId: personalUser.id,
+        accountName: personalUser.name,
+        accountType: "personal",
+        isActive: activeAccountId === personalUser.id,
+      });
+    }
+
+    const organizations = Object.values(appState.accounts);
+    for (const organization of organizations) {
+      seeds.push({
+        accountId: organization.id,
+        accountName: organization.name,
+        accountType: "organization",
+        isActive: activeAccountId === organization.id,
+      });
+    }
+
+    return seeds;
+  }, [appState.accounts, appState.activeAccount?.id, authState.user]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const result = await buildWikiContentTree(accountSeeds);
+        if (!disposed) {
+          setContentTree(result);
+        }
+      } catch {
+        if (!disposed) {
+          setContentTree([]);
+        }
+      } finally {
+        if (!disposed) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+
+    return () => {
+      disposed = true;
+    };
+  }, [accountSeeds]);
+
+  const activeAccount = contentTree.find((node) => node.isActive);
+  const highlightedWorkspace =
+    activeAccount?.workspaces.find((workspace) => workspace.workspaceId === wsState.activeWorkspaceId) ??
+    activeAccount?.workspaces[0];
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Hub</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Knowledge Hub</h1>
+        <p className="text-sm text-muted-foreground">
+          從這裡進入 Knowledge、Knowledge Base、Knowledge Database、Source 與 Notebook 各模組。
+        </p>
+      </header>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Workspace-first entry</CardTitle>
+          <CardDescription>先鎖定 active account，再選擇要進入的工作區，最後才分流到 Knowledge、知識頁面、Notebook / AI。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loading ? (
+            <Skeleton className="h-6 w-48" />
+          ) : activeAccount ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Active Account</p>
+                <div className="mt-2 flex items-center gap-2 text-sm">
+                  <Building2 className="size-4 text-primary" />
+                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
+                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
+                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
+                  <FolderKanban className="size-4 text-primary" />
+                  <span>{activeAccount.workspaces.length} 個工作區可直接進入各自的知識頁面</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
+          )}
+
+          {highlightedWorkspace && (
+            <div className="grid gap-3 lg:grid-cols-[1fr_1.1fr]">
+              <div className="rounded-xl border border-border/60 px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Highlighted workspace</p>
+                <p className="mt-2 text-sm font-semibold text-foreground">{highlightedWorkspace.workspaceName}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  先把這個工作區當成知識主樞紐，再從裡面打開知識頁面與 Notebook / AI。
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button asChild size="sm">
+                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}`}>進入工作區</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>知識頁面</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/ai-chat?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>
+                      Notebook / AI
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">Knowledge</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    先整理文件來源、Libraries 與 upload / ingest。
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">知識頁面</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    再用頁面樹與內容脈絡整理知識結構。
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    最後才消費這些知識做問答、摘要與洞察。
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {QUICK_ACCESS.map((item) => (
+              <Link key={item.href} href={item.href} className="group">
+                <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <item.icon className="size-4" />
+                      </div>
+                      <CardTitle className="text-sm">{item.title}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Workspace Snapshot</CardTitle>
+          <CardDescription>以下工作區皆屬於目前 active account；請優先從工作區進入，再分流到 Knowledge、知識頁面與 Notebook / AI。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+            </div>
+          ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
+            <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {activeAccount.workspaces.map((workspace) => (
+                <Card key={workspace.workspaceId} className="transition-colors hover:border-primary/40 hover:shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex flex-wrap gap-1">
+                      {workspace.contentBaseItems
+                        .filter((item) => item.enabled)
+                        .map((item) => (
+                          <Badge key={item.key} variant="secondary" className="text-[10px]">
+                            {item.label}
+                          </Badge>
+                        ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/workspace/${workspace.workspaceId}`}>Workspace</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>知識頁面</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/workspace/${workspace.workspaceId}?tab=Files`}>
+                          Files
+                        </Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
+                          <Brain className="mr-1 size-3.5" />
+                          Notebook
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 ````
 
 ## File: app/(shell)/settings/profile/page.tsx
@@ -67003,6 +68711,84 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/interfaces/web/providers/ShellAppContext.ts
+````typescript
+"use client";
+
+/**
+ * ShellAppContext — platform/interfaces/web layer
+ *
+ * Context definition, types, and the useApp() hook.
+ * Owns NO workspace-module dependencies — workspace state is managed by
+ * WorkspaceContextProvider in the workspace bounded context.
+ *
+ * The AppProvider that creates this context lives in app/(shell)/ where
+ * cross-module composition is allowed.
+ */
+
+import {
+  createContext,
+  useContext,
+  type Dispatch,
+} from "react";
+
+import type { AccountEntity } from "../../../subdomains/account/api";
+import type { ActiveAccount } from "../../../api/contracts";
+
+// ── State ────────────────────────────────────────────────────────────────────
+
+export interface AppState {
+  /** All organization accounts visible to the signed-in user. */
+  accounts: Record<string, AccountEntity>;
+  /** True once the first Firestore snapshot has been received. */
+  accountsHydrated: boolean;
+  /** Bootstrap phase for optimistic seeding. */
+  bootstrapPhase: "idle" | "seeded" | "hydrated";
+  /** Currently selected account (personal user account or an organization). */
+  activeAccount: ActiveAccount | null;
+}
+
+export type AppAction =
+  | {
+      type: "SEED_ACTIVE_ACCOUNT";
+      payload: { user: { id: string; name: string; email: string } };
+    }
+  | {
+      type: "SET_ACCOUNTS";
+      payload: {
+        accounts: Record<string, AccountEntity>;
+        user: { id: string; name: string; email: string };
+        preferredActiveAccountId?: string | null;
+      };
+    }
+  | { type: "SET_ACTIVE_ACCOUNT"; payload: ActiveAccount | null }
+  | { type: "RESET_STATE" };
+
+export interface AppContextValue {
+  state: AppState;
+  dispatch: Dispatch<AppAction>;
+}
+
+export const AppContext = createContext<AppContextValue | null>(null);
+
+// ── Initial State ────────────────────────────────────────────────────────────
+
+export const APP_INITIAL_STATE: AppState = {
+  accounts: {},
+  accountsHydrated: false,
+  bootstrapPhase: "idle",
+  activeAccount: null,
+};
+
+// ── Hook ─────────────────────────────────────────────────────────────────────
+
+export function useApp() {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error("useApp must be used within AppProvider");
+  return ctx;
+}
 ````
 
 ## File: modules/platform/interfaces/web/providers/ShellAppProvider.tsx
@@ -69257,26 +71043,6 @@ export { GetSubscriptionEntitlementsUseCase } from "../queries/get-subscription-
 export { GetWorkflowPolicyViewUseCase } from "../queries/get-workflow-policy-view.queries";
 ````
 
-## File: modules/platform/subdomains/access-control/api/index.ts
-````typescript
-/**
- * Public API boundary for the access-control subdomain.
- */
-export * from "../application";
-export { accessControlService } from "../infrastructure";
-export type { AccessPolicySnapshot, CreateAccessPolicyInput } from "../domain/aggregates/AccessPolicy";
-export type { AccessPolicyDomainEventType } from "../domain/events/AccessPolicyDomainEvent";
-export type { AccessPolicyRepository } from "../domain/repositories/AccessPolicyRepository";
-export type { SubjectRef } from "../domain/value-objects/SubjectRef";
-export type { ResourceRef } from "../domain/value-objects/ResourceRef";
-export type { PolicyEffect } from "../domain/value-objects/PolicyEffect";
-export {
-	isOrganizationActor,
-	resolveOrganizationRouteFallback,
-	type ShellAccountActor,
-} from "../application/services/shell-account-access";
-````
-
 ## File: modules/platform/subdomains/account-profile/domain/index.ts
 ````typescript
 export {
@@ -69874,6 +71640,25 @@ export class WorkspaceQueryApplicationService implements WorkspaceQueryPort {
 }
 ````
 
+## File: modules/workspace/application/use-cases/workspace.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Re-export barrel for workspace command use cases that remain at root level.
+ *          Lifecycle use cases → subdomains/lifecycle/
+ *          Sharing use cases → subdomains/sharing/
+ *          Queries → application/queries/
+ *
+ * DDD Rule 12: Command → use-cases/
+ * DDD Rule 13: Read → queries/
+ */
+
+export { MountCapabilitiesUseCase } from "./workspace-capabilities.use-cases";
+
+export { CreateWorkspaceLocationUseCase } from "./workspace-location.use-cases";
+````
+
 ## File: modules/workspace/interfaces/api/runtime/workspace-runtime.ts
 ````typescript
 import { WorkspaceCommandApplicationService } from "../../../application/services/WorkspaceCommandApplicationService";
@@ -70466,6 +72251,27 @@ export function SimpleNavLinks({
 }
 ````
 
+## File: modules/platform/subdomains/access-control/api/index.ts
+````typescript
+/**
+ * Public API boundary for the access-control subdomain.
+ */
+export * from "../application";
+export { accessControlService } from "../infrastructure";
+export type { AccessPolicySnapshot, CreateAccessPolicyInput } from "../domain/aggregates/AccessPolicy";
+export type { AccessPolicyDomainEventType } from "../domain/events/AccessPolicyDomainEvent";
+export type { AccessPolicyRepository } from "../domain/repositories/AccessPolicyRepository";
+export type { SubjectRef } from "../domain/value-objects/SubjectRef";
+export type { ResourceRef } from "../domain/value-objects/ResourceRef";
+export type { PolicyEffect } from "../domain/value-objects/PolicyEffect";
+export {
+	isOrganizationActor,
+	isActiveOrganizationAccount,
+	resolveOrganizationRouteFallback,
+	type ShellAccountActor,
+} from "../application/services/shell-account-access";
+````
+
 ## File: modules/platform/subdomains/account-profile/infrastructure/create-legacy-account-profile-application.adapter.ts
 ````typescript
 import {
@@ -70915,25 +72721,6 @@ export async function dismissPartnerMember(
 }
 ````
 
-## File: modules/workspace/application/use-cases/workspace.use-cases.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Re-export barrel for workspace command use cases that remain at root level.
- *          Lifecycle use cases → subdomains/lifecycle/
- *          Sharing use cases → subdomains/sharing/
- *          Queries → application/queries/
- *
- * DDD Rule 12: Command → use-cases/
- * DDD Rule 13: Read → queries/
- */
-
-export { MountCapabilitiesUseCase } from "./workspace-capabilities.use-cases";
-
-export { CreateWorkspaceLocationUseCase } from "./workspace-location.use-cases";
-````
-
 ## File: modules/notebooklm/AGENT.md
 ````markdown
 # NotebookLM Agent
@@ -71268,6 +73055,42 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
+## File: modules/platform/subdomains/notification/interfaces/queries/notification.queries.ts
+````typescript
+/**
+ * Notification Queries — delegates to notificationService via the subdomain api/ boundary.
+ */
+
+import { notificationService } from "../../api";
+import type { NotificationEntity } from "../../application/dtos/notification.dto";
+
+export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
+  return notificationService.getForRecipient(recipientId, maxCount);
+}
+````
+
+## File: modules/platform/subdomains/organization/interfaces/queries/organization.queries.ts
+````typescript
+/**
+ * Organization Queries — delegates to organizationQueryService via the subdomain api/ boundary.
+ */
+
+import { organizationQueryService } from "../../api";
+import type { MemberReference, Team, OrgPolicy } from "../../application/dtos/organization.dto";
+
+export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
+  return organizationQueryService.getMembers(organizationId);
+}
+
+export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
+  return organizationQueryService.getTeams(organizationId);
+}
+
+export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
+  return organizationQueryService.getOrgPolicies(orgId);
+}
+````
+
 ## File: modules/platform/api/index.ts
 ````typescript
 /**
@@ -71377,49 +73200,15 @@ export * from "../subdomains/background-job/api";
 // Only selective exports — do NOT wildcard re-export "../interfaces".
 export {
   useApp,
-  Providers,
-  ShellLayout,
-  isActiveOrganizationAccount,
-  quickCreateKnowledgePage,
-  type QuickCreatePageInput,
-  type QuickCreatePageResult,
 } from "../interfaces";
-````
 
-## File: modules/platform/subdomains/notification/interfaces/queries/notification.queries.ts
-````typescript
-/**
- * Notification Queries — delegates to notificationService via the subdomain api/ boundary.
- */
-
-import { notificationService } from "../../api";
-import type { NotificationEntity } from "../../application/dtos/notification.dto";
-
-export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
-  return notificationService.getForRecipient(recipientId, maxCount);
-}
-````
-
-## File: modules/platform/subdomains/organization/interfaces/queries/organization.queries.ts
-````typescript
-/**
- * Organization Queries — delegates to organizationQueryService via the subdomain api/ boundary.
- */
-
-import { organizationQueryService } from "../../api";
-import type { MemberReference, Team, OrgPolicy } from "../../application/dtos/organization.dto";
-
-export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
-  return organizationQueryService.getMembers(organizationId);
-}
-
-export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
-  return organizationQueryService.getTeams(organizationId);
-}
-
-export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
-  return organizationQueryService.getOrgPolicies(orgId);
-}
+// access-control — account type guards and route fallback
+export {
+  isOrganizationActor,
+  isActiveOrganizationAccount,
+  resolveOrganizationRouteFallback,
+  type ShellAccountActor,
+} from "../subdomains/access-control/api";
 ````
 
 ## File: modules/platform/subdomains/account-profile/api/index.ts
@@ -72004,36 +73793,15 @@ export { ShellUserAvatar } from "./shell/header/components/ShellUserAvatar";
 export { ShellTranslationSwitcher } from "./shell/header/components/ShellTranslationSwitcher";
 export { ShellAppBreadcrumbs } from "./shell/breadcrumbs/ShellAppBreadcrumbs";
 export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./shell/search/ShellGlobalSearchDialog";
-export { AppRail } from "./shell/sidebar/ShellAppRail";
-export { ShellDashboardSidebar } from "./shell/navigation/components/ShellDashboardSidebar";
-export {
-  quickCreateKnowledgePage,
-  type QuickCreatePageInput,
-  type QuickCreatePageResult,
-} from "./shell/navigation/services/shell-quick-create";
-export { ShellLayout } from "./shell/layout/ShellRootLayout";
-export type { DashboardSidebarProps, NavSection } from "./shell/navigation/data/ShellSidebarNavData";
-export {
-  resolveNavSection,
-  isActiveOrganizationAccount,
-  SECTION_TITLES,
-  ACCOUNT_NAV_ITEMS,
-  ACCOUNT_SECTION_MATCHERS,
-  ORGANIZATION_MANAGEMENT_ITEMS,
-  sidebarItemClass,
-  sidebarSectionTitleClass,
-  sidebarGroupButtonClass,
-  SimpleNavLinks,
-} from "./shell/navigation/data/ShellSidebarNavData";
 
-// providers
+// providers — context and useApp from platform-only ShellAppContext
 export {
   AppContext,
+  APP_INITIAL_STATE,
+  useApp,
   type AppState,
   type AppAction,
   type AppContextValue,
-  type ActiveAccount,
-} from "./providers/ShellAppProvider";
-export { AppProvider, useApp } from "./providers/ShellAppProvider";
-export { Providers } from "./providers/ShellProviders";
+} from "./providers/ShellAppContext";
+export type { ActiveAccount } from "../../api/contracts";
 ````

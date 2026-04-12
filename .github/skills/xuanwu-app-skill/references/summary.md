@@ -41,24 +41,24 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1420 files | 66,358 lines
+1433 files | 68,074 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1120 | 39,843 |
-| TypeScript (TSX) | 195 | 23,768 |
+| TypeScript | 1123 | 39,959 |
+| TypeScript (TSX) | 205 | 25,368 |
 | Markdown | 90 | 2,536 |
 | No Extension | 14 | 14 |
 | CSS | 1 | 197 |
 
 **Largest files:**
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
-- `app/(shell)/dev-tools/page.tsx` (475 lines)
+- `app/(shell)/dev-tools/page.tsx` (477 lines)
 - `packages/ui-shadcn/ui/chart.tsx` (356 lines)
 - `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)
 - `modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx` (341 lines)
 - `modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx` (339 lines)
 - `modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx` (321 lines)
 - `modules/workspace/domain/aggregates/Workspace.ts` (305 lines)
+- `app/(shell)/_shell/ShellAppRail.tsx` (305 lines)
 - `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)
-- `modules/notion/subdomains/authoring/interfaces/components/ArticleDetailPage.tsx` (298 lines)
