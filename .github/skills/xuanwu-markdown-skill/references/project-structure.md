@@ -27,7 +27,7 @@
 .github/agents/test-scenario-writer.agent.md (33 lines)
 .github/agents/ts-interface-writer.agent.md (39 lines)
 .github/copilot-instructions.md (70 lines)
-.github/instructions/architecture-core.instructions.md (71 lines)
+.github/instructions/architecture-core.instructions.md (72 lines)
 .github/instructions/architecture-runtime.instructions.md (40 lines)
 .github/instructions/bounded-context-rules.instructions.md (34 lines)
 .github/instructions/ci-cd.instructions.md (20 lines)
