@@ -105,7 +105,7 @@ export function buildWorkspaceQuickAccessItems(
   const encodedAccountId = accountId ? encodeURIComponent(accountId) : "";
   const workspaceBaseHref = accountId
     ? `/${encodedAccountId}/${encodedWorkspaceId}`
-    : `/workspace/${encodedWorkspaceId}`;
+    : "/";
 
   return WORKSPACE_QUICK_ACCESS_TEMPLATES.map((item) => ({
     ...item,

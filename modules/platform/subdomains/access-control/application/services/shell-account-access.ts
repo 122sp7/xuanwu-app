@@ -34,7 +34,7 @@ export function resolveOrganizationRouteFallback(
   const segments = pathname.split("/").filter(Boolean);
   const isLegacyOrganizationPath = segments[0] === "organization";
   const isAccountScopedOrganizationPath =
-    segments.length >= 2 && segments[0] === account.id && segments[1] === "organization";
+    segments.length >= 2 && segments[1] === "organization";
 
   if ((isLegacyOrganizationPath || isAccountScopedOrganizationPath) && !isOrganizationActor(account)) {
     return `/${encodeURIComponent(account.id)}`;

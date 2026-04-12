@@ -178,7 +178,10 @@ export function WorkspaceDetailScreen({
 
   return (
     <div className="space-y-6">
-      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
+      <Link
+        href={accountId ? `/${encodeURIComponent(accountId)}` : "/"}
+        className="inline-flex text-sm font-medium text-primary hover:underline md:hidden"
+      >
         ← 返回 Workspace Hub
       </Link>
 
@@ -227,7 +230,9 @@ export function WorkspaceDetailScreen({
                   return (
                     <Link
                       key={tab}
-                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
+                      href={accountId
+                        ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}?tab=${encodeURIComponent(tab)}`
+                        : "/"}
                       aria-current={isActive ? "page" : undefined}
                       className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
                         isActive

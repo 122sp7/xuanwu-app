@@ -73,7 +73,7 @@ function buildWorkspaceBaseHref(workspaceId: string, accountId?: string | null):
   if (accountId) {
     return `/${encodeURIComponent(accountId)}/${encodedWorkspaceId}`;
   }
-  return `/workspace/${encodedWorkspaceId}`;
+  return "/";
 }
 
 export function buildWorkspaceOverviewPanelHref(
