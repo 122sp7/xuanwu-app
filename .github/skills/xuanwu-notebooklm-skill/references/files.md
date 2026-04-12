@@ -1,25 +1,99 @@
 # Files
 
+## File: modules/notebooklm/api/api.instructions.md
+````markdown
+---
+description: 'NotebookLM API boundary rules: cross-module entry surface, tRPC server factory, and published language for notebook/source/conversation references.'
+applyTo: 'modules/notebooklm/api/**/*.{ts,tsx}'
+---
+
+# NotebookLM API Layer (Local)
+
+Use this file as execution guardrails for `modules/notebooklm/api/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notebooklm/context-map.md`.
+
+## Core Rules
+
+- `api/` is the **only** cross-module entry surface; never expose `domain/`, `application/`, or `infrastructure/` internals.
+- Expose stable **factory functions** and **contract types** only — no aggregate classes, no repository interfaces.
+- Published language tokens for cross-module use: `notebookId`, `sourceId`, `conversationId`, `ragDocumentRef`.
+- `factories.ts` wires subdomain services for tRPC consumption; keep wiring thin and delegate to use cases.
+- `server.ts` is the tRPC router entry point — do not place business logic here.
+- Never pass `notion` knowledge aggregates directly into notebooklm domain; translate via ACL at the boundary.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
 ## File: modules/notebooklm/api/factories.ts
 ````typescript
 export { makeThreadRepo } from "../subdomains/conversation/api/factories";
 export { makeNotebookRepo } from "../subdomains/notebook/api/factories";
 ````
 
-## File: modules/notebooklm/api/server.ts
-````typescript
-/**
- * modules/notebooklm — server-only API barrel.
- *
- * Exports concrete notebook implementations that depend on server-only
- * packages or infrastructure wiring. Must only be imported in Server Actions,
- * route handlers, or server-side infrastructure.
- */
+## File: modules/notebooklm/application/dtos/.gitkeep
+````
 
-export { GenerateNotebookResponseUseCase, GenkitNotebookRepository } from "../subdomains/notebook/api/server";
+````
 
-// Q&A subdomain — AnswerRagQueryUseCase factory (replaces @/modules/search/api/server)
-export { createAnswerRagQueryUseCase } from "../subdomains/ai/api/server";
+## File: modules/notebooklm/application/services/.gitkeep
+````
+
+````
+
+## File: modules/notebooklm/application/use-cases/.gitkeep
+````
+
+````
+
+## File: modules/notebooklm/application/application.instructions.md
+````markdown
+---
+description: 'NotebookLM application layer rules: use-case orchestration, RAG pipeline coordination, event publishing order, and DTO contracts.'
+applyTo: 'modules/notebooklm/application/**/*.{ts,tsx}'
+---
+
+# NotebookLM Application Layer (Local)
+
+Use this file as execution guardrails for `modules/notebooklm/application/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notebooklm/*`.
+
+## Core Rules
+
+- Context-wide `application/` is reserved for cross-subdomain orchestration; subdomain-specific use cases belong inside `subdomains/<name>/application/`.
+- Use cases orchestrate flow only; RAG scoring, citation building, and prompt construction stay in `domain/services/`.
+- After persisting, call `pullDomainEvents()` and publish — never publish before persistence.
+- DTOs are application-layer contracts; never expose domain entities across the layer boundary.
+- Pure reads (retrieval results, conversation history) belong in **query handlers**, not use cases.
+- RAG pipeline steps (retrieve → ground → generate → evaluate) must be individually use-case-addressable to allow partial retry.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+#use skill rag-architecture
+````
+
+## File: modules/notebooklm/docs/docs.instructions.md
+````markdown
+---
+description: 'NotebookLM documentation rules: strategic doc authority, subdomain list sync, and ubiquitous language enforcement.'
+applyTo: 'modules/notebooklm/docs/**/*.md'
+---
+
+# NotebookLM Docs Layer (Local)
+
+Use this file as execution guardrails for `modules/notebooklm/docs/*`.
+For full reference, align with `.github/instructions/docs-authority-and-language.instructions.md` and `docs/contexts/notebooklm/*`.
+
+## Core Rules
+
+- `modules/notebooklm/docs/` holds **links and local summaries only** — authoritative content lives in `docs/contexts/notebooklm/`.
+- Do not duplicate strategic knowledge here; point to the canonical source instead.
+- Any new architectural decision affecting notebooklm must have a corresponding ADR in `docs/decisions/`.
+- Use ubiquitous language from `docs/contexts/notebooklm/ubiquitous-language.md`; do not introduce synonyms.
+- Keep this directory in sync with `docs/contexts/notebooklm/README.md` whenever the subdomain list changes.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: modules/notebooklm/docs/README.md
@@ -50,9 +124,98 @@ Strategic architecture documentation lives in `docs/contexts/notebooklm/`:
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
+## File: modules/notebooklm/domain/events/index.ts
+````typescript
+export type { NotebookLmDomainEvent } from "./NotebookLmDomainEvent";
+````
+
+## File: modules/notebooklm/domain/events/NotebookLmDomainEvent.ts
+````typescript
+/**
+ * Module: notebooklm
+ * Layer: domain/events (context-wide)
+ * Purpose: Base domain event interface for the notebooklm bounded context.
+ *          All subdomain events should extend this interface.
+ */
+
+export interface NotebookLmDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
+}
+````
+
+## File: modules/notebooklm/domain/published-language/index.ts
+````typescript
+/**
+ * Module: notebooklm
+ * Layer: domain (context-wide published language)
+ * Purpose: Reference types consumed by downstream or upstream modules.
+ *
+ * These types represent the notebooklm bounded context's public vocabulary.
+ * Consumers receive opaque references — never raw aggregates.
+ *
+ * Context Map tokens:
+ *   - NotebookReference: identifies a notebook container
+ *   - SourceReference: identifies a source document
+ *   - ConversationReference: identifies a conversation thread
+ */
+
+/** Opaque reference to a Notebook aggregate (cross-module token) */
+export interface NotebookReference {
+  readonly notebookId: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+}
+
+/** Opaque reference to a Source document (cross-module token) */
+export interface SourceReference {
+  readonly sourceId: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly displayName: string;
+  readonly mimeType: string;
+}
+
+/** Opaque reference to a Conversation thread (cross-module token) */
+export interface ConversationReference {
+  readonly threadId: string;
+  readonly accountId: string;
+}
+````
+
+## File: modules/notebooklm/domain/services/.gitkeep
+````
+
+````
+
 ## File: modules/notebooklm/domain/.gitkeep
 ````
 
+````
+
+## File: modules/notebooklm/domain/domain-modeling.instructions.md
+````markdown
+---
+description: 'NotebookLM domain tactical modeling rules (local mirror of root domain-modeling guidance).'
+applyTo: '*.{ts,tsx}'
+---
+
+# Domain Modeling (NotebookLM Local)
+
+Use this local file as execution guardrails for `modules/notebooklm/domain/*`.
+For full reference, align with `.github/instructions/domain-modeling.instructions.md` and `docs/contexts/notebooklm/*`.
+
+## Core Rules
+
+- Keep aggregate invariants inside aggregate methods.
+- Use immutable value objects with Zod schemas and inferred types.
+- Keep domain framework-free (no Firebase/React/transport imports).
+- Emit domain events on state transitions and publish via application orchestration.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: modules/notebooklm/infrastructure/.gitkeep
@@ -60,1156 +223,62 @@ Strategic architecture documentation lives in `docs/contexts/notebooklm/`:
 
 ````
 
+## File: modules/notebooklm/infrastructure/infrastructure.instructions.md
+````markdown
+---
+description: 'NotebookLM infrastructure layer rules: Firebase adapters, Genkit AI client, vector store, and RAG persistence contracts.'
+applyTo: 'modules/notebooklm/infrastructure/**/*.{ts,tsx}'
+---
+
+# NotebookLM Infrastructure Layer (Local)
+
+Use this file as execution guardrails for `modules/notebooklm/infrastructure/*`.
+For full reference, align with `.github/instructions/firestore-schema.instructions.md`, `.github/instructions/genkit-flow.instructions.md`, and `docs/contexts/notebooklm/*`.
+
+## Core Rules
+
+- Implement only **port interfaces** declared in subdomain `domain/ports/` or context-wide `domain/ports/output/`; never invent new contracts here.
+- Genkit adapters (`infrastructure/genkit/`) implement `IRagGenerationRepository` or `NotebookRepository` — keep Genkit flow wiring inside the adapter, not in use cases.
+- Firebase adapters own their Firestore collection(s); do not read or write sibling subdomain or cross-module collections directly.
+- Vector store interactions must go through `IVectorStore` port — never call embedding or retrieval APIs directly from use cases.
+- Keep AI client initialisation (`genkit-ai-client.ts`, `client.ts`) in infrastructure; domain must not reference any AI SDK types.
+- Version breaking schema transitions with migration steps; update `firestore.indexes.json` with query-shape changes.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+#use skill rag-architecture
+````
+
 ## File: modules/notebooklm/interfaces/.gitkeep
 ````
 
 ````
 
-## File: modules/notebooklm/subdomains/ai/api/server.ts
-````typescript
-/**
- * ai subdomain — server-only API.
- *
- * Factory functions and infrastructure adapters that depend on server-only
- * packages (genkit, google-genai). Must only be imported in Server Actions,
- * route handlers, or server-side infrastructure.
- */
-
-import { FirebaseRagRetrievalAdapter } from "../infrastructure/firebase/FirebaseRagRetrievalAdapter";
-import { GenkitRagGenerationAdapter } from "../infrastructure/genkit/GenkitRagGenerationAdapter";
-import { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
-
-export { GenkitRagGenerationAdapter } from "../infrastructure/genkit/GenkitRagGenerationAdapter";
-
-export function createAnswerRagQueryUseCase(): AnswerRagQueryUseCase {
-  return new AnswerRagQueryUseCase(
-    new FirebaseRagRetrievalAdapter(),
-    new GenkitRagGenerationAdapter(),
-  );
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/application/use-cases/answer-rag-query.use-case.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/ai
- * Layer: application/use-cases
- * Purpose: AnswerRagQueryUseCase — orchestrates grounding + synthesis to
- *          produce a cited answer for a user question.
- *
- * Design improvements over legacy answer-rag-query.use-case.ts:
- * - TopK limit is configurable via constructor injection (no hard-coded MAX_TOP_K=10).
- * - Error codes are prefixed with QA_ for namespace clarity.
- * - Dependencies typed against interfaces, not concrete classes.
- */
-
-import { randomUUID } from "node:crypto";
-
-import type { IRagRetrievalRepository } from "../../domain/repositories/IRagRetrievalRepository";
-import type {
-  AnswerRagQueryInput,
-  AnswerRagQueryOutput,
-  AnswerRagQueryResult,
-  RagRetrievalSummary,
-} from "../../domain/entities/rag-query.entities";
-import type { IRagGenerationRepository } from "../../domain/repositories/IRagGenerationRepository";
-
-const DEFAULT_TOP_K = 5;
-const DEFAULT_MAX_TOP_K = 20; // Raise from the legacy hard-coded 10
-
-function clampTopK(value: number | undefined, maxTopK: number): number {
-  if (value === undefined || !Number.isFinite(value)) return DEFAULT_TOP_K;
-  return Math.min(maxTopK, Math.max(1, Math.trunc(value)));
-}
-
-export class AnswerRagQueryUseCase {
-  constructor(
-    private readonly retrievalRepository: IRagRetrievalRepository,
-    private readonly generationRepository: IRagGenerationRepository,
-    /** Maximum topK accepted from callers. Override at composition root for environment-specific limits. */
-    private readonly maxTopK: number = DEFAULT_MAX_TOP_K,
-  ) {}
-
-  async execute(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult> {
-    const organizationId = input.organizationId.trim();
-    const workspaceId = input.workspaceId?.trim() || undefined;
-    const userQuery = input.userQuery.trim();
-    const taxonomy = input.taxonomy?.trim() || undefined;
-    const topK = clampTopK(input.topK, this.maxTopK);
-    const traceId = `rag-trace-${randomUUID()}`;
-    const scope: RagRetrievalSummary["scope"] = workspaceId ? "workspace" : "organization";
-
-    if (!organizationId) {
-      return {
-        ok: false,
-        error: {
-          code: "QA_SCOPE_MISSING",
-          message: "organizationId is required for RAG queries.",
-          context: { traceId, scope: "organizationId" },
-        },
-      };
-    }
-
-    if (!userQuery) {
-      return {
-        ok: false,
-        error: {
-          code: "QA_QUERY_EMPTY",
-          message: "userQuery must not be empty.",
-          context: { traceId },
-        },
-      };
-    }
-
-    const chunks = await this.retrievalRepository.retrieve({
-      organizationId,
-      ...(workspaceId ? { workspaceId } : {}),
-      normalizedQuery: userQuery.toLowerCase(),
-      taxonomy,
-      topK,
-    });
-
-    if (chunks.length === 0) {
-      return {
-        ok: false,
-        error: {
-          code: "QA_NO_RELEVANT_CHUNKS",
-          message:
-            "No ready chunks matched the query scope. Verify ingestion completed and documents are marked ready.",
-          context: { traceId, organizationId, workspaceId, taxonomy, topK, scope },
-        },
-      };
-    }
-
-    const generationResult = await this.generationRepository.generate({
-      traceId,
-      organizationId,
-      ...(workspaceId ? { workspaceId } : {}),
-      userQuery,
-      chunks,
-      ...(input.model ? { model: input.model } : {}),
-    });
-
-    if (!generationResult.ok) {
-      return { ok: false, error: generationResult.error };
-    }
-
-    const retrievalSummary: RagRetrievalSummary = {
-      mode: "skeleton-metadata-filter",
-      scope,
-      retrievedChunkCount: chunks.length,
-      topK,
-      ...(taxonomy ? { taxonomy } : {}),
-    };
-
-    const output: AnswerRagQueryOutput = {
-      answer: generationResult.data.answer,
-      citations: generationResult.data.citations,
-      retrievalSummary,
-      model: generationResult.data.model,
-      traceId,
-      events: [],
-    };
-
-    return { ok: true, data: output };
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/application/use-cases/submit-rag-feedback.use-case.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/ai
- * Layer: application/use-cases
- * Purpose: SubmitRagQueryFeedbackUseCase — persists user quality signal on
- *          a RAG answer and returns a CommandResult.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type { IRagQueryFeedbackRepository } from "../../domain/repositories/IRagQueryFeedbackRepository";
-import type { RagFeedbackRating, SubmitRagQueryFeedbackInput } from "../../domain/entities/rag-feedback.entities";
-
-const VALID_RATINGS: RagFeedbackRating[] = ["helpful", "not_helpful", "partially_helpful"];
-
-export class SubmitRagQueryFeedbackUseCase {
-  constructor(private readonly feedbackRepository: IRagQueryFeedbackRepository) {}
-
-  async execute(input: SubmitRagQueryFeedbackInput): Promise<CommandResult> {
-    if (!input.traceId?.trim()) {
-      return commandFailureFrom("QA_FEEDBACK_TRACE_ID_REQUIRED", "traceId is required.");
-    }
-    if (!input.organizationId?.trim()) {
-      return commandFailureFrom("QA_FEEDBACK_ORG_REQUIRED", "organizationId is required.");
-    }
-    if (!input.submittedByUserId?.trim()) {
-      return commandFailureFrom("QA_FEEDBACK_ACTOR_REQUIRED", "submittedByUserId is required.");
-    }
-    if (!VALID_RATINGS.includes(input.rating)) {
-      return commandFailureFrom(
-        "QA_FEEDBACK_INVALID_RATING",
-        `rating must be one of: ${VALID_RATINGS.join(", ")}.`,
-      );
-    }
-
-    try {
-      const saved = await this.feedbackRepository.save({
-        ...input,
-        traceId: input.traceId.trim(),
-        organizationId: input.organizationId.trim(),
-        submittedByUserId: input.submittedByUserId.trim(),
-      });
-      return commandSuccess(saved.id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "QA_FEEDBACK_PERSIST_ERROR",
-        err instanceof Error ? err.message : "Failed to save feedback.",
-      );
-    }
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/entities/generation.entities.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/ai
- * Layer: domain/entities
- * Purpose: Generation result types for the synthesis layer.
- *
- * Design notes:
- * - These types bridge grounding chunks → natural-language answer.
- * - RagRetrievedChunk is re-exported from retrieval entities for convenience;
- *   callers should use these types when working with generation output.
- */
-
-import type { DomainError } from "@shared-types";
-
-import type { RagRetrievedChunk } from "./retrieval.entities";
-
-export type { RagRetrievedChunk };
-
-/** Attribution claim within a generated answer */
-export interface GenerationCitation {
-  readonly docId: string;
-  readonly chunkIndex: number;
-  readonly page?: number;
-  readonly reason: string;
-}
-
-/** Input to the generation port */
-export interface GenerateRagAnswerInput {
-  readonly traceId: string;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly userQuery: string;
-  readonly chunks: readonly RagRetrievedChunk[];
-  /** Optional model override (e.g. "googleai/gemini-2.5-pro"). Fall back to env default. */
-  readonly model?: string;
-}
-
-/** Successful generation output */
-export interface GenerateRagAnswerOutput {
-  readonly answer: string;
-  readonly citations: readonly GenerationCitation[];
-  readonly model: string;
-}
-
-/** Discriminated union result (compatible with CommandResult pattern) */
-export type GenerateRagAnswerResult =
-  | { ok: true; data: GenerateRagAnswerOutput }
-  | { ok: false; error: DomainError };
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/entities/rag-feedback.entities.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/ai
- * Layer: domain/entities
- * Purpose: RagQueryFeedback — captures user-quality signal on generated answers.
- */
-
-export type RagFeedbackRating = "helpful" | "not_helpful" | "partially_helpful";
-
-export interface RagQueryFeedback {
-  readonly id: string;
-  readonly traceId: string;
-  readonly userQuery: string;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly rating: RagFeedbackRating;
-  readonly comment?: string;
-  readonly submittedByUserId: string;
-  readonly submittedAtISO: string;
-}
-
-export interface SubmitRagQueryFeedbackInput {
-  readonly traceId: string;
-  readonly userQuery: string;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly rating: RagFeedbackRating;
-  readonly comment?: string;
-  readonly submittedByUserId: string;
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/entities/rag-query.entities.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/ai
- * Layer: domain/entities
- * Purpose: RAG Q&A domain types — inputs, outputs, streaming events.
- *
- * Design notes:
- * - AnswerRagQueryInput / Output represent the public contract for the Q&A use case.
- * - RagStreamEvent models the streaming surface (for future streaming support).
- * - RagCitation re-exported from grounding for Q&A consumer convenience.
- */
-
-import type { DomainError } from "@shared-types";
-
-import type { RagCitation, RagRetrievalSummary } from "./retrieval.entities";
-
-export type { RagCitation, RagRetrievalSummary };
-
-export interface AnswerRagQueryInput {
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly userQuery: string;
-  readonly taxonomy?: string;
-  readonly topK?: number;
-  readonly model?: string;
-}
-
-export interface AnswerRagQueryOutput {
-  readonly answer: string;
-  readonly citations: readonly RagCitation[];
-  readonly retrievalSummary: RagRetrievalSummary;
-  readonly model: string;
-  readonly traceId: string;
-  readonly events: readonly RagStreamEvent[];
-}
-
-export type AnswerRagQueryResult =
-  | { ok: true; data: AnswerRagQueryOutput }
-  | { ok: false; error: DomainError };
-
-/** Streaming event for progressive answer delivery (extensibility hook) */
-export interface RagStreamEvent {
-  readonly type: "token" | "citation" | "done" | "error";
-  readonly traceId: string;
-  readonly payload: string | RagCitation | RagRetrievalSummary | DomainError;
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/entities/retrieval.entities.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/ai
- * Layer: domain/entities
- * Purpose: Core retrieval result types — the factual anchors used to ground
- *          AI-generated answers. These types flow from retrieval → synthesis.
- *
- * Design notes:
- * - RagRetrievedChunk is the atomic unit of grounding evidence.
- * - RagCitation links an answer claim back to its source chunk.
- * - RagRetrievalSummary reports the bibliographic scope of the retrieval pass.
- * - All fields are readonly; entities are value objects (compared by identity in the flow).
- */
-
-/** A single text chunk fetched from the vector + sparse retrieval pass */
-export interface RagRetrievedChunk {
-  readonly chunkId: string;
-  readonly docId: string;
-  readonly chunkIndex: number;
-  readonly page?: number;
-  /** Semantic / organisational taxonomy label (e.g. "規章制度") */
-  readonly taxonomy: string;
-  readonly text: string;
-  /** Similarity score in [0, 1]; higher is more relevant */
-  readonly score: number;
-}
-
-/** Attribution record that ties an answer claim to its source chunk */
-export interface RagCitation {
-  readonly docId: string;
-  readonly chunkIndex: number;
-  readonly page?: number;
-  readonly reason: string;
-}
-
-/** Summary of the retrieval execution scope for observability / UX */
-export interface RagRetrievalSummary {
-  readonly mode: "skeleton-metadata-filter";
-  readonly scope: "organization" | "workspace";
-  readonly retrievedChunkCount: number;
-  readonly topK: number;
-  readonly taxonomy?: string;
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/events/AiDomainEvent.ts
-````typescript
-import type { RagFeedbackRating } from "../entities/rag-feedback.entities";
-import type { OrganizationScope } from "../value-objects/OrganizationScope";
-import type { TopK } from "../value-objects/TopK";
-
-export interface AiDomainEvent {
-  readonly eventId: string;
-  readonly occurredAt: string;
-  readonly type: string;
-  readonly payload: object;
-}
-
-export interface RagQuerySubmittedEvent extends AiDomainEvent {
-  readonly type: "notebooklm.ai.query_submitted";
-  readonly payload: {
-    readonly traceId: string;
-    readonly organizationId: string;
-    readonly workspaceId?: string;
-    readonly userQuery: string;
-    readonly topK: TopK;
-  };
-}
-
-export interface RagRetrievalCompletedEvent extends AiDomainEvent {
-  readonly type: "notebooklm.ai.retrieval_completed";
-  readonly payload: {
-    readonly traceId: string;
-    readonly chunkCount: number;
-    readonly scope: OrganizationScope;
-  };
-}
-
-export interface RagAnswerGeneratedEvent extends AiDomainEvent {
-  readonly type: "notebooklm.ai.answer_generated";
-  readonly payload: {
-    readonly traceId: string;
-    readonly model: string;
-    readonly citationCount: number;
-  };
-}
-
-export interface RagFeedbackSubmittedEvent extends AiDomainEvent {
-  readonly type: "notebooklm.ai.feedback_submitted";
-  readonly payload: {
-    readonly traceId: string;
-    readonly rating: RagFeedbackRating;
-    readonly organizationId: string;
-  };
-}
-
-export type AiDomainEventType =
-  | RagQuerySubmittedEvent
-  | RagRetrievalCompletedEvent
-  | RagAnswerGeneratedEvent
-  | RagFeedbackSubmittedEvent;
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/events/index.ts
-````typescript
-export * from "./AiDomainEvent";
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/ports/IVectorStore.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/ai
- * Layer: domain/ports
- * Purpose: IVectorStore — hexagonal output port for vector database operations.
- *
- * Design notes:
- * - Domain owns this interface; infrastructure implements it.
- * - No SDK-specific types leak through this boundary.
- * - Embedding computation is the adapter's responsibility, not the port's.
- */
-
-/** A document to index in the vector store */
-export interface VectorDocument {
-  readonly id: string;
-  readonly content: string;
-  readonly metadata?: Record<string, string | number | boolean>;
-}
-
-/** A result from a similarity search */
-export interface VectorSearchResult {
-  readonly id: string;
-  /** Similarity score in [0, 1]; higher is closer */
-  readonly score: number;
-  readonly metadata?: Record<string, string | number | boolean>;
-}
-
-/**
- * Output port for any vector-store adapter (Upstash Vector, Pinecone, etc.).
- * Domain and application layers depend only on this interface.
- */
-export interface IVectorStore {
-  /** Insert or update documents; adapter handles embedding generation */
-  upsert(documents: VectorDocument[]): Promise<void>;
-
-  /**
-   * Find the top-k documents most similar to the query.
-   * @param query  - Natural-language query string
-   * @param k      - Number of results to return
-   * @param filter - Optional metadata predicate
-   */
-  search(
-    query: string,
-    k: number,
-    filter?: Record<string, string | number | boolean>,
-  ): Promise<VectorSearchResult[]>;
-
-  /** Remove documents by ID */
-  delete(ids: string[]): Promise<void>;
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/repositories/IRagGenerationRepository.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/ai
- * Layer: domain/repositories
- * Purpose: IRagGenerationRepository — output port for AI answer generation.
- *
- * Domain owns this contract; the Genkit adapter (infrastructure) implements it.
- */
-
-import type { GenerateRagAnswerInput, GenerateRagAnswerResult } from "../entities/generation.entities";
-
-export interface IRagGenerationRepository {
-  generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult>;
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/repositories/IRagQueryFeedbackRepository.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/ai
- * Layer: domain/repositories
- * Purpose: IRagQueryFeedbackRepository — output port for persisting feedback.
- */
-
-import type { RagQueryFeedback, SubmitRagQueryFeedbackInput } from "../entities/rag-feedback.entities";
-
-export interface IRagQueryFeedbackRepository {
-  save(input: SubmitRagQueryFeedbackInput): Promise<RagQueryFeedback>;
-  listByOrganization(organizationId: string, limitCount: number): Promise<RagQueryFeedback[]>;
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/repositories/IRagRetrievalRepository.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/ai
- * Layer: domain/repositories
- * Purpose: IRagRetrievalRepository — output port for chunk retrieval.
- *
- * Design notes:
- * - The domain defines the contract; Firebase / Upstash / etc. implement it.
- * - Retrieval is scoped to organization or workspace to enforce tenancy isolation.
- */
-
-import type { RagRetrievedChunk } from "../entities/retrieval.entities";
-
-export interface RetrieveChunksInput {
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly normalizedQuery: string;
-  readonly taxonomy?: string;
-  readonly topK: number;
-}
-
-export interface IRagRetrievalRepository {
-  retrieve(input: RetrieveChunksInput): Promise<readonly RagRetrievedChunk[]>;
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/services/index.ts
-````typescript
-export * from "./RagCitationBuilder";
-export * from "./RagPromptBuilder";
-export * from "./RagScoringService";
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/services/RagCitationBuilder.ts
-````typescript
-import type { GenerationCitation } from "../entities/generation.entities";
-import type { RagRetrievedChunk } from "../entities/retrieval.entities";
-
-export class RagCitationBuilder {
-  /**
-   * Derive citations from the chunks used for generation.
-   * Citations are taken directly from input chunks to avoid model hallucination.
-   */
-  buildCitations(chunks: readonly RagRetrievedChunk[]): GenerationCitation[] {
-    return chunks.map((chunk) => ({
-      docId: chunk.docId,
-      chunkIndex: chunk.chunkIndex,
-      ...(chunk.page !== undefined ? { page: chunk.page } : {}),
-      reason: `Retrieved from ${chunk.taxonomy} context with relevance score ${chunk.score.toFixed(2)}.`,
-    }));
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/services/RagPromptBuilder.ts
-````typescript
-import type { RagRetrievedChunk } from "../entities/retrieval.entities";
-import type { RagPrompt } from "../value-objects/RagPrompt";
-
-export class RagPromptBuilder {
-  /**
-   * Format a single chunk for inclusion in the generation prompt.
-   */
-  formatChunkForPrompt(chunk: RagRetrievedChunk): string {
-    const parts = [`[doc:${chunk.docId} chunk:${chunk.chunkIndex}`];
-    if (chunk.page !== undefined) parts.push(` page:${chunk.page}`);
-    if (chunk.taxonomy) parts.push(` taxonomy:${chunk.taxonomy}`);
-    parts.push(`]\n${chunk.text}`);
-    return parts.join("");
-  }
-
-  /**
-   * Build the complete RAG generation prompt from retrieved chunks.
-   */
-  buildGenerationPrompt(userQuery: string, chunks: readonly RagRetrievedChunk[]): RagPrompt {
-    const systemInstruction =
-      "You are the Xuanwu RAG orchestration layer. Answer the user's question based ONLY on the provided context. " +
-      "Cite sources using [doc:X chunk:Y] format. If the context is insufficient, say so honestly.";
-
-    const formattedContext = chunks.map((chunk) => this.formatChunkForPrompt(chunk)).join("\n\n");
-
-    return { systemInstruction, formattedContext, userQuery };
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/services/RagScoringService.ts
-````typescript
-import type { RagRetrievedChunk } from "../entities/retrieval.entities";
-
-const CJK_REGEX = /[\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF]/u;
-
-export class RagScoringService {
-  /**
-   * Tokenize text into searchable tokens (CJK-aware).
-   * CJK characters are treated as individual tokens; Latin words split by whitespace/punctuation.
-   */
-  tokenize(text: string): readonly string[] {
-    const tokens: string[] = [];
-    const normalized = text.toLowerCase();
-    let currentWord = "";
-
-    for (const char of normalized) {
-      if (CJK_REGEX.test(char)) {
-        if (currentWord) {
-          tokens.push(currentWord);
-          currentWord = "";
-        }
-        tokens.push(char);
-      } else if (/\s|[^\w]/u.test(char)) {
-        if (currentWord) {
-          tokens.push(currentWord);
-          currentWord = "";
-        }
-      } else {
-        currentWord += char;
-      }
-    }
-
-    if (currentWord) {
-      tokens.push(currentWord);
-    }
-
-    return tokens.filter((token) => token.length > 0);
-  }
-
-  /**
-   * Compute token-overlap score between query tokens and chunk text.
-   * Returns score in [0, 1] = matchedTokens / queryTokens.length
-   */
-  computeTokenOverlapScore(queryTokens: readonly string[], chunkText: string): number {
-    if (queryTokens.length === 0) return 0;
-
-    const chunkTokenSet = new Set(this.tokenize(chunkText));
-    if (chunkTokenSet.size === 0) return 0;
-
-    const matchedCount = queryTokens.filter((token) => chunkTokenSet.has(token)).length;
-    return matchedCount / queryTokens.length;
-  }
-
-  /**
-   * Rank chunks by relevance score, returning top-K.
-   */
-  rankChunks(
-    chunks: readonly RagRetrievedChunk[],
-    queryTokens: readonly string[],
-    topK: number,
-  ): RagRetrievedChunk[] {
-    if (topK <= 0 || !Number.isFinite(topK)) return [];
-    const limit = Math.trunc(topK);
-    if (limit <= 0) return [];
-
-    return chunks
-      .map((chunk) => ({
-        ...chunk,
-        score: this.computeTokenOverlapScore(queryTokens, chunk.text),
-      }))
-      .filter((chunk) => chunk.score > 0)
-      .sort((left, right) => right.score - left.score)
-      .slice(0, limit);
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/value-objects/index.ts
-````typescript
-export * from "./OrganizationScope";
-export * from "./RagPrompt";
-export * from "./RelevanceScore";
-export * from "./TopK";
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/value-objects/OrganizationScope.ts
-````typescript
-export interface OrganizationScope {
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-}
-
-export function isWorkspaceScoped(scope: OrganizationScope): boolean {
-  return typeof scope.workspaceId === "string" && scope.workspaceId.trim().length > 0;
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/value-objects/RagPrompt.ts
-````typescript
-export interface RagPrompt {
-  readonly systemInstruction: string;
-  readonly formattedContext: string;
-  readonly userQuery: string;
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/value-objects/RelevanceScore.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const RelevanceScoreSchema = z.number().min(0).max(1).brand("RelevanceScore");
-export type RelevanceScore = z.infer<typeof RelevanceScoreSchema>;
-
-export function createRelevanceScore(raw: number): RelevanceScore {
-  return RelevanceScoreSchema.parse(raw);
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/value-objects/TopK.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const TopKSchema = z.number().int().positive().max(100).brand("TopK");
-export type TopK = z.infer<typeof TopKSchema>;
-
-export function createTopK(raw: number): TopK {
-  return TopKSchema.parse(raw);
-}
-
-export const DEFAULT_TOP_K: TopK = 10 as TopK;
-````
-
-## File: modules/notebooklm/subdomains/ai/infrastructure/firebase/FirebaseRagQueryFeedbackAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/ai
- * Layer: infrastructure/firebase
- * Purpose: FirebaseRagQueryFeedbackAdapter — implements IRagQueryFeedbackRepository
- *          using Firestore (client SDK) for feedback persistence.
- *
- * Firestore collection: ragQueryFeedback/{autoId}
- */
-
-import {
-  addDoc,
-  collection,
-  getDocs,
-  getFirestore,
-  limit,
-  orderBy,
-  query,
-  where,
-} from "firebase/firestore";
-
-import { v7 as generateId } from "@lib-uuid";
-import { firebaseClientApp } from "@integration-firebase/client";
-
-import type { IRagQueryFeedbackRepository } from "../../domain/repositories/IRagQueryFeedbackRepository";
-import type {
-  RagQueryFeedback,
-  SubmitRagQueryFeedbackInput,
-} from "../../domain/entities/rag-feedback.entities";
-
-const COLLECTION = "ragQueryFeedback";
-
-interface FirestoreFeedbackDoc {
-  readonly id: string;
-  readonly traceId: string;
-  readonly userQuery: string;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly rating: string;
-  readonly comment?: string;
-  readonly submittedByUserId: string;
-  readonly submittedAtISO: string;
-}
-
-export class FirebaseRagQueryFeedbackAdapter implements IRagQueryFeedbackRepository {
-  private db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async save(input: SubmitRagQueryFeedbackInput): Promise<RagQueryFeedback> {
-    const id = generateId();
-    const submittedAtISO = new Date().toISOString();
-
-    const doc: FirestoreFeedbackDoc = {
-      id,
-      traceId: input.traceId,
-      userQuery: input.userQuery,
-      organizationId: input.organizationId,
-      ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
-      rating: input.rating,
-      ...(input.comment ? { comment: input.comment } : {}),
-      submittedByUserId: input.submittedByUserId,
-      submittedAtISO,
-    };
-
-    await addDoc(collection(this.db(), COLLECTION), doc);
-
-    return {
-      id,
-      traceId: input.traceId,
-      userQuery: input.userQuery,
-      organizationId: input.organizationId,
-      ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
-      rating: input.rating,
-      ...(input.comment ? { comment: input.comment } : {}),
-      submittedByUserId: input.submittedByUserId,
-      submittedAtISO,
-    };
-  }
-
-  async listByOrganization(organizationId: string, limitCount: number): Promise<RagQueryFeedback[]> {
-    const q = query(
-      collection(this.db(), COLLECTION),
-      where("organizationId", "==", organizationId),
-      orderBy("submittedAtISO", "desc"),
-      limit(limitCount),
-    );
-
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => {
-      const data = d.data() as FirestoreFeedbackDoc;
-      return {
-        id: typeof data.id === "string" ? data.id : d.id,
-        traceId: data.traceId,
-        userQuery: data.userQuery,
-        organizationId: data.organizationId,
-        ...(data.workspaceId ? { workspaceId: data.workspaceId } : {}),
-        rating: data.rating as RagQueryFeedback["rating"],
-        ...(data.comment ? { comment: data.comment } : {}),
-        submittedByUserId: data.submittedByUserId,
-        submittedAtISO: data.submittedAtISO,
-      };
-    });
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/infrastructure/firebase/FirebaseRagRetrievalAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/ai
- * Layer: infrastructure/firebase
- * Purpose: FirebaseRagRetrievalAdapter — implements IRagRetrievalRepository
- *          using Firestore collectionGroup queries for document-scoped chunks.
- *
- * Retrieval strategy:
- *  1. Over-fetch candidate documents (filtered by org / workspace / taxonomy / status=ready).
- *  2. Over-fetch candidate chunks in the same scope.
- *  3. Compute a token-overlap relevance score (CJK-aware tokeniser).
- *  4. Filter to chunks whose parent doc is in the ready-document set.
- *  5. Sort descending by score, return top-K.
- */
-
-import { collectionGroup, getDocs, getFirestore, limit, query, where } from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-
-import type { RagRetrievedChunk } from "../../domain/entities/retrieval.entities";
-import type { IRagRetrievalRepository, RetrieveChunksInput } from "../../domain/repositories/IRagRetrievalRepository";
-
-// --- Firestore document shapes -----------------------------------------------
-
-interface FirestoreRagDocument {
-  readonly organizationId?: string;
-  readonly workspaceId?: string;
-  readonly status?: string;
-  readonly taxonomy?: string;
-}
-
-interface FirestoreRagChunk {
-  readonly organizationId?: string;
-  readonly workspaceId?: string;
-  readonly docId?: string;
-  readonly text?: string;
-  readonly taxonomy?: string;
-  readonly page?: number;
-  readonly chunkIndex?: number;
-}
-
-// --- Retrieval tuning constants -----------------------------------------------
-
-const DOCUMENT_OVER_FETCH_MULTIPLIER = 5;
-const MIN_DOCUMENT_LIMIT = 20;
-const CHUNK_OVER_FETCH_MULTIPLIER = 10;
-const MIN_CHUNK_LIMIT = 50;
-
-// --- Scoring helpers (pure functions, no state) --------------------------------
-
-/** CJK-aware whitespace / punctuation tokeniser */
-function tokenize(value: string): readonly string[] {
-  return value
-    .toLowerCase()
-    .split(/[^a-z0-9\u4e00-\u9fff]+/u)
-    .map((t) => t.trim())
-    .filter(Boolean);
-}
-
-/**
- * Token-overlap score between query and chunk text.
- * Returns a value in [0, 1] — fraction of query tokens found in the chunk.
- */
-function computeTokenOverlapScore(queryTokens: readonly string[], chunkText: string): number {
-  if (queryTokens.length === 0) return 0;
-  const chunkTokens = tokenize(chunkText);
-  if (chunkTokens.length === 0) return 0;
-  const matchCount = queryTokens.filter((t) => chunkTokens.includes(t)).length;
-  return matchCount / queryTokens.length;
-}
-
-// --- Adapter ------------------------------------------------------------------
-
-export class FirebaseRagRetrievalAdapter implements IRagRetrievalRepository {
-  private readonly db = getFirestore(firebaseClientApp);
-
-  async retrieve(input: RetrieveChunksInput): Promise<readonly RagRetrievedChunk[]> {
-    // Step 1 — resolve ready document IDs in scope
-    const documentsQuery = query(
-      collectionGroup(this.db, "documents"),
-      where("organizationId", "==", input.organizationId),
-      where("status", "==", "ready"),
-      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
-      ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
-      limit(Math.max(input.topK * DOCUMENT_OVER_FETCH_MULTIPLIER, MIN_DOCUMENT_LIMIT)),
-    );
-
-    const documentSnapshots = await getDocs(documentsQuery);
-    const readyDocumentIds = new Set(
-      documentSnapshots.docs
-        .filter((snap) => {
-          const data = snap.data() as FirestoreRagDocument;
-          return data.status === "ready";
-        })
-        .map((snap) => snap.id),
-    );
-
-    if (readyDocumentIds.size === 0) return [];
-
-    // Step 2 — over-fetch candidate chunks
-    const chunksQuery = query(
-      collectionGroup(this.db, "chunks"),
-      where("organizationId", "==", input.organizationId),
-      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
-      ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
-      limit(Math.max(input.topK * CHUNK_OVER_FETCH_MULTIPLIER, MIN_CHUNK_LIMIT)),
-    );
-
-    const chunkSnapshots = await getDocs(chunksQuery);
-    const queryTokens = tokenize(input.normalizedQuery);
-
-    // Step 3 — score, filter, sort, slice
-    return chunkSnapshots.docs
-      .map((snap) => {
-        const data = snap.data() as FirestoreRagChunk;
-        const text = typeof data.text === "string" ? data.text : "";
-        const docId = typeof data.docId === "string" ? data.docId : "";
-        return {
-          chunkId: snap.id,
-          docId,
-          chunkIndex: typeof data.chunkIndex === "number" ? data.chunkIndex : 0,
-          ...(typeof data.page === "number" ? { page: data.page } : {}),
-          taxonomy: typeof data.taxonomy === "string" ? data.taxonomy : "general",
-          text,
-          score: computeTokenOverlapScore(queryTokens, text),
-        } satisfies RagRetrievedChunk;
-      })
-      .filter((chunk) => chunk.docId !== "" && readyDocumentIds.has(chunk.docId) && chunk.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, input.topK);
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/infrastructure/genkit/genkit-ai-client.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/ai
- * Layer: infrastructure/genkit
- * Purpose: Genkit AI client singleton — server-side only.
- *
- * Design notes:
- * - Reads GOOGLE_GENAI_API_KEY and GENKIT_MODEL from environment.
- * - If no API key is present (e.g. test environment) the googleAI plugin is
- *   skipped so the server still starts without credentials.
- * - This file must not be imported by any client (browser) bundle.
- */
-
-import { genkit } from "genkit";
-import { googleAI } from "@genkit-ai/google-genai";
-
-const DEFAULT_SYNTHESIS_MODEL = "googleai/gemini-2.0-flash";
-
-const envModel = process.env.GENKIT_MODEL?.trim();
-const configuredModel =
-  envModel && envModel.length > 0 ? envModel : DEFAULT_SYNTHESIS_MODEL;
-
-const hasApiKey =
-  typeof process.env.GOOGLE_GENAI_API_KEY === "string" &&
-  process.env.GOOGLE_GENAI_API_KEY.trim().length > 0;
-
-export const synthesisAiClient = genkit({
-  plugins: hasApiKey ? [googleAI()] : [],
-  model: configuredModel,
-});
-
-export function resolveGenerationModel(modelOverride?: string): string {
-  const normalized = modelOverride?.trim();
-  return normalized && normalized.length > 0 ? normalized : configuredModel;
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/infrastructure/genkit/GenkitRagGenerationAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/ai
- * Layer: infrastructure/genkit
- * Purpose: GenkitRagGenerationAdapter — implements IRagGenerationRepository
- *          using Genkit to invoke Google AI (or any configured model).
- *
- * Design notes:
- * - All prompt construction is encapsulated here (not in domain / use cases).
- * - Citations are derived from the input chunks, not re-extracted from the
- *   model output (avoids hallucination in citation attribution).
- * - Unhandled model errors are wrapped in a structured DomainError value.
- */
-
-import type { IRagGenerationRepository } from "../../domain/repositories/IRagGenerationRepository";
-import type {
-  GenerateRagAnswerInput,
-  GenerateRagAnswerOutput,
-  GenerateRagAnswerResult,
-  GenerationCitation,
-} from "../../domain/entities/generation.entities";
-import { synthesisAiClient, resolveGenerationModel } from "./genkit-ai-client";
-
-// --- Prompt construction helpers (pure, testable) ----------------------------
-
-function formatChunkForPrompt(chunk: GenerateRagAnswerInput["chunks"][number]): string {
-  const pageLabel = typeof chunk.page === "number" ? ` page:${chunk.page}` : "";
-  return `[doc:${chunk.docId} chunk:${chunk.chunkIndex}${pageLabel} taxonomy:${chunk.taxonomy}]\n${chunk.text}`;
-}
-
-function buildGenerationPrompt(input: GenerateRagAnswerInput): string {
-  const contextBlocks = input.chunks.map(formatChunkForPrompt).join("\n\n---\n\n");
-  return [
-    "Use the retrieved context to answer the user query.",
-    "If the context is incomplete, answer conservatively and keep citations grounded in the retrieved chunks.",
-    `User query: ${input.userQuery}`,
-    "Retrieved context:",
-    contextBlocks,
-  ].join("\n\n");
-}
-
-function buildCitations(input: GenerateRagAnswerInput): readonly GenerationCitation[] {
-  return input.chunks.map((chunk) => ({
-    docId: chunk.docId,
-    chunkIndex: chunk.chunkIndex,
-    ...(typeof chunk.page === "number" ? { page: chunk.page } : {}),
-    reason: `Retrieved from ${chunk.taxonomy} context with relevance score ${chunk.score.toFixed(2)}.`,
-  }));
-}
-
-// --- Adapter ------------------------------------------------------------------
-
-const SYSTEM_PROMPT =
-  "You are the Xuanwu RAG orchestration layer. Answer only from the supplied context and preserve citations.";
-
-export class GenkitRagGenerationAdapter implements IRagGenerationRepository {
-  async generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult> {
-    try {
-      const response = await synthesisAiClient.generate({
-        prompt: buildGenerationPrompt(input),
-        system: SYSTEM_PROMPT,
-        ...(input.model ? { model: input.model } : {}),
-      });
-
-      const output: GenerateRagAnswerOutput = {
-        answer: response.text,
-        model: resolveGenerationModel(input.model),
-        citations: buildCitations(input),
-      };
-
-      return { ok: true, data: output };
-    } catch (error) {
-      return {
-        ok: false,
-        error: {
-          code: "SYNTHESIS_MODEL_PROVIDER_ERROR",
-          message:
-            error instanceof Error
-              ? error.message
-              : `Unexpected synthesis error: ${String(error)}`,
-          context: { traceId: input.traceId },
-        },
-      };
-    }
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/conversation-versioning/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/notebooklm/subdomains/conversation-versioning/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notebooklm subdomain 'conversation-versioning'.
-````
-
-## File: modules/notebooklm/subdomains/conversation-versioning/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notebooklm subdomain 'conversation-versioning'.
-````
-
-## File: modules/notebooklm/subdomains/conversation-versioning/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'conversation-versioning'.
+## File: modules/notebooklm/interfaces/interfaces.instructions.md
+````markdown
+---
+description: 'NotebookLM interfaces layer rules: input/output translation, Server Actions, RAG UI components, and chat action wiring.'
+applyTo: 'modules/notebooklm/interfaces/**/*.{ts,tsx}'
+---
+
+# NotebookLM Interfaces Layer (Local)
+
+Use this file as execution guardrails for `modules/notebooklm/interfaces/*`.
+For full reference, align with `.github/instructions/nextjs-server-actions.instructions.md`, `.github/instructions/shadcn-ui.instructions.md`, and `docs/contexts/notebooklm/*`.
+
+## Core Rules
+
+- This layer owns **input/output translation only** — no RAG logic, no retrieval scoring, no prompt construction.
+- Server Actions (`_actions/`) must be thin: validate input, call the use case, return a stable result shape.
+- Never call repositories or AI clients directly from components or actions.
+- `RagQueryView` and chat components consume data via query hooks or Server Components; keep them display-only.
+- Streaming RAG responses must be handled at the action boundary; do not pass raw stream objects into domain or application layers.
+- Use shadcn/ui primitives before creating new components; maintain semantic markup and keyboard accessibility.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+#use skill next-devtools-mcp
+#use skill vercel-react-best-practices
 ````
 
 ## File: modules/notebooklm/subdomains/conversation/api/factories.ts
@@ -1293,6 +362,17 @@ export interface Thread {
 }
 ````
 
+## File: modules/notebooklm/subdomains/conversation/domain/ports/index.ts
+````typescript
+/**
+ * notebooklm/conversation domain/ports — driven port interfaces for the conversation subdomain.
+ *
+ * Re-exports repository contracts from domain/repositories/, making the Ports layer
+ * explicitly visible in the directory structure.
+ */
+export type { IThreadRepository as IThreadPort } from "../repositories/IThreadRepository";
+````
+
 ## File: modules/notebooklm/subdomains/conversation/domain/repositories/IThreadRepository.ts
 ````typescript
 /**
@@ -1305,6 +385,17 @@ export interface IThreadRepository {
   save(accountId: string, thread: Thread): Promise<void>;
   getById(accountId: string, threadId: string): Promise<Thread | null>;
 }
+````
+
+## File: modules/notebooklm/subdomains/conversation/domain/index.ts
+````typescript
+/**
+ * notebooklm/conversation domain — public exports.
+ */
+export type { Thread } from "./entities/thread";
+export type { Message } from "./entities/message";
+export type { IThreadRepository } from "./repositories/IThreadRepository";
+export * from "./ports";
 ````
 
 ## File: modules/notebooklm/subdomains/conversation/infrastructure/firebase/FirebaseThreadRepository.ts
@@ -1836,92 +927,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notebooklm/subdomains/evaluation/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notebooklm subdomain 'evaluation'.
-````
-
-## File: modules/notebooklm/subdomains/evaluation/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'evaluation'.
-````
-
-## File: modules/notebooklm/subdomains/grounding/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notebooklm subdomain 'grounding'.
-````
-
-## File: modules/notebooklm/subdomains/grounding/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'grounding'.
-````
-
-## File: modules/notebooklm/subdomains/ingestion/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/notebooklm/subdomains/ingestion/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notebooklm subdomain 'ingestion'.
-````
-
-## File: modules/notebooklm/subdomains/ingestion/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notebooklm subdomain 'ingestion'.
-````
-
-## File: modules/notebooklm/subdomains/ingestion/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'ingestion'.
-````
-
-## File: modules/notebooklm/subdomains/note/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/notebooklm/subdomains/note/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notebooklm subdomain 'note'.
-````
-
-## File: modules/notebooklm/subdomains/note/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notebooklm subdomain 'note'.
-````
-
-## File: modules/notebooklm/subdomains/note/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'note'.
-````
-
-## File: modules/notebooklm/subdomains/note/README.md
-````markdown
-# Note
-
-輕量筆記與知識連結。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/notebooklm/subdomains/notebook/api/factories.ts
 ````typescript
 import { GenkitNotebookRepository } from "../infrastructure/genkit/GenkitNotebookRepository";
@@ -2026,6 +1031,17 @@ export type GenerateNotebookResponseResult =
   | { ok: false; error: DomainError };
 ````
 
+## File: modules/notebooklm/subdomains/notebook/domain/ports/index.ts
+````typescript
+/**
+ * notebooklm/notebook domain/ports — driven port interfaces for the notebook subdomain.
+ *
+ * Re-exports repository contracts from domain/repositories/, making the Ports layer
+ * explicitly visible in the directory structure.
+ */
+export type { NotebookRepository as INotebookPort } from "../repositories/NotebookRepository";
+````
+
 ## File: modules/notebooklm/subdomains/notebook/domain/repositories/NotebookRepository.ts
 ````typescript
 import type {
@@ -2036,6 +1052,15 @@ import type {
 export interface NotebookRepository {
   generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>;
 }
+````
+
+## File: modules/notebooklm/subdomains/notebook/domain/index.ts
+````typescript
+/**
+ * notebooklm/notebook domain — public exports.
+ */
+export type { NotebookRepository } from "./repositories/NotebookRepository";
+export * from "./ports";
 ````
 
 ## File: modules/notebooklm/subdomains/notebook/infrastructure/genkit/client.ts
@@ -2143,16 +1168,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notebooklm/subdomains/retrieval/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notebooklm subdomain 'retrieval'.
-````
-
-## File: modules/notebooklm/subdomains/retrieval/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'retrieval'.
-````
-
 ## File: modules/notebooklm/subdomains/source/api/factories.ts
 ````typescript
 import { FirebaseRagDocumentAdapter } from "../infrastructure/firebase/FirebaseRagDocumentAdapter";
@@ -2161,6 +1176,10 @@ import { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase
 import { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
 import { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
 import { waitForParsedDocument as _waitForParsedDocument } from "../infrastructure/firebase/FirebaseDocumentStatusAdapter";
+import {
+  addKnowledgeBlock,
+  createKnowledgePage,
+} from "@/modules/notion/api";
 
 export function makeSourceFileAdapter() {
   return new FirebaseSourceFileAdapter();
@@ -2179,7 +1198,10 @@ export function makeParsedDocumentAdapter() {
 }
 
 export function makeKnowledgePageGateway() {
-  return new NotionKnowledgePageGatewayAdapter();
+  return new NotionKnowledgePageGatewayAdapter({
+    createKnowledgePage,
+    addKnowledgeBlock,
+  });
 }
 
 export function waitForParsedDocument(
@@ -2620,6 +1642,50 @@ export const mapToAssetLiveDocument = mapToSourceLiveDocument;
  */
 export { resolveSourceOrganizationId } from "../../domain/services/resolve-source-organization-id.service";
 export type { RagDocumentRecord } from "../../domain/entities/RagDocument";
+````
+
+## File: modules/notebooklm/subdomains/source/application/queries/source-file.queries.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/use-cases
+ * Use Case: ListSourceFilesUseCase — lists workspace files as view-model DTOs.
+ */
+
+import type { ListSourceFilesScope } from "../../domain/repositories/ISourceFileRepository";
+import type { ISourceFileRepository } from "../../domain/repositories/ISourceFileRepository";
+import type { WorkspaceFileListItemDto } from "../dto/source-file.dto";
+
+const DEFAULT_FILE_SOURCE = "source-module";
+const DEFAULT_FILE_DETAIL = "File metadata mapped from current workspace context.";
+
+export class ListSourceFilesUseCase {
+  constructor(private readonly fileRepository: ISourceFileRepository) {}
+
+  async execute(scope: ListSourceFilesScope): Promise<WorkspaceFileListItemDto[]> {
+    const workspaceId = scope.workspaceId.trim();
+    const organizationId = scope.organizationId.trim();
+    const actorAccountId = scope.actorAccountId.trim();
+
+    if (!workspaceId || !organizationId || !actorAccountId) {
+      return [];
+    }
+
+    const files = await this.fileRepository.listByWorkspace({ workspaceId, organizationId, actorAccountId });
+
+    return files.map((file) => ({
+      id: file.id,
+      workspaceId: file.workspaceId,
+      organizationId: file.organizationId,
+      name: file.name,
+      status: file.status,
+      kind: file.classification,
+      source: file.source ?? DEFAULT_FILE_SOURCE,
+      detail: file.detail ?? DEFAULT_FILE_DETAIL,
+      href: file.href,
+    }));
+  }
+}
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case.ts
@@ -3680,6 +2746,22 @@ export interface CreateWikiLibraryRowInput {
 }
 ````
 
+## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
+````typescript
+/**
+ * notebooklm/source domain/ports — driven port interfaces for the source subdomain.
+ *
+ * ISourceDocumentCommandPort and IParsedDocumentPort are the primary driven ports.
+ * IRagDocumentPort, ISourceFilePort, IWikiLibraryPort re-export the legacy
+ * repository contracts, making the Ports layer explicitly visible.
+ */
+export type { ISourceDocumentCommandPort } from "./ISourceDocumentPort";
+export type { IParsedDocumentPort } from "./IParsedDocumentPort";
+export type { IRagDocumentRepository as IRagDocumentPort } from "../repositories/IRagDocumentRepository";
+export type { ISourceFileRepository as ISourceFilePort } from "../repositories/ISourceFileRepository";
+export type { IWikiLibraryRepository as IWikiLibraryPort } from "../repositories/IWikiLibraryRepository";
+````
+
 ## File: modules/notebooklm/subdomains/source/domain/ports/IParsedDocumentPort.ts
 ````typescript
 /**
@@ -3828,6 +2910,130 @@ export function resolveSourceOrganizationId(
   accountId: string,
 ): string {
   return accountType === "organization" ? accountId : `personal:${accountId}`;
+}
+````
+
+## File: modules/notebooklm/subdomains/source/domain/index.ts
+````typescript
+/**
+ * notebooklm/source domain — public exports.
+ */
+export type { IRagDocumentRepository } from "./repositories/IRagDocumentRepository";
+export type { ISourceFileRepository } from "./repositories/ISourceFileRepository";
+export type { IWikiLibraryRepository } from "./repositories/IWikiLibraryRepository";
+export * from "./ports";
+````
+
+## File: modules/notebooklm/subdomains/source/infrastructure/adapters/NotionKnowledgePageGatewayAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/adapters
+ * Adapter: NotionKnowledgePageGatewayAdapter — delegates to notion bounded context API.
+ *
+ * Implements the KnowledgePageGateway port defined in the application layer,
+ * bridging the source subdomain to the notion bounded context through its
+ * top-level public API and published-language tokens.
+ */
+
+import type { CommandResult } from "@shared-types";
+
+import type { KnowledgePageGateway } from "../../application/use-cases/create-knowledge-draft-from-source.use-case";
+
+interface KnowledgeArtifactReferenceToken {
+  readonly artifactId: string;
+  readonly artifactType: "page" | "article";
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly slug: string;
+}
+
+function slugifyTitle(title: string): string {
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9\-\u4e00-\u9fff]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function toKnowledgeArtifactReference(input: {
+  accountId: string;
+  workspaceId: string;
+  title: string;
+  artifactId: string;
+}): KnowledgeArtifactReferenceToken {
+  return {
+    artifactId: input.artifactId,
+    artifactType: "page",
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    title: input.title,
+    slug: slugifyTitle(input.title),
+  };
+}
+
+export class NotionKnowledgePageGatewayAdapter implements KnowledgePageGateway {
+  constructor(
+    private readonly deps: {
+      createKnowledgePage: (input: {
+        accountId: string;
+        workspaceId: string;
+        title: string;
+        parentPageId: null;
+        createdByUserId: string;
+      }) => Promise<CommandResult>;
+      addKnowledgeBlock: (input: {
+        accountId: string;
+        pageId: string;
+        index: number;
+        content: {
+          type: "text";
+          richText: readonly { type: string; plainText: string }[];
+          properties: Record<string, unknown>;
+        };
+      }) => Promise<CommandResult>;
+    },
+  ) {}
+
+  async createPage(input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    parentPageId: null;
+    createdByUserId: string;
+  }): Promise<CommandResult> {
+    const result = await this.deps.createKnowledgePage(input);
+    if (!result.success) return result;
+
+    // Normalize cross-context return as notion published-language token.
+    const reference = toKnowledgeArtifactReference({
+      accountId: input.accountId,
+      workspaceId: input.workspaceId,
+      title: input.title,
+      artifactId: result.aggregateId,
+    });
+
+    return {
+      ...result,
+      aggregateId: reference.artifactId,
+    };
+  }
+
+  async addBlock(input: {
+    accountId: string;
+    pageId: string;
+    index: number;
+    content: {
+      type: "text";
+      richText: readonly { type: string; plainText: string }[];
+      properties: Record<string, unknown>;
+    };
+  }): Promise<CommandResult> {
+    return this.deps.addKnowledgeBlock(input);
+  }
 }
 ````
 
@@ -6363,6 +5569,35 @@ export function useSourceDocumentsSnapshot(
 }
 ````
 
+## File: modules/notebooklm/subdomains/source/interfaces/queries/source-file.queries.ts
+````typescript
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+
+import type { WorkspaceFileListItemDto } from "../../application/dto/source-file.dto";
+import { resolveSourceOrganizationId } from "../../application/dto/source.dto";
+import type { RagDocumentRecord } from "../../application/dto/source.dto";
+import { makeRagDocumentAdapter, makeSourceFileAdapter } from "../../api/factories";
+import { ListSourceFilesUseCase } from "../../application/queries/source-file.queries";
+
+export async function getWorkspaceFiles(
+  workspace: WorkspaceEntity,
+): Promise<WorkspaceFileListItemDto[]> {
+  const useCase = new ListSourceFilesUseCase(makeSourceFileAdapter());
+  const organizationId = resolveSourceOrganizationId(workspace.accountType, workspace.accountId);
+  return useCase.execute({ workspaceId: workspace.id, organizationId, actorAccountId: workspace.accountId });
+}
+
+export async function getWorkspaceRagDocuments(
+  workspace: WorkspaceEntity,
+): Promise<readonly RagDocumentRecord[]> {
+  const organizationId = resolveSourceOrganizationId(workspace.accountType, workspace.accountId);
+  return makeRagDocumentAdapter().findByWorkspace({
+    organizationId,
+    workspaceId: workspace.id,
+  });
+}
+````
+
 ## File: modules/notebooklm/subdomains/source/README.md
 ````markdown
 # Source
@@ -6395,610 +5630,824 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notebooklm subdomain 'synthesis'.
-````
-
-## File: modules/notebooklm/subdomains/synthesis/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'synthesis'.
-````
-
-## File: modules/notebooklm/api/api.instructions.md
-````markdown
----
-description: 'NotebookLM API boundary rules: cross-module entry surface, tRPC server factory, and published language for notebook/source/conversation references.'
-applyTo: 'modules/notebooklm/api/**/*.{ts,tsx}'
----
-
-# NotebookLM API Layer (Local)
-
-Use this file as execution guardrails for `modules/notebooklm/api/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notebooklm/context-map.md`.
-
-## Core Rules
-
-- `api/` is the **only** cross-module entry surface; never expose `domain/`, `application/`, or `infrastructure/` internals.
-- Expose stable **factory functions** and **contract types** only — no aggregate classes, no repository interfaces.
-- Published language tokens for cross-module use: `notebookId`, `sourceId`, `conversationId`, `ragDocumentRef`.
-- `factories.ts` wires subdomain services for tRPC consumption; keep wiring thin and delegate to use cases.
-- `server.ts` is the tRPC router entry point — do not place business logic here.
-- Never pass `notion` knowledge aggregates directly into notebooklm domain; translate via ACL at the boundary.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
-## File: modules/notebooklm/api/index.ts
+## File: modules/notebooklm/subdomains/synthesis/api/server.ts
 ````typescript
 /**
- * modules/notebooklm — public API barrel.
+ * synthesis subdomain — server-only API.
+ *
+ * Factory functions and infrastructure adapters that depend on server-only
+ * packages (genkit, google-genai). Must only be imported in Server Actions,
+ * route handlers, or server-side infrastructure.
  */
 
-export type { Message, MessageRole, Thread, IThreadRepository } from "../subdomains/conversation/api";
+import { FirebaseRagRetrievalAdapter } from "../infrastructure/firebase/FirebaseRagRetrievalAdapter";
+import { GenkitRagGenerationAdapter } from "../infrastructure/genkit/GenkitRagGenerationAdapter";
+import { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
 
-export type {
-  NotebookResponse,
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-  NotebookRepository,
-} from "../subdomains/notebook/api";
+export { GenkitRagGenerationAdapter } from "../infrastructure/genkit/GenkitRagGenerationAdapter";
 
-export { generateNotebookResponse } from "../subdomains/notebook/api";
-export { saveThread, loadThread } from "../subdomains/conversation/api";
+export function createAnswerRagQueryUseCase(): AnswerRagQueryUseCase {
+  return new AnswerRagQueryUseCase(
+    new FirebaseRagRetrievalAdapter(),
+    new GenkitRagGenerationAdapter(),
+  );
+}
+````
 
-// ---------------------------------------------------------------------------
-// Q&A subdomain — types and UI (replaces @/modules/search/api)
-// ---------------------------------------------------------------------------
+## File: modules/notebooklm/subdomains/synthesis/application/use-cases/answer-rag-query.use-case.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: application/use-cases
+ * Purpose: AnswerRagQueryUseCase — orchestrates grounding + synthesis to
+ *          produce a cited answer for a user question.
+ *
+ * Design improvements over legacy answer-rag-query.use-case.ts:
+ * - TopK limit is configurable via constructor injection (no hard-coded MAX_TOP_K=10).
+ * - Error codes are prefixed with QA_ for namespace clarity.
+ * - Dependencies typed against interfaces, not concrete classes.
+ */
 
-export type {
+import { randomUUID } from "node:crypto";
+
+import type { IRagRetrievalRepository } from "../../domain/repositories/IRagRetrievalRepository";
+import type {
   AnswerRagQueryInput,
+  AnswerRagQueryOutput,
   AnswerRagQueryResult,
-  RagCitation,
   RagRetrievalSummary,
-} from "../subdomains/ai/api";
-export { RagQueryView } from "../subdomains/ai/api";
+} from "../../domain/entities/rag-query.entities";
+import type { IRagGenerationRepository } from "../../domain/repositories/IRagGenerationRepository";
 
-// ---------------------------------------------------------------------------
-// Source subdomain — types, hooks, and UI (replaces @/modules/source/api)
-// ---------------------------------------------------------------------------
+const DEFAULT_TOP_K = 5;
+const DEFAULT_MAX_TOP_K = 20; // Raise from the legacy hard-coded 10
 
-export type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryFieldType,
-  WikiLibraryRow,
-  WikiLibraryStatus,
-  WikiLibrarySnapshot,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../subdomains/source/api";
+function clampTopK(value: number | undefined, maxTopK: number): number {
+  if (value === undefined || !Number.isFinite(value)) return DEFAULT_TOP_K;
+  return Math.min(maxTopK, Math.max(1, Math.trunc(value)));
+}
 
-export type {
-  SourceDocument,
-  SourceLiveDocument,
-  AssetDocument,
-  AssetLiveDocument,
-} from "../subdomains/source/api";
+export class AnswerRagQueryUseCase {
+  constructor(
+    private readonly retrievalRepository: IRagRetrievalRepository,
+    private readonly generationRepository: IRagGenerationRepository,
+    /** Maximum topK accepted from callers. Override at composition root for environment-specific limits. */
+    private readonly maxTopK: number = DEFAULT_MAX_TOP_K,
+  ) {}
 
-export {
-  useSourceDocumentsSnapshot,
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
-} from "../subdomains/source/api";
+  async execute(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult> {
+    const organizationId = input.organizationId.trim();
+    const workspaceId = input.workspaceId?.trim() || undefined;
+    const userQuery = input.userQuery.trim();
+    const taxonomy = input.taxonomy?.trim() || undefined;
+    const topK = clampTopK(input.topK, this.maxTopK);
+    const traceId = `rag-trace-${randomUUID()}`;
+    const scope: RagRetrievalSummary["scope"] = workspaceId ? "workspace" : "organization";
 
-export {
-  listWikiLibraries,
-  createWikiLibrary,
-  addWikiLibraryField,
-  createWikiLibraryRow,
-  getWikiLibrarySnapshot,
-} from "../subdomains/source/api";
+    if (!organizationId) {
+      return {
+        ok: false,
+        error: {
+          code: "QA_SCOPE_MISSING",
+          message: "organizationId is required for RAG queries.",
+          context: { traceId, scope: "organizationId" },
+        },
+      };
+    }
 
-export {
-  SourceDocumentsView,
-  WorkspaceFilesTab,
-  LibrariesView,
-  LibraryTableView,
-  FileProcessingDialog,
-} from "../subdomains/source/api";
+    if (!userQuery) {
+      return {
+        ok: false,
+        error: {
+          code: "QA_QUERY_EMPTY",
+          message: "userQuery must not be empty.",
+          context: { traceId },
+        },
+      };
+    }
 
-// ---------------------------------------------------------------------------
-// conversation subdomain — AI chat UI and helpers
-// ---------------------------------------------------------------------------
+    const chunks = await this.retrievalRepository.retrieve({
+      organizationId,
+      ...(workspaceId ? { workspaceId } : {}),
+      normalizedQuery: userQuery.toLowerCase(),
+      taxonomy,
+      topK,
+    });
 
-export { AiChatPage } from "../subdomains/conversation/api";
-export type { AiChatPageProps, ChatMessage } from "../subdomains/conversation/api";
+    if (chunks.length === 0) {
+      return {
+        ok: false,
+        error: {
+          code: "QA_NO_RELEVANT_CHUNKS",
+          message:
+            "No ready chunks matched the query scope. Verify ingestion completed and documents are marked ready.",
+          context: { traceId, organizationId, workspaceId, taxonomy, topK, scope },
+        },
+      };
+    }
 
-// ---------------------------------------------------------------------------
-// Context-wide published language (cross-module reference types)
-// ---------------------------------------------------------------------------
+    const generationResult = await this.generationRepository.generate({
+      traceId,
+      organizationId,
+      ...(workspaceId ? { workspaceId } : {}),
+      userQuery,
+      chunks,
+      ...(input.model ? { model: input.model } : {}),
+    });
 
-export type {
-  NotebookReference,
-  SourceReference,
-  ConversationReference,
-} from "../domain/published-language";
+    if (!generationResult.ok) {
+      return { ok: false, error: generationResult.error };
+    }
 
-export type { NotebookLmDomainEvent } from "../domain/events";
+    const retrievalSummary: RagRetrievalSummary = {
+      mode: "skeleton-metadata-filter",
+      scope,
+      retrievedChunkCount: chunks.length,
+      topK,
+      ...(taxonomy ? { taxonomy } : {}),
+    };
 
-// ---------------------------------------------------------------------------
-// Tier 2 — retrieval subdomain (migration target from ai)
-// ---------------------------------------------------------------------------
+    const output: AnswerRagQueryOutput = {
+      answer: generationResult.data.answer,
+      citations: generationResult.data.citations,
+      retrievalSummary,
+      model: generationResult.data.model,
+      traceId,
+      events: [],
+    };
 
-export type {
-  RetrievedChunk,
-  RetrievalSummary,
-  RetrieveChunksInput,
-  IChunkRetrievalPort,
-  RetrievalCompletedEvent,
-  RetrievalFailedEvent,
-} from "../subdomains/retrieval/api";
-
-// ---------------------------------------------------------------------------
-// Tier 2 — grounding subdomain (migration target from ai)
-// ---------------------------------------------------------------------------
-
-export type {
-  Citation,
-  GroundingEvidence,
-  CitationBuilderInput,
-  ICitationBuilder,
-  GroundingCompletedEvent,
-} from "../subdomains/grounding/api";
-
-// ---------------------------------------------------------------------------
-// Tier 2 — synthesis subdomain (migration target from ai)
-// ---------------------------------------------------------------------------
-
-export type {
-  GenerationCitation,
-  GenerateAnswerInput,
-  GenerateAnswerOutput,
-  GenerateAnswerResult,
-  IGenerationPort,
-  SynthesisCompletedEvent,
-  SynthesisFailedEvent,
-} from "../subdomains/synthesis/api";
-
-// ---------------------------------------------------------------------------
-// Tier 2 — evaluation subdomain (migration target from ai)
-// ---------------------------------------------------------------------------
-
-export type {
-  FeedbackRating,
-  QualityFeedback,
-  SubmitFeedbackInput,
-  IFeedbackPort,
-  FeedbackSubmittedEvent,
-} from "../subdomains/evaluation/api";
+    return { ok: true, data: output };
+  }
+}
 ````
 
-## File: modules/notebooklm/application/application.instructions.md
-````markdown
----
-description: 'NotebookLM application layer rules: use-case orchestration, RAG pipeline coordination, event publishing order, and DTO contracts.'
-applyTo: 'modules/notebooklm/application/**/*.{ts,tsx}'
----
-
-# NotebookLM Application Layer (Local)
-
-Use this file as execution guardrails for `modules/notebooklm/application/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notebooklm/*`.
-
-## Core Rules
-
-- Context-wide `application/` is reserved for cross-subdomain orchestration; subdomain-specific use cases belong inside `subdomains/<name>/application/`.
-- Use cases orchestrate flow only; RAG scoring, citation building, and prompt construction stay in `domain/services/`.
-- After persisting, call `pullDomainEvents()` and publish — never publish before persistence.
-- DTOs are application-layer contracts; never expose domain entities across the layer boundary.
-- Pure reads (retrieval results, conversation history) belong in **query handlers**, not use cases.
-- RAG pipeline steps (retrieve → ground → generate → evaluate) must be individually use-case-addressable to allow partial retry.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-#use skill rag-architecture
-````
-
-## File: modules/notebooklm/application/dtos/.gitkeep
-````
-
-````
-
-## File: modules/notebooklm/application/services/.gitkeep
-````
-
-````
-
-## File: modules/notebooklm/application/use-cases/.gitkeep
-````
-
-````
-
-## File: modules/notebooklm/docs/docs.instructions.md
-````markdown
----
-description: 'NotebookLM documentation rules: strategic doc authority, subdomain list sync, and ubiquitous language enforcement.'
-applyTo: 'modules/notebooklm/docs/**/*.md'
----
-
-# NotebookLM Docs Layer (Local)
-
-Use this file as execution guardrails for `modules/notebooklm/docs/*`.
-For full reference, align with `.github/instructions/docs-authority-and-language.instructions.md` and `docs/contexts/notebooklm/*`.
-
-## Core Rules
-
-- `modules/notebooklm/docs/` holds **links and local summaries only** — authoritative content lives in `docs/contexts/notebooklm/`.
-- Do not duplicate strategic knowledge here; point to the canonical source instead.
-- Any new architectural decision affecting notebooklm must have a corresponding ADR in `docs/decisions/`.
-- Use ubiquitous language from `docs/contexts/notebooklm/ubiquitous-language.md`; do not introduce synonyms.
-- Keep this directory in sync with `docs/contexts/notebooklm/README.md` whenever the subdomain list changes.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
-## File: modules/notebooklm/domain/domain-modeling.instructions.md
-````markdown
----
-description: 'NotebookLM domain tactical modeling rules (local mirror of root domain-modeling guidance).'
-applyTo: '*.{ts,tsx}'
----
-
-# Domain Modeling (NotebookLM Local)
-
-Use this local file as execution guardrails for `modules/notebooklm/domain/*`.
-For full reference, align with `.github/instructions/domain-modeling.instructions.md` and `docs/contexts/notebooklm/*`.
-
-## Core Rules
-
-- Keep aggregate invariants inside aggregate methods.
-- Use immutable value objects with Zod schemas and inferred types.
-- Keep domain framework-free (no Firebase/React/transport imports).
-- Emit domain events on state transitions and publish via application orchestration.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
-## File: modules/notebooklm/domain/events/index.ts
-````typescript
-export type { NotebookLmDomainEvent } from "./NotebookLmDomainEvent";
-````
-
-## File: modules/notebooklm/domain/events/NotebookLmDomainEvent.ts
+## File: modules/notebooklm/subdomains/synthesis/application/use-cases/submit-rag-feedback.use-case.ts
 ````typescript
 /**
- * Module: notebooklm
- * Layer: domain/events (context-wide)
- * Purpose: Base domain event interface for the notebooklm bounded context.
- *          All subdomain events should extend this interface.
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: application/use-cases
+ * Purpose: SubmitRagQueryFeedbackUseCase — persists user quality signal on
+ *          a RAG answer and returns a CommandResult.
  */
 
-export interface NotebookLmDomainEvent {
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { IRagQueryFeedbackRepository } from "../../domain/repositories/IRagQueryFeedbackRepository";
+import type { RagFeedbackRating, SubmitRagQueryFeedbackInput } from "../../domain/entities/rag-feedback.entities";
+
+const VALID_RATINGS: RagFeedbackRating[] = ["helpful", "not_helpful", "partially_helpful"];
+
+export class SubmitRagQueryFeedbackUseCase {
+  constructor(private readonly feedbackRepository: IRagQueryFeedbackRepository) {}
+
+  async execute(input: SubmitRagQueryFeedbackInput): Promise<CommandResult> {
+    if (!input.traceId?.trim()) {
+      return commandFailureFrom("QA_FEEDBACK_TRACE_ID_REQUIRED", "traceId is required.");
+    }
+    if (!input.organizationId?.trim()) {
+      return commandFailureFrom("QA_FEEDBACK_ORG_REQUIRED", "organizationId is required.");
+    }
+    if (!input.submittedByUserId?.trim()) {
+      return commandFailureFrom("QA_FEEDBACK_ACTOR_REQUIRED", "submittedByUserId is required.");
+    }
+    if (!VALID_RATINGS.includes(input.rating)) {
+      return commandFailureFrom(
+        "QA_FEEDBACK_INVALID_RATING",
+        `rating must be one of: ${VALID_RATINGS.join(", ")}.`,
+      );
+    }
+
+    try {
+      const saved = await this.feedbackRepository.save({
+        ...input,
+        traceId: input.traceId.trim(),
+        organizationId: input.organizationId.trim(),
+        submittedByUserId: input.submittedByUserId.trim(),
+      });
+      return commandSuccess(saved.id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "QA_FEEDBACK_PERSIST_ERROR",
+        err instanceof Error ? err.message : "Failed to save feedback.",
+      );
+    }
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/entities/generation.entities.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/entities
+ * Purpose: Generation result types for the synthesis layer.
+ *
+ * Design notes:
+ * - These types bridge grounding chunks → natural-language answer.
+ * - RagRetrievedChunk is re-exported from retrieval entities for convenience;
+ *   callers should use these types when working with generation output.
+ */
+
+import type { DomainError } from "@shared-types";
+
+import type { RagRetrievedChunk } from "./retrieval.entities";
+
+export type { RagRetrievedChunk };
+
+/** Attribution claim within a generated answer */
+export interface GenerationCitation {
+  readonly docId: string;
+  readonly chunkIndex: number;
+  readonly page?: number;
+  readonly reason: string;
+}
+
+/** Input to the generation port */
+export interface GenerateRagAnswerInput {
+  readonly traceId: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly userQuery: string;
+  readonly chunks: readonly RagRetrievedChunk[];
+  /** Optional model override (e.g. "googleai/gemini-2.5-pro"). Fall back to env default. */
+  readonly model?: string;
+}
+
+/** Successful generation output */
+export interface GenerateRagAnswerOutput {
+  readonly answer: string;
+  readonly citations: readonly GenerationCitation[];
+  readonly model: string;
+}
+
+/** Discriminated union result (compatible with CommandResult pattern) */
+export type GenerateRagAnswerResult =
+  | { ok: true; data: GenerateRagAnswerOutput }
+  | { ok: false; error: DomainError };
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/entities/GroundingEvidence.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/grounding
+ * Layer: domain/entities
+ * Purpose: GroundingEvidence — attribution record tying an answer claim to its source.
+ *
+ * Migration source: ai/domain/entities/retrieval.entities.ts → RagCitation
+ * Migration source: ai/domain/services/RagCitationBuilder.ts
+ */
+
+/** Attribution record that ties an answer claim to its source chunk */
+export interface Citation {
+  readonly docId: string;
+  readonly chunkIndex: number;
+  readonly page?: number;
+  readonly reason: string;
+}
+
+/** Grounding evidence aggregating citations with source metadata */
+export interface GroundingEvidence {
+  readonly traceId: string;
+  readonly citations: readonly Citation[];
+  readonly totalChunksConsidered: number;
+  readonly groundedAt: string;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/entities/QualityFeedback.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/evaluation
+ * Layer: domain/entities
+ * Purpose: QualityFeedback — user-quality signal on generated answers.
+ *
+ * Migration source: ai/domain/entities/rag-feedback.entities.ts
+ */
+
+export type FeedbackRating = "helpful" | "not_helpful" | "partially_helpful";
+
+export interface QualityFeedback {
+  readonly id: string;
+  readonly traceId: string;
+  readonly userQuery: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly rating: FeedbackRating;
+  readonly comment?: string;
+  readonly submittedByUserId: string;
+  readonly submittedAtISO: string;
+}
+
+export interface SubmitFeedbackInput {
+  readonly traceId: string;
+  readonly userQuery: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly rating: FeedbackRating;
+  readonly comment?: string;
+  readonly submittedByUserId: string;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/entities/rag-feedback.entities.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/entities
+ * Purpose: RagQueryFeedback — captures user-quality signal on generated answers.
+ */
+
+export type RagFeedbackRating = "helpful" | "not_helpful" | "partially_helpful";
+
+export interface RagQueryFeedback {
+  readonly id: string;
+  readonly traceId: string;
+  readonly userQuery: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly rating: RagFeedbackRating;
+  readonly comment?: string;
+  readonly submittedByUserId: string;
+  readonly submittedAtISO: string;
+}
+
+export interface SubmitRagQueryFeedbackInput {
+  readonly traceId: string;
+  readonly userQuery: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly rating: RagFeedbackRating;
+  readonly comment?: string;
+  readonly submittedByUserId: string;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/entities/rag-query.entities.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/entities
+ * Purpose: RAG Q&A domain types — inputs, outputs, streaming events.
+ *
+ * Design notes:
+ * - AnswerRagQueryInput / Output represent the public contract for the Q&A use case.
+ * - RagStreamEvent models the streaming surface (for future streaming support).
+ * - RagCitation re-exported from grounding for Q&A consumer convenience.
+ */
+
+import type { DomainError } from "@shared-types";
+
+import type { RagCitation, RagRetrievalSummary } from "./retrieval.entities";
+
+export type { RagCitation, RagRetrievalSummary };
+
+export interface AnswerRagQueryInput {
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly userQuery: string;
+  readonly taxonomy?: string;
+  readonly topK?: number;
+  readonly model?: string;
+}
+
+export interface AnswerRagQueryOutput {
+  readonly answer: string;
+  readonly citations: readonly RagCitation[];
+  readonly retrievalSummary: RagRetrievalSummary;
+  readonly model: string;
+  readonly traceId: string;
+  readonly events: readonly RagStreamEvent[];
+}
+
+export type AnswerRagQueryResult =
+  | { ok: true; data: AnswerRagQueryOutput }
+  | { ok: false; error: DomainError };
+
+/** Streaming event for progressive answer delivery (extensibility hook) */
+export interface RagStreamEvent {
+  readonly type: "token" | "citation" | "done" | "error";
+  readonly traceId: string;
+  readonly payload: string | RagCitation | RagRetrievalSummary | DomainError;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/entities/retrieval.entities.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/entities
+ * Purpose: Core retrieval result types — the factual anchors used to ground
+ *          AI-generated answers. These types flow from retrieval → synthesis.
+ *
+ * Design notes:
+ * - RagRetrievedChunk is the atomic unit of grounding evidence.
+ * - RagCitation links an answer claim back to its source chunk.
+ * - RagRetrievalSummary reports the bibliographic scope of the retrieval pass.
+ * - All fields are readonly; entities are value objects (compared by identity in the flow).
+ */
+
+/** A single text chunk fetched from the vector + sparse retrieval pass */
+export interface RagRetrievedChunk {
+  readonly chunkId: string;
+  readonly docId: string;
+  readonly chunkIndex: number;
+  readonly page?: number;
+  /** Semantic / organisational taxonomy label (e.g. "規章制度") */
+  readonly taxonomy: string;
+  readonly text: string;
+  /** Similarity score in [0, 1]; higher is more relevant */
+  readonly score: number;
+}
+
+/** Attribution record that ties an answer claim to its source chunk */
+export interface RagCitation {
+  readonly docId: string;
+  readonly chunkIndex: number;
+  readonly page?: number;
+  readonly reason: string;
+}
+
+/** Summary of the retrieval execution scope for observability / UX */
+export interface RagRetrievalSummary {
+  readonly mode: "skeleton-metadata-filter";
+  readonly scope: "organization" | "workspace";
+  readonly retrievedChunkCount: number;
+  readonly topK: number;
+  readonly taxonomy?: string;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/entities/RetrievedChunk.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/retrieval
+ * Layer: domain/entities
+ * Purpose: RetrievedChunk — atomic unit of grounding evidence from vector/sparse retrieval.
+ *
+ * Migration source: ai/domain/entities/retrieval.entities.ts → RagRetrievedChunk
+ * This is the target canonical location after Strangler Pattern convergence.
+ */
+
+/** A single text chunk fetched from the vector + sparse retrieval pass */
+export interface RetrievedChunk {
+  readonly chunkId: string;
+  readonly docId: string;
+  readonly chunkIndex: number;
+  readonly page?: number;
+  /** Semantic / organisational taxonomy label */
+  readonly taxonomy: string;
+  readonly text: string;
+  /** Similarity score in [0, 1]; higher is more relevant */
+  readonly score: number;
+}
+
+/** Summary of the retrieval execution scope for observability / UX */
+export interface RetrievalSummary {
+  readonly mode: string;
+  readonly scope: "organization" | "workspace";
+  readonly retrievedChunkCount: number;
+  readonly topK: number;
+  readonly taxonomy?: string;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/entities/SynthesisResult.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/entities
+ * Purpose: SynthesisResult — the generated answer with attribution.
+ *
+ * Migration source: ai/domain/entities/generation.entities.ts
+ */
+
+import type { DomainError } from "@shared-types";
+
+/** Attribution claim within a generated answer */
+export interface GenerationCitation {
+  readonly docId: string;
+  readonly chunkIndex: number;
+  readonly page?: number;
+  readonly reason: string;
+}
+
+/** Input to the generation port */
+export interface GenerateAnswerInput {
+  readonly traceId: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly userQuery: string;
+  readonly chunks: readonly {
+    readonly chunkId: string;
+    readonly docId: string;
+    readonly chunkIndex: number;
+    readonly text: string;
+    readonly score: number;
+  }[];
+  readonly model?: string;
+}
+
+/** Successful generation output */
+export interface GenerateAnswerOutput {
+  readonly answer: string;
+  readonly citations: readonly GenerationCitation[];
+  readonly model: string;
+}
+
+/** Discriminated union result */
+export type GenerateAnswerResult =
+  | { ok: true; data: GenerateAnswerOutput }
+  | { ok: false; error: DomainError };
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/events/EvaluationEvents.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/evaluation
+ * Layer: domain/events
+ * Purpose: Domain events for evaluation/feedback operations.
+ */
+
+import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
+import type { FeedbackRating } from "../entities/QualityFeedback";
+
+export interface FeedbackSubmittedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.evaluation.feedback_submitted";
+  readonly payload: {
+    readonly feedbackId: string;
+    readonly traceId: string;
+    readonly rating: FeedbackRating;
+    readonly organizationId: string;
+  };
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/events/GroundingEvents.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/grounding
+ * Layer: domain/events
+ * Purpose: Domain events for grounding operations.
+ */
+
+import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
+
+export interface GroundingCompletedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.grounding.completed";
+  readonly payload: {
+    readonly traceId: string;
+    readonly citationCount: number;
+    readonly chunksConsidered: number;
+  };
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/events/RetrievalEvents.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/retrieval
+ * Layer: domain/events
+ * Purpose: Domain events for retrieval operations.
+ */
+
+import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
+
+export interface RetrievalCompletedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.retrieval.completed";
+  readonly payload: {
+    readonly traceId: string;
+    readonly chunkCount: number;
+    readonly scope: "organization" | "workspace";
+    readonly topK: number;
+  };
+}
+
+export interface RetrievalFailedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.retrieval.failed";
+  readonly payload: {
+    readonly traceId: string;
+    readonly errorCode: string;
+    readonly errorMessage: string;
+  };
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/events/SynthesisEvents.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/events
+ * Purpose: Domain events for synthesis operations.
+ */
+
+import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
+
+export interface SynthesisCompletedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.synthesis.completed";
+  readonly payload: {
+    readonly traceId: string;
+    readonly model: string;
+    readonly citationCount: number;
+    readonly answerLengthChars: number;
+  };
+}
+
+export interface SynthesisFailedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.synthesis.failed";
+  readonly payload: {
+    readonly traceId: string;
+    readonly errorCode: string;
+    readonly errorMessage: string;
+  };
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/events/SynthesisPipelineDomainEvent.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/events
+ * Purpose: Pipeline-level domain events for the synthesis subdomain.
+ *
+ * Migrated from ai/domain/events/AiDomainEvent.ts.
+ * Event discriminants updated: notebooklm.ai.* → notebooklm.synthesis.*
+ */
+
+import type { RagFeedbackRating } from "../entities/rag-feedback.entities";
+import type { OrganizationScope } from "../value-objects/OrganizationScope";
+import type { TopK } from "../value-objects/TopK";
+
+export interface SynthesisPipelineDomainEvent {
   readonly eventId: string;
   readonly occurredAt: string;
   readonly type: string;
   readonly payload: object;
 }
+
+export interface RagQuerySubmittedEvent extends SynthesisPipelineDomainEvent {
+  readonly type: "notebooklm.synthesis.query_submitted";
+  readonly payload: {
+    readonly traceId: string;
+    readonly organizationId: string;
+    readonly workspaceId?: string;
+    readonly userQuery: string;
+    readonly topK: TopK;
+  };
+}
+
+export interface RagRetrievalCompletedEvent extends SynthesisPipelineDomainEvent {
+  readonly type: "notebooklm.synthesis.retrieval_completed";
+  readonly payload: {
+    readonly traceId: string;
+    readonly chunkCount: number;
+    readonly scope: OrganizationScope;
+  };
+}
+
+export interface RagAnswerGeneratedEvent extends SynthesisPipelineDomainEvent {
+  readonly type: "notebooklm.synthesis.answer_generated";
+  readonly payload: {
+    readonly traceId: string;
+    readonly model: string;
+    readonly citationCount: number;
+  };
+}
+
+export interface RagFeedbackSubmittedEvent extends SynthesisPipelineDomainEvent {
+  readonly type: "notebooklm.synthesis.feedback_submitted";
+  readonly payload: {
+    readonly traceId: string;
+    readonly rating: RagFeedbackRating;
+    readonly organizationId: string;
+  };
+}
+
+export type SynthesisPipelineDomainEventType =
+  | RagQuerySubmittedEvent
+  | RagRetrievalCompletedEvent
+  | RagAnswerGeneratedEvent
+  | RagFeedbackSubmittedEvent;
 ````
 
-## File: modules/notebooklm/domain/published-language/index.ts
+## File: modules/notebooklm/subdomains/synthesis/domain/ports/IChunkRetrievalPort.ts
 ````typescript
 /**
- * Module: notebooklm
- * Layer: domain (context-wide published language)
- * Purpose: Reference types consumed by downstream or upstream modules.
+ * Module: notebooklm/subdomains/retrieval
+ * Layer: domain/ports
+ * Purpose: IChunkRetrievalPort — output port for chunk retrieval operations.
  *
- * These types represent the notebooklm bounded context's public vocabulary.
- * Consumers receive opaque references — never raw aggregates.
- *
- * Context Map tokens:
- *   - NotebookReference: identifies a notebook container
- *   - SourceReference: identifies a source document
- *   - ConversationReference: identifies a conversation thread
+ * Migration source: ai/domain/repositories/IRagRetrievalRepository.ts
+ * Infrastructure adapters (Firebase, Upstash, etc.) implement this port.
  */
 
-/** Opaque reference to a Notebook aggregate (cross-module token) */
-export interface NotebookReference {
-  readonly notebookId: string;
-  readonly accountId: string;
+import type { RetrievedChunk } from "../entities/RetrievedChunk";
+
+export interface RetrieveChunksInput {
+  readonly organizationId: string;
   readonly workspaceId?: string;
+  readonly normalizedQuery: string;
+  readonly taxonomy?: string;
+  readonly topK: number;
 }
 
-/** Opaque reference to a Source document (cross-module token) */
-export interface SourceReference {
-  readonly sourceId: string;
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly displayName: string;
-  readonly mimeType: string;
-}
-
-/** Opaque reference to a Conversation thread (cross-module token) */
-export interface ConversationReference {
-  readonly threadId: string;
-  readonly accountId: string;
+export interface IChunkRetrievalPort {
+  retrieve(input: RetrieveChunksInput): Promise<readonly RetrievedChunk[]>;
 }
 ````
 
-## File: modules/notebooklm/domain/services/.gitkeep
-````
-
-````
-
-## File: modules/notebooklm/infrastructure/infrastructure.instructions.md
-````markdown
----
-description: 'NotebookLM infrastructure layer rules: Firebase adapters, Genkit AI client, vector store, and RAG persistence contracts.'
-applyTo: 'modules/notebooklm/infrastructure/**/*.{ts,tsx}'
----
-
-# NotebookLM Infrastructure Layer (Local)
-
-Use this file as execution guardrails for `modules/notebooklm/infrastructure/*`.
-For full reference, align with `.github/instructions/firestore-schema.instructions.md`, `.github/instructions/genkit-flow.instructions.md`, and `docs/contexts/notebooklm/*`.
-
-## Core Rules
-
-- Implement only **port interfaces** declared in subdomain `domain/ports/` or context-wide `domain/ports/output/`; never invent new contracts here.
-- Genkit adapters (`infrastructure/genkit/`) implement `IRagGenerationRepository` or `NotebookRepository` — keep Genkit flow wiring inside the adapter, not in use cases.
-- Firebase adapters own their Firestore collection(s); do not read or write sibling subdomain or cross-module collections directly.
-- Vector store interactions must go through `IVectorStore` port — never call embedding or retrieval APIs directly from use cases.
-- Keep AI client initialisation (`genkit-ai-client.ts`, `client.ts`) in infrastructure; domain must not reference any AI SDK types.
-- Version breaking schema transitions with migration steps; update `firestore.indexes.json` with query-shape changes.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-#use skill rag-architecture
-````
-
-## File: modules/notebooklm/interfaces/interfaces.instructions.md
-````markdown
----
-description: 'NotebookLM interfaces layer rules: input/output translation, Server Actions, RAG UI components, and chat action wiring.'
-applyTo: 'modules/notebooklm/interfaces/**/*.{ts,tsx}'
----
-
-# NotebookLM Interfaces Layer (Local)
-
-Use this file as execution guardrails for `modules/notebooklm/interfaces/*`.
-For full reference, align with `.github/instructions/nextjs-server-actions.instructions.md`, `.github/instructions/shadcn-ui.instructions.md`, and `docs/contexts/notebooklm/*`.
-
-## Core Rules
-
-- This layer owns **input/output translation only** — no RAG logic, no retrieval scoring, no prompt construction.
-- Server Actions (`_actions/`) must be thin: validate input, call the use case, return a stable result shape.
-- Never call repositories or AI clients directly from components or actions.
-- `RagQueryView` and chat components consume data via query hooks or Server Components; keep them display-only.
-- Streaming RAG responses must be handled at the action boundary; do not pass raw stream objects into domain or application layers.
-- Use shadcn/ui primitives before creating new components; maintain semantic markup and keyboard accessibility.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-#use skill next-devtools-mcp
-#use skill vercel-react-best-practices
-````
-
-## File: modules/notebooklm/MIGRATION-AI-SUBDOMAIN-REMOVAL.md
-````markdown
-# Migration Plan: Remove notebooklm/ai Subdomain (AGENTS.md Compliance)
-
-**Status**: PLANNED  
-**Priority**: CRITICAL (violates module ownership guardrail)  
-**Effort**: 4-6 hours  
-**Risk**: HIGH (touch points across 5 subdomains + public API)
-
----
-
-## Rationale
-
-### AGENTS.md Rule Violated
-```
-Module Ownership Guardrails:
-- AI capability routing, model policy, safety 
-  | OWNER: platform 
-  | NEVER OWNED BY: notion, notebooklm
-```
-
-The `notebooklm/subdomains/ai/` directory exists and exports use-cases that should either:
-1. Belong to platform.ai (refactor as consumer of platform AI capability), or
-2. Be distributed to their owning Tier-2 subdomains (synthesis, retrieval, evaluation, grounding)
-
----
-
-## Current State: ai Subdomain Contents
-
-### Public API Exports (modules/notebooklm/api/index.ts)
-
-| Export | Target Tier-2 Subdomain | Reason |
-|--------|------------------------|--------|
-| `RagRetrievedChunk, RagCitation, RagRetrievalSummary` | **retrieval** | Retrieval domain model |
-| `IVectorStore, VectorDocument, VectorSearchResult` | **retrieval** | Vector store port |
-| `IRagRetrievalRepository, RetrieveChunksInput` | **retrieval** | Retrieval repository |
-| `IKnowledgeContentRepository` (citation-related) | **grounding** | Citation/grounding logic |
-| `AnswerRagQueryInput/Output/Result` | **synthesis** | RAG answer generation |
-| `RagStreamEvent` | **synthesis** | Streaming events during synthesis |
-| `RagQueryFeedback, RagFeedbackRating, SubmitRagFeedbackInput` | **evaluation** | Feedback entities |
-| `IRagQueryFeedbackRepository` | **evaluation** | Feedback repository |
-| `GenerateRagAnswerInput/Output/Result` | **synthesis** | Answer generation contract |
-| `GenerationCitation` | **grounding** | Citation details |
-| `IRagGenerationRepository` | **synthesis** | Generation repository |
-| `AnswerRagQueryUseCase` | **synthesis** | QA use-case |
-| `SubmitRagQueryFeedbackUseCase` | **evaluation** | Feedback use-case |
-
-### Server-Only Factory (modules/notebooklm/api/server.ts)
-
-| Export | Type | Target |
-|--------|------|--------|
-| `createAnswerRagQueryUseCase()` | Factory | synthesis |
-| `GenkitRagGenerationAdapter` | Adapter | synthesis |
-| `FirebaseRagRetrievalAdapter` | Adapter | retrieval |
-| `GenkitRagGenerationAdapter` | Adapter | synthesis |
-
----
-
-## Migration Strategy (Phase-Based)
-
-### PHASE 1: Audit (COMPLETED)
-- ✅ Identified ai subdomain as ownership violation
-- ✅ Mapped contents to Tier-2 destinations
-- ✅ Located public API export points
-
-### PHASE 2: Prepare (NEXT)
-1. Create stub exports in each Tier-2 subdomain (api/index.ts) to accept migrated types
-2. Add migration notes to each Tier-2 README
-3. Prepare test fixtures for dependency verification
-
-**Effort**: 1.5 hours  
-**Risk**: LOW (non-breaking; stubs only)
-
-### PHASE 3: Move Content (MAIN)
-
-For each Tier-2 target subdomain:
-
-1. **Retrieve source files** from notebooklm/subdomains/ai/{domain,application,infrastructure}
-2. **Merge into Tier-2 structures** (e.g., retrieval/domain/entities)
-3. **Update internal imports** within migrated code
-4. **Update Tier-2 public API** (api/index.ts) with new exports
-5. **Verify compilation**
-
-**Order** (bottom-up dependency):
-1. grounding (lowest dependencies)
-2. retrieval (grounding → retrieval imports)
-3. evaluation (low dependencies)
-4. synthesis (top-level, imports from others)
-
-**Effort**: 2 hours  
-**Risk**: MEDIUM (file moves + internal import updates)
-
-### PHASE 4: Update Root API Routes
-
-Update these files to import from Tier-2 destinations:
-
-| File | Current Source | New Sources |
-|------|---|---|
-| `modules/notebooklm/api/index.ts` | ai/{domain,application} | retrieval/api, grounding/api, synthesis/api, evaluation/api |
-| `modules/notebooklm/api/server.ts` | ai/{application,infrastructure} | synthesis/api (server), retrieval/api (server) |
-
-**Effort**: 0.5 hours  
-**Risk**: LOW (mechanical update)
-
-### PHASE 5: Delete ai Subdomain
-
-1. Delete `modules/notebooklm/subdomains/ai/` directory
-2. Run grep scan to ensure zero imports of `subdomains/ai`
-3. Run tsc/eslint verification
-4. Commit with message: "refactor: move notebooklm/ai to Tier-2 subdomains per AGENTS.md"
-
-**Effort**: 0.5 hours  
-**Risk**: LOW (deletion only; no rewrites)
-
----
-
-## Validation Checkpoints
-
-| Phase | Checkpoint | Tool |
-|-------|-----------|------|
-| 1 | Mapping complete | Grep + manual audit |
-| 2 | Stubs created | tsc --noEmit |
-| 3 | Files moved + imports updated | tsc --noEmit |
-| 4 | Root routes updated | tsc --noEmit + grep |
-| 5 | Directory deleted | ls + grep (verify zero matches) |
-| ALL | Final validation | `npm run lint && npm run build` |
-
----
-
-## Risk Mitigation
-
-### Breaking Changes?
-- NO — All exports remain accessible from root `modules/notebooklm/api/`
-- Only internal import paths change (handled in Phase 3)
-
-### Consumers of ai Subdomain?
-- Grep for `from.*subdomains/ai` reveals: **only notebooklm root api** + internal imports
-- No external modules depend on notebooklm.ai directly
-- Safe to move
-
-### Rollback Plan
-- If any phase fails: revert commit, keep this doc for next attempt
-- No data loss (pure code movement)
-
----
-
-## Success Criteria
-
-✅ All ai subdomain entities/ports distributed to Tier-2 subdomains  
-✅ Public API (modules/notebooklm/api/) unchanged  
-✅ Zero imports of `subdomains/ai` remain  
-✅ tsc --noEmit succeeds  
-✅ eslint --max-warnings 0 passes  
-✅ ai directory deleted  
-
----
-
-## Next Session Checklist
-
-- [ ] Start with PHASE 2 (stub creation)
-- [ ] Follow order: grounding → retrieval → evaluation → synthesis
-- [ ] Run validation after each Tier-2 migration completes
-- [ ] Delete ai/ only after all other phases succeed
-- [ ] Update AGENTS.md compliance memo when done
-````
-
-## File: modules/notebooklm/notebooklm.instructions.md
-````markdown
----
-description: 'NotebookLM bounded context rules: conversation/source/retrieval/synthesis ownership, downstream dependency position, and subdomain routing.'
-applyTo: 'modules/notebooklm/**/*.{ts,tsx,md}'
----
-
-# NotebookLM Bounded Context (Local)
-
-Use this file as execution guardrails for `modules/notebooklm/`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/contexts/notebooklm/README.md`, and `docs/bounded-contexts.md`.
-
-## Core Rules
-
-- `notebooklm` is **downstream** of `platform`, `workspace`, and `notion`; never import from their internals — use `modules/<context>/api` only.
-- Cross-module consumers import from `modules/notebooklm/api` only.
-- AI provider, model policy, quota, and safety guardrails belong to `platform.ai` — do not reimplement governance here.
-- RAG generation and retrieval logic lives in `subdomains/ai`; notebook session orchestration lives in `subdomains/notebook`; source lifecycle lives in `subdomains/source`.
-- Use ubiquitous language: `Conversation` not `Chat`, `Source` not `Document` (when referring to RAG input), `Notebook` not `Project`.
-
-## Route to Subdomain When
-
-| Concern | Subdomain |
-|---|---|
-| RAG query, generation, retrieval scoring | `ai` |
-| Conversation threads, messages | `conversation` |
-| Notebook session orchestration, agent generation | `notebook` |
-| Source file lifecycle, RAG document registration | `source` |
-| Conversation history versioning | `conversation-versioning` |
-| Output grounding and citation alignment | `grounding` |
-| Source ingestion pipeline | `ingestion` |
-| Inline notes from synthesis output | `note` |
-| Retrieval ranking and recall | `retrieval` |
-| Synthesis and summarisation | `synthesis` |
-| Response quality evaluation | `evaluation` |
-
-## Route Elsewhere When
-
-- Canonical knowledge pages, article publishing → `notion`
-- Identity, entitlements, credentials → `platform`
-- Workspace lifecycle, membership, presence → `workspace`
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/repositories/IKnowledgeContentRepository.ts
+## File: modules/notebooklm/subdomains/synthesis/domain/ports/IFeedbackPort.ts
 ````typescript
 /**
- * Module: notebooklm/subdomains/ai
+ * Module: notebooklm/subdomains/evaluation
+ * Layer: domain/ports
+ * Purpose: IFeedbackPort — output port for persisting quality feedback.
+ *
+ * Migration source: ai/domain/repositories/IRagQueryFeedbackRepository.ts
+ */
+
+import type { QualityFeedback, SubmitFeedbackInput } from "../entities/QualityFeedback";
+
+export interface IFeedbackPort {
+  save(input: SubmitFeedbackInput): Promise<QualityFeedback>;
+  listByOrganization(organizationId: string, limitCount: number): Promise<QualityFeedback[]>;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/ports/IGenerationPort.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/ports
+ * Purpose: IGenerationPort — output port for AI answer generation.
+ *
+ * Migration source: ai/domain/repositories/IRagGenerationRepository.ts
+ * The Genkit adapter (infrastructure) implements this port.
+ */
+
+import type { GenerateAnswerInput, GenerateAnswerResult } from "../entities/SynthesisResult";
+
+export interface IGenerationPort {
+  generate(input: GenerateAnswerInput): Promise<GenerateAnswerResult>;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/ports/IVectorStore.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/ports
+ * Purpose: IVectorStore — hexagonal output port for vector database operations.
+ *
+ * Design notes:
+ * - Domain owns this interface; infrastructure implements it.
+ * - No SDK-specific types leak through this boundary.
+ * - Embedding computation is the adapter's responsibility, not the port's.
+ */
+
+/** A document to index in the vector store */
+export interface VectorDocument {
+  readonly id: string;
+  readonly content: string;
+  readonly metadata?: Record<string, string | number | boolean>;
+}
+
+/** A result from a similarity search */
+export interface VectorSearchResult {
+  readonly id: string;
+  /** Similarity score in [0, 1]; higher is closer */
+  readonly score: number;
+  readonly metadata?: Record<string, string | number | boolean>;
+}
+
+/**
+ * Output port for any vector-store adapter (Upstash Vector, Pinecone, etc.).
+ * Domain and application layers depend only on this interface.
+ */
+export interface IVectorStore {
+  /** Insert or update documents; adapter handles embedding generation */
+  upsert(documents: VectorDocument[]): Promise<void>;
+
+  /**
+   * Find the top-k documents most similar to the query.
+   * @param query  - Natural-language query string
+   * @param k      - Number of results to return
+   * @param filter - Optional metadata predicate
+   */
+  search(
+    query: string,
+    k: number,
+    filter?: Record<string, string | number | boolean>,
+  ): Promise<VectorSearchResult[]>;
+
+  /** Remove documents by ID */
+  delete(ids: string[]): Promise<void>;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/repositories/IKnowledgeContentRepository.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
  * Layer: domain/repositories
  * Purpose: IKnowledgeContentRepository — output port for knowledge corpus RAG
  *          operations (run query, reindex, list parsed documents).
@@ -7075,10 +6524,285 @@ export interface IKnowledgeContentRepository {
 }
 ````
 
-## File: modules/notebooklm/subdomains/ai/infrastructure/firebase/FirebaseKnowledgeContentAdapter.ts
+## File: modules/notebooklm/subdomains/synthesis/domain/repositories/IRagGenerationRepository.ts
 ````typescript
 /**
- * Module: notebooklm/subdomains/ai
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/repositories
+ * Purpose: IRagGenerationRepository — output port for AI answer generation.
+ *
+ * Domain owns this contract; the Genkit adapter (infrastructure) implements it.
+ */
+
+import type { GenerateRagAnswerInput, GenerateRagAnswerResult } from "../entities/generation.entities";
+
+export interface IRagGenerationRepository {
+  generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult>;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/repositories/IRagQueryFeedbackRepository.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/repositories
+ * Purpose: IRagQueryFeedbackRepository — output port for persisting feedback.
+ */
+
+import type { RagQueryFeedback, SubmitRagQueryFeedbackInput } from "../entities/rag-feedback.entities";
+
+export interface IRagQueryFeedbackRepository {
+  save(input: SubmitRagQueryFeedbackInput): Promise<RagQueryFeedback>;
+  listByOrganization(organizationId: string, limitCount: number): Promise<RagQueryFeedback[]>;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/repositories/IRagRetrievalRepository.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/repositories
+ * Purpose: IRagRetrievalRepository — output port for chunk retrieval.
+ *
+ * Design notes:
+ * - The domain defines the contract; Firebase / Upstash / etc. implement it.
+ * - Retrieval is scoped to organization or workspace to enforce tenancy isolation.
+ */
+
+import type { RagRetrievedChunk } from "../entities/retrieval.entities";
+
+export interface RetrieveChunksInput {
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly normalizedQuery: string;
+  readonly taxonomy?: string;
+  readonly topK: number;
+}
+
+export interface IRagRetrievalRepository {
+  retrieve(input: RetrieveChunksInput): Promise<readonly RagRetrievedChunk[]>;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/services/ICitationBuilder.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/grounding
+ * Layer: domain/services
+ * Purpose: ICitationBuilder — domain service interface for constructing citations
+ *          from retrieved chunks and generated answers.
+ *
+ * Migration source: ai/domain/services/RagCitationBuilder.ts
+ */
+
+import type { Citation } from "../entities/GroundingEvidence";
+
+export interface CitationBuilderInput {
+  readonly answer: string;
+  readonly chunks: readonly {
+    readonly docId: string;
+    readonly chunkIndex: number;
+    readonly page?: number;
+    readonly text: string;
+    readonly score: number;
+  }[];
+}
+
+export interface ICitationBuilder {
+  build(input: CitationBuilderInput): readonly Citation[];
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/services/RagCitationBuilder.ts
+````typescript
+import type { GenerationCitation } from "../entities/generation.entities";
+import type { RagRetrievedChunk } from "../entities/retrieval.entities";
+
+export class RagCitationBuilder {
+  /**
+   * Derive citations from the chunks used for generation.
+   * Citations are taken directly from input chunks to avoid model hallucination.
+   */
+  buildCitations(chunks: readonly RagRetrievedChunk[]): GenerationCitation[] {
+    return chunks.map((chunk) => ({
+      docId: chunk.docId,
+      chunkIndex: chunk.chunkIndex,
+      ...(chunk.page !== undefined ? { page: chunk.page } : {}),
+      reason: `Retrieved from ${chunk.taxonomy} context with relevance score ${chunk.score.toFixed(2)}.`,
+    }));
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/services/RagPromptBuilder.ts
+````typescript
+import type { RagRetrievedChunk } from "../entities/retrieval.entities";
+import type { RagPrompt } from "../value-objects/RagPrompt";
+
+export class RagPromptBuilder {
+  /**
+   * Format a single chunk for inclusion in the generation prompt.
+   */
+  formatChunkForPrompt(chunk: RagRetrievedChunk): string {
+    const parts = [`[doc:${chunk.docId} chunk:${chunk.chunkIndex}`];
+    if (chunk.page !== undefined) parts.push(` page:${chunk.page}`);
+    if (chunk.taxonomy) parts.push(` taxonomy:${chunk.taxonomy}`);
+    parts.push(`]\n${chunk.text}`);
+    return parts.join("");
+  }
+
+  /**
+   * Build the complete RAG generation prompt from retrieved chunks.
+   */
+  buildGenerationPrompt(userQuery: string, chunks: readonly RagRetrievedChunk[]): RagPrompt {
+    const systemInstruction =
+      "You are the Xuanwu RAG orchestration layer. Answer the user's question based ONLY on the provided context. " +
+      "Cite sources using [doc:X chunk:Y] format. If the context is insufficient, say so honestly.";
+
+    const formattedContext = chunks.map((chunk) => this.formatChunkForPrompt(chunk)).join("\n\n");
+
+    return { systemInstruction, formattedContext, userQuery };
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/services/RagScoringService.ts
+````typescript
+import type { RagRetrievedChunk } from "../entities/retrieval.entities";
+
+const CJK_REGEX = /[\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF]/u;
+
+export class RagScoringService {
+  /**
+   * Tokenize text into searchable tokens (CJK-aware).
+   * CJK characters are treated as individual tokens; Latin words split by whitespace/punctuation.
+   */
+  tokenize(text: string): readonly string[] {
+    const tokens: string[] = [];
+    const normalized = text.toLowerCase();
+    let currentWord = "";
+
+    for (const char of normalized) {
+      if (CJK_REGEX.test(char)) {
+        if (currentWord) {
+          tokens.push(currentWord);
+          currentWord = "";
+        }
+        tokens.push(char);
+      } else if (/\s|[^\w]/u.test(char)) {
+        if (currentWord) {
+          tokens.push(currentWord);
+          currentWord = "";
+        }
+      } else {
+        currentWord += char;
+      }
+    }
+
+    if (currentWord) {
+      tokens.push(currentWord);
+    }
+
+    return tokens.filter((token) => token.length > 0);
+  }
+
+  /**
+   * Compute token-overlap score between query tokens and chunk text.
+   * Returns score in [0, 1] = matchedTokens / queryTokens.length
+   */
+  computeTokenOverlapScore(queryTokens: readonly string[], chunkText: string): number {
+    if (queryTokens.length === 0) return 0;
+
+    const chunkTokenSet = new Set(this.tokenize(chunkText));
+    if (chunkTokenSet.size === 0) return 0;
+
+    const matchedCount = queryTokens.filter((token) => chunkTokenSet.has(token)).length;
+    return matchedCount / queryTokens.length;
+  }
+
+  /**
+   * Rank chunks by relevance score, returning top-K.
+   */
+  rankChunks(
+    chunks: readonly RagRetrievedChunk[],
+    queryTokens: readonly string[],
+    topK: number,
+  ): RagRetrievedChunk[] {
+    if (topK <= 0 || !Number.isFinite(topK)) return [];
+    const limit = Math.trunc(topK);
+    if (limit <= 0) return [];
+
+    return chunks
+      .map((chunk) => ({
+        ...chunk,
+        score: this.computeTokenOverlapScore(queryTokens, chunk.text),
+      }))
+      .filter((chunk) => chunk.score > 0)
+      .sort((left, right) => right.score - left.score)
+      .slice(0, limit);
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/value-objects/index.ts
+````typescript
+export * from "./OrganizationScope";
+export * from "./RagPrompt";
+export * from "./RelevanceScore";
+export * from "./TopK";
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/value-objects/OrganizationScope.ts
+````typescript
+export interface OrganizationScope {
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+}
+
+export function isWorkspaceScoped(scope: OrganizationScope): boolean {
+  return typeof scope.workspaceId === "string" && scope.workspaceId.trim().length > 0;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/value-objects/RagPrompt.ts
+````typescript
+export interface RagPrompt {
+  readonly systemInstruction: string;
+  readonly formattedContext: string;
+  readonly userQuery: string;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/value-objects/RelevanceScore.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const RelevanceScoreSchema = z.number().min(0).max(1).brand("RelevanceScore");
+export type RelevanceScore = z.infer<typeof RelevanceScoreSchema>;
+
+export function createRelevanceScore(raw: number): RelevanceScore {
+  return RelevanceScoreSchema.parse(raw);
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/value-objects/TopK.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const TopKSchema = z.number().int().positive().max(100).brand("TopK");
+export type TopK = z.infer<typeof TopKSchema>;
+
+export function createTopK(raw: number): TopK {
+  return TopKSchema.parse(raw);
+}
+
+export const DEFAULT_TOP_K: TopK = 10 as TopK;
+````
+
+## File: modules/notebooklm/subdomains/synthesis/infrastructure/firebase/FirebaseKnowledgeContentAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
  * Layer: infrastructure/firebase
  * Purpose: FirebaseKnowledgeContentAdapter — implements IKnowledgeContentRepository via
  *          Firebase Functions calls (RAG query, reindex) and Firestore reads
@@ -7262,1002 +6986,377 @@ export class FirebaseKnowledgeContentAdapter implements IKnowledgeContentReposit
 }
 ````
 
-## File: modules/notebooklm/subdomains/ai/README.md
-````markdown
-# AI (TRANSITIONAL — Non-Strategic)
-
-> ⚠️ 此子域為過渡性（Transitional）邊界，不是最終戰略設計。
-> 所有責任應遷移至 Tier 2 目標子域後逐步移除。
-
-AI-powered RAG pipeline（過渡中）。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Transitional (Tech Debt — Migration in Progress)
-- **Status**: Active but non-strategic — Strangler Pattern migration target
-
-## Migration Responsibility Map
-
-| 現有類別 | 遷移目標 |
-|---------|---------|
-| `AnswerRagQueryUseCase` | → synthesis |
-| `SubmitRagFeedbackUseCase` | → evaluation |
-| `RagPromptBuilder` | → synthesis |
-| `GenkitRagGenerationAdapter` | → synthesis |
-| `RagCitationBuilder`, `RagCitation` | → grounding |
-| `RelevanceScore` | → grounding |
-| `IRagRetrievalRepository`, `RagScoringService` | → retrieval |
-| `IKnowledgeContentRepository` | → retrieval |
-| `IRagQueryFeedbackRepository` | → evaluation |
-| `RagRetrievedChunk` (entity) | → retrieval |
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-新功能**不得**在此子域開發。一律在目標子域 (retrieval/grounding/synthesis/evaluation) 建立新能力，再用 Strangler Pattern 將此子域的現有類別遷移過去。
-````
-
-## File: modules/notebooklm/subdomains/conversation-versioning/README.md
-````markdown
-# Conversation Versioning
-
-> **⚠️ Premature Stub** — 不建議擴充。
-
-## Reason
-
-版本化是 `conversation` 子域的內部關注，語言與演化速率一致，非獨立子域。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Status**: Premature — absorbed by `conversation` subdomain
-````
-
-## File: modules/notebooklm/subdomains/conversation/domain/index.ts
+## File: modules/notebooklm/subdomains/synthesis/infrastructure/firebase/FirebaseRagQueryFeedbackAdapter.ts
 ````typescript
 /**
- * notebooklm/conversation domain — public exports.
- */
-export type { Thread } from "./entities/thread";
-export type { Message } from "./entities/message";
-export type { IThreadRepository } from "./repositories/IThreadRepository";
-export * from "./ports";
-````
-
-## File: modules/notebooklm/subdomains/conversation/domain/ports/index.ts
-````typescript
-/**
- * notebooklm/conversation domain/ports — driven port interfaces for the conversation subdomain.
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: infrastructure/firebase
+ * Purpose: FirebaseRagQueryFeedbackAdapter — implements IRagQueryFeedbackRepository
+ *          using Firestore (client SDK) for feedback persistence.
  *
- * Re-exports repository contracts from domain/repositories/, making the Ports layer
- * explicitly visible in the directory structure.
- */
-export type { IThreadRepository as IThreadPort } from "../repositories/IThreadRepository";
-````
-
-## File: modules/notebooklm/subdomains/evaluation/api/index.ts
-````typescript
-/**
- * Public API boundary for the evaluation subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Status: Tier 2 Migration Target (from ai subdomain)
+ * Firestore collection: ragQueryFeedback/{autoId}
  */
 
-// ── Domain types ──────────────────────────────────────────────────────────────
-export type {
-  FeedbackRating,
-  QualityFeedback,
-  SubmitFeedbackInput,
-} from "../domain/entities/QualityFeedback";
+import {
+  addDoc,
+  collection,
+  getDocs,
+  getFirestore,
+  limit,
+  orderBy,
+  query,
+  where,
+} from "firebase/firestore";
 
-// ── Port contracts ────────────────────────────────────────────────────────────
-export type {
-  IFeedbackPort,
-} from "../domain/ports/IFeedbackPort";
+import { v7 as generateId } from "@lib-uuid";
+import { firebaseClientApp } from "@integration-firebase/client";
 
-// ── Domain events ─────────────────────────────────────────────────────────────
-export type {
-  FeedbackSubmittedEvent,
-} from "../domain/events/EvaluationEvents";
-````
+import type { IRagQueryFeedbackRepository } from "../../domain/repositories/IRagQueryFeedbackRepository";
+import type {
+  RagQueryFeedback,
+  SubmitRagQueryFeedbackInput,
+} from "../../domain/entities/rag-feedback.entities";
 
-## File: modules/notebooklm/subdomains/evaluation/domain/entities/QualityFeedback.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/evaluation
- * Layer: domain/entities
- * Purpose: QualityFeedback — user-quality signal on generated answers.
- *
- * Migration source: ai/domain/entities/rag-feedback.entities.ts
- */
+const COLLECTION = "ragQueryFeedback";
 
-export type FeedbackRating = "helpful" | "not_helpful" | "partially_helpful";
-
-export interface QualityFeedback {
+interface FirestoreFeedbackDoc {
   readonly id: string;
   readonly traceId: string;
   readonly userQuery: string;
   readonly organizationId: string;
   readonly workspaceId?: string;
-  readonly rating: FeedbackRating;
+  readonly rating: string;
   readonly comment?: string;
   readonly submittedByUserId: string;
   readonly submittedAtISO: string;
 }
 
-export interface SubmitFeedbackInput {
-  readonly traceId: string;
-  readonly userQuery: string;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly rating: FeedbackRating;
-  readonly comment?: string;
-  readonly submittedByUserId: string;
-}
-````
-
-## File: modules/notebooklm/subdomains/evaluation/domain/events/EvaluationEvents.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/evaluation
- * Layer: domain/events
- * Purpose: Domain events for evaluation/feedback operations.
- */
-
-import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
-import type { FeedbackRating } from "../entities/QualityFeedback";
-
-export interface FeedbackSubmittedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.evaluation.feedback_submitted";
-  readonly payload: {
-    readonly feedbackId: string;
-    readonly traceId: string;
-    readonly rating: FeedbackRating;
-    readonly organizationId: string;
-  };
-}
-````
-
-## File: modules/notebooklm/subdomains/evaluation/domain/index.ts
-````typescript
-export type { FeedbackRating, QualityFeedback, SubmitFeedbackInput } from "./entities/QualityFeedback";
-export type { IFeedbackPort } from "./ports/IFeedbackPort";
-export type { FeedbackSubmittedEvent } from "./events/EvaluationEvents";
-````
-
-## File: modules/notebooklm/subdomains/evaluation/domain/ports/IFeedbackPort.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/evaluation
- * Layer: domain/ports
- * Purpose: IFeedbackPort — output port for persisting quality feedback.
- *
- * Migration source: ai/domain/repositories/IRagQueryFeedbackRepository.ts
- */
-
-import type { QualityFeedback, SubmitFeedbackInput } from "../entities/QualityFeedback";
-
-export interface IFeedbackPort {
-  save(input: SubmitFeedbackInput): Promise<QualityFeedback>;
-  listByOrganization(organizationId: string, limitCount: number): Promise<QualityFeedback[]>;
-}
-````
-
-## File: modules/notebooklm/subdomains/evaluation/README.md
-````markdown
-# Evaluation
-
-建立品質評估與回歸比較的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Tier 2 — RAG Pipeline (Migration Target)
-- **Status**: Stub — receiving migration from `ai` subdomain
-
-## Migration From `ai`
-
-| Class | Migration source |
-|-------|------------------|
-| `SubmitRagFeedbackUseCase` | ai/application/use-cases |
-| `IRagQueryFeedbackRepository` | ai/domain/repositories |
-| `RagFeedback` | ai/domain/entities |
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notebooklm/subdomains/grounding/api/index.ts
-````typescript
-/**
- * Public API boundary for the grounding subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Status: Tier 2 Migration Target (from ai subdomain)
- */
-
-// ── Domain types ──────────────────────────────────────────────────────────────
-export type {
-  Citation,
-  GroundingEvidence,
-} from "../domain/entities/GroundingEvidence";
-
-// ── Domain service contracts ──────────────────────────────────────────────────
-export type {
-  CitationBuilderInput,
-  ICitationBuilder,
-} from "../domain/services/ICitationBuilder";
-
-// ── Domain events ─────────────────────────────────────────────────────────────
-export type {
-  GroundingCompletedEvent,
-} from "../domain/events/GroundingEvents";
-````
-
-## File: modules/notebooklm/subdomains/grounding/domain/entities/GroundingEvidence.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/grounding
- * Layer: domain/entities
- * Purpose: GroundingEvidence — attribution record tying an answer claim to its source.
- *
- * Migration source: ai/domain/entities/retrieval.entities.ts → RagCitation
- * Migration source: ai/domain/services/RagCitationBuilder.ts
- */
-
-/** Attribution record that ties an answer claim to its source chunk */
-export interface Citation {
-  readonly docId: string;
-  readonly chunkIndex: number;
-  readonly page?: number;
-  readonly reason: string;
-}
-
-/** Grounding evidence aggregating citations with source metadata */
-export interface GroundingEvidence {
-  readonly traceId: string;
-  readonly citations: readonly Citation[];
-  readonly totalChunksConsidered: number;
-  readonly groundedAt: string;
-}
-````
-
-## File: modules/notebooklm/subdomains/grounding/domain/events/GroundingEvents.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/grounding
- * Layer: domain/events
- * Purpose: Domain events for grounding operations.
- */
-
-import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
-
-export interface GroundingCompletedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.grounding.completed";
-  readonly payload: {
-    readonly traceId: string;
-    readonly citationCount: number;
-    readonly chunksConsidered: number;
-  };
-}
-````
-
-## File: modules/notebooklm/subdomains/grounding/domain/index.ts
-````typescript
-export type { Citation, GroundingEvidence } from "./entities/GroundingEvidence";
-export type { CitationBuilderInput, ICitationBuilder } from "./services/ICitationBuilder";
-export type { GroundingCompletedEvent } from "./events/GroundingEvents";
-````
-
-## File: modules/notebooklm/subdomains/grounding/domain/services/ICitationBuilder.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/grounding
- * Layer: domain/services
- * Purpose: ICitationBuilder — domain service interface for constructing citations
- *          from retrieved chunks and generated answers.
- *
- * Migration source: ai/domain/services/RagCitationBuilder.ts
- */
-
-import type { Citation } from "../entities/GroundingEvidence";
-
-export interface CitationBuilderInput {
-  readonly answer: string;
-  readonly chunks: readonly {
-    readonly docId: string;
-    readonly chunkIndex: number;
-    readonly page?: number;
-    readonly text: string;
-    readonly score: number;
-  }[];
-}
-
-export interface ICitationBuilder {
-  build(input: CitationBuilderInput): readonly Citation[];
-}
-````
-
-## File: modules/notebooklm/subdomains/grounding/README.md
-````markdown
-# Grounding
-
-建立引用對齊與可追溯證據的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Tier 2 — RAG Pipeline (Migration Target)
-- **Status**: Stub — receiving migration from `ai` subdomain
-
-## Migration From `ai`
-
-| Class | Migration source |
-|-------|------------------|
-| `RagCitationBuilder` | ai/domain/services |
-| `RagCitation` | ai/domain/entities |
-| `RelevanceScore` | ai/domain/value-objects |
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notebooklm/subdomains/ingestion/README.md
-````markdown
-# Ingestion
-
-> **⚠️ Premature Stub** — 不建議擴充。
-
-## Reason
-
-`source` 子域已涵蓋匯入編排（SourceFile → RagDocument 狀態機）；`py_fn` 擁有實際解析管線。此子域目前無獨立領域模型需求。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Status**: Premature — absorbed by `source` subdomain
-````
-
-## File: modules/notebooklm/subdomains/notebook/domain/index.ts
-````typescript
-/**
- * notebooklm/notebook domain — public exports.
- */
-export type { NotebookRepository } from "./repositories/NotebookRepository";
-export * from "./ports";
-````
-
-## File: modules/notebooklm/subdomains/notebook/domain/ports/index.ts
-````typescript
-/**
- * notebooklm/notebook domain/ports — driven port interfaces for the notebook subdomain.
- *
- * Re-exports repository contracts from domain/repositories/, making the Ports layer
- * explicitly visible in the directory structure.
- */
-export type { NotebookRepository as INotebookPort } from "../repositories/NotebookRepository";
-````
-
-## File: modules/notebooklm/subdomains/retrieval/api/index.ts
-````typescript
-/**
- * Public API boundary for the retrieval subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Status: Tier 2 Migration Target (from ai subdomain)
- */
-
-// ── Domain types ──────────────────────────────────────────────────────────────
-export type {
-  RetrievedChunk,
-  RetrievalSummary,
-} from "../domain/entities/RetrievedChunk";
-
-// ── Port contracts ────────────────────────────────────────────────────────────
-export type {
-  RetrieveChunksInput,
-  IChunkRetrievalPort,
-} from "../domain/ports/IChunkRetrievalPort";
-
-// ── Domain events ─────────────────────────────────────────────────────────────
-export type {
-  RetrievalCompletedEvent,
-  RetrievalFailedEvent,
-} from "../domain/events/RetrievalEvents";
-````
-
-## File: modules/notebooklm/subdomains/retrieval/domain/entities/RetrievedChunk.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/retrieval
- * Layer: domain/entities
- * Purpose: RetrievedChunk — atomic unit of grounding evidence from vector/sparse retrieval.
- *
- * Migration source: ai/domain/entities/retrieval.entities.ts → RagRetrievedChunk
- * This is the target canonical location after Strangler Pattern convergence.
- */
-
-/** A single text chunk fetched from the vector + sparse retrieval pass */
-export interface RetrievedChunk {
-  readonly chunkId: string;
-  readonly docId: string;
-  readonly chunkIndex: number;
-  readonly page?: number;
-  /** Semantic / organisational taxonomy label */
-  readonly taxonomy: string;
-  readonly text: string;
-  /** Similarity score in [0, 1]; higher is more relevant */
-  readonly score: number;
-}
-
-/** Summary of the retrieval execution scope for observability / UX */
-export interface RetrievalSummary {
-  readonly mode: string;
-  readonly scope: "organization" | "workspace";
-  readonly retrievedChunkCount: number;
-  readonly topK: number;
-  readonly taxonomy?: string;
-}
-````
-
-## File: modules/notebooklm/subdomains/retrieval/domain/events/RetrievalEvents.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/retrieval
- * Layer: domain/events
- * Purpose: Domain events for retrieval operations.
- */
-
-import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
-
-export interface RetrievalCompletedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.retrieval.completed";
-  readonly payload: {
-    readonly traceId: string;
-    readonly chunkCount: number;
-    readonly scope: "organization" | "workspace";
-    readonly topK: number;
-  };
-}
-
-export interface RetrievalFailedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.retrieval.failed";
-  readonly payload: {
-    readonly traceId: string;
-    readonly errorCode: string;
-    readonly errorMessage: string;
-  };
-}
-````
-
-## File: modules/notebooklm/subdomains/retrieval/domain/index.ts
-````typescript
-export type { RetrievedChunk, RetrievalSummary } from "./entities/RetrievedChunk";
-export type { RetrieveChunksInput, IChunkRetrievalPort } from "./ports/IChunkRetrievalPort";
-export type { RetrievalCompletedEvent, RetrievalFailedEvent } from "./events/RetrievalEvents";
-````
-
-## File: modules/notebooklm/subdomains/retrieval/domain/ports/IChunkRetrievalPort.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/retrieval
- * Layer: domain/ports
- * Purpose: IChunkRetrievalPort — output port for chunk retrieval operations.
- *
- * Migration source: ai/domain/repositories/IRagRetrievalRepository.ts
- * Infrastructure adapters (Firebase, Upstash, etc.) implement this port.
- */
-
-import type { RetrievedChunk } from "../entities/RetrievedChunk";
-
-export interface RetrieveChunksInput {
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly normalizedQuery: string;
-  readonly taxonomy?: string;
-  readonly topK: number;
-}
-
-export interface IChunkRetrievalPort {
-  retrieve(input: RetrieveChunksInput): Promise<readonly RetrievedChunk[]>;
-}
-````
-
-## File: modules/notebooklm/subdomains/retrieval/README.md
-````markdown
-# Retrieval
-
-建立查詢召回與排序策略的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Tier 2 — RAG Pipeline (Migration Target)
-- **Status**: Stub — receiving migration from `ai` subdomain
-
-## Migration From `ai`
-
-| Class | Migration source |
-|-------|------------------|
-| `IRagRetrievalRepository` | ai/domain/repositories |
-| `IKnowledgeContentRepository` | ai/domain/repositories |
-| `RagScoringService` | ai/domain/services |
-| `RagRetrievedChunk` (entity) | ai/domain/entities |
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notebooklm/subdomains/source/application/queries/source-file.queries.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: application/use-cases
- * Use Case: ListSourceFilesUseCase — lists workspace files as view-model DTOs.
- */
-
-import type { ListSourceFilesScope } from "../../domain/repositories/ISourceFileRepository";
-import type { ISourceFileRepository } from "../../domain/repositories/ISourceFileRepository";
-import type { WorkspaceFileListItemDto } from "../dto/source-file.dto";
-
-const DEFAULT_FILE_SOURCE = "source-module";
-const DEFAULT_FILE_DETAIL = "File metadata mapped from current workspace context.";
-
-export class ListSourceFilesUseCase {
-  constructor(private readonly fileRepository: ISourceFileRepository) {}
-
-  async execute(scope: ListSourceFilesScope): Promise<WorkspaceFileListItemDto[]> {
-    const workspaceId = scope.workspaceId.trim();
-    const organizationId = scope.organizationId.trim();
-    const actorAccountId = scope.actorAccountId.trim();
-
-    if (!workspaceId || !organizationId || !actorAccountId) {
-      return [];
-    }
-
-    const files = await this.fileRepository.listByWorkspace({ workspaceId, organizationId, actorAccountId });
-
-    return files.map((file) => ({
-      id: file.id,
-      workspaceId: file.workspaceId,
-      organizationId: file.organizationId,
-      name: file.name,
-      status: file.status,
-      kind: file.classification,
-      source: file.source ?? DEFAULT_FILE_SOURCE,
-      detail: file.detail ?? DEFAULT_FILE_DETAIL,
-      href: file.href,
-    }));
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/source/domain/index.ts
-````typescript
-/**
- * notebooklm/source domain — public exports.
- */
-export type { IRagDocumentRepository } from "./repositories/IRagDocumentRepository";
-export type { ISourceFileRepository } from "./repositories/ISourceFileRepository";
-export type { IWikiLibraryRepository } from "./repositories/IWikiLibraryRepository";
-export * from "./ports";
-````
-
-## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
-````typescript
-/**
- * notebooklm/source domain/ports — driven port interfaces for the source subdomain.
- *
- * ISourceDocumentCommandPort and IParsedDocumentPort are the primary driven ports.
- * IRagDocumentPort, ISourceFilePort, IWikiLibraryPort re-export the legacy
- * repository contracts, making the Ports layer explicitly visible.
- */
-export type { ISourceDocumentCommandPort } from "./ISourceDocumentPort";
-export type { IParsedDocumentPort } from "./IParsedDocumentPort";
-export type { IRagDocumentRepository as IRagDocumentPort } from "../repositories/IRagDocumentRepository";
-export type { ISourceFileRepository as ISourceFilePort } from "../repositories/ISourceFileRepository";
-export type { IWikiLibraryRepository as IWikiLibraryPort } from "../repositories/IWikiLibraryRepository";
-````
-
-## File: modules/notebooklm/subdomains/source/infrastructure/adapters/NotionKnowledgePageGatewayAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/adapters
- * Adapter: NotionKnowledgePageGatewayAdapter — delegates to notion bounded context API.
- *
- * Implements the KnowledgePageGateway port defined in the application layer,
- * bridging the source subdomain to the notion bounded context through its public API.
- * 
- * ⚠️ MIGRATION NOTE (AGENTS.md violation fix):
- * Currently calls notion.api directly. Per AGENTS.md context map rule,
- * notion → notebooklm relationship should use published language tokens:
- *   - knowledge artifact reference
- *   - attachment reference
- *   - taxonomy hint
- * 
- * TODO: Extract published language contract; adapt through port boundary.
- * Status: PLANNED FOR NEXT PHASE (2-3h estimate)
- */
-
-import type { CommandResult } from "@shared-types";
-
-/**
- * DIRECT API CALL — violation of AGENTS.md cross-domain boundary rule.
- * TODO: Replace with published language token-based contract.
- */
-import { addKnowledgeBlock, createKnowledgePage } from "@/modules/notion/api";
-
-import type { KnowledgePageGateway } from "../../application/use-cases/create-knowledge-draft-from-source.use-case";
-
-export class NotionKnowledgePageGatewayAdapter implements KnowledgePageGateway {
-  async createPage(input: {
-    accountId: string;
-    workspaceId: string;
-    title: string;
-    parentPageId: null;
-    createdByUserId: string;
-  }): Promise<CommandResult> {
-    return createKnowledgePage(input);
+export class FirebaseRagQueryFeedbackAdapter implements IRagQueryFeedbackRepository {
+  private db() {
+    return getFirestore(firebaseClientApp);
   }
 
-  async addBlock(input: {
-    accountId: string;
-    pageId: string;
-    index: number;
-    content: {
-      type: "text";
-      richText: readonly { type: string; plainText: string }[];
-      properties: Record<string, unknown>;
+  async save(input: SubmitRagQueryFeedbackInput): Promise<RagQueryFeedback> {
+    const id = generateId();
+    const submittedAtISO = new Date().toISOString();
+
+    const doc: FirestoreFeedbackDoc = {
+      id,
+      traceId: input.traceId,
+      userQuery: input.userQuery,
+      organizationId: input.organizationId,
+      ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
+      rating: input.rating,
+      ...(input.comment ? { comment: input.comment } : {}),
+      submittedByUserId: input.submittedByUserId,
+      submittedAtISO,
     };
-  }): Promise<CommandResult> {
-    return addKnowledgeBlock(input);
+
+    await addDoc(collection(this.db(), COLLECTION), doc);
+
+    return {
+      id,
+      traceId: input.traceId,
+      userQuery: input.userQuery,
+      organizationId: input.organizationId,
+      ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
+      rating: input.rating,
+      ...(input.comment ? { comment: input.comment } : {}),
+      submittedByUserId: input.submittedByUserId,
+      submittedAtISO,
+    };
+  }
+
+  async listByOrganization(organizationId: string, limitCount: number): Promise<RagQueryFeedback[]> {
+    const q = query(
+      collection(this.db(), COLLECTION),
+      where("organizationId", "==", organizationId),
+      orderBy("submittedAtISO", "desc"),
+      limit(limitCount),
+    );
+
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => {
+      const data = d.data() as FirestoreFeedbackDoc;
+      return {
+        id: typeof data.id === "string" ? data.id : d.id,
+        traceId: data.traceId,
+        userQuery: data.userQuery,
+        organizationId: data.organizationId,
+        ...(data.workspaceId ? { workspaceId: data.workspaceId } : {}),
+        rating: data.rating as RagQueryFeedback["rating"],
+        ...(data.comment ? { comment: data.comment } : {}),
+        submittedByUserId: data.submittedByUserId,
+        submittedAtISO: data.submittedAtISO,
+      };
+    });
   }
 }
 ````
 
-## File: modules/notebooklm/subdomains/source/interfaces/queries/source-file.queries.ts
-````typescript
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-
-import type { WorkspaceFileListItemDto } from "../../application/dto/source-file.dto";
-import { resolveSourceOrganizationId } from "../../application/dto/source.dto";
-import type { RagDocumentRecord } from "../../application/dto/source.dto";
-import { makeRagDocumentAdapter, makeSourceFileAdapter } from "../../api/factories";
-import { ListSourceFilesUseCase } from "../../application/queries/source-file.queries";
-
-export async function getWorkspaceFiles(
-  workspace: WorkspaceEntity,
-): Promise<WorkspaceFileListItemDto[]> {
-  const useCase = new ListSourceFilesUseCase(makeSourceFileAdapter());
-  const organizationId = resolveSourceOrganizationId(workspace.accountType, workspace.accountId);
-  return useCase.execute({ workspaceId: workspace.id, organizationId, actorAccountId: workspace.accountId });
-}
-
-export async function getWorkspaceRagDocuments(
-  workspace: WorkspaceEntity,
-): Promise<readonly RagDocumentRecord[]> {
-  const organizationId = resolveSourceOrganizationId(workspace.accountType, workspace.accountId);
-  return makeRagDocumentAdapter().findByWorkspace({
-    organizationId,
-    workspaceId: workspace.id,
-  });
-}
-````
-
-## File: modules/notebooklm/subdomains/subdomains.instructions.md
-````markdown
----
-description: 'NotebookLM subdomains structural rules: hexagonal shape per subdomain, RAG pipeline ownership, cross-subdomain collaboration, and stub promotion criteria.'
-applyTo: 'modules/notebooklm/subdomains/**/*.{ts,tsx}'
----
-
-# NotebookLM Subdomains Layer (Local)
-
-Use this file as execution guardrails for `modules/notebooklm/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notebooklm/subdomains.md`.
-
-## Core Rules
-
-- Every subdomain must maintain the full hexagonal shape: `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`.
-- Stub subdomains must not be promoted to Active without a corresponding ADR and `README.md` update.
-- Cross-subdomain collaboration within notebooklm goes through the **subdomain's own `api/`** — never import a sibling's internals directly.
-- RAG pipeline ownership is fixed: `source` → ingestion boundary; `ai` → generation and scoring; `grounding` → citation alignment; `retrieval` → recall and ranking; `synthesis` → summarisation output.
-- Domain events use the discriminant format `notebooklm.<subdomain>.<action>` (e.g. `notebooklm.source.document-registered`).
-- `source` subdomain may read `notion` knowledge artifacts via ACL adapter — never import notion domain types directly.
-- Dependency direction inside each subdomain: `interfaces → application → domain ← infrastructure`.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-#use skill rag-architecture
-````
-
-## File: modules/notebooklm/subdomains/synthesis/api/index.ts
-````typescript
-/**
- * Public API boundary for the synthesis subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Status: Tier 2 Migration Target (from ai subdomain)
- */
-
-// ── Domain types ──────────────────────────────────────────────────────────────
-export type {
-  GenerationCitation,
-  GenerateAnswerInput,
-  GenerateAnswerOutput,
-  GenerateAnswerResult,
-} from "../domain/entities/SynthesisResult";
-
-// ── Port contracts ────────────────────────────────────────────────────────────
-export type {
-  IGenerationPort,
-} from "../domain/ports/IGenerationPort";
-
-// ── Domain events ─────────────────────────────────────────────────────────────
-export type {
-  SynthesisCompletedEvent,
-  SynthesisFailedEvent,
-} from "../domain/events/SynthesisEvents";
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/entities/SynthesisResult.ts
+## File: modules/notebooklm/subdomains/synthesis/infrastructure/firebase/FirebaseRagRetrievalAdapter.ts
 ````typescript
 /**
  * Module: notebooklm/subdomains/synthesis
- * Layer: domain/entities
- * Purpose: SynthesisResult — the generated answer with attribution.
+ * Layer: infrastructure/firebase
+ * Purpose: FirebaseRagRetrievalAdapter — implements IRagRetrievalRepository
+ *          using Firestore collectionGroup queries for document-scoped chunks.
  *
- * Migration source: ai/domain/entities/generation.entities.ts
+ * Retrieval strategy:
+ *  1. Over-fetch candidate documents (filtered by org / workspace / taxonomy / status=ready).
+ *  2. Over-fetch candidate chunks in the same scope.
+ *  3. Compute a token-overlap relevance score (CJK-aware tokeniser).
+ *  4. Filter to chunks whose parent doc is in the ready-document set.
+ *  5. Sort descending by score, return top-K.
  */
 
-import type { DomainError } from "@shared-types";
+import { collectionGroup, getDocs, getFirestore, limit, query, where } from "firebase/firestore";
 
-/** Attribution claim within a generated answer */
-export interface GenerationCitation {
-  readonly docId: string;
-  readonly chunkIndex: number;
-  readonly page?: number;
-  readonly reason: string;
-}
+import { firebaseClientApp } from "@integration-firebase/client";
 
-/** Input to the generation port */
-export interface GenerateAnswerInput {
-  readonly traceId: string;
-  readonly organizationId: string;
+import type { RagRetrievedChunk } from "../../domain/entities/retrieval.entities";
+import type { IRagRetrievalRepository, RetrieveChunksInput } from "../../domain/repositories/IRagRetrievalRepository";
+
+// --- Firestore document shapes -----------------------------------------------
+
+interface FirestoreRagDocument {
+  readonly organizationId?: string;
   readonly workspaceId?: string;
-  readonly userQuery: string;
-  readonly chunks: readonly {
-    readonly chunkId: string;
-    readonly docId: string;
-    readonly chunkIndex: number;
-    readonly text: string;
-    readonly score: number;
-  }[];
-  readonly model?: string;
+  readonly status?: string;
+  readonly taxonomy?: string;
 }
 
-/** Successful generation output */
-export interface GenerateAnswerOutput {
-  readonly answer: string;
-  readonly citations: readonly GenerationCitation[];
-  readonly model: string;
+interface FirestoreRagChunk {
+  readonly organizationId?: string;
+  readonly workspaceId?: string;
+  readonly docId?: string;
+  readonly text?: string;
+  readonly taxonomy?: string;
+  readonly page?: number;
+  readonly chunkIndex?: number;
 }
 
-/** Discriminated union result */
-export type GenerateAnswerResult =
-  | { ok: true; data: GenerateAnswerOutput }
-  | { ok: false; error: DomainError };
-````
+// --- Retrieval tuning constants -----------------------------------------------
 
-## File: modules/notebooklm/subdomains/synthesis/domain/events/SynthesisEvents.ts
-````typescript
+const DOCUMENT_OVER_FETCH_MULTIPLIER = 5;
+const MIN_DOCUMENT_LIMIT = 20;
+const CHUNK_OVER_FETCH_MULTIPLIER = 10;
+const MIN_CHUNK_LIMIT = 50;
+
+// --- Scoring helpers (pure functions, no state) --------------------------------
+
+/** CJK-aware whitespace / punctuation tokeniser */
+function tokenize(value: string): readonly string[] {
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9\u4e00-\u9fff]+/u)
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
 /**
- * Module: notebooklm/subdomains/synthesis
- * Layer: domain/events
- * Purpose: Domain events for synthesis operations.
+ * Token-overlap score between query and chunk text.
+ * Returns a value in [0, 1] — fraction of query tokens found in the chunk.
  */
-
-import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
-
-export interface SynthesisCompletedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.synthesis.completed";
-  readonly payload: {
-    readonly traceId: string;
-    readonly model: string;
-    readonly citationCount: number;
-    readonly answerLengthChars: number;
-  };
+function computeTokenOverlapScore(queryTokens: readonly string[], chunkText: string): number {
+  if (queryTokens.length === 0) return 0;
+  const chunkTokens = tokenize(chunkText);
+  if (chunkTokens.length === 0) return 0;
+  const matchCount = queryTokens.filter((t) => chunkTokens.includes(t)).length;
+  return matchCount / queryTokens.length;
 }
 
-export interface SynthesisFailedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.synthesis.failed";
-  readonly payload: {
-    readonly traceId: string;
-    readonly errorCode: string;
-    readonly errorMessage: string;
-  };
+// --- Adapter ------------------------------------------------------------------
+
+export class FirebaseRagRetrievalAdapter implements IRagRetrievalRepository {
+  private readonly db = getFirestore(firebaseClientApp);
+
+  async retrieve(input: RetrieveChunksInput): Promise<readonly RagRetrievedChunk[]> {
+    // Step 1 — resolve ready document IDs in scope
+    const documentsQuery = query(
+      collectionGroup(this.db, "documents"),
+      where("organizationId", "==", input.organizationId),
+      where("status", "==", "ready"),
+      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
+      ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
+      limit(Math.max(input.topK * DOCUMENT_OVER_FETCH_MULTIPLIER, MIN_DOCUMENT_LIMIT)),
+    );
+
+    const documentSnapshots = await getDocs(documentsQuery);
+    const readyDocumentIds = new Set(
+      documentSnapshots.docs
+        .filter((snap) => {
+          const data = snap.data() as FirestoreRagDocument;
+          return data.status === "ready";
+        })
+        .map((snap) => snap.id),
+    );
+
+    if (readyDocumentIds.size === 0) return [];
+
+    // Step 2 — over-fetch candidate chunks
+    const chunksQuery = query(
+      collectionGroup(this.db, "chunks"),
+      where("organizationId", "==", input.organizationId),
+      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
+      ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
+      limit(Math.max(input.topK * CHUNK_OVER_FETCH_MULTIPLIER, MIN_CHUNK_LIMIT)),
+    );
+
+    const chunkSnapshots = await getDocs(chunksQuery);
+    const queryTokens = tokenize(input.normalizedQuery);
+
+    // Step 3 — score, filter, sort, slice
+    return chunkSnapshots.docs
+      .map((snap) => {
+        const data = snap.data() as FirestoreRagChunk;
+        const text = typeof data.text === "string" ? data.text : "";
+        const docId = typeof data.docId === "string" ? data.docId : "";
+        return {
+          chunkId: snap.id,
+          docId,
+          chunkIndex: typeof data.chunkIndex === "number" ? data.chunkIndex : 0,
+          ...(typeof data.page === "number" ? { page: data.page } : {}),
+          taxonomy: typeof data.taxonomy === "string" ? data.taxonomy : "general",
+          text,
+          score: computeTokenOverlapScore(queryTokens, text),
+        } satisfies RagRetrievedChunk;
+      })
+      .filter((chunk) => chunk.docId !== "" && readyDocumentIds.has(chunk.docId) && chunk.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, input.topK);
+  }
 }
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/domain/index.ts
-````typescript
-export type { GenerationCitation, GenerateAnswerInput, GenerateAnswerOutput, GenerateAnswerResult } from "./entities/SynthesisResult";
-export type { IGenerationPort } from "./ports/IGenerationPort";
-export type { SynthesisCompletedEvent, SynthesisFailedEvent } from "./events/SynthesisEvents";
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/ports/IGenerationPort.ts
+## File: modules/notebooklm/subdomains/synthesis/infrastructure/genkit/genkit-ai-client.ts
 ````typescript
 /**
  * Module: notebooklm/subdomains/synthesis
- * Layer: domain/ports
- * Purpose: IGenerationPort — output port for AI answer generation.
+ * Layer: infrastructure/genkit
+ * Purpose: Genkit AI client singleton — server-side only.
  *
- * Migration source: ai/domain/repositories/IRagGenerationRepository.ts
- * The Genkit adapter (infrastructure) implements this port.
+ * Design notes:
+ * - Reads GOOGLE_GENAI_API_KEY and GENKIT_MODEL from environment.
+ * - If no API key is present (e.g. test environment) the googleAI plugin is
+ *   skipped so the server still starts without credentials.
+ * - This file must not be imported by any client (browser) bundle.
  */
 
-import type { GenerateAnswerInput, GenerateAnswerResult } from "../entities/SynthesisResult";
+import { genkit } from "genkit";
+import { googleAI } from "@genkit-ai/google-genai";
 
-export interface IGenerationPort {
-  generate(input: GenerateAnswerInput): Promise<GenerateAnswerResult>;
+const DEFAULT_SYNTHESIS_MODEL = "googleai/gemini-2.0-flash";
+
+const envModel = process.env.GENKIT_MODEL?.trim();
+const configuredModel =
+  envModel && envModel.length > 0 ? envModel : DEFAULT_SYNTHESIS_MODEL;
+
+const hasApiKey =
+  typeof process.env.GOOGLE_GENAI_API_KEY === "string" &&
+  process.env.GOOGLE_GENAI_API_KEY.trim().length > 0;
+
+export const synthesisAiClient = genkit({
+  plugins: hasApiKey ? [googleAI()] : [],
+  model: configuredModel,
+});
+
+export function resolveGenerationModel(modelOverride?: string): string {
+  const normalized = modelOverride?.trim();
+  return normalized && normalized.length > 0 ? normalized : configuredModel;
 }
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/README.md
-````markdown
-# Synthesis
-
-RAG 合成、摘要與洞察生成。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Tier 2 — RAG Pipeline (Migration Target)
-- **Status**: Stub — receiving migration from `ai` subdomain
-
-## Migration From `ai`
-
-| Class | Migration source |
-|-------|------------------|
-| `AnswerRagQueryUseCase` | ai/application/use-cases |
-| `RagPromptBuilder` | ai/domain/services |
-| `GenkitRagGenerationAdapter` | ai/infrastructure |
-| `IRagGenerationRepository` (port) | ai/domain/repositories |
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notebooklm/subdomains/ai/api/index.ts
+## File: modules/notebooklm/subdomains/synthesis/infrastructure/genkit/GenkitRagGenerationAdapter.ts
 ````typescript
 /**
- * Public API boundary for the ai subdomain.
- * Cross-module consumers must import through this entry point.
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: infrastructure/genkit
+ * Purpose: GenkitRagGenerationAdapter — implements IRagGenerationRepository
+ *          using Genkit to invoke Google AI (or any configured model).
+ *
+ * Design notes:
+ * - All prompt construction is encapsulated here (not in domain / use cases).
+ * - Citations are derived from the input chunks, not re-extracted from the
+ *   model output (avoids hallucination in citation attribution).
+ * - Unhandled model errors are wrapped in a structured DomainError value.
  */
 
-// --- Domain types (grounding) ------------------------------------------------
-
-export type { RagRetrievedChunk, RagCitation, RagRetrievalSummary } from "../domain/entities/retrieval.entities";
-export type { IVectorStore, VectorDocument, VectorSearchResult } from "../domain/ports/IVectorStore";
-export type { IRagRetrievalRepository, RetrieveChunksInput } from "../domain/repositories/IRagRetrievalRepository";
-export type {
-  IKnowledgeContentRepository,
-  KnowledgeCitation,
-  KnowledgeParsedDocument,
-  KnowledgeRagQueryResult,
-  KnowledgeReindexInput,
-} from "../domain/repositories/IKnowledgeContentRepository";
-
-// --- Domain types (qa) -------------------------------------------------------
-
-export type { AnswerRagQueryInput, AnswerRagQueryOutput, AnswerRagQueryResult, RagStreamEvent } from "../domain/entities/rag-query.entities";
-export type { RagQueryFeedback, RagFeedbackRating, SubmitRagQueryFeedbackInput } from "../domain/entities/rag-feedback.entities";
-export type { IRagQueryFeedbackRepository } from "../domain/repositories/IRagQueryFeedbackRepository";
-
-// --- Domain types (synthesis) ------------------------------------------------
-
-export type {
+import type { IRagGenerationRepository } from "../../domain/repositories/IRagGenerationRepository";
+import type {
   GenerateRagAnswerInput,
   GenerateRagAnswerOutput,
   GenerateRagAnswerResult,
   GenerationCitation,
-} from "../domain/entities/generation.entities";
-export type { IRagGenerationRepository } from "../domain/repositories/IRagGenerationRepository";
+} from "../../domain/entities/generation.entities";
+import { synthesisAiClient, resolveGenerationModel } from "./genkit-ai-client";
 
-// --- Use-case classes (for DI composition) -----------------------------------
+// --- Prompt construction helpers (pure, testable) ----------------------------
 
-export { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
-export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-rag-feedback.use-case";
+function formatChunkForPrompt(chunk: GenerateRagAnswerInput["chunks"][number]): string {
+  const pageLabel = typeof chunk.page === "number" ? ` page:${chunk.page}` : "";
+  return `[doc:${chunk.docId} chunk:${chunk.chunkIndex}${pageLabel} taxonomy:${chunk.taxonomy}]\n${chunk.text}`;
+}
 
-// --- Wiki convenience wrappers with default repository -----------------------
+function buildGenerationPrompt(input: GenerateRagAnswerInput): string {
+  const contextBlocks = input.chunks.map(formatChunkForPrompt).join("\n\n---\n\n");
+  return [
+    "Use the retrieved context to answer the user query.",
+    "If the context is incomplete, answer conservatively and keep citations grounded in the retrieved chunks.",
+    `User query: ${input.userQuery}`,
+    "Retrieved context:",
+    contextBlocks,
+  ].join("\n\n");
+}
 
-import { FirebaseKnowledgeContentAdapter } from "../infrastructure/firebase/FirebaseKnowledgeContentAdapter";
-import type { KnowledgeParsedDocument, KnowledgeRagQueryResult, KnowledgeReindexInput } from "../domain/repositories/IKnowledgeContentRepository";
+function buildCitations(input: GenerateRagAnswerInput): readonly GenerationCitation[] {
+  return input.chunks.map((chunk) => ({
+    docId: chunk.docId,
+    chunkIndex: chunk.chunkIndex,
+    ...(typeof chunk.page === "number" ? { page: chunk.page } : {}),
+    reason: `Retrieved from ${chunk.taxonomy} context with relevance score ${chunk.score.toFixed(2)}.`,
+  }));
+}
 
-let _knowledgeContentRepository: FirebaseKnowledgeContentAdapter | undefined;
+// --- Adapter ------------------------------------------------------------------
 
-function getKnowledgeContentRepository(): FirebaseKnowledgeContentAdapter {
-  if (!_knowledgeContentRepository) {
-    _knowledgeContentRepository = new FirebaseKnowledgeContentAdapter();
+const SYSTEM_PROMPT =
+  "You are the Xuanwu RAG orchestration layer. Answer only from the supplied context and preserve citations.";
+
+export class GenkitRagGenerationAdapter implements IRagGenerationRepository {
+  async generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult> {
+    try {
+      const response = await synthesisAiClient.generate({
+        prompt: buildGenerationPrompt(input),
+        system: SYSTEM_PROMPT,
+        ...(input.model ? { model: input.model } : {}),
+      });
+
+      const output: GenerateRagAnswerOutput = {
+        answer: response.text,
+        model: resolveGenerationModel(input.model),
+        citations: buildCitations(input),
+      };
+
+      return { ok: true, data: output };
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: "SYNTHESIS_MODEL_PROVIDER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : `Unexpected synthesis error: ${String(error)}`,
+          context: { traceId: input.traceId },
+        },
+      };
+    }
   }
-  return _knowledgeContentRepository;
 }
-
-export function runKnowledgeRagQuery(
-  query: string,
-  accountId: string,
-  workspaceId: string,
-  topK = 4,
-  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
-): Promise<KnowledgeRagQueryResult> {
-  return getKnowledgeContentRepository().runRagQuery(query, accountId, workspaceId, topK, options);
-}
-
-export function reindexKnowledgeDocument(input: KnowledgeReindexInput): Promise<void> {
-  return getKnowledgeContentRepository().reindexDocument(input);
-}
-
-export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20): Promise<KnowledgeParsedDocument[]> {
-  return getKnowledgeContentRepository().listParsedDocuments(accountId, limitCount);
-}
-
-// --- Infrastructure adapters (client-safe, for composition roots) ------------
-
-export { FirebaseRagRetrievalAdapter } from "../infrastructure/firebase/FirebaseRagRetrievalAdapter";
-export { FirebaseKnowledgeContentAdapter } from "../infrastructure/firebase/FirebaseKnowledgeContentAdapter";
-export { FirebaseRagQueryFeedbackAdapter } from "../infrastructure/firebase/FirebaseRagQueryFeedbackAdapter";
-
-// --- UI components -----------------------------------------------------------
-
-export { RagQueryView } from "../interfaces/components/RagQueryView";
 ````
 
-## File: modules/notebooklm/subdomains/ai/domain/index.ts
-````typescript
-export * from "./entities/generation.entities";
-export * from "./entities/rag-feedback.entities";
-export * from "./entities/rag-query.entities";
-export * from "./entities/retrieval.entities";
-export * from "./events";
-export * from "./ports/IVectorStore";
-export * from "./repositories/IRagGenerationRepository";
-export * from "./repositories/IRagQueryFeedbackRepository";
-export * from "./repositories/IRagRetrievalRepository";
-export * from "./repositories/IKnowledgeContentRepository";
-export * from "./services";
-export * from "./value-objects";
-// Ports layer — driven port aliases
-export type { IRagGenerationPort, IRagQueryFeedbackPort, IRagRetrievalPort, IKnowledgeContentPort } from "./ports";
-````
-
-## File: modules/notebooklm/subdomains/ai/interfaces/components/RagQueryView.tsx
+## File: modules/notebooklm/subdomains/synthesis/interfaces/components/RagQueryView.tsx
 ````typescript
 "use client";
 
@@ -8446,6 +7545,619 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
 }
 ````
 
+## File: modules/notebooklm/subdomains/subdomains.instructions.md
+````markdown
+---
+description: 'NotebookLM subdomains structural rules: hexagonal shape per subdomain, RAG pipeline ownership, cross-subdomain collaboration, and stub promotion criteria.'
+applyTo: 'modules/notebooklm/subdomains/**/*.{ts,tsx}'
+---
+
+# NotebookLM Subdomains Layer (Local)
+
+Use this file as execution guardrails for `modules/notebooklm/subdomains/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notebooklm/subdomains.md`.
+
+## Core Rules
+
+- Every subdomain must maintain the full hexagonal shape: `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`.
+- Stub subdomains must not be promoted to Active without a corresponding ADR and `README.md` update.
+- Cross-subdomain collaboration within notebooklm goes through the **subdomain's own `api/`** — never import a sibling's internals directly.
+- RAG pipeline ownership is fixed: `source` → ingestion boundary; `ai` → generation and scoring; `grounding` → citation alignment; `retrieval` → recall and ranking; `synthesis` → summarisation output.
+- Domain events use the discriminant format `notebooklm.<subdomain>.<action>` (e.g. `notebooklm.source.document-registered`).
+- `source` subdomain may read `notion` knowledge artifacts via ACL adapter — never import notion domain types directly.
+- Dependency direction inside each subdomain: `interfaces → application → domain ← infrastructure`.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+#use skill rag-architecture
+````
+
+## File: modules/notebooklm/api/index.ts
+````typescript
+/**
+ * modules/notebooklm — public API barrel.
+ */
+
+export type { Message, MessageRole, Thread, IThreadRepository } from "../subdomains/conversation/api";
+
+export type {
+  NotebookResponse,
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+  NotebookRepository,
+} from "../subdomains/notebook/api";
+
+export { generateNotebookResponse } from "../subdomains/notebook/api";
+export { saveThread, loadThread } from "../subdomains/conversation/api";
+
+// ---------------------------------------------------------------------------
+// NotebookLM root interfaces — Q&A UI
+// ---------------------------------------------------------------------------
+export { RagQueryView } from "../interfaces/components/RagQueryView";
+
+// ---------------------------------------------------------------------------
+// Source subdomain — types, hooks, and UI (replaces @/modules/source/api)
+// ---------------------------------------------------------------------------
+
+export type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+  WikiLibrarySnapshot,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../subdomains/source/api";
+
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../subdomains/source/api";
+
+export {
+  useSourceDocumentsSnapshot,
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../subdomains/source/api";
+
+export {
+  listWikiLibraries,
+  createWikiLibrary,
+  addWikiLibraryField,
+  createWikiLibraryRow,
+  getWikiLibrarySnapshot,
+} from "../subdomains/source/api";
+
+export {
+  SourceDocumentsView,
+  WorkspaceFilesTab,
+  LibrariesView,
+  LibraryTableView,
+  FileProcessingDialog,
+} from "../subdomains/source/api";
+
+// ---------------------------------------------------------------------------
+// conversation subdomain — AI chat UI and helpers
+// ---------------------------------------------------------------------------
+
+export { AiChatPage } from "../subdomains/conversation/api";
+export type { AiChatPageProps, ChatMessage } from "../subdomains/conversation/api";
+
+// ---------------------------------------------------------------------------
+// Context-wide published language (cross-module reference types)
+// ---------------------------------------------------------------------------
+
+export type {
+  NotebookReference,
+  SourceReference,
+  ConversationReference,
+} from "../domain/published-language";
+
+export type { NotebookLmDomainEvent } from "../domain/events";
+
+// ---------------------------------------------------------------------------
+// Synthesis subdomain — complete RAG pipeline
+// (retrieval → grounding → synthesis → evaluation)
+// ---------------------------------------------------------------------------
+
+export type {
+  RetrievedChunk,
+  RetrievalSummary,
+  RetrieveChunksInput,
+  IChunkRetrievalPort,
+  RetrievalCompletedEvent,
+  RetrievalFailedEvent,
+} from "../subdomains/synthesis/api";
+
+export type {
+  Citation,
+  GroundingEvidence,
+  CitationBuilderInput,
+  ICitationBuilder,
+  GroundingCompletedEvent,
+} from "../subdomains/synthesis/api";
+
+export type {
+  GenerationCitation,
+  GenerateAnswerInput,
+  GenerateAnswerOutput,
+  GenerateAnswerResult,
+  IGenerationPort,
+  SynthesisCompletedEvent,
+  SynthesisFailedEvent,
+} from "../subdomains/synthesis/api";
+
+export type {
+  FeedbackRating,
+  QualityFeedback,
+  SubmitFeedbackInput,
+  IFeedbackPort,
+  FeedbackSubmittedEvent,
+} from "../subdomains/synthesis/api";
+````
+
+## File: modules/notebooklm/api/server.ts
+````typescript
+/**
+ * modules/notebooklm — server-only API barrel.
+ *
+ * Exports concrete notebook implementations that depend on server-only
+ * packages or infrastructure wiring. Must only be imported in Server Actions,
+ * route handlers, or server-side infrastructure.
+ */
+
+export { GenerateNotebookResponseUseCase, GenkitNotebookRepository } from "../subdomains/notebook/api/server";
+
+// Q&A subdomain — AnswerRagQueryUseCase factory (now in synthesis subdomain)
+export { createAnswerRagQueryUseCase } from "../subdomains/synthesis/api/server";
+````
+
+## File: modules/notebooklm/interfaces/components/RagQueryView.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+import { AlertCircle, Loader2, Search } from "lucide-react";
+import { toast } from "sonner";
+
+import { useApp } from "@/modules/platform/api";
+import { useAuth } from "@/modules/platform/api";
+import { DEV_DEMO_ACCOUNT_EMAIL } from "@/modules/platform/api";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@ui-shadcn/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from "@ui-shadcn/ui/alert";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import { runKnowledgeRagQuery, type KnowledgeCitation } from "@/modules/notebooklm/subdomains/synthesis/api";
+
+interface RagQueryViewProps {
+  readonly workspaceId?: string;
+}
+
+/**
+ * Minimal RAG query UI at notebooklm root interfaces.
+ * Keeps root API independent from legacy ai subdomain while respecting boundaries.
+ */
+export function RagQueryView({ workspaceId }: RagQueryViewProps) {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const activeAccountId = appState.activeAccount?.id ?? "";
+  const effectiveWorkspaceId = workspaceId?.trim() ?? "";
+
+  const isDemoOrUnauthenticated =
+    authState.status !== "authenticated" ||
+    authState.user?.email === DEV_DEMO_ACCOUNT_EMAIL;
+
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [answer, setAnswer] = useState("");
+  const [citations, setCitations] = useState<readonly KnowledgeCitation[]>([]);
+  const [queried, setQueried] = useState(false);
+
+  async function handleSubmit() {
+    const q = query.trim();
+    if (!q) {
+      toast.error("請先輸入問題");
+      return;
+    }
+    if (!activeAccountId) {
+      toast.error("目前沒有 active account，無法執行 RAG 查詢");
+      return;
+    }
+    if (!effectiveWorkspaceId) {
+      toast.error("請先選擇工作區，再執行 RAG 查詢");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      let result = await runKnowledgeRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, { requireReady: true });
+      if (result.citations.length === 0 && (result.vectorHits > 0 || result.searchHits > 0)) {
+        result = await runKnowledgeRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, {
+          requireReady: false,
+          maxAgeDays: 3650,
+        });
+      }
+      setAnswer(result.answer);
+      setCitations(result.citations);
+      setQueried(true);
+    } catch (error) {
+      console.error(error);
+      toast.error("呼叫 rag_query 失敗");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {isDemoOrUnauthenticated && (
+        <Alert variant="destructive">
+          <AlertCircle className="size-4" />
+          <AlertTitle>需要真實帳號</AlertTitle>
+          <AlertDescription>
+            目前以 Demo 帳號或未登入狀態存取。RAG 查詢需要真實 Firebase 帳號才能執行。
+            請登出後以正式帳號重新登入。
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>RAG Query</CardTitle>
+          <CardDescription>
+            輸入問題，取得 AI 回答與引用來源。
+            {effectiveWorkspaceId ? ` workspace: ${effectiveWorkspaceId}` : " （請先選擇工作區）"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Textarea
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void handleSubmit();
+            }}
+            placeholder="請輸入你的問題...（Ctrl+Enter 送出）"
+            rows={4}
+            disabled={isDemoOrUnauthenticated}
+          />
+          <Button
+            onClick={() => void handleSubmit()}
+            disabled={loading || isDemoOrUnauthenticated}
+            title={isDemoOrUnauthenticated ? "請先以真實帳號登入才能執行 RAG 查詢" : undefined}
+          >
+            {loading ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Search className="mr-2 size-4" />
+            )}
+            {loading ? "查詢中..." : "送出查詢"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {queried && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Answer</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="whitespace-pre-wrap text-sm text-foreground">{answer || "（無回答）"}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {queried && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Citations</CardTitle>
+            <CardDescription>
+              {citations.length === 0
+                ? "目前查詢無相關引用，請確認文件已完成 RAG 索引。"
+                : `${citations.length} 筆引用來源`}
+            </CardDescription>
+          </CardHeader>
+          {citations.length > 0 && (
+            <CardContent>
+              <Accordion type="multiple" className="w-full">
+                {citations.map((citation, index) => (
+                  <AccordionItem key={`${citation.doc_id ?? "doc"}-${index}`} value={`citation-${index}`}>
+                    <AccordionTrigger className="text-sm font-medium">
+                      <span className="flex items-center gap-2">
+                        {citation.filename ?? citation.doc_id ?? "未命名文件"}
+                        {citation.provider && (
+                          <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
+                            {citation.provider}
+                          </span>
+                        )}
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <p className="text-xs text-muted-foreground">{citation.text ?? "（無節錄）"}</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </CardContent>
+          )}
+        </Card>
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/api/index.ts
+````typescript
+/**
+ * Public API boundary for the synthesis subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * This subdomain owns the complete RAG pipeline:
+ *   retrieval → grounding → synthesis → evaluation
+ *
+ * Migrated from: ai subdomain (AGENTS.md violation fix)
+ * Absorbed from: retrieval, grounding, evaluation stubs (Occam consolidation)
+ */
+
+// ── Canonical domain types (retrieval facet) ─────────────────────────────────
+export type {
+  RetrievedChunk,
+  RetrievalSummary,
+} from "../domain/entities/RetrievedChunk";
+
+export type {
+  RetrieveChunksInput,
+  IChunkRetrievalPort,
+} from "../domain/ports/IChunkRetrievalPort";
+
+export type {
+  RetrievalCompletedEvent,
+  RetrievalFailedEvent,
+} from "../domain/events/RetrievalEvents";
+
+// ── Canonical domain types (grounding facet) ─────────────────────────────────
+export type {
+  Citation,
+  GroundingEvidence,
+} from "../domain/entities/GroundingEvidence";
+
+export type {
+  CitationBuilderInput,
+  ICitationBuilder,
+} from "../domain/services/ICitationBuilder";
+
+export type {
+  GroundingCompletedEvent,
+} from "../domain/events/GroundingEvents";
+
+// ── Canonical domain types (synthesis facet) ─────────────────────────────────
+export type {
+  GenerationCitation,
+  GenerateAnswerInput,
+  GenerateAnswerOutput,
+  GenerateAnswerResult,
+} from "../domain/entities/SynthesisResult";
+
+export type {
+  IGenerationPort,
+} from "../domain/ports/IGenerationPort";
+
+export type {
+  SynthesisCompletedEvent,
+  SynthesisFailedEvent,
+} from "../domain/events/SynthesisEvents";
+
+// ── Canonical domain types (evaluation facet) ────────────────────────────────
+export type {
+  FeedbackRating,
+  QualityFeedback,
+  SubmitFeedbackInput,
+} from "../domain/entities/QualityFeedback";
+
+export type {
+  IFeedbackPort,
+} from "../domain/ports/IFeedbackPort";
+
+export type {
+  FeedbackSubmittedEvent,
+} from "../domain/events/EvaluationEvents";
+
+// ── Active pipeline types (used by use cases & infrastructure) ───────────────
+
+export type { RagRetrievedChunk, RagCitation, RagRetrievalSummary } from "../domain/entities/retrieval.entities";
+export type { IVectorStore, VectorDocument, VectorSearchResult } from "../domain/ports/IVectorStore";
+export type { IRagRetrievalRepository, RetrieveChunksInput as LegacyRetrieveChunksInput } from "../domain/repositories/IRagRetrievalRepository";
+export type {
+  IKnowledgeContentRepository,
+  KnowledgeCitation,
+  KnowledgeParsedDocument,
+  KnowledgeRagQueryResult,
+  KnowledgeReindexInput,
+} from "../domain/repositories/IKnowledgeContentRepository";
+
+export type { AnswerRagQueryInput, AnswerRagQueryOutput, AnswerRagQueryResult, RagStreamEvent } from "../domain/entities/rag-query.entities";
+export type { RagQueryFeedback, RagFeedbackRating, SubmitRagQueryFeedbackInput } from "../domain/entities/rag-feedback.entities";
+export type { IRagQueryFeedbackRepository } from "../domain/repositories/IRagQueryFeedbackRepository";
+
+export type {
+  GenerateRagAnswerInput,
+  GenerateRagAnswerOutput,
+  GenerateRagAnswerResult,
+  GenerationCitation as LegacyGenerationCitation,
+} from "../domain/entities/generation.entities";
+export type { IRagGenerationRepository } from "../domain/repositories/IRagGenerationRepository";
+
+// ── Use-case classes (for DI composition) ────────────────────────────────────
+
+export { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
+export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-rag-feedback.use-case";
+
+// ── Wiki convenience wrappers with default repository ────────────────────────
+
+import { FirebaseKnowledgeContentAdapter } from "../infrastructure/firebase/FirebaseKnowledgeContentAdapter";
+import type { KnowledgeParsedDocument, KnowledgeRagQueryResult, KnowledgeReindexInput } from "../domain/repositories/IKnowledgeContentRepository";
+
+let _knowledgeContentRepository: FirebaseKnowledgeContentAdapter | undefined;
+
+function getKnowledgeContentRepository(): FirebaseKnowledgeContentAdapter {
+  if (!_knowledgeContentRepository) {
+    _knowledgeContentRepository = new FirebaseKnowledgeContentAdapter();
+  }
+  return _knowledgeContentRepository;
+}
+
+export function runKnowledgeRagQuery(
+  query: string,
+  accountId: string,
+  workspaceId: string,
+  topK = 4,
+  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
+): Promise<KnowledgeRagQueryResult> {
+  return getKnowledgeContentRepository().runRagQuery(query, accountId, workspaceId, topK, options);
+}
+
+export function reindexKnowledgeDocument(input: KnowledgeReindexInput): Promise<void> {
+  return getKnowledgeContentRepository().reindexDocument(input);
+}
+
+export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20): Promise<KnowledgeParsedDocument[]> {
+  return getKnowledgeContentRepository().listParsedDocuments(accountId, limitCount);
+}
+
+// ── Infrastructure adapters (client-safe, for composition roots) ─────────────
+
+export { FirebaseRagRetrievalAdapter } from "../infrastructure/firebase/FirebaseRagRetrievalAdapter";
+export { FirebaseKnowledgeContentAdapter } from "../infrastructure/firebase/FirebaseKnowledgeContentAdapter";
+export { FirebaseRagQueryFeedbackAdapter } from "../infrastructure/firebase/FirebaseRagQueryFeedbackAdapter";
+
+// ── UI components ────────────────────────────────────────────────────────────
+
+export { RagQueryView } from "../interfaces/components/RagQueryView";
+````
+
+## File: modules/notebooklm/subdomains/synthesis/application/index.ts
+````typescript
+/**
+ * Application layer for notebooklm subdomain 'synthesis'.
+ * Contains RAG pipeline use cases for answer generation and feedback.
+ */
+export { AnswerRagQueryUseCase } from "./use-cases/answer-rag-query.use-case";
+export { SubmitRagQueryFeedbackUseCase } from "./use-cases/submit-rag-feedback.use-case";
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/index.ts
+````typescript
+// ── Canonical domain types ────────────────────────────────────────────────────
+export type { GenerationCitation, GenerateAnswerInput, GenerateAnswerOutput, GenerateAnswerResult } from "./entities/SynthesisResult";
+export type { RetrievedChunk, RetrievalSummary } from "./entities/RetrievedChunk";
+export type { Citation, GroundingEvidence } from "./entities/GroundingEvidence";
+export type { FeedbackRating, QualityFeedback, SubmitFeedbackInput } from "./entities/QualityFeedback";
+
+// ── Active pipeline types (legacy naming, used by use cases & adapters) ──────
+export * from "./entities/generation.entities";
+export * from "./entities/rag-feedback.entities";
+export * from "./entities/rag-query.entities";
+export * from "./entities/retrieval.entities";
+
+// ── Events ───────────────────────────────────────────────────────────────────
+export type { SynthesisCompletedEvent, SynthesisFailedEvent } from "./events/SynthesisEvents";
+export type { RetrievalCompletedEvent, RetrievalFailedEvent } from "./events/RetrievalEvents";
+export type { GroundingCompletedEvent } from "./events/GroundingEvents";
+export type { FeedbackSubmittedEvent } from "./events/EvaluationEvents";
+export * from "./events/SynthesisPipelineDomainEvent";
+
+// ── Ports ────────────────────────────────────────────────────────────────────
+export type { IGenerationPort } from "./ports/IGenerationPort";
+export type { IChunkRetrievalPort, RetrieveChunksInput } from "./ports/IChunkRetrievalPort";
+export type { IFeedbackPort } from "./ports/IFeedbackPort";
+export type { IVectorStore, VectorDocument, VectorSearchResult } from "./ports/IVectorStore";
+
+// ── Repositories (output port interfaces) ────────────────────────────────────
+export * from "./repositories/IRagGenerationRepository";
+export * from "./repositories/IRagQueryFeedbackRepository";
+export * from "./repositories/IRagRetrievalRepository";
+export * from "./repositories/IKnowledgeContentRepository";
+
+// ── Domain services ──────────────────────────────────────────────────────────
+export * from "./services/RagCitationBuilder";
+export * from "./services/RagPromptBuilder";
+export * from "./services/RagScoringService";
+export type { CitationBuilderInput, ICitationBuilder } from "./services/ICitationBuilder";
+
+// ── Value objects ────────────────────────────────────────────────────────────
+export * from "./value-objects";
+````
+
+## File: modules/notebooklm/subdomains/synthesis/infrastructure/index.ts
+````typescript
+/**
+ * Infrastructure layer for notebooklm subdomain 'synthesis'.
+ * Contains Firebase and Genkit adapters for the RAG pipeline.
+ */
+export { FirebaseRagRetrievalAdapter } from "./firebase/FirebaseRagRetrievalAdapter";
+export { FirebaseKnowledgeContentAdapter } from "./firebase/FirebaseKnowledgeContentAdapter";
+export { FirebaseRagQueryFeedbackAdapter } from "./firebase/FirebaseRagQueryFeedbackAdapter";
+export { GenkitRagGenerationAdapter } from "./genkit/GenkitRagGenerationAdapter";
+````
+
+## File: modules/notebooklm/subdomains/synthesis/README.md
+````markdown
+# Synthesis
+
+完整 RAG pipeline：retrieval → grounding → answer generation → evaluation/feedback。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Subdomain**: synthesis (Active)
+- **Status**: Consolidated — all RAG pipeline responsibilities
+
+## Internal Facets
+
+The RAG pipeline is organized as internal domain facets within this single subdomain:
+
+| Facet | Responsibility | Key Types |
+|-------|---------------|-----------|
+| retrieval | 查詢召回與排序策略、向量搜尋 | RetrievedChunk, IChunkRetrievalPort, RagScoringService |
+| grounding | 引用對齊與可追溯證據 | Citation, GroundingEvidence, ICitationBuilder, RagCitationBuilder |
+| generation | RAG 合成、摘要與洞察生成 | GenerateAnswerInput/Output, IGenerationPort, RagPromptBuilder |
+| evaluation | 品質評估、feedback 收集 | QualityFeedback, IFeedbackPort, SubmitRagQueryFeedbackUseCase |
+
+## Key Components
+
+| Component | Layer | Purpose |
+|-----------|-------|---------|
+| AnswerRagQueryUseCase | application | 完整 RAG Q&A 流程 orchestration |
+| SubmitRagQueryFeedbackUseCase | application | 用戶品質 feedback 收集 |
+| FirebaseRagRetrievalAdapter | infrastructure | Firestore 向量/稀疏檢索 |
+| GenkitRagGenerationAdapter | infrastructure | Genkit AI answer generation |
+| FirebaseRagQueryFeedbackAdapter | infrastructure | Firestore feedback 持久化 |
+| FirebaseKnowledgeContentAdapter | infrastructure | Knowledge 文件查詢與 reindex |
+| RagQueryView | interfaces | 最小化 RAG 查詢 UI |
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/notebooklm/AGENT.md
 ````markdown
 # NotebookLM Agent
@@ -8471,12 +8183,11 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
 | Cluster | Subdomains | Responsibility |
 |---------|------------|----------------|
 | Interaction Core | notebook, conversation | 對話容器與互動生命週期 |
-| Source & RAG Pipeline | source, ai → retrieval/grounding/synthesis/evaluation | 來源管理與 RAG 檢索 / grounding / synthesis / evaluation |
-| Personal Knowledge | note | 輕量筆記與知識連結 |
+| Source & RAG Pipeline | source, synthesis | 來源管理與完整 RAG pipeline（retrieval → grounding → synthesis → evaluation） |
 
 ## Route Here When
 
-- 問題核心是 notebook、conversation、source、retrieval、grounding、synthesis。
+- 問題核心是 notebook、conversation、source、synthesis（RAG pipeline）。
 - 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
 - 問題要把知識來源（notion artifact、uploaded file）轉成可對話與可綜合的推理材料。
 - 問題涉及 RAG 問答、向量檢索、chunks 召回、generation 品質。
@@ -8489,46 +8200,32 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
 - 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
 - 工作區生命週期、成員管理、共享範圍屬於 workspace。
 
-## Subdomain Delivery Tiers
-
-### Tier 1 — Core (Active)
+## Subdomains
 
 | Subdomain | Purpose | Key Aggregates / Entities |
 |-----------|---------|---------------------------|
 | conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
 | notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration, NotebookRepository |
 | source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary, SourceRetentionPolicy |
+| synthesis | 完整 RAG pipeline：retrieval、grounding、synthesis、evaluation | AnswerRagQueryUseCase, RagScoringService, RagCitationBuilder, RagPromptBuilder |
 
-### Tier 2 — RAG Pipeline (Migration Target from `ai`)
+### Future Split Triggers
 
-這四個子域持有 domain contracts（entities、ports、events），是 `ai` 子域的戰略遷移目標。新的 RAG 功能仍可加入 `ai`，但只有當拆分觸發條件成立時才遷移 use case 到目標子域。
+`synthesis` 子域將四個 RAG 關注點作為內部 facets 持有。只有當以下觸發條件成立時，才拆分為獨立子域：
 
-| Subdomain | Purpose | Migration From `ai` | Split Trigger |
-|-----------|---------|---------------------|---------------|
-| retrieval | 查詢召回與排序策略、向量搜尋 | `IRagRetrievalRepository`、`RagScoringService`、`RagRetrievedChunk` | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
-| grounding | 引用對齊與可追溯證據 | `RagCitationBuilder`、`RagCitation`、`RelevanceScore` | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
-| synthesis | RAG 合成、摘要與洞察生成 | `AnswerRagQueryUseCase`、`RagPromptBuilder`、`GenkitRagGenerationAdapter` | 生成策略需要獨立 use case 群（多模態、多來源融合） |
-| evaluation | 品質評估、feedback 收集與回歸比較 | `IRagQueryFeedbackRepository`、`submit-rag-feedback`、`RagFeedback` | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
-
-### Planned
-
-| Subdomain | Purpose | Split Trigger |
-|-----------|---------|---------------|
-| note | 輕量個人筆記與 Notebook 知識連結 | 使用者需要獨立於 notebook 的筆記模型 |
-
-### Premature Stubs（目錄保留，不建議擴充）
-
-| Subdomain | Reason |
-|-----------|--------|
-| conversation-versioning | 版本化是 conversation 的內部關注，語言與演化速率一致，非獨立子域 |
-| ingestion | source 子域已涵蓋匯入編排（SourceFile → RagDocument 狀態機）；py_fn 擁有實際解析管線，無獨立領域模型需求 |
+| Facet | Split Trigger |
+|-------|---------------|
+| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
+| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
+| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
+| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
 
 ### Domain Invariants
 
 - notebooklm 只擁有衍生推理流程，不擁有正典知識內容。
-- shared AI capability 由 platform.ai 提供；notebooklm 擁有 retrieval、grounding、synthesis 的本地語義。
+- shared AI capability 由 platform.ai 提供；notebooklm 在 synthesis 擁有 retrieval、grounding、generation、evaluation 的本地語義。
 - grounding 應能把輸出對齊到來源證據。
-- retrieval 是 synthesis 的上游能力。
+- retrieval 是 generation 的上游能力。
 - evaluation 應描述品質，而不是單純使用量。
 - 任何要成為正式知識內容的輸出，都必須交由 notion 吸收。
 
@@ -8546,13 +8243,12 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
 | RagDocument | 來源文件在 RAG pipeline 中的表示 | source | - |
 | WikiLibrary | 結構化知識來源庫 | source | - |
 | Ingestion | 來源匯入、正規化與前處理流程 | source | File Import, Upload |
-| Retrieval | 從來源中召回候選片段的查詢能力 | ai → retrieval | Search, Lookup |
-| Grounding | 把輸出對齊到來源證據的能力 | ai → grounding | Verification, Factcheck |
-| Citation | 輸出指回來源證據的引用關係 | ai → grounding | Reference, Link |
-| Synthesis | 綜合多來源後生成的衍生輸出 | ai → synthesis | Answer, Response (generic) |
-| Evaluation | 對輸出品質、回歸結果與效果的評估 | ai → evaluation | Analytics, Metrics (generic) |
-| RelevanceScore | 檢索結果的相關性分數 | ai → retrieval | - |
-| Note | 與 Notebook 關聯的輕量摘記 | note (planned) | Comment, Annotation |
+| Retrieval | 從來源中召回候選片段的查詢能力 | synthesis | Search, Lookup |
+| Grounding | 把輸出對齊到來源證據的能力 | synthesis | Verification, Factcheck |
+| Citation | 輸出指回來源證據的引用關係 | synthesis | Reference, Link |
+| Synthesis | 綜合多來源後生成的衍生輸出 | synthesis | Answer, Response (generic) |
+| Evaluation | 對輸出品質、回歸結果與效果的評估 | synthesis | Analytics, Metrics (generic) |
+| RelevanceScore | 檢索結果的相關性分數 | synthesis | - |
 
 ### Avoid
 
@@ -8564,21 +8260,6 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
 | Verified Answer | Grounded Synthesis |
 | Knowledge / Wiki | Synthesis output（正典知識屬 notion） |
 
-## Architecture Note — ai Subdomain Transition
-
-`ai` 子域是過渡名稱，目前持有 RAG pipeline 的所有職責（retrieval、grounding、synthesis、evaluation、feedback）。Tier 2 子域持有 domain contracts 作為遷移目標形狀。
-
-**現況持有責任**：
-- `retrieval`：`IKnowledgeContentRepository`、`IRagRetrievalRepository`、`RagRetrievedChunk`、`RagScoringService`
-- `grounding`：`RagCitationBuilder`、`RagCitation`、`RelevanceScore`
-- `synthesis`：`AnswerRagQueryUseCase`、`RagPromptBuilder`、`GenkitRagGenerationAdapter`
-- `evaluation`：`submit-rag-feedback`、`IRagQueryFeedbackRepository`、`RagFeedback`
-
-**遷移規則**：
-- 新的 RAG 功能仍可加入 `ai` 子域。只有當拆分觸發條件成立時，才遷移 use case 到目標子域。不做一次性大改。
-- 遷移以單個 use case 為單位（Strangler Pattern）。
-- 優先順序：retrieval → grounding → synthesis → evaluation。
-
 ## Dependency Direction
 
 ```text
@@ -8588,19 +8269,51 @@ api/ ← 唯一跨模組入口
 
 ## Development Order (Domain-First)
 
-New features:
 1. Define Domain (entities, value objects, aggregates, events)
 2. Define Application (use cases, DTOs)
 3. Define Ports (only if boundary isolation needed)
 4. Implement Infrastructure (adapters, persistence)
 5. Implement Interfaces (UI, actions, hooks)
+````
 
-Legacy migration (Strangler Pattern):
-1. Find a Use Case to extract from `ai`
-2. Build Domain model in the target Tier 2 subdomain
-3. Converge Application layer; route old entry to new use case
-4. Isolate legacy via Ports
-5. Replace Infrastructure adapter; remove old path when stable
+## File: modules/notebooklm/notebooklm.instructions.md
+````markdown
+---
+description: 'NotebookLM bounded context rules: conversation/source/synthesis ownership, downstream dependency position, and subdomain routing.'
+applyTo: 'modules/notebooklm/**/*.{ts,tsx,md}'
+---
+
+# NotebookLM Bounded Context (Local)
+
+Use this file as execution guardrails for `modules/notebooklm/`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/contexts/notebooklm/README.md`, and `docs/bounded-contexts.md`.
+
+## Core Rules
+
+- `notebooklm` is **downstream** of `platform`, `workspace`, and `notion`; never import from their internals — use `modules/<context>/api` only.
+- Cross-module consumers import from `modules/notebooklm/api` only.
+- AI provider, model policy, quota, and safety guardrails belong to `platform.ai` — do not reimplement governance here.
+- The complete RAG pipeline (retrieval → grounding → synthesis → evaluation) lives in `subdomains/synthesis`.
+- Notebook session orchestration lives in `subdomains/notebook`; source lifecycle lives in `subdomains/source`.
+- Use ubiquitous language: `Conversation` not `Chat`, `Source` not `Document` (when referring to RAG input), `Notebook` not `Project`.
+
+## Route to Subdomain When
+
+| Concern | Subdomain |
+|---|---|
+| RAG pipeline: retrieval, grounding, answer generation, evaluation | `synthesis` |
+| Conversation threads, messages | `conversation` |
+| Notebook session orchestration, agent generation | `notebook` |
+| Source file lifecycle, RAG document registration | `source` |
+
+## Route Elsewhere When
+
+- Canonical knowledge pages, article publishing → `notion`
+- Identity, entitlements, credentials → `platform`
+- Workspace lifecycle, membership, presence → `workspace`
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: modules/notebooklm/README.md
@@ -8632,9 +8345,7 @@ Legacy migration (Strangler Pattern):
 | Grounding | 把輸出對齊到來源證據、建立 Citation 的能力 |
 | Citation | 輸出指回來源證據的引用關係 |
 | Synthesis | 綜合多來源後生成的衍生輸出（RAG generation） |
-| Note | 與 Notebook 關聯的輕量摘記 |
 | Evaluation | 對輸出品質、feedback 與回歸結果的評估 |
-| VersionSnapshot | 對話或 Notebook 某一時點的不可變快照 |
 
 ## Implementation Structure
 
@@ -8644,89 +8355,34 @@ modules/notebooklm/
 ├── application/      # Context-wide orchestration (empty, use subdomain layers)
 ├── domain/           # Context-wide domain concepts (events, published-language)
 ├── infrastructure/   # Context-wide driven adapters (empty, use subdomain layers)
-├── interfaces/       # Context-wide driving adapters (empty, use subdomain layers)
+├── interfaces/       # Context-wide driving adapters (RagQueryView composition)
 ├── docs/             # Links to strategic documentation
 └── subdomains/
-    ├── ai/                      # ⚠️ TRANSITIONAL — migrating to Tier 2
-    ├── conversation/            # Tier 1 — Active
-    ├── notebook/                # Tier 1 — Active
-    ├── source/                  # Tier 1 — Active
-    ├── retrieval/               # Tier 2 — Domain contracts (migration target)
-    ├── grounding/               # Tier 2 — Domain contracts (migration target)
-    ├── synthesis/               # Tier 2 — Domain contracts (migration target)
-    ├── evaluation/              # Tier 2 — Domain contracts (migration target)
-    ├── note/                    # Planned — Stub
-    ├── ingestion/               # Premature — absorbed by source
-    └── conversation-versioning/ # Premature — absorbed by conversation
+    ├── conversation/  # Tier 1 — 對話 Thread 與 Message
+    ├── notebook/      # Tier 1 — Notebook 容器與 GenKit 生成
+    ├── source/        # Tier 1 — 來源文件與 ingestion 編排
+    └── synthesis/     # Tier 1 — 完整 RAG pipeline（retrieval → grounding → synthesis → evaluation）
 ```
 
-> **Premature stubs** — `ingestion/` and `conversation-versioning/` directories exist but are not recommended for expansion. See [Premature Stubs](#premature-stubs) for rationale.
-
 ## Subdomains
-
-### Tier 1 — Core (Active)
 
 | Subdomain | Purpose | Key Aggregates / Entities |
 |-----------|---------|--------------------------|
 | conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
 | notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration |
 | source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary |
+| synthesis | 完整 RAG pipeline：retrieval、grounding、answer generation、evaluation/feedback | AnswerRagQueryUseCase, SubmitRagQueryFeedbackUseCase, RagScoringService, RagCitationBuilder, RagPromptBuilder |
 
-### Tier 2 — RAG Pipeline (Domain Contracts — Migration Target from `ai`)
+### Future Split Triggers
 
-這四個子域持有 domain contracts（entities、ports、events），是 `ai` 子域的戰略遷移接收邊界。新的 RAG 功能仍可加入 `ai`，但只有當拆分觸發條件成立時才遷移。
+`synthesis` 子域將四個 RAG 關注點作為內部 facets 持有。只有當以下觸發條件成立時，才拆分為獨立子域：
 
-| Subdomain | Purpose | 遷移自 `ai` 的責任 | Split Trigger |
-|-----------|---------|------------------|---------------|
-| retrieval | 查詢召回與排序策略、向量搜尋 | `IRagRetrievalRepository`、`RagScoringService`、`RagRetrievedChunk` | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
-| grounding | 引用對齊與可追溯證據 | `RagCitationBuilder`、`RagCitation`、`RelevanceScore` | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
-| synthesis | RAG 合成、摘要與洞察生成 | `AnswerRagQueryUseCase`、`RagPromptBuilder`、`GenkitRagGenerationAdapter` | 生成策略需要獨立 use case 群（多模態、多來源融合） |
-| evaluation | 品質評估、feedback 收集與回歸比較 | `IRagQueryFeedbackRepository`、`submit-rag-feedback`、`RagFeedback` | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
-
-### Planned
-
-| Subdomain | Purpose | Split Trigger |
-|-----------|---------|---------------|
-| note | 輕量個人筆記與 Notebook 知識連結 | 使用者需要獨立於 notebook 的筆記模型 |
-
-### Premature Stubs
-
-以下目錄存在但不建議擴充：
-
-| Subdomain | Reason |
-|-----------|--------|
-| conversation-versioning | 版本化是 conversation 的內部關注，語言與演化速率一致，非獨立子域 |
-| ingestion | source 子域已涵蓋匯入編排（SourceFile → RagDocument 狀態機）；py_fn 擁有實際解析管線，無獨立領域模型需求 |
-
-### Transitional (Non-Strategic)
-
-| Subdomain | Status | Migration Path |
-|-----------|--------|---------------|
-| ai | ⚠️ Transition — 持有 RAG 全部職責 | Tier 2：retrieval → grounding → synthesis → evaluation（Strangler Pattern，按需遷移） |
-
-## Subdomain Analysis
-
-**子域數量分析（3 Active + 4 Domain Contracts + 1 Planned + 2 Premature + 1 Transitional = 11 目錄）**
-
-- ✅ Tier 2（retrieval/grounding/synthesis/evaluation）是 `ai` 的遷移目標形狀，持有零成本 domain contracts（interfaces + types），不是額外日常維護負擔。
-- ✅ `source` 吸收了 `ingestion` 的編排責任，`conversation` 吸收了版本化關注。
-- ✅ `note` 保留為 Planned，待使用者需求出現時再充實。
-- ⚠️ `ai` 是唯一需要主動縮小的子域——當拆分觸發條件成立時遷移。
-
-## Architecture Note — ai Subdomain Transition
-
-`ai` 子域是過渡名稱，目前持有 RAG pipeline 的所有職責。Tier 2 子域持有 domain contracts（entities、ports、events）作為遷移目標形狀。
-
-**拆分觸發條件（Strangler Pattern，按需遷移）：**
-
-| Target Subdomain | Trigger Condition |
-|------------------|-------------------|
+| Facet | Split Trigger |
+|-------|---------------|
 | retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
 | grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
-| synthesis | 生成策略需要獨立 use case 群（多模態、多來源融合） |
+| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
 | evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
-
-**現階段規則：** 新的 RAG 功能仍可加入 `ai` 子域。只有當拆分觸發條件成立時，才遷移 use case 到目標子域。不做一次性大改。
 
 ## Dependency Direction
 
@@ -8746,20 +8402,4 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Context Map](../../docs/contexts/notebooklm/context-map.md)
 - [Ubiquitous Language](../../docs/contexts/notebooklm/ubiquitous-language.md)
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/ports/index.ts
-````typescript
-/**
- * notebooklm/ai domain/ports — driven port interfaces for the ai subdomain.
- *
- * These re-export the repository contracts from domain/repositories/ and
- * the existing IVectorStore port from domain/ports/, making the Ports layer
- * explicitly visible in the directory structure.
- */
-export type { IRagGenerationRepository as IRagGenerationPort } from "../repositories/IRagGenerationRepository";
-export type { IRagQueryFeedbackRepository as IRagQueryFeedbackPort } from "../repositories/IRagQueryFeedbackRepository";
-export type { IRagRetrievalRepository as IRagRetrievalPort } from "../repositories/IRagRetrievalRepository";
-export type { IKnowledgeContentRepository as IKnowledgeContentPort } from "../repositories/IKnowledgeContentRepository";
-export type { IVectorStore } from "./IVectorStore";
 ````

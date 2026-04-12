@@ -38,13 +38,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-185 files | 8,024 lines
+149 files | 7,808 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 145 | 5,099 |
-| Markdown | 23 | 916 |
-| TypeScript (TSX) | 10 | 2,002 |
+| TypeScript | 116 | 5,102 |
+| Markdown | 15 | 514 |
+| TypeScript (TSX) | 11 | 2,185 |
 | No Extension | 7 | 7 |
 
 **Largest files:**
@@ -56,5 +56,5 @@ This skill contains the following reference files:
 - `modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseWikiLibraryAdapter.ts` (192 lines)
 - `modules/notebooklm/subdomains/source/application/use-cases/wiki-library.use-cases.ts` (191 lines)
 - `modules/notebooklm/subdomains/source/interfaces/components/SourceDocumentsView.tsx` (188 lines)
-- `modules/notebooklm/subdomains/ai/interfaces/components/RagQueryView.tsx` (185 lines)
-- `modules/notebooklm/subdomains/ai/infrastructure/firebase/FirebaseKnowledgeContentAdapter.ts` (183 lines)
+- `modules/notebooklm/subdomains/synthesis/interfaces/components/RagQueryView.tsx` (185 lines)
+- `modules/notebooklm/subdomains/synthesis/infrastructure/firebase/FirebaseKnowledgeContentAdapter.ts` (183 lines)
