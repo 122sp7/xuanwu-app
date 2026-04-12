@@ -401,23 +401,6 @@ export interface NotebookRepository {
 }
 ````
 
-## File: modules/notebooklm/subdomains/notebook/README.md
-````markdown
-# Notebook
-
-Notebook container and organization.
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/notebooklm/subdomains/source/application/dto/rag-document.dto.ts
 ````typescript
 /**
@@ -687,6 +670,50 @@ export const mapToAssetLiveDocument = mapToSourceLiveDocument;
  */
 export { resolveSourceOrganizationId } from "../../domain/services/resolve-source-organization-id.service";
 export type { RagDocumentRecord } from "../../domain/entities/RagDocument";
+````
+
+## File: modules/notebooklm/subdomains/source/application/queries/source-file.queries.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/use-cases
+ * Use Case: ListSourceFilesUseCase — lists workspace files as view-model DTOs.
+ */
+
+import type { ListSourceFilesScope } from "../../domain/repositories/ISourceFileRepository";
+import type { ISourceFileRepository } from "../../domain/repositories/ISourceFileRepository";
+import type { WorkspaceFileListItemDto } from "../dto/source-file.dto";
+
+const DEFAULT_FILE_SOURCE = "source-module";
+const DEFAULT_FILE_DETAIL = "File metadata mapped from current workspace context.";
+
+export class ListSourceFilesUseCase {
+  constructor(private readonly fileRepository: ISourceFileRepository) {}
+
+  async execute(scope: ListSourceFilesScope): Promise<WorkspaceFileListItemDto[]> {
+    const workspaceId = scope.workspaceId.trim();
+    const organizationId = scope.organizationId.trim();
+    const actorAccountId = scope.actorAccountId.trim();
+
+    if (!workspaceId || !organizationId || !actorAccountId) {
+      return [];
+    }
+
+    const files = await this.fileRepository.listByWorkspace({ workspaceId, organizationId, actorAccountId });
+
+    return files.map((file) => ({
+      id: file.id,
+      workspaceId: file.workspaceId,
+      organizationId: file.organizationId,
+      name: file.name,
+      status: file.status,
+      kind: file.classification,
+      source: file.source ?? DEFAULT_FILE_SOURCE,
+      detail: file.detail ?? DEFAULT_FILE_DETAIL,
+      href: file.href,
+    }));
+  }
+}
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case.ts
@@ -3285,20 +3312,6 @@ export interface IVersionRepository {
 }
 ````
 
-## File: modules/notion/subdomains/collaboration/domain/services/index.ts
-````typescript
-// TODO: export PermissionResolutionService, VersionRetentionService
-
-export {};
-````
-
-## File: modules/notion/subdomains/collaboration/domain/value-objects/index.ts
-````typescript
-// TODO: export CommentId, PermissionId, VersionId, ContentId, PermissionLevel
-
-export {};
-````
-
 ## File: modules/notion/subdomains/database/application/dto/database.dto.ts
 ````typescript
 /**
@@ -3462,12 +3475,283 @@ export {
 export {};
 ````
 
+## File: modules/notion/subdomains/database/application/queries/automation.queries.ts
+````typescript
+import type { DatabaseAutomationSnapshot } from "../../domain/aggregates/DatabaseAutomation";
+import type { IAutomationRepository } from "../../domain/repositories/IAutomationRepository";
+
+export class ListAutomationsUseCase {
+  constructor(private readonly repo: IAutomationRepository) {}
+
+  async execute(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]> {
+    return this.repo.listByDatabase(accountId, databaseId);
+  }
+}
+````
+
+## File: modules/notion/subdomains/database/application/queries/database.queries.ts
+````typescript
+import type { IDatabaseRepository } from "../../domain/repositories/IDatabaseRepository";
+import type { DatabaseSnapshot } from "../../domain/aggregates/Database";
+import { GetDatabaseSchema, ListDatabasesSchema } from "../dto/DatabaseDto";
+import type { GetDatabaseDto, ListDatabasesDto } from "../dto/DatabaseDto";
+
+export class GetDatabaseUseCase {
+  constructor(private readonly repo: IDatabaseRepository) {}
+  async execute(input: GetDatabaseDto): Promise<DatabaseSnapshot | null> {
+    const parsed = GetDatabaseSchema.safeParse(input);
+    if (!parsed.success) return null;
+    return this.repo.findById(parsed.data.id, parsed.data.accountId);
+  }
+}
+
+export class ListDatabasesUseCase {
+  constructor(private readonly repo: IDatabaseRepository) {}
+  async execute(input: ListDatabasesDto): Promise<DatabaseSnapshot[]> {
+    const parsed = ListDatabasesSchema.safeParse(input);
+    if (!parsed.success) return [];
+    return this.repo.listByWorkspace(parsed.data.accountId, parsed.data.workspaceId);
+  }
+}
+````
+
+## File: modules/notion/subdomains/database/application/queries/record.queries.ts
+````typescript
+import type { IDatabaseRecordRepository } from "../../domain/repositories/IDatabaseRecordRepository";
+import type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRecord";
+import { ListRecordsSchema } from "../dto/DatabaseDto";
+import type { ListRecordsDto } from "../dto/DatabaseDto";
+
+export class ListRecordsUseCase {
+  constructor(private readonly repo: IDatabaseRecordRepository) {}
+  async execute(input: ListRecordsDto): Promise<DatabaseRecordSnapshot[]> {
+    const parsed = ListRecordsSchema.safeParse(input);
+    if (!parsed.success) return [];
+    return this.repo.listByDatabase(parsed.data.accountId, parsed.data.databaseId);
+  }
+}
+````
+
+## File: modules/notion/subdomains/database/application/queries/view.queries.ts
+````typescript
+import type { IViewRepository } from "../../domain/repositories/IViewRepository";
+import type { ViewSnapshot } from "../../domain/aggregates/View";
+import { ListViewsSchema } from "../dto/DatabaseDto";
+import type { ListViewsDto } from "../dto/DatabaseDto";
+
+export class ListViewsUseCase {
+  constructor(private readonly repo: IViewRepository) {}
+  async execute(input: ListViewsDto): Promise<ViewSnapshot[]> {
+    const parsed = ListViewsSchema.safeParse(input);
+    if (!parsed.success) return [];
+    return this.repo.listByDatabase(parsed.data.accountId, parsed.data.databaseId);
+  }
+}
+````
+
+## File: modules/notion/subdomains/database/application/use-cases/AutomationUseCases.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: application/use-cases
+ * Purpose: Automation CRUD use cases.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { IAutomationRepository, CreateAutomationInput, UpdateAutomationInput } from "../../domain/repositories/IAutomationRepository";
+
+export class CreateAutomationUseCase {
+  constructor(private readonly repo: IAutomationRepository) {}
+
+  async execute(input: CreateAutomationInput): Promise<CommandResult> {
+    if (!input.name.trim()) {
+      return commandFailureFrom("AUTOMATION_INVALID_INPUT", "Automation name is required.");
+    }
+    const automation = await this.repo.create(input);
+    return commandSuccess(automation.id, Date.now());
+  }
+}
+
+export class UpdateAutomationUseCase {
+  constructor(private readonly repo: IAutomationRepository) {}
+
+  async execute(input: UpdateAutomationInput): Promise<CommandResult> {
+    const result = await this.repo.update(input);
+    if (!result) return commandFailureFrom("AUTOMATION_NOT_FOUND", "Automation not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class DeleteAutomationUseCase {
+  constructor(private readonly repo: IAutomationRepository) {}
+
+  async execute(id: string, accountId: string, databaseId: string): Promise<CommandResult> {
+    await this.repo.delete(id, accountId, databaseId);
+    return commandSuccess(id, Date.now());
+  }
+}
+
+// Re-export read queries for backward compatibility
+export { ListAutomationsUseCase } from "../queries/automation.queries";
+````
+
+## File: modules/notion/subdomains/database/application/use-cases/DatabaseUseCases.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: application/use-cases
+ * Purpose: Database aggregate use cases — create, update, addField, archive, get, list.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { IDatabaseRepository } from "../../domain/repositories/IDatabaseRepository";
+import { CreateDatabaseSchema, UpdateDatabaseSchema, AddFieldSchema, ArchiveDatabaseSchema } from "../dto/DatabaseDto";
+import type { CreateDatabaseDto, UpdateDatabaseDto, AddFieldDto, ArchiveDatabaseDto } from "../dto/DatabaseDto";
+
+export class CreateDatabaseUseCase {
+  constructor(private readonly repo: IDatabaseRepository) {}
+  async execute(input: CreateDatabaseDto): Promise<CommandResult> {
+    const parsed = CreateDatabaseSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
+    const result = await this.repo.create(parsed.data);
+    return commandSuccess(result.id, 1);
+  }
+}
+
+export class UpdateDatabaseUseCase {
+  constructor(private readonly repo: IDatabaseRepository) {}
+  async execute(input: UpdateDatabaseDto): Promise<CommandResult> {
+    const parsed = UpdateDatabaseSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
+    const result = await this.repo.update(parsed.data);
+    return commandSuccess(result?.id ?? parsed.data.id, 0);
+  }
+}
+
+export class AddFieldUseCase {
+  constructor(private readonly repo: IDatabaseRepository) {}
+  async execute(input: AddFieldDto): Promise<CommandResult> {
+    const parsed = AddFieldSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
+    await this.repo.addField(parsed.data);
+    return commandSuccess(parsed.data.databaseId, 0);
+  }
+}
+
+export class ArchiveDatabaseUseCase {
+  constructor(private readonly repo: IDatabaseRepository) {}
+  async execute(input: ArchiveDatabaseDto): Promise<CommandResult> {
+    const parsed = ArchiveDatabaseSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
+    await this.repo.archive(parsed.data.id, parsed.data.accountId);
+    return commandSuccess(parsed.data.id, 0);
+  }
+}
+
+// Re-export read queries for backward compatibility
+export { GetDatabaseUseCase, ListDatabasesUseCase } from "../queries/database.queries";
+````
+
 ## File: modules/notion/subdomains/database/application/use-cases/index.ts
 ````typescript
 export { CreateDatabaseUseCase, UpdateDatabaseUseCase, AddFieldUseCase, ArchiveDatabaseUseCase, GetDatabaseUseCase, ListDatabasesUseCase } from "./DatabaseUseCases";
 export { CreateRecordUseCase, UpdateRecordUseCase, DeleteRecordUseCase, ListRecordsUseCase } from "./RecordUseCases";
 export { CreateViewUseCase, UpdateViewUseCase, DeleteViewUseCase, ListViewsUseCase } from "./ViewUseCases";
 export { CreateAutomationUseCase, UpdateAutomationUseCase, DeleteAutomationUseCase, ListAutomationsUseCase } from "./AutomationUseCases";
+````
+
+## File: modules/notion/subdomains/database/application/use-cases/RecordUseCases.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: application/use-cases
+ * Purpose: DatabaseRecord use cases — create, update, delete, list.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { IDatabaseRecordRepository } from "../../domain/repositories/IDatabaseRecordRepository";
+import { CreateRecordSchema, UpdateRecordSchema, DeleteRecordSchema } from "../dto/DatabaseDto";
+import type { CreateRecordDto, UpdateRecordDto, DeleteRecordDto } from "../dto/DatabaseDto";
+
+export class CreateRecordUseCase {
+  constructor(private readonly repo: IDatabaseRecordRepository) {}
+  async execute(input: CreateRecordDto): Promise<CommandResult> {
+    const parsed = CreateRecordSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
+    const result = await this.repo.create(parsed.data);
+    return commandSuccess(result.id, 1);
+  }
+}
+
+export class UpdateRecordUseCase {
+  constructor(private readonly repo: IDatabaseRecordRepository) {}
+  async execute(input: UpdateRecordDto): Promise<CommandResult> {
+    const parsed = UpdateRecordSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
+    const result = await this.repo.update(parsed.data);
+    return commandSuccess(result.id, 0);
+  }
+}
+
+export class DeleteRecordUseCase {
+  constructor(private readonly repo: IDatabaseRecordRepository) {}
+  async execute(input: DeleteRecordDto): Promise<CommandResult> {
+    const parsed = DeleteRecordSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
+    await this.repo.delete(parsed.data.id, parsed.data.accountId);
+    return commandSuccess(parsed.data.id, 0);
+  }
+}
+
+// Re-export read queries for backward compatibility
+export { ListRecordsUseCase } from "../queries/record.queries";
+````
+
+## File: modules/notion/subdomains/database/application/use-cases/ViewUseCases.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: application/use-cases
+ * Purpose: View use cases — create, update, delete, list.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { IViewRepository } from "../../domain/repositories/IViewRepository";
+import { CreateViewSchema, UpdateViewSchema, DeleteViewSchema } from "../dto/DatabaseDto";
+import type { CreateViewDto, UpdateViewDto, DeleteViewDto } from "../dto/DatabaseDto";
+
+export class CreateViewUseCase {
+  constructor(private readonly repo: IViewRepository) {}
+  async execute(input: CreateViewDto): Promise<CommandResult> {
+    const parsed = CreateViewSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
+    const result = await this.repo.create(parsed.data);
+    return commandSuccess(result.id, 1);
+  }
+}
+
+export class UpdateViewUseCase {
+  constructor(private readonly repo: IViewRepository) {}
+  async execute(input: UpdateViewDto): Promise<CommandResult> {
+    const parsed = UpdateViewSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
+    const result = await this.repo.update(parsed.data);
+    return commandSuccess(result.id, 0);
+  }
+}
+
+export class DeleteViewUseCase {
+  constructor(private readonly repo: IViewRepository) {}
+  async execute(input: DeleteViewDto): Promise<CommandResult> {
+    const parsed = DeleteViewSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
+    await this.repo.delete(parsed.data.id, parsed.data.accountId);
+    return commandSuccess(parsed.data.id, 0);
+  }
+}
+
+// Re-export read queries for backward compatibility
+export { ListViewsUseCase } from "../queries/view.queries";
 ````
 
 ## File: modules/notion/subdomains/database/domain/aggregates/Database.ts
@@ -3840,22 +4124,6 @@ export interface IViewRepository {
 }
 ````
 
-## File: modules/notion/subdomains/database/domain/services/index.ts
-````typescript
-// TODO: export DatabaseQueryService (filter/sort/group evaluation)
-// TODO: export FormulaEvaluationService, RollupComputationService
-
-export {};
-````
-
-## File: modules/notion/subdomains/database/domain/value-objects/index.ts
-````typescript
-// TODO: export DatabaseId, RecordId, ViewId, FieldId
-// TODO: export FieldType, ViewType, FieldValue
-
-export {};
-````
-
 ## File: modules/notion/subdomains/knowledge/application/dto/ContentBlockDto.ts
 ````typescript
 /**
@@ -4061,6 +4329,513 @@ export const CreateKnowledgeVersionSchema = AccountScopeSchema.extend({
   createdByUserId: z.string().min(1),
 });
 export type CreateKnowledgeVersionDto = z.infer<typeof CreateKnowledgeVersionSchema>;
+````
+
+## File: modules/notion/subdomains/knowledge/application/queries/backlink.queries.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { BacklinkIndexSnapshot } from "../../domain/aggregates/BacklinkIndex";
+import type { IBacklinkIndexRepository } from "../../domain/repositories/IBacklinkIndexRepository";
+
+export class UpdatePageBacklinksUseCase {
+  constructor(private readonly repo: IBacklinkIndexRepository) {}
+  async execute(input: {
+    readonly accountId: string;
+    readonly sourcePageId: string;
+    readonly sourcePageTitle: string;
+    readonly mentionsByTarget: ReadonlyMap<string, ReadonlyArray<{ blockId: string; lastSeenAtISO: string }>>;
+  }): Promise<CommandResult> {
+    const { accountId, sourcePageId, sourcePageTitle, mentionsByTarget } = input;
+    if (!accountId || !sourcePageId) return commandFailureFrom("BACKLINK_INVALID_INPUT", "accountId and sourcePageId required.");
+    for (const [targetPageId, mentions] of mentionsByTarget) {
+      await this.repo.upsertFromSource({ accountId, targetPageId, sourcePageId, entries: mentions.map(m => ({ sourcePageTitle, blockId: m.blockId, lastSeenAtISO: m.lastSeenAtISO })) });
+    }
+    const currentTargets = await this.repo.listOutboundTargets(accountId, sourcePageId);
+    const newTargetSet = new Set(mentionsByTarget.keys());
+    for (const old of currentTargets) {
+      if (!newTargetSet.has(old)) await this.repo.upsertFromSource({ accountId, targetPageId: old, sourcePageId, entries: [] });
+    }
+    return commandSuccess(sourcePageId, Date.now());
+  }
+}
+
+export class RemovePageBacklinksUseCase {
+  constructor(private readonly repo: IBacklinkIndexRepository) {}
+  async execute(accountId: string, sourcePageId: string): Promise<CommandResult> {
+    await this.repo.removeFromSource({ accountId, sourcePageId });
+    return commandSuccess(sourcePageId, Date.now());
+  }
+}
+
+export class GetPageBacklinksUseCase {
+  constructor(private readonly repo: IBacklinkIndexRepository) {}
+  async execute(accountId: string, targetPageId: string): Promise<BacklinkIndexSnapshot | null> {
+    const idx = await this.repo.findByTargetPage(accountId, targetPageId);
+    return idx ? idx.getSnapshot() : null;
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/application/queries/content-block.queries.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import { v7 as generateId } from "@lib-uuid";
+import { ContentBlock } from "../../domain/aggregates/ContentBlock";
+import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
+import type { IContentBlockRepository } from "../../domain/repositories/IContentBlockRepository";
+import type { BlockContent } from "../../domain/value-objects/BlockContent";
+import {
+  AddKnowledgeBlockSchema, type AddKnowledgeBlockDto,
+  UpdateKnowledgeBlockSchema, type UpdateKnowledgeBlockDto,
+  DeleteKnowledgeBlockSchema, type DeleteKnowledgeBlockDto,
+  NestKnowledgeBlockSchema, type NestKnowledgeBlockDto,
+  UnnestKnowledgeBlockSchema, type UnnestKnowledgeBlockDto,
+} from "../dto/ContentBlockDto";
+
+export class AddContentBlockUseCase {
+  constructor(private readonly repo: IContentBlockRepository) {}
+  async execute(input: AddKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = AddKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    const { accountId, pageId, content, index, parentBlockId } = parsed.data;
+    const count = await this.repo.countByPageId(accountId, pageId);
+    const order = index !== undefined ? index : count;
+    const id = generateId();
+    const block = ContentBlock.create(id, { pageId, accountId, content: content as BlockContent, order, parentBlockId });
+    await this.repo.save(block);
+    return commandSuccess(block.id, Date.now());
+  }
+}
+
+export class UpdateContentBlockUseCase {
+  constructor(private readonly repo: IContentBlockRepository) {}
+  async execute(input: UpdateKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = UpdateKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    const { accountId, blockId, content } = parsed.data;
+    const block = await this.repo.findById(accountId, blockId);
+    if (!block) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block not found.");
+    block.update(content as BlockContent);
+    await this.repo.save(block);
+    return commandSuccess(block.id, Date.now());
+  }
+}
+
+export class DeleteContentBlockUseCase {
+  constructor(private readonly repo: IContentBlockRepository) {}
+  async execute(input: DeleteKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = DeleteKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    await this.repo.delete(parsed.data.accountId, parsed.data.blockId);
+    return commandSuccess(parsed.data.blockId, Date.now());
+  }
+}
+
+export class NestContentBlockUseCase {
+  constructor(private readonly repo: IContentBlockRepository) {}
+  async execute(input: NestKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = NestKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    const { accountId, blockId, parentBlockId, index } = parsed.data;
+    const [block, parent] = await Promise.all([this.repo.findById(accountId, blockId), this.repo.findById(accountId, parentBlockId)]);
+    if (!block || !parent) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block or parent not found.");
+    block.nest(parentBlockId, index);
+    parent.addChild(blockId, index);
+    await Promise.all([this.repo.save(block), this.repo.save(parent)]);
+    return commandSuccess(block.id, Date.now());
+  }
+}
+
+export class UnnestContentBlockUseCase {
+  constructor(private readonly repo: IContentBlockRepository) {}
+  async execute(input: UnnestKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = UnnestKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    const { accountId, blockId, index } = parsed.data;
+    const block = await this.repo.findById(accountId, blockId);
+    if (!block) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block not found.");
+    const parentId = block.parentBlockId;
+    block.unnest(index);
+    if (parentId) {
+      const parent = await this.repo.findById(accountId, parentId);
+      if (parent) { parent.removeChild(blockId); await this.repo.save(parent); }
+    }
+    await this.repo.save(block);
+    return commandSuccess(block.id, Date.now());
+  }
+}
+
+export class ListContentBlocksUseCase {
+  constructor(private readonly repo: IContentBlockRepository) {}
+  async execute(accountId: string, pageId: string): Promise<ContentBlockSnapshot[]> {
+    if (!accountId || !pageId) return [];
+    const blocks = await this.repo.listByPageId(accountId, pageId);
+    return blocks.map(b => b.getSnapshot());
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/application/queries/knowledge-collection.queries.ts
+````typescript
+import type { KnowledgeCollectionSnapshot } from "../../domain/aggregates/KnowledgeCollection";
+import type { IKnowledgeCollectionRepository } from "../../domain/repositories/IKnowledgeCollectionRepository";
+
+export class GetKnowledgeCollectionUseCase {
+  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  async execute(accountId: string, collectionId: string): Promise<KnowledgeCollectionSnapshot | null> {
+    const c = await this.repo.findById(accountId, collectionId);
+    return c ? c.getSnapshot() : null;
+  }
+}
+
+export class ListKnowledgeCollectionsUseCase {
+  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  async execute(accountId: string): Promise<KnowledgeCollectionSnapshot[]> {
+    const cs = await this.repo.listByAccountId(accountId);
+    return cs.map(c => c.getSnapshot());
+  }
+}
+
+export class ListKnowledgeCollectionsByWorkspaceUseCase {
+  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  async execute(accountId: string, workspaceId: string): Promise<KnowledgeCollectionSnapshot[]> {
+    const cs = await this.repo.listByWorkspaceId(accountId, workspaceId);
+    return cs.map(c => c.getSnapshot());
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/application/queries/knowledge-page.queries.ts
+````typescript
+import type { KnowledgePageSnapshot, KnowledgePageTreeNode } from "../../domain/aggregates/KnowledgePage";
+import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+
+export function buildKnowledgePageTree(pages: KnowledgePageSnapshot[]): KnowledgePageTreeNode[] {
+  const map = new Map<string, KnowledgePageTreeNode>();
+  for (const page of pages) {
+    map.set(page.id, { ...page, children: [] });
+  }
+  const roots: KnowledgePageTreeNode[] = [];
+  for (const node of map.values()) {
+    if (node.parentPageId === null || !map.has(node.parentPageId)) {
+      roots.push(node);
+    } else {
+      const parent = map.get(node.parentPageId)!;
+      (parent.children as KnowledgePageTreeNode[]).push(node);
+    }
+  }
+  const sortByOrder = (nodes: KnowledgePageTreeNode[]): void => {
+    nodes.sort((a, b) => a.order - b.order);
+    for (const n of nodes) sortByOrder(n.children as KnowledgePageTreeNode[]);
+  };
+  sortByOrder(roots);
+  return roots;
+}
+
+export class GetKnowledgePageUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {
+    if (!accountId.trim() || !pageId.trim()) return null;
+    return this.repo.findSnapshotById(accountId, pageId);
+  }
+}
+
+export class ListKnowledgePagesUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(accountId: string): Promise<KnowledgePageSnapshot[]> {
+    if (!accountId.trim()) return [];
+    return this.repo.listSnapshotsByAccountId(accountId);
+  }
+}
+
+export class ListKnowledgePagesByWorkspaceUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]> {
+    if (!accountId.trim() || !workspaceId.trim()) return [];
+    return this.repo.listSnapshotsByWorkspaceId(accountId, workspaceId);
+  }
+}
+
+export class GetKnowledgePageTreeUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(accountId: string): Promise<KnowledgePageTreeNode[]> {
+    if (!accountId.trim()) return [];
+    const pages = await this.repo.listSnapshotsByAccountId(accountId);
+    return buildKnowledgePageTree(pages);
+  }
+}
+
+export class GetKnowledgePageTreeByWorkspaceUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(accountId: string, workspaceId: string): Promise<KnowledgePageTreeNode[]> {
+    if (!accountId.trim() || !workspaceId.trim()) return [];
+    const pages = await this.repo.listSnapshotsByWorkspaceId(accountId, workspaceId);
+    return buildKnowledgePageTree(pages);
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/application/queries/knowledge-version.queries.ts
+````typescript
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import type { CreateKnowledgeVersionDto } from "../dto/KnowledgePageDto";
+import { CreateKnowledgeVersionSchema } from "../dto/KnowledgePageDto";
+
+export class PublishKnowledgeVersionUseCase {
+  async execute(input: CreateKnowledgeVersionDto): Promise<CommandResult> {
+    const parsed = CreateKnowledgeVersionSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_VERSION_INVALID_INPUT", parsed.error.message);
+    return commandFailureFrom("CONTENT_VERSION_NOT_IMPLEMENTED", "Version persistence is not yet implemented.");
+  }
+}
+
+export class ListKnowledgeVersionsUseCase {
+  async execute(_accountId: string, _pageId: string): Promise<never[]> { return []; }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgeCollectionUseCases.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import { v7 as generateId } from "@lib-uuid";
+import { KnowledgeCollection } from "../../domain/aggregates/KnowledgeCollection";
+import type { CollectionColumn } from "../../domain/aggregates/KnowledgeCollection";
+import type { IKnowledgeCollectionRepository } from "../../domain/repositories/IKnowledgeCollectionRepository";
+import {
+  CreateKnowledgeCollectionSchema, type CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionSchema, type RenameKnowledgeCollectionDto,
+  AddPageToCollectionSchema, type AddPageToCollectionDto,
+  RemovePageFromCollectionSchema, type RemovePageFromCollectionDto,
+  AddCollectionColumnSchema, type AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionSchema, type ArchiveKnowledgeCollectionDto,
+} from "../dto/KnowledgeCollectionDto";
+
+// Re-export read queries for backward compatibility
+export {
+  GetKnowledgeCollectionUseCase,
+  ListKnowledgeCollectionsUseCase,
+  ListKnowledgeCollectionsByWorkspaceUseCase,
+} from "../queries/knowledge-collection.queries";
+
+export class CreateKnowledgeCollectionUseCase {
+  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  async execute(input: CreateKnowledgeCollectionDto): Promise<CommandResult> {
+    const parsed = CreateKnowledgeCollectionSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    const { accountId, workspaceId, name, description, columns, createdByUserId } = parsed.data;
+    const columnIds = (columns ?? []).map(() => generateId());
+    const id = generateId();
+    const collection = KnowledgeCollection.create(id, columnIds, {
+      accountId, workspaceId, name: name.trim(), description,
+      columns: columns?.map(c => ({ name: c.name, type: c.type as CollectionColumn["type"], options: c.options })),
+      createdByUserId,
+    });
+    await this.repo.save(collection);
+    return commandSuccess(collection.id, Date.now());
+  }
+}
+
+export class RenameKnowledgeCollectionUseCase {
+  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  async execute(input: RenameKnowledgeCollectionDto): Promise<CommandResult> {
+    const parsed = RenameKnowledgeCollectionSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    const { accountId, collectionId, name } = parsed.data;
+    const collection = await this.repo.findById(accountId, collectionId);
+    if (!collection) return commandFailureFrom("COLLECTION_NOT_FOUND", "Collection not found.");
+    collection.rename(name.trim());
+    await this.repo.save(collection);
+    return commandSuccess(collection.id, Date.now());
+  }
+}
+
+export class AddPageToCollectionUseCase {
+  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  async execute(input: AddPageToCollectionDto): Promise<CommandResult> {
+    const parsed = AddPageToCollectionSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    const { accountId, collectionId, pageId } = parsed.data;
+    const collection = await this.repo.findById(accountId, collectionId);
+    if (!collection) return commandFailureFrom("COLLECTION_NOT_FOUND", "Collection not found.");
+    collection.addPage(pageId);
+    await this.repo.save(collection);
+    return commandSuccess(collection.id, Date.now());
+  }
+}
+
+export class RemovePageFromCollectionUseCase {
+  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  async execute(input: RemovePageFromCollectionDto): Promise<CommandResult> {
+    const parsed = RemovePageFromCollectionSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    const { accountId, collectionId, pageId } = parsed.data;
+    const collection = await this.repo.findById(accountId, collectionId);
+    if (!collection) return commandFailureFrom("COLLECTION_NOT_FOUND", "Collection not found.");
+    collection.removePage(pageId);
+    await this.repo.save(collection);
+    return commandSuccess(collection.id, Date.now());
+  }
+}
+
+export class AddCollectionColumnUseCase {
+  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  async execute(input: AddCollectionColumnDto): Promise<CommandResult> {
+    const parsed = AddCollectionColumnSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    const { accountId, collectionId, column } = parsed.data;
+    const collection = await this.repo.findById(accountId, collectionId);
+    if (!collection) return commandFailureFrom("COLLECTION_NOT_FOUND", "Collection not found.");
+    collection.addColumn({ id: generateId(), name: column.name, type: column.type as CollectionColumn["type"], options: column.options });
+    await this.repo.save(collection);
+    return commandSuccess(collection.id, Date.now());
+  }
+}
+
+export class ArchiveKnowledgeCollectionUseCase {
+  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  async execute(input: ArchiveKnowledgeCollectionDto): Promise<CommandResult> {
+    const parsed = ArchiveKnowledgeCollectionSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    const { accountId, collectionId } = parsed.data;
+    const collection = await this.repo.findById(accountId, collectionId);
+    if (!collection) return commandFailureFrom("COLLECTION_NOT_FOUND", "Collection not found.");
+    collection.archive();
+    await this.repo.save(collection);
+    return commandSuccess(collection.id, Date.now());
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageUseCases.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: application/use-cases
+ * Purpose: Page lifecycle use cases — create, rename, move, archive, reorder.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import { v7 as generateId } from "@lib-uuid";
+
+import { KnowledgePage } from "../../domain/aggregates/KnowledgePage";
+import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+import {
+  CreateKnowledgePageSchema,
+  type CreateKnowledgePageDto,
+  RenameKnowledgePageSchema,
+  type RenameKnowledgePageDto,
+  MoveKnowledgePageSchema,
+  type MoveKnowledgePageDto,
+  ArchiveKnowledgePageSchema,
+  type ArchiveKnowledgePageDto,
+  ReorderKnowledgePageBlocksSchema,
+  type ReorderKnowledgePageBlocksDto,
+} from "../dto/KnowledgePageDto";
+
+// Re-export read queries for backward compatibility
+export {
+  buildKnowledgePageTree,
+  GetKnowledgePageUseCase,
+  ListKnowledgePagesUseCase,
+  ListKnowledgePagesByWorkspaceUseCase,
+  GetKnowledgePageTreeUseCase,
+  GetKnowledgePageTreeByWorkspaceUseCase,
+} from "../queries/knowledge-page.queries";
+
+export class CreateKnowledgePageUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: CreateKnowledgePageDto): Promise<CommandResult> {
+    const parsed = CreateKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, workspaceId, title, parentPageId, createdByUserId } = parsed.data;
+    const order = await this.repo.countByParent(accountId, parentPageId ?? null);
+    const id = generateId();
+    const page = KnowledgePage.create(id, {
+      accountId,
+      workspaceId,
+      title: title.trim(),
+      parentPageId: parentPageId ?? null,
+      createdByUserId,
+      order,
+    });
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class RenameKnowledgePageUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: RenameKnowledgePageDto): Promise<CommandResult> {
+    const parsed = RenameKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, title } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.rename(title.trim());
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class MoveKnowledgePageUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: MoveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = MoveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, targetParentPageId } = parsed.data;
+    if (pageId === targetParentPageId) {
+      return commandFailureFrom("CONTENT_PAGE_CIRCULAR_MOVE", "A page cannot be its own parent.");
+    }
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.move(targetParentPageId);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class ArchiveKnowledgePageUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = ArchiveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.archive();
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class ReorderKnowledgePageBlocksUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
+    const parsed = ReorderKnowledgePageBlocksSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, blockIds } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.reorderBlocks(blockIds);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
 ````
 
 ## File: modules/notion/subdomains/knowledge/domain/aggregates/BacklinkIndex.ts
@@ -6357,6 +7132,77 @@ export class PlatformCommandDispatcher implements PlatformCommandPort {
 }
 ````
 
+## File: modules/platform/application/handlers/PlatformQueryDispatcher.ts
+````typescript
+/**
+ * PlatformQueryDispatcher — Application-layer Query Router
+ *
+ * Implements: PlatformQueryPort
+ * Routes queries by name to the appropriate use case class.
+ *
+ * Called by: api/facade.ts via PlatformQueryPort
+ */
+
+import type { PlatformQueryPort, PlatformQuery } from "../../domain/ports/input";
+import type {
+	PlatformContextViewRepository,
+	PolicyCatalogViewRepository,
+	UsageMeterRepository,
+	WorkflowPolicyRepository,
+} from "../../domain/ports/output";
+import { GetPlatformContextViewUseCase } from "../queries/get-platform-context-view.queries";
+import { ListEnabledCapabilitiesUseCase } from "../queries/list-enabled-capabilities.queries";
+import { GetPolicyCatalogViewUseCase } from "../queries/get-policy-catalog-view.queries";
+import { GetSubscriptionEntitlementsUseCase } from "../queries/get-subscription-entitlements.queries";
+import { GetWorkflowPolicyViewUseCase } from "../queries/get-workflow-policy-view.queries";
+
+export interface PlatformQueryDispatcherDeps {
+	contextViewRepo: PlatformContextViewRepository;
+	catalogViewRepo: PolicyCatalogViewRepository;
+	usageMeterRepo: UsageMeterRepository;
+	workflowPolicyRepo: WorkflowPolicyRepository;
+}
+
+export class PlatformQueryDispatcher implements PlatformQueryPort {
+	constructor(private readonly deps: PlatformQueryDispatcherDeps) {}
+
+	async executeQuery<TResult, TQuery extends PlatformQuery>(
+		queryMsg: TQuery,
+	): Promise<TResult> {
+		const { deps } = this;
+		switch (queryMsg.name) {
+			case "getPlatformContextView":
+				return new GetPlatformContextViewUseCase(deps.contextViewRepo).execute(
+					queryMsg.payload as Parameters<GetPlatformContextViewUseCase["execute"]>[0],
+				) as Promise<TResult>;
+
+			case "listEnabledCapabilities":
+				return new ListEnabledCapabilitiesUseCase(deps.contextViewRepo).execute(
+					queryMsg.payload as Parameters<ListEnabledCapabilitiesUseCase["execute"]>[0],
+				) as Promise<TResult>;
+
+			case "getPolicyCatalogView":
+				return new GetPolicyCatalogViewUseCase(deps.catalogViewRepo).execute(
+					queryMsg.payload as Parameters<GetPolicyCatalogViewUseCase["execute"]>[0],
+				) as Promise<TResult>;
+
+			case "getSubscriptionEntitlements":
+				return new GetSubscriptionEntitlementsUseCase(deps.usageMeterRepo).execute(
+					queryMsg.payload as Parameters<GetSubscriptionEntitlementsUseCase["execute"]>[0],
+				) as Promise<TResult>;
+
+			case "getWorkflowPolicyView":
+				return new GetWorkflowPolicyViewUseCase(deps.workflowPolicyRepo).execute(
+					queryMsg.payload as Parameters<GetWorkflowPolicyViewUseCase["execute"]>[0],
+				) as Promise<TResult>;
+
+			default:
+				throw new Error(`Unknown platform query: '${String((queryMsg as PlatformQuery).name)}'`);
+		}
+	}
+}
+````
+
 ## File: modules/platform/application/index.ts
 ````typescript
 /**
@@ -6367,6 +7213,121 @@ export * from "./dtos";
 export * from "./services";
 export * from "./use-cases";
 export * from "./handlers";
+````
+
+## File: modules/platform/application/queries/get-platform-context-view.queries.ts
+````typescript
+/**
+ * get-platform-context-view — use case.
+ *
+ * Query:   GetPlatformContextView
+ * Purpose: Returns a read-only summary of a platform scope.
+ */
+
+import type { GetPlatformContextViewInput } from "../dtos";
+import type { PlatformContextViewRepository, PlatformContextView } from "../../domain/ports/output";
+
+export class GetPlatformContextViewUseCase {
+	constructor(private readonly viewRepo: PlatformContextViewRepository) {}
+
+	async execute(input: GetPlatformContextViewInput): Promise<PlatformContextView | null> {
+		return this.viewRepo.getView(input.contextId);
+	}
+}
+````
+
+## File: modules/platform/application/queries/get-policy-catalog-view.queries.ts
+````typescript
+/**
+ * get-policy-catalog-view — use case.
+ *
+ * Query:   GetPolicyCatalogView
+ * Purpose: Returns the active policy version and rule summary.
+ */
+
+import type { GetPolicyCatalogViewInput } from "../dtos";
+import type { PolicyCatalogViewRepository, PolicyCatalogView } from "../../domain/ports/output";
+
+export class GetPolicyCatalogViewUseCase {
+	constructor(private readonly viewRepo: PolicyCatalogViewRepository) {}
+
+	async execute(input: GetPolicyCatalogViewInput): Promise<PolicyCatalogView | null> {
+		return this.viewRepo.getView(input.contextId);
+	}
+}
+````
+
+## File: modules/platform/application/queries/get-subscription-entitlements.queries.ts
+````typescript
+/**
+ * get-subscription-entitlements — use case.
+ *
+ * Query:   GetSubscriptionEntitlements
+ * Purpose: Returns plan entitlements and usage limits.
+ */
+
+import type { GetSubscriptionEntitlementsInput } from "../dtos";
+import type { UsageMeterRepository, SubscriptionEntitlementsView } from "../../domain/ports/output";
+
+export class GetSubscriptionEntitlementsUseCase {
+	constructor(private readonly usageRepo: UsageMeterRepository) {}
+
+	async execute(input: GetSubscriptionEntitlementsInput): Promise<SubscriptionEntitlementsView | null> {
+		return this.usageRepo.getEntitlementsView(input.contextId);
+	}
+}
+````
+
+## File: modules/platform/application/queries/get-workflow-policy-view.queries.ts
+````typescript
+/**
+ * get-workflow-policy-view — use case.
+ *
+ * Query:   GetWorkflowPolicyView
+ * Purpose: Returns the workflow policy corresponding to a trigger key.
+ */
+
+import type { GetWorkflowPolicyViewInput } from "../dtos";
+import type { WorkflowPolicyRepository, WorkflowPolicyView } from "../../domain/ports/output";
+
+export class GetWorkflowPolicyViewUseCase {
+	constructor(private readonly policyRepo: WorkflowPolicyRepository) {}
+
+	async execute(input: GetWorkflowPolicyViewInput): Promise<WorkflowPolicyView | null> {
+		return this.policyRepo.getView(input.contextId, input.triggerKey);
+	}
+}
+````
+
+## File: modules/platform/application/queries/index.ts
+````typescript
+export { GetPlatformContextViewUseCase } from "./get-platform-context-view.queries";
+export { ListEnabledCapabilitiesUseCase } from "./list-enabled-capabilities.queries";
+export { GetPolicyCatalogViewUseCase } from "./get-policy-catalog-view.queries";
+export { GetSubscriptionEntitlementsUseCase } from "./get-subscription-entitlements.queries";
+export { GetWorkflowPolicyViewUseCase } from "./get-workflow-policy-view.queries";
+````
+
+## File: modules/platform/application/queries/list-enabled-capabilities.queries.ts
+````typescript
+/**
+ * list-enabled-capabilities — use case.
+ *
+ * Query:   ListEnabledCapabilities
+ * Purpose: Lists all currently active capabilities for a platform scope.
+ */
+
+import type { ListEnabledCapabilitiesInput } from "../dtos";
+import type { PlatformContextViewRepository } from "../../domain/ports/output";
+
+export class ListEnabledCapabilitiesUseCase {
+	constructor(private readonly viewRepo: PlatformContextViewRepository) {}
+
+	async execute(input: ListEnabledCapabilitiesInput): Promise<readonly string[]> {
+		const view = await this.viewRepo.getView(input.contextId);
+		return view?.capabilityKeys ?? [];
+	}
+}
 ````
 
 ## File: modules/platform/application/services/build-causation-id.ts
@@ -6678,6 +7639,48 @@ export class FireWorkflowTriggerUseCase {
 		}
 	}
 }
+````
+
+## File: modules/platform/application/use-cases/index.ts
+````typescript
+/**
+ * platform application use-cases barrel.
+ *
+ * Each file follows the kebab-case convention: verb-noun.use-cases.ts
+ *
+ * Commands:
+ *   register-platform-context
+ *   publish-policy-catalog
+ *   apply-configuration-profile
+ *   register-integration-contract
+ *   activate-subscription-agreement
+ *   fire-workflow-trigger
+ *   request-notification-dispatch
+ *   record-audit-signal
+ *   emit-observability-signal
+ *
+ * Queries:
+ *   get-platform-context-view
+ *   list-enabled-capabilities
+ *   get-policy-catalog-view
+ *   get-subscription-entitlements
+ *   get-workflow-policy-view
+ */
+
+export { RegisterPlatformContextUseCase } from "./register-platform-context.use-cases";
+export { PublishPolicyCatalogUseCase } from "./publish-policy-catalog.use-cases";
+export { ApplyConfigurationProfileUseCase } from "./apply-configuration-profile.use-cases";
+export { RegisterIntegrationContractUseCase } from "./register-integration-contract.use-cases";
+export { ActivateSubscriptionAgreementUseCase } from "./activate-subscription-agreement.use-cases";
+export { FireWorkflowTriggerUseCase } from "./fire-workflow-trigger.use-cases";
+export { RequestNotificationDispatchUseCase } from "./request-notification-dispatch.use-cases";
+export { RecordAuditSignalUseCase } from "./record-audit-signal.use-cases";
+export { EmitObservabilitySignalUseCase } from "./emit-observability-signal.use-cases";
+export { GetPlatformContextViewUseCase } from "../queries/get-platform-context-view.queries";
+export { ListEnabledCapabilitiesUseCase } from "../queries/list-enabled-capabilities.queries";
+export { GetPolicyCatalogViewUseCase } from "../queries/get-policy-catalog-view.queries";
+export { GetSubscriptionEntitlementsUseCase } from "../queries/get-subscription-entitlements.queries";
+export { GetWorkflowPolicyViewUseCase } from "../queries/get-workflow-policy-view.queries";
 ````
 
 ## File: modules/platform/application/use-cases/publish-policy-catalog.use-cases.ts
@@ -7267,6 +8270,29 @@ export type PlatformSharedConstantGroup = (typeof PLATFORM_SHARED_CONSTANT_GROUP
  */
 
 // TODO: implement PlatformLifecycleConstants as const object(s)
+````
+
+## File: modules/platform/domain/domain-modeling.instructions.md
+````markdown
+---
+description: 'Platform domain tactical modeling rules (local mirror of root domain-modeling guidance).'
+applyTo: '*.{ts,tsx}'
+---
+
+# Domain Modeling (Platform Local)
+
+Use this local file as execution guardrails for `modules/platform/domain/*`.
+For full reference, align with `.github/instructions/domain-modeling.instructions.md` and `docs/contexts/platform/*`.
+
+## Core Rules
+
+- Keep aggregate invariants inside aggregate methods.
+- Use immutable value objects with Zod schemas and inferred types.
+- Keep domain framework-free (no Firebase/React/transport imports).
+- Emit domain events on state transitions and publish via application orchestration.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: modules/platform/domain/entities/DispatchContextEntity.ts
@@ -9654,6 +10680,49 @@ export type PlatformSharedTypeGroup = (typeof PLATFORM_SHARED_TYPE_GROUPS)[numbe
 // TODO: implement EndpointRef value object
 ````
 
+## File: modules/platform/domain/value-objects/Entitlement.ts
+````typescript
+/**
+ * Entitlement — Value Object
+ *
+ * Describes which capability and usage quota a plan allows.
+ * Entitlements are derived from planCode; they must not deviate from plan definition.
+ *
+ * Used by: SubscriptionAgreement aggregate, entitlement subdomain
+ */
+
+export const ENTITLEMENT_TYPES = ["capability", "quota", "feature_flag"] as const;
+export type EntitlementType = (typeof ENTITLEMENT_TYPES)[number];
+
+export interface Entitlement {
+  readonly featureKey: string;
+  readonly type: EntitlementType;
+  readonly quota: number | null; // null = unlimited
+  readonly isEnabled: boolean;
+}
+
+export function createEntitlement(input: {
+  featureKey: string;
+  type: EntitlementType;
+  quota?: number | null;
+  isEnabled?: boolean;
+}): Entitlement {
+  if (!input.featureKey || input.featureKey.trim().length === 0) {
+    throw new Error("Entitlement featureKey must not be empty");
+  }
+  return {
+    featureKey: input.featureKey.trim(),
+    type: input.type,
+    quota: input.quota ?? null,
+    isEnabled: input.isEnabled ?? true,
+  };
+}
+
+export function isUnlimited(entitlement: Entitlement): boolean {
+  return entitlement.quota === null;
+}
+````
+
 ## File: modules/platform/domain/value-objects/index.ts
 ````typescript
 /**
@@ -9752,6 +10821,106 @@ export type PlatformDomainValueObjectFactoryFunction =
  */
 
 // TODO: implement ObservabilitySignal value object
+````
+
+## File: modules/platform/domain/value-objects/PermissionDecision.ts
+````typescript
+/**
+ * PermissionDecision — Value Object / Decision Object
+ *
+ * The outcome of a permission evaluation.
+ * Possible outcomes: allow | deny | conditional_allow | escalate
+ *
+ * A PermissionDecision is always explicit — never a loose boolean.
+ *
+ * Used by: PermissionResolutionService, access-control subdomain
+ */
+
+export type PermissionOutcome = "allow" | "deny" | "conditional_allow" | "escalate";
+
+export interface PermissionDecision {
+  readonly outcome: PermissionOutcome;
+  readonly reason: string;
+  readonly conditions?: readonly string[];
+  readonly evaluatedAt: string;
+}
+
+export function allowDecision(reason: string): PermissionDecision {
+  return { outcome: "allow", reason, evaluatedAt: new Date().toISOString() };
+}
+
+export function denyDecision(reason: string): PermissionDecision {
+  return { outcome: "deny", reason, evaluatedAt: new Date().toISOString() };
+}
+
+export function conditionalAllowDecision(
+  reason: string,
+  conditions: string[],
+): PermissionDecision {
+  return {
+    outcome: "conditional_allow",
+    reason,
+    conditions,
+    evaluatedAt: new Date().toISOString(),
+  };
+}
+
+export function escalateDecision(reason: string): PermissionDecision {
+  return { outcome: "escalate", reason, evaluatedAt: new Date().toISOString() };
+}
+
+export function isAllowed(decision: PermissionDecision): boolean {
+  return decision.outcome === "allow" || decision.outcome === "conditional_allow";
+}
+````
+
+## File: modules/platform/domain/value-objects/PlanConstraint.ts
+````typescript
+/**
+ * PlanConstraint — Value Object
+ *
+ * Expresses the limitation a subscription plan places on a capability, workflow, or delivery.
+ * Contains: constraint type, threshold, and enforcement mode (soft | hard).
+ *
+ * Used by: CapabilityEntitlementPolicy, subscription subdomain
+ */
+
+export const CONSTRAINT_TYPES = [
+  "usage_limit",
+  "feature_gate",
+  "rate_limit",
+  "storage_cap",
+] as const;
+export type ConstraintType = (typeof CONSTRAINT_TYPES)[number];
+
+export type EnforcementMode = "hard" | "soft";
+
+export interface PlanConstraint {
+  readonly constraintType: ConstraintType;
+  readonly featureKey: string;
+  readonly threshold: number;
+  readonly enforcementMode: EnforcementMode;
+}
+
+export function createPlanConstraint(input: {
+  constraintType: ConstraintType;
+  featureKey: string;
+  threshold: number;
+  enforcementMode: EnforcementMode;
+}): PlanConstraint {
+  if (input.threshold < 0) {
+    throw new Error("PlanConstraint threshold must not be negative");
+  }
+  return { ...input };
+}
+
+export function isHardConstraint(constraint: PlanConstraint): boolean {
+  return constraint.enforcementMode === "hard";
+}
+
+export function isExceeded(constraint: PlanConstraint, usage: number): boolean {
+  return usage >= constraint.threshold;
+}
 ````
 
 ## File: modules/platform/domain/value-objects/PlatformCapability.ts
@@ -9911,6 +11080,15 @@ export type PlatformDomainValueObjectFactoryFunction =
  */
 
 // TODO: implement UsageLimit value object
+````
+
+## File: modules/platform/index.ts
+````typescript
+/**
+ * platform — Public module entry point.
+ * All cross-module consumers must import through this file or modules/platform/api/.
+ */
+export * from "./api";
 ````
 
 ## File: modules/platform/infrastructure/cache/CachedPlatformContextViewRepository.ts
@@ -11201,6 +12379,536 @@ export type PlatformAdapterCliFunction = (typeof PLATFORM_ADAPTER_CLI_FUNCTIONS)
 ## File: modules/platform/interfaces/index.ts
 ````typescript
 export * from "./web";
+````
+
+## File: modules/platform/README.md
+````markdown
+# Platform
+
+治理與營運支撐主域
+
+## Implementation Structure
+
+```text
+modules/platform/
+├── api/              # Public API boundary
+├── application/      # Context-wide orchestration
+├── domain/           # Context-wide domain concepts
+├── infrastructure/   # Context-wide driven adapters
+├── interfaces/       # Context-wide driving adapters
+├── docs/             # Links to strategic documentation
+└── subdomains/
+    ├── account/
+    ├── account-profile/
+    ├── access-control/
+    ├── ai/
+    ├── analytics/
+    ├── audit-log/
+    ├── background-job/
+    ├── billing/
+    ├── compliance/
+    ├── consent/
+    ├── content/
+    ├── entitlement/
+    ├── feature-flag/
+    ├── identity/
+    ├── integration/
+    ├── notification/
+    ├── observability/
+    ├── onboarding/
+    ├── organization/
+    ├── platform-config/
+    ├── referral/
+    ├── search/
+    ├── secret-management/
+    ├── security-policy/
+    ├── subscription/
+    ├── support/
+    ├── tenant/
+    ├── team/
+    └── workflow/
+```
+
+## Subdomains
+
+| Subdomain | Status | Purpose |
+|-----------|--------|---------|
+| account | Active | 帳號管理與帳號生命週期 |
+| identity | Active | 身份驗證與身份聯邦 |
+| notification | Active | 通知治理與遞送 |
+| organization | Active | 組織管理與租戶結構 |
+| team | Active | 團隊管理與成員關係 |
+| account-profile | Stub | 帳號個人檔案與偏好 |
+| access-control | Stub | 存取控制與權限策略 |
+| ai | Stub | 共享 AI provider 路由與能力治理 |
+| analytics | Stub | 平台級分析與指標 |
+| audit-log | Stub | 平台稽核日誌 |
+| background-job | Stub | 背景任務排程與管理 |
+| billing | Stub | 計費與支付管理 |
+| compliance | Stub | 合規與法遵管理 |
+| consent | Stub | 同意與資料使用授權治理 |
+| content | Stub | 平台內容管理 |
+| entitlement | Stub | 權益解算與功能可用性治理 |
+| feature-flag | Stub | 功能旗標與漸進式發布 |
+| integration | Stub | 外部系統整合 |
+| observability | Stub | 觀測與監控 |
+| onboarding | Stub | 使用者引導流程 |
+| platform-config | Stub | 平台組態管理 |
+| referral | Stub | 推薦與邀請機制 |
+| search | Stub | 平台級搜尋能力 |
+| secret-management | Stub | 憑證與 token 生命週期治理 |
+| security-policy | Stub | 安全策略管理 |
+| subscription | Stub | 訂閱與方案管理 |
+| support | Stub | 客戶支援管理 |
+| tenant | Stub | 多租戶隔離與 tenant-scoped 規則 |
+| workflow | Stub | 平台級工作流引擎 |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `api/` is the only cross-module public boundary.
+- Domain must not import infrastructure, interfaces, or external frameworks.
+- Cross-module collaboration goes through `api/` only.
+
+## Strategic Documentation
+
+- [Context README](../../docs/contexts/platform/README.md)
+- [Subdomains](../../docs/contexts/platform/subdomains.md)
+- [Context Map](../../docs/contexts/platform/context-map.md)
+- [Ubiquitous Language](../../docs/contexts/platform/ubiquitous-language.md)
+- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
+````
+
+## File: modules/platform/subdomains/access-control/application/dtos/access-control.dto.ts
+````typescript
+import type { AccessPolicySnapshot } from "../../domain/aggregates/AccessPolicy";
+
+export type AccessPolicyView = Readonly<AccessPolicySnapshot>;
+
+export interface PermissionEvaluationView {
+  readonly subjectId: string;
+  readonly resourceType: string;
+  readonly resourceId?: string;
+  readonly action: string;
+  readonly allowed: boolean;
+  readonly reason: string;
+}
+````
+
+## File: modules/platform/subdomains/access-control/application/dtos/index.ts
+````typescript
+export * from "./access-control.dto";
+````
+
+## File: modules/platform/subdomains/access-control/application/use-cases/index.ts
+````typescript
+export * from "./access-control.use-cases";
+````
+
+## File: modules/platform/subdomains/access-control/domain/aggregates/AccessPolicy.ts
+````typescript
+import type { AccessPolicyDomainEventType } from "../events/AccessPolicyDomainEvent";
+import type { SubjectRef } from "../value-objects/SubjectRef";
+import type { ResourceRef } from "../value-objects/ResourceRef";
+import type { PolicyEffect } from "../value-objects/PolicyEffect";
+
+export interface AccessPolicySnapshot {
+  readonly id: string;
+  readonly subjectRef: SubjectRef;
+  readonly resourceRef: ResourceRef;
+  readonly actions: readonly string[];
+  readonly effect: PolicyEffect;
+  readonly conditions: readonly string[];
+  readonly isActive: boolean;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+export interface CreateAccessPolicyInput {
+  readonly subjectRef: SubjectRef;
+  readonly resourceRef: ResourceRef;
+  readonly actions: string[];
+  readonly effect: PolicyEffect;
+  readonly conditions?: string[];
+}
+
+export class AccessPolicy {
+  private readonly _domainEvents: AccessPolicyDomainEventType[] = [];
+
+  private constructor(private _props: AccessPolicySnapshot) {}
+
+  static create(id: string, input: CreateAccessPolicyInput): AccessPolicy {
+    if (!id || id.trim().length === 0) throw new Error("AccessPolicy id must not be empty");
+    if (input.actions.length === 0) throw new Error("AccessPolicy must specify at least one action");
+    const now = new Date().toISOString();
+    const policy = new AccessPolicy({
+      id,
+      subjectRef: input.subjectRef,
+      resourceRef: input.resourceRef,
+      actions: input.actions,
+      effect: input.effect,
+      conditions: input.conditions ?? [],
+      isActive: true,
+      createdAtISO: now,
+      updatedAtISO: now,
+    });
+    policy._domainEvents.push({
+      type: "platform.access_policy.created",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: {
+        policyId: id,
+        subjectRef: input.subjectRef,
+        resourceRef: input.resourceRef,
+        actions: input.actions,
+        effect: input.effect,
+      },
+    });
+    return policy;
+  }
+
+  static reconstitute(snapshot: AccessPolicySnapshot): AccessPolicy {
+    return new AccessPolicy({ ...snapshot });
+  }
+
+  update(input: { actions?: string[]; effect?: PolicyEffect; conditions?: string[] }): void {
+    if (!this._props.isActive) throw new Error("Cannot update an inactive policy.");
+    const now = new Date().toISOString();
+    this._props = {
+      ...this._props,
+      actions: input.actions ?? this._props.actions,
+      effect: input.effect ?? this._props.effect,
+      conditions: input.conditions ?? this._props.conditions,
+      updatedAtISO: now,
+    };
+    this._domainEvents.push({
+      type: "platform.access_policy.updated",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { policyId: this._props.id },
+    });
+  }
+
+  deactivate(): void {
+    if (!this._props.isActive) throw new Error("Policy is already inactive.");
+    const now = new Date().toISOString();
+    this._props = { ...this._props, isActive: false, updatedAtISO: now };
+    this._domainEvents.push({
+      type: "platform.access_policy.deactivated",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { policyId: this._props.id },
+    });
+  }
+
+  get id(): string { return this._props.id; }
+  get subjectRef(): SubjectRef { return this._props.subjectRef; }
+  get resourceRef(): ResourceRef { return this._props.resourceRef; }
+  get actions(): readonly string[] { return this._props.actions; }
+  get effect(): PolicyEffect { return this._props.effect; }
+  get conditions(): readonly string[] { return this._props.conditions; }
+  get isActive(): boolean { return this._props.isActive; }
+
+  getSnapshot(): Readonly<AccessPolicySnapshot> {
+    return Object.freeze({ ...this._props });
+  }
+
+  pullDomainEvents(): AccessPolicyDomainEventType[] {
+    const events = [...this._domainEvents];
+    this._domainEvents.length = 0;
+    return events;
+  }
+}
+````
+
+## File: modules/platform/subdomains/access-control/domain/aggregates/index.ts
+````typescript
+export * from "./AccessPolicy";
+````
+
+## File: modules/platform/subdomains/access-control/domain/events/AccessPolicyDomainEvent.ts
+````typescript
+import type { SubjectRef } from "../value-objects/SubjectRef";
+import type { ResourceRef } from "../value-objects/ResourceRef";
+import type { PolicyEffect } from "../value-objects/PolicyEffect";
+
+export interface AccessPolicyDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
+}
+
+export interface AccessPolicyCreatedEvent extends AccessPolicyDomainEvent {
+  readonly type: "platform.access_policy.created";
+  readonly payload: {
+    readonly policyId: string;
+    readonly subjectRef: SubjectRef;
+    readonly resourceRef: ResourceRef;
+    readonly actions: readonly string[];
+    readonly effect: PolicyEffect;
+  };
+}
+
+export interface AccessPolicyUpdatedEvent extends AccessPolicyDomainEvent {
+  readonly type: "platform.access_policy.updated";
+  readonly payload: { readonly policyId: string };
+}
+
+export interface AccessPolicyDeactivatedEvent extends AccessPolicyDomainEvent {
+  readonly type: "platform.access_policy.deactivated";
+  readonly payload: { readonly policyId: string };
+}
+
+export type AccessPolicyDomainEventType =
+  | AccessPolicyCreatedEvent
+  | AccessPolicyUpdatedEvent
+  | AccessPolicyDeactivatedEvent;
+````
+
+## File: modules/platform/subdomains/access-control/domain/events/index.ts
+````typescript
+export * from "./AccessPolicyDomainEvent";
+````
+
+## File: modules/platform/subdomains/access-control/domain/index.ts
+````typescript
+export * from "./aggregates";
+export * from "./events";
+export * from "./repositories";
+export * from "./value-objects";
+````
+
+## File: modules/platform/subdomains/access-control/domain/repositories/AccessPolicyRepository.ts
+````typescript
+/**
+ * AccessPolicyRepository — Write-side persistence port (CQRS).
+ */
+import type { AccessPolicySnapshot } from "../aggregates/AccessPolicy";
+
+export interface AccessPolicyRepository {
+  findById(id: string): Promise<AccessPolicySnapshot | null>;
+  findBySubject(subjectId: string): Promise<AccessPolicySnapshot[]>;
+  findActiveBySubjectAndResource(
+    subjectId: string,
+    resourceType: string,
+    resourceId?: string,
+  ): Promise<AccessPolicySnapshot[]>;
+  save(snapshot: AccessPolicySnapshot): Promise<void>;
+  update(snapshot: AccessPolicySnapshot): Promise<void>;
+}
+````
+
+## File: modules/platform/subdomains/access-control/domain/repositories/index.ts
+````typescript
+export * from "./AccessPolicyRepository";
+````
+
+## File: modules/platform/subdomains/access-control/domain/value-objects/index.ts
+````typescript
+export * from "./SubjectRef";
+export * from "./ResourceRef";
+export * from "./PolicyEffect";
+````
+
+## File: modules/platform/subdomains/access-control/domain/value-objects/PolicyEffect.ts
+````typescript
+export type PolicyEffect = "allow" | "deny";
+
+export function isAllow(effect: PolicyEffect): boolean {
+  return effect === "allow";
+}
+````
+
+## File: modules/platform/subdomains/access-control/domain/value-objects/ResourceRef.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const ResourceRefSchema = z.object({
+  resourceType: z.string().min(1),
+  resourceId: z.string().min(1).optional(),
+  workspaceId: z.string().min(1).optional(),
+});
+export type ResourceRef = z.infer<typeof ResourceRefSchema>;
+
+export function createResourceRef(
+  resourceType: string,
+  resourceId?: string,
+  workspaceId?: string,
+): ResourceRef {
+  return ResourceRefSchema.parse({ resourceType, resourceId, workspaceId });
+}
+````
+
+## File: modules/platform/subdomains/access-control/domain/value-objects/SubjectRef.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const SubjectRefSchema = z.object({
+  subjectId: z.string().min(1),
+  subjectType: z.enum(["actor", "organization", "service"]),
+});
+export type SubjectRef = z.infer<typeof SubjectRefSchema>;
+
+export function createSubjectRef(subjectId: string, subjectType: SubjectRef["subjectType"]): SubjectRef {
+  return SubjectRefSchema.parse({ subjectId, subjectType });
+}
+````
+
+## File: modules/platform/subdomains/access-control/infrastructure/access-control-service.ts
+````typescript
+/**
+ * AccessControlService — Composition root for access-control use cases.
+ */
+import {
+  EvaluatePermissionUseCase,
+  CreateAccessPolicyUseCase,
+  UpdateAccessPolicyUseCase,
+  DeactivateAccessPolicyUseCase,
+} from "../application/use-cases/access-control.use-cases";
+import { FirebaseAccessPolicyRepository } from "./firebase/FirebaseAccessPolicyRepository";
+import type { SubjectRef } from "../domain/value-objects/SubjectRef";
+import type { ResourceRef } from "../domain/value-objects/ResourceRef";
+import type { PolicyEffect } from "../domain/value-objects/PolicyEffect";
+import type { CommandResult } from "@shared-types";
+
+let _repo: FirebaseAccessPolicyRepository | undefined;
+
+function getRepo(): FirebaseAccessPolicyRepository {
+  if (!_repo) _repo = new FirebaseAccessPolicyRepository();
+  return _repo;
+}
+
+export const accessControlService = {
+  evaluatePermission: (input: {
+    subjectId: string;
+    resourceType: string;
+    resourceId?: string;
+    action: string;
+  }): Promise<CommandResult> => new EvaluatePermissionUseCase(getRepo()).execute(input),
+
+  createPolicy: (input: {
+    subjectRef: SubjectRef;
+    resourceRef: ResourceRef;
+    actions: string[];
+    effect: PolicyEffect;
+    conditions?: string[];
+  }): Promise<CommandResult> => new CreateAccessPolicyUseCase(getRepo()).execute(input),
+
+  updatePolicy: (
+    policyId: string,
+    input: { actions?: string[]; effect?: PolicyEffect; conditions?: string[] },
+  ): Promise<CommandResult> => new UpdateAccessPolicyUseCase(getRepo()).execute(policyId, input),
+
+  deactivatePolicy: (policyId: string): Promise<CommandResult> =>
+    new DeactivateAccessPolicyUseCase(getRepo()).execute(policyId),
+};
+````
+
+## File: modules/platform/subdomains/access-control/infrastructure/firebase/FirebaseAccessPolicyRepository.ts
+````typescript
+/**
+ * FirebaseAccessPolicyRepository — Infrastructure adapter for access-policy persistence.
+ * Firebase SDK only exists in this file.
+ */
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { AccessPolicyRepository } from "../../domain/repositories/AccessPolicyRepository";
+import type { AccessPolicySnapshot } from "../../domain/aggregates/AccessPolicy";
+
+const COLLECTION = "accessPolicies";
+
+function toSnapshot(id: string, data: Record<string, unknown>): AccessPolicySnapshot {
+  return {
+    id,
+    subjectRef: data.subjectRef as AccessPolicySnapshot["subjectRef"],
+    resourceRef: data.resourceRef as AccessPolicySnapshot["resourceRef"],
+    actions: data.actions as string[],
+    effect: data.effect as AccessPolicySnapshot["effect"],
+    conditions: (data.conditions as string[]) ?? [],
+    isActive: Boolean(data.isActive),
+    createdAtISO: data.createdAtISO as string,
+    updatedAtISO: data.updatedAtISO as string,
+  };
+}
+
+export class FirebaseAccessPolicyRepository implements AccessPolicyRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async findById(id: string): Promise<AccessPolicySnapshot | null> {
+    const snap = await getDoc(doc(this.db, COLLECTION, id));
+    if (!snap.exists()) return null;
+    return toSnapshot(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async findBySubject(subjectId: string): Promise<AccessPolicySnapshot[]> {
+    const q = query(
+      collection(this.db, COLLECTION),
+      where("subjectRef.subjectId", "==", subjectId),
+    );
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async findActiveBySubjectAndResource(
+    subjectId: string,
+    resourceType: string,
+    resourceId?: string,
+  ): Promise<AccessPolicySnapshot[]> {
+    const constraints = [
+      where("subjectRef.subjectId", "==", subjectId),
+      where("resourceRef.resourceType", "==", resourceType),
+      where("isActive", "==", true),
+    ];
+    if (resourceId) {
+      constraints.push(where("resourceRef.resourceId", "==", resourceId));
+    }
+    const q = query(collection(this.db, COLLECTION), ...constraints);
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async save(snapshot: AccessPolicySnapshot): Promise<void> {
+    await setDoc(doc(this.db, COLLECTION, snapshot.id), {
+      ...snapshot,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async update(snapshot: AccessPolicySnapshot): Promise<void> {
+    await updateDoc(doc(this.db, COLLECTION, snapshot.id), {
+      actions: snapshot.actions,
+      effect: snapshot.effect,
+      conditions: snapshot.conditions,
+      isActive: snapshot.isActive,
+      updatedAtISO: snapshot.updatedAtISO,
+      updatedAt: serverTimestamp(),
+    });
+  }
+}
+````
+
+## File: modules/platform/subdomains/access-control/infrastructure/index.ts
+````typescript
+export * from "./access-control-service";
+export { FirebaseAccessPolicyRepository } from "./firebase/FirebaseAccessPolicyRepository";
 ````
 
 ## File: modules/platform/subdomains/access-control/README.md
@@ -14427,6 +16135,459 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/platform/subdomains/entitlement/api/index.ts
+````typescript
+/**
+ * Public API boundary for the entitlement subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export * from "../application";
+export { entitlementService } from "../infrastructure";
+export type {
+  EntitlementGrantSnapshot,
+  CreateEntitlementGrantInput,
+} from "../domain/aggregates/EntitlementGrant";
+export type { EntitlementGrantDomainEventType } from "../domain/events/EntitlementGrantDomainEvent";
+export type { EntitlementGrantRepository } from "../domain/repositories/EntitlementGrantRepository";
+export type { EntitlementStatus } from "../domain/value-objects/EntitlementStatus";
+export type { FeatureKey } from "../domain/value-objects/FeatureKey";
+````
+
+## File: modules/platform/subdomains/entitlement/application/dtos/entitlement.dto.ts
+````typescript
+import type { EntitlementGrantSnapshot } from "../../domain/aggregates/EntitlementGrant";
+
+export type EntitlementGrantView = Readonly<EntitlementGrantSnapshot>;
+
+export interface EntitlementSignal {
+  readonly contextId: string;
+  readonly activeFeatures: string[];
+  readonly grants: EntitlementGrantView[];
+}
+````
+
+## File: modules/platform/subdomains/entitlement/application/dtos/index.ts
+````typescript
+export * from "./entitlement.dto";
+````
+
+## File: modules/platform/subdomains/entitlement/application/index.ts
+````typescript
+export * from "./dtos";
+export * from "./use-cases";
+````
+
+## File: modules/platform/subdomains/entitlement/application/use-cases/index.ts
+````typescript
+export * from "./entitlement.use-cases";
+````
+
+## File: modules/platform/subdomains/entitlement/domain/aggregates/EntitlementGrant.ts
+````typescript
+import type { EntitlementGrantDomainEventType } from "../events/EntitlementGrantDomainEvent";
+import { createEntitlementId, canSuspend, canRevoke } from "../value-objects";
+import type { EntitlementStatus } from "../value-objects";
+
+export interface EntitlementGrantSnapshot {
+  readonly id: string;
+  readonly contextId: string;
+  readonly featureKey: string;
+  readonly quota: number | null;
+  readonly status: EntitlementStatus;
+  readonly grantedAt: string;
+  readonly expiresAt: string | null;
+  readonly updatedAtISO: string;
+}
+
+export interface CreateEntitlementGrantInput {
+  readonly contextId: string;
+  readonly featureKey: string;
+  readonly quota?: number | null;
+  readonly expiresAt?: string | null;
+}
+
+export class EntitlementGrant {
+  private readonly _domainEvents: EntitlementGrantDomainEventType[] = [];
+
+  private constructor(private _props: EntitlementGrantSnapshot) {}
+
+  static create(id: string, input: CreateEntitlementGrantInput): EntitlementGrant {
+    createEntitlementId(id);
+    const now = new Date().toISOString();
+    const grant = new EntitlementGrant({
+      id,
+      contextId: input.contextId,
+      featureKey: input.featureKey,
+      quota: input.quota ?? null,
+      status: "active",
+      grantedAt: now,
+      expiresAt: input.expiresAt ?? null,
+      updatedAtISO: now,
+    });
+    grant._domainEvents.push({
+      type: "platform.entitlement.granted",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: {
+        entitlementId: id,
+        contextId: input.contextId,
+        featureKey: input.featureKey,
+        quota: input.quota ?? null,
+      },
+    });
+    return grant;
+  }
+
+  static reconstitute(snapshot: EntitlementGrantSnapshot): EntitlementGrant {
+    createEntitlementId(snapshot.id);
+    return new EntitlementGrant({ ...snapshot });
+  }
+
+  suspend(): void {
+    if (!canSuspend(this._props.status)) {
+      throw new Error("Only active entitlement can be suspended.");
+    }
+    const now = new Date().toISOString();
+    this._props = { ...this._props, status: "suspended", updatedAtISO: now };
+    this._domainEvents.push({
+      type: "platform.entitlement.suspended",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { entitlementId: this._props.id, contextId: this._props.contextId },
+    });
+  }
+
+  revoke(): void {
+    if (!canRevoke(this._props.status)) {
+      throw new Error("Entitlement is already revoked.");
+    }
+    const now = new Date().toISOString();
+    this._props = { ...this._props, status: "revoked", updatedAtISO: now };
+    this._domainEvents.push({
+      type: "platform.entitlement.revoked",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { entitlementId: this._props.id, contextId: this._props.contextId },
+    });
+  }
+
+  expire(): void {
+    const now = new Date().toISOString();
+    this._props = { ...this._props, status: "expired", updatedAtISO: now };
+    this._domainEvents.push({
+      type: "platform.entitlement.expired",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { entitlementId: this._props.id, contextId: this._props.contextId },
+    });
+  }
+
+  get id(): string { return this._props.id; }
+  get contextId(): string { return this._props.contextId; }
+  get featureKey(): string { return this._props.featureKey; }
+  get quota(): number | null { return this._props.quota; }
+  get status(): EntitlementStatus { return this._props.status; }
+  get grantedAt(): string { return this._props.grantedAt; }
+  get expiresAt(): string | null { return this._props.expiresAt; }
+  get isActive(): boolean { return this._props.status === "active"; }
+
+  getSnapshot(): Readonly<EntitlementGrantSnapshot> {
+    return Object.freeze({ ...this._props });
+  }
+
+  pullDomainEvents(): EntitlementGrantDomainEventType[] {
+    const events = [...this._domainEvents];
+    this._domainEvents.length = 0;
+    return events;
+  }
+}
+````
+
+## File: modules/platform/subdomains/entitlement/domain/aggregates/index.ts
+````typescript
+export * from "./EntitlementGrant";
+````
+
+## File: modules/platform/subdomains/entitlement/domain/events/EntitlementGrantDomainEvent.ts
+````typescript
+export interface EntitlementGrantDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
+}
+
+export interface EntitlementGrantedEvent extends EntitlementGrantDomainEvent {
+  readonly type: "platform.entitlement.granted";
+  readonly payload: {
+    readonly entitlementId: string;
+    readonly contextId: string;
+    readonly featureKey: string;
+    readonly quota: number | null;
+  };
+}
+
+export interface EntitlementSuspendedEvent extends EntitlementGrantDomainEvent {
+  readonly type: "platform.entitlement.suspended";
+  readonly payload: {
+    readonly entitlementId: string;
+    readonly contextId: string;
+  };
+}
+
+export interface EntitlementRevokedEvent extends EntitlementGrantDomainEvent {
+  readonly type: "platform.entitlement.revoked";
+  readonly payload: {
+    readonly entitlementId: string;
+    readonly contextId: string;
+  };
+}
+
+export interface EntitlementExpiredEvent extends EntitlementGrantDomainEvent {
+  readonly type: "platform.entitlement.expired";
+  readonly payload: {
+    readonly entitlementId: string;
+    readonly contextId: string;
+  };
+}
+
+export type EntitlementGrantDomainEventType =
+  | EntitlementGrantedEvent
+  | EntitlementSuspendedEvent
+  | EntitlementRevokedEvent
+  | EntitlementExpiredEvent;
+````
+
+## File: modules/platform/subdomains/entitlement/domain/events/index.ts
+````typescript
+export * from "./EntitlementGrantDomainEvent";
+````
+
+## File: modules/platform/subdomains/entitlement/domain/index.ts
+````typescript
+export * from "./aggregates";
+export * from "./events";
+export * from "./repositories";
+export * from "./value-objects";
+````
+
+## File: modules/platform/subdomains/entitlement/domain/repositories/EntitlementGrantRepository.ts
+````typescript
+/**
+ * EntitlementGrantRepository — Write-side persistence port (CQRS).
+ * Domain owns the contract; Infrastructure implements it.
+ */
+import type { EntitlementGrantSnapshot } from "../aggregates/EntitlementGrant";
+
+export interface EntitlementGrantRepository {
+  findById(id: string): Promise<EntitlementGrantSnapshot | null>;
+  findByContextId(contextId: string): Promise<EntitlementGrantSnapshot[]>;
+  findActiveByContextAndFeature(
+    contextId: string,
+    featureKey: string,
+  ): Promise<EntitlementGrantSnapshot | null>;
+  save(snapshot: EntitlementGrantSnapshot): Promise<void>;
+  update(snapshot: EntitlementGrantSnapshot): Promise<void>;
+}
+````
+
+## File: modules/platform/subdomains/entitlement/domain/repositories/index.ts
+````typescript
+export * from "./EntitlementGrantRepository";
+````
+
+## File: modules/platform/subdomains/entitlement/domain/value-objects/EntitlementId.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const EntitlementIdSchema = z.string().min(1).brand("EntitlementId");
+export type EntitlementId = z.infer<typeof EntitlementIdSchema>;
+
+export function createEntitlementId(raw: string): EntitlementId {
+  return EntitlementIdSchema.parse(raw);
+}
+````
+
+## File: modules/platform/subdomains/entitlement/domain/value-objects/EntitlementStatus.ts
+````typescript
+export const ENTITLEMENT_STATUSES = ["active", "suspended", "expired", "revoked"] as const;
+export type EntitlementStatus = (typeof ENTITLEMENT_STATUSES)[number];
+
+export function canSuspend(status: EntitlementStatus): boolean {
+  return status === "active";
+}
+
+export function canRevoke(status: EntitlementStatus): boolean {
+  return status !== "revoked";
+}
+
+export function isActiveStatus(status: EntitlementStatus): boolean {
+  return status === "active";
+}
+````
+
+## File: modules/platform/subdomains/entitlement/domain/value-objects/FeatureKey.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const FeatureKeySchema = z
+  .string()
+  .min(1)
+  .regex(/^[a-z][a-z0-9_:.\-]*$/, "FeatureKey must be lowercase dot/colon/hyphen separated")
+  .brand("FeatureKey");
+export type FeatureKey = z.infer<typeof FeatureKeySchema>;
+
+export function createFeatureKey(raw: string): FeatureKey {
+  return FeatureKeySchema.parse(raw);
+}
+````
+
+## File: modules/platform/subdomains/entitlement/domain/value-objects/index.ts
+````typescript
+export * from "./EntitlementId";
+export * from "./EntitlementStatus";
+export * from "./FeatureKey";
+````
+
+## File: modules/platform/subdomains/entitlement/infrastructure/entitlement-service.ts
+````typescript
+/**
+ * EntitlementService — Composition root for entitlement use cases.
+ * Wires repositories; provides a unified service interface.
+ */
+import {
+  GrantEntitlementUseCase,
+  SuspendEntitlementUseCase,
+  RevokeEntitlementUseCase,
+  ResolveEntitlementsUseCase,
+  CheckFeatureEntitlementUseCase,
+} from "../application/use-cases/entitlement.use-cases";
+import { FirebaseEntitlementGrantRepository } from "./firebase/FirebaseEntitlementGrantRepository";
+import type { CommandResult } from "@shared-types";
+
+let _repo: FirebaseEntitlementGrantRepository | undefined;
+
+function getRepo(): FirebaseEntitlementGrantRepository {
+  if (!_repo) _repo = new FirebaseEntitlementGrantRepository();
+  return _repo;
+}
+
+export const entitlementService = {
+  grantEntitlement: (input: {
+    contextId: string;
+    featureKey: string;
+    quota?: number | null;
+    expiresAt?: string | null;
+  }): Promise<CommandResult> => new GrantEntitlementUseCase(getRepo()).execute(input),
+
+  suspendEntitlement: (entitlementId: string): Promise<CommandResult> =>
+    new SuspendEntitlementUseCase(getRepo()).execute(entitlementId),
+
+  revokeEntitlement: (entitlementId: string): Promise<CommandResult> =>
+    new RevokeEntitlementUseCase(getRepo()).execute(entitlementId),
+
+  resolveEntitlements: (contextId: string): Promise<CommandResult> =>
+    new ResolveEntitlementsUseCase(getRepo()).execute(contextId),
+
+  checkFeatureEntitlement: (contextId: string, featureKey: string): Promise<CommandResult> =>
+    new CheckFeatureEntitlementUseCase(getRepo()).execute(contextId, featureKey),
+};
+````
+
+## File: modules/platform/subdomains/entitlement/infrastructure/firebase/FirebaseEntitlementGrantRepository.ts
+````typescript
+/**
+ * FirebaseEntitlementGrantRepository — Infrastructure adapter for entitlement persistence.
+ * Firebase SDK only exists in this file.
+ */
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { EntitlementGrantRepository } from "../../domain/repositories/EntitlementGrantRepository";
+import type { EntitlementGrantSnapshot } from "../../domain/aggregates/EntitlementGrant";
+
+const COLLECTION = "entitlementGrants";
+
+function toSnapshot(id: string, data: Record<string, unknown>): EntitlementGrantSnapshot {
+  return {
+    id,
+    contextId: data.contextId as string,
+    featureKey: data.featureKey as string,
+    quota: data.quota != null ? (data.quota as number) : null,
+    status: data.status as EntitlementGrantSnapshot["status"],
+    grantedAt: data.grantedAt as string,
+    expiresAt: data.expiresAt != null ? (data.expiresAt as string) : null,
+    updatedAtISO: data.updatedAtISO as string,
+  };
+}
+
+export class FirebaseEntitlementGrantRepository implements EntitlementGrantRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async findById(id: string): Promise<EntitlementGrantSnapshot | null> {
+    const snap = await getDoc(doc(this.db, COLLECTION, id));
+    if (!snap.exists()) return null;
+    return toSnapshot(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async findByContextId(contextId: string): Promise<EntitlementGrantSnapshot[]> {
+    const q = query(collection(this.db, COLLECTION), where("contextId", "==", contextId));
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async findActiveByContextAndFeature(
+    contextId: string,
+    featureKey: string,
+  ): Promise<EntitlementGrantSnapshot | null> {
+    const q = query(
+      collection(this.db, COLLECTION),
+      where("contextId", "==", contextId),
+      where("featureKey", "==", featureKey),
+      where("status", "==", "active"),
+    );
+    const snaps = await getDocs(q);
+    if (snaps.empty) return null;
+    const d = snaps.docs[0];
+    return toSnapshot(d.id, d.data() as Record<string, unknown>);
+  }
+
+  async save(snapshot: EntitlementGrantSnapshot): Promise<void> {
+    await setDoc(doc(this.db, COLLECTION, snapshot.id), {
+      ...snapshot,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async update(snapshot: EntitlementGrantSnapshot): Promise<void> {
+    await updateDoc(doc(this.db, COLLECTION, snapshot.id), {
+      status: snapshot.status,
+      updatedAtISO: snapshot.updatedAtISO,
+      updatedAt: serverTimestamp(),
+    });
+  }
+}
+````
+
+## File: modules/platform/subdomains/entitlement/infrastructure/index.ts
+````typescript
+export * from "./entitlement-service";
+export { FirebaseEntitlementGrantRepository } from "./firebase/FirebaseEntitlementGrantRepository";
+````
+
 ## File: modules/platform/subdomains/entitlement/README.md
 ````markdown
 # Entitlement
@@ -15831,6 +17992,82 @@ export {
   MarkNotificationReadUseCase,
   MarkAllNotificationsReadUseCase,
 } from "./use-cases/notification.use-cases";
+````
+
+## File: modules/platform/subdomains/notification/application/queries/notification.queries.ts
+````typescript
+import type { NotificationRepository } from "../../domain/repositories/NotificationRepository";
+import type { NotificationEntity } from "../../domain/entities/Notification";
+
+export class GetNotificationsForRecipientUseCase {
+  constructor(private readonly repo: NotificationRepository) {}
+
+  async execute(recipientId: string, limit?: number): Promise<NotificationEntity[]> {
+    return this.repo.findByRecipient(recipientId, limit);
+  }
+}
+
+export class GetUnreadCountUseCase {
+  constructor(private readonly repo: NotificationRepository) {}
+
+  async execute(recipientId: string): Promise<number> {
+    return this.repo.getUnreadCount(recipientId);
+  }
+}
+````
+
+## File: modules/platform/subdomains/notification/application/use-cases/notification.use-cases.ts
+````typescript
+/**
+ * Notification Application Use Cases — orchestrate domain intent without framework concerns.
+ */
+
+import { commandSuccess, commandFailureFrom } from "@shared-types";
+import type { CommandResult } from "@shared-types";
+import type { NotificationRepository } from "../../domain/repositories/NotificationRepository";
+import type { DispatchNotificationInput } from "../../domain/entities/Notification";
+
+export class DispatchNotificationUseCase {
+  constructor(private readonly repo: NotificationRepository) {}
+
+  async execute(input: DispatchNotificationInput): Promise<CommandResult> {
+    try {
+      const notification = await this.repo.dispatch(input);
+      return commandSuccess(notification.id, 1);
+    } catch (err) {
+      return commandFailureFrom("DISPATCH_NOTIFICATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
+    }
+  }
+}
+
+export class MarkNotificationReadUseCase {
+  constructor(private readonly repo: NotificationRepository) {}
+
+  async execute(notificationId: string, recipientId: string): Promise<CommandResult> {
+    try {
+      await this.repo.markAsRead(notificationId, recipientId);
+      return commandSuccess(notificationId, 1);
+    } catch (err) {
+      return commandFailureFrom("MARK_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
+    }
+  }
+}
+
+export class MarkAllNotificationsReadUseCase {
+  constructor(private readonly repo: NotificationRepository) {}
+
+  async execute(recipientId: string): Promise<CommandResult> {
+    try {
+      await this.repo.markAllAsRead(recipientId);
+      return commandSuccess(recipientId, 1);
+    } catch (err) {
+      return commandFailureFrom("MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
+    }
+  }
+}
+
+// Re-export read queries for backward compatibility
+export { GetNotificationsForRecipientUseCase, GetUnreadCountUseCase } from "../queries/notification.queries";
 ````
 
 ## File: modules/platform/subdomains/notification/domain/aggregates/index.ts
@@ -18757,6 +20994,363 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/platform/subdomains/subscription/api/index.ts
+````typescript
+/**
+ * Public API boundary for the subscription subdomain.
+ */
+export * from "../application";
+export { subscriptionService } from "../infrastructure";
+export type { SubscriptionSnapshot, CreateSubscriptionInput } from "../domain/aggregates/Subscription";
+export type { SubscriptionDomainEventType } from "../domain/events/SubscriptionDomainEvent";
+export type { SubscriptionRepository } from "../domain/repositories/SubscriptionRepository";
+export type { SubscriptionId } from "../domain/value-objects/SubscriptionId";
+export type { PlanCode } from "../domain/value-objects/PlanCode";
+export type { SubscriptionStatus } from "../domain/value-objects/SubscriptionStatus";
+export type { BillingCycle } from "../domain/value-objects/BillingCycle";
+````
+
+## File: modules/platform/subdomains/subscription/application/dtos/index.ts
+````typescript
+export * from "./subscription.dto";
+````
+
+## File: modules/platform/subdomains/subscription/application/dtos/subscription.dto.ts
+````typescript
+import type { SubscriptionSnapshot } from "../../domain/aggregates/Subscription";
+
+export type SubscriptionView = Readonly<SubscriptionSnapshot>;
+
+export interface SubscriptionSummary {
+  readonly contextId: string;
+  readonly planCode: string;
+  readonly status: string;
+  readonly isActive: boolean;
+  readonly currentPeriodEnd: string | null;
+}
+````
+
+## File: modules/platform/subdomains/subscription/application/index.ts
+````typescript
+export * from "./dtos";
+export * from "./use-cases";
+````
+
+## File: modules/platform/subdomains/subscription/application/use-cases/index.ts
+````typescript
+export * from "./subscription.use-cases";
+````
+
+## File: modules/platform/subdomains/subscription/domain/aggregates/index.ts
+````typescript
+export * from "./Subscription";
+````
+
+## File: modules/platform/subdomains/subscription/domain/events/index.ts
+````typescript
+export * from "./SubscriptionDomainEvent";
+````
+
+## File: modules/platform/subdomains/subscription/domain/events/SubscriptionDomainEvent.ts
+````typescript
+import type { BillingCycle } from "../value-objects/BillingCycle";
+
+export interface SubscriptionDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
+}
+
+export interface SubscriptionActivatedEvent extends SubscriptionDomainEvent {
+  readonly type: "platform.subscription.activated";
+  readonly payload: {
+    readonly subscriptionId: string;
+    readonly contextId: string;
+    readonly planCode: string;
+    readonly billingCycle: BillingCycle;
+  };
+}
+
+export interface SubscriptionCancelledEvent extends SubscriptionDomainEvent {
+  readonly type: "platform.subscription.cancelled";
+  readonly payload: { readonly subscriptionId: string; readonly contextId: string };
+}
+
+export interface SubscriptionRenewedEvent extends SubscriptionDomainEvent {
+  readonly type: "platform.subscription.renewed";
+  readonly payload: {
+    readonly subscriptionId: string;
+    readonly contextId: string;
+    readonly newPeriodEnd: string;
+  };
+}
+
+export interface SubscriptionPastDueEvent extends SubscriptionDomainEvent {
+  readonly type: "platform.subscription.past_due";
+  readonly payload: { readonly subscriptionId: string; readonly contextId: string };
+}
+
+export interface SubscriptionExpiredEvent extends SubscriptionDomainEvent {
+  readonly type: "platform.subscription.expired";
+  readonly payload: { readonly subscriptionId: string; readonly contextId: string };
+}
+
+export type SubscriptionDomainEventType =
+  | SubscriptionActivatedEvent
+  | SubscriptionCancelledEvent
+  | SubscriptionRenewedEvent
+  | SubscriptionPastDueEvent
+  | SubscriptionExpiredEvent;
+````
+
+## File: modules/platform/subdomains/subscription/domain/index.ts
+````typescript
+export * from "./aggregates";
+export * from "./events";
+export * from "./repositories";
+export * from "./value-objects";
+````
+
+## File: modules/platform/subdomains/subscription/domain/repositories/index.ts
+````typescript
+export * from "./SubscriptionRepository";
+````
+
+## File: modules/platform/subdomains/subscription/domain/repositories/SubscriptionRepository.ts
+````typescript
+/**
+ * SubscriptionRepository — Write-side persistence port (CQRS).
+ */
+import type { SubscriptionSnapshot } from "../aggregates/Subscription";
+
+export interface SubscriptionRepository {
+  findById(id: string): Promise<SubscriptionSnapshot | null>;
+  findActiveByContextId(contextId: string): Promise<SubscriptionSnapshot | null>;
+  findByContextId(contextId: string): Promise<SubscriptionSnapshot[]>;
+  save(snapshot: SubscriptionSnapshot): Promise<void>;
+  update(snapshot: SubscriptionSnapshot): Promise<void>;
+}
+````
+
+## File: modules/platform/subdomains/subscription/domain/value-objects/BillingCycle.ts
+````typescript
+export type BillingCycle = "monthly" | "annual" | "lifetime";
+
+export function cycleMonths(cycle: BillingCycle): number | null {
+  if (cycle === "monthly") return 1;
+  if (cycle === "annual") return 12;
+  return null; // lifetime
+}
+````
+
+## File: modules/platform/subdomains/subscription/domain/value-objects/index.ts
+````typescript
+export * from "./SubscriptionId";
+export * from "./PlanCode";
+export * from "./SubscriptionStatus";
+export * from "./BillingCycle";
+````
+
+## File: modules/platform/subdomains/subscription/domain/value-objects/PlanCode.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const PLAN_CODES = ["free", "starter", "pro", "enterprise"] as const;
+export type PlanCodeLiteral = (typeof PLAN_CODES)[number];
+
+export const PlanCodeSchema = z.string().min(1).brand("PlanCode");
+export type PlanCode = z.infer<typeof PlanCodeSchema>;
+
+export function createPlanCode(raw: string): PlanCode {
+  return PlanCodeSchema.parse(raw);
+}
+````
+
+## File: modules/platform/subdomains/subscription/domain/value-objects/SubscriptionId.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const SubscriptionIdSchema = z.string().min(1).brand("SubscriptionId");
+export type SubscriptionId = z.infer<typeof SubscriptionIdSchema>;
+
+export function createSubscriptionId(raw: string): SubscriptionId {
+  return SubscriptionIdSchema.parse(raw);
+}
+````
+
+## File: modules/platform/subdomains/subscription/domain/value-objects/SubscriptionStatus.ts
+````typescript
+export const SUBSCRIPTION_STATUSES = [
+  "trialing",
+  "active",
+  "past_due",
+  "cancelled",
+  "expired",
+] as const;
+export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
+
+export function canCancel(status: SubscriptionStatus): boolean {
+  return status === "active" || status === "trialing" || status === "past_due";
+}
+
+export function canRenew(status: SubscriptionStatus): boolean {
+  return status === "active" || status === "past_due";
+}
+
+export function isActive(status: SubscriptionStatus): boolean {
+  return status === "active" || status === "trialing";
+}
+````
+
+## File: modules/platform/subdomains/subscription/infrastructure/firebase/FirebaseSubscriptionRepository.ts
+````typescript
+/**
+ * FirebaseSubscriptionRepository — Infrastructure adapter for subscription persistence.
+ * Firebase SDK only exists in this file.
+ */
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  orderBy,
+  limit,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { SubscriptionRepository } from "../../domain/repositories/SubscriptionRepository";
+import type { SubscriptionSnapshot } from "../../domain/aggregates/Subscription";
+
+const COLLECTION = "subscriptions";
+
+function toSnapshot(id: string, data: Record<string, unknown>): SubscriptionSnapshot {
+  return {
+    id,
+    contextId: data.contextId as string,
+    planCode: data.planCode as string,
+    billingCycle: data.billingCycle as SubscriptionSnapshot["billingCycle"],
+    status: data.status as SubscriptionSnapshot["status"],
+    currentPeriodStart: data.currentPeriodStart as string,
+    currentPeriodEnd: data.currentPeriodEnd != null ? (data.currentPeriodEnd as string) : null,
+    cancelledAt: data.cancelledAt != null ? (data.cancelledAt as string) : null,
+    createdAtISO: data.createdAtISO as string,
+    updatedAtISO: data.updatedAtISO as string,
+  };
+}
+
+export class FirebaseSubscriptionRepository implements SubscriptionRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async findById(id: string): Promise<SubscriptionSnapshot | null> {
+    const snap = await getDoc(doc(this.db, COLLECTION, id));
+    if (!snap.exists()) return null;
+    return toSnapshot(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async findActiveByContextId(contextId: string): Promise<SubscriptionSnapshot | null> {
+    const q = query(
+      collection(this.db, COLLECTION),
+      where("contextId", "==", contextId),
+      where("status", "in", ["active", "trialing"]),
+      orderBy("createdAtISO", "desc"),
+      limit(1),
+    );
+    const snaps = await getDocs(q);
+    if (snaps.empty) return null;
+    const d = snaps.docs[0];
+    return toSnapshot(d.id, d.data() as Record<string, unknown>);
+  }
+
+  async findByContextId(contextId: string): Promise<SubscriptionSnapshot[]> {
+    const q = query(
+      collection(this.db, COLLECTION),
+      where("contextId", "==", contextId),
+      orderBy("createdAtISO", "desc"),
+    );
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async save(snapshot: SubscriptionSnapshot): Promise<void> {
+    await setDoc(doc(this.db, COLLECTION, snapshot.id), {
+      ...snapshot,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async update(snapshot: SubscriptionSnapshot): Promise<void> {
+    await updateDoc(doc(this.db, COLLECTION, snapshot.id), {
+      status: snapshot.status,
+      currentPeriodStart: snapshot.currentPeriodStart,
+      currentPeriodEnd: snapshot.currentPeriodEnd,
+      cancelledAt: snapshot.cancelledAt,
+      updatedAtISO: snapshot.updatedAtISO,
+      updatedAt: serverTimestamp(),
+    });
+  }
+}
+````
+
+## File: modules/platform/subdomains/subscription/infrastructure/index.ts
+````typescript
+export * from "./subscription-service";
+export { FirebaseSubscriptionRepository } from "./firebase/FirebaseSubscriptionRepository";
+````
+
+## File: modules/platform/subdomains/subscription/infrastructure/subscription-service.ts
+````typescript
+/**
+ * SubscriptionService — Composition root for subscription use cases.
+ */
+import {
+  ActivateSubscriptionUseCase,
+  CancelSubscriptionUseCase,
+  RenewSubscriptionUseCase,
+  GetActiveSubscriptionUseCase,
+  MarkSubscriptionPastDueUseCase,
+} from "../application/use-cases/subscription.use-cases";
+import { FirebaseSubscriptionRepository } from "./firebase/FirebaseSubscriptionRepository";
+import type { BillingCycle } from "../domain/value-objects/BillingCycle";
+import type { CommandResult } from "@shared-types";
+
+let _repo: FirebaseSubscriptionRepository | undefined;
+
+function getRepo(): FirebaseSubscriptionRepository {
+  if (!_repo) _repo = new FirebaseSubscriptionRepository();
+  return _repo;
+}
+
+export const subscriptionService = {
+  activateSubscription: (input: {
+    contextId: string;
+    planCode: string;
+    billingCycle: BillingCycle;
+    currentPeriodEnd?: string | null;
+  }): Promise<CommandResult> => new ActivateSubscriptionUseCase(getRepo()).execute(input),
+
+  cancelSubscription: (subscriptionId: string): Promise<CommandResult> =>
+    new CancelSubscriptionUseCase(getRepo()).execute(subscriptionId),
+
+  renewSubscription: (subscriptionId: string, newPeriodEnd: string): Promise<CommandResult> =>
+    new RenewSubscriptionUseCase(getRepo()).execute(subscriptionId, newPeriodEnd),
+
+  getActiveSubscription: (contextId: string): Promise<CommandResult> =>
+    new GetActiveSubscriptionUseCase(getRepo()).execute(contextId),
+
+  markPastDue: (subscriptionId: string): Promise<CommandResult> =>
+    new MarkSubscriptionPastDueUseCase(getRepo()).execute(subscriptionId),
+};
+````
+
 ## File: modules/platform/subdomains/subscription/README.md
 ````markdown
 # Subscription
@@ -20310,6 +22904,29 @@ export type {
   WorkspaceVisibility,
   WorkspaceVisibilityInput,
 } from "../value-objects/WorkspaceVisibility";
+````
+
+## File: modules/workspace/domain/domain-modeling.instructions.md
+````markdown
+---
+description: 'Workspace domain tactical modeling rules (local mirror of root domain-modeling guidance).'
+applyTo: '*.{ts,tsx}'
+---
+
+# Domain Modeling (Workspace Local)
+
+Use this local file as execution guardrails for `modules/workspace/domain/*`.
+For full reference, align with `.github/instructions/domain-modeling.instructions.md` and `docs/contexts/workspace/*`.
+
+## Core Rules
+
+- Keep aggregate invariants inside aggregate methods.
+- Use immutable value objects with Zod schemas and inferred types.
+- Keep domain framework-free (no Firebase/React/transport imports).
+- Emit domain events on state transitions and publish via application orchestration.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: modules/workspace/domain/entities/WikiContentTree.ts
@@ -24241,6 +26858,33 @@ export function makeAuditRepo() {
 }
 ````
 
+## File: modules/workspace/subdomains/audit/api/index.ts
+````typescript
+/**
+ * workspace/subdomains/audit API boundary.
+ */
+
+export type { AuditLogEntity, AuditLogSource } from "../domain/entities/AuditLog";
+
+export type {
+  AuditLog,
+  AuditAction,
+  AuditSeverity,
+  ChangeRecord,
+} from "../domain/schema";
+
+export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "../domain/schema";
+
+export {
+  getOrganizationAuditLogs,
+  getWorkspaceAuditLogs,
+} from "../interfaces/queries/audit.queries";
+
+export { WorkspaceAuditTab } from "../interfaces/components/WorkspaceAuditTab";
+export { AuditStream } from "../interfaces/components/AuditStream";
+export { RecordAuditEntryUseCase } from "../application/use-cases/record-audit-entry.use-case";
+````
+
 ## File: modules/workspace/subdomains/audit/application/dto/audit.dto.ts
 ````typescript
 /**
@@ -24249,6 +26893,46 @@ export function makeAuditRepo() {
  */
 export type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
 export type { AuditSeverity } from "../../domain/schema";
+````
+
+## File: modules/workspace/subdomains/audit/application/queries/list-audit-logs.queries.ts
+````typescript
+import type { AuditLogEntity } from "../../domain/entities/AuditLog";
+import type { AuditRepository } from "../../domain/repositories/AuditRepository";
+
+export class ListWorkspaceAuditLogsUseCase {
+  constructor(private readonly auditRepo: AuditRepository) {}
+
+  execute(workspaceId: string): Promise<AuditLogEntity[]> {
+    return this.auditRepo.findByWorkspaceId(workspaceId);
+  }
+}
+
+export class ListOrganizationAuditLogsUseCase {
+  constructor(private readonly auditRepo: AuditRepository) {}
+
+  execute(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]> {
+    return this.auditRepo.findByWorkspaceIds(workspaceIds, maxCount);
+  }
+}
+````
+
+## File: modules/workspace/subdomains/audit/application/use-cases/record-audit-entry.use-case.ts
+````typescript
+import { AuditEntry, type RecordAuditEntryInput } from "../../domain/aggregates/AuditEntry";
+import type { AuditDomainEventType } from "../../domain/events";
+import type { AuditRepository } from "../../domain/repositories/AuditRepository";
+
+export class RecordAuditEntryUseCase {
+  constructor(private readonly repo: AuditRepository) {}
+
+  async execute(input: RecordAuditEntryInput): Promise<AuditDomainEventType[]> {
+    const id = crypto.randomUUID();
+    const entry = AuditEntry.record(id, input);
+    await this.repo.save(entry);
+    return entry.pullDomainEvents();
+  }
+}
 ````
 
 ## File: modules/workspace/subdomains/audit/domain/aggregates/AuditEntry.ts
@@ -24508,6 +27192,18 @@ export type { IAuditPort } from "./ports";
  * explicitly visible in the directory structure.
  */
 export type { AuditRepository as IAuditPort } from "../repositories/AuditRepository";
+````
+
+## File: modules/workspace/subdomains/audit/domain/repositories/AuditRepository.ts
+````typescript
+import type { AuditEntry } from "../aggregates/AuditEntry";
+import type { AuditLogEntity } from "../entities/AuditLog";
+
+export interface AuditRepository {
+  save(entry: AuditEntry): Promise<void>;
+  findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]>;
+  findByWorkspaceIds(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]>;
+}
 ````
 
 ## File: modules/workspace/subdomains/audit/domain/schema.ts
@@ -24923,6 +27619,46 @@ export function WorkspaceAuditTab({ workspaceId }: WorkspaceAuditTabProps) {
 }
 ````
 
+## File: modules/workspace/subdomains/audit/interfaces/queries/audit.queries.ts
+````typescript
+import type { AuditLogEntity } from "../../application/dto/audit.dto";
+import {
+  ListOrganizationAuditLogsUseCase,
+  ListWorkspaceAuditLogsUseCase,
+} from "../../application/queries/list-audit-logs.queries";
+import { makeAuditRepo } from "../../api/factories";
+
+const auditRepo = makeAuditRepo();
+const listWorkspaceAuditLogsUseCase = new ListWorkspaceAuditLogsUseCase(auditRepo);
+const listOrganizationAuditLogsUseCase = new ListOrganizationAuditLogsUseCase(auditRepo);
+
+export async function getWorkspaceAuditLogs(
+  workspaceId: string,
+): Promise<AuditLogEntity[]> {
+  const normalizedWorkspaceId = workspaceId.trim();
+  if (!normalizedWorkspaceId) {
+    return [];
+  }
+
+  return listWorkspaceAuditLogsUseCase.execute(normalizedWorkspaceId);
+}
+
+export async function getOrganizationAuditLogs(
+  workspaceIds: string[],
+  maxCount = 200,
+): Promise<AuditLogEntity[]> {
+  const normalizedWorkspaceIds = workspaceIds
+    .map((workspaceId) => workspaceId.trim())
+    .filter(Boolean);
+
+  if (normalizedWorkspaceIds.length === 0) {
+    return [];
+  }
+
+  return listOrganizationAuditLogsUseCase.execute(normalizedWorkspaceIds, maxCount);
+}
+````
+
 ## File: modules/workspace/subdomains/feed/api/factories.ts
 ````typescript
 import { FirebaseWorkspaceFeedInteractionRepository } from "../infrastructure/firebase/FirebaseWorkspaceFeedInteractionRepository";
@@ -25165,6 +27901,47 @@ export const ListAccountFeedSchema = AccountScopeSchema.extend({
 export type ListAccountFeedDto = z.infer<typeof ListAccountFeedSchema>;
 ````
 
+## File: modules/workspace/subdomains/feed/application/queries/workspace-feed-post.queries.ts
+````typescript
+import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
+import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
+import {
+  ListWorkspaceFeedSchema,
+  type ListWorkspaceFeedDto,
+  ListAccountFeedSchema,
+  type ListAccountFeedDto,
+} from "../dto/workspace-feed.dto";
+
+export class GetWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
+    if (!accountId.trim() || !postId.trim()) return null;
+    return this.repo.findById(accountId, postId);
+  }
+}
+
+export class ListWorkspaceFeedUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ListWorkspaceFeedDto): Promise<WorkspaceFeedPost[]> {
+    const parsed = ListWorkspaceFeedSchema.safeParse(input);
+    if (!parsed.success) return [];
+    return this.repo.listByWorkspaceId(parsed.data.accountId, parsed.data.workspaceId, parsed.data.limit ?? 50);
+  }
+}
+
+export class ListAccountWorkspaceFeedUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ListAccountFeedDto): Promise<WorkspaceFeedPost[]> {
+    const parsed = ListAccountFeedSchema.safeParse(input);
+    if (!parsed.success) return [];
+    return this.repo.listByAccountId(parsed.data.accountId, parsed.data.limit ?? 50);
+  }
+}
+````
+
 ## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed-interaction.use-cases.ts
 ````typescript
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
@@ -25280,6 +28057,90 @@ export class ShareWorkspaceFeedPostUseCase {
     return commandSuccess(parsed.data.postId, Date.now());
   }
 }
+````
+
+## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed-post.use-cases.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
+import {
+  CreateWorkspaceFeedPostSchema,
+  type CreateWorkspaceFeedPostDto,
+  ReplyWorkspaceFeedPostSchema,
+  type ReplyWorkspaceFeedPostDto,
+  RepostWorkspaceFeedPostSchema,
+  type RepostWorkspaceFeedPostDto,
+} from "../dto/workspace-feed.dto";
+
+export class CreateWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = CreateWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.repo.createPost(parsed.data);
+    return commandSuccess(post.id, Date.now());
+  }
+}
+
+export class ReplyWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = ReplyWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const parent = await this.repo.findById(parsed.data.accountId, parsed.data.parentPostId);
+    if (!parent) {
+      return commandFailureFrom("WORKSPACE_FEED_PARENT_NOT_FOUND", "Parent post not found.");
+    }
+    if (parent.workspaceId !== parsed.data.workspaceId) {
+      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Parent post is in another workspace.");
+    }
+
+    const reply = await this.repo.createReply(parsed.data);
+    return commandSuccess(reply.id, Date.now());
+  }
+}
+
+export class RepostWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = RepostWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const source = await this.repo.findById(parsed.data.accountId, parsed.data.sourcePostId);
+    if (!source) {
+      return commandFailureFrom("WORKSPACE_FEED_SOURCE_NOT_FOUND", "Source post not found.");
+    }
+    if (source.workspaceId !== parsed.data.workspaceId) {
+      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Source post is in another workspace.");
+    }
+
+    const repost = await this.repo.createRepost(parsed.data);
+    if (!repost) {
+      return commandFailureFrom("WORKSPACE_FEED_REPOST_FAILED", "Failed to create repost.");
+    }
+
+    return commandSuccess(repost.id, Date.now());
+  }
+}
+
+// Re-export read queries for backward compatibility
+export {
+  GetWorkspaceFeedPostUseCase,
+  ListWorkspaceFeedUseCase,
+  ListAccountWorkspaceFeedUseCase,
+} from "../queries/workspace-feed-post.queries";
 ````
 
 ## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed.use-cases.ts
@@ -41042,22 +43903,6 @@ export function ShellSidebarHeader({
 }
 ````
 
-## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/dashboard/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-
-interface AccountWorkspaceDashboardPageProps {
-  params: {
-    accountId: string;
-    workspaceId: string;
-  };
-}
-
-export default function AccountWorkspaceDashboardPage({ params }: AccountWorkspaceDashboardPageProps) {
-  redirect(`/${encodeURIComponent(params.accountId)}/${encodeURIComponent(params.workspaceId)}`);
-}
-````
-
 ## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/knowledge-base/articles/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
@@ -41265,6 +44110,63 @@ export default function AccountWorkspaceFeedPage() {
         workspaceName="工作區"
       />
     </div>
+  );
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/dashboard/page.tsx
+````typescript
+"use client";
+
+import { useParams } from "next/navigation";
+
+import {
+  isActiveOrganizationAccount,
+  useApp,
+  useAuth,
+} from "@/modules/platform/api";
+import { AccountDashboardScreen, useWorkspaceContext } from "@/modules/workspace/api";
+
+export default function AccountDashboardPage() {
+  const params = useParams<{ accountId: string }>();
+  const routeAccountId = typeof params.accountId === "string" ? params.accountId : "";
+
+  const {
+    state: { activeAccount, accounts, accountsHydrated },
+  } = useApp();
+  const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
+
+  const resolvedAccountId = routeAccountId || activeAccount?.id || "";
+  const authUserId = authState.user?.id ?? null;
+  const authUserName = authState.user?.name ?? null;
+
+  const organizationAccount = Object.values(accounts).find(
+    (account) => account.id === resolvedAccountId,
+  );
+
+  const accountName =
+    resolvedAccountId === authUserId
+      ? authUserName
+      : organizationAccount?.name ??
+        (resolvedAccountId === activeAccount?.id ? activeAccount?.name : null);
+
+  const accountType = isActiveOrganizationAccount(activeAccount)
+    ? "organization"
+    : "user";
+
+  const workspaces = Object.values(wsState.workspaces ?? {});
+
+  return (
+    <AccountDashboardScreen
+      accountId={resolvedAccountId}
+      accountName={accountName}
+      accountType={accountType}
+      workspaces={workspaces}
+      workspacesHydrated={accountsHydrated}
+      activeWorkspaceId={wsState.activeWorkspaceId}
+      currentUserId={authUserId}
+    />
   );
 }
 ````
@@ -44591,6 +47493,37 @@ export function makeThreadRepo() {
 }
 ````
 
+## File: modules/notebooklm/interfaces/conversation/composition/use-cases.ts
+````typescript
+/**
+ * Module: notebooklm/interfaces/conversation/composition
+ * Layer: interfaces/composition
+ *
+ * Conversation use-case composition factory.
+ * Wires SaveThreadUseCase and LoadThreadUseCase with their Firestore adapter.
+ * Default arguments make this self-wiring for production use.
+ */
+
+import type { IThreadRepository } from "../../../subdomains/conversation/domain/repositories/IThreadRepository";
+import { SaveThreadUseCase } from "../../../subdomains/conversation/application/use-cases/save-thread.use-case";
+import { LoadThreadUseCase } from "../../../subdomains/conversation/application/use-cases/load-thread.use-case";
+import { makeThreadRepo } from "./adapters";
+
+export interface ConversationUseCases {
+  saveThread: SaveThreadUseCase;
+  loadThread: LoadThreadUseCase;
+}
+
+export function makeConversationUseCases(
+  repo: IThreadRepository = makeThreadRepo(),
+): ConversationUseCases {
+  return {
+    saveThread: new SaveThreadUseCase(repo),
+    loadThread: new LoadThreadUseCase(repo),
+  };
+}
+````
+
 ## File: modules/notebooklm/interfaces/conversation/helpers.ts
 ````typescript
 import type { Thread } from "@/modules/notebooklm/api";
@@ -46319,6 +49252,93 @@ export function waitForParsedDocument(
 }
 ````
 
+## File: modules/notebooklm/interfaces/source/composition/use-cases.ts
+````typescript
+import { UploadInitSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-init-source-file.use-case";
+import { UploadCompleteSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-complete-source-file.use-case";
+import { ParseSourceDocumentUseCase, ReindexSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/source-pipeline.use-cases";
+import { ProcessSourceDocumentWorkflowUseCase } from "../../../subdomains/source/application/use-cases/process-source-document-workflow.use-case";
+import { RegisterUploadedRagDocumentUseCase } from "../../../subdomains/source/application/use-cases/register-rag-document.use-case";
+import { RenameSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/rename-source-document.use-case";
+import { DeleteSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/delete-source-document.use-case";
+import { CreateKnowledgeDraftFromSourceUseCase, type KnowledgePageGateway } from "../../../subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case";
+import type { ISourceFileRepository } from "../../../subdomains/source/domain/repositories/ISourceFileRepository";
+import type { IRagDocumentRepository } from "../../../subdomains/source/domain/repositories/IRagDocumentRepository";
+import type { ISourceDocumentCommandPort } from "../../../subdomains/source/domain/ports/ISourceDocumentPort";
+import type { ISourcePipelinePort } from "../../../subdomains/source/domain/ports/ISourcePipelinePort";
+import type { IParsedDocumentPort } from "../../../subdomains/source/domain/ports/IParsedDocumentPort";
+import {
+  makeSourceFileAdapter,
+  makeRagDocumentAdapter,
+  makeSourceDocumentCommandAdapter,
+  makeSourcePipelineAdapter,
+  makeParsedDocumentAdapter,
+  makeKnowledgePageGateway,
+  waitForParsedDocument,
+} from "./adapters";
+
+export interface SourceUseCases {
+  readonly uploadInitSourceFile: UploadInitSourceFileUseCase;
+  readonly uploadCompleteSourceFile: UploadCompleteSourceFileUseCase;
+  readonly parseSourceDocument: ParseSourceDocumentUseCase;
+  readonly reindexSourceDocument: ReindexSourceDocumentUseCase;
+  readonly processSourceDocumentWorkflow: ProcessSourceDocumentWorkflowUseCase;
+  readonly registerUploadedRagDocument: RegisterUploadedRagDocumentUseCase;
+  readonly renameSourceDocument: RenameSourceDocumentUseCase;
+  readonly deleteSourceDocument: DeleteSourceDocumentUseCase;
+  readonly createKnowledgeDraftFromSource: CreateKnowledgeDraftFromSourceUseCase;
+}
+
+interface ParsedDocumentStatusPort {
+  waitForParsedDocument(
+    accountId: string,
+    documentId: string,
+  ): Promise<{ pageCount: number; jsonGcsUri: string }>;
+}
+
+function makeParsedDocumentStatusPort(): ParsedDocumentStatusPort {
+  return {
+    waitForParsedDocument,
+  };
+}
+
+export function makeSourceUseCases(
+  fileRepository: ISourceFileRepository = makeSourceFileAdapter(),
+  ragDocumentRepository: IRagDocumentRepository = makeRagDocumentAdapter(),
+  documentCommandPort: ISourceDocumentCommandPort = makeSourceDocumentCommandAdapter(),
+  pipelinePort: ISourcePipelinePort = makeSourcePipelineAdapter(),
+  parsedDocumentPort: IParsedDocumentPort = makeParsedDocumentAdapter(),
+  knowledgePageGateway: KnowledgePageGateway = makeKnowledgePageGateway(),
+): SourceUseCases {
+  const parseUseCase = new ParseSourceDocumentUseCase(pipelinePort);
+  const reindexUseCase = new ReindexSourceDocumentUseCase(pipelinePort);
+  const createDraftUseCase = new CreateKnowledgeDraftFromSourceUseCase(
+    parsedDocumentPort,
+    knowledgePageGateway,
+  );
+
+  return {
+    uploadInitSourceFile: new UploadInitSourceFileUseCase(fileRepository),
+    uploadCompleteSourceFile: new UploadCompleteSourceFileUseCase(
+      fileRepository,
+      ragDocumentRepository,
+    ),
+    parseSourceDocument: parseUseCase,
+    reindexSourceDocument: reindexUseCase,
+    processSourceDocumentWorkflow: new ProcessSourceDocumentWorkflowUseCase(
+      parseUseCase,
+      reindexUseCase,
+      createDraftUseCase,
+      makeParsedDocumentStatusPort(),
+    ),
+    registerUploadedRagDocument: new RegisterUploadedRagDocumentUseCase(ragDocumentRepository),
+    renameSourceDocument: new RenameSourceDocumentUseCase(documentCommandPort),
+    deleteSourceDocument: new DeleteSourceDocumentUseCase(documentCommandPort),
+    createKnowledgeDraftFromSource: createDraftUseCase,
+  };
+}
+````
+
 ## File: modules/notebooklm/interfaces/source/contracts/source-command-result.ts
 ````typescript
 import type { SourceFileCommandErrorCode } from "../../../subdomains/source/application/dto/source-file.dto";
@@ -46707,6 +49727,71 @@ export function RagQueryPanel({ workspaceId }: RagQueryPanelProps) {
 
 ````
 
+## File: modules/notebooklm/subdomains/conversation/api/server.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/conversation
+ * Layer: api/server
+ *
+ * Server-only boundary for the conversation subdomain.
+ * Import this path only from Server Components, Server Actions, or route handlers.
+ * Do NOT import in client components or public api/index.ts.
+ */
+
+export { FirebaseThreadRepository } from "../../../infrastructure/conversation/firebase/FirebaseThreadRepository";
+export { makeThreadRepo } from "../../../interfaces/conversation/composition/adapters";
+export type { ConversationUseCases } from "../../../interfaces/conversation/composition/use-cases";
+export { makeConversationUseCases } from "../../../interfaces/conversation/composition/use-cases";
+````
+
+## File: modules/notebooklm/subdomains/conversation/application/use-cases/load-thread.use-case.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/conversation
+ * Layer: application/use-cases
+ *
+ * LoadThreadUseCase — retrieves a conversation thread by ID (query handler).
+ * Returns null if the thread does not exist.
+ */
+
+import type { Thread } from "../../domain/entities/thread";
+import type { IThreadRepository } from "../../domain/repositories/IThreadRepository";
+
+export class LoadThreadUseCase {
+  constructor(private readonly threadRepository: IThreadRepository) {}
+
+  async execute(accountId: string, threadId: string): Promise<Thread | null> {
+    if (!accountId || !threadId) return null;
+    return this.threadRepository.getById(accountId, threadId);
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/conversation/application/use-cases/save-thread.use-case.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/conversation
+ * Layer: application/use-cases
+ *
+ * SaveThreadUseCase — persists a conversation thread via the repository port.
+ * Validates required fields before delegating to infrastructure.
+ */
+
+import type { Thread } from "../../domain/entities/thread";
+import type { IThreadRepository } from "../../domain/repositories/IThreadRepository";
+
+export class SaveThreadUseCase {
+  constructor(private readonly threadRepository: IThreadRepository) {}
+
+  async execute(accountId: string, thread: Thread): Promise<void> {
+    if (!accountId || !thread.id) {
+      throw new Error("accountId and thread.id are required to save a thread.");
+    }
+    await this.threadRepository.save(accountId, thread);
+  }
+}
+````
+
 ## File: modules/notebooklm/subdomains/conversation/domain/events/ConversationEvents.ts
 ````typescript
 /**
@@ -46852,6 +49937,51 @@ export type {
 } from "./events/NotebookEvents";
 ````
 
+## File: modules/notebooklm/subdomains/notebook/README.md
+````markdown
+# Notebook
+
+Notebook container and organization.
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Status**: Active — GenerateNotebookResponseUseCase + PlatformTextGenerationAdapter + Server Actions wired
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notebooklm/subdomains/source/api/server.ts
+````typescript
+/**
+ * source subdomain — server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
+
+export { FirebaseSourceFileAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceFileAdapter";
+export { FirebaseRagDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseRagDocumentAdapter";
+export { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter";
+export { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
+export { PlatformSourcePipelineAdapter } from "../../../infrastructure/source/platform/PlatformSourcePipelineAdapter";
+export { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
+export {
+  makeSourceFileAdapter,
+  makeRagDocumentAdapter,
+  makeSourceDocumentCommandAdapter,
+  makeParsedDocumentAdapter,
+  makeSourcePipelineAdapter,
+  makeKnowledgePageGateway,
+  waitForParsedDocument,
+} from "../../../interfaces/source/composition/adapters";
+export type { SourceUseCases } from "../../../interfaces/source/composition/use-cases";
+export { makeSourceUseCases } from "../../../interfaces/source/composition/use-cases";
+````
+
 ## File: modules/notebooklm/subdomains/source/application/dto/source-pipeline.dto.ts
 ````typescript
 import type {
@@ -46916,50 +50046,6 @@ export * as sourceRenameSourceDocumentUseCase from "./use-cases/rename-source-do
 export * as sourceDeleteSourceDocumentUseCase from "./use-cases/delete-source-document.use-case";
 export * as sourceCreateKnowledgeDraftUseCase from "./use-cases/create-knowledge-draft-from-source.use-case";
 export * as sourceWikiLibraryUseCases from "./use-cases/wiki-library.use-cases";
-````
-
-## File: modules/notebooklm/subdomains/source/application/queries/source-file.queries.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: application/use-cases
- * Use Case: ListSourceFilesUseCase — lists workspace files as view-model DTOs.
- */
-
-import type { ListSourceFilesScope } from "../../domain/repositories/ISourceFileRepository";
-import type { ISourceFileRepository } from "../../domain/repositories/ISourceFileRepository";
-import type { WorkspaceFileListItemDto } from "../dto/source-file.dto";
-
-const DEFAULT_FILE_SOURCE = "source-module";
-const DEFAULT_FILE_DETAIL = "File metadata mapped from current workspace context.";
-
-export class ListSourceFilesUseCase {
-  constructor(private readonly fileRepository: ISourceFileRepository) {}
-
-  async execute(scope: ListSourceFilesScope): Promise<WorkspaceFileListItemDto[]> {
-    const workspaceId = scope.workspaceId.trim();
-    const organizationId = scope.organizationId.trim();
-    const actorAccountId = scope.actorAccountId.trim();
-
-    if (!workspaceId || !organizationId || !actorAccountId) {
-      return [];
-    }
-
-    const files = await this.fileRepository.listByWorkspace({ workspaceId, organizationId, actorAccountId });
-
-    return files.map((file) => ({
-      id: file.id,
-      workspaceId: file.workspaceId,
-      organizationId: file.organizationId,
-      name: file.name,
-      status: file.status,
-      kind: file.classification,
-      source: file.source ?? DEFAULT_FILE_SOURCE,
-      detail: file.detail ?? DEFAULT_FILE_DETAIL,
-      href: file.href,
-    }));
-  }
-}
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/use-cases/source-pipeline.use-cases.ts
@@ -49850,6 +52936,185 @@ export { FirebaseBacklinkIndexRepository } from "./FirebaseBacklinkIndexReposito
 export * from "./firebase";
 ````
 
+## File: modules/notion/infrastructure/relations/firebase/FirebaseRelationRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/relations
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase adapter implementing IRelationRepository.
+ * Firestore path: notionRelations/{relationId}
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import type { Relation } from "../../../subdomains/relations/domain/entities/Relation";
+import type { IRelationRepository } from "../../../subdomains/relations/domain/repositories/IRelationRepository";
+
+function relationsPath(): string {
+  return "notionRelations";
+}
+
+function relationPath(relationId: string): string {
+  return `notionRelations/${relationId}`;
+}
+
+function toRelation(relationId: string, data: Record<string, unknown>): Relation {
+  return {
+    relationId,
+    sourceArtifactId: typeof data.sourceArtifactId === "string" ? data.sourceArtifactId : "",
+    targetArtifactId: typeof data.targetArtifactId === "string" ? data.targetArtifactId : "",
+    relationType: typeof data.relationType === "string" ? data.relationType : "related",
+    direction: data.direction === "backward" ? "backward" : "forward",
+    organizationId: typeof data.organizationId === "string" ? data.organizationId : "",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+  };
+}
+
+export class FirebaseRelationRepository implements IRelationRepository {
+  async findById(relationId: string): Promise<Relation | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(relationPath(relationId));
+    if (!data) return null;
+    return toRelation(relationId, data);
+  }
+
+  async listBySource(sourceArtifactId: string): Promise<readonly Relation[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      relationsPath(),
+      [{ field: "sourceArtifactId", op: "==", value: sourceArtifactId }],
+      { orderBy: [{ field: "createdAtISO", direction: "desc" }] },
+    );
+    return docs.map((d) => toRelation(d.id, d.data));
+  }
+
+  async listByTarget(targetArtifactId: string): Promise<readonly Relation[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      relationsPath(),
+      [{ field: "targetArtifactId", op: "==", value: targetArtifactId }],
+      { orderBy: [{ field: "createdAtISO", direction: "desc" }] },
+    );
+    return docs.map((d) => toRelation(d.id, d.data));
+  }
+
+  async save(relation: Relation): Promise<void> {
+    const { relationId, ...rest } = relation;
+    await firestoreInfrastructureApi.set(relationPath(relationId), { relationId, ...rest });
+  }
+
+  async remove(relationId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(relationPath(relationId));
+  }
+}
+````
+
+## File: modules/notion/infrastructure/relations/firebase/index.ts
+````typescript
+export { FirebaseRelationRepository } from "./FirebaseRelationRepository";
+````
+
+## File: modules/notion/infrastructure/relations/index.ts
+````typescript
+export * from "./firebase";
+````
+
+## File: modules/notion/infrastructure/taxonomy/firebase/FirebaseTaxonomyRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/taxonomy
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase adapter implementing ITaxonomyRepository.
+ * Firestore path: notionTaxonomyNodes/{nodeId}
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import type { TaxonomyNode } from "../../../subdomains/taxonomy/domain/entities/TaxonomyNode";
+import type { ITaxonomyRepository } from "../../../subdomains/taxonomy/domain/repositories/ITaxonomyRepository";
+
+function collectionPath(): string {
+  return "notionTaxonomyNodes";
+}
+
+function docPath(nodeId: string): string {
+  return `notionTaxonomyNodes/${nodeId}`;
+}
+
+function toTaxonomyNode(nodeId: string, data: Record<string, unknown>): TaxonomyNode {
+  const rawPath = data.path;
+  const path: readonly string[] =
+    Array.isArray(rawPath) && rawPath.every((s) => typeof s === "string")
+      ? (rawPath as string[])
+      : [nodeId];
+
+  return {
+    nodeId,
+    label: typeof data.label === "string" ? data.label : "",
+    parentNodeId: typeof data.parentNodeId === "string" ? data.parentNodeId : null,
+    path,
+    depth: typeof data.depth === "number" ? data.depth : 0,
+    organizationId: typeof data.organizationId === "string" ? data.organizationId : "",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseTaxonomyRepository implements ITaxonomyRepository {
+  async findById(nodeId: string): Promise<TaxonomyNode | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(docPath(nodeId));
+    if (!data) return null;
+    return toTaxonomyNode(nodeId, data);
+  }
+
+  async listRoots(organizationId: string): Promise<readonly TaxonomyNode[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      collectionPath(),
+      [
+        { field: "organizationId", op: "==", value: organizationId },
+        { field: "depth", op: "==", value: 0 },
+      ],
+      { orderBy: [{ field: "createdAtISO", direction: "asc" }] },
+    );
+    return docs.map((d) => toTaxonomyNode(d.id, d.data));
+  }
+
+  async listChildren(parentNodeId: string): Promise<readonly TaxonomyNode[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      collectionPath(),
+      [{ field: "parentNodeId", op: "==", value: parentNodeId }],
+      { orderBy: [{ field: "createdAtISO", direction: "asc" }] },
+    );
+    return docs.map((d) => toTaxonomyNode(d.id, d.data));
+  }
+
+  async save(node: TaxonomyNode): Promise<void> {
+    await firestoreInfrastructureApi.set(docPath(node.nodeId), {
+      nodeId: node.nodeId,
+      label: node.label,
+      parentNodeId: node.parentNodeId ?? null,
+      path: [...node.path],
+      depth: node.depth,
+      organizationId: node.organizationId,
+      workspaceId: node.workspaceId ?? null,
+      createdAtISO: node.createdAtISO,
+      updatedAtISO: node.updatedAtISO,
+    });
+  }
+
+  async remove(nodeId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(docPath(nodeId));
+  }
+}
+````
+
+## File: modules/notion/infrastructure/taxonomy/firebase/index.ts
+````typescript
+export { FirebaseTaxonomyRepository } from "./FirebaseTaxonomyRepository";
+````
+
+## File: modules/notion/infrastructure/taxonomy/index.ts
+````typescript
+export { FirebaseTaxonomyRepository } from "./firebase/FirebaseTaxonomyRepository";
+````
+
 ## File: modules/notion/interfaces/authoring/_actions/index.ts
 ````typescript
 // TODO: export server actions: createArticle, updateArticle, publishArticle, archiveArticle
@@ -50544,6 +53809,59 @@ export function makeCategoryRepo() {
 }
 ````
 
+## File: modules/notion/interfaces/authoring/composition/use-cases.ts
+````typescript
+import {
+  CreateArticleUseCase,
+  UpdateArticleUseCase,
+  ArchiveArticleUseCase,
+  DeleteArticleUseCase,
+  PublishArticleUseCase,
+  VerifyArticleUseCase,
+  RequestArticleReviewUseCase,
+  CreateCategoryUseCase,
+  RenameCategoryUseCase,
+  MoveCategoryUseCase,
+  DeleteCategoryUseCase,
+} from "../../../subdomains/authoring/application/use-cases";
+import type { IArticleRepository } from "../../../subdomains/authoring/domain/repositories/IArticleRepository";
+import type { ICategoryRepository } from "../../../subdomains/authoring/domain/repositories/ICategoryRepository";
+import { makeArticleRepo, makeCategoryRepo } from "./repositories";
+
+export interface AuthoringUseCases {
+  readonly createArticle: CreateArticleUseCase;
+  readonly updateArticle: UpdateArticleUseCase;
+  readonly archiveArticle: ArchiveArticleUseCase;
+  readonly deleteArticle: DeleteArticleUseCase;
+  readonly publishArticle: PublishArticleUseCase;
+  readonly verifyArticle: VerifyArticleUseCase;
+  readonly requestArticleReview: RequestArticleReviewUseCase;
+  readonly createCategory: CreateCategoryUseCase;
+  readonly renameCategory: RenameCategoryUseCase;
+  readonly moveCategory: MoveCategoryUseCase;
+  readonly deleteCategory: DeleteCategoryUseCase;
+}
+
+export function makeAuthoringUseCases(
+  articleRepo: IArticleRepository = makeArticleRepo(),
+  categoryRepo: ICategoryRepository = makeCategoryRepo(),
+): AuthoringUseCases {
+  return {
+    createArticle: new CreateArticleUseCase(articleRepo),
+    updateArticle: new UpdateArticleUseCase(articleRepo),
+    archiveArticle: new ArchiveArticleUseCase(articleRepo),
+    deleteArticle: new DeleteArticleUseCase(articleRepo),
+    publishArticle: new PublishArticleUseCase(articleRepo),
+    verifyArticle: new VerifyArticleUseCase(articleRepo),
+    requestArticleReview: new RequestArticleReviewUseCase(articleRepo),
+    createCategory: new CreateCategoryUseCase(categoryRepo),
+    renameCategory: new RenameCategoryUseCase(categoryRepo),
+    moveCategory: new MoveCategoryUseCase(categoryRepo),
+    deleteCategory: new DeleteCategoryUseCase(categoryRepo),
+  };
+}
+````
+
 ## File: modules/notion/interfaces/authoring/store/index.ts
 ````typescript
 // TODO: export useArticleEditorStore
@@ -50833,6 +54151,55 @@ export function makePermissionRepo() {
 }
 ````
 
+## File: modules/notion/interfaces/collaboration/composition/use-cases.ts
+````typescript
+import {
+  CreateCommentUseCase,
+  UpdateCommentUseCase,
+  ResolveCommentUseCase,
+  DeleteCommentUseCase,
+  ListCommentsUseCase,
+  CreateVersionUseCase,
+  DeleteVersionUseCase,
+  GrantPermissionUseCase,
+  RevokePermissionUseCase,
+} from "../../../subdomains/collaboration/application/use-cases";
+import type { ICommentRepository } from "../../../subdomains/collaboration/domain/repositories/ICommentRepository";
+import type { IVersionRepository } from "../../../subdomains/collaboration/domain/repositories/IVersionRepository";
+import type { IPermissionRepository } from "../../../subdomains/collaboration/domain/repositories/IPermissionRepository";
+import { makeCommentRepo, makeVersionRepo, makePermissionRepo } from "./repositories";
+
+export interface CollaborationUseCases {
+  readonly createComment: CreateCommentUseCase;
+  readonly updateComment: UpdateCommentUseCase;
+  readonly resolveComment: ResolveCommentUseCase;
+  readonly deleteComment: DeleteCommentUseCase;
+  readonly listComments: ListCommentsUseCase;
+  readonly createVersion: CreateVersionUseCase;
+  readonly deleteVersion: DeleteVersionUseCase;
+  readonly grantPermission: GrantPermissionUseCase;
+  readonly revokePermission: RevokePermissionUseCase;
+}
+
+export function makeCollaborationUseCases(
+  commentRepo: ICommentRepository = makeCommentRepo(),
+  versionRepo: IVersionRepository = makeVersionRepo(),
+  permissionRepo: IPermissionRepository = makePermissionRepo(),
+): CollaborationUseCases {
+  return {
+    createComment: new CreateCommentUseCase(commentRepo),
+    updateComment: new UpdateCommentUseCase(commentRepo),
+    resolveComment: new ResolveCommentUseCase(commentRepo),
+    deleteComment: new DeleteCommentUseCase(commentRepo),
+    listComments: new ListCommentsUseCase(commentRepo),
+    createVersion: new CreateVersionUseCase(versionRepo),
+    deleteVersion: new DeleteVersionUseCase(versionRepo),
+    grantPermission: new GrantPermissionUseCase(permissionRepo),
+    revokePermission: new RevokePermissionUseCase(permissionRepo),
+  };
+}
+````
+
 ## File: modules/notion/interfaces/collaboration/store/index.ts
 ````typescript
 // TODO: export useCommentStore, usePermissionStore
@@ -51085,6 +54452,84 @@ export function makeViewRepo() {
 
 export function makeAutomationRepo() {
   return new FirebaseAutomationRepository();
+}
+````
+
+## File: modules/notion/interfaces/database/composition/use-cases.ts
+````typescript
+import {
+  CreateDatabaseUseCase,
+  UpdateDatabaseUseCase,
+  AddFieldUseCase,
+  ArchiveDatabaseUseCase,
+  GetDatabaseUseCase,
+  ListDatabasesUseCase,
+  CreateRecordUseCase,
+  UpdateRecordUseCase,
+  DeleteRecordUseCase,
+  ListRecordsUseCase,
+  CreateViewUseCase,
+  UpdateViewUseCase,
+  DeleteViewUseCase,
+  ListViewsUseCase,
+  CreateAutomationUseCase,
+  UpdateAutomationUseCase,
+  DeleteAutomationUseCase,
+  ListAutomationsUseCase,
+} from "../../../subdomains/database/application/use-cases";
+import type { IDatabaseRepository } from "../../../subdomains/database/domain/repositories/IDatabaseRepository";
+import type { IDatabaseRecordRepository } from "../../../subdomains/database/domain/repositories/IDatabaseRecordRepository";
+import type { IViewRepository } from "../../../subdomains/database/domain/repositories/IViewRepository";
+import type { IAutomationRepository } from "../../../subdomains/database/domain/repositories/IAutomationRepository";
+import { makeDatabaseRepo, makeRecordRepo, makeViewRepo, makeAutomationRepo } from "./repositories";
+
+export interface DatabaseUseCases {
+  readonly createDatabase: CreateDatabaseUseCase;
+  readonly updateDatabase: UpdateDatabaseUseCase;
+  readonly addField: AddFieldUseCase;
+  readonly archiveDatabase: ArchiveDatabaseUseCase;
+  readonly getDatabase: GetDatabaseUseCase;
+  readonly listDatabases: ListDatabasesUseCase;
+  readonly createRecord: CreateRecordUseCase;
+  readonly updateRecord: UpdateRecordUseCase;
+  readonly deleteRecord: DeleteRecordUseCase;
+  readonly listRecords: ListRecordsUseCase;
+  readonly createView: CreateViewUseCase;
+  readonly updateView: UpdateViewUseCase;
+  readonly deleteView: DeleteViewUseCase;
+  readonly listViews: ListViewsUseCase;
+  readonly createAutomation: CreateAutomationUseCase;
+  readonly updateAutomation: UpdateAutomationUseCase;
+  readonly deleteAutomation: DeleteAutomationUseCase;
+  readonly listAutomations: ListAutomationsUseCase;
+}
+
+export function makeDatabaseUseCases(
+  databaseRepo: IDatabaseRepository = makeDatabaseRepo(),
+  recordRepo: IDatabaseRecordRepository = makeRecordRepo(),
+  viewRepo: IViewRepository = makeViewRepo(),
+  automationRepo: IAutomationRepository = makeAutomationRepo(),
+): DatabaseUseCases {
+  return {
+    createDatabase: new CreateDatabaseUseCase(databaseRepo),
+    updateDatabase: new UpdateDatabaseUseCase(databaseRepo),
+    addField: new AddFieldUseCase(databaseRepo),
+    archiveDatabase: new ArchiveDatabaseUseCase(databaseRepo),
+    getDatabase: new GetDatabaseUseCase(databaseRepo),
+    listDatabases: new ListDatabasesUseCase(databaseRepo),
+    createRecord: new CreateRecordUseCase(recordRepo),
+    updateRecord: new UpdateRecordUseCase(recordRepo),
+    deleteRecord: new DeleteRecordUseCase(recordRepo),
+    listRecords: new ListRecordsUseCase(recordRepo),
+    createView: new CreateViewUseCase(viewRepo),
+    updateView: new UpdateViewUseCase(viewRepo),
+    deleteView: new DeleteViewUseCase(viewRepo),
+    listViews: new ListViewsUseCase(viewRepo),
+    createAutomation: new CreateAutomationUseCase(automationRepo),
+    updateAutomation: new UpdateAutomationUseCase(automationRepo),
+    deleteAutomation: new DeleteAutomationUseCase(automationRepo),
+    listAutomations: new ListAutomationsUseCase(automationRepo),
+  };
 }
 ````
 
@@ -51661,6 +55106,95 @@ export function makeCollectionRepo() {
 }
 ````
 
+## File: modules/notion/interfaces/knowledge/composition/use-cases.ts
+````typescript
+import {
+  CreateKnowledgePageUseCase,
+  RenameKnowledgePageUseCase,
+  MoveKnowledgePageUseCase,
+  ArchiveKnowledgePageUseCase,
+  ReorderKnowledgePageBlocksUseCase,
+  VerifyKnowledgePageUseCase,
+  ApproveKnowledgePageUseCase,
+  RequestPageReviewUseCase,
+  AssignPageOwnerUseCase,
+  UpdatePageIconUseCase,
+  UpdatePageCoverUseCase,
+  CreateKnowledgeCollectionUseCase,
+  RenameKnowledgeCollectionUseCase,
+  AddPageToCollectionUseCase,
+  RemovePageFromCollectionUseCase,
+  ArchiveKnowledgeCollectionUseCase,
+} from "../../../subdomains/knowledge/application/use-cases";
+import type { IKnowledgePageRepository } from "../../../subdomains/knowledge/domain/repositories/IKnowledgePageRepository";
+import type { IKnowledgeCollectionRepository } from "../../../subdomains/knowledge/domain/repositories/IKnowledgeCollectionRepository";
+import type { IEventStoreRepository, IEventBusRepository } from "@shared-events";
+import { makePageRepo, makeCollectionRepo } from "./repositories";
+
+/** Stub event store — persists nothing. Replace with a real impl once infrastructure is wired. */
+function makeEventStore(): IEventStoreRepository {
+  return {
+    save: async () => {},
+    findById: async () => null,
+    findByAggregate: async () => [],
+    findUndispatched: async () => [],
+    markDispatched: async () => {},
+  };
+}
+
+/** Stub event bus — publishes nothing. Replace with QStash/Firestore publish once infrastructure is wired. */
+function makeEventBus(): IEventBusRepository {
+  return {
+    publish: async () => {},
+  };
+}
+
+export interface KnowledgeUseCases {
+  readonly createKnowledgePage: CreateKnowledgePageUseCase;
+  readonly renameKnowledgePage: RenameKnowledgePageUseCase;
+  readonly moveKnowledgePage: MoveKnowledgePageUseCase;
+  readonly archiveKnowledgePage: ArchiveKnowledgePageUseCase;
+  readonly reorderKnowledgePageBlocks: ReorderKnowledgePageBlocksUseCase;
+  readonly verifyKnowledgePage: VerifyKnowledgePageUseCase;
+  readonly approveKnowledgePage: ApproveKnowledgePageUseCase;
+  readonly requestPageReview: RequestPageReviewUseCase;
+  readonly assignPageOwner: AssignPageOwnerUseCase;
+  readonly updatePageIcon: UpdatePageIconUseCase;
+  readonly updatePageCover: UpdatePageCoverUseCase;
+  readonly createKnowledgeCollection: CreateKnowledgeCollectionUseCase;
+  readonly renameKnowledgeCollection: RenameKnowledgeCollectionUseCase;
+  readonly addPageToCollection: AddPageToCollectionUseCase;
+  readonly removePageFromCollection: RemovePageFromCollectionUseCase;
+  readonly archiveKnowledgeCollection: ArchiveKnowledgeCollectionUseCase;
+}
+
+export function makeKnowledgeUseCases(
+  pageRepo: IKnowledgePageRepository = makePageRepo(),
+  collectionRepo: IKnowledgeCollectionRepository = makeCollectionRepo(),
+  eventStore: IEventStoreRepository = makeEventStore(),
+  eventBus: IEventBusRepository = makeEventBus(),
+): KnowledgeUseCases {
+  return {
+    createKnowledgePage: new CreateKnowledgePageUseCase(pageRepo),
+    renameKnowledgePage: new RenameKnowledgePageUseCase(pageRepo),
+    moveKnowledgePage: new MoveKnowledgePageUseCase(pageRepo),
+    archiveKnowledgePage: new ArchiveKnowledgePageUseCase(pageRepo),
+    reorderKnowledgePageBlocks: new ReorderKnowledgePageBlocksUseCase(pageRepo),
+    verifyKnowledgePage: new VerifyKnowledgePageUseCase(pageRepo),
+    approveKnowledgePage: new ApproveKnowledgePageUseCase(pageRepo, eventStore, eventBus),
+    requestPageReview: new RequestPageReviewUseCase(pageRepo),
+    assignPageOwner: new AssignPageOwnerUseCase(pageRepo),
+    updatePageIcon: new UpdatePageIconUseCase(pageRepo),
+    updatePageCover: new UpdatePageCoverUseCase(pageRepo),
+    createKnowledgeCollection: new CreateKnowledgeCollectionUseCase(collectionRepo),
+    renameKnowledgeCollection: new RenameKnowledgeCollectionUseCase(collectionRepo),
+    addPageToCollection: new AddPageToCollectionUseCase(collectionRepo),
+    removePageFromCollection: new RemovePageFromCollectionUseCase(collectionRepo),
+    archiveKnowledgeCollection: new ArchiveKnowledgeCollectionUseCase(collectionRepo),
+  };
+}
+````
+
 ## File: modules/notion/interfaces/knowledge/store/block-editor.store.ts
 ````typescript
 /**
@@ -51775,6 +55309,43 @@ export const useBlockEditorStore = create<BlockEditorState>((set, get) => ({
 
 ````
 
+## File: modules/notion/interfaces/relations/composition/repositories.ts
+````typescript
+import { FirebaseRelationRepository } from "../../../infrastructure/relations/firebase/FirebaseRelationRepository";
+
+export function makeRelationRepo() {
+  return new FirebaseRelationRepository();
+}
+````
+
+## File: modules/notion/interfaces/relations/composition/use-cases.ts
+````typescript
+import {
+  CreateRelationUseCase,
+  ListRelationsBySourceUseCase,
+  ListRelationsByTargetUseCase,
+  RemoveRelationUseCase,
+} from "../../../subdomains/relations/application/use-cases/RelationUseCases";
+import type { IRelationRepository } from "../../../subdomains/relations/domain/repositories/IRelationRepository";
+import { makeRelationRepo } from "./repositories";
+
+export interface RelationUseCases {
+  readonly createRelation: CreateRelationUseCase;
+  readonly removeRelation: RemoveRelationUseCase;
+  readonly listRelationsBySource: ListRelationsBySourceUseCase;
+  readonly listRelationsByTarget: ListRelationsByTargetUseCase;
+}
+
+export function makeRelationUseCases(repo: IRelationRepository = makeRelationRepo()): RelationUseCases {
+  return {
+    createRelation: new CreateRelationUseCase(repo),
+    removeRelation: new RemoveRelationUseCase(repo),
+    listRelationsBySource: new ListRelationsBySourceUseCase(repo),
+    listRelationsByTarget: new ListRelationsByTargetUseCase(repo),
+  };
+}
+````
+
 ## File: modules/notion/interfaces/relations/queries/.gitkeep
 ````
 
@@ -51795,6 +55366,45 @@ export const useBlockEditorStore = create<BlockEditorState>((set, get) => ({
 
 ````
 
+## File: modules/notion/interfaces/taxonomy/composition/repositories.ts
+````typescript
+import { FirebaseTaxonomyRepository } from "../../../infrastructure/taxonomy/firebase/FirebaseTaxonomyRepository";
+
+export function makeTaxonomyRepo() {
+  return new FirebaseTaxonomyRepository();
+}
+````
+
+## File: modules/notion/interfaces/taxonomy/composition/use-cases.ts
+````typescript
+import {
+  CreateTaxonomyNodeUseCase,
+  ListTaxonomyChildrenUseCase,
+  ListTaxonomyRootsUseCase,
+  RemoveTaxonomyNodeUseCase,
+} from "../../../subdomains/taxonomy/application/use-cases/TaxonomyUseCases";
+import type { ITaxonomyRepository } from "../../../subdomains/taxonomy/domain/repositories/ITaxonomyRepository";
+import { makeTaxonomyRepo } from "./repositories";
+
+export interface TaxonomyUseCases {
+  readonly createTaxonomyNode: CreateTaxonomyNodeUseCase;
+  readonly removeTaxonomyNode: RemoveTaxonomyNodeUseCase;
+  readonly listTaxonomyRoots: ListTaxonomyRootsUseCase;
+  readonly listTaxonomyChildren: ListTaxonomyChildrenUseCase;
+}
+
+export function makeTaxonomyUseCases(
+  repo: ITaxonomyRepository = makeTaxonomyRepo(),
+): TaxonomyUseCases {
+  return {
+    createTaxonomyNode: new CreateTaxonomyNodeUseCase(repo),
+    removeTaxonomyNode: new RemoveTaxonomyNodeUseCase(repo),
+    listTaxonomyRoots: new ListTaxonomyRootsUseCase(repo),
+    listTaxonomyChildren: new ListTaxonomyChildrenUseCase(repo),
+  };
+}
+````
+
 ## File: modules/notion/interfaces/taxonomy/queries/.gitkeep
 ````
 
@@ -51803,6 +55413,22 @@ export const useBlockEditorStore = create<BlockEditorState>((set, get) => ({
 ## File: modules/notion/interfaces/taxonomy/store/.gitkeep
 ````
 
+````
+
+## File: modules/notion/subdomains/authoring/api/server.ts
+````typescript
+/**
+ * authoring subdomain — server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
+
+export { FirebaseArticleRepository } from "../../../infrastructure/authoring/firebase/FirebaseArticleRepository";
+export { FirebaseCategoryRepository } from "../../../infrastructure/authoring/firebase/FirebaseCategoryRepository";
+export { makeArticleRepo, makeCategoryRepo } from "../../../interfaces/authoring/composition/repositories";
+export type { AuthoringUseCases } from "../../../interfaces/authoring/composition/use-cases";
+export { makeAuthoringUseCases } from "../../../interfaces/authoring/composition/use-cases";
 ````
 
 ## File: modules/notion/subdomains/authoring/application/use-cases/index.ts
@@ -51862,6 +55488,23 @@ export { getComments, getVersions, getPermissions, subscribeComments } from "../
 // UI components
 export { CommentPanel } from "../../../interfaces/collaboration/components/CommentPanel";
 export { VersionHistoryPanel } from "../../../interfaces/collaboration/components/VersionHistoryPanel";
+````
+
+## File: modules/notion/subdomains/collaboration/api/server.ts
+````typescript
+/**
+ * collaboration subdomain — server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
+
+export { FirebaseCommentRepository } from "../../../infrastructure/collaboration/firebase/FirebaseCommentRepository";
+export { FirebasePermissionRepository } from "../../../infrastructure/collaboration/firebase/FirebasePermissionRepository";
+export { FirebaseVersionRepository } from "../../../infrastructure/collaboration/firebase/FirebaseVersionRepository";
+export { makeCommentRepo, makeVersionRepo, makePermissionRepo } from "../../../interfaces/collaboration/composition/repositories";
+export type { CollaborationUseCases } from "../../../interfaces/collaboration/composition/use-cases";
+export { makeCollaborationUseCases } from "../../../interfaces/collaboration/composition/use-cases";
 ````
 
 ## File: modules/notion/subdomains/collaboration/domain/events/CollaborationEvents.ts
@@ -51948,78 +55591,42 @@ export type {
 } from "./CollaborationEvents";
 ````
 
-## File: modules/notion/subdomains/database/application/queries/automation.queries.ts
+## File: modules/notion/subdomains/collaboration/domain/services/index.ts
 ````typescript
-import type { DatabaseAutomationSnapshot } from "../../domain/aggregates/DatabaseAutomation";
-import type { IAutomationRepository } from "../../domain/repositories/IAutomationRepository";
-
-export class ListAutomationsUseCase {
-  constructor(private readonly repo: IAutomationRepository) {}
-
-  async execute(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]> {
-    return this.repo.listByDatabase(accountId, databaseId);
-  }
-}
+/**
+ * Domain services for the collaboration subdomain.
+ * Deferred: PermissionResolutionService and VersionRetentionService
+ * will be defined when permission and versioning use cases are scoped.
+ */
+export {};
 ````
 
-## File: modules/notion/subdomains/database/application/queries/database.queries.ts
+## File: modules/notion/subdomains/collaboration/domain/value-objects/index.ts
 ````typescript
-import type { IDatabaseRepository } from "../../domain/repositories/IDatabaseRepository";
-import type { DatabaseSnapshot } from "../../domain/aggregates/Database";
-import { GetDatabaseSchema, ListDatabasesSchema } from "../dto/DatabaseDto";
-import type { GetDatabaseDto, ListDatabasesDto } from "../dto/DatabaseDto";
-
-export class GetDatabaseUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
-  async execute(input: GetDatabaseDto): Promise<DatabaseSnapshot | null> {
-    const parsed = GetDatabaseSchema.safeParse(input);
-    if (!parsed.success) return null;
-    return this.repo.findById(parsed.data.id, parsed.data.accountId);
-  }
-}
-
-export class ListDatabasesUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
-  async execute(input: ListDatabasesDto): Promise<DatabaseSnapshot[]> {
-    const parsed = ListDatabasesSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByWorkspace(parsed.data.accountId, parsed.data.workspaceId);
-  }
-}
+/**
+ * Value objects for the collaboration subdomain.
+ * Deferred: CommentId, PermissionId, VersionId, ContentId, PermissionLevel
+ * will be defined when collaboration use cases are scoped.
+ */
+export {};
 ````
 
-## File: modules/notion/subdomains/database/application/queries/record.queries.ts
+## File: modules/notion/subdomains/database/api/server.ts
 ````typescript
-import type { IDatabaseRecordRepository } from "../../domain/repositories/IDatabaseRecordRepository";
-import type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRecord";
-import { ListRecordsSchema } from "../dto/DatabaseDto";
-import type { ListRecordsDto } from "../dto/DatabaseDto";
+/**
+ * database subdomain — server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
 
-export class ListRecordsUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
-  async execute(input: ListRecordsDto): Promise<DatabaseRecordSnapshot[]> {
-    const parsed = ListRecordsSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByDatabase(parsed.data.accountId, parsed.data.databaseId);
-  }
-}
-````
-
-## File: modules/notion/subdomains/database/application/queries/view.queries.ts
-````typescript
-import type { IViewRepository } from "../../domain/repositories/IViewRepository";
-import type { ViewSnapshot } from "../../domain/aggregates/View";
-import { ListViewsSchema } from "../dto/DatabaseDto";
-import type { ListViewsDto } from "../dto/DatabaseDto";
-
-export class ListViewsUseCase {
-  constructor(private readonly repo: IViewRepository) {}
-  async execute(input: ListViewsDto): Promise<ViewSnapshot[]> {
-    const parsed = ListViewsSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByDatabase(parsed.data.accountId, parsed.data.databaseId);
-  }
-}
+export { FirebaseDatabaseRepository } from "../../../infrastructure/database/firebase/FirebaseDatabaseRepository";
+export { FirebaseDatabaseRecordRepository } from "../../../infrastructure/database/firebase/FirebaseDatabaseRecordRepository";
+export { FirebaseViewRepository } from "../../../infrastructure/database/firebase/FirebaseViewRepository";
+export { FirebaseAutomationRepository } from "../../../infrastructure/database/firebase/FirebaseAutomationRepository";
+export { makeDatabaseRepo, makeRecordRepo, makeViewRepo, makeAutomationRepo } from "../../../interfaces/database/composition/repositories";
+export type { DatabaseUseCases } from "../../../interfaces/database/composition/use-cases";
+export { makeDatabaseUseCases } from "../../../interfaces/database/composition/use-cases";
 ````
 
 ## File: modules/notion/subdomains/database/domain/events/DatabaseEvents.ts
@@ -52134,6 +55741,44 @@ export type {
 } from "./DatabaseEvents";
 ````
 
+## File: modules/notion/subdomains/database/domain/services/index.ts
+````typescript
+/**
+ * Domain services for the database subdomain.
+ * Deferred: DatabaseQueryService, FormulaEvaluationService, RollupComputationService
+ * will be defined when filter/sort/formula use cases are scoped.
+ */
+export {};
+````
+
+## File: modules/notion/subdomains/database/domain/value-objects/index.ts
+````typescript
+/**
+ * Value objects for the database subdomain.
+ * Deferred: DatabaseId, RecordId, ViewId, FieldId, FieldType, ViewType, FieldValue
+ * will be defined when database record and view use cases are scoped.
+ */
+export {};
+````
+
+## File: modules/notion/subdomains/knowledge/api/server.ts
+````typescript
+/**
+ * knowledge subdomain — server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
+
+export { FirebaseKnowledgePageRepository } from "../../../infrastructure/knowledge/firebase/FirebaseKnowledgePageRepository";
+export { FirebaseContentBlockRepository } from "../../../infrastructure/knowledge/firebase/FirebaseContentBlockRepository";
+export { FirebaseKnowledgeCollectionRepository } from "../../../infrastructure/knowledge/firebase/FirebaseKnowledgeCollectionRepository";
+export { FirebaseBacklinkIndexRepository } from "../../../infrastructure/knowledge/firebase/FirebaseBacklinkIndexRepository";
+export { makePageRepo, makeBlockRepo, makeCollectionRepo } from "../../../interfaces/knowledge/composition/repositories";
+export type { KnowledgeUseCases } from "../../../interfaces/knowledge/composition/use-cases";
+export { makeKnowledgeUseCases } from "../../../interfaces/knowledge/composition/use-cases";
+````
+
 ## File: modules/notion/subdomains/knowledge/application/dto/index.ts
 ````typescript
 export * from "./KnowledgePageDto";
@@ -52185,386 +55830,6 @@ export const UpdatePageCoverSchema = AccountScopeSchema.extend({
   coverUrl: z.string().max(2000),
 });
 export type UpdatePageCoverDto = z.infer<typeof UpdatePageCoverSchema>;
-````
-
-## File: modules/notion/subdomains/knowledge/application/queries/backlink.queries.ts
-````typescript
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { BacklinkIndexSnapshot } from "../../domain/aggregates/BacklinkIndex";
-import type { IBacklinkIndexRepository } from "../../domain/repositories/IBacklinkIndexRepository";
-
-export class UpdatePageBacklinksUseCase {
-  constructor(private readonly repo: IBacklinkIndexRepository) {}
-  async execute(input: {
-    readonly accountId: string;
-    readonly sourcePageId: string;
-    readonly sourcePageTitle: string;
-    readonly mentionsByTarget: ReadonlyMap<string, ReadonlyArray<{ blockId: string; lastSeenAtISO: string }>>;
-  }): Promise<CommandResult> {
-    const { accountId, sourcePageId, sourcePageTitle, mentionsByTarget } = input;
-    if (!accountId || !sourcePageId) return commandFailureFrom("BACKLINK_INVALID_INPUT", "accountId and sourcePageId required.");
-    for (const [targetPageId, mentions] of mentionsByTarget) {
-      await this.repo.upsertFromSource({ accountId, targetPageId, sourcePageId, entries: mentions.map(m => ({ sourcePageTitle, blockId: m.blockId, lastSeenAtISO: m.lastSeenAtISO })) });
-    }
-    const currentTargets = await this.repo.listOutboundTargets(accountId, sourcePageId);
-    const newTargetSet = new Set(mentionsByTarget.keys());
-    for (const old of currentTargets) {
-      if (!newTargetSet.has(old)) await this.repo.upsertFromSource({ accountId, targetPageId: old, sourcePageId, entries: [] });
-    }
-    return commandSuccess(sourcePageId, Date.now());
-  }
-}
-
-export class RemovePageBacklinksUseCase {
-  constructor(private readonly repo: IBacklinkIndexRepository) {}
-  async execute(accountId: string, sourcePageId: string): Promise<CommandResult> {
-    await this.repo.removeFromSource({ accountId, sourcePageId });
-    return commandSuccess(sourcePageId, Date.now());
-  }
-}
-
-export class GetPageBacklinksUseCase {
-  constructor(private readonly repo: IBacklinkIndexRepository) {}
-  async execute(accountId: string, targetPageId: string): Promise<BacklinkIndexSnapshot | null> {
-    const idx = await this.repo.findByTargetPage(accountId, targetPageId);
-    return idx ? idx.getSnapshot() : null;
-  }
-}
-````
-
-## File: modules/notion/subdomains/knowledge/application/queries/content-block.queries.ts
-````typescript
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
-import { ContentBlock } from "../../domain/aggregates/ContentBlock";
-import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
-import type { IContentBlockRepository } from "../../domain/repositories/IContentBlockRepository";
-import type { BlockContent } from "../../domain/value-objects/BlockContent";
-import {
-  AddKnowledgeBlockSchema, type AddKnowledgeBlockDto,
-  UpdateKnowledgeBlockSchema, type UpdateKnowledgeBlockDto,
-  DeleteKnowledgeBlockSchema, type DeleteKnowledgeBlockDto,
-  NestKnowledgeBlockSchema, type NestKnowledgeBlockDto,
-  UnnestKnowledgeBlockSchema, type UnnestKnowledgeBlockDto,
-} from "../dto/ContentBlockDto";
-
-export class AddContentBlockUseCase {
-  constructor(private readonly repo: IContentBlockRepository) {}
-  async execute(input: AddKnowledgeBlockDto): Promise<CommandResult> {
-    const parsed = AddKnowledgeBlockSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
-    const { accountId, pageId, content, index, parentBlockId } = parsed.data;
-    const count = await this.repo.countByPageId(accountId, pageId);
-    const order = index !== undefined ? index : count;
-    const id = generateId();
-    const block = ContentBlock.create(id, { pageId, accountId, content: content as BlockContent, order, parentBlockId });
-    await this.repo.save(block);
-    return commandSuccess(block.id, Date.now());
-  }
-}
-
-export class UpdateContentBlockUseCase {
-  constructor(private readonly repo: IContentBlockRepository) {}
-  async execute(input: UpdateKnowledgeBlockDto): Promise<CommandResult> {
-    const parsed = UpdateKnowledgeBlockSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
-    const { accountId, blockId, content } = parsed.data;
-    const block = await this.repo.findById(accountId, blockId);
-    if (!block) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block not found.");
-    block.update(content as BlockContent);
-    await this.repo.save(block);
-    return commandSuccess(block.id, Date.now());
-  }
-}
-
-export class DeleteContentBlockUseCase {
-  constructor(private readonly repo: IContentBlockRepository) {}
-  async execute(input: DeleteKnowledgeBlockDto): Promise<CommandResult> {
-    const parsed = DeleteKnowledgeBlockSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
-    await this.repo.delete(parsed.data.accountId, parsed.data.blockId);
-    return commandSuccess(parsed.data.blockId, Date.now());
-  }
-}
-
-export class NestContentBlockUseCase {
-  constructor(private readonly repo: IContentBlockRepository) {}
-  async execute(input: NestKnowledgeBlockDto): Promise<CommandResult> {
-    const parsed = NestKnowledgeBlockSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
-    const { accountId, blockId, parentBlockId, index } = parsed.data;
-    const [block, parent] = await Promise.all([this.repo.findById(accountId, blockId), this.repo.findById(accountId, parentBlockId)]);
-    if (!block || !parent) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block or parent not found.");
-    block.nest(parentBlockId, index);
-    parent.addChild(blockId, index);
-    await Promise.all([this.repo.save(block), this.repo.save(parent)]);
-    return commandSuccess(block.id, Date.now());
-  }
-}
-
-export class UnnestContentBlockUseCase {
-  constructor(private readonly repo: IContentBlockRepository) {}
-  async execute(input: UnnestKnowledgeBlockDto): Promise<CommandResult> {
-    const parsed = UnnestKnowledgeBlockSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
-    const { accountId, blockId, index } = parsed.data;
-    const block = await this.repo.findById(accountId, blockId);
-    if (!block) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block not found.");
-    const parentId = block.parentBlockId;
-    block.unnest(index);
-    if (parentId) {
-      const parent = await this.repo.findById(accountId, parentId);
-      if (parent) { parent.removeChild(blockId); await this.repo.save(parent); }
-    }
-    await this.repo.save(block);
-    return commandSuccess(block.id, Date.now());
-  }
-}
-
-export class ListContentBlocksUseCase {
-  constructor(private readonly repo: IContentBlockRepository) {}
-  async execute(accountId: string, pageId: string): Promise<ContentBlockSnapshot[]> {
-    if (!accountId || !pageId) return [];
-    const blocks = await this.repo.listByPageId(accountId, pageId);
-    return blocks.map(b => b.getSnapshot());
-  }
-}
-````
-
-## File: modules/notion/subdomains/knowledge/application/queries/knowledge-collection.queries.ts
-````typescript
-import type { KnowledgeCollectionSnapshot } from "../../domain/aggregates/KnowledgeCollection";
-import type { IKnowledgeCollectionRepository } from "../../domain/repositories/IKnowledgeCollectionRepository";
-
-export class GetKnowledgeCollectionUseCase {
-  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
-  async execute(accountId: string, collectionId: string): Promise<KnowledgeCollectionSnapshot | null> {
-    const c = await this.repo.findById(accountId, collectionId);
-    return c ? c.getSnapshot() : null;
-  }
-}
-
-export class ListKnowledgeCollectionsUseCase {
-  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
-  async execute(accountId: string): Promise<KnowledgeCollectionSnapshot[]> {
-    const cs = await this.repo.listByAccountId(accountId);
-    return cs.map(c => c.getSnapshot());
-  }
-}
-
-export class ListKnowledgeCollectionsByWorkspaceUseCase {
-  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
-  async execute(accountId: string, workspaceId: string): Promise<KnowledgeCollectionSnapshot[]> {
-    const cs = await this.repo.listByWorkspaceId(accountId, workspaceId);
-    return cs.map(c => c.getSnapshot());
-  }
-}
-````
-
-## File: modules/notion/subdomains/knowledge/application/queries/knowledge-page.queries.ts
-````typescript
-import type { KnowledgePageSnapshot, KnowledgePageTreeNode } from "../../domain/aggregates/KnowledgePage";
-import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
-
-export function buildKnowledgePageTree(pages: KnowledgePageSnapshot[]): KnowledgePageTreeNode[] {
-  const map = new Map<string, KnowledgePageTreeNode>();
-  for (const page of pages) {
-    map.set(page.id, { ...page, children: [] });
-  }
-  const roots: KnowledgePageTreeNode[] = [];
-  for (const node of map.values()) {
-    if (node.parentPageId === null || !map.has(node.parentPageId)) {
-      roots.push(node);
-    } else {
-      const parent = map.get(node.parentPageId)!;
-      (parent.children as KnowledgePageTreeNode[]).push(node);
-    }
-  }
-  const sortByOrder = (nodes: KnowledgePageTreeNode[]): void => {
-    nodes.sort((a, b) => a.order - b.order);
-    for (const n of nodes) sortByOrder(n.children as KnowledgePageTreeNode[]);
-  };
-  sortByOrder(roots);
-  return roots;
-}
-
-export class GetKnowledgePageUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {
-    if (!accountId.trim() || !pageId.trim()) return null;
-    return this.repo.findSnapshotById(accountId, pageId);
-  }
-}
-
-export class ListKnowledgePagesUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(accountId: string): Promise<KnowledgePageSnapshot[]> {
-    if (!accountId.trim()) return [];
-    return this.repo.listSnapshotsByAccountId(accountId);
-  }
-}
-
-export class ListKnowledgePagesByWorkspaceUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]> {
-    if (!accountId.trim() || !workspaceId.trim()) return [];
-    return this.repo.listSnapshotsByWorkspaceId(accountId, workspaceId);
-  }
-}
-
-export class GetKnowledgePageTreeUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(accountId: string): Promise<KnowledgePageTreeNode[]> {
-    if (!accountId.trim()) return [];
-    const pages = await this.repo.listSnapshotsByAccountId(accountId);
-    return buildKnowledgePageTree(pages);
-  }
-}
-
-export class GetKnowledgePageTreeByWorkspaceUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(accountId: string, workspaceId: string): Promise<KnowledgePageTreeNode[]> {
-    if (!accountId.trim() || !workspaceId.trim()) return [];
-    const pages = await this.repo.listSnapshotsByWorkspaceId(accountId, workspaceId);
-    return buildKnowledgePageTree(pages);
-  }
-}
-````
-
-## File: modules/notion/subdomains/knowledge/application/queries/knowledge-version.queries.ts
-````typescript
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import type { CreateKnowledgeVersionDto } from "../dto/KnowledgePageDto";
-import { CreateKnowledgeVersionSchema } from "../dto/KnowledgePageDto";
-
-export class PublishKnowledgeVersionUseCase {
-  async execute(input: CreateKnowledgeVersionDto): Promise<CommandResult> {
-    const parsed = CreateKnowledgeVersionSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_VERSION_INVALID_INPUT", parsed.error.message);
-    return commandFailureFrom("CONTENT_VERSION_NOT_IMPLEMENTED", "Version persistence is not yet implemented.");
-  }
-}
-
-export class ListKnowledgeVersionsUseCase {
-  async execute(_accountId: string, _pageId: string): Promise<never[]> { return []; }
-}
-````
-
-## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgeCollectionUseCases.ts
-````typescript
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
-import { KnowledgeCollection } from "../../domain/aggregates/KnowledgeCollection";
-import type { CollectionColumn } from "../../domain/aggregates/KnowledgeCollection";
-import type { IKnowledgeCollectionRepository } from "../../domain/repositories/IKnowledgeCollectionRepository";
-import {
-  CreateKnowledgeCollectionSchema, type CreateKnowledgeCollectionDto,
-  RenameKnowledgeCollectionSchema, type RenameKnowledgeCollectionDto,
-  AddPageToCollectionSchema, type AddPageToCollectionDto,
-  RemovePageFromCollectionSchema, type RemovePageFromCollectionDto,
-  AddCollectionColumnSchema, type AddCollectionColumnDto,
-  ArchiveKnowledgeCollectionSchema, type ArchiveKnowledgeCollectionDto,
-} from "../dto/KnowledgeCollectionDto";
-
-// Re-export read queries for backward compatibility
-export {
-  GetKnowledgeCollectionUseCase,
-  ListKnowledgeCollectionsUseCase,
-  ListKnowledgeCollectionsByWorkspaceUseCase,
-} from "../queries/knowledge-collection.queries";
-
-export class CreateKnowledgeCollectionUseCase {
-  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
-  async execute(input: CreateKnowledgeCollectionDto): Promise<CommandResult> {
-    const parsed = CreateKnowledgeCollectionSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
-    const { accountId, workspaceId, name, description, columns, createdByUserId } = parsed.data;
-    const columnIds = (columns ?? []).map(() => generateId());
-    const id = generateId();
-    const collection = KnowledgeCollection.create(id, columnIds, {
-      accountId, workspaceId, name: name.trim(), description,
-      columns: columns?.map(c => ({ name: c.name, type: c.type as CollectionColumn["type"], options: c.options })),
-      createdByUserId,
-    });
-    await this.repo.save(collection);
-    return commandSuccess(collection.id, Date.now());
-  }
-}
-
-export class RenameKnowledgeCollectionUseCase {
-  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
-  async execute(input: RenameKnowledgeCollectionDto): Promise<CommandResult> {
-    const parsed = RenameKnowledgeCollectionSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
-    const { accountId, collectionId, name } = parsed.data;
-    const collection = await this.repo.findById(accountId, collectionId);
-    if (!collection) return commandFailureFrom("COLLECTION_NOT_FOUND", "Collection not found.");
-    collection.rename(name.trim());
-    await this.repo.save(collection);
-    return commandSuccess(collection.id, Date.now());
-  }
-}
-
-export class AddPageToCollectionUseCase {
-  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
-  async execute(input: AddPageToCollectionDto): Promise<CommandResult> {
-    const parsed = AddPageToCollectionSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
-    const { accountId, collectionId, pageId } = parsed.data;
-    const collection = await this.repo.findById(accountId, collectionId);
-    if (!collection) return commandFailureFrom("COLLECTION_NOT_FOUND", "Collection not found.");
-    collection.addPage(pageId);
-    await this.repo.save(collection);
-    return commandSuccess(collection.id, Date.now());
-  }
-}
-
-export class RemovePageFromCollectionUseCase {
-  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
-  async execute(input: RemovePageFromCollectionDto): Promise<CommandResult> {
-    const parsed = RemovePageFromCollectionSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
-    const { accountId, collectionId, pageId } = parsed.data;
-    const collection = await this.repo.findById(accountId, collectionId);
-    if (!collection) return commandFailureFrom("COLLECTION_NOT_FOUND", "Collection not found.");
-    collection.removePage(pageId);
-    await this.repo.save(collection);
-    return commandSuccess(collection.id, Date.now());
-  }
-}
-
-export class AddCollectionColumnUseCase {
-  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
-  async execute(input: AddCollectionColumnDto): Promise<CommandResult> {
-    const parsed = AddCollectionColumnSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
-    const { accountId, collectionId, column } = parsed.data;
-    const collection = await this.repo.findById(accountId, collectionId);
-    if (!collection) return commandFailureFrom("COLLECTION_NOT_FOUND", "Collection not found.");
-    collection.addColumn({ id: generateId(), name: column.name, type: column.type as CollectionColumn["type"], options: column.options });
-    await this.repo.save(collection);
-    return commandSuccess(collection.id, Date.now());
-  }
-}
-
-export class ArchiveKnowledgeCollectionUseCase {
-  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
-  async execute(input: ArchiveKnowledgeCollectionDto): Promise<CommandResult> {
-    const parsed = ArchiveKnowledgeCollectionSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
-    const { accountId, collectionId } = parsed.data;
-    const collection = await this.repo.findById(accountId, collectionId);
-    if (!collection) return commandFailureFrom("COLLECTION_NOT_FOUND", "Collection not found.");
-    collection.archive();
-    await this.repo.save(collection);
-    return commandSuccess(collection.id, Date.now());
-  }
-}
 ````
 
 ## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageAppearanceUseCases.ts
@@ -52752,131 +56017,19 @@ export class AssignPageOwnerUseCase {
 }
 ````
 
-## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageUseCases.ts
+## File: modules/notion/subdomains/relations/api/server.ts
 ````typescript
 /**
- * Module: notion/subdomains/knowledge
- * Layer: application/use-cases
- * Purpose: Page lifecycle use cases — create, rename, move, archive, reorder.
+ * relations subdomain - server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
  */
 
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
-
-import { KnowledgePage } from "../../domain/aggregates/KnowledgePage";
-import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
-import {
-  CreateKnowledgePageSchema,
-  type CreateKnowledgePageDto,
-  RenameKnowledgePageSchema,
-  type RenameKnowledgePageDto,
-  MoveKnowledgePageSchema,
-  type MoveKnowledgePageDto,
-  ArchiveKnowledgePageSchema,
-  type ArchiveKnowledgePageDto,
-  ReorderKnowledgePageBlocksSchema,
-  type ReorderKnowledgePageBlocksDto,
-} from "../dto/KnowledgePageDto";
-
-// Re-export read queries for backward compatibility
-export {
-  buildKnowledgePageTree,
-  GetKnowledgePageUseCase,
-  ListKnowledgePagesUseCase,
-  ListKnowledgePagesByWorkspaceUseCase,
-  GetKnowledgePageTreeUseCase,
-  GetKnowledgePageTreeByWorkspaceUseCase,
-} from "../queries/knowledge-page.queries";
-
-export class CreateKnowledgePageUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: CreateKnowledgePageDto): Promise<CommandResult> {
-    const parsed = CreateKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, workspaceId, title, parentPageId, createdByUserId } = parsed.data;
-    const order = await this.repo.countByParent(accountId, parentPageId ?? null);
-    const id = generateId();
-    const page = KnowledgePage.create(id, {
-      accountId,
-      workspaceId,
-      title: title.trim(),
-      parentPageId: parentPageId ?? null,
-      createdByUserId,
-      order,
-    });
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class RenameKnowledgePageUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: RenameKnowledgePageDto): Promise<CommandResult> {
-    const parsed = RenameKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, title } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.rename(title.trim());
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class MoveKnowledgePageUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: MoveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = MoveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, targetParentPageId } = parsed.data;
-    if (pageId === targetParentPageId) {
-      return commandFailureFrom("CONTENT_PAGE_CIRCULAR_MOVE", "A page cannot be its own parent.");
-    }
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.move(targetParentPageId);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class ArchiveKnowledgePageUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = ArchiveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.archive();
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class ReorderKnowledgePageBlocksUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
-    const parsed = ReorderKnowledgePageBlocksSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, blockIds } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.reorderBlocks(blockIds);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
+export { FirebaseRelationRepository } from "../../../infrastructure/relations/firebase/FirebaseRelationRepository";
+export { makeRelationRepo } from "../../../interfaces/relations/composition/repositories";
+export type { RelationUseCases } from "../../../interfaces/relations/composition/use-cases";
+export { makeRelationUseCases } from "../../../interfaces/relations/composition/use-cases";
 ````
 
 ## File: modules/notion/subdomains/relations/application/dto/RelationDto.ts
@@ -53061,6 +56214,21 @@ export interface IRelationRepository {
   save(relation: Relation): Promise<void>;
   remove(relationId: string): Promise<void>;
 }
+````
+
+## File: modules/notion/subdomains/taxonomy/api/server.ts
+````typescript
+/**
+ * taxonomy subdomain - server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
+
+export { FirebaseTaxonomyRepository } from "../../../infrastructure/taxonomy/firebase/FirebaseTaxonomyRepository";
+export { makeTaxonomyRepo } from "../../../interfaces/taxonomy/composition/repositories";
+export type { TaxonomyUseCases } from "../../../interfaces/taxonomy/composition/use-cases";
+export { makeTaxonomyUseCases } from "../../../interfaces/taxonomy/composition/use-cases";
 ````
 
 ## File: modules/notion/subdomains/taxonomy/application/dto/TaxonomyDto.ts
@@ -53541,192 +56709,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/platform/application/handlers/PlatformQueryDispatcher.ts
-````typescript
-/**
- * PlatformQueryDispatcher — Application-layer Query Router
- *
- * Implements: PlatformQueryPort
- * Routes queries by name to the appropriate use case class.
- *
- * Called by: api/facade.ts via PlatformQueryPort
- */
-
-import type { PlatformQueryPort, PlatformQuery } from "../../domain/ports/input";
-import type {
-	PlatformContextViewRepository,
-	PolicyCatalogViewRepository,
-	UsageMeterRepository,
-	WorkflowPolicyRepository,
-} from "../../domain/ports/output";
-import { GetPlatformContextViewUseCase } from "../queries/get-platform-context-view.queries";
-import { ListEnabledCapabilitiesUseCase } from "../queries/list-enabled-capabilities.queries";
-import { GetPolicyCatalogViewUseCase } from "../queries/get-policy-catalog-view.queries";
-import { GetSubscriptionEntitlementsUseCase } from "../queries/get-subscription-entitlements.queries";
-import { GetWorkflowPolicyViewUseCase } from "../queries/get-workflow-policy-view.queries";
-
-export interface PlatformQueryDispatcherDeps {
-	contextViewRepo: PlatformContextViewRepository;
-	catalogViewRepo: PolicyCatalogViewRepository;
-	usageMeterRepo: UsageMeterRepository;
-	workflowPolicyRepo: WorkflowPolicyRepository;
-}
-
-export class PlatformQueryDispatcher implements PlatformQueryPort {
-	constructor(private readonly deps: PlatformQueryDispatcherDeps) {}
-
-	async executeQuery<TResult, TQuery extends PlatformQuery>(
-		queryMsg: TQuery,
-	): Promise<TResult> {
-		const { deps } = this;
-		switch (queryMsg.name) {
-			case "getPlatformContextView":
-				return new GetPlatformContextViewUseCase(deps.contextViewRepo).execute(
-					queryMsg.payload as Parameters<GetPlatformContextViewUseCase["execute"]>[0],
-				) as Promise<TResult>;
-
-			case "listEnabledCapabilities":
-				return new ListEnabledCapabilitiesUseCase(deps.contextViewRepo).execute(
-					queryMsg.payload as Parameters<ListEnabledCapabilitiesUseCase["execute"]>[0],
-				) as Promise<TResult>;
-
-			case "getPolicyCatalogView":
-				return new GetPolicyCatalogViewUseCase(deps.catalogViewRepo).execute(
-					queryMsg.payload as Parameters<GetPolicyCatalogViewUseCase["execute"]>[0],
-				) as Promise<TResult>;
-
-			case "getSubscriptionEntitlements":
-				return new GetSubscriptionEntitlementsUseCase(deps.usageMeterRepo).execute(
-					queryMsg.payload as Parameters<GetSubscriptionEntitlementsUseCase["execute"]>[0],
-				) as Promise<TResult>;
-
-			case "getWorkflowPolicyView":
-				return new GetWorkflowPolicyViewUseCase(deps.workflowPolicyRepo).execute(
-					queryMsg.payload as Parameters<GetWorkflowPolicyViewUseCase["execute"]>[0],
-				) as Promise<TResult>;
-
-			default:
-				throw new Error(`Unknown platform query: '${String((queryMsg as PlatformQuery).name)}'`);
-		}
-	}
-}
-````
-
-## File: modules/platform/application/queries/get-platform-context-view.queries.ts
-````typescript
-/**
- * get-platform-context-view — use case.
- *
- * Query:   GetPlatformContextView
- * Purpose: Returns a read-only summary of a platform scope.
- */
-
-import type { GetPlatformContextViewInput } from "../dtos";
-import type { PlatformContextViewRepository, PlatformContextView } from "../../domain/ports/output";
-
-export class GetPlatformContextViewUseCase {
-	constructor(private readonly viewRepo: PlatformContextViewRepository) {}
-
-	async execute(input: GetPlatformContextViewInput): Promise<PlatformContextView | null> {
-		return this.viewRepo.getView(input.contextId);
-	}
-}
-````
-
-## File: modules/platform/application/queries/get-policy-catalog-view.queries.ts
-````typescript
-/**
- * get-policy-catalog-view — use case.
- *
- * Query:   GetPolicyCatalogView
- * Purpose: Returns the active policy version and rule summary.
- */
-
-import type { GetPolicyCatalogViewInput } from "../dtos";
-import type { PolicyCatalogViewRepository, PolicyCatalogView } from "../../domain/ports/output";
-
-export class GetPolicyCatalogViewUseCase {
-	constructor(private readonly viewRepo: PolicyCatalogViewRepository) {}
-
-	async execute(input: GetPolicyCatalogViewInput): Promise<PolicyCatalogView | null> {
-		return this.viewRepo.getView(input.contextId);
-	}
-}
-````
-
-## File: modules/platform/application/queries/get-subscription-entitlements.queries.ts
-````typescript
-/**
- * get-subscription-entitlements — use case.
- *
- * Query:   GetSubscriptionEntitlements
- * Purpose: Returns plan entitlements and usage limits.
- */
-
-import type { GetSubscriptionEntitlementsInput } from "../dtos";
-import type { UsageMeterRepository, SubscriptionEntitlementsView } from "../../domain/ports/output";
-
-export class GetSubscriptionEntitlementsUseCase {
-	constructor(private readonly usageRepo: UsageMeterRepository) {}
-
-	async execute(input: GetSubscriptionEntitlementsInput): Promise<SubscriptionEntitlementsView | null> {
-		return this.usageRepo.getEntitlementsView(input.contextId);
-	}
-}
-````
-
-## File: modules/platform/application/queries/get-workflow-policy-view.queries.ts
-````typescript
-/**
- * get-workflow-policy-view — use case.
- *
- * Query:   GetWorkflowPolicyView
- * Purpose: Returns the workflow policy corresponding to a trigger key.
- */
-
-import type { GetWorkflowPolicyViewInput } from "../dtos";
-import type { WorkflowPolicyRepository, WorkflowPolicyView } from "../../domain/ports/output";
-
-export class GetWorkflowPolicyViewUseCase {
-	constructor(private readonly policyRepo: WorkflowPolicyRepository) {}
-
-	async execute(input: GetWorkflowPolicyViewInput): Promise<WorkflowPolicyView | null> {
-		return this.policyRepo.getView(input.contextId, input.triggerKey);
-	}
-}
-````
-
-## File: modules/platform/application/queries/index.ts
-````typescript
-export { GetPlatformContextViewUseCase } from "./get-platform-context-view.queries";
-export { ListEnabledCapabilitiesUseCase } from "./list-enabled-capabilities.queries";
-export { GetPolicyCatalogViewUseCase } from "./get-policy-catalog-view.queries";
-export { GetSubscriptionEntitlementsUseCase } from "./get-subscription-entitlements.queries";
-export { GetWorkflowPolicyViewUseCase } from "./get-workflow-policy-view.queries";
-````
-
-## File: modules/platform/application/queries/list-enabled-capabilities.queries.ts
-````typescript
-/**
- * list-enabled-capabilities — use case.
- *
- * Query:   ListEnabledCapabilities
- * Purpose: Lists all currently active capabilities for a platform scope.
- */
-
-import type { ListEnabledCapabilitiesInput } from "../dtos";
-import type { PlatformContextViewRepository } from "../../domain/ports/output";
-
-export class ListEnabledCapabilitiesUseCase {
-	constructor(private readonly viewRepo: PlatformContextViewRepository) {}
-
-	async execute(input: ListEnabledCapabilitiesInput): Promise<readonly string[]> {
-		const view = await this.viewRepo.getView(input.contextId);
-		return view?.capabilityKeys ?? [];
-	}
-}
-````
-
 ## File: modules/platform/application/services/index.ts
 ````typescript
 /**
@@ -53743,48 +56725,6 @@ export {
   type QuickCreatePageInput,
   type QuickCreatePageResult,
 } from "./shell-quick-create";
-````
-
-## File: modules/platform/application/use-cases/index.ts
-````typescript
-/**
- * platform application use-cases barrel.
- *
- * Each file follows the kebab-case convention: verb-noun.use-cases.ts
- *
- * Commands:
- *   register-platform-context
- *   publish-policy-catalog
- *   apply-configuration-profile
- *   register-integration-contract
- *   activate-subscription-agreement
- *   fire-workflow-trigger
- *   request-notification-dispatch
- *   record-audit-signal
- *   emit-observability-signal
- *
- * Queries:
- *   get-platform-context-view
- *   list-enabled-capabilities
- *   get-policy-catalog-view
- *   get-subscription-entitlements
- *   get-workflow-policy-view
- */
-
-export { RegisterPlatformContextUseCase } from "./register-platform-context.use-cases";
-export { PublishPolicyCatalogUseCase } from "./publish-policy-catalog.use-cases";
-export { ApplyConfigurationProfileUseCase } from "./apply-configuration-profile.use-cases";
-export { RegisterIntegrationContractUseCase } from "./register-integration-contract.use-cases";
-export { ActivateSubscriptionAgreementUseCase } from "./activate-subscription-agreement.use-cases";
-export { FireWorkflowTriggerUseCase } from "./fire-workflow-trigger.use-cases";
-export { RequestNotificationDispatchUseCase } from "./request-notification-dispatch.use-cases";
-export { RecordAuditSignalUseCase } from "./record-audit-signal.use-cases";
-export { EmitObservabilitySignalUseCase } from "./emit-observability-signal.use-cases";
-export { GetPlatformContextViewUseCase } from "../queries/get-platform-context-view.queries";
-export { ListEnabledCapabilitiesUseCase } from "../queries/list-enabled-capabilities.queries";
-export { GetPolicyCatalogViewUseCase } from "../queries/get-policy-catalog-view.queries";
-export { GetSubscriptionEntitlementsUseCase } from "../queries/get-subscription-entitlements.queries";
-export { GetWorkflowPolicyViewUseCase } from "../queries/get-workflow-policy-view.queries";
 ````
 
 ## File: modules/platform/docs/docs.instructions.md
@@ -53809,181 +56749,6 @@ For full reference, align with `.github/instructions/docs-authority-and-language
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
-````
-
-## File: modules/platform/domain/domain-modeling.instructions.md
-````markdown
----
-description: 'Platform domain tactical modeling rules (local mirror of root domain-modeling guidance).'
-applyTo: '*.{ts,tsx}'
----
-
-# Domain Modeling (Platform Local)
-
-Use this local file as execution guardrails for `modules/platform/domain/*`.
-For full reference, align with `.github/instructions/domain-modeling.instructions.md` and `docs/contexts/platform/*`.
-
-## Core Rules
-
-- Keep aggregate invariants inside aggregate methods.
-- Use immutable value objects with Zod schemas and inferred types.
-- Keep domain framework-free (no Firebase/React/transport imports).
-- Emit domain events on state transitions and publish via application orchestration.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
-## File: modules/platform/domain/value-objects/Entitlement.ts
-````typescript
-/**
- * Entitlement — Value Object
- *
- * Describes which capability and usage quota a plan allows.
- * Entitlements are derived from planCode; they must not deviate from plan definition.
- *
- * Used by: SubscriptionAgreement aggregate, entitlement subdomain
- */
-
-export const ENTITLEMENT_TYPES = ["capability", "quota", "feature_flag"] as const;
-export type EntitlementType = (typeof ENTITLEMENT_TYPES)[number];
-
-export interface Entitlement {
-  readonly featureKey: string;
-  readonly type: EntitlementType;
-  readonly quota: number | null; // null = unlimited
-  readonly isEnabled: boolean;
-}
-
-export function createEntitlement(input: {
-  featureKey: string;
-  type: EntitlementType;
-  quota?: number | null;
-  isEnabled?: boolean;
-}): Entitlement {
-  if (!input.featureKey || input.featureKey.trim().length === 0) {
-    throw new Error("Entitlement featureKey must not be empty");
-  }
-  return {
-    featureKey: input.featureKey.trim(),
-    type: input.type,
-    quota: input.quota ?? null,
-    isEnabled: input.isEnabled ?? true,
-  };
-}
-
-export function isUnlimited(entitlement: Entitlement): boolean {
-  return entitlement.quota === null;
-}
-````
-
-## File: modules/platform/domain/value-objects/PermissionDecision.ts
-````typescript
-/**
- * PermissionDecision — Value Object / Decision Object
- *
- * The outcome of a permission evaluation.
- * Possible outcomes: allow | deny | conditional_allow | escalate
- *
- * A PermissionDecision is always explicit — never a loose boolean.
- *
- * Used by: PermissionResolutionService, access-control subdomain
- */
-
-export type PermissionOutcome = "allow" | "deny" | "conditional_allow" | "escalate";
-
-export interface PermissionDecision {
-  readonly outcome: PermissionOutcome;
-  readonly reason: string;
-  readonly conditions?: readonly string[];
-  readonly evaluatedAt: string;
-}
-
-export function allowDecision(reason: string): PermissionDecision {
-  return { outcome: "allow", reason, evaluatedAt: new Date().toISOString() };
-}
-
-export function denyDecision(reason: string): PermissionDecision {
-  return { outcome: "deny", reason, evaluatedAt: new Date().toISOString() };
-}
-
-export function conditionalAllowDecision(
-  reason: string,
-  conditions: string[],
-): PermissionDecision {
-  return {
-    outcome: "conditional_allow",
-    reason,
-    conditions,
-    evaluatedAt: new Date().toISOString(),
-  };
-}
-
-export function escalateDecision(reason: string): PermissionDecision {
-  return { outcome: "escalate", reason, evaluatedAt: new Date().toISOString() };
-}
-
-export function isAllowed(decision: PermissionDecision): boolean {
-  return decision.outcome === "allow" || decision.outcome === "conditional_allow";
-}
-````
-
-## File: modules/platform/domain/value-objects/PlanConstraint.ts
-````typescript
-/**
- * PlanConstraint — Value Object
- *
- * Expresses the limitation a subscription plan places on a capability, workflow, or delivery.
- * Contains: constraint type, threshold, and enforcement mode (soft | hard).
- *
- * Used by: CapabilityEntitlementPolicy, subscription subdomain
- */
-
-export const CONSTRAINT_TYPES = [
-  "usage_limit",
-  "feature_gate",
-  "rate_limit",
-  "storage_cap",
-] as const;
-export type ConstraintType = (typeof CONSTRAINT_TYPES)[number];
-
-export type EnforcementMode = "hard" | "soft";
-
-export interface PlanConstraint {
-  readonly constraintType: ConstraintType;
-  readonly featureKey: string;
-  readonly threshold: number;
-  readonly enforcementMode: EnforcementMode;
-}
-
-export function createPlanConstraint(input: {
-  constraintType: ConstraintType;
-  featureKey: string;
-  threshold: number;
-  enforcementMode: EnforcementMode;
-}): PlanConstraint {
-  if (input.threshold < 0) {
-    throw new Error("PlanConstraint threshold must not be negative");
-  }
-  return { ...input };
-}
-
-export function isHardConstraint(constraint: PlanConstraint): boolean {
-  return constraint.enforcementMode === "hard";
-}
-
-export function isExceeded(constraint: PlanConstraint, usage: number): boolean {
-  return usage >= constraint.threshold;
-}
-````
-
-## File: modules/platform/index.ts
-````typescript
-/**
- * platform — Public module entry point.
- * All cross-module consumers must import through this file or modules/platform/api/.
- */
-export * from "./api";
 ````
 
 ## File: modules/platform/infrastructure/infrastructure.instructions.md
@@ -54242,534 +57007,11 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/platform/README.md
-````markdown
-# Platform
-
-治理與營運支撐主域
-
-## Implementation Structure
-
-```text
-modules/platform/
-├── api/              # Public API boundary
-├── application/      # Context-wide orchestration
-├── domain/           # Context-wide domain concepts
-├── infrastructure/   # Context-wide driven adapters
-├── interfaces/       # Context-wide driving adapters
-├── docs/             # Links to strategic documentation
-└── subdomains/
-    ├── account/
-    ├── account-profile/
-    ├── access-control/
-    ├── ai/
-    ├── analytics/
-    ├── audit-log/
-    ├── background-job/
-    ├── billing/
-    ├── compliance/
-    ├── consent/
-    ├── content/
-    ├── entitlement/
-    ├── feature-flag/
-    ├── identity/
-    ├── integration/
-    ├── notification/
-    ├── observability/
-    ├── onboarding/
-    ├── organization/
-    ├── platform-config/
-    ├── referral/
-    ├── search/
-    ├── secret-management/
-    ├── security-policy/
-    ├── subscription/
-    ├── support/
-    ├── tenant/
-    ├── team/
-    └── workflow/
-```
-
-## Subdomains
-
-| Subdomain | Status | Purpose |
-|-----------|--------|---------|
-| account | Active | 帳號管理與帳號生命週期 |
-| identity | Active | 身份驗證與身份聯邦 |
-| notification | Active | 通知治理與遞送 |
-| organization | Active | 組織管理與租戶結構 |
-| team | Active | 團隊管理與成員關係 |
-| account-profile | Stub | 帳號個人檔案與偏好 |
-| access-control | Stub | 存取控制與權限策略 |
-| ai | Stub | 共享 AI provider 路由與能力治理 |
-| analytics | Stub | 平台級分析與指標 |
-| audit-log | Stub | 平台稽核日誌 |
-| background-job | Stub | 背景任務排程與管理 |
-| billing | Stub | 計費與支付管理 |
-| compliance | Stub | 合規與法遵管理 |
-| consent | Stub | 同意與資料使用授權治理 |
-| content | Stub | 平台內容管理 |
-| entitlement | Stub | 權益解算與功能可用性治理 |
-| feature-flag | Stub | 功能旗標與漸進式發布 |
-| integration | Stub | 外部系統整合 |
-| observability | Stub | 觀測與監控 |
-| onboarding | Stub | 使用者引導流程 |
-| platform-config | Stub | 平台組態管理 |
-| referral | Stub | 推薦與邀請機制 |
-| search | Stub | 平台級搜尋能力 |
-| secret-management | Stub | 憑證與 token 生命週期治理 |
-| security-policy | Stub | 安全策略管理 |
-| subscription | Stub | 訂閱與方案管理 |
-| support | Stub | 客戶支援管理 |
-| tenant | Stub | 多租戶隔離與 tenant-scoped 規則 |
-| workflow | Stub | 平台級工作流引擎 |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `api/` is the only cross-module public boundary.
-- Domain must not import infrastructure, interfaces, or external frameworks.
-- Cross-module collaboration goes through `api/` only.
-
-## Strategic Documentation
-
-- [Context README](../../docs/contexts/platform/README.md)
-- [Subdomains](../../docs/contexts/platform/subdomains.md)
-- [Context Map](../../docs/contexts/platform/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/platform/ubiquitous-language.md)
-- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
-````
-
-## File: modules/platform/subdomains/access-control/application/dtos/access-control.dto.ts
+## File: modules/platform/subdomains/access-control/application/index.ts
 ````typescript
-import type { AccessPolicySnapshot } from "../../domain/aggregates/AccessPolicy";
-
-export type AccessPolicyView = Readonly<AccessPolicySnapshot>;
-
-export interface PermissionEvaluationView {
-  readonly subjectId: string;
-  readonly resourceType: string;
-  readonly resourceId?: string;
-  readonly action: string;
-  readonly allowed: boolean;
-  readonly reason: string;
-}
-````
-
-## File: modules/platform/subdomains/access-control/application/dtos/index.ts
-````typescript
-export * from "./access-control.dto";
-````
-
-## File: modules/platform/subdomains/access-control/application/use-cases/index.ts
-````typescript
-export * from "./access-control.use-cases";
-````
-
-## File: modules/platform/subdomains/access-control/domain/aggregates/AccessPolicy.ts
-````typescript
-import type { AccessPolicyDomainEventType } from "../events/AccessPolicyDomainEvent";
-import type { SubjectRef } from "../value-objects/SubjectRef";
-import type { ResourceRef } from "../value-objects/ResourceRef";
-import type { PolicyEffect } from "../value-objects/PolicyEffect";
-
-export interface AccessPolicySnapshot {
-  readonly id: string;
-  readonly subjectRef: SubjectRef;
-  readonly resourceRef: ResourceRef;
-  readonly actions: readonly string[];
-  readonly effect: PolicyEffect;
-  readonly conditions: readonly string[];
-  readonly isActive: boolean;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-
-export interface CreateAccessPolicyInput {
-  readonly subjectRef: SubjectRef;
-  readonly resourceRef: ResourceRef;
-  readonly actions: string[];
-  readonly effect: PolicyEffect;
-  readonly conditions?: string[];
-}
-
-export class AccessPolicy {
-  private readonly _domainEvents: AccessPolicyDomainEventType[] = [];
-
-  private constructor(private _props: AccessPolicySnapshot) {}
-
-  static create(id: string, input: CreateAccessPolicyInput): AccessPolicy {
-    if (!id || id.trim().length === 0) throw new Error("AccessPolicy id must not be empty");
-    if (input.actions.length === 0) throw new Error("AccessPolicy must specify at least one action");
-    const now = new Date().toISOString();
-    const policy = new AccessPolicy({
-      id,
-      subjectRef: input.subjectRef,
-      resourceRef: input.resourceRef,
-      actions: input.actions,
-      effect: input.effect,
-      conditions: input.conditions ?? [],
-      isActive: true,
-      createdAtISO: now,
-      updatedAtISO: now,
-    });
-    policy._domainEvents.push({
-      type: "platform.access_policy.created",
-      eventId: crypto.randomUUID(),
-      occurredAt: now,
-      payload: {
-        policyId: id,
-        subjectRef: input.subjectRef,
-        resourceRef: input.resourceRef,
-        actions: input.actions,
-        effect: input.effect,
-      },
-    });
-    return policy;
-  }
-
-  static reconstitute(snapshot: AccessPolicySnapshot): AccessPolicy {
-    return new AccessPolicy({ ...snapshot });
-  }
-
-  update(input: { actions?: string[]; effect?: PolicyEffect; conditions?: string[] }): void {
-    if (!this._props.isActive) throw new Error("Cannot update an inactive policy.");
-    const now = new Date().toISOString();
-    this._props = {
-      ...this._props,
-      actions: input.actions ?? this._props.actions,
-      effect: input.effect ?? this._props.effect,
-      conditions: input.conditions ?? this._props.conditions,
-      updatedAtISO: now,
-    };
-    this._domainEvents.push({
-      type: "platform.access_policy.updated",
-      eventId: crypto.randomUUID(),
-      occurredAt: now,
-      payload: { policyId: this._props.id },
-    });
-  }
-
-  deactivate(): void {
-    if (!this._props.isActive) throw new Error("Policy is already inactive.");
-    const now = new Date().toISOString();
-    this._props = { ...this._props, isActive: false, updatedAtISO: now };
-    this._domainEvents.push({
-      type: "platform.access_policy.deactivated",
-      eventId: crypto.randomUUID(),
-      occurredAt: now,
-      payload: { policyId: this._props.id },
-    });
-  }
-
-  get id(): string { return this._props.id; }
-  get subjectRef(): SubjectRef { return this._props.subjectRef; }
-  get resourceRef(): ResourceRef { return this._props.resourceRef; }
-  get actions(): readonly string[] { return this._props.actions; }
-  get effect(): PolicyEffect { return this._props.effect; }
-  get conditions(): readonly string[] { return this._props.conditions; }
-  get isActive(): boolean { return this._props.isActive; }
-
-  getSnapshot(): Readonly<AccessPolicySnapshot> {
-    return Object.freeze({ ...this._props });
-  }
-
-  pullDomainEvents(): AccessPolicyDomainEventType[] {
-    const events = [...this._domainEvents];
-    this._domainEvents.length = 0;
-    return events;
-  }
-}
-````
-
-## File: modules/platform/subdomains/access-control/domain/aggregates/index.ts
-````typescript
-export * from "./AccessPolicy";
-````
-
-## File: modules/platform/subdomains/access-control/domain/events/AccessPolicyDomainEvent.ts
-````typescript
-import type { SubjectRef } from "../value-objects/SubjectRef";
-import type { ResourceRef } from "../value-objects/ResourceRef";
-import type { PolicyEffect } from "../value-objects/PolicyEffect";
-
-export interface AccessPolicyDomainEvent {
-  readonly eventId: string;
-  readonly occurredAt: string;
-  readonly type: string;
-  readonly payload: object;
-}
-
-export interface AccessPolicyCreatedEvent extends AccessPolicyDomainEvent {
-  readonly type: "platform.access_policy.created";
-  readonly payload: {
-    readonly policyId: string;
-    readonly subjectRef: SubjectRef;
-    readonly resourceRef: ResourceRef;
-    readonly actions: readonly string[];
-    readonly effect: PolicyEffect;
-  };
-}
-
-export interface AccessPolicyUpdatedEvent extends AccessPolicyDomainEvent {
-  readonly type: "platform.access_policy.updated";
-  readonly payload: { readonly policyId: string };
-}
-
-export interface AccessPolicyDeactivatedEvent extends AccessPolicyDomainEvent {
-  readonly type: "platform.access_policy.deactivated";
-  readonly payload: { readonly policyId: string };
-}
-
-export type AccessPolicyDomainEventType =
-  | AccessPolicyCreatedEvent
-  | AccessPolicyUpdatedEvent
-  | AccessPolicyDeactivatedEvent;
-````
-
-## File: modules/platform/subdomains/access-control/domain/events/index.ts
-````typescript
-export * from "./AccessPolicyDomainEvent";
-````
-
-## File: modules/platform/subdomains/access-control/domain/index.ts
-````typescript
-export * from "./aggregates";
-export * from "./events";
-export * from "./repositories";
-export * from "./value-objects";
-````
-
-## File: modules/platform/subdomains/access-control/domain/repositories/AccessPolicyRepository.ts
-````typescript
-/**
- * AccessPolicyRepository — Write-side persistence port (CQRS).
- */
-import type { AccessPolicySnapshot } from "../aggregates/AccessPolicy";
-
-export interface AccessPolicyRepository {
-  findById(id: string): Promise<AccessPolicySnapshot | null>;
-  findBySubject(subjectId: string): Promise<AccessPolicySnapshot[]>;
-  findActiveBySubjectAndResource(
-    subjectId: string,
-    resourceType: string,
-    resourceId?: string,
-  ): Promise<AccessPolicySnapshot[]>;
-  save(snapshot: AccessPolicySnapshot): Promise<void>;
-  update(snapshot: AccessPolicySnapshot): Promise<void>;
-}
-````
-
-## File: modules/platform/subdomains/access-control/domain/repositories/index.ts
-````typescript
-export * from "./AccessPolicyRepository";
-````
-
-## File: modules/platform/subdomains/access-control/domain/value-objects/index.ts
-````typescript
-export * from "./SubjectRef";
-export * from "./ResourceRef";
-export * from "./PolicyEffect";
-````
-
-## File: modules/platform/subdomains/access-control/domain/value-objects/PolicyEffect.ts
-````typescript
-export type PolicyEffect = "allow" | "deny";
-
-export function isAllow(effect: PolicyEffect): boolean {
-  return effect === "allow";
-}
-````
-
-## File: modules/platform/subdomains/access-control/domain/value-objects/ResourceRef.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const ResourceRefSchema = z.object({
-  resourceType: z.string().min(1),
-  resourceId: z.string().min(1).optional(),
-  workspaceId: z.string().min(1).optional(),
-});
-export type ResourceRef = z.infer<typeof ResourceRefSchema>;
-
-export function createResourceRef(
-  resourceType: string,
-  resourceId?: string,
-  workspaceId?: string,
-): ResourceRef {
-  return ResourceRefSchema.parse({ resourceType, resourceId, workspaceId });
-}
-````
-
-## File: modules/platform/subdomains/access-control/domain/value-objects/SubjectRef.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const SubjectRefSchema = z.object({
-  subjectId: z.string().min(1),
-  subjectType: z.enum(["actor", "organization", "service"]),
-});
-export type SubjectRef = z.infer<typeof SubjectRefSchema>;
-
-export function createSubjectRef(subjectId: string, subjectType: SubjectRef["subjectType"]): SubjectRef {
-  return SubjectRefSchema.parse({ subjectId, subjectType });
-}
-````
-
-## File: modules/platform/subdomains/access-control/infrastructure/access-control-service.ts
-````typescript
-/**
- * AccessControlService — Composition root for access-control use cases.
- */
-import {
-  EvaluatePermissionUseCase,
-  CreateAccessPolicyUseCase,
-  UpdateAccessPolicyUseCase,
-  DeactivateAccessPolicyUseCase,
-} from "../application/use-cases/access-control.use-cases";
-import { FirebaseAccessPolicyRepository } from "./firebase/FirebaseAccessPolicyRepository";
-import type { SubjectRef } from "../domain/value-objects/SubjectRef";
-import type { ResourceRef } from "../domain/value-objects/ResourceRef";
-import type { PolicyEffect } from "../domain/value-objects/PolicyEffect";
-import type { CommandResult } from "@shared-types";
-
-let _repo: FirebaseAccessPolicyRepository | undefined;
-
-function getRepo(): FirebaseAccessPolicyRepository {
-  if (!_repo) _repo = new FirebaseAccessPolicyRepository();
-  return _repo;
-}
-
-export const accessControlService = {
-  evaluatePermission: (input: {
-    subjectId: string;
-    resourceType: string;
-    resourceId?: string;
-    action: string;
-  }): Promise<CommandResult> => new EvaluatePermissionUseCase(getRepo()).execute(input),
-
-  createPolicy: (input: {
-    subjectRef: SubjectRef;
-    resourceRef: ResourceRef;
-    actions: string[];
-    effect: PolicyEffect;
-    conditions?: string[];
-  }): Promise<CommandResult> => new CreateAccessPolicyUseCase(getRepo()).execute(input),
-
-  updatePolicy: (
-    policyId: string,
-    input: { actions?: string[]; effect?: PolicyEffect; conditions?: string[] },
-  ): Promise<CommandResult> => new UpdateAccessPolicyUseCase(getRepo()).execute(policyId, input),
-
-  deactivatePolicy: (policyId: string): Promise<CommandResult> =>
-    new DeactivateAccessPolicyUseCase(getRepo()).execute(policyId),
-};
-````
-
-## File: modules/platform/subdomains/access-control/infrastructure/firebase/FirebaseAccessPolicyRepository.ts
-````typescript
-/**
- * FirebaseAccessPolicyRepository — Infrastructure adapter for access-policy persistence.
- * Firebase SDK only exists in this file.
- */
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { AccessPolicyRepository } from "../../domain/repositories/AccessPolicyRepository";
-import type { AccessPolicySnapshot } from "../../domain/aggregates/AccessPolicy";
-
-const COLLECTION = "accessPolicies";
-
-function toSnapshot(id: string, data: Record<string, unknown>): AccessPolicySnapshot {
-  return {
-    id,
-    subjectRef: data.subjectRef as AccessPolicySnapshot["subjectRef"],
-    resourceRef: data.resourceRef as AccessPolicySnapshot["resourceRef"],
-    actions: data.actions as string[],
-    effect: data.effect as AccessPolicySnapshot["effect"],
-    conditions: (data.conditions as string[]) ?? [],
-    isActive: Boolean(data.isActive),
-    createdAtISO: data.createdAtISO as string,
-    updatedAtISO: data.updatedAtISO as string,
-  };
-}
-
-export class FirebaseAccessPolicyRepository implements AccessPolicyRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async findById(id: string): Promise<AccessPolicySnapshot | null> {
-    const snap = await getDoc(doc(this.db, COLLECTION, id));
-    if (!snap.exists()) return null;
-    return toSnapshot(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findBySubject(subjectId: string): Promise<AccessPolicySnapshot[]> {
-    const q = query(
-      collection(this.db, COLLECTION),
-      where("subjectRef.subjectId", "==", subjectId),
-    );
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async findActiveBySubjectAndResource(
-    subjectId: string,
-    resourceType: string,
-    resourceId?: string,
-  ): Promise<AccessPolicySnapshot[]> {
-    const constraints = [
-      where("subjectRef.subjectId", "==", subjectId),
-      where("resourceRef.resourceType", "==", resourceType),
-      where("isActive", "==", true),
-    ];
-    if (resourceId) {
-      constraints.push(where("resourceRef.resourceId", "==", resourceId));
-    }
-    const q = query(collection(this.db, COLLECTION), ...constraints);
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async save(snapshot: AccessPolicySnapshot): Promise<void> {
-    await setDoc(doc(this.db, COLLECTION, snapshot.id), {
-      ...snapshot,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async update(snapshot: AccessPolicySnapshot): Promise<void> {
-    await updateDoc(doc(this.db, COLLECTION, snapshot.id), {
-      actions: snapshot.actions,
-      effect: snapshot.effect,
-      conditions: snapshot.conditions,
-      isActive: snapshot.isActive,
-      updatedAtISO: snapshot.updatedAtISO,
-      updatedAt: serverTimestamp(),
-    });
-  }
-}
-````
-
-## File: modules/platform/subdomains/access-control/infrastructure/index.ts
-````typescript
-export * from "./access-control-service";
-export { FirebaseAccessPolicyRepository } from "./firebase/FirebaseAccessPolicyRepository";
+export * from "./dtos";
+export * from "./use-cases";
+export * from "./services/shell-account-access";
 ````
 
 ## File: modules/platform/subdomains/account-profile/api/index.ts
@@ -55432,457 +57674,125 @@ export class GenkitAiTextGenerationAdapter implements AiTextGenerationPort {
 export { GenkitAiTextGenerationAdapter } from "./genkit/GenkitAiTextGenerationAdapter";
 ````
 
-## File: modules/platform/subdomains/entitlement/api/index.ts
+## File: modules/platform/subdomains/entitlement/application/use-cases/entitlement.use-cases.ts
 ````typescript
 /**
- * Public API boundary for the entitlement subdomain.
- * Cross-module consumers must import through this entry point.
+ * Entitlement Use Cases — pure application logic.
+ * All cross-domain dependencies are injected via ports.
  */
-export * from "../application";
-export { entitlementService } from "../infrastructure";
-export type {
-  EntitlementGrantSnapshot,
-  CreateEntitlementGrantInput,
-} from "../domain/aggregates/EntitlementGrant";
-export type { EntitlementGrantDomainEventType } from "../domain/events/EntitlementGrantDomainEvent";
-export type { EntitlementGrantRepository } from "../domain/repositories/EntitlementGrantRepository";
-export type { EntitlementStatus } from "../domain/value-objects/EntitlementStatus";
-export type { FeatureKey } from "../domain/value-objects/FeatureKey";
-````
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { EntitlementGrant } from "../../domain/aggregates/EntitlementGrant";
+import type { EntitlementGrantRepository } from "../../domain/repositories/EntitlementGrantRepository";
 
-## File: modules/platform/subdomains/entitlement/application/dtos/entitlement.dto.ts
-````typescript
-import type { EntitlementGrantSnapshot } from "../../domain/aggregates/EntitlementGrant";
+// ─── Grant Entitlement ────────────────────────────────────────────────────────
 
-export type EntitlementGrantView = Readonly<EntitlementGrantSnapshot>;
+export class GrantEntitlementUseCase {
+  constructor(private readonly repo: EntitlementGrantRepository) {}
 
-export interface EntitlementSignal {
-  readonly contextId: string;
-  readonly activeFeatures: string[];
-  readonly grants: EntitlementGrantView[];
-}
-````
-
-## File: modules/platform/subdomains/entitlement/application/dtos/index.ts
-````typescript
-export * from "./entitlement.dto";
-````
-
-## File: modules/platform/subdomains/entitlement/application/index.ts
-````typescript
-export * from "./dtos";
-export * from "./use-cases";
-````
-
-## File: modules/platform/subdomains/entitlement/application/use-cases/index.ts
-````typescript
-export * from "./entitlement.use-cases";
-````
-
-## File: modules/platform/subdomains/entitlement/domain/aggregates/EntitlementGrant.ts
-````typescript
-import type { EntitlementGrantDomainEventType } from "../events/EntitlementGrantDomainEvent";
-import { createEntitlementId, canSuspend, canRevoke } from "../value-objects";
-import type { EntitlementStatus } from "../value-objects";
-
-export interface EntitlementGrantSnapshot {
-  readonly id: string;
-  readonly contextId: string;
-  readonly featureKey: string;
-  readonly quota: number | null;
-  readonly status: EntitlementStatus;
-  readonly grantedAt: string;
-  readonly expiresAt: string | null;
-  readonly updatedAtISO: string;
-}
-
-export interface CreateEntitlementGrantInput {
-  readonly contextId: string;
-  readonly featureKey: string;
-  readonly quota?: number | null;
-  readonly expiresAt?: string | null;
-}
-
-export class EntitlementGrant {
-  private readonly _domainEvents: EntitlementGrantDomainEventType[] = [];
-
-  private constructor(private _props: EntitlementGrantSnapshot) {}
-
-  static create(id: string, input: CreateEntitlementGrantInput): EntitlementGrant {
-    createEntitlementId(id);
-    const now = new Date().toISOString();
-    const grant = new EntitlementGrant({
-      id,
-      contextId: input.contextId,
-      featureKey: input.featureKey,
-      quota: input.quota ?? null,
-      status: "active",
-      grantedAt: now,
-      expiresAt: input.expiresAt ?? null,
-      updatedAtISO: now,
-    });
-    grant._domainEvents.push({
-      type: "platform.entitlement.granted",
-      eventId: crypto.randomUUID(),
-      occurredAt: now,
-      payload: {
-        entitlementId: id,
-        contextId: input.contextId,
-        featureKey: input.featureKey,
-        quota: input.quota ?? null,
-      },
-    });
-    return grant;
-  }
-
-  static reconstitute(snapshot: EntitlementGrantSnapshot): EntitlementGrant {
-    createEntitlementId(snapshot.id);
-    return new EntitlementGrant({ ...snapshot });
-  }
-
-  suspend(): void {
-    if (!canSuspend(this._props.status)) {
-      throw new Error("Only active entitlement can be suspended.");
-    }
-    const now = new Date().toISOString();
-    this._props = { ...this._props, status: "suspended", updatedAtISO: now };
-    this._domainEvents.push({
-      type: "platform.entitlement.suspended",
-      eventId: crypto.randomUUID(),
-      occurredAt: now,
-      payload: { entitlementId: this._props.id, contextId: this._props.contextId },
-    });
-  }
-
-  revoke(): void {
-    if (!canRevoke(this._props.status)) {
-      throw new Error("Entitlement is already revoked.");
-    }
-    const now = new Date().toISOString();
-    this._props = { ...this._props, status: "revoked", updatedAtISO: now };
-    this._domainEvents.push({
-      type: "platform.entitlement.revoked",
-      eventId: crypto.randomUUID(),
-      occurredAt: now,
-      payload: { entitlementId: this._props.id, contextId: this._props.contextId },
-    });
-  }
-
-  expire(): void {
-    const now = new Date().toISOString();
-    this._props = { ...this._props, status: "expired", updatedAtISO: now };
-    this._domainEvents.push({
-      type: "platform.entitlement.expired",
-      eventId: crypto.randomUUID(),
-      occurredAt: now,
-      payload: { entitlementId: this._props.id, contextId: this._props.contextId },
-    });
-  }
-
-  get id(): string { return this._props.id; }
-  get contextId(): string { return this._props.contextId; }
-  get featureKey(): string { return this._props.featureKey; }
-  get quota(): number | null { return this._props.quota; }
-  get status(): EntitlementStatus { return this._props.status; }
-  get grantedAt(): string { return this._props.grantedAt; }
-  get expiresAt(): string | null { return this._props.expiresAt; }
-  get isActive(): boolean { return this._props.status === "active"; }
-
-  getSnapshot(): Readonly<EntitlementGrantSnapshot> {
-    return Object.freeze({ ...this._props });
-  }
-
-  pullDomainEvents(): EntitlementGrantDomainEventType[] {
-    const events = [...this._domainEvents];
-    this._domainEvents.length = 0;
-    return events;
-  }
-}
-````
-
-## File: modules/platform/subdomains/entitlement/domain/aggregates/index.ts
-````typescript
-export * from "./EntitlementGrant";
-````
-
-## File: modules/platform/subdomains/entitlement/domain/events/EntitlementGrantDomainEvent.ts
-````typescript
-export interface EntitlementGrantDomainEvent {
-  readonly eventId: string;
-  readonly occurredAt: string;
-  readonly type: string;
-  readonly payload: object;
-}
-
-export interface EntitlementGrantedEvent extends EntitlementGrantDomainEvent {
-  readonly type: "platform.entitlement.granted";
-  readonly payload: {
-    readonly entitlementId: string;
-    readonly contextId: string;
-    readonly featureKey: string;
-    readonly quota: number | null;
-  };
-}
-
-export interface EntitlementSuspendedEvent extends EntitlementGrantDomainEvent {
-  readonly type: "platform.entitlement.suspended";
-  readonly payload: {
-    readonly entitlementId: string;
-    readonly contextId: string;
-  };
-}
-
-export interface EntitlementRevokedEvent extends EntitlementGrantDomainEvent {
-  readonly type: "platform.entitlement.revoked";
-  readonly payload: {
-    readonly entitlementId: string;
-    readonly contextId: string;
-  };
-}
-
-export interface EntitlementExpiredEvent extends EntitlementGrantDomainEvent {
-  readonly type: "platform.entitlement.expired";
-  readonly payload: {
-    readonly entitlementId: string;
-    readonly contextId: string;
-  };
-}
-
-export type EntitlementGrantDomainEventType =
-  | EntitlementGrantedEvent
-  | EntitlementSuspendedEvent
-  | EntitlementRevokedEvent
-  | EntitlementExpiredEvent;
-````
-
-## File: modules/platform/subdomains/entitlement/domain/events/index.ts
-````typescript
-export * from "./EntitlementGrantDomainEvent";
-````
-
-## File: modules/platform/subdomains/entitlement/domain/index.ts
-````typescript
-export * from "./aggregates";
-export * from "./events";
-export * from "./repositories";
-export * from "./value-objects";
-````
-
-## File: modules/platform/subdomains/entitlement/domain/repositories/EntitlementGrantRepository.ts
-````typescript
-/**
- * EntitlementGrantRepository — Write-side persistence port (CQRS).
- * Domain owns the contract; Infrastructure implements it.
- */
-import type { EntitlementGrantSnapshot } from "../aggregates/EntitlementGrant";
-
-export interface EntitlementGrantRepository {
-  findById(id: string): Promise<EntitlementGrantSnapshot | null>;
-  findByContextId(contextId: string): Promise<EntitlementGrantSnapshot[]>;
-  findActiveByContextAndFeature(
-    contextId: string,
-    featureKey: string,
-  ): Promise<EntitlementGrantSnapshot | null>;
-  save(snapshot: EntitlementGrantSnapshot): Promise<void>;
-  update(snapshot: EntitlementGrantSnapshot): Promise<void>;
-}
-````
-
-## File: modules/platform/subdomains/entitlement/domain/repositories/index.ts
-````typescript
-export * from "./EntitlementGrantRepository";
-````
-
-## File: modules/platform/subdomains/entitlement/domain/value-objects/EntitlementId.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const EntitlementIdSchema = z.string().min(1).brand("EntitlementId");
-export type EntitlementId = z.infer<typeof EntitlementIdSchema>;
-
-export function createEntitlementId(raw: string): EntitlementId {
-  return EntitlementIdSchema.parse(raw);
-}
-````
-
-## File: modules/platform/subdomains/entitlement/domain/value-objects/EntitlementStatus.ts
-````typescript
-export const ENTITLEMENT_STATUSES = ["active", "suspended", "expired", "revoked"] as const;
-export type EntitlementStatus = (typeof ENTITLEMENT_STATUSES)[number];
-
-export function canSuspend(status: EntitlementStatus): boolean {
-  return status === "active";
-}
-
-export function canRevoke(status: EntitlementStatus): boolean {
-  return status !== "revoked";
-}
-
-export function isActiveStatus(status: EntitlementStatus): boolean {
-  return status === "active";
-}
-````
-
-## File: modules/platform/subdomains/entitlement/domain/value-objects/FeatureKey.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const FeatureKeySchema = z
-  .string()
-  .min(1)
-  .regex(/^[a-z][a-z0-9_:.\-]*$/, "FeatureKey must be lowercase dot/colon/hyphen separated")
-  .brand("FeatureKey");
-export type FeatureKey = z.infer<typeof FeatureKeySchema>;
-
-export function createFeatureKey(raw: string): FeatureKey {
-  return FeatureKeySchema.parse(raw);
-}
-````
-
-## File: modules/platform/subdomains/entitlement/domain/value-objects/index.ts
-````typescript
-export * from "./EntitlementId";
-export * from "./EntitlementStatus";
-export * from "./FeatureKey";
-````
-
-## File: modules/platform/subdomains/entitlement/infrastructure/entitlement-service.ts
-````typescript
-/**
- * EntitlementService — Composition root for entitlement use cases.
- * Wires repositories; provides a unified service interface.
- */
-import {
-  GrantEntitlementUseCase,
-  SuspendEntitlementUseCase,
-  RevokeEntitlementUseCase,
-  ResolveEntitlementsUseCase,
-  CheckFeatureEntitlementUseCase,
-} from "../application/use-cases/entitlement.use-cases";
-import { FirebaseEntitlementGrantRepository } from "./firebase/FirebaseEntitlementGrantRepository";
-import type { CommandResult } from "@shared-types";
-
-let _repo: FirebaseEntitlementGrantRepository | undefined;
-
-function getRepo(): FirebaseEntitlementGrantRepository {
-  if (!_repo) _repo = new FirebaseEntitlementGrantRepository();
-  return _repo;
-}
-
-export const entitlementService = {
-  grantEntitlement: (input: {
+  async execute(input: {
     contextId: string;
     featureKey: string;
     quota?: number | null;
     expiresAt?: string | null;
-  }): Promise<CommandResult> => new GrantEntitlementUseCase(getRepo()).execute(input),
-
-  suspendEntitlement: (entitlementId: string): Promise<CommandResult> =>
-    new SuspendEntitlementUseCase(getRepo()).execute(entitlementId),
-
-  revokeEntitlement: (entitlementId: string): Promise<CommandResult> =>
-    new RevokeEntitlementUseCase(getRepo()).execute(entitlementId),
-
-  resolveEntitlements: (contextId: string): Promise<CommandResult> =>
-    new ResolveEntitlementsUseCase(getRepo()).execute(contextId),
-
-  checkFeatureEntitlement: (contextId: string, featureKey: string): Promise<CommandResult> =>
-    new CheckFeatureEntitlementUseCase(getRepo()).execute(contextId, featureKey),
-};
-````
-
-## File: modules/platform/subdomains/entitlement/infrastructure/firebase/FirebaseEntitlementGrantRepository.ts
-````typescript
-/**
- * FirebaseEntitlementGrantRepository — Infrastructure adapter for entitlement persistence.
- * Firebase SDK only exists in this file.
- */
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { EntitlementGrantRepository } from "../../domain/repositories/EntitlementGrantRepository";
-import type { EntitlementGrantSnapshot } from "../../domain/aggregates/EntitlementGrant";
-
-const COLLECTION = "entitlementGrants";
-
-function toSnapshot(id: string, data: Record<string, unknown>): EntitlementGrantSnapshot {
-  return {
-    id,
-    contextId: data.contextId as string,
-    featureKey: data.featureKey as string,
-    quota: data.quota != null ? (data.quota as number) : null,
-    status: data.status as EntitlementGrantSnapshot["status"],
-    grantedAt: data.grantedAt as string,
-    expiresAt: data.expiresAt != null ? (data.expiresAt as string) : null,
-    updatedAtISO: data.updatedAtISO as string,
-  };
-}
-
-export class FirebaseEntitlementGrantRepository implements EntitlementGrantRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async findById(id: string): Promise<EntitlementGrantSnapshot | null> {
-    const snap = await getDoc(doc(this.db, COLLECTION, id));
-    if (!snap.exists()) return null;
-    return toSnapshot(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByContextId(contextId: string): Promise<EntitlementGrantSnapshot[]> {
-    const q = query(collection(this.db, COLLECTION), where("contextId", "==", contextId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async findActiveByContextAndFeature(
-    contextId: string,
-    featureKey: string,
-  ): Promise<EntitlementGrantSnapshot | null> {
-    const q = query(
-      collection(this.db, COLLECTION),
-      where("contextId", "==", contextId),
-      where("featureKey", "==", featureKey),
-      where("status", "==", "active"),
-    );
-    const snaps = await getDocs(q);
-    if (snaps.empty) return null;
-    const d = snaps.docs[0];
-    return toSnapshot(d.id, d.data() as Record<string, unknown>);
-  }
-
-  async save(snapshot: EntitlementGrantSnapshot): Promise<void> {
-    await setDoc(doc(this.db, COLLECTION, snapshot.id), {
-      ...snapshot,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async update(snapshot: EntitlementGrantSnapshot): Promise<void> {
-    await updateDoc(doc(this.db, COLLECTION, snapshot.id), {
-      status: snapshot.status,
-      updatedAtISO: snapshot.updatedAtISO,
-      updatedAt: serverTimestamp(),
-    });
+  }): Promise<CommandResult> {
+    try {
+      const id = crypto.randomUUID();
+      const grant = EntitlementGrant.create(id, input);
+      await this.repo.save(grant.getSnapshot());
+      return commandSuccess(id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "GRANT_ENTITLEMENT_FAILED",
+        err instanceof Error ? err.message : "Failed to grant entitlement",
+      );
+    }
   }
 }
-````
 
-## File: modules/platform/subdomains/entitlement/infrastructure/index.ts
-````typescript
-export * from "./entitlement-service";
-export { FirebaseEntitlementGrantRepository } from "./firebase/FirebaseEntitlementGrantRepository";
+// ─── Suspend Entitlement ──────────────────────────────────────────────────────
+
+export class SuspendEntitlementUseCase {
+  constructor(private readonly repo: EntitlementGrantRepository) {}
+
+  async execute(entitlementId: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(entitlementId);
+      if (!snapshot) {
+        return commandFailureFrom("ENTITLEMENT_NOT_FOUND", `Entitlement ${entitlementId} not found`);
+      }
+      const grant = EntitlementGrant.reconstitute(snapshot);
+      grant.suspend();
+      await this.repo.update(grant.getSnapshot());
+      return commandSuccess(entitlementId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "SUSPEND_ENTITLEMENT_FAILED",
+        err instanceof Error ? err.message : "Failed to suspend entitlement",
+      );
+    }
+  }
+}
+
+// ─── Revoke Entitlement ───────────────────────────────────────────────────────
+
+export class RevokeEntitlementUseCase {
+  constructor(private readonly repo: EntitlementGrantRepository) {}
+
+  async execute(entitlementId: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(entitlementId);
+      if (!snapshot) {
+        return commandFailureFrom("ENTITLEMENT_NOT_FOUND", `Entitlement ${entitlementId} not found`);
+      }
+      const grant = EntitlementGrant.reconstitute(snapshot);
+      grant.revoke();
+      await this.repo.update(grant.getSnapshot());
+      return commandSuccess(entitlementId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "REVOKE_ENTITLEMENT_FAILED",
+        err instanceof Error ? err.message : "Failed to revoke entitlement",
+      );
+    }
+  }
+}
+
+// ─── Resolve Entitlements (query-style) ───────────────────────────────────────
+
+export class ResolveEntitlementsUseCase {
+  constructor(private readonly repo: EntitlementGrantRepository) {}
+
+  async execute(contextId: string): Promise<CommandResult> {
+    try {
+      const snapshots = await this.repo.findByContextId(contextId);
+      const active = snapshots.filter((s) => s.status === "active");
+      return commandSuccess(JSON.stringify(active), Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "RESOLVE_ENTITLEMENTS_FAILED",
+        err instanceof Error ? err.message : "Failed to resolve entitlements",
+      );
+    }
+  }
+}
+
+// ─── Check Feature Entitlement ────────────────────────────────────────────────
+
+export class CheckFeatureEntitlementUseCase {
+  constructor(private readonly repo: EntitlementGrantRepository) {}
+
+  async execute(contextId: string, featureKey: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findActiveByContextAndFeature(contextId, featureKey);
+      return commandSuccess(JSON.stringify({ entitled: snapshot !== null, snapshot }), Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CHECK_ENTITLEMENT_FAILED",
+        err instanceof Error ? err.message : "Failed to check entitlement",
+      );
+    }
+  }
+}
 ````
 
 ## File: modules/platform/subdomains/identity/README.md
@@ -55924,82 +57834,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
  * Interfaces must import from here, not from domain/ directly.
  */
 export type { NotificationEntity, DispatchNotificationInput } from "../../domain/entities/Notification";
-````
-
-## File: modules/platform/subdomains/notification/application/queries/notification.queries.ts
-````typescript
-import type { NotificationRepository } from "../../domain/repositories/NotificationRepository";
-import type { NotificationEntity } from "../../domain/entities/Notification";
-
-export class GetNotificationsForRecipientUseCase {
-  constructor(private readonly repo: NotificationRepository) {}
-
-  async execute(recipientId: string, limit?: number): Promise<NotificationEntity[]> {
-    return this.repo.findByRecipient(recipientId, limit);
-  }
-}
-
-export class GetUnreadCountUseCase {
-  constructor(private readonly repo: NotificationRepository) {}
-
-  async execute(recipientId: string): Promise<number> {
-    return this.repo.getUnreadCount(recipientId);
-  }
-}
-````
-
-## File: modules/platform/subdomains/notification/application/use-cases/notification.use-cases.ts
-````typescript
-/**
- * Notification Application Use Cases — orchestrate domain intent without framework concerns.
- */
-
-import { commandSuccess, commandFailureFrom } from "@shared-types";
-import type { CommandResult } from "@shared-types";
-import type { NotificationRepository } from "../../domain/repositories/NotificationRepository";
-import type { DispatchNotificationInput } from "../../domain/entities/Notification";
-
-export class DispatchNotificationUseCase {
-  constructor(private readonly repo: NotificationRepository) {}
-
-  async execute(input: DispatchNotificationInput): Promise<CommandResult> {
-    try {
-      const notification = await this.repo.dispatch(input);
-      return commandSuccess(notification.id, 1);
-    } catch (err) {
-      return commandFailureFrom("DISPATCH_NOTIFICATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
-    }
-  }
-}
-
-export class MarkNotificationReadUseCase {
-  constructor(private readonly repo: NotificationRepository) {}
-
-  async execute(notificationId: string, recipientId: string): Promise<CommandResult> {
-    try {
-      await this.repo.markAsRead(notificationId, recipientId);
-      return commandSuccess(notificationId, 1);
-    } catch (err) {
-      return commandFailureFrom("MARK_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
-    }
-  }
-}
-
-export class MarkAllNotificationsReadUseCase {
-  constructor(private readonly repo: NotificationRepository) {}
-
-  async execute(recipientId: string): Promise<CommandResult> {
-    try {
-      await this.repo.markAllAsRead(recipientId);
-      return commandSuccess(recipientId, 1);
-    } catch (err) {
-      return commandFailureFrom("MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
-    }
-  }
-}
-
-// Re-export read queries for backward compatibility
-export { GetNotificationsForRecipientUseCase, GetUnreadCountUseCase } from "../queries/notification.queries";
 ````
 
 ## File: modules/platform/subdomains/notification/interfaces/_actions/notification.actions.ts
@@ -56955,361 +58789,286 @@ export {
 } from "./services/shell-command-catalog";
 ````
 
-## File: modules/platform/subdomains/subscription/api/index.ts
+## File: modules/platform/subdomains/subscription/application/use-cases/subscription.use-cases.ts
 ````typescript
 /**
- * Public API boundary for the subscription subdomain.
+ * Subscription Use Cases — pure application logic.
  */
-export * from "../application";
-export { subscriptionService } from "../infrastructure";
-export type { SubscriptionSnapshot, CreateSubscriptionInput } from "../domain/aggregates/Subscription";
-export type { SubscriptionDomainEventType } from "../domain/events/SubscriptionDomainEvent";
-export type { SubscriptionRepository } from "../domain/repositories/SubscriptionRepository";
-export type { SubscriptionId } from "../domain/value-objects/SubscriptionId";
-export type { PlanCode } from "../domain/value-objects/PlanCode";
-export type { SubscriptionStatus } from "../domain/value-objects/SubscriptionStatus";
-export type { BillingCycle } from "../domain/value-objects/BillingCycle";
-````
-
-## File: modules/platform/subdomains/subscription/application/dtos/index.ts
-````typescript
-export * from "./subscription.dto";
-````
-
-## File: modules/platform/subdomains/subscription/application/dtos/subscription.dto.ts
-````typescript
-import type { SubscriptionSnapshot } from "../../domain/aggregates/Subscription";
-
-export type SubscriptionView = Readonly<SubscriptionSnapshot>;
-
-export interface SubscriptionSummary {
-  readonly contextId: string;
-  readonly planCode: string;
-  readonly status: string;
-  readonly isActive: boolean;
-  readonly currentPeriodEnd: string | null;
-}
-````
-
-## File: modules/platform/subdomains/subscription/application/index.ts
-````typescript
-export * from "./dtos";
-export * from "./use-cases";
-````
-
-## File: modules/platform/subdomains/subscription/application/use-cases/index.ts
-````typescript
-export * from "./subscription.use-cases";
-````
-
-## File: modules/platform/subdomains/subscription/domain/aggregates/index.ts
-````typescript
-export * from "./Subscription";
-````
-
-## File: modules/platform/subdomains/subscription/domain/events/index.ts
-````typescript
-export * from "./SubscriptionDomainEvent";
-````
-
-## File: modules/platform/subdomains/subscription/domain/events/SubscriptionDomainEvent.ts
-````typescript
-import type { BillingCycle } from "../value-objects/BillingCycle";
-
-export interface SubscriptionDomainEvent {
-  readonly eventId: string;
-  readonly occurredAt: string;
-  readonly type: string;
-  readonly payload: object;
-}
-
-export interface SubscriptionActivatedEvent extends SubscriptionDomainEvent {
-  readonly type: "platform.subscription.activated";
-  readonly payload: {
-    readonly subscriptionId: string;
-    readonly contextId: string;
-    readonly planCode: string;
-    readonly billingCycle: BillingCycle;
-  };
-}
-
-export interface SubscriptionCancelledEvent extends SubscriptionDomainEvent {
-  readonly type: "platform.subscription.cancelled";
-  readonly payload: { readonly subscriptionId: string; readonly contextId: string };
-}
-
-export interface SubscriptionRenewedEvent extends SubscriptionDomainEvent {
-  readonly type: "platform.subscription.renewed";
-  readonly payload: {
-    readonly subscriptionId: string;
-    readonly contextId: string;
-    readonly newPeriodEnd: string;
-  };
-}
-
-export interface SubscriptionPastDueEvent extends SubscriptionDomainEvent {
-  readonly type: "platform.subscription.past_due";
-  readonly payload: { readonly subscriptionId: string; readonly contextId: string };
-}
-
-export interface SubscriptionExpiredEvent extends SubscriptionDomainEvent {
-  readonly type: "platform.subscription.expired";
-  readonly payload: { readonly subscriptionId: string; readonly contextId: string };
-}
-
-export type SubscriptionDomainEventType =
-  | SubscriptionActivatedEvent
-  | SubscriptionCancelledEvent
-  | SubscriptionRenewedEvent
-  | SubscriptionPastDueEvent
-  | SubscriptionExpiredEvent;
-````
-
-## File: modules/platform/subdomains/subscription/domain/index.ts
-````typescript
-export * from "./aggregates";
-export * from "./events";
-export * from "./repositories";
-export * from "./value-objects";
-````
-
-## File: modules/platform/subdomains/subscription/domain/repositories/index.ts
-````typescript
-export * from "./SubscriptionRepository";
-````
-
-## File: modules/platform/subdomains/subscription/domain/repositories/SubscriptionRepository.ts
-````typescript
-/**
- * SubscriptionRepository — Write-side persistence port (CQRS).
- */
-import type { SubscriptionSnapshot } from "../aggregates/Subscription";
-
-export interface SubscriptionRepository {
-  findById(id: string): Promise<SubscriptionSnapshot | null>;
-  findActiveByContextId(contextId: string): Promise<SubscriptionSnapshot | null>;
-  findByContextId(contextId: string): Promise<SubscriptionSnapshot[]>;
-  save(snapshot: SubscriptionSnapshot): Promise<void>;
-  update(snapshot: SubscriptionSnapshot): Promise<void>;
-}
-````
-
-## File: modules/platform/subdomains/subscription/domain/value-objects/BillingCycle.ts
-````typescript
-export type BillingCycle = "monthly" | "annual" | "lifetime";
-
-export function cycleMonths(cycle: BillingCycle): number | null {
-  if (cycle === "monthly") return 1;
-  if (cycle === "annual") return 12;
-  return null; // lifetime
-}
-````
-
-## File: modules/platform/subdomains/subscription/domain/value-objects/index.ts
-````typescript
-export * from "./SubscriptionId";
-export * from "./PlanCode";
-export * from "./SubscriptionStatus";
-export * from "./BillingCycle";
-````
-
-## File: modules/platform/subdomains/subscription/domain/value-objects/PlanCode.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const PLAN_CODES = ["free", "starter", "pro", "enterprise"] as const;
-export type PlanCodeLiteral = (typeof PLAN_CODES)[number];
-
-export const PlanCodeSchema = z.string().min(1).brand("PlanCode");
-export type PlanCode = z.infer<typeof PlanCodeSchema>;
-
-export function createPlanCode(raw: string): PlanCode {
-  return PlanCodeSchema.parse(raw);
-}
-````
-
-## File: modules/platform/subdomains/subscription/domain/value-objects/SubscriptionId.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const SubscriptionIdSchema = z.string().min(1).brand("SubscriptionId");
-export type SubscriptionId = z.infer<typeof SubscriptionIdSchema>;
-
-export function createSubscriptionId(raw: string): SubscriptionId {
-  return SubscriptionIdSchema.parse(raw);
-}
-````
-
-## File: modules/platform/subdomains/subscription/domain/value-objects/SubscriptionStatus.ts
-````typescript
-export const SUBSCRIPTION_STATUSES = [
-  "trialing",
-  "active",
-  "past_due",
-  "cancelled",
-  "expired",
-] as const;
-export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
-
-export function canCancel(status: SubscriptionStatus): boolean {
-  return status === "active" || status === "trialing" || status === "past_due";
-}
-
-export function canRenew(status: SubscriptionStatus): boolean {
-  return status === "active" || status === "past_due";
-}
-
-export function isActive(status: SubscriptionStatus): boolean {
-  return status === "active" || status === "trialing";
-}
-````
-
-## File: modules/platform/subdomains/subscription/infrastructure/firebase/FirebaseSubscriptionRepository.ts
-````typescript
-/**
- * FirebaseSubscriptionRepository — Infrastructure adapter for subscription persistence.
- * Firebase SDK only exists in this file.
- */
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  orderBy,
-  limit,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { Subscription } from "../../domain/aggregates/Subscription";
 import type { SubscriptionRepository } from "../../domain/repositories/SubscriptionRepository";
-import type { SubscriptionSnapshot } from "../../domain/aggregates/Subscription";
+import type { BillingCycle } from "../../domain/value-objects/BillingCycle";
 
-const COLLECTION = "subscriptions";
+// ─── Activate Subscription ────────────────────────────────────────────────────
 
-function toSnapshot(id: string, data: Record<string, unknown>): SubscriptionSnapshot {
-  return {
-    id,
-    contextId: data.contextId as string,
-    planCode: data.planCode as string,
-    billingCycle: data.billingCycle as SubscriptionSnapshot["billingCycle"],
-    status: data.status as SubscriptionSnapshot["status"],
-    currentPeriodStart: data.currentPeriodStart as string,
-    currentPeriodEnd: data.currentPeriodEnd != null ? (data.currentPeriodEnd as string) : null,
-    cancelledAt: data.cancelledAt != null ? (data.cancelledAt as string) : null,
-    createdAtISO: data.createdAtISO as string,
-    updatedAtISO: data.updatedAtISO as string,
-  };
-}
+export class ActivateSubscriptionUseCase {
+  constructor(private readonly repo: SubscriptionRepository) {}
 
-export class FirebaseSubscriptionRepository implements SubscriptionRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async findById(id: string): Promise<SubscriptionSnapshot | null> {
-    const snap = await getDoc(doc(this.db, COLLECTION, id));
-    if (!snap.exists()) return null;
-    return toSnapshot(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findActiveByContextId(contextId: string): Promise<SubscriptionSnapshot | null> {
-    const q = query(
-      collection(this.db, COLLECTION),
-      where("contextId", "==", contextId),
-      where("status", "in", ["active", "trialing"]),
-      orderBy("createdAtISO", "desc"),
-      limit(1),
-    );
-    const snaps = await getDocs(q);
-    if (snaps.empty) return null;
-    const d = snaps.docs[0];
-    return toSnapshot(d.id, d.data() as Record<string, unknown>);
-  }
-
-  async findByContextId(contextId: string): Promise<SubscriptionSnapshot[]> {
-    const q = query(
-      collection(this.db, COLLECTION),
-      where("contextId", "==", contextId),
-      orderBy("createdAtISO", "desc"),
-    );
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async save(snapshot: SubscriptionSnapshot): Promise<void> {
-    await setDoc(doc(this.db, COLLECTION, snapshot.id), {
-      ...snapshot,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async update(snapshot: SubscriptionSnapshot): Promise<void> {
-    await updateDoc(doc(this.db, COLLECTION, snapshot.id), {
-      status: snapshot.status,
-      currentPeriodStart: snapshot.currentPeriodStart,
-      currentPeriodEnd: snapshot.currentPeriodEnd,
-      cancelledAt: snapshot.cancelledAt,
-      updatedAtISO: snapshot.updatedAtISO,
-      updatedAt: serverTimestamp(),
-    });
-  }
-}
-````
-
-## File: modules/platform/subdomains/subscription/infrastructure/index.ts
-````typescript
-export * from "./subscription-service";
-export { FirebaseSubscriptionRepository } from "./firebase/FirebaseSubscriptionRepository";
-````
-
-## File: modules/platform/subdomains/subscription/infrastructure/subscription-service.ts
-````typescript
-/**
- * SubscriptionService — Composition root for subscription use cases.
- */
-import {
-  ActivateSubscriptionUseCase,
-  CancelSubscriptionUseCase,
-  RenewSubscriptionUseCase,
-  GetActiveSubscriptionUseCase,
-  MarkSubscriptionPastDueUseCase,
-} from "../application/use-cases/subscription.use-cases";
-import { FirebaseSubscriptionRepository } from "./firebase/FirebaseSubscriptionRepository";
-import type { BillingCycle } from "../domain/value-objects/BillingCycle";
-import type { CommandResult } from "@shared-types";
-
-let _repo: FirebaseSubscriptionRepository | undefined;
-
-function getRepo(): FirebaseSubscriptionRepository {
-  if (!_repo) _repo = new FirebaseSubscriptionRepository();
-  return _repo;
-}
-
-export const subscriptionService = {
-  activateSubscription: (input: {
+  async execute(input: {
     contextId: string;
     planCode: string;
     billingCycle: BillingCycle;
     currentPeriodEnd?: string | null;
-  }): Promise<CommandResult> => new ActivateSubscriptionUseCase(getRepo()).execute(input),
+  }): Promise<CommandResult> {
+    try {
+      const id = crypto.randomUUID();
+      const sub = Subscription.create(id, input);
+      await this.repo.save(sub.getSnapshot());
+      return commandSuccess(id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "ACTIVATE_SUBSCRIPTION_FAILED",
+        err instanceof Error ? err.message : "Failed to activate subscription",
+      );
+    }
+  }
+}
 
-  cancelSubscription: (subscriptionId: string): Promise<CommandResult> =>
-    new CancelSubscriptionUseCase(getRepo()).execute(subscriptionId),
+// ─── Cancel Subscription ──────────────────────────────────────────────────────
 
-  renewSubscription: (subscriptionId: string, newPeriodEnd: string): Promise<CommandResult> =>
-    new RenewSubscriptionUseCase(getRepo()).execute(subscriptionId, newPeriodEnd),
+export class CancelSubscriptionUseCase {
+  constructor(private readonly repo: SubscriptionRepository) {}
 
-  getActiveSubscription: (contextId: string): Promise<CommandResult> =>
-    new GetActiveSubscriptionUseCase(getRepo()).execute(contextId),
+  async execute(subscriptionId: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(subscriptionId);
+      if (!snapshot) {
+        return commandFailureFrom("SUBSCRIPTION_NOT_FOUND", `Subscription ${subscriptionId} not found`);
+      }
+      const sub = Subscription.reconstitute(snapshot);
+      sub.cancel();
+      await this.repo.update(sub.getSnapshot());
+      return commandSuccess(subscriptionId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CANCEL_SUBSCRIPTION_FAILED",
+        err instanceof Error ? err.message : "Failed to cancel subscription",
+      );
+    }
+  }
+}
 
-  markPastDue: (subscriptionId: string): Promise<CommandResult> =>
-    new MarkSubscriptionPastDueUseCase(getRepo()).execute(subscriptionId),
-};
+// ─── Renew Subscription ───────────────────────────────────────────────────────
+
+export class RenewSubscriptionUseCase {
+  constructor(private readonly repo: SubscriptionRepository) {}
+
+  async execute(subscriptionId: string, newPeriodEnd: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(subscriptionId);
+      if (!snapshot) {
+        return commandFailureFrom("SUBSCRIPTION_NOT_FOUND", `Subscription ${subscriptionId} not found`);
+      }
+      const sub = Subscription.reconstitute(snapshot);
+      sub.renew(newPeriodEnd);
+      await this.repo.update(sub.getSnapshot());
+      return commandSuccess(subscriptionId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "RENEW_SUBSCRIPTION_FAILED",
+        err instanceof Error ? err.message : "Failed to renew subscription",
+      );
+    }
+  }
+}
+
+// ─── Get Active Subscription (query-style) ───────────────────────────────────
+
+export class GetActiveSubscriptionUseCase {
+  constructor(private readonly repo: SubscriptionRepository) {}
+
+  async execute(contextId: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findActiveByContextId(contextId);
+      return commandSuccess(JSON.stringify(snapshot), Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "GET_ACTIVE_SUBSCRIPTION_FAILED",
+        err instanceof Error ? err.message : "Failed to get active subscription",
+      );
+    }
+  }
+}
+
+// ─── Mark Past Due ────────────────────────────────────────────────────────────
+
+export class MarkSubscriptionPastDueUseCase {
+  constructor(private readonly repo: SubscriptionRepository) {}
+
+  async execute(subscriptionId: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(subscriptionId);
+      if (!snapshot) {
+        return commandFailureFrom("SUBSCRIPTION_NOT_FOUND", `Subscription ${subscriptionId} not found`);
+      }
+      const sub = Subscription.reconstitute(snapshot);
+      sub.markPastDue();
+      await this.repo.update(sub.getSnapshot());
+      return commandSuccess(subscriptionId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "MARK_PAST_DUE_FAILED",
+        err instanceof Error ? err.message : "Failed to mark subscription past due",
+      );
+    }
+  }
+}
+````
+
+## File: modules/platform/subdomains/subscription/domain/aggregates/Subscription.ts
+````typescript
+import type { SubscriptionDomainEventType } from "../events/SubscriptionDomainEvent";
+import { createSubscriptionId, canCancel, canRenew } from "../value-objects";
+import type { SubscriptionStatus } from "../value-objects";
+import type { BillingCycle } from "../value-objects/BillingCycle";
+
+export interface SubscriptionSnapshot {
+  readonly id: string;
+  readonly contextId: string;
+  readonly planCode: string;
+  readonly billingCycle: BillingCycle;
+  readonly status: SubscriptionStatus;
+  readonly currentPeriodStart: string;
+  readonly currentPeriodEnd: string | null;
+  readonly cancelledAt: string | null;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+export interface CreateSubscriptionInput {
+  readonly contextId: string;
+  readonly planCode: string;
+  readonly billingCycle: BillingCycle;
+  readonly currentPeriodStart?: string;
+  readonly currentPeriodEnd?: string | null;
+}
+
+export class Subscription {
+  private readonly _domainEvents: SubscriptionDomainEventType[] = [];
+
+  private constructor(private _props: SubscriptionSnapshot) {}
+
+  static create(id: string, input: CreateSubscriptionInput): Subscription {
+    createSubscriptionId(id);
+    const now = new Date().toISOString();
+    const sub = new Subscription({
+      id,
+      contextId: input.contextId,
+      planCode: input.planCode,
+      billingCycle: input.billingCycle,
+      status: "active",
+      currentPeriodStart: input.currentPeriodStart ?? now,
+      currentPeriodEnd: input.currentPeriodEnd ?? null,
+      cancelledAt: null,
+      createdAtISO: now,
+      updatedAtISO: now,
+    });
+    sub._domainEvents.push({
+      type: "platform.subscription.activated",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: {
+        subscriptionId: id,
+        contextId: input.contextId,
+        planCode: input.planCode,
+        billingCycle: input.billingCycle,
+      },
+    });
+    return sub;
+  }
+
+  static reconstitute(snapshot: SubscriptionSnapshot): Subscription {
+    createSubscriptionId(snapshot.id);
+    return new Subscription({ ...snapshot });
+  }
+
+  cancel(): void {
+    if (!canCancel(this._props.status)) {
+      throw new Error(`Subscription in status '${this._props.status}' cannot be cancelled.`);
+    }
+    const now = new Date().toISOString();
+    this._props = {
+      ...this._props,
+      status: "cancelled",
+      cancelledAt: now,
+      updatedAtISO: now,
+    };
+    this._domainEvents.push({
+      type: "platform.subscription.cancelled",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { subscriptionId: this._props.id, contextId: this._props.contextId },
+    });
+  }
+
+  renew(newPeriodEnd: string): void {
+    if (!canRenew(this._props.status)) {
+      throw new Error(`Subscription in status '${this._props.status}' cannot be renewed.`);
+    }
+    const now = new Date().toISOString();
+    this._props = {
+      ...this._props,
+      status: "active",
+      currentPeriodStart: now,
+      currentPeriodEnd: newPeriodEnd,
+      updatedAtISO: now,
+    };
+    this._domainEvents.push({
+      type: "platform.subscription.renewed",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: {
+        subscriptionId: this._props.id,
+        contextId: this._props.contextId,
+        newPeriodEnd,
+      },
+    });
+  }
+
+  markPastDue(): void {
+    if (this._props.status !== "active") {
+      throw new Error("Only active subscription can be marked past due.");
+    }
+    const now = new Date().toISOString();
+    this._props = { ...this._props, status: "past_due", updatedAtISO: now };
+    this._domainEvents.push({
+      type: "platform.subscription.past_due",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { subscriptionId: this._props.id, contextId: this._props.contextId },
+    });
+  }
+
+  expire(): void {
+    const now = new Date().toISOString();
+    this._props = { ...this._props, status: "expired", updatedAtISO: now };
+    this._domainEvents.push({
+      type: "platform.subscription.expired",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { subscriptionId: this._props.id, contextId: this._props.contextId },
+    });
+  }
+
+  get id(): string { return this._props.id; }
+  get contextId(): string { return this._props.contextId; }
+  get planCode(): string { return this._props.planCode; }
+  get billingCycle(): BillingCycle { return this._props.billingCycle; }
+  get status(): SubscriptionStatus { return this._props.status; }
+  get currentPeriodEnd(): string | null { return this._props.currentPeriodEnd; }
+  get cancelledAt(): string | null { return this._props.cancelledAt; }
+  get isActive(): boolean { return this._props.status === "active" || this._props.status === "trialing"; }
+
+  getSnapshot(): Readonly<SubscriptionSnapshot> {
+    return Object.freeze({ ...this._props });
+  }
+
+  pullDomainEvents(): SubscriptionDomainEventType[] {
+    const events = [...this._domainEvents];
+    this._domainEvents.length = 0;
+    return events;
+  }
+}
 ````
 
 ## File: modules/workspace/api/api.instructions.md
@@ -57454,6 +59213,77 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
+## File: modules/workspace/application/queries/workspace.queries.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/queries
+ * Purpose: Workspace read query handlers — pure reads with input normalization.
+ *
+ * DDD Rule 5:  Pure reads without business logic → Query, not Use Case.
+ * DDD Rule 13: Read → queries/
+ * DDD Rule 16: GetXxxUseCase → should be Query.
+ * DDD Rule 18: Use Case wrapping a single call → over-design.
+ */
+
+import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
+import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
+import type {
+  Unsubscribe,
+  WorkspaceQueryRepository,
+} from "../../domain/ports/output/WorkspaceQueryRepository";
+
+// ─── Input Normalization ──────────────────────────────────────────────────────
+
+function normalizeId(value: string): string {
+  return value.trim();
+}
+
+// ─── Query Handlers ───────────────────────────────────────────────────────────
+
+export function listWorkspacesForAccount(
+  workspaceRepo: WorkspaceRepository,
+  accountId: string,
+): Promise<WorkspaceEntity[]> {
+  const normalized = normalizeId(accountId);
+  if (!normalized) return Promise.resolve([]);
+  return workspaceRepo.findAllByAccountId(normalized);
+}
+
+export function subscribeToWorkspacesForAccount(
+  workspaceQueryRepo: WorkspaceQueryRepository,
+  accountId: string,
+  onUpdate: (workspaces: WorkspaceEntity[]) => void,
+): Unsubscribe {
+  const normalized = normalizeId(accountId);
+  if (!normalized) {
+    onUpdate([]);
+    return () => {};
+  }
+  return workspaceQueryRepo.subscribeToWorkspacesForAccount(normalized, onUpdate);
+}
+
+export function getWorkspaceById(
+  workspaceRepo: WorkspaceRepository,
+  workspaceId: string,
+): Promise<WorkspaceEntity | null> {
+  const normalized = normalizeId(workspaceId);
+  if (!normalized) return Promise.resolve(null);
+  return workspaceRepo.findById(normalized);
+}
+
+export function getWorkspaceByIdForAccount(
+  workspaceRepo: WorkspaceRepository,
+  accountId: string,
+  workspaceId: string,
+): Promise<WorkspaceEntity | null> {
+  const normalizedAccountId = normalizeId(accountId);
+  const normalizedWorkspaceId = normalizeId(workspaceId);
+  if (!normalizedAccountId || !normalizedWorkspaceId) return Promise.resolve(null);
+  return workspaceRepo.findByIdForAccount(normalizedAccountId, normalizedWorkspaceId);
+}
+````
+
 ## File: modules/workspace/application/use-cases/workspace-location.use-cases.ts
 ````typescript
 /**
@@ -57508,29 +59338,6 @@ For full reference, align with `.github/instructions/docs-authority-and-language
 - Any new architectural decision affecting workspace must have a corresponding ADR in `docs/decisions/`.
 - Use ubiquitous language from `docs/contexts/workspace/ubiquitous-language.md`; do not introduce synonyms.
 - Keep this directory in sync with `docs/contexts/workspace/README.md` whenever the subdomain list changes.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
-## File: modules/workspace/domain/domain-modeling.instructions.md
-````markdown
----
-description: 'Workspace domain tactical modeling rules (local mirror of root domain-modeling guidance).'
-applyTo: '*.{ts,tsx}'
----
-
-# Domain Modeling (Workspace Local)
-
-Use this local file as execution guardrails for `modules/workspace/domain/*`.
-For full reference, align with `.github/instructions/domain-modeling.instructions.md` and `docs/contexts/workspace/*`.
-
-## Core Rules
-
-- Keep aggregate invariants inside aggregate methods.
-- Use immutable value objects with Zod schemas and inferred types.
-- Keep domain framework-free (no Firebase/React/transport imports).
-- Emit domain events on state transitions and publish via application orchestration.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
@@ -58197,6 +60004,282 @@ export function CreateWorkspaceDialogRail({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/screens/AccountDashboardScreen.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import {
+  BookOpen,
+  Brain,
+  Database,
+  FileText,
+  FolderOpen,
+  Library,
+  MessageSquare,
+  Notebook,
+  Shield,
+  User,
+  Users,
+} from "lucide-react";
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+import type { WorkspaceEntity } from "../../../api/contracts";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface AccountDashboardScreenProps {
+  readonly accountId: string;
+  readonly accountName: string | null;
+  readonly accountType: "user" | "organization";
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly currentUserId: string | null;
+}
+
+// ── Quick-access card definitions ─────────────────────────────────────────────
+
+interface QuickAccessCard {
+  readonly key: string;
+  readonly label: string;
+  readonly description: string;
+  readonly icon: React.ReactNode;
+  readonly buildHref: (accountId: string, workspaceId: string) => string;
+}
+
+const WORKSPACE_QUICK_ACCESS_CARDS: readonly QuickAccessCard[] = [
+  {
+    key: "knowledge-pages",
+    label: "知識頁面",
+    description: "管理知識頁面內容",
+    icon: <FileText className="size-5 text-blue-500" />,
+    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Overview&panel=knowledge-pages`,
+  },
+  {
+    key: "articles",
+    label: "文章",
+    description: "知識庫文章管理",
+    icon: <BookOpen className="size-5 text-emerald-500" />,
+    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Overview&panel=knowledge-base-articles`,
+  },
+  {
+    key: "files",
+    label: "檔案",
+    description: "工作區檔案管理",
+    icon: <FolderOpen className="size-5 text-amber-500" />,
+    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Files`,
+  },
+  {
+    key: "members",
+    label: "成員",
+    description: "工作區成員與角色",
+    icon: <Users className="size-5 text-violet-500" />,
+    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Members`,
+  },
+  {
+    key: "knowledge-base",
+    label: "知識庫",
+    description: "結構化知識管理",
+    icon: <Notebook className="size-5 text-cyan-500" />,
+    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Knowledge`,
+  },
+  {
+    key: "rag-query",
+    label: "RAG 查詢",
+    description: "問答與引用檢索",
+    icon: <Brain className="size-5 text-pink-500" />,
+    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Notebook`,
+  },
+  {
+    key: "ai-chat",
+    label: "AI 對話",
+    description: "AI 助手對話介面",
+    icon: <MessageSquare className="size-5 text-orange-500" />,
+    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=AiChat`,
+  },
+  {
+    key: "databases",
+    label: "資料庫",
+    description: "結構化資料表管理",
+    icon: <Database className="size-5 text-indigo-500" />,
+    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Overview&panel=knowledge-databases`,
+  },
+  {
+    key: "source-libraries",
+    label: "來源庫",
+    description: "文件來源管理",
+    icon: <Library className="size-5 text-teal-500" />,
+    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Overview&panel=source-libraries`,
+  },
+  {
+    key: "governance",
+    label: "治理",
+    description: "存取與權限治理",
+    icon: <Shield className="size-5 text-red-500" />,
+    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Overview&panel=governance`,
+  },
+  {
+    key: "profile",
+    label: "工作區資料",
+    description: "工作區基本設定",
+    icon: <User className="size-5 text-slate-500" />,
+    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Overview&panel=profile`,
+  },
+];
+
+function enc(s: string): string {
+  return encodeURIComponent(s);
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export function AccountDashboardScreen({
+  accountId,
+  accountName,
+  accountType,
+  workspaces,
+  workspacesHydrated,
+  activeWorkspaceId,
+}: AccountDashboardScreenProps) {
+  const activeWorkspace = activeWorkspaceId
+    ? workspaces.find((w) => w.id === activeWorkspaceId) ?? null
+    : null;
+
+  const sortedWorkspaces = [...workspaces].sort((a, b) =>
+    a.name.localeCompare(b.name, "zh-Hant"),
+  );
+
+  return (
+    <div className="space-y-8">
+      {/* ── Header ──────────────────────────────────────────────────────── */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">儀表板</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {accountName ?? accountId} ·{" "}
+          <Badge variant="outline" className="text-[10px]">
+            {accountType === "organization" ? "組織" : "個人"}
+          </Badge>
+        </p>
+      </div>
+
+      {/* ── Active workspace quick-access ──────────────────────────────── */}
+      {activeWorkspace ? (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold">
+              目前工作區：{activeWorkspace.name}
+            </h2>
+            <Badge variant="secondary" className="text-[10px]">
+              {activeWorkspace.lifecycleState}
+            </Badge>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {WORKSPACE_QUICK_ACCESS_CARDS.map((card) => (
+              <Link
+                key={card.key}
+                href={card.buildHref(accountId, activeWorkspace.id)}
+                className="group"
+              >
+                <Card className="h-full transition-colors group-hover:border-primary/50 group-hover:bg-accent/40">
+                  <CardHeader className="flex-row items-center gap-2 pb-1 pt-3">
+                    {card.icon}
+                    <CardTitle className="text-sm">{card.label}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pb-3 pt-0">
+                    <CardDescription className="text-xs">
+                      {card.description}
+                    </CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : (
+        <section className="rounded-2xl border border-border/50 bg-card/70 p-6">
+          <p className="text-sm text-muted-foreground">
+            {workspacesHydrated
+              ? "尚未選取工作區。請先從工作區中心選擇一個工作區。"
+              : "正在載入工作區資料…"}
+          </p>
+        </section>
+      )}
+
+      {/* ── All workspaces list ─────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold">
+          所有工作區
+          <span className="ml-2 text-xs font-normal text-muted-foreground">
+            ({sortedWorkspaces.length})
+          </span>
+        </h2>
+
+        {!workspacesHydrated ? (
+          <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+            正在載入工作區清單…
+          </div>
+        ) : sortedWorkspaces.length === 0 ? (
+          <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+            目前帳號沒有工作區。
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {sortedWorkspaces.map((workspace) => {
+              const isActive = workspace.id === activeWorkspaceId;
+              return (
+                <Link
+                  key={workspace.id}
+                  href={`/${enc(accountId)}/${enc(workspace.id)}`}
+                  className="group"
+                >
+                  <Card
+                    className={`h-full transition-colors group-hover:border-primary/50 group-hover:bg-accent/40 ${
+                      isActive ? "border-primary/30 bg-primary/5" : ""
+                    }`}
+                  >
+                    <CardHeader className="pb-2 pt-4">
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-sm">{workspace.name}</CardTitle>
+                        {isActive && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            Active
+                          </Badge>
+                        )}
+                      </div>
+                      <CardDescription className="text-xs">
+                        {workspace.lifecycleState} · {workspace.visibility}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pb-3 pt-0">
+                      <div className="flex flex-wrap gap-1.5 text-[10px] text-muted-foreground">
+                        <span>Cap: {workspace.capabilities.length}</span>
+                        <span>·</span>
+                        <span>Teams: {workspace.teamIds.length}</span>
+                        <span>·</span>
+                        <span>Grants: {workspace.grants.length}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 ````
@@ -59164,73 +61247,6 @@ export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[] {
 }
 ````
 
-## File: modules/workspace/subdomains/audit/api/index.ts
-````typescript
-/**
- * workspace/subdomains/audit API boundary.
- */
-
-export type { AuditLogEntity, AuditLogSource } from "../domain/entities/AuditLog";
-
-export type {
-  AuditLog,
-  AuditAction,
-  AuditSeverity,
-  ChangeRecord,
-} from "../domain/schema";
-
-export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "../domain/schema";
-
-export {
-  getOrganizationAuditLogs,
-  getWorkspaceAuditLogs,
-} from "../interfaces/queries/audit.queries";
-
-export { WorkspaceAuditTab } from "../interfaces/components/WorkspaceAuditTab";
-export { AuditStream } from "../interfaces/components/AuditStream";
-export { RecordAuditEntryUseCase } from "../application/use-cases/record-audit-entry.use-case";
-````
-
-## File: modules/workspace/subdomains/audit/application/queries/list-audit-logs.queries.ts
-````typescript
-import type { AuditLogEntity } from "../../domain/entities/AuditLog";
-import type { AuditRepository } from "../../domain/repositories/AuditRepository";
-
-export class ListWorkspaceAuditLogsUseCase {
-  constructor(private readonly auditRepo: AuditRepository) {}
-
-  execute(workspaceId: string): Promise<AuditLogEntity[]> {
-    return this.auditRepo.findByWorkspaceId(workspaceId);
-  }
-}
-
-export class ListOrganizationAuditLogsUseCase {
-  constructor(private readonly auditRepo: AuditRepository) {}
-
-  execute(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]> {
-    return this.auditRepo.findByWorkspaceIds(workspaceIds, maxCount);
-  }
-}
-````
-
-## File: modules/workspace/subdomains/audit/application/use-cases/record-audit-entry.use-case.ts
-````typescript
-import { AuditEntry, type RecordAuditEntryInput } from "../../domain/aggregates/AuditEntry";
-import type { AuditDomainEventType } from "../../domain/events";
-import type { AuditRepository } from "../../domain/repositories/AuditRepository";
-
-export class RecordAuditEntryUseCase {
-  constructor(private readonly repo: AuditRepository) {}
-
-  async execute(input: RecordAuditEntryInput): Promise<AuditDomainEventType[]> {
-    const id = crypto.randomUUID();
-    const entry = AuditEntry.record(id, input);
-    await this.repo.save(entry);
-    return entry.pullDomainEvents();
-  }
-}
-````
-
 ## File: modules/workspace/subdomains/audit/domain/entities/AuditLog.ts
 ````typescript
 export type AuditLogSource = "workspace" | "finance" | "notification" | "system";
@@ -59250,18 +61266,6 @@ export interface AuditLogEntity {
   readonly detail: string;
   readonly source: AuditLogSource;
   readonly occurredAtISO: string;
-}
-````
-
-## File: modules/workspace/subdomains/audit/domain/repositories/AuditRepository.ts
-````typescript
-import type { AuditEntry } from "../aggregates/AuditEntry";
-import type { AuditLogEntity } from "../entities/AuditLog";
-
-export interface AuditRepository {
-  save(entry: AuditEntry): Promise<void>;
-  findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]>;
-  findByWorkspaceIds(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]>;
 }
 ````
 
@@ -59293,43 +61297,89 @@ export function unsafeActorId(raw: string): ActorId {
 }
 ````
 
-## File: modules/workspace/subdomains/audit/interfaces/queries/audit.queries.ts
+## File: modules/workspace/subdomains/audit/infrastructure/firebase/FirebaseAuditRepository.ts
 ````typescript
-import type { AuditLogEntity } from "../../application/dto/audit.dto";
 import {
-  ListOrganizationAuditLogsUseCase,
-  ListWorkspaceAuditLogsUseCase,
-} from "../../application/queries/list-audit-logs.queries";
-import { makeAuditRepo } from "../../api/factories";
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import type { AuditEntry } from "../../domain/aggregates/AuditEntry";
+import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
+import type { AuditRepository } from "../../domain/repositories/AuditRepository";
 
-const auditRepo = makeAuditRepo();
-const listWorkspaceAuditLogsUseCase = new ListWorkspaceAuditLogsUseCase(auditRepo);
-const listOrganizationAuditLogsUseCase = new ListOrganizationAuditLogsUseCase(auditRepo);
+const VALID_AUDIT_LOG_SOURCES = new Set<AuditLogSource>([
+  "workspace",
+  "finance",
+  "notification",
+  "system",
+]);
 
-export async function getWorkspaceAuditLogs(
-  workspaceId: string,
-): Promise<AuditLogEntity[]> {
-  const normalizedWorkspaceId = workspaceId.trim();
-  if (!normalizedWorkspaceId) {
-    return [];
-  }
+function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEntity {
+  const source = VALID_AUDIT_LOG_SOURCES.has(data.source as AuditLogSource)
+    ? (data.source as AuditLogSource)
+    : "workspace";
 
-  return listWorkspaceAuditLogsUseCase.execute(normalizedWorkspaceId);
+  return {
+    id,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    actorId: typeof data.actorId === "string" ? data.actorId : "system",
+    action: typeof data.action === "string" ? data.action : "unknown",
+    detail: typeof data.detail === "string" ? data.detail : "",
+    source,
+    occurredAtISO:
+      typeof data.occurredAtISO === "string"
+        ? data.occurredAtISO
+        : "",
+  };
 }
 
-export async function getOrganizationAuditLogs(
-  workspaceIds: string[],
-  maxCount = 200,
-): Promise<AuditLogEntity[]> {
-  const normalizedWorkspaceIds = workspaceIds
-    .map((workspaceId) => workspaceId.trim())
-    .filter(Boolean);
-
-  if (normalizedWorkspaceIds.length === 0) {
-    return [];
+export class FirebaseAuditRepository implements AuditRepository {
+  async save(entry: AuditEntry): Promise<void> {
+    const id = crypto.randomUUID();
+    await firestoreInfrastructureApi.set(`auditLogs/${id}`, entry.getSnapshot());
   }
 
-  return listOrganizationAuditLogsUseCase.execute(normalizedWorkspaceIds, maxCount);
+  async findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      "auditLogs",
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+    );
+
+    return docs
+      .map((doc) => toAuditLogEntity(doc.id, doc.data))
+      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO));
+  }
+
+  async findByWorkspaceIds(
+    workspaceIds: string[],
+    maxCount = 200,
+  ): Promise<AuditLogEntity[]> {
+    if (workspaceIds.length === 0) {
+      return [];
+    }
+
+    const chunks: string[][] = [];
+    for (let index = 0; index < workspaceIds.length; index += 10) {
+      chunks.push(workspaceIds.slice(index, index + 10));
+    }
+
+    const perChunkLimit = Math.max(1, Math.ceil(maxCount / chunks.length));
+
+    const documents = await Promise.all(
+      chunks.map((chunk) =>
+        firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+          "auditLogs",
+          [{ field: "workspaceId", op: "in", value: chunk }],
+          { limit: perChunkLimit },
+        ),
+      ),
+    );
+
+    return documents
+      .flatMap((document) => document)
+      .map((doc) => toAuditLogEntity(doc.id, doc.data))
+      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO))
+      .slice(0, maxCount);
+  }
 }
 ````
 
@@ -59363,131 +61413,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/workspace/subdomains/feed/application/queries/workspace-feed-post.queries.ts
-````typescript
-import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
-import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
-import {
-  ListWorkspaceFeedSchema,
-  type ListWorkspaceFeedDto,
-  ListAccountFeedSchema,
-  type ListAccountFeedDto,
-} from "../dto/workspace-feed.dto";
-
-export class GetWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
-    if (!accountId.trim() || !postId.trim()) return null;
-    return this.repo.findById(accountId, postId);
-  }
-}
-
-export class ListWorkspaceFeedUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ListWorkspaceFeedDto): Promise<WorkspaceFeedPost[]> {
-    const parsed = ListWorkspaceFeedSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByWorkspaceId(parsed.data.accountId, parsed.data.workspaceId, parsed.data.limit ?? 50);
-  }
-}
-
-export class ListAccountWorkspaceFeedUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ListAccountFeedDto): Promise<WorkspaceFeedPost[]> {
-    const parsed = ListAccountFeedSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByAccountId(parsed.data.accountId, parsed.data.limit ?? 50);
-  }
-}
-````
-
-## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed-post.use-cases.ts
-````typescript
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
-import {
-  CreateWorkspaceFeedPostSchema,
-  type CreateWorkspaceFeedPostDto,
-  ReplyWorkspaceFeedPostSchema,
-  type ReplyWorkspaceFeedPostDto,
-  RepostWorkspaceFeedPostSchema,
-  type RepostWorkspaceFeedPostDto,
-} from "../dto/workspace-feed.dto";
-
-export class CreateWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = CreateWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.repo.createPost(parsed.data);
-    return commandSuccess(post.id, Date.now());
-  }
-}
-
-export class ReplyWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = ReplyWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const parent = await this.repo.findById(parsed.data.accountId, parsed.data.parentPostId);
-    if (!parent) {
-      return commandFailureFrom("WORKSPACE_FEED_PARENT_NOT_FOUND", "Parent post not found.");
-    }
-    if (parent.workspaceId !== parsed.data.workspaceId) {
-      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Parent post is in another workspace.");
-    }
-
-    const reply = await this.repo.createReply(parsed.data);
-    return commandSuccess(reply.id, Date.now());
-  }
-}
-
-export class RepostWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = RepostWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const source = await this.repo.findById(parsed.data.accountId, parsed.data.sourcePostId);
-    if (!source) {
-      return commandFailureFrom("WORKSPACE_FEED_SOURCE_NOT_FOUND", "Source post not found.");
-    }
-    if (source.workspaceId !== parsed.data.workspaceId) {
-      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Source post is in another workspace.");
-    }
-
-    const repost = await this.repo.createRepost(parsed.data);
-    if (!repost) {
-      return commandFailureFrom("WORKSPACE_FEED_REPOST_FAILED", "Failed to create repost.");
-    }
-
-    return commandSuccess(repost.id, Date.now());
-  }
-}
-
-// Re-export read queries for backward compatibility
-export {
-  GetWorkspaceFeedPostUseCase,
-  ListWorkspaceFeedUseCase,
-  ListAccountWorkspaceFeedUseCase,
-} from "../queries/workspace-feed-post.queries";
 ````
 
 ## File: modules/workspace/subdomains/feed/infrastructure/firebase/FirebaseWorkspaceFeedInteractionRepository.ts
@@ -61829,6 +63754,22 @@ export function ShellContextNavSection({
 }
 ````
 
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/dashboard/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+interface AccountWorkspaceDashboardPageProps {
+  params: {
+    accountId: string;
+    workspaceId: string;
+  };
+}
+
+export default function AccountWorkspaceDashboardPage({ params }: AccountWorkspaceDashboardPageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}/dashboard`);
+}
+````
+
 ## File: app/(shell)/(account)/[accountId]/layout.tsx
 ````typescript
 import type { ReactNode } from "react";
@@ -62237,22 +64178,6 @@ export {
 	sourceWikiLibraryUseCases,
 } from '../../subdomains/source/application';
 export * as synthesisUseCases from '../../subdomains/synthesis/application';
-````
-
-## File: modules/notebooklm/interfaces/conversation/_actions/thread.actions.ts
-````typescript
-"use server";
-
-import type { Thread } from "../../../subdomains/conversation/application/dto/conversation.dto";
-import { makeThreadRepo } from "../composition/adapters";
-
-export async function saveThread(accountId: string, thread: Thread): Promise<void> {
-  await makeThreadRepo().save(accountId, thread);
-}
-
-export async function loadThread(accountId: string, threadId: string): Promise<Thread | null> {
-  return makeThreadRepo().getById(accountId, threadId);
-}
 ````
 
 ## File: modules/notebooklm/interfaces/notebook/_actions/generate-notebook-response.actions.ts
@@ -64226,203 +66151,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notion/subdomains/database/application/use-cases/AutomationUseCases.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: application/use-cases
- * Purpose: Automation CRUD use cases.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IAutomationRepository, CreateAutomationInput, UpdateAutomationInput } from "../../domain/repositories/IAutomationRepository";
-
-export class CreateAutomationUseCase {
-  constructor(private readonly repo: IAutomationRepository) {}
-
-  async execute(input: CreateAutomationInput): Promise<CommandResult> {
-    if (!input.name.trim()) {
-      return commandFailureFrom("AUTOMATION_INVALID_INPUT", "Automation name is required.");
-    }
-    const automation = await this.repo.create(input);
-    return commandSuccess(automation.id, Date.now());
-  }
-}
-
-export class UpdateAutomationUseCase {
-  constructor(private readonly repo: IAutomationRepository) {}
-
-  async execute(input: UpdateAutomationInput): Promise<CommandResult> {
-    const result = await this.repo.update(input);
-    if (!result) return commandFailureFrom("AUTOMATION_NOT_FOUND", "Automation not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class DeleteAutomationUseCase {
-  constructor(private readonly repo: IAutomationRepository) {}
-
-  async execute(id: string, accountId: string, databaseId: string): Promise<CommandResult> {
-    await this.repo.delete(id, accountId, databaseId);
-    return commandSuccess(id, Date.now());
-  }
-}
-
-// Re-export read queries for backward compatibility
-export { ListAutomationsUseCase } from "../queries/automation.queries";
-````
-
-## File: modules/notion/subdomains/database/application/use-cases/DatabaseUseCases.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: application/use-cases
- * Purpose: Database aggregate use cases — create, update, addField, archive, get, list.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { IDatabaseRepository } from "../../domain/repositories/IDatabaseRepository";
-import { CreateDatabaseSchema, UpdateDatabaseSchema, AddFieldSchema, ArchiveDatabaseSchema } from "../dto/DatabaseDto";
-import type { CreateDatabaseDto, UpdateDatabaseDto, AddFieldDto, ArchiveDatabaseDto } from "../dto/DatabaseDto";
-
-export class CreateDatabaseUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
-  async execute(input: CreateDatabaseDto): Promise<CommandResult> {
-    const parsed = CreateDatabaseSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
-    const result = await this.repo.create(parsed.data);
-    return commandSuccess(result.id, 1);
-  }
-}
-
-export class UpdateDatabaseUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
-  async execute(input: UpdateDatabaseDto): Promise<CommandResult> {
-    const parsed = UpdateDatabaseSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
-    const result = await this.repo.update(parsed.data);
-    return commandSuccess(result?.id ?? parsed.data.id, 0);
-  }
-}
-
-export class AddFieldUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
-  async execute(input: AddFieldDto): Promise<CommandResult> {
-    const parsed = AddFieldSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
-    await this.repo.addField(parsed.data);
-    return commandSuccess(parsed.data.databaseId, 0);
-  }
-}
-
-export class ArchiveDatabaseUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
-  async execute(input: ArchiveDatabaseDto): Promise<CommandResult> {
-    const parsed = ArchiveDatabaseSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
-    await this.repo.archive(parsed.data.id, parsed.data.accountId);
-    return commandSuccess(parsed.data.id, 0);
-  }
-}
-
-// Re-export read queries for backward compatibility
-export { GetDatabaseUseCase, ListDatabasesUseCase } from "../queries/database.queries";
-````
-
-## File: modules/notion/subdomains/database/application/use-cases/RecordUseCases.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: application/use-cases
- * Purpose: DatabaseRecord use cases — create, update, delete, list.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { IDatabaseRecordRepository } from "../../domain/repositories/IDatabaseRecordRepository";
-import { CreateRecordSchema, UpdateRecordSchema, DeleteRecordSchema } from "../dto/DatabaseDto";
-import type { CreateRecordDto, UpdateRecordDto, DeleteRecordDto } from "../dto/DatabaseDto";
-
-export class CreateRecordUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
-  async execute(input: CreateRecordDto): Promise<CommandResult> {
-    const parsed = CreateRecordSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
-    const result = await this.repo.create(parsed.data);
-    return commandSuccess(result.id, 1);
-  }
-}
-
-export class UpdateRecordUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
-  async execute(input: UpdateRecordDto): Promise<CommandResult> {
-    const parsed = UpdateRecordSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
-    const result = await this.repo.update(parsed.data);
-    return commandSuccess(result.id, 0);
-  }
-}
-
-export class DeleteRecordUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
-  async execute(input: DeleteRecordDto): Promise<CommandResult> {
-    const parsed = DeleteRecordSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
-    await this.repo.delete(parsed.data.id, parsed.data.accountId);
-    return commandSuccess(parsed.data.id, 0);
-  }
-}
-
-// Re-export read queries for backward compatibility
-export { ListRecordsUseCase } from "../queries/record.queries";
-````
-
-## File: modules/notion/subdomains/database/application/use-cases/ViewUseCases.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: application/use-cases
- * Purpose: View use cases — create, update, delete, list.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { IViewRepository } from "../../domain/repositories/IViewRepository";
-import { CreateViewSchema, UpdateViewSchema, DeleteViewSchema } from "../dto/DatabaseDto";
-import type { CreateViewDto, UpdateViewDto, DeleteViewDto } from "../dto/DatabaseDto";
-
-export class CreateViewUseCase {
-  constructor(private readonly repo: IViewRepository) {}
-  async execute(input: CreateViewDto): Promise<CommandResult> {
-    const parsed = CreateViewSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
-    const result = await this.repo.create(parsed.data);
-    return commandSuccess(result.id, 1);
-  }
-}
-
-export class UpdateViewUseCase {
-  constructor(private readonly repo: IViewRepository) {}
-  async execute(input: UpdateViewDto): Promise<CommandResult> {
-    const parsed = UpdateViewSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
-    const result = await this.repo.update(parsed.data);
-    return commandSuccess(result.id, 0);
-  }
-}
-
-export class DeleteViewUseCase {
-  constructor(private readonly repo: IViewRepository) {}
-  async execute(input: DeleteViewDto): Promise<CommandResult> {
-    const parsed = DeleteViewSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
-    await this.repo.delete(parsed.data.id, parsed.data.accountId);
-    return commandSuccess(parsed.data.id, 0);
-  }
-}
-
-// Re-export read queries for backward compatibility
-export { ListViewsUseCase } from "../queries/view.queries";
-````
-
 ## File: modules/notion/subdomains/database/README.md
 ````markdown
 # Database
@@ -64520,81 +66248,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notion/subdomains/relations/api/index.ts
-````typescript
-/**
- * Public API boundary for the relations subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Status: Tier 2 Recommended Gap Subdomain
- */
-
-// ── Domain types ──────────────────────────────────────────────────────────────
-export type {
-  RelationDirection,
-  Relation,
-  CreateRelationInput,
-} from "../domain/entities/Relation";
-
-// ── Repository contracts ───────────────────────────────────────────────────────
-export type {
-  IRelationRepository,
-} from "../domain/repositories/IRelationRepository";
-
-// ── Domain events ─────────────────────────────────────────────────────────────
-export type {
-  RelationCreatedEvent,
-  RelationRemovedEvent,
-} from "../domain/events/RelationEvents";
-
-// ── Application DTOs ──────────────────────────────────────────────────────────
-export type {
-  CreateRelationDto,
-  RelationDto,
-} from "../application/dto/RelationDto";
-
-// ── Use cases ─────────────────────────────────────────────────────────────────
-export {
-  CreateRelationUseCase,
-  RemoveRelationUseCase,
-  ListRelationsBySourceUseCase,
-  ListRelationsByTargetUseCase,
-} from "../application/use-cases/RelationUseCases";
-````
-
-## File: modules/notion/subdomains/relations/README.md
-````markdown
-# Relations
-
-建立內容之間關聯與 backlink 的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Local public boundary for same bounded context access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, events, repositories, and business rules |
-
-> By default, `infrastructure/` and `interfaces/` live at the bounded-context root and are grouped by subdomain. Add local `infrastructure/` or `interfaces/` inside a subdomain only when the mini-module gate is explicitly justified.
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/notion/subdomains/taxonomy/api/index.ts
 ````typescript
 /**
@@ -64634,39 +66287,6 @@ export {
   ListTaxonomyRootsUseCase,
   ListTaxonomyChildrenUseCase,
 } from "../application/use-cases/TaxonomyUseCases";
-````
-
-## File: modules/notion/subdomains/taxonomy/README.md
-````markdown
-# Taxonomy
-
-建立分類法與語義組織的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Local public boundary for same bounded context access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, events, repositories, and business rules |
-
-> By default, `infrastructure/` and `interfaces/` live at the bounded-context root and are grouped by subdomain. Add local `infrastructure/` or `interfaces/` inside a subdomain only when the mini-module gate is explicitly justified.
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/application/services/shell-quick-create.ts
@@ -64795,11 +66415,162 @@ export function ShellUserAvatar({ name, email, onSignOut }: ShellUserAvatarProps
 }
 ````
 
-## File: modules/platform/subdomains/access-control/application/index.ts
+## File: modules/platform/subdomains/access-control/api/index.ts
 ````typescript
-export * from "./dtos";
-export * from "./use-cases";
-export * from "./services/shell-account-access";
+/**
+ * Public API boundary for the access-control subdomain.
+ */
+export * from "../application";
+export { accessControlService } from "../infrastructure";
+export type { AccessPolicySnapshot, CreateAccessPolicyInput } from "../domain/aggregates/AccessPolicy";
+export type { AccessPolicyDomainEventType } from "../domain/events/AccessPolicyDomainEvent";
+export type { AccessPolicyRepository } from "../domain/repositories/AccessPolicyRepository";
+export type { SubjectRef } from "../domain/value-objects/SubjectRef";
+export type { ResourceRef } from "../domain/value-objects/ResourceRef";
+export type { PolicyEffect } from "../domain/value-objects/PolicyEffect";
+export {
+	isOrganizationActor,
+	isActiveOrganizationAccount,
+	resolveOrganizationRouteFallback,
+	type ShellAccountActor,
+} from "../application/services/shell-account-access";
+````
+
+## File: modules/platform/subdomains/access-control/application/use-cases/access-control.use-cases.ts
+````typescript
+/**
+ * Access-Control Use Cases — pure application logic.
+ */
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { AccessPolicy } from "../../domain/aggregates/AccessPolicy";
+import {
+  allowDecision,
+  denyDecision,
+} from "../../../../domain/value-objects/PermissionDecision";
+import type { AccessPolicyRepository } from "../../domain/repositories/AccessPolicyRepository";
+import type { SubjectRef } from "../../domain/value-objects/SubjectRef";
+import type { ResourceRef } from "../../domain/value-objects/ResourceRef";
+import type { PolicyEffect } from "../../domain/value-objects/PolicyEffect";
+
+// ─── Evaluate Permission ──────────────────────────────────────────────────────
+
+export class EvaluatePermissionUseCase {
+  constructor(private readonly repo: AccessPolicyRepository) {}
+
+  async execute(input: {
+    subjectId: string;
+    resourceType: string;
+    resourceId?: string;
+    action: string;
+  }): Promise<CommandResult> {
+    try {
+      const policies = await this.repo.findActiveBySubjectAndResource(
+        input.subjectId,
+        input.resourceType,
+        input.resourceId,
+      );
+
+      // Explicit deny takes priority (deny-override semantics)
+      const hasDeny = policies.some(
+        (p) => p.effect === "deny" && p.actions.includes(input.action),
+      );
+      if (hasDeny) {
+        return commandSuccess(JSON.stringify(denyDecision("Explicit deny policy matched")), Date.now());
+      }
+
+      const hasAllow = policies.some(
+        (p) => p.effect === "allow" && p.actions.includes(input.action),
+      );
+      if (hasAllow) {
+        return commandSuccess(JSON.stringify(allowDecision("Allow policy matched")), Date.now());
+      }
+
+      return commandSuccess(JSON.stringify(denyDecision("No matching allow policy")), Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "EVALUATE_PERMISSION_FAILED",
+        err instanceof Error ? err.message : "Failed to evaluate permission",
+      );
+    }
+  }
+}
+
+// ─── Create Access Policy ─────────────────────────────────────────────────────
+
+export class CreateAccessPolicyUseCase {
+  constructor(private readonly repo: AccessPolicyRepository) {}
+
+  async execute(input: {
+    subjectRef: SubjectRef;
+    resourceRef: ResourceRef;
+    actions: string[];
+    effect: PolicyEffect;
+    conditions?: string[];
+  }): Promise<CommandResult> {
+    try {
+      const id = crypto.randomUUID();
+      const policy = AccessPolicy.create(id, input);
+      await this.repo.save(policy.getSnapshot());
+      return commandSuccess(id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CREATE_ACCESS_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to create access policy",
+      );
+    }
+  }
+}
+
+// ─── Update Access Policy ─────────────────────────────────────────────────────
+
+export class UpdateAccessPolicyUseCase {
+  constructor(private readonly repo: AccessPolicyRepository) {}
+
+  async execute(
+    policyId: string,
+    input: { actions?: string[]; effect?: PolicyEffect; conditions?: string[] },
+  ): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(policyId);
+      if (!snapshot) {
+        return commandFailureFrom("POLICY_NOT_FOUND", `AccessPolicy ${policyId} not found`);
+      }
+      const policy = AccessPolicy.reconstitute(snapshot);
+      policy.update(input);
+      await this.repo.update(policy.getSnapshot());
+      return commandSuccess(policyId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "UPDATE_ACCESS_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to update access policy",
+      );
+    }
+  }
+}
+
+// ─── Delete (Deactivate) Access Policy ───────────────────────────────────────
+
+export class DeactivateAccessPolicyUseCase {
+  constructor(private readonly repo: AccessPolicyRepository) {}
+
+  async execute(policyId: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(policyId);
+      if (!snapshot) {
+        return commandFailureFrom("POLICY_NOT_FOUND", `AccessPolicy ${policyId} not found`);
+      }
+      const policy = AccessPolicy.reconstitute(snapshot);
+      policy.deactivate();
+      await this.repo.update(policy.getSnapshot());
+      return commandSuccess(policyId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "DEACTIVATE_ACCESS_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to deactivate access policy",
+      );
+    }
+  }
+}
 ````
 
 ## File: modules/platform/subdomains/account-profile/infrastructure/account-profile-service.ts
@@ -64962,127 +66733,6 @@ export function resolveActiveAccount(input: ResolveActiveAccountInput): Selectab
   }
 
   return currentActive ?? personalAccount;
-}
-````
-
-## File: modules/platform/subdomains/entitlement/application/use-cases/entitlement.use-cases.ts
-````typescript
-/**
- * Entitlement Use Cases — pure application logic.
- * All cross-domain dependencies are injected via ports.
- */
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import { EntitlementGrant } from "../../domain/aggregates/EntitlementGrant";
-import type { EntitlementGrantRepository } from "../../domain/repositories/EntitlementGrantRepository";
-
-// ─── Grant Entitlement ────────────────────────────────────────────────────────
-
-export class GrantEntitlementUseCase {
-  constructor(private readonly repo: EntitlementGrantRepository) {}
-
-  async execute(input: {
-    contextId: string;
-    featureKey: string;
-    quota?: number | null;
-    expiresAt?: string | null;
-  }): Promise<CommandResult> {
-    try {
-      const id = crypto.randomUUID();
-      const grant = EntitlementGrant.create(id, input);
-      await this.repo.save(grant.getSnapshot());
-      return commandSuccess(id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "GRANT_ENTITLEMENT_FAILED",
-        err instanceof Error ? err.message : "Failed to grant entitlement",
-      );
-    }
-  }
-}
-
-// ─── Suspend Entitlement ──────────────────────────────────────────────────────
-
-export class SuspendEntitlementUseCase {
-  constructor(private readonly repo: EntitlementGrantRepository) {}
-
-  async execute(entitlementId: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(entitlementId);
-      if (!snapshot) {
-        return commandFailureFrom("ENTITLEMENT_NOT_FOUND", `Entitlement ${entitlementId} not found`);
-      }
-      const grant = EntitlementGrant.reconstitute(snapshot);
-      grant.suspend();
-      await this.repo.update(grant.getSnapshot());
-      return commandSuccess(entitlementId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "SUSPEND_ENTITLEMENT_FAILED",
-        err instanceof Error ? err.message : "Failed to suspend entitlement",
-      );
-    }
-  }
-}
-
-// ─── Revoke Entitlement ───────────────────────────────────────────────────────
-
-export class RevokeEntitlementUseCase {
-  constructor(private readonly repo: EntitlementGrantRepository) {}
-
-  async execute(entitlementId: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(entitlementId);
-      if (!snapshot) {
-        return commandFailureFrom("ENTITLEMENT_NOT_FOUND", `Entitlement ${entitlementId} not found`);
-      }
-      const grant = EntitlementGrant.reconstitute(snapshot);
-      grant.revoke();
-      await this.repo.update(grant.getSnapshot());
-      return commandSuccess(entitlementId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "REVOKE_ENTITLEMENT_FAILED",
-        err instanceof Error ? err.message : "Failed to revoke entitlement",
-      );
-    }
-  }
-}
-
-// ─── Resolve Entitlements (query-style) ───────────────────────────────────────
-
-export class ResolveEntitlementsUseCase {
-  constructor(private readonly repo: EntitlementGrantRepository) {}
-
-  async execute(contextId: string): Promise<CommandResult> {
-    try {
-      const snapshots = await this.repo.findByContextId(contextId);
-      const active = snapshots.filter((s) => s.status === "active");
-      return commandSuccess(JSON.stringify(active), Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "RESOLVE_ENTITLEMENTS_FAILED",
-        err instanceof Error ? err.message : "Failed to resolve entitlements",
-      );
-    }
-  }
-}
-
-// ─── Check Feature Entitlement ────────────────────────────────────────────────
-
-export class CheckFeatureEntitlementUseCase {
-  constructor(private readonly repo: EntitlementGrantRepository) {}
-
-  async execute(contextId: string, featureKey: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findActiveByContextAndFeature(contextId, featureKey);
-      return commandSuccess(JSON.stringify({ entitled: snapshot !== null, snapshot }), Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CHECK_ENTITLEMENT_FAILED",
-        err instanceof Error ? err.message : "Failed to check entitlement",
-      );
-    }
-  }
 }
 ````
 
@@ -65469,288 +67119,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/platform/subdomains/subscription/application/use-cases/subscription.use-cases.ts
-````typescript
-/**
- * Subscription Use Cases — pure application logic.
- */
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import { Subscription } from "../../domain/aggregates/Subscription";
-import type { SubscriptionRepository } from "../../domain/repositories/SubscriptionRepository";
-import type { BillingCycle } from "../../domain/value-objects/BillingCycle";
-
-// ─── Activate Subscription ────────────────────────────────────────────────────
-
-export class ActivateSubscriptionUseCase {
-  constructor(private readonly repo: SubscriptionRepository) {}
-
-  async execute(input: {
-    contextId: string;
-    planCode: string;
-    billingCycle: BillingCycle;
-    currentPeriodEnd?: string | null;
-  }): Promise<CommandResult> {
-    try {
-      const id = crypto.randomUUID();
-      const sub = Subscription.create(id, input);
-      await this.repo.save(sub.getSnapshot());
-      return commandSuccess(id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "ACTIVATE_SUBSCRIPTION_FAILED",
-        err instanceof Error ? err.message : "Failed to activate subscription",
-      );
-    }
-  }
-}
-
-// ─── Cancel Subscription ──────────────────────────────────────────────────────
-
-export class CancelSubscriptionUseCase {
-  constructor(private readonly repo: SubscriptionRepository) {}
-
-  async execute(subscriptionId: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(subscriptionId);
-      if (!snapshot) {
-        return commandFailureFrom("SUBSCRIPTION_NOT_FOUND", `Subscription ${subscriptionId} not found`);
-      }
-      const sub = Subscription.reconstitute(snapshot);
-      sub.cancel();
-      await this.repo.update(sub.getSnapshot());
-      return commandSuccess(subscriptionId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CANCEL_SUBSCRIPTION_FAILED",
-        err instanceof Error ? err.message : "Failed to cancel subscription",
-      );
-    }
-  }
-}
-
-// ─── Renew Subscription ───────────────────────────────────────────────────────
-
-export class RenewSubscriptionUseCase {
-  constructor(private readonly repo: SubscriptionRepository) {}
-
-  async execute(subscriptionId: string, newPeriodEnd: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(subscriptionId);
-      if (!snapshot) {
-        return commandFailureFrom("SUBSCRIPTION_NOT_FOUND", `Subscription ${subscriptionId} not found`);
-      }
-      const sub = Subscription.reconstitute(snapshot);
-      sub.renew(newPeriodEnd);
-      await this.repo.update(sub.getSnapshot());
-      return commandSuccess(subscriptionId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "RENEW_SUBSCRIPTION_FAILED",
-        err instanceof Error ? err.message : "Failed to renew subscription",
-      );
-    }
-  }
-}
-
-// ─── Get Active Subscription (query-style) ───────────────────────────────────
-
-export class GetActiveSubscriptionUseCase {
-  constructor(private readonly repo: SubscriptionRepository) {}
-
-  async execute(contextId: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findActiveByContextId(contextId);
-      return commandSuccess(JSON.stringify(snapshot), Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "GET_ACTIVE_SUBSCRIPTION_FAILED",
-        err instanceof Error ? err.message : "Failed to get active subscription",
-      );
-    }
-  }
-}
-
-// ─── Mark Past Due ────────────────────────────────────────────────────────────
-
-export class MarkSubscriptionPastDueUseCase {
-  constructor(private readonly repo: SubscriptionRepository) {}
-
-  async execute(subscriptionId: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(subscriptionId);
-      if (!snapshot) {
-        return commandFailureFrom("SUBSCRIPTION_NOT_FOUND", `Subscription ${subscriptionId} not found`);
-      }
-      const sub = Subscription.reconstitute(snapshot);
-      sub.markPastDue();
-      await this.repo.update(sub.getSnapshot());
-      return commandSuccess(subscriptionId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "MARK_PAST_DUE_FAILED",
-        err instanceof Error ? err.message : "Failed to mark subscription past due",
-      );
-    }
-  }
-}
-````
-
-## File: modules/platform/subdomains/subscription/domain/aggregates/Subscription.ts
-````typescript
-import type { SubscriptionDomainEventType } from "../events/SubscriptionDomainEvent";
-import { createSubscriptionId, canCancel, canRenew } from "../value-objects";
-import type { SubscriptionStatus } from "../value-objects";
-import type { BillingCycle } from "../value-objects/BillingCycle";
-
-export interface SubscriptionSnapshot {
-  readonly id: string;
-  readonly contextId: string;
-  readonly planCode: string;
-  readonly billingCycle: BillingCycle;
-  readonly status: SubscriptionStatus;
-  readonly currentPeriodStart: string;
-  readonly currentPeriodEnd: string | null;
-  readonly cancelledAt: string | null;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-
-export interface CreateSubscriptionInput {
-  readonly contextId: string;
-  readonly planCode: string;
-  readonly billingCycle: BillingCycle;
-  readonly currentPeriodStart?: string;
-  readonly currentPeriodEnd?: string | null;
-}
-
-export class Subscription {
-  private readonly _domainEvents: SubscriptionDomainEventType[] = [];
-
-  private constructor(private _props: SubscriptionSnapshot) {}
-
-  static create(id: string, input: CreateSubscriptionInput): Subscription {
-    createSubscriptionId(id);
-    const now = new Date().toISOString();
-    const sub = new Subscription({
-      id,
-      contextId: input.contextId,
-      planCode: input.planCode,
-      billingCycle: input.billingCycle,
-      status: "active",
-      currentPeriodStart: input.currentPeriodStart ?? now,
-      currentPeriodEnd: input.currentPeriodEnd ?? null,
-      cancelledAt: null,
-      createdAtISO: now,
-      updatedAtISO: now,
-    });
-    sub._domainEvents.push({
-      type: "platform.subscription.activated",
-      eventId: crypto.randomUUID(),
-      occurredAt: now,
-      payload: {
-        subscriptionId: id,
-        contextId: input.contextId,
-        planCode: input.planCode,
-        billingCycle: input.billingCycle,
-      },
-    });
-    return sub;
-  }
-
-  static reconstitute(snapshot: SubscriptionSnapshot): Subscription {
-    createSubscriptionId(snapshot.id);
-    return new Subscription({ ...snapshot });
-  }
-
-  cancel(): void {
-    if (!canCancel(this._props.status)) {
-      throw new Error(`Subscription in status '${this._props.status}' cannot be cancelled.`);
-    }
-    const now = new Date().toISOString();
-    this._props = {
-      ...this._props,
-      status: "cancelled",
-      cancelledAt: now,
-      updatedAtISO: now,
-    };
-    this._domainEvents.push({
-      type: "platform.subscription.cancelled",
-      eventId: crypto.randomUUID(),
-      occurredAt: now,
-      payload: { subscriptionId: this._props.id, contextId: this._props.contextId },
-    });
-  }
-
-  renew(newPeriodEnd: string): void {
-    if (!canRenew(this._props.status)) {
-      throw new Error(`Subscription in status '${this._props.status}' cannot be renewed.`);
-    }
-    const now = new Date().toISOString();
-    this._props = {
-      ...this._props,
-      status: "active",
-      currentPeriodStart: now,
-      currentPeriodEnd: newPeriodEnd,
-      updatedAtISO: now,
-    };
-    this._domainEvents.push({
-      type: "platform.subscription.renewed",
-      eventId: crypto.randomUUID(),
-      occurredAt: now,
-      payload: {
-        subscriptionId: this._props.id,
-        contextId: this._props.contextId,
-        newPeriodEnd,
-      },
-    });
-  }
-
-  markPastDue(): void {
-    if (this._props.status !== "active") {
-      throw new Error("Only active subscription can be marked past due.");
-    }
-    const now = new Date().toISOString();
-    this._props = { ...this._props, status: "past_due", updatedAtISO: now };
-    this._domainEvents.push({
-      type: "platform.subscription.past_due",
-      eventId: crypto.randomUUID(),
-      occurredAt: now,
-      payload: { subscriptionId: this._props.id, contextId: this._props.contextId },
-    });
-  }
-
-  expire(): void {
-    const now = new Date().toISOString();
-    this._props = { ...this._props, status: "expired", updatedAtISO: now };
-    this._domainEvents.push({
-      type: "platform.subscription.expired",
-      eventId: crypto.randomUUID(),
-      occurredAt: now,
-      payload: { subscriptionId: this._props.id, contextId: this._props.contextId },
-    });
-  }
-
-  get id(): string { return this._props.id; }
-  get contextId(): string { return this._props.contextId; }
-  get planCode(): string { return this._props.planCode; }
-  get billingCycle(): BillingCycle { return this._props.billingCycle; }
-  get status(): SubscriptionStatus { return this._props.status; }
-  get currentPeriodEnd(): string | null { return this._props.currentPeriodEnd; }
-  get cancelledAt(): string | null { return this._props.cancelledAt; }
-  get isActive(): boolean { return this._props.status === "active" || this._props.status === "trialing"; }
-
-  getSnapshot(): Readonly<SubscriptionSnapshot> {
-    return Object.freeze({ ...this._props });
-  }
-
-  pullDomainEvents(): SubscriptionDomainEventType[] {
-    const events = [...this._domainEvents];
-    this._domainEvents.length = 0;
-    return events;
-  }
-}
-````
-
 ## File: modules/workspace/application/queries/wiki-content-tree.queries.ts
 ````typescript
 /**
@@ -65833,77 +67201,6 @@ export async function buildWikiContentTree(
     }
     return a.accountName.localeCompare(b.accountName, "zh-Hant");
   });
-}
-````
-
-## File: modules/workspace/application/queries/workspace.queries.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/queries
- * Purpose: Workspace read query handlers — pure reads with input normalization.
- *
- * DDD Rule 5:  Pure reads without business logic → Query, not Use Case.
- * DDD Rule 13: Read → queries/
- * DDD Rule 16: GetXxxUseCase → should be Query.
- * DDD Rule 18: Use Case wrapping a single call → over-design.
- */
-
-import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
-import type {
-  Unsubscribe,
-  WorkspaceQueryRepository,
-} from "../../domain/ports/output/WorkspaceQueryRepository";
-
-// ─── Input Normalization ──────────────────────────────────────────────────────
-
-function normalizeId(value: string): string {
-  return value.trim();
-}
-
-// ─── Query Handlers ───────────────────────────────────────────────────────────
-
-export function listWorkspacesForAccount(
-  workspaceRepo: WorkspaceRepository,
-  accountId: string,
-): Promise<WorkspaceEntity[]> {
-  const normalized = normalizeId(accountId);
-  if (!normalized) return Promise.resolve([]);
-  return workspaceRepo.findAllByAccountId(normalized);
-}
-
-export function subscribeToWorkspacesForAccount(
-  workspaceQueryRepo: WorkspaceQueryRepository,
-  accountId: string,
-  onUpdate: (workspaces: WorkspaceEntity[]) => void,
-): Unsubscribe {
-  const normalized = normalizeId(accountId);
-  if (!normalized) {
-    onUpdate([]);
-    return () => {};
-  }
-  return workspaceQueryRepo.subscribeToWorkspacesForAccount(normalized, onUpdate);
-}
-
-export function getWorkspaceById(
-  workspaceRepo: WorkspaceRepository,
-  workspaceId: string,
-): Promise<WorkspaceEntity | null> {
-  const normalized = normalizeId(workspaceId);
-  if (!normalized) return Promise.resolve(null);
-  return workspaceRepo.findById(normalized);
-}
-
-export function getWorkspaceByIdForAccount(
-  workspaceRepo: WorkspaceRepository,
-  accountId: string,
-  workspaceId: string,
-): Promise<WorkspaceEntity | null> {
-  const normalizedAccountId = normalizeId(accountId);
-  const normalizedWorkspaceId = normalizeId(workspaceId);
-  if (!normalizedAccountId || !normalizedWorkspaceId) return Promise.resolve(null);
-  return workspaceRepo.findByIdForAccount(normalizedAccountId, normalizedWorkspaceId);
 }
 ````
 
@@ -66034,6 +67331,74 @@ export class WorkspaceCommandApplicationService implements WorkspaceCommandPort 
 }
 ````
 
+## File: modules/workspace/application/services/WorkspaceQueryApplicationService.ts
+````typescript
+import type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+} from "../../domain/entities/WikiContentTree";
+import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMemberView";
+import {
+  getWorkspaceByIdForAccount,
+  getWorkspaceById,
+  listWorkspacesForAccount,
+  subscribeToWorkspacesForAccount,
+} from "../queries/workspace.queries";
+import { fetchWorkspaceMembers } from "../../subdomains/membership/api";
+import { buildWikiContentTree } from "../queries/wiki-content-tree.queries";
+import type { WorkspaceQueryPort } from "../../domain/ports/input/WorkspaceQueryPort";
+import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
+import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
+import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
+import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWorkspaceRepository";
+
+interface WorkspaceQueryApplicationServiceDependencies {
+  workspaceRepo: WorkspaceRepository;
+  workspaceQueryRepo: WorkspaceQueryRepository;
+  wikiWorkspaceRepo: WikiWorkspaceRepository;
+}
+
+export class WorkspaceQueryApplicationService implements WorkspaceQueryPort {
+  constructor(
+    private readonly dependencies: WorkspaceQueryApplicationServiceDependencies,
+  ) {}
+
+  getWorkspacesForAccount(accountId: string): Promise<WorkspaceEntity[]> {
+    return listWorkspacesForAccount(this.dependencies.workspaceRepo, accountId);
+  }
+
+  subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: WorkspaceEntity[]) => void,
+  ) {
+    return subscribeToWorkspacesForAccount(
+      this.dependencies.workspaceQueryRepo,
+      accountId,
+      onUpdate,
+    );
+  }
+
+  getWorkspaceById(workspaceId: string): Promise<WorkspaceEntity | null> {
+    return getWorkspaceById(this.dependencies.workspaceRepo, workspaceId);
+  }
+
+  getWorkspaceByIdForAccount(
+    accountId: string,
+    workspaceId: string,
+  ): Promise<WorkspaceEntity | null> {
+    return getWorkspaceByIdForAccount(this.dependencies.workspaceRepo, accountId, workspaceId);
+  }
+
+  getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
+    return fetchWorkspaceMembers(this.dependencies.workspaceQueryRepo, workspaceId);
+  }
+
+  buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]> {
+    return buildWikiContentTree(seeds, this.dependencies.wikiWorkspaceRepo);
+  }
+}
+````
+
 ## File: modules/workspace/infrastructure/infrastructure.instructions.md
 ````markdown
 ---
@@ -66058,137 +67423,6 @@ For full reference, align with `.github/instructions/firestore-schema.instructio
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill xuanwu-development-contracts
-````
-
-## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
-````typescript
-import { useEffect, useMemo, useState } from "react";
-
-import type { WorkspaceEntity } from "../../api/contracts";
-
-interface RecentWorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-
-const MAX_VISIBLE_RECENT_WORKSPACES = 10;
-const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
-
-const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
-  "workspace",
-  "workspace-feed",
-  "knowledge",
-  "knowledge-base",
-  "knowledge-database",
-  "source",
-  "notebook",
-  "ai-chat",
-  "organization",
-  "settings",
-  "dashboard",
-  "dev-tools",
-]);
-
-function getStorageKey(accountId: string) {
-  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
-}
-
-function readRecentWorkspaceIds(accountId: string): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(getStorageKey(accountId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
-  } catch {
-    return [];
-  }
-}
-
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
-}
-
-function trackWorkspaceFromPath(pathname: string, accountId: string) {
-  const workspaceId = getWorkspaceIdFromPath(pathname);
-  if (!workspaceId) return;
-  const recentIds = readRecentWorkspaceIds(accountId);
-  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
-  persistRecentWorkspaceIds(accountId, deduped);
-}
-
-function getWorkspaceIdFromPath(pathname: string): string | null {
-  const legacyMatch = pathname.match(/^\/workspace\/([^/]+)/);
-  if (legacyMatch) {
-    return decodeURIComponent(legacyMatch[1]);
-  }
-
-  const segments = pathname.split("/").filter(Boolean);
-  if (segments.length < 2) {
-    return null;
-  }
-
-  const [firstSegment, secondSegment] = segments;
-  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
-    return null;
-  }
-
-  if (["organization", "settings", "dev-tools"].includes(secondSegment)) {
-    return null;
-  }
-
-  if (!secondSegment) {
-    return null;
-  }
-
-  return decodeURIComponent(secondSegment);
-}
-
-export function useRecentWorkspaces(
-  accountId: string | undefined,
-  pathname: string,
-  workspaces: WorkspaceEntity[],
-) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  useEffect(() => {
-    if (!accountId) return;
-    trackWorkspaceFromPath(pathname, accountId);
-  }, [accountId, pathname]);
-
-  const workspacesById = useMemo(
-    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
-    [workspaces],
-  );
-
-  const recentWorkspaceIds = useMemo(() => {
-    if (!accountId) return [] as string[];
-    const stored = readRecentWorkspaceIds(accountId);
-    const currentId = getWorkspaceIdFromPath(pathname);
-    if (!currentId) return stored;
-    return [currentId, ...stored.filter((id) => id !== currentId)];
-  }, [accountId, pathname]);
-
-  const recentWorkspaceLinks = useMemo<RecentWorkspaceLink[]>(() => {
-    return recentWorkspaceIds
-      .map<RecentWorkspaceLink | null>((workspaceId) => {
-        const ws = workspacesById[workspaceId];
-        if (!ws) return null;
-        const href = accountId
-          ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(ws.id)}`
-          : `/workspace/${encodeURIComponent(ws.id)}`;
-        return { id: ws.id, name: ws.name, href };
-      })
-      .filter((item): item is RecentWorkspaceLink => item !== null);
-  }, [accountId, recentWorkspaceIds, workspacesById]);
-
-  return { isExpanded, setIsExpanded, recentWorkspaceLinks };
-}
-
-export { MAX_VISIBLE_RECENT_WORKSPACES, getWorkspaceIdFromPath };
 ````
 
 ## File: modules/workspace/interfaces/web/providers/WorkspaceContextProvider.tsx
@@ -66442,92 +67676,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Context Map](../../docs/contexts/workspace/context-map.md)
 - [Ubiquitous Language](../../docs/contexts/workspace/ubiquitous-language.md)
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
-````
-
-## File: modules/workspace/subdomains/audit/infrastructure/firebase/FirebaseAuditRepository.ts
-````typescript
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api";
-import type { AuditEntry } from "../../domain/aggregates/AuditEntry";
-import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
-import type { AuditRepository } from "../../domain/repositories/AuditRepository";
-
-const VALID_AUDIT_LOG_SOURCES = new Set<AuditLogSource>([
-  "workspace",
-  "finance",
-  "notification",
-  "system",
-]);
-
-function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEntity {
-  const source = VALID_AUDIT_LOG_SOURCES.has(data.source as AuditLogSource)
-    ? (data.source as AuditLogSource)
-    : "workspace";
-
-  return {
-    id,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    actorId: typeof data.actorId === "string" ? data.actorId : "system",
-    action: typeof data.action === "string" ? data.action : "unknown",
-    detail: typeof data.detail === "string" ? data.detail : "",
-    source,
-    occurredAtISO:
-      typeof data.occurredAtISO === "string"
-        ? data.occurredAtISO
-        : "",
-  };
-}
-
-export class FirebaseAuditRepository implements AuditRepository {
-  async save(entry: AuditEntry): Promise<void> {
-    const id = crypto.randomUUID();
-    await firestoreInfrastructureApi.set(`auditLogs/${id}`, entry.getSnapshot());
-  }
-
-  async findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      "auditLogs",
-      [{ field: "workspaceId", op: "==", value: workspaceId }],
-    );
-
-    return docs
-      .map((doc) => toAuditLogEntity(doc.id, doc.data))
-      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO));
-  }
-
-  async findByWorkspaceIds(
-    workspaceIds: string[],
-    maxCount = 200,
-  ): Promise<AuditLogEntity[]> {
-    if (workspaceIds.length === 0) {
-      return [];
-    }
-
-    const chunks: string[][] = [];
-    for (let index = 0; index < workspaceIds.length; index += 10) {
-      chunks.push(workspaceIds.slice(index, index + 10));
-    }
-
-    const perChunkLimit = Math.max(1, Math.ceil(maxCount / chunks.length));
-
-    const documents = await Promise.all(
-      chunks.map((chunk) =>
-        firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-          "auditLogs",
-          [{ field: "workspaceId", op: "in", value: chunk }],
-          { limit: perChunkLimit },
-        ),
-      ),
-    );
-
-    return documents
-      .flatMap((document) => document)
-      .map((doc) => toAuditLogEntity(doc.id, doc.data))
-      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO))
-      .slice(0, maxCount);
-  }
-}
 ````
 
 ## File: modules/workspace/subdomains/subdomains.instructions.md
@@ -66796,140 +67944,6 @@ export function ShellDashboardSidebar({
 }
 ````
 
-## File: app/(shell)/_shell/ShellSidebarNavData.tsx
-````typescript
-import {
-  BookOpen,
-  Bot,
-  Brain,
-  Building2,
-  Database,
-  FileText,
-  UserRound,
-  Users,
-} from "lucide-react";
-import Link from "next/link";
-
-import {
-  type ActiveAccount,
-  isOrganizationActor,
-  isActiveOrganizationAccount,
-  SHELL_ACCOUNT_SECTION_MATCHERS,
-  SHELL_ACCOUNT_NAV_ITEMS,
-  SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
-  SHELL_SECTION_LABELS,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  type ShellNavSection,
-} from "@/modules/platform/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export interface DashboardSidebarProps {
-  readonly pathname: string;
-  readonly userId: string | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-}
-
-export type NavSection = ShellNavSection;
-
-// ── Static nav constants ──────────────────────────────────────────────────────
-
-export const ORGANIZATION_MANAGEMENT_ITEMS = SHELL_ORGANIZATION_MANAGEMENT_ITEMS;
-
-export const ACCOUNT_NAV_ITEMS = SHELL_ACCOUNT_NAV_ITEMS;
-
-export const ACCOUNT_SECTION_MATCHERS = SHELL_ACCOUNT_SECTION_MATCHERS;
-
-export const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
-  workspace: { label: SHELL_SECTION_LABELS.workspace, icon: <Building2 className="size-3" /> },
-  knowledge: { label: SHELL_SECTION_LABELS.knowledge, icon: <BookOpen className="size-3" /> },
-  "knowledge-base": { label: SHELL_SECTION_LABELS["knowledge-base"], icon: <BookOpen className="size-3" /> },
-  "knowledge-database": {
-    label: SHELL_SECTION_LABELS["knowledge-database"],
-    icon: <Database className="size-3" />,
-  },
-  source: { label: SHELL_SECTION_LABELS.source, icon: <FileText className="size-3" /> },
-  notebook: { label: SHELL_SECTION_LABELS.notebook, icon: <Brain className="size-3" /> },
-  "ai-chat": { label: SHELL_SECTION_LABELS["ai-chat"], icon: <Bot className="size-3" /> },
-  account: { label: SHELL_SECTION_LABELS.account, icon: <UserRound className="size-3" /> },
-  organization: { label: SHELL_SECTION_LABELS.organization, icon: <Users className="size-3" /> },
-  other: { label: SHELL_SECTION_LABELS.other, icon: null },
-};
-
-// ── CSS class helpers ─────────────────────────────────────────────────────────
-
-export function sidebarItemClass(active: boolean) {
-  return `group flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition ${
-    active
-      ? "border-primary/30 bg-primary/10 text-primary"
-      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
-  }`;
-}
-
-export const sidebarSectionTitleClass =
-  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
-
-export const sidebarGroupButtonClass =
-  "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
-
-// ── Pure section helpers ──────────────────────────────────────────────────────
-
-export function resolveNavSection(pathname: string): NavSection {
-  return resolveShellNavSection(pathname);
-}
-
-export function isActiveRoute(pathname: string, href: string) {
-  return isExactOrChildPath(href, pathname);
-}
-
-export { isActiveOrganizationAccount, isOrganizationActor };
-
-// ── Simple section nav component ──────────────────────────────────────────────
-
-export function SimpleNavLinks({
-  items,
-  title,
-  isActiveRoute,
-}: {
-  items: readonly { href: string; label: string }[];
-  title: string;
-  isActiveRoute: (href: string) => boolean;
-}) {
-  return (
-    <nav className="space-y-0.5" aria-label={`${title}導覽`}>
-      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-        {title}
-      </p>
-      {items.map((item) => {
-        const active = isActiveRoute(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={active ? "page" : undefined}
-            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-              active
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-````
-
 ## File: app/(shell)/_shell/WorkspaceRouteShim.tsx
 ````typescript
 "use client";
@@ -67081,6 +68095,24 @@ export { GenerateNotebookResponseUseCase, PlatformTextGenerationAdapter } from "
 
 // Q&A subdomain — AnswerRagQueryUseCase factory (now in synthesis subdomain)
 export { createAnswerRagQueryUseCase } from "../subdomains/synthesis/api/server";
+````
+
+## File: modules/notebooklm/interfaces/conversation/_actions/thread.actions.ts
+````typescript
+"use server";
+
+import type { Thread } from "../../../subdomains/conversation/application/dto/conversation.dto";
+import { makeConversationUseCases } from "../composition/use-cases";
+
+export async function saveThread(accountId: string, thread: Thread): Promise<void> {
+  const { saveThread: save } = makeConversationUseCases();
+  await save.execute(accountId, thread);
+}
+
+export async function loadThread(accountId: string, threadId: string): Promise<Thread | null> {
+  const { loadThread: load } = makeConversationUseCases();
+  return load.execute(accountId, threadId);
+}
 ````
 
 ## File: modules/notebooklm/subdomains/conversation/api/index.ts
@@ -67756,6 +68788,112 @@ export function DatabaseCalendarPanel({ database, accountId }: DatabaseCalendarP
 }
 ````
 
+## File: modules/notion/subdomains/relations/api/index.ts
+````typescript
+/**
+ * Public API boundary for the relations subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Status: Tier 2 Recommended Gap Subdomain
+ */
+
+// ── Domain types ──────────────────────────────────────────────────────────────
+export type {
+  RelationDirection,
+  Relation,
+  CreateRelationInput,
+} from "../domain/entities/Relation";
+
+// ── Repository contracts ───────────────────────────────────────────────────────
+export type {
+  IRelationRepository,
+} from "../domain/repositories/IRelationRepository";
+
+// ── Domain events ─────────────────────────────────────────────────────────────
+export type {
+  RelationCreatedEvent,
+  RelationRemovedEvent,
+} from "../domain/events/RelationEvents";
+
+// ── Application DTOs ──────────────────────────────────────────────────────────
+export type {
+  CreateRelationDto,
+  RelationDto,
+} from "../application/dto/RelationDto";
+
+// ── Application contracts ─────────────────────────────────────────────────────
+export * from "../application";
+
+// Note: server-only composition and infrastructure adapters are exported from
+// `./server` to keep the default boundary runtime-safe.
+````
+
+## File: modules/notion/subdomains/relations/README.md
+````markdown
+# Relations
+
+建立內容之間關聯與 backlink 的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Recommended Gap
+- **Status**: Active — domain + application + infrastructure adapter + composition wired
+
+## Layers
+
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Local public boundary for same bounded context access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, events, repositories, and business rules |
+
+> By default, `infrastructure/` and `interfaces/` live at the bounded-context root and are grouped by subdomain. Add local `infrastructure/` or `interfaces/` inside a subdomain only when the mini-module gate is explicitly justified.
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/subdomains/taxonomy/README.md
+````markdown
+# Taxonomy
+
+建立分類法與語義組織的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Recommended Gap
+- **Status**: Active — domain + application + infrastructure adapter + composition wired
+
+## Layers
+
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Local public boundary for same bounded context access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, events, repositories, and business rules |
+
+> By default, `infrastructure/` and `interfaces/` live at the bounded-context root and are grouped by subdomain. Add local `infrastructure/` or `interfaces/` inside a subdomain only when the mini-module gate is explicitly justified.
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/interfaces/web/providers/ShellAppContext.ts
 ````typescript
 "use client";
@@ -67964,164 +69102,6 @@ export function useShellGlobalSearch() {
 }
 ````
 
-## File: modules/platform/subdomains/access-control/api/index.ts
-````typescript
-/**
- * Public API boundary for the access-control subdomain.
- */
-export * from "../application";
-export { accessControlService } from "../infrastructure";
-export type { AccessPolicySnapshot, CreateAccessPolicyInput } from "../domain/aggregates/AccessPolicy";
-export type { AccessPolicyDomainEventType } from "../domain/events/AccessPolicyDomainEvent";
-export type { AccessPolicyRepository } from "../domain/repositories/AccessPolicyRepository";
-export type { SubjectRef } from "../domain/value-objects/SubjectRef";
-export type { ResourceRef } from "../domain/value-objects/ResourceRef";
-export type { PolicyEffect } from "../domain/value-objects/PolicyEffect";
-export {
-	isOrganizationActor,
-	isActiveOrganizationAccount,
-	resolveOrganizationRouteFallback,
-	type ShellAccountActor,
-} from "../application/services/shell-account-access";
-````
-
-## File: modules/platform/subdomains/access-control/application/use-cases/access-control.use-cases.ts
-````typescript
-/**
- * Access-Control Use Cases — pure application logic.
- */
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import { AccessPolicy } from "../../domain/aggregates/AccessPolicy";
-import {
-  allowDecision,
-  denyDecision,
-} from "../../../../domain/value-objects/PermissionDecision";
-import type { AccessPolicyRepository } from "../../domain/repositories/AccessPolicyRepository";
-import type { SubjectRef } from "../../domain/value-objects/SubjectRef";
-import type { ResourceRef } from "../../domain/value-objects/ResourceRef";
-import type { PolicyEffect } from "../../domain/value-objects/PolicyEffect";
-
-// ─── Evaluate Permission ──────────────────────────────────────────────────────
-
-export class EvaluatePermissionUseCase {
-  constructor(private readonly repo: AccessPolicyRepository) {}
-
-  async execute(input: {
-    subjectId: string;
-    resourceType: string;
-    resourceId?: string;
-    action: string;
-  }): Promise<CommandResult> {
-    try {
-      const policies = await this.repo.findActiveBySubjectAndResource(
-        input.subjectId,
-        input.resourceType,
-        input.resourceId,
-      );
-
-      // Explicit deny takes priority (deny-override semantics)
-      const hasDeny = policies.some(
-        (p) => p.effect === "deny" && p.actions.includes(input.action),
-      );
-      if (hasDeny) {
-        return commandSuccess(JSON.stringify(denyDecision("Explicit deny policy matched")), Date.now());
-      }
-
-      const hasAllow = policies.some(
-        (p) => p.effect === "allow" && p.actions.includes(input.action),
-      );
-      if (hasAllow) {
-        return commandSuccess(JSON.stringify(allowDecision("Allow policy matched")), Date.now());
-      }
-
-      return commandSuccess(JSON.stringify(denyDecision("No matching allow policy")), Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "EVALUATE_PERMISSION_FAILED",
-        err instanceof Error ? err.message : "Failed to evaluate permission",
-      );
-    }
-  }
-}
-
-// ─── Create Access Policy ─────────────────────────────────────────────────────
-
-export class CreateAccessPolicyUseCase {
-  constructor(private readonly repo: AccessPolicyRepository) {}
-
-  async execute(input: {
-    subjectRef: SubjectRef;
-    resourceRef: ResourceRef;
-    actions: string[];
-    effect: PolicyEffect;
-    conditions?: string[];
-  }): Promise<CommandResult> {
-    try {
-      const id = crypto.randomUUID();
-      const policy = AccessPolicy.create(id, input);
-      await this.repo.save(policy.getSnapshot());
-      return commandSuccess(id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_ACCESS_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to create access policy",
-      );
-    }
-  }
-}
-
-// ─── Update Access Policy ─────────────────────────────────────────────────────
-
-export class UpdateAccessPolicyUseCase {
-  constructor(private readonly repo: AccessPolicyRepository) {}
-
-  async execute(
-    policyId: string,
-    input: { actions?: string[]; effect?: PolicyEffect; conditions?: string[] },
-  ): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(policyId);
-      if (!snapshot) {
-        return commandFailureFrom("POLICY_NOT_FOUND", `AccessPolicy ${policyId} not found`);
-      }
-      const policy = AccessPolicy.reconstitute(snapshot);
-      policy.update(input);
-      await this.repo.update(policy.getSnapshot());
-      return commandSuccess(policyId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_ACCESS_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to update access policy",
-      );
-    }
-  }
-}
-
-// ─── Delete (Deactivate) Access Policy ───────────────────────────────────────
-
-export class DeactivateAccessPolicyUseCase {
-  constructor(private readonly repo: AccessPolicyRepository) {}
-
-  async execute(policyId: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(policyId);
-      if (!snapshot) {
-        return commandFailureFrom("POLICY_NOT_FOUND", `AccessPolicy ${policyId} not found`);
-      }
-      const policy = AccessPolicy.reconstitute(snapshot);
-      policy.deactivate();
-      await this.repo.update(policy.getSnapshot());
-      return commandSuccess(policyId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "DEACTIVATE_ACCESS_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to deactivate access policy",
-      );
-    }
-  }
-}
-````
-
 ## File: modules/platform/subdomains/ai/api/index.ts
 ````typescript
 /**
@@ -68176,283 +69156,288 @@ export {
 } from "./services/shell-navigation-catalog";
 ````
 
-## File: modules/workspace/application/services/WorkspaceQueryApplicationService.ts
+## File: modules/workspace/application/use-cases/workspace.use-cases.ts
 ````typescript
-import type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-} from "../../domain/entities/WikiContentTree";
-import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMemberView";
-import {
-  getWorkspaceByIdForAccount,
-  getWorkspaceById,
-  listWorkspacesForAccount,
-  subscribeToWorkspacesForAccount,
-} from "../queries/workspace.queries";
-import { fetchWorkspaceMembers } from "../../subdomains/membership/api";
-import { buildWikiContentTree } from "../queries/wiki-content-tree.queries";
-import type { WorkspaceQueryPort } from "../../domain/ports/input/WorkspaceQueryPort";
-import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
-import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
-import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWorkspaceRepository";
-
-interface WorkspaceQueryApplicationServiceDependencies {
-  workspaceRepo: WorkspaceRepository;
-  workspaceQueryRepo: WorkspaceQueryRepository;
-  wikiWorkspaceRepo: WikiWorkspaceRepository;
-}
-
-export class WorkspaceQueryApplicationService implements WorkspaceQueryPort {
-  constructor(
-    private readonly dependencies: WorkspaceQueryApplicationServiceDependencies,
-  ) {}
-
-  getWorkspacesForAccount(accountId: string): Promise<WorkspaceEntity[]> {
-    return listWorkspacesForAccount(this.dependencies.workspaceRepo, accountId);
-  }
-
-  subscribeToWorkspacesForAccount(
-    accountId: string,
-    onUpdate: (workspaces: WorkspaceEntity[]) => void,
-  ) {
-    return subscribeToWorkspacesForAccount(
-      this.dependencies.workspaceQueryRepo,
-      accountId,
-      onUpdate,
-    );
-  }
-
-  getWorkspaceById(workspaceId: string): Promise<WorkspaceEntity | null> {
-    return getWorkspaceById(this.dependencies.workspaceRepo, workspaceId);
-  }
-
-  getWorkspaceByIdForAccount(
-    accountId: string,
-    workspaceId: string,
-  ): Promise<WorkspaceEntity | null> {
-    return getWorkspaceByIdForAccount(this.dependencies.workspaceRepo, accountId, workspaceId);
-  }
-
-  getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
-    return fetchWorkspaceMembers(this.dependencies.workspaceQueryRepo, workspaceId);
-  }
-
-  buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]> {
-    return buildWikiContentTree(seeds, this.dependencies.wikiWorkspaceRepo);
-  }
-}
-````
-
-## File: app/(shell)/_shell/ShellSidebarBody.tsx
-````typescript
-"use client";
-
 /**
- * ShellSidebarBody — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it imports from workspace and notion modules.
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Re-export barrel for workspace command use cases that remain at root level.
+ *          Lifecycle use cases → subdomains/lifecycle/
+ *          Sharing use cases → subdomains/sharing/
+ *          Queries → application/queries/
+ *
+ * DDD Rule 12: Command → use-cases/
+ * DDD Rule 13: Read → queries/
  */
 
-import Link from "next/link";
+export { MountCapabilitiesUseCase } from "./workspace-capabilities.use-cases";
 
-import { KnowledgeSidebarSection } from "@/modules/workspace/api";
-import {
-  WorkspaceSectionContent,
-  type NavPreferences,
-  type SidebarLocaleBundle,
-} from "@/modules/workspace/api";
-import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "@/modules/platform/api";
+export { CreateWorkspaceLocationUseCase } from "./workspace-location.use-cases";
+````
 
-import {
-  type NavSection,
-  sidebarItemClass,
-  sidebarSectionTitleClass,
-} from "./ShellSidebarNavData";
-import { ShellContextNavSection } from "./ShellContextNavSection";
+## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
+````typescript
+import { useEffect, useMemo, useState } from "react";
 
-interface NavItem {
-  id: string;
-  label: string;
-  href: string;
-}
+import type { WorkspaceEntity } from "../../api/contracts";
 
-interface WorkspaceLink {
+interface RecentWorkspaceLink {
   id: string;
   name: string;
   href: string;
 }
 
-interface ShellSidebarBodyProps {
-  section: NavSection;
-  isActiveRoute: (href: string) => boolean;
-  activeAccountId: string | null;
-  showAccountManagement: boolean;
-  visibleAccountItems: readonly NavItem[];
-  visibleOrganizationManagementItems: readonly NavItem[];
-  workspacePathId: string | null;
-  navPrefs: NavPreferences;
-  localeBundle: SidebarLocaleBundle | null;
-  showRecentWorkspaces: boolean;
-  visibleRecentWorkspaceLinks: WorkspaceLink[];
-  hasOverflow: boolean;
-  isExpanded: boolean;
-  activeWorkspaceId: string | null;
-  onSelectWorkspace: (workspaceId: string | null) => void;
-  onToggleExpanded: () => void;
-  pathname: string;
-  workspacesHydrated: boolean;
-  allWorkspaceLinks: WorkspaceLink[];
-  currentSearchWorkspaceId: string;
-  creatingKind: "page" | "database" | null;
-  onQuickCreatePage: () => void;
+const MAX_VISIBLE_RECENT_WORKSPACES = 10;
+const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
+
+const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
+  "workspace",
+  "workspace-feed",
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "organization",
+  "settings",
+  "dashboard",
+  "dev-tools",
+]);
+
+function getStorageKey(accountId: string) {
+  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
 }
 
-function ManagedNavGroup({
-  title,
-  ariaLabel,
+function readRecentWorkspaceIds(accountId: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(getStorageKey(accountId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
+}
+
+function trackWorkspaceFromPath(pathname: string, accountId: string) {
+  const workspaceId = getWorkspaceIdFromPath(pathname);
+  if (!workspaceId) return;
+  const recentIds = readRecentWorkspaceIds(accountId);
+  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
+  persistRecentWorkspaceIds(accountId, deduped);
+}
+
+function getWorkspaceIdFromPath(pathname: string): string | null {
+  const legacyMatch = pathname.match(/^\/workspace\/([^/]+)/);
+  if (legacyMatch) {
+    return decodeURIComponent(legacyMatch[1]);
+  }
+
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length < 2) {
+    return null;
+  }
+
+  const [firstSegment, secondSegment] = segments;
+  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
+    return null;
+  }
+
+  if (["organization", "settings", "dashboard", "dev-tools"].includes(secondSegment)) {
+    return null;
+  }
+
+  if (!secondSegment) {
+    return null;
+  }
+
+  return decodeURIComponent(secondSegment);
+}
+
+export function useRecentWorkspaces(
+  accountId: string | undefined,
+  pathname: string,
+  workspaces: WorkspaceEntity[],
+) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!accountId) return;
+    trackWorkspaceFromPath(pathname, accountId);
+  }, [accountId, pathname]);
+
+  const workspacesById = useMemo(
+    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
+    [workspaces],
+  );
+
+  const recentWorkspaceIds = useMemo(() => {
+    if (!accountId) return [] as string[];
+    const stored = readRecentWorkspaceIds(accountId);
+    const currentId = getWorkspaceIdFromPath(pathname);
+    if (!currentId) return stored;
+    return [currentId, ...stored.filter((id) => id !== currentId)];
+  }, [accountId, pathname]);
+
+  const recentWorkspaceLinks = useMemo<RecentWorkspaceLink[]>(() => {
+    return recentWorkspaceIds
+      .map<RecentWorkspaceLink | null>((workspaceId) => {
+        const ws = workspacesById[workspaceId];
+        if (!ws) return null;
+        const href = accountId
+          ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(ws.id)}`
+          : `/workspace/${encodeURIComponent(ws.id)}`;
+        return { id: ws.id, name: ws.name, href };
+      })
+      .filter((item): item is RecentWorkspaceLink => item !== null);
+  }, [accountId, recentWorkspaceIds, workspacesById]);
+
+  return { isExpanded, setIsExpanded, recentWorkspaceLinks };
+}
+
+export { MAX_VISIBLE_RECENT_WORKSPACES, getWorkspaceIdFromPath };
+````
+
+## File: app/(shell)/_shell/ShellSidebarNavData.tsx
+````typescript
+import {
+  BookOpen,
+  Bot,
+  Brain,
+  Building2,
+  Database,
+  FileText,
+  LayoutDashboard,
+  UserRound,
+  Users,
+} from "lucide-react";
+import Link from "next/link";
+
+import {
+  type ActiveAccount,
+  isOrganizationActor,
+  isActiveOrganizationAccount,
+  SHELL_ACCOUNT_SECTION_MATCHERS,
+  SHELL_ACCOUNT_NAV_ITEMS,
+  SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
+  SHELL_SECTION_LABELS,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  type ShellNavSection,
+} from "@/modules/platform/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly userId: string | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+}
+
+export type NavSection = ShellNavSection;
+
+// ── Static nav constants ──────────────────────────────────────────────────────
+
+export const ORGANIZATION_MANAGEMENT_ITEMS = SHELL_ORGANIZATION_MANAGEMENT_ITEMS;
+
+export const ACCOUNT_NAV_ITEMS = SHELL_ACCOUNT_NAV_ITEMS;
+
+export const ACCOUNT_SECTION_MATCHERS = SHELL_ACCOUNT_SECTION_MATCHERS;
+
+export const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
+  workspace: { label: SHELL_SECTION_LABELS.workspace, icon: <Building2 className="size-3" /> },
+  dashboard: { label: SHELL_SECTION_LABELS.dashboard, icon: <LayoutDashboard className="size-3" /> },
+  knowledge: { label: SHELL_SECTION_LABELS.knowledge, icon: <BookOpen className="size-3" /> },
+  "knowledge-base": { label: SHELL_SECTION_LABELS["knowledge-base"], icon: <BookOpen className="size-3" /> },
+  "knowledge-database": {
+    label: SHELL_SECTION_LABELS["knowledge-database"],
+    icon: <Database className="size-3" />,
+  },
+  source: { label: SHELL_SECTION_LABELS.source, icon: <FileText className="size-3" /> },
+  notebook: { label: SHELL_SECTION_LABELS.notebook, icon: <Brain className="size-3" /> },
+  "ai-chat": { label: SHELL_SECTION_LABELS["ai-chat"], icon: <Bot className="size-3" /> },
+  account: { label: SHELL_SECTION_LABELS.account, icon: <UserRound className="size-3" /> },
+  organization: { label: SHELL_SECTION_LABELS.organization, icon: <Users className="size-3" /> },
+  other: { label: SHELL_SECTION_LABELS.other, icon: null },
+};
+
+// ── CSS class helpers ─────────────────────────────────────────────────────────
+
+export function sidebarItemClass(active: boolean) {
+  return `group flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition ${
+    active
+      ? "border-primary/30 bg-primary/10 text-primary"
+      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
+  }`;
+}
+
+export const sidebarSectionTitleClass =
+  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
+
+export const sidebarGroupButtonClass =
+  "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
+
+// ── Pure section helpers ──────────────────────────────────────────────────────
+
+export function resolveNavSection(pathname: string): NavSection {
+  return resolveShellNavSection(pathname);
+}
+
+export function isActiveRoute(pathname: string, href: string) {
+  return isExactOrChildPath(href, pathname);
+}
+
+export { isActiveOrganizationAccount, isOrganizationActor };
+
+// ── Simple section nav component ──────────────────────────────────────────────
+
+export function SimpleNavLinks({
   items,
+  title,
   isActiveRoute,
-  activeAccountId,
 }: {
+  items: readonly { href: string; label: string }[];
   title: string;
-  ariaLabel: string;
-  items: readonly NavItem[];
   isActiveRoute: (href: string) => boolean;
-  activeAccountId: string | null;
 }) {
   return (
-    <nav className="space-y-0.5" aria-label={ariaLabel}>
-      <p className={sidebarSectionTitleClass}>{title}</p>
+    <nav className="space-y-0.5" aria-label={`${title}導覽`}>
+      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+        {title}
+      </p>
       {items.map((item) => {
-        const contextualHref = buildShellContextualHref(item.href, {
-          accountId: activeAccountId,
-          workspaceId: null,
-        });
-        const active = isActiveRoute(contextualHref);
+        const active = isActiveRoute(item.href);
         return (
           <Link
             key={item.href}
-            href={contextualHref}
+            href={item.href}
             aria-current={active ? "page" : undefined}
-            className={sidebarItemClass(active)}
+            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+              active
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
           >
             {item.label}
           </Link>
         );
       })}
     </nav>
-  );
-}
-
-export function DashboardSidebarBody({
-  section,
-  isActiveRoute,
-  activeAccountId,
-  showAccountManagement,
-  visibleAccountItems,
-  visibleOrganizationManagementItems,
-  workspacePathId,
-  navPrefs,
-  localeBundle,
-  showRecentWorkspaces,
-  visibleRecentWorkspaceLinks,
-  hasOverflow,
-  isExpanded,
-  activeWorkspaceId,
-  onSelectWorkspace,
-  onToggleExpanded,
-  pathname,
-  workspacesHydrated,
-  allWorkspaceLinks,
-  currentSearchWorkspaceId,
-  creatingKind,
-  onQuickCreatePage,
-}: ShellSidebarBodyProps) {
-  const contextSection = SHELL_CONTEXT_SECTION_CONFIG[section];
-
-  return (
-    <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
-      {section === "account" && (
-        <div className="space-y-2">
-          {showAccountManagement && visibleAccountItems.length > 0 && (
-            <ManagedNavGroup
-              title="帳號"
-              ariaLabel="帳號導覽"
-              items={visibleAccountItems}
-              isActiveRoute={isActiveRoute}
-              activeAccountId={activeAccountId}
-            />
-          )}
-          {!showAccountManagement && (
-            <p className="px-2 py-4 text-[11px] text-muted-foreground">
-              請切換到組織帳號以查看帳號選項。
-            </p>
-          )}
-        </div>
-      )}
-
-      {section === "organization" && (
-        <div className="space-y-2">
-          {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
-            <ManagedNavGroup
-              title="組織管理"
-              ariaLabel="組織管理導覽"
-              items={visibleOrganizationManagementItems}
-              isActiveRoute={isActiveRoute}
-              activeAccountId={activeAccountId}
-            />
-          )}
-          {!showAccountManagement && (
-            <p className="px-2 py-4 text-[11px] text-muted-foreground">
-              請切換到組織帳號以查看管理選項。
-            </p>
-          )}
-        </div>
-      )}
-
-      {section === "workspace" && (
-        <div className="space-y-2">
-          <WorkspaceSectionContent
-            workspacePathId={workspacePathId}
-            navPrefs={navPrefs}
-            localeBundle={localeBundle}
-            showRecentWorkspaces={showRecentWorkspaces}
-            visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
-            hasOverflow={hasOverflow}
-            isExpanded={isExpanded}
-            activeWorkspaceId={activeWorkspaceId}
-            isActiveRoute={isActiveRoute}
-            onSelectWorkspace={onSelectWorkspace}
-            onToggleExpanded={onToggleExpanded}
-            getItemClassName={sidebarItemClass}
-            sectionTitleClassName={sidebarSectionTitleClass}
-          />
-        </div>
-      )}
-
-      {section === "knowledge" && (
-        <KnowledgeSidebarSection
-          pathname={pathname}
-          workspacesHydrated={workspacesHydrated}
-          allWorkspaceLinks={allWorkspaceLinks}
-          activeAccountId={activeAccountId}
-          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
-          creatingKind={creatingKind}
-          onSelectWorkspace={onSelectWorkspace}
-          onQuickCreatePage={onQuickCreatePage}
-        />
-      )}
-
-      {contextSection && (
-        <ShellContextNavSection
-          title={contextSection.title}
-          items={contextSection.items}
-          isActiveRoute={isActiveRoute}
-          activeAccountId={activeAccountId}
-          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
-        />
-      )}
-    </div>
   );
 }
 ````
@@ -69260,358 +70245,6 @@ export function resolveOrganizationRouteFallback(
 }
 ````
 
-## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
-````typescript
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-export type ShellNavSection =
-  | "workspace"
-  | "knowledge"
-  | "knowledge-base"
-  | "knowledge-database"
-  | "source"
-  | "notebook"
-  | "ai-chat"
-  | "account"
-  | "organization"
-  | "other";
-
-export interface ShellNavItem {
-  readonly id: string;
-  readonly label: string;
-  readonly href: string;
-}
-
-export interface ShellRailCatalogItem {
-  readonly id: string;
-  readonly href: string;
-  readonly label: string;
-  /** If true, this item is only visible to organization accounts. */
-  readonly requiresOrganization: boolean;
-  /** Route prefix for active-state matching. When absent, defaults to href. */
-  readonly activeRoutePrefix?: string;
-}
-
-export interface ShellContextSectionConfig {
-  readonly title: string;
-  readonly items: readonly { href: string; label: string }[];
-}
-
-export interface ShellRouteContext {
-  readonly accountId?: string | null;
-  readonly workspaceId?: string | null;
-}
-
-const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
-  "workspace",
-  "workspace-feed",
-  "knowledge",
-  "knowledge-base",
-  "knowledge-database",
-  "source",
-  "notebook",
-  "ai-chat",
-  "organization",
-  "settings",
-  "dashboard",
-  "dev-tools",
-]);
-
-const ACCOUNT_SCOPED_ACCOUNT_ROOT_ROUTES = new Set(["organization", "settings", "dev-tools"]);
-
-const ACCOUNT_SCOPED_WORKSPACE_TOOL_ROOT_ROUTES = new Set([
-  "knowledge",
-  "knowledge-base",
-  "knowledge-database",
-  "source",
-  "notebook",
-  "ai-chat",
-  "dashboard",
-  "workspace-feed",
-]);
-
-function parseHref(href: string): { path: string; query: string } {
-  const [path, query = ""] = href.split("?");
-  return { path, query };
-}
-
-function joinHref(path: string, query: string): string {
-  return query.length > 0 ? `${path}?${query}` : path;
-}
-
-function isAccountScopedWorkspacePath(pathname: string): boolean {
-  const [firstSegment] = pathname.split("/").filter(Boolean);
-  if (!firstSegment) {
-    return false;
-  }
-  return !NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment);
-}
-
-export function normalizeShellRoutePath(pathname: string): string {
-  const [pathOnly] = pathname.split("?");
-  const segments = pathOnly.split("/").filter(Boolean);
-
-  if (segments.length === 0) {
-    return "/";
-  }
-
-  const [firstSegment, secondSegment, ...restSegments] = segments;
-
-  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
-    return pathOnly;
-  }
-
-  if (!secondSegment) {
-    return "/workspace";
-  }
-
-  if (ACCOUNT_SCOPED_ACCOUNT_ROOT_ROUTES.has(secondSegment)) {
-    return `/${[secondSegment, ...restSegments].join("/")}`;
-  }
-
-  if (restSegments.length === 0) {
-    return "/workspace";
-  }
-
-  return `/${restSegments.join("/")}`;
-}
-
-export function buildShellContextualHref(
-  href: string,
-  context: ShellRouteContext,
-): string {
-  const { accountId, workspaceId } = context;
-  if (!accountId) {
-    return href;
-  }
-
-  const { path, query } = parseHref(href);
-  const encodedAccountId = encodeURIComponent(accountId);
-  const encodedWorkspaceId = workspaceId ? encodeURIComponent(workspaceId) : "";
-
-  if (path === "/workspace" || path.startsWith("/workspace/")) {
-    const nextPath = encodedWorkspaceId
-      ? `/${encodedAccountId}/${encodedWorkspaceId}`
-      : `/${encodedAccountId}`;
-    return joinHref(nextPath, query);
-  }
-
-  const [rootSegment] = path.split("/").filter(Boolean);
-  if (!rootSegment) {
-    return href;
-  }
-
-  if (ACCOUNT_SCOPED_ACCOUNT_ROOT_ROUTES.has(rootSegment)) {
-    return joinHref(`/${encodedAccountId}${path}`, query);
-  }
-
-  if (ACCOUNT_SCOPED_WORKSPACE_TOOL_ROOT_ROUTES.has(rootSegment)) {
-    if (!encodedWorkspaceId) {
-      return joinHref(`/${encodedAccountId}`, query);
-    }
-    return joinHref(`/${encodedAccountId}/${encodedWorkspaceId}${path}`, query);
-  }
-
-  return href;
-}
-
-// ── Route-matching utility ────────────────────────────────────────────────────
-
-export function isExactOrChildPath(targetPath: string, pathname: string): boolean {
-  const normalizedTargetPath = normalizeShellRoutePath(targetPath);
-  const normalizedPathname = normalizeShellRoutePath(pathname);
-  return (
-    normalizedPathname === normalizedTargetPath ||
-    normalizedPathname.startsWith(`${normalizedTargetPath}/`)
-  );
-}
-
-// ── Account section matchers ──────────────────────────────────────────────────
-
-export const SHELL_ACCOUNT_SECTION_MATCHERS = [
-  "/organization/daily",
-  "/organization/schedule",
-  "/organization/audit",
-] as const;
-
-// ── Route titles & breadcrumb labels ──────────────────────────────────────────
-
-const ROUTE_TITLES: Record<string, string> = {
-  "/organization": "組織治理",
-  "/organization/daily": "帳號 · 每日",
-  "/organization/schedule": "帳號 · 排程",
-  "/organization/schedule/dispatcher": "帳號 · 調度台",
-  "/organization/audit": "帳號 · 稽核",
-  "/workspace": "工作區中心",
-  "/knowledge": "知識中心",
-  "/knowledge/pages": "知識 · 頁面",
-  "/knowledge/block-editor": "知識 · 區塊編輯器",
-  "/knowledge-base/articles": "知識庫 · 文章",
-  "/knowledge-database/databases": "知識資料庫 · 資料庫",
-  "/source/documents": "來源 · 文件",
-  "/source/libraries": "來源 · 資料庫",
-  "/notebook/rag-query": "筆記本 · 問答 / 引用",
-  "/ai-chat": "AI 對話",
-  "/dev-tools": "開發工具",
-};
-
-const BREADCRUMB_LABELS: Record<string, string> = {
-  organization: "組織",
-  workspace: "工作區",
-  wiki: "Account Wiki",
-  "rag-query": "Ask / Cite",
-  documents: "文件",
-  libraries: "Libraries",
-  pages: "頁面",
-  "pages-dnd": "頁面 (DnD)",
-  "block-editor": "區塊編輯器",
-  "rag-reindex": "RAG 重新索引",
-  "ai-chat": "Notebook",
-  "dev-tools": "開發工具",
-  namespaces: "命名空間",
-  members: "成員",
-  teams: "團隊",
-  permissions: "權限",
-  workspaces: "工作區清單",
-  schedule: "排程",
-  daily: "每日",
-  audit: "稽核",
-};
-
-// ── Organization management items ─────────────────────────────────────────────
-
-export const SHELL_ORGANIZATION_MANAGEMENT_ITEMS: readonly ShellNavItem[] = [];
-
-// ── Account nav items ─────────────────────────────────────────────────────────
-
-export const SHELL_ACCOUNT_NAV_ITEMS: readonly ShellNavItem[] = [
-  { id: "schedule", label: "排程", href: "/organization/schedule" },
-  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
-  { id: "daily", label: "每日", href: "/organization/daily" },
-  { id: "audit", label: "稽核", href: "/organization/audit" },
-] as const;
-
-// ── Section labels ────────────────────────────────────────────────────────────
-
-export const SHELL_SECTION_LABELS: Record<ShellNavSection, string> = {
-  workspace: "工作區",
-  knowledge: "知識",
-  "knowledge-base": "知識庫",
-  "knowledge-database": "知識資料庫",
-  source: "來源",
-  notebook: "筆記本",
-  "ai-chat": "AI 對話",
-  account: "帳號",
-  organization: "組織",
-  other: "導覽",
-};
-
-// ── Rail catalog ──────────────────────────────────────────────────────────────
-
-export const SHELL_RAIL_CATALOG_ITEMS: readonly ShellRailCatalogItem[] = [
-  { id: "workspace", href: "/workspace", label: "工作區中心", requiresOrganization: false },
-  { id: "org-members", href: "/organization/members", label: "成員", requiresOrganization: true, activeRoutePrefix: "/organization/members" },
-  { id: "org-teams", href: "/organization/teams", label: "團隊", requiresOrganization: true, activeRoutePrefix: "/organization/teams" },
-  { id: "org-daily", href: "/organization/daily", label: "每日", requiresOrganization: true, activeRoutePrefix: "/organization/daily" },
-  { id: "org-schedule", href: "/organization/schedule", label: "排程", requiresOrganization: true, activeRoutePrefix: "/organization/schedule" },
-  { id: "org-audit", href: "/organization/audit", label: "稽核", requiresOrganization: true, activeRoutePrefix: "/organization/audit" },
-  { id: "org-permissions", href: "/organization/permissions", label: "權限", requiresOrganization: true, activeRoutePrefix: "/organization/permissions" },
-  { id: "dev-tools", href: "/dev-tools", label: "開發工具", requiresOrganization: false },
-];
-
-export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[] {
-  return SHELL_RAIL_CATALOG_ITEMS.filter(
-    (item) => !item.requiresOrganization || isOrganization,
-  );
-}
-
-// ── Context section config ────────────────────────────────────────────────────
-
-export const SHELL_CONTEXT_SECTION_CONFIG: Partial<
-  Record<ShellNavSection, ShellContextSectionConfig>
-> = {
-  "knowledge-base": { title: "知識庫", items: [{ href: "/knowledge-base/articles", label: "文章" }] },
-  "knowledge-database": { title: "資料庫", items: [{ href: "/knowledge-database/databases", label: "資料庫" }] },
-  source: { title: "來源文件", items: [{ href: "/source/libraries", label: "資料庫" }] },
-  notebook: { title: "筆記本", items: [{ href: "/notebook/rag-query", label: "問答 / 引用" }] },
-  "ai-chat": { title: "筆記本 / AI", items: [{ href: "/ai-chat", label: "筆記本介面" }] },
-};
-
-// ── Mobile & organization nav items ───────────────────────────────────────────
-
-export const SHELL_MOBILE_NAV_ITEMS: readonly ShellNavItem[] = [
-  { id: "workspace", label: "工作區", href: "/workspace" },
-];
-
-export const SHELL_ORG_PRIMARY_NAV_ITEMS: readonly ShellNavItem[] = [
-  { id: "members", label: "成員", href: "/organization/members" },
-  { id: "teams", label: "團隊", href: "/organization/teams" },
-  { id: "permissions", label: "權限", href: "/organization/permissions" },
-  { id: "workspaces", label: "工作區", href: "/organization/workspaces" },
-];
-
-export const SHELL_ORG_SECONDARY_NAV_ITEMS: readonly ShellNavItem[] = [
-  { id: "schedule", label: "排程", href: "/organization/schedule" },
-  { id: "daily", label: "每日", href: "/organization/daily" },
-  { id: "audit", label: "稽核", href: "/organization/audit" },
-];
-
-// ── Section resolvers ─────────────────────────────────────────────────────────
-
-export function resolveShellNavSection(pathname: string): ShellNavSection {
-  const normalizedPathname = normalizeShellRoutePath(pathname);
-
-  if (normalizedPathname.startsWith("/workspace")) return "workspace";
-  if (normalizedPathname.startsWith("/knowledge-base")) return "knowledge-base";
-  if (normalizedPathname.startsWith("/knowledge-database")) return "knowledge-database";
-  if (normalizedPathname.startsWith("/knowledge")) return "knowledge";
-  if (normalizedPathname.startsWith("/source")) return "source";
-  if (normalizedPathname.startsWith("/notebook")) return "notebook";
-  if (normalizedPathname.startsWith("/ai-chat")) return "ai-chat";
-  if (
-    SHELL_ACCOUNT_SECTION_MATCHERS.some(
-      (prefix) => normalizedPathname === prefix || normalizedPathname.startsWith(`${prefix}/`),
-    )
-  ) {
-    return "account";
-  }
-  if (normalizedPathname.startsWith("/organization")) return "organization";
-  if (isAccountScopedWorkspacePath(pathname) || normalizedPathname.startsWith("/workspace")) return "workspace";
-  return "other";
-}
-
-export function resolveShellPageTitle(pathname: string): string {
-  if (isAccountScopedWorkspacePath(pathname)) {
-    return "工作區中心";
-  }
-  const normalizedPathname = normalizeShellRoutePath(pathname);
-  return ROUTE_TITLES[normalizedPathname] ?? "工作區";
-}
-
-export function resolveShellBreadcrumbLabel(segment: string): string {
-  return BREADCRUMB_LABELS[segment] ?? segment;
-}
-````
-
-## File: modules/workspace/application/use-cases/workspace.use-cases.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Re-export barrel for workspace command use cases that remain at root level.
- *          Lifecycle use cases → subdomains/lifecycle/
- *          Sharing use cases → subdomains/sharing/
- *          Queries → application/queries/
- *
- * DDD Rule 12: Command → use-cases/
- * DDD Rule 13: Read → queries/
- */
-
-export { MountCapabilitiesUseCase } from "./workspace-capabilities.use-cases";
-
-export { CreateWorkspaceLocationUseCase } from "./workspace-location.use-cases";
-````
-
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx
 ````typescript
 "use client";
@@ -69904,345 +70537,6 @@ export function WorkspaceOverviewTab({
 
       </div>
     </div>
-  );
-}
-````
-
-## File: app/(shell)/_shell/ShellAppRail.tsx
-````typescript
-"use client";
-
-/**
- * ShellAppRail — app/(shell)/_shell composition layer.
- * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
- * because it composes downstream modules (workspace).
- *
- * Platform is upstream and must not import downstream modules.
- * app/ is the designated composition layer.
- */
-
-import Link from "next/link";
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-
-import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
-import { CreateOrganizationDialog } from "@/modules/platform/api";
-import {
-  listShellRailCatalogItems,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  buildShellContextualHref,
-  type ShellRailCatalogItem,
-} from "@/modules/platform/api";
-import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-
-interface RailItem {
-  id: string;
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-
-function getInitial(name: string | undefined | null): string {
-  return name?.trim().charAt(0).toUpperCase() || "U";
-}
-
-const RAIL_ICON_MAP: Record<string, React.ReactNode> = {
-  workspace: <Building2 className="size-[18px]" />,
-  "org-members": <UserRound className="size-[18px]" />,
-  "org-teams": <Users className="size-[18px]" />,
-  "org-daily": <NotebookText className="size-[18px]" />,
-  "org-schedule": <CalendarDays className="size-[18px]" />,
-  "org-audit": <ClipboardList className="size-[18px]" />,
-  "org-permissions": <SlidersHorizontal className="size-[18px]" />,
-  "dev-tools": <FlaskConical className="size-[18px]" />,
-};
-
-export function AppRail({
-  pathname,
-  user,
-  activeAccount,
-  organizationAccounts,
-  workspaces,
-  workspacesHydrated,
-  isOrganizationAccount,
-  onSelectPersonal,
-  onSelectOrganization,
-  activeWorkspaceId,
-  onSelectWorkspace,
-  onOrganizationCreated,
-  onSignOut: _onSignOut,
-}: AppRailProps) {
-  const router = useRouter();
-  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-
-  function isActive(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  const visibleRailItems: RailItem[] = useMemo(() => {
-    const catalogItems = listShellRailCatalogItems(isOrganizationAccount);
-    return catalogItems.map((item: ShellRailCatalogItem) => ({
-      id: item.id,
-      href: buildShellContextualHref(item.href, {
-        accountId: activeAccount?.id,
-        workspaceId: activeWorkspaceId,
-      }),
-      label: item.label,
-      icon: RAIL_ICON_MAP[item.id] ?? null,
-      isActive: item.id === "workspace"
-        ? (currentPathname: string) => resolveShellNavSection(currentPathname) === "workspace"
-        : item.activeRoutePrefix
-          ? (currentPathname: string) => isExactOrChildPath(
-            buildShellContextualHref(item.activeRoutePrefix!, {
-              accountId: activeAccount?.id,
-              workspaceId: activeWorkspaceId,
-            }),
-            currentPathname,
-          )
-          : undefined,
-    }));
-  }, [isOrganizationAccount, activeAccount?.id, activeWorkspaceId]);
-
-  const workspaceHubHref = activeAccount?.id
-    ? `/${encodeURIComponent(activeAccount.id)}`
-    : "/";
-
-  function buildWorkspaceDetailHref(workspaceId: string): string {
-    if (activeAccount?.id) {
-      return `/${encodeURIComponent(activeAccount.id)}/${encodeURIComponent(workspaceId)}`;
-    }
-    return "/";
-  }
-
-  const sortedWorkspaces = useMemo(
-    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces],
-  );
-
-  const accountName = activeAccount?.name ?? user?.name ?? "—";
-
-  return (
-    <TooltipProvider delayDuration={400}>
-      <aside
-        aria-label="App navigation rail"
-        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
-      >
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="切換帳號情境"
-                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  {getInitial(accountName)}
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-[180px]">
-              <p className="text-xs font-medium">{accountName}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-
-          <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
-            {user && (
-              <DropdownMenuItem
-                onClick={onSelectPersonal}
-                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{user.name} (Personal)</span>
-              </DropdownMenuItem>
-            )}
-            {organizationAccounts.map((account) => (
-              <DropdownMenuItem
-                key={account.id}
-                onClick={() => { onSelectOrganization(account); }}
-                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{account.name}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => { setIsCreateOrgOpen(true); }}
-              className="gap-2 text-primary"
-            >
-              <Plus className="size-3.5 shrink-0" />
-              <span>建立組織</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="my-2 h-px w-7 bg-border/50" />
-
-        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
-          {visibleRailItems.map((item) => {
-            const active = item.isActive?.(pathname) ?? isActive(item.href);
-
-            if (item.id === "workspace") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="工作區中心：切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">工作區中心：切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => { router.push(workspaceHubHref); }}
-                      className={
-                        resolveShellNavSection(pathname) === "workspace" && !activeWorkspaceId
-                          ? "bg-primary/10 text-primary"
-                          : ""
-                      }
-                    >
-                      工作區中心
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(buildWorkspaceDetailHref(workspace.id));
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => { setIsCreateWorkspaceOpen(true); }}
-                      className="gap-2 text-primary"
-                    >
-                      <Plus className="size-3.5 shrink-0" />
-                      <span>建立工作區</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-
-            return (
-              <Tooltip key={item.href}>
-                <TooltipTrigger asChild>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    aria-label={item.label}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {item.icon}
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p className="text-xs">{item.label}</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </nav>
-
-        <div className="flex-1" />
-        <div className="h-1" />
-      </aside>
-
-      <CreateOrganizationDialog
-        open={isCreateOrgOpen}
-        onOpenChange={setIsCreateOrgOpen}
-        user={user}
-        onOrganizationCreated={onOrganizationCreated}
-        onNavigate={(href) => { router.push(href); }}
-      />
-
-      <CreateWorkspaceDialogRail
-        open={isCreateWorkspaceOpen}
-        onOpenChange={setIsCreateWorkspaceOpen}
-        accountId={activeAccount?.id ?? null}
-        accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
-        creatorUserId={user?.id}
-        onNavigate={(href: string) => { router.push(href); }}
-      />
-    </TooltipProvider>
   );
 }
 ````
@@ -70547,6 +70841,230 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     </ShellGuard>
+  );
+}
+````
+
+## File: app/(shell)/_shell/ShellSidebarBody.tsx
+````typescript
+"use client";
+
+/**
+ * ShellSidebarBody — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it imports from workspace and notion modules.
+ */
+
+import Link from "next/link";
+
+import { KnowledgeSidebarSection } from "@/modules/workspace/api";
+import {
+  WorkspaceSectionContent,
+  type NavPreferences,
+  type SidebarLocaleBundle,
+} from "@/modules/workspace/api";
+import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "@/modules/platform/api";
+
+import {
+  type NavSection,
+  sidebarItemClass,
+  sidebarSectionTitleClass,
+} from "./ShellSidebarNavData";
+import { ShellContextNavSection } from "./ShellContextNavSection";
+
+interface NavItem {
+  id: string;
+  label: string;
+  href: string;
+}
+
+interface WorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+
+interface ShellSidebarBodyProps {
+  section: NavSection;
+  isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
+  showAccountManagement: boolean;
+  visibleAccountItems: readonly NavItem[];
+  visibleOrganizationManagementItems: readonly NavItem[];
+  workspacePathId: string | null;
+  navPrefs: NavPreferences;
+  localeBundle: SidebarLocaleBundle | null;
+  showRecentWorkspaces: boolean;
+  visibleRecentWorkspaceLinks: WorkspaceLink[];
+  hasOverflow: boolean;
+  isExpanded: boolean;
+  activeWorkspaceId: string | null;
+  onSelectWorkspace: (workspaceId: string | null) => void;
+  onToggleExpanded: () => void;
+  pathname: string;
+  workspacesHydrated: boolean;
+  allWorkspaceLinks: WorkspaceLink[];
+  currentSearchWorkspaceId: string;
+  creatingKind: "page" | "database" | null;
+  onQuickCreatePage: () => void;
+}
+
+function ManagedNavGroup({
+  title,
+  ariaLabel,
+  items,
+  isActiveRoute,
+  activeAccountId,
+}: {
+  title: string;
+  ariaLabel: string;
+  items: readonly NavItem[];
+  isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
+}) {
+  return (
+    <nav className="space-y-0.5" aria-label={ariaLabel}>
+      <p className={sidebarSectionTitleClass}>{title}</p>
+      {items.map((item) => {
+        const contextualHref = buildShellContextualHref(item.href, {
+          accountId: activeAccountId,
+          workspaceId: null,
+        });
+        const active = isActiveRoute(contextualHref);
+        return (
+          <Link
+            key={item.href}
+            href={contextualHref}
+            aria-current={active ? "page" : undefined}
+            className={sidebarItemClass(active)}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+export function DashboardSidebarBody({
+  section,
+  isActiveRoute,
+  activeAccountId,
+  showAccountManagement,
+  visibleAccountItems,
+  visibleOrganizationManagementItems,
+  workspacePathId,
+  navPrefs,
+  localeBundle,
+  showRecentWorkspaces,
+  visibleRecentWorkspaceLinks,
+  hasOverflow,
+  isExpanded,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onToggleExpanded,
+  pathname,
+  workspacesHydrated,
+  allWorkspaceLinks,
+  currentSearchWorkspaceId,
+  creatingKind,
+  onQuickCreatePage,
+}: ShellSidebarBodyProps) {
+  const contextSection = SHELL_CONTEXT_SECTION_CONFIG[section];
+
+  return (
+    <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
+      {section === "account" && (
+        <div className="space-y-2">
+          {showAccountManagement && visibleAccountItems.length > 0 && (
+            <ManagedNavGroup
+              title="帳號"
+              ariaLabel="帳號導覽"
+              items={visibleAccountItems}
+              isActiveRoute={isActiveRoute}
+              activeAccountId={activeAccountId}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看帳號選項。
+            </p>
+          )}
+        </div>
+      )}
+
+      {section === "organization" && (
+        <div className="space-y-2">
+          {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
+            <ManagedNavGroup
+              title="組織管理"
+              ariaLabel="組織管理導覽"
+              items={visibleOrganizationManagementItems}
+              isActiveRoute={isActiveRoute}
+              activeAccountId={activeAccountId}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看管理選項。
+            </p>
+          )}
+        </div>
+      )}
+
+      {section === "dashboard" && (
+        <div className="space-y-2">
+          <nav className="space-y-0.5" aria-label="儀表板導覽">
+            <p className={sidebarSectionTitleClass}>儀表板</p>
+            <p className="px-2 py-2 text-[11px] text-muted-foreground">
+              帳號總覽與工作區快速存取。
+            </p>
+          </nav>
+        </div>
+      )}
+
+      {section === "workspace" && (
+        <div className="space-y-2">
+          <WorkspaceSectionContent
+            workspacePathId={workspacePathId}
+            navPrefs={navPrefs}
+            localeBundle={localeBundle}
+            showRecentWorkspaces={showRecentWorkspaces}
+            visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+            hasOverflow={hasOverflow}
+            isExpanded={isExpanded}
+            activeWorkspaceId={activeWorkspaceId}
+            isActiveRoute={isActiveRoute}
+            onSelectWorkspace={onSelectWorkspace}
+            onToggleExpanded={onToggleExpanded}
+            getItemClassName={sidebarItemClass}
+            sectionTitleClassName={sidebarSectionTitleClass}
+          />
+        </div>
+      )}
+
+      {section === "knowledge" && (
+        <KnowledgeSidebarSection
+          pathname={pathname}
+          workspacesHydrated={workspacesHydrated}
+          allWorkspaceLinks={allWorkspaceLinks}
+          activeAccountId={activeAccountId}
+          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
+          creatingKind={creatingKind}
+          onSelectWorkspace={onSelectWorkspace}
+          onQuickCreatePage={onQuickCreatePage}
+        />
+      )}
+
+      {contextSection && (
+        <ShellContextNavSection
+          title={contextSection.title}
+          items={contextSection.items}
+          isActiveRoute={isActiveRoute}
+          activeAccountId={activeAccountId}
+          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
+        />
+      )}
+    </div>
   );
 }
 ````
@@ -72273,177 +72791,342 @@ export const functionsInfrastructureApi: FunctionsAPI = {
 };
 ````
 
-## File: modules/workspace/api/ui.ts
+## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
 ````typescript
-/**
- * workspace api/ui.ts
- *
- * Canonical public web UI surface for the workspace bounded context.
- * App-layer consumers that need workspace UI components, hooks, and
- * navigation utilities should import from here.
- *
- * Internal source: interfaces/web/
- */
+// ── Types ──────────────────────────────────────────────────────────────────────
 
-// ── Screen components ────────────────────────────────────────────────────────
+export type ShellNavSection =
+  | "workspace"
+  | "dashboard"
+  | "knowledge"
+  | "knowledge-base"
+  | "knowledge-database"
+  | "source"
+  | "notebook"
+  | "ai-chat"
+  | "account"
+  | "organization"
+  | "other";
 
-export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/WorkspaceDetailScreen";
-export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
-export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
-export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
+export interface ShellNavItem {
+  readonly id: string;
+  readonly label: string;
+  readonly href: string;
+}
 
-// ── Card components ──────────────────────────────────────────────────────────
+export interface ShellRailCatalogItem {
+  readonly id: string;
+  readonly href: string;
+  readonly label: string;
+  /** If true, this item is only visible to organization accounts. */
+  readonly requiresOrganization: boolean;
+  /** Route prefix for active-state matching. When absent, defaults to href. */
+  readonly activeRoutePrefix?: string;
+}
 
-export { WorkspaceContextCard } from "../interfaces/web/components/cards/WorkspaceContextCard";
+export interface ShellContextSectionConfig {
+  readonly title: string;
+  readonly items: readonly { href: string; label: string }[];
+}
 
-// ── Tab components ───────────────────────────────────────────────────────────
+export interface ShellRouteContext {
+  readonly accountId?: string | null;
+  readonly workspaceId?: string | null;
+}
 
-export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
+const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
+  "workspace",
+  "workspace-feed",
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "organization",
+  "settings",
+  "dashboard",
+  "dev-tools",
+]);
 
-// ── Layout components ────────────────────────────────────────────────────────
+const ACCOUNT_SCOPED_ACCOUNT_ROOT_ROUTES = new Set(["organization", "settings", "dashboard", "dev-tools"]);
 
-export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
-export { WorkspaceQuickAccessRow } from "../interfaces/web/components/layout/WorkspaceQuickAccessRow";
-export { WorkspaceSectionContent } from "../interfaces/web/components/layout/WorkspaceSectionContent";
+const ACCOUNT_SCOPED_WORKSPACE_TOOL_ROOT_ROUTES = new Set([
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "workspace-feed",
+]);
 
-// ── Rail components ──────────────────────────────────────────────────────────
+function parseHref(href: string): { path: string; query: string } {
+  const [path, query = ""] = href.split("?");
+  return { path, query };
+}
 
-export { CreateWorkspaceDialogRail } from "../interfaces/web/components/rails/CreateWorkspaceDialogRail";
+function joinHref(path: string, query: string): string {
+  return query.length > 0 ? `${path}?${query}` : path;
+}
 
-// ── Navigation ────────────────────────────────────────────────────────────────
+function isAccountScopedWorkspacePath(pathname: string): boolean {
+  const [firstSegment] = pathname.split("/").filter(Boolean);
+  if (!firstSegment) {
+    return false;
+  }
+  return !NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment);
+}
 
-export type {
-  WorkspaceTabDevStatus,
-  WorkspaceTabGroup,
-  WorkspaceTabValue,
-} from "../interfaces/web/navigation/workspace-tabs";
+export function normalizeShellRoutePath(pathname: string): string {
+  const [pathOnly] = pathname.split("?");
+  const segments = pathOnly.split("/").filter(Boolean);
 
-export {
-  WORKSPACE_TAB_GROUPS,
-  WORKSPACE_TAB_META,
-  WORKSPACE_TAB_VALUES,
-  getWorkspaceTabLabel,
-  getWorkspaceTabMeta,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-} from "../interfaces/web/navigation/workspace-tabs";
+  if (segments.length === 0) {
+    return "/";
+  }
 
-export type { WorkspaceNavItem } from "../interfaces/web/navigation/workspace-nav-items";
-export {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "../interfaces/web/navigation/workspace-nav-items";
+  const [firstSegment, secondSegment, ...restSegments] = segments;
 
-// ── Quick-access navigation ───────────────────────────────────────────────────
+  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
+    return pathOnly;
+  }
 
-export type {
-  WorkspaceQuickAccessItem,
-  WorkspaceQuickAccessMatcherOptions,
-} from "../interfaces/web/components/navigation/workspace-quick-access";
+  if (!secondSegment) {
+    return "/workspace";
+  }
 
-export { buildWorkspaceQuickAccessItems } from "../interfaces/web/components/navigation/workspace-quick-access";
+  if (ACCOUNT_SCOPED_ACCOUNT_ROOT_ROUTES.has(secondSegment)) {
+    return `/${[secondSegment, ...restSegments].join("/")}`;
+  }
 
-// ── State helpers ─────────────────────────────────────────────────────────────
+  if (restSegments.length === 0) {
+    return "/workspace";
+  }
 
-export { getWorkspaceStorageKey } from "../interfaces/web/state/workspace-session";
+  return `/${restSegments.join("/")}`;
+}
 
-// ── Map utilities ─────────────────────────────────────────────────────────────
+export function buildShellContextualHref(
+  href: string,
+  context: ShellRouteContext,
+): string {
+  const { accountId, workspaceId } = context;
+  if (!accountId) {
+    return href;
+  }
 
-export {
-  resolveWorkspaceFromMap,
-  toWorkspaceMap,
-} from "../interfaces/web/utils/workspace-map";
+  const { path, query } = parseHref(href);
+  const encodedAccountId = encodeURIComponent(accountId);
+  const encodedWorkspaceId = workspaceId ? encodeURIComponent(workspaceId) : "";
 
-// ── Hooks ─────────────────────────────────────────────────────────────────────
+  if (path === "/workspace" || path.startsWith("/workspace/")) {
+    const nextPath = encodedWorkspaceId
+      ? `/${encodedAccountId}/${encodedWorkspaceId}`
+      : `/${encodedAccountId}`;
+    return joinHref(nextPath, query);
+  }
 
-export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
-export type {
-  UseWorkspaceOrchestrationContextOptions,
-  WorkspaceOrchestrationContext,
-} from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
-export { useWorkspaceOrchestrationContext } from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
-export {
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  getWorkspaceIdFromPath,
-  useRecentWorkspaces,
-} from "../interfaces/web/hooks/useRecentWorkspaces";
+  const [rootSegment] = path.split("/").filter(Boolean);
+  if (!rootSegment) {
+    return href;
+  }
 
-// ── Workspace context provider ────────────────────────────────────────────────
+  if (ACCOUNT_SCOPED_ACCOUNT_ROOT_ROUTES.has(rootSegment)) {
+    return joinHref(`/${encodedAccountId}${path}`, query);
+  }
 
-export {
-  WorkspaceContextProvider,
-  useWorkspaceContext,
-} from "../interfaces/web/providers/WorkspaceContextProvider";
-export type {
-  WorkspaceContextState,
-  WorkspaceContextAction,
-  WorkspaceContextValue,
-} from "../interfaces/web/providers/WorkspaceContextProvider";
+  if (ACCOUNT_SCOPED_WORKSPACE_TOOL_ROOT_ROUTES.has(rootSegment)) {
+    if (!encodedWorkspaceId) {
+      return joinHref(`/${encodedAccountId}`, query);
+    }
+    return joinHref(`/${encodedAccountId}/${encodedWorkspaceId}${path}`, query);
+  }
 
-// ── Navigation preferences ────────────────────────────────────────────────────
+  return href;
+}
 
-export type { NavPreferences, SidebarLocaleBundle } from "../interfaces/web/navigation/nav-preferences-data";
-export {
-  PERSONAL_ITEMS,
-  ORGANIZATION_NAV_ITEMS,
-  DIALOG_TEXT,
-  DEFAULT_PREFS,
-  readNavPreferences,
-  writeNavPreferences,
-} from "../interfaces/web/navigation/nav-preferences-data";
+// ── Route-matching utility ────────────────────────────────────────────────────
 
-// ── Sidebar locale ────────────────────────────────────────────────────────────
+export function isExactOrChildPath(targetPath: string, pathname: string): boolean {
+  const normalizedTargetPath = normalizeShellRoutePath(targetPath);
+  const normalizedPathname = normalizeShellRoutePath(pathname);
+  return (
+    normalizedPathname === normalizedTargetPath ||
+    normalizedPathname.startsWith(`${normalizedTargetPath}/`)
+  );
+}
 
-export { useSidebarLocale } from "../interfaces/web/navigation/use-sidebar-locale";
+// ── Account section matchers ──────────────────────────────────────────────────
 
-export {
-  appendWorkspaceContextQuery,
-  buildWorkspaceOverviewPanelHref,
-  buildWorkspaceContextHref,
-  supportsWorkspaceSearchContext,
-  type WorkspaceNavigationContext,
-  type WorkspaceOverviewPanel,
-} from "../interfaces/web/navigation/workspace-context-links";
+export const SHELL_ACCOUNT_SECTION_MATCHERS = [
+  "/organization/daily",
+  "/organization/schedule",
+  "/organization/audit",
+] as const;
 
-// ── Navigation customize dialog ───────────────────────────────────────────────
+// ── Route titles & breadcrumb labels ──────────────────────────────────────────
 
-export { CustomizeNavigationDialog } from "../interfaces/web/components/dialogs/CustomizeNavigationDialog";
-export { CheckRow, WorkspaceCheckRow } from "../interfaces/web/components/dialogs/NavCheckRow";
+const ROUTE_TITLES: Record<string, string> = {
+  "/organization": "組織治理",
+  "/organization/daily": "帳號 · 每日",
+  "/organization/schedule": "帳號 · 排程",
+  "/organization/schedule/dispatcher": "帳號 · 調度台",
+  "/organization/audit": "帳號 · 稽核",
+  "/workspace": "工作區中心",
+  "/knowledge": "知識中心",
+  "/knowledge/pages": "知識 · 頁面",
+  "/knowledge/block-editor": "知識 · 區塊編輯器",
+  "/knowledge-base/articles": "知識庫 · 文章",
+  "/knowledge-database/databases": "知識資料庫 · 資料庫",
+  "/source/documents": "來源 · 文件",
+  "/source/libraries": "來源 · 資料庫",
+  "/notebook/rag-query": "筆記本 · 問答 / 引用",
+  "/ai-chat": "AI 對話",
+  "/dashboard": "儀表板",
+  "/dev-tools": "開發工具",
+};
 
-export {
-  AuditStream,
-  WorkspaceAuditTab,
-} from "../subdomains/audit/api";
+const BREADCRUMB_LABELS: Record<string, string> = {
+  organization: "組織",
+  workspace: "工作區",
+  wiki: "Account Wiki",
+  "rag-query": "Ask / Cite",
+  documents: "文件",
+  libraries: "Libraries",
+  pages: "頁面",
+  "pages-dnd": "頁面 (DnD)",
+  "block-editor": "區塊編輯器",
+  "rag-reindex": "RAG 重新索引",
+  "ai-chat": "Notebook",
+  dashboard: "儀表板",
+  "dev-tools": "開發工具",
+  namespaces: "命名空間",
+  members: "成員",
+  teams: "團隊",
+  permissions: "權限",
+  workspaces: "工作區清單",
+  schedule: "排程",
+  daily: "每日",
+  audit: "稽核",
+};
 
-export {
-  WorkspaceFeedAccountView,
-  WorkspaceFeedWorkspaceView,
-} from "../subdomains/feed/api";
+// ── Organization management items ─────────────────────────────────────────────
 
-export type { AccountMember } from "../subdomains/scheduling/api";
-export {
-  AccountSchedulingView,
-  WorkspaceSchedulingTab,
-} from "../subdomains/scheduling/api";
+export const SHELL_ORGANIZATION_MANAGEMENT_ITEMS: readonly ShellNavItem[] = [];
 
-export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";
+// ── Account nav items ─────────────────────────────────────────────────────────
 
-// ── Orchestrated notion UI (workspace as composition owner) ──────────────────
+export const SHELL_ACCOUNT_NAV_ITEMS: readonly ShellNavItem[] = [
+  { id: "schedule", label: "排程", href: "/organization/schedule" },
+  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
+  { id: "daily", label: "每日", href: "/organization/daily" },
+  { id: "audit", label: "稽核", href: "/organization/audit" },
+] as const;
 
-export { ArticleDetailPanel } from "@/modules/notion/api";
-export { DatabaseDetailPanel } from "@/modules/notion/api";
-export { DatabaseFormsPanel } from "@/modules/notion/api";
-export { KnowledgeDetailPanel } from "@/modules/notion/api";
-export { KnowledgeSidebarSection } from "@/modules/notion/api";
+// ── Section labels ────────────────────────────────────────────────────────────
 
-// ── Orchestrated notebooklm UI (workspace as composition owner) ──────────────
+export const SHELL_SECTION_LABELS: Record<ShellNavSection, string> = {
+  workspace: "工作區",
+  dashboard: "儀表板",
+  knowledge: "知識",
+  "knowledge-base": "知識庫",
+  "knowledge-database": "知識資料庫",
+  source: "來源",
+  notebook: "筆記本",
+  "ai-chat": "AI 對話",
+  account: "帳號",
+  organization: "組織",
+  other: "導覽",
+};
 
-export { RagQueryPanel } from "@/modules/notebooklm/api";
-export { ConversationPanel } from "@/modules/notebooklm/api";
-export type { ConversationPanelProps } from "@/modules/notebooklm/api";
-export { WorkspaceFilesTab } from "@/modules/notebooklm/api";
+// ── Rail catalog ──────────────────────────────────────────────────────────────
+
+export const SHELL_RAIL_CATALOG_ITEMS: readonly ShellRailCatalogItem[] = [
+  { id: "workspace", href: "/workspace", label: "工作區中心", requiresOrganization: false },
+  { id: "dashboard", href: "/dashboard", label: "儀表板", requiresOrganization: false, activeRoutePrefix: "/dashboard" },
+  { id: "org-members", href: "/organization/members", label: "成員", requiresOrganization: true, activeRoutePrefix: "/organization/members" },
+  { id: "org-teams", href: "/organization/teams", label: "團隊", requiresOrganization: true, activeRoutePrefix: "/organization/teams" },
+  { id: "org-daily", href: "/organization/daily", label: "每日", requiresOrganization: true, activeRoutePrefix: "/organization/daily" },
+  { id: "org-schedule", href: "/organization/schedule", label: "排程", requiresOrganization: true, activeRoutePrefix: "/organization/schedule" },
+  { id: "org-audit", href: "/organization/audit", label: "稽核", requiresOrganization: true, activeRoutePrefix: "/organization/audit" },
+  { id: "org-permissions", href: "/organization/permissions", label: "權限", requiresOrganization: true, activeRoutePrefix: "/organization/permissions" },
+  { id: "dev-tools", href: "/dev-tools", label: "開發工具", requiresOrganization: false },
+];
+
+export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[] {
+  return SHELL_RAIL_CATALOG_ITEMS.filter(
+    (item) => !item.requiresOrganization || isOrganization,
+  );
+}
+
+// ── Context section config ────────────────────────────────────────────────────
+
+export const SHELL_CONTEXT_SECTION_CONFIG: Partial<
+  Record<ShellNavSection, ShellContextSectionConfig>
+> = {
+  "knowledge-base": { title: "知識庫", items: [{ href: "/knowledge-base/articles", label: "文章" }] },
+  "knowledge-database": { title: "資料庫", items: [{ href: "/knowledge-database/databases", label: "資料庫" }] },
+  source: { title: "來源文件", items: [{ href: "/source/libraries", label: "資料庫" }] },
+  notebook: { title: "筆記本", items: [{ href: "/notebook/rag-query", label: "問答 / 引用" }] },
+  "ai-chat": { title: "筆記本 / AI", items: [{ href: "/ai-chat", label: "筆記本介面" }] },
+};
+
+// ── Mobile & organization nav items ───────────────────────────────────────────
+
+export const SHELL_MOBILE_NAV_ITEMS: readonly ShellNavItem[] = [
+  { id: "workspace", label: "工作區", href: "/workspace" },
+];
+
+export const SHELL_ORG_PRIMARY_NAV_ITEMS: readonly ShellNavItem[] = [
+  { id: "members", label: "成員", href: "/organization/members" },
+  { id: "teams", label: "團隊", href: "/organization/teams" },
+  { id: "permissions", label: "權限", href: "/organization/permissions" },
+  { id: "workspaces", label: "工作區", href: "/organization/workspaces" },
+];
+
+export const SHELL_ORG_SECONDARY_NAV_ITEMS: readonly ShellNavItem[] = [
+  { id: "schedule", label: "排程", href: "/organization/schedule" },
+  { id: "daily", label: "每日", href: "/organization/daily" },
+  { id: "audit", label: "稽核", href: "/organization/audit" },
+];
+
+// ── Section resolvers ─────────────────────────────────────────────────────────
+
+export function resolveShellNavSection(pathname: string): ShellNavSection {
+  const normalizedPathname = normalizeShellRoutePath(pathname);
+
+  if (normalizedPathname.startsWith("/workspace")) return "workspace";
+  if (normalizedPathname.startsWith("/dashboard")) return "dashboard";
+  if (normalizedPathname.startsWith("/knowledge-base")) return "knowledge-base";
+  if (normalizedPathname.startsWith("/knowledge-database")) return "knowledge-database";
+  if (normalizedPathname.startsWith("/knowledge")) return "knowledge";
+  if (normalizedPathname.startsWith("/source")) return "source";
+  if (normalizedPathname.startsWith("/notebook")) return "notebook";
+  if (normalizedPathname.startsWith("/ai-chat")) return "ai-chat";
+  if (
+    SHELL_ACCOUNT_SECTION_MATCHERS.some(
+      (prefix) => normalizedPathname === prefix || normalizedPathname.startsWith(`${prefix}/`),
+    )
+  ) {
+    return "account";
+  }
+  if (normalizedPathname.startsWith("/organization")) return "organization";
+  if (isAccountScopedWorkspacePath(pathname) || normalizedPathname.startsWith("/workspace")) return "workspace";
+  return "other";
+}
+
+export function resolveShellPageTitle(pathname: string): string {
+  if (isAccountScopedWorkspacePath(pathname)) {
+    return "工作區中心";
+  }
+  const normalizedPathname = normalizeShellRoutePath(pathname);
+  return ROUTE_TITLES[normalizedPathname] ?? "工作區";
+}
+
+export function resolveShellBreadcrumbLabel(segment: string): string {
+  return BREADCRUMB_LABELS[segment] ?? segment;
+}
 ````
 
 ## File: modules/notion/interfaces/database/components/DatabaseListPanel.tsx
@@ -72613,6 +73296,180 @@ export function DatabaseListPanel({ database, accountId, workspaceId, currentUse
     </div>
   );
 }
+````
+
+## File: modules/workspace/api/ui.ts
+````typescript
+/**
+ * workspace api/ui.ts
+ *
+ * Canonical public web UI surface for the workspace bounded context.
+ * App-layer consumers that need workspace UI components, hooks, and
+ * navigation utilities should import from here.
+ *
+ * Internal source: interfaces/web/
+ */
+
+// ── Screen components ────────────────────────────────────────────────────────
+
+export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/WorkspaceDetailScreen";
+export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
+export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
+export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
+export { AccountDashboardScreen } from "../interfaces/web/components/screens/AccountDashboardScreen";
+
+// ── Card components ──────────────────────────────────────────────────────────
+
+export { WorkspaceContextCard } from "../interfaces/web/components/cards/WorkspaceContextCard";
+
+// ── Tab components ───────────────────────────────────────────────────────────
+
+export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
+
+// ── Layout components ────────────────────────────────────────────────────────
+
+export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
+export { WorkspaceQuickAccessRow } from "../interfaces/web/components/layout/WorkspaceQuickAccessRow";
+export { WorkspaceSectionContent } from "../interfaces/web/components/layout/WorkspaceSectionContent";
+
+// ── Rail components ──────────────────────────────────────────────────────────
+
+export { CreateWorkspaceDialogRail } from "../interfaces/web/components/rails/CreateWorkspaceDialogRail";
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+
+export type {
+  WorkspaceTabDevStatus,
+  WorkspaceTabGroup,
+  WorkspaceTabValue,
+} from "../interfaces/web/navigation/workspace-tabs";
+
+export {
+  WORKSPACE_TAB_GROUPS,
+  WORKSPACE_TAB_META,
+  WORKSPACE_TAB_VALUES,
+  getWorkspaceTabLabel,
+  getWorkspaceTabMeta,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+} from "../interfaces/web/navigation/workspace-tabs";
+
+export type { WorkspaceNavItem } from "../interfaces/web/navigation/workspace-nav-items";
+export {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "../interfaces/web/navigation/workspace-nav-items";
+
+// ── Quick-access navigation ───────────────────────────────────────────────────
+
+export type {
+  WorkspaceQuickAccessItem,
+  WorkspaceQuickAccessMatcherOptions,
+} from "../interfaces/web/components/navigation/workspace-quick-access";
+
+export { buildWorkspaceQuickAccessItems } from "../interfaces/web/components/navigation/workspace-quick-access";
+
+// ── State helpers ─────────────────────────────────────────────────────────────
+
+export { getWorkspaceStorageKey } from "../interfaces/web/state/workspace-session";
+
+// ── Map utilities ─────────────────────────────────────────────────────────────
+
+export {
+  resolveWorkspaceFromMap,
+  toWorkspaceMap,
+} from "../interfaces/web/utils/workspace-map";
+
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+
+export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
+export type {
+  UseWorkspaceOrchestrationContextOptions,
+  WorkspaceOrchestrationContext,
+} from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
+export { useWorkspaceOrchestrationContext } from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
+export {
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  getWorkspaceIdFromPath,
+  useRecentWorkspaces,
+} from "../interfaces/web/hooks/useRecentWorkspaces";
+
+// ── Workspace context provider ────────────────────────────────────────────────
+
+export {
+  WorkspaceContextProvider,
+  useWorkspaceContext,
+} from "../interfaces/web/providers/WorkspaceContextProvider";
+export type {
+  WorkspaceContextState,
+  WorkspaceContextAction,
+  WorkspaceContextValue,
+} from "../interfaces/web/providers/WorkspaceContextProvider";
+
+// ── Navigation preferences ────────────────────────────────────────────────────
+
+export type { NavPreferences, SidebarLocaleBundle } from "../interfaces/web/navigation/nav-preferences-data";
+export {
+  PERSONAL_ITEMS,
+  ORGANIZATION_NAV_ITEMS,
+  DIALOG_TEXT,
+  DEFAULT_PREFS,
+  readNavPreferences,
+  writeNavPreferences,
+} from "../interfaces/web/navigation/nav-preferences-data";
+
+// ── Sidebar locale ────────────────────────────────────────────────────────────
+
+export { useSidebarLocale } from "../interfaces/web/navigation/use-sidebar-locale";
+
+export {
+  appendWorkspaceContextQuery,
+  buildWorkspaceOverviewPanelHref,
+  buildWorkspaceContextHref,
+  supportsWorkspaceSearchContext,
+  type WorkspaceNavigationContext,
+  type WorkspaceOverviewPanel,
+} from "../interfaces/web/navigation/workspace-context-links";
+
+// ── Navigation customize dialog ───────────────────────────────────────────────
+
+export { CustomizeNavigationDialog } from "../interfaces/web/components/dialogs/CustomizeNavigationDialog";
+export { CheckRow, WorkspaceCheckRow } from "../interfaces/web/components/dialogs/NavCheckRow";
+
+export {
+  AuditStream,
+  WorkspaceAuditTab,
+} from "../subdomains/audit/api";
+
+export {
+  WorkspaceFeedAccountView,
+  WorkspaceFeedWorkspaceView,
+} from "../subdomains/feed/api";
+
+export type { AccountMember } from "../subdomains/scheduling/api";
+export {
+  AccountSchedulingView,
+  WorkspaceSchedulingTab,
+} from "../subdomains/scheduling/api";
+
+export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";
+
+// ── Orchestrated notion UI (workspace as composition owner) ──────────────────
+
+export { ArticleDetailPanel } from "@/modules/notion/api";
+export { DatabaseDetailPanel } from "@/modules/notion/api";
+export { DatabaseFormsPanel } from "@/modules/notion/api";
+export { KnowledgeDetailPanel } from "@/modules/notion/api";
+export { KnowledgeSidebarSection } from "@/modules/notion/api";
+
+// ── Orchestrated notebooklm UI (workspace as composition owner) ──────────────
+
+export { RagQueryPanel } from "@/modules/notebooklm/api";
+export { ConversationPanel } from "@/modules/notebooklm/api";
+export type { ConversationPanelProps } from "@/modules/notebooklm/api";
+export { WorkspaceFilesTab } from "@/modules/notebooklm/api";
 ````
 
 ## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
@@ -73024,6 +73881,347 @@ export function appendWorkspaceContextQuery(
 
   const query = params.toString();
   return query.length > 0 ? `${path}?${query}` : path;
+}
+````
+
+## File: app/(shell)/_shell/ShellAppRail.tsx
+````typescript
+"use client";
+
+/**
+ * ShellAppRail — app/(shell)/_shell composition layer.
+ * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
+ * because it composes downstream modules (workspace).
+ *
+ * Platform is upstream and must not import downstream modules.
+ * app/ is the designated composition layer.
+ */
+
+import Link from "next/link";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  LayoutDashboard,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
+import { CreateOrganizationDialog } from "@/modules/platform/api";
+import {
+  listShellRailCatalogItems,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  buildShellContextualHref,
+  type ShellRailCatalogItem,
+} from "@/modules/platform/api";
+import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+
+interface RailItem {
+  id: string;
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+
+function getInitial(name: string | undefined | null): string {
+  return name?.trim().charAt(0).toUpperCase() || "U";
+}
+
+const RAIL_ICON_MAP: Record<string, React.ReactNode> = {
+  workspace: <Building2 className="size-[18px]" />,
+  dashboard: <LayoutDashboard className="size-[18px]" />,
+  "org-members": <UserRound className="size-[18px]" />,
+  "org-teams": <Users className="size-[18px]" />,
+  "org-daily": <NotebookText className="size-[18px]" />,
+  "org-schedule": <CalendarDays className="size-[18px]" />,
+  "org-audit": <ClipboardList className="size-[18px]" />,
+  "org-permissions": <SlidersHorizontal className="size-[18px]" />,
+  "dev-tools": <FlaskConical className="size-[18px]" />,
+};
+
+export function AppRail({
+  pathname,
+  user,
+  activeAccount,
+  organizationAccounts,
+  workspaces,
+  workspacesHydrated,
+  isOrganizationAccount,
+  onSelectPersonal,
+  onSelectOrganization,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onOrganizationCreated,
+  onSignOut: _onSignOut,
+}: AppRailProps) {
+  const router = useRouter();
+  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  const visibleRailItems: RailItem[] = useMemo(() => {
+    const catalogItems = listShellRailCatalogItems(isOrganizationAccount);
+    return catalogItems.map((item: ShellRailCatalogItem) => ({
+      id: item.id,
+      href: buildShellContextualHref(item.href, {
+        accountId: activeAccount?.id,
+        workspaceId: activeWorkspaceId,
+      }),
+      label: item.label,
+      icon: RAIL_ICON_MAP[item.id] ?? null,
+      isActive: item.id === "workspace"
+        ? (currentPathname: string) => resolveShellNavSection(currentPathname) === "workspace"
+        : item.activeRoutePrefix
+          ? (currentPathname: string) => isExactOrChildPath(
+            buildShellContextualHref(item.activeRoutePrefix!, {
+              accountId: activeAccount?.id,
+              workspaceId: activeWorkspaceId,
+            }),
+            currentPathname,
+          )
+          : undefined,
+    }));
+  }, [isOrganizationAccount, activeAccount?.id, activeWorkspaceId]);
+
+  const workspaceHubHref = activeAccount?.id
+    ? `/${encodeURIComponent(activeAccount.id)}`
+    : "/";
+
+  function buildWorkspaceDetailHref(workspaceId: string): string {
+    if (activeAccount?.id) {
+      return `/${encodeURIComponent(activeAccount.id)}/${encodeURIComponent(workspaceId)}`;
+    }
+    return "/";
+  }
+
+  const sortedWorkspaces = useMemo(
+    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces],
+  );
+
+  const accountName = activeAccount?.name ?? user?.name ?? "—";
+
+  return (
+    <TooltipProvider delayDuration={400}>
+      <aside
+        aria-label="App navigation rail"
+        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
+      >
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="切換帳號情境"
+                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {getInitial(accountName)}
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[180px]">
+              <p className="text-xs font-medium">{accountName}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+
+          <DropdownMenuContent side="right" align="start" className="w-52">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
+            {user && (
+              <DropdownMenuItem
+                onClick={onSelectPersonal}
+                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{user.name} (Personal)</span>
+              </DropdownMenuItem>
+            )}
+            {organizationAccounts.map((account) => (
+              <DropdownMenuItem
+                key={account.id}
+                onClick={() => { onSelectOrganization(account); }}
+                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{account.name}</span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => { setIsCreateOrgOpen(true); }}
+              className="gap-2 text-primary"
+            >
+              <Plus className="size-3.5 shrink-0" />
+              <span>建立組織</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="my-2 h-px w-7 bg-border/50" />
+
+        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
+          {visibleRailItems.map((item) => {
+            const active = item.isActive?.(pathname) ?? isActive(item.href);
+
+            if (item.id === "workspace") {
+              return (
+                <DropdownMenu key={item.id}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="工作區中心：切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">工作區中心：切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => { router.push(workspaceHubHref); }}
+                      className={
+                        resolveShellNavSection(pathname) === "workspace" && !activeWorkspaceId
+                          ? "bg-primary/10 text-primary"
+                          : ""
+                      }
+                    >
+                      工作區中心
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(buildWorkspaceDetailHref(workspace.id));
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => { setIsCreateWorkspaceOpen(true); }}
+                      className="gap-2 text-primary"
+                    >
+                      <Plus className="size-3.5 shrink-0" />
+                      <span>建立工作區</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            return (
+              <Tooltip key={item.id}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={item.label}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="text-xs">{item.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
+
+        <div className="flex-1" />
+        <div className="h-1" />
+      </aside>
+
+      <CreateOrganizationDialog
+        open={isCreateOrgOpen}
+        onOpenChange={setIsCreateOrgOpen}
+        user={user}
+        onOrganizationCreated={onOrganizationCreated}
+        onNavigate={(href) => { router.push(href); }}
+      />
+
+      <CreateWorkspaceDialogRail
+        open={isCreateWorkspaceOpen}
+        onOpenChange={setIsCreateWorkspaceOpen}
+        accountId={activeAccount?.id ?? null}
+        accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
+        creatorUserId={user?.id}
+        onNavigate={(href: string) => { router.push(href); }}
+      />
+    </TooltipProvider>
+  );
 }
 ````
 
