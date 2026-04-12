@@ -37790,9 +37790,34 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill rag-architecture
 ````
 
+## File: modules/notebooklm/application/dtos/index.ts
+````typescript
+export * as conversationDtos from '../../subdomains/conversation/application/dto/conversation.dto';
+export * as notebookDtos from '../../subdomains/notebook/application/dto/notebook.dto';
+export * as sourceDtos from '../../subdomains/source/application/dto/source.dto';
+export * as sourceFileDtos from '../../subdomains/source/application/dto/source-file.dto';
+export * as sourceLiveDocumentDtos from '../../subdomains/source/application/dto/source-live-document.dto';
+export * as sourcePipelineDtos from '../../subdomains/source/application/dto/source-pipeline.dto';
+export * as ragDocumentDtos from '../../subdomains/source/application/dto/rag-document.dto';
+````
+
 ## File: modules/notebooklm/application/services/.gitkeep
 ````
 
+````
+
+## File: modules/notebooklm/application/use-cases/index.ts
+````typescript
+export * as notebookUseCases from '../../subdomains/notebook/application/use-cases/generate-notebook-response.use-case';
+export * as sourceUseCases from '../../subdomains/source/application/use-cases/source-pipeline.use-cases';
+export * as sourceUploadInitUseCase from '../../subdomains/source/application/use-cases/upload-init-source-file.use-case';
+export * as sourceUploadCompleteUseCase from '../../subdomains/source/application/use-cases/upload-complete-source-file.use-case';
+export * as sourceRegisterRagDocumentUseCase from '../../subdomains/source/application/use-cases/register-rag-document.use-case';
+export * as sourceRenameSourceDocumentUseCase from '../../subdomains/source/application/use-cases/rename-source-document.use-case';
+export * as sourceDeleteSourceDocumentUseCase from '../../subdomains/source/application/use-cases/delete-source-document.use-case';
+export * as sourceCreateKnowledgeDraftUseCase from '../../subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case';
+export * as sourceWikiLibraryUseCases from '../../subdomains/source/application/use-cases/wiki-library.use-cases';
+export * as synthesisUseCases from '../../subdomains/synthesis/application';
 ````
 
 ## File: modules/notebooklm/docs/docs.instructions.md
@@ -41634,9 +41659,14 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/notion/application/dtos/.gitkeep
-````
+## File: modules/notion/application/dtos/index.ts
+````typescript
+export * as authoringDtos from '../../subdomains/authoring/application/dto';
+export * as collaborationDtos from '../../subdomains/collaboration/application/dto';
+export * as databaseDtos from '../../subdomains/database/application/dto';
+export * as knowledgeDtos from '../../subdomains/knowledge/application/dto';
 
+// relations and taxonomy currently expose no DTO barrel.
 ````
 
 ## File: modules/notion/application/services/.gitkeep
@@ -41644,9 +41674,13 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 
 ````
 
-## File: modules/notion/application/use-cases/.gitkeep
-````
+## File: modules/notion/application/use-cases/index.ts
+````typescript
+export * as authoringUseCases from '../../subdomains/authoring/application/use-cases';
+export * as collaborationUseCases from '../../subdomains/collaboration/application/use-cases';
+export * as databaseUseCases from '../../subdomains/database/application/use-cases';
 
+// knowledge, relations, taxonomy currently expose no root-level use-case barrel.
 ````
 
 ## File: modules/notion/docs/docs.instructions.md
