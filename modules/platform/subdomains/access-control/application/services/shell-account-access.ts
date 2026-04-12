@@ -10,6 +10,16 @@ export function isOrganizationActor(
 }
 
 /**
+ * Type-narrowing guard for ActiveAccount (union of AccountEntity | AuthUser).
+ * Returns true when the active account is an organization account.
+ */
+export function isActiveOrganizationAccount(
+  activeAccount: { id: string; accountType?: string } | null,
+): activeAccount is { id: string; accountType: "organization" } & Record<string, unknown> {
+  return isOrganizationActor(activeAccount);
+}
+
+/**
  * Keep shell fallback behavior centralized so route access rules are not
  * duplicated across layout components.
  */

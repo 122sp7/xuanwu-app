@@ -53,6 +53,9 @@ export type {
 	WorkspaceTabValue,
 } from "./navigation/workspace-tabs";
 
+export { WorkspaceContextProvider, useWorkspaceContext } from "./providers/WorkspaceContextProvider";
+export type { WorkspaceContextState, WorkspaceContextAction, WorkspaceContextValue } from "./providers/WorkspaceContextProvider";
+
 export { useWorkspaceHub } from "./hooks/useWorkspaceHub";
 export {
 	MAX_VISIBLE_RECENT_WORKSPACES,
