@@ -2,11 +2,11 @@ import {
   createIdleExecutionSummary,
   type SourceProcessingExecutionSummary,
 } from "../dto/source-processing.dto";
-import {
+import type {
   ParseSourceDocumentUseCase,
   ReindexSourceDocumentUseCase,
 } from "./source-pipeline.use-cases";
-import { CreateKnowledgeDraftFromSourceUseCase } from "./create-knowledge-draft-from-source.use-case";
+import type { CreateKnowledgeDraftFromSourceUseCase } from "./create-knowledge-draft-from-source.use-case";
 
 export interface ProcessSourceDocumentWorkflowInput {
   readonly accountId: string;
