@@ -4,7 +4,7 @@
  * Purpose: Server-side read helpers for the knowledge subdomain.
  */
 
-import { makeBlockRepo, makeCollectionRepo, makePageRepo } from "../../../subdomains/knowledge/api/factories";
+import { makeBlockRepo, makeCollectionRepo, makePageRepo } from "../composition/repositories";
 import {
   GetKnowledgePageUseCase,
   ListKnowledgePagesUseCase,

@@ -7,7 +7,7 @@
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { makePermissionRepo } from "../../../subdomains/collaboration/api/factories";
+import { makePermissionRepo } from "../composition/repositories";
 import { GrantPermissionUseCase, RevokePermissionUseCase } from "../../../subdomains/collaboration/application/use-cases/PermissionUseCases";
 import type { GrantPermissionDto, RevokePermissionDto } from "../../../subdomains/collaboration/application/dto/CollaborationDto";
 

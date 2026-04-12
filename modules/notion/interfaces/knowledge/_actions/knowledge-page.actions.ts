@@ -2,7 +2,7 @@
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import type { IEventStoreRepository, IEventBusRepository } from "@shared-events";
-import { makePageRepo } from "../../../subdomains/knowledge/api/factories";
+import { makePageRepo } from "../composition/repositories";
 import {
   CreateKnowledgePageUseCase,
   RenameKnowledgePageUseCase,

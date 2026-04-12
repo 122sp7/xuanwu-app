@@ -6,7 +6,7 @@
  * Purpose: Direct-instantiation query functions (read-side).
  */
 
-import { makeArticleRepo, makeCategoryRepo } from "../../../subdomains/authoring/api/factories";
+import { makeArticleRepo, makeCategoryRepo } from "../composition/repositories";
 import type { ArticleSnapshot, ArticleStatus } from "../../../subdomains/authoring/application/dto/authoring.dto";
 import type { CategorySnapshot } from "../../../subdomains/authoring/application/dto/authoring.dto";
 

@@ -25,7 +25,9 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 - `application/`: use-case orchestration, transaction boundaries, command/query contracts, application services.
 - `infrastructure/`: repository and adapter implementations only.
 - `interfaces/`: input/output translation, route/action/UI wiring.
-- `api/`: only cross-module entry surface.
+- `api/`: only cross-module entry surface with stable semantic capability contracts.
+- `api/` must not expose repository factories, container wiring, or other internal composition helpers as public contracts.
+- Internal composition helpers belong under module-local `interfaces/` or `infrastructure/` paths unless a real cross-module semantic boundary requires promotion.
 
 ## Use Case Decision Rules
 

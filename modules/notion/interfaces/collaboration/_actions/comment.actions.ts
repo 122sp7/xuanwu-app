@@ -8,7 +8,7 @@
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import { dispatchNotification } from "@/modules/platform/api";
-import { makeCommentRepo } from "../../../subdomains/collaboration/api/factories";
+import { makeCommentRepo } from "../composition/repositories";
 import {
   CreateCommentUseCase,
   UpdateCommentUseCase,

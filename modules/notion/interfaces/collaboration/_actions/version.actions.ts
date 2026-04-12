@@ -7,7 +7,7 @@
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { makeVersionRepo } from "../../../subdomains/collaboration/api/factories";
+import { makeVersionRepo } from "../composition/repositories";
 import { CreateVersionUseCase, DeleteVersionUseCase } from "../../../subdomains/collaboration/application/use-cases/VersionUseCases";
 import type { CreateVersionDto, DeleteVersionDto } from "../../../subdomains/collaboration/application/dto/CollaborationDto";
 
