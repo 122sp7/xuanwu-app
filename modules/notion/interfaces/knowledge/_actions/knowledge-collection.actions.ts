@@ -1,7 +1,7 @@
 "use server";
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { makeCollectionRepo } from "../../../subdomains/knowledge/api/factories";
+import { makeCollectionRepo } from "../composition/repositories";
 import {
   CreateKnowledgeCollectionUseCase,
   RenameKnowledgeCollectionUseCase,

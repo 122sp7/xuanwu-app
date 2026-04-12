@@ -4,7 +4,7 @@
  * Purpose: Read-side queries for comment, version, and permission data.
  */
 
-import { makeCommentRepo, makePermissionRepo, makeVersionRepo } from "../../../subdomains/collaboration/api/factories";
+import { makeCommentRepo, makePermissionRepo, makeVersionRepo } from "../composition/repositories";
 import type { CommentSnapshot, CommentUnsubscribe, VersionSnapshot, PermissionSnapshot } from "../../../subdomains/collaboration/application/dto/collaboration.dto";
 
 export async function getComments(accountId: string, contentId: string): Promise<CommentSnapshot[]> {

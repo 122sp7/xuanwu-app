@@ -12,7 +12,7 @@ import {
   makeDatabaseRepo,
   makeRecordRepo,
   makeViewRepo,
-} from "../../../subdomains/database/api/factories";
+} from "../composition/repositories";
 import {
   CreateDatabaseUseCase,
   UpdateDatabaseUseCase,

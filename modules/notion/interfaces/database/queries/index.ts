@@ -9,7 +9,7 @@ import {
   makeDatabaseRepo,
   makeRecordRepo,
   makeViewRepo,
-} from "../../../subdomains/database/api/factories";
+} from "../composition/repositories";
 import type { DatabaseSnapshot, DatabaseRecordSnapshot, ViewSnapshot, DatabaseAutomationSnapshot } from "../../../subdomains/database/application/dto/database.dto";
 
 export async function getDatabases(accountId: string, workspaceId: string): Promise<DatabaseSnapshot[]> {

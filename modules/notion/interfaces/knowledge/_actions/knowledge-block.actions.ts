@@ -1,7 +1,7 @@
 "use server";
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { makeBlockRepo } from "../../../subdomains/knowledge/api/factories";
+import { makeBlockRepo } from "../composition/repositories";
 import {
   AddContentBlockUseCase,
   UpdateContentBlockUseCase,

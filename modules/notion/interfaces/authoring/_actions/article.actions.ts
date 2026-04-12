@@ -7,7 +7,7 @@
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { makeArticleRepo } from "../../../subdomains/authoring/api/factories";
+import { makeArticleRepo } from "../composition/repositories";
 import {
   CreateArticleUseCase,
   UpdateArticleUseCase,

@@ -7,7 +7,7 @@
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { makeCategoryRepo } from "../../../subdomains/authoring/api/factories";
+import { makeCategoryRepo } from "../composition/repositories";
 import {
   CreateCategoryUseCase,
   RenameCategoryUseCase,
