@@ -9,6 +9,16 @@
 export * from "./contracts";
 export * from "./facade";
 export { createPlatformService } from "./platform-service";
+export {
+  firestoreInfrastructureApi,
+  storageInfrastructureApi,
+  genkitInfrastructureApi,
+} from "./infrastructure-api";
+export {
+  authApi,
+  permissionApi,
+  fileApi,
+} from "./service-api";
 export * from "../subdomains/identity/api";
 export * from "../subdomains/account/api";
 export * from "../subdomains/notification/api";
