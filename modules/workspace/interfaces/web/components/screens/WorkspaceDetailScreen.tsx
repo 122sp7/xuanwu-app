@@ -92,7 +92,7 @@ export function WorkspaceDetailScreen({
             activeWorkspaceId={wsState.activeWorkspaceId}
             personnelEntries={personnelEntries}
             addressLines={addressLines}
-            showSettingsPanel={initialOverviewPanel === "settings"}
+            initialPanel={initialOverviewPanel}
             onEditClick={() => {
               setSettingsDraft(createSettingsDraft(workspace));
               clearSaveError();

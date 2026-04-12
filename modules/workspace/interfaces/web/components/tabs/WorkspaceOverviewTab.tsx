@@ -1,6 +1,8 @@
 "use client";
 
 import type { WorkspaceEntity } from "../../../api/contracts";
+import { KnowledgeBaseArticlesRouteScreen, KnowledgeDatabasesRouteScreen, KnowledgePagesRouteScreen } from "@/modules/notion/api";
+import { LibrariesView, LibraryTableView } from "@/modules/notebooklm/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import {
   Card,
@@ -22,9 +24,33 @@ interface WorkspaceOverviewTabProps {
   readonly activeWorkspaceId: string | null | undefined;
   readonly personnelEntries: Array<{ label: string; value: string | undefined }>;
   readonly addressLines: string[];
-  readonly showSettingsPanel?: boolean;
+  readonly initialPanel?: string;
   readonly onEditClick: () => void;
   readonly onSetActiveWorkspace: () => void;
+}
+
+type WorkspaceOverviewSurface =
+  | "home"
+  | "knowledge-pages"
+  | "knowledge-base-articles"
+  | "knowledge-databases"
+  | "source-libraries"
+  | "governance"
+  | "profile";
+
+function resolveWorkspaceOverviewSurface(panel?: string): WorkspaceOverviewSurface {
+  switch (panel) {
+    case "knowledge-pages":
+    case "knowledge-base-articles":
+    case "knowledge-databases":
+    case "source-libraries":
+      return panel;
+    case "governance":
+    case "profile":
+      return panel;
+    default:
+      return "home";
+  }
 }
 
 export function WorkspaceOverviewTab({
@@ -32,11 +58,11 @@ export function WorkspaceOverviewTab({
   activeWorkspaceId,
   personnelEntries,
   addressLines,
-  showSettingsPanel = false,
+  initialPanel,
   onEditClick,
   onSetActiveWorkspace,
 }: WorkspaceOverviewTabProps) {
-  if (showSettingsPanel) {
+  if (initialPanel === "settings") {
     return (
       <WorkspaceOverviewSettingsTab
         workspace={workspace}
@@ -47,8 +73,10 @@ export function WorkspaceOverviewTab({
     );
   }
 
+  const initialSurface = resolveWorkspaceOverviewSurface(initialPanel);
+
   return (
-    <Tabs defaultValue="home" className="space-y-4">
+    <Tabs defaultValue={initialSurface} className="space-y-4">
       <div className="rounded-2xl border border-border/50 bg-card/70 p-3 shadow-sm">
         <TabsList
           variant="line"
@@ -56,6 +84,18 @@ export function WorkspaceOverviewTab({
         >
           <TabsTrigger value="home" className="min-w-fit px-3 py-2">
             Home
+          </TabsTrigger>
+          <TabsTrigger value="knowledge-pages" className="min-w-fit px-3 py-2">
+            Pages
+          </TabsTrigger>
+          <TabsTrigger value="knowledge-base-articles" className="min-w-fit px-3 py-2">
+            Articles
+          </TabsTrigger>
+          <TabsTrigger value="knowledge-databases" className="min-w-fit px-3 py-2">
+            Databases
+          </TabsTrigger>
+          <TabsTrigger value="source-libraries" className="min-w-fit px-3 py-2">
+            Libraries
           </TabsTrigger>
           <TabsTrigger value="governance" className="min-w-fit px-3 py-2">
             Governance
@@ -118,6 +158,63 @@ export function WorkspaceOverviewTab({
           {workspace.lifecycleState === "preparatory" && workspace.capabilities.length === 0 && (
             <WorkspaceQuickstartCard workspaceId={workspace.id} />
           )}
+        </TabsContent>
+
+        <TabsContent value="knowledge-pages" className="mt-4 space-y-4">
+          <Card className="border border-border/50">
+            <CardHeader>
+              <CardTitle>Knowledge Pages</CardTitle>
+              <CardDescription>
+                Workspace orchestration surface for notion knowledge page tree and page entry flow.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <KnowledgePagesRouteScreen />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="knowledge-base-articles" className="mt-4 space-y-4">
+          <Card className="border border-border/50">
+            <CardHeader>
+              <CardTitle>Knowledge Base Articles</CardTitle>
+              <CardDescription>
+                Workspace orchestration surface for notion authoring article lifecycle and categorization.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <KnowledgeBaseArticlesRouteScreen />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="knowledge-databases" className="mt-4 space-y-4">
+          <Card className="border border-border/50">
+            <CardHeader>
+              <CardTitle>Knowledge Databases</CardTitle>
+              <CardDescription>
+                Workspace orchestration surface for notion structured database views.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <KnowledgeDatabasesRouteScreen />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="source-libraries" className="mt-4 space-y-4">
+          <Card className="border border-border/50">
+            <CardHeader>
+              <CardTitle>Source Libraries</CardTitle>
+              <CardDescription>
+                Workspace orchestration surface for notebooklm source libraries.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <LibraryTableView accountId={workspace.accountId} workspaceId={workspace.id} />
+              <LibrariesView accountId={workspace.accountId} workspaceId={workspace.id} />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="governance" className="mt-4 space-y-4">

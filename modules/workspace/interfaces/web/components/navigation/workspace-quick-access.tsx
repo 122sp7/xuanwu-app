@@ -24,18 +24,18 @@ const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
       options?.panel !== "settings",
   },
   {
-    href: "/knowledge/pages?workspaceId={workspaceId}",
+    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-pages",
     label: "知識頁面",
     icon: <FileText className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/knowledge/pages" || pathname.startsWith("/knowledge/pages/"),
+    isActive: (pathname: string, options) =>
+      pathname.startsWith("/workspace/") && options?.tab === "Overview" && options?.panel === "knowledge-pages",
   },
   {
-    href: "/knowledge-base/articles?workspaceId={workspaceId}",
+    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-base-articles",
     label: "文章",
     icon: <BookOpen className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/knowledge-base/articles" || pathname.startsWith("/knowledge-base/articles/"),
+    isActive: (pathname: string, options) =>
+      pathname.startsWith("/workspace/") && options?.tab === "Overview" && options?.panel === "knowledge-base-articles",
   },
   {
     href: "/workspace/{workspaceId}?tab=Files",
@@ -59,11 +59,11 @@ const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
       pathname === "/notebook/rag-query" || pathname.startsWith("/notebook/rag-query/"),
   },
   {
-    href: "/source/libraries?workspaceId={workspaceId}",
+    href: "/workspace/{workspaceId}?tab=Overview&panel=source-libraries",
     label: "資料庫",
     icon: <Database className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/source/libraries" || pathname.startsWith("/source/libraries/"),
+    isActive: (pathname: string, options) =>
+      pathname.startsWith("/workspace/") && options?.tab === "Overview" && options?.panel === "source-libraries",
   },
 ];
 

@@ -3,18 +3,56 @@ export interface WorkspaceNavigationContext {
   readonly workspaceId: string | null;
 }
 
+export const WORKSPACE_OVERVIEW_PANELS = [
+  "knowledge-pages",
+  "knowledge-base-articles",
+  "knowledge-databases",
+  "source-libraries",
+  "settings",
+] as const;
+
+export type WorkspaceOverviewPanel = (typeof WORKSPACE_OVERVIEW_PANELS)[number];
+
+export function buildWorkspaceOverviewPanelHref(
+  workspaceId: string,
+  panel?: WorkspaceOverviewPanel,
+): string {
+  const encodedWorkspaceId = encodeURIComponent(workspaceId);
+  if (!panel) {
+    return `/workspace/${encodedWorkspaceId}?tab=Overview`;
+  }
+  return `/workspace/${encodedWorkspaceId}?tab=Overview&panel=${encodeURIComponent(panel)}`;
+}
+
 export function supportsWorkspaceSearchContext(pathname: string): boolean {
   return (
     pathname.startsWith("/knowledge") ||
+    pathname.startsWith("/knowledge-base") ||
+    pathname.startsWith("/knowledge-database") ||
     pathname.startsWith("/source") ||
     pathname.startsWith("/notebook")
   );
 }
 
 export function buildWorkspaceContextHref(pathname: string, workspaceId: string): string {
+  if (pathname.startsWith("/knowledge-base")) {
+    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-base-articles");
+  }
+
+  if (pathname.startsWith("/knowledge-database")) {
+    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-databases");
+  }
+
   if (pathname.startsWith("/knowledge")) {
-    const targetPath = pathname === "/knowledge" ? "/knowledge/pages" : pathname;
-    return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
+    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-pages");
+  }
+
+  if (pathname.startsWith("/source/libraries")) {
+    return buildWorkspaceOverviewPanelHref(workspaceId, "source-libraries");
+  }
+
+  if (pathname.startsWith("/source/documents")) {
+    return `/workspace/${encodeURIComponent(workspaceId)}?tab=Files`;
   }
 
   return `/workspace/${workspaceId}`;

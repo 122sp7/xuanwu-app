@@ -8750,67 +8750,6 @@ export function CoverEditor({ value, onChange, isPending }: CoverEditorProps) {
 }
 ````
 
-## File: modules/notion/subdomains/knowledge/interfaces/components/PageDialog.tsx
-````typescript
-"use client";
-
-import { useState, useTransition } from "react";
-import { Button } from "@ui-shadcn/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { createKnowledgePage } from "../_actions/knowledge-page.actions";
-
-interface PageDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-  parentPageId?: string | null;
-  onSuccess?: (pageId?: string) => void;
-}
-
-export function PageDialog({ open, onOpenChange, accountId, workspaceId, currentUserId, parentPageId, onSuccess }: PageDialogProps) {
-  const [title, setTitle] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function reset() { setTitle(""); setError(null); }
-  function handleOpenChange(next: boolean) { if (!next) reset(); onOpenChange(next); }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!title.trim()) { setError("頁面標題為必填"); return; }
-    setError(null);
-    startTransition(async () => {
-      const result = await createKnowledgePage({ accountId, workspaceId, title: title.trim(), parentPageId: parentPageId ?? null, createdByUserId: currentUserId });
-      if (result.success) { reset(); onOpenChange(false); onSuccess?.(result.aggregateId); }
-      else { setError(result.error?.message ?? "建立失敗"); }
-    });
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader><DialogTitle>{parentPageId ? "新增子頁面" : "新增頁面"}</DialogTitle></DialogHeader>
-        <form id="page-form" className="space-y-3" onSubmit={handleSubmit}>
-          <div className="space-y-1.5">
-            <Label htmlFor="page-title">標題 *</Label>
-            <Input id="page-title" placeholder="頁面標題" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus disabled={isPending} />
-          </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-        </form>
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)} disabled={isPending}>取消</Button>
-          <Button type="submit" form="page-form" size="sm" disabled={isPending || !title.trim()}>{isPending ? "建立中…" : "建立"}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
 ## File: modules/notion/subdomains/knowledge/interfaces/components/PageEditorView.tsx
 ````typescript
 "use client";
@@ -13226,6 +13165,240 @@ export class RevokeAccountRoleUseCase {
 }
 ````
 
+## File: modules/platform/subdomains/account/domain/aggregates/Account.ts
+````typescript
+import type { AccountDomainEventType } from "../events";
+import { canClose, canReactivate, canSuspend } from "../value-objects";
+import { createAccountId, createAccountType, createWalletAmount } from "../value-objects";
+import type { AccountStatus } from "../value-objects";
+
+export interface AccountSnapshot {
+	readonly id: string;
+	readonly name: string;
+	readonly accountType: "user" | "organization";
+	readonly email: string | null;
+	readonly photoURL: string | null;
+	readonly bio: string | null;
+	readonly status: "active" | "suspended" | "closed";
+	readonly walletBalance: number;
+	readonly createdAtISO: string;
+	readonly updatedAtISO: string;
+}
+
+export interface CreateAccountInput {
+	readonly name: string;
+	readonly accountType: "user" | "organization";
+	readonly email?: string | null;
+	readonly photoURL?: string | null;
+	readonly bio?: string | null;
+}
+
+export class Account {
+	private readonly _domainEvents: AccountDomainEventType[] = [];
+
+	private constructor(private _props: AccountSnapshot) {}
+
+	static create(id: string, input: CreateAccountInput): Account {
+		createAccountId(id);
+		createAccountType(input.accountType);
+		const now = new Date().toISOString();
+		const account = new Account({
+			id,
+			name: input.name,
+			accountType: input.accountType,
+			email: input.email ?? null,
+			photoURL: input.photoURL ?? null,
+			bio: input.bio ?? null,
+			status: "active",
+			walletBalance: 0,
+			createdAtISO: now,
+			updatedAtISO: now,
+		});
+		account._domainEvents.push({
+			type: "platform.account.created",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				accountId: id,
+				name: input.name,
+				accountType: input.accountType,
+				email: input.email ?? null,
+			},
+		});
+		return account;
+	}
+
+	static reconstitute(snapshot: AccountSnapshot): Account {
+		createAccountId(snapshot.id);
+		createAccountType(snapshot.accountType);
+		if (snapshot.walletBalance < 0) {
+			throw new Error("Wallet balance cannot be negative.");
+		}
+		return new Account({ ...snapshot });
+	}
+
+	updateProfile(input: { name?: string; bio?: string | null; photoURL?: string | null }): void {
+		if (this._props.status !== "active") {
+			throw new Error("Only active account can update profile.");
+		}
+		const now = new Date().toISOString();
+		this._props = {
+			...this._props,
+			name: input.name ?? this._props.name,
+			bio: input.bio === undefined ? this._props.bio : input.bio,
+			photoURL: input.photoURL === undefined ? this._props.photoURL : input.photoURL,
+			updatedAtISO: now,
+		};
+		this._domainEvents.push({
+			type: "platform.account.profile_updated",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				accountId: this._props.id,
+				name: this._props.name,
+				bio: this._props.bio,
+				photoURL: this._props.photoURL,
+			},
+		});
+	}
+
+	creditWallet(amount: number, description: string): void {
+		const creditAmount = createWalletAmount(amount);
+		const now = new Date().toISOString();
+		this._props = {
+			...this._props,
+			walletBalance: this._props.walletBalance + creditAmount,
+			updatedAtISO: now,
+		};
+		this._domainEvents.push({
+			type: "platform.account.wallet_credited",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				accountId: this._props.id,
+				amount: creditAmount,
+				description,
+				balance: this._props.walletBalance,
+			},
+		});
+	}
+
+	debitWallet(amount: number, description: string): void {
+		const debitAmount = createWalletAmount(amount);
+		if (this._props.walletBalance < debitAmount) {
+			throw new Error("Insufficient wallet balance.");
+		}
+		const now = new Date().toISOString();
+		this._props = {
+			...this._props,
+			walletBalance: this._props.walletBalance - debitAmount,
+			updatedAtISO: now,
+		};
+		this._domainEvents.push({
+			type: "platform.account.wallet_debited",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				accountId: this._props.id,
+				amount: debitAmount,
+				description,
+				balance: this._props.walletBalance,
+			},
+		});
+	}
+
+	suspend(): void {
+		if (!canSuspend(this._props.status)) {
+			throw new Error("Only active account can be suspended.");
+		}
+		this.changeStatus("suspended", "platform.account.suspended");
+	}
+
+	close(): void {
+		if (!canClose(this._props.status)) {
+			throw new Error("Account is already closed.");
+		}
+		this.changeStatus("closed", "platform.account.closed");
+	}
+
+	reactivate(): void {
+		if (!canReactivate(this._props.status)) {
+			throw new Error("Only suspended account can be reactivated.");
+		}
+		this.changeStatus("active", "platform.account.reactivated");
+	}
+
+	get id(): string {
+		return this._props.id;
+	}
+
+	get name(): string {
+		return this._props.name;
+	}
+
+	get accountType(): "user" | "organization" {
+		return this._props.accountType;
+	}
+
+	get email(): string | null {
+		return this._props.email;
+	}
+
+	get photoURL(): string | null {
+		return this._props.photoURL;
+	}
+
+	get bio(): string | null {
+		return this._props.bio;
+	}
+
+	get status(): AccountStatus {
+		return this._props.status;
+	}
+
+	get walletBalance(): number {
+		return this._props.walletBalance;
+	}
+
+	get createdAtISO(): string {
+		return this._props.createdAtISO;
+	}
+
+	get updatedAtISO(): string {
+		return this._props.updatedAtISO;
+	}
+
+	getSnapshot(): Readonly<AccountSnapshot> {
+		return Object.freeze({ ...this._props });
+	}
+
+	pullDomainEvents(): AccountDomainEventType[] {
+		const events = [...this._domainEvents];
+		this._domainEvents.length = 0;
+		return events;
+	}
+
+	private changeStatus(
+		status: AccountStatus,
+		eventType: "platform.account.suspended" | "platform.account.closed" | "platform.account.reactivated",
+	): void {
+		const now = new Date().toISOString();
+		this._props = { ...this._props, status, updatedAtISO: now };
+		this._domainEvents.push({
+			type: eventType,
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: { accountId: this._props.id },
+		});
+	}
+}
+````
+
+## File: modules/platform/subdomains/account/domain/aggregates/index.ts
+````typescript
+export * from "./Account";
+````
+
 ## File: modules/platform/subdomains/account/domain/entities/Account.ts
 ````typescript
 /**
@@ -13366,6 +13539,91 @@ export interface UpdatePolicyInput {
 }
 ````
 
+## File: modules/platform/subdomains/account/domain/events/AccountDomainEvent.ts
+````typescript
+export interface AccountDomainEvent {
+	readonly eventId: string;
+	readonly occurredAt: string;
+	readonly type: string;
+	readonly payload: object;
+}
+
+export interface AccountCreatedEvent extends AccountDomainEvent {
+	readonly type: "platform.account.created";
+	readonly payload: {
+		readonly accountId: string;
+		readonly name: string;
+		readonly accountType: "user" | "organization";
+		readonly email: string | null;
+	};
+}
+
+export interface ProfileUpdatedEvent extends AccountDomainEvent {
+	readonly type: "platform.account.profile_updated";
+	readonly payload: {
+		readonly accountId: string;
+		readonly name: string;
+		readonly bio: string | null;
+		readonly photoURL: string | null;
+	};
+}
+
+export interface WalletCreditedEvent extends AccountDomainEvent {
+	readonly type: "platform.account.wallet_credited";
+	readonly payload: {
+		readonly accountId: string;
+		readonly amount: number;
+		readonly description: string;
+		readonly balance: number;
+	};
+}
+
+export interface WalletDebitedEvent extends AccountDomainEvent {
+	readonly type: "platform.account.wallet_debited";
+	readonly payload: {
+		readonly accountId: string;
+		readonly amount: number;
+		readonly description: string;
+		readonly balance: number;
+	};
+}
+
+export interface AccountSuspendedEvent extends AccountDomainEvent {
+	readonly type: "platform.account.suspended";
+	readonly payload: {
+		readonly accountId: string;
+	};
+}
+
+export interface AccountClosedEvent extends AccountDomainEvent {
+	readonly type: "platform.account.closed";
+	readonly payload: {
+		readonly accountId: string;
+	};
+}
+
+export interface AccountReactivatedEvent extends AccountDomainEvent {
+	readonly type: "platform.account.reactivated";
+	readonly payload: {
+		readonly accountId: string;
+	};
+}
+
+export type AccountDomainEventType =
+	| AccountCreatedEvent
+	| ProfileUpdatedEvent
+	| WalletCreditedEvent
+	| WalletDebitedEvent
+	| AccountSuspendedEvent
+	| AccountClosedEvent
+	| AccountReactivatedEvent;
+````
+
+## File: modules/platform/subdomains/account/domain/events/index.ts
+````typescript
+export * from "./AccountDomainEvent";
+````
+
 ## File: modules/platform/subdomains/account/domain/ports/TokenRefreshPort.ts
 ````typescript
 /**
@@ -13457,6 +13715,77 @@ export interface AccountRepository {
   assignRole(accountId: string, role: OrganizationRole, grantedBy: string): Promise<AccountRoleRecord>;
   revokeRole(accountId: string): Promise<void>;
   getRole(accountId: string): Promise<AccountRoleRecord | null>;
+}
+````
+
+## File: modules/platform/subdomains/account/domain/value-objects/AccountId.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const AccountIdSchema = z.string().min(1).brand("AccountId");
+export type AccountId = z.infer<typeof AccountIdSchema>;
+
+export function createAccountId(raw: string): AccountId {
+	return AccountIdSchema.parse(raw);
+}
+````
+
+## File: modules/platform/subdomains/account/domain/value-objects/AccountStatus.ts
+````typescript
+export const ACCOUNT_STATUSES = ["active", "suspended", "closed"] as const;
+export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
+
+export function canSuspend(status: AccountStatus): boolean {
+	return status === "active";
+}
+
+export function canClose(status: AccountStatus): boolean {
+	return status !== "closed";
+}
+
+export function canReactivate(status: AccountStatus): boolean {
+	return status === "suspended";
+}
+````
+
+## File: modules/platform/subdomains/account/domain/value-objects/AccountType.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const ACCOUNT_TYPES = ["user", "organization"] as const;
+export type AccountType = (typeof ACCOUNT_TYPES)[number];
+
+export const AccountTypeSchema = z.enum(ACCOUNT_TYPES);
+
+export function createAccountType(raw: string): AccountType {
+	return AccountTypeSchema.parse(raw);
+}
+````
+
+## File: modules/platform/subdomains/account/domain/value-objects/index.ts
+````typescript
+export { AccountIdSchema, createAccountId } from "./AccountId";
+export type { AccountId } from "./AccountId";
+
+export { ACCOUNT_TYPES, AccountTypeSchema, createAccountType } from "./AccountType";
+export type { AccountType } from "./AccountType";
+
+export { ACCOUNT_STATUSES, canSuspend, canClose, canReactivate } from "./AccountStatus";
+export type { AccountStatus } from "./AccountStatus";
+
+export { WalletAmountSchema, createWalletAmount } from "./WalletAmount";
+export type { WalletAmount } from "./WalletAmount";
+````
+
+## File: modules/platform/subdomains/account/domain/value-objects/WalletAmount.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const WalletAmountSchema = z.number().positive().brand("WalletAmount");
+export type WalletAmount = z.infer<typeof WalletAmountSchema>;
+
+export function createWalletAmount(raw: number): WalletAmount {
+	return WalletAmountSchema.parse(raw);
 }
 ````
 
@@ -14876,6 +15205,189 @@ export class EmitTokenRefreshSignalUseCase {
 }
 ````
 
+## File: modules/platform/subdomains/identity/domain/aggregates/index.ts
+````typescript
+export * from "./UserIdentity";
+````
+
+## File: modules/platform/subdomains/identity/domain/aggregates/UserIdentity.ts
+````typescript
+import type { IdentityDomainEventType } from "../events";
+import { canReactivate, canSuspend } from "../value-objects";
+import { createDisplayName, createEmail, createUserId } from "../value-objects";
+import type { IdentityStatus } from "../value-objects";
+
+export interface UserIdentitySnapshot {
+	readonly uid: string;
+	readonly email: string | null;
+	readonly displayName: string | null;
+	readonly photoURL: string | null;
+	readonly isAnonymous: boolean;
+	readonly emailVerified: boolean;
+	readonly status: IdentityStatus;
+	readonly lastSignInAtISO: string | null;
+	readonly createdAtISO: string;
+	readonly updatedAtISO: string;
+}
+
+export interface CreateIdentityInput {
+	readonly email: string | null;
+	readonly displayName: string | null;
+	readonly photoURL: string | null;
+	readonly isAnonymous: boolean;
+	readonly emailVerified: boolean;
+}
+
+export class UserIdentity {
+	private readonly _domainEvents: IdentityDomainEventType[] = [];
+
+	private constructor(private _props: UserIdentitySnapshot) {}
+
+	static create(uid: string, input: CreateIdentityInput): UserIdentity {
+		createUserId(uid);
+		if (input.email !== null) {
+			createEmail(input.email);
+		}
+		const normalizedDisplayName = input.displayName === null ? null : createDisplayName(input.displayName);
+		const now = new Date().toISOString();
+		const aggregate = new UserIdentity({
+			uid,
+			email: input.email,
+			displayName: normalizedDisplayName ?? null,
+			photoURL: input.photoURL,
+			isAnonymous: input.isAnonymous,
+			emailVerified: input.emailVerified,
+			status: "active",
+			lastSignInAtISO: null,
+			createdAtISO: now,
+			updatedAtISO: now,
+		});
+		aggregate._domainEvents.push({
+			type: "platform.identity.created",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				uid,
+				email: input.email,
+				isAnonymous: input.isAnonymous,
+			},
+		});
+		return aggregate;
+	}
+
+	static reconstitute(snapshot: UserIdentitySnapshot): UserIdentity {
+		return new UserIdentity({ ...snapshot });
+	}
+
+	signIn(): void {
+		if (this._props.status !== "active") {
+			throw new Error("Cannot sign in with a suspended identity.");
+		}
+		const now = new Date().toISOString();
+		this._props = { ...this._props, lastSignInAtISO: now, updatedAtISO: now };
+		this._domainEvents.push({
+			type: "platform.identity.signed_in",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: { uid: this._props.uid, signedInAtISO: now },
+		});
+	}
+
+	updateDisplayName(name: string): void {
+		const normalizedName = createDisplayName(name);
+		const previousDisplayName = this._props.displayName;
+		const now = new Date().toISOString();
+		this._props = { ...this._props, displayName: normalizedName, updatedAtISO: now };
+		this._domainEvents.push({
+			type: "platform.identity.display_name_updated",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				uid: this._props.uid,
+				previousDisplayName,
+				displayName: normalizedName,
+			},
+		});
+	}
+
+	verifyEmail(): void {
+		if (this._props.emailVerified) {
+			throw new Error("Identity email is already verified.");
+		}
+		const now = new Date().toISOString();
+		this._props = { ...this._props, emailVerified: true, updatedAtISO: now };
+		this._domainEvents.push({
+			type: "platform.identity.email_verified",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: { uid: this._props.uid, email: this._props.email },
+		});
+	}
+
+	suspend(): void {
+		if (!canSuspend(this._props.status)) {
+			throw new Error("Identity is already suspended.");
+		}
+		const now = new Date().toISOString();
+		this._props = { ...this._props, status: "suspended", updatedAtISO: now };
+		this._domainEvents.push({
+			type: "platform.identity.suspended",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: { uid: this._props.uid },
+		});
+	}
+
+	reactivate(): void {
+		if (!canReactivate(this._props.status)) {
+			throw new Error("Identity is not suspended.");
+		}
+		const now = new Date().toISOString();
+		this._props = { ...this._props, status: "active", updatedAtISO: now };
+		this._domainEvents.push({
+			type: "platform.identity.reactivated",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: { uid: this._props.uid },
+		});
+	}
+
+	get uid(): string {
+		return this._props.uid;
+	}
+
+	get email(): string | null {
+		return this._props.email;
+	}
+
+	get displayName(): string | null {
+		return this._props.displayName;
+	}
+
+	get isActive(): boolean {
+		return this._props.status === "active";
+	}
+
+	get isAnonymous(): boolean {
+		return this._props.isAnonymous;
+	}
+
+	get emailVerified(): boolean {
+		return this._props.emailVerified;
+	}
+
+	getSnapshot(): Readonly<UserIdentitySnapshot> {
+		return Object.freeze({ ...this._props });
+	}
+
+	pullDomainEvents(): IdentityDomainEventType[] {
+		const events = [...this._domainEvents];
+		this._domainEvents.length = 0;
+		return events;
+	}
+}
+````
+
 ## File: modules/platform/subdomains/identity/domain/entities/Identity.ts
 ````typescript
 /**
@@ -14922,6 +15434,77 @@ export interface TokenRefreshSignal {
 }
 ````
 
+## File: modules/platform/subdomains/identity/domain/events/IdentityDomainEvent.ts
+````typescript
+export interface IdentityDomainEvent {
+	readonly eventId: string;
+	readonly occurredAt: string;
+	readonly type: string;
+	readonly payload: object;
+}
+
+export interface IdentityCreatedEvent extends IdentityDomainEvent {
+	readonly type: "platform.identity.created";
+	readonly payload: {
+		readonly uid: string;
+		readonly email: string | null;
+		readonly isAnonymous: boolean;
+	};
+}
+
+export interface SignedInEvent extends IdentityDomainEvent {
+	readonly type: "platform.identity.signed_in";
+	readonly payload: {
+		readonly uid: string;
+		readonly signedInAtISO: string;
+	};
+}
+
+export interface DisplayNameUpdatedEvent extends IdentityDomainEvent {
+	readonly type: "platform.identity.display_name_updated";
+	readonly payload: {
+		readonly uid: string;
+		readonly previousDisplayName: string | null;
+		readonly displayName: string;
+	};
+}
+
+export interface EmailVerifiedEvent extends IdentityDomainEvent {
+	readonly type: "platform.identity.email_verified";
+	readonly payload: {
+		readonly uid: string;
+		readonly email: string | null;
+	};
+}
+
+export interface IdentitySuspendedEvent extends IdentityDomainEvent {
+	readonly type: "platform.identity.suspended";
+	readonly payload: {
+		readonly uid: string;
+	};
+}
+
+export interface IdentityReactivatedEvent extends IdentityDomainEvent {
+	readonly type: "platform.identity.reactivated";
+	readonly payload: {
+		readonly uid: string;
+	};
+}
+
+export type IdentityDomainEventType =
+	| IdentityCreatedEvent
+	| SignedInEvent
+	| DisplayNameUpdatedEvent
+	| EmailVerifiedEvent
+	| IdentitySuspendedEvent
+	| IdentityReactivatedEvent;
+````
+
+## File: modules/platform/subdomains/identity/domain/events/index.ts
+````typescript
+export * from "./IdentityDomainEvent";
+````
+
 ## File: modules/platform/subdomains/identity/domain/repositories/IdentityRepository.ts
 ````typescript
 import type { IdentityEntity, RegistrationInput, SignInCredentials } from "../entities/Identity";
@@ -14944,6 +15527,79 @@ import type { TokenRefreshSignal } from "../entities/TokenRefreshSignal";
 export interface TokenRefreshRepository {
 	emit(signal: TokenRefreshSignal): Promise<void>;
 	subscribe(accountId: string, onSignal: () => void): () => void;
+}
+````
+
+## File: modules/platform/subdomains/identity/domain/value-objects/DisplayName.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const DisplayNameSchema = z.string().min(1).max(100).trim().brand("DisplayName");
+export type DisplayName = z.infer<typeof DisplayNameSchema>;
+
+export function createDisplayName(raw: string): DisplayName {
+	return DisplayNameSchema.parse(raw);
+}
+````
+
+## File: modules/platform/subdomains/identity/domain/value-objects/Email.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const EmailSchema = z.string().email().brand("Email");
+export type Email = z.infer<typeof EmailSchema>;
+
+export function createEmail(raw: string): Email {
+	return EmailSchema.parse(raw);
+}
+
+export function unsafeEmail(raw: string): Email {
+	return raw as Email;
+}
+````
+
+## File: modules/platform/subdomains/identity/domain/value-objects/IdentityStatus.ts
+````typescript
+export const IDENTITY_STATUSES = ["active", "suspended"] as const;
+export type IdentityStatus = (typeof IDENTITY_STATUSES)[number];
+
+export function canSuspend(status: IdentityStatus): boolean {
+	return status === "active";
+}
+
+export function canReactivate(status: IdentityStatus): boolean {
+	return status === "suspended";
+}
+````
+
+## File: modules/platform/subdomains/identity/domain/value-objects/index.ts
+````typescript
+export { EmailSchema, createEmail, unsafeEmail } from "./Email";
+export type { Email } from "./Email";
+
+export { UserIdSchema, createUserId, unsafeUserId } from "./UserId";
+export type { UserId } from "./UserId";
+
+export { DisplayNameSchema, createDisplayName } from "./DisplayName";
+export type { DisplayName } from "./DisplayName";
+
+export { IDENTITY_STATUSES, canSuspend, canReactivate } from "./IdentityStatus";
+export type { IdentityStatus } from "./IdentityStatus";
+````
+
+## File: modules/platform/subdomains/identity/domain/value-objects/UserId.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const UserIdSchema = z.string().min(1).brand("UserId");
+export type UserId = z.infer<typeof UserIdSchema>;
+
+export function createUserId(raw: string): UserId {
+	return UserIdSchema.parse(raw);
+}
+
+export function unsafeUserId(raw: string): UserId {
+	return raw as UserId;
 }
 ````
 
@@ -47553,6 +48209,67 @@ export function KnowledgeSidebarSection({
 }
 ````
 
+## File: modules/notion/subdomains/knowledge/interfaces/components/PageDialog.tsx
+````typescript
+"use client";
+
+import { useState, useTransition } from "react";
+import { Button } from "@ui-shadcn/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { createKnowledgePage } from "../_actions/knowledge-page.actions";
+
+interface PageDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+  parentPageId?: string | null;
+  onSuccess?: (pageId?: string) => void;
+}
+
+export function PageDialog({ open, onOpenChange, accountId, workspaceId, currentUserId, parentPageId, onSuccess }: PageDialogProps) {
+  const [title, setTitle] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function reset() { setTitle(""); setError(null); }
+  function handleOpenChange(next: boolean) { if (!next) reset(); onOpenChange(next); }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) { setError("頁面標題為必填"); return; }
+    setError(null);
+    startTransition(async () => {
+      const result = await createKnowledgePage({ accountId, workspaceId, title: title.trim(), parentPageId: parentPageId ?? null, createdByUserId: currentUserId });
+      if (result.success) { reset(); onOpenChange(false); onSuccess?.(result.aggregateId); }
+      else { setError(result.error?.message ?? "建立失敗"); }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader><DialogTitle>{parentPageId ? "新增子頁面" : "新增頁面"}</DialogTitle></DialogHeader>
+        <form id="page-form" className="space-y-3" onSubmit={handleSubmit}>
+          <div className="space-y-1.5">
+            <Label htmlFor="page-title">標題 *</Label>
+            <Input id="page-title" placeholder="頁面標題" value={title} onChange={(e) => setTitle(e.target.value)} disabled={isPending} />
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </form>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)} disabled={isPending}>取消</Button>
+          <Button type="submit" form="page-form" size="sm" disabled={isPending || !title.trim()}>{isPending ? "建立中…" : "建立"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
 ## File: modules/notion/subdomains/knowledge/interfaces/components/PageTreeView.tsx
 ````typescript
 "use client";
@@ -50444,323 +51161,39 @@ export {
 } from "./services/resolve-active-account";
 ````
 
-## File: modules/platform/subdomains/account/domain/aggregates/Account.ts
+## File: modules/platform/subdomains/account/domain/index.ts
 ````typescript
-import type { AccountDomainEventType } from "../events";
-import { canClose, canReactivate, canSuspend } from "../value-objects";
-import { createAccountId, createAccountType, createWalletAmount } from "../value-objects";
-import type { AccountStatus } from "../value-objects";
+export type {
+  AccountType,
+  OrganizationRole,
+  Presence,
+  ThemeConfig,
+  Wallet,
+  ExpertiseBadge,
+  MemberReference,
+  Team,
+  AccountEntity,
+  AccountRoleRecord,
+  UpdateProfileInput,
+  WalletTransaction,
+} from "./entities/Account";
 
-export interface AccountSnapshot {
-	readonly id: string;
-	readonly name: string;
-	readonly accountType: "user" | "organization";
-	readonly email: string | null;
-	readonly photoURL: string | null;
-	readonly bio: string | null;
-	readonly status: "active" | "suspended" | "closed";
-	readonly walletBalance: number;
-	readonly createdAtISO: string;
-	readonly updatedAtISO: string;
-}
+export type {
+  PolicyEffect,
+  PolicyRule,
+  AccountPolicy,
+  CreatePolicyInput,
+  UpdatePolicyInput,
+} from "./entities/AccountPolicy";
 
-export interface CreateAccountInput {
-	readonly name: string;
-	readonly accountType: "user" | "organization";
-	readonly email?: string | null;
-	readonly photoURL?: string | null;
-	readonly bio?: string | null;
-}
-
-export class Account {
-	private readonly _domainEvents: AccountDomainEventType[] = [];
-
-	private constructor(private _props: AccountSnapshot) {}
-
-	static create(id: string, input: CreateAccountInput): Account {
-		createAccountId(id);
-		createAccountType(input.accountType);
-		const now = new Date().toISOString();
-		const account = new Account({
-			id,
-			name: input.name,
-			accountType: input.accountType,
-			email: input.email ?? null,
-			photoURL: input.photoURL ?? null,
-			bio: input.bio ?? null,
-			status: "active",
-			walletBalance: 0,
-			createdAtISO: now,
-			updatedAtISO: now,
-		});
-		account._domainEvents.push({
-			type: "platform.account.created",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				accountId: id,
-				name: input.name,
-				accountType: input.accountType,
-				email: input.email ?? null,
-			},
-		});
-		return account;
-	}
-
-	static reconstitute(snapshot: AccountSnapshot): Account {
-		createAccountId(snapshot.id);
-		createAccountType(snapshot.accountType);
-		if (snapshot.walletBalance < 0) {
-			throw new Error("Wallet balance cannot be negative.");
-		}
-		return new Account({ ...snapshot });
-	}
-
-	updateProfile(input: { name?: string; bio?: string | null; photoURL?: string | null }): void {
-		if (this._props.status !== "active") {
-			throw new Error("Only active account can update profile.");
-		}
-		const now = new Date().toISOString();
-		this._props = {
-			...this._props,
-			name: input.name ?? this._props.name,
-			bio: input.bio === undefined ? this._props.bio : input.bio,
-			photoURL: input.photoURL === undefined ? this._props.photoURL : input.photoURL,
-			updatedAtISO: now,
-		};
-		this._domainEvents.push({
-			type: "platform.account.profile_updated",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				accountId: this._props.id,
-				name: this._props.name,
-				bio: this._props.bio,
-				photoURL: this._props.photoURL,
-			},
-		});
-	}
-
-	creditWallet(amount: number, description: string): void {
-		const creditAmount = createWalletAmount(amount);
-		const now = new Date().toISOString();
-		this._props = {
-			...this._props,
-			walletBalance: this._props.walletBalance + creditAmount,
-			updatedAtISO: now,
-		};
-		this._domainEvents.push({
-			type: "platform.account.wallet_credited",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				accountId: this._props.id,
-				amount: creditAmount,
-				description,
-				balance: this._props.walletBalance,
-			},
-		});
-	}
-
-	debitWallet(amount: number, description: string): void {
-		const debitAmount = createWalletAmount(amount);
-		if (this._props.walletBalance < debitAmount) {
-			throw new Error("Insufficient wallet balance.");
-		}
-		const now = new Date().toISOString();
-		this._props = {
-			...this._props,
-			walletBalance: this._props.walletBalance - debitAmount,
-			updatedAtISO: now,
-		};
-		this._domainEvents.push({
-			type: "platform.account.wallet_debited",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				accountId: this._props.id,
-				amount: debitAmount,
-				description,
-				balance: this._props.walletBalance,
-			},
-		});
-	}
-
-	suspend(): void {
-		if (!canSuspend(this._props.status)) {
-			throw new Error("Only active account can be suspended.");
-		}
-		this.changeStatus("suspended", "platform.account.suspended");
-	}
-
-	close(): void {
-		if (!canClose(this._props.status)) {
-			throw new Error("Account is already closed.");
-		}
-		this.changeStatus("closed", "platform.account.closed");
-	}
-
-	reactivate(): void {
-		if (!canReactivate(this._props.status)) {
-			throw new Error("Only suspended account can be reactivated.");
-		}
-		this.changeStatus("active", "platform.account.reactivated");
-	}
-
-	get id(): string {
-		return this._props.id;
-	}
-
-	get name(): string {
-		return this._props.name;
-	}
-
-	get accountType(): "user" | "organization" {
-		return this._props.accountType;
-	}
-
-	get email(): string | null {
-		return this._props.email;
-	}
-
-	get photoURL(): string | null {
-		return this._props.photoURL;
-	}
-
-	get bio(): string | null {
-		return this._props.bio;
-	}
-
-	get status(): AccountStatus {
-		return this._props.status;
-	}
-
-	get walletBalance(): number {
-		return this._props.walletBalance;
-	}
-
-	get createdAtISO(): string {
-		return this._props.createdAtISO;
-	}
-
-	get updatedAtISO(): string {
-		return this._props.updatedAtISO;
-	}
-
-	getSnapshot(): Readonly<AccountSnapshot> {
-		return Object.freeze({ ...this._props });
-	}
-
-	pullDomainEvents(): AccountDomainEventType[] {
-		const events = [...this._domainEvents];
-		this._domainEvents.length = 0;
-		return events;
-	}
-
-	private changeStatus(
-		status: AccountStatus,
-		eventType: "platform.account.suspended" | "platform.account.closed" | "platform.account.reactivated",
-	): void {
-		const now = new Date().toISOString();
-		this._props = { ...this._props, status, updatedAtISO: now };
-		this._domainEvents.push({
-			type: eventType,
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: { accountId: this._props.id },
-		});
-	}
-}
-````
-
-## File: modules/platform/subdomains/account/domain/aggregates/index.ts
-````typescript
-export * from "./Account";
-````
-
-## File: modules/platform/subdomains/account/domain/events/AccountDomainEvent.ts
-````typescript
-export interface AccountDomainEvent {
-	readonly eventId: string;
-	readonly occurredAt: string;
-	readonly type: string;
-	readonly payload: object;
-}
-
-export interface AccountCreatedEvent extends AccountDomainEvent {
-	readonly type: "platform.account.created";
-	readonly payload: {
-		readonly accountId: string;
-		readonly name: string;
-		readonly accountType: "user" | "organization";
-		readonly email: string | null;
-	};
-}
-
-export interface ProfileUpdatedEvent extends AccountDomainEvent {
-	readonly type: "platform.account.profile_updated";
-	readonly payload: {
-		readonly accountId: string;
-		readonly name: string;
-		readonly bio: string | null;
-		readonly photoURL: string | null;
-	};
-}
-
-export interface WalletCreditedEvent extends AccountDomainEvent {
-	readonly type: "platform.account.wallet_credited";
-	readonly payload: {
-		readonly accountId: string;
-		readonly amount: number;
-		readonly description: string;
-		readonly balance: number;
-	};
-}
-
-export interface WalletDebitedEvent extends AccountDomainEvent {
-	readonly type: "platform.account.wallet_debited";
-	readonly payload: {
-		readonly accountId: string;
-		readonly amount: number;
-		readonly description: string;
-		readonly balance: number;
-	};
-}
-
-export interface AccountSuspendedEvent extends AccountDomainEvent {
-	readonly type: "platform.account.suspended";
-	readonly payload: {
-		readonly accountId: string;
-	};
-}
-
-export interface AccountClosedEvent extends AccountDomainEvent {
-	readonly type: "platform.account.closed";
-	readonly payload: {
-		readonly accountId: string;
-	};
-}
-
-export interface AccountReactivatedEvent extends AccountDomainEvent {
-	readonly type: "platform.account.reactivated";
-	readonly payload: {
-		readonly accountId: string;
-	};
-}
-
-export type AccountDomainEventType =
-	| AccountCreatedEvent
-	| ProfileUpdatedEvent
-	| WalletCreditedEvent
-	| WalletDebitedEvent
-	| AccountSuspendedEvent
-	| AccountClosedEvent
-	| AccountReactivatedEvent;
-````
-
-## File: modules/platform/subdomains/account/domain/events/index.ts
-````typescript
-export * from "./AccountDomainEvent";
+export type { AccountRepository } from "./repositories/AccountRepository";
+export type { AccountQueryRepository, WalletBalanceSnapshot, Unsubscribe } from "./repositories/AccountQueryRepository";
+export type { AccountPolicyRepository } from "./repositories/AccountPolicyRepository";
+export type { TokenRefreshPort, TokenRefreshSignalInput } from "./ports/TokenRefreshPort";
+export type { IAccountPort, IAccountQueryPort, IAccountPolicyPort } from "./ports";
+export * from "./aggregates";
+export * from "./events";
+export * from "./value-objects";
 ````
 
 ## File: modules/platform/subdomains/account/domain/ports/index.ts
@@ -50776,77 +51209,6 @@ export type { AccountRepository as IAccountPort } from "../repositories/AccountR
 export type { AccountQueryRepository as IAccountQueryPort } from "../repositories/AccountQueryRepository";
 export type { AccountPolicyRepository as IAccountPolicyPort } from "../repositories/AccountPolicyRepository";
 export type { TokenRefreshPort } from "./TokenRefreshPort";
-````
-
-## File: modules/platform/subdomains/account/domain/value-objects/AccountId.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const AccountIdSchema = z.string().min(1).brand("AccountId");
-export type AccountId = z.infer<typeof AccountIdSchema>;
-
-export function createAccountId(raw: string): AccountId {
-	return AccountIdSchema.parse(raw);
-}
-````
-
-## File: modules/platform/subdomains/account/domain/value-objects/AccountStatus.ts
-````typescript
-export const ACCOUNT_STATUSES = ["active", "suspended", "closed"] as const;
-export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
-
-export function canSuspend(status: AccountStatus): boolean {
-	return status === "active";
-}
-
-export function canClose(status: AccountStatus): boolean {
-	return status !== "closed";
-}
-
-export function canReactivate(status: AccountStatus): boolean {
-	return status === "suspended";
-}
-````
-
-## File: modules/platform/subdomains/account/domain/value-objects/AccountType.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const ACCOUNT_TYPES = ["user", "organization"] as const;
-export type AccountType = (typeof ACCOUNT_TYPES)[number];
-
-export const AccountTypeSchema = z.enum(ACCOUNT_TYPES);
-
-export function createAccountType(raw: string): AccountType {
-	return AccountTypeSchema.parse(raw);
-}
-````
-
-## File: modules/platform/subdomains/account/domain/value-objects/index.ts
-````typescript
-export { AccountIdSchema, createAccountId } from "./AccountId";
-export type { AccountId } from "./AccountId";
-
-export { ACCOUNT_TYPES, AccountTypeSchema, createAccountType } from "./AccountType";
-export type { AccountType } from "./AccountType";
-
-export { ACCOUNT_STATUSES, canSuspend, canClose, canReactivate } from "./AccountStatus";
-export type { AccountStatus } from "./AccountStatus";
-
-export { WalletAmountSchema, createWalletAmount } from "./WalletAmount";
-export type { WalletAmount } from "./WalletAmount";
-````
-
-## File: modules/platform/subdomains/account/domain/value-objects/WalletAmount.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const WalletAmountSchema = z.number().positive().brand("WalletAmount");
-export type WalletAmount = z.infer<typeof WalletAmountSchema>;
-
-export function createWalletAmount(raw: number): WalletAmount {
-	return WalletAmountSchema.parse(raw);
-}
 ````
 
 ## File: modules/platform/subdomains/account/infrastructure/identity-token-refresh.adapter.ts
@@ -51516,258 +51878,16 @@ export class FirebaseEntitlementGrantRepository implements EntitlementGrantRepos
 }
 ````
 
-## File: modules/platform/subdomains/identity/domain/aggregates/index.ts
+## File: modules/platform/subdomains/identity/domain/index.ts
 ````typescript
-export * from "./UserIdentity";
-````
-
-## File: modules/platform/subdomains/identity/domain/aggregates/UserIdentity.ts
-````typescript
-import type { IdentityDomainEventType } from "../events";
-import { canReactivate, canSuspend } from "../value-objects";
-import { createDisplayName, createEmail, createUserId } from "../value-objects";
-import type { IdentityStatus } from "../value-objects";
-
-export interface UserIdentitySnapshot {
-	readonly uid: string;
-	readonly email: string | null;
-	readonly displayName: string | null;
-	readonly photoURL: string | null;
-	readonly isAnonymous: boolean;
-	readonly emailVerified: boolean;
-	readonly status: IdentityStatus;
-	readonly lastSignInAtISO: string | null;
-	readonly createdAtISO: string;
-	readonly updatedAtISO: string;
-}
-
-export interface CreateIdentityInput {
-	readonly email: string | null;
-	readonly displayName: string | null;
-	readonly photoURL: string | null;
-	readonly isAnonymous: boolean;
-	readonly emailVerified: boolean;
-}
-
-export class UserIdentity {
-	private readonly _domainEvents: IdentityDomainEventType[] = [];
-
-	private constructor(private _props: UserIdentitySnapshot) {}
-
-	static create(uid: string, input: CreateIdentityInput): UserIdentity {
-		createUserId(uid);
-		if (input.email !== null) {
-			createEmail(input.email);
-		}
-		const normalizedDisplayName = input.displayName === null ? null : createDisplayName(input.displayName);
-		const now = new Date().toISOString();
-		const aggregate = new UserIdentity({
-			uid,
-			email: input.email,
-			displayName: normalizedDisplayName ?? null,
-			photoURL: input.photoURL,
-			isAnonymous: input.isAnonymous,
-			emailVerified: input.emailVerified,
-			status: "active",
-			lastSignInAtISO: null,
-			createdAtISO: now,
-			updatedAtISO: now,
-		});
-		aggregate._domainEvents.push({
-			type: "platform.identity.created",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				uid,
-				email: input.email,
-				isAnonymous: input.isAnonymous,
-			},
-		});
-		return aggregate;
-	}
-
-	static reconstitute(snapshot: UserIdentitySnapshot): UserIdentity {
-		return new UserIdentity({ ...snapshot });
-	}
-
-	signIn(): void {
-		if (this._props.status !== "active") {
-			throw new Error("Cannot sign in with a suspended identity.");
-		}
-		const now = new Date().toISOString();
-		this._props = { ...this._props, lastSignInAtISO: now, updatedAtISO: now };
-		this._domainEvents.push({
-			type: "platform.identity.signed_in",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: { uid: this._props.uid, signedInAtISO: now },
-		});
-	}
-
-	updateDisplayName(name: string): void {
-		const normalizedName = createDisplayName(name);
-		const previousDisplayName = this._props.displayName;
-		const now = new Date().toISOString();
-		this._props = { ...this._props, displayName: normalizedName, updatedAtISO: now };
-		this._domainEvents.push({
-			type: "platform.identity.display_name_updated",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				uid: this._props.uid,
-				previousDisplayName,
-				displayName: normalizedName,
-			},
-		});
-	}
-
-	verifyEmail(): void {
-		if (this._props.emailVerified) {
-			throw new Error("Identity email is already verified.");
-		}
-		const now = new Date().toISOString();
-		this._props = { ...this._props, emailVerified: true, updatedAtISO: now };
-		this._domainEvents.push({
-			type: "platform.identity.email_verified",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: { uid: this._props.uid, email: this._props.email },
-		});
-	}
-
-	suspend(): void {
-		if (!canSuspend(this._props.status)) {
-			throw new Error("Identity is already suspended.");
-		}
-		const now = new Date().toISOString();
-		this._props = { ...this._props, status: "suspended", updatedAtISO: now };
-		this._domainEvents.push({
-			type: "platform.identity.suspended",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: { uid: this._props.uid },
-		});
-	}
-
-	reactivate(): void {
-		if (!canReactivate(this._props.status)) {
-			throw new Error("Identity is not suspended.");
-		}
-		const now = new Date().toISOString();
-		this._props = { ...this._props, status: "active", updatedAtISO: now };
-		this._domainEvents.push({
-			type: "platform.identity.reactivated",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: { uid: this._props.uid },
-		});
-	}
-
-	get uid(): string {
-		return this._props.uid;
-	}
-
-	get email(): string | null {
-		return this._props.email;
-	}
-
-	get displayName(): string | null {
-		return this._props.displayName;
-	}
-
-	get isActive(): boolean {
-		return this._props.status === "active";
-	}
-
-	get isAnonymous(): boolean {
-		return this._props.isAnonymous;
-	}
-
-	get emailVerified(): boolean {
-		return this._props.emailVerified;
-	}
-
-	getSnapshot(): Readonly<UserIdentitySnapshot> {
-		return Object.freeze({ ...this._props });
-	}
-
-	pullDomainEvents(): IdentityDomainEventType[] {
-		const events = [...this._domainEvents];
-		this._domainEvents.length = 0;
-		return events;
-	}
-}
-````
-
-## File: modules/platform/subdomains/identity/domain/events/IdentityDomainEvent.ts
-````typescript
-export interface IdentityDomainEvent {
-	readonly eventId: string;
-	readonly occurredAt: string;
-	readonly type: string;
-	readonly payload: object;
-}
-
-export interface IdentityCreatedEvent extends IdentityDomainEvent {
-	readonly type: "platform.identity.created";
-	readonly payload: {
-		readonly uid: string;
-		readonly email: string | null;
-		readonly isAnonymous: boolean;
-	};
-}
-
-export interface SignedInEvent extends IdentityDomainEvent {
-	readonly type: "platform.identity.signed_in";
-	readonly payload: {
-		readonly uid: string;
-		readonly signedInAtISO: string;
-	};
-}
-
-export interface DisplayNameUpdatedEvent extends IdentityDomainEvent {
-	readonly type: "platform.identity.display_name_updated";
-	readonly payload: {
-		readonly uid: string;
-		readonly previousDisplayName: string | null;
-		readonly displayName: string;
-	};
-}
-
-export interface EmailVerifiedEvent extends IdentityDomainEvent {
-	readonly type: "platform.identity.email_verified";
-	readonly payload: {
-		readonly uid: string;
-		readonly email: string | null;
-	};
-}
-
-export interface IdentitySuspendedEvent extends IdentityDomainEvent {
-	readonly type: "platform.identity.suspended";
-	readonly payload: {
-		readonly uid: string;
-	};
-}
-
-export interface IdentityReactivatedEvent extends IdentityDomainEvent {
-	readonly type: "platform.identity.reactivated";
-	readonly payload: {
-		readonly uid: string;
-	};
-}
-
-export type IdentityDomainEventType =
-	| IdentityCreatedEvent
-	| SignedInEvent
-	| DisplayNameUpdatedEvent
-	| EmailVerifiedEvent
-	| IdentitySuspendedEvent
-	| IdentityReactivatedEvent;
-````
-
-## File: modules/platform/subdomains/identity/domain/events/index.ts
-````typescript
-export * from "./IdentityDomainEvent";
+export type { IdentityEntity, RegistrationInput, SignInCredentials } from "./entities/Identity";
+export type { TokenRefreshReason, TokenRefreshSignal } from "./entities/TokenRefreshSignal";
+export type { IdentityRepository } from "./repositories/IdentityRepository";
+export type { TokenRefreshRepository } from "./repositories/TokenRefreshRepository";
+export type { IIdentityPort, ITokenRefreshPort } from "./ports";
+export * from "./aggregates";
+export * from "./events";
+export * from "./value-objects";
 ````
 
 ## File: modules/platform/subdomains/identity/domain/ports/index.ts
@@ -51781,79 +51901,6 @@ export * from "./IdentityDomainEvent";
  */
 export type { IdentityRepository as IIdentityPort } from "../repositories/IdentityRepository";
 export type { TokenRefreshRepository as ITokenRefreshPort } from "../repositories/TokenRefreshRepository";
-````
-
-## File: modules/platform/subdomains/identity/domain/value-objects/DisplayName.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const DisplayNameSchema = z.string().min(1).max(100).trim().brand("DisplayName");
-export type DisplayName = z.infer<typeof DisplayNameSchema>;
-
-export function createDisplayName(raw: string): DisplayName {
-	return DisplayNameSchema.parse(raw);
-}
-````
-
-## File: modules/platform/subdomains/identity/domain/value-objects/Email.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const EmailSchema = z.string().email().brand("Email");
-export type Email = z.infer<typeof EmailSchema>;
-
-export function createEmail(raw: string): Email {
-	return EmailSchema.parse(raw);
-}
-
-export function unsafeEmail(raw: string): Email {
-	return raw as Email;
-}
-````
-
-## File: modules/platform/subdomains/identity/domain/value-objects/IdentityStatus.ts
-````typescript
-export const IDENTITY_STATUSES = ["active", "suspended"] as const;
-export type IdentityStatus = (typeof IDENTITY_STATUSES)[number];
-
-export function canSuspend(status: IdentityStatus): boolean {
-	return status === "active";
-}
-
-export function canReactivate(status: IdentityStatus): boolean {
-	return status === "suspended";
-}
-````
-
-## File: modules/platform/subdomains/identity/domain/value-objects/index.ts
-````typescript
-export { EmailSchema, createEmail, unsafeEmail } from "./Email";
-export type { Email } from "./Email";
-
-export { UserIdSchema, createUserId, unsafeUserId } from "./UserId";
-export type { UserId } from "./UserId";
-
-export { DisplayNameSchema, createDisplayName } from "./DisplayName";
-export type { DisplayName } from "./DisplayName";
-
-export { IDENTITY_STATUSES, canSuspend, canReactivate } from "./IdentityStatus";
-export type { IdentityStatus } from "./IdentityStatus";
-````
-
-## File: modules/platform/subdomains/identity/domain/value-objects/UserId.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const UserIdSchema = z.string().min(1).brand("UserId");
-export type UserId = z.infer<typeof UserIdSchema>;
-
-export function createUserId(raw: string): UserId {
-	return UserIdSchema.parse(raw);
-}
-
-export function unsafeUserId(raw: string): UserId {
-	return raw as UserId;
-}
 ````
 
 ## File: modules/platform/subdomains/identity/interfaces/_actions/identity.actions.ts
@@ -53005,163 +53052,6 @@ export * from "./subscription.use-cases";
 ## File: modules/platform/subdomains/subscription/domain/aggregates/index.ts
 ````typescript
 export * from "./Subscription";
-````
-
-## File: modules/platform/subdomains/subscription/domain/aggregates/Subscription.ts
-````typescript
-import type { SubscriptionDomainEventType } from "../events/SubscriptionDomainEvent";
-import { createSubscriptionId, canCancel, canRenew } from "../value-objects";
-import type { SubscriptionStatus } from "../value-objects";
-import type { PlanCode } from "../value-objects/PlanCode";
-import type { BillingCycle } from "../value-objects/BillingCycle";
-
-export interface SubscriptionSnapshot {
-  readonly id: string;
-  readonly contextId: string;
-  readonly planCode: string;
-  readonly billingCycle: BillingCycle;
-  readonly status: SubscriptionStatus;
-  readonly currentPeriodStart: string;
-  readonly currentPeriodEnd: string | null;
-  readonly cancelledAt: string | null;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-
-export interface CreateSubscriptionInput {
-  readonly contextId: string;
-  readonly planCode: string;
-  readonly billingCycle: BillingCycle;
-  readonly currentPeriodStart?: string;
-  readonly currentPeriodEnd?: string | null;
-}
-
-export class Subscription {
-  private readonly _domainEvents: SubscriptionDomainEventType[] = [];
-
-  private constructor(private _props: SubscriptionSnapshot) {}
-
-  static create(id: string, input: CreateSubscriptionInput): Subscription {
-    createSubscriptionId(id);
-    const now = new Date().toISOString();
-    const sub = new Subscription({
-      id,
-      contextId: input.contextId,
-      planCode: input.planCode,
-      billingCycle: input.billingCycle,
-      status: "active",
-      currentPeriodStart: input.currentPeriodStart ?? now,
-      currentPeriodEnd: input.currentPeriodEnd ?? null,
-      cancelledAt: null,
-      createdAtISO: now,
-      updatedAtISO: now,
-    });
-    sub._domainEvents.push({
-      type: "platform.subscription.activated",
-      eventId: crypto.randomUUID(),
-      occurredAt: now,
-      payload: {
-        subscriptionId: id,
-        contextId: input.contextId,
-        planCode: input.planCode,
-        billingCycle: input.billingCycle,
-      },
-    });
-    return sub;
-  }
-
-  static reconstitute(snapshot: SubscriptionSnapshot): Subscription {
-    createSubscriptionId(snapshot.id);
-    return new Subscription({ ...snapshot });
-  }
-
-  cancel(): void {
-    if (!canCancel(this._props.status)) {
-      throw new Error(`Subscription in status '${this._props.status}' cannot be cancelled.`);
-    }
-    const now = new Date().toISOString();
-    this._props = {
-      ...this._props,
-      status: "cancelled",
-      cancelledAt: now,
-      updatedAtISO: now,
-    };
-    this._domainEvents.push({
-      type: "platform.subscription.cancelled",
-      eventId: crypto.randomUUID(),
-      occurredAt: now,
-      payload: { subscriptionId: this._props.id, contextId: this._props.contextId },
-    });
-  }
-
-  renew(newPeriodEnd: string): void {
-    if (!canRenew(this._props.status)) {
-      throw new Error(`Subscription in status '${this._props.status}' cannot be renewed.`);
-    }
-    const now = new Date().toISOString();
-    this._props = {
-      ...this._props,
-      status: "active",
-      currentPeriodStart: now,
-      currentPeriodEnd: newPeriodEnd,
-      updatedAtISO: now,
-    };
-    this._domainEvents.push({
-      type: "platform.subscription.renewed",
-      eventId: crypto.randomUUID(),
-      occurredAt: now,
-      payload: {
-        subscriptionId: this._props.id,
-        contextId: this._props.contextId,
-        newPeriodEnd,
-      },
-    });
-  }
-
-  markPastDue(): void {
-    if (this._props.status !== "active") {
-      throw new Error("Only active subscription can be marked past due.");
-    }
-    const now = new Date().toISOString();
-    this._props = { ...this._props, status: "past_due", updatedAtISO: now };
-    this._domainEvents.push({
-      type: "platform.subscription.past_due",
-      eventId: crypto.randomUUID(),
-      occurredAt: now,
-      payload: { subscriptionId: this._props.id, contextId: this._props.contextId },
-    });
-  }
-
-  expire(): void {
-    const now = new Date().toISOString();
-    this._props = { ...this._props, status: "expired", updatedAtISO: now };
-    this._domainEvents.push({
-      type: "platform.subscription.expired",
-      eventId: crypto.randomUUID(),
-      occurredAt: now,
-      payload: { subscriptionId: this._props.id, contextId: this._props.contextId },
-    });
-  }
-
-  get id(): string { return this._props.id; }
-  get contextId(): string { return this._props.contextId; }
-  get planCode(): string { return this._props.planCode; }
-  get billingCycle(): BillingCycle { return this._props.billingCycle; }
-  get status(): SubscriptionStatus { return this._props.status; }
-  get currentPeriodEnd(): string | null { return this._props.currentPeriodEnd; }
-  get cancelledAt(): string | null { return this._props.cancelledAt; }
-  get isActive(): boolean { return this._props.status === "active" || this._props.status === "trialing"; }
-
-  getSnapshot(): Readonly<SubscriptionSnapshot> {
-    return Object.freeze({ ...this._props });
-  }
-
-  pullDomainEvents(): SubscriptionDomainEventType[] {
-    const events = [...this._domainEvents];
-    this._domainEvents.length = 0;
-    return events;
-  }
-}
 ````
 
 ## File: modules/platform/subdomains/subscription/domain/events/index.ts
@@ -58453,189 +58343,6 @@ export function CalendarWidget({ demands, onDayClick }: CalendarWidgetProps) {
         ))}
       </div>
     </div>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/scheduling/interfaces/components/CreateDemandForm.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import { format } from "@lib-date-fns";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import { DEMAND_PRIORITY_LABELS } from "../../application/dto/work-demand.dto";
-import type { DemandPriority } from "../../application/dto/work-demand.dto";
-
-export interface CreateDemandFormValues {
-  title: string;
-  description: string;
-  priority: DemandPriority;
-  scheduledAt: string;
-}
-
-interface CreateDemandFormProps {
-  open: boolean;
-  initialDate?: Date;
-  onClose: () => void;
-  onSubmit: (values: CreateDemandFormValues) => Promise<void>;
-}
-
-export function CreateDemandForm({
-  open,
-  initialDate,
-  onClose,
-  onSubmit,
-}: CreateDemandFormProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState<DemandPriority>("medium");
-  const [scheduledAt, setScheduledAt] = useState(
-    initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
-  );
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleOpen = (isOpen: boolean) => {
-    if (isOpen && initialDate) {
-      setScheduledAt(format(initialDate, "yyyy-MM-dd"));
-    }
-    if (!isOpen) handleClose();
-  };
-
-  function handleClose() {
-    setTitle("");
-    setDescription("");
-    setPriority("medium");
-    setScheduledAt(initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"));
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) {
-      setError("請輸入需求標題。");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      await onSubmit({ title: t, description: description.trim(), priority, scheduledAt });
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "提交失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>建立工作需求</DialogTitle>
-          <DialogDescription>
-            填寫需求詳情後送出，Account 管理員將收到通知並指派成員。
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="demand-title">標題 *</Label>
-            <Input
-              id="demand-title"
-              placeholder="需要完成什麼工作？"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={submitting}
-              autoFocus
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="demand-description">描述（選填）</Label>
-            <Textarea
-              id="demand-description"
-              placeholder="詳細說明需求背景或驗收條件…"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="demand-priority">優先級</Label>
-              <Select
-                value={priority}
-                onValueChange={(v) => setPriority(v as DemandPriority)}
-                disabled={submitting}
-              >
-                <SelectTrigger id="demand-priority">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(["low", "medium", "high"] as const).map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {DEMAND_PRIORITY_LABELS[p]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="demand-date">排程日期 *</Label>
-              <Input
-                id="demand-date"
-                type="date"
-                value={scheduledAt}
-                onChange={(e) => setScheduledAt(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-          </div>
-
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>
-              取消
-            </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "提交中…" : "建立需求"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }
 ````
@@ -64911,41 +64618,6 @@ export function resolveActiveAccount(input: ResolveActiveAccountInput): Selectab
 }
 ````
 
-## File: modules/platform/subdomains/account/domain/index.ts
-````typescript
-export type {
-  AccountType,
-  OrganizationRole,
-  Presence,
-  ThemeConfig,
-  Wallet,
-  ExpertiseBadge,
-  MemberReference,
-  Team,
-  AccountEntity,
-  AccountRoleRecord,
-  UpdateProfileInput,
-  WalletTransaction,
-} from "./entities/Account";
-
-export type {
-  PolicyEffect,
-  PolicyRule,
-  AccountPolicy,
-  CreatePolicyInput,
-  UpdatePolicyInput,
-} from "./entities/AccountPolicy";
-
-export type { AccountRepository } from "./repositories/AccountRepository";
-export type { AccountQueryRepository, WalletBalanceSnapshot, Unsubscribe } from "./repositories/AccountQueryRepository";
-export type { AccountPolicyRepository } from "./repositories/AccountPolicyRepository";
-export type { TokenRefreshPort, TokenRefreshSignalInput } from "./ports/TokenRefreshPort";
-export type { IAccountPort, IAccountQueryPort, IAccountPolicyPort } from "./ports";
-export * from "./aggregates";
-export * from "./events";
-export * from "./value-objects";
-````
-
 ## File: modules/platform/subdomains/account/infrastructure/account-service.ts
 ````typescript
 /**
@@ -65435,18 +65107,6 @@ Feature flag management and rollout.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/identity/domain/index.ts
-````typescript
-export type { IdentityEntity, RegistrationInput, SignInCredentials } from "./entities/Identity";
-export type { TokenRefreshReason, TokenRefreshSignal } from "./entities/TokenRefreshSignal";
-export type { IdentityRepository } from "./repositories/IdentityRepository";
-export type { TokenRefreshRepository } from "./repositories/TokenRefreshRepository";
-export type { IIdentityPort, ITokenRefreshPort } from "./ports";
-export * from "./aggregates";
-export * from "./events";
-export * from "./value-objects";
 ````
 
 ## File: modules/platform/subdomains/identity/README.md
@@ -66646,6 +66306,162 @@ export class MarkSubscriptionPastDueUseCase {
 }
 ````
 
+## File: modules/platform/subdomains/subscription/domain/aggregates/Subscription.ts
+````typescript
+import type { SubscriptionDomainEventType } from "../events/SubscriptionDomainEvent";
+import { createSubscriptionId, canCancel, canRenew } from "../value-objects";
+import type { SubscriptionStatus } from "../value-objects";
+import type { BillingCycle } from "../value-objects/BillingCycle";
+
+export interface SubscriptionSnapshot {
+  readonly id: string;
+  readonly contextId: string;
+  readonly planCode: string;
+  readonly billingCycle: BillingCycle;
+  readonly status: SubscriptionStatus;
+  readonly currentPeriodStart: string;
+  readonly currentPeriodEnd: string | null;
+  readonly cancelledAt: string | null;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+export interface CreateSubscriptionInput {
+  readonly contextId: string;
+  readonly planCode: string;
+  readonly billingCycle: BillingCycle;
+  readonly currentPeriodStart?: string;
+  readonly currentPeriodEnd?: string | null;
+}
+
+export class Subscription {
+  private readonly _domainEvents: SubscriptionDomainEventType[] = [];
+
+  private constructor(private _props: SubscriptionSnapshot) {}
+
+  static create(id: string, input: CreateSubscriptionInput): Subscription {
+    createSubscriptionId(id);
+    const now = new Date().toISOString();
+    const sub = new Subscription({
+      id,
+      contextId: input.contextId,
+      planCode: input.planCode,
+      billingCycle: input.billingCycle,
+      status: "active",
+      currentPeriodStart: input.currentPeriodStart ?? now,
+      currentPeriodEnd: input.currentPeriodEnd ?? null,
+      cancelledAt: null,
+      createdAtISO: now,
+      updatedAtISO: now,
+    });
+    sub._domainEvents.push({
+      type: "platform.subscription.activated",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: {
+        subscriptionId: id,
+        contextId: input.contextId,
+        planCode: input.planCode,
+        billingCycle: input.billingCycle,
+      },
+    });
+    return sub;
+  }
+
+  static reconstitute(snapshot: SubscriptionSnapshot): Subscription {
+    createSubscriptionId(snapshot.id);
+    return new Subscription({ ...snapshot });
+  }
+
+  cancel(): void {
+    if (!canCancel(this._props.status)) {
+      throw new Error(`Subscription in status '${this._props.status}' cannot be cancelled.`);
+    }
+    const now = new Date().toISOString();
+    this._props = {
+      ...this._props,
+      status: "cancelled",
+      cancelledAt: now,
+      updatedAtISO: now,
+    };
+    this._domainEvents.push({
+      type: "platform.subscription.cancelled",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { subscriptionId: this._props.id, contextId: this._props.contextId },
+    });
+  }
+
+  renew(newPeriodEnd: string): void {
+    if (!canRenew(this._props.status)) {
+      throw new Error(`Subscription in status '${this._props.status}' cannot be renewed.`);
+    }
+    const now = new Date().toISOString();
+    this._props = {
+      ...this._props,
+      status: "active",
+      currentPeriodStart: now,
+      currentPeriodEnd: newPeriodEnd,
+      updatedAtISO: now,
+    };
+    this._domainEvents.push({
+      type: "platform.subscription.renewed",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: {
+        subscriptionId: this._props.id,
+        contextId: this._props.contextId,
+        newPeriodEnd,
+      },
+    });
+  }
+
+  markPastDue(): void {
+    if (this._props.status !== "active") {
+      throw new Error("Only active subscription can be marked past due.");
+    }
+    const now = new Date().toISOString();
+    this._props = { ...this._props, status: "past_due", updatedAtISO: now };
+    this._domainEvents.push({
+      type: "platform.subscription.past_due",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { subscriptionId: this._props.id, contextId: this._props.contextId },
+    });
+  }
+
+  expire(): void {
+    const now = new Date().toISOString();
+    this._props = { ...this._props, status: "expired", updatedAtISO: now };
+    this._domainEvents.push({
+      type: "platform.subscription.expired",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { subscriptionId: this._props.id, contextId: this._props.contextId },
+    });
+  }
+
+  get id(): string { return this._props.id; }
+  get contextId(): string { return this._props.contextId; }
+  get planCode(): string { return this._props.planCode; }
+  get billingCycle(): BillingCycle { return this._props.billingCycle; }
+  get status(): SubscriptionStatus { return this._props.status; }
+  get currentPeriodEnd(): string | null { return this._props.currentPeriodEnd; }
+  get cancelledAt(): string | null { return this._props.cancelledAt; }
+  get isActive(): boolean { return this._props.status === "active" || this._props.status === "trialing"; }
+
+  getSnapshot(): Readonly<SubscriptionSnapshot> {
+    return Object.freeze({ ...this._props });
+  }
+
+  pullDomainEvents(): SubscriptionDomainEventType[] {
+    const events = [...this._domainEvents];
+    this._domainEvents.length = 0;
+    return events;
+  }
+}
+````
+
 ## File: modules/platform/subdomains/subscription/README.md
 ````markdown
 # Subscription
@@ -67829,6 +67645,188 @@ export type {
  * document model.
  */
 export {};
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/components/CreateDemandForm.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import { format } from "@lib-date-fns";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import { DEMAND_PRIORITY_LABELS } from "../../application/dto/work-demand.dto";
+import type { DemandPriority } from "../../application/dto/work-demand.dto";
+
+export interface CreateDemandFormValues {
+  title: string;
+  description: string;
+  priority: DemandPriority;
+  scheduledAt: string;
+}
+
+interface CreateDemandFormProps {
+  open: boolean;
+  initialDate?: Date;
+  onClose: () => void;
+  onSubmit: (values: CreateDemandFormValues) => Promise<void>;
+}
+
+export function CreateDemandForm({
+  open,
+  initialDate,
+  onClose,
+  onSubmit,
+}: CreateDemandFormProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState<DemandPriority>("medium");
+  const [scheduledAt, setScheduledAt] = useState(
+    initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleOpen = (isOpen: boolean) => {
+    if (isOpen && initialDate) {
+      setScheduledAt(format(initialDate, "yyyy-MM-dd"));
+    }
+    if (!isOpen) handleClose();
+  };
+
+  function handleClose() {
+    setTitle("");
+    setDescription("");
+    setPriority("medium");
+    setScheduledAt(initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"));
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) {
+      setError("請輸入需求標題。");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onSubmit({ title: t, description: description.trim(), priority, scheduledAt });
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "提交失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>建立工作需求</DialogTitle>
+          <DialogDescription>
+            填寫需求詳情後送出，Account 管理員將收到通知並指派成員。
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="demand-title">標題 *</Label>
+            <Input
+              id="demand-title"
+              placeholder="需要完成什麼工作？"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="demand-description">描述（選填）</Label>
+            <Textarea
+              id="demand-description"
+              placeholder="詳細說明需求背景或驗收條件…"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="demand-priority">優先級</Label>
+              <Select
+                value={priority}
+                onValueChange={(v) => setPriority(v as DemandPriority)}
+                disabled={submitting}
+              >
+                <SelectTrigger id="demand-priority">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(["low", "medium", "high"] as const).map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {DEMAND_PRIORITY_LABELS[p]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="demand-date">排程日期 *</Label>
+              <Input
+                id="demand-date"
+                type="date"
+                value={scheduledAt}
+                onChange={(e) => setScheduledAt(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+          </div>
+
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>
+              取消
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "提交中…" : "建立需求"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 ````
 
 ## File: modules/workspace/subdomains/scheduling/interfaces/queries/work-demand.queries.ts

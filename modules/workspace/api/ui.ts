@@ -123,9 +123,11 @@ export { useSidebarLocale } from "../interfaces/web/navigation/use-sidebar-local
 
 export {
   appendWorkspaceContextQuery,
+  buildWorkspaceOverviewPanelHref,
   buildWorkspaceContextHref,
   supportsWorkspaceSearchContext,
   type WorkspaceNavigationContext,
+  type WorkspaceOverviewPanel,
 } from "../interfaces/web/navigation/workspace-context-links";
 
 // ── Navigation customize dialog ───────────────────────────────────────────────

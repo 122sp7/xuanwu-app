@@ -20,10 +20,25 @@ import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWork
 function buildContentBaseItems(workspaceId: string): WikiContentItemNode[] {
   return [
     { key: "spaces", label: "Workspace", href: `/workspace/${workspaceId}`, enabled: true },
-    { key: "pages", label: "Knowledge Pages", href: `/knowledge/pages?workspaceId=${workspaceId}`, enabled: true },
-    { key: "libraries", label: "Libraries", href: `/source/libraries?workspaceId=${workspaceId}`, enabled: true },
+    {
+      key: "pages",
+      label: "Knowledge Pages",
+      href: `/workspace/${workspaceId}?tab=Overview&panel=knowledge-pages`,
+      enabled: true,
+    },
+    {
+      key: "libraries",
+      label: "Libraries",
+      href: `/workspace/${workspaceId}?tab=Overview&panel=source-libraries`,
+      enabled: true,
+    },
     { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
-    { key: "vector-index", label: "Vector Index", href: "/knowledge", enabled: false },
+    {
+      key: "vector-index",
+      label: "Vector Index",
+      href: `/workspace/${workspaceId}?tab=Overview&panel=knowledge-databases`,
+      enabled: false,
+    },
     { key: "rag", label: "RAG", href: `/notebook/rag-query?workspaceId=${workspaceId}`, enabled: true },
     { key: "ai-tools", label: "AI Tools", href: `/ai-chat?workspaceId=${workspaceId}`, enabled: true },
   ];
