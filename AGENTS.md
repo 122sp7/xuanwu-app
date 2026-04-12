@@ -287,12 +287,16 @@ workspace ↓ notion ↓ notebooklm
 - **Wrong**: `if (user.role === 'admin') { ... }` in .tsx
 - **Correct**: Move to application/ use-case; UI only composes and calls
 
+### Rule 51: ❌ Cross-module route components read foreign context providers
+- **Wrong**: notion/notebooklm route components call workspace providers directly (e.g. `useWorkspaceContext()`)
+- **Correct**: workspace is the composition owner and must pass explicit scope props (`accountId`, `workspaceId`, optional `currentUserId`) through module `api/` boundaries
+
 ---
 
 ## Full Enforcement & Reference
 
 See `docs/hard-rules-consolidated.md` for:
-- All 50 rules with detailed explanations
+- All 51 rules with detailed explanations
 - Document placement strategy (7 homes)
 - Enforcement checklist
 - Layer responsibility rules (11-13, 21-23)

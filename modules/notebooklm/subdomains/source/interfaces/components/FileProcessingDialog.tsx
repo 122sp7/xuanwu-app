@@ -6,14 +6,12 @@ import Link from "next/link";
 import { useAuth } from "@/modules/platform/api";
 import { Button } from "@ui-shadcn/ui/button";
 
-import { createKnowledgeDraftFromSourceDocument } from "../_actions/source-processing.actions";
-import { parseSourceDocument, reindexSourceDocument } from "../_actions/source-pipeline.actions";
+import { processSourceDocumentWorkflow } from "../_actions/source-processing.actions";
 import { FileProcessingDialogBody } from "./file-processing-dialog.body";
 import { FileProcessingDialogSurface } from "./file-processing-dialog.surface";
 import {
   createIdleSummary,
   type ExecutionSummary,
-  waitForParsedDocument,
 } from "./file-processing-dialog.utils";
 
 interface FileProcessingDialogProps {
@@ -67,111 +65,25 @@ export function FileProcessingDialog({
     });
 
     try {
-      const parseResult = await parseSourceDocument({
+      const nextSummary = await processSourceDocumentWorkflow({
         accountId,
         workspaceId,
-        documentId: sourceFileId,
+        sourceFileId,
         gcsUri,
         filename,
         mimeType: mimeType || "application/octet-stream",
         sizeBytes,
+        shouldRunRag,
+        shouldCreatePage,
+        createdByUserId: user?.id,
       });
 
-      if (!parseResult.ok) {
-        throw new Error(parseResult.error.message);
-      }
-
-      const docId = parseResult.data.documentId;
-
-      setSummary((current) => ({
-        ...current,
-        parse: { status: "running", detail: "解析工作已送出，正在等待文件狀態完成" },
-      }));
-
-      const parsedDocument = await waitForParsedDocument(accountId, docId);
-
-      setSummary((current) => ({
-        ...current,
-        pageCount: parsedDocument.pageCount,
-        jsonGcsUri: parsedDocument.jsonGcsUri,
-        parse: { status: "success", detail: `解析完成，共 ${parsedDocument.pageCount} 頁。` },
-      }));
-
-      if (shouldRunRag) {
-        setSummary((current) => ({
-          ...current,
-          rag: { status: "running", detail: "正在建立可檢索的 RAG 索引" },
-        }));
-
-        try {
-          const ragResult = await reindexSourceDocument({
-            accountId,
-            workspaceId,
-            documentId: docId,
-            jsonGcsUri: parsedDocument.jsonGcsUri,
-            sourceGcsUri: gcsUri,
-            filename,
-            pageCount: parsedDocument.pageCount,
-          });
-
-          if (!ragResult.ok) {
-            throw new Error(ragResult.error.message);
-          }
-
-          setSummary((current) => ({
-            ...current,
-            rag: {
-              status: "success",
-              detail: `索引完成，${ragResult.data.chunkCount} 個 chunks / ${ragResult.data.vectorCount} 個 vectors。`,
-            },
-          }));
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "RAG 索引失敗";
-          setSummary((current) => ({ ...current, rag: { status: "error", detail: message } }));
-        }
-      }
-
-      if (shouldCreatePage) {
-        setSummary((current) => ({
-          ...current,
-          page: { status: "running", detail: "正在建立可編輯的 Knowledge Page 草稿" },
-        }));
-
-        try {
-          if (!user?.id) throw new Error("缺少登入使用者，無法建立 Knowledge Page 草稿");
-
-          const draftPage = await createKnowledgeDraftFromSourceDocument({
-            accountId,
-            workspaceId,
-            createdByUserId: user.id,
-            filename,
-            sourceGcsUri: gcsUri,
-            jsonGcsUri: parsedDocument.jsonGcsUri,
-            pageCount: parsedDocument.pageCount,
-          });
-
-          if (!draftPage.success) throw new Error(draftPage.error.message || "建立 Knowledge Page 失敗");
-
-          setSummary((current) => ({
-            ...current,
-            pageHref: `/knowledge/pages/${draftPage.aggregateId}`,
-            page: { status: "success", detail: "已建立單頁 Draft，可直接進頁面補內容、調整結構，後續再迭代切頁策略。" },
-          }));
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "建立 Knowledge Page 失敗";
-          setSummary((current) => ({ ...current, page: { status: "error", detail: message } }));
-        }
-      }
+      setSummary(nextSummary);
 
       setStep("done");
     } catch (error) {
       const message = error instanceof Error ? error.message : "文件處理失敗";
-      setSummary((current) => {
-        if (current.parse.status === "running") {
-          return { ...current, parse: { status: "error", detail: message } };
-        }
-        return { ...current, rag: { status: "error", detail: message } };
-      });
+      setSummary((current) => ({ ...current, parse: { status: "error", detail: message } }));
       setStep("done");
     }
   }

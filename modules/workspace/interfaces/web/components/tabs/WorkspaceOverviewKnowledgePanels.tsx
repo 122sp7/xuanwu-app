@@ -24,7 +24,10 @@ export function WorkspaceOverviewKnowledgePanels({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <KnowledgePagesRouteScreen />
+            <KnowledgePagesRouteScreen
+              accountId={workspace.accountId}
+              workspaceId={workspace.id}
+            />
           </CardContent>
         </Card>
       </TabsContent>
@@ -38,7 +41,10 @@ export function WorkspaceOverviewKnowledgePanels({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <KnowledgeBaseArticlesRouteScreen />
+            <KnowledgeBaseArticlesRouteScreen
+              accountId={workspace.accountId}
+              workspaceId={workspace.id}
+            />
           </CardContent>
         </Card>
       </TabsContent>
@@ -52,7 +58,10 @@ export function WorkspaceOverviewKnowledgePanels({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <KnowledgeDatabasesRouteScreen />
+            <KnowledgeDatabasesRouteScreen
+              accountId={workspace.accountId}
+              workspaceId={workspace.id}
+            />
           </CardContent>
         </Card>
       </TabsContent>

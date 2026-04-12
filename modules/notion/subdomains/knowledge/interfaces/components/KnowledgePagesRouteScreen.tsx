@@ -3,9 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { useApp } from "@/modules/platform/api";
 import { useAuth } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
@@ -19,37 +17,47 @@ import { PageTreeView } from "./PageTreeView";
  * Encapsulates data-loading, scope resolution and layout so that the
  * Next.js route file stays thin (params/context wiring only).
  */
-export function KnowledgePagesRouteScreen() {
+export interface KnowledgePagesRouteScreenProps {
+  readonly accountId: string;
+  readonly workspaceId?: string | null;
+  readonly currentUserId?: string | null;
+  readonly scope?: "workspace" | "account";
+}
+
+export function KnowledgePagesRouteScreen({
+  accountId,
+  workspaceId,
+  currentUserId,
+  scope,
+}: KnowledgePagesRouteScreenProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { state: appState } = useApp();
   const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
 
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const resolvedAccountId = accountId.trim();
   const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-  const scopeParam = searchParams.get("scope")?.trim() ?? "";
+  const scopeParam = scope ?? searchParams.get("scope")?.trim() ?? "";
   const isAccountSummary = scopeParam === "account";
-  const workspaceId = isAccountSummary ? "" : requestedWorkspaceId || wsState.activeWorkspaceId || "";
-  const currentUserId = authState.user?.id ?? "";
+  const resolvedWorkspaceId = isAccountSummary ? "" : workspaceId?.trim() || requestedWorkspaceId || "";
+  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
   const workspaceBasePath =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : accountId
-        ? `/${encodeURIComponent(accountId)}`
+    resolvedAccountId && resolvedWorkspaceId
+      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
+      : resolvedAccountId
+        ? `/${encodeURIComponent(resolvedAccountId)}`
         : "/";
-  const overviewHref = workspaceId
+  const overviewHref = resolvedWorkspaceId
     ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
-    : accountId
-      ? `/${encodeURIComponent(accountId)}`
+    : resolvedAccountId
+      ? `/${encodeURIComponent(resolvedAccountId)}`
       : "/";
 
   function buildPageDetailHref(pageId: string) {
-    if (accountId && workspaceId) {
+    if (resolvedAccountId && resolvedWorkspaceId) {
       return `${workspaceBasePath}/knowledge/pages/${encodeURIComponent(pageId)}`;
     }
     return `/knowledge/pages/${encodeURIComponent(pageId)}${
-      workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : ""
+      resolvedWorkspaceId ? `?workspaceId=${encodeURIComponent(resolvedWorkspaceId)}` : ""
     }`;
   }
 
@@ -57,8 +65,11 @@ export function KnowledgePagesRouteScreen() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!accountId) { setLoading(false); return; }
-    if (!isAccountSummary && !workspaceId) {
+    if (!resolvedAccountId) {
+      setLoading(false);
+      return;
+    }
+    if (!isAccountSummary && !resolvedWorkspaceId) {
       setNodes([]);
       setLoading(false);
       return;
@@ -67,13 +78,13 @@ export function KnowledgePagesRouteScreen() {
     setLoading(true);
     try {
       const tree = isAccountSummary
-        ? await getKnowledgePageTree(accountId)
-        : await getKnowledgePageTreeByWorkspace(accountId, workspaceId);
+        ? await getKnowledgePageTree(resolvedAccountId)
+        : await getKnowledgePageTreeByWorkspace(resolvedAccountId, resolvedWorkspaceId);
       setNodes(tree);
     } finally {
       setLoading(false);
     }
-  }, [accountId, isAccountSummary, workspaceId]);
+  }, [resolvedAccountId, isAccountSummary, resolvedWorkspaceId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -104,11 +115,11 @@ export function KnowledgePagesRouteScreen() {
         </button>
       </div>
 
-      {!accountId ? (
+      {!resolvedAccountId ? (
         <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
           尚未取得帳號情境，請先登入。
         </p>
-      ) : !isAccountSummary && !workspaceId ? (
+      ) : !isAccountSummary && !resolvedWorkspaceId ? (
         <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
           尚未選定工作區。請先從工作區進入知識頁面，或在網址帶入 workspaceId 後再查看頁面樹。
         </p>
@@ -121,10 +132,10 @@ export function KnowledgePagesRouteScreen() {
       ) : (
         <PageTreeView
           nodes={nodes}
-          accountId={accountId}
-          workspaceId={workspaceId || undefined}
-          currentUserId={currentUserId}
-          allowCreate={!isAccountSummary && Boolean(workspaceId)}
+          accountId={resolvedAccountId}
+          workspaceId={resolvedWorkspaceId || undefined}
+          currentUserId={resolvedCurrentUserId}
+          allowCreate={!isAccountSummary && Boolean(resolvedWorkspaceId)}
           emptyStateDescription={
             isAccountSummary
               ? "這個 account summary 目前沒有可顯示的頁面。請改從工作區建立與維護頁面。"

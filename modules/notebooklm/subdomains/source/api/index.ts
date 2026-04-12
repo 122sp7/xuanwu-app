@@ -132,7 +132,15 @@ export {
   renameSourceDocument,
 } from "../interfaces/_actions/source-file.actions";
 
-export { createKnowledgeDraftFromSourceDocument } from "../interfaces/_actions/source-processing.actions";
+export {
+  createKnowledgeDraftFromSourceDocument,
+  processSourceDocumentWorkflow,
+} from "../interfaces/_actions/source-processing.actions";
+export type {
+  SourceProcessingExecutionSummary,
+  SourceProcessingTaskResult,
+  SourceProcessingTaskStatus,
+} from "../application/dto/source-processing.dto";
 
 // ---------------------------------------------------------------------------
 // UI components
