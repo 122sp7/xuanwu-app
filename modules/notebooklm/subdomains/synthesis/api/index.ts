@@ -142,4 +142,4 @@ export { FirebaseRagQueryFeedbackAdapter } from "../../../infrastructure/synthes
 
 // ── UI components ────────────────────────────────────────────────────────────
 
-export { RagQueryView } from "../../../interfaces/synthesis/components/RagQueryView";
+export { RagQueryScreen } from "../../../interfaces/synthesis/components/RagQueryView";

@@ -14,7 +14,7 @@ import {
   type WikiLibraryRow,
 } from "../../../subdomains/source/api";
 
-interface WikiLibrariesViewProps {
+interface LibrariesPanelProps {
   readonly accountId: string;
   readonly workspaceId?: string;
 }
@@ -34,7 +34,7 @@ function parseFieldType(value: string): WikiLibraryFieldType {
   return "text";
 }
 
-export function LibrariesView({ accountId, workspaceId }: WikiLibrariesViewProps) {
+export function LibrariesPanel({ accountId, workspaceId }: LibrariesPanelProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [libraries, setLibraries] = useState<WikiLibrary[]>([]);

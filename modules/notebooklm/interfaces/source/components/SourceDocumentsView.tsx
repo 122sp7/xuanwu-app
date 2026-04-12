@@ -22,12 +22,12 @@ const ACCEPTED_MIME: Record<string, string> = {
 };
 const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
 
-interface SourceDocumentsViewProps {
+interface SourceDocumentsPanelProps {
   readonly workspaceId?: string;
 }
 
 /** Upload dropzone + real-time document list backed by Firebase onSnapshot. */
-export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
+export function SourceDocumentsPanel({ workspaceId }: SourceDocumentsPanelProps) {
   const { state: appState } = useApp();
   const activeAccountId = appState.activeAccount?.id ?? "";
   const effectiveWorkspaceId = workspaceId?.trim() ?? "";

@@ -146,10 +146,10 @@ export type {
 // UI components
 // ---------------------------------------------------------------------------
 
-export { SourceDocumentsView } from "../../../interfaces/source/components/SourceDocumentsView";
+export { SourceDocumentsPanel } from "../../../interfaces/source/components/SourceDocumentsView";
 export { WorkspaceFilesTab } from "../../../interfaces/source/components/WorkspaceFilesTab";
-export { LibrariesView } from "../../../interfaces/source/components/LibrariesView";
-export { LibraryTableView } from "../../../interfaces/source/components/LibraryTableView";
+export { LibrariesPanel } from "../../../interfaces/source/components/LibrariesView";
+export { LibraryTablePanel } from "../../../interfaces/source/components/LibraryTableView";
 export { FileProcessingDialog } from "../../../interfaces/source/components/FileProcessingDialog";
 
 // ---------------------------------------------------------------------------

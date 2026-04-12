@@ -14,7 +14,7 @@ import { draggable, dropTargetForElements, monitorForElements } from "@lib-dragd
 
 import { getWikiLibrarySnapshot, listWikiLibraries, type WikiLibraryRow } from "../../../subdomains/source/api";
 
-interface LibraryTableViewProps {
+interface LibraryTablePanelProps {
   readonly accountId: string;
   readonly workspaceId?: string;
 }
@@ -24,13 +24,13 @@ type RowData = WikiLibraryRow & { _values: Record<string, unknown> };
 const columnHelper = createColumnHelper<RowData>();
 
 /**
- * LibraryTableView
+ * LibraryTablePanel
  *
  * TanStack Table rendering library rows with:
  * - Column-level text filter (global filter input)
  * - Drag-to-reorder rows via pragmatic-drag-and-drop
  */
-export function LibraryTableView({ accountId, workspaceId }: LibraryTableViewProps) {
+export function LibraryTablePanel({ accountId, workspaceId }: LibraryTablePanelProps) {
   const [libraries, setLibraries] = useState<{ id: string; name: string }[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [fieldKeys, setFieldKeys] = useState<string[]>([]);

@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 
 import { useWorkspaceContext } from "@/modules/workspace/api";
-import { AiChatPage } from "@/modules/notebooklm/api";
+import { ConversationScreen } from "@/modules/notebooklm/api";
 
 export default function AccountWorkspaceAiChatPage() {
   const params = useParams<{ accountId: string; workspaceId: string }>();
@@ -13,7 +13,7 @@ export default function AccountWorkspaceAiChatPage() {
   const workspaceId = typeof params.workspaceId === "string" ? params.workspaceId : "";
 
   return (
-    <AiChatPage
+    <ConversationScreen
       accountId={accountId}
       workspaces={wsState.workspaces ?? {}}
       requestedWorkspaceId={workspaceId}

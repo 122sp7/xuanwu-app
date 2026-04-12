@@ -2,7 +2,7 @@
 
 /**
  * Module: notebooklm/subdomains/conversation
- * Component: AiChatPage
+ * Component: ConversationScreen
  * Purpose: Full-page AI chat UI — wired to conversation server actions.
  *          Thread persistence via Firestore. Multi-turn context support.
  *
@@ -22,7 +22,7 @@ import { useAiChatThread } from "../hooks/useAiChatThread";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-export interface AiChatPageProps {
+export interface ConversationScreenProps {
   accountId: string;
   workspaces: Record<string, WorkspaceEntity>;
   requestedWorkspaceId: string;
@@ -30,7 +30,7 @@ export interface AiChatPageProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function AiChatPage({ accountId, workspaces, requestedWorkspaceId }: AiChatPageProps) {
+export function ConversationScreen({ accountId, workspaces, requestedWorkspaceId }: ConversationScreenProps) {
   const {
     messages,
     input,
