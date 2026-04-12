@@ -66,9 +66,22 @@ export interface FirestoreCollectionWatchHandlers<T> {
 	readonly onError?: (error: unknown) => void;
 }
 
+export interface FirestoreDocumentWatchHandlers<T> {
+	readonly onNext: (document: FirestoreCollectionDocument<T> | null) => void;
+	readonly onError?: (error: unknown) => void;
+}
+
+export interface FirestoreSetDocumentInput<T> {
+	readonly path: string;
+	readonly data: T;
+}
+
 export interface FirestoreAPI {
 	get<T>(path: string): Promise<T | null>;
 	set<T>(path: string, data: T): Promise<void>;
+	setMany<T>(inputs: readonly FirestoreSetDocumentInput<T>[]): Promise<void>;
+	update(path: string, data: Record<string, unknown>): Promise<void>;
+	delete(path: string): Promise<void>;
 	query<T>(
 		collectionPath: string,
 		where?: readonly FirestoreWhereClause[],
@@ -89,6 +102,7 @@ export interface FirestoreAPI {
 		handlers: FirestoreCollectionWatchHandlers<T>,
 		where?: readonly FirestoreWhereClause[],
 	): () => void;
+	watchDocument<T>(path: string, handlers: FirestoreDocumentWatchHandlers<T>): () => void;
 }
 
 export interface StorageUploadOptions {

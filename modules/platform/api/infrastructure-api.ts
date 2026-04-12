@@ -107,6 +107,32 @@ export const firestoreInfrastructureApi: FirestoreAPI = {
 		await firestoreApi.setDoc(ref, data as Record<string, unknown>);
 	},
 
+	async setMany<T>(inputs: readonly { path: string; data: T }[]): Promise<void> {
+		if (inputs.length === 0) return;
+
+		const db = getFirebaseFirestore();
+		const batch = firestoreApi.writeBatch(db);
+
+		for (const input of inputs) {
+			const ref = firestoreApi.doc(db, resolveDocumentPath(input.path).join("/"));
+			batch.set(ref, input.data as Record<string, unknown>);
+		}
+
+		await batch.commit();
+	},
+
+	async update(path: string, data: Record<string, unknown>): Promise<void> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		await firestoreApi.updateDoc(ref, data);
+	},
+
+	async delete(path: string): Promise<void> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		await firestoreApi.deleteDoc(ref);
+	},
+
 	async query<T>(
 		collectionPath: string,
 		where: readonly FirestoreWhereClause[] = [],
@@ -183,6 +209,34 @@ export const firestoreInfrastructureApi: FirestoreAPI = {
 						data: doc.data() as T,
 					})),
 				);
+			},
+			(error) => {
+				handlers.onError?.(error);
+			},
+		);
+	},
+
+	watchDocument<T>(
+		path: string,
+		handlers: {
+			onNext: (document: { id: string; data: T } | null) => void;
+			onError?: (error: unknown) => void;
+		},
+	): () => void {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+
+		return firestoreApi.onSnapshot(
+			ref,
+			(snapshot) => {
+				if (!snapshot.exists()) {
+					handlers.onNext(null);
+					return;
+				}
+				handlers.onNext({
+					id: snapshot.id,
+					data: snapshot.data() as T,
+				});
 			},
 			(error) => {
 				handlers.onError?.(error);

@@ -43880,447 +43880,6 @@ export function createTopK(raw: number): TopK {
 export const DEFAULT_TOP_K: TopK = 10 as TopK;
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/infrastructure/firebase/FirebaseKnowledgeContentAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: infrastructure/firebase
- * Purpose: FirebaseKnowledgeContentAdapter — implements IKnowledgeContentRepository via
- *          Firebase Functions calls (RAG query, reindex) and Firestore reads
- *          (list parsed documents).
- *
- * Design notes:
- * - All external shape normalisation happens here; domain types stay clean.
- * - Functions region is configured as a constant; change here only if region changes.
- */
-
-import {
-  firestoreInfrastructureApi,
-  functionsInfrastructureApi,
-} from "@/modules/platform/api";
-
-import type {
-  IKnowledgeContentRepository,
-  KnowledgeCitation,
-  KnowledgeParsedDocument,
-  KnowledgeRagQueryResult,
-  KnowledgeReindexInput,
-} from "../../domain/repositories/IKnowledgeContentRepository";
-
-const FUNCTIONS_REGION = "asia-southeast1";
-
-// --- Firestore / Functions response normalisation helpers ---------------------
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function objectOrEmpty(value: unknown): Record<string, unknown> {
-  return isRecord(value) ? value : {};
-}
-
-function toNumberOrDefault(value: unknown, fallback = 0): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-}
-
-function toDateOrNull(value: unknown): Date | null {
-  if (!isRecord(value)) return null;
-  if (typeof (value as { toDate?: unknown }).toDate === "function") {
-    const converted = (value as { toDate: () => unknown }).toDate();
-    if (converted instanceof Date) return converted;
-  }
-  return null;
-}
-
-function normaliseCitations(raw: unknown): KnowledgeCitation[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.map((item) => {
-    if (!isRecord(item)) return {};
-    return {
-      provider: item.provider === "vector" || item.provider === "search" ? item.provider : undefined,
-      chunk_id: typeof item.chunk_id === "string" ? item.chunk_id : undefined,
-      doc_id: typeof item.doc_id === "string" ? item.doc_id : undefined,
-      filename: typeof item.filename === "string" ? item.filename : undefined,
-      json_gcs_uri: typeof item.json_gcs_uri === "string" ? item.json_gcs_uri : undefined,
-      search_id: typeof item.search_id === "string" ? item.search_id : undefined,
-      score: typeof item.score === "number" ? item.score : undefined,
-      text: typeof item.text === "string" ? item.text : undefined,
-    };
-  });
-}
-
-function resolveFilename(data: Record<string, unknown>): string {
-  const source = objectOrEmpty(data.source);
-  const metadata = objectOrEmpty(data.metadata);
-  const candidates = [
-    source.filename,
-    source.display_name,
-    data.title,
-    metadata.filename,
-    metadata.display_name,
-    source.original_filename,
-    metadata.original_filename,
-  ];
-  for (const c of candidates) {
-    if (typeof c === "string" && c.trim()) return c;
-  }
-  return "";
-}
-
-function mapToParsedDocument(id: string, data: Record<string, unknown>): KnowledgeParsedDocument {
-  const source = objectOrEmpty(data.source);
-  const parsed = objectOrEmpty(data.parsed);
-  const rag = objectOrEmpty(data.rag);
-  const metadata = objectOrEmpty(data.metadata);
-
-  return {
-    id,
-    filename: resolveFilename(data) || id,
-    workspaceId:
-      (typeof data.spaceId === "string" ? data.spaceId : "") ||
-      (typeof metadata.space_id === "string" ? metadata.space_id : ""),
-    sourceGcsUri:
-      (typeof source.gcs_uri === "string" ? source.gcs_uri : "") ||
-      (typeof metadata.source_gcs_uri === "string" ? metadata.source_gcs_uri : ""),
-    jsonGcsUri:
-      (typeof parsed.json_gcs_uri === "string" ? parsed.json_gcs_uri : "") ||
-      (typeof metadata.json_gcs_uri === "string" ? metadata.json_gcs_uri : ""),
-    pageCount:
-      toNumberOrDefault(parsed.page_count) ||
-      toNumberOrDefault(metadata.page_count) ||
-      toNumberOrDefault(data.pageCount),
-    status: typeof data.status === "string" ? data.status : "unknown",
-    ragStatus: typeof rag.status === "string" ? rag.status : "",
-    uploadedAt: toDateOrNull(source.uploaded_at) ?? toDateOrNull(data.createdAt),
-  };
-}
-
-// --- Adapter ------------------------------------------------------------------
-
-export class FirebaseKnowledgeContentAdapter implements IKnowledgeContentRepository {
-  async runRagQuery(
-    query: string,
-    accountId: string,
-    workspaceId: string,
-    topK: number,
-    options: {
-      taxonomyFilters?: string[];
-      maxAgeDays?: number;
-      requireReady?: boolean;
-    } = {},
-  ): Promise<KnowledgeRagQueryResult> {
-    const data = objectOrEmpty(
-      await functionsInfrastructureApi.call<
-        {
-          query: string;
-          top_k: number;
-          account_id: string;
-          workspace_id: string;
-          taxonomy_filters: string[];
-          max_age_days?: number;
-          require_ready?: boolean;
-        },
-        unknown
-      >(
-        "rag_query",
-        {
-          query,
-          top_k: topK,
-          account_id: accountId,
-          workspace_id: workspaceId,
-          taxonomy_filters: options.taxonomyFilters ?? [],
-          max_age_days: options.maxAgeDays,
-          require_ready: options.requireReady,
-        },
-        { region: FUNCTIONS_REGION },
-      ),
-    );
-
-    return {
-      answer: typeof data.answer === "string" ? data.answer : "",
-      citations: normaliseCitations(data.citations),
-      cache: data.cache === "hit" ? "hit" : "miss",
-      vectorHits: toNumberOrDefault(data.vector_hits),
-      searchHits: toNumberOrDefault(data.search_hits),
-      accountScope: typeof data.account_scope === "string" ? data.account_scope : accountId,
-      workspaceScope:
-        typeof data.workspace_scope === "string" ? data.workspace_scope : workspaceId,
-      taxonomyFilters: Array.isArray(data.taxonomy_filters)
-        ? data.taxonomy_filters.filter((v): v is string => typeof v === "string")
-        : undefined,
-      maxAgeDays: typeof data.max_age_days === "number" ? data.max_age_days : undefined,
-      requireReady: typeof data.require_ready === "boolean" ? data.require_ready : undefined,
-    };
-  }
-
-  async reindexDocument(input: KnowledgeReindexInput): Promise<void> {
-    await functionsInfrastructureApi.call<
-      {
-        account_id: string;
-        doc_id: string;
-        json_gcs_uri: string;
-        source_gcs_uri: string;
-        filename: string;
-        page_count: number;
-      },
-      unknown
-    >(
-      "rag_reindex_document",
-      {
-        account_id: input.accountId,
-        doc_id: input.docId,
-        json_gcs_uri: input.jsonGcsUri,
-        source_gcs_uri: input.sourceGcsUri,
-        filename: input.filename,
-        page_count: input.pageCount,
-      },
-      { region: FUNCTIONS_REGION },
-    );
-  }
-
-  async listParsedDocuments(accountId: string, limitCount: number): Promise<KnowledgeParsedDocument[]> {
-    if (!accountId) throw new Error("accountId is required");
-    const documents = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      `accounts/${accountId}/documents`,
-      [],
-      { limit: limitCount },
-    );
-
-    const docs = documents.map((d) => mapToParsedDocument(d.id, objectOrEmpty(d.data)));
-    return docs.sort((a, b) => {
-      const at = a.uploadedAt ? a.uploadedAt.getTime() : 0;
-      const bt = b.uploadedAt ? b.uploadedAt.getTime() : 0;
-      return bt - at;
-    });
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/synthesis/infrastructure/firebase/FirebaseRagQueryFeedbackAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: infrastructure/firebase
- * Purpose: FirebaseRagQueryFeedbackAdapter — implements IRagQueryFeedbackRepository
- *          using Firestore (client SDK) for feedback persistence.
- *
- * Firestore collection: ragQueryFeedback/{autoId}
- */
-
-import { v7 as generateId } from "@lib-uuid";
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
-
-import type { IRagQueryFeedbackRepository } from "../../domain/repositories/IRagQueryFeedbackRepository";
-import type {
-  RagQueryFeedback,
-  SubmitRagQueryFeedbackInput,
-} from "../../domain/entities/rag-feedback.entities";
-
-const COLLECTION = "ragQueryFeedback";
-
-interface FirestoreFeedbackDoc {
-  readonly id: string;
-  readonly traceId: string;
-  readonly userQuery: string;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly rating: string;
-  readonly comment?: string;
-  readonly submittedByUserId: string;
-  readonly submittedAtISO: string;
-}
-
-export class FirebaseRagQueryFeedbackAdapter implements IRagQueryFeedbackRepository {
-  async save(input: SubmitRagQueryFeedbackInput): Promise<RagQueryFeedback> {
-    const id = generateId();
-    const submittedAtISO = new Date().toISOString();
-
-    const doc: FirestoreFeedbackDoc = {
-      id,
-      traceId: input.traceId,
-      userQuery: input.userQuery,
-      organizationId: input.organizationId,
-      ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
-      rating: input.rating,
-      ...(input.comment ? { comment: input.comment } : {}),
-      submittedByUserId: input.submittedByUserId,
-      submittedAtISO,
-    };
-
-    await firestoreInfrastructureApi.set<FirestoreFeedbackDoc>(`${COLLECTION}/${id}`, doc);
-
-    return {
-      id,
-      traceId: input.traceId,
-      userQuery: input.userQuery,
-      organizationId: input.organizationId,
-      ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
-      rating: input.rating,
-      ...(input.comment ? { comment: input.comment } : {}),
-      submittedByUserId: input.submittedByUserId,
-      submittedAtISO,
-    };
-  }
-
-  async listByOrganization(organizationId: string, limitCount: number): Promise<RagQueryFeedback[]> {
-    const docs = await firestoreInfrastructureApi.query<FirestoreFeedbackDoc>(
-      COLLECTION,
-      [{ field: "organizationId", op: "==", value: organizationId }],
-      {
-        orderBy: [{ field: "submittedAtISO", direction: "desc" }],
-        limit: limitCount,
-      },
-    );
-    return docs.map((data) => {
-      return {
-        id: data.id,
-        traceId: data.traceId,
-        userQuery: data.userQuery,
-        organizationId: data.organizationId,
-        ...(data.workspaceId ? { workspaceId: data.workspaceId } : {}),
-        rating: data.rating as RagQueryFeedback["rating"],
-        ...(data.comment ? { comment: data.comment } : {}),
-        submittedByUserId: data.submittedByUserId,
-        submittedAtISO: data.submittedAtISO,
-      };
-    });
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/synthesis/infrastructure/firebase/FirebaseRagRetrievalAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: infrastructure/firebase
- * Purpose: FirebaseRagRetrievalAdapter — implements IRagRetrievalRepository
- *          using Firestore collectionGroup queries for document-scoped chunks.
- *
- * Retrieval strategy:
- *  1. Over-fetch candidate documents (filtered by org / workspace / taxonomy / status=ready).
- *  2. Over-fetch candidate chunks in the same scope.
- *  3. Compute a token-overlap relevance score (CJK-aware tokeniser).
- *  4. Filter to chunks whose parent doc is in the ready-document set.
- *  5. Sort descending by score, return top-K.
- */
-
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
-
-import type { RagRetrievedChunk } from "../../domain/entities/retrieval.entities";
-import type { IRagRetrievalRepository, RetrieveChunksInput } from "../../domain/repositories/IRagRetrievalRepository";
-
-// --- Firestore document shapes -----------------------------------------------
-
-interface FirestoreRagDocument {
-  readonly organizationId?: string;
-  readonly workspaceId?: string;
-  readonly status?: string;
-  readonly taxonomy?: string;
-}
-
-interface FirestoreRagChunk {
-  readonly organizationId?: string;
-  readonly workspaceId?: string;
-  readonly docId?: string;
-  readonly text?: string;
-  readonly taxonomy?: string;
-  readonly page?: number;
-  readonly chunkIndex?: number;
-}
-
-// --- Retrieval tuning constants -----------------------------------------------
-
-const DOCUMENT_OVER_FETCH_MULTIPLIER = 5;
-const MIN_DOCUMENT_LIMIT = 20;
-const CHUNK_OVER_FETCH_MULTIPLIER = 10;
-const MIN_CHUNK_LIMIT = 50;
-
-// --- Scoring helpers (pure functions, no state) --------------------------------
-
-/** CJK-aware whitespace / punctuation tokeniser */
-function tokenize(value: string): readonly string[] {
-  return value
-    .toLowerCase()
-    .split(/[^a-z0-9\u4e00-\u9fff]+/u)
-    .map((t) => t.trim())
-    .filter(Boolean);
-}
-
-/**
- * Token-overlap score between query and chunk text.
- * Returns a value in [0, 1] — fraction of query tokens found in the chunk.
- */
-function computeTokenOverlapScore(queryTokens: readonly string[], chunkText: string): number {
-  if (queryTokens.length === 0) return 0;
-  const chunkTokens = tokenize(chunkText);
-  if (chunkTokens.length === 0) return 0;
-  const matchCount = queryTokens.filter((t) => chunkTokens.includes(t)).length;
-  return matchCount / queryTokens.length;
-}
-
-// --- Adapter ------------------------------------------------------------------
-
-export class FirebaseRagRetrievalAdapter implements IRagRetrievalRepository {
-  async retrieve(input: RetrieveChunksInput): Promise<readonly RagRetrievedChunk[]> {
-    // Step 1 — resolve ready document IDs in scope
-    const documentSnapshots = await firestoreInfrastructureApi.queryCollectionGroup<FirestoreRagDocument>(
-      "documents",
-      [
-        { field: "organizationId", op: "==", value: input.organizationId },
-        { field: "status", op: "==", value: "ready" },
-        ...(input.workspaceId ? [{ field: "workspaceId", op: "==", value: input.workspaceId } as const] : []),
-        ...(input.taxonomy ? [{ field: "taxonomy", op: "==", value: input.taxonomy } as const] : []),
-      ],
-      { limit: Math.max(input.topK * DOCUMENT_OVER_FETCH_MULTIPLIER, MIN_DOCUMENT_LIMIT) },
-    );
-
-    const readyDocumentIds = new Set(
-      documentSnapshots
-        .filter((snap) => {
-          const data = snap.data;
-          return data.status === "ready";
-        })
-        .map((snap) => snap.id),
-    );
-
-    if (readyDocumentIds.size === 0) return [];
-
-    // Step 2 — over-fetch candidate chunks
-    const chunkSnapshots = await firestoreInfrastructureApi.queryCollectionGroup<FirestoreRagChunk>(
-      "chunks",
-      [
-        { field: "organizationId", op: "==", value: input.organizationId },
-        ...(input.workspaceId ? [{ field: "workspaceId", op: "==", value: input.workspaceId } as const] : []),
-        ...(input.taxonomy ? [{ field: "taxonomy", op: "==", value: input.taxonomy } as const] : []),
-      ],
-      { limit: Math.max(input.topK * CHUNK_OVER_FETCH_MULTIPLIER, MIN_CHUNK_LIMIT) },
-    );
-
-    const queryTokens = tokenize(input.normalizedQuery);
-
-    // Step 3 — score, filter, sort, slice
-    return chunkSnapshots
-      .map((snap) => {
-        const data = snap.data;
-        const text = typeof data.text === "string" ? data.text : "";
-        const docId = typeof data.docId === "string" ? data.docId : "";
-        return {
-          chunkId: snap.id,
-          docId,
-          chunkIndex: typeof data.chunkIndex === "number" ? data.chunkIndex : 0,
-          ...(typeof data.page === "number" ? { page: data.page } : {}),
-          taxonomy: typeof data.taxonomy === "string" ? data.taxonomy : "general",
-          text,
-          score: computeTokenOverlapScore(queryTokens, text),
-        } satisfies RagRetrievedChunk;
-      })
-      .filter((chunk) => chunk.docId !== "" && readyDocumentIds.has(chunk.docId) && chunk.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, input.topK);
-  }
-}
-````
-
 ## File: modules/notebooklm/subdomains/synthesis/interfaces/components/RagQueryView.tsx
 ````typescript
 "use client";
@@ -62614,6 +62173,447 @@ export interface IRagGenerationRepository {
 }
 ````
 
+## File: modules/notebooklm/subdomains/synthesis/infrastructure/firebase/FirebaseKnowledgeContentAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: infrastructure/firebase
+ * Purpose: FirebaseKnowledgeContentAdapter — implements IKnowledgeContentRepository via
+ *          Firebase Functions calls (RAG query, reindex) and Firestore reads
+ *          (list parsed documents).
+ *
+ * Design notes:
+ * - All external shape normalisation happens here; domain types stay clean.
+ * - Functions region is configured as a constant; change here only if region changes.
+ */
+
+import {
+  firestoreInfrastructureApi,
+  functionsInfrastructureApi,
+} from "@/modules/platform/api";
+
+import type {
+  IKnowledgeContentRepository,
+  KnowledgeCitation,
+  KnowledgeParsedDocument,
+  KnowledgeRagQueryResult,
+  KnowledgeReindexInput,
+} from "../../domain/repositories/IKnowledgeContentRepository";
+
+const FUNCTIONS_REGION = "asia-southeast1";
+
+// --- Firestore / Functions response normalisation helpers ---------------------
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function objectOrEmpty(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function toNumberOrDefault(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function toDateOrNull(value: unknown): Date | null {
+  if (!isRecord(value)) return null;
+  if (typeof (value as { toDate?: unknown }).toDate === "function") {
+    const converted = (value as { toDate: () => unknown }).toDate();
+    if (converted instanceof Date) return converted;
+  }
+  return null;
+}
+
+function normaliseCitations(raw: unknown): KnowledgeCitation[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item) => {
+    if (!isRecord(item)) return {};
+    return {
+      provider: item.provider === "vector" || item.provider === "search" ? item.provider : undefined,
+      chunk_id: typeof item.chunk_id === "string" ? item.chunk_id : undefined,
+      doc_id: typeof item.doc_id === "string" ? item.doc_id : undefined,
+      filename: typeof item.filename === "string" ? item.filename : undefined,
+      json_gcs_uri: typeof item.json_gcs_uri === "string" ? item.json_gcs_uri : undefined,
+      search_id: typeof item.search_id === "string" ? item.search_id : undefined,
+      score: typeof item.score === "number" ? item.score : undefined,
+      text: typeof item.text === "string" ? item.text : undefined,
+    };
+  });
+}
+
+function resolveFilename(data: Record<string, unknown>): string {
+  const source = objectOrEmpty(data.source);
+  const metadata = objectOrEmpty(data.metadata);
+  const candidates = [
+    source.filename,
+    source.display_name,
+    data.title,
+    metadata.filename,
+    metadata.display_name,
+    source.original_filename,
+    metadata.original_filename,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim()) return c;
+  }
+  return "";
+}
+
+function mapToParsedDocument(id: string, data: Record<string, unknown>): KnowledgeParsedDocument {
+  const source = objectOrEmpty(data.source);
+  const parsed = objectOrEmpty(data.parsed);
+  const rag = objectOrEmpty(data.rag);
+  const metadata = objectOrEmpty(data.metadata);
+
+  return {
+    id,
+    filename: resolveFilename(data) || id,
+    workspaceId:
+      (typeof data.spaceId === "string" ? data.spaceId : "") ||
+      (typeof metadata.space_id === "string" ? metadata.space_id : ""),
+    sourceGcsUri:
+      (typeof source.gcs_uri === "string" ? source.gcs_uri : "") ||
+      (typeof metadata.source_gcs_uri === "string" ? metadata.source_gcs_uri : ""),
+    jsonGcsUri:
+      (typeof parsed.json_gcs_uri === "string" ? parsed.json_gcs_uri : "") ||
+      (typeof metadata.json_gcs_uri === "string" ? metadata.json_gcs_uri : ""),
+    pageCount:
+      toNumberOrDefault(parsed.page_count) ||
+      toNumberOrDefault(metadata.page_count) ||
+      toNumberOrDefault(data.pageCount),
+    status: typeof data.status === "string" ? data.status : "unknown",
+    ragStatus: typeof rag.status === "string" ? rag.status : "",
+    uploadedAt: toDateOrNull(source.uploaded_at) ?? toDateOrNull(data.createdAt),
+  };
+}
+
+// --- Adapter ------------------------------------------------------------------
+
+export class FirebaseKnowledgeContentAdapter implements IKnowledgeContentRepository {
+  async runRagQuery(
+    query: string,
+    accountId: string,
+    workspaceId: string,
+    topK: number,
+    options: {
+      taxonomyFilters?: string[];
+      maxAgeDays?: number;
+      requireReady?: boolean;
+    } = {},
+  ): Promise<KnowledgeRagQueryResult> {
+    const data = objectOrEmpty(
+      await functionsInfrastructureApi.call<
+        {
+          query: string;
+          top_k: number;
+          account_id: string;
+          workspace_id: string;
+          taxonomy_filters: string[];
+          max_age_days?: number;
+          require_ready?: boolean;
+        },
+        unknown
+      >(
+        "rag_query",
+        {
+          query,
+          top_k: topK,
+          account_id: accountId,
+          workspace_id: workspaceId,
+          taxonomy_filters: options.taxonomyFilters ?? [],
+          max_age_days: options.maxAgeDays,
+          require_ready: options.requireReady,
+        },
+        { region: FUNCTIONS_REGION },
+      ),
+    );
+
+    return {
+      answer: typeof data.answer === "string" ? data.answer : "",
+      citations: normaliseCitations(data.citations),
+      cache: data.cache === "hit" ? "hit" : "miss",
+      vectorHits: toNumberOrDefault(data.vector_hits),
+      searchHits: toNumberOrDefault(data.search_hits),
+      accountScope: typeof data.account_scope === "string" ? data.account_scope : accountId,
+      workspaceScope:
+        typeof data.workspace_scope === "string" ? data.workspace_scope : workspaceId,
+      taxonomyFilters: Array.isArray(data.taxonomy_filters)
+        ? data.taxonomy_filters.filter((v): v is string => typeof v === "string")
+        : undefined,
+      maxAgeDays: typeof data.max_age_days === "number" ? data.max_age_days : undefined,
+      requireReady: typeof data.require_ready === "boolean" ? data.require_ready : undefined,
+    };
+  }
+
+  async reindexDocument(input: KnowledgeReindexInput): Promise<void> {
+    await functionsInfrastructureApi.call<
+      {
+        account_id: string;
+        doc_id: string;
+        json_gcs_uri: string;
+        source_gcs_uri: string;
+        filename: string;
+        page_count: number;
+      },
+      unknown
+    >(
+      "rag_reindex_document",
+      {
+        account_id: input.accountId,
+        doc_id: input.docId,
+        json_gcs_uri: input.jsonGcsUri,
+        source_gcs_uri: input.sourceGcsUri,
+        filename: input.filename,
+        page_count: input.pageCount,
+      },
+      { region: FUNCTIONS_REGION },
+    );
+  }
+
+  async listParsedDocuments(accountId: string, limitCount: number): Promise<KnowledgeParsedDocument[]> {
+    if (!accountId) throw new Error("accountId is required");
+    const documents = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      `accounts/${accountId}/documents`,
+      [],
+      { limit: limitCount },
+    );
+
+    const docs = documents.map((d) => mapToParsedDocument(d.id, objectOrEmpty(d.data)));
+    return docs.sort((a, b) => {
+      const at = a.uploadedAt ? a.uploadedAt.getTime() : 0;
+      const bt = b.uploadedAt ? b.uploadedAt.getTime() : 0;
+      return bt - at;
+    });
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/infrastructure/firebase/FirebaseRagQueryFeedbackAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: infrastructure/firebase
+ * Purpose: FirebaseRagQueryFeedbackAdapter — implements IRagQueryFeedbackRepository
+ *          using Firestore (client SDK) for feedback persistence.
+ *
+ * Firestore collection: ragQueryFeedback/{autoId}
+ */
+
+import { v7 as generateId } from "@lib-uuid";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+
+import type { IRagQueryFeedbackRepository } from "../../domain/repositories/IRagQueryFeedbackRepository";
+import type {
+  RagQueryFeedback,
+  SubmitRagQueryFeedbackInput,
+} from "../../domain/entities/rag-feedback.entities";
+
+const COLLECTION = "ragQueryFeedback";
+
+interface FirestoreFeedbackDoc {
+  readonly id: string;
+  readonly traceId: string;
+  readonly userQuery: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly rating: string;
+  readonly comment?: string;
+  readonly submittedByUserId: string;
+  readonly submittedAtISO: string;
+}
+
+export class FirebaseRagQueryFeedbackAdapter implements IRagQueryFeedbackRepository {
+  async save(input: SubmitRagQueryFeedbackInput): Promise<RagQueryFeedback> {
+    const id = generateId();
+    const submittedAtISO = new Date().toISOString();
+
+    const doc: FirestoreFeedbackDoc = {
+      id,
+      traceId: input.traceId,
+      userQuery: input.userQuery,
+      organizationId: input.organizationId,
+      ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
+      rating: input.rating,
+      ...(input.comment ? { comment: input.comment } : {}),
+      submittedByUserId: input.submittedByUserId,
+      submittedAtISO,
+    };
+
+    await firestoreInfrastructureApi.set<FirestoreFeedbackDoc>(`${COLLECTION}/${id}`, doc);
+
+    return {
+      id,
+      traceId: input.traceId,
+      userQuery: input.userQuery,
+      organizationId: input.organizationId,
+      ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
+      rating: input.rating,
+      ...(input.comment ? { comment: input.comment } : {}),
+      submittedByUserId: input.submittedByUserId,
+      submittedAtISO,
+    };
+  }
+
+  async listByOrganization(organizationId: string, limitCount: number): Promise<RagQueryFeedback[]> {
+    const docs = await firestoreInfrastructureApi.query<FirestoreFeedbackDoc>(
+      COLLECTION,
+      [{ field: "organizationId", op: "==", value: organizationId }],
+      {
+        orderBy: [{ field: "submittedAtISO", direction: "desc" }],
+        limit: limitCount,
+      },
+    );
+    return docs.map((data) => {
+      return {
+        id: data.id,
+        traceId: data.traceId,
+        userQuery: data.userQuery,
+        organizationId: data.organizationId,
+        ...(data.workspaceId ? { workspaceId: data.workspaceId } : {}),
+        rating: data.rating as RagQueryFeedback["rating"],
+        ...(data.comment ? { comment: data.comment } : {}),
+        submittedByUserId: data.submittedByUserId,
+        submittedAtISO: data.submittedAtISO,
+      };
+    });
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/infrastructure/firebase/FirebaseRagRetrievalAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: infrastructure/firebase
+ * Purpose: FirebaseRagRetrievalAdapter — implements IRagRetrievalRepository
+ *          using Firestore collectionGroup queries for document-scoped chunks.
+ *
+ * Retrieval strategy:
+ *  1. Over-fetch candidate documents (filtered by org / workspace / taxonomy / status=ready).
+ *  2. Over-fetch candidate chunks in the same scope.
+ *  3. Compute a token-overlap relevance score (CJK-aware tokeniser).
+ *  4. Filter to chunks whose parent doc is in the ready-document set.
+ *  5. Sort descending by score, return top-K.
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+
+import type { RagRetrievedChunk } from "../../domain/entities/retrieval.entities";
+import type { IRagRetrievalRepository, RetrieveChunksInput } from "../../domain/repositories/IRagRetrievalRepository";
+
+// --- Firestore document shapes -----------------------------------------------
+
+interface FirestoreRagDocument {
+  readonly organizationId?: string;
+  readonly workspaceId?: string;
+  readonly status?: string;
+  readonly taxonomy?: string;
+}
+
+interface FirestoreRagChunk {
+  readonly organizationId?: string;
+  readonly workspaceId?: string;
+  readonly docId?: string;
+  readonly text?: string;
+  readonly taxonomy?: string;
+  readonly page?: number;
+  readonly chunkIndex?: number;
+}
+
+// --- Retrieval tuning constants -----------------------------------------------
+
+const DOCUMENT_OVER_FETCH_MULTIPLIER = 5;
+const MIN_DOCUMENT_LIMIT = 20;
+const CHUNK_OVER_FETCH_MULTIPLIER = 10;
+const MIN_CHUNK_LIMIT = 50;
+
+// --- Scoring helpers (pure functions, no state) --------------------------------
+
+/** CJK-aware whitespace / punctuation tokeniser */
+function tokenize(value: string): readonly string[] {
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9\u4e00-\u9fff]+/u)
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Token-overlap score between query and chunk text.
+ * Returns a value in [0, 1] — fraction of query tokens found in the chunk.
+ */
+function computeTokenOverlapScore(queryTokens: readonly string[], chunkText: string): number {
+  if (queryTokens.length === 0) return 0;
+  const chunkTokens = tokenize(chunkText);
+  if (chunkTokens.length === 0) return 0;
+  const matchCount = queryTokens.filter((t) => chunkTokens.includes(t)).length;
+  return matchCount / queryTokens.length;
+}
+
+// --- Adapter ------------------------------------------------------------------
+
+export class FirebaseRagRetrievalAdapter implements IRagRetrievalRepository {
+  async retrieve(input: RetrieveChunksInput): Promise<readonly RagRetrievedChunk[]> {
+    // Step 1 — resolve ready document IDs in scope
+    const documentSnapshots = await firestoreInfrastructureApi.queryCollectionGroup<FirestoreRagDocument>(
+      "documents",
+      [
+        { field: "organizationId", op: "==", value: input.organizationId },
+        { field: "status", op: "==", value: "ready" },
+        ...(input.workspaceId ? [{ field: "workspaceId", op: "==", value: input.workspaceId } as const] : []),
+        ...(input.taxonomy ? [{ field: "taxonomy", op: "==", value: input.taxonomy } as const] : []),
+      ],
+      { limit: Math.max(input.topK * DOCUMENT_OVER_FETCH_MULTIPLIER, MIN_DOCUMENT_LIMIT) },
+    );
+
+    const readyDocumentIds = new Set(
+      documentSnapshots
+        .filter((snap) => {
+          const data = snap.data;
+          return data.status === "ready";
+        })
+        .map((snap) => snap.id),
+    );
+
+    if (readyDocumentIds.size === 0) return [];
+
+    // Step 2 — over-fetch candidate chunks
+    const chunkSnapshots = await firestoreInfrastructureApi.queryCollectionGroup<FirestoreRagChunk>(
+      "chunks",
+      [
+        { field: "organizationId", op: "==", value: input.organizationId },
+        ...(input.workspaceId ? [{ field: "workspaceId", op: "==", value: input.workspaceId } as const] : []),
+        ...(input.taxonomy ? [{ field: "taxonomy", op: "==", value: input.taxonomy } as const] : []),
+      ],
+      { limit: Math.max(input.topK * CHUNK_OVER_FETCH_MULTIPLIER, MIN_CHUNK_LIMIT) },
+    );
+
+    const queryTokens = tokenize(input.normalizedQuery);
+
+    // Step 3 — score, filter, sort, slice
+    return chunkSnapshots
+      .map((snap) => {
+        const data = snap.data;
+        const text = typeof data.text === "string" ? data.text : "";
+        const docId = typeof data.docId === "string" ? data.docId : "";
+        return {
+          chunkId: snap.id,
+          docId,
+          chunkIndex: typeof data.chunkIndex === "number" ? data.chunkIndex : 0,
+          ...(typeof data.page === "number" ? { page: data.page } : {}),
+          taxonomy: typeof data.taxonomy === "string" ? data.taxonomy : "general",
+          text,
+          score: computeTokenOverlapScore(queryTokens, text),
+        } satisfies RagRetrievedChunk;
+      })
+      .filter((chunk) => chunk.docId !== "" && readyDocumentIds.has(chunk.docId) && chunk.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, input.topK);
+  }
+}
+````
+
 ## File: modules/notebooklm/subdomains/synthesis/infrastructure/platform/PlatformRagGenerationAdapter.ts
 ````typescript
 /**
@@ -63685,264 +63685,6 @@ Legacy migration:
 3. Converge Application layer
 4. Isolate legacy via Ports
 5. Replace Infrastructure adapter
-````
-
-## File: modules/platform/api/infrastructure-api.ts
-````typescript
-import {
-	functionsApi,
-	firestoreApi,
-	getFirebaseFirestore,
-	getFirebaseFunctions,
-	getFirebaseStorage,
-	storageApi,
-} from "@integration-firebase";
-import { collectionGroup } from "firebase/firestore";
-
-import type {
-	FirestoreAPI,
-	FunctionsAPI,
-	FunctionsCallOptions,
-	FirestoreQueryOptions,
-	FirestoreWhereClause,
-	GenkitAPI,
-	StorageAPI,
-	StorageUploadOptions,
-} from "./contracts";
-
-const DEFAULT_STORAGE_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
-const DEFAULT_FUNCTION_REGION = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_REGION ?? "asia-east1";
-
-function splitPath(path: string): string[] {
-	const segments = path
-		.split("/")
-		.map((segment) => segment.trim())
-		.filter(Boolean);
-
-	if (segments.length === 0) {
-		throw new Error("Path is required.");
-	}
-
-	return segments;
-}
-
-function resolveDocumentPath(path: string): string[] {
-	const segments = splitPath(path);
-	if (segments.length % 2 !== 0) {
-		throw new Error(`Expected a document path but got collection path: ${path}`);
-	}
-	return segments;
-}
-
-function resolveCollectionPath(path: string): string[] {
-	const segments = splitPath(path);
-	if (segments.length % 2 === 0) {
-		throw new Error(`Expected a collection path but got document path: ${path}`);
-	}
-	return segments;
-}
-
-function resolveStorageBucket(): string {
-	return process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || DEFAULT_STORAGE_BUCKET;
-}
-
-function resolveStoragePath(path: string): string {
-	const normalized = path.trim().replace(/^\/+/, "");
-	if (!normalized) {
-		throw new Error("Storage path is required.");
-	}
-	return normalized;
-}
-
-function toUploadMetadata(options?: StorageUploadOptions) {
-	if (!options) return undefined;
-	return {
-		contentType: options.contentType,
-		customMetadata: options.customMetadata,
-	};
-}
-
-function applyQueryConstraints(
-	baseQuery: ReturnType<typeof firestoreApi.query>,
-	where: readonly FirestoreWhereClause[],
-	options?: FirestoreQueryOptions,
-) {
-	const whereConstraints = where.map((clause) =>
-		firestoreApi.where(clause.field, clause.op, clause.value),
-	);
-
-	const orderByConstraints = (options?.orderBy ?? []).map((clause) =>
-		firestoreApi.orderBy(clause.field, clause.direction ?? "asc"),
-	);
-
-	const limitConstraint =
-		typeof options?.limit === "number" && options.limit > 0
-			? [firestoreApi.limit(options.limit)]
-			: [];
-
-	return firestoreApi.query(baseQuery, ...whereConstraints, ...orderByConstraints, ...limitConstraint);
-}
-
-export const firestoreInfrastructureApi: FirestoreAPI = {
-	async get<T>(path: string): Promise<T | null> {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-		const snapshot = await firestoreApi.getDoc(ref);
-		if (!snapshot.exists()) return null;
-		return snapshot.data() as T;
-	},
-
-	async set<T>(path: string, data: T): Promise<void> {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-		await firestoreApi.setDoc(ref, data as Record<string, unknown>);
-	},
-
-	async query<T>(
-		collectionPath: string,
-		where: readonly FirestoreWhereClause[] = [],
-		options?: FirestoreQueryOptions,
-	): Promise<T[]> {
-		const documents = await firestoreInfrastructureApi.queryDocuments<T>(collectionPath, where, options);
-		return documents.map((document) => document.data);
-	},
-
-	async queryDocuments<T>(
-		collectionPath: string,
-		where: readonly FirestoreWhereClause[] = [],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly { id: string; data: T }[]> {
-		const db = getFirebaseFirestore();
-		const collectionRef = firestoreApi.collection(
-			db,
-			resolveCollectionPath(collectionPath).join("/"),
-		);
-
-		const queryRef = applyQueryConstraints(firestoreApi.query(collectionRef), where, options);
-		const snapshot = await firestoreApi.getDocs(queryRef);
-		return snapshot.docs.map((doc) => ({
-			id: doc.id,
-			data: doc.data() as T,
-		}));
-	},
-
-	async queryCollectionGroup<T>(
-		collectionId: string,
-		where: readonly FirestoreWhereClause[] = [],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly { id: string; data: T }[]> {
-		const normalizedCollectionId = collectionId.trim();
-		if (!normalizedCollectionId) {
-			throw new Error("Collection group id is required.");
-		}
-
-		const db = getFirebaseFirestore();
-		const collectionGroupRef = collectionGroup(db, normalizedCollectionId);
-		const queryRef = applyQueryConstraints(firestoreApi.query(collectionGroupRef), where, options);
-		const snapshot = await firestoreApi.getDocs(queryRef);
-		return snapshot.docs.map((doc) => ({
-			id: doc.id,
-			data: doc.data() as T,
-		}));
-	},
-
-	watchCollection<T>(
-		collectionPath: string,
-		handlers: {
-			onNext: (documents: readonly { id: string; data: T }[]) => void;
-			onError?: (error: unknown) => void;
-		},
-		where: readonly FirestoreWhereClause[] = [],
-	): () => void {
-		const db = getFirebaseFirestore();
-		const collectionRef = firestoreApi.collection(
-			db,
-			resolveCollectionPath(collectionPath).join("/"),
-		);
-
-		const queryConstraints = where.map((clause) =>
-			firestoreApi.where(clause.field, clause.op, clause.value),
-		);
-		const queryRef = firestoreApi.query(collectionRef, ...queryConstraints);
-
-		return firestoreApi.onSnapshot(
-			queryRef,
-			(snapshot) => {
-				handlers.onNext(
-					snapshot.docs.map((doc) => ({
-						id: doc.id,
-						data: doc.data() as T,
-					})),
-				);
-			},
-			(error) => {
-				handlers.onError?.(error);
-			},
-		);
-	},
-};
-
-export const storageInfrastructureApi: StorageAPI = {
-	async upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string> {
-		const normalizedPath = resolveStoragePath(path);
-		const storage = getFirebaseStorage(resolveStorageBucket());
-		const ref = storageApi.ref(storage, normalizedPath);
-		await storageApi.uploadBytes(ref, file, toUploadMetadata(options));
-		return storageApi.getDownloadURL(ref);
-	},
-
-	async getUrl(path: string): Promise<string> {
-		const normalizedPath = resolveStoragePath(path);
-		const storage = getFirebaseStorage(resolveStorageBucket());
-		const ref = storageApi.ref(storage, normalizedPath);
-		return storageApi.getDownloadURL(ref);
-	},
-
-	async delete(path: string): Promise<void> {
-		const normalizedPath = resolveStoragePath(path);
-		const storage = getFirebaseStorage(resolveStorageBucket());
-		const ref = storageApi.ref(storage, normalizedPath);
-		await storageApi.deleteObject(ref);
-	},
-
-	toGsUri(path: string): string {
-		const normalizedPath = resolveStoragePath(path);
-		return `gs://${resolveStorageBucket()}/${normalizedPath}`;
-	},
-};
-
-export const genkitInfrastructureApi: GenkitAPI = {
-	async runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput> {
-		const normalizedFlow = flow.trim();
-		if (!normalizedFlow) {
-			throw new Error("Flow name is required.");
-		}
-
-		const functions = getFirebaseFunctions(DEFAULT_FUNCTION_REGION);
-		const runFlow = functionsApi.httpsCallable(functions, "platform_run_genkit_flow");
-		const response = await runFlow({ flow: normalizedFlow, input });
-		return response.data as TOutput;
-	},
-};
-
-export const functionsInfrastructureApi: FunctionsAPI = {
-	async call<TInput, TOutput>(
-		functionName: string,
-		input: TInput,
-		options?: FunctionsCallOptions,
-	): Promise<TOutput> {
-		const normalizedName = functionName.trim();
-		if (!normalizedName) {
-			throw new Error("Function name is required.");
-		}
-
-		const region = options?.region?.trim() || DEFAULT_FUNCTION_REGION;
-		const functions = getFirebaseFunctions(region);
-		const callable = functionsApi.httpsCallable(functions, normalizedName);
-		const response = await callable(input);
-		return response.data as TOutput;
-	},
-};
 ````
 
 ## File: modules/platform/application/handlers/index.ts
@@ -69390,173 +69132,262 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/api/contracts.ts
+## File: modules/platform/api/infrastructure-api.ts
 ````typescript
-/**
- * platform API contracts boundary.
- *
- * Keep the source of truth in application/domain and re-export here for API consumers.
- */
+import {
+	functionsApi,
+	firestoreApi,
+	getFirebaseFirestore,
+	getFirebaseFunctions,
+	getFirebaseStorage,
+	storageApi,
+} from "@integration-firebase";
+import { collectionGroup } from "firebase/firestore";
 
-export * from "../application/dtos";
-export type {
-	PlatformContextView,
-	PolicyCatalogView,
-	SubscriptionEntitlementsView,
-	WorkflowPolicyView,
-} from "../domain/ports/output";
-export * from "../domain/events";
+import type {
+	FirestoreAPI,
+	FunctionsAPI,
+	FunctionsCallOptions,
+	FirestoreQueryOptions,
+	FirestoreWhereClause,
+	GenkitAPI,
+	StorageAPI,
+	StorageUploadOptions,
+} from "./contracts";
 
-// ── Identity session types ────────────────────────────────────────────────────
-// AuthUser is the canonical projection of an authenticated identity subject.
-// Platform/Identity BC owns this DTO; app/providers/auth-context re-exports it.
+const DEFAULT_STORAGE_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
+const DEFAULT_FUNCTION_REGION = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_REGION ?? "asia-east1";
 
-/** Minimal authenticated user record surfaced from identity auth state. */
-export interface AuthUser {
-	readonly id: string;
-	readonly name: string;
-	readonly email: string;
+function splitPath(path: string): string[] {
+	const segments = path
+		.split("/")
+		.map((segment) => segment.trim())
+		.filter(Boolean);
+
+	if (segments.length === 0) {
+		throw new Error("Path is required.");
+	}
+
+	return segments;
 }
 
-// ── Infrastructure API contracts (platform-owned) ───────────────────────────
-
-export type FirestoreWhereOperator =
-	| "<"
-	| "<="
-	| "=="
-	| "!="
-	| ">="
-	| ">"
-	| "array-contains"
-	| "array-contains-any"
-	| "in"
-	| "not-in";
-
-export interface FirestoreWhereClause {
-	readonly field: string;
-	readonly op: FirestoreWhereOperator;
-	readonly value: unknown;
+function resolveDocumentPath(path: string): string[] {
+	const segments = splitPath(path);
+	if (segments.length % 2 !== 0) {
+		throw new Error(`Expected a document path but got collection path: ${path}`);
+	}
+	return segments;
 }
 
-export type FirestoreOrderDirection = "asc" | "desc";
-
-export interface FirestoreOrderByClause {
-	readonly field: string;
-	readonly direction?: FirestoreOrderDirection;
+function resolveCollectionPath(path: string): string[] {
+	const segments = splitPath(path);
+	if (segments.length % 2 === 0) {
+		throw new Error(`Expected a collection path but got document path: ${path}`);
+	}
+	return segments;
 }
 
-export interface FirestoreQueryOptions {
-	readonly limit?: number;
-	readonly orderBy?: readonly FirestoreOrderByClause[];
+function resolveStorageBucket(): string {
+	return process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || DEFAULT_STORAGE_BUCKET;
 }
 
-export interface FirestoreCollectionDocument<T> {
-	readonly id: string;
-	readonly data: T;
+function resolveStoragePath(path: string): string {
+	const normalized = path.trim().replace(/^\/+/, "");
+	if (!normalized) {
+		throw new Error("Storage path is required.");
+	}
+	return normalized;
 }
 
-export interface FirestoreCollectionWatchHandlers<T> {
-	readonly onNext: (documents: readonly FirestoreCollectionDocument<T>[]) => void;
-	readonly onError?: (error: unknown) => void;
+function toUploadMetadata(options?: StorageUploadOptions) {
+	if (!options) return undefined;
+	return {
+		contentType: options.contentType,
+		customMetadata: options.customMetadata,
+	};
 }
 
-export interface FirestoreAPI {
-	get<T>(path: string): Promise<T | null>;
-	set<T>(path: string, data: T): Promise<void>;
-	query<T>(
+function applyQueryConstraints(
+	baseQuery: ReturnType<typeof firestoreApi.query>,
+	where: readonly FirestoreWhereClause[],
+	options?: FirestoreQueryOptions,
+) {
+	const whereConstraints = where.map((clause) =>
+		firestoreApi.where(clause.field, clause.op, clause.value),
+	);
+
+	const orderByConstraints = (options?.orderBy ?? []).map((clause) =>
+		firestoreApi.orderBy(clause.field, clause.direction ?? "asc"),
+	);
+
+	const limitConstraint =
+		typeof options?.limit === "number" && options.limit > 0
+			? [firestoreApi.limit(options.limit)]
+			: [];
+
+	return firestoreApi.query(baseQuery, ...whereConstraints, ...orderByConstraints, ...limitConstraint);
+}
+
+export const firestoreInfrastructureApi: FirestoreAPI = {
+	async get<T>(path: string): Promise<T | null> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		const snapshot = await firestoreApi.getDoc(ref);
+		if (!snapshot.exists()) return null;
+		return snapshot.data() as T;
+	},
+
+	async set<T>(path: string, data: T): Promise<void> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		await firestoreApi.setDoc(ref, data as Record<string, unknown>);
+	},
+
+	async query<T>(
 		collectionPath: string,
-		where?: readonly FirestoreWhereClause[],
+		where: readonly FirestoreWhereClause[] = [],
 		options?: FirestoreQueryOptions,
-	): Promise<T[]>;
-	queryDocuments<T>(
+	): Promise<T[]> {
+		const documents = await firestoreInfrastructureApi.queryDocuments<T>(collectionPath, where, options);
+		return documents.map((document) => document.data);
+	},
+
+	async queryDocuments<T>(
 		collectionPath: string,
-		where?: readonly FirestoreWhereClause[],
+		where: readonly FirestoreWhereClause[] = [],
 		options?: FirestoreQueryOptions,
-	): Promise<readonly FirestoreCollectionDocument<T>[]>;
-	queryCollectionGroup<T>(
+	): Promise<readonly { id: string; data: T }[]> {
+		const db = getFirebaseFirestore();
+		const collectionRef = firestoreApi.collection(
+			db,
+			resolveCollectionPath(collectionPath).join("/"),
+		);
+
+		const queryRef = applyQueryConstraints(firestoreApi.query(collectionRef), where, options);
+		const snapshot = await firestoreApi.getDocs(queryRef);
+		return snapshot.docs.map((doc) => ({
+			id: doc.id,
+			data: doc.data() as T,
+		}));
+	},
+
+	async queryCollectionGroup<T>(
 		collectionId: string,
-		where?: readonly FirestoreWhereClause[],
+		where: readonly FirestoreWhereClause[] = [],
 		options?: FirestoreQueryOptions,
-	): Promise<readonly FirestoreCollectionDocument<T>[]>;
+	): Promise<readonly { id: string; data: T }[]> {
+		const normalizedCollectionId = collectionId.trim();
+		if (!normalizedCollectionId) {
+			throw new Error("Collection group id is required.");
+		}
+
+		const db = getFirebaseFirestore();
+		const collectionGroupRef = collectionGroup(db, normalizedCollectionId);
+		const queryRef = applyQueryConstraints(firestoreApi.query(collectionGroupRef), where, options);
+		const snapshot = await firestoreApi.getDocs(queryRef);
+		return snapshot.docs.map((doc) => ({
+			id: doc.id,
+			data: doc.data() as T,
+		}));
+	},
+
 	watchCollection<T>(
 		collectionPath: string,
-		handlers: FirestoreCollectionWatchHandlers<T>,
-		where?: readonly FirestoreWhereClause[],
-	): () => void;
-}
+		handlers: {
+			onNext: (documents: readonly { id: string; data: T }[]) => void;
+			onError?: (error: unknown) => void;
+		},
+		where: readonly FirestoreWhereClause[] = [],
+	): () => void {
+		const db = getFirebaseFirestore();
+		const collectionRef = firestoreApi.collection(
+			db,
+			resolveCollectionPath(collectionPath).join("/"),
+		);
 
-export interface StorageUploadOptions {
-	readonly contentType?: string;
-	readonly customMetadata?: Record<string, string>;
-}
+		const queryConstraints = where.map((clause) =>
+			firestoreApi.where(clause.field, clause.op, clause.value),
+		);
+		const queryRef = firestoreApi.query(collectionRef, ...queryConstraints);
 
-export interface StorageAPI {
-	upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string>;
-	getUrl(path: string): Promise<string>;
-	delete(path: string): Promise<void>;
-	toGsUri(path: string): string;
-}
+		return firestoreApi.onSnapshot(
+			queryRef,
+			(snapshot) => {
+				handlers.onNext(
+					snapshot.docs.map((doc) => ({
+						id: doc.id,
+						data: doc.data() as T,
+					})),
+				);
+			},
+			(error) => {
+				handlers.onError?.(error);
+			},
+		);
+	},
+};
 
-export interface GenkitAPI {
-	runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput>;
-}
+export const storageInfrastructureApi: StorageAPI = {
+	async upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string> {
+		const normalizedPath = resolveStoragePath(path);
+		const storage = getFirebaseStorage(resolveStorageBucket());
+		const ref = storageApi.ref(storage, normalizedPath);
+		await storageApi.uploadBytes(ref, file, toUploadMetadata(options));
+		return storageApi.getDownloadURL(ref);
+	},
 
-export interface FunctionsCallOptions {
-	readonly region?: string;
-}
+	async getUrl(path: string): Promise<string> {
+		const normalizedPath = resolveStoragePath(path);
+		const storage = getFirebaseStorage(resolveStorageBucket());
+		const ref = storageApi.ref(storage, normalizedPath);
+		return storageApi.getDownloadURL(ref);
+	},
 
-export interface FunctionsAPI {
-	call<TInput, TOutput>(
+	async delete(path: string): Promise<void> {
+		const normalizedPath = resolveStoragePath(path);
+		const storage = getFirebaseStorage(resolveStorageBucket());
+		const ref = storageApi.ref(storage, normalizedPath);
+		await storageApi.deleteObject(ref);
+	},
+
+	toGsUri(path: string): string {
+		const normalizedPath = resolveStoragePath(path);
+		return `gs://${resolveStorageBucket()}/${normalizedPath}`;
+	},
+};
+
+export const genkitInfrastructureApi: GenkitAPI = {
+	async runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput> {
+		const normalizedFlow = flow.trim();
+		if (!normalizedFlow) {
+			throw new Error("Flow name is required.");
+		}
+
+		const functions = getFirebaseFunctions(DEFAULT_FUNCTION_REGION);
+		const runFlow = functionsApi.httpsCallable(functions, "platform_run_genkit_flow");
+		const response = await runFlow({ flow: normalizedFlow, input });
+		return response.data as TOutput;
+	},
+};
+
+export const functionsInfrastructureApi: FunctionsAPI = {
+	async call<TInput, TOutput>(
 		functionName: string,
 		input: TInput,
 		options?: FunctionsCallOptions,
-	): Promise<TOutput>;
-}
+	): Promise<TOutput> {
+		const normalizedName = functionName.trim();
+		if (!normalizedName) {
+			throw new Error("Function name is required.");
+		}
 
-// ── Platform Service API contracts (cross-domain) ───────────────────────────
-
-export interface AuthSession {
-	readonly userId: string;
-	readonly email: string | null;
-	readonly displayName: string | null;
-	readonly isAnonymous: boolean;
-}
-
-export interface AuthAPI {
-	getSession(): Promise<AuthSession | null>;
-	requireAuth(): Promise<AuthSession>;
-}
-
-export interface PermissionAPI {
-	can(userId: string, action: string, resource: string): Promise<boolean>;
-}
-
-export interface UploadUserFileInput {
-	readonly file: Blob;
-	readonly ownerId: string;
-	readonly fileName?: string;
-	readonly contentType?: string;
-	readonly metadata?: Record<string, string>;
-	readonly pathHint?: string;
-}
-
-export interface UploadUserFileOutput {
-	readonly url: string;
-	readonly fileId: string;
-	readonly storagePath: string;
-	readonly gcsUri: string;
-}
-
-export interface FileAPI {
-	uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>;
-	deleteFile(fileId: string): Promise<void>;
-}
-
-// ── Cross-cutting account context type ───────────────────────────────────────
-// ActiveAccount is the union of an organization AccountEntity or a personal
-// AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
-import type { AccountEntity } from "../subdomains/account/api";
-export type ActiveAccount = AccountEntity | AuthUser;
+		const region = options?.region?.trim() || DEFAULT_FUNCTION_REGION;
+		const functions = getFirebaseFunctions(region);
+		const callable = functionsApi.httpsCallable(functions, normalizedName);
+		const response = await callable(input);
+		return response.data as TOutput;
+	},
+};
 ````
 
 ## File: modules/platform/interfaces/web/providers/ShellAppContext.ts
@@ -71813,6 +71644,175 @@ Legacy migration (Strangler Pattern):
 3. Converge Application layer
 4. Isolate legacy via Ports
 5. Replace Infrastructure adapter; remove old path when stable
+````
+
+## File: modules/platform/api/contracts.ts
+````typescript
+/**
+ * platform API contracts boundary.
+ *
+ * Keep the source of truth in application/domain and re-export here for API consumers.
+ */
+
+export * from "../application/dtos";
+export type {
+	PlatformContextView,
+	PolicyCatalogView,
+	SubscriptionEntitlementsView,
+	WorkflowPolicyView,
+} from "../domain/ports/output";
+export * from "../domain/events";
+
+// ── Identity session types ────────────────────────────────────────────────────
+// AuthUser is the canonical projection of an authenticated identity subject.
+// Platform/Identity BC owns this DTO; app/providers/auth-context re-exports it.
+
+/** Minimal authenticated user record surfaced from identity auth state. */
+export interface AuthUser {
+	readonly id: string;
+	readonly name: string;
+	readonly email: string;
+}
+
+// ── Infrastructure API contracts (platform-owned) ───────────────────────────
+
+export type FirestoreWhereOperator =
+	| "<"
+	| "<="
+	| "=="
+	| "!="
+	| ">="
+	| ">"
+	| "array-contains"
+	| "array-contains-any"
+	| "in"
+	| "not-in";
+
+export interface FirestoreWhereClause {
+	readonly field: string;
+	readonly op: FirestoreWhereOperator;
+	readonly value: unknown;
+}
+
+export type FirestoreOrderDirection = "asc" | "desc";
+
+export interface FirestoreOrderByClause {
+	readonly field: string;
+	readonly direction?: FirestoreOrderDirection;
+}
+
+export interface FirestoreQueryOptions {
+	readonly limit?: number;
+	readonly orderBy?: readonly FirestoreOrderByClause[];
+}
+
+export interface FirestoreCollectionDocument<T> {
+	readonly id: string;
+	readonly data: T;
+}
+
+export interface FirestoreCollectionWatchHandlers<T> {
+	readonly onNext: (documents: readonly FirestoreCollectionDocument<T>[]) => void;
+	readonly onError?: (error: unknown) => void;
+}
+
+export interface FirestoreAPI {
+	get<T>(path: string): Promise<T | null>;
+	set<T>(path: string, data: T): Promise<void>;
+	query<T>(
+		collectionPath: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<T[]>;
+	queryDocuments<T>(
+		collectionPath: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly FirestoreCollectionDocument<T>[]>;
+	queryCollectionGroup<T>(
+		collectionId: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly FirestoreCollectionDocument<T>[]>;
+	watchCollection<T>(
+		collectionPath: string,
+		handlers: FirestoreCollectionWatchHandlers<T>,
+		where?: readonly FirestoreWhereClause[],
+	): () => void;
+}
+
+export interface StorageUploadOptions {
+	readonly contentType?: string;
+	readonly customMetadata?: Record<string, string>;
+}
+
+export interface StorageAPI {
+	upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string>;
+	getUrl(path: string): Promise<string>;
+	delete(path: string): Promise<void>;
+	toGsUri(path: string): string;
+}
+
+export interface GenkitAPI {
+	runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput>;
+}
+
+export interface FunctionsCallOptions {
+	readonly region?: string;
+}
+
+export interface FunctionsAPI {
+	call<TInput, TOutput>(
+		functionName: string,
+		input: TInput,
+		options?: FunctionsCallOptions,
+	): Promise<TOutput>;
+}
+
+// ── Platform Service API contracts (cross-domain) ───────────────────────────
+
+export interface AuthSession {
+	readonly userId: string;
+	readonly email: string | null;
+	readonly displayName: string | null;
+	readonly isAnonymous: boolean;
+}
+
+export interface AuthAPI {
+	getSession(): Promise<AuthSession | null>;
+	requireAuth(): Promise<AuthSession>;
+}
+
+export interface PermissionAPI {
+	can(userId: string, action: string, resource: string): Promise<boolean>;
+}
+
+export interface UploadUserFileInput {
+	readonly file: Blob;
+	readonly ownerId: string;
+	readonly fileName?: string;
+	readonly contentType?: string;
+	readonly metadata?: Record<string, string>;
+	readonly pathHint?: string;
+}
+
+export interface UploadUserFileOutput {
+	readonly url: string;
+	readonly fileId: string;
+	readonly storagePath: string;
+	readonly gcsUri: string;
+}
+
+export interface FileAPI {
+	uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>;
+	deleteFile(fileId: string): Promise<void>;
+}
+
+// ── Cross-cutting account context type ───────────────────────────────────────
+// ActiveAccount is the union of an organization AccountEntity or a personal
+// AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
+import type { AccountEntity } from "../subdomains/account/api";
+export type ActiveAccount = AccountEntity | AuthUser;
 ````
 
 ## File: modules/platform/application/use-cases/index.ts

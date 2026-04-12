@@ -8,18 +8,7 @@
  *   workspaceFiles/{fileId}/versions/{versionId}
  */
 
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  query,
-  where,
-  writeBatch,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
 
 import type { SourceFile } from "../../domain/entities/SourceFile";
 import type { SourceFileVersion } from "../../domain/entities/SourceFileVersion";
@@ -81,29 +70,25 @@ function toSourceFileVersionEntity(versionId: string, data: Record<string, unkno
 }
 
 export class FirebaseSourceFileAdapter implements ISourceFileRepository {
-  private readonly db = getFirestore(firebaseClientApp);
-
-  private get collectionRef() {
-    return collection(this.db, FILE_COLLECTION);
-  }
-
   async findById(fileId: string): Promise<SourceFile | null> {
     const normalizedId = fileId.trim();
     if (!normalizedId) return null;
-    const snapshot = await getDoc(doc(this.db, FILE_COLLECTION, normalizedId));
-    if (!snapshot.exists()) return null;
-    return toSourceFileEntity(snapshot.id, snapshot.data() as Record<string, unknown>);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      `${FILE_COLLECTION}/${normalizedId}`,
+    );
+    if (!data) return null;
+    return toSourceFileEntity(normalizedId, data);
   }
 
   async findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null> {
     const nFileId = fileId.trim();
     const nVersionId = versionId.trim();
     if (!nFileId || !nVersionId) return null;
-    const snapshot = await getDoc(
-      doc(this.db, FILE_COLLECTION, nFileId, VERSION_SUBCOLLECTION, nVersionId),
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      `${FILE_COLLECTION}/${nFileId}/${VERSION_SUBCOLLECTION}/${nVersionId}`,
     );
-    if (!snapshot.exists()) return null;
-    return toSourceFileVersionEntity(snapshot.id, snapshot.data() as Record<string, unknown>);
+    if (!data) return null;
+    return toSourceFileVersionEntity(nVersionId, data);
   }
 
   async listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]> {
@@ -111,54 +96,59 @@ export class FirebaseSourceFileAdapter implements ISourceFileRepository {
     const organizationId = scope.organizationId.trim();
     if (!workspaceId) return [];
 
-    const snapshots = await getDocs(
-      query(
-        this.collectionRef,
-        where("workspaceId", "==", workspaceId),
-        where("organizationId", "==", organizationId),
-      ),
+    const documents = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      FILE_COLLECTION,
+      [
+        { field: "workspaceId", op: "==", value: workspaceId },
+        { field: "organizationId", op: "==", value: organizationId },
+      ],
     );
 
-    return snapshots.docs
-      .map((snap) => toSourceFileEntity(snap.id, snap.data() as Record<string, unknown>))
+    return documents
+      .map((document) => toSourceFileEntity(document.id, document.data))
       .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
   }
 
   async save(file: SourceFile, versions: readonly SourceFileVersion[] = []): Promise<void> {
-    const batch = writeBatch(this.db);
-    const fileRef = doc(this.db, FILE_COLLECTION, file.id);
-
-    batch.set(fileRef, {
-      workspaceId: file.workspaceId,
-      organizationId: file.organizationId,
-      accountId: file.accountId,
-      name: file.name,
-      mimeType: file.mimeType,
-      sizeBytes: file.sizeBytes,
-      classification: file.classification,
-      tags: [...file.tags],
-      currentVersionId: file.currentVersionId,
-      ...(file.retentionPolicyId ? { retentionPolicyId: file.retentionPolicyId } : {}),
-      status: file.status,
-      ...(file.source ? { source: file.source } : {}),
-      ...(file.detail ? { detail: file.detail } : {}),
-      ...(file.href ? { href: file.href } : {}),
-      createdAtISO: file.createdAtISO,
-      updatedAtISO: file.updatedAtISO,
-      ...(file.deletedAtISO ? { deletedAtISO: file.deletedAtISO } : {}),
-    });
+    const writes: { path: string; data: Record<string, unknown> }[] = [
+      {
+        path: `${FILE_COLLECTION}/${file.id}`,
+        data: {
+          workspaceId: file.workspaceId,
+          organizationId: file.organizationId,
+          accountId: file.accountId,
+          name: file.name,
+          mimeType: file.mimeType,
+          sizeBytes: file.sizeBytes,
+          classification: file.classification,
+          tags: [...file.tags],
+          currentVersionId: file.currentVersionId,
+          ...(file.retentionPolicyId ? { retentionPolicyId: file.retentionPolicyId } : {}),
+          status: file.status,
+          ...(file.source ? { source: file.source } : {}),
+          ...(file.detail ? { detail: file.detail } : {}),
+          ...(file.href ? { href: file.href } : {}),
+          createdAtISO: file.createdAtISO,
+          updatedAtISO: file.updatedAtISO,
+          ...(file.deletedAtISO ? { deletedAtISO: file.deletedAtISO } : {}),
+        },
+      },
+    ];
 
     for (const version of versions) {
-      batch.set(doc(fileRef, VERSION_SUBCOLLECTION, version.id), {
-        fileId: version.fileId,
-        versionNumber: version.versionNumber,
-        status: version.status,
-        storagePath: version.storagePath,
-        ...(version.checksum ? { checksum: version.checksum } : {}),
-        createdAtISO: version.createdAtISO,
+      writes.push({
+        path: `${FILE_COLLECTION}/${file.id}/${VERSION_SUBCOLLECTION}/${version.id}`,
+        data: {
+          fileId: version.fileId,
+          versionNumber: version.versionNumber,
+          status: version.status,
+          storagePath: version.storagePath,
+          ...(version.checksum ? { checksum: version.checksum } : {}),
+          createdAtISO: version.createdAtISO,
+        },
       });
     }
 
-    await batch.commit();
+    await firestoreInfrastructureApi.setMany(writes);
   }
 }
