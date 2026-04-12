@@ -60,10 +60,10 @@ export function PageTreePanel({ nodes, accountId, workspaceId, currentUserId, al
     return (
       <div className="flex flex-col items-center gap-3 py-8 text-center text-sm text-muted-foreground">
         <FileText className="h-8 w-8 opacity-40" />
-        <p>{emptyStateDescription ?? "撠?"}</p>
+        <p>{emptyStateDescription ?? "No pages yet"}</p>
         {allowCreate && workspaceId && (
           <>
-            <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>?啣??</Button>
+            <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>Create page</Button>
             <PageDialog open={createOpen} onOpenChange={setCreateOpen} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} parentPageId={null} onSuccess={onCreated} />
           </>
         )}

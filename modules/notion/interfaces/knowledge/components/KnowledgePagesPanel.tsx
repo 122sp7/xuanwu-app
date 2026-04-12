@@ -92,7 +92,7 @@ export function KnowledgePagesPanel({
     <div className="space-y-4">
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">?</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Pages</h1>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={isAccountSummary ? "secondary" : "outline"}>
             {isAccountSummary ? "Account Summary" : "Workspace Scope"}
@@ -111,7 +111,7 @@ export function KnowledgePagesPanel({
           onClick={() => router.push(overviewHref)}
           className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
         >
-          餈? Knowledge Hub
+          Back to Knowledge Hub
         </button>
       </div>
 

@@ -92,7 +92,7 @@ export function DatabaseListPanel({ database, accountId, workspaceId, currentUse
   return (
     <div className="space-y-1">
       {records.length === 0 ? (
-        <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">撠閮?</p>
+        <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">No records</p>
       ) : (
         records.map((record) => {
           const isOpen = expanded.has(record.id);

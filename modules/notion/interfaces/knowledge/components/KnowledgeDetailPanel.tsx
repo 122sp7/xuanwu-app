@@ -153,7 +153,7 @@ export function KnowledgeDetailPanel({
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
             <ArrowLeft className="mr-1.5 h-4 w-4" />
-            ??”
+            Back to pages
           </Button>
           <div className="ml-auto flex items-center gap-2">
             <Button
