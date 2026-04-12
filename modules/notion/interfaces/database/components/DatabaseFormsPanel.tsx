@@ -87,7 +87,7 @@ export function DatabaseFormsPanel({
           size="sm"
           onClick={() => router.push(databaseDetailHref)}
         >
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 餈?鞈?摨?
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to database
         </Button>
         <div className="ml-auto">
           <Button size="sm" variant="outline" disabled>
@@ -116,7 +116,7 @@ export function DatabaseFormsPanel({
               accountId={accountId}
               workspaceId={workspaceId}
               submitterId={currentUserId}
-              title={`${database.name} 銵典`}
+              title={`${database.name} Form`}
               description={database.description ?? undefined}
             />
           </div>
@@ -125,7 +125,7 @@ export function DatabaseFormsPanel({
         <TabsContent value="share" className="mt-4">
           <div className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
             <div className="space-y-1.5">
-              <p className="text-sm font-medium">銵典???</p>
+              <p className="text-sm font-medium">Form URL</p>
               <div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
                 <span className="flex-1 truncate">{shareUrl}</span>
                 <button

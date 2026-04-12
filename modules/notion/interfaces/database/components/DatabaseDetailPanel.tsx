@@ -140,7 +140,7 @@ export function DatabaseDetailPanel({
           <p className="text-sm text-muted-foreground">{database.description}</p>
         )}
         <p className="text-xs text-muted-foreground/70">
-          {database.fields.length} ??雿?繚 ?湔??{new Date(database.updatedAtISO).toLocaleDateString("zh-TW")}
+          {database.fields.length} fields | Updated {new Date(database.updatedAtISO).toLocaleDateString("zh-TW")}
         </p>
       </header>
 

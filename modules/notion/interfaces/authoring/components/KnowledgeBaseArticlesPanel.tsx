@@ -114,9 +114,9 @@ export function KnowledgeBaseArticlesPanel({
     <div className="space-y-4">
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">??</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Articles</h1>
         <p className="text-sm text-muted-foreground">
-          蝯??亥?摨怎? SOP ????辣??霅恣瘝颯?
+          Manage articles, SOPs, and operational documentation.
         </p>
       </header>
 

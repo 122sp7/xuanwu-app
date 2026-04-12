@@ -77,7 +77,7 @@ export function DatabaseGalleryPanel({ database, accountId, workspaceId, current
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {records.length === 0 ? (
-          <p className="col-span-full rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">撠閮?</p>
+          <p className="col-span-full rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">No records</p>
         ) : (
           records.map((record) => {
             const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "Untitled" : "Untitled";
