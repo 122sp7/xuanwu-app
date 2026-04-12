@@ -17,7 +17,7 @@ export { saveThread, loadThread } from "../subdomains/conversation/api";
 // ---------------------------------------------------------------------------
 // NotebookLM root interfaces — Q&A UI
 // ---------------------------------------------------------------------------
-export { RagQueryView } from "../interfaces/components/RagQueryView";
+export { RagQueryView } from "../subdomains/synthesis/api";
 
 // ---------------------------------------------------------------------------
 // Source subdomain — types, hooks, and UI (replaces @/modules/source/api)
