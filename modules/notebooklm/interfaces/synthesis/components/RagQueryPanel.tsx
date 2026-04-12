@@ -6,7 +6,6 @@ import { toast } from "sonner";
 
 import { useApp } from "@/modules/platform/api";
 import { useAuth } from "@/modules/platform/api";
-import { DEV_DEMO_ACCOUNT_EMAIL } from "@/modules/platform/api";
 import {
   Accordion,
   AccordionContent,
@@ -38,9 +37,7 @@ export function RagQueryPanel({ workspaceId }: RagQueryPanelProps) {
   const activeAccountId = appState.activeAccount?.id ?? "";
   const effectiveWorkspaceId = workspaceId?.trim() ?? "";
 
-  const isDemoOrUnauthenticated =
-    authState.status !== "authenticated" ||
-    authState.user?.email === DEV_DEMO_ACCOUNT_EMAIL;
+  const isDemoOrUnauthenticated = authState.status !== "authenticated";
 
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);

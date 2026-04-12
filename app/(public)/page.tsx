@@ -15,10 +15,6 @@ import {
   useAuth,
   createClientAuthUseCases,
   createClientAccountUseCases,
-  createDevDemoUser,
-  isDevDemoCredential,
-  isLocalDevDemoAllowed,
-  writeDevDemoSession,
 } from "@/modules/platform/api";
 
 type Tab = "login" | "register";
@@ -60,13 +56,6 @@ export default function PublicPage() {
     setError(null);
     setIsLoading(true);
     try {
-      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
-        const demoUser = createDevDemoUser();
-        writeDevDemoSession(demoUser);
-        window.location.assign(`/${encodeURIComponent(demoUser.id)}`);
-        return;
-      }
-
       const result =
         tab === "login"
           ? await signInUseCase.execute({ email, password })
@@ -98,15 +87,7 @@ export default function PublicPage() {
     try {
       const result = await signInAnonymouslyUseCase.execute();
       if (!result.success) {
-        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
-        // blocked in sandboxes), create a local guest session so the shell can be tested.
-        if (isLocalDevDemoAllowed()) {
-          const guestUser = createDevDemoUser();
-          writeDevDemoSession(guestUser);
-          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
-        } else {
-          setError(result.error.message);
-        }
+        setError(result.error.message);
       }
     } finally {
       setIsLoading(false);
