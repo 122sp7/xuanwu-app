@@ -1,6 +1,7 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import type { ActiveAccount } from "@/modules/platform/api";
 import { useApp, useAuth, isActiveOrganizationAccount } from "@/modules/platform/api"
@@ -11,12 +12,32 @@ function getActiveAccountType(activeAccount: ActiveAccount | null) {
 }
 
 export default function WorkspacePage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const {
     state: { activeAccount, accountsHydrated, bootstrapPhase },
   } = useApp();
   const { state: authState } = useAuth();
   const context = searchParams.get("context");
+
+  useEffect(() => {
+    const activeAccountId = activeAccount?.id;
+    if (!activeAccountId) {
+      return;
+    }
+
+    const query = searchParams.toString();
+    const targetPath = `/${encodeURIComponent(activeAccountId)}`;
+    router.replace(query.length > 0 ? `${targetPath}?${query}` : targetPath);
+  }, [activeAccount?.id, router, searchParams]);
+
+  if (activeAccount?.id) {
+    return (
+      <div className="px-4 py-6 text-sm text-muted-foreground">
+        正在導向帳號工作區路由…
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
