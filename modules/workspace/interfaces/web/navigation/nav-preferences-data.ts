@@ -101,6 +101,16 @@ const WORKFLOW_PIN_MIGRATION_IDS = [
   "task-finance",
 ] as const;
 
+/**
+ * Notion / NotebookLM orchestration tabs added via workspace orchestration layer.
+ * Existing users whose localStorage pre-dates these tabs need auto-migration.
+ */
+const NOTION_NOTEBOOKLM_PIN_MIGRATION_IDS = [
+  "knowledge",
+  "notebook",
+  "ai-chat",
+] as const;
+
 function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[] {
   if (!Array.isArray(ids)) return fallback;
   const normalized = ids
@@ -118,6 +128,18 @@ function migrateWorkflowPins(ids: string[]): string[] {
     }
   }
   return next;
+}
+
+function migrateNotionNotebooklmPins(ids: string[]): string[] {
+  const next = [...ids];
+  let changed = false;
+  for (const id of NOTION_NOTEBOOKLM_PIN_MIGRATION_IDS) {
+    if (!next.includes(id) && VALID_WORKSPACE_ITEM_IDS.has(id)) {
+      next.push(id);
+      changed = true;
+    }
+  }
+  return changed ? next : ids;
 }
 
 // ── localStorage helpers ───────────────────────────────────────────────────
@@ -139,7 +161,7 @@ export function readNavPreferences(): NavPreferences {
         VALID_PERSONAL_ITEM_IDS,
         DEFAULT_PREFS.pinnedPersonal,
       ),
-      pinnedWorkspace: migrateWorkflowPins(normalizedWorkspacePinned),
+      pinnedWorkspace: migrateNotionNotebooklmPins(migrateWorkflowPins(normalizedWorkspacePinned)),
       showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
       maxWorkspaces:
         typeof parsed.maxWorkspaces === "number"
