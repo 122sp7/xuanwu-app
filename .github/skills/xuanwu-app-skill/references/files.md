@@ -2901,6 +2901,282 @@ export class UploadInitSourceFileUseCase {
 }
 ````
 
+## File: modules/notebooklm/subdomains/source/application/use-cases/wiki-library.helpers.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/use-cases
+ * Purpose: Private helpers for wiki-library use cases.
+ *
+ * Extracted from use-cases file to keep business workflow readable.
+ * Depends on local slug-utils for slug derivation and validation.
+ */
+
+import { deriveSlugCandidate, isValidSlug } from "../utils/slug-utils";
+import type { WikiLibrary } from "../../domain/entities/WikiLibrary";
+
+export function generateSourceId(): string {
+  const randomUUID = globalThis.crypto?.randomUUID;
+  if (typeof randomUUID === "function") {
+    return randomUUID.call(globalThis.crypto);
+  }
+  return `wbl_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+}
+
+export function normalizeLibraryName(name: string): string {
+  const value = name.trim();
+  if (!value) throw new Error("library name is required");
+  return value.slice(0, 80);
+}
+
+export function normalizeFieldKey(key: string): string {
+  const normalized = key.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+  if (!normalized) throw new Error("field key is required");
+  return normalized.slice(0, 48);
+}
+
+export function ensureUniqueLibrarySlug(baseSlug: string, libraries: WikiLibrary[]): string {
+  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "library-node";
+  const existing = new Set(libraries.map((lib) => lib.slug));
+  if (!existing.has(normalizedBase)) return normalizedBase;
+
+  let index = 2;
+  while (index < 5000) {
+    const candidate = `${normalizedBase}-${index}`;
+    if (!existing.has(candidate) && isValidSlug(candidate)) return candidate;
+    index += 1;
+  }
+  throw new Error("cannot allocate a unique slug for this library name");
+}
+
+export { deriveSlugCandidate };
+````
+
+## File: modules/notebooklm/subdomains/source/application/use-cases/wiki-library.use-cases.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/use-cases
+ * Use Cases: Wiki library management — create, add fields, add rows, list.
+ *
+ * Design notes:
+ * - All functions take explicit repository injection (no module-scope singletons).
+ * - Event publisher is created lazily to avoid import-time side effects.
+ * - Event publishing uses @shared-events public boundary only.
+ */
+
+import {
+  InMemoryEventStoreRepository,
+  NoopEventBusRepository,
+  PublishDomainEventUseCase,
+} from "@shared-events";
+
+import type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../../domain/entities/WikiLibrary";
+import type { IWikiLibraryRepository } from "../../domain/repositories/IWikiLibraryRepository";
+import {
+  generateSourceId,
+  normalizeLibraryName,
+  normalizeFieldKey,
+  ensureUniqueLibrarySlug,
+  deriveSlugCandidate,
+} from "./wiki-library.helpers";
+
+// Lazy event publisher — only instantiated on first event emit.
+let _eventPublisher: PublishDomainEventUseCase | undefined;
+
+function getEventPublisher(): PublishDomainEventUseCase {
+  if (!_eventPublisher) {
+    _eventPublisher = new PublishDomainEventUseCase(
+      new InMemoryEventStoreRepository(),
+      new NoopEventBusRepository(),
+    );
+  }
+  return _eventPublisher;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+
+export async function listWikiLibraries(
+  accountId: string,
+  workspaceId: string | undefined,
+  libraryRepository: IWikiLibraryRepository,
+): Promise<WikiLibrary[]> {
+  if (!accountId) throw new Error("accountId is required");
+  const libraries = await libraryRepository.listByAccountId(accountId);
+  const activeLibraries = libraries.filter((lib) => lib.status === "active");
+  if (!workspaceId) return activeLibraries;
+  return activeLibraries.filter((lib) => lib.workspaceId === workspaceId);
+}
+
+export async function createWikiLibrary(
+  input: CreateWikiLibraryInput,
+  libraryRepository: IWikiLibraryRepository,
+): Promise<WikiLibrary> {
+  if (!input.accountId) throw new Error("accountId is required");
+
+  const name = normalizeLibraryName(input.name);
+  const libraries = await libraryRepository.listByAccountId(input.accountId);
+  const workspaceLibraries = libraries.filter(
+    (lib) => (lib.workspaceId ?? "") === (input.workspaceId ?? ""),
+  );
+
+  const slug = ensureUniqueLibrarySlug(deriveSlugCandidate(name), workspaceLibraries);
+  const now = new Date();
+  const library: WikiLibrary = {
+    id: generateSourceId(),
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    name,
+    slug,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await libraryRepository.create(library);
+  await getEventPublisher().execute({
+    id: generateSourceId(),
+    eventName: "source.library_created",
+    aggregateType: "wiki-library",
+    aggregateId: library.id,
+    payload: {
+      accountId: library.accountId,
+      workspaceId: library.workspaceId,
+      slug: library.slug,
+    },
+  });
+
+  return library;
+}
+
+export async function addWikiLibraryField(
+  input: AddWikiLibraryFieldInput,
+  libraryRepository: IWikiLibraryRepository,
+): Promise<WikiLibraryField> {
+  const library = await libraryRepository.findById(input.accountId, input.libraryId);
+  if (!library) throw new Error("library not found");
+
+  const key = normalizeFieldKey(input.key);
+  const label = normalizeLibraryName(input.label);
+  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
+  if (fields.some((f) => f.key === key)) throw new Error(`field key "${key}" already exists`);
+
+  const field: WikiLibraryField = {
+    id: generateSourceId(),
+    libraryId: input.libraryId,
+    key,
+    label,
+    type: input.type,
+    required: input.required ?? false,
+    options: input.options,
+    createdAt: new Date(),
+  };
+
+  await libraryRepository.createField(input.accountId, field);
+  await getEventPublisher().execute({
+    id: generateSourceId(),
+    eventName: "source.library_field_added",
+    aggregateType: "wiki-library",
+    aggregateId: input.libraryId,
+    payload: { accountId: input.accountId, fieldKey: field.key, fieldType: field.type },
+  });
+
+  return field;
+}
+
+export async function createWikiLibraryRow(
+  input: CreateWikiLibraryRowInput,
+  libraryRepository: IWikiLibraryRepository,
+): Promise<WikiLibraryRow> {
+  const library = await libraryRepository.findById(input.accountId, input.libraryId);
+  if (!library) throw new Error("library not found");
+
+  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
+  for (const field of fields.filter((f) => f.required)) {
+    if (!(field.key in input.values)) throw new Error(`missing required field: ${field.key}`);
+  }
+
+  const now = new Date();
+  const row: WikiLibraryRow = {
+    id: generateSourceId(),
+    libraryId: input.libraryId,
+    values: input.values,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await libraryRepository.createRow(input.accountId, row);
+  await getEventPublisher().execute({
+    id: generateSourceId(),
+    eventName: "source.library_row_created",
+    aggregateType: "wiki-library",
+    aggregateId: input.libraryId,
+    payload: { accountId: input.accountId, rowId: row.id, fields: Object.keys(row.values) },
+  });
+
+  return row;
+}
+
+export interface WikiLibrarySnapshot {
+  readonly library: WikiLibrary;
+  readonly fields: WikiLibraryField[];
+  readonly rows: WikiLibraryRow[];
+}
+
+export async function getWikiLibrarySnapshot(
+  accountId: string,
+  libraryId: string,
+  libraryRepository: IWikiLibraryRepository,
+): Promise<WikiLibrarySnapshot> {
+  const library = await libraryRepository.findById(accountId, libraryId);
+  if (!library) throw new Error("library not found");
+
+  const [fields, rows] = await Promise.all([
+    libraryRepository.listFields(accountId, libraryId),
+    libraryRepository.listRows(accountId, libraryId),
+  ]);
+
+  return { library, fields, rows };
+}
+````
+
+## File: modules/notebooklm/subdomains/source/application/utils/slug-utils.ts
+````typescript
+/**
+ * notebooklm/subdomains/source — slug utilities
+ * Pure slug derivation and validation helpers for wiki library names.
+ */
+
+/**
+ * Converts a human-readable display name into a slug candidate.
+ * Pure function — no side effects.
+ */
+export function deriveSlugCandidate(displayName: string): string {
+  return displayName
+    .toLowerCase()
+    .replace(/[\s_./\\]+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 63);
+}
+
+/**
+ * Returns true when the slug string passes namespace slug rules.
+ * Pure function — no side effects.
+ */
+export function isValidSlug(slug: string): boolean {
+  return /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(slug);
+}
+````
+
 ## File: modules/notebooklm/subdomains/source/domain/entities/RagDocument.ts
 ````typescript
 /**
@@ -12461,6 +12737,103 @@ export interface WorkspaceOperationalProfile extends WorkspaceLocationCatalog {
 export type { Address, AddressInput } from "../value-objects/Address";
 ````
 
+## File: modules/workspace/domain/events/workspace.events.ts
+````typescript
+import { v7 } from "@lib-uuid";
+import type { DomainEvent } from "@shared-types";
+
+import type {
+  WorkspaceLifecycleState,
+  WorkspaceVisibility,
+} from "../aggregates/Workspace";
+
+export const WORKSPACE_CREATED_EVENT_TYPE = "workspace.created" as const;
+export const WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE = "workspace.lifecycle_transitioned" as const;
+export const WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE = "workspace.visibility_changed" as const;
+
+interface WorkspaceEventBase extends DomainEvent {
+  readonly workspaceId: string;
+  readonly accountId: string;
+}
+
+export interface WorkspaceCreatedEvent extends WorkspaceEventBase {
+  readonly type: typeof WORKSPACE_CREATED_EVENT_TYPE;
+  readonly accountType: "user" | "organization";
+  readonly name: string;
+}
+
+export interface WorkspaceLifecycleTransitionedEvent extends WorkspaceEventBase {
+  readonly type: typeof WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE;
+  readonly fromState: WorkspaceLifecycleState;
+  readonly toState: WorkspaceLifecycleState;
+}
+
+export interface WorkspaceVisibilityChangedEvent extends WorkspaceEventBase {
+  readonly type: typeof WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE;
+  readonly fromVisibility: WorkspaceVisibility;
+  readonly toVisibility: WorkspaceVisibility;
+}
+
+export type WorkspaceDomainEvent =
+  | WorkspaceCreatedEvent
+  | WorkspaceLifecycleTransitionedEvent
+  | WorkspaceVisibilityChangedEvent;
+
+export function createWorkspaceCreatedEvent(input: {
+  workspaceId: string;
+  accountId: string;
+  accountType: "user" | "organization";
+  name: string;
+}): WorkspaceCreatedEvent {
+  return {
+    eventId: v7(),
+    type: WORKSPACE_CREATED_EVENT_TYPE,
+    aggregateId: input.workspaceId,
+    occurredAt: new Date().toISOString(),
+    workspaceId: input.workspaceId,
+    accountId: input.accountId,
+    accountType: input.accountType,
+    name: input.name,
+  };
+}
+
+export function createWorkspaceLifecycleTransitionedEvent(input: {
+  workspaceId: string;
+  accountId: string;
+  fromState: WorkspaceLifecycleState;
+  toState: WorkspaceLifecycleState;
+}): WorkspaceLifecycleTransitionedEvent {
+  return {
+    eventId: v7(),
+    type: WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
+    aggregateId: input.workspaceId,
+    occurredAt: new Date().toISOString(),
+    workspaceId: input.workspaceId,
+    accountId: input.accountId,
+    fromState: input.fromState,
+    toState: input.toState,
+  };
+}
+
+export function createWorkspaceVisibilityChangedEvent(input: {
+  workspaceId: string;
+  accountId: string;
+  fromVisibility: WorkspaceVisibility;
+  toVisibility: WorkspaceVisibility;
+}): WorkspaceVisibilityChangedEvent {
+  return {
+    eventId: v7(),
+    type: WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
+    aggregateId: input.workspaceId,
+    occurredAt: new Date().toISOString(),
+    workspaceId: input.workspaceId,
+    accountId: input.accountId,
+    fromVisibility: input.fromVisibility,
+    toVisibility: input.toVisibility,
+  };
+}
+````
+
 ## File: modules/workspace/domain/factories/WorkspaceFactory.ts
 ````typescript
 import {
@@ -16316,6 +16689,40 @@ export function getWorkspaceGovernanceSummary(
 }
 ````
 
+## File: modules/workspace/subdomains/audit/domain/schema.ts
+````typescript
+/**
+ * Audit subdomain schema — immutable operation records.
+ */
+
+import { z } from "@lib-zod";
+import { BaseEntitySchema } from "@shared-types";
+
+export const AUDIT_ACTIONS = ["create", "update", "delete", "login", "export"] as const;
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+export const AUDIT_SEVERITIES = ["low", "medium", "high", "critical"] as const;
+export type AuditSeverity = (typeof AUDIT_SEVERITIES)[number];
+
+const ChangeRecordSchema = z.object({
+  field: z.string(),
+  oldValue: z.unknown(),
+  newValue: z.unknown(),
+});
+
+export type ChangeRecord = z.infer<typeof ChangeRecordSchema>;
+
+export const AuditLogSchema = BaseEntitySchema.extend({
+  action: z.enum(AUDIT_ACTIONS),
+  resourceType: z.string(),
+  resourceId: z.string(),
+  severity: z.enum(AUDIT_SEVERITIES),
+  changes: z.array(ChangeRecordSchema).optional(),
+});
+
+export type AuditLog = z.infer<typeof AuditLogSchema>;
+````
+
 ## File: modules/workspace/subdomains/feed/api/index.ts
 ````typescript
 export { WorkspaceFeedFacade, workspaceFeedFacade } from "./workspace-feed.facade";
@@ -18853,6 +19260,127 @@ export const useAppStore = create<AppState>((set) => ({
   isLoading: false,
   setLoading: (loading) => set({ isLoading: loading }),
 }));
+````
+
+## File: packages/shared-types/index.ts
+````typescript
+import { z } from "@lib-zod";
+
+// ─── Domain Event base interface ─────────────────────────────────────────────
+
+/** All domain events must implement this interface. */
+export interface DomainEvent {
+  /** Unique event identifier */
+  readonly eventId: string;
+  /** Event type discriminant (e.g. "workspace.created") */
+  readonly type: string;
+  /** Aggregate root ID that triggered the event */
+  readonly aggregateId: string;
+  /** ISO 8601 occurrence timestamp */
+  readonly occurredAt: string;
+}
+
+// ─── Base entity schema ───────────────────────────────────────────────────────
+
+const CreatedBySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  avatarUrl: z.string().optional(),
+});
+
+/**
+ * Shared base fields for all domain entities.
+ * Includes tenant isolation (accountId / workspaceId) and audit trail (createdBy).
+ */
+export const BaseEntitySchema = z.object({
+  id: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  workspaceId: z.string(),
+  accountId: z.string(),
+  createdBy: CreatedBySchema,
+});
+
+export type BaseEntity = z.infer<typeof BaseEntitySchema>;
+export type CreatedBy = z.infer<typeof CreatedBySchema>;
+
+/**
+ * Query scope for account-level or workspace-level queries.
+ * When workspaceId is omitted, the query spans all workspaces for the tenant.
+ */
+export interface QueryScope {
+  accountId: string;
+  workspaceId?: string;
+}
+
+// ─── Primitive types ──────────────────────────────────────────────────────────
+
+export type ID = string;
+
+export interface PaginationParams {
+  page: number;
+  limit: number;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+// ─── Domain Error ─────────────────────────────────────────────────────────────
+
+/**
+ * Structured domain error returned in CommandFailure.
+ * Consumers MUST NOT use raw Error objects for command results.
+ */
+export interface DomainError {
+  readonly code: string;
+  readonly message: string;
+  readonly context?: Record<string, unknown>;
+}
+
+// ─── Command Result Contract [R4] ─────────────────────────────────────────────
+
+export interface CommandSuccess {
+  readonly success: true;
+  readonly aggregateId: string;
+  readonly version: number;
+}
+
+export interface CommandFailure {
+  readonly success: false;
+  readonly error: DomainError;
+}
+
+/** Union returned by every Command Handler / use-case / _actions.ts export. */
+export type CommandResult = CommandSuccess | CommandFailure;
+
+export function commandSuccess(aggregateId: string, version: number): CommandSuccess {
+  return { success: true, aggregateId, version };
+}
+
+export function commandFailure(error: DomainError): CommandFailure {
+  return { success: false, error };
+}
+
+export function commandFailureFrom(
+  code: string,
+  message: string,
+  context?: Record<string, unknown>,
+): CommandFailure {
+  return commandFailure({ code, message, context });
+}
+
+// ─── Firestore Timestamp shim ─────────────────────────────────────────────────
+
+/** Opaque Firestore Timestamp — Domain only carries seconds/nanoseconds, no SDK types. */
+export interface Timestamp {
+  readonly seconds: number;
+  readonly nanoseconds: number;
+  toDate(): Date;
+}
 ````
 
 ## File: packages/shared-utils/index.test.ts
@@ -28609,282 +29137,6 @@ export class UploadCompleteSourceFileUseCase {
 }
 ````
 
-## File: modules/notebooklm/subdomains/source/application/use-cases/wiki-library.helpers.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: application/use-cases
- * Purpose: Private helpers for wiki-library use cases.
- *
- * Extracted from use-cases file to keep business workflow readable.
- * Depends on local slug-utils for slug derivation and validation.
- */
-
-import { deriveSlugCandidate, isValidSlug } from "../utils/slug-utils";
-import type { WikiLibrary } from "../../domain/entities/WikiLibrary";
-
-export function generateSourceId(): string {
-  const randomUUID = globalThis.crypto?.randomUUID;
-  if (typeof randomUUID === "function") {
-    return randomUUID.call(globalThis.crypto);
-  }
-  return `wbl_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
-}
-
-export function normalizeLibraryName(name: string): string {
-  const value = name.trim();
-  if (!value) throw new Error("library name is required");
-  return value.slice(0, 80);
-}
-
-export function normalizeFieldKey(key: string): string {
-  const normalized = key.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
-  if (!normalized) throw new Error("field key is required");
-  return normalized.slice(0, 48);
-}
-
-export function ensureUniqueLibrarySlug(baseSlug: string, libraries: WikiLibrary[]): string {
-  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "library-node";
-  const existing = new Set(libraries.map((lib) => lib.slug));
-  if (!existing.has(normalizedBase)) return normalizedBase;
-
-  let index = 2;
-  while (index < 5000) {
-    const candidate = `${normalizedBase}-${index}`;
-    if (!existing.has(candidate) && isValidSlug(candidate)) return candidate;
-    index += 1;
-  }
-  throw new Error("cannot allocate a unique slug for this library name");
-}
-
-export { deriveSlugCandidate };
-````
-
-## File: modules/notebooklm/subdomains/source/application/use-cases/wiki-library.use-cases.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: application/use-cases
- * Use Cases: Wiki library management — create, add fields, add rows, list.
- *
- * Design notes:
- * - All functions take explicit repository injection (no module-scope singletons).
- * - Event publisher is created lazily to avoid import-time side effects.
- * - Event publishing uses @shared-events public boundary only.
- */
-
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-} from "@shared-events";
-
-import type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../../domain/entities/WikiLibrary";
-import type { IWikiLibraryRepository } from "../../domain/repositories/IWikiLibraryRepository";
-import {
-  generateSourceId,
-  normalizeLibraryName,
-  normalizeFieldKey,
-  ensureUniqueLibrarySlug,
-  deriveSlugCandidate,
-} from "./wiki-library.helpers";
-
-// Lazy event publisher — only instantiated on first event emit.
-let _eventPublisher: PublishDomainEventUseCase | undefined;
-
-function getEventPublisher(): PublishDomainEventUseCase {
-  if (!_eventPublisher) {
-    _eventPublisher = new PublishDomainEventUseCase(
-      new InMemoryEventStoreRepository(),
-      new NoopEventBusRepository(),
-    );
-  }
-  return _eventPublisher;
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-
-export async function listWikiLibraries(
-  accountId: string,
-  workspaceId: string | undefined,
-  libraryRepository: IWikiLibraryRepository,
-): Promise<WikiLibrary[]> {
-  if (!accountId) throw new Error("accountId is required");
-  const libraries = await libraryRepository.listByAccountId(accountId);
-  const activeLibraries = libraries.filter((lib) => lib.status === "active");
-  if (!workspaceId) return activeLibraries;
-  return activeLibraries.filter((lib) => lib.workspaceId === workspaceId);
-}
-
-export async function createWikiLibrary(
-  input: CreateWikiLibraryInput,
-  libraryRepository: IWikiLibraryRepository,
-): Promise<WikiLibrary> {
-  if (!input.accountId) throw new Error("accountId is required");
-
-  const name = normalizeLibraryName(input.name);
-  const libraries = await libraryRepository.listByAccountId(input.accountId);
-  const workspaceLibraries = libraries.filter(
-    (lib) => (lib.workspaceId ?? "") === (input.workspaceId ?? ""),
-  );
-
-  const slug = ensureUniqueLibrarySlug(deriveSlugCandidate(name), workspaceLibraries);
-  const now = new Date();
-  const library: WikiLibrary = {
-    id: generateSourceId(),
-    accountId: input.accountId,
-    workspaceId: input.workspaceId,
-    name,
-    slug,
-    status: "active",
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await libraryRepository.create(library);
-  await getEventPublisher().execute({
-    id: generateSourceId(),
-    eventName: "source.library_created",
-    aggregateType: "wiki-library",
-    aggregateId: library.id,
-    payload: {
-      accountId: library.accountId,
-      workspaceId: library.workspaceId,
-      slug: library.slug,
-    },
-  });
-
-  return library;
-}
-
-export async function addWikiLibraryField(
-  input: AddWikiLibraryFieldInput,
-  libraryRepository: IWikiLibraryRepository,
-): Promise<WikiLibraryField> {
-  const library = await libraryRepository.findById(input.accountId, input.libraryId);
-  if (!library) throw new Error("library not found");
-
-  const key = normalizeFieldKey(input.key);
-  const label = normalizeLibraryName(input.label);
-  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
-  if (fields.some((f) => f.key === key)) throw new Error(`field key "${key}" already exists`);
-
-  const field: WikiLibraryField = {
-    id: generateSourceId(),
-    libraryId: input.libraryId,
-    key,
-    label,
-    type: input.type,
-    required: input.required ?? false,
-    options: input.options,
-    createdAt: new Date(),
-  };
-
-  await libraryRepository.createField(input.accountId, field);
-  await getEventPublisher().execute({
-    id: generateSourceId(),
-    eventName: "source.library_field_added",
-    aggregateType: "wiki-library",
-    aggregateId: input.libraryId,
-    payload: { accountId: input.accountId, fieldKey: field.key, fieldType: field.type },
-  });
-
-  return field;
-}
-
-export async function createWikiLibraryRow(
-  input: CreateWikiLibraryRowInput,
-  libraryRepository: IWikiLibraryRepository,
-): Promise<WikiLibraryRow> {
-  const library = await libraryRepository.findById(input.accountId, input.libraryId);
-  if (!library) throw new Error("library not found");
-
-  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
-  for (const field of fields.filter((f) => f.required)) {
-    if (!(field.key in input.values)) throw new Error(`missing required field: ${field.key}`);
-  }
-
-  const now = new Date();
-  const row: WikiLibraryRow = {
-    id: generateSourceId(),
-    libraryId: input.libraryId,
-    values: input.values,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await libraryRepository.createRow(input.accountId, row);
-  await getEventPublisher().execute({
-    id: generateSourceId(),
-    eventName: "source.library_row_created",
-    aggregateType: "wiki-library",
-    aggregateId: input.libraryId,
-    payload: { accountId: input.accountId, rowId: row.id, fields: Object.keys(row.values) },
-  });
-
-  return row;
-}
-
-export interface WikiLibrarySnapshot {
-  readonly library: WikiLibrary;
-  readonly fields: WikiLibraryField[];
-  readonly rows: WikiLibraryRow[];
-}
-
-export async function getWikiLibrarySnapshot(
-  accountId: string,
-  libraryId: string,
-  libraryRepository: IWikiLibraryRepository,
-): Promise<WikiLibrarySnapshot> {
-  const library = await libraryRepository.findById(accountId, libraryId);
-  if (!library) throw new Error("library not found");
-
-  const [fields, rows] = await Promise.all([
-    libraryRepository.listFields(accountId, libraryId),
-    libraryRepository.listRows(accountId, libraryId),
-  ]);
-
-  return { library, fields, rows };
-}
-````
-
-## File: modules/notebooklm/subdomains/source/application/utils/slug-utils.ts
-````typescript
-/**
- * notebooklm/subdomains/source — slug utilities
- * Pure slug derivation and validation helpers for wiki library names.
- */
-
-/**
- * Converts a human-readable display name into a slug candidate.
- * Pure function — no side effects.
- */
-export function deriveSlugCandidate(displayName: string): string {
-  return displayName
-    .toLowerCase()
-    .replace(/[\s_./\\]+/g, "-")
-    .replace(/[^a-z0-9-]/g, "")
-    .replace(/-{2,}/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 63);
-}
-
-/**
- * Returns true when the slug string passes namespace slug rules.
- * Pure function — no side effects.
- */
-export function isValidSlug(slug: string): boolean {
-  return /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(slug);
-}
-````
-
 ## File: modules/notebooklm/subdomains/source/domain/index.ts
 ````typescript
 /**
@@ -32903,6 +33155,140 @@ export class UpdatePageCoverUseCase {
     const page = await this.repo.findById(accountId, pageId);
     if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
     page.updateCover(coverUrl);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageReviewUseCases.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: application/use-cases
+ * Purpose: Page review/wiki use cases — approve, verify, request review, assign owner.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import { v7 as generateId } from "@lib-uuid";
+
+import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+import {
+  PublishDomainEventUseCase,
+  type IEventStoreRepository,
+  type IEventBusRepository,
+} from "@shared-events";
+import {
+  ApproveKnowledgePageSchema,
+  type ApproveKnowledgePageDto,
+} from "../dto/KnowledgePageDto";
+import {
+  VerifyKnowledgePageSchema,
+  type VerifyKnowledgePageDto,
+  RequestPageReviewSchema,
+  type RequestPageReviewDto,
+  AssignPageOwnerSchema,
+  type AssignPageOwnerDto,
+} from "../dto/KnowledgePageLifecycleDto";
+
+export class ApproveKnowledgePageUseCase {
+  constructor(
+    private readonly repo: IKnowledgePageRepository,
+    private readonly eventStore: IEventStoreRepository,
+    private readonly eventBus: IEventBusRepository,
+  ) {}
+
+  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = ApproveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const {
+      accountId,
+      pageId,
+      actorId,
+      causationId: inputCausationId,
+      extractedTasks,
+      extractedInvoices,
+      correlationId: inputCorrelationId,
+      workspaceId,
+    } = parsed.data;
+
+    const causationId = inputCausationId ?? generateId();
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    if (page.status === "archived") return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
+    if (page.approvalState === "approved") return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
+
+    const nowISO = new Date().toISOString();
+    page.approve(actorId, nowISO);
+    await this.repo.save(page);
+
+    const correlationId = inputCorrelationId ?? generateId();
+    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
+      id: generateId(),
+      eventName: "knowledge.page_approved",
+      aggregateType: "KnowledgePage",
+      aggregateId: pageId,
+      payload: {
+        pageId,
+        accountId,
+        workspaceId: workspaceId ?? page.workspaceId,
+        extractedTasks,
+        extractedInvoices,
+        actorId,
+        causationId: inputCausationId,
+        correlationId,
+      },
+      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
+    });
+
+    return commandSuccess(pageId, Date.now());
+  }
+}
+
+export class VerifyKnowledgePageUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
+    const parsed = VerifyKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.verify(verifiedByUserId, verificationExpiresAtISO);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class RequestPageReviewUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
+    const parsed = RequestPageReviewSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, requestedByUserId } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.requestReview(requestedByUserId);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class AssignPageOwnerUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
+    const parsed = AssignPageOwnerSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, ownerId } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.assignOwner(ownerId);
     await this.repo.save(page);
     return commandSuccess(page.id, Date.now());
   }
@@ -45227,103 +45613,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/workspace/domain/events/workspace.events.ts
-````typescript
-import { v7 } from "@lib-uuid";
-import type { DomainEvent } from "@shared-types";
-
-import type {
-  WorkspaceLifecycleState,
-  WorkspaceVisibility,
-} from "../aggregates/Workspace";
-
-export const WORKSPACE_CREATED_EVENT_TYPE = "workspace.created" as const;
-export const WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE = "workspace.lifecycle_transitioned" as const;
-export const WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE = "workspace.visibility_changed" as const;
-
-interface WorkspaceEventBase extends DomainEvent {
-  readonly workspaceId: string;
-  readonly accountId: string;
-}
-
-export interface WorkspaceCreatedEvent extends WorkspaceEventBase {
-  readonly type: typeof WORKSPACE_CREATED_EVENT_TYPE;
-  readonly accountType: "user" | "organization";
-  readonly name: string;
-}
-
-export interface WorkspaceLifecycleTransitionedEvent extends WorkspaceEventBase {
-  readonly type: typeof WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE;
-  readonly fromState: WorkspaceLifecycleState;
-  readonly toState: WorkspaceLifecycleState;
-}
-
-export interface WorkspaceVisibilityChangedEvent extends WorkspaceEventBase {
-  readonly type: typeof WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE;
-  readonly fromVisibility: WorkspaceVisibility;
-  readonly toVisibility: WorkspaceVisibility;
-}
-
-export type WorkspaceDomainEvent =
-  | WorkspaceCreatedEvent
-  | WorkspaceLifecycleTransitionedEvent
-  | WorkspaceVisibilityChangedEvent;
-
-export function createWorkspaceCreatedEvent(input: {
-  workspaceId: string;
-  accountId: string;
-  accountType: "user" | "organization";
-  name: string;
-}): WorkspaceCreatedEvent {
-  return {
-    eventId: v7(),
-    type: WORKSPACE_CREATED_EVENT_TYPE,
-    aggregateId: input.workspaceId,
-    occurredAt: new Date().toISOString(),
-    workspaceId: input.workspaceId,
-    accountId: input.accountId,
-    accountType: input.accountType,
-    name: input.name,
-  };
-}
-
-export function createWorkspaceLifecycleTransitionedEvent(input: {
-  workspaceId: string;
-  accountId: string;
-  fromState: WorkspaceLifecycleState;
-  toState: WorkspaceLifecycleState;
-}): WorkspaceLifecycleTransitionedEvent {
-  return {
-    eventId: v7(),
-    type: WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
-    aggregateId: input.workspaceId,
-    occurredAt: new Date().toISOString(),
-    workspaceId: input.workspaceId,
-    accountId: input.accountId,
-    fromState: input.fromState,
-    toState: input.toState,
-  };
-}
-
-export function createWorkspaceVisibilityChangedEvent(input: {
-  workspaceId: string;
-  accountId: string;
-  fromVisibility: WorkspaceVisibility;
-  toVisibility: WorkspaceVisibility;
-}): WorkspaceVisibilityChangedEvent {
-  return {
-    eventId: v7(),
-    type: WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
-    aggregateId: input.workspaceId,
-    occurredAt: new Date().toISOString(),
-    workspaceId: input.workspaceId,
-    accountId: input.accountId,
-    fromVisibility: input.fromVisibility,
-    toVisibility: input.toVisibility,
-  };
-}
-````
-
 ## File: modules/workspace/domain/ports/index.ts
 ````typescript
 /**
@@ -45355,6 +45644,71 @@ export type {
   WorkspaceDomainEventPublisher,
   WorkspaceEventPublishMetadata,
 } from "./output/WorkspaceDomainEventPublisher";
+````
+
+## File: modules/workspace/infrastructure/events/SharedWorkspaceDomainEventPublisher.ts
+````typescript
+import {
+  InMemoryEventStoreRepository,
+  NoopEventBusRepository,
+  PublishDomainEventUseCase,
+  QStashEventBusRepository,
+} from "@shared-events";
+import type {
+  WorkspaceDomainEventPublisher,
+  WorkspaceEventPublishMetadata,
+} from "../../domain/ports/output/WorkspaceDomainEventPublisher";
+import type { WorkspaceDomainEvent } from "../../domain/events/workspace.events";
+
+function toEventPayload(event: WorkspaceDomainEvent) {
+  const {
+    eventId: _eventId,
+    type: _type,
+    aggregateId: _aggregateId,
+    occurredAt: _occurredAt,
+    ...payload
+  } = event;
+
+  return payload as Record<string, unknown>;
+}
+
+export class SharedWorkspaceDomainEventPublisher
+  implements WorkspaceDomainEventPublisher
+{
+  private readonly publishDomainEventUseCase: PublishDomainEventUseCase;
+
+  constructor() {
+    const eventBus = process.env.QSTASH_TOKEN
+      ? new QStashEventBusRepository()
+      : new NoopEventBusRepository();
+
+    this.publishDomainEventUseCase = new PublishDomainEventUseCase(
+      new InMemoryEventStoreRepository(),
+      eventBus,
+    );
+  }
+
+  async publish(
+    event: WorkspaceDomainEvent,
+    metadata?: WorkspaceEventPublishMetadata,
+  ): Promise<void> {
+    try {
+      await this.publishDomainEventUseCase.execute({
+        id: event.eventId,
+        eventName: event.type,
+        aggregateType: "Workspace",
+        aggregateId: event.aggregateId,
+        occurredAt: new Date(event.occurredAt),
+        payload: toEventPayload(event),
+        metadata,
+      });
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[workspace.events] Failed to publish workspace domain event:", error);
+      }
+    }
+  }
+}
 ````
 
 ## File: modules/workspace/infrastructure/firebase/FirebaseWikiWorkspaceRepository.ts
@@ -47112,40 +47466,6 @@ export interface AuditRepository {
   findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]>;
   findByWorkspaceIds(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]>;
 }
-````
-
-## File: modules/workspace/subdomains/audit/domain/schema.ts
-````typescript
-/**
- * Audit subdomain schema — immutable operation records.
- */
-
-import { z } from "@lib-zod";
-import { BaseEntitySchema } from "@shared-types";
-
-export const AUDIT_ACTIONS = ["create", "update", "delete", "login", "export"] as const;
-export type AuditAction = (typeof AUDIT_ACTIONS)[number];
-
-export const AUDIT_SEVERITIES = ["low", "medium", "high", "critical"] as const;
-export type AuditSeverity = (typeof AUDIT_SEVERITIES)[number];
-
-const ChangeRecordSchema = z.object({
-  field: z.string(),
-  oldValue: z.unknown(),
-  newValue: z.unknown(),
-});
-
-export type ChangeRecord = z.infer<typeof ChangeRecordSchema>;
-
-export const AuditLogSchema = BaseEntitySchema.extend({
-  action: z.enum(AUDIT_ACTIONS),
-  resourceType: z.string(),
-  resourceId: z.string(),
-  severity: z.enum(AUDIT_SEVERITIES),
-  changes: z.array(ChangeRecordSchema).optional(),
-});
-
-export type AuditLog = z.infer<typeof AuditLogSchema>;
 ````
 
 ## File: modules/workspace/subdomains/audit/domain/services/AuditRecordingService.ts
@@ -54364,124 +54684,233 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: packages/shared-types/index.ts
+## File: packages/shared-events/index.ts
 ````typescript
-import { z } from "@lib-zod";
-
-// ─── Domain Event base interface ─────────────────────────────────────────────
-
-/** All domain events must implement this interface. */
-export interface DomainEvent {
-  /** Unique event identifier */
-  readonly eventId: string;
-  /** Event type discriminant (e.g. "workspace.created") */
-  readonly type: string;
-  /** Aggregate root ID that triggered the event */
-  readonly aggregateId: string;
-  /** ISO 8601 occurrence timestamp */
-  readonly occurredAt: string;
-}
-
-// ─── Base entity schema ───────────────────────────────────────────────────────
-
-const CreatedBySchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  avatarUrl: z.string().optional(),
-});
-
 /**
- * Shared base fields for all domain entities.
- * Includes tenant isolation (accountId / workspaceId) and audit trail (createdBy).
+ * Shared events — cross-module event infrastructure primitives.
+ *
+ * Provides:
+ *   - EventRecord entity and repository port interfaces (event store)
+ *   - PublishDomainEventUseCase (write-side orchestration)
+ *   - InMemoryEventStoreRepository (dev / test adapter)
+ *   - NoopEventBusRepository (test / scaffold adapter)
+ *   - QStashEventBusRepository (production transport)
+ *   - SimpleEventBus (in-process pub/sub)
  */
-export const BaseEntitySchema = z.object({
-  id: z.string(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  workspaceId: z.string(),
-  accountId: z.string(),
-  createdBy: CreatedBySchema,
-});
 
-export type BaseEntity = z.infer<typeof BaseEntitySchema>;
-export type CreatedBy = z.infer<typeof CreatedBySchema>;
+import type { DomainEvent } from "@shared-types";
 
-/**
- * Query scope for account-level or workspace-level queries.
- * When workspaceId is omitted, the query spans all workspaces for the tenant.
- */
-export interface QueryScope {
-  accountId: string;
+// ── EventRecord ───────────────────────────────────────────────────────────────
+
+export interface EventMetadata {
+  correlationId?: string;
+  causationId?: string;
+  actorId?: string;
+  organizationId?: string;
   workspaceId?: string;
+  traceId?: string;
 }
 
-// ─── Primitive types ──────────────────────────────────────────────────────────
-
-export type ID = string;
-
-export interface PaginationParams {
-  page: number;
-  limit: number;
+export interface EventRecordPayload {
+  [key: string]: unknown;
 }
 
-export interface PaginatedResponse<T> {
-  data: T[];
-  total: number;
-  page: number;
-  limit: number;
+export class EventRecord {
+  constructor(
+    public readonly id: string,
+    public readonly eventName: string,
+    public readonly aggregateType: string,
+    public readonly aggregateId: string,
+    public readonly occurredAt: Date,
+    public readonly payload: EventRecordPayload,
+    public readonly metadata: EventMetadata = {},
+    public dispatchedAt: Date | null = null,
+  ) {
+    if (!eventName.trim()) throw new Error("eventName is required");
+    if (!aggregateType.trim()) throw new Error("aggregateType is required");
+    if (!aggregateId.trim()) throw new Error("aggregateId is required");
+  }
+
+  markDispatched(dispatchedAt: Date = new Date()): void {
+    this.dispatchedAt = dispatchedAt;
+  }
+
+  get isDispatched(): boolean {
+    return this.dispatchedAt !== null;
+  }
 }
 
-// ─── Domain Error ─────────────────────────────────────────────────────────────
+// ── Repository ports ──────────────────────────────────────────────────────────
 
-/**
- * Structured domain error returned in CommandFailure.
- * Consumers MUST NOT use raw Error objects for command results.
- */
-export interface DomainError {
-  readonly code: string;
-  readonly message: string;
-  readonly context?: Record<string, unknown>;
+export interface IEventStoreRepository {
+  save(event: EventRecord): Promise<void>;
+  findById(id: string): Promise<EventRecord | null>;
+  findByAggregate(aggregateType: string, aggregateId: string): Promise<EventRecord[]>;
+  findUndispatched(limit: number): Promise<EventRecord[]>;
+  markDispatched(id: string, dispatchedAt: Date): Promise<void>;
 }
 
-// ─── Command Result Contract [R4] ─────────────────────────────────────────────
-
-export interface CommandSuccess {
-  readonly success: true;
-  readonly aggregateId: string;
-  readonly version: number;
+export interface IEventBusRepository {
+  publish(event: EventRecord): Promise<void>;
 }
 
-export interface CommandFailure {
-  readonly success: false;
-  readonly error: DomainError;
+// ── PublishDomainEventUseCase ─────────────────────────────────────────────────
+
+export interface PublishDomainEventDTO {
+  id: string;
+  eventName: string;
+  aggregateType: string;
+  aggregateId: string;
+  payload: EventRecordPayload;
+  metadata?: EventMetadata;
+  occurredAt?: Date;
 }
 
-/** Union returned by every Command Handler / use-case / _actions.ts export. */
-export type CommandResult = CommandSuccess | CommandFailure;
+export class PublishDomainEventUseCase {
+  constructor(
+    private readonly eventStore: IEventStoreRepository,
+    private readonly eventBus: IEventBusRepository,
+  ) {}
 
-export function commandSuccess(aggregateId: string, version: number): CommandSuccess {
-  return { success: true, aggregateId, version };
+  async execute(dto: PublishDomainEventDTO): Promise<EventRecord> {
+    const event = new EventRecord(
+      dto.id,
+      dto.eventName,
+      dto.aggregateType,
+      dto.aggregateId,
+      dto.occurredAt ?? new Date(),
+      dto.payload,
+      dto.metadata,
+    );
+
+    await this.eventStore.save(event);
+    await this.eventBus.publish(event);
+    event.markDispatched(new Date());
+    await this.eventStore.markDispatched(event.id, event.dispatchedAt ?? new Date());
+
+    return event;
+  }
 }
 
-export function commandFailure(error: DomainError): CommandFailure {
-  return { success: false, error };
+// ── InMemoryEventStoreRepository ──────────────────────────────────────────────
+
+export class InMemoryEventStoreRepository implements IEventStoreRepository {
+  private readonly events = new Map<string, EventRecord>();
+
+  async save(event: EventRecord): Promise<void> {
+    this.events.set(event.id, event);
+  }
+
+  async findById(id: string): Promise<EventRecord | null> {
+    return this.events.get(id) ?? null;
+  }
+
+  async findByAggregate(aggregateType: string, aggregateId: string): Promise<EventRecord[]> {
+    return [...this.events.values()]
+      .filter((e) => e.aggregateType === aggregateType && e.aggregateId === aggregateId)
+      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
+  }
+
+  async findUndispatched(limit: number): Promise<EventRecord[]> {
+    return [...this.events.values()]
+      .filter((e) => !e.isDispatched)
+      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime())
+      .slice(0, Math.max(limit, 0));
+  }
+
+  async markDispatched(id: string, dispatchedAt: Date): Promise<void> {
+    const event = this.events.get(id);
+    if (event) event.markDispatched(dispatchedAt);
+  }
 }
 
-export function commandFailureFrom(
-  code: string,
-  message: string,
-  context?: Record<string, unknown>,
-): CommandFailure {
-  return commandFailure({ code, message, context });
+// ── NoopEventBusRepository ────────────────────────────────────────────────────
+
+export class NoopEventBusRepository implements IEventBusRepository {
+  async publish(_event: EventRecord): Promise<void> {
+    // Intentional no-op: replace with a real transport adapter when needed.
+  }
 }
 
-// ─── Firestore Timestamp shim ─────────────────────────────────────────────────
+// ── QStashEventBusRepository ──────────────────────────────────────────────────
 
-/** Opaque Firestore Timestamp — Domain only carries seconds/nanoseconds, no SDK types. */
-export interface Timestamp {
-  readonly seconds: number;
-  readonly nanoseconds: number;
-  toDate(): Date;
+const QSTASH_ENDPOINT = "https://qstash.upstash.io/v2/publish/";
+
+export class QStashEventBusRepository implements IEventBusRepository {
+  constructor(
+    private readonly destinationUrl: string = process.env.QSTASH_DESTINATION_URL ?? "",
+    private readonly token: string = process.env.QSTASH_TOKEN ?? "",
+  ) {}
+
+  async publish(event: EventRecord): Promise<void> {
+    if (!this.destinationUrl || !this.token) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          "[QStashEventBus] QSTASH_DESTINATION_URL or QSTASH_TOKEN not set. " +
+            `Skipping publish of event '${event.eventName}' (${event.id}).`,
+        );
+      }
+      return;
+    }
+
+    const body = JSON.stringify({
+      id: event.id,
+      eventName: event.eventName,
+      aggregateType: event.aggregateType,
+      aggregateId: event.aggregateId,
+      occurredAt: event.occurredAt.toISOString(),
+      payload: event.payload,
+      metadata: event.metadata,
+    });
+
+    const response = await fetch(
+      `${QSTASH_ENDPOINT}${encodeURIComponent(this.destinationUrl)}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          "Content-Type": "application/json",
+          "Upstash-Retries": "3",
+          "Upstash-Delay": "0s",
+        },
+        body,
+      },
+    );
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => response.statusText);
+      throw new Error(
+        `QStashEventBus: failed to publish event '${event.eventName}'. ` +
+          `HTTP ${response.status}: ${text}`,
+      );
+    }
+
+    event.markDispatched();
+  }
+}
+
+// ── SimpleEventBus ────────────────────────────────────────────────────────────
+
+export type EventHandler<T extends DomainEvent = DomainEvent> = (event: T) => Promise<void>;
+
+export class SimpleEventBus {
+  private readonly handlers = new Map<string, EventHandler[]>();
+
+  subscribe<T extends DomainEvent>(eventType: string, handler: EventHandler<T>): void {
+    const existing = this.handlers.get(eventType) ?? [];
+    this.handlers.set(eventType, [...existing, handler as EventHandler]);
+  }
+
+  async publish<T extends DomainEvent>(event: T): Promise<void> {
+    const relevant = this.handlers.get(event.type) ?? [];
+    for (const handler of relevant) {
+      await handler(event);
+    }
+  }
+
+  clear(): void {
+    this.handlers.clear();
+  }
 }
 ````
 
@@ -57693,140 +58122,6 @@ export async function getViews(accountId: string, databaseId: string): Promise<V
 
 export async function getAutomations(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]> {
   return makeAutomationRepo().listByDatabase(accountId, databaseId);
-}
-````
-
-## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageReviewUseCases.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: application/use-cases
- * Purpose: Page review/wiki use cases — approve, verify, request review, assign owner.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
-
-import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
-import {
-  PublishDomainEventUseCase,
-  type IEventStoreRepository,
-  type IEventBusRepository,
-} from "@shared-events";
-import {
-  ApproveKnowledgePageSchema,
-  type ApproveKnowledgePageDto,
-} from "../dto/KnowledgePageDto";
-import {
-  VerifyKnowledgePageSchema,
-  type VerifyKnowledgePageDto,
-  RequestPageReviewSchema,
-  type RequestPageReviewDto,
-  AssignPageOwnerSchema,
-  type AssignPageOwnerDto,
-} from "../dto/KnowledgePageLifecycleDto";
-
-export class ApproveKnowledgePageUseCase {
-  constructor(
-    private readonly repo: IKnowledgePageRepository,
-    private readonly eventStore: IEventStoreRepository,
-    private readonly eventBus: IEventBusRepository,
-  ) {}
-
-  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = ApproveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const {
-      accountId,
-      pageId,
-      actorId,
-      causationId: inputCausationId,
-      extractedTasks,
-      extractedInvoices,
-      correlationId: inputCorrelationId,
-      workspaceId,
-    } = parsed.data;
-
-    const causationId = inputCausationId ?? generateId();
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    if (page.status === "archived") return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
-    if (page.approvalState === "approved") return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
-
-    const nowISO = new Date().toISOString();
-    page.approve(actorId, nowISO);
-    await this.repo.save(page);
-
-    const correlationId = inputCorrelationId ?? generateId();
-    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
-      id: generateId(),
-      eventName: "knowledge.page_approved",
-      aggregateType: "KnowledgePage",
-      aggregateId: pageId,
-      payload: {
-        pageId,
-        accountId,
-        workspaceId: workspaceId ?? page.workspaceId,
-        extractedTasks,
-        extractedInvoices,
-        actorId,
-        causationId: inputCausationId,
-        correlationId,
-      },
-      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
-    });
-
-    return commandSuccess(pageId, Date.now());
-  }
-}
-
-export class VerifyKnowledgePageUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
-    const parsed = VerifyKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.verify(verifiedByUserId, verificationExpiresAtISO);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class RequestPageReviewUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
-    const parsed = RequestPageReviewSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, requestedByUserId } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.requestReview(requestedByUserId);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class AssignPageOwnerUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
-    const parsed = AssignPageOwnerSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, ownerId } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.assignOwner(ownerId);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
 }
 ````
 
@@ -63238,71 +63533,6 @@ export interface WorkspaceRepository {
 }
 ````
 
-## File: modules/workspace/infrastructure/events/SharedWorkspaceDomainEventPublisher.ts
-````typescript
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-  QStashEventBusRepository,
-} from "@shared-events";
-import type {
-  WorkspaceDomainEventPublisher,
-  WorkspaceEventPublishMetadata,
-} from "../../domain/ports/output/WorkspaceDomainEventPublisher";
-import type { WorkspaceDomainEvent } from "../../domain/events/workspace.events";
-
-function toEventPayload(event: WorkspaceDomainEvent) {
-  const {
-    eventId: _eventId,
-    type: _type,
-    aggregateId: _aggregateId,
-    occurredAt: _occurredAt,
-    ...payload
-  } = event;
-
-  return payload as Record<string, unknown>;
-}
-
-export class SharedWorkspaceDomainEventPublisher
-  implements WorkspaceDomainEventPublisher
-{
-  private readonly publishDomainEventUseCase: PublishDomainEventUseCase;
-
-  constructor() {
-    const eventBus = process.env.QSTASH_TOKEN
-      ? new QStashEventBusRepository()
-      : new NoopEventBusRepository();
-
-    this.publishDomainEventUseCase = new PublishDomainEventUseCase(
-      new InMemoryEventStoreRepository(),
-      eventBus,
-    );
-  }
-
-  async publish(
-    event: WorkspaceDomainEvent,
-    metadata?: WorkspaceEventPublishMetadata,
-  ): Promise<void> {
-    try {
-      await this.publishDomainEventUseCase.execute({
-        id: event.eventId,
-        eventName: event.type,
-        aggregateType: "Workspace",
-        aggregateId: event.aggregateId,
-        occurredAt: new Date(event.occurredAt),
-        payload: toEventPayload(event),
-        metadata,
-      });
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[workspace.events] Failed to publish workspace domain event:", error);
-      }
-    }
-  }
-}
-````
-
 ## File: modules/workspace/interfaces/api/runtime/workspace-session-context.ts
 ````typescript
 import type { WorkspaceCommandPort } from "../../../application/dtos/workspace-interfaces.dto";
@@ -65035,236 +65265,6 @@ export function toInvoiceItemSummary(item: InvoiceItem): InvoiceItemSummary {
 }
 ````
 
-## File: packages/shared-events/index.ts
-````typescript
-/**
- * Shared events — cross-module event infrastructure primitives.
- *
- * Provides:
- *   - EventRecord entity and repository port interfaces (event store)
- *   - PublishDomainEventUseCase (write-side orchestration)
- *   - InMemoryEventStoreRepository (dev / test adapter)
- *   - NoopEventBusRepository (test / scaffold adapter)
- *   - QStashEventBusRepository (production transport)
- *   - SimpleEventBus (in-process pub/sub)
- */
-
-import type { DomainEvent } from "@shared-types";
-
-// ── EventRecord ───────────────────────────────────────────────────────────────
-
-export interface EventMetadata {
-  correlationId?: string;
-  causationId?: string;
-  actorId?: string;
-  organizationId?: string;
-  workspaceId?: string;
-  traceId?: string;
-}
-
-export interface EventRecordPayload {
-  [key: string]: unknown;
-}
-
-export class EventRecord {
-  constructor(
-    public readonly id: string,
-    public readonly eventName: string,
-    public readonly aggregateType: string,
-    public readonly aggregateId: string,
-    public readonly occurredAt: Date,
-    public readonly payload: EventRecordPayload,
-    public readonly metadata: EventMetadata = {},
-    public dispatchedAt: Date | null = null,
-  ) {
-    if (!eventName.trim()) throw new Error("eventName is required");
-    if (!aggregateType.trim()) throw new Error("aggregateType is required");
-    if (!aggregateId.trim()) throw new Error("aggregateId is required");
-  }
-
-  markDispatched(dispatchedAt: Date = new Date()): void {
-    this.dispatchedAt = dispatchedAt;
-  }
-
-  get isDispatched(): boolean {
-    return this.dispatchedAt !== null;
-  }
-}
-
-// ── Repository ports ──────────────────────────────────────────────────────────
-
-export interface IEventStoreRepository {
-  save(event: EventRecord): Promise<void>;
-  findById(id: string): Promise<EventRecord | null>;
-  findByAggregate(aggregateType: string, aggregateId: string): Promise<EventRecord[]>;
-  findUndispatched(limit: number): Promise<EventRecord[]>;
-  markDispatched(id: string, dispatchedAt: Date): Promise<void>;
-}
-
-export interface IEventBusRepository {
-  publish(event: EventRecord): Promise<void>;
-}
-
-// ── PublishDomainEventUseCase ─────────────────────────────────────────────────
-
-export interface PublishDomainEventDTO {
-  id: string;
-  eventName: string;
-  aggregateType: string;
-  aggregateId: string;
-  payload: EventRecordPayload;
-  metadata?: EventMetadata;
-  occurredAt?: Date;
-}
-
-export class PublishDomainEventUseCase {
-  constructor(
-    private readonly eventStore: IEventStoreRepository,
-    private readonly eventBus: IEventBusRepository,
-  ) {}
-
-  async execute(dto: PublishDomainEventDTO): Promise<EventRecord> {
-    const event = new EventRecord(
-      dto.id,
-      dto.eventName,
-      dto.aggregateType,
-      dto.aggregateId,
-      dto.occurredAt ?? new Date(),
-      dto.payload,
-      dto.metadata,
-    );
-
-    await this.eventStore.save(event);
-    await this.eventBus.publish(event);
-    event.markDispatched(new Date());
-    await this.eventStore.markDispatched(event.id, event.dispatchedAt ?? new Date());
-
-    return event;
-  }
-}
-
-// ── InMemoryEventStoreRepository ──────────────────────────────────────────────
-
-export class InMemoryEventStoreRepository implements IEventStoreRepository {
-  private readonly events = new Map<string, EventRecord>();
-
-  async save(event: EventRecord): Promise<void> {
-    this.events.set(event.id, event);
-  }
-
-  async findById(id: string): Promise<EventRecord | null> {
-    return this.events.get(id) ?? null;
-  }
-
-  async findByAggregate(aggregateType: string, aggregateId: string): Promise<EventRecord[]> {
-    return [...this.events.values()]
-      .filter((e) => e.aggregateType === aggregateType && e.aggregateId === aggregateId)
-      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
-  }
-
-  async findUndispatched(limit: number): Promise<EventRecord[]> {
-    return [...this.events.values()]
-      .filter((e) => !e.isDispatched)
-      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime())
-      .slice(0, Math.max(limit, 0));
-  }
-
-  async markDispatched(id: string, dispatchedAt: Date): Promise<void> {
-    const event = this.events.get(id);
-    if (event) event.markDispatched(dispatchedAt);
-  }
-}
-
-// ── NoopEventBusRepository ────────────────────────────────────────────────────
-
-export class NoopEventBusRepository implements IEventBusRepository {
-  async publish(_event: EventRecord): Promise<void> {
-    // Intentional no-op: replace with a real transport adapter when needed.
-  }
-}
-
-// ── QStashEventBusRepository ──────────────────────────────────────────────────
-
-const QSTASH_ENDPOINT = "https://qstash.upstash.io/v2/publish/";
-
-export class QStashEventBusRepository implements IEventBusRepository {
-  constructor(
-    private readonly destinationUrl: string = process.env.QSTASH_DESTINATION_URL ?? "",
-    private readonly token: string = process.env.QSTASH_TOKEN ?? "",
-  ) {}
-
-  async publish(event: EventRecord): Promise<void> {
-    if (!this.destinationUrl || !this.token) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn(
-          "[QStashEventBus] QSTASH_DESTINATION_URL or QSTASH_TOKEN not set. " +
-            `Skipping publish of event '${event.eventName}' (${event.id}).`,
-        );
-      }
-      return;
-    }
-
-    const body = JSON.stringify({
-      id: event.id,
-      eventName: event.eventName,
-      aggregateType: event.aggregateType,
-      aggregateId: event.aggregateId,
-      occurredAt: event.occurredAt.toISOString(),
-      payload: event.payload,
-      metadata: event.metadata,
-    });
-
-    const response = await fetch(
-      `${QSTASH_ENDPOINT}${encodeURIComponent(this.destinationUrl)}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-          "Content-Type": "application/json",
-          "Upstash-Retries": "3",
-          "Upstash-Delay": "0s",
-        },
-        body,
-      },
-    );
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => response.statusText);
-      throw new Error(
-        `QStashEventBus: failed to publish event '${event.eventName}'. ` +
-          `HTTP ${response.status}: ${text}`,
-      );
-    }
-
-    event.markDispatched();
-  }
-}
-
-// ── SimpleEventBus ────────────────────────────────────────────────────────────
-
-export type EventHandler<T extends DomainEvent = DomainEvent> = (event: T) => Promise<void>;
-
-export class SimpleEventBus {
-  private readonly handlers = new Map<string, EventHandler[]>();
-
-  subscribe<T extends DomainEvent>(eventType: string, handler: EventHandler<T>): void {
-    const existing = this.handlers.get(eventType) ?? [];
-    this.handlers.set(eventType, [...existing, handler as EventHandler]);
-  }
-
-  async publish<T extends DomainEvent>(event: T): Promise<void> {
-    const relevant = this.handlers.get(event.type) ?? [];
-    for (const handler of relevant) {
-      await handler(event);
-    }
-  }
-
-  clear(): void {
-    this.handlers.clear();
-  }
-}
-````
-
 ## File: app/(shell)/settings/profile/page.tsx
 ````typescript
 "use client";
@@ -66744,6 +66744,116 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/_actions/knowledge-page.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import type { IEventStoreRepository, IEventBusRepository } from "@shared-events";
+import { makePageRepo } from "../../api/factories";
+import {
+  CreateKnowledgePageUseCase,
+  RenameKnowledgePageUseCase,
+  MoveKnowledgePageUseCase,
+  ArchiveKnowledgePageUseCase,
+  ReorderKnowledgePageBlocksUseCase,
+} from "../../application/use-cases/KnowledgePageUseCases";
+import {
+  ApproveKnowledgePageUseCase,
+  VerifyKnowledgePageUseCase,
+  RequestPageReviewUseCase,
+  AssignPageOwnerUseCase,
+} from "../../application/use-cases/KnowledgePageReviewUseCases";
+import {
+  UpdatePageIconUseCase,
+  UpdatePageCoverUseCase,
+} from "../../application/use-cases/KnowledgePageAppearanceUseCases";
+import { PublishKnowledgeVersionUseCase } from "../../application/queries/knowledge-version.queries";
+import type {
+  CreateKnowledgePageDto,
+  RenameKnowledgePageDto,
+  MoveKnowledgePageDto,
+  ArchiveKnowledgePageDto,
+  ReorderKnowledgePageBlocksDto,
+  ApproveKnowledgePageDto,
+} from "../../application/dto/KnowledgePageDto";
+import type { VerifyKnowledgePageDto, RequestPageReviewDto, AssignPageOwnerDto, UpdatePageIconDto, UpdatePageCoverDto } from "../../application/dto/KnowledgePageLifecycleDto";
+
+/** Stub event store — persists nothing. Replace with a real impl once infrastructure is wired. */
+const makeEventStore = (): IEventStoreRepository => ({
+  save: async () => {},
+  findById: async () => null,
+  findByAggregate: async () => [],
+  findUndispatched: async () => [],
+  markDispatched: async () => {},
+});
+
+/** Stub event bus — publishes nothing. Replace with QStash/Firestore publish once infrastructure is wired. */
+const makeEventBus = (): IEventBusRepository => ({
+  publish: async () => {},
+});
+
+export async function createKnowledgePage(input: CreateKnowledgePageDto): Promise<CommandResult> {
+  try { return await new CreateKnowledgePageUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_CREATE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function renameKnowledgePage(input: RenameKnowledgePageDto): Promise<CommandResult> {
+  try { return await new RenameKnowledgePageUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_RENAME_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function moveKnowledgePage(input: MoveKnowledgePageDto): Promise<CommandResult> {
+  try { return await new MoveKnowledgePageUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_MOVE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function archiveKnowledgePage(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
+  try { return await new ArchiveKnowledgePageUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function reorderKnowledgePageBlocks(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
+  try { return await new ReorderKnowledgePageBlocksUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_REORDER_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function publishKnowledgeVersion(input: { accountId: string; pageId: string; createdByUserId: string }): Promise<CommandResult> {
+  try { return await new PublishKnowledgeVersionUseCase().execute(input); }
+  catch (e) { return commandFailureFrom("VERSION_PUBLISH_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function approveKnowledgePage(input: ApproveKnowledgePageDto): Promise<CommandResult> {
+  try { return await new ApproveKnowledgePageUseCase(makePageRepo(), makeEventStore(), makeEventBus()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_APPROVE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function verifyKnowledgePage(input: VerifyKnowledgePageDto): Promise<CommandResult> {
+  try { return await new VerifyKnowledgePageUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_VERIFY_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function requestKnowledgePageReview(input: RequestPageReviewDto): Promise<CommandResult> {
+  try { return await new RequestPageReviewUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_REVIEW_REQUEST_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function assignKnowledgePageOwner(input: AssignPageOwnerDto): Promise<CommandResult> {
+  try { return await new AssignPageOwnerUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_OWNER_ASSIGN_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function updateKnowledgePageIcon(input: UpdatePageIconDto): Promise<CommandResult> {
+  try { return await new UpdatePageIconUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_ICON_UPDATE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function updateKnowledgePageCover(input: UpdatePageCoverDto): Promise<CommandResult> {
+  try { return await new UpdatePageCoverUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_COVER_UPDATE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
 ````
 
 ## File: modules/notion/subdomains/knowledge/interfaces/components/BlockEditorView.tsx
@@ -69432,116 +69542,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/_actions/knowledge-page.actions.ts
-````typescript
-"use server";
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import type { IEventStoreRepository, IEventBusRepository } from "@shared-events";
-import { makePageRepo } from "../../api/factories";
-import {
-  CreateKnowledgePageUseCase,
-  RenameKnowledgePageUseCase,
-  MoveKnowledgePageUseCase,
-  ArchiveKnowledgePageUseCase,
-  ReorderKnowledgePageBlocksUseCase,
-} from "../../application/use-cases/KnowledgePageUseCases";
-import {
-  ApproveKnowledgePageUseCase,
-  VerifyKnowledgePageUseCase,
-  RequestPageReviewUseCase,
-  AssignPageOwnerUseCase,
-} from "../../application/use-cases/KnowledgePageReviewUseCases";
-import {
-  UpdatePageIconUseCase,
-  UpdatePageCoverUseCase,
-} from "../../application/use-cases/KnowledgePageAppearanceUseCases";
-import { PublishKnowledgeVersionUseCase } from "../../application/queries/knowledge-version.queries";
-import type {
-  CreateKnowledgePageDto,
-  RenameKnowledgePageDto,
-  MoveKnowledgePageDto,
-  ArchiveKnowledgePageDto,
-  ReorderKnowledgePageBlocksDto,
-  ApproveKnowledgePageDto,
-} from "../../application/dto/KnowledgePageDto";
-import type { VerifyKnowledgePageDto, RequestPageReviewDto, AssignPageOwnerDto, UpdatePageIconDto, UpdatePageCoverDto } from "../../application/dto/KnowledgePageLifecycleDto";
-
-/** Stub event store — persists nothing. Replace with a real impl once infrastructure is wired. */
-const makeEventStore = (): IEventStoreRepository => ({
-  save: async () => {},
-  findById: async () => null,
-  findByAggregate: async () => [],
-  findUndispatched: async () => [],
-  markDispatched: async () => {},
-});
-
-/** Stub event bus — publishes nothing. Replace with QStash/Firestore publish once infrastructure is wired. */
-const makeEventBus = (): IEventBusRepository => ({
-  publish: async () => {},
-});
-
-export async function createKnowledgePage(input: CreateKnowledgePageDto): Promise<CommandResult> {
-  try { return await new CreateKnowledgePageUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_CREATE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function renameKnowledgePage(input: RenameKnowledgePageDto): Promise<CommandResult> {
-  try { return await new RenameKnowledgePageUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_RENAME_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function moveKnowledgePage(input: MoveKnowledgePageDto): Promise<CommandResult> {
-  try { return await new MoveKnowledgePageUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_MOVE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function archiveKnowledgePage(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
-  try { return await new ArchiveKnowledgePageUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function reorderKnowledgePageBlocks(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
-  try { return await new ReorderKnowledgePageBlocksUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_REORDER_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function publishKnowledgeVersion(input: { accountId: string; pageId: string; createdByUserId: string }): Promise<CommandResult> {
-  try { return await new PublishKnowledgeVersionUseCase().execute(input); }
-  catch (e) { return commandFailureFrom("VERSION_PUBLISH_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function approveKnowledgePage(input: ApproveKnowledgePageDto): Promise<CommandResult> {
-  try { return await new ApproveKnowledgePageUseCase(makePageRepo(), makeEventStore(), makeEventBus()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_APPROVE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function verifyKnowledgePage(input: VerifyKnowledgePageDto): Promise<CommandResult> {
-  try { return await new VerifyKnowledgePageUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_VERIFY_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function requestKnowledgePageReview(input: RequestPageReviewDto): Promise<CommandResult> {
-  try { return await new RequestPageReviewUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_REVIEW_REQUEST_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function assignKnowledgePageOwner(input: AssignPageOwnerDto): Promise<CommandResult> {
-  try { return await new AssignPageOwnerUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_OWNER_ASSIGN_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function updateKnowledgePageIcon(input: UpdatePageIconDto): Promise<CommandResult> {
-  try { return await new UpdatePageIconUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_ICON_UPDATE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function updateKnowledgePageCover(input: UpdatePageCoverDto): Promise<CommandResult> {
-  try { return await new UpdatePageCoverUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_COVER_UPDATE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
 ````
 
 ## File: modules/notion/subdomains/notes/README.md
