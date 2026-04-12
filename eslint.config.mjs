@@ -82,6 +82,12 @@ const restrictedGenkitImports = {
   ],
 };
 
+const restrictedDownstreamInterfaceFirebase = {
+  group: ["@integration-firebase", "@integration-firebase/*", "firebase/*"],
+  message:
+    "Downstream interface layers must not import Firebase directly. Use platform API boundaries (Infrastructure/Service APIs) instead.",
+};
+
 const legacyAliases = [
   { group: ["@/shared/*"],        message: "Use @shared-types / @shared-utils / … instead." },
   { group: ["@/infrastructure/*"],message: "Use @integration-firebase / @integration-upstash / … instead." },
@@ -196,6 +202,32 @@ export default defineConfig([
     ignores: ["modules/platform/subdomains/ai/infrastructure/**"],
     rules: {
       "no-restricted-imports": [WARN, restrictedGenkitImports],
+    },
+  },
+
+  // Downstream interfaces must consume platform APIs, not Firebase SDK wrappers directly.
+  {
+    files: [
+      "modules/notebooklm/**/interfaces/**/*.{ts,tsx,js,jsx}",
+      "modules/notion/**/interfaces/**/*.{ts,tsx,js,jsx}",
+      "modules/workspace/**/interfaces/**/*.{ts,tsx,js,jsx}",
+    ],
+    rules: {
+      [restrictedImports([
+        explicitIndex,
+        moduleRootBarrel,
+        subdomainRootBarrel,
+        nonApiModuleSubpath,
+        internalLayer,
+        restrictedDownstreamInterfaceFirebase,
+      ])[0]]: restrictedImports([
+        explicitIndex,
+        moduleRootBarrel,
+        subdomainRootBarrel,
+        nonApiModuleSubpath,
+        internalLayer,
+        restrictedDownstreamInterfaceFirebase,
+      ])[1],
     },
   },
 
