@@ -36339,52 +36339,6 @@ export function buildCorrelationId(): string {
 }
 ````
 
-## File: modules/platform/application/services/shell-quick-create.ts
-````typescript
-/**
- * Shell quick-create orchestrator.
- *
- * Context-wide application service that coordinates cross-bounded-context
- * creation actions triggered from the platform shell UI.
- * Delegates to the target module's public API boundary only.
- */
-
-import { createKnowledgePage } from "@/modules/notion/api";
-
-// ── Input / output contracts ──────────────────────────────────────────────────
-
-export interface QuickCreatePageInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly createdByUserId: string;
-}
-
-export interface QuickCreatePageResult {
-  readonly success: boolean;
-  readonly error?: { message: string };
-}
-
-// ── Orchestration ─────────────────────────────────────────────────────────────
-
-export async function quickCreateKnowledgePage(
-  input: QuickCreatePageInput,
-): Promise<QuickCreatePageResult> {
-  if (!input.accountId) {
-    return { success: false, error: { message: "目前沒有 active account，無法建立" } };
-  }
-  if (!input.workspaceId) {
-    return { success: false, error: { message: "請先切換到工作區，再建立頁面" } };
-  }
-  return createKnowledgePage({
-    accountId: input.accountId,
-    workspaceId: input.workspaceId,
-    title: "未命名頁面",
-    parentPageId: null,
-    createdByUserId: input.createdByUserId,
-  });
-}
-````
-
 ## File: modules/platform/docs/docs.instructions.md
 ````markdown
 ---
@@ -39447,6 +39401,44 @@ export function ShellTranslationSwitcher() {
 }
 ````
 
+## File: modules/platform/interfaces/web/shell/navigation/services/shell-quick-create.ts
+````typescript
+import { createKnowledgePage } from "@/modules/notion/api";
+
+export interface QuickCreatePageInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly createdByUserId: string;
+}
+
+export interface QuickCreatePageResult {
+  readonly success: boolean;
+  readonly error?: { message: string };
+}
+
+/**
+ * Shell-level quick create adapter.
+ * Kept in interfaces layer so cross-context API calls happen at composition edge.
+ */
+export async function quickCreateKnowledgePage(
+  input: QuickCreatePageInput,
+): Promise<QuickCreatePageResult> {
+  if (!input.accountId) {
+    return { success: false, error: { message: "目前沒有 active account，無法建立" } };
+  }
+  if (!input.workspaceId) {
+    return { success: false, error: { message: "請先切換到工作區，再建立頁面" } };
+  }
+  return createKnowledgePage({
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    title: "未命名頁面",
+    parentPageId: null,
+    createdByUserId: input.createdByUserId,
+  });
+}
+````
+
 ## File: modules/platform/interfaces/web/shell/sidebar/ShellSidebarHeader.tsx
 ````typescript
 "use client";
@@ -40222,106 +40214,6 @@ export type ProfileId = z.infer<typeof ProfileIdSchema>;
 
 export function createProfileId(raw: string): ProfileId {
   return ProfileIdSchema.parse(raw);
-}
-````
-
-## File: modules/platform/subdomains/account-profile/infrastructure/account-profile-service.ts
-````typescript
-/**
- * AccountProfileService — Composition root for account-profile subdomain.
- *
- * Wires the legacy account data-source (from the account subdomain bridge)
- * into domain-port-conforming adapters and use cases. This keeps infrastructure
- * wiring inside the infrastructure layer, off the api boundary.
- */
-
-import {
-	GetAccountProfileUseCase,
-	SubscribeAccountProfileUseCase,
-	UpdateAccountProfileUseCase,
-} from "../application";
-import {
-	createLegacyAccountProfileCommandRepository,
-	createLegacyAccountProfileQueryRepository,
-	type LegacyAccountProfileDataSource,
-} from "./create-legacy-account-profile-application.adapter";
-import {
-	getLegacyUserProfile,
-	subscribeToLegacyUserProfile,
-	updateLegacyUserProfile,
-} from "../../account/api/legacy-account-profile.bridge";
-import type { AccountProfile, Unsubscribe } from "../domain";
-import type { UpdateAccountProfileInput } from "../application";
-import type { CommandResult } from "@shared-types";
-
-// ── Lazy singletons ──────────────────────────────────────────────────────
-
-let _legacyDataSource: LegacyAccountProfileDataSource | undefined;
-let _getAccountProfileUseCase: GetAccountProfileUseCase | undefined;
-let _subscribeAccountProfileUseCase: SubscribeAccountProfileUseCase | undefined;
-let _updateAccountProfileUseCase: UpdateAccountProfileUseCase | undefined;
-
-function getLegacyDataSource(): LegacyAccountProfileDataSource {
-	if (_legacyDataSource) {
-		return _legacyDataSource;
-	}
-
-	_legacyDataSource = {
-		getUserProfile: getLegacyUserProfile,
-		subscribeToUserProfile: subscribeToLegacyUserProfile,
-		updateUserProfile: updateLegacyUserProfile,
-	};
-	return _legacyDataSource;
-}
-
-function getGetAccountProfileUseCase(): GetAccountProfileUseCase {
-	if (_getAccountProfileUseCase) {
-		return _getAccountProfileUseCase;
-	}
-
-	const repository = createLegacyAccountProfileQueryRepository(getLegacyDataSource());
-	_getAccountProfileUseCase = new GetAccountProfileUseCase(repository);
-	return _getAccountProfileUseCase;
-}
-
-function getSubscribeAccountProfileUseCase(): SubscribeAccountProfileUseCase {
-	if (_subscribeAccountProfileUseCase) {
-		return _subscribeAccountProfileUseCase;
-	}
-
-	const repository = createLegacyAccountProfileQueryRepository(getLegacyDataSource());
-	_subscribeAccountProfileUseCase = new SubscribeAccountProfileUseCase(repository);
-	return _subscribeAccountProfileUseCase;
-}
-
-function getUpdateAccountProfileUseCase(): UpdateAccountProfileUseCase {
-	if (_updateAccountProfileUseCase) {
-		return _updateAccountProfileUseCase;
-	}
-
-	const repository = createLegacyAccountProfileCommandRepository(getLegacyDataSource());
-	_updateAccountProfileUseCase = new UpdateAccountProfileUseCase(repository);
-	return _updateAccountProfileUseCase;
-}
-
-// ── Public service API ───────────────────────────────────────────────────
-
-export async function getAccountProfile(actorId: string): Promise<AccountProfile | null> {
-	return getGetAccountProfileUseCase().execute(actorId);
-}
-
-export function subscribeToAccountProfile(
-	actorId: string,
-	onUpdate: (profile: AccountProfile | null) => void,
-): Unsubscribe {
-	return getSubscribeAccountProfileUseCase().execute(actorId, onUpdate);
-}
-
-export async function updateAccountProfile(
-	actorId: string,
-	input: UpdateAccountProfileInput,
-): Promise<CommandResult> {
-	return getUpdateAccountProfileUseCase().execute(actorId, input);
 }
 ````
 
@@ -58731,6 +58623,57 @@ export {
 } from "./shell-quick-create";
 ````
 
+## File: modules/platform/application/services/shell-quick-create.ts
+````typescript
+/**
+ * Shell quick-create orchestrator.
+ *
+ * Context-wide application service that coordinates cross-bounded-context
+ * creation actions triggered from the platform shell UI.
+ * Delegates to the target module's public API boundary only.
+ */
+
+// ── Input / output contracts ──────────────────────────────────────────────────
+
+export interface QuickCreatePageInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly createdByUserId: string;
+}
+
+export interface QuickCreatePageResult {
+  readonly success: boolean;
+  readonly error?: { message: string };
+}
+
+// ── Orchestration ─────────────────────────────────────────────────────────────
+
+export async function quickCreateKnowledgePage(
+  input: QuickCreatePageInput,
+  createPage: (input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    parentPageId: null;
+    createdByUserId: string;
+  }) => Promise<QuickCreatePageResult>,
+): Promise<QuickCreatePageResult> {
+  if (!input.accountId) {
+    return { success: false, error: { message: "目前沒有 active account，無法建立" } };
+  }
+  if (!input.workspaceId) {
+    return { success: false, error: { message: "請先切換到工作區，再建立頁面" } };
+  }
+  return createPage({
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    title: "未命名頁面",
+    parentPageId: null,
+    createdByUserId: input.createdByUserId,
+  });
+}
+````
+
 ## File: modules/platform/application/use-cases/activate-subscription-agreement.use-cases.ts
 ````typescript
 /**
@@ -60303,6 +60246,108 @@ export function createUpdateAccountProfileInput(
   raw: UpdateAccountProfileInput,
 ): UpdateAccountProfileInput {
   return UpdateAccountProfileInputSchema.parse(raw);
+}
+````
+
+## File: modules/platform/subdomains/account-profile/infrastructure/account-profile-service.ts
+````typescript
+/**
+ * AccountProfileService — Composition root for account-profile subdomain.
+ *
+ * Wires the legacy account data-source (from the account subdomain bridge)
+ * into domain-port-conforming adapters and use cases. This keeps infrastructure
+ * wiring inside the infrastructure layer, off the api boundary.
+ */
+
+import {
+	GetAccountProfileUseCase,
+	SubscribeAccountProfileUseCase,
+	UpdateAccountProfileUseCase,
+} from "../application";
+import {
+	createLegacyAccountProfileCommandRepository,
+	createLegacyAccountProfileQueryRepository,
+	type LegacyAccountProfileDataSource,
+} from "./create-legacy-account-profile-application.adapter";
+import {
+	accountService,
+	createAccountQueryRepository,
+} from "../../account/infrastructure/account-service";
+import type { AccountProfile, Unsubscribe } from "../domain";
+import type { UpdateAccountProfileInput } from "../application";
+import type { CommandResult } from "@shared-types";
+
+// ── Lazy singletons ──────────────────────────────────────────────────────
+
+let _legacyDataSource: LegacyAccountProfileDataSource | undefined;
+let _getAccountProfileUseCase: GetAccountProfileUseCase | undefined;
+let _subscribeAccountProfileUseCase: SubscribeAccountProfileUseCase | undefined;
+let _updateAccountProfileUseCase: UpdateAccountProfileUseCase | undefined;
+
+function getLegacyDataSource(): LegacyAccountProfileDataSource {
+	if (_legacyDataSource) {
+		return _legacyDataSource;
+	}
+
+	_legacyDataSource = {
+		getUserProfile: (userId) => createAccountQueryRepository().getUserProfile(userId),
+		subscribeToUserProfile: (userId, onUpdate) =>
+			createAccountQueryRepository().subscribeToUserProfile(userId, onUpdate),
+		updateUserProfile: async (userId, input) => {
+			await accountService.updateUserProfile(userId, input);
+		},
+	};
+	return _legacyDataSource;
+}
+
+function getGetAccountProfileUseCase(): GetAccountProfileUseCase {
+	if (_getAccountProfileUseCase) {
+		return _getAccountProfileUseCase;
+	}
+
+	const repository = createLegacyAccountProfileQueryRepository(getLegacyDataSource());
+	_getAccountProfileUseCase = new GetAccountProfileUseCase(repository);
+	return _getAccountProfileUseCase;
+}
+
+function getSubscribeAccountProfileUseCase(): SubscribeAccountProfileUseCase {
+	if (_subscribeAccountProfileUseCase) {
+		return _subscribeAccountProfileUseCase;
+	}
+
+	const repository = createLegacyAccountProfileQueryRepository(getLegacyDataSource());
+	_subscribeAccountProfileUseCase = new SubscribeAccountProfileUseCase(repository);
+	return _subscribeAccountProfileUseCase;
+}
+
+function getUpdateAccountProfileUseCase(): UpdateAccountProfileUseCase {
+	if (_updateAccountProfileUseCase) {
+		return _updateAccountProfileUseCase;
+	}
+
+	const repository = createLegacyAccountProfileCommandRepository(getLegacyDataSource());
+	_updateAccountProfileUseCase = new UpdateAccountProfileUseCase(repository);
+	return _updateAccountProfileUseCase;
+}
+
+// ── Public service API ───────────────────────────────────────────────────
+
+export async function getAccountProfile(actorId: string): Promise<AccountProfile | null> {
+	return getGetAccountProfileUseCase().execute(actorId);
+}
+
+export function subscribeToAccountProfile(
+	actorId: string,
+	onUpdate: (profile: AccountProfile | null) => void,
+): Unsubscribe {
+	return getSubscribeAccountProfileUseCase().execute(actorId, onUpdate);
+}
+
+export async function updateAccountProfile(
+	actorId: string,
+	input: UpdateAccountProfileInput,
+): Promise<CommandResult> {
+	return getUpdateAccountProfileUseCase().execute(actorId, input);
 }
 ````
 
@@ -69684,243 +69729,6 @@ export { GetSubscriptionEntitlementsUseCase } from "../queries/get-subscription-
 export { GetWorkflowPolicyViewUseCase } from "../queries/get-workflow-policy-view.queries";
 ````
 
-## File: modules/platform/interfaces/web/shell/navigation/components/ShellDashboardSidebar.tsx
-````typescript
-"use client";
-
-/**
- * Module: shell-dashboard-sidebar.tsx
- * Purpose: render the secondary navigation panel of the authenticated shell.
- * Responsibilities: account switcher, search hint, org management sub-nav, and
- *   recent workspace quick-access list. Top-level section navigation is in ShellAppRail.
- * Constraints: UI-only; workspace data sourced from module interfaces.
- */
-
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { toast } from "sonner";
-
-import { quickCreateKnowledgePage } from "@/modules/platform/application/services/shell-quick-create";
-import {
-  buildWorkspaceQuickAccessItems,
-  CustomizeNavigationDialog,
-  getWorkspaceIdFromPath,
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  readNavPreferences,
-  buildWorkspaceContextHref,
-  supportsWorkspaceSearchContext,
-  type NavPreferences,
-  useRecentWorkspaces,
-  useSidebarLocale,
-  WorkspaceQuickAccessRow,
-} from "@/modules/workspace/api";
-
-import {
-  type DashboardSidebarProps,
-  ORGANIZATION_MANAGEMENT_ITEMS,
-  ACCOUNT_NAV_ITEMS,
-  SECTION_TITLES,
-  resolveNavSection,
-  isActiveRoute,
-  isActiveOrganizationAccount,
-} from "../data/ShellSidebarNavData";
-import { ShellSidebarHeader } from "../../sidebar/ShellSidebarHeader";
-import { DashboardSidebarBody } from "../../sidebar/ShellSidebarBody";
-
-export function ShellDashboardSidebar({
-  pathname,
-  userId,
-  activeAccount,
-  workspaces,
-  workspacesHydrated,
-  activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
-  onSelectWorkspace,
-}: DashboardSidebarProps) {
-  const searchParams = useSearchParams();
-
-  const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
-    activeAccount?.id,
-    pathname,
-    workspaces,
-  );
-  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
-  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
-  const [customizeOpen, setCustomizeOpen] = useState(false);
-  const localeBundle = useSidebarLocale();
-
-  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
-
-  const visibleOrganizationManagementItems = useMemo(
-    () => ORGANIZATION_MANAGEMENT_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
-    [navPrefs.pinnedWorkspace],
-  );
-
-  const visibleAccountItems = useMemo(
-    () => ACCOUNT_NAV_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
-    [navPrefs.pinnedWorkspace],
-  );
-
-  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
-
-  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
-    ? navPrefs.maxWorkspaces
-    : MAX_VISIBLE_RECENT_WORKSPACES;
-
-  const currentSearchWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-
-  useEffect(() => {
-    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
-    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(pathWorkspaceId);
-      return;
-    }
-
-    if (!supportsWorkspaceSearchContext(pathname)) {
-      return;
-    }
-
-    if (currentSearchWorkspaceId && currentSearchWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(currentSearchWorkspaceId);
-    }
-  }, [pathname, activeWorkspaceId, currentSearchWorkspaceId, onSelectWorkspace]);
-
-  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
-  const visibleRecentWorkspaceLinks = isExpanded
-    ? recentWorkspaceLinks
-    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
-
-  const allWorkspaceLinks = useMemo(
-    () =>
-      workspaces
-        .map((workspace) => ({
-          id: workspace.id,
-          name: workspace.name,
-          href: buildWorkspaceContextHref(pathname, workspace.id),
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces, pathname],
-  );
-
-  const section = resolveNavSection(pathname);
-  const sectionMeta = SECTION_TITLES[section];
-  const workspacePathId = getWorkspaceIdFromPath(pathname);
-  const currentPanel = searchParams.get("panel");
-  const currentWorkspaceTab = searchParams.get("tab");
-  const hasSingleWorkspaceContext = section === "workspace" && Boolean(workspacePathId);
-  const hasWorkspaceToolContext =
-    Boolean(activeWorkspaceId || currentSearchWorkspaceId) &&
-    (section === "knowledge" ||
-      section === "knowledge-base" ||
-      section === "source" ||
-      section === "notebook");
-  const workspaceQuickAccessId =
-    workspacePathId || currentSearchWorkspaceId || (hasWorkspaceToolContext ? activeWorkspaceId ?? "" : "");
-  const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
-  const workspaceSettingsHref = workspaceQuickAccessId
-    ? `/workspace/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
-    : "";
-  const workspaceQuickAccessItems = useMemo(
-    () =>
-      showWorkspaceQuickAccess && workspaceQuickAccessId
-        ? buildWorkspaceQuickAccessItems(workspaceQuickAccessId)
-        : [],
-    [showWorkspaceQuickAccess, workspaceQuickAccessId],
-  );
-
-  async function handleQuickCreatePage() {
-    const accountId = activeAccount?.id ?? "";
-    if (!accountId || !activeWorkspaceId) {
-      toast.error(!accountId ? "目前沒有 active account，無法建立" : "請先切換到工作區，再建立頁面");
-      return;
-    }
-    setCreatingKind("page");
-    try {
-      const result = await quickCreateKnowledgePage({
-        accountId,
-        workspaceId: activeWorkspaceId,
-        createdByUserId: userId ?? accountId,
-      });
-      if (result.success) {
-        toast.success("已建立頁面");
-      } else {
-        toast.error(result.error?.message ?? "建立頁面失敗");
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("建立頁面失敗");
-    } finally {
-      setCreatingKind(null);
-    }
-  }
-
-  return (
-    <div className="contents">
-      <aside
-        aria-label="Secondary navigation"
-        className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
-          collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
-        }`}
-      >
-        <ShellSidebarHeader
-          sectionLabel={sectionMeta.label}
-          sectionIcon={sectionMeta.icon}
-          onOpenCustomize={() => {
-            setCustomizeOpen(true);
-          }}
-          onToggleCollapsed={onToggleCollapsed}
-        />
-
-        <WorkspaceQuickAccessRow
-          items={workspaceQuickAccessItems}
-          pathname={pathname}
-          currentPanel={currentPanel}
-          currentWorkspaceTab={currentWorkspaceTab}
-          workspaceSettingsHref={workspaceSettingsHref}
-          isActiveRoute={(href) => isActiveRoute(pathname, href)}
-        />
-
-        <DashboardSidebarBody
-          section={section}
-          isActiveRoute={(href) => isActiveRoute(pathname, href)}
-          activeAccountId={activeAccount?.id ?? null}
-          showAccountManagement={showAccountManagement}
-          visibleAccountItems={visibleAccountItems}
-          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
-          workspacePathId={workspacePathId}
-          navPrefs={navPrefs}
-          localeBundle={localeBundle}
-          showRecentWorkspaces={showRecentWorkspaces}
-          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
-          hasOverflow={hasOverflow}
-          isExpanded={isExpanded}
-          activeWorkspaceId={activeWorkspaceId}
-          onSelectWorkspace={onSelectWorkspace}
-          onToggleExpanded={() => {
-            setIsExpanded((prev) => !prev);
-          }}
-          pathname={pathname}
-          workspacesHydrated={workspacesHydrated}
-          allWorkspaceLinks={allWorkspaceLinks}
-          currentSearchWorkspaceId={currentSearchWorkspaceId}
-          creatingKind={creatingKind}
-          onQuickCreatePage={() => {
-            void handleQuickCreatePage();
-          }}
-        />
-      </aside>
-
-      <CustomizeNavigationDialog
-        open={customizeOpen}
-        onOpenChange={setCustomizeOpen}
-        onPreferencesChange={setNavPrefs}
-      />
-    </div>
-  );
-}
-````
-
 ## File: modules/platform/README.md
 ````markdown
 # Platform
@@ -71058,116 +70866,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/api/index.ts
-````typescript
-/**
- * platform public API boundary.
- *
- * account is listed before organization to establish canonical definitions for
- * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
- * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
- */
-
-export * from "./contracts";
-export * from "./facade";
-export { createPlatformService } from "./platform-service";
-export * from "../subdomains/identity/api";
-export * from "../subdomains/account/api";
-export * from "../subdomains/notification/api";
-
-export {
-  getProfile,
-  subscribeToProfile,
-  updateProfile,
-  SettingsProfileRouteScreen,
-  getAccountProfile,
-  subscribeToAccountProfile,
-  updateAccountProfile,
-} from "../subdomains/account-profile/api";
-
-export type {
-  AccountProfile,
-  UpdateAccountProfileInput,
-} from "../subdomains/account-profile/api";
-
-// organization — explicit to avoid re-export conflicts with account subdomain
-export type {
-  OrganizationEntity,
-  Presence,
-  InviteState,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  OrgPolicy,
-  OrgPolicyRule,
-  OrgPolicyScope,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-  OrganizationRepository,
-  OrgPolicyRepository,
-} from "../subdomains/organization/api";
-export {
-  organizationService,
-  getOrganizationMembers,
-  getOrganizationTeams,
-  getOrgPolicies,
-  createOrganization,
-  createOrganizationWithTeam,
-  updateOrganizationSettings,
-  deleteOrganization,
-  inviteMember,
-  recruitMember,
-  dismissMember,
-  updateMemberRole,
-  createTeam,
-  deleteTeam,
-  updateTeamMembers,
-  createPartnerGroup,
-  sendPartnerInvite,
-  dismissPartnerMember,
-  createOrgPolicy,
-  updateOrgPolicy,
-  deleteOrgPolicy,
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-  // UI components
-  AccountSwitcher,
-  CreateOrganizationDialog,
-  MembersPage,
-  TeamsPage,
-  PermissionsPage,
-  OrganizationAuditPage,
-} from "../subdomains/organization/api";
-export type { MembersPageProps, TeamsPageProps, PermissionsPageProps, OrganizationAuditPageProps } from "../subdomains/organization/api";
-
-// background-job — knowledge ingestion pipeline management
-export * from "../subdomains/background-job/api";
-
-// Cross-module and app-composition hooks from interfaces layer.
-// Only selective exports — do NOT wildcard re-export "../interfaces".
-export { useApp, Providers, ShellLayout, isActiveOrganizationAccount } from "../interfaces";
-````
-
 ## File: modules/platform/application/index.ts
 ````typescript
 /**
@@ -71178,6 +70876,243 @@ export * from "./dtos";
 export * from "./services";
 export * from "./use-cases";
 export * from "./handlers";
+````
+
+## File: modules/platform/interfaces/web/shell/navigation/components/ShellDashboardSidebar.tsx
+````typescript
+"use client";
+
+/**
+ * Module: shell-dashboard-sidebar.tsx
+ * Purpose: render the secondary navigation panel of the authenticated shell.
+ * Responsibilities: account switcher, search hint, org management sub-nav, and
+ *   recent workspace quick-access list. Top-level section navigation is in ShellAppRail.
+ * Constraints: UI-only; workspace data sourced from module interfaces.
+ */
+
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+
+import { quickCreateKnowledgePage } from "@/modules/platform/api";
+import {
+  buildWorkspaceQuickAccessItems,
+  CustomizeNavigationDialog,
+  getWorkspaceIdFromPath,
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  readNavPreferences,
+  buildWorkspaceContextHref,
+  supportsWorkspaceSearchContext,
+  type NavPreferences,
+  useRecentWorkspaces,
+  useSidebarLocale,
+  WorkspaceQuickAccessRow,
+} from "@/modules/workspace/api";
+
+import {
+  type DashboardSidebarProps,
+  ORGANIZATION_MANAGEMENT_ITEMS,
+  ACCOUNT_NAV_ITEMS,
+  SECTION_TITLES,
+  resolveNavSection,
+  isActiveRoute,
+  isActiveOrganizationAccount,
+} from "../data/ShellSidebarNavData";
+import { ShellSidebarHeader } from "../../sidebar/ShellSidebarHeader";
+import { DashboardSidebarBody } from "../../sidebar/ShellSidebarBody";
+
+export function ShellDashboardSidebar({
+  pathname,
+  userId,
+  activeAccount,
+  workspaces,
+  workspacesHydrated,
+  activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
+  onSelectWorkspace,
+}: DashboardSidebarProps) {
+  const searchParams = useSearchParams();
+
+  const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
+    activeAccount?.id,
+    pathname,
+    workspaces,
+  );
+  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
+  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const localeBundle = useSidebarLocale();
+
+  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
+
+  const visibleOrganizationManagementItems = useMemo(
+    () => ORGANIZATION_MANAGEMENT_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
+    [navPrefs.pinnedWorkspace],
+  );
+
+  const visibleAccountItems = useMemo(
+    () => ACCOUNT_NAV_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
+    [navPrefs.pinnedWorkspace],
+  );
+
+  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
+
+  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
+    ? navPrefs.maxWorkspaces
+    : MAX_VISIBLE_RECENT_WORKSPACES;
+
+  const currentSearchWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+
+  useEffect(() => {
+    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
+    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(pathWorkspaceId);
+      return;
+    }
+
+    if (!supportsWorkspaceSearchContext(pathname)) {
+      return;
+    }
+
+    if (currentSearchWorkspaceId && currentSearchWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(currentSearchWorkspaceId);
+    }
+  }, [pathname, activeWorkspaceId, currentSearchWorkspaceId, onSelectWorkspace]);
+
+  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
+  const visibleRecentWorkspaceLinks = isExpanded
+    ? recentWorkspaceLinks
+    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
+
+  const allWorkspaceLinks = useMemo(
+    () =>
+      workspaces
+        .map((workspace) => ({
+          id: workspace.id,
+          name: workspace.name,
+          href: buildWorkspaceContextHref(pathname, workspace.id),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces, pathname],
+  );
+
+  const section = resolveNavSection(pathname);
+  const sectionMeta = SECTION_TITLES[section];
+  const workspacePathId = getWorkspaceIdFromPath(pathname);
+  const currentPanel = searchParams.get("panel");
+  const currentWorkspaceTab = searchParams.get("tab");
+  const hasSingleWorkspaceContext = section === "workspace" && Boolean(workspacePathId);
+  const hasWorkspaceToolContext =
+    Boolean(activeWorkspaceId || currentSearchWorkspaceId) &&
+    (section === "knowledge" ||
+      section === "knowledge-base" ||
+      section === "source" ||
+      section === "notebook");
+  const workspaceQuickAccessId =
+    workspacePathId || currentSearchWorkspaceId || (hasWorkspaceToolContext ? activeWorkspaceId ?? "" : "");
+  const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
+  const workspaceSettingsHref = workspaceQuickAccessId
+    ? `/workspace/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
+    : "";
+  const workspaceQuickAccessItems = useMemo(
+    () =>
+      showWorkspaceQuickAccess && workspaceQuickAccessId
+        ? buildWorkspaceQuickAccessItems(workspaceQuickAccessId)
+        : [],
+    [showWorkspaceQuickAccess, workspaceQuickAccessId],
+  );
+
+  async function handleQuickCreatePage() {
+    const accountId = activeAccount?.id ?? "";
+    if (!accountId || !activeWorkspaceId) {
+      toast.error(!accountId ? "目前沒有 active account，無法建立" : "請先切換到工作區，再建立頁面");
+      return;
+    }
+    setCreatingKind("page");
+    try {
+      const result = await quickCreateKnowledgePage({
+        accountId,
+        workspaceId: activeWorkspaceId,
+        createdByUserId: userId ?? accountId,
+      });
+      if (result.success) {
+        toast.success("已建立頁面");
+      } else {
+        toast.error(result.error?.message ?? "建立頁面失敗");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("建立頁面失敗");
+    } finally {
+      setCreatingKind(null);
+    }
+  }
+
+  return (
+    <div className="contents">
+      <aside
+        aria-label="Secondary navigation"
+        className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
+          collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
+        }`}
+      >
+        <ShellSidebarHeader
+          sectionLabel={sectionMeta.label}
+          sectionIcon={sectionMeta.icon}
+          onOpenCustomize={() => {
+            setCustomizeOpen(true);
+          }}
+          onToggleCollapsed={onToggleCollapsed}
+        />
+
+        <WorkspaceQuickAccessRow
+          items={workspaceQuickAccessItems}
+          pathname={pathname}
+          currentPanel={currentPanel}
+          currentWorkspaceTab={currentWorkspaceTab}
+          workspaceSettingsHref={workspaceSettingsHref}
+          isActiveRoute={(href) => isActiveRoute(pathname, href)}
+        />
+
+        <DashboardSidebarBody
+          section={section}
+          isActiveRoute={(href) => isActiveRoute(pathname, href)}
+          activeAccountId={activeAccount?.id ?? null}
+          showAccountManagement={showAccountManagement}
+          visibleAccountItems={visibleAccountItems}
+          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
+          workspacePathId={workspacePathId}
+          navPrefs={navPrefs}
+          localeBundle={localeBundle}
+          showRecentWorkspaces={showRecentWorkspaces}
+          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+          hasOverflow={hasOverflow}
+          isExpanded={isExpanded}
+          activeWorkspaceId={activeWorkspaceId}
+          onSelectWorkspace={onSelectWorkspace}
+          onToggleExpanded={() => {
+            setIsExpanded((prev) => !prev);
+          }}
+          pathname={pathname}
+          workspacesHydrated={workspacesHydrated}
+          allWorkspaceLinks={allWorkspaceLinks}
+          currentSearchWorkspaceId={currentSearchWorkspaceId}
+          creatingKind={creatingKind}
+          onQuickCreatePage={() => {
+            void handleQuickCreatePage();
+          }}
+        />
+      </aside>
+
+      <CustomizeNavigationDialog
+        open={customizeOpen}
+        onOpenChange={setCustomizeOpen}
+        onPreferencesChange={setNavPrefs}
+      />
+    </div>
+  );
+}
 ````
 
 ## File: modules/platform/interfaces/web/shell/navigation/data/ShellSidebarNavData.tsx
@@ -72202,6 +72137,124 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
+## File: modules/platform/api/index.ts
+````typescript
+/**
+ * platform public API boundary.
+ *
+ * account is listed before organization to establish canonical definitions for
+ * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
+ * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
+ */
+
+export * from "./contracts";
+export * from "./facade";
+export { createPlatformService } from "./platform-service";
+export * from "../subdomains/identity/api";
+export * from "../subdomains/account/api";
+export * from "../subdomains/notification/api";
+
+export {
+  getProfile,
+  subscribeToProfile,
+  updateProfile,
+  SettingsProfileRouteScreen,
+  getAccountProfile,
+  subscribeToAccountProfile,
+  updateAccountProfile,
+} from "../subdomains/account-profile/api";
+
+export type {
+  AccountProfile,
+  UpdateAccountProfileInput,
+} from "../subdomains/account-profile/api";
+
+// organization — explicit to avoid re-export conflicts with account subdomain
+export type {
+  OrganizationEntity,
+  Presence,
+  InviteState,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  OrgPolicy,
+  OrgPolicyRule,
+  OrgPolicyScope,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+  OrganizationRepository,
+  OrgPolicyRepository,
+} from "../subdomains/organization/api";
+export {
+  organizationService,
+  getOrganizationMembers,
+  getOrganizationTeams,
+  getOrgPolicies,
+  createOrganization,
+  createOrganizationWithTeam,
+  updateOrganizationSettings,
+  deleteOrganization,
+  inviteMember,
+  recruitMember,
+  dismissMember,
+  updateMemberRole,
+  createTeam,
+  deleteTeam,
+  updateTeamMembers,
+  createPartnerGroup,
+  sendPartnerInvite,
+  dismissPartnerMember,
+  createOrgPolicy,
+  updateOrgPolicy,
+  deleteOrgPolicy,
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+  // UI components
+  AccountSwitcher,
+  CreateOrganizationDialog,
+  MembersPage,
+  TeamsPage,
+  PermissionsPage,
+  OrganizationAuditPage,
+} from "../subdomains/organization/api";
+export type { MembersPageProps, TeamsPageProps, PermissionsPageProps, OrganizationAuditPageProps } from "../subdomains/organization/api";
+
+// background-job — knowledge ingestion pipeline management
+export * from "../subdomains/background-job/api";
+
+// Cross-module and app-composition hooks from interfaces layer.
+// Only selective exports — do NOT wildcard re-export "../interfaces".
+export {
+  useApp,
+  Providers,
+  ShellLayout,
+  isActiveOrganizationAccount,
+  quickCreateKnowledgePage,
+  type QuickCreatePageInput,
+  type QuickCreatePageResult,
+} from "../interfaces";
+````
+
 ## File: modules/platform/subdomains/account-profile/api/index.ts
 ````typescript
 /**
@@ -72265,144 +72318,6 @@ import type { NotificationEntity } from "../../application/dtos/notification.dto
 export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
   return notificationService.getForRecipient(recipientId, maxCount);
 }
-````
-
-## File: modules/platform/subdomains/organization/infrastructure/organization-service.ts
-````typescript
-/**
- * OrganizationService — Composition root for organization use cases.
- */
-
-import { FirebaseOrganizationRepository } from "./firebase/FirebaseOrganizationRepository";
-import { FirebaseOrgPolicyRepository } from "./firebase/FirebaseOrgPolicyRepository";
-import {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-} from "../application/use-cases/organization-lifecycle.use-cases";
-import {
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-} from "../application/use-cases/organization-member.use-cases";
-import {
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "../application/use-cases/organization-team.use-cases";
-import type { IOrganizationTeamPort } from "../domain/ports/IOrganizationTeamPort";
-import { createTeamRepository } from "../../team/api";
-import {
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "../application/use-cases/organization-partner.use-cases";
-import {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "../application/use-cases/organization-policy.use-cases";
-import type {
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "../domain/entities/Organization";
-import type { CreateTeamInput } from "../domain/entities/Organization";
-import type { CommandResult } from "@shared-types";
-
-let _orgRepo: FirebaseOrganizationRepository | undefined;
-let _policyRepo: FirebaseOrgPolicyRepository | undefined;
-let _teamPort: IOrganizationTeamPort | undefined;
-
-function getOrgRepo(): FirebaseOrganizationRepository {
-  if (!_orgRepo) _orgRepo = new FirebaseOrganizationRepository();
-  return _orgRepo;
-}
-
-function getPolicyRepo(): FirebaseOrgPolicyRepository {
-  if (!_policyRepo) _policyRepo = new FirebaseOrgPolicyRepository();
-  return _policyRepo;
-}
-
-function getTeamPort(): IOrganizationTeamPort {
-  // createTeamRepository() returns a TeamRepository that structurally satisfies IOrganizationTeamPort.
-  // The infrastructure layer is the correct place to wire cross-subdomain adapters.
-  if (!_teamPort) _teamPort = createTeamRepository();
-  return _teamPort;
-}
-
-export const organizationService = {
-  createOrganization: (cmd: CreateOrganizationCommand): Promise<CommandResult> =>
-    new CreateOrganizationUseCase(getOrgRepo()).execute(cmd),
-
-  createOrganizationWithTeam: (
-    cmd: CreateOrganizationCommand,
-    teamName: string,
-    teamType: "internal" | "external" = "internal",
-  ): Promise<CommandResult> =>
-    new CreateOrganizationWithTeamUseCase(getOrgRepo()).execute(cmd, teamName, teamType),
-
-  updateSettings: (cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> =>
-    new UpdateOrganizationSettingsUseCase(getOrgRepo()).execute(cmd),
-
-  deleteOrganization: (orgId: string): Promise<CommandResult> =>
-    new DeleteOrganizationUseCase(getOrgRepo()).execute(orgId),
-
-  inviteMember: (input: InviteMemberInput): Promise<CommandResult> =>
-    new InviteMemberUseCase(getOrgRepo()).execute(input),
-
-  recruitMember: (orgId: string, memberId: string, name: string, email: string): Promise<CommandResult> =>
-    new RecruitMemberUseCase(getOrgRepo()).execute(orgId, memberId, name, email),
-
-  removeMember: (orgId: string, memberId: string): Promise<CommandResult> =>
-    new RemoveMemberUseCase(getOrgRepo()).execute(orgId, memberId),
-
-  updateMemberRole: (input: UpdateMemberRoleInput): Promise<CommandResult> =>
-    new UpdateMemberRoleUseCase(getOrgRepo()).execute(input),
-
-  createTeam: (input: CreateTeamInput): Promise<CommandResult> =>
-    new CreateTeamUseCase(getTeamPort()).execute(input),
-
-  deleteTeam: (orgId: string, teamId: string): Promise<CommandResult> =>
-    new DeleteTeamUseCase(getTeamPort()).execute(orgId, teamId),
-
-  updateTeamMembers: (orgId: string, teamId: string, memberId: string, action: "add" | "remove"): Promise<CommandResult> =>
-    new UpdateTeamMembersUseCase(getTeamPort()).execute(orgId, teamId, memberId, action),
-
-  createPartnerGroup: (orgId: string, groupName: string): Promise<CommandResult> =>
-    new CreatePartnerGroupUseCase(getOrgRepo()).execute(orgId, groupName),
-
-  sendPartnerInvite: (orgId: string, teamId: string, email: string): Promise<CommandResult> =>
-    new SendPartnerInviteUseCase(getOrgRepo()).execute(orgId, teamId, email),
-
-  dismissPartnerMember: (orgId: string, teamId: string, memberId: string): Promise<CommandResult> =>
-    new DismissPartnerMemberUseCase(getOrgRepo()).execute(orgId, teamId, memberId),
-
-  createOrgPolicy: (input: CreateOrgPolicyInput): Promise<CommandResult> =>
-    new CreateOrgPolicyUseCase(getPolicyRepo()).execute(input),
-
-  updateOrgPolicy: (policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> =>
-    new UpdateOrgPolicyUseCase(getPolicyRepo()).execute(policyId, data),
-
-  deleteOrgPolicy: (policyId: string): Promise<CommandResult> =>
-    new DeleteOrgPolicyUseCase(getPolicyRepo()).execute(policyId),
-};
-
-/**
- * OrganizationQueryService — read-model queries for client-side data.
- * Composition root: wires Firebase repos for queries; interfaces/ must use this
- * via the subdomain api/ boundary instead of importing infrastructure directly.
- */
-export const organizationQueryService = {
-  getMembers: (organizationId: string) => getOrgRepo().getMembers(organizationId),
-  getTeams: (organizationId: string) => getOrgRepo().getTeams(organizationId),
-  getOrgPolicies: (orgId: string) => getPolicyRepo().getPolicies(orgId),
-};
 ````
 
 ## File: modules/platform/subdomains/organization/interfaces/queries/organization.queries.ts
@@ -72501,6 +72416,143 @@ export async function getAccountPolicies(_accountId: string): Promise<AccountPol
 export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
   return [];
 }
+````
+
+## File: modules/platform/subdomains/organization/infrastructure/organization-service.ts
+````typescript
+/**
+ * OrganizationService — Composition root for organization use cases.
+ */
+
+import { FirebaseOrganizationRepository } from "./firebase/FirebaseOrganizationRepository";
+import { FirebaseOrgPolicyRepository } from "./firebase/FirebaseOrgPolicyRepository";
+import {
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+} from "../application/use-cases/organization-lifecycle.use-cases";
+import {
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+} from "../application/use-cases/organization-member.use-cases";
+import {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "../application/use-cases/organization-team.use-cases";
+import type { IOrganizationTeamPort } from "../domain/ports/IOrganizationTeamPort";
+import { FirebaseTeamRepository } from "../../team/infrastructure/firebase/FirebaseTeamRepository";
+import {
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "../application/use-cases/organization-partner.use-cases";
+import {
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+} from "../application/use-cases/organization-policy.use-cases";
+import type {
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "../domain/entities/Organization";
+import type { CreateTeamInput } from "../domain/entities/Organization";
+import type { CommandResult } from "@shared-types";
+
+let _orgRepo: FirebaseOrganizationRepository | undefined;
+let _policyRepo: FirebaseOrgPolicyRepository | undefined;
+let _teamPort: IOrganizationTeamPort | undefined;
+
+function getOrgRepo(): FirebaseOrganizationRepository {
+  if (!_orgRepo) _orgRepo = new FirebaseOrganizationRepository();
+  return _orgRepo;
+}
+
+function getPolicyRepo(): FirebaseOrgPolicyRepository {
+  if (!_policyRepo) _policyRepo = new FirebaseOrgPolicyRepository();
+  return _policyRepo;
+}
+
+function getTeamPort(): IOrganizationTeamPort {
+  // Infrastructure composition: wire concrete repository at adapter boundary.
+  if (!_teamPort) _teamPort = new FirebaseTeamRepository();
+  return _teamPort;
+}
+
+export const organizationService = {
+  createOrganization: (cmd: CreateOrganizationCommand): Promise<CommandResult> =>
+    new CreateOrganizationUseCase(getOrgRepo()).execute(cmd),
+
+  createOrganizationWithTeam: (
+    cmd: CreateOrganizationCommand,
+    teamName: string,
+    teamType: "internal" | "external" = "internal",
+  ): Promise<CommandResult> =>
+    new CreateOrganizationWithTeamUseCase(getOrgRepo()).execute(cmd, teamName, teamType),
+
+  updateSettings: (cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> =>
+    new UpdateOrganizationSettingsUseCase(getOrgRepo()).execute(cmd),
+
+  deleteOrganization: (orgId: string): Promise<CommandResult> =>
+    new DeleteOrganizationUseCase(getOrgRepo()).execute(orgId),
+
+  inviteMember: (input: InviteMemberInput): Promise<CommandResult> =>
+    new InviteMemberUseCase(getOrgRepo()).execute(input),
+
+  recruitMember: (orgId: string, memberId: string, name: string, email: string): Promise<CommandResult> =>
+    new RecruitMemberUseCase(getOrgRepo()).execute(orgId, memberId, name, email),
+
+  removeMember: (orgId: string, memberId: string): Promise<CommandResult> =>
+    new RemoveMemberUseCase(getOrgRepo()).execute(orgId, memberId),
+
+  updateMemberRole: (input: UpdateMemberRoleInput): Promise<CommandResult> =>
+    new UpdateMemberRoleUseCase(getOrgRepo()).execute(input),
+
+  createTeam: (input: CreateTeamInput): Promise<CommandResult> =>
+    new CreateTeamUseCase(getTeamPort()).execute(input),
+
+  deleteTeam: (orgId: string, teamId: string): Promise<CommandResult> =>
+    new DeleteTeamUseCase(getTeamPort()).execute(orgId, teamId),
+
+  updateTeamMembers: (orgId: string, teamId: string, memberId: string, action: "add" | "remove"): Promise<CommandResult> =>
+    new UpdateTeamMembersUseCase(getTeamPort()).execute(orgId, teamId, memberId, action),
+
+  createPartnerGroup: (orgId: string, groupName: string): Promise<CommandResult> =>
+    new CreatePartnerGroupUseCase(getOrgRepo()).execute(orgId, groupName),
+
+  sendPartnerInvite: (orgId: string, teamId: string, email: string): Promise<CommandResult> =>
+    new SendPartnerInviteUseCase(getOrgRepo()).execute(orgId, teamId, email),
+
+  dismissPartnerMember: (orgId: string, teamId: string, memberId: string): Promise<CommandResult> =>
+    new DismissPartnerMemberUseCase(getOrgRepo()).execute(orgId, teamId, memberId),
+
+  createOrgPolicy: (input: CreateOrgPolicyInput): Promise<CommandResult> =>
+    new CreateOrgPolicyUseCase(getPolicyRepo()).execute(input),
+
+  updateOrgPolicy: (policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> =>
+    new UpdateOrgPolicyUseCase(getPolicyRepo()).execute(policyId, data),
+
+  deleteOrgPolicy: (policyId: string): Promise<CommandResult> =>
+    new DeleteOrgPolicyUseCase(getPolicyRepo()).execute(policyId),
+};
+
+/**
+ * OrganizationQueryService — read-model queries for client-side data.
+ * Composition root: wires Firebase repos for queries; interfaces/ must use this
+ * via the subdomain api/ boundary instead of importing infrastructure directly.
+ */
+export const organizationQueryService = {
+  getMembers: (organizationId: string) => getOrgRepo().getMembers(organizationId),
+  getTeams: (organizationId: string) => getOrgRepo().getTeams(organizationId),
+  getOrgPolicies: (orgId: string) => getPolicyRepo().getPolicies(orgId),
+};
 ````
 
 ## File: modules/platform/interfaces/web/shell/layout/ShellRootLayout.tsx
@@ -72802,6 +72854,11 @@ export { ShellAppBreadcrumbs } from "./shell/breadcrumbs/ShellAppBreadcrumbs";
 export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./shell/search/ShellGlobalSearchDialog";
 export { AppRail } from "./shell/sidebar/ShellAppRail";
 export { ShellDashboardSidebar } from "./shell/navigation/components/ShellDashboardSidebar";
+export {
+  quickCreateKnowledgePage,
+  type QuickCreatePageInput,
+  type QuickCreatePageResult,
+} from "./shell/navigation/services/shell-quick-create";
 export { ShellLayout } from "./shell/layout/ShellRootLayout";
 export type { DashboardSidebarProps, NavSection } from "./shell/navigation/data/ShellSidebarNavData";
 export {
