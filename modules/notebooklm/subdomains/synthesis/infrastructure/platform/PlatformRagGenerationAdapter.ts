@@ -9,7 +9,7 @@
  * modules/platform/subdomains/ai/infrastructure.
  */
 
-import { generateAiText } from "@/modules/platform/api";
+import { generateAiText } from "@/modules/platform/api/server";
 import type { IRagGenerationRepository } from "../../domain/repositories/IRagGenerationRepository";
 import type {
   GenerateRagAnswerInput,

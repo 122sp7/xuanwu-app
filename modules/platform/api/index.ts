@@ -100,10 +100,9 @@ export type { MembersPageProps, TeamsPageProps, PermissionsPageProps } from "../
 // background-job — knowledge ingestion pipeline management
 export * from "../subdomains/background-job/api";
 
-// ai — shared AI provider capability (text generation, model routing)
+// ai — shared AI provider capability (types only — client-safe)
+// Server-only functions (generateAiText, summarize) are in platform/api/server.ts
 export {
-  generateAiText,
-  summarize,
   type AIAPI,
   type GenerateAiTextInput,
   type GenerateAiTextOutput,
