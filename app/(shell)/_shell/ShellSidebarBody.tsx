@@ -13,7 +13,7 @@ import {
   type NavPreferences,
   type SidebarLocaleBundle,
 } from "@/modules/workspace/api";
-import { SHELL_CONTEXT_SECTION_CONFIG } from "@/modules/platform/api";
+import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "@/modules/platform/api";
 
 import {
   type NavSection,
@@ -64,21 +64,27 @@ function ManagedNavGroup({
   ariaLabel,
   items,
   isActiveRoute,
+  activeAccountId,
 }: {
   title: string;
   ariaLabel: string;
   items: readonly NavItem[];
   isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
 }) {
   return (
     <nav className="space-y-0.5" aria-label={ariaLabel}>
       <p className={sidebarSectionTitleClass}>{title}</p>
       {items.map((item) => {
-        const active = isActiveRoute(item.href);
+        const contextualHref = buildShellContextualHref(item.href, {
+          accountId: activeAccountId,
+          workspaceId: null,
+        });
+        const active = isActiveRoute(contextualHref);
         return (
           <Link
             key={item.href}
-            href={item.href}
+            href={contextualHref}
             aria-current={active ? "page" : undefined}
             className={sidebarItemClass(active)}
           >
@@ -126,6 +132,7 @@ export function DashboardSidebarBody({
               ariaLabel="帳號導覽"
               items={visibleAccountItems}
               isActiveRoute={isActiveRoute}
+              activeAccountId={activeAccountId}
             />
           )}
           {!showAccountManagement && (
@@ -144,6 +151,7 @@ export function DashboardSidebarBody({
               ariaLabel="組織管理導覽"
               items={visibleOrganizationManagementItems}
               isActiveRoute={isActiveRoute}
+              activeAccountId={activeAccountId}
             />
           )}
           {!showAccountManagement && (

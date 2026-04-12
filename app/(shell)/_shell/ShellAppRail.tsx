@@ -30,6 +30,7 @@ import {
   listShellRailCatalogItems,
   isExactOrChildPath,
   resolveShellNavSection,
+  buildShellContextualHref,
   type ShellRailCatalogItem,
 } from "@/modules/platform/api";
 import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
@@ -65,6 +66,7 @@ interface AppRailProps {
 }
 
 interface RailItem {
+  id: string;
   href: string;
   label: string;
   icon: React.ReactNode;
@@ -113,26 +115,36 @@ export function AppRail({
   const visibleRailItems: RailItem[] = useMemo(() => {
     const catalogItems = listShellRailCatalogItems(isOrganizationAccount);
     return catalogItems.map((item: ShellRailCatalogItem) => ({
-      href: item.href,
+      id: item.id,
+      href: buildShellContextualHref(item.href, {
+        accountId: activeAccount?.id,
+        workspaceId: activeWorkspaceId,
+      }),
       label: item.label,
       icon: RAIL_ICON_MAP[item.id] ?? null,
       isActive: item.id === "workspace"
         ? (currentPathname: string) => resolveShellNavSection(currentPathname) === "workspace"
         : item.activeRoutePrefix
-          ? (currentPathname: string) => isExactOrChildPath(item.activeRoutePrefix!, currentPathname)
+          ? (currentPathname: string) => isExactOrChildPath(
+            buildShellContextualHref(item.activeRoutePrefix!, {
+              accountId: activeAccount?.id,
+              workspaceId: activeWorkspaceId,
+            }),
+            currentPathname,
+          )
           : undefined,
     }));
-  }, [isOrganizationAccount]);
+  }, [isOrganizationAccount, activeAccount?.id, activeWorkspaceId]);
 
   const workspaceHubHref = activeAccount?.id
     ? `/${encodeURIComponent(activeAccount.id)}`
-    : "/workspace";
+    : "/";
 
   function buildWorkspaceDetailHref(workspaceId: string): string {
     if (activeAccount?.id) {
       return `/${encodeURIComponent(activeAccount.id)}/${encodeURIComponent(workspaceId)}`;
     }
-    return `/workspace/${encodeURIComponent(workspaceId)}`;
+    return `/${encodeURIComponent(workspaceId)}`;
   }
 
   const sortedWorkspaces = useMemo(
@@ -205,7 +217,7 @@ export function AppRail({
           {visibleRailItems.map((item) => {
             const active = item.isActive?.(pathname) ?? isActive(item.href);
 
-            if (item.href === "/workspace") {
+            if (item.id === "workspace") {
               return (
                 <DropdownMenu key={item.href}>
                   <Tooltip>

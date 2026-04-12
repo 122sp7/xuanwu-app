@@ -7,6 +7,7 @@
 
 import Link from "next/link";
 import { appendWorkspaceContextQuery } from "@/modules/workspace/api";
+import { buildShellContextualHref } from "@/modules/platform/api";
 
 interface ContextScopedNavItem {
   href: string;
@@ -41,11 +42,15 @@ export function ShellContextNavSection({
         </p>
       )}
       {items.map((item) => {
-        const active = isActiveRoute(item.href);
-        const contextualHref = appendWorkspaceContextQuery(item.href, {
+        const scopedHref = buildShellContextualHref(item.href, {
           accountId: activeAccountId,
           workspaceId: activeWorkspaceId,
         });
+        const contextualHref = appendWorkspaceContextQuery(scopedHref, {
+          accountId: activeAccountId,
+          workspaceId: activeWorkspaceId,
+        });
+        const active = isActiveRoute(contextualHref);
         return (
           <Link
             key={item.href}

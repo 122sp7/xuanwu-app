@@ -33,6 +33,11 @@ export interface ShellContextSectionConfig {
   readonly items: readonly { href: string; label: string }[];
 }
 
+export interface ShellRouteContext {
+  readonly accountId?: string | null;
+  readonly workspaceId?: string | null;
+}
+
 const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
   "workspace",
   "workspace-feed",
@@ -48,6 +53,28 @@ const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
   "dev-tools",
 ]);
 
+const ACCOUNT_SCOPED_ACCOUNT_ROOT_ROUTES = new Set(["organization", "settings", "dev-tools"]);
+
+const ACCOUNT_SCOPED_WORKSPACE_TOOL_ROOT_ROUTES = new Set([
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "dashboard",
+  "workspace-feed",
+]);
+
+function parseHref(href: string): { path: string; query: string } {
+  const [path, query = ""] = href.split("?");
+  return { path, query };
+}
+
+function joinHref(path: string, query: string): string {
+  return query.length > 0 ? `${path}?${query}` : path;
+}
+
 function isAccountScopedWorkspacePath(pathname: string): boolean {
   const [firstSegment] = pathname.split("/").filter(Boolean);
   if (!firstSegment) {
@@ -56,10 +83,83 @@ function isAccountScopedWorkspacePath(pathname: string): boolean {
   return !NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment);
 }
 
+export function normalizeShellRoutePath(pathname: string): string {
+  const [pathOnly] = pathname.split("?");
+  const segments = pathOnly.split("/").filter(Boolean);
+
+  if (segments.length === 0) {
+    return "/";
+  }
+
+  const [firstSegment, secondSegment, ...restSegments] = segments;
+
+  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
+    return pathOnly;
+  }
+
+  if (!secondSegment) {
+    return "/workspace";
+  }
+
+  if (ACCOUNT_SCOPED_ACCOUNT_ROOT_ROUTES.has(secondSegment)) {
+    return `/${[secondSegment, ...restSegments].join("/")}`;
+  }
+
+  if (restSegments.length === 0) {
+    return "/workspace";
+  }
+
+  return `/${restSegments.join("/")}`;
+}
+
+export function buildShellContextualHref(
+  href: string,
+  context: ShellRouteContext,
+): string {
+  const { accountId, workspaceId } = context;
+  if (!accountId) {
+    return href;
+  }
+
+  const { path, query } = parseHref(href);
+  const encodedAccountId = encodeURIComponent(accountId);
+  const encodedWorkspaceId = workspaceId ? encodeURIComponent(workspaceId) : "";
+
+  if (path === "/workspace" || path.startsWith("/workspace/")) {
+    const nextPath = encodedWorkspaceId
+      ? `/${encodedAccountId}/${encodedWorkspaceId}`
+      : `/${encodedAccountId}`;
+    return joinHref(nextPath, query);
+  }
+
+  const [rootSegment] = path.split("/").filter(Boolean);
+  if (!rootSegment) {
+    return href;
+  }
+
+  if (ACCOUNT_SCOPED_ACCOUNT_ROOT_ROUTES.has(rootSegment)) {
+    return joinHref(`/${encodedAccountId}${path}`, query);
+  }
+
+  if (ACCOUNT_SCOPED_WORKSPACE_TOOL_ROOT_ROUTES.has(rootSegment)) {
+    if (!encodedWorkspaceId) {
+      return joinHref(`/${encodedAccountId}`, query);
+    }
+    return joinHref(`/${encodedAccountId}/${encodedWorkspaceId}${path}`, query);
+  }
+
+  return href;
+}
+
 // ── Route-matching utility ────────────────────────────────────────────────────
 
 export function isExactOrChildPath(targetPath: string, pathname: string): boolean {
-  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
+  const normalizedTargetPath = normalizeShellRoutePath(targetPath);
+  const normalizedPathname = normalizeShellRoutePath(pathname);
+  return (
+    normalizedPathname === normalizedTargetPath ||
+    normalizedPathname.startsWith(`${normalizedTargetPath}/`)
+  );
 }
 
 // ── Account section matchers ──────────────────────────────────────────────────
@@ -195,22 +295,24 @@ export const SHELL_ORG_SECONDARY_NAV_ITEMS: readonly ShellNavItem[] = [
 // ── Section resolvers ─────────────────────────────────────────────────────────
 
 export function resolveShellNavSection(pathname: string): ShellNavSection {
-  if (pathname.startsWith("/workspace")) return "workspace";
-  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
-  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
-  if (pathname.startsWith("/knowledge")) return "knowledge";
-  if (pathname.startsWith("/source")) return "source";
-  if (pathname.startsWith("/notebook")) return "notebook";
-  if (pathname.startsWith("/ai-chat")) return "ai-chat";
+  const normalizedPathname = normalizeShellRoutePath(pathname);
+
+  if (normalizedPathname.startsWith("/workspace")) return "workspace";
+  if (normalizedPathname.startsWith("/knowledge-base")) return "knowledge-base";
+  if (normalizedPathname.startsWith("/knowledge-database")) return "knowledge-database";
+  if (normalizedPathname.startsWith("/knowledge")) return "knowledge";
+  if (normalizedPathname.startsWith("/source")) return "source";
+  if (normalizedPathname.startsWith("/notebook")) return "notebook";
+  if (normalizedPathname.startsWith("/ai-chat")) return "ai-chat";
   if (
     SHELL_ACCOUNT_SECTION_MATCHERS.some(
-      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+      (prefix) => normalizedPathname === prefix || normalizedPathname.startsWith(`${prefix}/`),
     )
   ) {
     return "account";
   }
-  if (pathname.startsWith("/organization")) return "organization";
-  if (isAccountScopedWorkspacePath(pathname)) return "workspace";
+  if (normalizedPathname.startsWith("/organization")) return "organization";
+  if (isAccountScopedWorkspacePath(pathname) || normalizedPathname.startsWith("/workspace")) return "workspace";
   return "other";
 }
 
@@ -218,7 +320,8 @@ export function resolveShellPageTitle(pathname: string): string {
   if (isAccountScopedWorkspacePath(pathname)) {
     return "工作區中心";
   }
-  return ROUTE_TITLES[pathname] ?? "工作區";
+  const normalizedPathname = normalizeShellRoutePath(pathname);
+  return ROUTE_TITLES[normalizedPathname] ?? "工作區";
 }
 
 export function resolveShellBreadcrumbLabel(segment: string): string {

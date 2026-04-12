@@ -4,6 +4,12 @@ import { redirect } from "next/navigation";
  * Dispatcher page — redirects to the organization schedule view.
  * Route: /organization/schedule/dispatcher
  */
-export default function DispatcherPage() {
-  redirect("/organization/schedule");
+interface DispatcherPageProps {
+  params: {
+    accountId: string;
+  };
+}
+
+export default function DispatcherPage({ params }: DispatcherPageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}/organization/schedule`);
 }

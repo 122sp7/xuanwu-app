@@ -3,6 +3,12 @@
  */
 import { redirect } from "next/navigation";
 
-export default function SettingsGeneralPage() {
-  redirect("/workspace");
+interface SettingsGeneralPageProps {
+  params: {
+    accountId: string;
+  };
+}
+
+export default function SettingsGeneralPage({ params }: SettingsGeneralPageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}?tab=Overview&panel=settings`);
 }

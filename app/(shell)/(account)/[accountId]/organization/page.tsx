@@ -8,7 +8,7 @@
  */
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 import { useApp, useAuth } from "@/modules/platform/api"
 import type { AccountEntity } from "@/modules/platform/api";
@@ -18,6 +18,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card
 
 export default function OrganizationPage() {
   const router = useRouter();
+  const params = useParams<{ accountId: string }>();
   const { state: appState, dispatch } = useApp();
   const { state: authState } = useAuth();
   const { user } = authState;
@@ -25,16 +26,24 @@ export default function OrganizationPage() {
 
   const orgList = Object.values(accounts);
   const activeOrganizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
+  const routeAccountId = typeof params.accountId === "string" ? params.accountId : "";
+
+  function buildAccountHref(targetAccountId: string, suffix = "") {
+    const base = `/${encodeURIComponent(targetAccountId)}`;
+    return suffix ? `${base}${suffix}` : base;
+  }
+
+  const currentAccountId = routeAccountId || activeAccount?.id || user?.id || "";
 
   function handleSwitch(account: AccountEntity) {
     dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-    router.replace("/workspace");
+    router.replace(buildAccountHref(account.id));
   }
 
   function handleSwitchToPersonal() {
     if (!user) return;
     dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: user });
-    router.replace("/workspace");
+    router.replace(buildAccountHref(user.id));
   }
 
   return (
@@ -61,11 +70,11 @@ export default function OrganizationPage() {
         </ol>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button asChild size="sm">
-            <Link href="/workspace">回到 Workspace Hub</Link>
+            <Link href={currentAccountId ? buildAccountHref(currentAccountId) : "/"}>回到 Workspace Hub</Link>
           </Button>
           {activeOrganizationId && (
             <Button asChild size="sm" variant="outline">
-              <Link href="/organization/members">組織治理模組</Link>
+              <Link href={buildAccountHref(activeOrganizationId, "/organization/members")}>組織治理模組</Link>
             </Button>
           )}
         </div>
@@ -77,13 +86,13 @@ export default function OrganizationPage() {
           <h2 className="text-base font-semibold">組織功能</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {[
-              { href: "/organization/members", title: "成員管理", desc: "邀請與管理組織成員" },
-              { href: "/organization/teams", title: "團隊管理", desc: "建立與編輯團隊" },
-              { href: "/organization/permissions", title: "權限政策", desc: "設定存取規則" },
-              { href: "/organization/workspaces", title: "工作區", desc: "組織下的工作區清單" },
-              { href: "/organization/schedule", title: "工作需求排程", desc: "排程與容量總覽" },
-              { href: "/organization/audit", title: "稽核記錄", desc: "操作歷史追蹤" },
-              { href: "/organization/daily", title: "動態牆", desc: "組織工作區動態" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/members") : "", title: "成員管理", desc: "邀請與管理組織成員" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/teams") : "", title: "團隊管理", desc: "建立與編輯團隊" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/permissions") : "", title: "權限政策", desc: "設定存取規則" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/workspaces") : "", title: "工作區", desc: "組織下的工作區清單" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/schedule") : "", title: "工作需求排程", desc: "排程與容量總覽" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/audit") : "", title: "稽核記錄", desc: "操作歷史追蹤" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/daily") : "", title: "動態牆", desc: "組織工作區動態" },
             ].map((item) => (
               <Link key={item.href} href={item.href} className="group">
                 <Card className="h-full transition-colors group-hover:border-primary/50 group-hover:bg-accent/40">
