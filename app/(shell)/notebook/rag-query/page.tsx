@@ -2,15 +2,13 @@
 
 import { useSearchParams } from "next/navigation";
 
-import { resolveWorkspaceFromMap, useWorkspaceContext } from "@/modules/workspace/api";
+import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
 import { RagQueryView } from "@/modules/notebooklm/api";
 
 export default function NotebookRagQueryPage() {
   const searchParams = useSearchParams();
-  const { state: wsState } = useWorkspaceContext();
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const resolvedWorkspace = resolveWorkspaceFromMap(wsState.workspaces, requestedWorkspaceId);
-  const workspaceId = resolvedWorkspace?.id ?? wsState.activeWorkspaceId ?? undefined;
+  const requestedWorkspaceId = searchParams.get("workspaceId") ?? "";
+  const { workspaceId } = useWorkspaceOrchestrationContext({ requestedWorkspaceId });
 
   return (
     <div className="space-y-4">
@@ -20,7 +18,7 @@ export default function NotebookRagQueryPage() {
         <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
       </header>
 
-      <RagQueryView workspaceId={workspaceId} />
+      <RagQueryView workspaceId={workspaceId || undefined} />
     </div>
   );
 }

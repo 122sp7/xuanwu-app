@@ -1,16 +1,10 @@
 "use client";
 
-import { useApp, useAuth } from "@/modules/platform/api"
-import { useWorkspaceContext } from "@/modules/workspace/api";
+import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
 import { LibrariesView, LibraryTableView } from "@/modules/notebooklm/api";
 
 export default function SourceLibrariesPage() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = wsState.activeWorkspaceId ?? undefined;
+  const { accountId, workspaceId } = useWorkspaceOrchestrationContext();
 
   return (
     <div className="space-y-4">
@@ -24,8 +18,8 @@ export default function SourceLibrariesPage() {
 
       {accountId ? (
         <>
-          <LibraryTableView accountId={accountId} workspaceId={workspaceId} />
-          <LibrariesView accountId={accountId} workspaceId={workspaceId} />
+          <LibraryTableView accountId={accountId} workspaceId={workspaceId || undefined} />
+          <LibrariesView accountId={accountId} workspaceId={workspaceId || undefined} />
         </>
       ) : (
         <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">

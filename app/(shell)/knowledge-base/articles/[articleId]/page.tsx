@@ -1,17 +1,10 @@
 "use client";
 
-import { useApp, useAuth } from "@/modules/platform/api"
-import { useWorkspaceContext } from "@/modules/workspace/api";
+import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
 import { ArticleDetailPage } from "@/modules/notion/api";
 
 export default function ArticleDetailPageRoute() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = wsState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
+  const { accountId, workspaceId, currentUserId } = useWorkspaceOrchestrationContext();
 
   return (
     <ArticleDetailPage

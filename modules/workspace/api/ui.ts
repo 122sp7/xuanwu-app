@@ -82,6 +82,11 @@ export {
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
 export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
+export type {
+  UseWorkspaceOrchestrationContextOptions,
+  WorkspaceOrchestrationContext,
+} from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
+export { useWorkspaceOrchestrationContext } from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
 export {
   MAX_VISIBLE_RECENT_WORKSPACES,
   getWorkspaceIdFromPath,
