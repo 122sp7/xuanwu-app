@@ -12,6 +12,9 @@
   ],
   "ignore": {
     "useGitignore": true,
-    "useDefaultPatterns": true
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      ".github/skills/**"
+    ]
   }
 }
