@@ -117,11 +117,11 @@ export function KnowledgePagesPanel({
 
       {!resolvedAccountId ? (
         <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          撠??撣唾???嚗???乓?
+          Account is required to load pages.
         </p>
       ) : !isAccountSummary && !resolvedWorkspaceId ? (
         <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          撠?詨?撌乩??????撌乩???脣?亥??嚗??函雯?撣嗅 workspaceId 敺??亦??璅嫘?
+          Workspace ID is required when viewing workspace-scoped pages.
         </p>
       ) : loading ? (
         <div className="space-y-2">

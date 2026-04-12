@@ -44,6 +44,67 @@ Strategic architecture documentation lives in `docs/contexts/notebooklm/`:
 
 ````
 
+## File: modules/notebooklm/domain/events/index.ts
+````typescript
+export type { NotebookLmDomainEvent } from "./NotebookLmDomainEvent";
+````
+
+## File: modules/notebooklm/domain/events/NotebookLmDomainEvent.ts
+````typescript
+/**
+ * Module: notebooklm
+ * Layer: domain/events (context-wide)
+ * Purpose: Base domain event interface for the notebooklm bounded context.
+ *          All subdomain events should extend this interface.
+ */
+
+export interface NotebookLmDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
+}
+````
+
+## File: modules/notebooklm/domain/published-language/index.ts
+````typescript
+/**
+ * Module: notebooklm
+ * Layer: domain (context-wide published language)
+ * Purpose: Reference types consumed by downstream or upstream modules.
+ *
+ * These types represent the notebooklm bounded context's public vocabulary.
+ * Consumers receive opaque references — never raw aggregates.
+ *
+ * Context Map tokens:
+ *   - NotebookReference: identifies a notebook container
+ *   - SourceReference: identifies a source document
+ *   - ConversationReference: identifies a conversation thread
+ */
+
+/** Opaque reference to a Notebook aggregate (cross-module token) */
+export interface NotebookReference {
+  readonly notebookId: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+}
+
+/** Opaque reference to a Source document (cross-module token) */
+export interface SourceReference {
+  readonly sourceId: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly displayName: string;
+  readonly mimeType: string;
+}
+
+/** Opaque reference to a Conversation thread (cross-module token) */
+export interface ConversationReference {
+  readonly threadId: string;
+  readonly accountId: string;
+}
+````
+
 ## File: modules/notebooklm/domain/services/.gitkeep
 ````
 
@@ -91,17 +152,6 @@ export interface Thread {
   readonly createdAt: string;
   readonly updatedAt: string;
 }
-````
-
-## File: modules/notebooklm/subdomains/conversation/domain/index.ts
-````typescript
-/**
- * notebooklm/conversation domain — public exports.
- */
-export type { Thread } from "./entities/thread";
-export type { Message } from "./entities/message";
-export type { IThreadRepository } from "./repositories/IThreadRepository";
-export * from "./ports";
 ````
 
 ## File: modules/notebooklm/subdomains/conversation/domain/ports/index.ts
@@ -224,15 +274,6 @@ export interface NotebookResponse {
 export type GenerateNotebookResponseResult =
   | { ok: true; data: NotebookResponse }
   | { ok: false; error: DomainError };
-````
-
-## File: modules/notebooklm/subdomains/notebook/domain/index.ts
-````typescript
-/**
- * notebooklm/notebook domain — public exports.
- */
-export type { NotebookRepository } from "./repositories/NotebookRepository";
-export * from "./ports";
 ````
 
 ## File: modules/notebooklm/subdomains/notebook/domain/ports/index.ts
@@ -1648,17 +1689,6 @@ export interface CreateWikiLibraryRowInput {
 }
 ````
 
-## File: modules/notebooklm/subdomains/source/domain/index.ts
-````typescript
-/**
- * notebooklm/source domain — public exports.
- */
-export type { IRagDocumentRepository } from "./repositories/IRagDocumentRepository";
-export type { ISourceFileRepository } from "./repositories/ISourceFileRepository";
-export type { IWikiLibraryRepository } from "./repositories/IWikiLibraryRepository";
-export * from "./ports";
-````
-
 ## File: modules/notebooklm/subdomains/source/domain/ports/IParsedDocumentPort.ts
 ````typescript
 /**
@@ -1842,6 +1872,203 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/notebooklm/subdomains/synthesis/domain/entities/SynthesisResult.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/entities
+ * Purpose: SynthesisResult — the generated answer with attribution.
+ *
+ * Migration source: ai/domain/entities/generation.entities.ts
+ */
+
+import type { DomainError } from "@shared-types";
+
+/** Attribution claim within a generated answer */
+export interface GenerationCitation {
+  readonly docId: string;
+  readonly chunkIndex: number;
+  readonly page?: number;
+  readonly reason: string;
+}
+
+/** Input to the generation port */
+export interface GenerateAnswerInput {
+  readonly traceId: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly userQuery: string;
+  readonly chunks: readonly {
+    readonly chunkId: string;
+    readonly docId: string;
+    readonly chunkIndex: number;
+    readonly text: string;
+    readonly score: number;
+  }[];
+  readonly model?: string;
+}
+
+/** Successful generation output */
+export interface GenerateAnswerOutput {
+  readonly answer: string;
+  readonly citations: readonly GenerationCitation[];
+  readonly model: string;
+}
+
+/** Discriminated union result */
+export type GenerateAnswerResult =
+  | { ok: true; data: GenerateAnswerOutput }
+  | { ok: false; error: DomainError };
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/events/SynthesisEvents.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/events
+ * Purpose: Domain events for synthesis operations.
+ */
+
+import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
+
+export interface SynthesisCompletedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.synthesis.completed";
+  readonly payload: {
+    readonly traceId: string;
+    readonly model: string;
+    readonly citationCount: number;
+    readonly answerLengthChars: number;
+  };
+}
+
+export interface SynthesisFailedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.synthesis.failed";
+  readonly payload: {
+    readonly traceId: string;
+    readonly errorCode: string;
+    readonly errorMessage: string;
+  };
+}
+````
+
+## File: modules/notebooklm/AGENT.md
+````markdown
+# NotebookLM Agent
+
+> Strategic agent documentation: [docs/contexts/notebooklm/AGENT.md](../../docs/contexts/notebooklm/AGENT.md)
+
+## Mission
+
+保護 notebooklm 主域作為對話、來源處理與推理輸出的邊界。notebooklm 擁有衍生推理流程，不擁有正典知識內容。任何變更都應維持 notebooklm 擁有對話生命週期、來源管理與 RAG pipeline 語言，而不是吸收平台治理或正典知識語言。
+
+## Bounded Context Summary
+
+| Aspect | Description |
+|--------|-------------|
+| Primary role | 對話、來源處理與推理輸出 |
+| Upstream | platform（治理、AI capability）、workspace（scope）、notion（knowledge artifact reference） |
+| Downstream | 無固定主域級下游；輸出可被其他主域吸收 |
+| Core invariant | notebooklm 只能持有衍生推理輸出，不得直接修改 notion 的正典內容 |
+| Published language | Notebook reference、Conversation reference、SourceReference、GroundedAnswer |
+
+## Bounded Contexts
+
+| Cluster | Subdomains | Responsibility |
+|---------|------------|----------------|
+| Interaction Core | notebook, conversation | 對話容器與互動生命週期 |
+| Source & RAG Pipeline | source, synthesis | 來源管理與完整 RAG pipeline（retrieval → grounding → synthesis → evaluation） |
+
+## Route Here When
+
+- 問題核心是 notebook、conversation、source、synthesis（RAG pipeline）。
+- 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
+- 問題要把知識來源（notion artifact、uploaded file）轉成可對話與可綜合的推理材料。
+- 問題涉及 RAG 問答、向量檢索、chunks 召回、generation 品質。
+- 問題涉及 evaluation、品質評估、回歸比較或 grounding 可信度。
+
+## Route Elsewhere When
+
+- 正典知識頁面、文章、分類、正式發布屬於 notion。
+- 身份、授權、權益、憑證治理屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
+- 工作區生命週期、成員管理、共享範圍屬於 workspace。
+
+## Subdomains
+
+| Subdomain | Purpose | Key Aggregates / Entities |
+|-----------|---------|---------------------------|
+| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
+| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration, NotebookRepository |
+| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary, SourceRetentionPolicy |
+| synthesis | 完整 RAG pipeline：retrieval、grounding、synthesis、evaluation | AnswerRagQueryUseCase, RagScoringService, RagCitationBuilder, RagPromptBuilder |
+
+### Future Split Triggers
+
+`synthesis` 子域將四個 RAG 關注點作為內部 facets 持有。只有當以下觸發條件成立時，才拆分為獨立子域：
+
+| Facet | Split Trigger |
+|-------|---------------|
+| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
+| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
+| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
+| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
+
+### Domain Invariants
+
+- notebooklm 只擁有衍生推理流程，不擁有正典知識內容。
+- shared AI capability 由 platform.ai 提供；notebooklm 在 synthesis 擁有 retrieval、grounding、generation、evaluation 的本地語義。
+- grounding 應能把輸出對齊到來源證據。
+- retrieval 是 generation 的上游能力。
+- evaluation 應描述品質，而不是單純使用量。
+- 任何要成為正式知識內容的輸出，都必須交由 notion 吸收。
+
+## Ubiquitous Language
+
+| Term | Meaning | Owning Subdomain | Do Not Use |
+|------|---------|------------------|------------|
+| Notebook | 聚合對話、來源與衍生筆記的工作單位 | notebook | Project, Workspace |
+| AgentGeneration | GenKit 代理回應生成 | notebook | - |
+| Conversation | Notebook 內的對話執行邊界 | conversation | Chat, Session |
+| Thread | 一段對話的容器 | conversation | - |
+| Message | 一則輸入或輸出對話項 | conversation | Turn, Exchange |
+| Source | 被引用與推理的來源材料 | source | File, Document (generic) |
+| SourceFile | 使用者上傳的原始檔案 | source | - |
+| RagDocument | 來源文件在 RAG pipeline 中的表示 | source | - |
+| WikiLibrary | 結構化知識來源庫 | source | - |
+| Ingestion | 來源匯入、正規化與前處理流程 | source | File Import, Upload |
+| Retrieval | 從來源中召回候選片段的查詢能力 | synthesis | Search, Lookup |
+| Grounding | 把輸出對齊到來源證據的能力 | synthesis | Verification, Factcheck |
+| Citation | 輸出指回來源證據的引用關係 | synthesis | Reference, Link |
+| Synthesis | 綜合多來源後生成的衍生輸出 | synthesis | Answer, Response (generic) |
+| Evaluation | 對輸出品質、回歸結果與效果的評估 | synthesis | Analytics, Metrics (generic) |
+| RelevanceScore | 檢索結果的相關性分數 | synthesis | - |
+
+### Avoid
+
+| Avoid | Use Instead |
+|-------|-------------|
+| Chat | Conversation |
+| File Import | Ingestion |
+| Search Step | Retrieval |
+| Verified Answer | Grounded Synthesis |
+| Knowledge / Wiki | Synthesis output（正典知識屬 notion） |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+api/ ← 唯一跨模組入口
+```
+
+## Development Order (Domain-First)
+
+1. Define Domain (entities, value objects, aggregates, events)
+2. Define Application (use cases, DTOs)
+3. Define Ports (only if boundary isolation needed)
+4. Implement Infrastructure (adapters, persistence)
+5. Implement Interfaces (UI, actions, hooks)
+````
+
 ## File: modules/notebooklm/application/dtos/index.ts
 ````typescript
 export * as conversationDtos from '../../subdomains/conversation/application/dto/conversation.dto';
@@ -1851,81 +2078,6 @@ export * as sourceFileDtos from '../../subdomains/source/application/dto/source-
 export * as sourceLiveDocumentDtos from '../../subdomains/source/application/dto/source-live-document.dto';
 export * as sourcePipelineDtos from '../../subdomains/source/application/dto/source-pipeline.dto';
 export * as ragDocumentDtos from '../../subdomains/source/application/dto/rag-document.dto';
-````
-
-## File: modules/notebooklm/application/use-cases/index.ts
-````typescript
-export * as notebookUseCases from '../../subdomains/notebook/application/use-cases/generate-notebook-response.use-case';
-export * as sourceUseCases from '../../subdomains/source/application/use-cases/source-pipeline.use-cases';
-export * as sourceUploadInitUseCase from '../../subdomains/source/application/use-cases/upload-init-source-file.use-case';
-export * as sourceUploadCompleteUseCase from '../../subdomains/source/application/use-cases/upload-complete-source-file.use-case';
-export * as sourceRegisterRagDocumentUseCase from '../../subdomains/source/application/use-cases/register-rag-document.use-case';
-export * as sourceRenameSourceDocumentUseCase from '../../subdomains/source/application/use-cases/rename-source-document.use-case';
-export * as sourceDeleteSourceDocumentUseCase from '../../subdomains/source/application/use-cases/delete-source-document.use-case';
-export * as sourceCreateKnowledgeDraftUseCase from '../../subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case';
-export * as sourceWikiLibraryUseCases from '../../subdomains/source/application/use-cases/wiki-library.use-cases';
-export * as synthesisUseCases from '../../subdomains/synthesis/application';
-````
-
-## File: modules/notebooklm/domain/events/index.ts
-````typescript
-export type { NotebookLmDomainEvent } from "./NotebookLmDomainEvent";
-````
-
-## File: modules/notebooklm/domain/events/NotebookLmDomainEvent.ts
-````typescript
-/**
- * Module: notebooklm
- * Layer: domain/events (context-wide)
- * Purpose: Base domain event interface for the notebooklm bounded context.
- *          All subdomain events should extend this interface.
- */
-
-export interface NotebookLmDomainEvent {
-  readonly eventId: string;
-  readonly occurredAt: string;
-  readonly type: string;
-  readonly payload: object;
-}
-````
-
-## File: modules/notebooklm/domain/published-language/index.ts
-````typescript
-/**
- * Module: notebooklm
- * Layer: domain (context-wide published language)
- * Purpose: Reference types consumed by downstream or upstream modules.
- *
- * These types represent the notebooklm bounded context's public vocabulary.
- * Consumers receive opaque references — never raw aggregates.
- *
- * Context Map tokens:
- *   - NotebookReference: identifies a notebook container
- *   - SourceReference: identifies a source document
- *   - ConversationReference: identifies a conversation thread
- */
-
-/** Opaque reference to a Notebook aggregate (cross-module token) */
-export interface NotebookReference {
-  readonly notebookId: string;
-  readonly accountId: string;
-  readonly workspaceId?: string;
-}
-
-/** Opaque reference to a Source document (cross-module token) */
-export interface SourceReference {
-  readonly sourceId: string;
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly displayName: string;
-  readonly mimeType: string;
-}
-
-/** Opaque reference to a Conversation thread (cross-module token) */
-export interface ConversationReference {
-  readonly threadId: string;
-  readonly accountId: string;
-}
 ````
 
 ## File: modules/notebooklm/infrastructure/conversation/firebase/FirebaseThreadRepository.ts
@@ -3541,13 +3693,13 @@ export async function loadThread(accountId: string, threadId: string): Promise<T
 }
 ````
 
-## File: modules/notebooklm/interfaces/conversation/components/AiChatPage.tsx
+## File: modules/notebooklm/interfaces/conversation/components/ConversationPanel.tsx
 ````typescript
 "use client";
 
 /**
  * Module: notebooklm/subdomains/conversation
- * Component: AiChatPage
+ * Component: ConversationPanel
  * Purpose: Full-page AI chat UI — wired to conversation server actions.
  *          Thread persistence via Firestore. Multi-turn context support.
  *
@@ -3556,8 +3708,6 @@ export async function loadThread(accountId: string, threadId: string): Promise<T
 
 import Link from "next/link";
 import { Bot, BookOpen, Brain, FileText, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { v7 as uuid } from "@lib-uuid";
 
 import type { WorkspaceEntity } from "@/modules/workspace/api";
 import { resolveWorkspaceFromMap, WorkspaceContextCard } from "@/modules/workspace/api";
@@ -3565,18 +3715,11 @@ import { cn } from "@shared-utils";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 
-import { sendChatMessage, saveThread, loadThread } from "../_actions/chat.actions";
-import {
-  type ChatMessage,
-  STORAGE_KEY,
-  buildContextPrompt,
-  generateMsgId,
-  threadFromMessages,
-} from "../helpers";
+import { useAiChatThread } from "../hooks/useAiChatThread";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-export interface AiChatPageProps {
+export interface ConversationPanelProps {
   accountId: string;
   workspaces: Record<string, WorkspaceEntity>;
   requestedWorkspaceId: string;
@@ -3584,14 +3727,20 @@ export interface AiChatPageProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function AiChatPage({ accountId, workspaces, requestedWorkspaceId }: AiChatPageProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
-  const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [threadId, setThreadId] = useState<string | null>(null);
-  const [threadCreatedAt, setThreadCreatedAt] = useState<string>(new Date().toISOString());
-  const bottomRef = useRef<HTMLDivElement>(null);
+export function ConversationPanel({ accountId, workspaces, requestedWorkspaceId }: ConversationPanelProps) {
+  const {
+    messages,
+    input,
+    isPending,
+    error,
+    threadId,
+    summaryItems,
+    bottomRef,
+    setInput,
+    handleSubmit,
+    handleNewThread,
+    handleKeyDown,
+  } = useAiChatThread({ accountId, requestedWorkspaceId });
 
   const currentWorkspace = resolveWorkspaceFromMap(workspaces, requestedWorkspaceId);
   const workspaceName = currentWorkspace?.name ?? null;
@@ -3599,106 +3748,6 @@ export function AiChatPage({ accountId, workspaces, requestedWorkspaceId }: AiCh
   const workspaceRouteRoot = currentWorkspace
     ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(currentWorkspace.id)}`
     : `/${encodeURIComponent(accountId)}`;
-  const latestUserPrompt = [...messages].reverse().find((m) => m.role === "user")?.content ?? null;
-
-  // Load persisted thread on mount
-  useEffect(() => {
-    if (!accountId) return;
-    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-    const storedId = localStorage.getItem(storageKey);
-    if (!storedId) return;
-    setThreadId(storedId);
-    void loadThread(accountId, storedId).then((thread) => {
-      if (!thread || thread.messages.length === 0) return;
-      setThreadCreatedAt(thread.createdAt);
-      setMessages(
-        thread.messages
-          .filter((m) => m.role === "user" || m.role === "assistant")
-          .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })),
-      );
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId]);
-
-  const summaryItems = useMemo(() => {
-    if (messages.length === 0) {
-      return [
-        "先整理來源文件與工作區脈絡，再開始對話。",
-        "需要帶引用的回答時，可搭配 Ask / Cite 使用。",
-      ];
-    }
-    return [
-      `目前已有 ${messages.length} 則訊息，包含 ${messages.filter((m) => m.role === "assistant").length} 次模型回覆。`,
-      latestUserPrompt ? `最近一次提問：${latestUserPrompt}` : "最近一次提問尚未建立。",
-    ];
-  }, [latestUserPrompt, messages]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text || isPending) return;
-
-    const userMsg: ChatMessage = { id: generateMsgId(), role: "user", content: text };
-    const nextMessages = [...messages, userMsg];
-    setMessages(nextMessages);
-    setInput("");
-    setError(null);
-    setIsPending(true);
-
-    const contextPrompt = buildContextPrompt(messages);
-
-    try {
-      const result = await sendChatMessage({
-        prompt: text,
-        ...(contextPrompt ? { system: contextPrompt } : {}),
-      });
-      if (result.ok) {
-        const assistantMsg: ChatMessage = {
-          id: generateMsgId(),
-          role: "assistant",
-          content: result.data.text,
-        };
-        const finalMessages = [...nextMessages, assistantMsg];
-        setMessages(finalMessages);
-
-        if (accountId) {
-          const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-          let currentThreadId = threadId;
-          if (!currentThreadId) {
-            currentThreadId = uuid();
-            setThreadId(currentThreadId);
-            localStorage.setItem(storageKey, currentThreadId);
-          }
-          const thread = threadFromMessages(currentThreadId, finalMessages, threadCreatedAt);
-          void saveThread(accountId, thread);
-        }
-      } else {
-        setError(result.error.message);
-      }
-    } catch {
-      setError("無法連接至 AI 服務，請稍後再試。");
-    } finally {
-      setIsPending(false);
-      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
-    }
-  }
-
-  function handleNewThread() {
-    if (!accountId) return;
-    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-    localStorage.removeItem(storageKey);
-    setThreadId(null);
-    setMessages([]);
-    setThreadCreatedAt(new Date().toISOString());
-    setError(null);
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSubmit(e as unknown as React.FormEvent);
-    }
-  }
 
   return (
     <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -3924,6 +3973,176 @@ export function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: s
     messages: msgs.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: new Date().toISOString() })),
     createdAt,
     updatedAt: new Date().toISOString(),
+  };
+}
+````
+
+## File: modules/notebooklm/interfaces/conversation/hooks/useAiChatThread.ts
+````typescript
+import { useEffect, useMemo, useRef, useState } from "react";
+import { v7 as uuid } from "@lib-uuid";
+
+import { sendChatMessage, saveThread, loadThread } from "../_actions/chat.actions";
+import {
+  type ChatMessage,
+  STORAGE_KEY,
+  buildContextPrompt,
+  generateMsgId,
+  threadFromMessages,
+} from "../helpers";
+
+export interface UseAiChatThreadParams {
+  accountId: string;
+  requestedWorkspaceId: string;
+}
+
+export interface UseAiChatThreadResult {
+  messages: ChatMessage[];
+  input: string;
+  isPending: boolean;
+  error: string | null;
+  threadId: string | null;
+  summaryItems: string[];
+  bottomRef: React.RefObject<HTMLDivElement | null>;
+  setInput: (value: string) => void;
+  handleSubmit: (e?: React.FormEvent) => Promise<void>;
+  handleNewThread: () => void;
+  handleKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+}
+
+function isBlank(value: string): boolean {
+  return value.trim().length === 0;
+}
+
+export function useAiChatThread({
+  accountId,
+  requestedWorkspaceId,
+}: UseAiChatThreadParams): UseAiChatThreadResult {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [threadCreatedAt, setThreadCreatedAt] = useState<string>(new Date().toISOString());
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const latestUserPrompt = [...messages].reverse().find((m) => m.role === "user")?.content ?? null;
+
+  useEffect(() => {
+    if (!accountId) return;
+    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+    const storedId = localStorage.getItem(storageKey);
+    if (!storedId) return;
+
+    setThreadId(storedId);
+    void loadThread(accountId, storedId).then((thread) => {
+      if (!thread || thread.messages.length === 0) return;
+      setThreadCreatedAt(thread.createdAt);
+      setMessages(
+        thread.messages
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })),
+      );
+    });
+  }, [accountId, requestedWorkspaceId]);
+
+  const summaryItems = useMemo(() => {
+    if (messages.length === 0) {
+      return [
+        "先整理來源文件與工作區脈絡，再開始對話。",
+        "需要帶引用的回答時，可搭配 Ask / Cite 使用。",
+      ];
+    }
+
+    return [
+      `目前已有 ${messages.length} 則訊息，包含 ${messages.filter((m) => m.role === "assistant").length} 次模型回覆。`,
+      latestUserPrompt ? `最近一次提問：${latestUserPrompt}` : "最近一次提問尚未建立。",
+    ];
+  }, [latestUserPrompt, messages]);
+
+  async function handleSubmit(e?: React.FormEvent): Promise<void> {
+    e?.preventDefault();
+    const text = input.trim();
+    if (isBlank(text) || isPending) return;
+
+    const userMsg: ChatMessage = { id: generateMsgId(), role: "user", content: text };
+    const nextMessages = [...messages, userMsg];
+    setMessages(nextMessages);
+    setInput("");
+    setError(null);
+    setIsPending(true);
+
+    const contextPrompt = buildContextPrompt(messages);
+
+    try {
+      const result = await sendChatMessage({
+        prompt: text,
+        ...(contextPrompt ? { system: contextPrompt } : {}),
+      });
+
+      if (!result.ok) {
+        setError(result.error.message);
+        return;
+      }
+
+      const assistantMsg: ChatMessage = {
+        id: generateMsgId(),
+        role: "assistant",
+        content: result.data.text,
+      };
+      const finalMessages = [...nextMessages, assistantMsg];
+      setMessages(finalMessages);
+
+      if (accountId) {
+        const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+        let currentThreadId = threadId;
+        if (!currentThreadId) {
+          currentThreadId = uuid();
+          setThreadId(currentThreadId);
+          localStorage.setItem(storageKey, currentThreadId);
+        }
+
+        const thread = threadFromMessages(currentThreadId, finalMessages, threadCreatedAt);
+        void saveThread(accountId, thread);
+      }
+    } catch {
+      setError("無法連接至 AI 服務，請稍後再試。");
+    } finally {
+      setIsPending(false);
+      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
+    }
+  }
+
+  function handleNewThread(): void {
+    if (!accountId) return;
+    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+    localStorage.removeItem(storageKey);
+
+    setThreadId(null);
+    setMessages([]);
+    setThreadCreatedAt(new Date().toISOString());
+    setError(null);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>): void {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void handleSubmit();
+    }
+  }
+
+  return {
+    messages,
+    input,
+    isPending,
+    error,
+    threadId,
+    summaryItems,
+    bottomRef,
+    setInput,
+    handleSubmit,
+    handleNewThread,
+    handleKeyDown,
   };
 }
 ````
@@ -4675,7 +4894,7 @@ export function FileProcessingDialog({
 }
 ````
 
-## File: modules/notebooklm/interfaces/source/components/LibrariesView.tsx
+## File: modules/notebooklm/interfaces/source/components/LibrariesPanel.tsx
 ````typescript
 "use client";
 
@@ -4693,7 +4912,7 @@ import {
   type WikiLibraryRow,
 } from "../../../subdomains/source/api";
 
-interface WikiLibrariesViewProps {
+interface LibrariesPanelProps {
   readonly accountId: string;
   readonly workspaceId?: string;
 }
@@ -4713,7 +4932,7 @@ function parseFieldType(value: string): WikiLibraryFieldType {
   return "text";
 }
 
-export function LibrariesView({ accountId, workspaceId }: WikiLibrariesViewProps) {
+export function LibrariesPanel({ accountId, workspaceId }: LibrariesPanelProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [libraries, setLibraries] = useState<WikiLibrary[]>([]);
@@ -4918,7 +5137,7 @@ export function LibrariesView({ accountId, workspaceId }: WikiLibrariesViewProps
 }
 ````
 
-## File: modules/notebooklm/interfaces/source/components/LibraryTableView.tsx
+## File: modules/notebooklm/interfaces/source/components/LibraryTablePanel.tsx
 ````typescript
 "use client";
 
@@ -4936,7 +5155,7 @@ import { draggable, dropTargetForElements, monitorForElements } from "@lib-dragd
 
 import { getWikiLibrarySnapshot, listWikiLibraries, type WikiLibraryRow } from "../../../subdomains/source/api";
 
-interface LibraryTableViewProps {
+interface LibraryTablePanelProps {
   readonly accountId: string;
   readonly workspaceId?: string;
 }
@@ -4946,13 +5165,13 @@ type RowData = WikiLibraryRow & { _values: Record<string, unknown> };
 const columnHelper = createColumnHelper<RowData>();
 
 /**
- * LibraryTableView
+ * LibraryTablePanel
  *
  * TanStack Table rendering library rows with:
  * - Column-level text filter (global filter input)
  * - Drag-to-reorder rows via pragmatic-drag-and-drop
  */
-export function LibraryTableView({ accountId, workspaceId }: LibraryTableViewProps) {
+export function LibraryTablePanel({ accountId, workspaceId }: LibraryTablePanelProps) {
   const [libraries, setLibraries] = useState<{ id: string; name: string }[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [fieldKeys, setFieldKeys] = useState<string[]>([]);
@@ -5153,7 +5372,7 @@ function DraggableRow({ rowId, children }: DraggableRowProps) {
 }
 ````
 
-## File: modules/notebooklm/interfaces/source/components/SourceDocumentsView.tsx
+## File: modules/notebooklm/interfaces/source/components/SourceDocumentsPanel.tsx
 ````typescript
 "use client";
 
@@ -5179,12 +5398,12 @@ const ACCEPTED_MIME: Record<string, string> = {
 };
 const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
 
-interface SourceDocumentsViewProps {
+interface SourceDocumentsPanelProps {
   readonly workspaceId?: string;
 }
 
 /** Upload dropzone + real-time document list backed by Firebase onSnapshot. */
-export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
+export function SourceDocumentsPanel({ workspaceId }: SourceDocumentsPanelProps) {
   const { state: appState } = useApp();
   const activeAccountId = appState.activeAccount?.id ?? "";
   const effectiveWorkspaceId = workspaceId?.trim() ?? "";
@@ -5733,7 +5952,51 @@ export async function getWorkspaceRagDocuments(
 }
 ````
 
-## File: modules/notebooklm/interfaces/synthesis/components/RagQueryView.tsx
+## File: modules/notebooklm/interfaces/synthesis/_actions/rag-query.actions.ts
+````typescript
+"use server";
+
+import { runKnowledgeRagQuery } from "../../../subdomains/synthesis/api/server";
+import type { KnowledgeRagQueryResult } from "../../../subdomains/synthesis/domain/repositories/IKnowledgeContentRepository";
+
+function isBlank(value: string): boolean {
+  return value.trim().length === 0;
+}
+
+export interface RunKnowledgeRagQueryInput {
+  query: string;
+  accountId: string;
+  workspaceId: string;
+  topK?: number;
+  requireReady?: boolean;
+  maxAgeDays?: number;
+}
+
+export async function runKnowledgeRagQueryAction(
+  input: RunKnowledgeRagQueryInput,
+): Promise<KnowledgeRagQueryResult> {
+  if (
+    isBlank(input.query)
+    || isBlank(input.accountId)
+    || isBlank(input.workspaceId)
+  ) {
+    throw new Error("Invalid rag query input.");
+  }
+
+  return runKnowledgeRagQuery(
+    input.query,
+    input.accountId,
+    input.workspaceId,
+    input.topK ?? 4,
+    {
+      requireReady: input.requireReady,
+      maxAgeDays: input.maxAgeDays,
+    },
+  );
+}
+````
+
+## File: modules/notebooklm/interfaces/synthesis/components/RagQueryPanel.tsx
 ````typescript
 "use client";
 
@@ -5761,14 +6024,15 @@ import {
 } from "@ui-shadcn/ui/card";
 import { Textarea } from "@ui-shadcn/ui/textarea";
 
-import { runKnowledgeRagQuery, type KnowledgeCitation } from "../../../subdomains/synthesis/api";
+import type { KnowledgeCitation } from "../../../subdomains/synthesis/api";
+import { runKnowledgeRagQueryAction } from "../_actions/rag-query.actions";
 
-interface RagQueryViewProps {
+interface RagQueryPanelProps {
   readonly workspaceId?: string;
 }
 
 /** Minimal RAG query chat interface. Uses local useState only — no streaming, no global state. */
-export function RagQueryView({ workspaceId }: RagQueryViewProps) {
+export function RagQueryPanel({ workspaceId }: RagQueryPanelProps) {
   const { state: appState } = useApp();
   const { state: authState } = useAuth();
   const activeAccountId = appState.activeAccount?.id ?? "";
@@ -5801,10 +6065,23 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
 
     setLoading(true);
     try {
-      let result = await runKnowledgeRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, { requireReady: true });
+      let result = await runKnowledgeRagQueryAction({
+        query: q,
+        accountId: activeAccountId,
+        workspaceId: effectiveWorkspaceId,
+        topK: 4,
+        requireReady: true,
+      });
       // Compatibility fallback for older vectors without ready status.
       if (result.citations.length === 0 && (result.vectorHits > 0 || result.searchHits > 0)) {
-        result = await runKnowledgeRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, { requireReady: false, maxAgeDays: 3650 });
+        result = await runKnowledgeRagQueryAction({
+          query: q,
+          accountId: activeAccountId,
+          workspaceId: effectiveWorkspaceId,
+          topK: 4,
+          requireReady: false,
+          maxAgeDays: 3650,
+        });
       }
       setAnswer(result.answer);
       setCitations(result.citations);
@@ -5922,6 +6199,94 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
 }
 ````
 
+## File: modules/notebooklm/README.md
+````markdown
+# NotebookLM
+
+對話、來源處理與推理主域
+
+## Bounded Context
+
+| Aspect | Description |
+|--------|-------------|
+| Primary role | 對話、來源處理、檢索與推理輸出 |
+| Upstream | platform（治理、AI capability）、workspace（scope）、notion（knowledge artifact, attachment reference） |
+| Downstream | 無固定主域級下游；GroundedAnswer 可被其他主域消費 |
+| Core principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容 |
+| Cross-module boundary | `api/` only — no direct import of notion/platform/workspace internals |
+
+## Ubiquitous Language
+
+| Term | Meaning |
+|------|---------|
+| Notebook | 聚合對話、來源與衍生筆記的工作單位 |
+| Conversation | Notebook 內的對話執行邊界（Thread + Messages） |
+| Message | 一則輸入或輸出對話項 |
+| Source | 被引用與推理的來源材料 |
+| Ingestion | 來源匯入、正規化與前處理流程（TypeScript 側協調 py_fn） |
+| Retrieval | 從來源中召回候選 Chunk 的查詢能力（向量搜尋） |
+| Grounding | 把輸出對齊到來源證據、建立 Citation 的能力 |
+| Citation | 輸出指回來源證據的引用關係 |
+| Synthesis | 綜合多來源後生成的衍生輸出（RAG generation） |
+| Evaluation | 對輸出品質、feedback 與回歸結果的評估 |
+
+## Implementation Structure
+
+```text
+modules/notebooklm/
+├── api/              # Public API boundary — cross-module entry point only
+├── application/      # Context-wide orchestration (empty, use subdomain layers)
+├── domain/           # Context-wide domain concepts (events, published-language)
+├── infrastructure/   # Context-wide driven adapters (empty, use subdomain layers)
+├── interfaces/       # Context-wide driving adapters (RagQueryView composition)
+├── docs/             # Links to strategic documentation
+└── subdomains/
+    ├── conversation/  # Tier 1 — 對話 Thread 與 Message
+    ├── notebook/      # Tier 1 — Notebook 容器與 GenKit 生成
+    ├── source/        # Tier 1 — 來源文件與 ingestion 編排
+    └── synthesis/     # Tier 1 — 完整 RAG pipeline（retrieval → grounding → synthesis → evaluation）
+```
+
+## Subdomains
+
+| Subdomain | Purpose | Key Aggregates / Entities |
+|-----------|---------|--------------------------|
+| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
+| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration |
+| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary |
+| synthesis | 完整 RAG pipeline：retrieval、grounding、answer generation、evaluation/feedback | AnswerRagQueryUseCase, SubmitRagQueryFeedbackUseCase, RagScoringService, RagCitationBuilder, RagPromptBuilder |
+
+### Future Split Triggers
+
+`synthesis` 子域將四個 RAG 關注點作為內部 facets 持有。只有當以下觸發條件成立時，才拆分為獨立子域：
+
+| Facet | Split Trigger |
+|-------|---------------|
+| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
+| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
+| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
+| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `api/` is the only cross-module public boundary.
+- `domain/` must not import infrastructure, interfaces, React, Firebase SDK, or any runtime framework.
+- Cross-module collaboration goes through `api/` only.
+
+## Strategic Documentation
+
+- [Context README](../../docs/contexts/notebooklm/README.md)
+- [Subdomains](../../docs/contexts/notebooklm/subdomains.md)
+- [Bounded Context](../../docs/contexts/notebooklm/bounded-contexts.md)
+- [Context Map](../../docs/contexts/notebooklm/context-map.md)
+- [Ubiquitous Language](../../docs/contexts/notebooklm/ubiquitous-language.md)
+- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
+````
+
 ## File: modules/notebooklm/subdomains/conversation/api/factories.ts
 ````typescript
 import { FirebaseThreadRepository } from "../../../infrastructure/conversation/firebase/FirebaseThreadRepository";
@@ -5931,32 +6296,57 @@ export function makeThreadRepo() {
 }
 ````
 
-## File: modules/notebooklm/subdomains/conversation/api/index.ts
+## File: modules/notebooklm/subdomains/conversation/domain/events/ConversationEvents.ts
 ````typescript
 /**
- * Public API boundary for the conversation subdomain.
- *
- * Cross-module consumers MUST import through this entry point.
+ * Module: notebooklm/subdomains/conversation
+ * Layer: domain/events
+ * Purpose: Domain events for conversation operations.
  */
 
-export { AiChatPage } from "../../../interfaces/conversation/components/AiChatPage";
-export type { AiChatPageProps } from "../../../interfaces/conversation/components/AiChatPage";
+import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
 
-export type { ChatMessage } from "../../../interfaces/conversation/helpers";
-export {
-  STORAGE_KEY,
-  buildContextPrompt,
-  generateMsgId,
-  threadFromMessages,
-} from "../../../interfaces/conversation/helpers";
+export interface ThreadCreatedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.conversation.thread_created";
+  readonly payload: {
+    readonly threadId: string;
+    readonly accountId: string;
+  };
+}
 
-// Domain types
-export type { Message, MessageRole } from "../domain/entities/message";
-export type { Thread } from "../domain/entities/thread";
-export type { IThreadRepository } from "../domain/repositories/IThreadRepository";
+export interface MessageAddedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.conversation.message_added";
+  readonly payload: {
+    readonly threadId: string;
+    readonly messageId: string;
+    readonly role: "user" | "assistant" | "system";
+    readonly accountId: string;
+  };
+}
 
-// Thread persistence actions
-export { saveThread, loadThread } from "../../../interfaces/conversation/_actions/thread.actions";
+export interface ThreadArchivedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.conversation.thread_archived";
+  readonly payload: {
+    readonly threadId: string;
+    readonly accountId: string;
+  };
+}
+````
+
+## File: modules/notebooklm/subdomains/conversation/domain/index.ts
+````typescript
+/**
+ * notebooklm/conversation domain — public exports.
+ */
+export type { Thread } from "./entities/thread";
+export type { Message } from "./entities/message";
+export type { IThreadRepository } from "./repositories/IThreadRepository";
+export * from "./ports";
+export type {
+  ThreadCreatedEvent,
+  MessageAddedEvent,
+  ThreadArchivedEvent,
+} from "./events/ConversationEvents";
 ````
 
 ## File: modules/notebooklm/subdomains/notebook/api/index.ts
@@ -5972,6 +6362,51 @@ export type { NotebookRepository } from "../domain/repositories/NotebookReposito
 export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-notebook-response.use-case";
 
 export { generateNotebookResponse } from "../../../interfaces/notebook/_actions/generate-notebook-response.actions";
+````
+
+## File: modules/notebooklm/subdomains/notebook/application/index.ts
+````typescript
+export * as notebookUseCases from "./use-cases/generate-notebook-response.use-case";
+````
+
+## File: modules/notebooklm/subdomains/notebook/domain/events/NotebookEvents.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/notebook
+ * Layer: domain/events
+ * Purpose: Domain events for notebook AI generation operations.
+ */
+
+import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
+
+export interface NotebookResponseGeneratedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.notebook.response_generated";
+  readonly payload: {
+    readonly model: string;
+    readonly finishReason?: string;
+  };
+}
+
+export interface NotebookResponseFailedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.notebook.response_failed";
+  readonly payload: {
+    readonly errorCode: string;
+    readonly errorMessage: string;
+  };
+}
+````
+
+## File: modules/notebooklm/subdomains/notebook/domain/index.ts
+````typescript
+/**
+ * notebooklm/notebook domain — public exports.
+ */
+export type { NotebookRepository } from "./repositories/NotebookRepository";
+export * from "./ports";
+export type {
+  NotebookResponseGeneratedEvent,
+  NotebookResponseFailedEvent,
+} from "./events/NotebookEvents";
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/dto/source-pipeline.dto.ts
@@ -6026,6 +6461,18 @@ export function createIdleExecutionSummary(): SourceProcessingExecutionSummary {
     page: { status: "idle", detail: "尚未決定是否建立 Knowledge Page" },
   };
 }
+````
+
+## File: modules/notebooklm/subdomains/source/application/index.ts
+````typescript
+export * as sourceUseCases from "./use-cases/source-pipeline.use-cases";
+export * as sourceUploadInitUseCase from "./use-cases/upload-init-source-file.use-case";
+export * as sourceUploadCompleteUseCase from "./use-cases/upload-complete-source-file.use-case";
+export * as sourceRegisterRagDocumentUseCase from "./use-cases/register-rag-document.use-case";
+export * as sourceRenameSourceDocumentUseCase from "./use-cases/rename-source-document.use-case";
+export * as sourceDeleteSourceDocumentUseCase from "./use-cases/delete-source-document.use-case";
+export * as sourceCreateKnowledgeDraftUseCase from "./use-cases/create-knowledge-draft-from-source.use-case";
+export * as sourceWikiLibraryUseCases from "./use-cases/wiki-library.use-cases";
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/use-cases/source-pipeline.use-cases.ts
@@ -6121,6 +6568,74 @@ export class ReindexSourceDocumentUseCase {
     }
   }
 }
+````
+
+## File: modules/notebooklm/subdomains/source/domain/events/SourceEvents.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: domain/events
+ * Purpose: Domain events for source document lifecycle operations.
+ */
+
+import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
+
+export interface SourceFileUploadedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.source.file_uploaded";
+  readonly payload: {
+    readonly fileId: string;
+    readonly organizationId: string;
+    readonly workspaceId: string;
+    readonly accountId: string;
+    readonly mimeType: string;
+    readonly sizeBytes: number;
+  };
+}
+
+export interface SourceDocumentProcessedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.source.document_processed";
+  readonly payload: {
+    readonly fileId: string;
+    readonly organizationId: string;
+    readonly chunkCount: number;
+  };
+}
+
+export interface SourceDocumentDeletedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.source.document_deleted";
+  readonly payload: {
+    readonly fileId: string;
+    readonly organizationId: string;
+    readonly accountId: string;
+  };
+}
+
+export interface SourceDocumentRenamedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.source.document_renamed";
+  readonly payload: {
+    readonly fileId: string;
+    readonly organizationId: string;
+    readonly previousName: string;
+    readonly newName: string;
+  };
+}
+````
+
+## File: modules/notebooklm/subdomains/source/domain/index.ts
+````typescript
+/**
+ * notebooklm/source domain — public exports.
+ */
+export type { IRagDocumentRepository } from "./repositories/IRagDocumentRepository";
+export type { ISourceFileRepository } from "./repositories/ISourceFileRepository";
+export type { IWikiLibraryRepository } from "./repositories/IWikiLibraryRepository";
+export * from "./ports";
+export type {
+  SourceFileUploadedEvent,
+  SourceDocumentProcessedEvent,
+  SourceDocumentDeletedEvent,
+  SourceDocumentRenamedEvent,
+} from "./events/SourceEvents";
 ````
 
 ## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
@@ -6650,55 +7165,6 @@ export interface RetrievalSummary {
 }
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/domain/entities/SynthesisResult.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: domain/entities
- * Purpose: SynthesisResult — the generated answer with attribution.
- *
- * Migration source: ai/domain/entities/generation.entities.ts
- */
-
-import type { DomainError } from "@shared-types";
-
-/** Attribution claim within a generated answer */
-export interface GenerationCitation {
-  readonly docId: string;
-  readonly chunkIndex: number;
-  readonly page?: number;
-  readonly reason: string;
-}
-
-/** Input to the generation port */
-export interface GenerateAnswerInput {
-  readonly traceId: string;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly userQuery: string;
-  readonly chunks: readonly {
-    readonly chunkId: string;
-    readonly docId: string;
-    readonly chunkIndex: number;
-    readonly text: string;
-    readonly score: number;
-  }[];
-  readonly model?: string;
-}
-
-/** Successful generation output */
-export interface GenerateAnswerOutput {
-  readonly answer: string;
-  readonly citations: readonly GenerationCitation[];
-  readonly model: string;
-}
-
-/** Discriminated union result */
-export type GenerateAnswerResult =
-  | { ok: true; data: GenerateAnswerOutput }
-  | { ok: false; error: DomainError };
-````
-
 ## File: modules/notebooklm/subdomains/synthesis/domain/events/EvaluationEvents.ts
 ````typescript
 /**
@@ -6763,36 +7229,6 @@ export interface RetrievalCompletedEvent extends NotebookLmDomainEvent {
 
 export interface RetrievalFailedEvent extends NotebookLmDomainEvent {
   readonly type: "notebooklm.retrieval.failed";
-  readonly payload: {
-    readonly traceId: string;
-    readonly errorCode: string;
-    readonly errorMessage: string;
-  };
-}
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/events/SynthesisEvents.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: domain/events
- * Purpose: Domain events for synthesis operations.
- */
-
-import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
-
-export interface SynthesisCompletedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.synthesis.completed";
-  readonly payload: {
-    readonly traceId: string;
-    readonly model: string;
-    readonly citationCount: number;
-    readonly answerLengthChars: number;
-  };
-}
-
-export interface SynthesisFailedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.synthesis.failed";
   readonly payload: {
     readonly traceId: string;
     readonly errorCode: string;
@@ -6868,6 +7304,49 @@ export type SynthesisPipelineDomainEventType =
   | RagFeedbackSubmittedEvent;
 ````
 
+## File: modules/notebooklm/subdomains/synthesis/domain/index.ts
+````typescript
+// ── Canonical domain types ────────────────────────────────────────────────────
+export type { GenerationCitation, GenerateAnswerInput, GenerateAnswerOutput, GenerateAnswerResult } from "./entities/SynthesisResult";
+export type { RetrievedChunk, RetrievalSummary } from "./entities/RetrievedChunk";
+export type { Citation, GroundingEvidence } from "./entities/GroundingEvidence";
+export type { FeedbackRating, QualityFeedback, SubmitFeedbackInput } from "./entities/QualityFeedback";
+
+// ── Active pipeline types (legacy naming, used by use cases & adapters) ──────
+export * from "./entities/generation.entities";
+export * from "./entities/rag-feedback.entities";
+export * from "./entities/rag-query.entities";
+export * from "./entities/retrieval.entities";
+
+// ── Events ───────────────────────────────────────────────────────────────────
+export type { SynthesisCompletedEvent, SynthesisFailedEvent } from "./events/SynthesisEvents";
+export type { RetrievalCompletedEvent, RetrievalFailedEvent } from "./events/RetrievalEvents";
+export type { GroundingCompletedEvent } from "./events/GroundingEvents";
+export type { FeedbackSubmittedEvent } from "./events/EvaluationEvents";
+export * from "./events/SynthesisPipelineDomainEvent";
+
+// ── Ports ────────────────────────────────────────────────────────────────────
+export type { IGenerationPort } from "./ports/IGenerationPort";
+export type { IChunkRetrievalPort, RetrieveChunksInput } from "./ports/IChunkRetrievalPort";
+export type { IFeedbackPort } from "./ports/IFeedbackPort";
+export type { IVectorStore, VectorDocument, VectorSearchResult } from "./ports/IVectorStore";
+
+// ── Repositories (output port interfaces) ────────────────────────────────────
+export * from "./repositories/IRagGenerationRepository";
+export * from "./repositories/IRagQueryFeedbackRepository";
+export * from "./repositories/IRagRetrievalRepository";
+export * from "./repositories/IKnowledgeContentRepository";
+
+// ── Domain services ──────────────────────────────────────────────────────────
+export * from "./services/RagCitationBuilder";
+export * from "./services/RagPromptBuilder";
+export * from "./services/RagScoringService";
+export type { CitationBuilderInput, ICitationBuilder } from "./services/ICitationBuilder";
+
+// ── Value objects ────────────────────────────────────────────────────────────
+export * from "./value-objects";
+````
+
 ## File: modules/notebooklm/subdomains/synthesis/domain/ports/IChunkRetrievalPort.ts
 ````typescript
 /**
@@ -6909,6 +7388,23 @@ import type { QualityFeedback, SubmitFeedbackInput } from "../entities/QualityFe
 export interface IFeedbackPort {
   save(input: SubmitFeedbackInput): Promise<QualityFeedback>;
   listByOrganization(organizationId: string, limitCount: number): Promise<QualityFeedback[]>;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/ports/IGenerationPort.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/ports
+ * Purpose: IGenerationPort — output port for AI answer generation.
+ *
+ * The platform AI adapter (infrastructure) implements this port.
+ */
+
+import type { GenerateAnswerInput, GenerateAnswerResult } from "../entities/SynthesisResult";
+
+export interface IGenerationPort {
+  generate(input: GenerateAnswerInput): Promise<GenerateAnswerResult>;
 }
 ````
 
@@ -7303,6 +7799,47 @@ export function createTopK(raw: number): TopK {
 export const DEFAULT_TOP_K: TopK = 10 as TopK;
 ````
 
+## File: modules/notebooklm/subdomains/synthesis/README.md
+````markdown
+# Synthesis
+
+完整 RAG pipeline：retrieval → grounding → answer generation → evaluation/feedback。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Subdomain**: synthesis (Active)
+- **Status**: Consolidated — all RAG pipeline responsibilities
+
+## Internal Facets
+
+The RAG pipeline is organized as internal domain facets within this single subdomain:
+
+| Facet | Responsibility | Key Types |
+|-------|---------------|-----------|
+| retrieval | 查詢召回與排序策略、向量搜尋 | RetrievedChunk, IChunkRetrievalPort, RagScoringService |
+| grounding | 引用對齊與可追溯證據 | Citation, GroundingEvidence, ICitationBuilder, RagCitationBuilder |
+| generation | RAG 合成、摘要與洞察生成 | GenerateAnswerInput/Output, IGenerationPort, RagPromptBuilder |
+| evaluation | 品質評估、feedback 收集 | QualityFeedback, IFeedbackPort, SubmitRagQueryFeedbackUseCase |
+
+## Key Components
+
+| Component | Layer | Purpose |
+|-----------|-------|---------|
+| AnswerRagQueryUseCase | application | 完整 RAG Q&A 流程 orchestration |
+| SubmitRagQueryFeedbackUseCase | application | 用戶品質 feedback 收集 |
+| FirebaseRagRetrievalAdapter | infrastructure | Firestore 向量/稀疏檢索 |
+| GenkitRagGenerationAdapter | infrastructure | Genkit AI answer generation |
+| FirebaseRagQueryFeedbackAdapter | infrastructure | Firestore feedback 持久化 |
+| FirebaseKnowledgeContentAdapter | infrastructure | Knowledge 文件查詢與 reindex |
+| RagQueryView | interfaces | 最小化 RAG 查詢 UI |
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/notebooklm/api/server.ts
 ````typescript
 /**
@@ -7317,6 +7854,22 @@ export { GenerateNotebookResponseUseCase, PlatformTextGenerationAdapter } from "
 
 // Q&A subdomain — AnswerRagQueryUseCase factory (now in synthesis subdomain)
 export { createAnswerRagQueryUseCase } from "../subdomains/synthesis/api/server";
+````
+
+## File: modules/notebooklm/application/use-cases/index.ts
+````typescript
+export { notebookUseCases } from '../../subdomains/notebook/application';
+export {
+	sourceUseCases,
+	sourceUploadInitUseCase,
+	sourceUploadCompleteUseCase,
+	sourceRegisterRagDocumentUseCase,
+	sourceRenameSourceDocumentUseCase,
+	sourceDeleteSourceDocumentUseCase,
+	sourceCreateKnowledgeDraftUseCase,
+	sourceWikiLibraryUseCases,
+} from '../../subdomains/source/application';
+export * as synthesisUseCases from '../../subdomains/synthesis/application';
 ````
 
 ## File: modules/notebooklm/subdomains/notebook/api/factories.ts
@@ -7340,175 +7893,6 @@ export function makeNotebookRepo() {
 export { PlatformTextGenerationAdapter } from "../../../infrastructure/notebook/platform/PlatformTextGenerationAdapter";
 export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-notebook-response.use-case";
 export { makeNotebookRepo } from "./factories";
-````
-
-## File: modules/notebooklm/subdomains/source/api/index.ts
-````typescript
-/**
- * Public API boundary for the source subdomain.
- *
- * Cross-module consumers MUST import through this entry point.
- * Internal consumers within the subdomain import from their own layer.
- */
-
-// ---------------------------------------------------------------------------
-// Domain entity types
-// ---------------------------------------------------------------------------
-
-export type {
-  SourceFile,
-  SourceFileStatus,
-  SourceFileClassification,
-} from "../domain/entities/SourceFile";
-
-export type {
-  SourceFileVersion,
-  SourceFileVersionStatus,
-} from "../domain/entities/SourceFileVersion";
-
-export type {
-  RagDocumentRecord,
-  RagDocumentStatus,
-} from "../domain/entities/RagDocument";
-
-export type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryFieldType,
-  WikiLibraryRow,
-  WikiLibraryStatus,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../domain/entities/WikiLibrary";
-
-// ---------------------------------------------------------------------------
-// Wiki library use cases (lazy singleton — no module-scope side effects)
-// ---------------------------------------------------------------------------
-
-import type { IWikiLibraryRepository } from "../domain/repositories/IWikiLibraryRepository";
-import { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
-import {
-  listWikiLibraries as _listWikiLibraries,
-  createWikiLibrary as _createWikiLibrary,
-  addWikiLibraryField as _addWikiLibraryField,
-  createWikiLibraryRow as _createWikiLibraryRow,
-  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
-} from "../application/use-cases/wiki-library.use-cases";
-
-import type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../domain/entities/WikiLibrary";
-
-export type { WikiLibrarySnapshot } from "../application/use-cases/wiki-library.use-cases";
-
-let _libraryRepo: IWikiLibraryRepository | null = null;
-
-function getLibraryRepo(): IWikiLibraryRepository {
-  if (!_libraryRepo) _libraryRepo = new FirebaseWikiLibraryAdapter();
-  return _libraryRepo;
-}
-
-export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
-  return _listWikiLibraries(accountId, workspaceId, getLibraryRepo());
-}
-
-export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
-  return _createWikiLibrary(input, getLibraryRepo());
-}
-
-export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
-  return _addWikiLibraryField(input, getLibraryRepo());
-}
-
-export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
-  return _createWikiLibraryRow(input, getLibraryRepo());
-}
-
-export function getWikiLibrarySnapshot(accountId: string, libraryId: string): ReturnType<typeof _getWikiLibrarySnapshot> {
-  return _getWikiLibrarySnapshot(accountId, libraryId, getLibraryRepo());
-}
-
-// ---------------------------------------------------------------------------
-// Live document DTOs
-// ---------------------------------------------------------------------------
-
-export type {
-  SourceDocument,
-  SourceLiveDocument,
-  AssetDocument,
-  AssetLiveDocument,
-} from "../application/dto/source-live-document.dto";
-export {
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
-} from "../application/dto/source-live-document.dto";
-
-// ---------------------------------------------------------------------------
-// Hooks
-// ---------------------------------------------------------------------------
-
-export type {
-  UseSourceDocumentsSnapshotResult,
-} from "../../../interfaces/source/hooks/useSourceDocumentsSnapshot";
-export {
-  useSourceDocumentsSnapshot,
-} from "../../../interfaces/source/hooks/useSourceDocumentsSnapshot";
-
-// ---------------------------------------------------------------------------
-// Queries
-// ---------------------------------------------------------------------------
-
-export { getWorkspaceFiles, getWorkspaceRagDocuments } from "../../../interfaces/source/queries/source-file.queries";
-
-// ---------------------------------------------------------------------------
-// Server actions
-// ---------------------------------------------------------------------------
-
-export {
-  uploadInitFile,
-  uploadCompleteFile,
-  registerUploadedRagDocument,
-  deleteSourceDocument,
-  renameSourceDocument,
-} from "../../../interfaces/source/_actions/source-file.actions";
-
-export {
-  createKnowledgeDraftFromSourceDocument,
-  processSourceDocumentWorkflow,
-} from "../../../interfaces/source/_actions/source-processing.actions";
-export type {
-  SourceProcessingExecutionSummary,
-  SourceProcessingTaskResult,
-  SourceProcessingTaskStatus,
-} from "../application/dto/source-processing.dto";
-
-// ---------------------------------------------------------------------------
-// UI components
-// ---------------------------------------------------------------------------
-
-export { SourceDocumentsView } from "../../../interfaces/source/components/SourceDocumentsView";
-export { WorkspaceFilesTab } from "../../../interfaces/source/components/WorkspaceFilesTab";
-export { LibrariesView } from "../../../interfaces/source/components/LibrariesView";
-export { LibraryTableView } from "../../../interfaces/source/components/LibraryTableView";
-export { FileProcessingDialog } from "../../../interfaces/source/components/FileProcessingDialog";
-
-// ---------------------------------------------------------------------------
-// Infrastructure (for direct injection in server-side wiring)
-// ---------------------------------------------------------------------------
-
-export { FirebaseSourceFileAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceFileAdapter";
-export { FirebaseRagDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseRagDocumentAdapter";
-export { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
-export { InMemoryWikiLibraryAdapter } from "../../../infrastructure/source/memory/InMemoryWikiLibraryAdapter";
-export { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter";
-export { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
-export { NotionKnowledgePageGatewayAdapter } from "../../../infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter";
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/use-cases/process-source-document-workflow.use-case.ts
@@ -7682,66 +8066,6 @@ export class ProcessSourceDocumentWorkflowUseCase {
 }
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/domain/index.ts
-````typescript
-// ── Canonical domain types ────────────────────────────────────────────────────
-export type { GenerationCitation, GenerateAnswerInput, GenerateAnswerOutput, GenerateAnswerResult } from "./entities/SynthesisResult";
-export type { RetrievedChunk, RetrievalSummary } from "./entities/RetrievedChunk";
-export type { Citation, GroundingEvidence } from "./entities/GroundingEvidence";
-export type { FeedbackRating, QualityFeedback, SubmitFeedbackInput } from "./entities/QualityFeedback";
-
-// ── Active pipeline types (legacy naming, used by use cases & adapters) ──────
-export * from "./entities/generation.entities";
-export * from "./entities/rag-feedback.entities";
-export * from "./entities/rag-query.entities";
-export * from "./entities/retrieval.entities";
-
-// ── Events ───────────────────────────────────────────────────────────────────
-export type { SynthesisCompletedEvent, SynthesisFailedEvent } from "./events/SynthesisEvents";
-export type { RetrievalCompletedEvent, RetrievalFailedEvent } from "./events/RetrievalEvents";
-export type { GroundingCompletedEvent } from "./events/GroundingEvents";
-export type { FeedbackSubmittedEvent } from "./events/EvaluationEvents";
-export * from "./events/SynthesisPipelineDomainEvent";
-
-// ── Ports ────────────────────────────────────────────────────────────────────
-export type { IGenerationPort } from "./ports/IGenerationPort";
-export type { IChunkRetrievalPort, RetrieveChunksInput } from "./ports/IChunkRetrievalPort";
-export type { IFeedbackPort } from "./ports/IFeedbackPort";
-export type { IVectorStore, VectorDocument, VectorSearchResult } from "./ports/IVectorStore";
-
-// ── Repositories (output port interfaces) ────────────────────────────────────
-export * from "./repositories/IRagGenerationRepository";
-export * from "./repositories/IRagQueryFeedbackRepository";
-export * from "./repositories/IRagRetrievalRepository";
-export * from "./repositories/IKnowledgeContentRepository";
-
-// ── Domain services ──────────────────────────────────────────────────────────
-export * from "./services/RagCitationBuilder";
-export * from "./services/RagPromptBuilder";
-export * from "./services/RagScoringService";
-export type { CitationBuilderInput, ICitationBuilder } from "./services/ICitationBuilder";
-
-// ── Value objects ────────────────────────────────────────────────────────────
-export * from "./value-objects";
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/ports/IGenerationPort.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: domain/ports
- * Purpose: IGenerationPort — output port for AI answer generation.
- *
- * The platform AI adapter (infrastructure) implements this port.
- */
-
-import type { GenerateAnswerInput, GenerateAnswerResult } from "../entities/SynthesisResult";
-
-export interface IGenerationPort {
-  generate(input: GenerateAnswerInput): Promise<GenerateAnswerResult>;
-}
-````
-
 ## File: modules/notebooklm/subdomains/synthesis/domain/repositories/IRagGenerationRepository.ts
 ````typescript
 /**
@@ -7759,45 +8083,32 @@ export interface IRagGenerationRepository {
 }
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/README.md
-````markdown
-# Synthesis
+## File: modules/notebooklm/subdomains/conversation/api/index.ts
+````typescript
+/**
+ * Public API boundary for the conversation subdomain.
+ *
+ * Cross-module consumers MUST import through this entry point.
+ */
 
-完整 RAG pipeline：retrieval → grounding → answer generation → evaluation/feedback。
+export { ConversationPanel } from "../../../interfaces/conversation/components/ConversationPanel";
+export type { ConversationPanelProps } from "../../../interfaces/conversation/components/ConversationPanel";
 
-## Ownership
+export type { ChatMessage } from "../../../interfaces/conversation/helpers";
+export {
+  STORAGE_KEY,
+  buildContextPrompt,
+  generateMsgId,
+  threadFromMessages,
+} from "../../../interfaces/conversation/helpers";
 
-- **Bounded Context**: notebooklm
-- **Subdomain**: synthesis (Active)
-- **Status**: Consolidated — all RAG pipeline responsibilities
+// Domain types
+export type { Message, MessageRole } from "../domain/entities/message";
+export type { Thread } from "../domain/entities/thread";
+export type { IThreadRepository } from "../domain/repositories/IThreadRepository";
 
-## Internal Facets
-
-The RAG pipeline is organized as internal domain facets within this single subdomain:
-
-| Facet | Responsibility | Key Types |
-|-------|---------------|-----------|
-| retrieval | 查詢召回與排序策略、向量搜尋 | RetrievedChunk, IChunkRetrievalPort, RagScoringService |
-| grounding | 引用對齊與可追溯證據 | Citation, GroundingEvidence, ICitationBuilder, RagCitationBuilder |
-| generation | RAG 合成、摘要與洞察生成 | GenerateAnswerInput/Output, IGenerationPort, RagPromptBuilder |
-| evaluation | 品質評估、feedback 收集 | QualityFeedback, IFeedbackPort, SubmitRagQueryFeedbackUseCase |
-
-## Key Components
-
-| Component | Layer | Purpose |
-|-----------|-------|---------|
-| AnswerRagQueryUseCase | application | 完整 RAG Q&A 流程 orchestration |
-| SubmitRagQueryFeedbackUseCase | application | 用戶品質 feedback 收集 |
-| FirebaseRagRetrievalAdapter | infrastructure | Firestore 向量/稀疏檢索 |
-| GenkitRagGenerationAdapter | infrastructure | Genkit AI answer generation |
-| FirebaseRagQueryFeedbackAdapter | infrastructure | Firestore feedback 持久化 |
-| FirebaseKnowledgeContentAdapter | infrastructure | Knowledge 文件查詢與 reindex |
-| RagQueryView | interfaces | 最小化 RAG 查詢 UI |
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+// Thread persistence actions
+export { saveThread, loadThread } from "../../../interfaces/conversation/_actions/thread.actions";
 ````
 
 ## File: modules/notebooklm/subdomains/source/api/factories.ts
@@ -7847,6 +8158,175 @@ export function waitForParsedDocument(
 ): Promise<{ pageCount: number; jsonGcsUri: string }> {
   return _waitForParsedDocument(accountId, docId);
 }
+````
+
+## File: modules/notebooklm/subdomains/source/api/index.ts
+````typescript
+/**
+ * Public API boundary for the source subdomain.
+ *
+ * Cross-module consumers MUST import through this entry point.
+ * Internal consumers within the subdomain import from their own layer.
+ */
+
+// ---------------------------------------------------------------------------
+// Domain entity types
+// ---------------------------------------------------------------------------
+
+export type {
+  SourceFile,
+  SourceFileStatus,
+  SourceFileClassification,
+} from "../domain/entities/SourceFile";
+
+export type {
+  SourceFileVersion,
+  SourceFileVersionStatus,
+} from "../domain/entities/SourceFileVersion";
+
+export type {
+  RagDocumentRecord,
+  RagDocumentStatus,
+} from "../domain/entities/RagDocument";
+
+export type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../domain/entities/WikiLibrary";
+
+// ---------------------------------------------------------------------------
+// Wiki library use cases (lazy singleton ??no module-scope side effects)
+// ---------------------------------------------------------------------------
+
+import type { IWikiLibraryRepository } from "../domain/repositories/IWikiLibraryRepository";
+import { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
+import {
+  listWikiLibraries as _listWikiLibraries,
+  createWikiLibrary as _createWikiLibrary,
+  addWikiLibraryField as _addWikiLibraryField,
+  createWikiLibraryRow as _createWikiLibraryRow,
+  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
+} from "../application/use-cases/wiki-library.use-cases";
+
+import type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../domain/entities/WikiLibrary";
+
+export type { WikiLibrarySnapshot } from "../application/use-cases/wiki-library.use-cases";
+
+let _libraryRepo: IWikiLibraryRepository | null = null;
+
+function getLibraryRepo(): IWikiLibraryRepository {
+  if (!_libraryRepo) _libraryRepo = new FirebaseWikiLibraryAdapter();
+  return _libraryRepo;
+}
+
+export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
+  return _listWikiLibraries(accountId, workspaceId, getLibraryRepo());
+}
+
+export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
+  return _createWikiLibrary(input, getLibraryRepo());
+}
+
+export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
+  return _addWikiLibraryField(input, getLibraryRepo());
+}
+
+export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
+  return _createWikiLibraryRow(input, getLibraryRepo());
+}
+
+export function getWikiLibrarySnapshot(accountId: string, libraryId: string): ReturnType<typeof _getWikiLibrarySnapshot> {
+  return _getWikiLibrarySnapshot(accountId, libraryId, getLibraryRepo());
+}
+
+// ---------------------------------------------------------------------------
+// Live document DTOs
+// ---------------------------------------------------------------------------
+
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../application/dto/source-live-document.dto";
+export {
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../application/dto/source-live-document.dto";
+
+// ---------------------------------------------------------------------------
+// Hooks
+// ---------------------------------------------------------------------------
+
+export type {
+  UseSourceDocumentsSnapshotResult,
+} from "../../../interfaces/source/hooks/useSourceDocumentsSnapshot";
+export {
+  useSourceDocumentsSnapshot,
+} from "../../../interfaces/source/hooks/useSourceDocumentsSnapshot";
+
+// ---------------------------------------------------------------------------
+// Queries
+// ---------------------------------------------------------------------------
+
+export { getWorkspaceFiles, getWorkspaceRagDocuments } from "../../../interfaces/source/queries/source-file.queries";
+
+// ---------------------------------------------------------------------------
+// Server actions
+// ---------------------------------------------------------------------------
+
+export {
+  uploadInitFile,
+  uploadCompleteFile,
+  registerUploadedRagDocument,
+  deleteSourceDocument,
+  renameSourceDocument,
+} from "../../../interfaces/source/_actions/source-file.actions";
+
+export {
+  createKnowledgeDraftFromSourceDocument,
+  processSourceDocumentWorkflow,
+} from "../../../interfaces/source/_actions/source-processing.actions";
+export type {
+  SourceProcessingExecutionSummary,
+  SourceProcessingTaskResult,
+  SourceProcessingTaskStatus,
+} from "../application/dto/source-processing.dto";
+
+// ---------------------------------------------------------------------------
+// UI components
+// ---------------------------------------------------------------------------
+
+export { SourceDocumentsPanel } from "../../../interfaces/source/components/SourceDocumentsPanel";
+export { WorkspaceFilesTab } from "../../../interfaces/source/components/WorkspaceFilesTab";
+export { LibrariesPanel } from "../../../interfaces/source/components/LibrariesPanel";
+export { LibraryTablePanel } from "../../../interfaces/source/components/LibraryTablePanel";
+export { FileProcessingDialog } from "../../../interfaces/source/components/FileProcessingDialog";
+
+// ---------------------------------------------------------------------------
+// Infrastructure (for direct injection in server-side wiring)
+// ---------------------------------------------------------------------------
+
+export { FirebaseSourceFileAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceFileAdapter";
+export { FirebaseRagDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseRagDocumentAdapter";
+export { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
+export { InMemoryWikiLibraryAdapter } from "../../../infrastructure/source/memory/InMemoryWikiLibraryAdapter";
+export { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter";
+export { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
+export { NotionKnowledgePageGatewayAdapter } from "../../../infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter";
 ````
 
 ## File: modules/notebooklm/subdomains/synthesis/api/index.ts
@@ -7995,7 +8475,7 @@ export { FirebaseRagQueryFeedbackAdapter } from "../../../infrastructure/synthes
 
 // ── UI components ────────────────────────────────────────────────────────────
 
-export { RagQueryView } from "../../../interfaces/synthesis/components/RagQueryView";
+export { RagQueryPanel } from "../../../interfaces/synthesis/components/RagQueryPanel";
 ````
 
 ## File: modules/notebooklm/subdomains/synthesis/api/server.ts
@@ -8009,10 +8489,25 @@ export { RagQueryView } from "../../../interfaces/synthesis/components/RagQueryV
  */
 
 import { FirebaseRagRetrievalAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseRagRetrievalAdapter";
+import { FirebaseKnowledgeContentAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter";
 import { PlatformRagGenerationAdapter } from "../../../infrastructure/synthesis/platform/PlatformRagGenerationAdapter";
 import { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
+import type {
+  KnowledgeParsedDocument,
+  KnowledgeRagQueryResult,
+  KnowledgeReindexInput,
+} from "../domain/repositories/IKnowledgeContentRepository";
 
 export { PlatformRagGenerationAdapter } from "../../../infrastructure/synthesis/platform/PlatformRagGenerationAdapter";
+
+let knowledgeContentRepository: FirebaseKnowledgeContentAdapter | undefined;
+
+function getKnowledgeContentRepository(): FirebaseKnowledgeContentAdapter {
+  if (!knowledgeContentRepository) {
+    knowledgeContentRepository = new FirebaseKnowledgeContentAdapter();
+  }
+  return knowledgeContentRepository;
+}
 
 export function createAnswerRagQueryUseCase(): AnswerRagQueryUseCase {
   return new AnswerRagQueryUseCase(
@@ -8020,212 +8515,24 @@ export function createAnswerRagQueryUseCase(): AnswerRagQueryUseCase {
     new PlatformRagGenerationAdapter(),
   );
 }
-````
 
-## File: modules/notebooklm/AGENT.md
-````markdown
-# NotebookLM Agent
+export function runKnowledgeRagQuery(
+  query: string,
+  accountId: string,
+  workspaceId: string,
+  topK = 4,
+  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
+): Promise<KnowledgeRagQueryResult> {
+  return getKnowledgeContentRepository().runRagQuery(query, accountId, workspaceId, topK, options);
+}
 
-> Strategic agent documentation: [docs/contexts/notebooklm/AGENT.md](../../docs/contexts/notebooklm/AGENT.md)
+export function reindexKnowledgeDocument(input: KnowledgeReindexInput): Promise<void> {
+  return getKnowledgeContentRepository().reindexDocument(input);
+}
 
-## Mission
-
-保護 notebooklm 主域作為對話、來源處理與推理輸出的邊界。notebooklm 擁有衍生推理流程，不擁有正典知識內容。任何變更都應維持 notebooklm 擁有對話生命週期、來源管理與 RAG pipeline 語言，而不是吸收平台治理或正典知識語言。
-
-## Bounded Context Summary
-
-| Aspect | Description |
-|--------|-------------|
-| Primary role | 對話、來源處理與推理輸出 |
-| Upstream | platform（治理、AI capability）、workspace（scope）、notion（knowledge artifact reference） |
-| Downstream | 無固定主域級下游；輸出可被其他主域吸收 |
-| Core invariant | notebooklm 只能持有衍生推理輸出，不得直接修改 notion 的正典內容 |
-| Published language | Notebook reference、Conversation reference、SourceReference、GroundedAnswer |
-
-## Bounded Contexts
-
-| Cluster | Subdomains | Responsibility |
-|---------|------------|----------------|
-| Interaction Core | notebook, conversation | 對話容器與互動生命週期 |
-| Source & RAG Pipeline | source, synthesis | 來源管理與完整 RAG pipeline（retrieval → grounding → synthesis → evaluation） |
-
-## Route Here When
-
-- 問題核心是 notebook、conversation、source、synthesis（RAG pipeline）。
-- 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
-- 問題要把知識來源（notion artifact、uploaded file）轉成可對話與可綜合的推理材料。
-- 問題涉及 RAG 問答、向量檢索、chunks 召回、generation 品質。
-- 問題涉及 evaluation、品質評估、回歸比較或 grounding 可信度。
-
-## Route Elsewhere When
-
-- 正典知識頁面、文章、分類、正式發布屬於 notion。
-- 身份、授權、權益、憑證治理屬於 platform。
-- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
-- 工作區生命週期、成員管理、共享範圍屬於 workspace。
-
-## Subdomains
-
-| Subdomain | Purpose | Key Aggregates / Entities |
-|-----------|---------|---------------------------|
-| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
-| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration, NotebookRepository |
-| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary, SourceRetentionPolicy |
-| synthesis | 完整 RAG pipeline：retrieval、grounding、synthesis、evaluation | AnswerRagQueryUseCase, RagScoringService, RagCitationBuilder, RagPromptBuilder |
-
-### Future Split Triggers
-
-`synthesis` 子域將四個 RAG 關注點作為內部 facets 持有。只有當以下觸發條件成立時，才拆分為獨立子域：
-
-| Facet | Split Trigger |
-|-------|---------------|
-| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
-| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
-| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
-| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
-
-### Domain Invariants
-
-- notebooklm 只擁有衍生推理流程，不擁有正典知識內容。
-- shared AI capability 由 platform.ai 提供；notebooklm 在 synthesis 擁有 retrieval、grounding、generation、evaluation 的本地語義。
-- grounding 應能把輸出對齊到來源證據。
-- retrieval 是 generation 的上游能力。
-- evaluation 應描述品質，而不是單純使用量。
-- 任何要成為正式知識內容的輸出，都必須交由 notion 吸收。
-
-## Ubiquitous Language
-
-| Term | Meaning | Owning Subdomain | Do Not Use |
-|------|---------|------------------|------------|
-| Notebook | 聚合對話、來源與衍生筆記的工作單位 | notebook | Project, Workspace |
-| AgentGeneration | GenKit 代理回應生成 | notebook | - |
-| Conversation | Notebook 內的對話執行邊界 | conversation | Chat, Session |
-| Thread | 一段對話的容器 | conversation | - |
-| Message | 一則輸入或輸出對話項 | conversation | Turn, Exchange |
-| Source | 被引用與推理的來源材料 | source | File, Document (generic) |
-| SourceFile | 使用者上傳的原始檔案 | source | - |
-| RagDocument | 來源文件在 RAG pipeline 中的表示 | source | - |
-| WikiLibrary | 結構化知識來源庫 | source | - |
-| Ingestion | 來源匯入、正規化與前處理流程 | source | File Import, Upload |
-| Retrieval | 從來源中召回候選片段的查詢能力 | synthesis | Search, Lookup |
-| Grounding | 把輸出對齊到來源證據的能力 | synthesis | Verification, Factcheck |
-| Citation | 輸出指回來源證據的引用關係 | synthesis | Reference, Link |
-| Synthesis | 綜合多來源後生成的衍生輸出 | synthesis | Answer, Response (generic) |
-| Evaluation | 對輸出品質、回歸結果與效果的評估 | synthesis | Analytics, Metrics (generic) |
-| RelevanceScore | 檢索結果的相關性分數 | synthesis | - |
-
-### Avoid
-
-| Avoid | Use Instead |
-|-------|-------------|
-| Chat | Conversation |
-| File Import | Ingestion |
-| Search Step | Retrieval |
-| Verified Answer | Grounded Synthesis |
-| Knowledge / Wiki | Synthesis output（正典知識屬 notion） |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-api/ ← 唯一跨模組入口
-```
-
-## Development Order (Domain-First)
-
-1. Define Domain (entities, value objects, aggregates, events)
-2. Define Application (use cases, DTOs)
-3. Define Ports (only if boundary isolation needed)
-4. Implement Infrastructure (adapters, persistence)
-5. Implement Interfaces (UI, actions, hooks)
-````
-
-## File: modules/notebooklm/README.md
-````markdown
-# NotebookLM
-
-對話、來源處理與推理主域
-
-## Bounded Context
-
-| Aspect | Description |
-|--------|-------------|
-| Primary role | 對話、來源處理、檢索與推理輸出 |
-| Upstream | platform（治理、AI capability）、workspace（scope）、notion（knowledge artifact, attachment reference） |
-| Downstream | 無固定主域級下游；GroundedAnswer 可被其他主域消費 |
-| Core principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容 |
-| Cross-module boundary | `api/` only — no direct import of notion/platform/workspace internals |
-
-## Ubiquitous Language
-
-| Term | Meaning |
-|------|---------|
-| Notebook | 聚合對話、來源與衍生筆記的工作單位 |
-| Conversation | Notebook 內的對話執行邊界（Thread + Messages） |
-| Message | 一則輸入或輸出對話項 |
-| Source | 被引用與推理的來源材料 |
-| Ingestion | 來源匯入、正規化與前處理流程（TypeScript 側協調 py_fn） |
-| Retrieval | 從來源中召回候選 Chunk 的查詢能力（向量搜尋） |
-| Grounding | 把輸出對齊到來源證據、建立 Citation 的能力 |
-| Citation | 輸出指回來源證據的引用關係 |
-| Synthesis | 綜合多來源後生成的衍生輸出（RAG generation） |
-| Evaluation | 對輸出品質、feedback 與回歸結果的評估 |
-
-## Implementation Structure
-
-```text
-modules/notebooklm/
-├── api/              # Public API boundary — cross-module entry point only
-├── application/      # Context-wide orchestration (empty, use subdomain layers)
-├── domain/           # Context-wide domain concepts (events, published-language)
-├── infrastructure/   # Context-wide driven adapters (empty, use subdomain layers)
-├── interfaces/       # Context-wide driving adapters (RagQueryView composition)
-├── docs/             # Links to strategic documentation
-└── subdomains/
-    ├── conversation/  # Tier 1 — 對話 Thread 與 Message
-    ├── notebook/      # Tier 1 — Notebook 容器與 GenKit 生成
-    ├── source/        # Tier 1 — 來源文件與 ingestion 編排
-    └── synthesis/     # Tier 1 — 完整 RAG pipeline（retrieval → grounding → synthesis → evaluation）
-```
-
-## Subdomains
-
-| Subdomain | Purpose | Key Aggregates / Entities |
-|-----------|---------|--------------------------|
-| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
-| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration |
-| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary |
-| synthesis | 完整 RAG pipeline：retrieval、grounding、answer generation、evaluation/feedback | AnswerRagQueryUseCase, SubmitRagQueryFeedbackUseCase, RagScoringService, RagCitationBuilder, RagPromptBuilder |
-
-### Future Split Triggers
-
-`synthesis` 子域將四個 RAG 關注點作為內部 facets 持有。只有當以下觸發條件成立時，才拆分為獨立子域：
-
-| Facet | Split Trigger |
-|-------|---------------|
-| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
-| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
-| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
-| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `api/` is the only cross-module public boundary.
-- `domain/` must not import infrastructure, interfaces, React, Firebase SDK, or any runtime framework.
-- Cross-module collaboration goes through `api/` only.
-
-## Strategic Documentation
-
-- [Context README](../../docs/contexts/notebooklm/README.md)
-- [Subdomains](../../docs/contexts/notebooklm/subdomains.md)
-- [Bounded Context](../../docs/contexts/notebooklm/bounded-contexts.md)
-- [Context Map](../../docs/contexts/notebooklm/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/notebooklm/ubiquitous-language.md)
-- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
+export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20): Promise<KnowledgeParsedDocument[]> {
+  return getKnowledgeContentRepository().listParsedDocuments(accountId, limitCount);
+}
 ````
 
 ## File: modules/notebooklm/api/index.ts
@@ -8249,7 +8556,7 @@ export { saveThread, loadThread } from "../subdomains/conversation/api";
 // ---------------------------------------------------------------------------
 // NotebookLM root interfaces — Q&A UI
 // ---------------------------------------------------------------------------
-export { RagQueryView } from "../subdomains/synthesis/api";
+export { RagQueryPanel } from "../subdomains/synthesis/api";
 
 // ---------------------------------------------------------------------------
 // Source subdomain — types, hooks, and UI (replaces @/modules/source/api)
@@ -8289,10 +8596,10 @@ export {
 } from "../subdomains/source/api";
 
 export {
-  SourceDocumentsView,
+  SourceDocumentsPanel,
   WorkspaceFilesTab,
-  LibrariesView,
-  LibraryTableView,
+  LibrariesPanel,
+  LibraryTablePanel,
   FileProcessingDialog,
 } from "../subdomains/source/api";
 
@@ -8300,8 +8607,8 @@ export {
 // conversation subdomain — AI chat UI and helpers
 // ---------------------------------------------------------------------------
 
-export { AiChatPage } from "../subdomains/conversation/api";
-export type { AiChatPageProps, ChatMessage } from "../subdomains/conversation/api";
+export { ConversationPanel } from "../subdomains/conversation/api";
+export type { ConversationPanelProps, ChatMessage } from "../subdomains/conversation/api";
 
 // ---------------------------------------------------------------------------
 // Context-wide published language (cross-module reference types)

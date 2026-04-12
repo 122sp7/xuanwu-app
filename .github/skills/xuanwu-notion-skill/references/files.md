@@ -1666,17 +1666,6 @@ export interface VersionSnapshot {
 export type VersionId = string;
 ````
 
-## File: modules/notion/subdomains/collaboration/domain/events/index.ts
-````typescript
-// TODO: export CollaborationEvents
-// knowledge-collaboration.comment_created | comment_resolved
-// knowledge-collaboration.permission_granted | permission_revoked
-// knowledge-collaboration.version_created | version_restored
-// knowledge-collaboration.page_locked
-
-export {};
-````
-
 ## File: modules/notion/subdomains/collaboration/domain/index.ts
 ````typescript
 export * from "./aggregates";
@@ -2483,17 +2472,6 @@ export interface ViewSnapshot {
 }
 
 export type ViewId = string;
-````
-
-## File: modules/notion/subdomains/database/domain/events/index.ts
-````typescript
-// TODO: export DatabaseEvents
-// knowledge-database.database_created | database_renamed
-// knowledge-database.field_added | field_deleted
-// knowledge-database.record_added | record_updated | record_deleted | record_linked
-// knowledge-database.view_created | view_updated
-
-export {};
 ````
 
 ## File: modules/notion/subdomains/database/domain/index.ts
@@ -5109,39 +5087,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notion/subdomains/relations/api/index.ts
-````typescript
-/**
- * Public API boundary for the relations subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Status: Tier 2 Recommended Gap Subdomain
- */
-
-// ── Domain types ──────────────────────────────────────────────────────────────
-export type {
-  RelationDirection,
-  Relation,
-  CreateRelationInput,
-} from "../domain/entities/Relation";
-
-// ── Repository contracts ───────────────────────────────────────────────────────
-export type {
-  IRelationRepository,
-} from "../domain/repositories/IRelationRepository";
-
-// ── Domain events ─────────────────────────────────────────────────────────────
-export type {
-  RelationCreatedEvent,
-  RelationRemovedEvent,
-} from "../domain/events/RelationEvents";
-````
-
-## File: modules/notion/subdomains/relations/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notion subdomain 'relations'.
-````
-
 ## File: modules/notion/subdomains/relations/domain/entities/Relation.ts
 ````typescript
 /**
@@ -5261,38 +5206,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/taxonomy/api/index.ts
-````typescript
-/**
- * Public API boundary for the taxonomy subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Status: Tier 2 Recommended Gap Subdomain
- */
-
-// ── Domain types ──────────────────────────────────────────────────────────────
-export type {
-  TaxonomyNode,
-  CreateTaxonomyNodeInput,
-} from "../domain/entities/TaxonomyNode";
-
-// ── Repository contracts ───────────────────────────────────────────────────────
-export type {
-  ITaxonomyRepository,
-} from "../domain/repositories/ITaxonomyRepository";
-
-// ── Domain events ─────────────────────────────────────────────────────────────
-export type {
-  TaxonomyNodeCreatedEvent,
-  TaxonomyNodeRemovedEvent,
-} from "../domain/events/TaxonomyEvents";
-````
-
-## File: modules/notion/subdomains/taxonomy/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notion subdomain 'taxonomy'.
 ````
 
 ## File: modules/notion/subdomains/taxonomy/domain/entities/TaxonomyNode.ts
@@ -8590,234 +8503,6 @@ export function DatabaseDialog({ open, onOpenChange, accountId, workspaceId, cur
 }
 ````
 
-## File: modules/notion/interfaces/database/components/DatabaseTablePanel.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseTablePanel ??spreadsheet-style table with inline cell editing.
- */
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { Plus, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import { getRecords } from "../queries";
-import { createRecord, updateRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, Field, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
-
-interface DatabaseTablePanelProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-const FIELD_WIDTHS: Record<string, string> = {
-  text: "min-w-[180px]",
-  number: "min-w-[100px]",
-  checkbox: "min-w-[80px]",
-  date: "min-w-[140px]",
-  default: "min-w-[140px]",
-};
-
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
-  if (record.properties && typeof record.properties === "object") {
-    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
-  }
-  return null;
-}
-
-function setProperty(record: DatabaseRecordSnapshot, fieldId: string, value: unknown): Record<string, unknown> {
-  const props = typeof record.properties === "object" && record.properties !== null
-    ? { ...(record.properties as Record<string, unknown>) }
-    : {};
-  props[fieldId] = value;
-  return props;
-}
-
-function CellInput({ field, value, onChange, disabled }: { field: Field; value: unknown; onChange: (v: unknown) => void; disabled: boolean }) {
-  if (field.type === "checkbox") {
-    return (
-      <input
-        type="checkbox"
-        checked={Boolean(value)}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 rounded border-border"
-      />
-    );
-  }
-  if (field.type === "number") {
-    return (
-      <Input
-        type="number"
-        value={value == null ? "" : String(value)}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
-        className="h-7 border-transparent bg-transparent px-1 text-xs focus:border-border"
-      />
-    );
-  }
-  return (
-    <Input
-      type="text"
-      value={value == null ? "" : String(value)}
-      disabled={disabled}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-7 border-transparent bg-transparent px-1 text-xs focus:border-border"
-    />
-  );
-}
-
-export function DatabaseTablePanel({ database, accountId, workspaceId, currentUserId }: DatabaseTablePanelProps) {
-  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [edits, setEdits] = useState<Record<string, Record<string, unknown>>>({});
-  const [saving, setSaving] = useState<Record<string, boolean>>({});
-  const [isPending, startTransition] = useTransition();
-
-  const fields = database.fields;
-
-  const load = useCallback(async () => {
-    if (!accountId || !database.id) return;
-    setLoading(true);
-    try {
-      const data = await getRecords(accountId, database.id);
-      setRecords(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, database.id]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function handleCellChange(recordId: string, fieldId: string, value: unknown) {
-    setEdits((prev) => ({
-      ...prev,
-      [recordId]: { ...(prev[recordId] ?? {}), [fieldId]: value },
-    }));
-  }
-
-  function handleCellBlur(record: DatabaseRecordSnapshot, fieldId: string) {
-    const cellValue = edits[record.id]?.[fieldId];
-    if (cellValue === undefined) return;
-    setSaving((prev) => ({ ...prev, [record.id]: true }));
-    startTransition(async () => {
-      await updateRecord({ id: record.id, accountId, properties: setProperty(record, fieldId, cellValue) });
-      setEdits((prev) => {
-        const next = { ...prev };
-        delete next[record.id];
-        return next;
-      });
-      setSaving((prev) => ({ ...prev, [record.id]: false }));
-    });
-  }
-
-  function handleAddRecord() {
-    startTransition(async () => {
-      await createRecord({
-        databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId,
-      });
-      void load();
-    });
-  }
-
-  function handleDeleteRecord(recordId: string) {
-    startTransition(async () => {
-      await deleteRecord(accountId, recordId);
-      setRecords((prev) => prev.filter((r) => r.id !== recordId));
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-2">
-        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
-      </div>
-    );
-  }
-
-  if (fields.length === 0) {
-    return (
-      <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
-        甇方??澈撠甈????憓?雿?
-      </p>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="overflow-x-auto rounded-lg border border-border/60">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border/60 bg-muted/30">
-              {fields.map((field) => (
-                <th key={field.id} className={`px-3 py-2 text-left text-xs font-semibold text-muted-foreground ${FIELD_WIDTHS[field.type] ?? FIELD_WIDTHS.default}`}>
-                  {field.name}
-                  {field.required && <span className="ml-0.5 text-destructive">*</span>}
-                </th>
-              ))}
-              <th className="w-10" />
-            </tr>
-          </thead>
-          <tbody>
-            {records.length === 0 ? (
-              <tr>
-                <td colSpan={fields.length + 1} className="px-3 py-6 text-center text-xs text-muted-foreground">
-                  撠閮?
-                </td>
-              </tr>
-            ) : (
-              records.map((record) => (
-                <tr key={record.id} className="border-b border-border/30 last:border-b-0 hover:bg-muted/10">
-                  {fields.map((field) => {
-                    const edited = edits[record.id]?.[field.id];
-                    const current = edited !== undefined ? edited : getProperty(record, field.id);
-                    return (
-                      <td key={field.id} className="px-2 py-1">
-                        <CellInput
-                          field={field}
-                          value={current}
-                          onChange={(v) => handleCellChange(record.id, field.id, v)}
-                          disabled={saving[record.id] ?? false}
-                        />
-                      </td>
-                    );
-                  })}
-                  <td className="px-1 py-1 text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                      disabled={isPending}
-                      onBlur={() => {
-                        fields.forEach((f) => { if (edits[record.id]?.[f.id] !== undefined) handleCellBlur(record, f.id); });
-                      }}
-                      onClick={() => handleDeleteRecord(record.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAddRecord} className="w-full text-xs">
-        <Plus className="mr-1.5 h-3 w-3" /> ?啣?閮?
-      </Button>
-    </div>
-  );
-}
-````
-
 ## File: modules/notion/interfaces/database/queries/index.ts
 ````typescript
 /**
@@ -9918,6 +9603,90 @@ export { CommentPanel } from "../../../interfaces/collaboration/components/Comme
 export { VersionHistoryPanel } from "../../../interfaces/collaboration/components/VersionHistoryPanel";
 ````
 
+## File: modules/notion/subdomains/collaboration/domain/events/CollaborationEvents.ts
+````typescript
+/**
+ * Module: notion/subdomains/collaboration
+ * Layer: domain/events
+ * Purpose: Domain events for collaboration operations.
+ */
+
+import type { NotionDomainEvent } from "../../../../domain/events/NotionDomainEvent";
+
+export interface CommentCreatedEvent extends NotionDomainEvent {
+  readonly type: "notion.collaboration.comment_created";
+  readonly payload: {
+    readonly commentId: string;
+    readonly pageId: string;
+    readonly authorId: string;
+    readonly organizationId: string;
+  };
+}
+
+export interface CommentResolvedEvent extends NotionDomainEvent {
+  readonly type: "notion.collaboration.comment_resolved";
+  readonly payload: {
+    readonly commentId: string;
+    readonly resolvedById: string;
+    readonly organizationId: string;
+  };
+}
+
+export interface PermissionGrantedEvent extends NotionDomainEvent {
+  readonly type: "notion.collaboration.permission_granted";
+  readonly payload: {
+    readonly permissionId: string;
+    readonly resourceId: string;
+    readonly granteeId: string;
+    readonly level: string;
+    readonly organizationId: string;
+  };
+}
+
+export interface PermissionRevokedEvent extends NotionDomainEvent {
+  readonly type: "notion.collaboration.permission_revoked";
+  readonly payload: {
+    readonly permissionId: string;
+    readonly resourceId: string;
+    readonly granteeId: string;
+    readonly organizationId: string;
+  };
+}
+
+export interface VersionCreatedEvent extends NotionDomainEvent {
+  readonly type: "notion.collaboration.version_created";
+  readonly payload: {
+    readonly versionId: string;
+    readonly pageId: string;
+    readonly authorId: string;
+    readonly versionNumber: number;
+    readonly organizationId: string;
+  };
+}
+
+export interface VersionRestoredEvent extends NotionDomainEvent {
+  readonly type: "notion.collaboration.version_restored";
+  readonly payload: {
+    readonly versionId: string;
+    readonly pageId: string;
+    readonly restoredById: string;
+    readonly organizationId: string;
+  };
+}
+````
+
+## File: modules/notion/subdomains/collaboration/domain/events/index.ts
+````typescript
+export type {
+  CommentCreatedEvent,
+  CommentResolvedEvent,
+  PermissionGrantedEvent,
+  PermissionRevokedEvent,
+  VersionCreatedEvent,
+  VersionRestoredEvent,
+} from "./CollaborationEvents";
+````
+
 ## File: modules/notion/subdomains/database/api/factories.ts
 ````typescript
 import { FirebaseAutomationRepository } from "../../../infrastructure/database/firebase/FirebaseAutomationRepository";
@@ -9942,6 +9711,118 @@ export function makeAutomationRepo() {
 }
 ````
 
+## File: modules/notion/subdomains/database/domain/events/DatabaseEvents.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: domain/events
+ * Purpose: Domain events for database operations.
+ */
+
+import type { NotionDomainEvent } from "../../../../domain/events/NotionDomainEvent";
+
+export interface DatabaseCreatedEvent extends NotionDomainEvent {
+  readonly type: "notion.database.database_created";
+  readonly payload: {
+    readonly databaseId: string;
+    readonly accountId: string;
+    readonly workspaceId: string;
+    readonly title: string;
+  };
+}
+
+export interface DatabaseRenamedEvent extends NotionDomainEvent {
+  readonly type: "notion.database.database_renamed";
+  readonly payload: {
+    readonly databaseId: string;
+    readonly previousTitle: string;
+    readonly newTitle: string;
+    readonly organizationId: string;
+  };
+}
+
+export interface FieldAddedEvent extends NotionDomainEvent {
+  readonly type: "notion.database.field_added";
+  readonly payload: {
+    readonly databaseId: string;
+    readonly fieldId: string;
+    readonly fieldName: string;
+    readonly fieldType: string;
+    readonly organizationId: string;
+  };
+}
+
+export interface FieldDeletedEvent extends NotionDomainEvent {
+  readonly type: "notion.database.field_deleted";
+  readonly payload: {
+    readonly databaseId: string;
+    readonly fieldId: string;
+    readonly organizationId: string;
+  };
+}
+
+export interface RecordAddedEvent extends NotionDomainEvent {
+  readonly type: "notion.database.record_added";
+  readonly payload: {
+    readonly databaseId: string;
+    readonly recordId: string;
+    readonly organizationId: string;
+  };
+}
+
+export interface RecordUpdatedEvent extends NotionDomainEvent {
+  readonly type: "notion.database.record_updated";
+  readonly payload: {
+    readonly databaseId: string;
+    readonly recordId: string;
+    readonly organizationId: string;
+  };
+}
+
+export interface RecordDeletedEvent extends NotionDomainEvent {
+  readonly type: "notion.database.record_deleted";
+  readonly payload: {
+    readonly databaseId: string;
+    readonly recordId: string;
+    readonly organizationId: string;
+  };
+}
+
+export interface ViewCreatedEvent extends NotionDomainEvent {
+  readonly type: "notion.database.view_created";
+  readonly payload: {
+    readonly databaseId: string;
+    readonly viewId: string;
+    readonly viewType: string;
+    readonly organizationId: string;
+  };
+}
+
+export interface ViewUpdatedEvent extends NotionDomainEvent {
+  readonly type: "notion.database.view_updated";
+  readonly payload: {
+    readonly databaseId: string;
+    readonly viewId: string;
+    readonly organizationId: string;
+  };
+}
+````
+
+## File: modules/notion/subdomains/database/domain/events/index.ts
+````typescript
+export type {
+  DatabaseCreatedEvent,
+  DatabaseRenamedEvent,
+  FieldAddedEvent,
+  FieldDeletedEvent,
+  RecordAddedEvent,
+  RecordUpdatedEvent,
+  RecordDeletedEvent,
+  ViewCreatedEvent,
+  ViewUpdatedEvent,
+} from "./DatabaseEvents";
+````
+
 ## File: modules/notion/subdomains/knowledge/api/factories.ts
 ````typescript
 import { FirebaseContentBlockRepository } from "../../../infrastructure/knowledge/firebase/FirebaseContentBlockRepository";
@@ -9961,6 +9842,297 @@ export function makeCollectionRepo() {
 }
 ````
 
+## File: modules/notion/subdomains/relations/api/index.ts
+````typescript
+/**
+ * Public API boundary for the relations subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Status: Tier 2 Recommended Gap Subdomain
+ */
+
+// ── Domain types ──────────────────────────────────────────────────────────────
+export type {
+  RelationDirection,
+  Relation,
+  CreateRelationInput,
+} from "../domain/entities/Relation";
+
+// ── Repository contracts ───────────────────────────────────────────────────────
+export type {
+  IRelationRepository,
+} from "../domain/repositories/IRelationRepository";
+
+// ── Domain events ─────────────────────────────────────────────────────────────
+export type {
+  RelationCreatedEvent,
+  RelationRemovedEvent,
+} from "../domain/events/RelationEvents";
+
+// ── Application DTOs ──────────────────────────────────────────────────────────
+export type {
+  CreateRelationDto,
+  RelationDto,
+} from "../application/dto/RelationDto";
+
+// ── Use cases ─────────────────────────────────────────────────────────────────
+export {
+  CreateRelationUseCase,
+  RemoveRelationUseCase,
+  ListRelationsBySourceUseCase,
+  ListRelationsByTargetUseCase,
+} from "../application/use-cases/RelationUseCases";
+````
+
+## File: modules/notion/subdomains/relations/application/dto/RelationDto.ts
+````typescript
+/**
+ * Module: notion/subdomains/relations
+ * Layer: application/dto
+ * Purpose: Input/output contracts for relation operations.
+ */
+
+export interface CreateRelationDto {
+  readonly sourceArtifactId: string;
+  readonly targetArtifactId: string;
+  readonly relationType: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+}
+
+export interface RelationDto {
+  readonly relationId: string;
+  readonly sourceArtifactId: string;
+  readonly targetArtifactId: string;
+  readonly relationType: string;
+  readonly direction: "forward" | "backward";
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly createdAtISO: string;
+}
+````
+
+## File: modules/notion/subdomains/relations/application/index.ts
+````typescript
+export type { CreateRelationDto, RelationDto } from "./dto/RelationDto";
+export {
+  CreateRelationUseCase,
+  RemoveRelationUseCase,
+  ListRelationsBySourceUseCase,
+  ListRelationsByTargetUseCase,
+} from "./use-cases/RelationUseCases";
+````
+
+## File: modules/notion/subdomains/relations/application/use-cases/RelationUseCases.ts
+````typescript
+/**
+ * Module: notion/subdomains/relations
+ * Layer: application/use-cases
+ * Purpose: Use case orchestration for relation operations.
+ */
+
+import type { IRelationRepository } from "../../domain/repositories/IRelationRepository";
+import type { Relation, CreateRelationInput } from "../../domain/entities/Relation";
+
+export class CreateRelationUseCase {
+  constructor(private readonly relationRepo: IRelationRepository) {}
+
+  async execute(input: CreateRelationInput): Promise<Relation> {
+    const now = new Date().toISOString();
+    const relation: Relation = {
+      relationId: crypto.randomUUID(),
+      sourceArtifactId: input.sourceArtifactId,
+      targetArtifactId: input.targetArtifactId,
+      relationType: input.relationType,
+      direction: "forward",
+      organizationId: input.organizationId,
+      workspaceId: input.workspaceId,
+      createdAtISO: now,
+    };
+    await this.relationRepo.save(relation);
+    return relation;
+  }
+}
+
+export class RemoveRelationUseCase {
+  constructor(private readonly relationRepo: IRelationRepository) {}
+
+  async execute(relationId: string): Promise<void> {
+    await this.relationRepo.remove(relationId);
+  }
+}
+
+export class ListRelationsBySourceUseCase {
+  constructor(private readonly relationRepo: IRelationRepository) {}
+
+  async execute(sourceArtifactId: string): Promise<readonly Relation[]> {
+    return this.relationRepo.listBySource(sourceArtifactId);
+  }
+}
+
+export class ListRelationsByTargetUseCase {
+  constructor(private readonly relationRepo: IRelationRepository) {}
+
+  async execute(targetArtifactId: string): Promise<readonly Relation[]> {
+    return this.relationRepo.listByTarget(targetArtifactId);
+  }
+}
+````
+
+## File: modules/notion/subdomains/taxonomy/api/index.ts
+````typescript
+/**
+ * Public API boundary for the taxonomy subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Status: Tier 2 Recommended Gap Subdomain
+ */
+
+// ── Domain types ──────────────────────────────────────────────────────────────
+export type {
+  TaxonomyNode,
+  CreateTaxonomyNodeInput,
+} from "../domain/entities/TaxonomyNode";
+
+// ── Repository contracts ───────────────────────────────────────────────────────
+export type {
+  ITaxonomyRepository,
+} from "../domain/repositories/ITaxonomyRepository";
+
+// ── Domain events ─────────────────────────────────────────────────────────────
+export type {
+  TaxonomyNodeCreatedEvent,
+  TaxonomyNodeRemovedEvent,
+} from "../domain/events/TaxonomyEvents";
+
+// ── Application DTOs ──────────────────────────────────────────────────────────
+export type {
+  CreateTaxonomyNodeDto,
+  TaxonomyNodeDto,
+} from "../application/dto/TaxonomyDto";
+
+// ── Use cases ─────────────────────────────────────────────────────────────────
+export {
+  CreateTaxonomyNodeUseCase,
+  RemoveTaxonomyNodeUseCase,
+  ListTaxonomyRootsUseCase,
+  ListTaxonomyChildrenUseCase,
+} from "../application/use-cases/TaxonomyUseCases";
+````
+
+## File: modules/notion/subdomains/taxonomy/application/dto/TaxonomyDto.ts
+````typescript
+/**
+ * Module: notion/subdomains/taxonomy
+ * Layer: application/dto
+ * Purpose: Input/output contracts for taxonomy operations.
+ */
+
+export interface CreateTaxonomyNodeDto {
+  readonly label: string;
+  readonly parentNodeId: string | null;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+}
+
+export interface TaxonomyNodeDto {
+  readonly nodeId: string;
+  readonly label: string;
+  readonly parentNodeId: string | null;
+  readonly path: readonly string[];
+  readonly depth: number;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+````
+
+## File: modules/notion/subdomains/taxonomy/application/index.ts
+````typescript
+export type { CreateTaxonomyNodeDto, TaxonomyNodeDto } from "./dto/TaxonomyDto";
+export {
+  CreateTaxonomyNodeUseCase,
+  RemoveTaxonomyNodeUseCase,
+  ListTaxonomyRootsUseCase,
+  ListTaxonomyChildrenUseCase,
+} from "./use-cases/TaxonomyUseCases";
+````
+
+## File: modules/notion/subdomains/taxonomy/application/use-cases/TaxonomyUseCases.ts
+````typescript
+/**
+ * Module: notion/subdomains/taxonomy
+ * Layer: application/use-cases
+ * Purpose: Use case orchestration for taxonomy node operations.
+ */
+
+import type { ITaxonomyRepository } from "../../domain/repositories/ITaxonomyRepository";
+import type { TaxonomyNode, CreateTaxonomyNodeInput } from "../../domain/entities/TaxonomyNode";
+
+export class CreateTaxonomyNodeUseCase {
+  constructor(private readonly taxonomyRepo: ITaxonomyRepository) {}
+
+  async execute(input: CreateTaxonomyNodeInput): Promise<TaxonomyNode> {
+    let parentPath: readonly string[] = [];
+    let depth = 0;
+
+    if (input.parentNodeId) {
+      const parent = await this.taxonomyRepo.findById(input.parentNodeId);
+      if (!parent) {
+        throw new Error(`Parent node not found: ${input.parentNodeId}`);
+      }
+      parentPath = parent.path;
+      depth = parent.depth + 1;
+    }
+
+    const now = new Date().toISOString();
+    const nodeId = crypto.randomUUID();
+    const node: TaxonomyNode = {
+      nodeId,
+      label: input.label.trim(),
+      parentNodeId: input.parentNodeId,
+      path: [...parentPath, nodeId],
+      depth,
+      organizationId: input.organizationId,
+      workspaceId: input.workspaceId,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    await this.taxonomyRepo.save(node);
+    return node;
+  }
+}
+
+export class RemoveTaxonomyNodeUseCase {
+  constructor(private readonly taxonomyRepo: ITaxonomyRepository) {}
+
+  async execute(nodeId: string): Promise<void> {
+    const children = await this.taxonomyRepo.listChildren(nodeId);
+    if (children.length > 0) {
+      throw new Error("Cannot remove node with children. Remove children first.");
+    }
+    await this.taxonomyRepo.remove(nodeId);
+  }
+}
+
+export class ListTaxonomyRootsUseCase {
+  constructor(private readonly taxonomyRepo: ITaxonomyRepository) {}
+
+  async execute(organizationId: string): Promise<readonly TaxonomyNode[]> {
+    return this.taxonomyRepo.listRoots(organizationId);
+  }
+}
+
+export class ListTaxonomyChildrenUseCase {
+  constructor(private readonly taxonomyRepo: ITaxonomyRepository) {}
+
+  async execute(parentNodeId: string): Promise<readonly TaxonomyNode[]> {
+    return this.taxonomyRepo.listChildren(parentNodeId);
+  }
+}
+````
+
 ## File: modules/notion/application/use-cases/index.ts
 ````typescript
 export * as authoringUseCases from '../../subdomains/authoring/application/use-cases';
@@ -9971,33 +10143,41 @@ export * as knowledgeUseCases from '../../subdomains/knowledge/application/use-c
 // relations/taxonomy are still placeholder-only at the application layer.
 ````
 
-## File: modules/notion/interfaces/database/components/DatabaseBoardPanel.tsx
+## File: modules/notion/interfaces/database/components/DatabaseTablePanel.tsx
 ````typescript
 "use client";
 
 /**
  * Module: notion/subdomains/database
  * Layer: interfaces/components
- * Purpose: DatabaseBoardPanel ??Kanban board grouped by first select/multi_select field.
+ * Purpose: DatabaseTablePanel ??spreadsheet-style table with inline cell editing.
  */
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@ui-shadcn/ui/button";
-import { Badge } from "@ui-shadcn/ui/badge";
+import { Input } from "@ui-shadcn/ui/input";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
 import { getRecords } from "../queries";
-import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+import { createRecord, updateRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, Field, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
 
-interface DatabaseBoardPanelProps {
+interface DatabaseTablePanelProps {
   database: DatabaseSnapshot;
   accountId: string;
   workspaceId: string;
   currentUserId: string;
 }
+
+const FIELD_WIDTHS: Record<string, string> = {
+  text: "min-w-[180px]",
+  number: "min-w-[100px]",
+  checkbox: "min-w-[80px]",
+  date: "min-w-[140px]",
+  default: "min-w-[140px]",
+};
 
 function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
   if (record.properties && typeof record.properties === "object") {
@@ -10006,156 +10186,59 @@ function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
   return null;
 }
 
-export function DatabaseBoardPanel({ database, accountId, workspaceId, currentUserId }: DatabaseBoardPanelProps) {
-  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isPending, startTransition] = useTransition();
+function setProperty(record: DatabaseRecordSnapshot, fieldId: string, value: unknown): Record<string, unknown> {
+  const props = typeof record.properties === "object" && record.properties !== null
+    ? { ...(record.properties as Record<string, unknown>) }
+    : {};
+  props[fieldId] = value;
+  return props;
+}
 
-  const groupField = database.fields.find((f) => f.type === "select" || f.type === "multi_select") ?? null;
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getRecords(accountId, database.id);
-      setRecords(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, database.id]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function getTitle(record: DatabaseRecordSnapshot): string {
-    const textField = database.fields.find((f) => f.type === "text");
-    if (!textField) return record.id.slice(0, 8);
-    return String(getProperty(record, textField.id) ?? "Untitled");
-  }
-
-  const groups: Record<string, DatabaseRecordSnapshot[]> = {};
-  if (!groupField) {
-    groups["No Group"] = records;
-  } else {
-    for (const record of records) {
-      const val = getProperty(record, groupField.id);
-      const key = val != null && val !== "" ? String(val) : "No Group";
-      (groups[key] ??= []).push(record);
-    }
-    if ("No Group" in groups) {
-      const noGroup = groups["No Group"];
-      delete groups["No Group"];
-      groups["No Group"] = noGroup;
-    }
-  }
-
-  function handleAdd(groupValue: string) {
-    startTransition(async () => {
-      const props: Record<string, unknown> = groupField && groupValue !== "No Group"
-        ? { [groupField.id]: groupValue }
-        : {};
-      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: props, createdByUserId: currentUserId });
-      void load();
-    });
-  }
-
-  function handleDelete(recordId: string) {
-    startTransition(async () => {
-      await deleteRecord(accountId, recordId);
-      setRecords((prev) => prev.filter((r) => r.id !== recordId));
-    });
-  }
-
-  if (loading) {
+function CellInput({ field, value, onChange, disabled }: { field: Field; value: unknown; onChange: (v: unknown) => void; disabled: boolean }) {
+  if (field.type === "checkbox") {
     return (
-      <div className="flex gap-3 overflow-x-auto pb-2">
-        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-64 w-48 shrink-0 rounded-lg" />)}
-      </div>
+      <input
+        type="checkbox"
+        checked={Boolean(value)}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4 rounded border-border"
+      />
     );
   }
-
+  if (field.type === "number") {
+    return (
+      <Input
+        type="number"
+        value={value == null ? "" : String(value)}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+        className="h-7 border-transparent bg-transparent px-1 text-xs focus:border-border"
+      />
+    );
+  }
   return (
-    <div className="flex gap-3 overflow-x-auto pb-4">
-      {Object.entries(groups).map(([group, groupRecords]) => (
-        <div key={group} className="flex w-52 shrink-0 flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 p-3">
-          <div className="flex items-center justify-between">
-            <Badge variant="outline" className="text-xs">{group}</Badge>
-            <span className="text-[10px] text-muted-foreground">{groupRecords.length}</span>
-          </div>
-          <div className="flex flex-col gap-2">
-            {groupRecords.map((record) => (
-              <div key={record.id} className="group relative rounded-md border border-border/60 bg-card px-3 py-2 shadow-sm">
-                <p className="text-sm font-medium leading-snug">{getTitle(record)}</p>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1 hidden h-5 w-5 text-muted-foreground hover:text-destructive group-hover:flex"
-                  disabled={isPending}
-                  onClick={() => handleDelete(record.id)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            ))}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full text-xs text-muted-foreground"
-            disabled={isPending}
-            onClick={() => handleAdd(group)}
-          >
-            <Plus className="mr-1 h-3 w-3" /> ?啣?
-          </Button>
-        </div>
-      ))}
-    </div>
+    <Input
+      type="text"
+      value={value == null ? "" : String(value)}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      className="h-7 border-transparent bg-transparent px-1 text-xs focus:border-border"
+    />
   );
 }
-````
 
-## File: modules/notion/interfaces/database/components/DatabaseGalleryPanel.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseGalleryPanel ??card grid for database records.
- */
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { Plus, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-import { getRecords } from "../queries";
-import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
-
-interface DatabaseGalleryPanelProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
-  if (record.properties && typeof record.properties === "object") {
-    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
-  }
-  return null;
-}
-
-export function DatabaseGalleryPanel({ database, accountId, workspaceId, currentUserId }: DatabaseGalleryPanelProps) {
+export function DatabaseTablePanel({ database, accountId, workspaceId, currentUserId }: DatabaseTablePanelProps) {
   const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
+  const [edits, setEdits] = useState<Record<string, Record<string, unknown>>>({});
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [isPending, startTransition] = useTransition();
 
-  const titleField = database.fields.find((f) => f.type === "text") ?? null;
-  const metaFields = database.fields.filter((f) => f !== titleField).slice(0, 4);
+  const fields = database.fields;
 
   const load = useCallback(async () => {
+    if (!accountId || !database.id) return;
     setLoading(true);
     try {
       const data = await getRecords(accountId, database.id);
@@ -10167,14 +10250,38 @@ export function DatabaseGalleryPanel({ database, accountId, workspaceId, current
 
   useEffect(() => { void load(); }, [load]);
 
-  function handleAdd() {
+  function handleCellChange(recordId: string, fieldId: string, value: unknown) {
+    setEdits((prev) => ({
+      ...prev,
+      [recordId]: { ...(prev[recordId] ?? {}), [fieldId]: value },
+    }));
+  }
+
+  function handleCellBlur(record: DatabaseRecordSnapshot, fieldId: string) {
+    const cellValue = edits[record.id]?.[fieldId];
+    if (cellValue === undefined) return;
+    setSaving((prev) => ({ ...prev, [record.id]: true }));
     startTransition(async () => {
-      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId });
+      await updateRecord({ id: record.id, accountId, properties: setProperty(record, fieldId, cellValue) });
+      setEdits((prev) => {
+        const next = { ...prev };
+        delete next[record.id];
+        return next;
+      });
+      setSaving((prev) => ({ ...prev, [record.id]: false }));
+    });
+  }
+
+  function handleAddRecord() {
+    startTransition(async () => {
+      await createRecord({
+        databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId,
+      });
       void load();
     });
   }
 
-  function handleDelete(recordId: string) {
+  function handleDeleteRecord(recordId: string) {
     startTransition(async () => {
       await deleteRecord(accountId, recordId);
       setRecords((prev) => prev.filter((r) => r.id !== recordId));
@@ -10183,50 +10290,81 @@ export function DatabaseGalleryPanel({ database, accountId, workspaceId, current
 
   if (loading) {
     return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-lg" />)}
+      <div className="space-y-2">
+        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
       </div>
     );
   }
 
+  if (fields.length === 0) {
+    return (
+      <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
+        No fields yet. Add at least one field to start entering records.
+      </p>
+    );
+  }
+
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {records.length === 0 ? (
-          <p className="col-span-full rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">撠閮?</p>
-        ) : (
-          records.map((record) => {
-            const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "Untitled" : "Untitled";
-            return (
-              <div key={record.id} className="group relative flex flex-col gap-2 rounded-lg border border-border/60 bg-card p-3 shadow-sm">
-                <p className="truncate text-sm font-medium leading-snug">{title}</p>
-                <div className="flex flex-wrap gap-1">
-                  {metaFields.map((field) => {
-                    const val = getProperty(record, field.id);
-                    if (val == null || val === "") return null;
+    <div className="space-y-2">
+      <div className="overflow-x-auto rounded-lg border border-border/60">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border/60 bg-muted/30">
+              {fields.map((field) => (
+                <th key={field.id} className={`px-3 py-2 text-left text-xs font-semibold text-muted-foreground ${FIELD_WIDTHS[field.type] ?? FIELD_WIDTHS.default}`}>
+                  {field.name}
+                  {field.required && <span className="ml-0.5 text-destructive">*</span>}
+                </th>
+              ))}
+              <th className="w-10" />
+            </tr>
+          </thead>
+          <tbody>
+            {records.length === 0 ? (
+              <tr>
+                <td colSpan={fields.length + 1} className="px-3 py-6 text-center text-xs text-muted-foreground">
+                  No records
+                </td>
+              </tr>
+            ) : (
+              records.map((record) => (
+                <tr key={record.id} className="border-b border-border/30 last:border-b-0 hover:bg-muted/10">
+                  {fields.map((field) => {
+                    const edited = edits[record.id]?.[field.id];
+                    const current = edited !== undefined ? edited : getProperty(record, field.id);
                     return (
-                      <Badge key={field.id} variant="outline" className="text-[10px]">
-                        {field.name}: {String(val).slice(0, 16)}
-                      </Badge>
+                      <td key={field.id} className="px-2 py-1">
+                        <CellInput
+                          field={field}
+                          value={current}
+                          onChange={(v) => handleCellChange(record.id, field.id, v)}
+                          disabled={saving[record.id] ?? false}
+                        />
+                      </td>
                     );
                   })}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1 hidden h-6 w-6 text-muted-foreground hover:text-destructive group-hover:flex"
-                  disabled={isPending}
-                  onClick={() => handleDelete(record.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            );
-          })
-        )}
+                  <td className="px-1 py-1 text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                      disabled={isPending}
+                      onBlur={() => {
+                        fields.forEach((f) => { if (edits[record.id]?.[f.id] !== undefined) handleCellBlur(record, f.id); });
+                      }}
+                      onClick={() => handleDeleteRecord(record.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
-      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="w-full text-xs">
-        <Plus className="mr-1.5 h-3 w-3" /> ?啣?閮?
+      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAddRecord} className="w-full text-xs">
+        <Plus className="mr-1.5 h-3 w-3" /> Add record
       </Button>
     </div>
   );
@@ -10534,237 +10672,6 @@ export {
 } from "./KnowledgeCollectionUseCases";
 ````
 
-## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesPanel.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
-
-import { useAuth } from "@/modules/platform/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import { getArticles, getCategories } from "../queries";
-import { ArticleDialog } from "./ArticleDialog";
-import { CategoryTreePanel } from "./CategoryTreePanel";
-
-const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  draft: { label: "Draft", variant: "outline" },
-  published: { label: "Published", variant: "default" },
-  archived: { label: "Archived", variant: "secondary" },
-};
-
-const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
-  verified: { label: "Verified", icon: BadgeCheck },
-  needs_review: { label: "Needs Review", icon: FileClock },
-  unverified: { label: "Unverified", icon: CircleDot },
-};
-
-/**
- * KnowledgeBaseArticlesPanel
- * Route-level screen component for /knowledge-base/articles.
- * Encapsulates data-loading, filtering and layout so the Next.js route
- * file stays thin (params/context wiring only).
- */
-export interface KnowledgeBaseArticlesPanelProps {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly currentUserId?: string | null;
-}
-
-export function KnowledgeBaseArticlesPanel({
-  accountId,
-  workspaceId,
-  currentUserId,
-}: KnowledgeBaseArticlesPanelProps) {
-  const router = useRouter();
-  const { state: authState } = useAuth();
-
-  const resolvedAccountId = accountId.trim();
-  const resolvedWorkspaceId = workspaceId.trim();
-  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
-  const workspaceBasePath =
-    resolvedAccountId && resolvedWorkspaceId
-      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
-      : resolvedAccountId
-        ? `/${encodeURIComponent(resolvedAccountId)}`
-        : "/";
-  const overviewHref = resolvedWorkspaceId
-    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-base-articles`
-    : resolvedAccountId
-      ? `/${encodeURIComponent(resolvedAccountId)}`
-      : "/";
-
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    if (!resolvedAccountId || !resolvedWorkspaceId) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const [arts, cats] = await Promise.all([
-        getArticles({ accountId: resolvedAccountId, workspaceId: resolvedWorkspaceId }),
-        getCategories(resolvedAccountId, resolvedWorkspaceId),
-      ]);
-      setArticles(arts);
-      setCategories(cats);
-    } finally {
-      setLoading(false);
-    }
-  }, [resolvedAccountId, resolvedWorkspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const filteredArticles = useMemo(() => {
-    if (!selectedCategoryId) return articles;
-    const cat = categories.find((c) => c.id === selectedCategoryId);
-    if (!cat) return articles;
-    return articles.filter((a) => cat.articleIds.includes(a.id));
-  }, [articles, categories, selectedCategoryId]);
-
-  function handleSuccess(articleId?: string) {
-    if (articleId) {
-      if (resolvedAccountId && resolvedWorkspaceId) {
-        router.push(
-          `${workspaceBasePath}/knowledge-base/articles/${encodeURIComponent(articleId)}`,
-        );
-      } else {
-        router.push(`/knowledge-base/articles/${encodeURIComponent(articleId)}`);
-      }
-    } else {
-      load();
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">??</h1>
-        <p className="text-sm text-muted-foreground">
-          蝯??亥?摨怎? SOP ????辣??霅恣瘝颯?
-        </p>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push(overviewHref)}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          餈? Knowledge Hub
-        </button>
-        <Button
-          size="sm"
-          className="ml-auto"
-          disabled={!resolvedAccountId || !resolvedWorkspaceId}
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          ?啣???
-        </Button>
-      </div>
-
-      <ArticleDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        accountId={resolvedAccountId}
-        workspaceId={resolvedWorkspaceId}
-        currentUserId={resolvedCurrentUserId}
-        categories={categories}
-        onSuccess={handleSuccess}
-      />
-
-      {!resolvedAccountId || !resolvedWorkspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          撠??撣唾?/撌乩????嚗???交???撣唾???
-        </p>
-      ) : loading ? (
-        <div className="flex gap-4">
-          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
-          <div className="grid flex-1 gap-3 sm:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 w-full rounded-lg" />
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="flex gap-4">
-          <CategoryTreePanel
-            categories={categories}
-            selectedId={selectedCategoryId}
-            onSelect={setSelectedCategoryId}
-          />
-
-          <div className="flex-1">
-            {filteredArticles.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">
-                  {selectedCategoryId ? "No articles in this category yet." : "No articles yet. Create your first article."}
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {filteredArticles.map((article) => {
-                  const status = STATUS_CONFIG[article.status];
-                  const veri = VERIFICATION_CONFIG[article.verificationState];
-                  const VeriIcon = veri.icon;
-                  return (
-                    <Card
-                      key={article.id}
-                      className="cursor-pointer hover:bg-muted/10 transition-colors"
-                      onClick={() => handleSuccess(article.id)}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
-                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <VeriIcon className="h-3 w-3" />
-                          <span>{veri.label}</span>
-                        </div>
-                        {article.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {article.tags.slice(0, 3).map((tag) => (
-                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <p className="text-[10px] text-muted-foreground/70">
-                          v{article.version} 繚 {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-````
-
 ## File: modules/notion/interfaces/database/components/DatabaseAutomationPanel.tsx
 ````typescript
 "use client";
@@ -10950,6 +10857,147 @@ export function DatabaseAutomationPanel({ databaseId, accountId, currentUserId }
 }
 ````
 
+## File: modules/notion/interfaces/database/components/DatabaseBoardPanel.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseBoardPanel ??Kanban board grouped by first select/multi_select field.
+ */
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { Plus, Trash2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import { getRecords } from "../queries";
+import { createRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+
+interface DatabaseBoardPanelProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
+  if (record.properties && typeof record.properties === "object") {
+    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
+  }
+  return null;
+}
+
+export function DatabaseBoardPanel({ database, accountId, workspaceId, currentUserId }: DatabaseBoardPanelProps) {
+  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
+
+  const groupField = database.fields.find((f) => f.type === "select" || f.type === "multi_select") ?? null;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getRecords(accountId, database.id);
+      setRecords(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, database.id]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function getTitle(record: DatabaseRecordSnapshot): string {
+    const textField = database.fields.find((f) => f.type === "text");
+    if (!textField) return record.id.slice(0, 8);
+    return String(getProperty(record, textField.id) ?? "Untitled");
+  }
+
+  const groups: Record<string, DatabaseRecordSnapshot[]> = {};
+  if (!groupField) {
+    groups["No Group"] = records;
+  } else {
+    for (const record of records) {
+      const val = getProperty(record, groupField.id);
+      const key = val != null && val !== "" ? String(val) : "No Group";
+      (groups[key] ??= []).push(record);
+    }
+    if ("No Group" in groups) {
+      const noGroup = groups["No Group"];
+      delete groups["No Group"];
+      groups["No Group"] = noGroup;
+    }
+  }
+
+  function handleAdd(groupValue: string) {
+    startTransition(async () => {
+      const props: Record<string, unknown> = groupField && groupValue !== "No Group"
+        ? { [groupField.id]: groupValue }
+        : {};
+      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: props, createdByUserId: currentUserId });
+      void load();
+    });
+  }
+
+  function handleDelete(recordId: string) {
+    startTransition(async () => {
+      await deleteRecord(accountId, recordId);
+      setRecords((prev) => prev.filter((r) => r.id !== recordId));
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="flex gap-3 overflow-x-auto pb-2">
+        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-64 w-48 shrink-0 rounded-lg" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-3 overflow-x-auto pb-4">
+      {Object.entries(groups).map(([group, groupRecords]) => (
+        <div key={group} className="flex w-52 shrink-0 flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 p-3">
+          <div className="flex items-center justify-between">
+            <Badge variant="outline" className="text-xs">{group}</Badge>
+            <span className="text-[10px] text-muted-foreground">{groupRecords.length}</span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {groupRecords.map((record) => (
+              <div key={record.id} className="group relative rounded-md border border-border/60 bg-card px-3 py-2 shadow-sm">
+                <p className="text-sm font-medium leading-snug">{getTitle(record)}</p>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1 hidden h-5 w-5 text-muted-foreground hover:text-destructive group-hover:flex"
+                  disabled={isPending}
+                  onClick={() => handleDelete(record.id)}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full text-xs text-muted-foreground"
+            disabled={isPending}
+            onClick={() => handleAdd(group)}
+          >
+            <Plus className="mr-1 h-3 w-3" /> Add record
+          </Button>
+        </div>
+      ))}
+    </div>
+  );
+}
+````
+
 ## File: modules/notion/interfaces/database/components/DatabaseCalendarPanel.tsx
 ````typescript
 "use client";
@@ -11091,6 +11139,512 @@ export function DatabaseCalendarPanel({ database, accountId }: DatabaseCalendarP
           })}
         </div>
       </div>
+    </div>
+  );
+}
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseGalleryPanel.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseGalleryPanel ??card grid for database records.
+ */
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { Plus, Trash2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+import { getRecords } from "../queries";
+import { createRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+
+interface DatabaseGalleryPanelProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
+  if (record.properties && typeof record.properties === "object") {
+    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
+  }
+  return null;
+}
+
+export function DatabaseGalleryPanel({ database, accountId, workspaceId, currentUserId }: DatabaseGalleryPanelProps) {
+  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
+
+  const titleField = database.fields.find((f) => f.type === "text") ?? null;
+  const metaFields = database.fields.filter((f) => f !== titleField).slice(0, 4);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getRecords(accountId, database.id);
+      setRecords(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, database.id]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function handleAdd() {
+    startTransition(async () => {
+      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId });
+      void load();
+    });
+  }
+
+  function handleDelete(recordId: string) {
+    startTransition(async () => {
+      await deleteRecord(accountId, recordId);
+      setRecords((prev) => prev.filter((r) => r.id !== recordId));
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-lg" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {records.length === 0 ? (
+          <p className="col-span-full rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">撠閮?</p>
+        ) : (
+          records.map((record) => {
+            const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "Untitled" : "Untitled";
+            return (
+              <div key={record.id} className="group relative flex flex-col gap-2 rounded-lg border border-border/60 bg-card p-3 shadow-sm">
+                <p className="truncate text-sm font-medium leading-snug">{title}</p>
+                <div className="flex flex-wrap gap-1">
+                  {metaFields.map((field) => {
+                    const val = getProperty(record, field.id);
+                    if (val == null || val === "") return null;
+                    return (
+                      <Badge key={field.id} variant="outline" className="text-[10px]">
+                        {field.name}: {String(val).slice(0, 16)}
+                      </Badge>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1 hidden h-6 w-6 text-muted-foreground hover:text-destructive group-hover:flex"
+                  disabled={isPending}
+                  onClick={() => handleDelete(record.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            );
+          })
+        )}
+      </div>
+      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="w-full text-xs">
+        <Plus className="mr-1.5 h-3 w-3" /> Add record
+      </Button>
+    </div>
+  );
+}
+````
+
+## File: modules/notion/interfaces/knowledge/components/KnowledgePagesPanel.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import { useAuth } from "@/modules/platform/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
+import { PageTreePanel } from "./PageTreePanel";
+
+/**
+ * KnowledgePagesPanel
+ * Route-level screen component for /knowledge/pages.
+ * Encapsulates data-loading, scope resolution and layout so that the
+ * Next.js route file stays thin (params/context wiring only).
+ */
+export interface KnowledgePagesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId?: string | null;
+  readonly currentUserId?: string | null;
+  readonly scope?: "workspace" | "account";
+}
+
+export function KnowledgePagesPanel({
+  accountId,
+  workspaceId,
+  currentUserId,
+  scope,
+}: KnowledgePagesPanelProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { state: authState } = useAuth();
+
+  const resolvedAccountId = accountId.trim();
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+  const scopeParam = scope ?? searchParams.get("scope")?.trim() ?? "";
+  const isAccountSummary = scopeParam === "account";
+  const resolvedWorkspaceId = isAccountSummary ? "" : workspaceId?.trim() || requestedWorkspaceId || "";
+  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
+  const workspaceBasePath =
+    resolvedAccountId && resolvedWorkspaceId
+      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
+      : resolvedAccountId
+        ? `/${encodeURIComponent(resolvedAccountId)}`
+        : "/";
+  const overviewHref = resolvedWorkspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
+    : resolvedAccountId
+      ? `/${encodeURIComponent(resolvedAccountId)}`
+      : "/";
+
+  function buildPageDetailHref(pageId: string) {
+    if (resolvedAccountId && resolvedWorkspaceId) {
+      return `${workspaceBasePath}/knowledge/pages/${encodeURIComponent(pageId)}`;
+    }
+    return `/knowledge/pages/${encodeURIComponent(pageId)}${
+      resolvedWorkspaceId ? `?workspaceId=${encodeURIComponent(resolvedWorkspaceId)}` : ""
+    }`;
+  }
+
+  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    if (!resolvedAccountId) {
+      setLoading(false);
+      return;
+    }
+    if (!isAccountSummary && !resolvedWorkspaceId) {
+      setNodes([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const tree = isAccountSummary
+        ? await getKnowledgePageTree(resolvedAccountId)
+        : await getKnowledgePageTreeByWorkspace(resolvedAccountId, resolvedWorkspaceId);
+      setNodes(tree);
+    } finally {
+      setLoading(false);
+    }
+  }, [resolvedAccountId, isAccountSummary, resolvedWorkspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">?</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={isAccountSummary ? "secondary" : "outline"}>
+            {isAccountSummary ? "Account Summary" : "Workspace Scope"}
+          </Badge>
+          <p className="text-sm text-muted-foreground">
+            {isAccountSummary
+              ? "Account summary mode: showing account-level pages and metadata."
+              : "Workspace scope mode: showing pages for the selected workspace."}
+          </p>
+        </div>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(overviewHref)}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          餈? Knowledge Hub
+        </button>
+      </div>
+
+      {!resolvedAccountId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          Account is required to load pages.
+        </p>
+      ) : !isAccountSummary && !resolvedWorkspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          Workspace ID is required when viewing workspace-scoped pages.
+        </p>
+      ) : loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-full" />
+          ))}
+        </div>
+      ) : (
+        <PageTreePanel
+          nodes={nodes}
+          accountId={resolvedAccountId}
+          workspaceId={resolvedWorkspaceId || undefined}
+          currentUserId={resolvedCurrentUserId}
+          allowCreate={!isAccountSummary && Boolean(resolvedWorkspaceId)}
+          emptyStateDescription={
+            isAccountSummary
+              ? "No pages in account summary yet."
+              : "No pages in this workspace yet."
+          }
+          onPageClick={(pageId) => router.push(buildPageDetailHref(pageId))}
+          onCreated={() => load()}
+        />
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesPanel.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
+
+import { useAuth } from "@/modules/platform/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import { getArticles, getCategories } from "../queries";
+import { ArticleDialog } from "./ArticleDialog";
+import { CategoryTreePanel } from "./CategoryTreePanel";
+
+const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  draft: { label: "Draft", variant: "outline" },
+  published: { label: "Published", variant: "default" },
+  archived: { label: "Archived", variant: "secondary" },
+};
+
+const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
+  verified: { label: "Verified", icon: BadgeCheck },
+  needs_review: { label: "Needs Review", icon: FileClock },
+  unverified: { label: "Unverified", icon: CircleDot },
+};
+
+/**
+ * KnowledgeBaseArticlesPanel
+ * Route-level screen component for /knowledge-base/articles.
+ * Encapsulates data-loading, filtering and layout so the Next.js route
+ * file stays thin (params/context wiring only).
+ */
+export interface KnowledgeBaseArticlesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly currentUserId?: string | null;
+}
+
+export function KnowledgeBaseArticlesPanel({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: KnowledgeBaseArticlesPanelProps) {
+  const router = useRouter();
+  const { state: authState } = useAuth();
+
+  const resolvedAccountId = accountId.trim();
+  const resolvedWorkspaceId = workspaceId.trim();
+  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
+  const workspaceBasePath =
+    resolvedAccountId && resolvedWorkspaceId
+      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
+      : resolvedAccountId
+        ? `/${encodeURIComponent(resolvedAccountId)}`
+        : "/";
+  const overviewHref = resolvedWorkspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-base-articles`
+    : resolvedAccountId
+      ? `/${encodeURIComponent(resolvedAccountId)}`
+      : "/";
+
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!resolvedAccountId || !resolvedWorkspaceId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const [arts, cats] = await Promise.all([
+        getArticles({ accountId: resolvedAccountId, workspaceId: resolvedWorkspaceId }),
+        getCategories(resolvedAccountId, resolvedWorkspaceId),
+      ]);
+      setArticles(arts);
+      setCategories(cats);
+    } finally {
+      setLoading(false);
+    }
+  }, [resolvedAccountId, resolvedWorkspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filteredArticles = useMemo(() => {
+    if (!selectedCategoryId) return articles;
+    const cat = categories.find((c) => c.id === selectedCategoryId);
+    if (!cat) return articles;
+    return articles.filter((a) => cat.articleIds.includes(a.id));
+  }, [articles, categories, selectedCategoryId]);
+
+  function handleSuccess(articleId?: string) {
+    if (articleId) {
+      if (resolvedAccountId && resolvedWorkspaceId) {
+        router.push(
+          `${workspaceBasePath}/knowledge-base/articles/${encodeURIComponent(articleId)}`,
+        );
+      } else {
+        router.push(`/knowledge-base/articles/${encodeURIComponent(articleId)}`);
+      }
+    } else {
+      load();
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">??</h1>
+        <p className="text-sm text-muted-foreground">
+          蝯??亥?摨怎? SOP ????辣??霅恣瘝颯?
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(overviewHref)}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          Back to Knowledge Hub
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!resolvedAccountId || !resolvedWorkspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          New Article
+        </Button>
+      </div>
+
+      <ArticleDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        accountId={resolvedAccountId}
+        workspaceId={resolvedWorkspaceId}
+        currentUserId={resolvedCurrentUserId}
+        categories={categories}
+        onSuccess={handleSuccess}
+      />
+
+      {!resolvedAccountId || !resolvedWorkspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          Account and workspace are required to load articles.
+        </p>
+      ) : loading ? (
+        <div className="flex gap-4">
+          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
+          <div className="grid flex-1 gap-3 sm:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-4">
+          <CategoryTreePanel
+            categories={categories}
+            selectedId={selectedCategoryId}
+            onSelect={setSelectedCategoryId}
+          />
+
+          <div className="flex-1">
+            {filteredArticles.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  {selectedCategoryId ? "No articles in this category yet." : "No articles yet. Create your first article."}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {filteredArticles.map((article) => {
+                  const status = STATUS_CONFIG[article.status];
+                  const veri = VERIFICATION_CONFIG[article.verificationState];
+                  const VeriIcon = veri.icon;
+                  return (
+                    <Card
+                      key={article.id}
+                      className="cursor-pointer hover:bg-muted/10 transition-colors"
+                      onClick={() => handleSuccess(article.id)}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
+                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <VeriIcon className="h-3 w-3" />
+                          <span>{veri.label}</span>
+                        </div>
+                        {article.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {article.tags.slice(0, 3).map((tag) => (
+                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-muted-foreground/70">
+                          v{article.version} 繚 {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -11369,22 +11923,22 @@ export function DatabaseFormsPanel({
         </Button>
         <div className="ml-auto">
           <Button size="sm" variant="outline" disabled>
-            <Plus className="mr-1.5 h-3.5 w-3.5" /> 撱箇??啗”??
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> Form builder coming soon
           </Button>
         </div>
       </div>
 
       <header className="space-y-1 border-b border-border/60 pb-4">
-        <h1 className="text-xl font-semibold">{database.name} ??銵典</h1>
+        <h1 className="text-xl font-semibold">{database.name} Forms</h1>
         <p className="text-sm text-muted-foreground">
-          雿輻銵典霈??其蝙?刻?鈭方??甇方??澈??
+          Preview and share forms for collecting structured input.
         </p>
       </header>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "preview" | "share")}>
         <TabsList>
-          <TabsTrigger value="preview">?汗銵典</TabsTrigger>
-          <TabsTrigger value="share">?澈閮剖?</TabsTrigger>
+          <TabsTrigger value="preview">Preview form</TabsTrigger>
+          <TabsTrigger value="share">Share link</TabsTrigger>
         </TabsList>
 
         <TabsContent value="preview" className="mt-4">
@@ -11410,13 +11964,13 @@ export function DatabaseFormsPanel({
                   type="button"
                   onClick={() => void navigator.clipboard.writeText(shareUrl)}
                   className="shrink-0 text-muted-foreground hover:text-foreground"
-                  title="銴ˊ???"
+                  title="Copy URL"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                 </button>
               </div>
               <p className="text-xs text-muted-foreground">
-                ?澈甇日??霈隞犖憛怠神銵典銝血?閮??湔摮鞈?摨怒?
+                Share this URL with users who need to submit records.
               </p>
             </div>
           </div>
@@ -11591,160 +12145,6 @@ export function DatabaseListPanel({ database, accountId, workspaceId, currentUse
       <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="mt-1 w-full text-xs">
         <Plus className="mr-1.5 h-3 w-3" /> Add record
       </Button>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/interfaces/knowledge/components/KnowledgePagesPanel.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-
-import { useAuth } from "@/modules/platform/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
-import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
-import { PageTreePanel } from "./PageTreePanel";
-
-/**
- * KnowledgePagesPanel
- * Route-level screen component for /knowledge/pages.
- * Encapsulates data-loading, scope resolution and layout so that the
- * Next.js route file stays thin (params/context wiring only).
- */
-export interface KnowledgePagesPanelProps {
-  readonly accountId: string;
-  readonly workspaceId?: string | null;
-  readonly currentUserId?: string | null;
-  readonly scope?: "workspace" | "account";
-}
-
-export function KnowledgePagesPanel({
-  accountId,
-  workspaceId,
-  currentUserId,
-  scope,
-}: KnowledgePagesPanelProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { state: authState } = useAuth();
-
-  const resolvedAccountId = accountId.trim();
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-  const scopeParam = scope ?? searchParams.get("scope")?.trim() ?? "";
-  const isAccountSummary = scopeParam === "account";
-  const resolvedWorkspaceId = isAccountSummary ? "" : workspaceId?.trim() || requestedWorkspaceId || "";
-  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
-  const workspaceBasePath =
-    resolvedAccountId && resolvedWorkspaceId
-      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
-      : resolvedAccountId
-        ? `/${encodeURIComponent(resolvedAccountId)}`
-        : "/";
-  const overviewHref = resolvedWorkspaceId
-    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
-    : resolvedAccountId
-      ? `/${encodeURIComponent(resolvedAccountId)}`
-      : "/";
-
-  function buildPageDetailHref(pageId: string) {
-    if (resolvedAccountId && resolvedWorkspaceId) {
-      return `${workspaceBasePath}/knowledge/pages/${encodeURIComponent(pageId)}`;
-    }
-    return `/knowledge/pages/${encodeURIComponent(pageId)}${
-      resolvedWorkspaceId ? `?workspaceId=${encodeURIComponent(resolvedWorkspaceId)}` : ""
-    }`;
-  }
-
-  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    if (!resolvedAccountId) {
-      setLoading(false);
-      return;
-    }
-    if (!isAccountSummary && !resolvedWorkspaceId) {
-      setNodes([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const tree = isAccountSummary
-        ? await getKnowledgePageTree(resolvedAccountId)
-        : await getKnowledgePageTreeByWorkspace(resolvedAccountId, resolvedWorkspaceId);
-      setNodes(tree);
-    } finally {
-      setLoading(false);
-    }
-  }, [resolvedAccountId, isAccountSummary, resolvedWorkspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">?</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={isAccountSummary ? "secondary" : "outline"}>
-            {isAccountSummary ? "Account Summary" : "Workspace Scope"}
-          </Badge>
-          <p className="text-sm text-muted-foreground">
-            {isAccountSummary
-              ? "Account summary mode: showing account-level pages and metadata."
-              : "Workspace scope mode: showing pages for the selected workspace."}
-          </p>
-        </div>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push(overviewHref)}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          餈? Knowledge Hub
-        </button>
-      </div>
-
-      {!resolvedAccountId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          撠??撣唾???嚗???乓?
-        </p>
-      ) : !isAccountSummary && !resolvedWorkspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          撠?詨?撌乩??????撌乩???脣?亥??嚗??函雯?撣嗅 workspaceId 敺??亦??璅嫘?
-        </p>
-      ) : loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-8 w-full" />
-          ))}
-        </div>
-      ) : (
-        <PageTreePanel
-          nodes={nodes}
-          accountId={resolvedAccountId}
-          workspaceId={resolvedWorkspaceId || undefined}
-          currentUserId={resolvedCurrentUserId}
-          allowCreate={!isAccountSummary && Boolean(resolvedWorkspaceId)}
-          emptyStateDescription={
-            isAccountSummary
-              ? "No pages in account summary yet."
-              : "No pages in this workspace yet."
-          }
-          onPageClick={(pageId) => router.push(buildPageDetailHref(pageId))}
-          onCreated={() => load()}
-        />
-      )}
     </div>
   );
 }
@@ -11957,13 +12357,13 @@ export function DatabaseDetailPanel({
             onClick={() => router.push(formsHref)}
             disabled={isPending}
           >
-            <FileText className="mr-1.5 h-3.5 w-3.5" /> 銵典
+            <FileText className="mr-1.5 h-3.5 w-3.5" /> Forms
           </Button>
           <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
-            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> ?啣?甈?
+            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> Add field
           </Button>
           <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
-            <Archive className="mr-1.5 h-3.5 w-3.5" /> 撠?
+            <Archive className="mr-1.5 h-3.5 w-3.5" /> Archive
           </Button>
         </div>
       </div>
