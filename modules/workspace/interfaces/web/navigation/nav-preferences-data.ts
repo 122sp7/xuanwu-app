@@ -88,6 +88,39 @@ export const DEFAULT_PREFS: NavPreferences = {
   workspaceOrder: WORKSPACE_NAV_ITEMS.map((item) => item.id),
 };
 
+/**
+ * Legacy default order before workspace tab UX reorder.
+ * Only exact legacy defaults are migrated; custom user orders are preserved.
+ */
+const LEGACY_DEFAULT_WORKSPACE_ORDER = [
+  "home",
+  "daily",
+  "schedule",
+  "audit",
+  "tasks",
+  "task-qa",
+  "task-acceptance",
+  "task-issues",
+  "task-finance",
+  "feed",
+  "knowledge",
+  "workspace-settings",
+  "notion-knowledge",
+  "notion-authoring",
+  "notion-database",
+  "notion-collaboration",
+  "notion-relations",
+  "notion-taxonomy",
+  "notebook",
+  "notebook-conversation",
+  "notebook-notebook",
+  "notebook-source",
+  "notebook-synthesis",
+  "ai-chat",
+  "files",
+  "members",
+] as const;
+
 const VALID_PERSONAL_ITEM_IDS = new Set(PERSONAL_ITEMS.map((item) => item.id));
 const VALID_WORKSPACE_ITEM_IDS = new Set([
   ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
@@ -153,6 +186,20 @@ function migrateNotionNotebooklmPins(ids: string[]): string[] {
   return changed ? next : ids;
 }
 
+function isExactOrderMatch(source: string[], target: readonly string[]): boolean {
+  if (source.length !== target.length) {
+    return false;
+  }
+  return source.every((id, index) => id === target[index]);
+}
+
+function migrateWorkspaceOrder(order: string[]): string[] {
+  if (isExactOrderMatch(order, LEGACY_DEFAULT_WORKSPACE_ORDER)) {
+    return DEFAULT_PREFS.workspaceOrder;
+  }
+  return order;
+}
+
 // ── localStorage helpers ───────────────────────────────────────────────────
 
 export function readNavPreferences(): NavPreferences {
@@ -178,7 +225,7 @@ export function readNavPreferences(): NavPreferences {
         typeof parsed.maxWorkspaces === "number"
           ? parsed.maxWorkspaces
           : DEFAULT_PREFS.maxWorkspaces,
-      workspaceOrder: normalizeWorkspaceOrder(parsed.workspaceOrder),
+      workspaceOrder: migrateWorkspaceOrder(normalizeWorkspaceOrder(parsed.workspaceOrder)),
     };
   } catch {
     return DEFAULT_PREFS;
