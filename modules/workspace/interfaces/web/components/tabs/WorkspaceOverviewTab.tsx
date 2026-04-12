@@ -1,8 +1,6 @@
 "use client";
 
 import type { WorkspaceEntity } from "../../../api/contracts";
-import { KnowledgeBaseArticlesRouteScreen, KnowledgeDatabasesRouteScreen, KnowledgePagesRouteScreen } from "@/modules/notion/api";
-import { LibrariesView, LibraryTableView } from "@/modules/notebooklm/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import {
   Card,
@@ -18,6 +16,7 @@ import { WorkspaceOverviewSettingsTab } from "./WorkspaceOverviewSettingsTab";
 import { WorkspaceOverviewSummaryCard } from "../cards/WorkspaceOverviewSummaryCard";
 import { WorkspaceProductSpineCard } from "../cards/WorkspaceProductSpineCard";
 import { WorkspaceQuickstartCard } from "../cards/WorkspaceQuickstartCard";
+import { WorkspaceOverviewKnowledgePanels } from "./WorkspaceOverviewKnowledgePanels";
 
 interface WorkspaceOverviewTabProps {
   readonly workspace: WorkspaceEntity;
@@ -160,62 +159,7 @@ export function WorkspaceOverviewTab({
           )}
         </TabsContent>
 
-        <TabsContent value="knowledge-pages" className="mt-4 space-y-4">
-          <Card className="border border-border/50">
-            <CardHeader>
-              <CardTitle>Knowledge Pages</CardTitle>
-              <CardDescription>
-                Workspace orchestration surface for notion knowledge page tree and page entry flow.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <KnowledgePagesRouteScreen />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="knowledge-base-articles" className="mt-4 space-y-4">
-          <Card className="border border-border/50">
-            <CardHeader>
-              <CardTitle>Knowledge Base Articles</CardTitle>
-              <CardDescription>
-                Workspace orchestration surface for notion authoring article lifecycle and categorization.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <KnowledgeBaseArticlesRouteScreen />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="knowledge-databases" className="mt-4 space-y-4">
-          <Card className="border border-border/50">
-            <CardHeader>
-              <CardTitle>Knowledge Databases</CardTitle>
-              <CardDescription>
-                Workspace orchestration surface for notion structured database views.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <KnowledgeDatabasesRouteScreen />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="source-libraries" className="mt-4 space-y-4">
-          <Card className="border border-border/50">
-            <CardHeader>
-              <CardTitle>Source Libraries</CardTitle>
-              <CardDescription>
-                Workspace orchestration surface for notebooklm source libraries.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <LibraryTableView accountId={workspace.accountId} workspaceId={workspace.id} />
-              <LibrariesView accountId={workspace.accountId} workspaceId={workspace.id} />
-            </CardContent>
-          </Card>
-        </TabsContent>
+        <WorkspaceOverviewKnowledgePanels workspace={workspace} />
 
         <TabsContent value="governance" className="mt-4 space-y-4">
           <div className="grid gap-4 xl:grid-cols-2">
