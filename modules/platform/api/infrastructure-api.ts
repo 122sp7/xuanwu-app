@@ -6,11 +6,13 @@ import {
 	getFirebaseStorage,
 	storageApi,
 } from "@integration-firebase";
+import { collectionGroup } from "firebase/firestore";
 
 import type {
 	FirestoreAPI,
 	FunctionsAPI,
 	FunctionsCallOptions,
+	FirestoreQueryOptions,
 	FirestoreWhereClause,
 	GenkitAPI,
 	StorageAPI,
@@ -69,6 +71,27 @@ function toUploadMetadata(options?: StorageUploadOptions) {
 	};
 }
 
+function applyQueryConstraints(
+	baseQuery: ReturnType<typeof firestoreApi.query>,
+	where: readonly FirestoreWhereClause[],
+	options?: FirestoreQueryOptions,
+) {
+	const whereConstraints = where.map((clause) =>
+		firestoreApi.where(clause.field, clause.op, clause.value),
+	);
+
+	const orderByConstraints = (options?.orderBy ?? []).map((clause) =>
+		firestoreApi.orderBy(clause.field, clause.direction ?? "asc"),
+	);
+
+	const limitConstraint =
+		typeof options?.limit === "number" && options.limit > 0
+			? [firestoreApi.limit(options.limit)]
+			: [];
+
+	return firestoreApi.query(baseQuery, ...whereConstraints, ...orderByConstraints, ...limitConstraint);
+}
+
 export const firestoreInfrastructureApi: FirestoreAPI = {
 	async get<T>(path: string): Promise<T | null> {
 		const db = getFirebaseFirestore();
@@ -84,20 +107,52 @@ export const firestoreInfrastructureApi: FirestoreAPI = {
 		await firestoreApi.setDoc(ref, data as Record<string, unknown>);
 	},
 
-	async query<T>(collectionPath: string, where: readonly FirestoreWhereClause[] = []): Promise<T[]> {
+	async query<T>(
+		collectionPath: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+	): Promise<T[]> {
+		const documents = await firestoreInfrastructureApi.queryDocuments<T>(collectionPath, where, options);
+		return documents.map((document) => document.data);
+	},
+
+	async queryDocuments<T>(
+		collectionPath: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly { id: string; data: T }[]> {
 		const db = getFirebaseFirestore();
 		const collectionRef = firestoreApi.collection(
 			db,
 			resolveCollectionPath(collectionPath).join("/"),
 		);
 
-		const queryConstraints = where.map((clause) =>
-			firestoreApi.where(clause.field, clause.op, clause.value),
-		);
-
-		const queryRef = firestoreApi.query(collectionRef, ...queryConstraints);
+		const queryRef = applyQueryConstraints(firestoreApi.query(collectionRef), where, options);
 		const snapshot = await firestoreApi.getDocs(queryRef);
-		return snapshot.docs.map((doc) => doc.data() as T);
+		return snapshot.docs.map((doc) => ({
+			id: doc.id,
+			data: doc.data() as T,
+		}));
+	},
+
+	async queryCollectionGroup<T>(
+		collectionId: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly { id: string; data: T }[]> {
+		const normalizedCollectionId = collectionId.trim();
+		if (!normalizedCollectionId) {
+			throw new Error("Collection group id is required.");
+		}
+
+		const db = getFirebaseFirestore();
+		const collectionGroupRef = collectionGroup(db, normalizedCollectionId);
+		const queryRef = applyQueryConstraints(firestoreApi.query(collectionGroupRef), where, options);
+		const snapshot = await firestoreApi.getDocs(queryRef);
+		return snapshot.docs.map((doc) => ({
+			id: doc.id,
+			data: doc.data() as T,
+		}));
 	},
 
 	watchCollection<T>(

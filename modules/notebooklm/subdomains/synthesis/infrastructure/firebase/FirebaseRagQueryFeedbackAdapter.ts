@@ -7,19 +7,8 @@
  * Firestore collection: ragQueryFeedback/{autoId}
  */
 
-import {
-  addDoc,
-  collection,
-  getDocs,
-  getFirestore,
-  limit,
-  orderBy,
-  query,
-  where,
-} from "firebase/firestore";
-
 import { v7 as generateId } from "@lib-uuid";
-import { firebaseClientApp } from "@integration-firebase/client";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
 
 import type { IRagQueryFeedbackRepository } from "../../domain/repositories/IRagQueryFeedbackRepository";
 import type {
@@ -42,10 +31,6 @@ interface FirestoreFeedbackDoc {
 }
 
 export class FirebaseRagQueryFeedbackAdapter implements IRagQueryFeedbackRepository {
-  private db() {
-    return getFirestore(firebaseClientApp);
-  }
-
   async save(input: SubmitRagQueryFeedbackInput): Promise<RagQueryFeedback> {
     const id = generateId();
     const submittedAtISO = new Date().toISOString();
@@ -62,7 +47,7 @@ export class FirebaseRagQueryFeedbackAdapter implements IRagQueryFeedbackReposit
       submittedAtISO,
     };
 
-    await addDoc(collection(this.db(), COLLECTION), doc);
+    await firestoreInfrastructureApi.set<FirestoreFeedbackDoc>(`${COLLECTION}/${id}`, doc);
 
     return {
       id,
@@ -78,18 +63,17 @@ export class FirebaseRagQueryFeedbackAdapter implements IRagQueryFeedbackReposit
   }
 
   async listByOrganization(organizationId: string, limitCount: number): Promise<RagQueryFeedback[]> {
-    const q = query(
-      collection(this.db(), COLLECTION),
-      where("organizationId", "==", organizationId),
-      orderBy("submittedAtISO", "desc"),
-      limit(limitCount),
+    const docs = await firestoreInfrastructureApi.query<FirestoreFeedbackDoc>(
+      COLLECTION,
+      [{ field: "organizationId", op: "==", value: organizationId }],
+      {
+        orderBy: [{ field: "submittedAtISO", direction: "desc" }],
+        limit: limitCount,
+      },
     );
-
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => {
-      const data = d.data() as FirestoreFeedbackDoc;
+    return docs.map((data) => {
       return {
-        id: typeof data.id === "string" ? data.id : d.id,
+        id: data.id,
         traceId: data.traceId,
         userQuery: data.userQuery,
         organizationId: data.organizationId,

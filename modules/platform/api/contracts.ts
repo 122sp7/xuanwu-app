@@ -44,6 +44,18 @@ export interface FirestoreWhereClause {
 	readonly value: unknown;
 }
 
+export type FirestoreOrderDirection = "asc" | "desc";
+
+export interface FirestoreOrderByClause {
+	readonly field: string;
+	readonly direction?: FirestoreOrderDirection;
+}
+
+export interface FirestoreQueryOptions {
+	readonly limit?: number;
+	readonly orderBy?: readonly FirestoreOrderByClause[];
+}
+
 export interface FirestoreCollectionDocument<T> {
 	readonly id: string;
 	readonly data: T;
@@ -57,7 +69,21 @@ export interface FirestoreCollectionWatchHandlers<T> {
 export interface FirestoreAPI {
 	get<T>(path: string): Promise<T | null>;
 	set<T>(path: string, data: T): Promise<void>;
-	query<T>(collectionPath: string, where?: readonly FirestoreWhereClause[]): Promise<T[]>;
+	query<T>(
+		collectionPath: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<T[]>;
+	queryDocuments<T>(
+		collectionPath: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly FirestoreCollectionDocument<T>[]>;
+	queryCollectionGroup<T>(
+		collectionId: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly FirestoreCollectionDocument<T>[]>;
 	watchCollection<T>(
 		collectionPath: string,
 		handlers: FirestoreCollectionWatchHandlers<T>,

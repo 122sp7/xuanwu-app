@@ -12,9 +12,7 @@
  *  5. Sort descending by score, return top-K.
  */
 
-import { collectionGroup, getDocs, getFirestore, limit, query, where } from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
 
 import type { RagRetrievedChunk } from "../../domain/entities/retrieval.entities";
 import type { IRagRetrievalRepository, RetrieveChunksInput } from "../../domain/repositories/IRagRetrievalRepository";
@@ -71,24 +69,23 @@ function computeTokenOverlapScore(queryTokens: readonly string[], chunkText: str
 // --- Adapter ------------------------------------------------------------------
 
 export class FirebaseRagRetrievalAdapter implements IRagRetrievalRepository {
-  private readonly db = getFirestore(firebaseClientApp);
-
   async retrieve(input: RetrieveChunksInput): Promise<readonly RagRetrievedChunk[]> {
     // Step 1 — resolve ready document IDs in scope
-    const documentsQuery = query(
-      collectionGroup(this.db, "documents"),
-      where("organizationId", "==", input.organizationId),
-      where("status", "==", "ready"),
-      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
-      ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
-      limit(Math.max(input.topK * DOCUMENT_OVER_FETCH_MULTIPLIER, MIN_DOCUMENT_LIMIT)),
+    const documentSnapshots = await firestoreInfrastructureApi.queryCollectionGroup<FirestoreRagDocument>(
+      "documents",
+      [
+        { field: "organizationId", op: "==", value: input.organizationId },
+        { field: "status", op: "==", value: "ready" },
+        ...(input.workspaceId ? [{ field: "workspaceId", op: "==", value: input.workspaceId } as const] : []),
+        ...(input.taxonomy ? [{ field: "taxonomy", op: "==", value: input.taxonomy } as const] : []),
+      ],
+      { limit: Math.max(input.topK * DOCUMENT_OVER_FETCH_MULTIPLIER, MIN_DOCUMENT_LIMIT) },
     );
 
-    const documentSnapshots = await getDocs(documentsQuery);
     const readyDocumentIds = new Set(
-      documentSnapshots.docs
+      documentSnapshots
         .filter((snap) => {
-          const data = snap.data() as FirestoreRagDocument;
+          const data = snap.data;
           return data.status === "ready";
         })
         .map((snap) => snap.id),
@@ -97,21 +94,22 @@ export class FirebaseRagRetrievalAdapter implements IRagRetrievalRepository {
     if (readyDocumentIds.size === 0) return [];
 
     // Step 2 — over-fetch candidate chunks
-    const chunksQuery = query(
-      collectionGroup(this.db, "chunks"),
-      where("organizationId", "==", input.organizationId),
-      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
-      ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
-      limit(Math.max(input.topK * CHUNK_OVER_FETCH_MULTIPLIER, MIN_CHUNK_LIMIT)),
+    const chunkSnapshots = await firestoreInfrastructureApi.queryCollectionGroup<FirestoreRagChunk>(
+      "chunks",
+      [
+        { field: "organizationId", op: "==", value: input.organizationId },
+        ...(input.workspaceId ? [{ field: "workspaceId", op: "==", value: input.workspaceId } as const] : []),
+        ...(input.taxonomy ? [{ field: "taxonomy", op: "==", value: input.taxonomy } as const] : []),
+      ],
+      { limit: Math.max(input.topK * CHUNK_OVER_FETCH_MULTIPLIER, MIN_CHUNK_LIMIT) },
     );
 
-    const chunkSnapshots = await getDocs(chunksQuery);
     const queryTokens = tokenize(input.normalizedQuery);
 
     // Step 3 — score, filter, sort, slice
-    return chunkSnapshots.docs
+    return chunkSnapshots
       .map((snap) => {
-        const data = snap.data() as FirestoreRagChunk;
+        const data = snap.data;
         const text = typeof data.text === "string" ? data.text : "";
         const docId = typeof data.docId === "string" ? data.docId : "";
         return {

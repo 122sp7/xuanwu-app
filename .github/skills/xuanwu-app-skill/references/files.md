@@ -1618,6 +1618,34 @@ export function makeThreadRepo() {
 }
 ````
 
+## File: modules/notebooklm/subdomains/conversation/api/index.ts
+````typescript
+/**
+ * Public API boundary for the conversation subdomain.
+ *
+ * Cross-module consumers MUST import through this entry point.
+ */
+
+export { AiChatPage } from "../interfaces/components/AiChatPage";
+export type { AiChatPageProps } from "../interfaces/components/AiChatPage";
+
+export type { ChatMessage } from "../interfaces/helpers";
+export {
+  STORAGE_KEY,
+  buildContextPrompt,
+  generateMsgId,
+  threadFromMessages,
+} from "../interfaces/helpers";
+
+// Domain types
+export type { Message, MessageRole } from "../domain/entities/message";
+export type { Thread } from "../domain/entities/thread";
+export type { IThreadRepository } from "../domain/repositories/IThreadRepository";
+
+// Thread persistence actions
+export { saveThread, loadThread } from "../interfaces/_actions/thread.actions";
+````
+
 ## File: modules/notebooklm/subdomains/conversation/domain/entities/message.ts
 ````typescript
 /**
@@ -40370,34 +40398,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vercel-react-best-practices
 ````
 
-## File: modules/notebooklm/subdomains/conversation/api/index.ts
-````typescript
-/**
- * Public API boundary for the conversation subdomain.
- *
- * Cross-module consumers MUST import through this entry point.
- */
-
-export { AiChatPage } from "../interfaces/components/AiChatPage";
-export type { AiChatPageProps } from "../interfaces/components/AiChatPage";
-
-export type { ChatMessage } from "../interfaces/helpers";
-export {
-  STORAGE_KEY,
-  buildContextPrompt,
-  generateMsgId,
-  threadFromMessages,
-} from "../interfaces/helpers";
-
-// Domain types
-export type { Message, MessageRole } from "../domain/entities/message";
-export type { Thread } from "../domain/entities/thread";
-export type { IThreadRepository } from "../domain/repositories/IThreadRepository";
-
-// Thread persistence actions
-export { saveThread, loadThread } from "../interfaces/_actions/thread.actions";
-````
-
 ## File: modules/notebooklm/subdomains/conversation/application/dto/conversation.dto.ts
 ````typescript
 /**
@@ -40544,6 +40544,167 @@ export async function generateNotebookResponse(
   const useCase = new GenerateNotebookResponseUseCase(makeNotebookRepo());
   return useCase.execute(input);
 }
+````
+
+## File: modules/notebooklm/subdomains/source/api/index.ts
+````typescript
+/**
+ * Public API boundary for the source subdomain.
+ *
+ * Cross-module consumers MUST import through this entry point.
+ * Internal consumers within the subdomain import from their own layer.
+ */
+
+// ---------------------------------------------------------------------------
+// Domain entity types
+// ---------------------------------------------------------------------------
+
+export type {
+  SourceFile,
+  SourceFileStatus,
+  SourceFileClassification,
+} from "../domain/entities/SourceFile";
+
+export type {
+  SourceFileVersion,
+  SourceFileVersionStatus,
+} from "../domain/entities/SourceFileVersion";
+
+export type {
+  RagDocumentRecord,
+  RagDocumentStatus,
+} from "../domain/entities/RagDocument";
+
+export type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../domain/entities/WikiLibrary";
+
+// ---------------------------------------------------------------------------
+// Wiki library use cases (lazy singleton — no module-scope side effects)
+// ---------------------------------------------------------------------------
+
+import type { IWikiLibraryRepository } from "../domain/repositories/IWikiLibraryRepository";
+import { FirebaseWikiLibraryAdapter } from "../infrastructure/firebase/FirebaseWikiLibraryAdapter";
+import {
+  listWikiLibraries as _listWikiLibraries,
+  createWikiLibrary as _createWikiLibrary,
+  addWikiLibraryField as _addWikiLibraryField,
+  createWikiLibraryRow as _createWikiLibraryRow,
+  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
+} from "../application/use-cases/wiki-library.use-cases";
+
+import type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../domain/entities/WikiLibrary";
+
+export type { WikiLibrarySnapshot } from "../application/use-cases/wiki-library.use-cases";
+
+let _libraryRepo: IWikiLibraryRepository | null = null;
+
+function getLibraryRepo(): IWikiLibraryRepository {
+  if (!_libraryRepo) _libraryRepo = new FirebaseWikiLibraryAdapter();
+  return _libraryRepo;
+}
+
+export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
+  return _listWikiLibraries(accountId, workspaceId, getLibraryRepo());
+}
+
+export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
+  return _createWikiLibrary(input, getLibraryRepo());
+}
+
+export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
+  return _addWikiLibraryField(input, getLibraryRepo());
+}
+
+export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
+  return _createWikiLibraryRow(input, getLibraryRepo());
+}
+
+export function getWikiLibrarySnapshot(accountId: string, libraryId: string): ReturnType<typeof _getWikiLibrarySnapshot> {
+  return _getWikiLibrarySnapshot(accountId, libraryId, getLibraryRepo());
+}
+
+// ---------------------------------------------------------------------------
+// Live document DTOs
+// ---------------------------------------------------------------------------
+
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../application/dto/source-live-document.dto";
+export {
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../application/dto/source-live-document.dto";
+
+// ---------------------------------------------------------------------------
+// Hooks
+// ---------------------------------------------------------------------------
+
+export type {
+  UseSourceDocumentsSnapshotResult,
+} from "../interfaces/hooks/useSourceDocumentsSnapshot";
+export {
+  useSourceDocumentsSnapshot,
+} from "../interfaces/hooks/useSourceDocumentsSnapshot";
+
+// ---------------------------------------------------------------------------
+// Queries
+// ---------------------------------------------------------------------------
+
+export { getWorkspaceFiles, getWorkspaceRagDocuments } from "../interfaces/queries/source-file.queries";
+
+// ---------------------------------------------------------------------------
+// Server actions
+// ---------------------------------------------------------------------------
+
+export {
+  uploadInitFile,
+  uploadCompleteFile,
+  registerUploadedRagDocument,
+  deleteSourceDocument,
+  renameSourceDocument,
+} from "../interfaces/_actions/source-file.actions";
+
+export { createKnowledgeDraftFromSourceDocument } from "../interfaces/_actions/source-processing.actions";
+
+// ---------------------------------------------------------------------------
+// UI components
+// ---------------------------------------------------------------------------
+
+export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
+export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
+export { LibrariesView } from "../interfaces/components/LibrariesView";
+export { LibraryTableView } from "../interfaces/components/LibraryTableView";
+export { FileProcessingDialog } from "../interfaces/components/FileProcessingDialog";
+
+// ---------------------------------------------------------------------------
+// Infrastructure (for direct injection in server-side wiring)
+// ---------------------------------------------------------------------------
+
+export { FirebaseSourceFileAdapter } from "../infrastructure/firebase/FirebaseSourceFileAdapter";
+export { FirebaseRagDocumentAdapter } from "../infrastructure/firebase/FirebaseRagDocumentAdapter";
+export { FirebaseWikiLibraryAdapter } from "../infrastructure/firebase/FirebaseWikiLibraryAdapter";
+export { InMemoryWikiLibraryAdapter } from "../infrastructure/memory/InMemoryWikiLibraryAdapter";
+export { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase/FirebaseSourceDocumentCommandAdapter";
+export { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
+export { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/dto/source-live-document.dto.ts
@@ -43733,8 +43894,10 @@ export const DEFAULT_TOP_K: TopK = 10 as TopK;
  * - Functions region is configured as a constant; change here only if region changes.
  */
 
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
+import {
+  firestoreInfrastructureApi,
+  functionsInfrastructureApi,
+} from "@/modules/platform/api";
 
 import type {
   IKnowledgeContentRepository,
@@ -43846,18 +44009,32 @@ export class FirebaseKnowledgeContentAdapter implements IKnowledgeContentReposit
       requireReady?: boolean;
     } = {},
   ): Promise<KnowledgeRagQueryResult> {
-    const functions = getFirebaseFunctions(FUNCTIONS_REGION);
-    const callable = functionsApi.httpsCallable(functions, "rag_query");
-    const result = await callable({
-      query,
-      top_k: topK,
-      account_id: accountId,
-      workspace_id: workspaceId,
-      taxonomy_filters: options.taxonomyFilters ?? [],
-      max_age_days: options.maxAgeDays,
-      require_ready: options.requireReady,
-    });
-    const data = objectOrEmpty(result.data);
+    const data = objectOrEmpty(
+      await functionsInfrastructureApi.call<
+        {
+          query: string;
+          top_k: number;
+          account_id: string;
+          workspace_id: string;
+          taxonomy_filters: string[];
+          max_age_days?: number;
+          require_ready?: boolean;
+        },
+        unknown
+      >(
+        "rag_query",
+        {
+          query,
+          top_k: topK,
+          account_id: accountId,
+          workspace_id: workspaceId,
+          taxonomy_filters: options.taxonomyFilters ?? [],
+          max_age_days: options.maxAgeDays,
+          require_ready: options.requireReady,
+        },
+        { region: FUNCTIONS_REGION },
+      ),
+    );
 
     return {
       answer: typeof data.answer === "string" ? data.answer : "",
@@ -43877,26 +44054,39 @@ export class FirebaseKnowledgeContentAdapter implements IKnowledgeContentReposit
   }
 
   async reindexDocument(input: KnowledgeReindexInput): Promise<void> {
-    const functions = getFirebaseFunctions(FUNCTIONS_REGION);
-    const callable = functionsApi.httpsCallable(functions, "rag_reindex_document");
-    await callable({
-      account_id: input.accountId,
-      doc_id: input.docId,
-      json_gcs_uri: input.jsonGcsUri,
-      source_gcs_uri: input.sourceGcsUri,
-      filename: input.filename,
-      page_count: input.pageCount,
-    });
+    await functionsInfrastructureApi.call<
+      {
+        account_id: string;
+        doc_id: string;
+        json_gcs_uri: string;
+        source_gcs_uri: string;
+        filename: string;
+        page_count: number;
+      },
+      unknown
+    >(
+      "rag_reindex_document",
+      {
+        account_id: input.accountId,
+        doc_id: input.docId,
+        json_gcs_uri: input.jsonGcsUri,
+        source_gcs_uri: input.sourceGcsUri,
+        filename: input.filename,
+        page_count: input.pageCount,
+      },
+      { region: FUNCTIONS_REGION },
+    );
   }
 
   async listParsedDocuments(accountId: string, limitCount: number): Promise<KnowledgeParsedDocument[]> {
     if (!accountId) throw new Error("accountId is required");
-    const db = getFirebaseFirestore();
-    const ref = firestoreApi.collection(db, "accounts", accountId, "documents");
-    const q = firestoreApi.query(ref, firestoreApi.limit(limitCount));
-    const snap = await firestoreApi.getDocs(q);
+    const documents = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      `accounts/${accountId}/documents`,
+      [],
+      { limit: limitCount },
+    );
 
-    const docs = snap.docs.map((d) => mapToParsedDocument(d.id, objectOrEmpty(d.data())));
+    const docs = documents.map((d) => mapToParsedDocument(d.id, objectOrEmpty(d.data)));
     return docs.sort((a, b) => {
       const at = a.uploadedAt ? a.uploadedAt.getTime() : 0;
       const bt = b.uploadedAt ? b.uploadedAt.getTime() : 0;
@@ -43917,19 +44107,8 @@ export class FirebaseKnowledgeContentAdapter implements IKnowledgeContentReposit
  * Firestore collection: ragQueryFeedback/{autoId}
  */
 
-import {
-  addDoc,
-  collection,
-  getDocs,
-  getFirestore,
-  limit,
-  orderBy,
-  query,
-  where,
-} from "firebase/firestore";
-
 import { v7 as generateId } from "@lib-uuid";
-import { firebaseClientApp } from "@integration-firebase/client";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
 
 import type { IRagQueryFeedbackRepository } from "../../domain/repositories/IRagQueryFeedbackRepository";
 import type {
@@ -43952,10 +44131,6 @@ interface FirestoreFeedbackDoc {
 }
 
 export class FirebaseRagQueryFeedbackAdapter implements IRagQueryFeedbackRepository {
-  private db() {
-    return getFirestore(firebaseClientApp);
-  }
-
   async save(input: SubmitRagQueryFeedbackInput): Promise<RagQueryFeedback> {
     const id = generateId();
     const submittedAtISO = new Date().toISOString();
@@ -43972,7 +44147,7 @@ export class FirebaseRagQueryFeedbackAdapter implements IRagQueryFeedbackReposit
       submittedAtISO,
     };
 
-    await addDoc(collection(this.db(), COLLECTION), doc);
+    await firestoreInfrastructureApi.set<FirestoreFeedbackDoc>(`${COLLECTION}/${id}`, doc);
 
     return {
       id,
@@ -43988,18 +44163,17 @@ export class FirebaseRagQueryFeedbackAdapter implements IRagQueryFeedbackReposit
   }
 
   async listByOrganization(organizationId: string, limitCount: number): Promise<RagQueryFeedback[]> {
-    const q = query(
-      collection(this.db(), COLLECTION),
-      where("organizationId", "==", organizationId),
-      orderBy("submittedAtISO", "desc"),
-      limit(limitCount),
+    const docs = await firestoreInfrastructureApi.query<FirestoreFeedbackDoc>(
+      COLLECTION,
+      [{ field: "organizationId", op: "==", value: organizationId }],
+      {
+        orderBy: [{ field: "submittedAtISO", direction: "desc" }],
+        limit: limitCount,
+      },
     );
-
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => {
-      const data = d.data() as FirestoreFeedbackDoc;
+    return docs.map((data) => {
       return {
-        id: typeof data.id === "string" ? data.id : d.id,
+        id: data.id,
         traceId: data.traceId,
         userQuery: data.userQuery,
         organizationId: data.organizationId,
@@ -44030,9 +44204,7 @@ export class FirebaseRagQueryFeedbackAdapter implements IRagQueryFeedbackReposit
  *  5. Sort descending by score, return top-K.
  */
 
-import { collectionGroup, getDocs, getFirestore, limit, query, where } from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
 
 import type { RagRetrievedChunk } from "../../domain/entities/retrieval.entities";
 import type { IRagRetrievalRepository, RetrieveChunksInput } from "../../domain/repositories/IRagRetrievalRepository";
@@ -44089,24 +44261,23 @@ function computeTokenOverlapScore(queryTokens: readonly string[], chunkText: str
 // --- Adapter ------------------------------------------------------------------
 
 export class FirebaseRagRetrievalAdapter implements IRagRetrievalRepository {
-  private readonly db = getFirestore(firebaseClientApp);
-
   async retrieve(input: RetrieveChunksInput): Promise<readonly RagRetrievedChunk[]> {
     // Step 1 — resolve ready document IDs in scope
-    const documentsQuery = query(
-      collectionGroup(this.db, "documents"),
-      where("organizationId", "==", input.organizationId),
-      where("status", "==", "ready"),
-      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
-      ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
-      limit(Math.max(input.topK * DOCUMENT_OVER_FETCH_MULTIPLIER, MIN_DOCUMENT_LIMIT)),
+    const documentSnapshots = await firestoreInfrastructureApi.queryCollectionGroup<FirestoreRagDocument>(
+      "documents",
+      [
+        { field: "organizationId", op: "==", value: input.organizationId },
+        { field: "status", op: "==", value: "ready" },
+        ...(input.workspaceId ? [{ field: "workspaceId", op: "==", value: input.workspaceId } as const] : []),
+        ...(input.taxonomy ? [{ field: "taxonomy", op: "==", value: input.taxonomy } as const] : []),
+      ],
+      { limit: Math.max(input.topK * DOCUMENT_OVER_FETCH_MULTIPLIER, MIN_DOCUMENT_LIMIT) },
     );
 
-    const documentSnapshots = await getDocs(documentsQuery);
     const readyDocumentIds = new Set(
-      documentSnapshots.docs
+      documentSnapshots
         .filter((snap) => {
-          const data = snap.data() as FirestoreRagDocument;
+          const data = snap.data;
           return data.status === "ready";
         })
         .map((snap) => snap.id),
@@ -44115,21 +44286,22 @@ export class FirebaseRagRetrievalAdapter implements IRagRetrievalRepository {
     if (readyDocumentIds.size === 0) return [];
 
     // Step 2 — over-fetch candidate chunks
-    const chunksQuery = query(
-      collectionGroup(this.db, "chunks"),
-      where("organizationId", "==", input.organizationId),
-      ...(input.workspaceId ? [where("workspaceId", "==", input.workspaceId)] : []),
-      ...(input.taxonomy ? [where("taxonomy", "==", input.taxonomy)] : []),
-      limit(Math.max(input.topK * CHUNK_OVER_FETCH_MULTIPLIER, MIN_CHUNK_LIMIT)),
+    const chunkSnapshots = await firestoreInfrastructureApi.queryCollectionGroup<FirestoreRagChunk>(
+      "chunks",
+      [
+        { field: "organizationId", op: "==", value: input.organizationId },
+        ...(input.workspaceId ? [{ field: "workspaceId", op: "==", value: input.workspaceId } as const] : []),
+        ...(input.taxonomy ? [{ field: "taxonomy", op: "==", value: input.taxonomy } as const] : []),
+      ],
+      { limit: Math.max(input.topK * CHUNK_OVER_FETCH_MULTIPLIER, MIN_CHUNK_LIMIT) },
     );
 
-    const chunkSnapshots = await getDocs(chunksQuery);
     const queryTokens = tokenize(input.normalizedQuery);
 
     // Step 3 — score, filter, sort, slice
-    return chunkSnapshots.docs
+    return chunkSnapshots
       .map((snap) => {
-        const data = snap.data() as FirestoreRagChunk;
+        const data = snap.data;
         const text = typeof data.text === "string" ? data.text : "";
         const docId = typeof data.docId === "string" ? data.docId : "";
         return {
@@ -50186,6 +50358,15 @@ export function isHardConstraint(constraint: PlanConstraint): boolean {
 export function isExceeded(constraint: PlanConstraint, usage: number): boolean {
   return usage >= constraint.threshold;
 }
+````
+
+## File: modules/platform/index.ts
+````typescript
+/**
+ * platform — Public module entry point.
+ * All cross-module consumers must import through this file or modules/platform/api/.
+ */
+export * from "./api";
 ````
 
 ## File: modules/platform/infrastructure/cache/CachedPlatformContextViewRepository.ts
@@ -61939,167 +62120,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notebooklm/subdomains/source/api/index.ts
-````typescript
-/**
- * Public API boundary for the source subdomain.
- *
- * Cross-module consumers MUST import through this entry point.
- * Internal consumers within the subdomain import from their own layer.
- */
-
-// ---------------------------------------------------------------------------
-// Domain entity types
-// ---------------------------------------------------------------------------
-
-export type {
-  SourceFile,
-  SourceFileStatus,
-  SourceFileClassification,
-} from "../domain/entities/SourceFile";
-
-export type {
-  SourceFileVersion,
-  SourceFileVersionStatus,
-} from "../domain/entities/SourceFileVersion";
-
-export type {
-  RagDocumentRecord,
-  RagDocumentStatus,
-} from "../domain/entities/RagDocument";
-
-export type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryFieldType,
-  WikiLibraryRow,
-  WikiLibraryStatus,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../domain/entities/WikiLibrary";
-
-// ---------------------------------------------------------------------------
-// Wiki library use cases (lazy singleton — no module-scope side effects)
-// ---------------------------------------------------------------------------
-
-import type { IWikiLibraryRepository } from "../domain/repositories/IWikiLibraryRepository";
-import { FirebaseWikiLibraryAdapter } from "../infrastructure/firebase/FirebaseWikiLibraryAdapter";
-import {
-  listWikiLibraries as _listWikiLibraries,
-  createWikiLibrary as _createWikiLibrary,
-  addWikiLibraryField as _addWikiLibraryField,
-  createWikiLibraryRow as _createWikiLibraryRow,
-  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
-} from "../application/use-cases/wiki-library.use-cases";
-
-import type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../domain/entities/WikiLibrary";
-
-export type { WikiLibrarySnapshot } from "../application/use-cases/wiki-library.use-cases";
-
-let _libraryRepo: IWikiLibraryRepository | null = null;
-
-function getLibraryRepo(): IWikiLibraryRepository {
-  if (!_libraryRepo) _libraryRepo = new FirebaseWikiLibraryAdapter();
-  return _libraryRepo;
-}
-
-export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
-  return _listWikiLibraries(accountId, workspaceId, getLibraryRepo());
-}
-
-export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
-  return _createWikiLibrary(input, getLibraryRepo());
-}
-
-export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
-  return _addWikiLibraryField(input, getLibraryRepo());
-}
-
-export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
-  return _createWikiLibraryRow(input, getLibraryRepo());
-}
-
-export function getWikiLibrarySnapshot(accountId: string, libraryId: string): ReturnType<typeof _getWikiLibrarySnapshot> {
-  return _getWikiLibrarySnapshot(accountId, libraryId, getLibraryRepo());
-}
-
-// ---------------------------------------------------------------------------
-// Live document DTOs
-// ---------------------------------------------------------------------------
-
-export type {
-  SourceDocument,
-  SourceLiveDocument,
-  AssetDocument,
-  AssetLiveDocument,
-} from "../application/dto/source-live-document.dto";
-export {
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
-} from "../application/dto/source-live-document.dto";
-
-// ---------------------------------------------------------------------------
-// Hooks
-// ---------------------------------------------------------------------------
-
-export type {
-  UseSourceDocumentsSnapshotResult,
-} from "../interfaces/hooks/useSourceDocumentsSnapshot";
-export {
-  useSourceDocumentsSnapshot,
-} from "../interfaces/hooks/useSourceDocumentsSnapshot";
-
-// ---------------------------------------------------------------------------
-// Queries
-// ---------------------------------------------------------------------------
-
-export { getWorkspaceFiles, getWorkspaceRagDocuments } from "../interfaces/queries/source-file.queries";
-
-// ---------------------------------------------------------------------------
-// Server actions
-// ---------------------------------------------------------------------------
-
-export {
-  uploadInitFile,
-  uploadCompleteFile,
-  registerUploadedRagDocument,
-  deleteSourceDocument,
-  renameSourceDocument,
-} from "../interfaces/_actions/source-file.actions";
-
-export { createKnowledgeDraftFromSourceDocument } from "../interfaces/_actions/source-processing.actions";
-
-// ---------------------------------------------------------------------------
-// UI components
-// ---------------------------------------------------------------------------
-
-export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
-export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
-export { LibrariesView } from "../interfaces/components/LibrariesView";
-export { LibraryTableView } from "../interfaces/components/LibraryTableView";
-export { FileProcessingDialog } from "../interfaces/components/FileProcessingDialog";
-
-// ---------------------------------------------------------------------------
-// Infrastructure (for direct injection in server-side wiring)
-// ---------------------------------------------------------------------------
-
-export { FirebaseSourceFileAdapter } from "../infrastructure/firebase/FirebaseSourceFileAdapter";
-export { FirebaseRagDocumentAdapter } from "../infrastructure/firebase/FirebaseRagDocumentAdapter";
-export { FirebaseWikiLibraryAdapter } from "../infrastructure/firebase/FirebaseWikiLibraryAdapter";
-export { InMemoryWikiLibraryAdapter } from "../infrastructure/memory/InMemoryWikiLibraryAdapter";
-export { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase/FirebaseSourceDocumentCommandAdapter";
-export { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
-export { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
-````
-
 ## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
 ````typescript
 /**
@@ -63677,11 +63697,13 @@ import {
 	getFirebaseStorage,
 	storageApi,
 } from "@integration-firebase";
+import { collectionGroup } from "firebase/firestore";
 
 import type {
 	FirestoreAPI,
 	FunctionsAPI,
 	FunctionsCallOptions,
+	FirestoreQueryOptions,
 	FirestoreWhereClause,
 	GenkitAPI,
 	StorageAPI,
@@ -63740,6 +63762,27 @@ function toUploadMetadata(options?: StorageUploadOptions) {
 	};
 }
 
+function applyQueryConstraints(
+	baseQuery: ReturnType<typeof firestoreApi.query>,
+	where: readonly FirestoreWhereClause[],
+	options?: FirestoreQueryOptions,
+) {
+	const whereConstraints = where.map((clause) =>
+		firestoreApi.where(clause.field, clause.op, clause.value),
+	);
+
+	const orderByConstraints = (options?.orderBy ?? []).map((clause) =>
+		firestoreApi.orderBy(clause.field, clause.direction ?? "asc"),
+	);
+
+	const limitConstraint =
+		typeof options?.limit === "number" && options.limit > 0
+			? [firestoreApi.limit(options.limit)]
+			: [];
+
+	return firestoreApi.query(baseQuery, ...whereConstraints, ...orderByConstraints, ...limitConstraint);
+}
+
 export const firestoreInfrastructureApi: FirestoreAPI = {
 	async get<T>(path: string): Promise<T | null> {
 		const db = getFirebaseFirestore();
@@ -63755,20 +63798,52 @@ export const firestoreInfrastructureApi: FirestoreAPI = {
 		await firestoreApi.setDoc(ref, data as Record<string, unknown>);
 	},
 
-	async query<T>(collectionPath: string, where: readonly FirestoreWhereClause[] = []): Promise<T[]> {
+	async query<T>(
+		collectionPath: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+	): Promise<T[]> {
+		const documents = await firestoreInfrastructureApi.queryDocuments<T>(collectionPath, where, options);
+		return documents.map((document) => document.data);
+	},
+
+	async queryDocuments<T>(
+		collectionPath: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly { id: string; data: T }[]> {
 		const db = getFirebaseFirestore();
 		const collectionRef = firestoreApi.collection(
 			db,
 			resolveCollectionPath(collectionPath).join("/"),
 		);
 
-		const queryConstraints = where.map((clause) =>
-			firestoreApi.where(clause.field, clause.op, clause.value),
-		);
-
-		const queryRef = firestoreApi.query(collectionRef, ...queryConstraints);
+		const queryRef = applyQueryConstraints(firestoreApi.query(collectionRef), where, options);
 		const snapshot = await firestoreApi.getDocs(queryRef);
-		return snapshot.docs.map((doc) => doc.data() as T);
+		return snapshot.docs.map((doc) => ({
+			id: doc.id,
+			data: doc.data() as T,
+		}));
+	},
+
+	async queryCollectionGroup<T>(
+		collectionId: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly { id: string; data: T }[]> {
+		const normalizedCollectionId = collectionId.trim();
+		if (!normalizedCollectionId) {
+			throw new Error("Collection group id is required.");
+		}
+
+		const db = getFirebaseFirestore();
+		const collectionGroupRef = collectionGroup(db, normalizedCollectionId);
+		const queryRef = applyQueryConstraints(firestoreApi.query(collectionGroupRef), where, options);
+		const snapshot = await firestoreApi.getDocs(queryRef);
+		return snapshot.docs.map((doc) => ({
+			id: doc.id,
+			data: doc.data() as T,
+		}));
 	},
 
 	watchCollection<T>(
@@ -64644,15 +64719,6 @@ Strategic architecture documentation lives in `docs/contexts/platform/`:
 
 - Strategic docs in `docs/contexts/platform/` are the authority for naming, ownership, and boundaries.
 - This `docs/` folder is for implementation-aligned detail only.
-````
-
-## File: modules/platform/index.ts
-````typescript
-/**
- * platform — Public module entry point.
- * All cross-module consumers must import through this file or modules/platform/api/.
- */
-export * from "./api";
 ````
 
 ## File: modules/platform/interfaces/web/shell/breadcrumbs/ShellAppBreadcrumbs.tsx
@@ -68664,6 +68730,22 @@ export default function SettingsProfilePage() {
 }
 ````
 
+## File: modules/notebooklm/api/server.ts
+````typescript
+/**
+ * modules/notebooklm — server-only API barrel.
+ *
+ * Exports concrete notebook implementations that depend on server-only
+ * packages or infrastructure wiring. Must only be imported in Server Actions,
+ * route handlers, or server-side infrastructure.
+ */
+
+export { GenerateNotebookResponseUseCase, PlatformTextGenerationAdapter } from "../subdomains/notebook/api/server";
+
+// Q&A subdomain — AnswerRagQueryUseCase factory (now in synthesis subdomain)
+export { createAnswerRagQueryUseCase } from "../subdomains/synthesis/api/server";
+````
+
 ## File: modules/notebooklm/notebooklm.instructions.md
 ````markdown
 ---
@@ -69356,6 +69438,18 @@ export interface FirestoreWhereClause {
 	readonly value: unknown;
 }
 
+export type FirestoreOrderDirection = "asc" | "desc";
+
+export interface FirestoreOrderByClause {
+	readonly field: string;
+	readonly direction?: FirestoreOrderDirection;
+}
+
+export interface FirestoreQueryOptions {
+	readonly limit?: number;
+	readonly orderBy?: readonly FirestoreOrderByClause[];
+}
+
 export interface FirestoreCollectionDocument<T> {
 	readonly id: string;
 	readonly data: T;
@@ -69369,7 +69463,21 @@ export interface FirestoreCollectionWatchHandlers<T> {
 export interface FirestoreAPI {
 	get<T>(path: string): Promise<T | null>;
 	set<T>(path: string, data: T): Promise<void>;
-	query<T>(collectionPath: string, where?: readonly FirestoreWhereClause[]): Promise<T[]>;
+	query<T>(
+		collectionPath: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<T[]>;
+	queryDocuments<T>(
+		collectionPath: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly FirestoreCollectionDocument<T>[]>;
+	queryCollectionGroup<T>(
+		collectionId: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly FirestoreCollectionDocument<T>[]>;
 	watchCollection<T>(
 		collectionPath: string,
 		handlers: FirestoreCollectionWatchHandlers<T>,
@@ -71379,20 +71487,132 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
 }
 ````
 
-## File: modules/notebooklm/api/server.ts
+## File: modules/notebooklm/api/index.ts
 ````typescript
 /**
- * modules/notebooklm — server-only API barrel.
- *
- * Exports concrete notebook implementations that depend on server-only
- * packages or infrastructure wiring. Must only be imported in Server Actions,
- * route handlers, or server-side infrastructure.
+ * modules/notebooklm — public API barrel.
  */
 
-export { GenerateNotebookResponseUseCase, PlatformTextGenerationAdapter } from "../subdomains/notebook/api/server";
+export type { Message, MessageRole, Thread, IThreadRepository } from "../subdomains/conversation/api";
 
-// Q&A subdomain — AnswerRagQueryUseCase factory (now in synthesis subdomain)
-export { createAnswerRagQueryUseCase } from "../subdomains/synthesis/api/server";
+export type {
+  NotebookResponse,
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+  NotebookRepository,
+} from "../subdomains/notebook/api";
+
+export { generateNotebookResponse } from "../subdomains/notebook/api";
+export { saveThread, loadThread } from "../subdomains/conversation/api";
+
+// ---------------------------------------------------------------------------
+// NotebookLM root interfaces — Q&A UI
+// ---------------------------------------------------------------------------
+export { RagQueryView } from "../interfaces/components/RagQueryView";
+
+// ---------------------------------------------------------------------------
+// Source subdomain — types, hooks, and UI (replaces @/modules/source/api)
+// ---------------------------------------------------------------------------
+
+export type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+  WikiLibrarySnapshot,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../subdomains/source/api";
+
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../subdomains/source/api";
+
+export {
+  useSourceDocumentsSnapshot,
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../subdomains/source/api";
+
+export {
+  listWikiLibraries,
+  createWikiLibrary,
+  addWikiLibraryField,
+  createWikiLibraryRow,
+  getWikiLibrarySnapshot,
+} from "../subdomains/source/api";
+
+export {
+  SourceDocumentsView,
+  WorkspaceFilesTab,
+  LibrariesView,
+  LibraryTableView,
+  FileProcessingDialog,
+} from "../subdomains/source/api";
+
+// ---------------------------------------------------------------------------
+// conversation subdomain — AI chat UI and helpers
+// ---------------------------------------------------------------------------
+
+export { AiChatPage } from "../subdomains/conversation/api";
+export type { AiChatPageProps, ChatMessage } from "../subdomains/conversation/api";
+
+// ---------------------------------------------------------------------------
+// Context-wide published language (cross-module reference types)
+// ---------------------------------------------------------------------------
+
+export type {
+  NotebookReference,
+  SourceReference,
+  ConversationReference,
+} from "../domain/published-language";
+
+export type { NotebookLmDomainEvent } from "../domain/events";
+
+// ---------------------------------------------------------------------------
+// Synthesis subdomain — complete RAG pipeline
+// (retrieval → grounding → synthesis → evaluation)
+// ---------------------------------------------------------------------------
+
+export type {
+  RetrievedChunk,
+  RetrievalSummary,
+  RetrieveChunksInput,
+  IChunkRetrievalPort,
+  RetrievalCompletedEvent,
+  RetrievalFailedEvent,
+} from "../subdomains/synthesis/api";
+
+export type {
+  Citation,
+  GroundingEvidence,
+  CitationBuilderInput,
+  ICitationBuilder,
+  GroundingCompletedEvent,
+} from "../subdomains/synthesis/api";
+
+export type {
+  GenerationCitation,
+  GenerateAnswerInput,
+  GenerateAnswerOutput,
+  GenerateAnswerResult,
+  IGenerationPort,
+  SynthesisCompletedEvent,
+  SynthesisFailedEvent,
+} from "../subdomains/synthesis/api";
+
+export type {
+  FeedbackRating,
+  QualityFeedback,
+  SubmitFeedbackInput,
+  IFeedbackPort,
+  FeedbackSubmittedEvent,
+} from "../subdomains/synthesis/api";
 ````
 
 ## File: modules/notebooklm/subdomains/synthesis/README.md
@@ -72168,134 +72388,6 @@ export function WorkspaceDetailScreen({
     </div>
   );
 }
-````
-
-## File: modules/notebooklm/api/index.ts
-````typescript
-/**
- * modules/notebooklm — public API barrel.
- */
-
-export type { Message, MessageRole, Thread, IThreadRepository } from "../subdomains/conversation/api";
-
-export type {
-  NotebookResponse,
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-  NotebookRepository,
-} from "../subdomains/notebook/api";
-
-export { generateNotebookResponse } from "../subdomains/notebook/api";
-export { saveThread, loadThread } from "../subdomains/conversation/api";
-
-// ---------------------------------------------------------------------------
-// NotebookLM root interfaces — Q&A UI
-// ---------------------------------------------------------------------------
-export { RagQueryView } from "../interfaces/components/RagQueryView";
-
-// ---------------------------------------------------------------------------
-// Source subdomain — types, hooks, and UI (replaces @/modules/source/api)
-// ---------------------------------------------------------------------------
-
-export type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryFieldType,
-  WikiLibraryRow,
-  WikiLibraryStatus,
-  WikiLibrarySnapshot,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../subdomains/source/api";
-
-export type {
-  SourceDocument,
-  SourceLiveDocument,
-  AssetDocument,
-  AssetLiveDocument,
-} from "../subdomains/source/api";
-
-export {
-  useSourceDocumentsSnapshot,
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
-} from "../subdomains/source/api";
-
-export {
-  listWikiLibraries,
-  createWikiLibrary,
-  addWikiLibraryField,
-  createWikiLibraryRow,
-  getWikiLibrarySnapshot,
-} from "../subdomains/source/api";
-
-export {
-  SourceDocumentsView,
-  WorkspaceFilesTab,
-  LibrariesView,
-  LibraryTableView,
-  FileProcessingDialog,
-} from "../subdomains/source/api";
-
-// ---------------------------------------------------------------------------
-// conversation subdomain — AI chat UI and helpers
-// ---------------------------------------------------------------------------
-
-export { AiChatPage } from "../subdomains/conversation/api";
-export type { AiChatPageProps, ChatMessage } from "../subdomains/conversation/api";
-
-// ---------------------------------------------------------------------------
-// Context-wide published language (cross-module reference types)
-// ---------------------------------------------------------------------------
-
-export type {
-  NotebookReference,
-  SourceReference,
-  ConversationReference,
-} from "../domain/published-language";
-
-export type { NotebookLmDomainEvent } from "../domain/events";
-
-// ---------------------------------------------------------------------------
-// Synthesis subdomain — complete RAG pipeline
-// (retrieval → grounding → synthesis → evaluation)
-// ---------------------------------------------------------------------------
-
-export type {
-  RetrievedChunk,
-  RetrievalSummary,
-  RetrieveChunksInput,
-  IChunkRetrievalPort,
-  RetrievalCompletedEvent,
-  RetrievalFailedEvent,
-} from "../subdomains/synthesis/api";
-
-export type {
-  Citation,
-  GroundingEvidence,
-  CitationBuilderInput,
-  ICitationBuilder,
-  GroundingCompletedEvent,
-} from "../subdomains/synthesis/api";
-
-export type {
-  GenerationCitation,
-  GenerateAnswerInput,
-  GenerateAnswerOutput,
-  GenerateAnswerResult,
-  IGenerationPort,
-  SynthesisCompletedEvent,
-  SynthesisFailedEvent,
-} from "../subdomains/synthesis/api";
-
-export type {
-  FeedbackRating,
-  QualityFeedback,
-  SubmitFeedbackInput,
-  IFeedbackPort,
-  FeedbackSubmittedEvent,
-} from "../subdomains/synthesis/api";
 ````
 
 ## File: modules/notion/README.md

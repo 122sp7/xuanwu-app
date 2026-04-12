@@ -10,8 +10,10 @@
  * - Functions region is configured as a constant; change here only if region changes.
  */
 
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
+import {
+  firestoreInfrastructureApi,
+  functionsInfrastructureApi,
+} from "@/modules/platform/api";
 
 import type {
   IKnowledgeContentRepository,
@@ -123,18 +125,32 @@ export class FirebaseKnowledgeContentAdapter implements IKnowledgeContentReposit
       requireReady?: boolean;
     } = {},
   ): Promise<KnowledgeRagQueryResult> {
-    const functions = getFirebaseFunctions(FUNCTIONS_REGION);
-    const callable = functionsApi.httpsCallable(functions, "rag_query");
-    const result = await callable({
-      query,
-      top_k: topK,
-      account_id: accountId,
-      workspace_id: workspaceId,
-      taxonomy_filters: options.taxonomyFilters ?? [],
-      max_age_days: options.maxAgeDays,
-      require_ready: options.requireReady,
-    });
-    const data = objectOrEmpty(result.data);
+    const data = objectOrEmpty(
+      await functionsInfrastructureApi.call<
+        {
+          query: string;
+          top_k: number;
+          account_id: string;
+          workspace_id: string;
+          taxonomy_filters: string[];
+          max_age_days?: number;
+          require_ready?: boolean;
+        },
+        unknown
+      >(
+        "rag_query",
+        {
+          query,
+          top_k: topK,
+          account_id: accountId,
+          workspace_id: workspaceId,
+          taxonomy_filters: options.taxonomyFilters ?? [],
+          max_age_days: options.maxAgeDays,
+          require_ready: options.requireReady,
+        },
+        { region: FUNCTIONS_REGION },
+      ),
+    );
 
     return {
       answer: typeof data.answer === "string" ? data.answer : "",
@@ -154,26 +170,39 @@ export class FirebaseKnowledgeContentAdapter implements IKnowledgeContentReposit
   }
 
   async reindexDocument(input: KnowledgeReindexInput): Promise<void> {
-    const functions = getFirebaseFunctions(FUNCTIONS_REGION);
-    const callable = functionsApi.httpsCallable(functions, "rag_reindex_document");
-    await callable({
-      account_id: input.accountId,
-      doc_id: input.docId,
-      json_gcs_uri: input.jsonGcsUri,
-      source_gcs_uri: input.sourceGcsUri,
-      filename: input.filename,
-      page_count: input.pageCount,
-    });
+    await functionsInfrastructureApi.call<
+      {
+        account_id: string;
+        doc_id: string;
+        json_gcs_uri: string;
+        source_gcs_uri: string;
+        filename: string;
+        page_count: number;
+      },
+      unknown
+    >(
+      "rag_reindex_document",
+      {
+        account_id: input.accountId,
+        doc_id: input.docId,
+        json_gcs_uri: input.jsonGcsUri,
+        source_gcs_uri: input.sourceGcsUri,
+        filename: input.filename,
+        page_count: input.pageCount,
+      },
+      { region: FUNCTIONS_REGION },
+    );
   }
 
   async listParsedDocuments(accountId: string, limitCount: number): Promise<KnowledgeParsedDocument[]> {
     if (!accountId) throw new Error("accountId is required");
-    const db = getFirebaseFirestore();
-    const ref = firestoreApi.collection(db, "accounts", accountId, "documents");
-    const q = firestoreApi.query(ref, firestoreApi.limit(limitCount));
-    const snap = await firestoreApi.getDocs(q);
+    const documents = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      `accounts/${accountId}/documents`,
+      [],
+      { limit: limitCount },
+    );
 
-    const docs = snap.docs.map((d) => mapToParsedDocument(d.id, objectOrEmpty(d.data())));
+    const docs = documents.map((d) => mapToParsedDocument(d.id, objectOrEmpty(d.data)));
     return docs.sort((a, b) => {
       const at = a.uploadedAt ? a.uploadedAt.getTime() : 0;
       const bt = b.uploadedAt ? b.uploadedAt.getTime() : 0;
