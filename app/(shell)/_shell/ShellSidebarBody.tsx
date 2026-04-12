@@ -183,26 +183,6 @@ export function DashboardSidebarBody({
         </div>
       )}
 
-      {section === "knowledge" && (
-        <div className="space-y-2">
-          <WorkspaceSectionContent
-            workspacePathId={scopedWorkspacePathId}
-            navPrefs={navPrefs}
-            localeBundle={localeBundle}
-            showRecentWorkspaces={showRecentWorkspaces}
-            visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
-            hasOverflow={hasOverflow}
-            isExpanded={isExpanded}
-            activeWorkspaceId={activeWorkspaceId}
-            isActiveRoute={isActiveRoute}
-            onSelectWorkspace={onSelectWorkspace}
-            onToggleExpanded={onToggleExpanded}
-            getItemClassName={sidebarItemClass}
-            sectionTitleClassName={sidebarSectionTitleClass}
-          />
-        </div>
-      )}
-
       {contextSection && (
         <ShellContextNavSection
           title={contextSection.title}

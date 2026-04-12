@@ -100,14 +100,9 @@ export function ShellDashboardSidebar({
   const currentPanel = searchParams.get("panel");
   const currentWorkspaceTab = searchParams.get("tab");
   const hasSingleWorkspaceContext = section === "workspace" && Boolean(workspacePathId);
-  const hasWorkspaceToolContext =
-    Boolean(activeWorkspaceId || currentSearchWorkspaceId) &&
-    (section === "knowledge" ||
-      section === "knowledge-base" ||
-      section === "source" ||
-      section === "notebook");
+  const hasWorkspaceToolContext = false;
   const workspaceQuickAccessId =
-    workspacePathId || currentSearchWorkspaceId || (hasWorkspaceToolContext ? activeWorkspaceId ?? "" : "");
+    workspacePathId || currentSearchWorkspaceId || "";
   const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
   const workspaceSettingsHref = workspaceQuickAccessId
     ? activeAccount?.id

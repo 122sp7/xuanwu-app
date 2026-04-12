@@ -1,10 +1,5 @@
 import {
-  BookOpen,
-  Bot,
-  Brain,
   Building2,
-  Database,
-  FileText,
   LayoutDashboard,
   UserRound,
   Users,
@@ -52,15 +47,6 @@ export const ACCOUNT_SECTION_MATCHERS = SHELL_ACCOUNT_SECTION_MATCHERS;
 export const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
   workspace: { label: SHELL_SECTION_LABELS.workspace, icon: <Building2 className="size-3" /> },
   dashboard: { label: SHELL_SECTION_LABELS.dashboard, icon: <LayoutDashboard className="size-3" /> },
-  knowledge: { label: SHELL_SECTION_LABELS.knowledge, icon: <BookOpen className="size-3" /> },
-  "knowledge-base": { label: SHELL_SECTION_LABELS["knowledge-base"], icon: <BookOpen className="size-3" /> },
-  "knowledge-database": {
-    label: SHELL_SECTION_LABELS["knowledge-database"],
-    icon: <Database className="size-3" />,
-  },
-  source: { label: SHELL_SECTION_LABELS.source, icon: <FileText className="size-3" /> },
-  notebook: { label: SHELL_SECTION_LABELS.notebook, icon: <Brain className="size-3" /> },
-  "ai-chat": { label: SHELL_SECTION_LABELS["ai-chat"], icon: <Bot className="size-3" /> },
   account: { label: SHELL_SECTION_LABELS.account, icon: <UserRound className="size-3" /> },
   organization: { label: SHELL_SECTION_LABELS.organization, icon: <Users className="size-3" /> },
   other: { label: SHELL_SECTION_LABELS.other, icon: null },

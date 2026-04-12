@@ -3,13 +3,6 @@ import type { ReactNode } from "react";
 
 const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
   "workspace",
-  "workspace-feed",
-  "knowledge",
-  "knowledge-base",
-  "knowledge-database",
-  "source",
-  "notebook",
-  "ai-chat",
   "organization",
   "settings",
   "dashboard",

@@ -3,12 +3,6 @@
 export type ShellNavSection =
   | "workspace"
   | "dashboard"
-  | "knowledge"
-  | "knowledge-base"
-  | "knowledge-database"
-  | "source"
-  | "notebook"
-  | "ai-chat"
   | "account"
   | "organization"
   | "other";
@@ -41,13 +35,6 @@ export interface ShellRouteContext {
 
 const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
   "workspace",
-  "workspace-feed",
-  "knowledge",
-  "knowledge-base",
-  "knowledge-database",
-  "source",
-  "notebook",
-  "ai-chat",
   "organization",
   "settings",
   "dashboard",
@@ -56,15 +43,7 @@ const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
 
 const ACCOUNT_SCOPED_ACCOUNT_ROOT_ROUTES = new Set(["organization", "settings", "dashboard", "dev-tools"]);
 
-const ACCOUNT_SCOPED_WORKSPACE_TOOL_ROOT_ROUTES = new Set([
-  "knowledge",
-  "knowledge-base",
-  "knowledge-database",
-  "source",
-  "notebook",
-  "ai-chat",
-  "workspace-feed",
-]);
+const ACCOUNT_SCOPED_WORKSPACE_TOOL_ROOT_ROUTES = new Set<string>([]);
 
 function parseHref(href: string): { path: string; query: string } {
   const [path, query = ""] = href.split("?");
@@ -179,15 +158,6 @@ const ROUTE_TITLES: Record<string, string> = {
   "/organization/schedule/dispatcher": "帳號 · 調度台",
   "/organization/audit": "帳號 · 稽核",
   "/workspace": "工作區中心",
-  "/knowledge": "知識中心",
-  "/knowledge/pages": "知識 · 頁面",
-  "/knowledge/block-editor": "知識 · 區塊編輯器",
-  "/knowledge-base/articles": "知識庫 · 文章",
-  "/knowledge-database/databases": "知識資料庫 · 資料庫",
-  "/source/documents": "來源 · 文件",
-  "/source/libraries": "來源 · 資料庫",
-  "/notebook/rag-query": "筆記本 · 問答 / 引用",
-  "/ai-chat": "AI 對話",
   "/dashboard": "儀表板",
   "/dev-tools": "開發工具",
 };
@@ -195,15 +165,6 @@ const ROUTE_TITLES: Record<string, string> = {
 const BREADCRUMB_LABELS: Record<string, string> = {
   organization: "組織",
   workspace: "工作區",
-  wiki: "Account Wiki",
-  "rag-query": "Ask / Cite",
-  documents: "文件",
-  libraries: "Libraries",
-  pages: "頁面",
-  "pages-dnd": "頁面 (DnD)",
-  "block-editor": "區塊編輯器",
-  "rag-reindex": "RAG 重新索引",
-  "ai-chat": "Notebook",
   dashboard: "儀表板",
   "dev-tools": "開發工具",
   namespaces: "命名空間",
@@ -234,12 +195,6 @@ export const SHELL_ACCOUNT_NAV_ITEMS: readonly ShellNavItem[] = [
 export const SHELL_SECTION_LABELS: Record<ShellNavSection, string> = {
   workspace: "工作區",
   dashboard: "儀表板",
-  knowledge: "知識",
-  "knowledge-base": "知識庫",
-  "knowledge-database": "知識資料庫",
-  source: "來源",
-  notebook: "筆記本",
-  "ai-chat": "AI 對話",
   account: "帳號",
   organization: "組織",
   other: "導覽",
@@ -269,12 +224,7 @@ export function listShellRailCatalogItems(isOrganization: boolean): readonly She
 
 export const SHELL_CONTEXT_SECTION_CONFIG: Partial<
   Record<ShellNavSection, ShellContextSectionConfig>
-> = {
-  "knowledge-base": { title: "知識庫", items: [{ href: "/knowledge-base/articles", label: "文章" }] },
-  source: { title: "來源文件", items: [{ href: "/source/libraries", label: "資料庫" }] },
-  notebook: { title: "筆記本", items: [{ href: "/notebook/rag-query", label: "問答 / 引用" }] },
-  "ai-chat": { title: "筆記本 / AI", items: [{ href: "/ai-chat", label: "筆記本介面" }] },
-};
+> = {};
 
 // ── Mobile & organization nav items ───────────────────────────────────────────
 
@@ -302,12 +252,6 @@ export function resolveShellNavSection(pathname: string): ShellNavSection {
 
   if (normalizedPathname.startsWith("/workspace")) return "workspace";
   if (normalizedPathname.startsWith("/dashboard")) return "dashboard";
-  if (normalizedPathname.startsWith("/knowledge-base")) return "knowledge-base";
-  if (normalizedPathname.startsWith("/knowledge-database")) return "knowledge";
-  if (normalizedPathname.startsWith("/knowledge")) return "knowledge";
-  if (normalizedPathname.startsWith("/source")) return "source";
-  if (normalizedPathname.startsWith("/notebook")) return "notebook";
-  if (normalizedPathname.startsWith("/ai-chat")) return "ai-chat";
   if (
     SHELL_ACCOUNT_SECTION_MATCHERS.some(
       (prefix) => normalizedPathname === prefix || normalizedPathname.startsWith(`${prefix}/`),
