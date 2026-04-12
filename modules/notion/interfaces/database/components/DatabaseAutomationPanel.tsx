@@ -87,7 +87,7 @@ export function DatabaseAutomationPanel({ databaseId, accountId, currentUserId }
     });
   }
 
-  if (loading) return <div className="p-4 text-sm text-muted-foreground">Loading automations??/div>;
+  if (loading) return <div className="p-4 text-sm text-muted-foreground">Loading automations...</div>;
 
   return (
     <div className="p-4 space-y-4">

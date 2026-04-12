@@ -17,15 +17,15 @@ import { ArticleDialog } from "./ArticleDialog";
 import { CategoryTreePanel } from "./CategoryTreePanel";
 
 const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  draft: { label: "?阮", variant: "outline" },
-  published: { label: "撌脩雿?, variant: "default" },
-  archived: { label: "撌脣?摮?, variant: "secondary" },
+  draft: { label: "Draft", variant: "outline" },
+  published: { label: "Published", variant: "default" },
+  archived: { label: "Archived", variant: "secondary" },
 };
 
 const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
-  verified: { label: "撌脤?霅?, icon: BadgeCheck },
-  needs_review: { label: "敺祟??, icon: FileClock },
-  unverified: { label: "?芷?霅?, icon: CircleDot },
+  verified: { label: "Verified", icon: BadgeCheck },
+  needs_review: { label: "Needs Review", icon: FileClock },
+  unverified: { label: "Unverified", icon: CircleDot },
 };
 
 /**
