@@ -17,3 +17,5 @@ export type {
 export type { IRagDocumentRepository as IRagDocumentPort } from "../repositories/IRagDocumentRepository";
 export type { ISourceFileRepository as ISourceFilePort } from "../repositories/ISourceFileRepository";
 export type { IWikiLibraryRepository as IWikiLibraryPort } from "../repositories/IWikiLibraryRepository";
+export type { ISourceStoragePort, SourceStorageUploadOptions } from "./ISourceStoragePort";
+export type { ISourceDocumentWatchPort, WatchedDocument } from "./ISourceDocumentWatchPort";

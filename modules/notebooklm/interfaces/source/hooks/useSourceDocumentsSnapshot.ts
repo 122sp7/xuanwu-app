@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { makeSourceDocumentWatchAdapter } from "../composition/adapters";
 
 import type {
   SourceLiveDocument,
@@ -52,6 +52,7 @@ export function useSourceDocumentsSnapshot(
   const [rawPending, setRawPending] = useState<SourceLiveDocument[]>([]);
   const [receivedKey, setReceivedKey] = useState("");
   const statusMapRef = useRef<Record<string, string>>({});
+  const watchPortRef = useRef(makeSourceDocumentWatchAdapter());
 
   const addPending = useCallback((doc: SourceLiveDocument) => {
     setRawPending((prev) => [doc, ...prev.filter((p) => p.id !== doc.id)]);
@@ -67,7 +68,7 @@ export function useSourceDocumentsSnapshot(
     const subKey = `${accountId}/${workspaceId ?? ""}`;
     statusMapRef.current = {};
 
-    const unsubscribe = firestoreInfrastructureApi.watchCollection<Record<string, unknown>>(
+    const unsubscribe = watchPortRef.current.watchCollection<Record<string, unknown>>(
       `accounts/${accountId}/documents`,
       {
         onNext: (documents) => {

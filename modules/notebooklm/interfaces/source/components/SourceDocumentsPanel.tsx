@@ -5,13 +5,15 @@ import { FileUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useApp } from "@/modules/platform/api";
-import { storageInfrastructureApi } from "@/modules/platform/api";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 
 import type { SourceLiveDocument } from "../hooks/useSourceDocumentsSnapshot";
 import { useSourceDocumentsSnapshot } from "../hooks/useSourceDocumentsSnapshot";
 import { deleteSourceDocument, renameSourceDocument } from "../_actions/source-file.actions";
+import { makeSourceStorageAdapter } from "../composition/adapters";
+
+const sourceStorage = makeSourceStorageAdapter();
 
 const WATCH_PATH = "uploads/";
 const ACCEPTED_MIME: Record<string, string> = {
@@ -75,7 +77,7 @@ export function SourceDocumentsPanel({ workspaceId }: SourceDocumentsPanelProps)
       id: docId,
       filename: selectedFile.name,
       workspaceId: effectiveWorkspaceId,
-      sourceGcsUri: storageInfrastructureApi.toGsUri(uploadPath),
+      sourceGcsUri: sourceStorage.toGsUri(uploadPath),
       jsonGcsUri: "",
       pageCount: 0,
       status: "processing",
@@ -94,7 +96,7 @@ export function SourceDocumentsPanel({ workspaceId }: SourceDocumentsPanelProps)
         display_name: selectedFile.name,
       };
       if (effectiveWorkspaceId) customMetadata.workspace_id = effectiveWorkspaceId;
-      await storageInfrastructureApi.upload(selectedFile, uploadPath, { customMetadata });
+      await sourceStorage.upload(selectedFile, uploadPath, { customMetadata });
       toast.success(`上傳成功：${selectedFile.name}`);
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";

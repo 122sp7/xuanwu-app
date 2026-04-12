@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { storageInfrastructureApi } from "@/modules/platform/api";
 
 import type { WorkspaceEntity } from "@/modules/workspace/api";
 import { Badge } from "@ui-shadcn/ui/badge";
@@ -14,7 +13,10 @@ import type { WorkspaceFileListItemDto } from "../../../subdomains/source/applic
 import { resolveSourceOrganizationId } from "../../../subdomains/source/application/dto/source.dto";
 import { getWorkspaceFiles } from "../queries/source-file.queries";
 import { uploadCompleteFile, uploadInitFile } from "../_actions/source-file.actions";
+import { makeSourceStorageAdapter } from "../composition/adapters";
 import { FileProcessingDialog } from "./FileProcessingDialog";
+
+const sourceStorage = makeSourceStorageAdapter();
 
 interface WorkspaceFilesTabProps {
   readonly workspace: WorkspaceEntity;
@@ -80,7 +82,7 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
         return;
       }
 
-      await storageInfrastructureApi.upload(file, initResult.data.uploadPath, {
+      await sourceStorage.upload(file, initResult.data.uploadPath, {
         contentType: file.type || "application/octet-stream",
       });
 
@@ -103,7 +105,7 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
       setPendingUploadProcessing({
         sourceFileId: initResult.data.fileId,
         filename: file.name,
-        gcsUri: storageInfrastructureApi.toGsUri(initResult.data.uploadPath),
+        gcsUri: sourceStorage.toGsUri(initResult.data.uploadPath),
         mimeType: file.type || "application/octet-stream",
         sizeBytes: file.size,
       });

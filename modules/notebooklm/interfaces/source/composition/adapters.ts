@@ -2,13 +2,19 @@ import { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/fi
 import { FirebaseRagDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseRagDocumentAdapter";
 import { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter";
 import { FirebaseSourceFileAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceFileAdapter";
+import { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
 import { NotionKnowledgePageGatewayAdapter } from "../../../infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter";
 import { waitForParsedDocument as _waitForParsedDocument } from "../../../infrastructure/source/firebase/FirebaseDocumentStatusAdapter";
 import { PlatformSourcePipelineAdapter } from "../../../infrastructure/source/platform/PlatformSourcePipelineAdapter";
+import { PlatformSourceStorageAdapter } from "../../../infrastructure/source/platform/PlatformSourceStorageAdapter";
+import { PlatformSourceDocumentWatchAdapter } from "../../../infrastructure/source/platform/PlatformSourceDocumentWatchAdapter";
 import {
   addKnowledgeBlock,
   createKnowledgePage,
 } from "@/modules/notion/api";
+import type { IWikiLibraryRepository } from "../../../subdomains/source/domain/repositories/IWikiLibraryRepository";
+import type { ISourceStoragePort } from "../../../subdomains/source/domain/ports/ISourceStoragePort";
+import type { ISourceDocumentWatchPort } from "../../../subdomains/source/domain/ports/ISourceDocumentWatchPort";
 
 export function makeSourceFileAdapter() {
   return new FirebaseSourceFileAdapter();
@@ -35,6 +41,18 @@ export function makeKnowledgePageGateway() {
     createKnowledgePage,
     addKnowledgeBlock,
   });
+}
+
+export function makeWikiLibraryAdapter(): IWikiLibraryRepository {
+  return new FirebaseWikiLibraryAdapter();
+}
+
+export function makeSourceStorageAdapter(): ISourceStoragePort {
+  return new PlatformSourceStorageAdapter();
+}
+
+export function makeSourceDocumentWatchAdapter(): ISourceDocumentWatchPort {
+  return new PlatformSourceDocumentWatchAdapter();
 }
 
 export function waitForParsedDocument(
