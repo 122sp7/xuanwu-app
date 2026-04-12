@@ -17818,286 +17818,6 @@ export function useTokenRefreshListener(accountId: string | null | undefined): v
 }
 ````
 
-## File: modules/platform/subdomains/identity/interfaces/index.ts
-````typescript
-export { ShellGuard } from "./components/ShellGuard";
-export {
-  AuthContext,
-  type AuthState,
-  type AuthAction,
-  type AuthContextValue,
-  type AuthStatus,
-  type AuthUser,
-} from "./contexts/auth-context";
-export { AuthProvider, useAuth } from "./providers/auth-provider";
-export {
-  DEV_DEMO_ACCOUNT_EMAIL,
-  isLocalDevDemoAllowed,
-  isDevDemoCredential,
-  createDevDemoUser,
-  readDevDemoSession,
-  writeDevDemoSession,
-  clearDevDemoSession,
-} from "./utils/dev-demo-auth";
-export {
-  register,
-  sendPasswordResetEmail,
-  signIn,
-  signInAnonymously,
-  signOut,
-} from "./_actions/identity.actions";
-export { useTokenRefreshListener } from "./hooks/useTokenRefreshListener";
-````
-
-## File: modules/platform/subdomains/identity/interfaces/providers/auth-provider.tsx
-````typescript
-"use client";
-
-/**
- * auth-provider.tsx — platform/identity interfaces layer
- * Hosts the Firebase auth state lifecycle and exposes useAuth().
- * Syncs onAuthStateChanged → AuthContext → consumed by AppProvider and shell guard.
- *
- * [S6] Token refresh is handled separately by useTokenRefreshListener (Party 3).
- */
-
-import { useReducer, useContext, useEffect, type ReactNode } from "react";
-import {
-  getFirebaseAuth,
-  onFirebaseAuthStateChanged,
-  signOutFirebase,
-  type User,
-} from "@integration-firebase";
-import {
-  AuthContext,
-  type AuthAction,
-  type AuthState,
-  type AuthUser,
-} from "../contexts/auth-context";
-import {
-  clearDevDemoSession,
-  isLocalDevDemoAllowed,
-  readDevDemoSession,
-} from "../utils/dev-demo-auth";
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const AUTH_BOOTSTRAP_TIMEOUT_MS = 6000;
-
-// ─── Mapper ───────────────────────────────────────────────────────────────────
-
-function toAuthUser(user: User): AuthUser {
-  return {
-    id: user.uid,
-    name: user.displayName ?? "Dimension Member",
-    email: user.email ?? "",
-  };
-}
-
-function resolveSignedOutStatePayload(): { user: AuthUser | null; status: "authenticated" | "unauthenticated" } {
-  const demoUser = readDevDemoSession();
-  return demoUser
-    ? { user: demoUser, status: "authenticated" }
-    : { user: null, status: "unauthenticated" };
-}
-
-// ─── Reducer ──────────────────────────────────────────────────────────────────
-
-const authReducer = (state: AuthState, action: AuthAction): AuthState => {
-  switch (action.type) {
-    case "SET_AUTH_STATE":
-      return {
-        ...state,
-        user: action.payload.user,
-        status: action.payload.status,
-      };
-    case "UPDATE_DISPLAY_NAME":
-      if (!state.user) return state;
-      return { ...state, user: { ...state.user, name: action.payload.name } };
-    default:
-      return state;
-  }
-};
-
-const initialState: AuthState = { user: null, status: "initializing" };
-
-// ─── Provider ─────────────────────────────────────────────────────────────────
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(authReducer, initialState);
-
-  useEffect(() => {
-    let resolved = false;
-    let unsubscribe: (() => void) | undefined;
-
-    const timeoutId = window.setTimeout(() => {
-      if (resolved) return;
-      dispatch({
-        type: "SET_AUTH_STATE",
-        payload: { user: null, status: "unauthenticated" },
-      });
-    }, AUTH_BOOTSTRAP_TIMEOUT_MS);
-
-    try {
-      const auth = getFirebaseAuth();
-      unsubscribe = onFirebaseAuthStateChanged(auth, (firebaseUser) => {
-        resolved = true;
-        window.clearTimeout(timeoutId);
-
-        if (firebaseUser) {
-          dispatch({
-            type: "SET_AUTH_STATE",
-            payload: { user: toAuthUser(firebaseUser), status: "authenticated" },
-          });
-        } else {
-          dispatch({
-            type: "SET_AUTH_STATE",
-            payload: resolveSignedOutStatePayload(),
-          });
-        }
-      });
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[AuthProvider] Firebase auth initialization failed:", error);
-      }
-      resolved = true;
-      window.clearTimeout(timeoutId);
-      dispatch({
-        type: "SET_AUTH_STATE",
-        payload: resolveSignedOutStatePayload(),
-      });
-    }
-
-    return () => {
-      window.clearTimeout(timeoutId);
-      unsubscribe?.();
-    };
-  }, []);
-
-  const logout = async () => {
-    if (isLocalDevDemoAllowed()) {
-      clearDevDemoSession();
-    }
-
-    try {
-      await signOutFirebase(getFirebaseAuth());
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[AuthProvider] Firebase sign out failed:", error);
-      }
-    } finally {
-      // Always dispatch unauthenticated: onAuthStateChanged will not fire when
-      // there is no real Firebase session (e.g. dev-demo guest mode), so we
-      // cannot rely solely on the listener to clear the auth state.
-      dispatch({
-        type: "SET_AUTH_STATE",
-        payload: { user: null, status: "unauthenticated" },
-      });
-    }
-  };
-
-  return (
-    <AuthContext.Provider value={{ state, dispatch, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
-}
-````
-
-## File: modules/platform/subdomains/identity/interfaces/utils/dev-demo-auth.ts
-````typescript
-"use client";
-
-import type { AuthUser } from "@/modules/platform/api/contracts";
-
-const DEV_DEMO_SESSION_KEY = "xuanwu_dev_demo_session_v1";
-
-export const DEV_DEMO_ACCOUNT_EMAIL = "test@demo.com";
-// Localhost-only development fallback secret for the requested smoke-test account.
-// Never reuse this pattern for production authentication flows.
-const DEV_DEMO_ACCOUNT_PASSWORD =
-  process.env.NEXT_PUBLIC_DEV_DEMO_PASSWORD ?? "123456";
-
-function isLocalhostHost(hostname: string): boolean {
-  return (
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname === "::1" ||
-    hostname === "[::1]"
-  );
-}
-
-export function isLocalDevDemoAllowed(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  return process.env.NODE_ENV !== "production" && isLocalhostHost(window.location.hostname);
-}
-
-export function isDevDemoCredential(email: string, password: string): boolean {
-  return (
-    email.trim().toLowerCase() === DEV_DEMO_ACCOUNT_EMAIL &&
-    password === DEV_DEMO_ACCOUNT_PASSWORD
-  );
-}
-
-export function createDevDemoUser(): AuthUser {
-  return {
-    id: "dev-demo-user",
-    name: "Demo User",
-    email: DEV_DEMO_ACCOUNT_EMAIL,
-  };
-}
-
-export function readDevDemoSession(): AuthUser | null {
-  if (!isLocalDevDemoAllowed()) {
-    return null;
-  }
-
-  const raw = window.localStorage.getItem(DEV_DEMO_SESSION_KEY);
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as Partial<AuthUser>;
-    if (
-      typeof parsed.id !== "string" ||
-      typeof parsed.name !== "string" ||
-      typeof parsed.email !== "string"
-    ) {
-      return null;
-    }
-    return { id: parsed.id, name: parsed.name, email: parsed.email };
-  } catch {
-    return null;
-  }
-}
-
-export function writeDevDemoSession(user: AuthUser): void {
-  if (!isLocalDevDemoAllowed()) {
-    return;
-  }
-  window.localStorage.setItem(DEV_DEMO_SESSION_KEY, JSON.stringify(user));
-}
-
-export function clearDevDemoSession(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  window.localStorage.removeItem(DEV_DEMO_SESSION_KEY);
-}
-````
-
 ## File: modules/platform/subdomains/integration/api/index.ts
 ````typescript
 /**
@@ -43480,300 +43200,6 @@ export function Providers({ children }: { children: ReactNode }) {
 }
 ````
 
-## File: app/(public)/page.tsx
-````typescript
-"use client";
-
-/**
- * app/(public)/page.tsx
- * Public landing page with top-right auth entry and inline auth panel.
- * Uses identity module use cases directly on the client so Firebase auth state
- * actually updates AuthProvider via onAuthStateChanged.
- */
-
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck } from "lucide-react";
-
-import {
-  useAuth,
-  createClientAuthUseCases,
-  createClientAccountUseCases,
-  createDevDemoUser,
-  isDevDemoCredential,
-  isLocalDevDemoAllowed,
-  writeDevDemoSession,
-} from "@/modules/platform/api";
-
-type Tab = "login" | "register";
-
-export default function PublicPage() {
-  const { state, dispatch } = useAuth();
-  const router = useRouter();
-
-  const [tab, setTab] = useState<Tab>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [resetSent, setResetSent] = useState(false);
-  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
-
-  const {
-    signInUseCase,
-    signInAnonymouslyUseCase,
-    registerUseCase,
-    sendPasswordResetEmailUseCase,
-    createUserAccountUseCase,
-  } =
-    useMemo(() => ({
-      ...createClientAuthUseCases(),
-      ...createClientAccountUseCases(),
-    }), []);
-
-  useEffect(() => {
-    if (state.status === "authenticated") {
-      const nextHref = state.user?.id ? `/${encodeURIComponent(state.user.id)}` : "/";
-      router.replace(nextHref);
-    }
-  }, [state.status, state.user?.id, router]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-    try {
-      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
-        const demoUser = createDevDemoUser();
-        writeDevDemoSession(demoUser);
-        window.location.assign(`/${encodeURIComponent(demoUser.id)}`);
-        return;
-      }
-
-      const result =
-        tab === "login"
-          ? await signInUseCase.execute({ email, password })
-          : await registerUseCase.execute({ email, password, name });
-
-      if (!result.success) {
-        setError(result.error.message);
-        return;
-      }
-
-      if (tab === "register") {
-        const accountResult = await createUserAccountUseCase.execute(
-          result.aggregateId,
-          name,
-          email,
-        );
-        if (!accountResult.success) {
-          setError(accountResult.error.message);
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleGuestAccess() {
-    setError(null);
-    setIsLoading(true);
-    try {
-      const result = await signInAnonymouslyUseCase.execute();
-      if (!result.success) {
-        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
-        // blocked in sandboxes), create a local guest session so the shell can be tested.
-        if (isLocalDevDemoAllowed()) {
-          const guestUser = createDevDemoUser();
-          writeDevDemoSession(guestUser);
-          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
-        } else {
-          setError(result.error.message);
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handlePasswordReset() {
-    if (!email) {
-      setError("Enter your email address first.");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const result = await sendPasswordResetEmailUseCase.execute(email);
-      if (result.success) {
-        setResetSent(true);
-        setError(null);
-      } else {
-        setError(result.error.message);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  if (state.status === "initializing") {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  return (
-    <main className="min-h-screen bg-background">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
-        <button
-          type="button"
-          onClick={() => {
-            setError(null);
-            setResetSent(false);
-            setIsAuthPanelOpen((prev) => !prev);
-          }}
-          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
-        >
-          {isAuthPanelOpen ? "Close" : "Sign In"}
-        </button>
-      </header>
-
-      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
-        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
-            Unified Hexagonal Architecture with DDD workspace for identity, account, and organization modules.
-            Use the top-right sign in button to access your dashboard.
-          </p>
-        </div>
-
-        {isAuthPanelOpen && (
-          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
-            <div className="flex flex-col items-center pb-4 pt-8">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
-                <ShieldCheck className="h-7 w-7 text-primary/90" />
-              </div>
-            </div>
-
-            <div className="px-6">
-              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
-                {(["login", "register"] as Tab[]).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => {
-                      setTab(t);
-                      setError(null);
-                    }}
-                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
-                      tab === t
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {t === "login" ? "Sign In" : "Register"}
-                  </button>
-                ))}
-              </div>
-
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                {tab === "register" && (
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="register-name" className="text-xs font-semibold text-muted-foreground">Name</label>
-                    <input
-                      id="register-name"
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Your display name"
-                      required
-                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    />
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="auth-email" className="text-xs font-semibold text-muted-foreground">Email</label>
-                  <input
-                    id="auth-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@example.com"
-                    autoComplete="email"
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="auth-password" className="text-xs font-semibold text-muted-foreground">Password</label>
-                    {tab === "login" && (
-                      <button
-                        type="button"
-                        onClick={handlePasswordReset}
-                        className="text-xs text-primary/70 hover:text-primary"
-                      >
-                        {resetSent ? "Email sent!" : "Forgot password?"}
-                      </button>
-                    )}
-                  </div>
-                  <input
-                    id="auth-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    autoComplete={tab === "login" ? "current-password" : "new-password"}
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                {error && (
-                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    {error}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : tab === "login" ? (
-                    "Enter Dimension"
-                  ) : (
-                    "Create Account"
-                  )}
-                </button>
-              </form>
-            </div>
-
-            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
-              <button
-                type="button"
-                onClick={handleGuestAccess}
-                disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
-              >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
-    </main>
-  );
-}
-````
-
 ## File: app/(shell)/_shell/index.ts
 ````typescript
 /**
@@ -45479,6 +44905,22 @@ export default function SettingsProfilePage() {
       fallbackDisplayName={authState.user?.name ?? ""}
     />
   );
+}
+````
+
+## File: app/(shell)/layout.tsx
+````typescript
+"use client";
+
+/**
+ * app/(shell)/layout.tsx — Next.js route layout shim.
+ * Canonical implementation: app/(shell)/_shell/ShellRootLayout.tsx
+ */
+
+import { ShellLayout } from "./_shell";
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return <ShellLayout>{children}</ShellLayout>;
 }
 ````
 
@@ -49426,209 +48868,6 @@ export async function runKnowledgeRagQueryAction(
       requireReady: input.requireReady,
       maxAgeDays: input.maxAgeDays,
     },
-  );
-}
-````
-
-## File: modules/notebooklm/interfaces/synthesis/components/RagQueryPanel.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-import { AlertCircle, Loader2, Search } from "lucide-react";
-import { toast } from "sonner";
-
-import { useApp } from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-import { DEV_DEMO_ACCOUNT_EMAIL } from "@/modules/platform/api";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@ui-shadcn/ui/accordion";
-import { Alert, AlertDescription, AlertTitle } from "@ui-shadcn/ui/alert";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import type { KnowledgeCitation } from "../../../subdomains/synthesis/api";
-import { runKnowledgeRagQueryAction } from "../_actions/rag-query.actions";
-
-interface RagQueryPanelProps {
-  readonly workspaceId?: string;
-}
-
-/** Minimal RAG query chat interface. Uses local useState only — no streaming, no global state. */
-export function RagQueryPanel({ workspaceId }: RagQueryPanelProps) {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const activeAccountId = appState.activeAccount?.id ?? "";
-  const effectiveWorkspaceId = workspaceId?.trim() ?? "";
-
-  const isDemoOrUnauthenticated =
-    authState.status !== "authenticated" ||
-    authState.user?.email === DEV_DEMO_ACCOUNT_EMAIL;
-
-  const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [answer, setAnswer] = useState("");
-  const [citations, setCitations] = useState<readonly KnowledgeCitation[]>([]);
-  const [queried, setQueried] = useState(false);
-
-  async function handleSubmit() {
-    const q = query.trim();
-    if (!q) {
-      toast.error("請先輸入問題");
-      return;
-    }
-    if (!activeAccountId) {
-      toast.error("目前沒有 active account，無法執行 RAG 查詢");
-      return;
-    }
-    if (!effectiveWorkspaceId) {
-      toast.error("請先選擇工作區，再執行 RAG 查詢");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      let result = await runKnowledgeRagQueryAction({
-        query: q,
-        accountId: activeAccountId,
-        workspaceId: effectiveWorkspaceId,
-        topK: 4,
-        requireReady: true,
-      });
-      // Compatibility fallback for older vectors without ready status.
-      if (result.citations.length === 0 && (result.vectorHits > 0 || result.searchHits > 0)) {
-        result = await runKnowledgeRagQueryAction({
-          query: q,
-          accountId: activeAccountId,
-          workspaceId: effectiveWorkspaceId,
-          topK: 4,
-          requireReady: false,
-          maxAgeDays: 3650,
-        });
-      }
-      setAnswer(result.answer);
-      setCitations(result.citations);
-      setQueried(true);
-    } catch (error) {
-      console.error(error);
-      toast.error("呼叫 rag_query 失敗");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Auth warning — shown upfront when user cannot execute RAG queries */}
-      {isDemoOrUnauthenticated && (
-        <Alert variant="destructive">
-          <AlertCircle className="size-4" />
-          <AlertTitle>需要真實帳號</AlertTitle>
-          <AlertDescription>
-            目前以 Demo 帳號或未登入狀態存取。RAG 查詢需要真實 Firebase 帳號才能執行。
-            請登出後以正式帳號重新登入。
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Query input */}
-      <Card>
-        <CardHeader>
-          <CardTitle>RAG Query</CardTitle>
-          <CardDescription>
-            輸入問題，取得 AI 回答與引用來源。
-            {effectiveWorkspaceId ? ` workspace: ${effectiveWorkspaceId}` : " （請先選擇工作區）"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Textarea
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void handleSubmit();
-            }}
-            placeholder="請輸入你的問題...（Ctrl+Enter 送出）"
-            rows={4}
-            disabled={isDemoOrUnauthenticated}
-          />
-          <Button
-            onClick={() => void handleSubmit()}
-            disabled={loading || isDemoOrUnauthenticated}
-            title={isDemoOrUnauthenticated ? "請先以真實帳號登入才能執行 RAG 查詢" : undefined}
-          >
-            {loading ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
-            ) : (
-              <Search className="mr-2 size-4" />
-            )}
-            {loading ? "查詢中..." : "送出查詢"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Answer */}
-      {queried && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Answer</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="whitespace-pre-wrap text-sm text-foreground">{answer || "（無回答）"}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Citations */}
-      {queried && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Citations</CardTitle>
-            <CardDescription>
-              {citations.length === 0
-                ? "目前查詢無相關引用，請確認文件已完成 RAG 索引。"
-                : `${citations.length} 筆引用來源`}
-            </CardDescription>
-          </CardHeader>
-          {citations.length > 0 && (
-            <CardContent>
-              <Accordion type="multiple" className="w-full">
-                {citations.map((citation, index) => (
-                  <AccordionItem
-                    key={`${citation.doc_id ?? "doc"}-${index}`}
-                    value={`citation-${index}`}
-                  >
-                    <AccordionTrigger className="text-sm font-medium">
-                      <span className="flex items-center gap-2">
-                        {citation.filename ?? citation.doc_id ?? "未命名文件"}
-                        {citation.provider && (
-                          <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
-                            {citation.provider}
-                          </span>
-                        )}
-                      </span>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <p className="text-xs text-muted-foreground">{citation.text ?? "（無節錄）"}</p>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </CardContent>
-          )}
-        </Card>
-      )}
-    </div>
   );
 }
 ````
@@ -57537,6 +56776,176 @@ export class CheckFeatureEntitlementUseCase {
 }
 ````
 
+## File: modules/platform/subdomains/identity/interfaces/index.ts
+````typescript
+export { ShellGuard } from "./components/ShellGuard";
+export {
+  AuthContext,
+  type AuthState,
+  type AuthAction,
+  type AuthContextValue,
+  type AuthStatus,
+  type AuthUser,
+} from "./contexts/auth-context";
+export { AuthProvider, useAuth } from "./providers/auth-provider";
+export {
+  register,
+  sendPasswordResetEmail,
+  signIn,
+  signInAnonymously,
+  signOut,
+} from "./_actions/identity.actions";
+export { useTokenRefreshListener } from "./hooks/useTokenRefreshListener";
+````
+
+## File: modules/platform/subdomains/identity/interfaces/providers/auth-provider.tsx
+````typescript
+"use client";
+
+/**
+ * auth-provider.tsx — platform/identity interfaces layer
+ * Hosts the Firebase auth state lifecycle and exposes useAuth().
+ * Syncs onAuthStateChanged → AuthContext → consumed by AppProvider and shell guard.
+ *
+ * [S6] Token refresh is handled separately by useTokenRefreshListener (Party 3).
+ */
+
+import { useReducer, useContext, useEffect, type ReactNode } from "react";
+import {
+  getFirebaseAuth,
+  onFirebaseAuthStateChanged,
+  signOutFirebase,
+  type User,
+} from "@integration-firebase";
+import {
+  AuthContext,
+  type AuthAction,
+  type AuthState,
+  type AuthUser,
+} from "../contexts/auth-context";
+
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 6000;
+
+// ─── Mapper ───────────────────────────────────────────────────────────────────
+
+function toAuthUser(user: User): AuthUser {
+  return {
+    id: user.uid,
+    name: user.displayName ?? "Dimension Member",
+    email: user.email ?? "",
+  };
+}
+
+// ─── Reducer ──────────────────────────────────────────────────────────────────
+
+const authReducer = (state: AuthState, action: AuthAction): AuthState => {
+  switch (action.type) {
+    case "SET_AUTH_STATE":
+      return {
+        ...state,
+        user: action.payload.user,
+        status: action.payload.status,
+      };
+    case "UPDATE_DISPLAY_NAME":
+      if (!state.user) return state;
+      return { ...state, user: { ...state.user, name: action.payload.name } };
+    default:
+      return state;
+  }
+};
+
+const initialState: AuthState = { user: null, status: "initializing" };
+
+// ─── Provider ─────────────────────────────────────────────────────────────────
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [state, dispatch] = useReducer(authReducer, initialState);
+
+  useEffect(() => {
+    let resolved = false;
+    let unsubscribe: (() => void) | undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      if (resolved) return;
+      dispatch({
+        type: "SET_AUTH_STATE",
+        payload: { user: null, status: "unauthenticated" },
+      });
+    }, AUTH_BOOTSTRAP_TIMEOUT_MS);
+
+    try {
+      const auth = getFirebaseAuth();
+      unsubscribe = onFirebaseAuthStateChanged(auth, (firebaseUser) => {
+        resolved = true;
+        window.clearTimeout(timeoutId);
+
+        if (firebaseUser) {
+          dispatch({
+            type: "SET_AUTH_STATE",
+            payload: { user: toAuthUser(firebaseUser), status: "authenticated" },
+          });
+        } else {
+          dispatch({
+            type: "SET_AUTH_STATE",
+            payload: { user: null, status: "unauthenticated" },
+          });
+        }
+      });
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[AuthProvider] Firebase auth initialization failed:", error);
+      }
+      resolved = true;
+      window.clearTimeout(timeoutId);
+      dispatch({
+        type: "SET_AUTH_STATE",
+        payload: { user: null, status: "unauthenticated" },
+      });
+    }
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      unsubscribe?.();
+    };
+  }, []);
+
+  const logout = async () => {
+    try {
+      await signOutFirebase(getFirebaseAuth());
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[AuthProvider] Firebase sign out failed:", error);
+      }
+    } finally {
+      // Always dispatch unauthenticated: onAuthStateChanged will not fire when
+      // there is no real Firebase session (e.g. dev-demo guest mode), so we
+      // cannot rely solely on the listener to clear the auth state.
+      dispatch({
+        type: "SET_AUTH_STATE",
+        payload: { user: null, status: "unauthenticated" },
+      });
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{ state, dispatch, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
+}
+````
+
 ## File: modules/platform/subdomains/identity/README.md
 ````markdown
 # Identity
@@ -63696,6 +63105,281 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: app/(public)/page.tsx
+````typescript
+"use client";
+
+/**
+ * app/(public)/page.tsx
+ * Public landing page with top-right auth entry and inline auth panel.
+ * Uses identity module use cases directly on the client so Firebase auth state
+ * actually updates AuthProvider via onAuthStateChanged.
+ */
+
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, ShieldCheck } from "lucide-react";
+
+import {
+  useAuth,
+  createClientAuthUseCases,
+  createClientAccountUseCases,
+} from "@/modules/platform/api";
+
+type Tab = "login" | "register";
+
+export default function PublicPage() {
+  const { state, dispatch } = useAuth();
+  const router = useRouter();
+
+  const [tab, setTab] = useState<Tab>("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
+  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
+
+  const {
+    signInUseCase,
+    signInAnonymouslyUseCase,
+    registerUseCase,
+    sendPasswordResetEmailUseCase,
+    createUserAccountUseCase,
+  } =
+    useMemo(() => ({
+      ...createClientAuthUseCases(),
+      ...createClientAccountUseCases(),
+    }), []);
+
+  useEffect(() => {
+    if (state.status === "authenticated") {
+      const nextHref = state.user?.id ? `/${encodeURIComponent(state.user.id)}` : "/";
+      router.replace(nextHref);
+    }
+  }, [state.status, state.user?.id, router]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      const result =
+        tab === "login"
+          ? await signInUseCase.execute({ email, password })
+          : await registerUseCase.execute({ email, password, name });
+
+      if (!result.success) {
+        setError(result.error.message);
+        return;
+      }
+
+      if (tab === "register") {
+        const accountResult = await createUserAccountUseCase.execute(
+          result.aggregateId,
+          name,
+          email,
+        );
+        if (!accountResult.success) {
+          setError(accountResult.error.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleGuestAccess() {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const result = await signInAnonymouslyUseCase.execute();
+      if (!result.success) {
+        setError(result.error.message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handlePasswordReset() {
+    if (!email) {
+      setError("Enter your email address first.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await sendPasswordResetEmailUseCase.execute(email);
+      if (result.success) {
+        setResetSent(true);
+        setError(null);
+      } else {
+        setError(result.error.message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  if (state.status === "initializing") {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-background">
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setResetSent(false);
+            setIsAuthPanelOpen((prev) => !prev);
+          }}
+          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+        >
+          {isAuthPanelOpen ? "Close" : "Sign In"}
+        </button>
+      </header>
+
+      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
+        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
+          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
+            Unified Hexagonal Architecture with DDD workspace for identity, account, and organization modules.
+            Use the top-right sign in button to access your dashboard.
+          </p>
+        </div>
+
+        {isAuthPanelOpen && (
+          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
+            <div className="flex flex-col items-center pb-4 pt-8">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
+                <ShieldCheck className="h-7 w-7 text-primary/90" />
+              </div>
+            </div>
+
+            <div className="px-6">
+              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
+                {(["login", "register"] as Tab[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                      setTab(t);
+                      setError(null);
+                    }}
+                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
+                      tab === t
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t === "login" ? "Sign In" : "Register"}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                {tab === "register" && (
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="register-name" className="text-xs font-semibold text-muted-foreground">Name</label>
+                    <input
+                      id="register-name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Your display name"
+                      required
+                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="auth-email" className="text-xs font-semibold text-muted-foreground">Email</label>
+                  <input
+                    id="auth-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    autoComplete="email"
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="auth-password" className="text-xs font-semibold text-muted-foreground">Password</label>
+                    {tab === "login" && (
+                      <button
+                        type="button"
+                        onClick={handlePasswordReset}
+                        className="text-xs text-primary/70 hover:text-primary"
+                      >
+                        {resetSent ? "Email sent!" : "Forgot password?"}
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    id="auth-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    autoComplete={tab === "login" ? "current-password" : "new-password"}
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                {error && (
+                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : tab === "login" ? (
+                    "Enter Dimension"
+                  ) : (
+                    "Create Account"
+                  )}
+                </button>
+              </form>
+            </div>
+
+            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
+              <button
+                type="button"
+                onClick={handleGuestAccess}
+                disabled={isLoading}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+````
+
 ## File: app/(shell)/_providers/AppProvider.tsx
 ````typescript
 "use client";
@@ -64324,22 +64008,6 @@ export default function SettingsPage({ params }: SettingsPageProps) {
 }
 ````
 
-## File: app/(shell)/layout.tsx
-````typescript
-"use client";
-
-/**
- * app/(shell)/layout.tsx — Next.js route layout shim.
- * Canonical implementation: app/(shell)/_shell/ShellRootLayout.tsx
- */
-
-import { ShellLayout } from "./_shell";
-
-export default function Layout({ children }: { children: React.ReactNode }) {
-  return <ShellLayout>{children}</ShellLayout>;
-}
-````
-
 ## File: modules/notebooklm/application/use-cases/index.ts
 ````typescript
 export { notebookUseCases } from '../../subdomains/notebook/application';
@@ -64605,6 +64273,206 @@ export async function getWorkspaceRagDocuments(
     organizationId,
     workspaceId: workspace.id,
   });
+}
+````
+
+## File: modules/notebooklm/interfaces/synthesis/components/RagQueryPanel.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+import { AlertCircle, Loader2, Search } from "lucide-react";
+import { toast } from "sonner";
+
+import { useApp } from "@/modules/platform/api";
+import { useAuth } from "@/modules/platform/api";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@ui-shadcn/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from "@ui-shadcn/ui/alert";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import type { KnowledgeCitation } from "../../../subdomains/synthesis/api";
+import { runKnowledgeRagQueryAction } from "../_actions/rag-query.actions";
+
+interface RagQueryPanelProps {
+  readonly workspaceId?: string;
+}
+
+/** Minimal RAG query chat interface. Uses local useState only — no streaming, no global state. */
+export function RagQueryPanel({ workspaceId }: RagQueryPanelProps) {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const activeAccountId = appState.activeAccount?.id ?? "";
+  const effectiveWorkspaceId = workspaceId?.trim() ?? "";
+
+  const isDemoOrUnauthenticated = authState.status !== "authenticated";
+
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [answer, setAnswer] = useState("");
+  const [citations, setCitations] = useState<readonly KnowledgeCitation[]>([]);
+  const [queried, setQueried] = useState(false);
+
+  async function handleSubmit() {
+    const q = query.trim();
+    if (!q) {
+      toast.error("請先輸入問題");
+      return;
+    }
+    if (!activeAccountId) {
+      toast.error("目前沒有 active account，無法執行 RAG 查詢");
+      return;
+    }
+    if (!effectiveWorkspaceId) {
+      toast.error("請先選擇工作區，再執行 RAG 查詢");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      let result = await runKnowledgeRagQueryAction({
+        query: q,
+        accountId: activeAccountId,
+        workspaceId: effectiveWorkspaceId,
+        topK: 4,
+        requireReady: true,
+      });
+      // Compatibility fallback for older vectors without ready status.
+      if (result.citations.length === 0 && (result.vectorHits > 0 || result.searchHits > 0)) {
+        result = await runKnowledgeRagQueryAction({
+          query: q,
+          accountId: activeAccountId,
+          workspaceId: effectiveWorkspaceId,
+          topK: 4,
+          requireReady: false,
+          maxAgeDays: 3650,
+        });
+      }
+      setAnswer(result.answer);
+      setCitations(result.citations);
+      setQueried(true);
+    } catch (error) {
+      console.error(error);
+      toast.error("呼叫 rag_query 失敗");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Auth warning — shown upfront when user cannot execute RAG queries */}
+      {isDemoOrUnauthenticated && (
+        <Alert variant="destructive">
+          <AlertCircle className="size-4" />
+          <AlertTitle>需要真實帳號</AlertTitle>
+          <AlertDescription>
+            目前以 Demo 帳號或未登入狀態存取。RAG 查詢需要真實 Firebase 帳號才能執行。
+            請登出後以正式帳號重新登入。
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Query input */}
+      <Card>
+        <CardHeader>
+          <CardTitle>RAG Query</CardTitle>
+          <CardDescription>
+            輸入問題，取得 AI 回答與引用來源。
+            {effectiveWorkspaceId ? ` workspace: ${effectiveWorkspaceId}` : " （請先選擇工作區）"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Textarea
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void handleSubmit();
+            }}
+            placeholder="請輸入你的問題...（Ctrl+Enter 送出）"
+            rows={4}
+            disabled={isDemoOrUnauthenticated}
+          />
+          <Button
+            onClick={() => void handleSubmit()}
+            disabled={loading || isDemoOrUnauthenticated}
+            title={isDemoOrUnauthenticated ? "請先以真實帳號登入才能執行 RAG 查詢" : undefined}
+          >
+            {loading ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Search className="mr-2 size-4" />
+            )}
+            {loading ? "查詢中..." : "送出查詢"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Answer */}
+      {queried && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Answer</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="whitespace-pre-wrap text-sm text-foreground">{answer || "（無回答）"}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Citations */}
+      {queried && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Citations</CardTitle>
+            <CardDescription>
+              {citations.length === 0
+                ? "目前查詢無相關引用，請確認文件已完成 RAG 索引。"
+                : `${citations.length} 筆引用來源`}
+            </CardDescription>
+          </CardHeader>
+          {citations.length > 0 && (
+            <CardContent>
+              <Accordion type="multiple" className="w-full">
+                {citations.map((citation, index) => (
+                  <AccordionItem
+                    key={`${citation.doc_id ?? "doc"}-${index}`}
+                    value={`citation-${index}`}
+                  >
+                    <AccordionTrigger className="text-sm font-medium">
+                      <span className="flex items-center gap-2">
+                        {citation.filename ?? citation.doc_id ?? "未命名文件"}
+                        {citation.provider && (
+                          <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
+                            {citation.provider}
+                          </span>
+                        )}
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <p className="text-xs text-muted-foreground">{citation.text ?? "（無節錄）"}</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </CardContent>
+          )}
+        </Card>
+      )}
+    </div>
+  );
 }
 ````
 
@@ -73249,6 +73117,159 @@ export function resolveShellBreadcrumbLabel(segment: string): string {
 }
 ````
 
+## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
+````typescript
+import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Library, MessageSquare, Notebook, Shield, User, Users } from "lucide-react";
+import type { ReactNode } from "react";
+
+const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
+  "workspace",
+  "workspace-feed",
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "organization",
+  "settings",
+  "dashboard",
+  "dev-tools",
+]);
+
+function isWorkspaceScopedPath(pathname: string) {
+  if (pathname.startsWith("/workspace/")) {
+    return true;
+  }
+
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length < 2) {
+    return false;
+  }
+
+  return !NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(segments[0]);
+}
+
+export interface WorkspaceQuickAccessMatcherOptions {
+  panel: string | null;
+  tab: string | null;
+}
+
+export interface WorkspaceQuickAccessItem {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
+}
+
+const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
+  {
+    href: "/workspace/{workspaceId}?tab=Overview",
+    label: "首頁",
+    icon: <Home className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) &&
+      (options?.tab == null || options.tab === "Overview") &&
+      options?.panel == null,
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-pages",
+    label: "知識頁面",
+    icon: <FileText className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "knowledge-pages",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-base-articles",
+    label: "文章",
+    icon: <BookOpen className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "knowledge-base-articles",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Files",
+    label: "檔案",
+    icon: <FolderOpen className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Files",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Members",
+    label: "成員",
+    icon: <Users className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Members",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Knowledge",
+    label: "知識庫",
+    icon: <Notebook className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Knowledge",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Notebook",
+    label: "RAG 查詢",
+    icon: <Brain className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Notebook",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=AiChat",
+    label: "AI 對話",
+    icon: <MessageSquare className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "AiChat",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-databases",
+    label: "資料庫",
+    icon: <Database className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "knowledge-databases",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=source-libraries",
+    label: "來源庫",
+    icon: <Library className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "source-libraries",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=governance",
+    label: "治理",
+    icon: <Shield className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "governance",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=profile",
+    label: "工作區資料",
+    icon: <User className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "profile",
+  },
+];
+
+export function buildWorkspaceQuickAccessItems(
+  workspaceId: string,
+  accountId?: string | null,
+): WorkspaceQuickAccessItem[] {
+  const encodedWorkspaceId = encodeURIComponent(workspaceId);
+  const encodedAccountId = accountId ? encodeURIComponent(accountId) : "";
+  const workspaceBaseHref = accountId
+    ? `/${encodedAccountId}/${encodedWorkspaceId}`
+    : "/";
+
+  return WORKSPACE_QUICK_ACCESS_TEMPLATES.map((item) => ({
+    ...item,
+    href: item.href
+      .replaceAll("/workspace/{workspaceId}", workspaceBaseHref)
+      .replaceAll("{workspaceId}", encodedWorkspaceId),
+  }));
+}
+````
+
 ## File: modules/notion/interfaces/database/components/DatabaseListPanel.tsx
 ````typescript
 "use client";
@@ -73590,159 +73611,6 @@ export { RagQueryPanel } from "@/modules/notebooklm/api";
 export { ConversationPanel } from "@/modules/notebooklm/api";
 export type { ConversationPanelProps } from "@/modules/notebooklm/api";
 export { WorkspaceFilesTab } from "@/modules/notebooklm/api";
-````
-
-## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
-````typescript
-import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Library, MessageSquare, Notebook, Shield, User, Users } from "lucide-react";
-import type { ReactNode } from "react";
-
-const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
-  "workspace",
-  "workspace-feed",
-  "knowledge",
-  "knowledge-base",
-  "knowledge-database",
-  "source",
-  "notebook",
-  "ai-chat",
-  "organization",
-  "settings",
-  "dashboard",
-  "dev-tools",
-]);
-
-function isWorkspaceScopedPath(pathname: string) {
-  if (pathname.startsWith("/workspace/")) {
-    return true;
-  }
-
-  const segments = pathname.split("/").filter(Boolean);
-  if (segments.length < 2) {
-    return false;
-  }
-
-  return !NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(segments[0]);
-}
-
-export interface WorkspaceQuickAccessMatcherOptions {
-  panel: string | null;
-  tab: string | null;
-}
-
-export interface WorkspaceQuickAccessItem {
-  href: string;
-  label: string;
-  icon: ReactNode;
-  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
-}
-
-const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
-  {
-    href: "/workspace/{workspaceId}?tab=Overview",
-    label: "首頁",
-    icon: <Home className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) &&
-      (options?.tab == null || options.tab === "Overview") &&
-      options?.panel == null,
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-pages",
-    label: "知識頁面",
-    icon: <FileText className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "knowledge-pages",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-base-articles",
-    label: "文章",
-    icon: <BookOpen className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "knowledge-base-articles",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Files",
-    label: "檔案",
-    icon: <FolderOpen className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Files",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Members",
-    label: "成員",
-    icon: <Users className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Members",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Knowledge",
-    label: "知識庫",
-    icon: <Notebook className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Knowledge",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Notebook",
-    label: "RAG 查詢",
-    icon: <Brain className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Notebook",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=AiChat",
-    label: "AI 對話",
-    icon: <MessageSquare className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "AiChat",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-databases",
-    label: "資料庫",
-    icon: <Database className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "knowledge-databases",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Overview&panel=source-libraries",
-    label: "來源庫",
-    icon: <Library className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "source-libraries",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Overview&panel=governance",
-    label: "治理",
-    icon: <Shield className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "governance",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Overview&panel=profile",
-    label: "工作區資料",
-    icon: <User className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "profile",
-  },
-];
-
-export function buildWorkspaceQuickAccessItems(
-  workspaceId: string,
-  accountId?: string | null,
-): WorkspaceQuickAccessItem[] {
-  const encodedWorkspaceId = encodeURIComponent(workspaceId);
-  const encodedAccountId = accountId ? encodeURIComponent(accountId) : "";
-  const workspaceBaseHref = accountId
-    ? `/${encodedAccountId}/${encodedWorkspaceId}`
-    : "/";
-
-  return WORKSPACE_QUICK_ACCESS_TEMPLATES.map((item) => ({
-    ...item,
-    href: item.href
-      .replaceAll("/workspace/{workspaceId}", workspaceBaseHref)
-      .replaceAll("{workspaceId}", encodedWorkspaceId),
-  }));
-}
 ````
 
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewKnowledgePanels.tsx
@@ -75300,6 +75168,28 @@ export type {
 } from "../subdomains/synthesis/api";
 ````
 
+## File: modules/platform/interfaces/web/index.ts
+````typescript
+export { ShellHeaderControls } from "./shell/header/components/ShellHeaderControls";
+export { ShellThemeToggle } from "./shell/header/components/ShellThemeToggle";
+export { ShellNotificationButton } from "./shell/header/components/ShellNotificationButton";
+export { ShellUserAvatar } from "./shell/header/components/ShellUserAvatar";
+export { ShellTranslationSwitcher } from "./shell/header/components/ShellTranslationSwitcher";
+export { ShellAppBreadcrumbs } from "./shell/breadcrumbs/ShellAppBreadcrumbs";
+export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./shell/search/ShellGlobalSearchDialog";
+
+// providers — context and useApp from platform-only ShellAppContext
+export {
+  AppContext,
+  APP_INITIAL_STATE,
+  useApp,
+  type AppState,
+  type AppAction,
+  type AppContextValue,
+} from "./providers/ShellAppContext";
+export type { ActiveAccount } from "../../api/contracts";
+````
+
 ## File: modules/platform/api/index.ts
 ````typescript
 /**
@@ -75453,26 +75343,4 @@ export {
   resolveOrganizationRouteFallback,
   type ShellAccountActor,
 } from "../subdomains/access-control/api";
-````
-
-## File: modules/platform/interfaces/web/index.ts
-````typescript
-export { ShellHeaderControls } from "./shell/header/components/ShellHeaderControls";
-export { ShellThemeToggle } from "./shell/header/components/ShellThemeToggle";
-export { ShellNotificationButton } from "./shell/header/components/ShellNotificationButton";
-export { ShellUserAvatar } from "./shell/header/components/ShellUserAvatar";
-export { ShellTranslationSwitcher } from "./shell/header/components/ShellTranslationSwitcher";
-export { ShellAppBreadcrumbs } from "./shell/breadcrumbs/ShellAppBreadcrumbs";
-export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./shell/search/ShellGlobalSearchDialog";
-
-// providers — context and useApp from platform-only ShellAppContext
-export {
-  AppContext,
-  APP_INITIAL_STATE,
-  useApp,
-  type AppState,
-  type AppAction,
-  type AppContextValue,
-} from "./providers/ShellAppContext";
-export type { ActiveAccount } from "../../api/contracts";
 ````
