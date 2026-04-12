@@ -50,9 +50,10 @@ export default function PublicPage() {
 
   useEffect(() => {
     if (state.status === "authenticated") {
-      router.replace("/dashboard");
+      const nextHref = state.user?.id ? `/${encodeURIComponent(state.user.id)}` : "/";
+      router.replace(nextHref);
     }
-  }, [state.status, router]);
+  }, [state.status, state.user?.id, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -60,8 +61,9 @@ export default function PublicPage() {
     setIsLoading(true);
     try {
       if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
-        writeDevDemoSession(createDevDemoUser());
-        window.location.assign("/dashboard");
+        const demoUser = createDevDemoUser();
+        writeDevDemoSession(demoUser);
+        window.location.assign(`/${encodeURIComponent(demoUser.id)}`);
         return;
       }
 

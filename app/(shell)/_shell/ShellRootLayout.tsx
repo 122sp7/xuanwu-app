@@ -30,6 +30,7 @@ import {
   ShellUserAvatar,
   resolveShellPageTitle,
   isExactOrChildPath,
+  buildShellContextualHref,
   SHELL_MOBILE_NAV_ITEMS,
   SHELL_ORG_PRIMARY_NAV_ITEMS,
   SHELL_ORG_SECONDARY_NAV_ITEMS,
@@ -216,11 +217,15 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
               <>
                 <nav aria-label="Organization primary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
                   {SHELL_ORG_PRIMARY_NAV_ITEMS.map((item) => {
-                    const isActive = isExactOrChildPath(item.href, pathname);
+                    const contextualHref = buildShellContextualHref(item.href, {
+                      accountId: appState.activeAccount?.id,
+                      workspaceId: wsState.activeWorkspaceId,
+                    });
+                    const isActive = isExactOrChildPath(contextualHref, pathname);
                     return (
                       <Link
                         key={item.href}
-                        href={item.href}
+                        href={contextualHref}
                         aria-current={isActive ? "page" : undefined}
                         className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                           isActive
@@ -235,11 +240,15 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
                 </nav>
                 <nav aria-label="Organization secondary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
                   {SHELL_ORG_SECONDARY_NAV_ITEMS.map((item) => {
-                    const isActive = isExactOrChildPath(item.href, pathname);
+                    const contextualHref = buildShellContextualHref(item.href, {
+                      accountId: appState.activeAccount?.id,
+                      workspaceId: wsState.activeWorkspaceId,
+                    });
+                    const isActive = isExactOrChildPath(contextualHref, pathname);
                     return (
                       <Link
                         key={item.href}
-                        href={item.href}
+                        href={contextualHref}
                         aria-current={isActive ? "page" : undefined}
                         className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                           isActive
@@ -256,11 +265,15 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
             )}
             <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
               {SHELL_MOBILE_NAV_ITEMS.map((item) => {
-                const isActive = isExactOrChildPath(item.href, pathname);
+                const contextualHref = buildShellContextualHref(item.href, {
+                  accountId: appState.activeAccount?.id,
+                  workspaceId: wsState.activeWorkspaceId,
+                });
+                const isActive = isExactOrChildPath(contextualHref, pathname);
                 return (
                   <Link
                     key={item.href}
-                    href={item.href}
+                    href={contextualHref}
                     aria-current={isActive ? "page" : undefined}
                     className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                       isActive

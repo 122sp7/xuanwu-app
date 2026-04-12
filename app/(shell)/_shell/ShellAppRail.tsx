@@ -144,7 +144,7 @@ export function AppRail({
     if (activeAccount?.id) {
       return `/${encodeURIComponent(activeAccount.id)}/${encodeURIComponent(workspaceId)}`;
     }
-    return `/${encodeURIComponent(workspaceId)}`;
+    return "/";
   }
 
   const sortedWorkspaces = useMemo(

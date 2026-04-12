@@ -27,8 +27,17 @@ export function resolveOrganizationRouteFallback(
   pathname: string,
   account: ShellAccountActor | null | undefined,
 ): string | null {
-  if (pathname === "/organization" && !isOrganizationActor(account)) {
-    return "/workspace";
+  if (!account) {
+    return null;
+  }
+
+  const segments = pathname.split("/").filter(Boolean);
+  const isLegacyOrganizationPath = segments[0] === "organization";
+  const isAccountScopedOrganizationPath =
+    segments.length >= 2 && segments[0] === account.id && segments[1] === "organization";
+
+  if ((isLegacyOrganizationPath || isAccountScopedOrganizationPath) && !isOrganizationActor(account)) {
+    return `/${encodeURIComponent(account.id)}`;
   }
 
   return null;

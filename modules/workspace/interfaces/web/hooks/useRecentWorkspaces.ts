@@ -72,6 +72,10 @@ function getWorkspaceIdFromPath(pathname: string): string | null {
     return null;
   }
 
+  if (["organization", "settings", "dev-tools"].includes(secondSegment)) {
+    return null;
+  }
+
   if (!secondSegment) {
     return null;
   }

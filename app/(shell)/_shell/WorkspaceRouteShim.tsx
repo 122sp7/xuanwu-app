@@ -42,9 +42,11 @@ export function WorkspaceRouteShim({
             panel ? `&panel=${encodeURIComponent(panel)}` : ""
           }`
       : tab === "Files"
-        ? `/workspace/${encodeURIComponent(targetWorkspaceId)}?tab=Files`
+        ? "/"
         : buildWorkspaceOverviewPanelHref(targetWorkspaceId, panel)
-    : "/workspace";
+    : activeAccountId
+      ? `/${encodeURIComponent(activeAccountId)}`
+      : "/";
 
   useEffect(() => {
     router.replace(targetHref);
