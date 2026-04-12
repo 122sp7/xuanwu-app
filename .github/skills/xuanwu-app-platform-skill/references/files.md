@@ -4291,6 +4291,116 @@ export class SubscribeAccountProfileUseCase {
 }
 ````
 
+## File: modules/platform/subdomains/account-profile/application/use-cases/update-account-profile.use-case.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import {
+	createAccountProfileId,
+	createUpdateAccountProfileInput,
+	type UpdateAccountProfileInput,
+} from "../../domain/entities/AccountProfile";
+import type { AccountProfileCommandRepository } from "../../domain/repositories/AccountProfileCommandRepository";
+
+/**
+ * Use Case Contract: UpdateAccountProfile
+ * Actor: Authenticated Actor
+ * Goal: Update account profile fields (name/bio/photo/theme).
+ * Main Success Scenario:
+ * 1. Validate actor identity input.
+ * 2. Validate update payload.
+ * 3. Persist profile updates via command repository.
+ * 4. Return command success.
+ * Failure Branches:
+ * - Invalid actor id or payload -> validation error.
+ * - Repository failure -> command failure.
+ */
+export class UpdateAccountProfileUseCase {
+	constructor(
+		private readonly accountProfileCommandRepository: AccountProfileCommandRepository,
+	) {}
+
+	async execute(actorId: string, input: UpdateAccountProfileInput): Promise<CommandResult> {
+		try {
+			const profileId = createAccountProfileId(actorId);
+			const validatedInput = createUpdateAccountProfileInput(input);
+			await this.accountProfileCommandRepository.updateAccountProfile(profileId, validatedInput);
+			return commandSuccess(profileId, Date.now());
+		} catch (err) {
+			return commandFailureFrom(
+				"UPDATE_ACCOUNT_PROFILE_FAILED",
+				err instanceof Error ? err.message : "Failed to update account profile",
+			);
+		}
+	}
+}
+````
+
+## File: modules/platform/subdomains/account-profile/domain/entities/AccountProfile.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const AccountProfileIdSchema = z.string().min(1).brand("AccountProfileId");
+export type AccountProfileId = z.infer<typeof AccountProfileIdSchema>;
+
+export const AccountProfileThemeSchema = z.object({
+  primary: z.string().min(1),
+  background: z.string().min(1),
+  accent: z.string().min(1),
+});
+export type AccountProfileTheme = z.infer<typeof AccountProfileThemeSchema>;
+
+export const AccountProfileSchema = z.object({
+  id: AccountProfileIdSchema,
+  displayName: z.string().min(1),
+  email: z.string().email().optional(),
+  photoURL: z.string().min(1).optional(),
+  bio: z.string().min(1).optional(),
+  theme: AccountProfileThemeSchema.optional(),
+});
+export type AccountProfile = z.infer<typeof AccountProfileSchema>;
+
+export const UpdateAccountProfileInputSchema = z
+  .object({
+    displayName: z.string().min(1).optional(),
+    bio: z.string().min(1).optional(),
+    photoURL: z.string().min(1).optional(),
+    theme: AccountProfileThemeSchema.optional(),
+  })
+  .refine((input) => Object.keys(input).length > 0, {
+    message: "At least one profile field is required",
+  });
+export type UpdateAccountProfileInput = z.infer<typeof UpdateAccountProfileInputSchema>;
+
+export function createAccountProfileId(raw: string): AccountProfileId {
+  return AccountProfileIdSchema.parse(raw);
+}
+
+export function createAccountProfile(raw: AccountProfile): AccountProfile {
+  return AccountProfileSchema.parse(raw);
+}
+
+export function createUpdateAccountProfileInput(
+  raw: UpdateAccountProfileInput,
+): UpdateAccountProfileInput {
+  return UpdateAccountProfileInputSchema.parse(raw);
+}
+````
+
+## File: modules/platform/subdomains/account-profile/domain/repositories/AccountProfileCommandRepository.ts
+````typescript
+import type {
+	AccountProfileId,
+	UpdateAccountProfileInput,
+} from "../entities/AccountProfile";
+
+export interface AccountProfileCommandRepository {
+	updateAccountProfile(
+		actorId: AccountProfileId,
+		input: UpdateAccountProfileInput,
+	): Promise<void>;
+}
+````
+
 ## File: modules/platform/subdomains/account-profile/domain/repositories/AccountProfileQueryRepository.ts
 ````typescript
 import type { AccountProfile, AccountProfileId } from "../entities/AccountProfile";
@@ -4304,6 +4414,199 @@ export interface AccountProfileQueryRepository {
     onUpdate: (profile: AccountProfile | null) => void,
   ): Unsubscribe;
 }
+````
+
+## File: modules/platform/subdomains/account-profile/interfaces/components/screens/SettingsProfileRouteScreen.tsx
+````typescript
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
+
+import { getProfile } from "../../queries/account-profile.queries";
+import { updateProfile } from "../../_actions/account-profile.actions";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+type FormState = {
+  displayName: string;
+  bio: string;
+  photoURL: string;
+};
+
+const EMPTY_FORM: FormState = {
+  displayName: "",
+  bio: "",
+  photoURL: "",
+};
+
+interface SettingsProfileRouteScreenProps {
+  actorId: string | null;
+  fallbackDisplayName?: string | null;
+}
+
+export function SettingsProfileRouteScreen({
+  actorId,
+  fallbackDisplayName,
+}: SettingsProfileRouteScreenProps) {
+  const normalizedActorId = actorId ?? "";
+
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!normalizedActorId) {
+      setForm(EMPTY_FORM);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadProfile() {
+      setLoading(true);
+      setMessage(null);
+      try {
+        const profile = await getProfile(normalizedActorId);
+        if (!cancelled) {
+          setForm({
+            displayName: profile?.displayName ?? fallbackDisplayName ?? "",
+            bio: profile?.bio ?? "",
+            photoURL: profile?.photoURL ?? "",
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          setMessage("讀取個人資料失敗，請稍後重試。");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fallbackDisplayName, normalizedActorId]);
+
+  const hasChanges = useMemo(() => {
+    return form.displayName.trim().length > 0 || form.bio.trim().length > 0 || form.photoURL.trim().length > 0;
+  }, [form]);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!normalizedActorId) {
+      setMessage("尚未登入，無法更新個人資料。");
+      return;
+    }
+
+    const payload = {
+      ...(form.displayName.trim() ? { displayName: form.displayName.trim() } : {}),
+      ...(form.bio.trim() ? { bio: form.bio.trim() } : {}),
+      ...(form.photoURL.trim() ? { photoURL: form.photoURL.trim() } : {}),
+    };
+
+    if (Object.keys(payload).length === 0) {
+      setMessage("請至少填寫一個欄位再儲存。");
+      return;
+    }
+
+    setSaving(true);
+    setMessage(null);
+    try {
+      const result = await updateProfile(normalizedActorId, payload);
+      if (result.success) {
+        setMessage("已更新個人資料。");
+      } else {
+        setMessage(result.error?.message ?? "更新個人資料失敗。");
+      }
+    } catch {
+      setMessage("更新個人資料失敗，請稍後重試。");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-2xl space-y-4">
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>個人資料</CardTitle>
+          <CardDescription>這個頁面已切換到 account-profile 寫入流程（strangler migration）。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div className="space-y-2">
+              <Label htmlFor="displayName">顯示名稱</Label>
+              <Input
+                id="displayName"
+                value={form.displayName}
+                onChange={(event) => {
+                  setForm((prev) => ({ ...prev, displayName: event.target.value }));
+                }}
+                placeholder="輸入顯示名稱"
+                disabled={loading || saving}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bio">簡介</Label>
+              <Textarea
+                id="bio"
+                value={form.bio}
+                onChange={(event) => {
+                  setForm((prev) => ({ ...prev, bio: event.target.value }));
+                }}
+                placeholder="輸入個人簡介"
+                rows={4}
+                disabled={loading || saving}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="photoURL">頭像網址</Label>
+              <Input
+                id="photoURL"
+                value={form.photoURL}
+                onChange={(event) => {
+                  setForm((prev) => ({ ...prev, photoURL: event.target.value }));
+                }}
+                placeholder="https://example.com/avatar.png"
+                disabled={loading || saving}
+              />
+            </div>
+
+            {message ? (
+              <p className="text-sm text-muted-foreground">{message}</p>
+            ) : null}
+
+            <div className="flex justify-end">
+              <Button type="submit" disabled={loading || saving || !hasChanges}>
+                {saving ? "儲存中..." : "儲存個人資料"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+````
+
+## File: modules/platform/subdomains/account-profile/interfaces/index.ts
+````typescript
+export { getProfile, subscribeToProfile } from "./queries/account-profile.queries";
+export { updateProfile } from "./_actions/account-profile.actions";
+export { SettingsProfileRouteScreen } from "./components/screens/SettingsProfileRouteScreen";
 ````
 
 ## File: modules/platform/subdomains/account-profile/README.md
@@ -5884,6 +6187,48 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/platform/subdomains/ai/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/platform/subdomains/ai/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'ai'.
+````
+
+## File: modules/platform/subdomains/ai/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'ai'.
+````
+
+## File: modules/platform/subdomains/ai/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for platform subdomain 'ai'.
+````
+
+## File: modules/platform/subdomains/ai/README.md
+````markdown
+# Ai
+
+共享 AI provider 路由、模型政策、配額與安全護欄。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Baseline
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/analytics/api/index.ts
 ````typescript
 /**
@@ -6508,6 +6853,48 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/platform/subdomains/consent/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/platform/subdomains/consent/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'consent'.
+````
+
+## File: modules/platform/subdomains/consent/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'consent'.
+````
+
+## File: modules/platform/subdomains/consent/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for platform subdomain 'consent'.
+````
+
+## File: modules/platform/subdomains/consent/README.md
+````markdown
+# Consent
+
+把同意與資料使用授權從 compliance 中切開。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/content/api/index.ts
 ````typescript
 /**
@@ -6541,6 +6928,24 @@ Platform content management.
 ## Ownership
 
 - **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/entitlement/README.md
+````markdown
+# Entitlement
+
+建立有效權益與功能可用性的統一解算上下文。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Recommended Gap
 - **Status**: Stub — awaiting use case definition
 
 ## Development Order
@@ -11056,6 +11461,48 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/platform/subdomains/secret-management/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/platform/subdomains/secret-management/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'secret-management'.
+````
+
+## File: modules/platform/subdomains/secret-management/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'secret-management'.
+````
+
+## File: modules/platform/subdomains/secret-management/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for platform subdomain 'secret-management'.
+````
+
+## File: modules/platform/subdomains/secret-management/README.md
+````markdown
+# Secret Management
+
+把憑證、token、rotation 從 integration 中切開。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/security-policy/api/index.ts
 ````typescript
 /**
@@ -11344,6 +11791,48 @@ Team management within organizations.
 ## Ownership
 
 - **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/tenant/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/platform/subdomains/tenant/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'tenant'.
+````
+
+## File: modules/platform/subdomains/tenant/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'tenant'.
+````
+
+## File: modules/platform/subdomains/tenant/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for platform subdomain 'tenant'.
+````
+
+## File: modules/platform/subdomains/tenant/README.md
+````markdown
+# Tenant
+
+建立多租戶隔離與 tenant-scoped 規則的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Recommended Gap
 - **Status**: Stub — awaiting use case definition
 
 ## Development Order
@@ -13648,6 +14137,57 @@ export * from "./access-control-service";
 export { FirebaseAccessPolicyRepository } from "./firebase/FirebaseAccessPolicyRepository";
 ````
 
+## File: modules/platform/subdomains/account-profile/api/index.ts
+````typescript
+/**
+ * Public API boundary for the account-profile subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Composition root lives in infrastructure/account-profile-service.ts;
+ * this boundary is intentionally thin — it only re-exports public contracts.
+ */
+
+import {
+	getAccountProfileFromService,
+	subscribeToAccountProfileFromService,
+	updateAccountProfileFromService,
+} from "../infrastructure";
+import type { AccountProfile, Unsubscribe } from "../domain";
+import type { UpdateAccountProfileInput } from "../application";
+import type { CommandResult } from "@shared-types";
+
+// ── Use-case delegators ──────────────────────────────────────────────────
+
+export async function getAccountProfile(actorId: string): Promise<AccountProfile | null> {
+	return getAccountProfileFromService(actorId);
+}
+
+export function subscribeToAccountProfile(
+	actorId: string,
+	onUpdate: (profile: AccountProfile | null) => void,
+): Unsubscribe {
+	return subscribeToAccountProfileFromService(actorId, onUpdate);
+}
+
+export async function updateAccountProfile(
+	actorId: string,
+	input: UpdateAccountProfileInput,
+): Promise<CommandResult> {
+	return updateAccountProfileFromService(actorId, input);
+}
+
+// Legacy compatibility exports for migration window.
+export const getUserProfile = getAccountProfile;
+export const subscribeToUserProfile = subscribeToAccountProfile;
+
+export { getProfile, subscribeToProfile, updateProfile } from "../interfaces";
+
+export * from "../application";
+export * from "../domain";
+export { SettingsProfileRouteScreen } from "../interfaces";
+export type { LegacyAccountProfileDataSource } from "../infrastructure";
+````
+
 ## File: modules/platform/subdomains/account-profile/application/dtos/account-profile.dto.ts
 ````typescript
 /**
@@ -13663,105 +14203,23 @@ export type {
 export type { Unsubscribe } from "../../domain/repositories/AccountProfileQueryRepository";
 ````
 
-## File: modules/platform/subdomains/account-profile/application/use-cases/update-account-profile.use-case.ts
+## File: modules/platform/subdomains/account-profile/application/index.ts
 ````typescript
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import {
-	createAccountProfileId,
-	createUpdateAccountProfileInput,
-	type UpdateAccountProfileInput,
-} from "../../domain/entities/AccountProfile";
-import type { AccountProfileCommandRepository } from "../../domain/repositories/AccountProfileCommandRepository";
-
-/**
- * Use Case Contract: UpdateAccountProfile
- * Actor: Authenticated Actor
- * Goal: Update account profile fields (name/bio/photo/theme).
- * Main Success Scenario:
- * 1. Validate actor identity input.
- * 2. Validate update payload.
- * 3. Persist profile updates via command repository.
- * 4. Return command success.
- * Failure Branches:
- * - Invalid actor id or payload -> validation error.
- * - Repository failure -> command failure.
- */
-export class UpdateAccountProfileUseCase {
-	constructor(
-		private readonly accountProfileCommandRepository: AccountProfileCommandRepository,
-	) {}
-
-	async execute(actorId: string, input: UpdateAccountProfileInput): Promise<CommandResult> {
-		try {
-			const profileId = createAccountProfileId(actorId);
-			const validatedInput = createUpdateAccountProfileInput(input);
-			await this.accountProfileCommandRepository.updateAccountProfile(profileId, validatedInput);
-			return commandSuccess(profileId, Date.now());
-		} catch (err) {
-			return commandFailureFrom(
-				"UPDATE_ACCOUNT_PROFILE_FAILED",
-				err instanceof Error ? err.message : "Failed to update account profile",
-			);
-		}
-	}
-}
+export { GetAccountProfileUseCase, SubscribeAccountProfileUseCase } from "./use-cases/get-account-profile.use-case";
+export { UpdateAccountProfileUseCase } from "./use-cases/update-account-profile.use-case";
+export type {
+	AccountProfile,
+	AccountProfileId,
+	AccountProfileTheme,
+	Unsubscribe,
+	UpdateAccountProfileInput,
+} from "./dtos/account-profile.dto";
 ````
 
 ## File: modules/platform/subdomains/account-profile/domain/aggregates/index.ts
 ````typescript
 export { AccountProfileAggregate } from "./AccountProfileAggregate";
 export type { AccountProfileAggregateSnapshot } from "./AccountProfileAggregate";
-````
-
-## File: modules/platform/subdomains/account-profile/domain/entities/AccountProfile.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const AccountProfileIdSchema = z.string().min(1).brand("AccountProfileId");
-export type AccountProfileId = z.infer<typeof AccountProfileIdSchema>;
-
-export const AccountProfileThemeSchema = z.object({
-  primary: z.string().min(1),
-  background: z.string().min(1),
-  accent: z.string().min(1),
-});
-export type AccountProfileTheme = z.infer<typeof AccountProfileThemeSchema>;
-
-export const AccountProfileSchema = z.object({
-  id: AccountProfileIdSchema,
-  displayName: z.string().min(1),
-  email: z.string().email().optional(),
-  photoURL: z.string().min(1).optional(),
-  bio: z.string().min(1).optional(),
-  theme: AccountProfileThemeSchema.optional(),
-});
-export type AccountProfile = z.infer<typeof AccountProfileSchema>;
-
-export const UpdateAccountProfileInputSchema = z
-  .object({
-    displayName: z.string().min(1).optional(),
-    bio: z.string().min(1).optional(),
-    photoURL: z.string().min(1).optional(),
-    theme: AccountProfileThemeSchema.optional(),
-  })
-  .refine((input) => Object.keys(input).length > 0, {
-    message: "At least one profile field is required",
-  });
-export type UpdateAccountProfileInput = z.infer<typeof UpdateAccountProfileInputSchema>;
-
-export function createAccountProfileId(raw: string): AccountProfileId {
-  return AccountProfileIdSchema.parse(raw);
-}
-
-export function createAccountProfile(raw: AccountProfile): AccountProfile {
-  return AccountProfileSchema.parse(raw);
-}
-
-export function createUpdateAccountProfileInput(
-  raw: UpdateAccountProfileInput,
-): UpdateAccountProfileInput {
-  return UpdateAccountProfileInputSchema.parse(raw);
-}
 ````
 
 ## File: modules/platform/subdomains/account-profile/domain/events/AccountProfileDomainEvent.ts
@@ -13804,21 +14262,6 @@ export type {
  */
 export type { AccountProfileQueryRepository as IAccountProfileQueryPort } from "../repositories/AccountProfileQueryRepository";
 export type { AccountProfileCommandRepository as IAccountProfileCommandPort } from "../repositories/AccountProfileCommandRepository";
-````
-
-## File: modules/platform/subdomains/account-profile/domain/repositories/AccountProfileCommandRepository.ts
-````typescript
-import type {
-	AccountProfileId,
-	UpdateAccountProfileInput,
-} from "../entities/AccountProfile";
-
-export interface AccountProfileCommandRepository {
-	updateAccountProfile(
-		actorId: AccountProfileId,
-		input: UpdateAccountProfileInput,
-	): Promise<void>;
-}
 ````
 
 ## File: modules/platform/subdomains/account-profile/domain/value-objects/index.ts
@@ -13958,6 +14401,172 @@ export async function updateAccountProfile(
 	input: UpdateAccountProfileInput,
 ): Promise<CommandResult> {
 	return getUpdateAccountProfileUseCase().execute(actorId, input);
+}
+````
+
+## File: modules/platform/subdomains/account-profile/infrastructure/create-legacy-account-profile-application.adapter.ts
+````typescript
+import {
+	createAccountProfile,
+	type AccountProfile,
+	type AccountProfileId,
+	type AccountProfileTheme,
+	type UpdateAccountProfileInput,
+} from "../domain";
+import type {
+	AccountProfileCommandRepository,
+	AccountProfileQueryRepository,
+	Unsubscribe,
+} from "../domain";
+
+type LegacyTheme = Partial<AccountProfileTheme> | null | undefined;
+type LegacyUpdateProfileInput = {
+	name?: string;
+	bio?: string;
+	photoURL?: string;
+	theme?: AccountProfileTheme;
+};
+
+type LegacyAccountProfileRecord = {
+	id: string;
+	name?: string | null;
+	email?: string | null;
+	photoURL?: string | null;
+	bio?: string | null;
+	theme?: LegacyTheme;
+} | null;
+
+export interface LegacyAccountProfileDataSource {
+	getUserProfile(userId: string): Promise<LegacyAccountProfileRecord>;
+	subscribeToUserProfile(
+		userId: string,
+		onUpdate: (profile: LegacyAccountProfileRecord) => void,
+	): Unsubscribe;
+	updateUserProfile(userId: string, input: LegacyUpdateProfileInput): Promise<void>;
+}
+
+function normalizeTheme(theme: LegacyTheme): AccountProfileTheme | undefined {
+	if (!theme?.primary || !theme?.background || !theme?.accent) {
+		return undefined;
+	}
+
+	return {
+		primary: theme.primary,
+		background: theme.background,
+		accent: theme.accent,
+	};
+}
+
+function mapLegacyProfile(record: LegacyAccountProfileRecord): AccountProfile | null {
+	if (!record) {
+		return null;
+	}
+
+	const displayName = (record.name ?? "").trim() || "Unknown Actor";
+
+	return createAccountProfile({
+		id: record.id as AccountProfileId,
+		displayName,
+		email: record.email ?? undefined,
+		photoURL: record.photoURL ?? undefined,
+		bio: record.bio ?? undefined,
+		theme: normalizeTheme(record.theme),
+	});
+}
+
+/** Read-side adapter: maps legacy data source to AccountProfileQueryRepository. */
+class LegacyAccountProfileQueryAdapter implements AccountProfileQueryRepository {
+	constructor(
+		private readonly legacyDataSource: LegacyAccountProfileDataSource,
+	) {}
+
+	async getAccountProfile(
+		actorId: AccountProfileId,
+	): Promise<AccountProfile | null> {
+		const profile = await this.legacyDataSource.getUserProfile(actorId);
+		return mapLegacyProfile(profile);
+	}
+
+	subscribeToAccountProfile(
+		actorId: AccountProfileId,
+		onUpdate: (profile: AccountProfile | null) => void,
+	): Unsubscribe {
+		return this.legacyDataSource.subscribeToUserProfile(actorId, (profile) => {
+			onUpdate(mapLegacyProfile(profile));
+		});
+	}
+}
+
+/** Write-side adapter: maps legacy data source to AccountProfileCommandRepository. */
+class LegacyAccountProfileCommandAdapter implements AccountProfileCommandRepository {
+	constructor(
+		private readonly legacyDataSource: LegacyAccountProfileDataSource,
+	) {}
+
+	async updateAccountProfile(
+		actorId: AccountProfileId,
+		input: UpdateAccountProfileInput,
+	): Promise<void> {
+		const legacyInput: LegacyUpdateProfileInput = {
+			name: input.displayName,
+			bio: input.bio,
+			photoURL: input.photoURL,
+			theme: input.theme,
+		};
+
+		await this.legacyDataSource.updateUserProfile(actorId, legacyInput);
+	}
+}
+
+export function createLegacyAccountProfileQueryRepository(
+	legacyDataSource: LegacyAccountProfileDataSource,
+): AccountProfileQueryRepository {
+	return new LegacyAccountProfileQueryAdapter(legacyDataSource);
+}
+
+export function createLegacyAccountProfileCommandRepository(
+	legacyDataSource: LegacyAccountProfileDataSource,
+): AccountProfileCommandRepository {
+	return new LegacyAccountProfileCommandAdapter(legacyDataSource);
+}
+````
+
+## File: modules/platform/subdomains/account-profile/infrastructure/index.ts
+````typescript
+export {
+	createLegacyAccountProfileCommandRepository,
+	createLegacyAccountProfileQueryRepository,
+} from "./create-legacy-account-profile-application.adapter";
+export type {
+	LegacyAccountProfileDataSource,
+} from "./create-legacy-account-profile-application.adapter";
+export {
+	getAccountProfile as getAccountProfileFromService,
+	subscribeToAccountProfile as subscribeToAccountProfileFromService,
+	updateAccountProfile as updateAccountProfileFromService,
+} from "./account-profile-service";
+````
+
+## File: modules/platform/subdomains/account-profile/interfaces/_actions/account-profile.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { updateAccountProfile } from "../../api";
+import type { UpdateAccountProfileInput } from "../../application/dtos/account-profile.dto";
+
+export async function updateProfile(
+	actorId: string,
+	input: UpdateAccountProfileInput,
+): Promise<CommandResult> {
+	try {
+		return await updateAccountProfile(actorId, input);
+	} catch (err) {
+		return commandFailureFrom(
+			"UPDATE_ACCOUNT_PROFILE_FAILED",
+			err instanceof Error ? err.message : "Unexpected error",
+		);
+	}
 }
 ````
 
@@ -14241,48 +14850,6 @@ export async function revokeAccountRole(accountId: string): Promise<CommandResul
 }
 ````
 
-## File: modules/platform/subdomains/ai/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/platform/subdomains/ai/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'ai'.
-````
-
-## File: modules/platform/subdomains/ai/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'ai'.
-````
-
-## File: modules/platform/subdomains/ai/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for platform subdomain 'ai'.
-````
-
-## File: modules/platform/subdomains/ai/README.md
-````markdown
-# Ai
-
-共享 AI provider 路由、模型政策、配額與安全護欄。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/platform/subdomains/background-job/api/index.ts
 ````typescript
 /**
@@ -14369,46 +14936,22 @@ export type IngestionJobDomainEventType =
 export type { IIngestionJobRepository as IIngestionJobPort } from "../repositories/IIngestionJobRepository";
 ````
 
-## File: modules/platform/subdomains/consent/api/index.ts
+## File: modules/platform/subdomains/entitlement/api/index.ts
 ````typescript
 /**
- * Public API boundary for this subdomain.
+ * Public API boundary for the entitlement subdomain.
  * Cross-module consumers must import through this entry point.
  */
-export {};
-````
-
-## File: modules/platform/subdomains/consent/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'consent'.
-````
-
-## File: modules/platform/subdomains/consent/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'consent'.
-````
-
-## File: modules/platform/subdomains/consent/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for platform subdomain 'consent'.
-````
-
-## File: modules/platform/subdomains/consent/README.md
-````markdown
-# Consent
-
-把同意與資料使用授權從 compliance 中切開。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+export * from "../application";
+export { entitlementService } from "../infrastructure";
+export type {
+  EntitlementGrantSnapshot,
+  CreateEntitlementGrantInput,
+} from "../domain/aggregates/EntitlementGrant";
+export type { EntitlementGrantDomainEventType } from "../domain/events/EntitlementGrantDomainEvent";
+export type { EntitlementGrantRepository } from "../domain/repositories/EntitlementGrantRepository";
+export type { EntitlementStatus } from "../domain/value-objects/EntitlementStatus";
+export type { FeatureKey } from "../domain/value-objects/FeatureKey";
 ````
 
 ## File: modules/platform/subdomains/entitlement/application/dtos/entitlement.dto.ts
@@ -14427,6 +14970,12 @@ export interface EntitlementSignal {
 ## File: modules/platform/subdomains/entitlement/application/dtos/index.ts
 ````typescript
 export * from "./entitlement.dto";
+````
+
+## File: modules/platform/subdomains/entitlement/application/index.ts
+````typescript
+export * from "./dtos";
+export * from "./use-cases";
 ````
 
 ## File: modules/platform/subdomains/entitlement/application/use-cases/index.ts
@@ -14613,6 +15162,14 @@ export type EntitlementGrantDomainEventType =
 ## File: modules/platform/subdomains/entitlement/domain/events/index.ts
 ````typescript
 export * from "./EntitlementGrantDomainEvent";
+````
+
+## File: modules/platform/subdomains/entitlement/domain/index.ts
+````typescript
+export * from "./aggregates";
+export * from "./events";
+export * from "./repositories";
+export * from "./value-objects";
 ````
 
 ## File: modules/platform/subdomains/entitlement/domain/repositories/EntitlementGrantRepository.ts
@@ -14826,22 +15383,10 @@ export class FirebaseEntitlementGrantRepository implements EntitlementGrantRepos
 }
 ````
 
-## File: modules/platform/subdomains/entitlement/README.md
-````markdown
-# Entitlement
-
-建立有效權益與功能可用性的統一解算上下文。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+## File: modules/platform/subdomains/entitlement/infrastructure/index.ts
+````typescript
+export * from "./entitlement-service";
+export { FirebaseEntitlementGrantRepository } from "./firebase/FirebaseEntitlementGrantRepository";
 ````
 
 ## File: modules/platform/subdomains/identity/domain/index.ts
@@ -15931,48 +16476,6 @@ export function listShellCommandCatalogItems(): readonly ShellCommandCatalogItem
 }
 ````
 
-## File: modules/platform/subdomains/secret-management/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/platform/subdomains/secret-management/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'secret-management'.
-````
-
-## File: modules/platform/subdomains/secret-management/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'secret-management'.
-````
-
-## File: modules/platform/subdomains/secret-management/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for platform subdomain 'secret-management'.
-````
-
-## File: modules/platform/subdomains/secret-management/README.md
-````markdown
-# Secret Management
-
-把憑證、token、rotation 從 integration 中切開。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/platform/subdomains/subdomains.instructions.md
 ````markdown
 ---
@@ -16769,46 +17272,114 @@ export {
 } from "./_actions/team.actions";
 ````
 
-## File: modules/platform/subdomains/tenant/api/index.ts
+## File: modules/platform/api/index.ts
 ````typescript
 /**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
+ * platform public API boundary.
+ *
+ * account is listed before organization to establish canonical definitions for
+ * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
+ * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
  */
-export {};
-````
 
-## File: modules/platform/subdomains/tenant/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'tenant'.
-````
+export * from "./contracts";
+export * from "./facade";
+export { createPlatformService } from "./platform-service";
+export * from "../subdomains/identity/api";
+export * from "../subdomains/account/api";
+export * from "../subdomains/notification/api";
 
-## File: modules/platform/subdomains/tenant/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'tenant'.
-````
+export {
+  getProfile,
+  subscribeToProfile,
+  updateProfile,
+  SettingsProfileRouteScreen,
+  getAccountProfile,
+  subscribeToAccountProfile,
+  updateAccountProfile,
+} from "../subdomains/account-profile/api";
 
-## File: modules/platform/subdomains/tenant/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for platform subdomain 'tenant'.
-````
+export type {
+  AccountProfile,
+  UpdateAccountProfileInput,
+} from "../subdomains/account-profile/api";
 
-## File: modules/platform/subdomains/tenant/README.md
-````markdown
-# Tenant
+// organization — explicit to avoid re-export conflicts with account subdomain
+export type {
+  OrganizationEntity,
+  Presence,
+  InviteState,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  OrgPolicy,
+  OrgPolicyRule,
+  OrgPolicyScope,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+  OrganizationRepository,
+  OrgPolicyRepository,
+} from "../subdomains/organization/api";
+export {
+  organizationService,
+  getOrganizationMembers,
+  getOrganizationTeams,
+  getOrgPolicies,
+  createOrganization,
+  createOrganizationWithTeam,
+  updateOrganizationSettings,
+  deleteOrganization,
+  inviteMember,
+  recruitMember,
+  dismissMember,
+  updateMemberRole,
+  createTeam,
+  deleteTeam,
+  updateTeamMembers,
+  createPartnerGroup,
+  sendPartnerInvite,
+  dismissPartnerMember,
+  createOrgPolicy,
+  updateOrgPolicy,
+  deleteOrgPolicy,
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+  // UI components
+  AccountSwitcher,
+  CreateOrganizationDialog,
+  MembersPage,
+  TeamsPage,
+  PermissionsPage,
+  OrganizationAuditPage,
+} from "../subdomains/organization/api";
+export type { MembersPageProps, TeamsPageProps, PermissionsPageProps, OrganizationAuditPageProps } from "../subdomains/organization/api";
 
-建立多租戶隔離與 tenant-scoped 規則的正典邊界。
+// background-job — knowledge ingestion pipeline management
+export * from "../subdomains/background-job/api";
 
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+// Cross-module and app-composition hooks from interfaces layer.
+// Only selective exports — do NOT wildcard re-export "../interfaces".
+export { useApp, Providers, ShellLayout, isActiveOrganizationAccount } from "../interfaces";
 ````
 
 ## File: modules/platform/application/handlers/index.ts
@@ -18090,19 +18661,6 @@ export * from "./use-cases";
 export * from "./services/shell-account-access";
 ````
 
-## File: modules/platform/subdomains/account-profile/application/index.ts
-````typescript
-export { GetAccountProfileUseCase, SubscribeAccountProfileUseCase } from "./use-cases/get-account-profile.use-case";
-export { UpdateAccountProfileUseCase } from "./use-cases/update-account-profile.use-case";
-export type {
-	AccountProfile,
-	AccountProfileId,
-	AccountProfileTheme,
-	Unsubscribe,
-	UpdateAccountProfileInput,
-} from "./dtos/account-profile.dto";
-````
-
 ## File: modules/platform/subdomains/account-profile/domain/aggregates/AccountProfileAggregate.ts
 ````typescript
 import type {
@@ -18203,177 +18761,59 @@ export class AccountProfileAggregate {
 }
 ````
 
-## File: modules/platform/subdomains/account-profile/infrastructure/create-legacy-account-profile-application.adapter.ts
+## File: modules/platform/subdomains/account-profile/domain/index.ts
 ````typescript
-import {
+export {
+	AccountProfileIdSchema,
+	AccountProfileSchema,
 	createAccountProfile,
-	type AccountProfile,
-	type AccountProfileId,
-	type AccountProfileTheme,
-	type UpdateAccountProfileInput,
-} from "../domain";
-import type {
-	AccountProfileCommandRepository,
-	AccountProfileQueryRepository,
-	Unsubscribe,
-} from "../domain";
-
-type LegacyTheme = Partial<AccountProfileTheme> | null | undefined;
-type LegacyUpdateProfileInput = {
-	name?: string;
-	bio?: string;
-	photoURL?: string;
-	theme?: AccountProfileTheme;
-};
-
-type LegacyAccountProfileRecord = {
-	id: string;
-	name?: string | null;
-	email?: string | null;
-	photoURL?: string | null;
-	bio?: string | null;
-	theme?: LegacyTheme;
-} | null;
-
-export interface LegacyAccountProfileDataSource {
-	getUserProfile(userId: string): Promise<LegacyAccountProfileRecord>;
-	subscribeToUserProfile(
-		userId: string,
-		onUpdate: (profile: LegacyAccountProfileRecord) => void,
-	): Unsubscribe;
-	updateUserProfile(userId: string, input: LegacyUpdateProfileInput): Promise<void>;
-}
-
-function normalizeTheme(theme: LegacyTheme): AccountProfileTheme | undefined {
-	if (!theme?.primary || !theme?.background || !theme?.accent) {
-		return undefined;
-	}
-
-	return {
-		primary: theme.primary,
-		background: theme.background,
-		accent: theme.accent,
-	};
-}
-
-function mapLegacyProfile(record: LegacyAccountProfileRecord): AccountProfile | null {
-	if (!record) {
-		return null;
-	}
-
-	const displayName = (record.name ?? "").trim() || "Unknown Actor";
-
-	return createAccountProfile({
-		id: record.id as AccountProfileId,
-		displayName,
-		email: record.email ?? undefined,
-		photoURL: record.photoURL ?? undefined,
-		bio: record.bio ?? undefined,
-		theme: normalizeTheme(record.theme),
-	});
-}
-
-/** Read-side adapter: maps legacy data source to AccountProfileQueryRepository. */
-class LegacyAccountProfileQueryAdapter implements AccountProfileQueryRepository {
-	constructor(
-		private readonly legacyDataSource: LegacyAccountProfileDataSource,
-	) {}
-
-	async getAccountProfile(
-		actorId: AccountProfileId,
-	): Promise<AccountProfile | null> {
-		const profile = await this.legacyDataSource.getUserProfile(actorId);
-		return mapLegacyProfile(profile);
-	}
-
-	subscribeToAccountProfile(
-		actorId: AccountProfileId,
-		onUpdate: (profile: AccountProfile | null) => void,
-	): Unsubscribe {
-		return this.legacyDataSource.subscribeToUserProfile(actorId, (profile) => {
-			onUpdate(mapLegacyProfile(profile));
-		});
-	}
-}
-
-/** Write-side adapter: maps legacy data source to AccountProfileCommandRepository. */
-class LegacyAccountProfileCommandAdapter implements AccountProfileCommandRepository {
-	constructor(
-		private readonly legacyDataSource: LegacyAccountProfileDataSource,
-	) {}
-
-	async updateAccountProfile(
-		actorId: AccountProfileId,
-		input: UpdateAccountProfileInput,
-	): Promise<void> {
-		const legacyInput: LegacyUpdateProfileInput = {
-			name: input.displayName,
-			bio: input.bio,
-			photoURL: input.photoURL,
-			theme: input.theme,
-		};
-
-		await this.legacyDataSource.updateUserProfile(actorId, legacyInput);
-	}
-}
-
-export function createLegacyAccountProfileQueryRepository(
-	legacyDataSource: LegacyAccountProfileDataSource,
-): AccountProfileQueryRepository {
-	return new LegacyAccountProfileQueryAdapter(legacyDataSource);
-}
-
-export function createLegacyAccountProfileCommandRepository(
-	legacyDataSource: LegacyAccountProfileDataSource,
-): AccountProfileCommandRepository {
-	return new LegacyAccountProfileCommandAdapter(legacyDataSource);
-}
-````
-
-## File: modules/platform/subdomains/account-profile/infrastructure/index.ts
-````typescript
-export {
-	createLegacyAccountProfileCommandRepository,
-	createLegacyAccountProfileQueryRepository,
-} from "./create-legacy-account-profile-application.adapter";
+	createAccountProfileId,
+	createUpdateAccountProfileInput,
+} from "./entities/AccountProfile";
 export type {
-	LegacyAccountProfileDataSource,
-} from "./create-legacy-account-profile-application.adapter";
-export {
-	getAccountProfile as getAccountProfileFromService,
-	subscribeToAccountProfile as subscribeToAccountProfileFromService,
-	updateAccountProfile as updateAccountProfileFromService,
-} from "./account-profile-service";
+	AccountProfile,
+	AccountProfileId,
+	AccountProfileTheme,
+	UpdateAccountProfileInput,
+} from "./entities/AccountProfile";
+
+export type { Unsubscribe, AccountProfileQueryRepository } from "./repositories/AccountProfileQueryRepository";
+export type { AccountProfileCommandRepository } from "./repositories/AccountProfileCommandRepository";
+export type { IAccountProfileQueryPort, IAccountProfileCommandPort } from "./ports";
+export * from "./aggregates";
+export * from "./events";
+export * from "./value-objects";
 ````
 
-## File: modules/platform/subdomains/account-profile/interfaces/_actions/account-profile.actions.ts
+## File: modules/platform/subdomains/account/api/legacy-account-profile.bridge.ts
 ````typescript
-"use server";
+import { type UpdateProfileInput } from "../application/dtos/account.dto";
+import { accountService, createAccountQueryRepository } from "../infrastructure/account-service";
+import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
 
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { updateAccountProfile } from "../../api";
-import type { UpdateAccountProfileInput } from "../../application/dtos/account-profile.dto";
+let _accountQueryRepo: AccountQueryRepository | undefined;
 
-export async function updateProfile(
-	actorId: string,
-	input: UpdateAccountProfileInput,
-): Promise<CommandResult> {
-	try {
-		return await updateAccountProfile(actorId, input);
-	} catch (err) {
-		return commandFailureFrom(
-			"UPDATE_ACCOUNT_PROFILE_FAILED",
-			err instanceof Error ? err.message : "Unexpected error",
-		);
-	}
+function getAccountQueryRepo(): AccountQueryRepository {
+  if (!_accountQueryRepo) {
+    _accountQueryRepo = createAccountQueryRepository();
+  }
+  return _accountQueryRepo;
 }
-````
 
-## File: modules/platform/subdomains/account-profile/interfaces/index.ts
-````typescript
-export { getProfile, subscribeToProfile } from "./queries/account-profile.queries";
-export { updateProfile } from "./_actions/account-profile.actions";
-export { SettingsProfileRouteScreen } from "./components/screens/SettingsProfileRouteScreen";
+export async function getLegacyUserProfile(userId: string) {
+  return getAccountQueryRepo().getUserProfile(userId);
+}
+
+export function subscribeToLegacyUserProfile(
+  userId: string,
+  onUpdate: (profile: Awaited<ReturnType<typeof getLegacyUserProfile>>) => void,
+) {
+  return getAccountQueryRepo().subscribeToUserProfile(userId, onUpdate);
+}
+
+export async function updateLegacyUserProfile(userId: string, input: UpdateProfileInput): Promise<void> {
+  await accountService.updateUserProfile(userId, input);
+}
 ````
 
 ## File: modules/platform/subdomains/account/application/services/resolve-active-account.ts
@@ -18616,30 +19056,6 @@ export type { IIngestionJobPort } from "./ports";
 export * from "./events";
 ````
 
-## File: modules/platform/subdomains/entitlement/api/index.ts
-````typescript
-/**
- * Public API boundary for the entitlement subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export * from "../application";
-export { entitlementService } from "../infrastructure";
-export type {
-  EntitlementGrantSnapshot,
-  CreateEntitlementGrantInput,
-} from "../domain/aggregates/EntitlementGrant";
-export type { EntitlementGrantDomainEventType } from "../domain/events/EntitlementGrantDomainEvent";
-export type { EntitlementGrantRepository } from "../domain/repositories/EntitlementGrantRepository";
-export type { EntitlementStatus } from "../domain/value-objects/EntitlementStatus";
-export type { FeatureKey } from "../domain/value-objects/FeatureKey";
-````
-
-## File: modules/platform/subdomains/entitlement/application/index.ts
-````typescript
-export * from "./dtos";
-export * from "./use-cases";
-````
-
 ## File: modules/platform/subdomains/entitlement/application/use-cases/entitlement.use-cases.ts
 ````typescript
 /**
@@ -18759,20 +19175,6 @@ export class CheckFeatureEntitlementUseCase {
     }
   }
 }
-````
-
-## File: modules/platform/subdomains/entitlement/domain/index.ts
-````typescript
-export * from "./aggregates";
-export * from "./events";
-export * from "./repositories";
-export * from "./value-objects";
-````
-
-## File: modules/platform/subdomains/entitlement/infrastructure/index.ts
-````typescript
-export * from "./entitlement-service";
-export { FirebaseEntitlementGrantRepository } from "./firebase/FirebaseEntitlementGrantRepository";
 ````
 
 ## File: modules/platform/subdomains/notification/application/use-cases/notification.use-cases.ts
@@ -20094,408 +20496,6 @@ export class DeactivateAccessPolicyUseCase {
 }
 ````
 
-## File: modules/platform/subdomains/account-profile/api/index.ts
-````typescript
-/**
- * Public API boundary for the account-profile subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Composition root lives in infrastructure/account-profile-service.ts;
- * this boundary is intentionally thin — it only re-exports public contracts.
- */
-
-import {
-	getAccountProfileFromService,
-	subscribeToAccountProfileFromService,
-	updateAccountProfileFromService,
-} from "../infrastructure";
-import type { AccountProfile, Unsubscribe } from "../domain";
-import type { UpdateAccountProfileInput } from "../application";
-import type { CommandResult } from "@shared-types";
-
-// ── Use-case delegators ──────────────────────────────────────────────────
-
-export async function getAccountProfile(actorId: string): Promise<AccountProfile | null> {
-	return getAccountProfileFromService(actorId);
-}
-
-export function subscribeToAccountProfile(
-	actorId: string,
-	onUpdate: (profile: AccountProfile | null) => void,
-): Unsubscribe {
-	return subscribeToAccountProfileFromService(actorId, onUpdate);
-}
-
-export async function updateAccountProfile(
-	actorId: string,
-	input: UpdateAccountProfileInput,
-): Promise<CommandResult> {
-	return updateAccountProfileFromService(actorId, input);
-}
-
-// Legacy compatibility exports for migration window.
-export const getUserProfile = getAccountProfile;
-export const subscribeToUserProfile = subscribeToAccountProfile;
-
-export { getProfile, subscribeToProfile, updateProfile } from "../interfaces";
-
-export * from "../application";
-export * from "../domain";
-export { SettingsProfileRouteScreen } from "../interfaces";
-export type { LegacyAccountProfileDataSource } from "../infrastructure";
-````
-
-## File: modules/platform/subdomains/account-profile/domain/index.ts
-````typescript
-export {
-	AccountProfileIdSchema,
-	AccountProfileSchema,
-	createAccountProfile,
-	createAccountProfileId,
-	createUpdateAccountProfileInput,
-} from "./entities/AccountProfile";
-export type {
-	AccountProfile,
-	AccountProfileId,
-	AccountProfileTheme,
-	UpdateAccountProfileInput,
-} from "./entities/AccountProfile";
-
-export type { Unsubscribe, AccountProfileQueryRepository } from "./repositories/AccountProfileQueryRepository";
-export type { AccountProfileCommandRepository } from "./repositories/AccountProfileCommandRepository";
-export type { IAccountProfileQueryPort, IAccountProfileCommandPort } from "./ports";
-export * from "./aggregates";
-export * from "./events";
-export * from "./value-objects";
-````
-
-## File: modules/platform/subdomains/account-profile/interfaces/components/screens/SettingsProfileRouteScreen.tsx
-````typescript
-"use client";
-
-import { useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
-
-import { getProfile } from "../../queries/account-profile.queries";
-import { updateProfile } from "../../_actions/account-profile.actions";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-type FormState = {
-  displayName: string;
-  bio: string;
-  photoURL: string;
-};
-
-const EMPTY_FORM: FormState = {
-  displayName: "",
-  bio: "",
-  photoURL: "",
-};
-
-interface SettingsProfileRouteScreenProps {
-  actorId: string | null;
-  fallbackDisplayName?: string | null;
-}
-
-export function SettingsProfileRouteScreen({
-  actorId,
-  fallbackDisplayName,
-}: SettingsProfileRouteScreenProps) {
-  const normalizedActorId = actorId ?? "";
-
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!normalizedActorId) {
-      setForm(EMPTY_FORM);
-      return;
-    }
-
-    let cancelled = false;
-
-    async function loadProfile() {
-      setLoading(true);
-      setMessage(null);
-      try {
-        const profile = await getProfile(normalizedActorId);
-        if (!cancelled) {
-          setForm({
-            displayName: profile?.displayName ?? fallbackDisplayName ?? "",
-            bio: profile?.bio ?? "",
-            photoURL: profile?.photoURL ?? "",
-          });
-        }
-      } catch {
-        if (!cancelled) {
-          setMessage("讀取個人資料失敗，請稍後重試。");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void loadProfile();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [fallbackDisplayName, normalizedActorId]);
-
-  const hasChanges = useMemo(() => {
-    return form.displayName.trim().length > 0 || form.bio.trim().length > 0 || form.photoURL.trim().length > 0;
-  }, [form]);
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!normalizedActorId) {
-      setMessage("尚未登入，無法更新個人資料。");
-      return;
-    }
-
-    const payload = {
-      ...(form.displayName.trim() ? { displayName: form.displayName.trim() } : {}),
-      ...(form.bio.trim() ? { bio: form.bio.trim() } : {}),
-      ...(form.photoURL.trim() ? { photoURL: form.photoURL.trim() } : {}),
-    };
-
-    if (Object.keys(payload).length === 0) {
-      setMessage("請至少填寫一個欄位再儲存。");
-      return;
-    }
-
-    setSaving(true);
-    setMessage(null);
-    try {
-      const result = await updateProfile(normalizedActorId, payload);
-      if (result.success) {
-        setMessage("已更新個人資料。");
-      } else {
-        setMessage(result.error?.message ?? "更新個人資料失敗。");
-      }
-    } catch {
-      setMessage("更新個人資料失敗，請稍後重試。");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="mx-auto w-full max-w-2xl space-y-4">
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>個人資料</CardTitle>
-          <CardDescription>這個頁面已切換到 account-profile 寫入流程（strangler migration）。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            <div className="space-y-2">
-              <Label htmlFor="displayName">顯示名稱</Label>
-              <Input
-                id="displayName"
-                value={form.displayName}
-                onChange={(event) => {
-                  setForm((prev) => ({ ...prev, displayName: event.target.value }));
-                }}
-                placeholder="輸入顯示名稱"
-                disabled={loading || saving}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="bio">簡介</Label>
-              <Textarea
-                id="bio"
-                value={form.bio}
-                onChange={(event) => {
-                  setForm((prev) => ({ ...prev, bio: event.target.value }));
-                }}
-                placeholder="輸入個人簡介"
-                rows={4}
-                disabled={loading || saving}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="photoURL">頭像網址</Label>
-              <Input
-                id="photoURL"
-                value={form.photoURL}
-                onChange={(event) => {
-                  setForm((prev) => ({ ...prev, photoURL: event.target.value }));
-                }}
-                placeholder="https://example.com/avatar.png"
-                disabled={loading || saving}
-              />
-            </div>
-
-            {message ? (
-              <p className="text-sm text-muted-foreground">{message}</p>
-            ) : null}
-
-            <div className="flex justify-end">
-              <Button type="submit" disabled={loading || saving || !hasChanges}>
-                {saving ? "儲存中..." : "儲存個人資料"}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-````
-
-## File: modules/platform/subdomains/account/api/legacy-account-profile.bridge.ts
-````typescript
-import { type UpdateProfileInput } from "../application/dtos/account.dto";
-import { accountService, createAccountQueryRepository } from "../infrastructure/account-service";
-import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
-
-let _accountQueryRepo: AccountQueryRepository | undefined;
-
-function getAccountQueryRepo(): AccountQueryRepository {
-  if (!_accountQueryRepo) {
-    _accountQueryRepo = createAccountQueryRepository();
-  }
-  return _accountQueryRepo;
-}
-
-export async function getLegacyUserProfile(userId: string) {
-  return getAccountQueryRepo().getUserProfile(userId);
-}
-
-export function subscribeToLegacyUserProfile(
-  userId: string,
-  onUpdate: (profile: Awaited<ReturnType<typeof getLegacyUserProfile>>) => void,
-) {
-  return getAccountQueryRepo().subscribeToUserProfile(userId, onUpdate);
-}
-
-export async function updateLegacyUserProfile(userId: string, input: UpdateProfileInput): Promise<void> {
-  await accountService.updateUserProfile(userId, input);
-}
-````
-
-## File: modules/platform/api/index.ts
-````typescript
-/**
- * platform public API boundary.
- *
- * account is listed before organization to establish canonical definitions for
- * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
- * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
- */
-
-export * from "./contracts";
-export * from "./facade";
-export { createPlatformService } from "./platform-service";
-export * from "../subdomains/identity/api";
-export * from "../subdomains/account/api";
-export * from "../subdomains/notification/api";
-
-export {
-  getProfile,
-  subscribeToProfile,
-  updateProfile,
-  SettingsProfileRouteScreen,
-  getAccountProfile,
-  subscribeToAccountProfile,
-  updateAccountProfile,
-} from "../subdomains/account-profile/api";
-
-export type {
-  AccountProfile,
-  UpdateAccountProfileInput,
-} from "../subdomains/account-profile/api";
-
-// organization — explicit to avoid re-export conflicts with account subdomain
-export type {
-  OrganizationEntity,
-  Presence,
-  InviteState,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  OrgPolicy,
-  OrgPolicyRule,
-  OrgPolicyScope,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-  OrganizationRepository,
-  OrgPolicyRepository,
-} from "../subdomains/organization/api";
-export {
-  organizationService,
-  getOrganizationMembers,
-  getOrganizationTeams,
-  getOrgPolicies,
-  createOrganization,
-  createOrganizationWithTeam,
-  updateOrganizationSettings,
-  deleteOrganization,
-  inviteMember,
-  recruitMember,
-  dismissMember,
-  updateMemberRole,
-  createTeam,
-  deleteTeam,
-  updateTeamMembers,
-  createPartnerGroup,
-  sendPartnerInvite,
-  dismissPartnerMember,
-  createOrgPolicy,
-  updateOrgPolicy,
-  deleteOrgPolicy,
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-  // UI components
-  AccountSwitcher,
-  CreateOrganizationDialog,
-  MembersPage,
-  TeamsPage,
-  PermissionsPage,
-  OrganizationAuditPage,
-} from "../subdomains/organization/api";
-export type { MembersPageProps, TeamsPageProps, PermissionsPageProps, OrganizationAuditPageProps } from "../subdomains/organization/api";
-
-// background-job — knowledge ingestion pipeline management
-export * from "../subdomains/background-job/api";
-
-// Cross-module and app-composition hooks from interfaces layer.
-// Only selective exports — do NOT wildcard re-export "../interfaces".
-export { useApp, Providers, ShellLayout, isActiveOrganizationAccount } from "../interfaces";
-````
-
 ## File: modules/platform/application/use-cases/index.ts
 ````typescript
 /**
@@ -20924,6 +20924,44 @@ export function SimpleNavLinks({
 }
 ````
 
+## File: modules/platform/interfaces/web/index.ts
+````typescript
+export { ShellHeaderControls } from "./shell/header/components/ShellHeaderControls";
+export { ShellThemeToggle } from "./shell/header/components/ShellThemeToggle";
+export { ShellNotificationButton } from "./shell/header/components/ShellNotificationButton";
+export { ShellUserAvatar } from "./shell/header/components/ShellUserAvatar";
+export { ShellTranslationSwitcher } from "./shell/header/components/ShellTranslationSwitcher";
+export { ShellAppBreadcrumbs } from "./shell/breadcrumbs/ShellAppBreadcrumbs";
+export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./shell/search/ShellGlobalSearchDialog";
+export { AppRail } from "./shell/sidebar/ShellAppRail";
+export { ShellDashboardSidebar } from "./shell/navigation/components/ShellDashboardSidebar";
+export { ShellLayout } from "./shell/layout/ShellRootLayout";
+export type { DashboardSidebarProps, NavSection } from "./shell/navigation/data/ShellSidebarNavData";
+export {
+  resolveNavSection,
+  isActiveOrganizationAccount,
+  SECTION_TITLES,
+  ACCOUNT_NAV_ITEMS,
+  ACCOUNT_SECTION_MATCHERS,
+  ORGANIZATION_MANAGEMENT_ITEMS,
+  sidebarItemClass,
+  sidebarSectionTitleClass,
+  sidebarGroupButtonClass,
+  SimpleNavLinks,
+} from "./shell/navigation/data/ShellSidebarNavData";
+
+// providers
+export {
+  AppContext,
+  type AppState,
+  type AppAction,
+  type AppContextValue,
+  type ActiveAccount,
+} from "./providers/ShellAppProvider";
+export { AppProvider, useApp } from "./providers/ShellAppProvider";
+export { Providers } from "./providers/ShellProviders";
+````
+
 ## File: modules/platform/interfaces/web/shell/layout/ShellRootLayout.tsx
 ````typescript
 "use client";
@@ -21210,42 +21248,4 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
     </ShellGuard>
   );
 }
-````
-
-## File: modules/platform/interfaces/web/index.ts
-````typescript
-export { ShellHeaderControls } from "./shell/header/components/ShellHeaderControls";
-export { ShellThemeToggle } from "./shell/header/components/ShellThemeToggle";
-export { ShellNotificationButton } from "./shell/header/components/ShellNotificationButton";
-export { ShellUserAvatar } from "./shell/header/components/ShellUserAvatar";
-export { ShellTranslationSwitcher } from "./shell/header/components/ShellTranslationSwitcher";
-export { ShellAppBreadcrumbs } from "./shell/breadcrumbs/ShellAppBreadcrumbs";
-export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./shell/search/ShellGlobalSearchDialog";
-export { AppRail } from "./shell/sidebar/ShellAppRail";
-export { ShellDashboardSidebar } from "./shell/navigation/components/ShellDashboardSidebar";
-export { ShellLayout } from "./shell/layout/ShellRootLayout";
-export type { DashboardSidebarProps, NavSection } from "./shell/navigation/data/ShellSidebarNavData";
-export {
-  resolveNavSection,
-  isActiveOrganizationAccount,
-  SECTION_TITLES,
-  ACCOUNT_NAV_ITEMS,
-  ACCOUNT_SECTION_MATCHERS,
-  ORGANIZATION_MANAGEMENT_ITEMS,
-  sidebarItemClass,
-  sidebarSectionTitleClass,
-  sidebarGroupButtonClass,
-  SimpleNavLinks,
-} from "./shell/navigation/data/ShellSidebarNavData";
-
-// providers
-export {
-  AppContext,
-  type AppState,
-  type AppAction,
-  type AppContextValue,
-  type ActiveAccount,
-} from "./providers/ShellAppProvider";
-export { AppProvider, useApp } from "./providers/ShellAppProvider";
-export { Providers } from "./providers/ShellProviders";
 ````

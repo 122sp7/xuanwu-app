@@ -16316,21 +16316,6 @@ export function getWorkspaceGovernanceSummary(
 }
 ````
 
-## File: modules/workspace/subdomains/audit/domain/entities/AuditLog.ts
-````typescript
-export type AuditLogSource = "workspace" | "finance" | "notification" | "system";
-
-export interface AuditLogEntity {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly actorId: string;
-  readonly action: string;
-  readonly detail: string;
-  readonly source: AuditLogSource;
-  readonly occurredAtISO: string;
-}
-````
-
 ## File: modules/workspace/subdomains/feed/api/index.ts
 ````typescript
 export { WorkspaceFeedFacade, workspaceFeedFacade } from "./workspace-feed.facade";
@@ -25802,6 +25787,172 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vercel-react-best-practices
 ````
 
+## File: modules/notebooklm/MIGRATION-AI-SUBDOMAIN-REMOVAL.md
+````markdown
+# Migration Plan: Remove notebooklm/ai Subdomain (AGENTS.md Compliance)
+
+**Status**: PLANNED  
+**Priority**: CRITICAL (violates module ownership guardrail)  
+**Effort**: 4-6 hours  
+**Risk**: HIGH (touch points across 5 subdomains + public API)
+
+---
+
+## Rationale
+
+### AGENTS.md Rule Violated
+```
+Module Ownership Guardrails:
+- AI capability routing, model policy, safety 
+  | OWNER: platform 
+  | NEVER OWNED BY: notion, notebooklm
+```
+
+The `notebooklm/subdomains/ai/` directory exists and exports use-cases that should either:
+1. Belong to platform.ai (refactor as consumer of platform AI capability), or
+2. Be distributed to their owning Tier-2 subdomains (synthesis, retrieval, evaluation, grounding)
+
+---
+
+## Current State: ai Subdomain Contents
+
+### Public API Exports (modules/notebooklm/api/index.ts)
+
+| Export | Target Tier-2 Subdomain | Reason |
+|--------|------------------------|--------|
+| `RagRetrievedChunk, RagCitation, RagRetrievalSummary` | **retrieval** | Retrieval domain model |
+| `IVectorStore, VectorDocument, VectorSearchResult` | **retrieval** | Vector store port |
+| `IRagRetrievalRepository, RetrieveChunksInput` | **retrieval** | Retrieval repository |
+| `IKnowledgeContentRepository` (citation-related) | **grounding** | Citation/grounding logic |
+| `AnswerRagQueryInput/Output/Result` | **synthesis** | RAG answer generation |
+| `RagStreamEvent` | **synthesis** | Streaming events during synthesis |
+| `RagQueryFeedback, RagFeedbackRating, SubmitRagFeedbackInput` | **evaluation** | Feedback entities |
+| `IRagQueryFeedbackRepository` | **evaluation** | Feedback repository |
+| `GenerateRagAnswerInput/Output/Result` | **synthesis** | Answer generation contract |
+| `GenerationCitation` | **grounding** | Citation details |
+| `IRagGenerationRepository` | **synthesis** | Generation repository |
+| `AnswerRagQueryUseCase` | **synthesis** | QA use-case |
+| `SubmitRagQueryFeedbackUseCase` | **evaluation** | Feedback use-case |
+
+### Server-Only Factory (modules/notebooklm/api/server.ts)
+
+| Export | Type | Target |
+|--------|------|--------|
+| `createAnswerRagQueryUseCase()` | Factory | synthesis |
+| `GenkitRagGenerationAdapter` | Adapter | synthesis |
+| `FirebaseRagRetrievalAdapter` | Adapter | retrieval |
+| `GenkitRagGenerationAdapter` | Adapter | synthesis |
+
+---
+
+## Migration Strategy (Phase-Based)
+
+### PHASE 1: Audit (COMPLETED)
+- ✅ Identified ai subdomain as ownership violation
+- ✅ Mapped contents to Tier-2 destinations
+- ✅ Located public API export points
+
+### PHASE 2: Prepare (NEXT)
+1. Create stub exports in each Tier-2 subdomain (api/index.ts) to accept migrated types
+2. Add migration notes to each Tier-2 README
+3. Prepare test fixtures for dependency verification
+
+**Effort**: 1.5 hours  
+**Risk**: LOW (non-breaking; stubs only)
+
+### PHASE 3: Move Content (MAIN)
+
+For each Tier-2 target subdomain:
+
+1. **Retrieve source files** from notebooklm/subdomains/ai/{domain,application,infrastructure}
+2. **Merge into Tier-2 structures** (e.g., retrieval/domain/entities)
+3. **Update internal imports** within migrated code
+4. **Update Tier-2 public API** (api/index.ts) with new exports
+5. **Verify compilation**
+
+**Order** (bottom-up dependency):
+1. grounding (lowest dependencies)
+2. retrieval (grounding → retrieval imports)
+3. evaluation (low dependencies)
+4. synthesis (top-level, imports from others)
+
+**Effort**: 2 hours  
+**Risk**: MEDIUM (file moves + internal import updates)
+
+### PHASE 4: Update Root API Routes
+
+Update these files to import from Tier-2 destinations:
+
+| File | Current Source | New Sources |
+|------|---|---|
+| `modules/notebooklm/api/index.ts` | ai/{domain,application} | retrieval/api, grounding/api, synthesis/api, evaluation/api |
+| `modules/notebooklm/api/server.ts` | ai/{application,infrastructure} | synthesis/api (server), retrieval/api (server) |
+
+**Effort**: 0.5 hours  
+**Risk**: LOW (mechanical update)
+
+### PHASE 5: Delete ai Subdomain
+
+1. Delete `modules/notebooklm/subdomains/ai/` directory
+2. Run grep scan to ensure zero imports of `subdomains/ai`
+3. Run tsc/eslint verification
+4. Commit with message: "refactor: move notebooklm/ai to Tier-2 subdomains per AGENTS.md"
+
+**Effort**: 0.5 hours  
+**Risk**: LOW (deletion only; no rewrites)
+
+---
+
+## Validation Checkpoints
+
+| Phase | Checkpoint | Tool |
+|-------|-----------|------|
+| 1 | Mapping complete | Grep + manual audit |
+| 2 | Stubs created | tsc --noEmit |
+| 3 | Files moved + imports updated | tsc --noEmit |
+| 4 | Root routes updated | tsc --noEmit + grep |
+| 5 | Directory deleted | ls + grep (verify zero matches) |
+| ALL | Final validation | `npm run lint && npm run build` |
+
+---
+
+## Risk Mitigation
+
+### Breaking Changes?
+- NO — All exports remain accessible from root `modules/notebooklm/api/`
+- Only internal import paths change (handled in Phase 3)
+
+### Consumers of ai Subdomain?
+- Grep for `from.*subdomains/ai` reveals: **only notebooklm root api** + internal imports
+- No external modules depend on notebooklm.ai directly
+- Safe to move
+
+### Rollback Plan
+- If any phase fails: revert commit, keep this doc for next attempt
+- No data loss (pure code movement)
+
+---
+
+## Success Criteria
+
+✅ All ai subdomain entities/ports distributed to Tier-2 subdomains  
+✅ Public API (modules/notebooklm/api/) unchanged  
+✅ Zero imports of `subdomains/ai` remain  
+✅ tsc --noEmit succeeds  
+✅ eslint --max-warnings 0 passes  
+✅ ai directory deleted  
+
+---
+
+## Next Session Checklist
+
+- [ ] Start with PHASE 2 (stub creation)
+- [ ] Follow order: grounding → retrieval → evaluation → synthesis
+- [ ] Run validation after each Tier-2 migration completes
+- [ ] Delete ai/ only after all other phases succeed
+- [ ] Update AGENTS.md compliance memo when done
+````
+
 ## File: modules/notebooklm/notebooklm.instructions.md
 ````markdown
 ---
@@ -28791,49 +28942,6 @@ export interface IParsedDocumentPort {
 export interface ISourceDocumentCommandPort {
   deleteDocument(accountId: string, documentId: string): Promise<void>;
   renameDocument(accountId: string, documentId: string, newName: string): Promise<void>;
-}
-````
-
-## File: modules/notebooklm/subdomains/source/infrastructure/adapters/NotionKnowledgePageGatewayAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/adapters
- * Adapter: NotionKnowledgePageGatewayAdapter — delegates to notion bounded context API.
- *
- * Implements the KnowledgePageGateway port defined in the application layer,
- * bridging the source subdomain to the notion bounded context through its public API.
- */
-
-import type { CommandResult } from "@shared-types";
-
-import { addKnowledgeBlock, createKnowledgePage } from "@/modules/notion/api";
-
-import type { KnowledgePageGateway } from "../../application/use-cases/create-knowledge-draft-from-source.use-case";
-
-export class NotionKnowledgePageGatewayAdapter implements KnowledgePageGateway {
-  async createPage(input: {
-    accountId: string;
-    workspaceId: string;
-    title: string;
-    parentPageId: null;
-    createdByUserId: string;
-  }): Promise<CommandResult> {
-    return createKnowledgePage(input);
-  }
-
-  async addBlock(input: {
-    accountId: string;
-    pageId: string;
-    index: number;
-    content: {
-      type: "text";
-      richText: readonly { type: string; plainText: string }[];
-      properties: Record<string, unknown>;
-    };
-  }): Promise<CommandResult> {
-    return addKnowledgeBlock(input);
-  }
 }
 ````
 
@@ -46915,6 +47023,28 @@ export { AuditEntry } from "./AuditEntry";
 export type { AuditEntrySnapshot, RecordAuditEntryInput } from "./AuditEntry";
 ````
 
+## File: modules/workspace/subdomains/audit/domain/entities/AuditLog.ts
+````typescript
+export type AuditLogSource = "workspace" | "finance" | "notification" | "system";
+
+/**
+ * AuditLogEntity
+ * 
+ * actorId: Receives platform's "actor reference" published language token.
+ * This field DOES NOT own Actor semantics — it consumes the token from platform.
+ * (See AGENTS.md ubiquitous language for context map rules.)
+ */
+export interface AuditLogEntity {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly actorId: string;
+  readonly action: string;
+  readonly detail: string;
+  readonly source: AuditLogSource;
+  readonly occurredAtISO: string;
+}
+````
+
 ## File: modules/workspace/subdomains/audit/domain/events/AuditDomainEvent.ts
 ````typescript
 export interface AuditDomainEvent {
@@ -47052,23 +47182,6 @@ export class AuditRecordingService {
 ## File: modules/workspace/subdomains/audit/domain/services/index.ts
 ````typescript
 export { AuditRecordingService } from "./AuditRecordingService";
-````
-
-## File: modules/workspace/subdomains/audit/domain/value-objects/ActorId.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const ActorIdSchema = z.string().min(1).brand("ActorId");
-
-export type ActorId = z.infer<typeof ActorIdSchema>;
-
-export function createActorId(raw: string): ActorId {
-	return ActorIdSchema.parse(raw);
-}
-
-export function unsafeActorId(raw: string): ActorId {
-	return raw as ActorId;
-}
 ````
 
 ## File: modules/workspace/subdomains/audit/domain/value-objects/AuditAction.ts
@@ -55109,6 +55222,63 @@ export { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/Fireba
 export { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
 ````
 
+## File: modules/notebooklm/subdomains/source/infrastructure/adapters/NotionKnowledgePageGatewayAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/adapters
+ * Adapter: NotionKnowledgePageGatewayAdapter — delegates to notion bounded context API.
+ *
+ * Implements the KnowledgePageGateway port defined in the application layer,
+ * bridging the source subdomain to the notion bounded context through its public API.
+ * 
+ * ⚠️ MIGRATION NOTE (AGENTS.md violation fix):
+ * Currently calls notion.api directly. Per AGENTS.md context map rule,
+ * notion → notebooklm relationship should use published language tokens:
+ *   - knowledge artifact reference
+ *   - attachment reference
+ *   - taxonomy hint
+ * 
+ * TODO: Extract published language contract; adapt through port boundary.
+ * Status: PLANNED FOR NEXT PHASE (2-3h estimate)
+ */
+
+import type { CommandResult } from "@shared-types";
+
+/**
+ * DIRECT API CALL — violation of AGENTS.md cross-domain boundary rule.
+ * TODO: Replace with published language token-based contract.
+ */
+import { addKnowledgeBlock, createKnowledgePage } from "@/modules/notion/api";
+
+import type { KnowledgePageGateway } from "../../application/use-cases/create-knowledge-draft-from-source.use-case";
+
+export class NotionKnowledgePageGatewayAdapter implements KnowledgePageGateway {
+  async createPage(input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    parentPageId: null;
+    createdByUserId: string;
+  }): Promise<CommandResult> {
+    return createKnowledgePage(input);
+  }
+
+  async addBlock(input: {
+    accountId: string;
+    pageId: string;
+    index: number;
+    content: {
+      type: "text";
+      richText: readonly { type: string; plainText: string }[];
+      properties: Record<string, unknown>;
+    };
+  }): Promise<CommandResult> {
+    return addKnowledgeBlock(input);
+  }
+}
+````
+
 ## File: modules/notebooklm/subdomains/source/interfaces/components/LibrariesView.tsx
 ````typescript
 "use client";
@@ -60305,6 +60475,24 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/platform/subdomains/consent/README.md
+````markdown
+# Consent
+
+把同意與資料使用授權從 compliance 中切開。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/content/api/index.ts
 ````typescript
 /**
@@ -60488,6 +60676,24 @@ export * from "./value-objects";
 ````typescript
 export * from "./entitlement-service";
 export { FirebaseEntitlementGrantRepository } from "./firebase/FirebaseEntitlementGrantRepository";
+````
+
+## File: modules/platform/subdomains/entitlement/README.md
+````markdown
+# Entitlement
+
+建立有效權益與功能可用性的統一解算上下文。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/feature-flag/api/index.ts
@@ -62279,6 +62485,24 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/platform/subdomains/secret-management/README.md
+````markdown
+# Secret Management
+
+把憑證、token、rotation 從 integration 中切開。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/security-policy/api/index.ts
 ````typescript
 /**
@@ -62657,6 +62881,24 @@ export class OrganizationTeam {
     return events;
   }
 }
+````
+
+## File: modules/platform/subdomains/tenant/README.md
+````markdown
+# Tenant
+
+建立多租戶隔離與 tenant-scoped 規則的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/workflow/api/index.ts
@@ -63202,6 +63444,34 @@ export * from "./value-objects";
 export type { IAuditPort } from "./ports";
 ````
 
+## File: modules/workspace/subdomains/audit/domain/value-objects/ActorId.ts
+````typescript
+import { z } from "@lib-zod";
+
+/**
+ * ActorId — receives platform's "actor reference" published language token.
+ * 
+ * MAPPING (AGENTS.md ubiquitous language):
+ * - platform.Actor (upstream) → workspace.audit.ActorId (downstream)
+ * - Platform defines the "actor reference" token in its ubiquitous language
+ * - workspace.audit consumes this token without redefining Actor semantics
+ * - ActorId is a local value object; does NOT own Actor concept
+ * 
+ * NOTE: Field name uses "Actor" only for clarity; it represents a consumed token.
+ */
+export const ActorIdSchema = z.string().min(1).brand("ActorId");
+
+export type ActorId = z.infer<typeof ActorIdSchema>;
+
+export function createActorId(raw: string): ActorId {
+	return ActorIdSchema.parse(raw);
+}
+
+export function unsafeActorId(raw: string): ActorId {
+	return raw as ActorId;
+}
+````
+
 ## File: modules/workspace/subdomains/audit/README.md
 ````markdown
 # Audit
@@ -63469,6 +63739,24 @@ export type {
  * document model.
  */
 export {};
+````
+
+## File: modules/workspace/subdomains/presence/README.md
+````markdown
+# Presence
+
+把即時協作存在感與共同編輯訊號形成本地語言。
+
+## Ownership
+
+- **Bounded Context**: workspace
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/workspace/subdomains/scheduling/application/dto/work-demand.dto.ts
@@ -65455,6 +65743,101 @@ interfaces/ → application/ → domain/ ← infrastructure/
 新功能**不得**在此子域開發。一律在目標子域 (retrieval/grounding/synthesis/evaluation) 建立新能力，再用 Strangler Pattern 將此子域的現有類別遷移過去。
 ````
 
+## File: modules/notebooklm/subdomains/evaluation/README.md
+````markdown
+# Evaluation
+
+建立品質評估與回歸比較的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Subdomain Type**: Tier 2 — RAG Pipeline (Migration Target)
+- **Status**: Stub — receiving migration from `ai` subdomain
+
+## Migration From `ai`
+
+| Class | Migration source |
+|-------|------------------|
+| `SubmitRagFeedbackUseCase` | ai/application/use-cases |
+| `IRagQueryFeedbackRepository` | ai/domain/repositories |
+| `RagFeedback` | ai/domain/entities |
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notebooklm/subdomains/grounding/README.md
+````markdown
+# Grounding
+
+建立引用對齊與可追溯證據的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Subdomain Type**: Tier 2 — RAG Pipeline (Migration Target)
+- **Status**: Stub — receiving migration from `ai` subdomain
+
+## Migration From `ai`
+
+| Class | Migration source |
+|-------|------------------|
+| `RagCitationBuilder` | ai/domain/services |
+| `RagCitation` | ai/domain/entities |
+| `RelevanceScore` | ai/domain/value-objects |
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notebooklm/subdomains/ingestion/README.md
+````markdown
+# Ingestion
+
+> **⚠️ Premature Stub** — 不建議擴充。
+
+## Reason
+
+`source` 子域已涵蓋匯入編排（SourceFile → RagDocument 狀態機）；`py_fn` 擁有實際解析管線。此子域目前無獨立領域模型需求。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Status**: Premature — absorbed by `source` subdomain
+````
+
+## File: modules/notebooklm/subdomains/retrieval/README.md
+````markdown
+# Retrieval
+
+建立查詢召回與排序策略的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Subdomain Type**: Tier 2 — RAG Pipeline (Migration Target)
+- **Status**: Stub — receiving migration from `ai` subdomain
+
+## Migration From `ai`
+
+| Class | Migration source |
+|-------|------------------|
+| `IRagRetrievalRepository` | ai/domain/repositories |
+| `IKnowledgeContentRepository` | ai/domain/repositories |
+| `RagScoringService` | ai/domain/services |
+| `RagRetrievedChunk` (entity) | ai/domain/entities |
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/notebooklm/subdomains/source/interfaces/_actions/source-file.actions.ts
 ````typescript
 "use server";
@@ -66532,6 +66915,102 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/notion/subdomains/publishing/README.md
+````markdown
+# Publishing
+
+建立正式發布與對外交付的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Layers
+
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/subdomains/relations/README.md
+````markdown
+# Relations
+
+建立內容之間關聯與 backlink 的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Layers
+
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/subdomains/taxonomy/README.md
+````markdown
+# Taxonomy
+
+建立分類法與語義組織的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Layers
+
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/AGENT.md
 ````markdown
 # Platform Agent
@@ -67445,42 +67924,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/consent/README.md
-````markdown
-# Consent
-
-把同意與資料使用授權從 compliance 中切開。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/entitlement/README.md
-````markdown
-# Entitlement
-
-建立有效權益與功能可用性的統一解算上下文。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/platform/subdomains/identity/interfaces/_actions/identity.actions.ts
 ````typescript
 "use server";
@@ -67861,24 +68304,6 @@ export * from "../application";
 export * from "../application";
 ````
 
-## File: modules/platform/subdomains/secret-management/README.md
-````markdown
-# Secret Management
-
-把憑證、token、rotation 從 integration 中切開。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/platform/subdomains/subscription/api/index.ts
 ````typescript
 /**
@@ -67904,24 +68329,6 @@ Team management within organizations.
 ## Ownership
 
 - **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/tenant/README.md
-````markdown
-# Tenant
-
-建立多租戶隔離與 tenant-scoped 規則的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
 - **Status**: Stub — awaiting use case definition
 
 ## Development Order
@@ -68401,22 +68808,84 @@ export async function getOrganizationAuditLogs(
 }
 ````
 
-## File: modules/workspace/subdomains/presence/README.md
+## File: modules/workspace/subdomains/lifecycle/README.md
 ````markdown
-# Presence
+# Lifecycle
 
-把即時協作存在感與共同編輯訊號形成本地語言。
+把工作區容器生命週期獨立成正典邊界。
 
 ## Ownership
 
 - **Bounded Context**: workspace
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
+- **Subdomain Type**: Active
+- **Status**: Active — lifecycle use cases implemented
+
+## Responsibility
+
+- Workspace creation (with optional capabilities)
+- Workspace settings update (with lifecycle/visibility transition events)
+- Workspace deletion
+- Lifecycle state machine (preparatory → active → stopped)
+
+## Dependency Direction
+
+```
+interfaces/ → application/ → domain/ ← infrastructure/
+```
 
 ## Development Order
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+
+## Key Design Decisions
+
+- The Workspace aggregate root lives at context root level (`modules/workspace/domain/`), not inside this subdomain.
+- This subdomain's use cases operate on the root aggregate through ports.
+- Event publishing follows the "persist-then-publish" pattern.
+- The `UpdateWorkspaceSettingsUseCase` consolidates both settings persistence and transition event emission into one cohesive use case, eliminating the prior split where the application service handled event logic.
+````
+
+## File: modules/workspace/subdomains/membership/README.md
+````markdown
+# Membership
+
+把工作區參與關係從平台身份治理中切開。
+
+## Ownership
+
+- **Bounded Context**: workspace
+- **Subdomain Type**: Active
+- **Status**: Active — member view query implemented
+
+## Responsibility
+
+- Workspace member view model (canonical read model for participants)
+- Member resolution queries (merging grants, teams, personnel sources)
+- Workspace participation semantics distinct from platform identity
+
+## Ubiquitous Language
+
+- **Membership**: Workspace participation relationship, NOT platform identity
+- **WorkspaceMemberView**: Read-only projection of a workspace participant
+- **AccessChannel**: The route through which a member gained workspace access (owner, direct, team, personnel)
+
+## Dependency Direction
+
+```
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+
+## Key Design Decisions
+
+- WorkspaceMemberView is the membership read model, not a full Membership aggregate (that would come when invitation/seat management is needed).
+- Complex member resolution logic (merging from grants, teams, personnel) stays in the root infrastructure adapter since it depends on the full workspace document model.
+- The subdomain's query handler delegates to the root WorkspaceQueryRepository port.
 ````
 
 ## File: modules/workspace/subdomains/scheduling/interfaces/queries/work-demand.queries.ts
@@ -68447,6 +68916,48 @@ export async function getAccountDemands(accountId: string): Promise<WorkDemand[]
   }
   return new ListAccountDemandsUseCase(makeRepo()).execute(normalizedAccountId);
 }
+````
+
+## File: modules/workspace/subdomains/sharing/README.md
+````markdown
+# Sharing
+
+把對外共享與可見性規則收斂到單一上下文。
+
+## Ownership
+
+- **Bounded Context**: workspace
+- **Subdomain Type**: Active
+- **Status**: Active — access grant use cases implemented
+
+## Responsibility
+
+- Team access grants (authorize a team to access a workspace)
+- Individual access grants (grant a user direct workspace access)
+- Workspace sharing scope semantics
+
+## Ubiquitous Language
+
+- **ShareScope**: The sharing boundary and visibility extent, NOT generic "Permission"
+- **WorkspaceGrant**: An individual access authorization to a workspace
+- **WorkspaceAccessPolicy**: The aggregate access policy including grants and team associations
+
+## Dependency Direction
+
+```
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+
+## Key Design Decisions
+
+- Access grant use cases take injected WorkspaceAccessRepository through the deps pattern.
+- WorkspaceSharingApplicationService composes grant use cases and exposes team/individual grant operations.
+- Location management stays at root level (part of Workspace operational profile, not sharing semantics).
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx
@@ -68903,101 +69414,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - **Status**: Premature — absorbed by `conversation` subdomain
 ````
 
-## File: modules/notebooklm/subdomains/evaluation/README.md
-````markdown
-# Evaluation
-
-建立品質評估與回歸比較的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Tier 2 — RAG Pipeline (Migration Target)
-- **Status**: Stub — receiving migration from `ai` subdomain
-
-## Migration From `ai`
-
-| Class | Migration source |
-|-------|------------------|
-| `SubmitRagFeedbackUseCase` | ai/application/use-cases |
-| `IRagQueryFeedbackRepository` | ai/domain/repositories |
-| `RagFeedback` | ai/domain/entities |
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notebooklm/subdomains/grounding/README.md
-````markdown
-# Grounding
-
-建立引用對齊與可追溯證據的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Tier 2 — RAG Pipeline (Migration Target)
-- **Status**: Stub — receiving migration from `ai` subdomain
-
-## Migration From `ai`
-
-| Class | Migration source |
-|-------|------------------|
-| `RagCitationBuilder` | ai/domain/services |
-| `RagCitation` | ai/domain/entities |
-| `RelevanceScore` | ai/domain/value-objects |
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notebooklm/subdomains/ingestion/README.md
-````markdown
-# Ingestion
-
-> **⚠️ Premature Stub** — 不建議擴充。
-
-## Reason
-
-`source` 子域已涵蓋匯入編排（SourceFile → RagDocument 狀態機）；`py_fn` 擁有實際解析管線。此子域目前無獨立領域模型需求。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Status**: Premature — absorbed by `source` subdomain
-````
-
-## File: modules/notebooklm/subdomains/retrieval/README.md
-````markdown
-# Retrieval
-
-建立查詢召回與排序策略的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Tier 2 — RAG Pipeline (Migration Target)
-- **Status**: Stub — receiving migration from `ai` subdomain
-
-## Migration From `ai`
-
-| Class | Migration source |
-|-------|------------------|
-| `IRagRetrievalRepository` | ai/domain/repositories |
-| `IKnowledgeContentRepository` | ai/domain/repositories |
-| `RagScoringService` | ai/domain/services |
-| `RagRetrievedChunk` (entity) | ai/domain/entities |
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/notion/subdomains/automation/README.md
 ````markdown
 # Automation
@@ -69142,102 +69558,6 @@ export async function updateKnowledgePageCover(input: UpdatePageCoverDto): Promi
 
 - **Bounded Context**: notion
 - **Status**: Premature — absorbed by `knowledge` subdomain
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/publishing/README.md
-````markdown
-# Publishing
-
-建立正式發布與對外交付的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/relations/README.md
-````markdown
-# Relations
-
-建立內容之間關聯與 backlink 的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/taxonomy/README.md
-````markdown
-# Taxonomy
-
-建立分類法與語義組織的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
 
 ## Development Order
 
@@ -70354,128 +70674,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Context Map](../../docs/contexts/workspace/context-map.md)
 - [Ubiquitous Language](../../docs/contexts/workspace/ubiquitous-language.md)
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
-````
-
-## File: modules/workspace/subdomains/lifecycle/README.md
-````markdown
-# Lifecycle
-
-把工作區容器生命週期獨立成正典邊界。
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Subdomain Type**: Active
-- **Status**: Active — lifecycle use cases implemented
-
-## Responsibility
-
-- Workspace creation (with optional capabilities)
-- Workspace settings update (with lifecycle/visibility transition events)
-- Workspace deletion
-- Lifecycle state machine (preparatory → active → stopped)
-
-## Dependency Direction
-
-```
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-
-## Key Design Decisions
-
-- The Workspace aggregate root lives at context root level (`modules/workspace/domain/`), not inside this subdomain.
-- This subdomain's use cases operate on the root aggregate through ports.
-- Event publishing follows the "persist-then-publish" pattern.
-- The `UpdateWorkspaceSettingsUseCase` consolidates both settings persistence and transition event emission into one cohesive use case, eliminating the prior split where the application service handled event logic.
-````
-
-## File: modules/workspace/subdomains/membership/README.md
-````markdown
-# Membership
-
-把工作區參與關係從平台身份治理中切開。
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Subdomain Type**: Active
-- **Status**: Active — member view query implemented
-
-## Responsibility
-
-- Workspace member view model (canonical read model for participants)
-- Member resolution queries (merging grants, teams, personnel sources)
-- Workspace participation semantics distinct from platform identity
-
-## Ubiquitous Language
-
-- **Membership**: Workspace participation relationship, NOT platform identity
-- **WorkspaceMemberView**: Read-only projection of a workspace participant
-- **AccessChannel**: The route through which a member gained workspace access (owner, direct, team, personnel)
-
-## Dependency Direction
-
-```
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-
-## Key Design Decisions
-
-- WorkspaceMemberView is the membership read model, not a full Membership aggregate (that would come when invitation/seat management is needed).
-- Complex member resolution logic (merging from grants, teams, personnel) stays in the root infrastructure adapter since it depends on the full workspace document model.
-- The subdomain's query handler delegates to the root WorkspaceQueryRepository port.
-````
-
-## File: modules/workspace/subdomains/sharing/README.md
-````markdown
-# Sharing
-
-把對外共享與可見性規則收斂到單一上下文。
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Subdomain Type**: Active
-- **Status**: Active — access grant use cases implemented
-
-## Responsibility
-
-- Team access grants (authorize a team to access a workspace)
-- Individual access grants (grant a user direct workspace access)
-- Workspace sharing scope semantics
-
-## Ubiquitous Language
-
-- **ShareScope**: The sharing boundary and visibility extent, NOT generic "Permission"
-- **WorkspaceGrant**: An individual access authorization to a workspace
-- **WorkspaceAccessPolicy**: The aggregate access policy including grants and team associations
-
-## Dependency Direction
-
-```
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-
-## Key Design Decisions
-
-- Access grant use cases take injected WorkspaceAccessRepository through the deps pattern.
-- WorkspaceSharingApplicationService composes grant use cases and exposes team/individual grant operations.
-- Location management stays at root level (part of Workspace operational profile, not sharing semantics).
 ````
 
 ## File: modules/notebooklm/subdomains/ai/api/index.ts

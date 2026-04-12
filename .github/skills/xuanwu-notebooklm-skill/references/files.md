@@ -1212,24 +1212,6 @@ export {};
 // Purpose: Infrastructure layer placeholder for notebooklm subdomain 'conversation-versioning'.
 ````
 
-## File: modules/notebooklm/subdomains/conversation-versioning/README.md
-````markdown
-# Conversation Versioning
-
-對話版本與快照策略。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/notebooklm/subdomains/conversation/api/factories.ts
 ````typescript
 import { FirebaseThreadRepository } from "../infrastructure/firebase/FirebaseThreadRepository";
@@ -1896,24 +1878,6 @@ export {};
 ## File: modules/notebooklm/subdomains/ingestion/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for notebooklm subdomain 'ingestion'.
-````
-
-## File: modules/notebooklm/subdomains/ingestion/README.md
-````markdown
-# Ingestion
-
-建立來源匯入、正規化與前處理的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notebooklm/subdomains/note/api/index.ts
@@ -3864,49 +3828,6 @@ export function resolveSourceOrganizationId(
   accountId: string,
 ): string {
   return accountType === "organization" ? accountId : `personal:${accountId}`;
-}
-````
-
-## File: modules/notebooklm/subdomains/source/infrastructure/adapters/NotionKnowledgePageGatewayAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/adapters
- * Adapter: NotionKnowledgePageGatewayAdapter — delegates to notion bounded context API.
- *
- * Implements the KnowledgePageGateway port defined in the application layer,
- * bridging the source subdomain to the notion bounded context through its public API.
- */
-
-import type { CommandResult } from "@shared-types";
-
-import { addKnowledgeBlock, createKnowledgePage } from "@/modules/notion/api";
-
-import type { KnowledgePageGateway } from "../../application/use-cases/create-knowledge-draft-from-source.use-case";
-
-export class NotionKnowledgePageGatewayAdapter implements KnowledgePageGateway {
-  async createPage(input: {
-    accountId: string;
-    workspaceId: string;
-    title: string;
-    parentPageId: null;
-    createdByUserId: string;
-  }): Promise<CommandResult> {
-    return createKnowledgePage(input);
-  }
-
-  async addBlock(input: {
-    accountId: string;
-    pageId: string;
-    index: number;
-    content: {
-      type: "text";
-      richText: readonly { type: string; plainText: string }[];
-      properties: Record<string, unknown>;
-    };
-  }): Promise<CommandResult> {
-    return addKnowledgeBlock(input);
-  }
 }
 ````
 
@@ -6862,6 +6783,172 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vercel-react-best-practices
 ````
 
+## File: modules/notebooklm/MIGRATION-AI-SUBDOMAIN-REMOVAL.md
+````markdown
+# Migration Plan: Remove notebooklm/ai Subdomain (AGENTS.md Compliance)
+
+**Status**: PLANNED  
+**Priority**: CRITICAL (violates module ownership guardrail)  
+**Effort**: 4-6 hours  
+**Risk**: HIGH (touch points across 5 subdomains + public API)
+
+---
+
+## Rationale
+
+### AGENTS.md Rule Violated
+```
+Module Ownership Guardrails:
+- AI capability routing, model policy, safety 
+  | OWNER: platform 
+  | NEVER OWNED BY: notion, notebooklm
+```
+
+The `notebooklm/subdomains/ai/` directory exists and exports use-cases that should either:
+1. Belong to platform.ai (refactor as consumer of platform AI capability), or
+2. Be distributed to their owning Tier-2 subdomains (synthesis, retrieval, evaluation, grounding)
+
+---
+
+## Current State: ai Subdomain Contents
+
+### Public API Exports (modules/notebooklm/api/index.ts)
+
+| Export | Target Tier-2 Subdomain | Reason |
+|--------|------------------------|--------|
+| `RagRetrievedChunk, RagCitation, RagRetrievalSummary` | **retrieval** | Retrieval domain model |
+| `IVectorStore, VectorDocument, VectorSearchResult` | **retrieval** | Vector store port |
+| `IRagRetrievalRepository, RetrieveChunksInput` | **retrieval** | Retrieval repository |
+| `IKnowledgeContentRepository` (citation-related) | **grounding** | Citation/grounding logic |
+| `AnswerRagQueryInput/Output/Result` | **synthesis** | RAG answer generation |
+| `RagStreamEvent` | **synthesis** | Streaming events during synthesis |
+| `RagQueryFeedback, RagFeedbackRating, SubmitRagFeedbackInput` | **evaluation** | Feedback entities |
+| `IRagQueryFeedbackRepository` | **evaluation** | Feedback repository |
+| `GenerateRagAnswerInput/Output/Result` | **synthesis** | Answer generation contract |
+| `GenerationCitation` | **grounding** | Citation details |
+| `IRagGenerationRepository` | **synthesis** | Generation repository |
+| `AnswerRagQueryUseCase` | **synthesis** | QA use-case |
+| `SubmitRagQueryFeedbackUseCase` | **evaluation** | Feedback use-case |
+
+### Server-Only Factory (modules/notebooklm/api/server.ts)
+
+| Export | Type | Target |
+|--------|------|--------|
+| `createAnswerRagQueryUseCase()` | Factory | synthesis |
+| `GenkitRagGenerationAdapter` | Adapter | synthesis |
+| `FirebaseRagRetrievalAdapter` | Adapter | retrieval |
+| `GenkitRagGenerationAdapter` | Adapter | synthesis |
+
+---
+
+## Migration Strategy (Phase-Based)
+
+### PHASE 1: Audit (COMPLETED)
+- ✅ Identified ai subdomain as ownership violation
+- ✅ Mapped contents to Tier-2 destinations
+- ✅ Located public API export points
+
+### PHASE 2: Prepare (NEXT)
+1. Create stub exports in each Tier-2 subdomain (api/index.ts) to accept migrated types
+2. Add migration notes to each Tier-2 README
+3. Prepare test fixtures for dependency verification
+
+**Effort**: 1.5 hours  
+**Risk**: LOW (non-breaking; stubs only)
+
+### PHASE 3: Move Content (MAIN)
+
+For each Tier-2 target subdomain:
+
+1. **Retrieve source files** from notebooklm/subdomains/ai/{domain,application,infrastructure}
+2. **Merge into Tier-2 structures** (e.g., retrieval/domain/entities)
+3. **Update internal imports** within migrated code
+4. **Update Tier-2 public API** (api/index.ts) with new exports
+5. **Verify compilation**
+
+**Order** (bottom-up dependency):
+1. grounding (lowest dependencies)
+2. retrieval (grounding → retrieval imports)
+3. evaluation (low dependencies)
+4. synthesis (top-level, imports from others)
+
+**Effort**: 2 hours  
+**Risk**: MEDIUM (file moves + internal import updates)
+
+### PHASE 4: Update Root API Routes
+
+Update these files to import from Tier-2 destinations:
+
+| File | Current Source | New Sources |
+|------|---|---|
+| `modules/notebooklm/api/index.ts` | ai/{domain,application} | retrieval/api, grounding/api, synthesis/api, evaluation/api |
+| `modules/notebooklm/api/server.ts` | ai/{application,infrastructure} | synthesis/api (server), retrieval/api (server) |
+
+**Effort**: 0.5 hours  
+**Risk**: LOW (mechanical update)
+
+### PHASE 5: Delete ai Subdomain
+
+1. Delete `modules/notebooklm/subdomains/ai/` directory
+2. Run grep scan to ensure zero imports of `subdomains/ai`
+3. Run tsc/eslint verification
+4. Commit with message: "refactor: move notebooklm/ai to Tier-2 subdomains per AGENTS.md"
+
+**Effort**: 0.5 hours  
+**Risk**: LOW (deletion only; no rewrites)
+
+---
+
+## Validation Checkpoints
+
+| Phase | Checkpoint | Tool |
+|-------|-----------|------|
+| 1 | Mapping complete | Grep + manual audit |
+| 2 | Stubs created | tsc --noEmit |
+| 3 | Files moved + imports updated | tsc --noEmit |
+| 4 | Root routes updated | tsc --noEmit + grep |
+| 5 | Directory deleted | ls + grep (verify zero matches) |
+| ALL | Final validation | `npm run lint && npm run build` |
+
+---
+
+## Risk Mitigation
+
+### Breaking Changes?
+- NO — All exports remain accessible from root `modules/notebooklm/api/`
+- Only internal import paths change (handled in Phase 3)
+
+### Consumers of ai Subdomain?
+- Grep for `from.*subdomains/ai` reveals: **only notebooklm root api** + internal imports
+- No external modules depend on notebooklm.ai directly
+- Safe to move
+
+### Rollback Plan
+- If any phase fails: revert commit, keep this doc for next attempt
+- No data loss (pure code movement)
+
+---
+
+## Success Criteria
+
+✅ All ai subdomain entities/ports distributed to Tier-2 subdomains  
+✅ Public API (modules/notebooklm/api/) unchanged  
+✅ Zero imports of `subdomains/ai` remain  
+✅ tsc --noEmit succeeds  
+✅ eslint --max-warnings 0 passes  
+✅ ai directory deleted  
+
+---
+
+## Next Session Checklist
+
+- [ ] Start with PHASE 2 (stub creation)
+- [ ] Follow order: grounding → retrieval → evaluation → synthesis
+- [ ] Run validation after each Tier-2 migration completes
+- [ ] Delete ai/ only after all other phases succeed
+- [ ] Update AGENTS.md compliance memo when done
+````
+
 ## File: modules/notebooklm/notebooklm.instructions.md
 ````markdown
 ---
@@ -7226,6 +7313,22 @@ interfaces/ → application/ → domain/ ← infrastructure/
 新功能**不得**在此子域開發。一律在目標子域 (retrieval/grounding/synthesis/evaluation) 建立新能力，再用 Strangler Pattern 將此子域的現有類別遷移過去。
 ````
 
+## File: modules/notebooklm/subdomains/conversation-versioning/README.md
+````markdown
+# Conversation Versioning
+
+> **⚠️ Premature Stub** — 不建議擴充。
+
+## Reason
+
+版本化是 `conversation` 子域的內部關注，語言與演化速率一致，非獨立子域。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Status**: Premature — absorbed by `conversation` subdomain
+````
+
 ## File: modules/notebooklm/subdomains/conversation/domain/index.ts
 ````typescript
 /**
@@ -7520,6 +7623,22 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/notebooklm/subdomains/ingestion/README.md
+````markdown
+# Ingestion
+
+> **⚠️ Premature Stub** — 不建議擴充。
+
+## Reason
+
+`source` 子域已涵蓋匯入編排（SourceFile → RagDocument 狀態機）；`py_fn` 擁有實際解析管線。此子域目前無獨立領域模型需求。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Status**: Premature — absorbed by `source` subdomain
+````
+
 ## File: modules/notebooklm/subdomains/notebook/domain/index.ts
 ````typescript
 /**
@@ -7763,6 +7882,63 @@ export type { ISourceFileRepository as ISourceFilePort } from "../repositories/I
 export type { IWikiLibraryRepository as IWikiLibraryPort } from "../repositories/IWikiLibraryRepository";
 ````
 
+## File: modules/notebooklm/subdomains/source/infrastructure/adapters/NotionKnowledgePageGatewayAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/adapters
+ * Adapter: NotionKnowledgePageGatewayAdapter — delegates to notion bounded context API.
+ *
+ * Implements the KnowledgePageGateway port defined in the application layer,
+ * bridging the source subdomain to the notion bounded context through its public API.
+ * 
+ * ⚠️ MIGRATION NOTE (AGENTS.md violation fix):
+ * Currently calls notion.api directly. Per AGENTS.md context map rule,
+ * notion → notebooklm relationship should use published language tokens:
+ *   - knowledge artifact reference
+ *   - attachment reference
+ *   - taxonomy hint
+ * 
+ * TODO: Extract published language contract; adapt through port boundary.
+ * Status: PLANNED FOR NEXT PHASE (2-3h estimate)
+ */
+
+import type { CommandResult } from "@shared-types";
+
+/**
+ * DIRECT API CALL — violation of AGENTS.md cross-domain boundary rule.
+ * TODO: Replace with published language token-based contract.
+ */
+import { addKnowledgeBlock, createKnowledgePage } from "@/modules/notion/api";
+
+import type { KnowledgePageGateway } from "../../application/use-cases/create-knowledge-draft-from-source.use-case";
+
+export class NotionKnowledgePageGatewayAdapter implements KnowledgePageGateway {
+  async createPage(input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    parentPageId: null;
+    createdByUserId: string;
+  }): Promise<CommandResult> {
+    return createKnowledgePage(input);
+  }
+
+  async addBlock(input: {
+    accountId: string;
+    pageId: string;
+    index: number;
+    content: {
+      type: "text";
+      richText: readonly { type: string; plainText: string }[];
+      properties: Record<string, unknown>;
+    };
+  }): Promise<CommandResult> {
+    return addKnowledgeBlock(input);
+  }
+}
+````
+
 ## File: modules/notebooklm/subdomains/source/interfaces/queries/source-file.queries.ts
 ````typescript
 import type { WorkspaceEntity } from "@/modules/workspace/api";
@@ -7977,6 +8153,297 @@ RAG 合成、摘要與洞察生成。
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notebooklm/subdomains/ai/api/index.ts
+````typescript
+/**
+ * Public API boundary for the ai subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+
+// --- Domain types (grounding) ------------------------------------------------
+
+export type { RagRetrievedChunk, RagCitation, RagRetrievalSummary } from "../domain/entities/retrieval.entities";
+export type { IVectorStore, VectorDocument, VectorSearchResult } from "../domain/ports/IVectorStore";
+export type { IRagRetrievalRepository, RetrieveChunksInput } from "../domain/repositories/IRagRetrievalRepository";
+export type {
+  IKnowledgeContentRepository,
+  KnowledgeCitation,
+  KnowledgeParsedDocument,
+  KnowledgeRagQueryResult,
+  KnowledgeReindexInput,
+} from "../domain/repositories/IKnowledgeContentRepository";
+
+// --- Domain types (qa) -------------------------------------------------------
+
+export type { AnswerRagQueryInput, AnswerRagQueryOutput, AnswerRagQueryResult, RagStreamEvent } from "../domain/entities/rag-query.entities";
+export type { RagQueryFeedback, RagFeedbackRating, SubmitRagQueryFeedbackInput } from "../domain/entities/rag-feedback.entities";
+export type { IRagQueryFeedbackRepository } from "../domain/repositories/IRagQueryFeedbackRepository";
+
+// --- Domain types (synthesis) ------------------------------------------------
+
+export type {
+  GenerateRagAnswerInput,
+  GenerateRagAnswerOutput,
+  GenerateRagAnswerResult,
+  GenerationCitation,
+} from "../domain/entities/generation.entities";
+export type { IRagGenerationRepository } from "../domain/repositories/IRagGenerationRepository";
+
+// --- Use-case classes (for DI composition) -----------------------------------
+
+export { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
+export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-rag-feedback.use-case";
+
+// --- Wiki convenience wrappers with default repository -----------------------
+
+import { FirebaseKnowledgeContentAdapter } from "../infrastructure/firebase/FirebaseKnowledgeContentAdapter";
+import type { KnowledgeParsedDocument, KnowledgeRagQueryResult, KnowledgeReindexInput } from "../domain/repositories/IKnowledgeContentRepository";
+
+let _knowledgeContentRepository: FirebaseKnowledgeContentAdapter | undefined;
+
+function getKnowledgeContentRepository(): FirebaseKnowledgeContentAdapter {
+  if (!_knowledgeContentRepository) {
+    _knowledgeContentRepository = new FirebaseKnowledgeContentAdapter();
+  }
+  return _knowledgeContentRepository;
+}
+
+export function runKnowledgeRagQuery(
+  query: string,
+  accountId: string,
+  workspaceId: string,
+  topK = 4,
+  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
+): Promise<KnowledgeRagQueryResult> {
+  return getKnowledgeContentRepository().runRagQuery(query, accountId, workspaceId, topK, options);
+}
+
+export function reindexKnowledgeDocument(input: KnowledgeReindexInput): Promise<void> {
+  return getKnowledgeContentRepository().reindexDocument(input);
+}
+
+export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20): Promise<KnowledgeParsedDocument[]> {
+  return getKnowledgeContentRepository().listParsedDocuments(accountId, limitCount);
+}
+
+// --- Infrastructure adapters (client-safe, for composition roots) ------------
+
+export { FirebaseRagRetrievalAdapter } from "../infrastructure/firebase/FirebaseRagRetrievalAdapter";
+export { FirebaseKnowledgeContentAdapter } from "../infrastructure/firebase/FirebaseKnowledgeContentAdapter";
+export { FirebaseRagQueryFeedbackAdapter } from "../infrastructure/firebase/FirebaseRagQueryFeedbackAdapter";
+
+// --- UI components -----------------------------------------------------------
+
+export { RagQueryView } from "../interfaces/components/RagQueryView";
+````
+
+## File: modules/notebooklm/subdomains/ai/domain/index.ts
+````typescript
+export * from "./entities/generation.entities";
+export * from "./entities/rag-feedback.entities";
+export * from "./entities/rag-query.entities";
+export * from "./entities/retrieval.entities";
+export * from "./events";
+export * from "./ports/IVectorStore";
+export * from "./repositories/IRagGenerationRepository";
+export * from "./repositories/IRagQueryFeedbackRepository";
+export * from "./repositories/IRagRetrievalRepository";
+export * from "./repositories/IKnowledgeContentRepository";
+export * from "./services";
+export * from "./value-objects";
+// Ports layer — driven port aliases
+export type { IRagGenerationPort, IRagQueryFeedbackPort, IRagRetrievalPort, IKnowledgeContentPort } from "./ports";
+````
+
+## File: modules/notebooklm/subdomains/ai/interfaces/components/RagQueryView.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+import { AlertCircle, Loader2, Search } from "lucide-react";
+import { toast } from "sonner";
+
+import { useApp } from "@/modules/platform/api";
+import { useAuth } from "@/modules/platform/api";
+import { DEV_DEMO_ACCOUNT_EMAIL } from "@/modules/platform/api";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@ui-shadcn/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from "@ui-shadcn/ui/alert";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import { runKnowledgeRagQuery, type KnowledgeCitation } from "../../api";
+
+interface RagQueryViewProps {
+  readonly workspaceId?: string;
+}
+
+/** Minimal RAG query chat interface. Uses local useState only — no streaming, no global state. */
+export function RagQueryView({ workspaceId }: RagQueryViewProps) {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const activeAccountId = appState.activeAccount?.id ?? "";
+  const effectiveWorkspaceId = workspaceId?.trim() ?? "";
+
+  const isDemoOrUnauthenticated =
+    authState.status !== "authenticated" ||
+    authState.user?.email === DEV_DEMO_ACCOUNT_EMAIL;
+
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [answer, setAnswer] = useState("");
+  const [citations, setCitations] = useState<readonly KnowledgeCitation[]>([]);
+  const [queried, setQueried] = useState(false);
+
+  async function handleSubmit() {
+    const q = query.trim();
+    if (!q) {
+      toast.error("請先輸入問題");
+      return;
+    }
+    if (!activeAccountId) {
+      toast.error("目前沒有 active account，無法執行 RAG 查詢");
+      return;
+    }
+    if (!effectiveWorkspaceId) {
+      toast.error("請先選擇工作區，再執行 RAG 查詢");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      let result = await runKnowledgeRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, { requireReady: true });
+      // Compatibility fallback for older vectors without ready status.
+      if (result.citations.length === 0 && (result.vectorHits > 0 || result.searchHits > 0)) {
+        result = await runKnowledgeRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, { requireReady: false, maxAgeDays: 3650 });
+      }
+      setAnswer(result.answer);
+      setCitations(result.citations);
+      setQueried(true);
+    } catch (error) {
+      console.error(error);
+      toast.error("呼叫 rag_query 失敗");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Auth warning — shown upfront when user cannot execute RAG queries */}
+      {isDemoOrUnauthenticated && (
+        <Alert variant="destructive">
+          <AlertCircle className="size-4" />
+          <AlertTitle>需要真實帳號</AlertTitle>
+          <AlertDescription>
+            目前以 Demo 帳號或未登入狀態存取。RAG 查詢需要真實 Firebase 帳號才能執行。
+            請登出後以正式帳號重新登入。
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Query input */}
+      <Card>
+        <CardHeader>
+          <CardTitle>RAG Query</CardTitle>
+          <CardDescription>
+            輸入問題，取得 AI 回答與引用來源。
+            {effectiveWorkspaceId ? ` workspace: ${effectiveWorkspaceId}` : " （請先選擇工作區）"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Textarea
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void handleSubmit();
+            }}
+            placeholder="請輸入你的問題...（Ctrl+Enter 送出）"
+            rows={4}
+            disabled={isDemoOrUnauthenticated}
+          />
+          <Button
+            onClick={() => void handleSubmit()}
+            disabled={loading || isDemoOrUnauthenticated}
+            title={isDemoOrUnauthenticated ? "請先以真實帳號登入才能執行 RAG 查詢" : undefined}
+          >
+            {loading ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Search className="mr-2 size-4" />
+            )}
+            {loading ? "查詢中..." : "送出查詢"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Answer */}
+      {queried && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Answer</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="whitespace-pre-wrap text-sm text-foreground">{answer || "（無回答）"}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Citations */}
+      {queried && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Citations</CardTitle>
+            <CardDescription>
+              {citations.length === 0
+                ? "目前查詢無相關引用，請確認文件已完成 RAG 索引。"
+                : `${citations.length} 筆引用來源`}
+            </CardDescription>
+          </CardHeader>
+          {citations.length > 0 && (
+            <CardContent>
+              <Accordion type="multiple" className="w-full">
+                {citations.map((citation, index) => (
+                  <AccordionItem
+                    key={`${citation.doc_id ?? "doc"}-${index}`}
+                    value={`citation-${index}`}
+                  >
+                    <AccordionTrigger className="text-sm font-medium">
+                      <span className="flex items-center gap-2">
+                        {citation.filename ?? citation.doc_id ?? "未命名文件"}
+                        {citation.provider && (
+                          <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
+                            {citation.provider}
+                          </span>
+                        )}
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <p className="text-xs text-muted-foreground">{citation.text ?? "（無節錄）"}</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </CardContent>
+          )}
+        </Card>
+      )}
+    </div>
+  );
+}
 ````
 
 ## File: modules/notebooklm/AGENT.md
@@ -8279,297 +8746,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Context Map](../../docs/contexts/notebooklm/context-map.md)
 - [Ubiquitous Language](../../docs/contexts/notebooklm/ubiquitous-language.md)
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
-````
-
-## File: modules/notebooklm/subdomains/ai/api/index.ts
-````typescript
-/**
- * Public API boundary for the ai subdomain.
- * Cross-module consumers must import through this entry point.
- */
-
-// --- Domain types (grounding) ------------------------------------------------
-
-export type { RagRetrievedChunk, RagCitation, RagRetrievalSummary } from "../domain/entities/retrieval.entities";
-export type { IVectorStore, VectorDocument, VectorSearchResult } from "../domain/ports/IVectorStore";
-export type { IRagRetrievalRepository, RetrieveChunksInput } from "../domain/repositories/IRagRetrievalRepository";
-export type {
-  IKnowledgeContentRepository,
-  KnowledgeCitation,
-  KnowledgeParsedDocument,
-  KnowledgeRagQueryResult,
-  KnowledgeReindexInput,
-} from "../domain/repositories/IKnowledgeContentRepository";
-
-// --- Domain types (qa) -------------------------------------------------------
-
-export type { AnswerRagQueryInput, AnswerRagQueryOutput, AnswerRagQueryResult, RagStreamEvent } from "../domain/entities/rag-query.entities";
-export type { RagQueryFeedback, RagFeedbackRating, SubmitRagQueryFeedbackInput } from "../domain/entities/rag-feedback.entities";
-export type { IRagQueryFeedbackRepository } from "../domain/repositories/IRagQueryFeedbackRepository";
-
-// --- Domain types (synthesis) ------------------------------------------------
-
-export type {
-  GenerateRagAnswerInput,
-  GenerateRagAnswerOutput,
-  GenerateRagAnswerResult,
-  GenerationCitation,
-} from "../domain/entities/generation.entities";
-export type { IRagGenerationRepository } from "../domain/repositories/IRagGenerationRepository";
-
-// --- Use-case classes (for DI composition) -----------------------------------
-
-export { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
-export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-rag-feedback.use-case";
-
-// --- Wiki convenience wrappers with default repository -----------------------
-
-import { FirebaseKnowledgeContentAdapter } from "../infrastructure/firebase/FirebaseKnowledgeContentAdapter";
-import type { KnowledgeParsedDocument, KnowledgeRagQueryResult, KnowledgeReindexInput } from "../domain/repositories/IKnowledgeContentRepository";
-
-let _knowledgeContentRepository: FirebaseKnowledgeContentAdapter | undefined;
-
-function getKnowledgeContentRepository(): FirebaseKnowledgeContentAdapter {
-  if (!_knowledgeContentRepository) {
-    _knowledgeContentRepository = new FirebaseKnowledgeContentAdapter();
-  }
-  return _knowledgeContentRepository;
-}
-
-export function runKnowledgeRagQuery(
-  query: string,
-  accountId: string,
-  workspaceId: string,
-  topK = 4,
-  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
-): Promise<KnowledgeRagQueryResult> {
-  return getKnowledgeContentRepository().runRagQuery(query, accountId, workspaceId, topK, options);
-}
-
-export function reindexKnowledgeDocument(input: KnowledgeReindexInput): Promise<void> {
-  return getKnowledgeContentRepository().reindexDocument(input);
-}
-
-export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20): Promise<KnowledgeParsedDocument[]> {
-  return getKnowledgeContentRepository().listParsedDocuments(accountId, limitCount);
-}
-
-// --- Infrastructure adapters (client-safe, for composition roots) ------------
-
-export { FirebaseRagRetrievalAdapter } from "../infrastructure/firebase/FirebaseRagRetrievalAdapter";
-export { FirebaseKnowledgeContentAdapter } from "../infrastructure/firebase/FirebaseKnowledgeContentAdapter";
-export { FirebaseRagQueryFeedbackAdapter } from "../infrastructure/firebase/FirebaseRagQueryFeedbackAdapter";
-
-// --- UI components -----------------------------------------------------------
-
-export { RagQueryView } from "../interfaces/components/RagQueryView";
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/index.ts
-````typescript
-export * from "./entities/generation.entities";
-export * from "./entities/rag-feedback.entities";
-export * from "./entities/rag-query.entities";
-export * from "./entities/retrieval.entities";
-export * from "./events";
-export * from "./ports/IVectorStore";
-export * from "./repositories/IRagGenerationRepository";
-export * from "./repositories/IRagQueryFeedbackRepository";
-export * from "./repositories/IRagRetrievalRepository";
-export * from "./repositories/IKnowledgeContentRepository";
-export * from "./services";
-export * from "./value-objects";
-// Ports layer — driven port aliases
-export type { IRagGenerationPort, IRagQueryFeedbackPort, IRagRetrievalPort, IKnowledgeContentPort } from "./ports";
-````
-
-## File: modules/notebooklm/subdomains/ai/interfaces/components/RagQueryView.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-import { AlertCircle, Loader2, Search } from "lucide-react";
-import { toast } from "sonner";
-
-import { useApp } from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-import { DEV_DEMO_ACCOUNT_EMAIL } from "@/modules/platform/api";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@ui-shadcn/ui/accordion";
-import { Alert, AlertDescription, AlertTitle } from "@ui-shadcn/ui/alert";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import { runKnowledgeRagQuery, type KnowledgeCitation } from "../../api";
-
-interface RagQueryViewProps {
-  readonly workspaceId?: string;
-}
-
-/** Minimal RAG query chat interface. Uses local useState only — no streaming, no global state. */
-export function RagQueryView({ workspaceId }: RagQueryViewProps) {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const activeAccountId = appState.activeAccount?.id ?? "";
-  const effectiveWorkspaceId = workspaceId?.trim() ?? "";
-
-  const isDemoOrUnauthenticated =
-    authState.status !== "authenticated" ||
-    authState.user?.email === DEV_DEMO_ACCOUNT_EMAIL;
-
-  const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [answer, setAnswer] = useState("");
-  const [citations, setCitations] = useState<readonly KnowledgeCitation[]>([]);
-  const [queried, setQueried] = useState(false);
-
-  async function handleSubmit() {
-    const q = query.trim();
-    if (!q) {
-      toast.error("請先輸入問題");
-      return;
-    }
-    if (!activeAccountId) {
-      toast.error("目前沒有 active account，無法執行 RAG 查詢");
-      return;
-    }
-    if (!effectiveWorkspaceId) {
-      toast.error("請先選擇工作區，再執行 RAG 查詢");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      let result = await runKnowledgeRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, { requireReady: true });
-      // Compatibility fallback for older vectors without ready status.
-      if (result.citations.length === 0 && (result.vectorHits > 0 || result.searchHits > 0)) {
-        result = await runKnowledgeRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, { requireReady: false, maxAgeDays: 3650 });
-      }
-      setAnswer(result.answer);
-      setCitations(result.citations);
-      setQueried(true);
-    } catch (error) {
-      console.error(error);
-      toast.error("呼叫 rag_query 失敗");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Auth warning — shown upfront when user cannot execute RAG queries */}
-      {isDemoOrUnauthenticated && (
-        <Alert variant="destructive">
-          <AlertCircle className="size-4" />
-          <AlertTitle>需要真實帳號</AlertTitle>
-          <AlertDescription>
-            目前以 Demo 帳號或未登入狀態存取。RAG 查詢需要真實 Firebase 帳號才能執行。
-            請登出後以正式帳號重新登入。
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Query input */}
-      <Card>
-        <CardHeader>
-          <CardTitle>RAG Query</CardTitle>
-          <CardDescription>
-            輸入問題，取得 AI 回答與引用來源。
-            {effectiveWorkspaceId ? ` workspace: ${effectiveWorkspaceId}` : " （請先選擇工作區）"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Textarea
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void handleSubmit();
-            }}
-            placeholder="請輸入你的問題...（Ctrl+Enter 送出）"
-            rows={4}
-            disabled={isDemoOrUnauthenticated}
-          />
-          <Button
-            onClick={() => void handleSubmit()}
-            disabled={loading || isDemoOrUnauthenticated}
-            title={isDemoOrUnauthenticated ? "請先以真實帳號登入才能執行 RAG 查詢" : undefined}
-          >
-            {loading ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
-            ) : (
-              <Search className="mr-2 size-4" />
-            )}
-            {loading ? "查詢中..." : "送出查詢"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Answer */}
-      {queried && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Answer</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="whitespace-pre-wrap text-sm text-foreground">{answer || "（無回答）"}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Citations */}
-      {queried && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Citations</CardTitle>
-            <CardDescription>
-              {citations.length === 0
-                ? "目前查詢無相關引用，請確認文件已完成 RAG 索引。"
-                : `${citations.length} 筆引用來源`}
-            </CardDescription>
-          </CardHeader>
-          {citations.length > 0 && (
-            <CardContent>
-              <Accordion type="multiple" className="w-full">
-                {citations.map((citation, index) => (
-                  <AccordionItem
-                    key={`${citation.doc_id ?? "doc"}-${index}`}
-                    value={`citation-${index}`}
-                  >
-                    <AccordionTrigger className="text-sm font-medium">
-                      <span className="flex items-center gap-2">
-                        {citation.filename ?? citation.doc_id ?? "未命名文件"}
-                        {citation.provider && (
-                          <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
-                            {citation.provider}
-                          </span>
-                        )}
-                      </span>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <p className="text-xs text-muted-foreground">{citation.text ?? "（無節錄）"}</p>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </CardContent>
-          )}
-        </Card>
-      )}
-    </div>
-  );
-}
 ````
 
 ## File: modules/notebooklm/subdomains/ai/domain/ports/index.ts
