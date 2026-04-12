@@ -1,6 +1,6 @@
 "use server";
 
-import { makeSourcePipelineAdapter } from "../../../subdomains/source/api/factories";
+import { makeSourcePipelineAdapter } from "../composition/adapters";
 import type {
   ParseSourceDocumentInputDto,
   ParseSourceDocumentOutputDto,

@@ -7,7 +7,7 @@ import {
   makeParsedDocumentAdapter,
   makeSourcePipelineAdapter,
   waitForParsedDocument,
-} from "../../../subdomains/source/api/factories";
+} from "../composition/adapters";
 import type { SourceProcessingExecutionSummary } from "../../../subdomains/source/application/dto/source-processing.dto";
 import { CreateKnowledgeDraftFromSourceUseCase } from "../../../subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case";
 import { ProcessSourceDocumentWorkflowUseCase } from "../../../subdomains/source/application/use-cases/process-source-document-workflow.use-case";

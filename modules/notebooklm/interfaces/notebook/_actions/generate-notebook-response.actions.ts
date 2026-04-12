@@ -5,7 +5,7 @@ import type {
   GenerateNotebookResponseResult,
 } from "../../../subdomains/notebook/application/dto/notebook.dto";
 import { GenerateNotebookResponseUseCase } from "../../../subdomains/notebook/application/use-cases/generate-notebook-response.use-case";
-import { makeNotebookRepo } from "../../../subdomains/notebook/api/factories";
+import { makeNotebookRepo } from "../composition/adapters";
 
 export async function generateNotebookResponse(
   input: GenerateNotebookResponseInput,
