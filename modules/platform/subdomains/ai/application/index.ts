@@ -1,1 +1,1 @@
-// Purpose: Application layer placeholder for platform subdomain 'ai'.
+export { GenerateAiTextUseCase } from "./use-cases/generate-ai-text.use-case";

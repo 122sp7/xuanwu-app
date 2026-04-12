@@ -1,1 +1,1 @@
-// Purpose: Infrastructure layer placeholder for platform subdomain 'ai'.
+export { GenkitAiTextGenerationAdapter } from "./genkit/GenkitAiTextGenerationAdapter";
