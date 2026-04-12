@@ -41,13 +41,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1434 files | 67,693 lines
+1417 files | 67,604 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1137 | 41,068 |
-| TypeScript (TSX) | 200 | 23,886 |
-| Markdown | 90 | 2,536 |
+| TypeScript | 1137 | 41,447 |
+| TypeScript (TSX) | 199 | 23,796 |
+| Markdown | 74 | 2,158 |
 | No Extension | 6 | 6 |
 | CSS | 1 | 197 |
 
@@ -56,9 +56,9 @@ This skill contains the following reference files:
 - `app/(shell)/(account)/[accountId]/dev-tools/page.tsx` (477 lines)
 - `packages/ui-shadcn/ui/chart.tsx` (356 lines)
 - `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)
-- `modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx` (344 lines)
+- `modules/notebooklm/interfaces/conversation/components/AiChatPage.tsx` (344 lines)
 - `modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx` (339 lines)
-- `app/(shell)/_shell/ShellAppRail.tsx` (323 lines)
+- `app/(shell)/_shell/ShellAppRail.tsx` (335 lines)
+- `modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts` (329 lines)
 - `modules/platform/api/infrastructure-api.ts` (312 lines)
-- `modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx` (308 lines)
-- `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)
+- `modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx` (310 lines)
