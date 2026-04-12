@@ -41142,25 +41142,6 @@ export class FirebaseAccountRepository implements AccountRepository {
 }
 ````
 
-## File: modules/platform/subdomains/account/infrastructure/identity-token-refresh.adapter.ts
-````typescript
-/**
- * IdentityTokenRefreshAdapter — Implements TokenRefreshPort using the platform identity subdomain.
- * This adapter lives in the adapters layer so the application layer stays clean.
- */
-
-import { identityApi } from "@/modules/platform/subdomains/identity/api";
-import type { TokenRefreshPort, TokenRefreshSignalInput } from "../domain/ports/TokenRefreshPort";
-
-export class IdentityTokenRefreshAdapter implements TokenRefreshPort {
-  async emitTokenRefreshSignal(input: TokenRefreshSignalInput): Promise<void> {
-    await identityApi.emitTokenRefreshSignal(input);
-  }
-}
-
-export const tokenRefreshAdapter = new IdentityTokenRefreshAdapter();
-````
-
 ## File: modules/platform/subdomains/account/interfaces/index.ts
 ````typescript
 export { HeaderUserAvatar } from "./components/HeaderUserAvatar";
@@ -60249,108 +60230,6 @@ export function createUpdateAccountProfileInput(
 }
 ````
 
-## File: modules/platform/subdomains/account-profile/infrastructure/account-profile-service.ts
-````typescript
-/**
- * AccountProfileService — Composition root for account-profile subdomain.
- *
- * Wires the legacy account data-source (from the account subdomain bridge)
- * into domain-port-conforming adapters and use cases. This keeps infrastructure
- * wiring inside the infrastructure layer, off the api boundary.
- */
-
-import {
-	GetAccountProfileUseCase,
-	SubscribeAccountProfileUseCase,
-	UpdateAccountProfileUseCase,
-} from "../application";
-import {
-	createLegacyAccountProfileCommandRepository,
-	createLegacyAccountProfileQueryRepository,
-	type LegacyAccountProfileDataSource,
-} from "./create-legacy-account-profile-application.adapter";
-import {
-	accountService,
-	createAccountQueryRepository,
-} from "../../account/infrastructure/account-service";
-import type { AccountProfile, Unsubscribe } from "../domain";
-import type { UpdateAccountProfileInput } from "../application";
-import type { CommandResult } from "@shared-types";
-
-// ── Lazy singletons ──────────────────────────────────────────────────────
-
-let _legacyDataSource: LegacyAccountProfileDataSource | undefined;
-let _getAccountProfileUseCase: GetAccountProfileUseCase | undefined;
-let _subscribeAccountProfileUseCase: SubscribeAccountProfileUseCase | undefined;
-let _updateAccountProfileUseCase: UpdateAccountProfileUseCase | undefined;
-
-function getLegacyDataSource(): LegacyAccountProfileDataSource {
-	if (_legacyDataSource) {
-		return _legacyDataSource;
-	}
-
-	_legacyDataSource = {
-		getUserProfile: (userId) => createAccountQueryRepository().getUserProfile(userId),
-		subscribeToUserProfile: (userId, onUpdate) =>
-			createAccountQueryRepository().subscribeToUserProfile(userId, onUpdate),
-		updateUserProfile: async (userId, input) => {
-			await accountService.updateUserProfile(userId, input);
-		},
-	};
-	return _legacyDataSource;
-}
-
-function getGetAccountProfileUseCase(): GetAccountProfileUseCase {
-	if (_getAccountProfileUseCase) {
-		return _getAccountProfileUseCase;
-	}
-
-	const repository = createLegacyAccountProfileQueryRepository(getLegacyDataSource());
-	_getAccountProfileUseCase = new GetAccountProfileUseCase(repository);
-	return _getAccountProfileUseCase;
-}
-
-function getSubscribeAccountProfileUseCase(): SubscribeAccountProfileUseCase {
-	if (_subscribeAccountProfileUseCase) {
-		return _subscribeAccountProfileUseCase;
-	}
-
-	const repository = createLegacyAccountProfileQueryRepository(getLegacyDataSource());
-	_subscribeAccountProfileUseCase = new SubscribeAccountProfileUseCase(repository);
-	return _subscribeAccountProfileUseCase;
-}
-
-function getUpdateAccountProfileUseCase(): UpdateAccountProfileUseCase {
-	if (_updateAccountProfileUseCase) {
-		return _updateAccountProfileUseCase;
-	}
-
-	const repository = createLegacyAccountProfileCommandRepository(getLegacyDataSource());
-	_updateAccountProfileUseCase = new UpdateAccountProfileUseCase(repository);
-	return _updateAccountProfileUseCase;
-}
-
-// ── Public service API ───────────────────────────────────────────────────
-
-export async function getAccountProfile(actorId: string): Promise<AccountProfile | null> {
-	return getGetAccountProfileUseCase().execute(actorId);
-}
-
-export function subscribeToAccountProfile(
-	actorId: string,
-	onUpdate: (profile: AccountProfile | null) => void,
-): Unsubscribe {
-	return getSubscribeAccountProfileUseCase().execute(actorId, onUpdate);
-}
-
-export async function updateAccountProfile(
-	actorId: string,
-	input: UpdateAccountProfileInput,
-): Promise<CommandResult> {
-	return getUpdateAccountProfileUseCase().execute(actorId, input);
-}
-````
-
 ## File: modules/platform/subdomains/account-profile/interfaces/_actions/account-profile.actions.ts
 ````typescript
 "use server";
@@ -60414,37 +60293,6 @@ User profile preferences and settings.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/account/api/index.ts
-````typescript
-/**
- * Public API boundary for the account subdomain.
- * Cross-module consumers must import through this entry point.
- */
-
-export * from "../application";
-export { accountService, createClientAccountUseCases, createAccountQueryRepository } from "../infrastructure";
-export type {
-  AccountEntity,
-  AccountType,
-  OrganizationRole,
-  AccountRoleRecord,
-  UpdateProfileInput,
-  WalletTransaction,
-  ThemeConfig,
-  Wallet,
-} from "../domain/entities/Account";
-export type {
-  AccountPolicy,
-  PolicyRule,
-  PolicyEffect,
-  CreatePolicyInput,
-  UpdatePolicyInput,
-} from "../domain/entities/AccountPolicy";
-export type { WalletBalanceSnapshot, Unsubscribe } from "../domain/repositories/AccountQueryRepository";
-export type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
-export * from "../interfaces";
 ````
 
 ## File: modules/platform/subdomains/account/application/services/resolve-active-account.ts
@@ -60542,6 +60390,35 @@ export type { IAccountPort, IAccountQueryPort, IAccountPolicyPort } from "./port
 export * from "./aggregates";
 export * from "./events";
 export * from "./value-objects";
+````
+
+## File: modules/platform/subdomains/account/infrastructure/identity-token-refresh.adapter.ts
+````typescript
+/**
+ * IdentityTokenRefreshAdapter — Implements TokenRefreshPort using the platform identity subdomain.
+ * This adapter lives in the adapters layer so the application layer stays clean.
+ */
+
+import type { TokenRefreshPort, TokenRefreshSignalInput } from "../domain/ports/TokenRefreshPort";
+
+type EmitTokenRefreshSignal = (input: TokenRefreshSignalInput) => Promise<void>;
+
+let _emitTokenRefreshSignal: EmitTokenRefreshSignal | undefined;
+
+export function configureTokenRefreshEmitter(emitFn: EmitTokenRefreshSignal): void {
+  _emitTokenRefreshSignal = emitFn;
+}
+
+export class IdentityTokenRefreshAdapter implements TokenRefreshPort {
+  async emitTokenRefreshSignal(input: TokenRefreshSignalInput): Promise<void> {
+    if (!_emitTokenRefreshSignal) {
+      throw new Error("Token refresh emitter is not configured.");
+    }
+    await _emitTokenRefreshSignal(input);
+  }
+}
+
+export const tokenRefreshAdapter = new IdentityTokenRefreshAdapter();
 ````
 
 ## File: modules/platform/subdomains/account/README.md
@@ -67750,6 +67627,107 @@ export type {
 } from "./dtos/account-profile.dto";
 ````
 
+## File: modules/platform/subdomains/account-profile/infrastructure/account-profile-service.ts
+````typescript
+/**
+ * AccountProfileService — Composition root for account-profile subdomain.
+ *
+ * Wires the legacy account data-source (from the account subdomain bridge)
+ * into domain-port-conforming adapters and use cases. This keeps infrastructure
+ * wiring inside the infrastructure layer, off the api boundary.
+ */
+
+import {
+	GetAccountProfileUseCase,
+	SubscribeAccountProfileUseCase,
+	UpdateAccountProfileUseCase,
+} from "../application";
+import {
+	createLegacyAccountProfileCommandRepository,
+	createLegacyAccountProfileQueryRepository,
+	type LegacyAccountProfileDataSource,
+} from "./create-legacy-account-profile-application.adapter";
+import type { AccountProfile, Unsubscribe } from "../domain";
+import type { UpdateAccountProfileInput } from "../application";
+import type { CommandResult } from "@shared-types";
+
+// ── Lazy singletons ──────────────────────────────────────────────────────
+
+let _legacyDataSource: LegacyAccountProfileDataSource | undefined;
+let _getAccountProfileUseCase: GetAccountProfileUseCase | undefined;
+let _subscribeAccountProfileUseCase: SubscribeAccountProfileUseCase | undefined;
+let _updateAccountProfileUseCase: UpdateAccountProfileUseCase | undefined;
+
+export function configureLegacyAccountProfileDataSource(
+	legacyDataSource: LegacyAccountProfileDataSource,
+): void {
+	_legacyDataSource = legacyDataSource;
+	_getAccountProfileUseCase = undefined;
+	_subscribeAccountProfileUseCase = undefined;
+	_updateAccountProfileUseCase = undefined;
+}
+
+function getLegacyDataSource(): LegacyAccountProfileDataSource {
+	if (_legacyDataSource) {
+		return _legacyDataSource;
+	}
+
+	throw new Error(
+		"LegacyAccountProfileDataSource is not configured. Configure it in account-profile/api composition root.",
+	);
+}
+
+function getGetAccountProfileUseCase(): GetAccountProfileUseCase {
+	if (_getAccountProfileUseCase) {
+		return _getAccountProfileUseCase;
+	}
+
+	const repository = createLegacyAccountProfileQueryRepository(getLegacyDataSource());
+	_getAccountProfileUseCase = new GetAccountProfileUseCase(repository);
+	return _getAccountProfileUseCase;
+}
+
+function getSubscribeAccountProfileUseCase(): SubscribeAccountProfileUseCase {
+	if (_subscribeAccountProfileUseCase) {
+		return _subscribeAccountProfileUseCase;
+	}
+
+	const repository = createLegacyAccountProfileQueryRepository(getLegacyDataSource());
+	_subscribeAccountProfileUseCase = new SubscribeAccountProfileUseCase(repository);
+	return _subscribeAccountProfileUseCase;
+}
+
+function getUpdateAccountProfileUseCase(): UpdateAccountProfileUseCase {
+	if (_updateAccountProfileUseCase) {
+		return _updateAccountProfileUseCase;
+	}
+
+	const repository = createLegacyAccountProfileCommandRepository(getLegacyDataSource());
+	_updateAccountProfileUseCase = new UpdateAccountProfileUseCase(repository);
+	return _updateAccountProfileUseCase;
+}
+
+// ── Public service API ───────────────────────────────────────────────────
+
+export async function getAccountProfile(actorId: string): Promise<AccountProfile | null> {
+	return getGetAccountProfileUseCase().execute(actorId);
+}
+
+export function subscribeToAccountProfile(
+	actorId: string,
+	onUpdate: (profile: AccountProfile | null) => void,
+): Unsubscribe {
+	return getSubscribeAccountProfileUseCase().execute(actorId, onUpdate);
+}
+
+export async function updateAccountProfile(
+	actorId: string,
+	input: UpdateAccountProfileInput,
+): Promise<CommandResult> {
+	return getUpdateAccountProfileUseCase().execute(actorId, input);
+}
+````
+
 ## File: modules/platform/subdomains/account-profile/interfaces/components/screens/SettingsProfileRouteScreen.tsx
 ````typescript
 "use client";
@@ -67941,6 +67919,42 @@ export function SettingsProfileRouteScreen({
 export { getProfile, subscribeToProfile } from "./queries/account-profile.queries";
 export { updateProfile } from "./_actions/account-profile.actions";
 export { SettingsProfileRouteScreen } from "./components/screens/SettingsProfileRouteScreen";
+````
+
+## File: modules/platform/subdomains/account/api/index.ts
+````typescript
+/**
+ * Public API boundary for the account subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+
+import { identityApi } from "../../identity/api";
+import { configureTokenRefreshEmitter } from "../infrastructure/identity-token-refresh.adapter";
+
+configureTokenRefreshEmitter(identityApi.emitTokenRefreshSignal);
+
+export * from "../application";
+export { accountService, createClientAccountUseCases, createAccountQueryRepository } from "../infrastructure";
+export type {
+  AccountEntity,
+  AccountType,
+  OrganizationRole,
+  AccountRoleRecord,
+  UpdateProfileInput,
+  WalletTransaction,
+  ThemeConfig,
+  Wallet,
+} from "../domain/entities/Account";
+export type {
+  AccountPolicy,
+  PolicyRule,
+  PolicyEffect,
+  CreatePolicyInput,
+  UpdatePolicyInput,
+} from "../domain/entities/AccountPolicy";
+export type { WalletBalanceSnapshot, Unsubscribe } from "../domain/repositories/AccountQueryRepository";
+export type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
+export * from "../interfaces";
 ````
 
 ## File: modules/platform/subdomains/account/api/legacy-account-profile.bridge.ts
@@ -68284,80 +68298,6 @@ export function NotificationBell({ recipientId }: NotificationBellProps) {
     </DropdownMenu>
   );
 }
-````
-
-## File: modules/platform/subdomains/organization/api/index.ts
-````typescript
-/**
- * Public API boundary for the organization subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * NOTE: We avoid `export * from "../infrastructure"` here because the
- * infrastructure barrel pulls in Firebase repository constructors during
- * module evaluation, which causes failures during Next.js static
- * prerendering. Infrastructure exports are available in the server barrel
- * (./server.ts) or via direct import from action / service files.
- */
-
-// --- Domain types ---
-export type {
-  OrganizationEntity,
-  OrganizationRole,
-  Presence,
-  InviteState,
-  PolicyEffect,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  ThemeConfig,
-  OrgPolicy,
-  OrgPolicyRule,
-  OrgPolicyScope,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "../domain";
-export type { OrganizationRepository, Unsubscribe } from "../domain";
-export type { OrgPolicyRepository } from "../domain";
-
-// --- Application use cases ---
-export {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-} from "../application";
-export {
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-} from "../application";
-export {
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "../application";
-export {
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "../application";
-export {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "../application";
-
-// --- Infrastructure (lazy, safe for SSR) ---
-export { organizationService, organizationQueryService } from "../infrastructure";
-
-// --- Interfaces (UI, queries, actions) ---
-export * from "../interfaces";
 ````
 
 ## File: modules/platform/subdomains/platform-config/api/index.ts
@@ -69874,22 +69814,6 @@ export * from "./events";
 export * from "./value-objects";
 ````
 
-## File: modules/platform/subdomains/account-profile/infrastructure/index.ts
-````typescript
-export {
-	createLegacyAccountProfileCommandRepository,
-	createLegacyAccountProfileQueryRepository,
-} from "./create-legacy-account-profile-application.adapter";
-export type {
-	LegacyAccountProfileDataSource,
-} from "./create-legacy-account-profile-application.adapter";
-export {
-	getAccountProfile as getAccountProfileFromService,
-	subscribeToAccountProfile as subscribeToAccountProfileFromService,
-	updateAccountProfile as updateAccountProfileFromService,
-} from "./account-profile-service";
-````
-
 ## File: modules/platform/subdomains/account/infrastructure/account-service.ts
 ````typescript
 /**
@@ -70187,6 +70111,85 @@ export function NotificationsPage({ recipientId }: NotificationsPageProps) {
     </div>
   );
 }
+````
+
+## File: modules/platform/subdomains/organization/api/index.ts
+````typescript
+/**
+ * Public API boundary for the organization subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * NOTE: We avoid `export * from "../infrastructure"` here because the
+ * infrastructure barrel pulls in Firebase repository constructors during
+ * module evaluation, which causes failures during Next.js static
+ * prerendering. Infrastructure exports are available in the server barrel
+ * (./server.ts) or via direct import from action / service files.
+ */
+
+import { createTeamRepository } from "../../team/api";
+import { configureOrganizationTeamPortFactory } from "../infrastructure/organization-service";
+
+configureOrganizationTeamPortFactory(createTeamRepository);
+
+// --- Domain types ---
+export type {
+  OrganizationEntity,
+  OrganizationRole,
+  Presence,
+  InviteState,
+  PolicyEffect,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  ThemeConfig,
+  OrgPolicy,
+  OrgPolicyRule,
+  OrgPolicyScope,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "../domain";
+export type { OrganizationRepository, Unsubscribe } from "../domain";
+export type { OrgPolicyRepository } from "../domain";
+
+// --- Application use cases ---
+export {
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+} from "../application";
+export {
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+} from "../application";
+export {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "../application";
+export {
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "../application";
+export {
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+} from "../application";
+
+// --- Infrastructure (lazy, safe for SSR) ---
+export { organizationService, organizationQueryService } from "../infrastructure";
+
+// --- Interfaces (UI, queries, actions) ---
+export * from "../interfaces";
 ````
 
 ## File: modules/workspace/application/services/WorkspaceCommandApplicationService.ts
@@ -71379,6 +71382,23 @@ export function createLegacyAccountProfileCommandRepository(
 }
 ````
 
+## File: modules/platform/subdomains/account-profile/infrastructure/index.ts
+````typescript
+export {
+	createLegacyAccountProfileCommandRepository,
+	createLegacyAccountProfileQueryRepository,
+} from "./create-legacy-account-profile-application.adapter";
+export type {
+	LegacyAccountProfileDataSource,
+} from "./create-legacy-account-profile-application.adapter";
+export {
+	getAccountProfile as getAccountProfileFromService,
+	subscribeToAccountProfile as subscribeToAccountProfileFromService,
+	updateAccountProfile as updateAccountProfileFromService,
+	configureLegacyAccountProfileDataSource,
+} from "./account-profile-service";
+````
+
 ## File: modules/platform/subdomains/account/interfaces/_actions/account-policy.actions.ts
 ````typescript
 "use server";
@@ -72255,57 +72275,6 @@ export {
 } from "../interfaces";
 ````
 
-## File: modules/platform/subdomains/account-profile/api/index.ts
-````typescript
-/**
- * Public API boundary for the account-profile subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Composition root lives in infrastructure/account-profile-service.ts;
- * this boundary is intentionally thin — it only re-exports public contracts.
- */
-
-import {
-	getAccountProfileFromService,
-	subscribeToAccountProfileFromService,
-	updateAccountProfileFromService,
-} from "../infrastructure";
-import type { AccountProfile, Unsubscribe } from "../domain";
-import type { UpdateAccountProfileInput } from "../application";
-import type { CommandResult } from "@shared-types";
-
-// ── Use-case delegators ──────────────────────────────────────────────────
-
-export async function getAccountProfile(actorId: string): Promise<AccountProfile | null> {
-	return getAccountProfileFromService(actorId);
-}
-
-export function subscribeToAccountProfile(
-	actorId: string,
-	onUpdate: (profile: AccountProfile | null) => void,
-): Unsubscribe {
-	return subscribeToAccountProfileFromService(actorId, onUpdate);
-}
-
-export async function updateAccountProfile(
-	actorId: string,
-	input: UpdateAccountProfileInput,
-): Promise<CommandResult> {
-	return updateAccountProfileFromService(actorId, input);
-}
-
-// Legacy compatibility exports for migration window.
-export const getUserProfile = getAccountProfile;
-export const subscribeToUserProfile = subscribeToAccountProfile;
-
-export { getProfile, subscribeToProfile, updateProfile } from "../interfaces";
-
-export * from "../application";
-export * from "../domain";
-export { SettingsProfileRouteScreen } from "../interfaces";
-export type { LegacyAccountProfileDataSource } from "../infrastructure";
-````
-
 ## File: modules/platform/subdomains/notification/interfaces/queries/notification.queries.ts
 ````typescript
 /**
@@ -72340,6 +72309,69 @@ export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
 export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
   return organizationQueryService.getOrgPolicies(orgId);
 }
+````
+
+## File: modules/platform/subdomains/account-profile/api/index.ts
+````typescript
+/**
+ * Public API boundary for the account-profile subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Composition root lives in infrastructure/account-profile-service.ts;
+ * this boundary is intentionally thin — it only re-exports public contracts.
+ */
+
+import {
+	getAccountProfileFromService,
+	subscribeToAccountProfileFromService,
+	updateAccountProfileFromService,
+	configureLegacyAccountProfileDataSource,
+} from "../infrastructure";
+import {
+	getLegacyUserProfile,
+	subscribeToLegacyUserProfile,
+	updateLegacyUserProfile,
+} from "../../account/api/legacy-account-profile.bridge";
+import type { AccountProfile, Unsubscribe } from "../domain";
+import type { UpdateAccountProfileInput } from "../application";
+import type { CommandResult } from "@shared-types";
+
+configureLegacyAccountProfileDataSource({
+	getUserProfile: getLegacyUserProfile,
+	subscribeToUserProfile: subscribeToLegacyUserProfile,
+	updateUserProfile: updateLegacyUserProfile,
+});
+
+// ── Use-case delegators ──────────────────────────────────────────────────
+
+export async function getAccountProfile(actorId: string): Promise<AccountProfile | null> {
+	return getAccountProfileFromService(actorId);
+}
+
+export function subscribeToAccountProfile(
+	actorId: string,
+	onUpdate: (profile: AccountProfile | null) => void,
+): Unsubscribe {
+	return subscribeToAccountProfileFromService(actorId, onUpdate);
+}
+
+export async function updateAccountProfile(
+	actorId: string,
+	input: UpdateAccountProfileInput,
+): Promise<CommandResult> {
+	return updateAccountProfileFromService(actorId, input);
+}
+
+// Legacy compatibility exports for migration window.
+export const getUserProfile = getAccountProfile;
+export const subscribeToUserProfile = subscribeToAccountProfile;
+
+export { getProfile, subscribeToProfile, updateProfile } from "../interfaces";
+
+export * from "../application";
+export * from "../domain";
+export { SettingsProfileRouteScreen } from "../interfaces";
+export type { LegacyAccountProfileDataSource } from "../infrastructure";
 ````
 
 ## File: modules/platform/subdomains/account/interfaces/queries/account.queries.ts
@@ -72444,7 +72476,6 @@ import {
   UpdateTeamMembersUseCase,
 } from "../application/use-cases/organization-team.use-cases";
 import type { IOrganizationTeamPort } from "../domain/ports/IOrganizationTeamPort";
-import { FirebaseTeamRepository } from "../../team/infrastructure/firebase/FirebaseTeamRepository";
 import {
   CreatePartnerGroupUseCase,
   SendPartnerInviteUseCase,
@@ -72469,6 +72500,14 @@ import type { CommandResult } from "@shared-types";
 let _orgRepo: FirebaseOrganizationRepository | undefined;
 let _policyRepo: FirebaseOrgPolicyRepository | undefined;
 let _teamPort: IOrganizationTeamPort | undefined;
+let _teamPortFactory: (() => IOrganizationTeamPort) | undefined;
+
+export function configureOrganizationTeamPortFactory(
+  factory: () => IOrganizationTeamPort,
+): void {
+  _teamPortFactory = factory;
+  _teamPort = undefined;
+}
 
 function getOrgRepo(): FirebaseOrganizationRepository {
   if (!_orgRepo) _orgRepo = new FirebaseOrganizationRepository();
@@ -72481,8 +72520,10 @@ function getPolicyRepo(): FirebaseOrgPolicyRepository {
 }
 
 function getTeamPort(): IOrganizationTeamPort {
-  // Infrastructure composition: wire concrete repository at adapter boundary.
-  if (!_teamPort) _teamPort = new FirebaseTeamRepository();
+  if (!_teamPortFactory) {
+    throw new Error("Organization team port factory is not configured.");
+  }
+  if (!_teamPort) _teamPort = _teamPortFactory();
   return _teamPort;
 }
 
