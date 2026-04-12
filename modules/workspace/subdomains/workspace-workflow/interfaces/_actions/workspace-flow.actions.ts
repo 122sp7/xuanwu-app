@@ -24,6 +24,7 @@ export {
   wfSubmitTaskMaterializationBatchJob,
   wfGetTaskMaterializationBatchJob,
   wfListTaskMaterializationBatchJobs,
+  wfExtractTaskCandidatesFromKnowledge,
 } from "./workspace-flow-task-batch-job.actions";
 
 export {

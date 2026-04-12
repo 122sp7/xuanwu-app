@@ -52,6 +52,11 @@ export type {
   UpdateInvoiceItemDto,
   RemoveInvoiceItemDto,
   SubmitTaskMaterializationBatchJobDto,
+  ExtractTaskCandidatesFromKnowledgeDto,
+  ExtractTaskCandidatesFromKnowledgeResult,
+  ExtractedTaskCandidate,
+  KnowledgeTextBlockInput,
+  TaskCandidateSource,
   // Query / pagination DTOs
   TaskQueryDto,
   IssueQueryDto,

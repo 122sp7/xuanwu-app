@@ -9,6 +9,10 @@
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import { WorkspaceFlowTaskBatchJobFacade } from "../../api/workspace-flow-task-batch-job.facade";
 import { makeTaskMaterializationBatchJobRepo } from "../../api/factories";
+import type {
+  ExtractTaskCandidatesFromKnowledgeDto,
+  ExtractTaskCandidatesFromKnowledgeResult,
+} from "../../application/dto/extract-task-candidates-from-knowledge.dto";
 import type { SubmitTaskMaterializationBatchJobDto } from "../../application/dto/submit-task-materialization-batch-job.dto";
 import type { TaskMaterializationBatchJob } from "../../domain/entities/TaskMaterializationBatchJob";
 
@@ -39,4 +43,10 @@ export async function wfListTaskMaterializationBatchJobs(
   workspaceId: string,
 ): Promise<TaskMaterializationBatchJob[]> {
   return makeFacade().listBatchJobs(workspaceId);
+}
+
+export async function wfExtractTaskCandidatesFromKnowledge(
+  dto: ExtractTaskCandidatesFromKnowledgeDto,
+): Promise<ExtractTaskCandidatesFromKnowledgeResult> {
+  return makeFacade().extractTaskCandidates(dto);
 }

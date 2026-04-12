@@ -74,6 +74,13 @@ export type { RemoveInvoiceItemDto } from "../application/dto/remove-invoice-ite
 export type {
   SubmitTaskMaterializationBatchJobDto,
 } from "../application/dto/submit-task-materialization-batch-job.dto";
+export type {
+  ExtractTaskCandidatesFromKnowledgeDto,
+  ExtractTaskCandidatesFromKnowledgeResult,
+  ExtractedTaskCandidate,
+  KnowledgeTextBlockInput,
+  TaskCandidateSource,
+} from "../application/dto/extract-task-candidates-from-knowledge.dto";
 
 // ── Query / pagination DTOs ───────────────────────────────────────────────────
 
