@@ -81,4 +81,4 @@
 | #2: NotionKnowledgePageGateway | ⚠️ Marked | 2-3h | ❌ No |
 | #1: notebooklm/ai | 📋 Planned | 4-5h | ❌ No |
 
-**Next Actions**: #2 fixed. #1 started with containment guardrails (notebooklm.instructions deprecation + eslint import guard); continue with API export migration slice, then remove ai subdomain.
+**Next Actions**: #2 fixed. #1 containment in place and anti-spread guardrails added. Platform shell boundary violations reduced (lint warnings 9 -> 6). Remaining hard blockers are cross-subdomain infrastructure couplings requiring composition-root refactor.

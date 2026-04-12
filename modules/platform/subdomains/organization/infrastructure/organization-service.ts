@@ -22,7 +22,7 @@ import {
   UpdateTeamMembersUseCase,
 } from "../application/use-cases/organization-team.use-cases";
 import type { IOrganizationTeamPort } from "../domain/ports/IOrganizationTeamPort";
-import { createTeamRepository } from "../../team/api";
+import { FirebaseTeamRepository } from "../../team/infrastructure/firebase/FirebaseTeamRepository";
 import {
   CreatePartnerGroupUseCase,
   SendPartnerInviteUseCase,
@@ -59,9 +59,8 @@ function getPolicyRepo(): FirebaseOrgPolicyRepository {
 }
 
 function getTeamPort(): IOrganizationTeamPort {
-  // createTeamRepository() returns a TeamRepository that structurally satisfies IOrganizationTeamPort.
-  // The infrastructure layer is the correct place to wire cross-subdomain adapters.
-  if (!_teamPort) _teamPort = createTeamRepository();
+  // Infrastructure composition: wire concrete repository at adapter boundary.
+  if (!_teamPort) _teamPort = new FirebaseTeamRepository();
   return _teamPort;
 }
 

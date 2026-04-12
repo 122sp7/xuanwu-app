@@ -17,10 +17,9 @@ import {
 	type LegacyAccountProfileDataSource,
 } from "./create-legacy-account-profile-application.adapter";
 import {
-	getLegacyUserProfile,
-	subscribeToLegacyUserProfile,
-	updateLegacyUserProfile,
-} from "../../account/api/legacy-account-profile.bridge";
+	accountService,
+	createAccountQueryRepository,
+} from "../../account/infrastructure/account-service";
 import type { AccountProfile, Unsubscribe } from "../domain";
 import type { UpdateAccountProfileInput } from "../application";
 import type { CommandResult } from "@shared-types";
@@ -38,9 +37,12 @@ function getLegacyDataSource(): LegacyAccountProfileDataSource {
 	}
 
 	_legacyDataSource = {
-		getUserProfile: getLegacyUserProfile,
-		subscribeToUserProfile: subscribeToLegacyUserProfile,
-		updateUserProfile: updateLegacyUserProfile,
+		getUserProfile: (userId) => createAccountQueryRepository().getUserProfile(userId),
+		subscribeToUserProfile: (userId, onUpdate) =>
+			createAccountQueryRepository().subscribeToUserProfile(userId, onUpdate),
+		updateUserProfile: async (userId, input) => {
+			await accountService.updateUserProfile(userId, input);
+		},
 	};
 	return _legacyDataSource;
 }
