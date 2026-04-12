@@ -24,7 +24,8 @@ import {
 } from "@ui-shadcn/ui/card";
 import { Textarea } from "@ui-shadcn/ui/textarea";
 
-import { runKnowledgeRagQuery, type KnowledgeCitation } from "../../../subdomains/synthesis/api";
+import type { KnowledgeCitation } from "../../../subdomains/synthesis/api";
+import { runKnowledgeRagQueryAction } from "../_actions/rag-query.actions";
 
 interface RagQueryViewProps {
   readonly workspaceId?: string;
@@ -64,10 +65,23 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
 
     setLoading(true);
     try {
-      let result = await runKnowledgeRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, { requireReady: true });
+      let result = await runKnowledgeRagQueryAction({
+        query: q,
+        accountId: activeAccountId,
+        workspaceId: effectiveWorkspaceId,
+        topK: 4,
+        requireReady: true,
+      });
       // Compatibility fallback for older vectors without ready status.
       if (result.citations.length === 0 && (result.vectorHits > 0 || result.searchHits > 0)) {
-        result = await runKnowledgeRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, { requireReady: false, maxAgeDays: 3650 });
+        result = await runKnowledgeRagQueryAction({
+          query: q,
+          accountId: activeAccountId,
+          workspaceId: effectiveWorkspaceId,
+          topK: 4,
+          requireReady: false,
+          maxAgeDays: 3650,
+        });
       }
       setAnswer(result.answer);
       setCitations(result.citations);
