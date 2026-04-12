@@ -1,7 +1,7 @@
-import { FirebaseAutomationRepository } from "../infrastructure/firebase/FirebaseAutomationRepository";
-import { FirebaseDatabaseRecordRepository } from "../infrastructure/firebase/FirebaseDatabaseRecordRepository";
-import { FirebaseDatabaseRepository } from "../infrastructure/firebase/FirebaseDatabaseRepository";
-import { FirebaseViewRepository } from "../infrastructure/firebase/FirebaseViewRepository";
+import { FirebaseAutomationRepository } from "../../../infrastructure/database/firebase/FirebaseAutomationRepository";
+import { FirebaseDatabaseRecordRepository } from "../../../infrastructure/database/firebase/FirebaseDatabaseRecordRepository";
+import { FirebaseDatabaseRepository } from "../../../infrastructure/database/firebase/FirebaseDatabaseRepository";
+import { FirebaseViewRepository } from "../../../infrastructure/database/firebase/FirebaseViewRepository";
 
 export function makeDatabaseRepo() {
   return new FirebaseDatabaseRepository();

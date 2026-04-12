@@ -22,21 +22,21 @@ export {
   verifyArticle,
   requestArticleReview,
   deleteArticle,
-} from "../interfaces/_actions/article.actions";
+} from "../../../interfaces/authoring/_actions/article.actions";
 
 export {
   createCategory,
   renameCategory,
   moveCategory,
   deleteCategory,
-} from "../interfaces/_actions/category.actions";
+} from "../../../interfaces/authoring/_actions/category.actions";
 
 // ─── Queries (read-side) ──────────────────────────────────────────────────────
-export { getArticles, getArticle, getCategories, getBacklinks } from "../interfaces/queries";
+export { getArticles, getArticle, getCategories, getBacklinks } from "../../../interfaces/authoring/queries";
 
 // ─── UI Components ────────────────────────────────────────────────────────────
-export { ArticleDialog } from "../interfaces/components/ArticleDialog";
-export { KnowledgeBaseArticlesRouteScreen } from "../interfaces/components/KnowledgeBaseArticlesRouteScreen";
-export type { KnowledgeBaseArticlesRouteScreenProps } from "../interfaces/components/KnowledgeBaseArticlesRouteScreen";
-export { ArticleDetailPage } from "../interfaces/components/ArticleDetailPage";
-export type { ArticleDetailPageProps } from "../interfaces/components/ArticleDetailPage";
+export { ArticleDialog } from "../../../interfaces/authoring/components/ArticleDialog";
+export { KnowledgeBaseArticlesRouteScreen } from "../../../interfaces/authoring/components/KnowledgeBaseArticlesRouteScreen";
+export type { KnowledgeBaseArticlesRouteScreenProps } from "../../../interfaces/authoring/components/KnowledgeBaseArticlesRouteScreen";
+export { ArticleDetailPage } from "../../../interfaces/authoring/components/ArticleDetailPage";
+export type { ArticleDetailPageProps } from "../../../interfaces/authoring/components/ArticleDetailPage";

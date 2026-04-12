@@ -1,5 +1,5 @@
-import { FirebaseArticleRepository } from "../infrastructure/firebase/FirebaseArticleRepository";
-import { FirebaseCategoryRepository } from "../infrastructure/firebase/FirebaseCategoryRepository";
+import { FirebaseArticleRepository } from "../../../infrastructure/authoring/firebase/FirebaseArticleRepository";
+import { FirebaseCategoryRepository } from "../../../infrastructure/authoring/firebase/FirebaseCategoryRepository";
 
 export function makeArticleRepo() {
   return new FirebaseArticleRepository();

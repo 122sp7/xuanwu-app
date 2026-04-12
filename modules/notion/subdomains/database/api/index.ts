@@ -74,7 +74,7 @@ export {
   createAutomation,
   updateAutomation,
   deleteAutomation,
-} from "../interfaces/_actions/database.actions";
+} from "../../../interfaces/database/_actions/database.actions";
 
 // Queries
 export {
@@ -83,21 +83,21 @@ export {
   getRecords,
   getViews,
   getAutomations,
-} from "../interfaces/queries";
+} from "../../../interfaces/database/queries";
 
 // UI components
-export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
-export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
-export { DatabaseBoardView } from "../interfaces/components/DatabaseBoardView";
-export { DatabaseListView } from "../interfaces/components/DatabaseListView";
-export { DatabaseCalendarView } from "../interfaces/components/DatabaseCalendarView";
-export { DatabaseGalleryView } from "../interfaces/components/DatabaseGalleryView";
-export { DatabaseFormView } from "../interfaces/components/DatabaseFormView";
-export { DatabaseAutomationView } from "../interfaces/components/DatabaseAutomationView";
-export { KnowledgeDatabasesRouteScreen } from "../interfaces/components/KnowledgeDatabasesRouteScreen";
-export type { KnowledgeDatabasesRouteScreenProps } from "../interfaces/components/KnowledgeDatabasesRouteScreen";
-export { AddFieldDialog, FIELD_TYPES } from "../interfaces/components/DatabaseAddFieldDialog";
-export { DatabaseDetailPage } from "../interfaces/components/DatabaseDetailPage";
-export type { DatabaseDetailPageProps } from "../interfaces/components/DatabaseDetailPage";
-export { DatabaseFormsPage } from "../interfaces/components/DatabaseFormsPage";
-export type { DatabaseFormsPageProps } from "../interfaces/components/DatabaseFormsPage";
+export { DatabaseDialog } from "../../../interfaces/database/components/DatabaseDialog";
+export { DatabaseTableView } from "../../../interfaces/database/components/DatabaseTableView";
+export { DatabaseBoardView } from "../../../interfaces/database/components/DatabaseBoardView";
+export { DatabaseListView } from "../../../interfaces/database/components/DatabaseListView";
+export { DatabaseCalendarView } from "../../../interfaces/database/components/DatabaseCalendarView";
+export { DatabaseGalleryView } from "../../../interfaces/database/components/DatabaseGalleryView";
+export { DatabaseFormView } from "../../../interfaces/database/components/DatabaseFormView";
+export { DatabaseAutomationView } from "../../../interfaces/database/components/DatabaseAutomationView";
+export { KnowledgeDatabasesRouteScreen } from "../../../interfaces/database/components/KnowledgeDatabasesRouteScreen";
+export type { KnowledgeDatabasesRouteScreenProps } from "../../../interfaces/database/components/KnowledgeDatabasesRouteScreen";
+export { AddFieldDialog, FIELD_TYPES } from "../../../interfaces/database/components/DatabaseAddFieldDialog";
+export { DatabaseDetailPage } from "../../../interfaces/database/components/DatabaseDetailPage";
+export type { DatabaseDetailPageProps } from "../../../interfaces/database/components/DatabaseDetailPage";
+export { DatabaseFormsPage } from "../../../interfaces/database/components/DatabaseFormsPage";
+export type { DatabaseFormsPageProps } from "../../../interfaces/database/components/DatabaseFormsPage";

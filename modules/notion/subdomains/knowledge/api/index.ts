@@ -27,7 +27,7 @@ export {
   getKnowledgeBlocks,
   getKnowledgeCollection,
   getKnowledgeCollections,
-} from "../interfaces/queries";
+} from "../../../interfaces/knowledge/queries";
 
 // ── Server actions (drives: app router, Server Components) ────────────────────
 export {
@@ -51,21 +51,21 @@ export {
   addPageToCollection,
   removePageFromCollection,
   archiveKnowledgeCollection,
-} from "../interfaces/_actions";
+} from "../../../interfaces/knowledge/_actions";
 
 // ── UI Components ─────────────────────────────────────────────────────────────
-export { PageTreeView } from "../interfaces/components/PageTreeView";
-export type { PageTreeViewProps } from "../interfaces/components/PageTreeView";
-export { PageDialog } from "../interfaces/components/PageDialog";
-export { BlockEditorView } from "../interfaces/components/BlockEditorView";
-export { PageEditorView } from "../interfaces/components/PageEditorView";
-export type { PageEditorViewProps } from "../interfaces/components/PageEditorView";
-export { KnowledgePagesRouteScreen } from "../interfaces/components/KnowledgePagesRouteScreen";
-export type { KnowledgePagesRouteScreenProps } from "../interfaces/components/KnowledgePagesRouteScreen";
+export { PageTreeView } from "../../../interfaces/knowledge/components/PageTreeView";
+export type { PageTreeViewProps } from "../../../interfaces/knowledge/components/PageTreeView";
+export { PageDialog } from "../../../interfaces/knowledge/components/PageDialog";
+export { BlockEditorView } from "../../../interfaces/knowledge/components/BlockEditorView";
+export { PageEditorView } from "../../../interfaces/knowledge/components/PageEditorView";
+export type { PageEditorViewProps } from "../../../interfaces/knowledge/components/PageEditorView";
+export { KnowledgePagesRouteScreen } from "../../../interfaces/knowledge/components/KnowledgePagesRouteScreen";
+export type { KnowledgePagesRouteScreenProps } from "../../../interfaces/knowledge/components/KnowledgePagesRouteScreen";
 
 // ── Store ─────────────────────────────────────────────────────────────────────
-export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
-export type { EditorBlock } from "../interfaces/store/block-editor.store";
+export { useBlockEditorStore } from "../../../interfaces/knowledge/store/block-editor.store";
+export type { EditorBlock } from "../../../interfaces/knowledge/store/block-editor.store";
 
 // ── Tree node type (needed by app/ pages) ─────────────────────────────────────
 export type { KnowledgePageTreeNode } from "../domain/aggregates/KnowledgePage";
@@ -74,12 +74,12 @@ export type { KnowledgePageTreeNode } from "../domain/aggregates/KnowledgePage";
 export type { PageApprovedEvent, PageApprovedPayload, ExtractedTask, ExtractedInvoice } from "../domain/events/KnowledgePageEvents";
 
 // ── Sidebar component ─────────────────────────────────────────────────────────
-export { KnowledgeSidebarSection } from "../interfaces/components/KnowledgeSidebarSection";
+export { KnowledgeSidebarSection } from "../../../interfaces/knowledge/components/KnowledgeSidebarSection";
 
 // ── Page header widgets ───────────────────────────────────────────────────────
-export { TitleEditor, IconPicker, CoverEditor } from "../interfaces/components/KnowledgePageHeaderWidgets";
-export type { TitleEditorProps, IconPickerProps, CoverEditorProps } from "../interfaces/components/KnowledgePageHeaderWidgets";
+export { TitleEditor, IconPicker, CoverEditor } from "../../../interfaces/knowledge/components/KnowledgePageHeaderWidgets";
+export type { TitleEditorProps, IconPickerProps, CoverEditorProps } from "../../../interfaces/knowledge/components/KnowledgePageHeaderWidgets";
 
 // ── Route screen components ───────────────────────────────────────────────────
-export { KnowledgePageDetailPage } from "../interfaces/components/KnowledgePageDetailPage";
-export type { KnowledgePageDetailPageProps } from "../interfaces/components/KnowledgePageDetailPage";
+export { KnowledgePageDetailPage } from "../../../interfaces/knowledge/components/KnowledgePageDetailPage";
+export type { KnowledgePageDetailPageProps } from "../../../interfaces/knowledge/components/KnowledgePageDetailPage";
