@@ -146,7 +146,7 @@ export const firestoreInfrastructureApi: FirestoreAPI = {
 		collectionPath: string,
 		where: readonly FirestoreWhereClause[] = [],
 		options?: FirestoreQueryOptions,
-	): Promise<readonly { id: string; data: T }[]> {
+	): Promise<readonly { id: string; path: string; data: T }[]> {
 		const db = getFirebaseFirestore();
 		const collectionRef = firestoreApi.collection(
 			db,
@@ -157,6 +157,7 @@ export const firestoreInfrastructureApi: FirestoreAPI = {
 		const snapshot = await firestoreApi.getDocs(queryRef);
 		return snapshot.docs.map((doc) => ({
 			id: doc.id,
+			path: doc.ref.path,
 			data: doc.data() as T,
 		}));
 	},
@@ -165,7 +166,7 @@ export const firestoreInfrastructureApi: FirestoreAPI = {
 		collectionId: string,
 		where: readonly FirestoreWhereClause[] = [],
 		options?: FirestoreQueryOptions,
-	): Promise<readonly { id: string; data: T }[]> {
+	): Promise<readonly { id: string; path: string; data: T }[]> {
 		const normalizedCollectionId = collectionId.trim();
 		if (!normalizedCollectionId) {
 			throw new Error("Collection group id is required.");
@@ -177,6 +178,7 @@ export const firestoreInfrastructureApi: FirestoreAPI = {
 		const snapshot = await firestoreApi.getDocs(queryRef);
 		return snapshot.docs.map((doc) => ({
 			id: doc.id,
+			path: doc.ref.path,
 			data: doc.data() as T,
 		}));
 	},
@@ -184,7 +186,7 @@ export const firestoreInfrastructureApi: FirestoreAPI = {
 	watchCollection<T>(
 		collectionPath: string,
 		handlers: {
-			onNext: (documents: readonly { id: string; data: T }[]) => void;
+			onNext: (documents: readonly { id: string; path: string; data: T }[]) => void;
 			onError?: (error: unknown) => void;
 		},
 		where: readonly FirestoreWhereClause[] = [],
@@ -206,6 +208,7 @@ export const firestoreInfrastructureApi: FirestoreAPI = {
 				handlers.onNext(
 					snapshot.docs.map((doc) => ({
 						id: doc.id,
+						path: doc.ref.path,
 						data: doc.data() as T,
 					})),
 				);
@@ -219,7 +222,7 @@ export const firestoreInfrastructureApi: FirestoreAPI = {
 	watchDocument<T>(
 		path: string,
 		handlers: {
-			onNext: (document: { id: string; data: T } | null) => void;
+			onNext: (document: { id: string; path: string; data: T } | null) => void;
 			onError?: (error: unknown) => void;
 		},
 	): () => void {
@@ -235,6 +238,7 @@ export const firestoreInfrastructureApi: FirestoreAPI = {
 				}
 				handlers.onNext({
 					id: snapshot.id,
+					path: snapshot.ref.path,
 					data: snapshot.data() as T,
 				});
 			},

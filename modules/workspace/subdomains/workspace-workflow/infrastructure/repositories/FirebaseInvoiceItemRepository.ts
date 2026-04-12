@@ -8,45 +8,33 @@
  */
 
 import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  query,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
 import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
 import { toInvoiceItem } from "../firebase/invoice-item.converter";
 import { WF_INVOICE_ITEMS_COLLECTION } from "../firebase/workspace-flow.collections";
 
 export class FirebaseInvoiceItemRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private get collectionRef() {
-    return collection(this.db, WF_INVOICE_ITEMS_COLLECTION);
+  private itemPath(itemId: string): string {
+    return `${WF_INVOICE_ITEMS_COLLECTION}/${itemId}`;
   }
 
   async findById(itemId: string): Promise<InvoiceItem | null> {
-    const snap = await getDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, itemId));
-    if (!snap.exists()) return null;
-    return toInvoiceItem(snap.id, snap.data() as Record<string, unknown>);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.itemPath(itemId));
+    if (!data) return null;
+    return toInvoiceItem(itemId, data);
   }
 
   async findByInvoiceId(invoiceId: string): Promise<InvoiceItem[]> {
-    const snaps = await getDocs(
-      query(this.collectionRef, where("invoiceId", "==", invoiceId)),
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_INVOICE_ITEMS_COLLECTION,
+      [{ field: "invoiceId", op: "==", value: invoiceId }],
     );
-    return snaps.docs.map((d) => toInvoiceItem(d.id, d.data() as Record<string, unknown>));
+    return docs.map((d) => toInvoiceItem(d.id, d.data));
   }
 
   async delete(itemId: string): Promise<void> {
-    await deleteDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, itemId));
+    await firestoreInfrastructureApi.delete(this.itemPath(itemId));
   }
 }
  

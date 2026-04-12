@@ -5,22 +5,8 @@
  */
 
 import {
-  getFirestore,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  collection,
-  query,
-  where,
-  documentId,
-  arrayUnion,
-  arrayRemove,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
 import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
 import type { WorkspaceCapabilityRepository } from "../../domain/ports/output/WorkspaceCapabilityRepository";
 import type { WorkspaceAccessRepository } from "../../domain/ports/output/WorkspaceAccessRepository";
@@ -82,36 +68,35 @@ export class FirebaseWorkspaceRepository
     WorkspaceCapabilityRepository,
     WorkspaceAccessRepository,
     WorkspaceLocationRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
+  private workspacePath(workspaceId: string): string {
+    return `workspaces/${workspaceId}`;
   }
 
   async findById(id: string): Promise<WorkspaceEntity | null> {
-    const snap = await getDoc(doc(this.db, "workspaces", id));
-    if (!snap.exists()) return null;
-    return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.workspacePath(id));
+    if (!data) return null;
+    return toWorkspaceEntity(id, data);
   }
 
   async findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null> {
-    const q = query(
-      collection(this.db, "workspaces"),
-      where("accountId", "==", accountId),
-      where(documentId(), "==", workspaceId),
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      "workspaces",
+      [{ field: "accountId", op: "==", value: accountId }],
     );
-    const snaps = await getDocs(q);
-    const snap = snaps.docs[0];
-    if (!snap) return null;
-    return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
+    const target = docs.find((doc) => doc.id === workspaceId);
+    if (!target) return null;
+    return toWorkspaceEntity(target.id, target.data);
   }
 
   async findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]> {
-    const q = query(collection(this.db, "workspaces"), where("accountId", "==", accountId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toWorkspaceEntity(d.id, d.data() as Record<string, unknown>));
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      "workspaces",
+      [{ field: "accountId", op: "==", value: accountId }],
+    );
+    return docs.map((doc) => toWorkspaceEntity(doc.id, doc.data));
   }
 
   async save(workspace: WorkspaceEntity): Promise<string> {
-    const ref = doc(this.db, "workspaces", workspace.id);
     const payload: Record<string, unknown> = {
       name: workspace.name,
       accountId: workspace.accountId,
@@ -121,7 +106,7 @@ export class FirebaseWorkspaceRepository
       capabilities: workspace.capabilities,
       grants: workspace.grants,
       teamIds: workspace.teamIds,
-      createdAt: serverTimestamp(),
+      createdAtISO: new Date().toISOString(),
     };
 
     if (workspace.photoURL !== undefined) payload.photoURL = workspace.photoURL;
@@ -129,71 +114,101 @@ export class FirebaseWorkspaceRepository
     if (workspace.locations !== undefined) payload.locations = workspace.locations;
     if (workspace.personnel !== undefined) payload.personnel = workspace.personnel;
 
-    await setDoc(ref, payload);
+    await firestoreInfrastructureApi.set(this.workspacePath(workspace.id), payload);
     return workspace.id;
   }
 
   async updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void> {
-    const updates: Record<string, unknown> = { updatedAt: serverTimestamp() };
+    const updates: Record<string, unknown> = { updatedAtISO: new Date().toISOString() };
     if (command.name !== undefined) updates.name = command.name;
     if (command.visibility !== undefined) updates.visibility = command.visibility;
     if (command.lifecycleState !== undefined) updates.lifecycleState = command.lifecycleState;
     if (command.address !== undefined) updates.address = command.address;
     if (command.personnel !== undefined) updates.personnel = command.personnel;
-    await updateDoc(doc(this.db, "workspaces", command.workspaceId), updates);
+    await firestoreInfrastructureApi.update(this.workspacePath(command.workspaceId), updates);
   }
 
   async delete(id: string): Promise<void> {
-    await deleteDoc(doc(this.db, "workspaces", id));
+    await firestoreInfrastructureApi.delete(this.workspacePath(id));
   }
 
   async mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      capabilities: arrayUnion(...capabilities),
-      updatedAt: serverTimestamp(),
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const existing = Array.isArray(data.capabilities) ? (data.capabilities as Capability[]) : [];
+    const merged = [...existing];
+    capabilities.forEach((capability) => {
+      if (!merged.some((item) => item.id === capability.id)) {
+        merged.push(capability);
+      }
+    });
+
+    await firestoreInfrastructureApi.update(path, {
+      capabilities: merged,
+      updatedAtISO: new Date().toISOString(),
     });
   }
 
   async unmountCapability(workspaceId: string, capabilityId: string): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
     const caps = ((data.capabilities as Capability[]) ?? []).filter((c) => c.id !== capabilityId);
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+    await firestoreInfrastructureApi.update(path, {
       capabilities: caps,
-      updatedAt: serverTimestamp(),
+      updatedAtISO: new Date().toISOString(),
     });
   }
 
   async grantTeamAccess(workspaceId: string, teamId: string): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      teamIds: arrayUnion(teamId),
-      updatedAt: serverTimestamp(),
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const teamIds = Array.isArray(data.teamIds) ? [...(data.teamIds as string[])] : [];
+    if (!teamIds.includes(teamId)) {
+      teamIds.push(teamId);
+    }
+    await firestoreInfrastructureApi.update(path, {
+      teamIds,
+      updatedAtISO: new Date().toISOString(),
     });
   }
 
   async revokeTeamAccess(workspaceId: string, teamId: string): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      teamIds: arrayRemove(teamId),
-      updatedAt: serverTimestamp(),
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const teamIds = (Array.isArray(data.teamIds) ? (data.teamIds as string[]) : []).filter((item) => item !== teamId);
+    await firestoreInfrastructureApi.update(path, {
+      teamIds,
+      updatedAtISO: new Date().toISOString(),
     });
   }
 
   async grantIndividualAccess(workspaceId: string, grant: WorkspaceGrant): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      grants: arrayUnion(grant),
-      updatedAt: serverTimestamp(),
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const grants = Array.isArray(data.grants) ? [...(data.grants as WorkspaceGrant[])] : [];
+    const exists = grants.some((item) => item.userId === grant.userId && item.teamId === grant.teamId);
+    if (!exists) {
+      grants.push(grant);
+    }
+    await firestoreInfrastructureApi.update(path, {
+      grants,
+      updatedAtISO: new Date().toISOString(),
     });
   }
 
   async revokeIndividualAccess(workspaceId: string, userId: string): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
     const grants = ((data.grants as WorkspaceGrant[]) ?? []).filter((g) => g.userId !== userId);
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+    await firestoreInfrastructureApi.update(path, {
       grants,
-      updatedAt: serverTimestamp(),
+      updatedAtISO: new Date().toISOString(),
     });
   }
 
@@ -202,36 +217,41 @@ export class FirebaseWorkspaceRepository
     location: Omit<WorkspaceLocation, "locationId">,
   ): Promise<string> {
     const locationId = crypto.randomUUID();
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      locations: arrayUnion({ ...location, locationId }),
-      updatedAt: serverTimestamp(),
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return locationId;
+    const locations = Array.isArray(data.locations) ? [...(data.locations as WorkspaceLocation[])] : [];
+    locations.push({ ...location, locationId });
+    await firestoreInfrastructureApi.update(path, {
+      locations,
+      updatedAtISO: new Date().toISOString(),
     });
     return locationId;
   }
 
   async updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
     const locations = ((data.locations as WorkspaceLocation[]) ?? []).map((l) =>
       l.locationId === location.locationId ? location : l,
     );
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+    await firestoreInfrastructureApi.update(path, {
       locations,
-      updatedAt: serverTimestamp(),
+      updatedAtISO: new Date().toISOString(),
     });
   }
 
   async deleteLocation(workspaceId: string, locationId: string): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
     const locations = ((data.locations as WorkspaceLocation[]) ?? []).filter(
       (l) => l.locationId !== locationId,
     );
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+    await firestoreInfrastructureApi.update(path, {
       locations,
-      updatedAt: serverTimestamp(),
+      updatedAtISO: new Date().toISOString(),
     });
   }
 }

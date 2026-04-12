@@ -1,20 +1,6 @@
 import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  increment,
-  limit,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
 import { v7 as generateId } from "@lib-uuid";
 
 import type {
@@ -26,18 +12,16 @@ import type {
 } from "../../domain/entities/workspace-feed-post.entity";
 import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
 
-type FirestoreDb = ReturnType<typeof getFirestore>;
-
-function postsCol(db: FirestoreDb, accountId: string) {
-  return collection(db, "accounts", accountId, "workspaceFeedPosts");
+function postsPath(accountId: string): string {
+  return `accounts/${accountId}/workspaceFeedPosts`;
 }
 
-function postDoc(db: FirestoreDb, accountId: string, postId: string) {
-  return doc(db, "accounts", accountId, "workspaceFeedPosts", postId);
+function postPath(accountId: string, postId: string): string {
+  return `accounts/${accountId}/workspaceFeedPosts/${postId}`;
 }
 
-function repostMapDoc(db: FirestoreDb, accountId: string, actorAccountId: string, sourcePostId: string) {
-  return doc(db, "accounts", accountId, "workspaceFeedReposts", `${actorAccountId}__${sourcePostId}`);
+function repostMapPath(accountId: string, actorAccountId: string, sourcePostId: string): string {
+  return `accounts/${accountId}/workspaceFeedReposts/${actorAccountId}__${sourcePostId}`;
 }
 
 function asString(value: unknown, fallback = ""): string {
@@ -92,16 +76,10 @@ function createBasePostData(
     shareCount: 0,
     createdAtISO: nowISO,
     updatedAtISO: nowISO,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
   };
 }
 
 export class FirebaseWorkspaceFeedPostRepository implements WorkspaceFeedPostRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
   async createPost(input: CreateWorkspaceFeedPostInput): Promise<WorkspaceFeedPost> {
     const id = generateId();
     const data = createBasePostData(
@@ -111,7 +89,7 @@ export class FirebaseWorkspaceFeedPostRepository implements WorkspaceFeedPostRep
       input.content,
       "post",
     );
-    await setDoc(postDoc(this.db, input.accountId, id), data);
+    await firestoreInfrastructureApi.set(postPath(input.accountId, id), data);
     return toWorkspaceFeedPost(id, data);
   }
 
@@ -129,16 +107,16 @@ export class FirebaseWorkspaceFeedPostRepository implements WorkspaceFeedPostRep
       repostOfPostId: null,
     };
 
-    await setDoc(postDoc(this.db, input.accountId, id), data);
+    await firestoreInfrastructureApi.set(postPath(input.accountId, id), data);
     await this.patchCounters(input.accountId, input.parentPostId, { replyDelta: 1 });
     return toWorkspaceFeedPost(id, data);
   }
 
   async createRepost(input: CreateWorkspaceFeedRepostInput): Promise<WorkspaceFeedPost | null> {
-    const mapRef = repostMapDoc(this.db, input.accountId, input.actorAccountId, input.sourcePostId);
-    const existingMap = await getDoc(mapRef);
-    if (existingMap.exists()) {
-      const repostPostId = asString(existingMap.data().repostPostId);
+    const mapPath = repostMapPath(input.accountId, input.actorAccountId, input.sourcePostId);
+    const existingMap = await firestoreInfrastructureApi.get<Record<string, unknown>>(mapPath);
+    if (existingMap) {
+      const repostPostId = asString(existingMap.repostPostId);
       if (!repostPostId) return null;
       return this.findById(input.accountId, repostPostId);
     }
@@ -160,56 +138,65 @@ export class FirebaseWorkspaceFeedPostRepository implements WorkspaceFeedPostRep
       repostOfPostId: input.sourcePostId,
     };
 
-    await setDoc(postDoc(this.db, input.accountId, id), data);
-    await setDoc(mapRef, {
+    await firestoreInfrastructureApi.set(postPath(input.accountId, id), data);
+    await firestoreInfrastructureApi.set(mapPath, {
       accountId: input.accountId,
       workspaceId: input.workspaceId,
       sourcePostId: input.sourcePostId,
       actorAccountId: input.actorAccountId,
       repostPostId: id,
       createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
     });
     await this.patchCounters(input.accountId, input.sourcePostId, { repostDelta: 1 });
     return toWorkspaceFeedPost(id, data);
   }
 
   async patchCounters(accountId: string, postId: string, patch: WorkspaceFeedCounterPatch): Promise<void> {
+    const path = postPath(accountId, postId);
+    const current = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!current) return;
+
     const updates: Record<string, unknown> = {
       updatedAtISO: new Date().toISOString(),
-      updatedAt: serverTimestamp(),
     };
-    if (patch.likeDelta) updates.likeCount = increment(patch.likeDelta);
-    if (patch.replyDelta) updates.replyCount = increment(patch.replyDelta);
-    if (patch.repostDelta) updates.repostCount = increment(patch.repostDelta);
-    if (patch.viewDelta) updates.viewCount = increment(patch.viewDelta);
-    if (patch.bookmarkDelta) updates.bookmarkCount = increment(patch.bookmarkDelta);
-    if (patch.shareDelta) updates.shareCount = increment(patch.shareDelta);
-    await updateDoc(postDoc(this.db, accountId, postId), updates);
+
+    const applyDelta = (field: string, delta: number | undefined) => {
+      if (!delta) return;
+      const base = asNumber(current[field]);
+      updates[field] = base + delta;
+    };
+
+    applyDelta("likeCount", patch.likeDelta);
+    applyDelta("replyCount", patch.replyDelta);
+    applyDelta("repostCount", patch.repostDelta);
+    applyDelta("viewCount", patch.viewDelta);
+    applyDelta("bookmarkCount", patch.bookmarkDelta);
+    applyDelta("shareCount", patch.shareDelta);
+
+    await firestoreInfrastructureApi.update(path, updates);
   }
 
   async findById(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
-    const snap = await getDoc(postDoc(this.db, accountId, postId));
-    if (!snap.exists()) return null;
-    return toWorkspaceFeedPost(snap.id, snap.data() as Record<string, unknown>);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(postPath(accountId, postId));
+    if (!data) return null;
+    return toWorkspaceFeedPost(postId, data);
   }
 
   async listByWorkspaceId(accountId: string, workspaceId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
-    const snaps = await getDocs(
-      query(
-        postsCol(this.db, accountId),
-        where("workspaceId", "==", workspaceId),
-        orderBy("createdAtISO", "desc"),
-        limit(maxRows),
-      ),
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      postsPath(accountId),
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+      { orderBy: [{ field: "createdAtISO", direction: "desc" }], limit: maxRows },
     );
-    return snaps.docs.map((row) => toWorkspaceFeedPost(row.id, row.data() as Record<string, unknown>));
+    return docs.map((row) => toWorkspaceFeedPost(row.id, row.data));
   }
 
   async listByAccountId(accountId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
-    const snaps = await getDocs(
-      query(postsCol(this.db, accountId), orderBy("createdAtISO", "desc"), limit(maxRows)),
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      postsPath(accountId),
+      [],
+      { orderBy: [{ field: "createdAtISO", direction: "desc" }], limit: maxRows },
     );
-    return snaps.docs.map((row) => toWorkspaceFeedPost(row.id, row.data() as Record<string, unknown>));
+    return docs.map((row) => toWorkspaceFeedPost(row.id, row.data));
   }
 }

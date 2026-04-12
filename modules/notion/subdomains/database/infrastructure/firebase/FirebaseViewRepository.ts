@@ -6,27 +6,24 @@
  */
 
 import {
-  collection,
-  getDoc,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  serverTimestamp,
-  Timestamp,
-} from "firebase/firestore";
-import { getFirebaseFirestore } from "@integration-firebase/firestore";
-
-const db = getFirebaseFirestore();
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
 import type { IViewRepository, CreateViewInput, UpdateViewInput } from "../../domain/repositories/IViewRepository";
 import type { ViewSnapshot } from "../../domain/aggregates/View";
 
-function viewsCol(accountId: string, databaseId: string) {
-  return collection(db, "accounts", accountId, "knowledgeDatabases", databaseId, "views");
+function viewsPath(accountId: string, databaseId: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/views`;
+}
+
+function viewPath(accountId: string, databaseId: string, id: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/views/${id}`;
 }
 
 function toISO(ts: unknown): string {
-  if (ts instanceof Timestamp) return ts.toDate().toISOString();
+  if (typeof ts === "object" && ts !== null && "toDate" in ts && typeof (ts as { toDate: () => Date }).toDate === "function") {
+    return (ts as { toDate: () => Date }).toDate().toISOString();
+  }
   if (typeof ts === "string") return ts;
   return new Date().toISOString();
 }
@@ -57,9 +54,9 @@ function toSnapshot(id: string, data: Record<string, any>): ViewSnapshot {
 
 export class FirebaseViewRepository implements IViewRepository {
   async create(input: CreateViewInput): Promise<ViewSnapshot> {
-    const col = viewsCol(input.accountId, input.databaseId);
-    const now = serverTimestamp();
-    const docRef = await addDoc(col, {
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
       databaseId: input.databaseId,
       workspaceId: input.workspaceId,
       accountId: input.accountId,
@@ -75,45 +72,53 @@ export class FirebaseViewRepository implements IViewRepository {
       timelineStartFieldId: null,
       timelineEndFieldId: null,
       createdByUserId: input.createdByUserId,
-      createdAt: now,
-      updatedAt: now,
-    });
-    const snap = await getDoc(docRef);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return toSnapshot(docRef.id, snap.data() as Record<string, any>);
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    await firestoreInfrastructureApi.set(viewPath(input.accountId, input.databaseId, id), data);
+    return toSnapshot(id, data);
   }
 
   async update(input: UpdateViewInput): Promise<ViewSnapshot> {
-    // Fetch databaseId via collection group since we only have id+accountId
-    const { collectionGroup, query: fsQuery, where, getDocs: fsGetDocs } = await import("firebase/firestore");
-    const q = fsQuery(collectionGroup(db, "views"), where("accountId", "==", input.accountId));
-    const results = await fsGetDocs(q);
-    const target = results.docs.find((d) => d.id === input.id);
-    if (!target) throw new Error(`View ${input.id} not found`);
+    const docs = await firestoreInfrastructureApi.queryCollectionGroup<Record<string, unknown>>(
+      "views",
+      [{ field: "accountId", op: "==", value: input.accountId }],
+    );
+    const target = docs.find((d) => d.id === input.id);
+    if (!target) {
+      throw new Error(`View ${input.id} not found`);
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const changes: Record<string, any> = { updatedAt: serverTimestamp() };
+    const changes: Record<string, any> = { updatedAtISO: new Date().toISOString() };
     if (input.name !== undefined) changes.name = input.name;
     if (input.filters !== undefined) changes.filters = input.filters;
     if (input.sorts !== undefined) changes.sorts = input.sorts;
     if (input.visibleFieldIds !== undefined) changes.visibleFieldIds = input.visibleFieldIds;
     if (input.hiddenFieldIds !== undefined) changes.hiddenFieldIds = input.hiddenFieldIds;
-    await updateDoc(target.ref, changes);
-    const refreshed = await getDoc(target.ref);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return toSnapshot(input.id, refreshed.data() as Record<string, any>);
+    await firestoreInfrastructureApi.update(target.path, changes);
+    const refreshed = await firestoreInfrastructureApi.get<Record<string, unknown>>(target.path);
+    if (!refreshed) {
+      throw new Error(`View ${input.id} not found after update`);
+    }
+    return toSnapshot(input.id, refreshed);
   }
 
   async delete(id: string, accountId: string): Promise<void> {
-    const { collectionGroup, query: fsQuery, where, getDocs: fsGetDocs } = await import("firebase/firestore");
-    const q = fsQuery(collectionGroup(db, "views"), where("accountId", "==", accountId));
-    const results = await fsGetDocs(q);
-    const target = results.docs.find((d) => d.id === id);
-    if (target) await deleteDoc(target.ref);
+    const docs = await firestoreInfrastructureApi.queryCollectionGroup<Record<string, unknown>>(
+      "views",
+      [{ field: "accountId", op: "==", value: accountId }],
+    );
+    const target = docs.find((d) => d.id === id);
+    if (target) {
+      await firestoreInfrastructureApi.delete(target.path);
+    }
   }
 
   async listByDatabase(accountId: string, databaseId: string): Promise<ViewSnapshot[]> {
-    const snaps = await getDocs(viewsCol(accountId, databaseId));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, any>));
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      viewsPath(accountId, databaseId),
+    );
+    return docs.map((d) => toSnapshot(d.id, d.data));
   }
 }

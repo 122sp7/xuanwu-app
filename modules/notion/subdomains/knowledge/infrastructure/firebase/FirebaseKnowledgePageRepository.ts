@@ -6,20 +6,19 @@
  */
 
 import {
-  collection, doc, getDoc, getDocs, getFirestore,
-  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
 import { v7 as _generateId } from "@lib-uuid";
 import { KnowledgePage } from "../../domain/aggregates/KnowledgePage";
 import type { KnowledgePageSnapshot } from "../../domain/aggregates/KnowledgePage";
 import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
 
-function pagesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "contentPages");
+function pagesPath(accountId: string): string {
+  return `accounts/${accountId}/contentPages`;
 }
-function pageDoc(db: ReturnType<typeof getFirestore>, accountId: string, pageId: string) {
-  return doc(db, "accounts", accountId, "contentPages", pageId);
+
+function pagePath(accountId: string, pageId: string): string {
+  return `accounts/${accountId}/contentPages/${pageId}`;
 }
 
 function toSnapshot(id: string, d: Record<string, unknown>): KnowledgePageSnapshot {
@@ -50,50 +49,54 @@ function toSnapshot(id: string, d: Record<string, unknown>): KnowledgePageSnapsh
 }
 
 export class FirebaseKnowledgePageRepository implements IKnowledgePageRepository {
-  private get db() { return getFirestore(firebaseClientApp); }
-
   async save(page: KnowledgePage): Promise<void> {
     const snap = page.getSnapshot();
-    const ref = pageDoc(this.db, snap.accountId, snap.id);
-    const existing = await getDoc(ref);
+    const path = pagePath(snap.accountId, snap.id);
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
     const data: Record<string, unknown> = {
       ...snap,
       blockIds: [...snap.blockIds],
-      updatedAt: serverTimestamp(),
     };
-    if (!existing.exists()) {
-      data.createdAt = serverTimestamp();
-      await setDoc(ref, data);
+    if (!existing) {
+      await firestoreInfrastructureApi.set(path, data);
     } else {
-      await updateDoc(ref, data);
+      await firestoreInfrastructureApi.update(path, data);
     }
   }
 
   async findById(accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    const snap = await getDoc(pageDoc(this.db, accountId, pageId));
-    if (!snap.exists()) return null;
-    return KnowledgePage.reconstitute(toSnapshot(snap.id, snap.data() as Record<string, unknown>));
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(pagePath(accountId, pageId));
+    if (!data) return null;
+    return KnowledgePage.reconstitute(toSnapshot(pageId, data));
   }
 
   async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
-    const snaps = await getDocs(
-      query(pagesCol(this.db, accountId), where("status", "==", "active"), orderBy("order", "asc")),
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      pagesPath(accountId),
+      [{ field: "status", op: "==", value: "active" }],
+      { orderBy: [{ field: "order", direction: "asc" }] },
     );
-    return snaps.docs.map((d) => KnowledgePage.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
+    return docs.map((d) => KnowledgePage.reconstitute(toSnapshot(d.id, d.data)));
   }
 
   async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
-    const snaps = await getDocs(
-      query(pagesCol(this.db, accountId), where("workspaceId", "==", workspaceId), where("status", "==", "active"), orderBy("order", "asc")),
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      pagesPath(accountId),
+      [
+        { field: "workspaceId", op: "==", value: workspaceId },
+        { field: "status", op: "==", value: "active" },
+      ],
+      { orderBy: [{ field: "order", direction: "asc" }] },
     );
-    return snaps.docs.map((d) => KnowledgePage.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
+    return docs.map((d) => KnowledgePage.reconstitute(toSnapshot(d.id, d.data)));
   }
 
   async countByParent(accountId: string, parentPageId: string | null): Promise<number> {
-    const snaps = await getDocs(
-      query(pagesCol(this.db, accountId), where("parentPageId", "==", parentPageId ?? null)),
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      pagesPath(accountId),
+      [{ field: "parentPageId", op: "==", value: parentPageId ?? null }],
     );
-    return snaps.size;
+    return docs.length;
   }
 
   async findSnapshotById(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {

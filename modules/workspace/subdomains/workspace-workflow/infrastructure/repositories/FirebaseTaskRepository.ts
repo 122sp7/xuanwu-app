@@ -8,20 +8,9 @@
  */
 
 import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
 import type { Task, CreateTaskInput, UpdateTaskInput } from "../../domain/entities/Task";
 import type { TaskRepository } from "../../domain/repositories/TaskRepository";
 import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
@@ -32,12 +21,8 @@ const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
 const DEFAULT_STATUS: TaskStatus = "draft";
 
 export class FirebaseTaskRepository implements TaskRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private get collectionRef() {
-    return collection(this.db, WF_TASKS_COLLECTION);
+  private taskPath(taskId: string): string {
+    return `${WF_TASKS_COLLECTION}/${taskId}`;
   }
 
   async create(input: CreateTaskInput): Promise<Task> {
@@ -53,17 +38,16 @@ export class FirebaseTaskRepository implements TaskRepository {
       archivedAtISO: null,
       createdAtISO: nowISO,
       updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
     };
     if (input.sourceReference) {
       docData.sourceReference = { ...input.sourceReference };
     }
 
-    const docRef = await addDoc(this.collectionRef, docData);
+    const taskId = generateId();
+    await firestoreInfrastructureApi.set(this.taskPath(taskId), docData);
 
     return {
-      id: docRef.id,
+      id: taskId,
       workspaceId: input.workspaceId,
       title: input.title,
       description: input.description ?? "",
@@ -77,64 +61,60 @@ export class FirebaseTaskRepository implements TaskRepository {
   }
 
   async update(taskId: string, input: UpdateTaskInput): Promise<Task | null> {
-    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);
-    const snap = await getDoc(taskRef);
-    if (!snap.exists()) return null;
+    const path = this.taskPath(taskId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
 
     const patch: Record<string, unknown> = {
       updatedAtISO: new Date().toISOString(),
-      updatedAt: serverTimestamp(),
     };
     if (typeof input.title === "string") patch.title = input.title;
     if (typeof input.description === "string") patch.description = input.description;
     if (typeof input.assigneeId === "string") patch.assigneeId = input.assigneeId;
     if (typeof input.dueDateISO === "string") patch.dueDateISO = input.dueDateISO;
 
-    await updateDoc(taskRef, patch);
-    const updated = await getDoc(taskRef);
-    if (!updated.exists()) return null;
-    return toTask(updated.id, updated.data() as Record<string, unknown>);
+    await firestoreInfrastructureApi.update(path, patch);
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!updated) return null;
+    return toTask(taskId, updated);
   }
 
   async delete(taskId: string): Promise<void> {
-    await deleteDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));
+    await firestoreInfrastructureApi.delete(this.taskPath(taskId));
   }
 
   async findById(taskId: string): Promise<Task | null> {
-    const snap = await getDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));
-    if (!snap.exists()) return null;
-    return toTask(snap.id, snap.data() as Record<string, unknown>);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.taskPath(taskId));
+    if (!data) return null;
+    return toTask(taskId, data);
   }
 
   async findByWorkspaceId(workspaceId: string): Promise<Task[]> {
-    const snaps = await getDocs(
-      query(
-        this.collectionRef,
-        where("workspaceId", "==", workspaceId),
-      ),
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_TASKS_COLLECTION,
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
     );
-    const tasks = snaps.docs.map((d) => toTask(d.id, d.data() as Record<string, unknown>));
+    const tasks = docs.map((d) => toTask(d.id, d.data));
     return tasks.sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
   }
 
   async transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null> {
-    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);
-    const snap = await getDoc(taskRef);
-    if (!snap.exists()) return null;
+    const path = this.taskPath(taskId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
 
     const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
     const patch: Record<string, unknown> = {
       status: validTo,
       updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
     };
     if (validTo === "accepted") patch.acceptedAtISO = nowISO;
     if (validTo === "archived") patch.archivedAtISO = nowISO;
 
-    await updateDoc(taskRef, patch);
-    const updated = await getDoc(taskRef);
-    if (!updated.exists()) return null;
-    return toTask(updated.id, updated.data() as Record<string, unknown>);
+    await firestoreInfrastructureApi.update(path, patch);
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!updated) return null;
+    return toTask(taskId, updated);
   }
 }
  

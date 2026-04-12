@@ -40,7 +40,7 @@ const sameSubdomain = (type) => [type, { domain: "${from.domain}", subdomain: "$
 const moduleElementTypeRules = [
   { from: ["main-domain-domain"], allow: [sameDomain("main-domain-domain")] },
   { from: ["main-domain-application"], allow: [sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-api")] },
-  { from: ["main-domain-infrastructure"], allow: [sameDomain("main-domain-infrastructure"), sameDomain("main-domain-application"), sameDomain("main-domain-domain")] },
+  { from: ["main-domain-infrastructure"], allow: [sameDomain("main-domain-infrastructure"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), "main-domain-api"] },
   { from: ["main-domain-interfaces"], allow: [sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-api"), "main-domain-api"] },
   { from: ["main-domain-api"], allow: [sameDomain("main-domain-api"), sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("main-domain-infrastructure"), sameDomain("subdomain-api")] },
   { from: ["subdomain-domain"], allow: [sameSubdomain("subdomain-domain"), sameDomain("main-domain-domain")] },
@@ -86,6 +86,12 @@ const restrictedDownstreamInterfaceFirebase = {
   group: ["@integration-firebase", "@integration-firebase/*", "firebase/*"],
   message:
     "Downstream interface layers must not import Firebase directly. Use platform API boundaries (Infrastructure/Service APIs) instead.",
+};
+
+const restrictedDownstreamInfrastructureFirebase = {
+  group: ["@integration-firebase", "@integration-firebase/*", "firebase/*"],
+  message:
+    "Downstream infrastructure layers must not import Firebase directly. Delegate through @/modules/platform/api infrastructure APIs.",
 };
 
 const legacyAliases = [
@@ -228,6 +234,18 @@ export default defineConfig([
         internalLayer,
         restrictedDownstreamInterfaceFirebase,
       ])[1],
+    },
+  },
+
+  // Downstream infrastructure must delegate Firebase access via platform infrastructure APIs.
+  {
+    files: [
+      "modules/notebooklm/**/infrastructure/**/*.{ts,tsx,js,jsx}",
+      "modules/notion/**/infrastructure/**/*.{ts,tsx,js,jsx}",
+      "modules/workspace/**/infrastructure/**/*.{ts,tsx,js,jsx}",
+    ],
+    rules: {
+      "no-restricted-imports": [WARN, { patterns: [restrictedDownstreamInfrastructureFirebase] }],
     },
   },
 

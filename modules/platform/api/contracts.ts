@@ -58,6 +58,7 @@ export interface FirestoreQueryOptions {
 
 export interface FirestoreCollectionDocument<T> {
 	readonly id: string;
+	readonly path: string;
 	readonly data: T;
 }
 

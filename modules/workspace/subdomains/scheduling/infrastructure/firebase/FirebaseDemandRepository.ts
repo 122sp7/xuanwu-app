@@ -1,16 +1,6 @@
 import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  query,
-  serverTimestamp,
-  setDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
 
 import type { WorkDemand } from "../../domain/types";
 import type { IDemandRepository } from "../../domain/repository";
@@ -41,39 +31,39 @@ function toWorkDemand(id: string, data: Record<string, unknown>): WorkDemand {
 }
 
 export class FirebaseDemandRepository implements IDemandRepository {
-  private readonly db = getFirestore(firebaseClientApp);
-
-  private get collectionRef() {
-    return collection(this.db, DEMANDS_COLLECTION);
+  private demandPath(id: string): string {
+    return `${DEMANDS_COLLECTION}/${id}`;
   }
 
   async listByWorkspace(workspaceId: string): Promise<WorkDemand[]> {
-    const snaps = await getDocs(
-      query(this.collectionRef, where("workspaceId", "==", workspaceId)),
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      DEMANDS_COLLECTION,
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
     );
-    return snaps.docs
-      .map((item) => toWorkDemand(item.id, item.data() as Record<string, unknown>))
+    return docs
+      .map((item) => toWorkDemand(item.id, item.data))
       .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
   }
 
   async listByAccount(accountId: string): Promise<WorkDemand[]> {
-    const snaps = await getDocs(
-      query(this.collectionRef, where("accountId", "==", accountId)),
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      DEMANDS_COLLECTION,
+      [{ field: "accountId", op: "==", value: accountId }],
     );
-    return snaps.docs
-      .map((item) => toWorkDemand(item.id, item.data() as Record<string, unknown>))
+    return docs
+      .map((item) => toWorkDemand(item.id, item.data))
       .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
   }
 
   async save(demand: WorkDemand): Promise<void> {
-    const demandRef = doc(this.db, DEMANDS_COLLECTION, demand.id);
-    const existing = await getDoc(demandRef);
-    if (existing.exists()) {
+    const path = this.demandPath(demand.id);
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (existing) {
       await this.update(demand);
       return;
     }
 
-    await setDoc(demandRef, {
+    await firestoreInfrastructureApi.set(path, {
       workspaceId: demand.workspaceId,
       accountId: demand.accountId,
       requesterId: demand.requesterId,
@@ -85,13 +75,11 @@ export class FirebaseDemandRepository implements IDemandRepository {
       assignedUserId: demand.assignedUserId ?? null,
       createdAtISO: demand.createdAtISO,
       updatedAtISO: demand.updatedAtISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
     });
   }
 
   async update(demand: WorkDemand): Promise<void> {
-    await setDoc(doc(this.db, DEMANDS_COLLECTION, demand.id), {
+    await firestoreInfrastructureApi.update(this.demandPath(demand.id), {
       workspaceId: demand.workspaceId,
       accountId: demand.accountId,
       requesterId: demand.requesterId,
@@ -102,14 +90,13 @@ export class FirebaseDemandRepository implements IDemandRepository {
       scheduledAt: demand.scheduledAt,
       assignedUserId: demand.assignedUserId ?? null,
       updatedAtISO: demand.updatedAtISO,
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
+    });
   }
 
   async findById(id: string): Promise<WorkDemand | null> {
-    const snap = await getDoc(doc(this.db, DEMANDS_COLLECTION, id));
-    if (!snap.exists()) return null;
-    return toWorkDemand(snap.id, snap.data() as Record<string, unknown>);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.demandPath(id));
+    if (!data) return null;
+    return toWorkDemand(id, data);
   }
 }
 
