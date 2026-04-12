@@ -38,23 +38,23 @@ This skill contains the following reference files:
 
 ## Statistics
 
-230 files | 11,754 lines
+220 files | 11,610 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 184 | 7,035 |
-| TypeScript (TSX) | 26 | 4,045 |
-| Markdown | 17 | 671 |
+| TypeScript | 182 | 7,036 |
+| TypeScript (TSX) | 26 | 4,092 |
+| Markdown | 9 | 479 |
 | No Extension | 3 | 3 |
 
 **Largest files:**
 - `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)
-- `modules/notion/subdomains/authoring/interfaces/components/ArticleDetailPage.tsx` (302 lines)
-- `modules/notion/subdomains/database/interfaces/components/DatabaseDetailPage.tsx` (270 lines)
-- `modules/notion/subdomains/knowledge/interfaces/components/KnowledgePageDetailPage.tsx` (253 lines)
-- `modules/notion/subdomains/database/interfaces/components/DatabaseTableView.tsx` (224 lines)
-- `modules/notion/subdomains/authoring/interfaces/components/KnowledgeBaseArticlesRouteScreen.tsx` (214 lines)
-- `modules/notion/subdomains/knowledge/interfaces/components/KnowledgePageHeaderWidgets.tsx` (212 lines)
-- `modules/notion/subdomains/authoring/interfaces/components/ArticleDialog.tsx` (204 lines)
-- `modules/notion/subdomains/knowledge/interfaces/components/KnowledgeSidebarSection.tsx` (188 lines)
+- `modules/notion/interfaces/authoring/components/ArticleDetailPage.tsx` (302 lines)
+- `modules/notion/interfaces/database/components/DatabaseDetailPage.tsx` (272 lines)
+- `modules/notion/interfaces/knowledge/components/KnowledgePageDetailPage.tsx` (257 lines)
+- `modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesRouteScreen.tsx` (227 lines)
+- `modules/notion/interfaces/database/components/DatabaseTableView.tsx` (224 lines)
+- `modules/notion/interfaces/knowledge/components/KnowledgePageHeaderWidgets.tsx` (212 lines)
+- `modules/notion/interfaces/authoring/components/ArticleDialog.tsx` (204 lines)
+- `modules/notion/interfaces/knowledge/components/KnowledgeSidebarSection.tsx` (188 lines)
 - `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts` (186 lines)

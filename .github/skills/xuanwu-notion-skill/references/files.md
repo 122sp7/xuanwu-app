@@ -1,82 +1,8 @@
 # Files
 
-## File: modules/notion/api/api.instructions.md
-````markdown
----
-description: 'Notion API boundary rules: cross-module entry surface, knowledge artifact published language, and downstream consumer contracts.'
-applyTo: 'modules/notion/api/**/*.{ts,tsx}'
----
-
-# Notion API Layer (Local)
-
-Use this file as execution guardrails for `modules/notion/api/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notion/context-map.md`.
-
-## Core Rules
-
-- `api/` is the **only** cross-module entry surface; never expose `domain/`, `application/`, or `infrastructure/` internals.
-- Expose stable **factory functions** and **contract types** only — no aggregate classes, no repository interfaces.
-- Published language tokens for cross-module use: `knowledgePageRef`, `articleRef`, `collectionId`, `contentBlockRef`, `knowledgeArtifactReference`.
-- `notebooklm` consumes knowledge artifact references from this boundary — translate to notebooklm's own domain model via ACL.
-- `factories.ts` in subdomains wires services for tRPC or server-action consumption; keep wiring thin.
-- Never expose `workspaceId`-scoped data without verifying workspace membership through `platform` entitlement signals.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
-## File: modules/notion/application/application.instructions.md
-````markdown
----
-description: 'Notion application layer rules: use-case orchestration, content lifecycle commands, event publishing order, and DTO contracts.'
-applyTo: 'modules/notion/application/**/*.{ts,tsx}'
----
-
-# Notion Application Layer (Local)
-
-Use this file as execution guardrails for `modules/notion/application/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notion/*`.
-
-## Core Rules
-
-- Context-wide `application/` is reserved for cross-subdomain orchestration; subdomain-specific use cases belong inside `subdomains/<name>/application/`.
-- Use cases orchestrate flow only; content validation, backlink extraction, and publication rules stay in `domain/services/`.
-- After persisting, call `pullDomainEvents()` and publish — never publish before persistence.
-- DTOs are application-layer contracts; never expose domain aggregates (`Article`, `KnowledgePage`, `Database`) across the layer boundary.
-- Pure reads (page trees, block queries, collection views) belong in **query handlers**, not use cases.
-- Content lifecycle stages (draft → verified → published) must each correspond to a discrete use case with explicit precondition checks.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
 ## File: modules/notion/application/services/.gitkeep
 ````
 
-````
-
-## File: modules/notion/docs/docs.instructions.md
-````markdown
----
-description: 'Notion documentation rules: strategic doc authority, subdomain list sync, and ubiquitous language enforcement.'
-applyTo: 'modules/notion/docs/**/*.md'
----
-
-# Notion Docs Layer (Local)
-
-Use this file as execution guardrails for `modules/notion/docs/*`.
-For full reference, align with `.github/instructions/docs-authority-and-language.instructions.md` and `docs/contexts/notion/*`.
-
-## Core Rules
-
-- `modules/notion/docs/` holds **links and local summaries only** — authoritative content lives in `docs/contexts/notion/`.
-- Do not duplicate strategic knowledge here; point to the canonical source instead.
-- Any new architectural decision affecting notion must have a corresponding ADR in `docs/decisions/`.
-- Use ubiquitous language from `docs/contexts/notion/ubiquitous-language.md`; do not introduce synonyms.
-- Keep this directory in sync with `docs/contexts/notion/README.md` whenever the subdomain list changes.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
 ````
 
 ## File: modules/notion/docs/README.md
@@ -107,192 +33,9 @@ Strategic architecture documentation lives in `docs/contexts/notion/`:
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
-## File: modules/notion/domain/domain-modeling.instructions.md
-````markdown
----
-description: 'Notion domain tactical modeling rules (local mirror of root domain-modeling guidance).'
-applyTo: '*.{ts,tsx}'
----
-
-# Domain Modeling (Notion Local)
-
-Use this local file as execution guardrails for `modules/notion/domain/*`.
-For full reference, align with `.github/instructions/domain-modeling.instructions.md` and `docs/contexts/notion/*`.
-
-## Core Rules
-
-- Keep aggregate invariants inside aggregate methods.
-- Use immutable value objects with Zod schemas and inferred types.
-- Keep domain framework-free (no Firebase/React/transport imports).
-- Emit domain events on state transitions and publish via application orchestration.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
 ## File: modules/notion/domain/services/.gitkeep
 ````
 
-````
-
-## File: modules/notion/infrastructure/infrastructure.instructions.md
-````markdown
----
-description: 'Notion infrastructure layer rules: Firebase adapters, repository implementations, Firestore collection ownership, and persistence mapping.'
-applyTo: 'modules/notion/infrastructure/**/*.{ts,tsx}'
----
-
-# Notion Infrastructure Layer (Local)
-
-Use this file as execution guardrails for `modules/notion/infrastructure/*`.
-For full reference, align with `.github/instructions/firestore-schema.instructions.md` and `docs/contexts/notion/*`.
-
-## Core Rules
-
-- Implement only **port interfaces** declared in subdomain `domain/ports/` — never invent new contracts here.
-- Context-wide `infrastructure/` is for shared adapters that span multiple subdomains; subdomain-specific adapters belong inside `subdomains/<name>/infrastructure/`.
-- Each subdomain's Firebase adapter owns its Firestore collection(s); do not read or write sibling subdomain or cross-module collections directly.
-- Persistence mappers translate between domain objects and Firestore records — keep them in infrastructure, never in domain.
-- Version breaking schema transitions with migration steps; update `firestore.indexes.json` with query-shape changes.
-- Content block storage must preserve ordering metadata for consistent tree reconstruction.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-#use skill xuanwu-development-contracts
-````
-
-## File: modules/notion/interfaces/interfaces.instructions.md
-````markdown
----
-description: 'Notion interfaces layer rules: input/output translation, Server Actions, rich-text editor wiring, and knowledge UI components.'
-applyTo: 'modules/notion/interfaces/**/*.{ts,tsx}'
----
-
-# Notion Interfaces Layer (Local)
-
-Use this file as execution guardrails for `modules/notion/interfaces/*`.
-For full reference, align with `.github/instructions/nextjs-server-actions.instructions.md`, `.github/instructions/shadcn-ui.instructions.md`, and `docs/contexts/notion/*`.
-
-## Core Rules
-
-- This layer owns **input/output translation only** — no content validation rules, no publication policy.
-- Server Actions (`_actions/`) must be thin: validate input, call the use case, return a stable result shape.
-- Never call repositories directly from components or actions.
-- TipTap editor integration belongs here; do not let editor schema types leak into `domain/` or `application/`.
-- Block editor stores (`store/block-editor.store.ts`) are UI state only — do not mix domain state with editor state.
-- Use shadcn/ui primitives before creating new components; maintain semantic markup and keyboard accessibility.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-#use skill next-devtools-mcp
-#use skill vercel-react-best-practices
-````
-
-## File: modules/notion/notion.instructions.md
-````markdown
----
-description: 'Notion bounded context rules: knowledge content lifecycle ownership, downstream dependency position, and subdomain routing.'
-applyTo: 'modules/notion/**/*.{ts,tsx,md}'
----
-
-# Notion Bounded Context (Local)
-
-Use this file as execution guardrails for `modules/notion/`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/contexts/notion/README.md`, and `docs/bounded-contexts.md`.
-
-## Core Rules
-
-- `notion` is **downstream** of `platform`; never import from platform internals — use `modules/platform/api` only.
-- `notion` is **upstream** of `notebooklm`; expose stable knowledge artifact references via `modules/notion/api`, never raw aggregates.
-- Cross-module consumers import from `modules/notion/api` only.
-- Use ubiquitous language: `KnowledgeArtifact` not `Wiki`/`Doc`, `KnowledgePage` not `Page` (when referring to canonical knowledge), `Article` for authored editorial content.
-
-## Route to Subdomain When
-
-| Concern | Subdomain |
-|---|---|
-| Article and category lifecycle, publication, verification | `authoring` |
-| Knowledge pages, content blocks, collections, backlinks | `knowledge` |
-| Structured database records, views, automation | `database` |
-| Comments, permissions, version history | `collaboration` |
-| File and media attachments | `attachments` |
-| Content publishing and distribution | `publishing` |
-| Content relations and cross-references | `relations` |
-| Tag and taxonomy management | `taxonomy` |
-| Page and block templates | `templates` |
-| Knowledge analytics and metrics | `knowledge-analytics` |
-| External knowledge integration | `knowledge-integration` |
-| Knowledge version management | `knowledge-versioning` |
-| Personal notes | `notes` |
-| Workflow automation on content | `automation` |
-
-## Route Elsewhere When
-
-- Identity, entitlements, credentials, organization → `platform`
-- Workspace lifecycle, membership, presence → `workspace`
-- Notebook, conversation, retrieval, synthesis → `notebooklm`
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
-## File: modules/notion/subdomains/authoring/api/factories.ts
-````typescript
-import { FirebaseArticleRepository } from "../infrastructure/firebase/FirebaseArticleRepository";
-import { FirebaseCategoryRepository } from "../infrastructure/firebase/FirebaseCategoryRepository";
-
-export function makeArticleRepo() {
-  return new FirebaseArticleRepository();
-}
-
-export function makeCategoryRepo() {
-  return new FirebaseCategoryRepository();
-}
-````
-
-## File: modules/notion/subdomains/authoring/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/authoring
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- */
-
-// ─── Read contracts ────────────────────────────────────────────────────────────
-export type { ArticleSnapshot, ArticleStatus, ArticleVerificationState } from "../domain/aggregates/Article";
-export type { CategorySnapshot } from "../domain/aggregates/Category";
-
-// ─── Identifiers used by other BCs ────────────────────────────────────────────
-export type ArticleId = string;
-export type CategoryId = string;
-
-// ─── Server Actions (write-side) ──────────────────────────────────────────────
-export {
-  createArticle,
-  updateArticle,
-  publishArticle,
-  archiveArticle,
-  verifyArticle,
-  requestArticleReview,
-  deleteArticle,
-} from "../interfaces/_actions/article.actions";
-
-export {
-  createCategory,
-  renameCategory,
-  moveCategory,
-  deleteCategory,
-} from "../interfaces/_actions/category.actions";
-
-// ─── Queries (read-side) ──────────────────────────────────────────────────────
-export { getArticles, getArticle, getCategories, getBacklinks } from "../interfaces/queries";
-
-// ─── UI Components ────────────────────────────────────────────────────────────
-export { ArticleDialog } from "../interfaces/components/ArticleDialog";
-export { KnowledgeBaseArticlesRouteScreen } from "../interfaces/components/KnowledgeBaseArticlesRouteScreen";
-export { ArticleDetailPage } from "../interfaces/components/ArticleDetailPage";
-export type { ArticleDetailPageProps } from "../interfaces/components/ArticleDetailPage";
 ````
 
 ## File: modules/notion/subdomains/authoring/application/dto/ArticleDto.ts
@@ -692,6 +435,30 @@ export class DeleteCategoryUseCase {
     return commandSuccess(parsed.data.id, 0);
   }
 }
+````
+
+## File: modules/notion/subdomains/authoring/application/use-cases/index.ts
+````typescript
+export {
+  CreateArticleUseCase,
+  UpdateArticleUseCase,
+  ArchiveArticleUseCase,
+  DeleteArticleUseCase,
+} from "./ArticleLifecycleUseCases";
+
+export { PublishArticleUseCase } from "./ArticlePublicationUseCases";
+
+export {
+  VerifyArticleUseCase,
+  RequestArticleReviewUseCase,
+} from "./ArticleVerificationUseCases";
+
+export {
+  CreateCategoryUseCase,
+  RenameCategoryUseCase,
+  MoveCategoryUseCase,
+  DeleteCategoryUseCase,
+} from "./CategoryUseCases";
 ````
 
 ## File: modules/notion/subdomains/authoring/domain/aggregates/Article.ts
@@ -1102,640 +869,37 @@ export {};
 export type { ArticleStatus, ArticleVerificationState } from "../aggregates/Article";
 ````
 
-## File: modules/notion/subdomains/authoring/infrastructure/firebase/index.ts
-````typescript
-// TODO: export FirebaseArticleRepository, FirebaseCategoryRepository
+## File: modules/notion/subdomains/authoring/README.md
+````markdown
+# Authoring
 
-export { FirebaseArticleRepository } from "./FirebaseArticleRepository";
-export { FirebaseCategoryRepository } from "./FirebaseCategoryRepository";
-````
+知識庫文章建立、驗證與分類。
 
-## File: modules/notion/subdomains/authoring/infrastructure/index.ts
-````typescript
-export * from "./firebase";
-````
+## Ownership
 
-## File: modules/notion/subdomains/authoring/interfaces/_actions/article.actions.ts
-````typescript
-"use server";
+- **Bounded Context**: notion
+- **Subdomain Type**: Baseline
+- **Status**: Active
 
-/**
- * Module: notion/subdomains/authoring
- * Layer: interfaces/_actions
- * Purpose: Article Server Actions — thin adapter over article use cases.
- */
+## Layers
 
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { makeArticleRepo } from "../../api/factories";
-import {
-  CreateArticleUseCase,
-  UpdateArticleUseCase,
-  ArchiveArticleUseCase,
-  DeleteArticleUseCase,
-} from "../../application/use-cases/ArticleLifecycleUseCases";
-import { PublishArticleUseCase } from "../../application/use-cases/ArticlePublicationUseCases";
-import {
-  VerifyArticleUseCase,
-  RequestArticleReviewUseCase,
-} from "../../application/use-cases/ArticleVerificationUseCases";
-import type { z } from "@lib-zod";
-import type {
-  CreateArticleSchema,
-  UpdateArticleSchema,
-  PublishArticleSchema,
-  ArchiveArticleSchema,
-  VerifyArticleSchema,
-  RequestArticleReviewSchema,
-  DeleteArticleSchema,
-} from "../../application/dto/ArticleDto";
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
 
-export async function createArticle(input: z.infer<typeof CreateArticleSchema>): Promise<CommandResult> {
-  try {
-    return await new CreateArticleUseCase(makeArticleRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("ARTICLE_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
+## Dependency Direction
 
-export async function updateArticle(input: z.infer<typeof UpdateArticleSchema>): Promise<CommandResult> {
-  try {
-    return await new UpdateArticleUseCase(makeArticleRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("ARTICLE_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
 
-export async function publishArticle(input: z.infer<typeof PublishArticleSchema>): Promise<CommandResult> {
-  try {
-    return await new PublishArticleUseCase(makeArticleRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("ARTICLE_PUBLISH_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
+## Development Order
 
-export async function archiveArticle(input: z.infer<typeof ArchiveArticleSchema>): Promise<CommandResult> {
-  try {
-    return await new ArchiveArticleUseCase(makeArticleRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("ARTICLE_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function verifyArticle(input: z.infer<typeof VerifyArticleSchema>): Promise<CommandResult> {
-  try {
-    return await new VerifyArticleUseCase(makeArticleRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("ARTICLE_VERIFY_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function requestArticleReview(
-  input: z.infer<typeof RequestArticleReviewSchema>,
-): Promise<CommandResult> {
-  try {
-    return await new RequestArticleReviewUseCase(makeArticleRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("ARTICLE_REVIEW_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function deleteArticle(input: z.infer<typeof DeleteArticleSchema>): Promise<CommandResult> {
-  try {
-    return await new DeleteArticleUseCase(makeArticleRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("ARTICLE_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-````
-
-## File: modules/notion/subdomains/authoring/interfaces/_actions/category.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: notion/subdomains/authoring
- * Layer: interfaces/_actions
- * Purpose: Category Server Actions — thin adapter over category use cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { makeCategoryRepo } from "../../api/factories";
-import {
-  CreateCategoryUseCase,
-  RenameCategoryUseCase,
-  MoveCategoryUseCase,
-  DeleteCategoryUseCase,
-} from "../../application/use-cases/CategoryUseCases";
-import type { z } from "@lib-zod";
-import type {
-  CreateCategorySchema,
-  RenameCategorySchema,
-  MoveCategorySchema,
-  DeleteCategorySchema,
-} from "../../application/dto/CategoryDto";
-
-export async function createCategory(input: z.infer<typeof CreateCategorySchema>): Promise<CommandResult> {
-  try {
-    return await new CreateCategoryUseCase(makeCategoryRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("CATEGORY_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function renameCategory(input: z.infer<typeof RenameCategorySchema>): Promise<CommandResult> {
-  try {
-    return await new RenameCategoryUseCase(makeCategoryRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("CATEGORY_RENAME_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function moveCategory(input: z.infer<typeof MoveCategorySchema>): Promise<CommandResult> {
-  try {
-    return await new MoveCategoryUseCase(makeCategoryRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("CATEGORY_MOVE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function deleteCategory(input: z.infer<typeof DeleteCategorySchema>): Promise<CommandResult> {
-  try {
-    return await new DeleteCategoryUseCase(makeCategoryRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("CATEGORY_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-````
-
-## File: modules/notion/subdomains/authoring/interfaces/_actions/index.ts
-````typescript
-// TODO: export server actions: createArticle, updateArticle, publishArticle, archiveArticle
-// TODO: export createCategory, moveCategory
-
-export {
-  createArticle,
-  updateArticle,
-  publishArticle,
-  archiveArticle,
-  verifyArticle,
-  requestArticleReview,
-  deleteArticle,
-} from "./article.actions";
-
-export {
-  createCategory,
-  renameCategory,
-  moveCategory,
-  deleteCategory,
-} from "./category.actions";
-````
-
-## File: modules/notion/subdomains/authoring/interfaces/components/ArticleDialog.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/authoring
- * Layer: interfaces/components
- * Purpose: Dialog for creating and editing Knowledge Base articles.
- */
-
-import { useEffect, useState, useTransition } from "react";
-import { X } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@ui-shadcn/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-
-import { createArticle, updateArticle } from "../_actions/article.actions";
-import type { ArticleSnapshot } from "../../application/dto/authoring.dto";
-import type { CategorySnapshot } from "../../application/dto/authoring.dto";
-
-interface ArticleDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-  categories: CategorySnapshot[];
-  /** Article to edit — omit for create mode */
-  article?: ArticleSnapshot;
-  onSuccess?: (articleId?: string) => void;
-}
-
-export function ArticleDialog({
-  open,
-  onOpenChange,
-  accountId,
-  workspaceId,
-  currentUserId,
-  categories,
-  article,
-  onSuccess,
-}: ArticleDialogProps) {
-  const isEdit = !!article;
-  const [title, setTitle] = useState(article?.title ?? "");
-  const [content, setContent] = useState(article?.content ?? "");
-  const [categoryId, setCategoryId] = useState<string>(article?.categoryId ?? "__none__");
-  const [tags, setTags] = useState(article?.tags.join(", ") ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    void Promise.resolve().then(() => {
-      setTitle(article?.title ?? "");
-      setContent(article?.content ?? "");
-      setCategoryId(article?.categoryId ?? "__none__");
-      setTags(article?.tags.join(", ") ?? "");
-      setError(null);
-    });
-  }, [article, open]);
-
-  function handleSubmit() {
-    const trimmedTitle = title.trim();
-    if (!trimmedTitle) {
-      setError("標題不可空白");
-      return;
-    }
-    const parsedTags = tags
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
-    const resolvedCategoryId = categoryId === "__none__" ? null : categoryId;
-
-    startTransition(async () => {
-      setError(null);
-      if (isEdit) {
-        const result = await updateArticle({
-          id: article!.id,
-          accountId,
-          title: trimmedTitle,
-          content,
-          categoryId: resolvedCategoryId,
-          tags: parsedTags,
-        });
-        if (!result.success) {
-          setError(result.error.message ?? "更新失敗");
-          return;
-        }
-        onSuccess?.();
-      } else {
-        const result = await createArticle({
-          accountId,
-          workspaceId,
-          title: trimmedTitle,
-          content,
-          categoryId: resolvedCategoryId,
-          tags: parsedTags,
-          createdByUserId: currentUserId,
-        });
-        if (!result.success) {
-          setError(result.error.message ?? "建立失敗");
-          return;
-        }
-        onSuccess?.(result.aggregateId);
-      }
-      onOpenChange(false);
-    });
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "編輯文章" : "新增文章"}</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          {error && (
-            <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-              <X className="h-4 w-4 shrink-0" />
-              {error}
-            </div>
-          )}
-
-          <div className="space-y-1.5">
-            <Label htmlFor="kb-article-title">標題</Label>
-            <Input
-              id="kb-article-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="文章標題"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="kb-article-category">分類</Label>
-            <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger id="kb-article-category">
-                <SelectValue placeholder="選擇分類（選填）" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">— 不指定 —</SelectItem>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="kb-article-tags">
-              標籤{" "}
-              <span className="text-muted-foreground text-xs">（以逗號分隔）</span>
-            </Label>
-            <Input
-              id="kb-article-tags"
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              placeholder="標籤1, 標籤2"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="kb-article-content">內容</Label>
-            <Textarea
-              id="kb-article-content"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="文章內容（支援 Markdown）"
-              rows={6}
-              className="resize-none font-mono text-sm"
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
-            取消
-          </Button>
-          <Button onClick={handleSubmit} disabled={isPending || !title.trim()}>
-            {isPending ? "儲存中…" : isEdit ? "更新文章" : "建立文章"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/notion/subdomains/authoring/interfaces/components/CategoryTreePanel.tsx
-````typescript
-"use client";
-
-import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, FolderOpen, Layers } from "lucide-react";
-
-import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
-
-// ── Category tree helpers ────────────────────────────────────────────────────
-
-export interface CategoryNode extends Category {
-  children: CategoryNode[];
-}
-
-export function buildCategoryTree(categories: Category[]): CategoryNode[] {
-  const map = new Map<string, CategoryNode>();
-  for (const cat of categories) {
-    map.set(cat.id, { ...cat, children: [] });
-  }
-  const roots: CategoryNode[] = [];
-  for (const node of map.values()) {
-    if (node.parentCategoryId) {
-      map.get(node.parentCategoryId)?.children.push(node);
-    } else {
-      roots.push(node);
-    }
-  }
-  return roots;
-}
-
-// ── Category tree panel ──────────────────────────────────────────────────────
-
-interface CategoryTreePanelProps {
-  categories: Category[];
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-}
-
-export function CategoryTreePanel({ categories, selectedId, onSelect }: CategoryTreePanelProps) {
-  const roots = useMemo(() => buildCategoryTree(categories), [categories]);
-
-  return (
-    <aside className="w-52 shrink-0 space-y-1">
-      <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-        分類
-      </p>
-      <button
-        type="button"
-        onClick={() => onSelect(null)}
-        className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
-          selectedId === null
-            ? "bg-primary/10 text-primary font-medium"
-            : "text-foreground hover:bg-muted"
-        }`}
-      >
-        <Layers className="size-3.5 shrink-0 text-muted-foreground" />
-        全部文章
-      </button>
-      {roots.map((node) => (
-        <CategoryNodeRow
-          key={node.id}
-          node={node}
-          selectedId={selectedId}
-          onSelect={onSelect}
-        />
-      ))}
-      {categories.length === 0 && (
-        <p className="px-2 text-xs text-muted-foreground/60">尚無分類</p>
-      )}
-    </aside>
-  );
-}
-
-interface CategoryNodeRowProps {
-  node: CategoryNode;
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-}
-
-function CategoryNodeRow({ node, selectedId, onSelect }: CategoryNodeRowProps) {
-  const [expanded, setExpanded] = useState(true);
-  const hasChildren = node.children.length > 0;
-  const isSelected = selectedId === node.id;
-
-  return (
-    <div>
-      <div className="flex items-center gap-0.5">
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="p-0.5 text-muted-foreground opacity-0 transition hover:opacity-100"
-          style={{ visibility: hasChildren ? "visible" : "hidden" }}
-          aria-label={expanded ? "折疊" : "展開"}
-        >
-          {expanded ? (
-            <ChevronDown className="size-3" />
-          ) : (
-            <ChevronRight className="size-3" />
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => onSelect(node.id)}
-          className={`flex flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors ${
-            isSelected
-              ? "bg-primary/10 text-primary font-medium"
-              : "text-foreground hover:bg-muted"
-          }`}
-        >
-          <FolderOpen className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="truncate">{node.name}</span>
-          {node.articleIds.length > 0 && (
-            <span className="ml-auto text-[10px] text-muted-foreground/60">
-              {node.articleIds.length}
-            </span>
-          )}
-        </button>
-      </div>
-      {hasChildren && expanded && (
-        <div className="ml-4 space-y-0.5 border-l border-border/40 pl-1">
-          {node.children.map((child) => (
-            <CategoryNodeRow
-              key={child.id}
-              node={child}
-              selectedId={selectedId}
-              onSelect={onSelect}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/authoring/interfaces/components/index.ts
-````typescript
-// TODO: export ArticleEditorView, ArticleListView, CategoryTreeView
-
-export { ArticleDialog } from "./ArticleDialog";
-````
-
-## File: modules/notion/subdomains/authoring/interfaces/queries/index.ts
-````typescript
-// TODO: export getArticle, getArticlesByWorkspace, getCategoryTree
-
-/**
- * Module: notion/subdomains/authoring
- * Layer: interfaces/queries
- * Purpose: Direct-instantiation query functions (read-side).
- */
-
-import { makeArticleRepo, makeCategoryRepo } from "../../api/factories";
-import type { ArticleSnapshot, ArticleStatus } from "../../application/dto/authoring.dto";
-import type { CategorySnapshot } from "../../application/dto/authoring.dto";
-
-export async function getArticles(params: {
-  accountId: string;
-  workspaceId: string;
-  categoryId?: string;
-  status?: ArticleStatus;
-}): Promise<ArticleSnapshot[]> {
-  return makeArticleRepo().list(params);
-}
-
-export async function getArticle(accountId: string, articleId: string): Promise<ArticleSnapshot | null> {
-  return makeArticleRepo().getById(accountId, articleId);
-}
-
-export async function getCategories(accountId: string, workspaceId: string): Promise<CategorySnapshot[]> {
-  return makeCategoryRepo().listByWorkspace(accountId, workspaceId);
-}
-
-export async function getBacklinks(accountId: string, articleId: string): Promise<ArticleSnapshot[]> {
-  return makeArticleRepo().listByLinkedArticleId(accountId, articleId);
-}
-````
-
-## File: modules/notion/subdomains/authoring/interfaces/store/index.ts
-````typescript
-// TODO: export useArticleEditorStore
-
-export {};
-````
-
-## File: modules/notion/subdomains/collaboration/api/factories.ts
-````typescript
-import { FirebaseCommentRepository } from "../infrastructure/firebase/FirebaseCommentRepository";
-import { FirebasePermissionRepository } from "../infrastructure/firebase/FirebasePermissionRepository";
-import { FirebaseVersionRepository } from "../infrastructure/firebase/FirebaseVersionRepository";
-
-export function makeCommentRepo() {
-  return new FirebaseCommentRepository();
-}
-
-export function makeVersionRepo() {
-  return new FirebaseVersionRepository();
-}
-
-export function makePermissionRepo() {
-  return new FirebasePermissionRepository();
-}
-````
-
-## File: modules/notion/subdomains/collaboration/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/collaboration
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- */
-
-// Aggregate snapshot types
-export type { CommentSnapshot, SelectionRange, ContentType, CommentId } from "../domain/aggregates/Comment";
-export type { CommentUnsubscribe } from "../domain/repositories/ICommentRepository";
-export type { VersionSnapshot, VersionId } from "../domain/aggregates/Version";
-export type { PermissionSnapshot, PermissionLevel, PrincipalType, PermissionId } from "../domain/aggregates/Permission";
-
-// DTOs
-export type {
-  CreateCommentDto, UpdateCommentDto, ResolveCommentDto, DeleteCommentDto,
-  CreateVersionDto, DeleteVersionDto,
-  GrantPermissionDto, RevokePermissionDto,
-} from "../application/dto/CollaborationDto";
-
-// Server actions
-export { createComment, updateComment, resolveComment, deleteComment } from "../interfaces/_actions/comment.actions";
-export { createVersion, deleteVersion } from "../interfaces/_actions/version.actions";
-export { grantPermission, revokePermission } from "../interfaces/_actions/permission.actions";
-
-// Queries
-export { getComments, getVersions, getPermissions, subscribeComments } from "../interfaces/queries";
-
-// UI components
-export { CommentPanel } from "../interfaces/components/CommentPanel";
-export { VersionHistoryPanel } from "../interfaces/components/VersionHistoryPanel";
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notion/subdomains/collaboration/application/dto/collaboration.dto.ts
@@ -2305,586 +1469,37 @@ export {};
 export {};
 ````
 
-## File: modules/notion/subdomains/collaboration/infrastructure/firebase/index.ts
-````typescript
-export { FirebaseCommentRepository } from "./FirebaseCommentRepository";
-export { FirebaseVersionRepository } from "./FirebaseVersionRepository";
-export { FirebasePermissionRepository } from "./FirebasePermissionRepository";
-````
+## File: modules/notion/subdomains/collaboration/README.md
+````markdown
+# Collaboration
 
-## File: modules/notion/subdomains/collaboration/infrastructure/index.ts
-````typescript
-export * from "./firebase";
-````
+協作留言、細粒度權限與版本快照。
 
-## File: modules/notion/subdomains/collaboration/interfaces/_actions/comment.actions.ts
-````typescript
-"use server";
+## Ownership
 
-/**
- * Module: notion/subdomains/collaboration
- * Layer: interfaces/_actions
- * Purpose: Comment aggregate server actions — create, update, resolve, delete.
- */
+- **Bounded Context**: notion
+- **Subdomain Type**: Baseline
+- **Status**: Active
 
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { dispatchNotification } from "@/modules/platform/api";
-import { makeCommentRepo } from "../../api/factories";
-import {
-  CreateCommentUseCase,
-  UpdateCommentUseCase,
-  ResolveCommentUseCase,
-  DeleteCommentUseCase,
-} from "../../application/use-cases/CommentUseCases";
-import type {
-  CreateCommentDto,
-  UpdateCommentDto,
-  ResolveCommentDto,
-  DeleteCommentDto,
-} from "../../application/dto/CollaborationDto";
+## Layers
 
-export async function createComment(input: CreateCommentDto): Promise<CommandResult> {
-  try {
-    const result = await new CreateCommentUseCase(makeCommentRepo()).execute(input);
-    if (result.success && input.mentionedUserIds && input.mentionedUserIds.length > 0) {
-      await Promise.allSettled(
-        input.mentionedUserIds.map((recipientId) =>
-          dispatchNotification({
-            recipientId,
-            title: "有人提及了你",
-            message: input.body.slice(0, 100),
-            type: "info",
-            sourceEventType: "comment.mention",
-            metadata: { authorId: input.authorId, contentId: input.contentId, contentType: input.contentType },
-          }),
-        ),
-      );
-    }
-    return result;
-  } catch (err) {
-    return commandFailureFrom("COMMENT_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
 
-export async function updateComment(input: UpdateCommentDto): Promise<CommandResult> {
-  try {
-    return await new UpdateCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
+## Dependency Direction
 
-export async function resolveComment(input: ResolveCommentDto): Promise<CommandResult> {
-  try {
-    return await new ResolveCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
 
-export async function deleteComment(input: DeleteCommentDto): Promise<CommandResult> {
-  try {
-    return await new DeleteCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
+## Development Order
 
-## File: modules/notion/subdomains/collaboration/interfaces/_actions/index.ts
-````typescript
-export { createComment, updateComment, resolveComment, deleteComment } from "./comment.actions";
-export { createVersion, deleteVersion } from "./version.actions";
-export { grantPermission, revokePermission } from "./permission.actions";
-````
-
-## File: modules/notion/subdomains/collaboration/interfaces/_actions/permission.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: notion/subdomains/collaboration
- * Layer: interfaces/_actions
- * Purpose: Permission aggregate server actions — grant, revoke.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { makePermissionRepo } from "../../api/factories";
-import { GrantPermissionUseCase, RevokePermissionUseCase } from "../../application/use-cases/PermissionUseCases";
-import type { GrantPermissionDto, RevokePermissionDto } from "../../application/dto/CollaborationDto";
-
-export async function grantPermission(input: GrantPermissionDto): Promise<CommandResult> {
-  try {
-    return await new GrantPermissionUseCase(makePermissionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("PERMISSION_GRANT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function revokePermission(input: RevokePermissionDto): Promise<CommandResult> {
-  try {
-    return await new RevokePermissionUseCase(makePermissionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("PERMISSION_REVOKE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/notion/subdomains/collaboration/interfaces/_actions/version.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: notion/subdomains/collaboration
- * Layer: interfaces/_actions
- * Purpose: Version aggregate server actions — create, delete.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { makeVersionRepo } from "../../api/factories";
-import { CreateVersionUseCase, DeleteVersionUseCase } from "../../application/use-cases/VersionUseCases";
-import type { CreateVersionDto, DeleteVersionDto } from "../../application/dto/CollaborationDto";
-
-export async function createVersion(input: CreateVersionDto): Promise<CommandResult> {
-  try {
-    return await new CreateVersionUseCase(makeVersionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("VERSION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteVersion(input: DeleteVersionDto): Promise<CommandResult> {
-  try {
-    return await new DeleteVersionUseCase(makeVersionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("VERSION_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/notion/subdomains/collaboration/interfaces/components/CommentPanel.tsx
-````typescript
-"use client";
-
-import { useEffect, useState, useTransition } from "react";
-import { MessageCircle, Loader2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Separator } from "@ui-shadcn/ui/separator";
-
-import { subscribeComments } from "../queries";
-import { createComment, resolveComment, deleteComment } from "../_actions/comment.actions";
-import type { CommentSnapshot } from "../../application/dto/collaboration.dto";
-
-interface CommentPanelProps {
-  accountId: string;
-  workspaceId: string;
-  contentId: string;
-  contentType: "page" | "article";
-  currentUserId: string;
-}
-
-export function CommentPanel({ accountId, workspaceId, contentId, contentType, currentUserId }: CommentPanelProps) {
-  const [comments, setComments] = useState<CommentSnapshot[]>([]);
-  const [body, setBody] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    const unsub = subscribeComments(accountId, contentId, setComments);
-    return () => unsub();
-  }, [accountId, contentId]);
-
-  function handlePost() {
-    const trimmed = body.trim();
-    if (!trimmed) return;
-    setError(null);
-    startTransition(async () => {
-      const result = await createComment({
-        accountId,
-        workspaceId,
-        contentId,
-        contentType,
-        authorId: currentUserId,
-        body: trimmed,
-      });
-      if (result.success) {
-        setBody("");
-      } else {
-        setError(result.error.message ?? "留言失敗");
-      }
-    });
-  }
-
-  function handleResolve(commentId: string) {
-    startTransition(async () => {
-      await resolveComment({ id: commentId, accountId, resolvedByUserId: currentUserId });
-    });
-  }
-
-  function handleDelete(commentId: string) {
-    startTransition(async () => {
-      await deleteComment({ id: commentId, accountId });
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
-    });
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <MessageCircle className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">留言</span>
-        {comments.length > 0 && (
-          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{comments.length}</Badge>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Textarea
-          placeholder="撰寫留言…"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={3}
-          disabled={isPending}
-          className="resize-none text-sm"
-        />
-        {error && <p className="text-xs text-destructive">{error}</p>}
-        <Button
-          size="sm"
-          disabled={isPending || !body.trim()}
-          onClick={handlePost}
-          className="w-full"
-        >
-          {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "留言"}
-        </Button>
-      </div>
-
-      {comments.length > 0 && (
-        <>
-          <Separator />
-          <ul className="space-y-3">
-            {comments.map((c) => (
-              <li key={c.id} className="flex flex-col gap-1">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-xs text-muted-foreground">{c.authorId}</p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {new Date(c.createdAtISO).toLocaleString("zh-TW", {
-                      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
-                    })}
-                  </p>
-                </div>
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{c.body}</p>
-                {c.resolvedAt ? (
-                  <Badge variant="outline" className="w-fit text-[10px]">已解決</Badge>
-                ) : (
-                  <div className="flex gap-1.5">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-[10px] text-muted-foreground"
-                      disabled={isPending}
-                      onClick={() => handleResolve(c.id)}
-                    >
-                      標記解決
-                    </Button>
-                    {c.authorId === currentUserId && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-[10px] text-destructive"
-                        disabled={isPending}
-                        onClick={() => handleDelete(c.id)}
-                      >
-                        刪除
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/collaboration/interfaces/components/index.ts
-````typescript
-export { CommentPanel } from "./CommentPanel";
-export { VersionHistoryPanel } from "./VersionHistoryPanel";
-````
-
-## File: modules/notion/subdomains/collaboration/interfaces/components/VersionHistoryPanel.tsx
-````typescript
-"use client";
-
-import { useEffect, useState, useTransition } from "react";
-import { History, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-import { getVersions } from "../queries";
-import { deleteVersion } from "../_actions/version.actions";
-import type { VersionSnapshot } from "../../application/dto/collaboration.dto";
-
-interface VersionHistoryPanelProps {
-  accountId: string;
-  contentId: string;
-  currentUserId: string;
-}
-
-export function VersionHistoryPanel({ accountId, contentId, currentUserId }: VersionHistoryPanelProps) {
-  const [versions, setVersions] = useState<VersionSnapshot[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    let disposed = false;
-    void Promise.resolve().then(async () => {
-      if (disposed) return;
-      setLoading(true);
-      try {
-        const data = await getVersions(accountId, contentId);
-        if (!disposed) { setVersions(data); setLoading(false); }
-      } catch {
-        if (!disposed) setLoading(false);
-      }
-    });
-    return () => { disposed = true; };
-  }, [accountId, contentId]);
-
-  function handleDelete(versionId: string) {
-    startTransition(async () => {
-      await deleteVersion({ id: versionId, accountId });
-      setVersions((prev) => prev.filter((v) => v.id !== versionId));
-    });
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <History className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">版本歷史</span>
-        {versions.length > 0 && (
-          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{versions.length}</Badge>
-        )}
-      </div>
-
-      {loading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full rounded-md" />)}
-        </div>
-      ) : versions.length === 0 ? (
-        <p className="text-xs text-muted-foreground">尚無已儲存的版本快照。</p>
-      ) : (
-        <ol className="space-y-2">
-          {versions.map((v, idx) => (
-            <li key={v.id} className="flex items-start gap-3 rounded-md border border-border/60 bg-background px-3 py-2">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
-                {versions.length - idx}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="truncate text-sm font-medium">{v.label || `版本 ${versions.length - idx}`}</p>
-                {v.description && (
-                  <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{v.description}</p>
-                )}
-                <p className="mt-0.5 text-[10px] text-muted-foreground">
-                  {new Date(v.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                </p>
-              </div>
-              {v.createdByUserId === currentUserId && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                  disabled={isPending}
-                  onClick={() => handleDelete(v.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              )}
-            </li>
-          ))}
-        </ol>
-      )}
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/collaboration/interfaces/queries/index.ts
-````typescript
-/**
- * Module: notion/subdomains/collaboration
- * Layer: interfaces/queries
- * Purpose: Read-side queries for comment, version, and permission data.
- */
-
-import { makeCommentRepo, makePermissionRepo, makeVersionRepo } from "../../api/factories";
-import type { CommentSnapshot, CommentUnsubscribe, VersionSnapshot, PermissionSnapshot } from "../../application/dto/collaboration.dto";
-
-export async function getComments(accountId: string, contentId: string): Promise<CommentSnapshot[]> {
-  return makeCommentRepo().listByContent(accountId, contentId);
-}
-
-export async function getVersions(accountId: string, contentId: string): Promise<VersionSnapshot[]> {
-  return makeVersionRepo().listByContent(accountId, contentId);
-}
-
-export async function getPermissions(accountId: string, subjectId: string): Promise<PermissionSnapshot[]> {
-  return makePermissionRepo().listBySubject(accountId, subjectId);
-}
-
-export function subscribeComments(
-  accountId: string,
-  contentId: string,
-  onUpdate: (comments: CommentSnapshot[]) => void,
-): CommentUnsubscribe {
-  return makeCommentRepo().subscribe(accountId, contentId, onUpdate);
-}
-````
-
-## File: modules/notion/subdomains/collaboration/interfaces/store/index.ts
-````typescript
-// TODO: export useCommentStore, usePermissionStore
-
-export {};
-````
-
-## File: modules/notion/subdomains/database/api/factories.ts
-````typescript
-import { FirebaseAutomationRepository } from "../infrastructure/firebase/FirebaseAutomationRepository";
-import { FirebaseDatabaseRecordRepository } from "../infrastructure/firebase/FirebaseDatabaseRecordRepository";
-import { FirebaseDatabaseRepository } from "../infrastructure/firebase/FirebaseDatabaseRepository";
-import { FirebaseViewRepository } from "../infrastructure/firebase/FirebaseViewRepository";
-
-export function makeDatabaseRepo() {
-  return new FirebaseDatabaseRepository();
-}
-
-export function makeRecordRepo() {
-  return new FirebaseDatabaseRecordRepository();
-}
-
-export function makeViewRepo() {
-  return new FirebaseViewRepository();
-}
-
-export function makeAutomationRepo() {
-  return new FirebaseAutomationRepository();
-}
-````
-
-## File: modules/notion/subdomains/database/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- *
- * Open Host Service contracts:
- *   - getDatabaseById  — consumed by knowledge subdomain (opaque reference resolution)
- */
-
-// Domain types
-export type {
-  DatabaseSnapshot,
-  DatabaseSnapshot as Database,
-  Field,
-  FieldType,
-  DatabaseId,
-  FieldId,
-} from "../domain/aggregates/Database";
-
-export type {
-  DatabaseRecordSnapshot,
-  RecordId,
-} from "../domain/aggregates/DatabaseRecord";
-
-export type {
-  ViewSnapshot,
-  ViewType,
-  FilterRule,
-  SortRule,
-  ViewId,
-} from "../domain/aggregates/View";
-
-export type {
-  DatabaseAutomationSnapshot,
-  AutomationTrigger,
-  AutomationActionType,
-  AutomationCondition,
-  AutomationAction,
-} from "../domain/aggregates/DatabaseAutomation";
-
-// Repository input types
-export type {
-  CreateAutomationInput,
-  UpdateAutomationInput,
-} from "../domain/repositories/IAutomationRepository";
-
-// Application DTOs
-export type {
-  CreateDatabaseDto,
-  UpdateDatabaseDto,
-  AddFieldDto,
-  ArchiveDatabaseDto,
-  CreateRecordDto,
-  UpdateRecordDto,
-  DeleteRecordDto,
-  CreateViewDto,
-  UpdateViewDto,
-  DeleteViewDto,
-} from "../application/dto/DatabaseDto";
-
-// Server actions
-export {
-  createDatabase,
-  updateDatabase,
-  addDatabaseField,
-  archiveDatabase,
-  createRecord,
-  updateRecord,
-  deleteRecord,
-  createView,
-  updateView,
-  deleteView,
-  createAutomation,
-  updateAutomation,
-  deleteAutomation,
-} from "../interfaces/_actions/database.actions";
-
-// Queries
-export {
-  getDatabases,
-  getDatabase,
-  getRecords,
-  getViews,
-  getAutomations,
-} from "../interfaces/queries";
-
-// UI components
-export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
-export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
-export { DatabaseBoardView } from "../interfaces/components/DatabaseBoardView";
-export { DatabaseListView } from "../interfaces/components/DatabaseListView";
-export { DatabaseCalendarView } from "../interfaces/components/DatabaseCalendarView";
-export { DatabaseGalleryView } from "../interfaces/components/DatabaseGalleryView";
-export { DatabaseFormView } from "../interfaces/components/DatabaseFormView";
-export { DatabaseAutomationView } from "../interfaces/components/DatabaseAutomationView";
-export { KnowledgeDatabasesRouteScreen } from "../interfaces/components/KnowledgeDatabasesRouteScreen";
-export { AddFieldDialog, FIELD_TYPES } from "../interfaces/components/DatabaseAddFieldDialog";
-export { DatabaseDetailPage } from "../interfaces/components/DatabaseDetailPage";
-export type { DatabaseDetailPageProps } from "../interfaces/components/DatabaseDetailPage";
-export { DatabaseFormsPage } from "../interfaces/components/DatabaseFormsPage";
-export type { DatabaseFormsPageProps } from "../interfaces/components/DatabaseFormsPage";
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notion/subdomains/database/application/dto/database.dto.ts
@@ -3726,1728 +2341,37 @@ export {};
 export {};
 ````
 
-## File: modules/notion/subdomains/database/infrastructure/firebase/index.ts
-````typescript
-export { FirebaseDatabaseRepository } from "./FirebaseDatabaseRepository";
-export { FirebaseDatabaseRecordRepository } from "./FirebaseDatabaseRecordRepository";
-export { FirebaseViewRepository } from "./FirebaseViewRepository";
-export { FirebaseAutomationRepository } from "./FirebaseAutomationRepository";
-````
+## File: modules/notion/subdomains/database/README.md
+````markdown
+# Database
 
-## File: modules/notion/subdomains/database/infrastructure/index.ts
-````typescript
-export * from "./firebase";
-````
+結構化資料多視圖管理。
 
-## File: modules/notion/subdomains/database/interfaces/_actions/database.actions.ts
-````typescript
-"use server";
+## Ownership
 
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/_actions
- * Purpose: Database, Record, View, and Automation server actions.
- */
+- **Bounded Context**: notion
+- **Subdomain Type**: Baseline
+- **Status**: Active
 
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import {
-  makeAutomationRepo,
-  makeDatabaseRepo,
-  makeRecordRepo,
-  makeViewRepo,
-} from "../../api/factories";
-import {
-  CreateDatabaseUseCase,
-  UpdateDatabaseUseCase,
-  AddFieldUseCase,
-  ArchiveDatabaseUseCase,
-  CreateRecordUseCase,
-  UpdateRecordUseCase,
-  DeleteRecordUseCase,
-  CreateViewUseCase,
-  UpdateViewUseCase,
-  DeleteViewUseCase,
-  CreateAutomationUseCase,
-  UpdateAutomationUseCase,
-  DeleteAutomationUseCase,
-} from "../../application/use-cases";
-import type { CreateAutomationInput, UpdateAutomationInput } from "../../application/dto/database.dto";
-import type {
-  CreateDatabaseDto,
-  UpdateDatabaseDto,
-  AddFieldDto,
-  ArchiveDatabaseDto,
-  CreateRecordDto,
-  UpdateRecordDto,
-  CreateViewDto,
-  UpdateViewDto,
-  DeleteViewDto,
-} from "../../application/dto/DatabaseDto";
+## Layers
 
-// — — — Database — — —
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
 
-export async function createDatabase(input: CreateDatabaseDto): Promise<CommandResult> {
-  try {
-    return await new CreateDatabaseUseCase(makeDatabaseRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("DATABASE_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
+## Dependency Direction
 
-export async function updateDatabase(input: UpdateDatabaseDto): Promise<CommandResult> {
-  try {
-    return await new UpdateDatabaseUseCase(makeDatabaseRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("DATABASE_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
 
-export async function addDatabaseField(input: AddFieldDto): Promise<CommandResult> {
-  try {
-    return await new AddFieldUseCase(makeDatabaseRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("DATABASE_ADD_FIELD_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
+## Development Order
 
-export async function archiveDatabase(input: ArchiveDatabaseDto): Promise<CommandResult> {
-  try {
-    return await new ArchiveDatabaseUseCase(makeDatabaseRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("DATABASE_ARCHIVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-// — — — Record — — —
-
-export async function createRecord(input: CreateRecordDto): Promise<CommandResult> {
-  try {
-    return await new CreateRecordUseCase(makeRecordRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("RECORD_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateRecord(input: UpdateRecordDto): Promise<CommandResult> {
-  try {
-    return await new UpdateRecordUseCase(makeRecordRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("RECORD_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteRecord(accountId: string, id: string): Promise<CommandResult> {
-  try {
-    return await new DeleteRecordUseCase(makeRecordRepo()).execute({ id, accountId });
-  } catch (err) {
-    return commandFailureFrom("RECORD_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-// — — — View — — —
-
-export async function createView(input: CreateViewDto): Promise<CommandResult> {
-  try {
-    return await new CreateViewUseCase(makeViewRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("VIEW_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateView(input: UpdateViewDto): Promise<CommandResult> {
-  try {
-    return await new UpdateViewUseCase(makeViewRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("VIEW_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteView(input: DeleteViewDto): Promise<CommandResult> {
-  try {
-    return await new DeleteViewUseCase(makeViewRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("VIEW_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-// — — — Automation — — —
-
-export async function createAutomation(input: CreateAutomationInput): Promise<CommandResult> {
-  try {
-    return await new CreateAutomationUseCase(makeAutomationRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("AUTOMATION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateAutomation(input: UpdateAutomationInput): Promise<CommandResult> {
-  try {
-    return await new UpdateAutomationUseCase(makeAutomationRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("AUTOMATION_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteAutomation(id: string, accountId: string, databaseId: string): Promise<CommandResult> {
-  try {
-    return await new DeleteAutomationUseCase(makeAutomationRepo()).execute(id, accountId, databaseId);
-  } catch (err) {
-    return commandFailureFrom("AUTOMATION_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/_actions/index.ts
-````typescript
-export {
-  createDatabase,
-  updateDatabase,
-  addDatabaseField,
-  archiveDatabase,
-  createRecord,
-  updateRecord,
-  deleteRecord,
-  createView,
-  updateView,
-  deleteView,
-  createAutomation,
-  updateAutomation,
-  deleteAutomation,
-} from "./database.actions";
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseAddFieldDialog.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import type { FieldType } from "@/modules/notion/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@ui-shadcn/ui/select";
-
-export const FIELD_TYPES: { value: FieldType; label: string }[] = [
-  { value: "text", label: "文字" },
-  { value: "number", label: "數字" },
-  { value: "checkbox", label: "核取方塊" },
-  { value: "date", label: "日期" },
-  { value: "select", label: "單選" },
-  { value: "multi_select", label: "多選" },
-  { value: "url", label: "URL" },
-  { value: "email", label: "電子郵件" },
-];
-
-interface AddFieldDialogProps {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  onAdd: (name: string, type: FieldType, required: boolean) => void;
-  isPending: boolean;
-}
-
-export function AddFieldDialog({ open, onOpenChange, onAdd, isPending }: AddFieldDialogProps) {
-  const [name, setName] = useState("");
-  const [type, setType] = useState<FieldType>("text");
-  const [required, setRequired] = useState(false);
-
-  function reset() {
-    setName(""); setType("text"); setRequired(false);
-  }
-
-  function handleOpenChange(v: boolean) {
-    if (!v) reset();
-    onOpenChange(v);
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) return;
-    onAdd(name.trim(), type, required);
-    reset();
-    onOpenChange(false);
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader><DialogTitle>新增欄位</DialogTitle></DialogHeader>
-        <form id="field-form" className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-1.5">
-            <Label htmlFor="field-name">名稱 *</Label>
-            <Input id="field-name" value={name} onChange={(e) => setName(e.target.value)} disabled={isPending} placeholder="欄位名稱" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>類型</Label>
-            <Select value={type} onValueChange={(v) => setType(v as FieldType)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {FIELD_TYPES.map((ft) => (
-                  <SelectItem key={ft.value} value={ft.value}>{ft.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              id="field-required"
-              type="checkbox"
-              checked={required}
-              onChange={(e) => setRequired(e.target.checked)}
-              className="h-4 w-4"
-            />
-            <Label htmlFor="field-required" className="cursor-pointer">必填欄位</Label>
-          </div>
-        </form>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isPending}>取消</Button>
-          <Button type="submit" form="field-form" disabled={isPending || !name.trim()}>新增</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseAutomationView.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: Manage automation rules for a database — list/create/toggle/delete.
- */
-
-import { useEffect, useState, useTransition } from "react";
-import type { DatabaseAutomationSnapshot, AutomationTrigger, AutomationActionType } from "../../application/dto/database.dto";
-import { getAutomations } from "../queries";
-import { createAutomation, updateAutomation, deleteAutomation } from "../_actions/database.actions";
-
-interface Props {
-  databaseId: string;
-  accountId: string;
-  currentUserId: string;
-}
-
-const TRIGGER_OPTIONS: { value: AutomationTrigger; label: string }[] = [
-  { value: "record_created", label: "Record created" },
-  { value: "record_updated", label: "Record updated" },
-  { value: "record_deleted", label: "Record deleted" },
-  { value: "property_changed", label: "Property changed" },
-];
-
-const ACTION_OPTIONS: { value: AutomationActionType; label: string }[] = [
-  { value: "send_notification", label: "Send notification" },
-  { value: "update_property", label: "Update property" },
-  { value: "create_record", label: "Create record" },
-  { value: "webhook", label: "Call webhook" },
-];
-
-export function DatabaseAutomationView({ databaseId, accountId, currentUserId }: Props) {
-  const [automations, setAutomations] = useState<DatabaseAutomationSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [name, setName] = useState("");
-  const [trigger, setTrigger] = useState<AutomationTrigger>("record_created");
-  const [actionType, setActionType] = useState<AutomationActionType>("send_notification");
-  const [, startTransition] = useTransition();
-
-  useEffect(() => {
-    getAutomations(accountId, databaseId)
-      .then(setAutomations)
-      .finally(() => setLoading(false));
-  }, [accountId, databaseId]);
-
-  function handleCreate() {
-    if (!name.trim()) return;
-    startTransition(async () => {
-      const result = await createAutomation({
-        databaseId,
-        accountId,
-        name: name.trim(),
-        trigger,
-        actions: [{ type: actionType, config: {} }],
-        createdByUserId: currentUserId,
-      });
-      if (result.success) {
-        const updated = await getAutomations(accountId, databaseId);
-        setAutomations(updated);
-        setName("");
-        setShowForm(false);
-      }
-    });
-  }
-
-  function handleToggle(automation: DatabaseAutomationSnapshot) {
-    startTransition(async () => {
-      await updateAutomation({
-        id: automation.id,
-        accountId,
-        databaseId,
-        enabled: !automation.enabled,
-      });
-      setAutomations((prev) =>
-        prev.map((a) => (a.id === automation.id ? { ...a, enabled: !a.enabled } : a)),
-      );
-    });
-  }
-
-  function handleDelete(automationId: string) {
-    startTransition(async () => {
-      await deleteAutomation(automationId, accountId, databaseId);
-      setAutomations((prev) => prev.filter((a) => a.id !== automationId));
-    });
-  }
-
-  if (loading) return <div className="p-4 text-sm text-muted-foreground">Loading automations…</div>;
-
-  return (
-    <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Automations</h3>
-        <button
-          className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground"
-          onClick={() => setShowForm((v) => !v)}
-        >
-          + New automation
-        </button>
-      </div>
-
-      {showForm && (
-        <div className="border rounded p-3 space-y-2 text-sm">
-          <input
-            className="w-full border rounded px-2 py-1 text-sm"
-            placeholder="Automation name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <div className="flex gap-2">
-            <select
-              className="border rounded px-2 py-1 text-xs flex-1"
-              value={trigger}
-              onChange={(e) => setTrigger(e.target.value as AutomationTrigger)}
-            >
-              {TRIGGER_OPTIONS.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
-            <select
-              className="border rounded px-2 py-1 text-xs flex-1"
-              value={actionType}
-              onChange={(e) => setActionType(e.target.value as AutomationActionType)}
-            >
-              {ACTION_OPTIONS.map((a) => (
-                <option key={a.value} value={a.value}>{a.label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex gap-2">
-            <button
-              className="text-xs px-3 py-1 rounded bg-primary text-primary-foreground"
-              onClick={handleCreate}
-            >
-              Create
-            </button>
-            <button
-              className="text-xs px-3 py-1 rounded border"
-              onClick={() => setShowForm(false)}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {automations.length === 0 ? (
-        <p className="text-xs text-muted-foreground">No automations yet.</p>
-      ) : (
-        <ul className="space-y-2">
-          {automations.map((a) => (
-            <li key={a.id} className="flex items-center justify-between border rounded px-3 py-2 text-sm">
-              <div className="space-y-0.5">
-                <p className="font-medium">{a.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  Trigger: {a.trigger} · Action: {a.actions[0]?.type ?? "—"}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  className={`text-xs px-2 py-0.5 rounded ${a.enabled ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}
-                  onClick={() => handleToggle(a)}
-                >
-                  {a.enabled ? "Enabled" : "Disabled"}
-                </button>
-                <button
-                  className="text-xs text-destructive"
-                  onClick={() => handleDelete(a.id)}
-                >
-                  Delete
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseBoardView.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseBoardView — Kanban board grouped by first select/multi_select field.
- */
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { Plus, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import { getRecords } from "../queries";
-import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../application/dto/database.dto";
-
-interface DatabaseBoardViewProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
-  if (record.properties && typeof record.properties === "object") {
-    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
-  }
-  return null;
-}
-
-export function DatabaseBoardView({ database, accountId, workspaceId, currentUserId }: DatabaseBoardViewProps) {
-  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isPending, startTransition] = useTransition();
-
-  const groupField = database.fields.find((f) => f.type === "select" || f.type === "multi_select") ?? null;
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getRecords(accountId, database.id);
-      setRecords(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, database.id]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function getTitle(record: DatabaseRecordSnapshot): string {
-    const textField = database.fields.find((f) => f.type === "text");
-    if (!textField) return record.id.slice(0, 8);
-    return String(getProperty(record, textField.id) ?? "—");
-  }
-
-  const groups: Record<string, DatabaseRecordSnapshot[]> = {};
-  if (!groupField) {
-    groups["所有記錄"] = records;
-  } else {
-    for (const record of records) {
-      const val = getProperty(record, groupField.id);
-      const key = val != null && val !== "" ? String(val) : "（無分組）";
-      (groups[key] ??= []).push(record);
-    }
-    if ("（無分組）" in groups) {
-      const noGroup = groups["（無分組）"];
-      delete groups["（無分組）"];
-      groups["（無分組）"] = noGroup;
-    }
-  }
-
-  function handleAdd(groupValue: string) {
-    startTransition(async () => {
-      const props: Record<string, unknown> = groupField && groupValue !== "（無分組）" && groupValue !== "所有記錄"
-        ? { [groupField.id]: groupValue }
-        : {};
-      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: props, createdByUserId: currentUserId });
-      void load();
-    });
-  }
-
-  function handleDelete(recordId: string) {
-    startTransition(async () => {
-      await deleteRecord(accountId, recordId);
-      setRecords((prev) => prev.filter((r) => r.id !== recordId));
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="flex gap-3 overflow-x-auto pb-2">
-        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-64 w-48 shrink-0 rounded-lg" />)}
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex gap-3 overflow-x-auto pb-4">
-      {Object.entries(groups).map(([group, groupRecords]) => (
-        <div key={group} className="flex w-52 shrink-0 flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 p-3">
-          <div className="flex items-center justify-between">
-            <Badge variant="outline" className="text-xs">{group}</Badge>
-            <span className="text-[10px] text-muted-foreground">{groupRecords.length}</span>
-          </div>
-          <div className="flex flex-col gap-2">
-            {groupRecords.map((record) => (
-              <div key={record.id} className="group relative rounded-md border border-border/60 bg-card px-3 py-2 shadow-sm">
-                <p className="text-sm font-medium leading-snug">{getTitle(record)}</p>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1 hidden h-5 w-5 text-muted-foreground hover:text-destructive group-hover:flex"
-                  disabled={isPending}
-                  onClick={() => handleDelete(record.id)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            ))}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full text-xs text-muted-foreground"
-            disabled={isPending}
-            onClick={() => handleAdd(group)}
-          >
-            <Plus className="mr-1 h-3 w-3" /> 新增
-          </Button>
-        </div>
-      ))}
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseCalendarView.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseCalendarView — month-grid calendar grouped by a date field.
- */
-
-import { useCallback, useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-import { getRecords } from "../queries";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../application/dto/database.dto";
-
-interface DatabaseCalendarViewProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-}
-
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
-  if (record.properties && typeof record.properties === "object") {
-    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
-  }
-  return null;
-}
-
-export function DatabaseCalendarView({ database, accountId }: DatabaseCalendarViewProps) {
-  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [cursor, setCursor] = useState(() => new Date());
-
-  const dateField = database.fields.find((f) => f.type === "date") ?? null;
-  const titleField = database.fields.find((f) => f.type === "text") ?? null;
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getRecords(accountId, database.id);
-      setRecords(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, database.id]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  const year = cursor.getFullYear();
-  const month = cursor.getMonth();
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-  const recordsByDay: Record<string, DatabaseRecordSnapshot[]> = {};
-  if (dateField) {
-    for (const record of records) {
-      const val = getProperty(record, dateField.id);
-      if (!val) continue;
-      try {
-        const d = new Date(String(val));
-        if (!isNaN(d.getTime()) && d.getFullYear() === year && d.getMonth() === month) {
-          const key = String(d.getDate());
-          (recordsByDay[key] ??= []).push(record);
-        }
-      } catch {}
-    }
-  }
-
-  function prevMonth() { setCursor(new Date(year, month - 1, 1)); }
-  function nextMonth() { setCursor(new Date(year, month + 1, 1)); }
-
-  const weekDays = ["日", "一", "二", "三", "四", "五", "六"];
-
-  if (!dateField) {
-    return (
-      <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
-        此資料庫未包含「日期」欄位，無法顯示日曆視圖。
-      </p>
-    );
-  }
-
-  if (loading) {
-    return <Skeleton className="h-64 w-full rounded-lg" />;
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={prevMonth}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <span className="text-sm font-medium">
-          {year}年 {month + 1}月
-        </span>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={nextMonth}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <div className="overflow-hidden rounded-lg border border-border/60">
-        <div className="grid grid-cols-7 bg-muted/30">
-          {weekDays.map((d) => (
-            <div key={d} className="px-2 py-1.5 text-center text-[10px] font-semibold text-muted-foreground">
-              {d}
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 border-t border-border/40">
-          {Array.from({ length: firstDay }).map((_, i) => (
-            <div key={`empty-${i}`} className="min-h-[60px] border-b border-r border-border/30 bg-muted/10" />
-          ))}
-          {Array.from({ length: daysInMonth }).map((_, i) => {
-            const day = i + 1;
-            const dayRecords = recordsByDay[String(day)] ?? [];
-            const today = new Date();
-            const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
-            return (
-              <div key={day} className={`min-h-[60px] border-b border-r border-border/30 p-1 ${isToday ? "bg-primary/5" : ""}`}>
-                <span className={`text-[10px] font-medium ${isToday ? "text-primary" : "text-muted-foreground"}`}>{day}</span>
-                <div className="mt-0.5 flex flex-col gap-0.5">
-                  {dayRecords.slice(0, 3).map((record) => {
-                    const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "—" : "—";
-                    return (
-                      <Badge key={record.id} variant="secondary" className="w-full justify-start truncate text-[9px]">
-                        {title}
-                      </Badge>
-                    );
-                  })}
-                  {dayRecords.length > 3 && (
-                    <span className="text-[9px] text-muted-foreground">+{dayRecords.length - 3}</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseDialog.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseDialog — modal for creating a new Database.
- */
-
-import { useState, useTransition } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import { createDatabase } from "../_actions/database.actions";
-
-interface DatabaseDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-  onSuccess?: () => void;
-}
-
-export function DatabaseDialog({ open, onOpenChange, accountId, workspaceId, currentUserId, onSuccess }: DatabaseDialogProps) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function reset() {
-    setName("");
-    setDescription("");
-    setError(null);
-  }
-
-  function handleOpenChange(next: boolean) {
-    if (!next) reset();
-    onOpenChange(next);
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) return;
-    setError(null);
-    startTransition(async () => {
-      const result = await createDatabase({
-        accountId,
-        workspaceId,
-        name: name.trim(),
-        description: description.trim() || undefined,
-        createdByUserId: currentUserId,
-      });
-      if (result.success) {
-        handleOpenChange(false);
-        onSuccess?.();
-      } else {
-        setError(result.error.message ?? "建立失敗");
-      }
-    });
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>新增資料庫</DialogTitle>
-        </DialogHeader>
-        <form id="db-form" className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-1.5">
-            <Label htmlFor="db-name">名稱 *</Label>
-            <Input
-              id="db-name"
-              placeholder="資料庫名稱"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={isPending}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="db-desc">說明</Label>
-            <Textarea
-              id="db-desc"
-              placeholder="選填：說明此資料庫的用途"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={isPending}
-            />
-          </div>
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </form>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isPending}>
-            取消
-          </Button>
-          <Button type="submit" form="db-form" disabled={isPending || !name.trim()}>
-            {isPending ? "建立中…" : "建立"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseFormView.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseFormView — public-facing form to collect one Record into a Database.
- */
-
-import { useState, useTransition } from "react";
-import { CheckCircle2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import { createRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, Field } from "../../application/dto/database.dto";
-
-interface DatabaseFormViewProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  /** The user submitting the form. Pass anonymous ID or guest token for public forms. */
-  submitterId: string;
-  /** Optional: restrict to a subset of fields. */
-  fieldIds?: string[];
-  title?: string;
-  description?: string;
-}
-
-function FieldInput({ field, value, onChange, disabled }: { field: Field; value: unknown; onChange: (v: unknown) => void; disabled: boolean }) {
-  if (field.type === "checkbox") {
-    return (
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id={`field-${field.id}`}
-          checked={Boolean(value)}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.checked)}
-          className="h-4 w-4 rounded border-border"
-        />
-        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
-      </div>
-    );
-  }
-  if (field.type === "number") {
-    return (
-      <div className="space-y-1">
-        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
-        <Input
-          id={`field-${field.id}`}
-          type="number"
-          value={value == null ? "" : String(value)}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
-        />
-      </div>
-    );
-  }
-  if (field.type === "date") {
-    return (
-      <div className="space-y-1">
-        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
-        <Input
-          id={`field-${field.id}`}
-          type="date"
-          value={value == null ? "" : String(value)}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </div>
-    );
-  }
-  if (field.type === "url" || field.type === "email") {
-    return (
-      <div className="space-y-1">
-        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
-        <Input
-          id={`field-${field.id}`}
-          type={field.type}
-          value={value == null ? "" : String(value)}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </div>
-    );
-  }
-  return (
-    <div className="space-y-1">
-      <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
-      <Textarea
-        id={`field-${field.id}`}
-        rows={2}
-        value={value == null ? "" : String(value)}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </div>
-  );
-}
-
-export function DatabaseFormView({ database, accountId, workspaceId, submitterId, fieldIds, title, description }: DatabaseFormViewProps) {
-  const visibleFields = fieldIds && fieldIds.length > 0
-    ? database.fields.filter((f) => fieldIds.includes(f.id))
-    : database.fields;
-
-  const [values, setValues] = useState<Record<string, unknown>>({});
-  const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function handleChange(fieldId: string, value: unknown) {
-    setValues((prev) => ({ ...prev, [fieldId]: value }));
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    startTransition(async () => {
-      const result = await createRecord({
-        databaseId: database.id,
-        workspaceId,
-        accountId,
-        properties: values,
-        createdByUserId: submitterId,
-      });
-      if (result.success) {
-        setSubmitted(true);
-        setValues({});
-      } else {
-        setError("提交失敗，請稍後再試。");
-      }
-    });
-  }
-
-  if (submitted) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-        <CheckCircle2 className="h-10 w-10 text-green-500" />
-        <h2 className="text-lg font-semibold">已成功提交！</h2>
-        <p className="text-sm text-muted-foreground">感謝您的填寫。</p>
-        <Button variant="outline" size="sm" onClick={() => setSubmitted(false)}>
-          再次提交
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mx-auto max-w-lg space-y-6 py-6">
-      <div className="space-y-1">
-        <h2 className="text-xl font-semibold">{title ?? database.name}</h2>
-        {description && <p className="text-sm text-muted-foreground">{description}</p>}
-      </div>
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        {visibleFields.map((field) => (
-          <FieldInput
-            key={field.id}
-            field={field}
-            value={values[field.id]}
-            onChange={(v) => handleChange(field.id, v)}
-            disabled={isPending}
-          />
-        ))}
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button type="submit" disabled={isPending} className="w-full">
-          {isPending ? "提交中…" : "送出表單"}
-        </Button>
-      </form>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseGalleryView.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseGalleryView — card grid for database records.
- */
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { Plus, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-import { getRecords } from "../queries";
-import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../application/dto/database.dto";
-
-interface DatabaseGalleryViewProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
-  if (record.properties && typeof record.properties === "object") {
-    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
-  }
-  return null;
-}
-
-export function DatabaseGalleryView({ database, accountId, workspaceId, currentUserId }: DatabaseGalleryViewProps) {
-  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isPending, startTransition] = useTransition();
-
-  const titleField = database.fields.find((f) => f.type === "text") ?? null;
-  const metaFields = database.fields.filter((f) => f !== titleField).slice(0, 4);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getRecords(accountId, database.id);
-      setRecords(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, database.id]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function handleAdd() {
-    startTransition(async () => {
-      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId });
-      void load();
-    });
-  }
-
-  function handleDelete(recordId: string) {
-    startTransition(async () => {
-      await deleteRecord(accountId, recordId);
-      setRecords((prev) => prev.filter((r) => r.id !== recordId));
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-lg" />)}
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {records.length === 0 ? (
-          <p className="col-span-full rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">尚無記錄</p>
-        ) : (
-          records.map((record) => {
-            const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "（未命名）" : "（未命名）";
-            return (
-              <div key={record.id} className="group relative flex flex-col gap-2 rounded-lg border border-border/60 bg-card p-3 shadow-sm">
-                <p className="truncate text-sm font-medium leading-snug">{title}</p>
-                <div className="flex flex-wrap gap-1">
-                  {metaFields.map((field) => {
-                    const val = getProperty(record, field.id);
-                    if (val == null || val === "") return null;
-                    return (
-                      <Badge key={field.id} variant="outline" className="text-[10px]">
-                        {field.name}: {String(val).slice(0, 16)}
-                      </Badge>
-                    );
-                  })}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1 hidden h-6 w-6 text-muted-foreground hover:text-destructive group-hover:flex"
-                  disabled={isPending}
-                  onClick={() => handleDelete(record.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            );
-          })
-        )}
-      </div>
-      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="w-full text-xs">
-        <Plus className="mr-1.5 h-3 w-3" /> 新增記錄
-      </Button>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseListView.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseListView — flat record list with fields as readable rows.
- */
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-import { getRecords } from "../queries";
-import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../application/dto/database.dto";
-
-interface DatabaseListViewProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
-  if (record.properties && typeof record.properties === "object") {
-    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
-  }
-  return null;
-}
-
-function displayValue(val: unknown, type: string): string {
-  if (val == null || val === "") return "";
-  if (type === "checkbox") return val ? "✓" : "✗";
-  return String(val);
-}
-
-export function DatabaseListView({ database, accountId, workspaceId, currentUserId }: DatabaseListViewProps) {
-  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [isPending, startTransition] = useTransition();
-
-  const titleField = database.fields.find((f) => f.type === "text") ?? database.fields[0] ?? null;
-  const secondaryFields = database.fields.filter((f) => f !== titleField);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getRecords(accountId, database.id);
-      setRecords(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, database.id]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function toggleExpand(id: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function handleAdd() {
-    startTransition(async () => {
-      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId });
-      void load();
-    });
-  }
-
-  function handleDelete(recordId: string) {
-    startTransition(async () => {
-      await deleteRecord(accountId, recordId);
-      setRecords((prev) => prev.filter((r) => r.id !== recordId));
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-2">
-        {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-1">
-      {records.length === 0 ? (
-        <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">尚無記錄</p>
-      ) : (
-        records.map((record) => {
-          const isOpen = expanded.has(record.id);
-          const title = titleField ? displayValue(getProperty(record, titleField.id), titleField.type) || "（未命名）" : record.id.slice(0, 8);
-
-          return (
-            <div key={record.id} className="rounded-md border border-border/60 bg-card">
-              <div className="flex items-center gap-2 px-3 py-2">
-                <button
-                  type="button"
-                  className="rounded p-0.5 text-muted-foreground hover:bg-muted"
-                  onClick={() => toggleExpand(record.id)}
-                >
-                  {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                </button>
-                <span className="flex-1 truncate text-sm font-medium text-foreground">{title}</span>
-                <div className="hidden gap-1 sm:flex">
-                  {secondaryFields.slice(0, 2).map((field) => {
-                    const val = displayValue(getProperty(record, field.id), field.type);
-                    if (!val) return null;
-                    return (
-                      <Badge key={field.id} variant="outline" className="text-[10px]">
-                        {field.name}: {val.length > 12 ? `${val.slice(0, 12)}…` : val}
-                      </Badge>
-                    );
-                  })}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                  disabled={isPending}
-                  onClick={() => handleDelete(record.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              {isOpen && (
-                <div className="border-t border-border/40 px-4 py-3">
-                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
-                    {database.fields.map((field) => {
-                      const val = displayValue(getProperty(record, field.id), field.type);
-                      return (
-                        <div key={field.id} className="contents">
-                          <dt className="text-muted-foreground">{field.name}</dt>
-                          <dd className="text-foreground">{val || <span className="text-muted-foreground/50">—</span>}</dd>
-                        </div>
-                      );
-                    })}
-                    <div className="contents">
-                      <dt className="text-muted-foreground">建立時間</dt>
-                      <dd className="text-foreground">
-                        {new Date(record.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-              )}
-            </div>
-          );
-        })
-      )}
-      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="mt-1 w-full text-xs">
-        <Plus className="mr-1.5 h-3 w-3" /> 新增記錄
-      </Button>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseTableView.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseTableView — spreadsheet-style table with inline cell editing.
- */
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { Plus, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import { getRecords } from "../queries";
-import { createRecord, updateRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, Field, DatabaseRecordSnapshot } from "../../application/dto/database.dto";
-
-interface DatabaseTableViewProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-const FIELD_WIDTHS: Record<string, string> = {
-  text: "min-w-[180px]",
-  number: "min-w-[100px]",
-  checkbox: "min-w-[80px]",
-  date: "min-w-[140px]",
-  default: "min-w-[140px]",
-};
-
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
-  if (record.properties && typeof record.properties === "object") {
-    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
-  }
-  return null;
-}
-
-function setProperty(record: DatabaseRecordSnapshot, fieldId: string, value: unknown): Record<string, unknown> {
-  const props = typeof record.properties === "object" && record.properties !== null
-    ? { ...(record.properties as Record<string, unknown>) }
-    : {};
-  props[fieldId] = value;
-  return props;
-}
-
-function CellInput({ field, value, onChange, disabled }: { field: Field; value: unknown; onChange: (v: unknown) => void; disabled: boolean }) {
-  if (field.type === "checkbox") {
-    return (
-      <input
-        type="checkbox"
-        checked={Boolean(value)}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 rounded border-border"
-      />
-    );
-  }
-  if (field.type === "number") {
-    return (
-      <Input
-        type="number"
-        value={value == null ? "" : String(value)}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
-        className="h-7 border-transparent bg-transparent px-1 text-xs focus:border-border"
-      />
-    );
-  }
-  return (
-    <Input
-      type="text"
-      value={value == null ? "" : String(value)}
-      disabled={disabled}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-7 border-transparent bg-transparent px-1 text-xs focus:border-border"
-    />
-  );
-}
-
-export function DatabaseTableView({ database, accountId, workspaceId, currentUserId }: DatabaseTableViewProps) {
-  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [edits, setEdits] = useState<Record<string, Record<string, unknown>>>({});
-  const [saving, setSaving] = useState<Record<string, boolean>>({});
-  const [isPending, startTransition] = useTransition();
-
-  const fields = database.fields;
-
-  const load = useCallback(async () => {
-    if (!accountId || !database.id) return;
-    setLoading(true);
-    try {
-      const data = await getRecords(accountId, database.id);
-      setRecords(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, database.id]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function handleCellChange(recordId: string, fieldId: string, value: unknown) {
-    setEdits((prev) => ({
-      ...prev,
-      [recordId]: { ...(prev[recordId] ?? {}), [fieldId]: value },
-    }));
-  }
-
-  function handleCellBlur(record: DatabaseRecordSnapshot, fieldId: string) {
-    const cellValue = edits[record.id]?.[fieldId];
-    if (cellValue === undefined) return;
-    setSaving((prev) => ({ ...prev, [record.id]: true }));
-    startTransition(async () => {
-      await updateRecord({ id: record.id, accountId, properties: setProperty(record, fieldId, cellValue) });
-      setEdits((prev) => {
-        const next = { ...prev };
-        delete next[record.id];
-        return next;
-      });
-      setSaving((prev) => ({ ...prev, [record.id]: false }));
-    });
-  }
-
-  function handleAddRecord() {
-    startTransition(async () => {
-      await createRecord({
-        databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId,
-      });
-      void load();
-    });
-  }
-
-  function handleDeleteRecord(recordId: string) {
-    startTransition(async () => {
-      await deleteRecord(accountId, recordId);
-      setRecords((prev) => prev.filter((r) => r.id !== recordId));
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-2">
-        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
-      </div>
-    );
-  }
-
-  if (fields.length === 0) {
-    return (
-      <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
-        此資料庫尚無欄位。請先新增欄位。
-      </p>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="overflow-x-auto rounded-lg border border-border/60">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border/60 bg-muted/30">
-              {fields.map((field) => (
-                <th key={field.id} className={`px-3 py-2 text-left text-xs font-semibold text-muted-foreground ${FIELD_WIDTHS[field.type] ?? FIELD_WIDTHS.default}`}>
-                  {field.name}
-                  {field.required && <span className="ml-0.5 text-destructive">*</span>}
-                </th>
-              ))}
-              <th className="w-10" />
-            </tr>
-          </thead>
-          <tbody>
-            {records.length === 0 ? (
-              <tr>
-                <td colSpan={fields.length + 1} className="px-3 py-6 text-center text-xs text-muted-foreground">
-                  尚無記錄
-                </td>
-              </tr>
-            ) : (
-              records.map((record) => (
-                <tr key={record.id} className="border-b border-border/30 last:border-b-0 hover:bg-muted/10">
-                  {fields.map((field) => {
-                    const edited = edits[record.id]?.[field.id];
-                    const current = edited !== undefined ? edited : getProperty(record, field.id);
-                    return (
-                      <td key={field.id} className="px-2 py-1">
-                        <CellInput
-                          field={field}
-                          value={current}
-                          onChange={(v) => handleCellChange(record.id, field.id, v)}
-                          disabled={saving[record.id] ?? false}
-                        />
-                      </td>
-                    );
-                  })}
-                  <td className="px-1 py-1 text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                      disabled={isPending}
-                      onBlur={() => {
-                        fields.forEach((f) => { if (edits[record.id]?.[f.id] !== undefined) handleCellBlur(record, f.id); });
-                      }}
-                      onClick={() => handleDeleteRecord(record.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAddRecord} className="w-full text-xs">
-        <Plus className="mr-1.5 h-3 w-3" /> 新增記錄
-      </Button>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/index.ts
-````typescript
-export { DatabaseDialog } from "./DatabaseDialog";
-export { DatabaseTableView } from "./DatabaseTableView";
-export { DatabaseBoardView } from "./DatabaseBoardView";
-export { DatabaseListView } from "./DatabaseListView";
-export { DatabaseCalendarView } from "./DatabaseCalendarView";
-export { DatabaseGalleryView } from "./DatabaseGalleryView";
-export { DatabaseFormView } from "./DatabaseFormView";
-export { DatabaseAutomationView } from "./DatabaseAutomationView";
-````
-
-## File: modules/notion/subdomains/database/interfaces/queries/index.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/queries
- * Purpose: Read-side queries for database, record, view, and automation data.
- */
-
-import {
-  makeAutomationRepo,
-  makeDatabaseRepo,
-  makeRecordRepo,
-  makeViewRepo,
-} from "../../api/factories";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot, ViewSnapshot, DatabaseAutomationSnapshot } from "../../application/dto/database.dto";
-
-export async function getDatabases(accountId: string, workspaceId: string): Promise<DatabaseSnapshot[]> {
-  return makeDatabaseRepo().listByWorkspace(accountId, workspaceId);
-}
-
-export async function getDatabase(accountId: string, databaseId: string): Promise<DatabaseSnapshot | null> {
-  return makeDatabaseRepo().findById(databaseId, accountId);
-}
-
-export async function getRecords(accountId: string, databaseId: string): Promise<DatabaseRecordSnapshot[]> {
-  return makeRecordRepo().listByDatabase(accountId, databaseId);
-}
-
-export async function getViews(accountId: string, databaseId: string): Promise<ViewSnapshot[]> {
-  return makeViewRepo().listByDatabase(accountId, databaseId);
-}
-
-export async function getAutomations(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]> {
-  return makeAutomationRepo().listByDatabase(accountId, databaseId);
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/store/index.ts
-````typescript
-// TODO: export useDatabaseStore, useRecordStore
-
-export {};
-````
-
-## File: modules/notion/subdomains/knowledge/api/factories.ts
-````typescript
-import { FirebaseContentBlockRepository } from "../infrastructure/firebase/FirebaseContentBlockRepository";
-import { FirebaseKnowledgeCollectionRepository } from "../infrastructure/firebase/FirebaseKnowledgeCollectionRepository";
-import { FirebaseKnowledgePageRepository } from "../infrastructure/firebase/FirebaseKnowledgePageRepository";
-
-export function makePageRepo() {
-  return new FirebaseKnowledgePageRepository();
-}
-
-export function makeBlockRepo() {
-  return new FirebaseContentBlockRepository();
-}
-
-export function makeCollectionRepo() {
-  return new FirebaseKnowledgeCollectionRepository();
-}
-````
-
-## File: modules/notion/subdomains/knowledge/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- */
-
-// ── Types (read-only snapshots – no aggregate class refs) ─────────────────────
-export type { KnowledgePageSnapshot } from "../domain/aggregates/KnowledgePage";
-/** @alias KnowledgePageSnapshot — provided for backward-compatibility */
-export type { KnowledgePageSnapshot as KnowledgePage } from "../domain/aggregates/KnowledgePage";
-export type { ContentBlockSnapshot } from "../domain/aggregates/ContentBlock";
-export type { KnowledgeCollectionSnapshot } from "../domain/aggregates/KnowledgeCollection";
-
-// ── Server action DTOs ────────────────────────────────────────────────────────
-export type { CreateKnowledgePageDto, RenameKnowledgePageDto, MoveKnowledgePageDto, ArchiveKnowledgePageDto, ReorderKnowledgePageBlocksDto } from "../application/dto/KnowledgePageDto";
-export type { AddKnowledgeBlockDto, UpdateKnowledgeBlockDto, DeleteKnowledgeBlockDto } from "../application/dto/ContentBlockDto";
-export type { CreateKnowledgeCollectionDto } from "../application/dto/KnowledgeCollectionDto";
-
-// ── Query functions (server-side reads) ───────────────────────────────────────
-export {
-  getKnowledgePage,
-  getKnowledgePages,
-  getKnowledgePagesByWorkspace,
-  getKnowledgePageTree,
-  getKnowledgePageTreeByWorkspace,
-  getKnowledgeBlocks,
-  getKnowledgeCollection,
-  getKnowledgeCollections,
-} from "../interfaces/queries";
-
-// ── Server actions (drives: app router, Server Components) ────────────────────
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  archiveKnowledgeCollection,
-} from "../interfaces/_actions";
-
-// ── UI Components ─────────────────────────────────────────────────────────────
-export { PageTreeView } from "../interfaces/components/PageTreeView";
-export type { PageTreeViewProps } from "../interfaces/components/PageTreeView";
-export { PageDialog } from "../interfaces/components/PageDialog";
-export { BlockEditorView } from "../interfaces/components/BlockEditorView";
-export { PageEditorView } from "../interfaces/components/PageEditorView";
-export type { PageEditorViewProps } from "../interfaces/components/PageEditorView";
-export { KnowledgePagesRouteScreen } from "../interfaces/components/KnowledgePagesRouteScreen";
-
-// ── Store ─────────────────────────────────────────────────────────────────────
-export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
-export type { EditorBlock } from "../interfaces/store/block-editor.store";
-
-// ── Tree node type (needed by app/ pages) ─────────────────────────────────────
-export type { KnowledgePageTreeNode } from "../domain/aggregates/KnowledgePage";
-
-// ── Domain events (published language — for cross-module event subscriptions) ─
-export type { PageApprovedEvent, PageApprovedPayload, ExtractedTask, ExtractedInvoice } from "../domain/events/KnowledgePageEvents";
-
-// ── Sidebar component ─────────────────────────────────────────────────────────
-export { KnowledgeSidebarSection } from "../interfaces/components/KnowledgeSidebarSection";
-
-// ── Page header widgets ───────────────────────────────────────────────────────
-export { TitleEditor, IconPicker, CoverEditor } from "../interfaces/components/KnowledgePageHeaderWidgets";
-export type { TitleEditorProps, IconPickerProps, CoverEditorProps } from "../interfaces/components/KnowledgePageHeaderWidgets";
-
-// ── Route screen components ───────────────────────────────────────────────────
-export { KnowledgePageDetailPage } from "../interfaces/components/KnowledgePageDetailPage";
-export type { KnowledgePageDetailPageProps } from "../interfaces/components/KnowledgePageDetailPage";
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notion/subdomains/knowledge/application/dto/ContentBlockDto.ts
@@ -5505,6 +2429,14 @@ export const UnnestKnowledgeBlockSchema = z.object({
   index: z.number().int().min(0).optional(),
 });
 export type UnnestKnowledgeBlockDto = z.infer<typeof UnnestKnowledgeBlockSchema>;
+````
+
+## File: modules/notion/subdomains/knowledge/application/dto/index.ts
+````typescript
+export * from "./KnowledgePageDto";
+export * from "./ContentBlockDto";
+export * from "./KnowledgeCollectionDto";
+export * from "./KnowledgePageLifecycleDto";
 ````
 
 ## File: modules/notion/subdomains/knowledge/application/dto/knowledge.dto.ts
@@ -5655,6 +2587,51 @@ export const CreateKnowledgeVersionSchema = AccountScopeSchema.extend({
   createdByUserId: z.string().min(1),
 });
 export type CreateKnowledgeVersionDto = z.infer<typeof CreateKnowledgeVersionSchema>;
+````
+
+## File: modules/notion/subdomains/knowledge/application/dto/KnowledgePageLifecycleDto.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: application/dto
+ * Purpose: Zod-validated input schemas for knowledge page lifecycle use cases.
+ */
+
+import { z } from "@lib-zod";
+
+const AccountScopeSchema = z.object({ accountId: z.string().min(1) });
+
+export const VerifyKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  verifiedByUserId: z.string().min(1),
+  verificationExpiresAtISO: z.string().datetime({ offset: true }).optional(),
+});
+export type VerifyKnowledgePageDto = z.infer<typeof VerifyKnowledgePageSchema>;
+
+export const RequestPageReviewSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  requestedByUserId: z.string().min(1),
+});
+export type RequestPageReviewDto = z.infer<typeof RequestPageReviewSchema>;
+
+export const AssignPageOwnerSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  ownerId: z.string().min(1),
+  assignedByUserId: z.string().min(1),
+});
+export type AssignPageOwnerDto = z.infer<typeof AssignPageOwnerSchema>;
+
+export const UpdatePageIconSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  iconUrl: z.string().max(2000),
+});
+export type UpdatePageIconDto = z.infer<typeof UpdatePageIconSchema>;
+
+export const UpdatePageCoverSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  coverUrl: z.string().max(2000),
+});
+export type UpdatePageCoverDto = z.infer<typeof UpdatePageCoverSchema>;
 ````
 
 ## File: modules/notion/subdomains/knowledge/application/queries/backlink.queries.ts
@@ -6033,6 +3010,191 @@ export class ArchiveKnowledgeCollectionUseCase {
     collection.archive();
     await this.repo.save(collection);
     return commandSuccess(collection.id, Date.now());
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageAppearanceUseCases.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: application/use-cases
+ * Purpose: Page appearance use cases — update icon, update cover.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+import {
+  UpdatePageIconSchema,
+  type UpdatePageIconDto,
+  UpdatePageCoverSchema,
+  type UpdatePageCoverDto,
+} from "../dto/KnowledgePageLifecycleDto";
+
+export class UpdatePageIconUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: UpdatePageIconDto): Promise<CommandResult> {
+    const parsed = UpdatePageIconSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, iconUrl } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.updateIcon(iconUrl);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class UpdatePageCoverUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: UpdatePageCoverDto): Promise<CommandResult> {
+    const parsed = UpdatePageCoverSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, coverUrl } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.updateCover(coverUrl);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageReviewUseCases.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: application/use-cases
+ * Purpose: Page review/wiki use cases — approve, verify, request review, assign owner.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import { v7 as generateId } from "@lib-uuid";
+
+import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+import {
+  PublishDomainEventUseCase,
+  type IEventStoreRepository,
+  type IEventBusRepository,
+} from "@shared-events";
+import {
+  ApproveKnowledgePageSchema,
+  type ApproveKnowledgePageDto,
+} from "../dto/KnowledgePageDto";
+import {
+  VerifyKnowledgePageSchema,
+  type VerifyKnowledgePageDto,
+  RequestPageReviewSchema,
+  type RequestPageReviewDto,
+  AssignPageOwnerSchema,
+  type AssignPageOwnerDto,
+} from "../dto/KnowledgePageLifecycleDto";
+
+export class ApproveKnowledgePageUseCase {
+  constructor(
+    private readonly repo: IKnowledgePageRepository,
+    private readonly eventStore: IEventStoreRepository,
+    private readonly eventBus: IEventBusRepository,
+  ) {}
+
+  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = ApproveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const {
+      accountId,
+      pageId,
+      actorId,
+      causationId: inputCausationId,
+      extractedTasks,
+      extractedInvoices,
+      correlationId: inputCorrelationId,
+      workspaceId,
+    } = parsed.data;
+
+    const causationId = inputCausationId ?? generateId();
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    if (page.status === "archived") return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
+    if (page.approvalState === "approved") return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
+
+    const nowISO = new Date().toISOString();
+    page.approve(actorId, nowISO);
+    await this.repo.save(page);
+
+    const correlationId = inputCorrelationId ?? generateId();
+    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
+      id: generateId(),
+      eventName: "knowledge.page_approved",
+      aggregateType: "KnowledgePage",
+      aggregateId: pageId,
+      payload: {
+        pageId,
+        accountId,
+        workspaceId: workspaceId ?? page.workspaceId,
+        extractedTasks,
+        extractedInvoices,
+        actorId,
+        causationId: inputCausationId,
+        correlationId,
+      },
+      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
+    });
+
+    return commandSuccess(pageId, Date.now());
+  }
+}
+
+export class VerifyKnowledgePageUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
+    const parsed = VerifyKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.verify(verifiedByUserId, verificationExpiresAtISO);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class RequestPageReviewUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
+    const parsed = RequestPageReviewSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, requestedByUserId } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.requestReview(requestedByUserId);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class AssignPageOwnerUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
+    const parsed = AssignPageOwnerSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, ownerId } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.assignOwner(ownerId);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
   }
 }
 ````
@@ -7548,712 +4710,37 @@ export const VerificationStateSchema = z.enum(["verified", "needs_review"]);
 export type VerificationState = z.infer<typeof VerificationStateSchema>;
 ````
 
-## File: modules/notion/subdomains/knowledge/infrastructure/firebase/index.ts
-````typescript
-export { FirebaseKnowledgePageRepository } from "./FirebaseKnowledgePageRepository";
-export { FirebaseContentBlockRepository } from "./FirebaseContentBlockRepository";
-export { FirebaseKnowledgeCollectionRepository } from "./FirebaseKnowledgeCollectionRepository";
-export { FirebaseBacklinkIndexRepository } from "./FirebaseBacklinkIndexRepository";
-````
+## File: modules/notion/subdomains/knowledge/README.md
+````markdown
+# Knowledge
 
-## File: modules/notion/subdomains/knowledge/infrastructure/index.ts
-````typescript
-export * from "./firebase";
-````
+頁面建立、組織、版本化與交付。
 
-## File: modules/notion/subdomains/knowledge/interfaces/_actions/index.ts
-````typescript
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-} from "./knowledge-page.actions";
+## Ownership
 
-export {
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-} from "./knowledge-block.actions";
+- **Bounded Context**: notion
+- **Subdomain Type**: Baseline
+- **Status**: Active
 
-export {
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  addCollectionColumn,
-  archiveKnowledgeCollection,
-} from "./knowledge-collection.actions";
-````
+## Layers
 
-## File: modules/notion/subdomains/knowledge/interfaces/_actions/knowledge-block.actions.ts
-````typescript
-"use server";
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
 
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { makeBlockRepo } from "../../api/factories";
-import {
-  AddContentBlockUseCase,
-  UpdateContentBlockUseCase,
-  DeleteContentBlockUseCase,
-} from "../../application/queries/content-block.queries";
-import type { AddKnowledgeBlockDto as AddContentBlockDto, UpdateKnowledgeBlockDto as UpdateContentBlockDto, DeleteKnowledgeBlockDto as DeleteContentBlockDto } from "../../application/dto/ContentBlockDto";
+## Dependency Direction
 
-export async function addKnowledgeBlock(input: AddContentBlockDto): Promise<CommandResult> {
-  try { return await new AddContentBlockUseCase(makeBlockRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("BLOCK_ADD_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
 
-export async function updateKnowledgeBlock(input: UpdateContentBlockDto): Promise<CommandResult> {
-  try { return await new UpdateContentBlockUseCase(makeBlockRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("BLOCK_UPDATE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
+## Development Order
 
-export async function deleteKnowledgeBlock(input: DeleteContentBlockDto): Promise<CommandResult> {
-  try { return await new DeleteContentBlockUseCase(makeBlockRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("BLOCK_DELETE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/_actions/knowledge-collection.actions.ts
-````typescript
-"use server";
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { makeCollectionRepo } from "../../api/factories";
-import {
-  CreateKnowledgeCollectionUseCase,
-  RenameKnowledgeCollectionUseCase,
-  AddPageToCollectionUseCase,
-  RemovePageFromCollectionUseCase,
-  AddCollectionColumnUseCase,
-  ArchiveKnowledgeCollectionUseCase,
-} from "../../application/use-cases/KnowledgeCollectionUseCases";
-import type {
-  CreateKnowledgeCollectionDto,
-  RenameKnowledgeCollectionDto,
-  AddPageToCollectionDto,
-  RemovePageFromCollectionDto,
-  AddCollectionColumnDto,
-  ArchiveKnowledgeCollectionDto,
-} from "../../application/dto/KnowledgeCollectionDto";
-
-export async function createKnowledgeCollection(input: CreateKnowledgeCollectionDto): Promise<CommandResult> {
-  try { return await new CreateKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("COLLECTION_CREATE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function renameKnowledgeCollection(input: RenameKnowledgeCollectionDto): Promise<CommandResult> {
-  try { return await new RenameKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("COLLECTION_RENAME_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function addPageToCollection(input: AddPageToCollectionDto): Promise<CommandResult> {
-  try { return await new AddPageToCollectionUseCase(makeCollectionRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("COLLECTION_ADD_PAGE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function removePageFromCollection(input: RemovePageFromCollectionDto): Promise<CommandResult> {
-  try { return await new RemovePageFromCollectionUseCase(makeCollectionRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("COLLECTION_REMOVE_PAGE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function addCollectionColumn(input: AddCollectionColumnDto): Promise<CommandResult> {
-  try { return await new AddCollectionColumnUseCase(makeCollectionRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("COLLECTION_ADD_COLUMN_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function archiveKnowledgeCollection(input: ArchiveKnowledgeCollectionDto): Promise<CommandResult> {
-  try { return await new ArchiveKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("COLLECTION_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/components/BlockEditorView.tsx
-````typescript
-"use client";
-
-import { useRef } from "react";
-import { useBlockEditorStore } from "../store/block-editor.store";
-import { richTextToPlainText } from "../../application/dto/knowledge.dto";
-
-/**
- * Notion knowledge subdomain — minimal block editor.
- * Full drag-and-drop and rich block types are in the extensions/ layer.
- */
-export function BlockEditorView() {
-  const { blocks, addBlock, updateBlock, deleteBlock } = useBlockEditorStore();
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>, blockId: string) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      addBlock(blockId);
-    }
-    if (e.key === "Backspace") {
-      const target = e.currentTarget;
-      if (target.textContent === "") {
-        e.preventDefault();
-        deleteBlock(blockId);
-      }
-    }
-  }
-
-  function handleInput(e: React.FormEvent<HTMLDivElement>, blockId: string) {
-    const text = (e.currentTarget as HTMLDivElement).textContent ?? "";
-    updateBlock(blockId, { type: "text", richText: [{ type: "text", plainText: text }] });
-  }
-
-  if (!blocks.length) {
-    return (
-      <div className="flex min-h-[200px] flex-col gap-1 rounded-lg border border-dashed p-4">
-        <div
-          role="textbox"
-          aria-multiline="true"
-          aria-label="新區塊內容"
-          tabIndex={0}
-          contentEditable
-          suppressContentEditableWarning
-          className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") { e.preventDefault(); addBlock(null); }
-          }}
-          data-placeholder="開始輸入…"
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div ref={containerRef} className="flex flex-col gap-0.5">
-      {blocks.map((block) => {
-        const text = richTextToPlainText(block.content.richText);
-        return (
-          <div
-            key={block.id}
-            role="textbox"
-            aria-multiline="true"
-            aria-label={`區塊 ${block.id}`}
-            tabIndex={0}
-            contentEditable
-            suppressContentEditableWarning
-            className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"
-            onKeyDown={(e) => handleKeyDown(e, block.id)}
-            onInput={(e) => handleInput(e, block.id)}
-            dangerouslySetInnerHTML={{ __html: text }}
-          />
-        );
-      })}
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgePageHeaderWidgets.tsx
-````typescript
-"use client";
-
-import { useEffect, useRef, useState } from "react";
-import { Check, ImageIcon, Pencil, Smile } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@ui-shadcn/ui/popover";
-
-// ── Title editor ──────────────────────────────────────────────────────────────
-
-export interface TitleEditorProps {
-  initialTitle: string;
-  onSave: (title: string) => void;
-  isPending: boolean;
-}
-
-export function TitleEditor({ initialTitle, onSave, isPending }: TitleEditorProps) {
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(initialTitle);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => { setValue(initialTitle); }, [initialTitle]);
-
-  function startEdit() {
-    setEditing(true);
-    setTimeout(() => inputRef.current?.focus(), 0);
-  }
-
-  function commit() {
-    setEditing(false);
-    const trimmed = value.trim();
-    if (trimmed && trimmed !== initialTitle) {
-      onSave(trimmed);
-    } else {
-      setValue(initialTitle);
-    }
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter") { e.preventDefault(); commit(); }
-    if (e.key === "Escape") { setValue(initialTitle); setEditing(false); }
-  }
-
-  if (editing) {
-    return (
-      <div className="flex items-center gap-2">
-        <Input
-          ref={inputRef}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onBlur={commit}
-          onKeyDown={handleKeyDown}
-          disabled={isPending}
-          className="h-auto border-0 bg-transparent px-0 text-2xl font-semibold tracking-tight shadow-none focus-visible:ring-0"
-        />
-        <button
-          type="button"
-          onClick={commit}
-          disabled={isPending}
-          className="rounded p-1 text-muted-foreground hover:text-foreground"
-          aria-label="儲存標題"
-        >
-          <Check className="size-4" />
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="group flex items-center gap-2">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">{value}</h1>
-      <button
-        type="button"
-        onClick={startEdit}
-        disabled={isPending}
-        className="invisible rounded p-1 text-muted-foreground hover:text-foreground group-hover:visible"
-        aria-label="重新命名頁面"
-      >
-        <Pencil className="size-3.5" />
-      </button>
-    </div>
-  );
-}
-
-// ── Icon picker ───────────────────────────────────────────────────────────────
-
-const QUICK_EMOJIS = ["📄", "📝", "📚", "💡", "🎯", "🚀", "⭐", "🔑", "📌", "🗂️", "🏷️", "🔖", "📋", "🗒️", "📊", "🔍"];
-
-export interface IconPickerProps {
-  value?: string;
-  onChange: (icon: string) => void;
-  isPending: boolean;
-}
-
-export function IconPicker({ value, onChange, isPending }: IconPickerProps) {
-  const [open, setOpen] = useState(false);
-  const [custom, setCustom] = useState("");
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          disabled={isPending}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-muted/30 text-xl hover:bg-muted/60 transition"
-          title="設定頁面圖示"
-        >
-          {value ? value : <Smile className="h-5 w-5 text-muted-foreground" />}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-64 p-3">
-        <p className="mb-2 text-xs font-medium text-muted-foreground">選擇圖示</p>
-        <div className="mb-3 grid grid-cols-8 gap-1">
-          {QUICK_EMOJIS.map((e) => (
-            <button
-              key={e}
-              type="button"
-              onClick={() => { onChange(e); setOpen(false); }}
-              className="rounded p-1 text-lg hover:bg-muted transition"
-            >
-              {e}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <Input
-            value={custom}
-            onChange={(e) => setCustom(e.target.value)}
-            placeholder="輸入 emoji 或文字"
-            className="h-7 text-xs"
-          />
-          <Button
-            size="sm"
-            className="h-7 px-2 text-xs"
-            disabled={!custom.trim()}
-            onClick={() => { onChange(custom.trim()); setCustom(""); setOpen(false); }}
-          >
-            套用
-          </Button>
-        </div>
-        {value && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-2 h-7 w-full text-xs text-muted-foreground"
-            onClick={() => { onChange(""); setOpen(false); }}
-          >
-            移除圖示
-          </Button>
-        )}
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-// ── Cover editor ──────────────────────────────────────────────────────────────
-
-export interface CoverEditorProps {
-  value?: string;
-  onChange: (url: string) => void;
-  isPending: boolean;
-}
-
-export function CoverEditor({ value, onChange, isPending }: CoverEditorProps) {
-  const [open, setOpen] = useState(false);
-  const [url, setUrl] = useState(value ?? "");
-
-  return (
-    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (v) setUrl(value ?? ""); }}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          disabled={isPending}
-          className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition"
-          title="設定封面圖片"
-        >
-          <ImageIcon className="h-3.5 w-3.5" />
-          {value ? "變更封面" : "新增封面"}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-72 p-3">
-        <p className="mb-2 text-xs font-medium text-muted-foreground">封面圖片 URL</p>
-        <div className="flex gap-2">
-          <Input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://..."
-            className="h-7 text-xs"
-          />
-          <Button
-            size="sm"
-            className="h-7 px-2 text-xs"
-            onClick={() => { onChange(url.trim()); setOpen(false); }}
-          >
-            套用
-          </Button>
-        </div>
-        {value && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-2 h-7 w-full text-xs text-muted-foreground"
-            onClick={() => { onChange(""); setOpen(false); }}
-          >
-            移除封面
-          </Button>
-        )}
-      </PopoverContent>
-    </Popover>
-  );
-}
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/components/PageEditorView.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/knowledge
- * Layer: interfaces/components
- * Purpose: PageEditorView — renders the block editor for a knowledge page.
- *          Connects accountId/pageId context to BlockEditorView.
- */
-
-import { useEffect, useCallback } from "react";
-import { useBlockEditorStore } from "../store/block-editor.store";
-import { getKnowledgeBlocks } from "../queries";
-import { BlockEditorView } from "./BlockEditorView";
-
-export interface PageEditorViewProps {
-  accountId: string;
-  pageId: string;
-}
-
-export function PageEditorView({ accountId, pageId }: PageEditorViewProps) {
-  const { setPage, setBlocks } = useBlockEditorStore();
-
-  const loadBlocks = useCallback(async () => {
-    if (!accountId || !pageId) return;
-    setPage(accountId, pageId);
-    const snapshots = await getKnowledgeBlocks(accountId, pageId);
-    setBlocks(
-      snapshots.map((b) => ({
-        id: b.id,
-        content: b.content,
-        order: b.order,
-        parentBlockId: b.parentBlockId,
-        isFocused: false,
-      })),
-    );
-  }, [accountId, pageId, setPage, setBlocks]);
-
-  useEffect(() => { void loadBlocks(); }, [loadBlocks]);
-
-  return <BlockEditorView />;
-}
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/components/PageTreeView.tsx
-````typescript
-"use client";
-
-import { ChevronDown, ChevronRight, FilePlus, FileText } from "lucide-react";
-import { useState } from "react";
-import { Button } from "@ui-shadcn/ui/button";
-import type { KnowledgePageTreeNode } from "../../application/dto/knowledge.dto";
-import { PageDialog } from "./PageDialog";
-
-export interface PageTreeViewProps {
-  nodes: KnowledgePageTreeNode[];
-  accountId: string;
-  workspaceId?: string;
-  currentUserId: string;
-  allowCreate?: boolean;
-  emptyStateDescription?: string;
-  onPageClick?: (pageId: string) => void;
-  onCreated?: () => void;
-}
-
-function TreeNode({
-  node, accountId, workspaceId, currentUserId, allowCreate, onPageClick, onCreated, depth,
-}: { node: KnowledgePageTreeNode; accountId: string; workspaceId?: string; currentUserId: string; allowCreate: boolean; onPageClick?: (id: string) => void; onCreated?: () => void; depth: number }) {
-  const [expanded, setExpanded] = useState(depth < 1);
-  const [addChildOpen, setAddChildOpen] = useState(false);
-  const hasChildren = node.children && node.children.length > 0;
-  const canCreate = allowCreate && Boolean(workspaceId);
-
-  return (
-    <li>
-      <div className="group flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted/30" style={{ paddingLeft: `${8 + depth * 16}px` }}>
-        <button type="button" className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground" onClick={() => setExpanded((v) => !v)}>
-          {hasChildren ? (expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />) : <FileText className="h-3.5 w-3.5" />}
-        </button>
-        <button type="button" className="min-w-0 flex-1 truncate text-left text-sm" onClick={() => onPageClick?.(node.id)}>
-          {node.title}
-        </button>
-        {canCreate && (
-          <button type="button" className="invisible shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground group-hover:visible" onClick={(e) => { e.stopPropagation(); setAddChildOpen(true); }}>
-            <FilePlus className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
-      {expanded && hasChildren && (
-        <ul>
-          {node.children.map((child) => (
-            <TreeNode key={child.id} node={child} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} allowCreate={allowCreate} onPageClick={onPageClick} onCreated={onCreated} depth={depth + 1} />
-          ))}
-        </ul>
-      )}
-      {addChildOpen && (
-        <PageDialog open={addChildOpen} onOpenChange={setAddChildOpen} accountId={accountId} workspaceId={workspaceId ?? ""} currentUserId={currentUserId} parentPageId={node.id} onSuccess={onCreated} />
-      )}
-    </li>
-  );
-}
-
-export function PageTreeView({ nodes, accountId, workspaceId, currentUserId, allowCreate = true, emptyStateDescription, onPageClick, onCreated }: PageTreeViewProps) {
-  const [createOpen, setCreateOpen] = useState(false);
-  if (!nodes.length) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-8 text-center text-sm text-muted-foreground">
-        <FileText className="h-8 w-8 opacity-40" />
-        <p>{emptyStateDescription ?? "尚無頁面"}</p>
-        {allowCreate && workspaceId && (
-          <>
-            <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>新增頁面</Button>
-            <PageDialog open={createOpen} onOpenChange={setCreateOpen} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} parentPageId={null} onSuccess={onCreated} />
-          </>
-        )}
-      </div>
-    );
-  }
-  return <ul className="space-y-0.5">{nodes.map((n) => <TreeNode key={n.id} node={n} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} allowCreate={allowCreate} onPageClick={onPageClick} onCreated={onCreated} depth={0} />)}</ul>;
-}
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/queries/index.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: interfaces/queries
- * Purpose: Server-side read helpers for the knowledge subdomain.
- */
-
-import { makeBlockRepo, makeCollectionRepo, makePageRepo } from "../../api/factories";
-import {
-  GetKnowledgePageUseCase,
-  ListKnowledgePagesUseCase,
-  ListKnowledgePagesByWorkspaceUseCase,
-  GetKnowledgePageTreeUseCase,
-  GetKnowledgePageTreeByWorkspaceUseCase,
-} from "../../application/queries/knowledge-page.queries";
-import { ListContentBlocksUseCase } from "../../application/queries/content-block.queries";
-import {
-  GetKnowledgeCollectionUseCase,
-  ListKnowledgeCollectionsUseCase,
-} from "../../application/queries/knowledge-collection.queries";
-import type { KnowledgePageSnapshot, ContentBlockSnapshot, KnowledgeCollectionSnapshot } from "../../application/dto/knowledge.dto";
-
-export async function getKnowledgePage(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {
-  return new GetKnowledgePageUseCase(makePageRepo()).execute(accountId, pageId);
-}
-
-export async function getKnowledgePages(accountId: string): Promise<KnowledgePageSnapshot[]> {
-  return new ListKnowledgePagesUseCase(makePageRepo()).execute(accountId);
-}
-
-export async function getKnowledgePagesByWorkspace(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]> {
-  return new ListKnowledgePagesByWorkspaceUseCase(makePageRepo()).execute(accountId, workspaceId);
-}
-
-export async function getKnowledgePageTree(accountId: string) {
-  return new GetKnowledgePageTreeUseCase(makePageRepo()).execute(accountId);
-}
-
-export async function getKnowledgePageTreeByWorkspace(accountId: string, workspaceId: string) {
-  return new GetKnowledgePageTreeByWorkspaceUseCase(makePageRepo()).execute(accountId, workspaceId);
-}
-
-export async function getKnowledgeBlocks(accountId: string, pageId: string): Promise<ContentBlockSnapshot[]> {
-  return new ListContentBlocksUseCase(makeBlockRepo()).execute(accountId, pageId);
-}
-
-export async function getKnowledgeCollection(accountId: string, collectionId: string): Promise<KnowledgeCollectionSnapshot | null> {
-  return new GetKnowledgeCollectionUseCase(makeCollectionRepo()).execute(accountId, collectionId);
-}
-
-export async function getKnowledgeCollections(accountId: string): Promise<KnowledgeCollectionSnapshot[]> {
-  return new ListKnowledgeCollectionsUseCase(makeCollectionRepo()).execute(accountId);
-}
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/store/block-editor.store.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: interfaces/store
- * Purpose: Zustand store for the block editor UI state.
- *          Manages optimistic block operations before persistence.
- */
-"use client";
-
-import { create } from "zustand";
-import type { BlockContent } from "../../application/dto/knowledge.dto";
-
-export interface EditorBlock {
-  id: string;
-  content: BlockContent;
-  order: number;
-  parentBlockId: string | null;
-  isFocused: boolean;
-}
-
-interface BlockEditorState {
-  pageId: string | null;
-  accountId: string | null;
-  blocks: EditorBlock[];
-  isDirty: boolean;
-
-  setPage: (accountId: string, pageId: string) => void;
-  setBlocks: (blocks: EditorBlock[]) => void;
-  addBlock: (after: string | null, content?: BlockContent) => EditorBlock;
-  updateBlock: (id: string, content: BlockContent) => void;
-  deleteBlock: (id: string) => void;
-  reorder: (ids: string[]) => void;
-  clearDirty: () => void;
-}
-
-function makeId() {
-  return crypto.randomUUID();
-}
-
-export const useBlockEditorStore = create<BlockEditorState>((set, get) => ({
-  pageId: null,
-  accountId: null,
-  blocks: [],
-  isDirty: false,
-
-  setPage(accountId, pageId) {
-    set({ accountId, pageId, blocks: [], isDirty: false });
-  },
-
-  setBlocks(blocks) {
-    set({ blocks, isDirty: false });
-  },
-
-  addBlock(afterId, content = { type: "text", richText: [] }) {
-    const blocks = [...get().blocks];
-    const idx = afterId ? blocks.findIndex((b) => b.id === afterId) : blocks.length - 1;
-    const newBlock: EditorBlock = {
-      id: makeId(),
-      content,
-      order: idx + 1,
-      parentBlockId: null,
-      isFocused: true,
-    };
-    const updated = [
-      ...blocks.slice(0, idx + 1),
-      newBlock,
-      ...blocks.slice(idx + 1).map((b) => ({ ...b, order: b.order + 1 })),
-    ];
-    set({ blocks: updated, isDirty: true });
-    return newBlock;
-  },
-
-  updateBlock(id, content) {
-    set({
-      blocks: get().blocks.map((b) => (b.id === id ? { ...b, content } : b)),
-      isDirty: true,
-    });
-  },
-
-  deleteBlock(id) {
-    set({
-      blocks: get().blocks.filter((b) => b.id !== id),
-      isDirty: true,
-    });
-  },
-
-  reorder(ids) {
-    const map = new Map(get().blocks.map((b) => [b.id, b]));
-    const reordered = ids
-      .map((id, i) => {
-        const b = map.get(id);
-        return b ? { ...b, order: i } : null;
-      })
-      .filter((b): b is EditorBlock => b !== null);
-    set({ blocks: reordered, isDirty: true });
-  },
-
-  clearDirty() {
-    set({ isDirty: false });
-  },
-}));
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notion/subdomains/relations/application/index.ts
@@ -8261,35 +4748,36 @@ export const useBlockEditorStore = create<BlockEditorState>((set, get) => ({
 // Purpose: Application layer placeholder for notion subdomain 'relations'.
 ````
 
-## File: modules/notion/subdomains/relations/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notion subdomain 'relations'.
-````
-
-## File: modules/notion/subdomains/subdomains.instructions.md
+## File: modules/notion/subdomains/relations/README.md
 ````markdown
----
-description: 'Notion subdomains structural rules: hexagonal shape per subdomain, content lifecycle ownership, cross-subdomain collaboration, and stub promotion criteria.'
-applyTo: 'modules/notion/subdomains/**/*.{ts,tsx}'
----
+# Relations
 
-# Notion Subdomains Layer (Local)
+建立內容之間關聯與 backlink 的正典邊界。
 
-Use this file as execution guardrails for `modules/notion/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notion/subdomains.md`.
+## Ownership
 
-## Core Rules
+- **Bounded Context**: notion
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
 
-- Every subdomain must maintain the full hexagonal shape: `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`.
-- Stub subdomains must not be promoted to Active without a corresponding ADR and `README.md` update.
-- Cross-subdomain collaboration within notion goes through the **subdomain's own `api/`** — never import a sibling's `domain/`, `application/`, or `infrastructure/` internals.
-- Content lifecycle ownership is fixed: `authoring` owns Article state machine; `knowledge` owns KnowledgePage and ContentBlock; `database` owns structured records and views; `collaboration` owns comments, permissions, and versions.
-- `knowledge` subdomain is the canonical upstream for knowledge artifact references consumed by `notebooklm` — expose via `api/` only.
-- Domain events use the discriminant format `notion.<subdomain>.<action>` (e.g. `notion.knowledge.page-published`).
-- Dependency direction inside each subdomain: `interfaces → application → domain ← infrastructure`.
+## Layers
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notion/subdomains/taxonomy/application/index.ts
@@ -8297,9 +4785,36 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 // Purpose: Application layer placeholder for notion subdomain 'taxonomy'.
 ````
 
-## File: modules/notion/subdomains/taxonomy/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notion subdomain 'taxonomy'.
+## File: modules/notion/subdomains/taxonomy/README.md
+````markdown
+# Taxonomy
+
+建立分類法與語義組織的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Layers
+
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notion/application/dtos/index.ts
@@ -8396,36 +4911,7 @@ export interface TaxonomyHint {
 }
 ````
 
-## File: modules/notion/interfaces/components/.gitkeep
-````
-
-````
-
-## File: modules/notion/subdomains/authoring/application/use-cases/index.ts
-````typescript
-export {
-  CreateArticleUseCase,
-  UpdateArticleUseCase,
-  ArchiveArticleUseCase,
-  DeleteArticleUseCase,
-} from "./ArticleLifecycleUseCases";
-
-export { PublishArticleUseCase } from "./ArticlePublicationUseCases";
-
-export {
-  VerifyArticleUseCase,
-  RequestArticleReviewUseCase,
-} from "./ArticleVerificationUseCases";
-
-export {
-  CreateCategoryUseCase,
-  RenameCategoryUseCase,
-  MoveCategoryUseCase,
-  DeleteCategoryUseCase,
-} from "./CategoryUseCases";
-````
-
-## File: modules/notion/subdomains/authoring/infrastructure/firebase/FirebaseArticleRepository.ts
+## File: modules/notion/infrastructure/authoring/firebase/FirebaseArticleRepository.ts
 ````typescript
 /**
  * Module: notion/subdomains/authoring
@@ -8435,8 +4921,8 @@ export {
  */
 
 import { firestoreInfrastructureApi } from "@/modules/platform/api";
-import type { ArticleSnapshot, ArticleStatus, ArticleVerificationState } from "../../domain/aggregates/Article";
-import type { IArticleRepository } from "../../domain/repositories/IArticleRepository";
+import type { ArticleSnapshot, ArticleStatus, ArticleVerificationState } from "../../../subdomains/authoring/domain/aggregates/Article";
+import type { IArticleRepository } from "../../../subdomains/authoring/domain/repositories/IArticleRepository";
 
 function articlesPath(accountId: string): string {
   return `accounts/${accountId}/kbArticles`;
@@ -8523,7 +5009,7 @@ export class FirebaseArticleRepository implements IArticleRepository {
 }
 ````
 
-## File: modules/notion/subdomains/authoring/infrastructure/firebase/FirebaseCategoryRepository.ts
+## File: modules/notion/infrastructure/authoring/firebase/FirebaseCategoryRepository.ts
 ````typescript
 /**
  * Module: notion/subdomains/authoring
@@ -8533,8 +5019,8 @@ export class FirebaseArticleRepository implements IArticleRepository {
  */
 
 import { firestoreInfrastructureApi } from "@/modules/platform/api";
-import type { CategorySnapshot } from "../../domain/aggregates/Category";
-import type { ICategoryRepository } from "../../domain/repositories/ICategoryRepository";
+import type { CategorySnapshot } from "../../../subdomains/authoring/domain/aggregates/Category";
+import type { ICategoryRepository } from "../../../subdomains/authoring/domain/repositories/ICategoryRepository";
 
 function categoriesPath(accountId: string): string {
   return `accounts/${accountId}/kbCategories`;
@@ -8592,7 +5078,1443 @@ export class FirebaseCategoryRepository implements ICategoryRepository {
 }
 ````
 
-## File: modules/notion/subdomains/authoring/interfaces/components/ArticleDetailPage.tsx
+## File: modules/notion/infrastructure/authoring/firebase/index.ts
+````typescript
+// TODO: export FirebaseArticleRepository, FirebaseCategoryRepository
+
+export { FirebaseArticleRepository } from "./FirebaseArticleRepository";
+export { FirebaseCategoryRepository } from "./FirebaseCategoryRepository";
+````
+
+## File: modules/notion/infrastructure/authoring/index.ts
+````typescript
+export * from "./firebase";
+````
+
+## File: modules/notion/infrastructure/collaboration/firebase/FirebaseCommentRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/collaboration
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/collaborationComments/{commentId}
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+import type { CommentSnapshot, SelectionRange } from "../../../subdomains/collaboration/domain/aggregates/Comment";
+import type {
+  ICommentRepository,
+  CommentUnsubscribe,
+  CreateCommentInput,
+  UpdateCommentInput,
+  ResolveCommentInput,
+} from "../../../subdomains/collaboration/domain/repositories/ICommentRepository";
+
+function commentsPath(accountId: string): string {
+  return `accounts/${accountId}/collaborationComments`;
+}
+
+function commentPath(accountId: string, id: string): string {
+  return `accounts/${accountId}/collaborationComments/${id}`;
+}
+
+function toComment(id: string, data: Record<string, unknown>): CommentSnapshot {
+  return {
+    id,
+    contentId: typeof data.contentId === "string" ? data.contentId : "",
+    contentType: data.contentType === "article" ? "article" : "page",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    authorId: typeof data.authorId === "string" ? data.authorId : "",
+    body: typeof data.body === "string" ? data.body : "",
+    parentCommentId: typeof data.parentCommentId === "string" ? data.parentCommentId : null,
+    blockId: typeof data.blockId === "string" ? data.blockId : null,
+    selectionRange: (
+      data.selectionRange !== null &&
+      typeof data.selectionRange === "object" &&
+      typeof (data.selectionRange as Record<string, unknown>).from === "number" &&
+      typeof (data.selectionRange as Record<string, unknown>).to === "number"
+    )
+      ? {
+          from: (data.selectionRange as Record<string, unknown>).from as number,
+          to: (data.selectionRange as Record<string, unknown>).to as number,
+        } as SelectionRange
+      : null,
+    resolvedAt: typeof data.resolvedAt === "string" ? data.resolvedAt : null,
+    resolvedByUserId: typeof data.resolvedByUserId === "string" ? data.resolvedByUserId : null,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseCommentRepository implements ICommentRepository {
+  async create(input: CreateCommentInput): Promise<CommentSnapshot> {
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      contentId: input.contentId,
+      contentType: input.contentType,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      authorId: input.authorId,
+      body: input.body,
+      parentCommentId: input.parentCommentId ?? null,
+      blockId: input.blockId ?? null,
+      selectionRange: input.selectionRange ?? null,
+      resolvedAt: null,
+      resolvedByUserId: null,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    await firestoreInfrastructureApi.set(commentPath(input.accountId, id), data);
+    return toComment(id, data);
+  }
+
+  async update(input: UpdateCommentInput): Promise<CommentSnapshot | null> {
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      commentPath(input.accountId, input.id),
+    );
+    if (!existing) return null;
+    const now = new Date().toISOString();
+    await firestoreInfrastructureApi.update(commentPath(input.accountId, input.id), {
+      body: input.body,
+      updatedAtISO: now,
+    });
+    return toComment(input.id, { ...existing, body: input.body, updatedAtISO: now });
+  }
+
+  async resolve(input: ResolveCommentInput): Promise<CommentSnapshot | null> {
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      commentPath(input.accountId, input.id),
+    );
+    if (!existing) return null;
+    const now = new Date().toISOString();
+    await firestoreInfrastructureApi.update(commentPath(input.accountId, input.id), {
+      resolvedAt: now,
+      resolvedByUserId: input.resolvedByUserId,
+    });
+    return toComment(input.id, { ...existing, resolvedAt: now, resolvedByUserId: input.resolvedByUserId });
+  }
+
+  async delete(accountId: string, commentId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(commentPath(accountId, commentId));
+  }
+
+  async findById(accountId: string, commentId: string): Promise<CommentSnapshot | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      commentPath(accountId, commentId),
+    );
+    if (!data) return null;
+    return toComment(commentId, data);
+  }
+
+  async listByContent(accountId: string, contentId: string): Promise<CommentSnapshot[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      commentsPath(accountId),
+      [{ field: "contentId", op: "==", value: contentId }],
+      { orderBy: [{ field: "createdAtISO", direction: "asc" }] },
+    );
+    return docs.map((d) => toComment(d.id, d.data));
+  }
+
+  subscribe(accountId: string, contentId: string, onUpdate: (comments: CommentSnapshot[]) => void): CommentUnsubscribe {
+    return firestoreInfrastructureApi.watchCollection<Record<string, unknown>>(
+      commentsPath(accountId),
+      {
+        onNext: (documents) => {
+          const mapped = documents
+            .map((d) => toComment(d.id, d.data))
+            .sort((a, b) => a.createdAtISO.localeCompare(b.createdAtISO));
+          onUpdate(mapped);
+        },
+      },
+      [{ field: "contentId", op: "==", value: contentId }],
+    );
+  }
+
+  
+}
+````
+
+## File: modules/notion/infrastructure/collaboration/firebase/FirebasePermissionRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/collaboration
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/collaborationPermissions/{id}
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+import type { PermissionSnapshot, PermissionLevel, PrincipalType } from "../../../subdomains/collaboration/domain/aggregates/Permission";
+import type { IPermissionRepository, GrantPermissionInput } from "../../../subdomains/collaboration/domain/repositories/IPermissionRepository";
+
+function permissionsPath(accountId: string): string {
+  return `accounts/${accountId}/collaborationPermissions`;
+}
+
+function permissionPath(accountId: string, id: string): string {
+  return `accounts/${accountId}/collaborationPermissions/${id}`;
+}
+
+function toPermission(id: string, data: Record<string, unknown>): PermissionSnapshot {
+  return {
+    id,
+    subjectId: typeof data.subjectId === "string" ? data.subjectId : "",
+    subjectType: (data.subjectType as PermissionSnapshot["subjectType"]) ?? "page",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    principalId: typeof data.principalId === "string" ? data.principalId : "",
+    principalType: (data.principalType as PrincipalType) ?? "user",
+    level: (data.level as PermissionLevel) ?? "view",
+    grantedByUserId: typeof data.grantedByUserId === "string" ? data.grantedByUserId : "",
+    grantedAtISO: typeof data.grantedAtISO === "string" ? data.grantedAtISO : "",
+    expiresAtISO: typeof data.expiresAtISO === "string" ? data.expiresAtISO : null,
+    linkToken: typeof data.linkToken === "string" ? data.linkToken : null,
+  };
+}
+
+export class FirebasePermissionRepository implements IPermissionRepository {
+  async grant(input: GrantPermissionInput): Promise<PermissionSnapshot> {
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      subjectId: input.subjectId,
+      subjectType: input.subjectType,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      principalId: input.principalId,
+      principalType: input.principalType,
+      level: input.level,
+      grantedByUserId: input.grantedByUserId,
+      grantedAtISO: now,
+      expiresAtISO: input.expiresAtISO ?? null,
+      linkToken: input.linkToken ?? null,
+    };
+    await firestoreInfrastructureApi.set(permissionPath(input.accountId, id), data);
+    return toPermission(id, data);
+  }
+
+  async revoke(accountId: string, permissionId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(permissionPath(accountId, permissionId));
+  }
+
+  async findById(accountId: string, permissionId: string): Promise<PermissionSnapshot | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      permissionPath(accountId, permissionId),
+    );
+    if (!data) return null;
+    return toPermission(permissionId, data);
+  }
+
+  async listBySubject(accountId: string, subjectId: string): Promise<PermissionSnapshot[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      permissionsPath(accountId),
+      [{ field: "subjectId", op: "==", value: subjectId }],
+    );
+    return docs.map((d) => toPermission(d.id, d.data));
+  }
+}
+````
+
+## File: modules/notion/infrastructure/collaboration/firebase/FirebaseVersionRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/collaboration
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/collaborationVersions/{versionId}
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+import type { VersionSnapshot } from "../../../subdomains/collaboration/domain/aggregates/Version";
+import type { IVersionRepository, CreateVersionInput } from "../../../subdomains/collaboration/domain/repositories/IVersionRepository";
+
+function versionsPath(accountId: string): string {
+  return `accounts/${accountId}/collaborationVersions`;
+}
+
+function versionPath(accountId: string, id: string): string {
+  return `accounts/${accountId}/collaborationVersions/${id}`;
+}
+
+function toVersion(id: string, data: Record<string, unknown>): VersionSnapshot {
+  return {
+    id,
+    contentId: typeof data.contentId === "string" ? data.contentId : "",
+    contentType: data.contentType === "article" ? "article" : "page",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    snapshotBlocks: Array.isArray(data.snapshotBlocks) ? data.snapshotBlocks : [],
+    label: typeof data.label === "string" ? data.label : null,
+    description: typeof data.description === "string" ? data.description : null,
+    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+  };
+}
+
+export class FirebaseVersionRepository implements IVersionRepository {
+  async create(input: CreateVersionInput): Promise<VersionSnapshot> {
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      contentId: input.contentId,
+      contentType: input.contentType,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      snapshotBlocks: input.snapshotBlocks,
+      label: input.label ?? null,
+      description: input.description ?? null,
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+    };
+    await firestoreInfrastructureApi.set(versionPath(input.accountId, id), data);
+    return toVersion(id, data);
+  }
+
+  async findById(accountId: string, versionId: string): Promise<VersionSnapshot | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      versionPath(accountId, versionId),
+    );
+    if (!data) return null;
+    return toVersion(versionId, data);
+  }
+
+  async listByContent(accountId: string, contentId: string): Promise<VersionSnapshot[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      versionsPath(accountId),
+      [{ field: "contentId", op: "==", value: contentId }],
+      { orderBy: [{ field: "createdAtISO", direction: "desc" }] },
+    );
+    return docs.map((d) => toVersion(d.id, d.data));
+  }
+
+  async delete(accountId: string, versionId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(versionPath(accountId, versionId));
+  }
+}
+````
+
+## File: modules/notion/infrastructure/collaboration/firebase/index.ts
+````typescript
+export { FirebaseCommentRepository } from "./FirebaseCommentRepository";
+export { FirebaseVersionRepository } from "./FirebaseVersionRepository";
+export { FirebasePermissionRepository } from "./FirebasePermissionRepository";
+````
+
+## File: modules/notion/infrastructure/collaboration/index.ts
+````typescript
+export * from "./firebase";
+````
+
+## File: modules/notion/infrastructure/database/firebase/FirebaseAutomationRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/knowledgeDatabases/{databaseId}/automations/{automationId}
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+
+import type {
+  DatabaseAutomationSnapshot,
+  AutomationCondition,
+  AutomationAction,
+} from "../../../subdomains/database/domain/aggregates/DatabaseAutomation";
+import type { IAutomationRepository, CreateAutomationInput, UpdateAutomationInput } from "../../../subdomains/database/domain/repositories/IAutomationRepository";
+
+function automationsPath(accountId: string, databaseId: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/automations`;
+}
+
+function automationPath(accountId: string, databaseId: string, automationId: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/automations/${automationId}`;
+}
+
+function toCondition(c: Record<string, unknown>): AutomationCondition {
+  return {
+    fieldId: typeof c.fieldId === "string" ? c.fieldId : "",
+    operator: (c.operator as AutomationCondition["operator"]) ?? "equals",
+    value: typeof c.value === "string" ? c.value : undefined,
+  };
+}
+
+function toAction(a: Record<string, unknown>): AutomationAction {
+  return {
+    type: (a.type as AutomationAction["type"]) ?? "send_notification",
+    config: typeof a.config === "object" && a.config !== null ? (a.config as Record<string, string>) : {},
+  };
+}
+
+function toAutomation(id: string, data: Record<string, unknown>): DatabaseAutomationSnapshot {
+  return {
+    id,
+    databaseId: typeof data.databaseId === "string" ? data.databaseId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    name: typeof data.name === "string" ? data.name : "",
+    enabled: data.enabled !== false,
+    trigger: (data.trigger as DatabaseAutomationSnapshot["trigger"]) ?? "record_created",
+    triggerFieldId: typeof data.triggerFieldId === "string" ? data.triggerFieldId : undefined,
+    conditions: Array.isArray(data.conditions) ? (data.conditions as Record<string, unknown>[]).map(toCondition) : [],
+    actions: Array.isArray(data.actions) ? (data.actions as Record<string, unknown>[]).map(toAction) : [],
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : new Date().toISOString(),
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : new Date().toISOString(),
+  };
+}
+
+export class FirebaseAutomationRepository implements IAutomationRepository {
+  async create(input: CreateAutomationInput): Promise<DatabaseAutomationSnapshot> {
+    const id = generateId();
+    const now = new Date().toISOString();
+    const payload = {
+      databaseId: input.databaseId,
+      accountId: input.accountId,
+      name: input.name,
+      enabled: true,
+      trigger: input.trigger,
+      triggerFieldId: input.triggerFieldId ?? null,
+      conditions: input.conditions ?? [],
+      actions: input.actions ?? [],
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    await firestoreInfrastructureApi.set(automationPath(input.accountId, input.databaseId, id), payload);
+    return toAutomation(id, payload);
+  }
+
+  async update(input: UpdateAutomationInput): Promise<DatabaseAutomationSnapshot | null> {
+    const { id, accountId, databaseId, ...fields } = input;
+    const path = automationPath(accountId, databaseId, id);
+    const updates: Record<string, unknown> = { ...fields, updatedAtISO: new Date().toISOString() };
+    await firestoreInfrastructureApi.update(path, updates);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
+    return toAutomation(id, snap);
+  }
+
+  async delete(id: string, accountId: string, databaseId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(automationPath(accountId, databaseId, id));
+  }
+
+  async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      automationsPath(accountId, databaseId),
+      [{ field: "databaseId", op: "==", value: databaseId }],
+      { orderBy: [{ field: "createdAtISO", direction: "asc" }] },
+    );
+    return docs.map((d) => toAutomation(d.id, d.data));
+  }
+}
+````
+
+## File: modules/notion/infrastructure/database/firebase/FirebaseDatabaseRecordRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: infrastructure/firebase
+ * Purpose: Firestore implementation of IDatabaseRecordRepository.
+ *          Firestore path: accounts/{accountId}/knowledgeDatabases/{databaseId}/records/{recordId}
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+import type { IDatabaseRecordRepository, CreateRecordInput, UpdateRecordInput } from "../../../subdomains/database/domain/repositories/IDatabaseRecordRepository";
+import type { DatabaseRecordSnapshot } from "../../../subdomains/database/domain/aggregates/DatabaseRecord";
+
+function recordsPath(accountId: string, databaseId: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/records`;
+}
+
+function recordPath(accountId: string, databaseId: string, recordId: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/records/${recordId}`;
+}
+
+function toISO(ts: unknown): string {
+  if (typeof ts === "object" && ts !== null && "toDate" in ts && typeof (ts as { toDate: () => Date }).toDate === "function") {
+    return (ts as { toDate: () => Date }).toDate().toISOString();
+  }
+  if (typeof ts === "string") return ts;
+  return new Date().toISOString();
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toSnapshot(id: string, data: Record<string, any>): DatabaseRecordSnapshot {
+  return {
+    id,
+    databaseId: data.databaseId ?? "",
+    workspaceId: data.workspaceId ?? "",
+    accountId: data.accountId ?? "",
+    pageId: data.pageId ?? null,
+    properties: typeof data.properties === "object" && data.properties !== null ? data.properties : {},
+    order: typeof data.order === "number" ? data.order : 0,
+    createdByUserId: data.createdByUserId ?? "",
+    createdAtISO: toISO(data.createdAt),
+    updatedAtISO: toISO(data.updatedAt),
+  };
+}
+
+export class FirebaseDatabaseRecordRepository implements IDatabaseRecordRepository {
+  async create(input: CreateRecordInput): Promise<DatabaseRecordSnapshot> {
+    const id = generateId();
+    const countDocs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      recordsPath(input.accountId, input.databaseId),
+    );
+    const now = new Date().toISOString();
+    const data = {
+      databaseId: input.databaseId,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      pageId: input.pageId ?? null,
+      properties: input.properties ?? {},
+      order: countDocs.length,
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    await firestoreInfrastructureApi.set(recordPath(input.accountId, input.databaseId, id), data);
+    return toSnapshot(id, data);
+  }
+
+  async update(input: UpdateRecordInput): Promise<DatabaseRecordSnapshot> {
+    // We need to find which database this record belongs to. Properties are keyed by field IDs.
+    // The record stores databaseId on the document; we fetch it via a collection-group query approach.
+    // For simplicity, the input should come from a context where databaseId is available.
+    // Here we use a direct path by reading the doc first from a stored databaseId lookup.
+    // Since the record doc lives in accounts/{accountId}/knowledgeDatabases/{databaseId}/records/{id},
+    // and we only have id+accountId, we do collection group query.
+    const { id, accountId, properties } = input;
+    const docs = await firestoreInfrastructureApi.queryCollectionGroup<Record<string, unknown>>(
+      "records",
+      [{ field: "accountId", op: "==", value: accountId }],
+    );
+    const target = docs.find((d) => d.id === id);
+    if (!target) throw new Error(`Record ${id} not found`);
+    await firestoreInfrastructureApi.update(target.path, { properties, updatedAtISO: new Date().toISOString() });
+    const refreshed = await firestoreInfrastructureApi.get<Record<string, unknown>>(target.path);
+    if (!refreshed) {
+      throw new Error(`Record ${id} not found after update`);
+    }
+    return toSnapshot(id, refreshed);
+  }
+
+  async delete(id: string, accountId: string): Promise<void> {
+    const docs = await firestoreInfrastructureApi.queryCollectionGroup<Record<string, unknown>>(
+      "records",
+      [{ field: "accountId", op: "==", value: accountId }],
+    );
+    const target = docs.find((d) => d.id === id);
+    if (target) {
+      await firestoreInfrastructureApi.delete(target.path);
+    }
+  }
+
+  async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRecordSnapshot[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      recordsPath(accountId, databaseId),
+    );
+    return docs.map((d) => toSnapshot(d.id, d.data));
+  }
+}
+````
+
+## File: modules/notion/infrastructure/database/firebase/FirebaseDatabaseRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: infrastructure/firebase
+ * Purpose: Firestore implementation of IDatabaseRepository.
+ *          Firestore path: accounts/{accountId}/knowledgeDatabases/{databaseId}
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { generateId } from "@shared-utils";
+import type { IDatabaseRepository, CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../../../subdomains/database/domain/repositories/IDatabaseRepository";
+import type { DatabaseSnapshot, Field } from "../../../subdomains/database/domain/aggregates/Database";
+
+function databasesPath(accountId: string): string {
+  return `accounts/${accountId}/knowledgeDatabases`;
+}
+
+function databasePath(accountId: string, id: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${id}`;
+}
+
+function toISO(ts: unknown): string {
+  if (typeof ts === "object" && ts !== null && "toDate" in ts && typeof (ts as { toDate: () => Date }).toDate === "function") {
+    return (ts as { toDate: () => Date }).toDate().toISOString();
+  }
+  if (typeof ts === "string") return ts;
+  return new Date().toISOString();
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toSnapshot(id: string, data: Record<string, any>): DatabaseSnapshot {
+  return {
+    id,
+    workspaceId: data.workspaceId ?? "",
+    accountId: data.accountId ?? "",
+    name: data.name ?? "",
+    description: data.description ?? null,
+    fields: Array.isArray(data.fields) ? data.fields : [],
+    viewIds: Array.isArray(data.viewIds) ? data.viewIds : [],
+    icon: data.icon ?? null,
+    coverImageUrl: data.coverImageUrl ?? null,
+    createdByUserId: data.createdByUserId ?? "",
+    createdAtISO: toISO(data.createdAt),
+    updatedAtISO: toISO(data.updatedAt),
+  };
+}
+
+export class FirebaseDatabaseRepository implements IDatabaseRepository {
+  async create(input: CreateDatabaseInput): Promise<DatabaseSnapshot> {
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      name: input.name,
+      description: input.description ?? null,
+      fields: [],
+      viewIds: [],
+      icon: null,
+      coverImageUrl: null,
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    await firestoreInfrastructureApi.set(databasePath(input.accountId, id), data);
+    return toSnapshot(id, data);
+  }
+
+  async update(input: UpdateDatabaseInput): Promise<DatabaseSnapshot> {
+    const path = databasePath(input.accountId, input.id);
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!existing) {
+      throw new Error(`Database ${input.id} not found`);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const changes: Record<string, any> = { updatedAtISO: new Date().toISOString() };
+    if (input.name !== undefined) changes.name = input.name;
+    if (input.description !== undefined) changes.description = input.description;
+    if (input.icon !== undefined) changes.icon = input.icon;
+    if (input.coverImageUrl !== undefined) changes.coverImageUrl = input.coverImageUrl;
+    await firestoreInfrastructureApi.update(path, changes);
+    return toSnapshot(input.id, { ...existing, ...changes });
+  }
+
+  async addField(input: AddFieldInput): Promise<Field> {
+    const path = databasePath(input.accountId, input.databaseId);
+    const data = (await firestoreInfrastructureApi.get<Record<string, unknown>>(path)) ?? {};
+    const fields: Field[] = Array.isArray(data.fields) ? [...data.fields] : [];
+    const newField: Field = {
+      id: generateId(),
+      name: input.name,
+      type: input.type,
+      config: input.config ?? {},
+      required: input.required ?? false,
+      order: fields.length,
+    };
+    fields.push(newField);
+    await firestoreInfrastructureApi.update(path, { fields, updatedAtISO: new Date().toISOString() });
+    return newField;
+  }
+
+  async archive(id: string, accountId: string): Promise<void> {
+    const now = new Date().toISOString();
+    await firestoreInfrastructureApi.update(databasePath(accountId, id), {
+      archived: true,
+      archivedAtISO: now,
+      updatedAtISO: now,
+    });
+  }
+
+  async findById(id: string, accountId: string): Promise<DatabaseSnapshot | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(databasePath(accountId, id));
+    if (!data) return null;
+    return toSnapshot(id, data);
+  }
+
+  async listByWorkspace(accountId: string, workspaceId: string): Promise<DatabaseSnapshot[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      databasesPath(accountId),
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+    );
+    return docs
+      .filter((d) => d.data.archived !== true)
+      .map((d) => toSnapshot(d.id, d.data));
+  }
+}
+````
+
+## File: modules/notion/infrastructure/database/firebase/FirebaseViewRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: infrastructure/firebase
+ * Purpose: Firestore implementation of IViewRepository.
+ *          Firestore path: accounts/{accountId}/knowledgeDatabases/{databaseId}/views/{viewId}
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+import type { IViewRepository, CreateViewInput, UpdateViewInput } from "../../../subdomains/database/domain/repositories/IViewRepository";
+import type { ViewSnapshot } from "../../../subdomains/database/domain/aggregates/View";
+
+function viewsPath(accountId: string, databaseId: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/views`;
+}
+
+function viewPath(accountId: string, databaseId: string, id: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/views/${id}`;
+}
+
+function toISO(ts: unknown): string {
+  if (typeof ts === "object" && ts !== null && "toDate" in ts && typeof (ts as { toDate: () => Date }).toDate === "function") {
+    return (ts as { toDate: () => Date }).toDate().toISOString();
+  }
+  if (typeof ts === "string") return ts;
+  return new Date().toISOString();
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toSnapshot(id: string, data: Record<string, any>): ViewSnapshot {
+  return {
+    id,
+    databaseId: data.databaseId ?? "",
+    workspaceId: data.workspaceId ?? "",
+    accountId: data.accountId ?? "",
+    name: data.name ?? "",
+    type: data.type ?? "table",
+    filters: Array.isArray(data.filters) ? data.filters : [],
+    sorts: Array.isArray(data.sorts) ? data.sorts : [],
+    groupBy: data.groupBy ?? null,
+    visibleFieldIds: Array.isArray(data.visibleFieldIds) ? data.visibleFieldIds : [],
+    hiddenFieldIds: Array.isArray(data.hiddenFieldIds) ? data.hiddenFieldIds : [],
+    boardGroupFieldId: data.boardGroupFieldId ?? null,
+    calendarDateFieldId: data.calendarDateFieldId ?? null,
+    timelineStartFieldId: data.timelineStartFieldId ?? null,
+    timelineEndFieldId: data.timelineEndFieldId ?? null,
+    createdByUserId: data.createdByUserId ?? "",
+    createdAtISO: toISO(data.createdAt),
+    updatedAtISO: toISO(data.updatedAt),
+  };
+}
+
+export class FirebaseViewRepository implements IViewRepository {
+  async create(input: CreateViewInput): Promise<ViewSnapshot> {
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      databaseId: input.databaseId,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      name: input.name,
+      type: input.type,
+      filters: [],
+      sorts: [],
+      groupBy: null,
+      visibleFieldIds: [],
+      hiddenFieldIds: [],
+      boardGroupFieldId: null,
+      calendarDateFieldId: null,
+      timelineStartFieldId: null,
+      timelineEndFieldId: null,
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    await firestoreInfrastructureApi.set(viewPath(input.accountId, input.databaseId, id), data);
+    return toSnapshot(id, data);
+  }
+
+  async update(input: UpdateViewInput): Promise<ViewSnapshot> {
+    const docs = await firestoreInfrastructureApi.queryCollectionGroup<Record<string, unknown>>(
+      "views",
+      [{ field: "accountId", op: "==", value: input.accountId }],
+    );
+    const target = docs.find((d) => d.id === input.id);
+    if (!target) {
+      throw new Error(`View ${input.id} not found`);
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const changes: Record<string, any> = { updatedAtISO: new Date().toISOString() };
+    if (input.name !== undefined) changes.name = input.name;
+    if (input.filters !== undefined) changes.filters = input.filters;
+    if (input.sorts !== undefined) changes.sorts = input.sorts;
+    if (input.visibleFieldIds !== undefined) changes.visibleFieldIds = input.visibleFieldIds;
+    if (input.hiddenFieldIds !== undefined) changes.hiddenFieldIds = input.hiddenFieldIds;
+    await firestoreInfrastructureApi.update(target.path, changes);
+    const refreshed = await firestoreInfrastructureApi.get<Record<string, unknown>>(target.path);
+    if (!refreshed) {
+      throw new Error(`View ${input.id} not found after update`);
+    }
+    return toSnapshot(input.id, refreshed);
+  }
+
+  async delete(id: string, accountId: string): Promise<void> {
+    const docs = await firestoreInfrastructureApi.queryCollectionGroup<Record<string, unknown>>(
+      "views",
+      [{ field: "accountId", op: "==", value: accountId }],
+    );
+    const target = docs.find((d) => d.id === id);
+    if (target) {
+      await firestoreInfrastructureApi.delete(target.path);
+    }
+  }
+
+  async listByDatabase(accountId: string, databaseId: string): Promise<ViewSnapshot[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      viewsPath(accountId, databaseId),
+    );
+    return docs.map((d) => toSnapshot(d.id, d.data));
+  }
+}
+````
+
+## File: modules/notion/infrastructure/database/firebase/index.ts
+````typescript
+export { FirebaseDatabaseRepository } from "./FirebaseDatabaseRepository";
+export { FirebaseDatabaseRecordRepository } from "./FirebaseDatabaseRecordRepository";
+export { FirebaseViewRepository } from "./FirebaseViewRepository";
+export { FirebaseAutomationRepository } from "./FirebaseAutomationRepository";
+````
+
+## File: modules/notion/infrastructure/database/index.ts
+````typescript
+export * from "./firebase";
+````
+
+## File: modules/notion/infrastructure/knowledge/firebase/FirebaseBacklinkIndexRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase adapter implementing IBacklinkIndexRepository.
+ * Firestore paths:
+ *   accounts/{accountId}/backlinkIndex/{targetPageId}
+ *   accounts/{accountId}/backlinkOutbound/{sourcePageId}
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import type { IBacklinkIndexRepository, UpsertBacklinkEntriesInput, RemoveBacklinksFromSourceInput } from "../../../subdomains/knowledge/domain/repositories/IBacklinkIndexRepository";
+import { BacklinkIndex } from "../../../subdomains/knowledge/domain/aggregates/BacklinkIndex";
+import type { BacklinkEntry, BacklinkIndexSnapshot } from "../../../subdomains/knowledge/domain/aggregates/BacklinkIndex";
+
+function backlinkIndexPath(accountId: string, targetPageId: string): string {
+  return `accounts/${accountId}/backlinkIndex/${targetPageId}`;
+}
+
+function backlinkOutboundPath(accountId: string, sourcePageId: string): string {
+  return `accounts/${accountId}/backlinkOutbound/${sourcePageId}`;
+}
+
+function toEntries(raw: unknown): BacklinkEntry[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((e): e is Record<string, unknown> => typeof e === "object" && e !== null)
+    .map((e) => ({
+      sourcePageId: typeof e.sourcePageId === "string" ? e.sourcePageId : "",
+      sourcePageTitle: typeof e.sourcePageTitle === "string" ? e.sourcePageTitle : "",
+      blockId: typeof e.blockId === "string" ? e.blockId : "",
+      lastSeenAtISO: typeof e.lastSeenAtISO === "string" ? e.lastSeenAtISO : "",
+    }));
+}
+
+export class FirebaseBacklinkIndexRepository implements IBacklinkIndexRepository {
+  async upsertFromSource(input: UpsertBacklinkEntriesInput): Promise<void> {
+    const { accountId, targetPageId, sourcePageId, entries } = input;
+    const existingIndex = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      backlinkIndexPath(accountId, targetPageId),
+    );
+    const existing = existingIndex ? toEntries(existingIndex.entries) : [];
+    const nowISO = new Date().toISOString();
+    const filtered = existing.filter((e) => !entries.some((ne) => e.blockId === ne.blockId && e.sourcePageId === sourcePageId));
+    const newEntries: BacklinkEntry[] = entries.map((e) => ({ sourcePageId, sourcePageTitle: (e as BacklinkEntry).sourcePageTitle ?? "", blockId: e.blockId, lastSeenAtISO: nowISO }));
+    const merged = [...filtered, ...newEntries];
+
+    const existingOut = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      backlinkOutboundPath(accountId, sourcePageId),
+    );
+    const currentTargetIds = Array.isArray(existingOut?.targetPageIds)
+      ? existingOut.targetPageIds.filter((item): item is string => typeof item === "string")
+      : [];
+
+    const nextTargetIds = Array.from(new Set([...currentTargetIds, targetPageId]));
+
+    await firestoreInfrastructureApi.setMany([
+      {
+        path: backlinkIndexPath(accountId, targetPageId),
+        data: { targetPageId, accountId, entries: merged, updatedAtISO: nowISO },
+      },
+      {
+        path: backlinkOutboundPath(accountId, sourcePageId),
+        data: { sourcePageId, accountId, targetPageIds: nextTargetIds, updatedAtISO: nowISO },
+      },
+    ]);
+  }
+
+  async removeFromSource(input: RemoveBacklinksFromSourceInput): Promise<void> {
+    const { accountId, sourcePageId } = input;
+    const outbound = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      backlinkOutboundPath(accountId, sourcePageId),
+    );
+    const targetPageIds = Array.isArray(outbound?.targetPageIds)
+      ? outbound.targetPageIds.filter((item): item is string => typeof item === "string")
+      : [];
+
+    const nowISO = new Date().toISOString();
+
+    const writes: { path: string; data: Record<string, unknown> }[] = [];
+    for (const targetPageId of targetPageIds) {
+      const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+        backlinkIndexPath(accountId, targetPageId),
+      );
+      if (!existing) continue;
+      const entries = toEntries(existing.entries).filter((e) => e.sourcePageId !== sourcePageId);
+      writes.push({
+        path: backlinkIndexPath(accountId, targetPageId),
+        data: {
+          targetPageId,
+          accountId,
+          entries,
+          updatedAtISO: nowISO,
+        },
+      });
+    }
+    writes.push({
+      path: backlinkOutboundPath(accountId, sourcePageId),
+      data: { sourcePageId, accountId, targetPageIds: [], updatedAtISO: nowISO },
+    });
+    await firestoreInfrastructureApi.setMany(writes);
+  }
+
+  async findByTargetPage(accountId: string, targetPageId: string): Promise<BacklinkIndex | null> {
+    const d = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      backlinkIndexPath(accountId, targetPageId),
+    );
+    if (!d) return null;
+    const snapshot: BacklinkIndexSnapshot = {
+      targetPageId,
+      accountId,
+      entries: toEntries(d.entries),
+      updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
+    };
+    return BacklinkIndex.reconstitute(snapshot);
+  }
+
+  async listOutboundTargets(accountId: string, sourcePageId: string): Promise<ReadonlyArray<string>> {
+    const d = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      backlinkOutboundPath(accountId, sourcePageId),
+    );
+    if (!d) return [];
+    return Array.isArray(d.targetPageIds) ? (d.targetPageIds as string[]) : [];
+  }
+}
+````
+
+## File: modules/notion/infrastructure/knowledge/firebase/FirebaseContentBlockRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase adapter implementing IContentBlockRepository.
+ * Firestore path: accounts/{accountId}/contentBlocks/{blockId}
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as _generateId } from "@lib-uuid";
+import { ContentBlock } from "../../../subdomains/knowledge/domain/aggregates/ContentBlock";
+import type { ContentBlockSnapshot } from "../../../subdomains/knowledge/domain/aggregates/ContentBlock";
+import type { IContentBlockRepository } from "../../../subdomains/knowledge/domain/repositories/IContentBlockRepository";
+import type { BlockContent } from "../../../subdomains/knowledge/domain/value-objects/BlockContent";
+import { BLOCK_TYPES } from "../../../subdomains/knowledge/domain/value-objects/BlockContent";
+
+const VALID_TYPES = new Set<string>(BLOCK_TYPES);
+
+function blocksPath(accountId: string): string {
+  return `accounts/${accountId}/contentBlocks`;
+}
+
+function blockPath(accountId: string, blockId: string): string {
+  return `accounts/${accountId}/contentBlocks/${blockId}`;
+}
+
+function toBlockContent(raw: unknown): BlockContent {
+  if (typeof raw !== "object" || raw === null) return { type: "text", richText: [] };
+  const obj = raw as Record<string, unknown>;
+  const type = typeof obj.type === "string" && VALID_TYPES.has(obj.type) ? (obj.type as BlockContent["type"]) : "text";
+  return {
+    type,
+    richText: Array.isArray(obj.richText) ? (obj.richText as BlockContent["richText"]) : [],
+    properties: typeof obj.properties === "object" && obj.properties !== null ? (obj.properties as Record<string, unknown>) : undefined,
+  };
+}
+
+function toSnapshot(id: string, d: Record<string, unknown>): ContentBlockSnapshot {
+  return {
+    id,
+    pageId: typeof d.pageId === "string" ? d.pageId : "",
+    accountId: typeof d.accountId === "string" ? d.accountId : "",
+    content: toBlockContent(d.content),
+    order: typeof d.order === "number" ? d.order : 0,
+    parentBlockId: typeof d.parentBlockId === "string" ? d.parentBlockId : null,
+    childBlockIds: Array.isArray(d.childBlockIds) ? (d.childBlockIds as string[]) : [],
+    createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
+    updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
+  };
+}
+
+export class FirebaseContentBlockRepository implements IContentBlockRepository {
+  async save(block: ContentBlock): Promise<void> {
+    const snap = block.getSnapshot();
+    const path = blockPath(snap.accountId, snap.id);
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    const data: Record<string, unknown> = { ...snap };
+    if (!existing) {
+      await firestoreInfrastructureApi.set(path, data);
+    } else {
+      await firestoreInfrastructureApi.update(path, data);
+    }
+  }
+
+  async findById(accountId: string, blockId: string): Promise<ContentBlock | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      blockPath(accountId, blockId),
+    );
+    if (!data) return null;
+    return ContentBlock.reconstitute(toSnapshot(blockId, data));
+  }
+
+  async listByPageId(accountId: string, pageId: string): Promise<ContentBlock[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      blocksPath(accountId),
+      [{ field: "pageId", op: "==", value: pageId }],
+    );
+    return docs.map((d) => ContentBlock.reconstitute(toSnapshot(d.id, d.data)));
+  }
+
+  async delete(accountId: string, blockId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(blockPath(accountId, blockId));
+  }
+
+  async nextOrder(accountId: string, pageId: string): Promise<number> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      blocksPath(accountId),
+      [{ field: "pageId", op: "==", value: pageId }],
+    );
+    return docs.length;
+  }
+
+  async countByPageId(accountId: string, pageId: string): Promise<number> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      blocksPath(accountId),
+      [{ field: "pageId", op: "==", value: pageId }],
+    );
+    return docs.length;
+  }
+}
+````
+
+## File: modules/notion/infrastructure/knowledge/firebase/FirebaseKnowledgeCollectionRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase adapter implementing IKnowledgeCollectionRepository.
+ * Firestore path: accounts/{accountId}/knowledgeCollections/{collectionId}
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { KnowledgeCollection } from "../../../subdomains/knowledge/domain/aggregates/KnowledgeCollection";
+import type { KnowledgeCollectionSnapshot } from "../../../subdomains/knowledge/domain/aggregates/KnowledgeCollection";
+import type { IKnowledgeCollectionRepository } from "../../../subdomains/knowledge/domain/repositories/IKnowledgeCollectionRepository";
+
+function collectionsPath(accountId: string): string {
+  return `accounts/${accountId}/knowledgeCollections`;
+}
+
+function collectionPath(accountId: string, id: string): string {
+  return `accounts/${accountId}/knowledgeCollections/${id}`;
+}
+
+function toSnapshot(id: string, d: Record<string, unknown>): KnowledgeCollectionSnapshot {
+  return {
+    id,
+    accountId: typeof d.accountId === "string" ? d.accountId : "",
+    workspaceId: typeof d.workspaceId === "string" ? d.workspaceId : undefined,
+    name: typeof d.name === "string" ? d.name : "",
+    description: typeof d.description === "string" ? d.description : undefined,
+    columns: Array.isArray(d.columns) ? (d.columns as KnowledgeCollectionSnapshot["columns"]) : [],
+    pageIds: Array.isArray(d.pageIds) ? (d.pageIds as string[]) : [],
+    status: d.status === "archived" ? "archived" : "active",
+    spaceType: d.spaceType === "wiki" ? "wiki" : "database",
+    createdByUserId: typeof d.createdByUserId === "string" ? d.createdByUserId : "",
+    createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
+    updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
+  };
+}
+
+export class FirebaseKnowledgeCollectionRepository implements IKnowledgeCollectionRepository {
+  async save(coll: KnowledgeCollection): Promise<void> {
+    const snap = coll.getSnapshot();
+    const path = collectionPath(snap.accountId, snap.id);
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    const data: Record<string, unknown> = { ...snap, columns: [...snap.columns], pageIds: [...snap.pageIds] };
+    if (!existing) {
+      await firestoreInfrastructureApi.set(path, data);
+    } else {
+      await firestoreInfrastructureApi.update(path, data);
+    }
+  }
+
+  async findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      collectionPath(accountId, collectionId),
+    );
+    if (!data) return null;
+    return KnowledgeCollection.reconstitute(toSnapshot(collectionId, data));
+  }
+
+  async listByAccountId(accountId: string): Promise<KnowledgeCollection[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      collectionsPath(accountId),
+    );
+    return docs.map((d) => KnowledgeCollection.reconstitute(toSnapshot(d.id, d.data)));
+  }
+
+  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      collectionsPath(accountId),
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+    );
+    return docs.map((d) => KnowledgeCollection.reconstitute(toSnapshot(d.id, d.data)));
+  }
+}
+````
+
+## File: modules/notion/infrastructure/knowledge/firebase/FirebaseKnowledgePageRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase adapter implementing IKnowledgePageRepository.
+ * Firestore path: accounts/{accountId}/contentPages/{pageId}
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as _generateId } from "@lib-uuid";
+import { KnowledgePage } from "../../../subdomains/knowledge/domain/aggregates/KnowledgePage";
+import type { KnowledgePageSnapshot } from "../../../subdomains/knowledge/domain/aggregates/KnowledgePage";
+import type { IKnowledgePageRepository } from "../../../subdomains/knowledge/domain/repositories/IKnowledgePageRepository";
+
+function pagesPath(accountId: string): string {
+  return `accounts/${accountId}/contentPages`;
+}
+
+function pagePath(accountId: string, pageId: string): string {
+  return `accounts/${accountId}/contentPages/${pageId}`;
+}
+
+function toSnapshot(id: string, d: Record<string, unknown>): KnowledgePageSnapshot {
+  return {
+    id,
+    accountId: typeof d.accountId === "string" ? d.accountId : "",
+    workspaceId: typeof d.workspaceId === "string" ? d.workspaceId : undefined,
+    title: typeof d.title === "string" ? d.title : "",
+    slug: typeof d.slug === "string" ? d.slug : "",
+    parentPageId: typeof d.parentPageId === "string" ? d.parentPageId : null,
+    order: typeof d.order === "number" ? d.order : 0,
+    blockIds: Array.isArray(d.blockIds) ? (d.blockIds as string[]) : [],
+    status: d.status === "archived" ? "archived" : "active",
+    approvalState: d.approvalState === "approved" ? "approved" : d.approvalState === "pending" ? "pending" : undefined,
+    approvedAtISO: typeof d.approvedAtISO === "string" ? d.approvedAtISO : undefined,
+    approvedByUserId: typeof d.approvedByUserId === "string" ? d.approvedByUserId : undefined,
+    verificationState: d.verificationState === "verified" ? "verified" : d.verificationState === "needs_review" ? "needs_review" : undefined,
+    ownerId: typeof d.ownerId === "string" ? d.ownerId : undefined,
+    verifiedByUserId: typeof d.verifiedByUserId === "string" ? d.verifiedByUserId : undefined,
+    verifiedAtISO: typeof d.verifiedAtISO === "string" ? d.verifiedAtISO : undefined,
+    verificationExpiresAtISO: typeof d.verificationExpiresAtISO === "string" ? d.verificationExpiresAtISO : undefined,
+    iconUrl: typeof d.iconUrl === "string" ? d.iconUrl : undefined,
+    coverUrl: typeof d.coverUrl === "string" ? d.coverUrl : undefined,
+    createdByUserId: typeof d.createdByUserId === "string" ? d.createdByUserId : "",
+    createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
+    updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
+  };
+}
+
+export class FirebaseKnowledgePageRepository implements IKnowledgePageRepository {
+  async save(page: KnowledgePage): Promise<void> {
+    const snap = page.getSnapshot();
+    const path = pagePath(snap.accountId, snap.id);
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    const data: Record<string, unknown> = {
+      ...snap,
+      blockIds: [...snap.blockIds],
+    };
+    if (!existing) {
+      await firestoreInfrastructureApi.set(path, data);
+    } else {
+      await firestoreInfrastructureApi.update(path, data);
+    }
+  }
+
+  async findById(accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(pagePath(accountId, pageId));
+    if (!data) return null;
+    return KnowledgePage.reconstitute(toSnapshot(pageId, data));
+  }
+
+  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      pagesPath(accountId),
+      [{ field: "status", op: "==", value: "active" }],
+      { orderBy: [{ field: "order", direction: "asc" }] },
+    );
+    return docs.map((d) => KnowledgePage.reconstitute(toSnapshot(d.id, d.data)));
+  }
+
+  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      pagesPath(accountId),
+      [
+        { field: "workspaceId", op: "==", value: workspaceId },
+        { field: "status", op: "==", value: "active" },
+      ],
+      { orderBy: [{ field: "order", direction: "asc" }] },
+    );
+    return docs.map((d) => KnowledgePage.reconstitute(toSnapshot(d.id, d.data)));
+  }
+
+  async countByParent(accountId: string, parentPageId: string | null): Promise<number> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      pagesPath(accountId),
+      [{ field: "parentPageId", op: "==", value: parentPageId ?? null }],
+    );
+    return docs.length;
+  }
+
+  async findSnapshotById(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {
+    const page = await this.findById(accountId, pageId);
+    return page ? page.getSnapshot() : null;
+  }
+
+  async listSnapshotsByAccountId(accountId: string): Promise<KnowledgePageSnapshot[]> {
+    const pages = await this.listByAccountId(accountId);
+    return pages.map((p) => p.getSnapshot());
+  }
+
+  async listSnapshotsByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]> {
+    const pages = await this.listByWorkspaceId(accountId, workspaceId);
+    return pages.map((p) => p.getSnapshot());
+  }
+}
+````
+
+## File: modules/notion/infrastructure/knowledge/firebase/index.ts
+````typescript
+export { FirebaseKnowledgePageRepository } from "./FirebaseKnowledgePageRepository";
+export { FirebaseContentBlockRepository } from "./FirebaseContentBlockRepository";
+export { FirebaseKnowledgeCollectionRepository } from "./FirebaseKnowledgeCollectionRepository";
+export { FirebaseBacklinkIndexRepository } from "./FirebaseBacklinkIndexRepository";
+````
+
+## File: modules/notion/infrastructure/knowledge/index.ts
+````typescript
+export * from "./firebase";
+````
+
+## File: modules/notion/interfaces/authoring/_actions/article.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: notion/subdomains/authoring
+ * Layer: interfaces/_actions
+ * Purpose: Article Server Actions — thin adapter over article use cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { makeArticleRepo } from "../../../subdomains/authoring/api/factories";
+import {
+  CreateArticleUseCase,
+  UpdateArticleUseCase,
+  ArchiveArticleUseCase,
+  DeleteArticleUseCase,
+} from "../../../subdomains/authoring/application/use-cases/ArticleLifecycleUseCases";
+import { PublishArticleUseCase } from "../../../subdomains/authoring/application/use-cases/ArticlePublicationUseCases";
+import {
+  VerifyArticleUseCase,
+  RequestArticleReviewUseCase,
+} from "../../../subdomains/authoring/application/use-cases/ArticleVerificationUseCases";
+import type { z } from "@lib-zod";
+import type {
+  CreateArticleSchema,
+  UpdateArticleSchema,
+  PublishArticleSchema,
+  ArchiveArticleSchema,
+  VerifyArticleSchema,
+  RequestArticleReviewSchema,
+  DeleteArticleSchema,
+} from "../../../subdomains/authoring/application/dto/ArticleDto";
+
+export async function createArticle(input: z.infer<typeof CreateArticleSchema>): Promise<CommandResult> {
+  try {
+    return await new CreateArticleUseCase(makeArticleRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("ARTICLE_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function updateArticle(input: z.infer<typeof UpdateArticleSchema>): Promise<CommandResult> {
+  try {
+    return await new UpdateArticleUseCase(makeArticleRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("ARTICLE_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function publishArticle(input: z.infer<typeof PublishArticleSchema>): Promise<CommandResult> {
+  try {
+    return await new PublishArticleUseCase(makeArticleRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("ARTICLE_PUBLISH_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function archiveArticle(input: z.infer<typeof ArchiveArticleSchema>): Promise<CommandResult> {
+  try {
+    return await new ArchiveArticleUseCase(makeArticleRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("ARTICLE_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function verifyArticle(input: z.infer<typeof VerifyArticleSchema>): Promise<CommandResult> {
+  try {
+    return await new VerifyArticleUseCase(makeArticleRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("ARTICLE_VERIFY_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function requestArticleReview(
+  input: z.infer<typeof RequestArticleReviewSchema>,
+): Promise<CommandResult> {
+  try {
+    return await new RequestArticleReviewUseCase(makeArticleRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("ARTICLE_REVIEW_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function deleteArticle(input: z.infer<typeof DeleteArticleSchema>): Promise<CommandResult> {
+  try {
+    return await new DeleteArticleUseCase(makeArticleRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("ARTICLE_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+````
+
+## File: modules/notion/interfaces/authoring/_actions/category.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: notion/subdomains/authoring
+ * Layer: interfaces/_actions
+ * Purpose: Category Server Actions — thin adapter over category use cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { makeCategoryRepo } from "../../../subdomains/authoring/api/factories";
+import {
+  CreateCategoryUseCase,
+  RenameCategoryUseCase,
+  MoveCategoryUseCase,
+  DeleteCategoryUseCase,
+} from "../../../subdomains/authoring/application/use-cases/CategoryUseCases";
+import type { z } from "@lib-zod";
+import type {
+  CreateCategorySchema,
+  RenameCategorySchema,
+  MoveCategorySchema,
+  DeleteCategorySchema,
+} from "../../../subdomains/authoring/application/dto/CategoryDto";
+
+export async function createCategory(input: z.infer<typeof CreateCategorySchema>): Promise<CommandResult> {
+  try {
+    return await new CreateCategoryUseCase(makeCategoryRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("CATEGORY_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function renameCategory(input: z.infer<typeof RenameCategorySchema>): Promise<CommandResult> {
+  try {
+    return await new RenameCategoryUseCase(makeCategoryRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("CATEGORY_RENAME_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function moveCategory(input: z.infer<typeof MoveCategorySchema>): Promise<CommandResult> {
+  try {
+    return await new MoveCategoryUseCase(makeCategoryRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("CATEGORY_MOVE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function deleteCategory(input: z.infer<typeof DeleteCategorySchema>): Promise<CommandResult> {
+  try {
+    return await new DeleteCategoryUseCase(makeCategoryRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("CATEGORY_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+````
+
+## File: modules/notion/interfaces/authoring/_actions/index.ts
+````typescript
+// TODO: export server actions: createArticle, updateArticle, publishArticle, archiveArticle
+// TODO: export createCategory, moveCategory
+
+export {
+  createArticle,
+  updateArticle,
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+  deleteArticle,
+} from "./article.actions";
+
+export {
+  createCategory,
+  renameCategory,
+  moveCategory,
+  deleteCategory,
+} from "./category.actions";
+````
+
+## File: modules/notion/interfaces/authoring/components/ArticleDetailPage.tsx
 ````typescript
 "use client";
 
@@ -8618,8 +6540,8 @@ import {
   requestArticleReview,
 } from "../_actions/article.actions";
 import { ArticleDialog } from "./ArticleDialog";
-import type { ArticleSnapshot as Article } from "../../application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
+import type { ArticleSnapshot as Article } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
 import { CommentPanel, VersionHistoryPanel } from "@/modules/notion/api";
 import { ReactMarkdown } from "@lib-react-markdown";
 import { remarkGfm } from "@lib-remark-gfm";
@@ -8898,851 +6820,1820 @@ export function ArticleDetailPage({
 }
 ````
 
-## File: modules/notion/subdomains/authoring/README.md
-````markdown
-# Authoring
-
-知識庫文章建立、驗證與分類。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Baseline
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/collaboration/infrastructure/firebase/FirebaseCommentRepository.ts
+## File: modules/notion/interfaces/authoring/components/ArticleDialog.tsx
 ````typescript
+"use client";
+
 /**
- * Module: notion/subdomains/collaboration
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/collaborationComments/{commentId}
+ * Module: notion/subdomains/authoring
+ * Layer: interfaces/components
+ * Purpose: Dialog for creating and editing Knowledge Base articles.
  */
 
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
-import { v7 as generateId } from "@lib-uuid";
-import type { CommentSnapshot, SelectionRange } from "../../domain/aggregates/Comment";
+import { useEffect, useState, useTransition } from "react";
+import { X } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@ui-shadcn/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+
+import { createArticle, updateArticle } from "../_actions/article.actions";
+import type { ArticleSnapshot } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import type { CategorySnapshot } from "../../../subdomains/authoring/application/dto/authoring.dto";
+
+interface ArticleDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+  categories: CategorySnapshot[];
+  /** Article to edit — omit for create mode */
+  article?: ArticleSnapshot;
+  onSuccess?: (articleId?: string) => void;
+}
+
+export function ArticleDialog({
+  open,
+  onOpenChange,
+  accountId,
+  workspaceId,
+  currentUserId,
+  categories,
+  article,
+  onSuccess,
+}: ArticleDialogProps) {
+  const isEdit = !!article;
+  const [title, setTitle] = useState(article?.title ?? "");
+  const [content, setContent] = useState(article?.content ?? "");
+  const [categoryId, setCategoryId] = useState<string>(article?.categoryId ?? "__none__");
+  const [tags, setTags] = useState(article?.tags.join(", ") ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    void Promise.resolve().then(() => {
+      setTitle(article?.title ?? "");
+      setContent(article?.content ?? "");
+      setCategoryId(article?.categoryId ?? "__none__");
+      setTags(article?.tags.join(", ") ?? "");
+      setError(null);
+    });
+  }, [article, open]);
+
+  function handleSubmit() {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setError("標題不可空白");
+      return;
+    }
+    const parsedTags = tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const resolvedCategoryId = categoryId === "__none__" ? null : categoryId;
+
+    startTransition(async () => {
+      setError(null);
+      if (isEdit) {
+        const result = await updateArticle({
+          id: article!.id,
+          accountId,
+          title: trimmedTitle,
+          content,
+          categoryId: resolvedCategoryId,
+          tags: parsedTags,
+        });
+        if (!result.success) {
+          setError(result.error.message ?? "更新失敗");
+          return;
+        }
+        onSuccess?.();
+      } else {
+        const result = await createArticle({
+          accountId,
+          workspaceId,
+          title: trimmedTitle,
+          content,
+          categoryId: resolvedCategoryId,
+          tags: parsedTags,
+          createdByUserId: currentUserId,
+        });
+        if (!result.success) {
+          setError(result.error.message ?? "建立失敗");
+          return;
+        }
+        onSuccess?.(result.aggregateId);
+      }
+      onOpenChange(false);
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "編輯文章" : "新增文章"}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {error && (
+            <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              <X className="h-4 w-4 shrink-0" />
+              {error}
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-title">標題</Label>
+            <Input
+              id="kb-article-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="文章標題"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-category">分類</Label>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger id="kb-article-category">
+                <SelectValue placeholder="選擇分類（選填）" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— 不指定 —</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-tags">
+              標籤{" "}
+              <span className="text-muted-foreground text-xs">（以逗號分隔）</span>
+            </Label>
+            <Input
+              id="kb-article-tags"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="標籤1, 標籤2"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-content">內容</Label>
+            <Textarea
+              id="kb-article-content"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="文章內容（支援 Markdown）"
+              rows={6}
+              className="resize-none font-mono text-sm"
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+            取消
+          </Button>
+          <Button onClick={handleSubmit} disabled={isPending || !title.trim()}>
+            {isPending ? "儲存中…" : isEdit ? "更新文章" : "建立文章"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/notion/interfaces/authoring/components/CategoryTreePanel.tsx
+````typescript
+"use client";
+
+import { useMemo, useState } from "react";
+import { ChevronDown, ChevronRight, FolderOpen, Layers } from "lucide-react";
+
+import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
+
+// ── Category tree helpers ────────────────────────────────────────────────────
+
+export interface CategoryNode extends Category {
+  children: CategoryNode[];
+}
+
+export function buildCategoryTree(categories: Category[]): CategoryNode[] {
+  const map = new Map<string, CategoryNode>();
+  for (const cat of categories) {
+    map.set(cat.id, { ...cat, children: [] });
+  }
+  const roots: CategoryNode[] = [];
+  for (const node of map.values()) {
+    if (node.parentCategoryId) {
+      map.get(node.parentCategoryId)?.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+  return roots;
+}
+
+// ── Category tree panel ──────────────────────────────────────────────────────
+
+interface CategoryTreePanelProps {
+  categories: Category[];
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+}
+
+export function CategoryTreePanel({ categories, selectedId, onSelect }: CategoryTreePanelProps) {
+  const roots = useMemo(() => buildCategoryTree(categories), [categories]);
+
+  return (
+    <aside className="w-52 shrink-0 space-y-1">
+      <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        分類
+      </p>
+      <button
+        type="button"
+        onClick={() => onSelect(null)}
+        className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
+          selectedId === null
+            ? "bg-primary/10 text-primary font-medium"
+            : "text-foreground hover:bg-muted"
+        }`}
+      >
+        <Layers className="size-3.5 shrink-0 text-muted-foreground" />
+        全部文章
+      </button>
+      {roots.map((node) => (
+        <CategoryNodeRow
+          key={node.id}
+          node={node}
+          selectedId={selectedId}
+          onSelect={onSelect}
+        />
+      ))}
+      {categories.length === 0 && (
+        <p className="px-2 text-xs text-muted-foreground/60">尚無分類</p>
+      )}
+    </aside>
+  );
+}
+
+interface CategoryNodeRowProps {
+  node: CategoryNode;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+}
+
+function CategoryNodeRow({ node, selectedId, onSelect }: CategoryNodeRowProps) {
+  const [expanded, setExpanded] = useState(true);
+  const hasChildren = node.children.length > 0;
+  const isSelected = selectedId === node.id;
+
+  return (
+    <div>
+      <div className="flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="p-0.5 text-muted-foreground opacity-0 transition hover:opacity-100"
+          style={{ visibility: hasChildren ? "visible" : "hidden" }}
+          aria-label={expanded ? "折疊" : "展開"}
+        >
+          {expanded ? (
+            <ChevronDown className="size-3" />
+          ) : (
+            <ChevronRight className="size-3" />
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => onSelect(node.id)}
+          className={`flex flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors ${
+            isSelected
+              ? "bg-primary/10 text-primary font-medium"
+              : "text-foreground hover:bg-muted"
+          }`}
+        >
+          <FolderOpen className="size-3.5 shrink-0 text-muted-foreground" />
+          <span className="truncate">{node.name}</span>
+          {node.articleIds.length > 0 && (
+            <span className="ml-auto text-[10px] text-muted-foreground/60">
+              {node.articleIds.length}
+            </span>
+          )}
+        </button>
+      </div>
+      {hasChildren && expanded && (
+        <div className="ml-4 space-y-0.5 border-l border-border/40 pl-1">
+          {node.children.map((child) => (
+            <CategoryNodeRow
+              key={child.id}
+              node={child}
+              selectedId={selectedId}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/notion/interfaces/authoring/components/index.ts
+````typescript
+// TODO: export ArticleEditorView, ArticleListView, CategoryTreeView
+
+export { ArticleDialog } from "./ArticleDialog";
+````
+
+## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesRouteScreen.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
+
+import { useAuth } from "@/modules/platform/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import { getArticles, getCategories } from "../queries";
+import { ArticleDialog } from "./ArticleDialog";
+import { CategoryTreePanel } from "./CategoryTreePanel";
+
+const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  draft: { label: "草稿", variant: "outline" },
+  published: { label: "已發佈", variant: "default" },
+  archived: { label: "已封存", variant: "secondary" },
+};
+
+const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
+  verified: { label: "已驗證", icon: BadgeCheck },
+  needs_review: { label: "待審查", icon: FileClock },
+  unverified: { label: "未驗證", icon: CircleDot },
+};
+
+/**
+ * KnowledgeBaseArticlesRouteScreen
+ * Route-level screen component for /knowledge-base/articles.
+ * Encapsulates data-loading, filtering and layout so the Next.js route
+ * file stays thin (params/context wiring only).
+ */
+export interface KnowledgeBaseArticlesRouteScreenProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly currentUserId?: string | null;
+}
+
+export function KnowledgeBaseArticlesRouteScreen({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: KnowledgeBaseArticlesRouteScreenProps) {
+  const router = useRouter();
+  const { state: authState } = useAuth();
+
+  const resolvedAccountId = accountId.trim();
+  const resolvedWorkspaceId = workspaceId.trim();
+  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
+  const workspaceBasePath =
+    resolvedAccountId && resolvedWorkspaceId
+      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
+      : resolvedAccountId
+        ? `/${encodeURIComponent(resolvedAccountId)}`
+        : "/";
+  const overviewHref = resolvedWorkspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-base-articles`
+    : resolvedAccountId
+      ? `/${encodeURIComponent(resolvedAccountId)}`
+      : "/";
+
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!resolvedAccountId || !resolvedWorkspaceId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const [arts, cats] = await Promise.all([
+        getArticles({ accountId: resolvedAccountId, workspaceId: resolvedWorkspaceId }),
+        getCategories(resolvedAccountId, resolvedWorkspaceId),
+      ]);
+      setArticles(arts);
+      setCategories(cats);
+    } finally {
+      setLoading(false);
+    }
+  }, [resolvedAccountId, resolvedWorkspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filteredArticles = useMemo(() => {
+    if (!selectedCategoryId) return articles;
+    const cat = categories.find((c) => c.id === selectedCategoryId);
+    if (!cat) return articles;
+    return articles.filter((a) => cat.articleIds.includes(a.id));
+  }, [articles, categories, selectedCategoryId]);
+
+  function handleSuccess(articleId?: string) {
+    if (articleId) {
+      if (resolvedAccountId && resolvedWorkspaceId) {
+        router.push(
+          `${workspaceBasePath}/knowledge-base/articles/${encodeURIComponent(articleId)}`,
+        );
+      } else {
+        router.push(`/knowledge-base/articles/${encodeURIComponent(articleId)}`);
+      }
+    } else {
+      load();
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
+        <p className="text-sm text-muted-foreground">
+          組織知識庫的 SOP 文章、通用文件與驗證管治。
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(overviewHref)}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!resolvedAccountId || !resolvedWorkspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          新增文章
+        </Button>
+      </div>
+
+      <ArticleDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        accountId={resolvedAccountId}
+        workspaceId={resolvedWorkspaceId}
+        currentUserId={resolvedCurrentUserId}
+        categories={categories}
+        onSuccess={handleSuccess}
+      />
+
+      {!resolvedAccountId || !resolvedWorkspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號/工作區情境，請先登入或切換帳號。
+        </p>
+      ) : loading ? (
+        <div className="flex gap-4">
+          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
+          <div className="grid flex-1 gap-3 sm:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-4">
+          <CategoryTreePanel
+            categories={categories}
+            selectedId={selectedCategoryId}
+            onSelect={setSelectedCategoryId}
+          />
+
+          <div className="flex-1">
+            {filteredArticles.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  {selectedCategoryId ? "此分類尚無文章。" : "尚無文章。點擊「新增文章」開始建立。"}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {filteredArticles.map((article) => {
+                  const status = STATUS_CONFIG[article.status];
+                  const veri = VERIFICATION_CONFIG[article.verificationState];
+                  const VeriIcon = veri.icon;
+                  return (
+                    <Card
+                      key={article.id}
+                      className="cursor-pointer hover:bg-muted/10 transition-colors"
+                      onClick={() => handleSuccess(article.id)}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
+                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <VeriIcon className="h-3 w-3" />
+                          <span>{veri.label}</span>
+                        </div>
+                        {article.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {article.tags.slice(0, 3).map((tag) => (
+                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-muted-foreground/70">
+                          v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/notion/interfaces/authoring/queries/index.ts
+````typescript
+// TODO: export getArticle, getArticlesByWorkspace, getCategoryTree
+
+/**
+ * Module: notion/subdomains/authoring
+ * Layer: interfaces/queries
+ * Purpose: Direct-instantiation query functions (read-side).
+ */
+
+import { makeArticleRepo, makeCategoryRepo } from "../../../subdomains/authoring/api/factories";
+import type { ArticleSnapshot, ArticleStatus } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import type { CategorySnapshot } from "../../../subdomains/authoring/application/dto/authoring.dto";
+
+export async function getArticles(params: {
+  accountId: string;
+  workspaceId: string;
+  categoryId?: string;
+  status?: ArticleStatus;
+}): Promise<ArticleSnapshot[]> {
+  return makeArticleRepo().list(params);
+}
+
+export async function getArticle(accountId: string, articleId: string): Promise<ArticleSnapshot | null> {
+  return makeArticleRepo().getById(accountId, articleId);
+}
+
+export async function getCategories(accountId: string, workspaceId: string): Promise<CategorySnapshot[]> {
+  return makeCategoryRepo().listByWorkspace(accountId, workspaceId);
+}
+
+export async function getBacklinks(accountId: string, articleId: string): Promise<ArticleSnapshot[]> {
+  return makeArticleRepo().listByLinkedArticleId(accountId, articleId);
+}
+````
+
+## File: modules/notion/interfaces/authoring/store/index.ts
+````typescript
+// TODO: export useArticleEditorStore
+
+export {};
+````
+
+## File: modules/notion/interfaces/collaboration/_actions/comment.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: notion/subdomains/collaboration
+ * Layer: interfaces/_actions
+ * Purpose: Comment aggregate server actions — create, update, resolve, delete.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { dispatchNotification } from "@/modules/platform/api";
+import { makeCommentRepo } from "../../../subdomains/collaboration/api/factories";
+import {
+  CreateCommentUseCase,
+  UpdateCommentUseCase,
+  ResolveCommentUseCase,
+  DeleteCommentUseCase,
+} from "../../../subdomains/collaboration/application/use-cases/CommentUseCases";
 import type {
-  ICommentRepository,
-  CommentUnsubscribe,
-  CreateCommentInput,
-  UpdateCommentInput,
-  ResolveCommentInput,
-} from "../../domain/repositories/ICommentRepository";
+  CreateCommentDto,
+  UpdateCommentDto,
+  ResolveCommentDto,
+  DeleteCommentDto,
+} from "../../../subdomains/collaboration/application/dto/CollaborationDto";
 
-function commentsPath(accountId: string): string {
-  return `accounts/${accountId}/collaborationComments`;
+export async function createComment(input: CreateCommentDto): Promise<CommandResult> {
+  try {
+    const result = await new CreateCommentUseCase(makeCommentRepo()).execute(input);
+    if (result.success && input.mentionedUserIds && input.mentionedUserIds.length > 0) {
+      await Promise.allSettled(
+        input.mentionedUserIds.map((recipientId) =>
+          dispatchNotification({
+            recipientId,
+            title: "有人提及了你",
+            message: input.body.slice(0, 100),
+            type: "info",
+            sourceEventType: "comment.mention",
+            metadata: { authorId: input.authorId, contentId: input.contentId, contentType: input.contentType },
+          }),
+        ),
+      );
+    }
+    return result;
+  } catch (err) {
+    return commandFailureFrom("COMMENT_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
 }
 
-function commentPath(accountId: string, id: string): string {
-  return `accounts/${accountId}/collaborationComments/${id}`;
+export async function updateComment(input: UpdateCommentDto): Promise<CommandResult> {
+  try {
+    return await new UpdateCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
 }
 
-function toComment(id: string, data: Record<string, unknown>): CommentSnapshot {
-  return {
-    id,
-    contentId: typeof data.contentId === "string" ? data.contentId : "",
-    contentType: data.contentType === "article" ? "article" : "page",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    authorId: typeof data.authorId === "string" ? data.authorId : "",
-    body: typeof data.body === "string" ? data.body : "",
-    parentCommentId: typeof data.parentCommentId === "string" ? data.parentCommentId : null,
-    blockId: typeof data.blockId === "string" ? data.blockId : null,
-    selectionRange: (
-      data.selectionRange !== null &&
-      typeof data.selectionRange === "object" &&
-      typeof (data.selectionRange as Record<string, unknown>).from === "number" &&
-      typeof (data.selectionRange as Record<string, unknown>).to === "number"
-    )
-      ? {
-          from: (data.selectionRange as Record<string, unknown>).from as number,
-          to: (data.selectionRange as Record<string, unknown>).to as number,
-        } as SelectionRange
-      : null,
-    resolvedAt: typeof data.resolvedAt === "string" ? data.resolvedAt : null,
-    resolvedByUserId: typeof data.resolvedByUserId === "string" ? data.resolvedByUserId : null,
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
+export async function resolveComment(input: ResolveCommentDto): Promise<CommandResult> {
+  try {
+    return await new ResolveCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
 }
 
-export class FirebaseCommentRepository implements ICommentRepository {
-  async create(input: CreateCommentInput): Promise<CommentSnapshot> {
-    const id = generateId();
-    const now = new Date().toISOString();
-    const data = {
-      contentId: input.contentId,
-      contentType: input.contentType,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      authorId: input.authorId,
-      body: input.body,
-      parentCommentId: input.parentCommentId ?? null,
-      blockId: input.blockId ?? null,
-      selectionRange: input.selectionRange ?? null,
-      resolvedAt: null,
-      resolvedByUserId: null,
-      createdAtISO: now,
-      updatedAtISO: now,
-    };
-    await firestoreInfrastructureApi.set(commentPath(input.accountId, id), data);
-    return toComment(id, data);
+export async function deleteComment(input: DeleteCommentDto): Promise<CommandResult> {
+  try {
+    return await new DeleteCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
-
-  async update(input: UpdateCommentInput): Promise<CommentSnapshot | null> {
-    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(
-      commentPath(input.accountId, input.id),
-    );
-    if (!existing) return null;
-    const now = new Date().toISOString();
-    await firestoreInfrastructureApi.update(commentPath(input.accountId, input.id), {
-      body: input.body,
-      updatedAtISO: now,
-    });
-    return toComment(input.id, { ...existing, body: input.body, updatedAtISO: now });
-  }
-
-  async resolve(input: ResolveCommentInput): Promise<CommentSnapshot | null> {
-    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(
-      commentPath(input.accountId, input.id),
-    );
-    if (!existing) return null;
-    const now = new Date().toISOString();
-    await firestoreInfrastructureApi.update(commentPath(input.accountId, input.id), {
-      resolvedAt: now,
-      resolvedByUserId: input.resolvedByUserId,
-    });
-    return toComment(input.id, { ...existing, resolvedAt: now, resolvedByUserId: input.resolvedByUserId });
-  }
-
-  async delete(accountId: string, commentId: string): Promise<void> {
-    await firestoreInfrastructureApi.delete(commentPath(accountId, commentId));
-  }
-
-  async findById(accountId: string, commentId: string): Promise<CommentSnapshot | null> {
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
-      commentPath(accountId, commentId),
-    );
-    if (!data) return null;
-    return toComment(commentId, data);
-  }
-
-  async listByContent(accountId: string, contentId: string): Promise<CommentSnapshot[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      commentsPath(accountId),
-      [{ field: "contentId", op: "==", value: contentId }],
-      { orderBy: [{ field: "createdAtISO", direction: "asc" }] },
-    );
-    return docs.map((d) => toComment(d.id, d.data));
-  }
-
-  subscribe(accountId: string, contentId: string, onUpdate: (comments: CommentSnapshot[]) => void): CommentUnsubscribe {
-    return firestoreInfrastructureApi.watchCollection<Record<string, unknown>>(
-      commentsPath(accountId),
-      {
-        onNext: (documents) => {
-          const mapped = documents
-            .map((d) => toComment(d.id, d.data))
-            .sort((a, b) => a.createdAtISO.localeCompare(b.createdAtISO));
-          onUpdate(mapped);
-        },
-      },
-      [{ field: "contentId", op: "==", value: contentId }],
-    );
-  }
-
-  
 }
 ````
 
-## File: modules/notion/subdomains/collaboration/infrastructure/firebase/FirebasePermissionRepository.ts
+## File: modules/notion/interfaces/collaboration/_actions/index.ts
+````typescript
+export { createComment, updateComment, resolveComment, deleteComment } from "./comment.actions";
+export { createVersion, deleteVersion } from "./version.actions";
+export { grantPermission, revokePermission } from "./permission.actions";
+````
+
+## File: modules/notion/interfaces/collaboration/_actions/permission.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: notion/subdomains/collaboration
+ * Layer: interfaces/_actions
+ * Purpose: Permission aggregate server actions — grant, revoke.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { makePermissionRepo } from "../../../subdomains/collaboration/api/factories";
+import { GrantPermissionUseCase, RevokePermissionUseCase } from "../../../subdomains/collaboration/application/use-cases/PermissionUseCases";
+import type { GrantPermissionDto, RevokePermissionDto } from "../../../subdomains/collaboration/application/dto/CollaborationDto";
+
+export async function grantPermission(input: GrantPermissionDto): Promise<CommandResult> {
+  try {
+    return await new GrantPermissionUseCase(makePermissionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("PERMISSION_GRANT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function revokePermission(input: RevokePermissionDto): Promise<CommandResult> {
+  try {
+    return await new RevokePermissionUseCase(makePermissionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("PERMISSION_REVOKE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/notion/interfaces/collaboration/_actions/version.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: notion/subdomains/collaboration
+ * Layer: interfaces/_actions
+ * Purpose: Version aggregate server actions — create, delete.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { makeVersionRepo } from "../../../subdomains/collaboration/api/factories";
+import { CreateVersionUseCase, DeleteVersionUseCase } from "../../../subdomains/collaboration/application/use-cases/VersionUseCases";
+import type { CreateVersionDto, DeleteVersionDto } from "../../../subdomains/collaboration/application/dto/CollaborationDto";
+
+export async function createVersion(input: CreateVersionDto): Promise<CommandResult> {
+  try {
+    return await new CreateVersionUseCase(makeVersionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("VERSION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteVersion(input: DeleteVersionDto): Promise<CommandResult> {
+  try {
+    return await new DeleteVersionUseCase(makeVersionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("VERSION_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/notion/interfaces/collaboration/components/CommentPanel.tsx
+````typescript
+"use client";
+
+import { useEffect, useState, useTransition } from "react";
+import { MessageCircle, Loader2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Separator } from "@ui-shadcn/ui/separator";
+
+import { subscribeComments } from "../queries";
+import { createComment, resolveComment, deleteComment } from "../_actions/comment.actions";
+import type { CommentSnapshot } from "../../../subdomains/collaboration/application/dto/collaboration.dto";
+
+interface CommentPanelProps {
+  accountId: string;
+  workspaceId: string;
+  contentId: string;
+  contentType: "page" | "article";
+  currentUserId: string;
+}
+
+export function CommentPanel({ accountId, workspaceId, contentId, contentType, currentUserId }: CommentPanelProps) {
+  const [comments, setComments] = useState<CommentSnapshot[]>([]);
+  const [body, setBody] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    const unsub = subscribeComments(accountId, contentId, setComments);
+    return () => unsub();
+  }, [accountId, contentId]);
+
+  function handlePost() {
+    const trimmed = body.trim();
+    if (!trimmed) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await createComment({
+        accountId,
+        workspaceId,
+        contentId,
+        contentType,
+        authorId: currentUserId,
+        body: trimmed,
+      });
+      if (result.success) {
+        setBody("");
+      } else {
+        setError(result.error.message ?? "留言失敗");
+      }
+    });
+  }
+
+  function handleResolve(commentId: string) {
+    startTransition(async () => {
+      await resolveComment({ id: commentId, accountId, resolvedByUserId: currentUserId });
+    });
+  }
+
+  function handleDelete(commentId: string) {
+    startTransition(async () => {
+      await deleteComment({ id: commentId, accountId });
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <MessageCircle className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium">留言</span>
+        {comments.length > 0 && (
+          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{comments.length}</Badge>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Textarea
+          placeholder="撰寫留言…"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={3}
+          disabled={isPending}
+          className="resize-none text-sm"
+        />
+        {error && <p className="text-xs text-destructive">{error}</p>}
+        <Button
+          size="sm"
+          disabled={isPending || !body.trim()}
+          onClick={handlePost}
+          className="w-full"
+        >
+          {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "留言"}
+        </Button>
+      </div>
+
+      {comments.length > 0 && (
+        <>
+          <Separator />
+          <ul className="space-y-3">
+            {comments.map((c) => (
+              <li key={c.id} className="flex flex-col gap-1">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs text-muted-foreground">{c.authorId}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {new Date(c.createdAtISO).toLocaleString("zh-TW", {
+                      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{c.body}</p>
+                {c.resolvedAt ? (
+                  <Badge variant="outline" className="w-fit text-[10px]">已解決</Badge>
+                ) : (
+                  <div className="flex gap-1.5">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-[10px] text-muted-foreground"
+                      disabled={isPending}
+                      onClick={() => handleResolve(c.id)}
+                    >
+                      標記解決
+                    </Button>
+                    {c.authorId === currentUserId && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] text-destructive"
+                        disabled={isPending}
+                        onClick={() => handleDelete(c.id)}
+                      >
+                        刪除
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/notion/interfaces/collaboration/components/index.ts
+````typescript
+export { CommentPanel } from "./CommentPanel";
+export { VersionHistoryPanel } from "./VersionHistoryPanel";
+````
+
+## File: modules/notion/interfaces/collaboration/components/VersionHistoryPanel.tsx
+````typescript
+"use client";
+
+import { useEffect, useState, useTransition } from "react";
+import { History, Trash2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+import { getVersions } from "../queries";
+import { deleteVersion } from "../_actions/version.actions";
+import type { VersionSnapshot } from "../../../subdomains/collaboration/application/dto/collaboration.dto";
+
+interface VersionHistoryPanelProps {
+  accountId: string;
+  contentId: string;
+  currentUserId: string;
+}
+
+export function VersionHistoryPanel({ accountId, contentId, currentUserId }: VersionHistoryPanelProps) {
+  const [versions, setVersions] = useState<VersionSnapshot[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    let disposed = false;
+    void Promise.resolve().then(async () => {
+      if (disposed) return;
+      setLoading(true);
+      try {
+        const data = await getVersions(accountId, contentId);
+        if (!disposed) { setVersions(data); setLoading(false); }
+      } catch {
+        if (!disposed) setLoading(false);
+      }
+    });
+    return () => { disposed = true; };
+  }, [accountId, contentId]);
+
+  function handleDelete(versionId: string) {
+    startTransition(async () => {
+      await deleteVersion({ id: versionId, accountId });
+      setVersions((prev) => prev.filter((v) => v.id !== versionId));
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <History className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium">版本歷史</span>
+        {versions.length > 0 && (
+          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{versions.length}</Badge>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full rounded-md" />)}
+        </div>
+      ) : versions.length === 0 ? (
+        <p className="text-xs text-muted-foreground">尚無已儲存的版本快照。</p>
+      ) : (
+        <ol className="space-y-2">
+          {versions.map((v, idx) => (
+            <li key={v.id} className="flex items-start gap-3 rounded-md border border-border/60 bg-background px-3 py-2">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
+                {versions.length - idx}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="truncate text-sm font-medium">{v.label || `版本 ${versions.length - idx}`}</p>
+                {v.description && (
+                  <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{v.description}</p>
+                )}
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  {new Date(v.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </p>
+              </div>
+              {v.createdByUserId === currentUserId && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                  disabled={isPending}
+                  onClick={() => handleDelete(v.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/notion/interfaces/collaboration/queries/index.ts
 ````typescript
 /**
  * Module: notion/subdomains/collaboration
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/collaborationPermissions/{id}
+ * Layer: interfaces/queries
+ * Purpose: Read-side queries for comment, version, and permission data.
  */
 
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
-import { v7 as generateId } from "@lib-uuid";
-import type { PermissionSnapshot, PermissionLevel, PrincipalType } from "../../domain/aggregates/Permission";
-import type { IPermissionRepository, GrantPermissionInput } from "../../domain/repositories/IPermissionRepository";
+import { makeCommentRepo, makePermissionRepo, makeVersionRepo } from "../../../subdomains/collaboration/api/factories";
+import type { CommentSnapshot, CommentUnsubscribe, VersionSnapshot, PermissionSnapshot } from "../../../subdomains/collaboration/application/dto/collaboration.dto";
 
-function permissionsPath(accountId: string): string {
-  return `accounts/${accountId}/collaborationPermissions`;
+export async function getComments(accountId: string, contentId: string): Promise<CommentSnapshot[]> {
+  return makeCommentRepo().listByContent(accountId, contentId);
 }
 
-function permissionPath(accountId: string, id: string): string {
-  return `accounts/${accountId}/collaborationPermissions/${id}`;
+export async function getVersions(accountId: string, contentId: string): Promise<VersionSnapshot[]> {
+  return makeVersionRepo().listByContent(accountId, contentId);
 }
 
-function toPermission(id: string, data: Record<string, unknown>): PermissionSnapshot {
-  return {
-    id,
-    subjectId: typeof data.subjectId === "string" ? data.subjectId : "",
-    subjectType: (data.subjectType as PermissionSnapshot["subjectType"]) ?? "page",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    principalId: typeof data.principalId === "string" ? data.principalId : "",
-    principalType: (data.principalType as PrincipalType) ?? "user",
-    level: (data.level as PermissionLevel) ?? "view",
-    grantedByUserId: typeof data.grantedByUserId === "string" ? data.grantedByUserId : "",
-    grantedAtISO: typeof data.grantedAtISO === "string" ? data.grantedAtISO : "",
-    expiresAtISO: typeof data.expiresAtISO === "string" ? data.expiresAtISO : null,
-    linkToken: typeof data.linkToken === "string" ? data.linkToken : null,
-  };
+export async function getPermissions(accountId: string, subjectId: string): Promise<PermissionSnapshot[]> {
+  return makePermissionRepo().listBySubject(accountId, subjectId);
 }
 
-export class FirebasePermissionRepository implements IPermissionRepository {
-  async grant(input: GrantPermissionInput): Promise<PermissionSnapshot> {
-    const id = generateId();
-    const now = new Date().toISOString();
-    const data = {
-      subjectId: input.subjectId,
-      subjectType: input.subjectType,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      principalId: input.principalId,
-      principalType: input.principalType,
-      level: input.level,
-      grantedByUserId: input.grantedByUserId,
-      grantedAtISO: now,
-      expiresAtISO: input.expiresAtISO ?? null,
-      linkToken: input.linkToken ?? null,
-    };
-    await firestoreInfrastructureApi.set(permissionPath(input.accountId, id), data);
-    return toPermission(id, data);
-  }
-
-  async revoke(accountId: string, permissionId: string): Promise<void> {
-    await firestoreInfrastructureApi.delete(permissionPath(accountId, permissionId));
-  }
-
-  async findById(accountId: string, permissionId: string): Promise<PermissionSnapshot | null> {
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
-      permissionPath(accountId, permissionId),
-    );
-    if (!data) return null;
-    return toPermission(permissionId, data);
-  }
-
-  async listBySubject(accountId: string, subjectId: string): Promise<PermissionSnapshot[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      permissionsPath(accountId),
-      [{ field: "subjectId", op: "==", value: subjectId }],
-    );
-    return docs.map((d) => toPermission(d.id, d.data));
-  }
+export function subscribeComments(
+  accountId: string,
+  contentId: string,
+  onUpdate: (comments: CommentSnapshot[]) => void,
+): CommentUnsubscribe {
+  return makeCommentRepo().subscribe(accountId, contentId, onUpdate);
 }
 ````
 
-## File: modules/notion/subdomains/collaboration/infrastructure/firebase/FirebaseVersionRepository.ts
+## File: modules/notion/interfaces/collaboration/store/index.ts
 ````typescript
-/**
- * Module: notion/subdomains/collaboration
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/collaborationVersions/{versionId}
- */
+// TODO: export useCommentStore, usePermissionStore
 
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
-import { v7 as generateId } from "@lib-uuid";
-import type { VersionSnapshot } from "../../domain/aggregates/Version";
-import type { IVersionRepository, CreateVersionInput } from "../../domain/repositories/IVersionRepository";
-
-function versionsPath(accountId: string): string {
-  return `accounts/${accountId}/collaborationVersions`;
-}
-
-function versionPath(accountId: string, id: string): string {
-  return `accounts/${accountId}/collaborationVersions/${id}`;
-}
-
-function toVersion(id: string, data: Record<string, unknown>): VersionSnapshot {
-  return {
-    id,
-    contentId: typeof data.contentId === "string" ? data.contentId : "",
-    contentType: data.contentType === "article" ? "article" : "page",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    snapshotBlocks: Array.isArray(data.snapshotBlocks) ? data.snapshotBlocks : [],
-    label: typeof data.label === "string" ? data.label : null,
-    description: typeof data.description === "string" ? data.description : null,
-    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-  };
-}
-
-export class FirebaseVersionRepository implements IVersionRepository {
-  async create(input: CreateVersionInput): Promise<VersionSnapshot> {
-    const id = generateId();
-    const now = new Date().toISOString();
-    const data = {
-      contentId: input.contentId,
-      contentType: input.contentType,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      snapshotBlocks: input.snapshotBlocks,
-      label: input.label ?? null,
-      description: input.description ?? null,
-      createdByUserId: input.createdByUserId,
-      createdAtISO: now,
-    };
-    await firestoreInfrastructureApi.set(versionPath(input.accountId, id), data);
-    return toVersion(id, data);
-  }
-
-  async findById(accountId: string, versionId: string): Promise<VersionSnapshot | null> {
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
-      versionPath(accountId, versionId),
-    );
-    if (!data) return null;
-    return toVersion(versionId, data);
-  }
-
-  async listByContent(accountId: string, contentId: string): Promise<VersionSnapshot[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      versionsPath(accountId),
-      [{ field: "contentId", op: "==", value: contentId }],
-      { orderBy: [{ field: "createdAtISO", direction: "desc" }] },
-    );
-    return docs.map((d) => toVersion(d.id, d.data));
-  }
-
-  async delete(accountId: string, versionId: string): Promise<void> {
-    await firestoreInfrastructureApi.delete(versionPath(accountId, versionId));
-  }
-}
+export {};
 ````
 
-## File: modules/notion/subdomains/collaboration/README.md
-````markdown
-# Collaboration
-
-協作留言、細粒度權限與版本快照。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Baseline
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+## File: modules/notion/interfaces/components/.gitkeep
 ````
 
-## File: modules/notion/subdomains/database/infrastructure/firebase/FirebaseAutomationRepository.ts
+````
+
+## File: modules/notion/interfaces/database/_actions/database.actions.ts
 ````typescript
+"use server";
+
 /**
  * Module: notion/subdomains/database
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/knowledgeDatabases/{databaseId}/automations/{automationId}
+ * Layer: interfaces/_actions
+ * Purpose: Database, Record, View, and Automation server actions.
  */
 
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
-import { v7 as generateId } from "@lib-uuid";
-
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import {
+  makeAutomationRepo,
+  makeDatabaseRepo,
+  makeRecordRepo,
+  makeViewRepo,
+} from "../../../subdomains/database/api/factories";
+import {
+  CreateDatabaseUseCase,
+  UpdateDatabaseUseCase,
+  AddFieldUseCase,
+  ArchiveDatabaseUseCase,
+  CreateRecordUseCase,
+  UpdateRecordUseCase,
+  DeleteRecordUseCase,
+  CreateViewUseCase,
+  UpdateViewUseCase,
+  DeleteViewUseCase,
+  CreateAutomationUseCase,
+  UpdateAutomationUseCase,
+  DeleteAutomationUseCase,
+} from "../../../subdomains/database/application/use-cases";
+import type { CreateAutomationInput, UpdateAutomationInput } from "../../../subdomains/database/application/dto/database.dto";
 import type {
-  DatabaseAutomationSnapshot,
-  AutomationCondition,
-  AutomationAction,
-} from "../../domain/aggregates/DatabaseAutomation";
-import type { IAutomationRepository, CreateAutomationInput, UpdateAutomationInput } from "../../domain/repositories/IAutomationRepository";
+  CreateDatabaseDto,
+  UpdateDatabaseDto,
+  AddFieldDto,
+  ArchiveDatabaseDto,
+  CreateRecordDto,
+  UpdateRecordDto,
+  CreateViewDto,
+  UpdateViewDto,
+  DeleteViewDto,
+} from "../../../subdomains/database/application/dto/DatabaseDto";
 
-function automationsPath(accountId: string, databaseId: string): string {
-  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/automations`;
-}
+// — — — Database — — —
 
-function automationPath(accountId: string, databaseId: string, automationId: string): string {
-  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/automations/${automationId}`;
-}
-
-function toCondition(c: Record<string, unknown>): AutomationCondition {
-  return {
-    fieldId: typeof c.fieldId === "string" ? c.fieldId : "",
-    operator: (c.operator as AutomationCondition["operator"]) ?? "equals",
-    value: typeof c.value === "string" ? c.value : undefined,
-  };
-}
-
-function toAction(a: Record<string, unknown>): AutomationAction {
-  return {
-    type: (a.type as AutomationAction["type"]) ?? "send_notification",
-    config: typeof a.config === "object" && a.config !== null ? (a.config as Record<string, string>) : {},
-  };
-}
-
-function toAutomation(id: string, data: Record<string, unknown>): DatabaseAutomationSnapshot {
-  return {
-    id,
-    databaseId: typeof data.databaseId === "string" ? data.databaseId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    name: typeof data.name === "string" ? data.name : "",
-    enabled: data.enabled !== false,
-    trigger: (data.trigger as DatabaseAutomationSnapshot["trigger"]) ?? "record_created",
-    triggerFieldId: typeof data.triggerFieldId === "string" ? data.triggerFieldId : undefined,
-    conditions: Array.isArray(data.conditions) ? (data.conditions as Record<string, unknown>[]).map(toCondition) : [],
-    actions: Array.isArray(data.actions) ? (data.actions as Record<string, unknown>[]).map(toAction) : [],
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : new Date().toISOString(),
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : new Date().toISOString(),
-  };
-}
-
-export class FirebaseAutomationRepository implements IAutomationRepository {
-  async create(input: CreateAutomationInput): Promise<DatabaseAutomationSnapshot> {
-    const id = generateId();
-    const now = new Date().toISOString();
-    const payload = {
-      databaseId: input.databaseId,
-      accountId: input.accountId,
-      name: input.name,
-      enabled: true,
-      trigger: input.trigger,
-      triggerFieldId: input.triggerFieldId ?? null,
-      conditions: input.conditions ?? [],
-      actions: input.actions ?? [],
-      createdByUserId: input.createdByUserId,
-      createdAtISO: now,
-      updatedAtISO: now,
-    };
-    await firestoreInfrastructureApi.set(automationPath(input.accountId, input.databaseId, id), payload);
-    return toAutomation(id, payload);
-  }
-
-  async update(input: UpdateAutomationInput): Promise<DatabaseAutomationSnapshot | null> {
-    const { id, accountId, databaseId, ...fields } = input;
-    const path = automationPath(accountId, databaseId, id);
-    const updates: Record<string, unknown> = { ...fields, updatedAtISO: new Date().toISOString() };
-    await firestoreInfrastructureApi.update(path, updates);
-    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!snap) return null;
-    return toAutomation(id, snap);
-  }
-
-  async delete(id: string, accountId: string, databaseId: string): Promise<void> {
-    await firestoreInfrastructureApi.delete(automationPath(accountId, databaseId, id));
-  }
-
-  async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      automationsPath(accountId, databaseId),
-      [{ field: "databaseId", op: "==", value: databaseId }],
-      { orderBy: [{ field: "createdAtISO", direction: "asc" }] },
-    );
-    return docs.map((d) => toAutomation(d.id, d.data));
+export async function createDatabase(input: CreateDatabaseDto): Promise<CommandResult> {
+  try {
+    return await new CreateDatabaseUseCase(makeDatabaseRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("DATABASE_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
-````
 
-## File: modules/notion/subdomains/database/infrastructure/firebase/FirebaseDatabaseRecordRepository.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: infrastructure/firebase
- * Purpose: Firestore implementation of IDatabaseRecordRepository.
- *          Firestore path: accounts/{accountId}/knowledgeDatabases/{databaseId}/records/{recordId}
- */
-
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api";
-import { v7 as generateId } from "@lib-uuid";
-import type { IDatabaseRecordRepository, CreateRecordInput, UpdateRecordInput } from "../../domain/repositories/IDatabaseRecordRepository";
-import type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRecord";
-
-function recordsPath(accountId: string, databaseId: string): string {
-  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/records`;
+export async function updateDatabase(input: UpdateDatabaseDto): Promise<CommandResult> {
+  try {
+    return await new UpdateDatabaseUseCase(makeDatabaseRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("DATABASE_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
 }
 
-function recordPath(accountId: string, databaseId: string, recordId: string): string {
-  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/records/${recordId}`;
+export async function addDatabaseField(input: AddFieldDto): Promise<CommandResult> {
+  try {
+    return await new AddFieldUseCase(makeDatabaseRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("DATABASE_ADD_FIELD_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
 }
 
-function toISO(ts: unknown): string {
-  if (typeof ts === "object" && ts !== null && "toDate" in ts && typeof (ts as { toDate: () => Date }).toDate === "function") {
-    return (ts as { toDate: () => Date }).toDate().toISOString();
+export async function archiveDatabase(input: ArchiveDatabaseDto): Promise<CommandResult> {
+  try {
+    return await new ArchiveDatabaseUseCase(makeDatabaseRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("DATABASE_ARCHIVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
-  if (typeof ts === "string") return ts;
-  return new Date().toISOString();
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toSnapshot(id: string, data: Record<string, any>): DatabaseRecordSnapshot {
-  return {
-    id,
-    databaseId: data.databaseId ?? "",
-    workspaceId: data.workspaceId ?? "",
-    accountId: data.accountId ?? "",
-    pageId: data.pageId ?? null,
-    properties: typeof data.properties === "object" && data.properties !== null ? data.properties : {},
-    order: typeof data.order === "number" ? data.order : 0,
-    createdByUserId: data.createdByUserId ?? "",
-    createdAtISO: toISO(data.createdAt),
-    updatedAtISO: toISO(data.updatedAt),
-  };
+// — — — Record — — —
+
+export async function createRecord(input: CreateRecordDto): Promise<CommandResult> {
+  try {
+    return await new CreateRecordUseCase(makeRecordRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("RECORD_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
 }
 
-export class FirebaseDatabaseRecordRepository implements IDatabaseRecordRepository {
-  async create(input: CreateRecordInput): Promise<DatabaseRecordSnapshot> {
-    const id = generateId();
-    const countDocs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      recordsPath(input.accountId, input.databaseId),
-    );
-    const now = new Date().toISOString();
-    const data = {
-      databaseId: input.databaseId,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      pageId: input.pageId ?? null,
-      properties: input.properties ?? {},
-      order: countDocs.length,
-      createdByUserId: input.createdByUserId,
-      createdAtISO: now,
-      updatedAtISO: now,
-    };
-    await firestoreInfrastructureApi.set(recordPath(input.accountId, input.databaseId, id), data);
-    return toSnapshot(id, data);
+export async function updateRecord(input: UpdateRecordDto): Promise<CommandResult> {
+  try {
+    return await new UpdateRecordUseCase(makeRecordRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("RECORD_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
+}
 
-  async update(input: UpdateRecordInput): Promise<DatabaseRecordSnapshot> {
-    // We need to find which database this record belongs to. Properties are keyed by field IDs.
-    // The record stores databaseId on the document; we fetch it via a collection-group query approach.
-    // For simplicity, the input should come from a context where databaseId is available.
-    // Here we use a direct path by reading the doc first from a stored databaseId lookup.
-    // Since the record doc lives in accounts/{accountId}/knowledgeDatabases/{databaseId}/records/{id},
-    // and we only have id+accountId, we do collection group query.
-    const { id, accountId, properties } = input;
-    const docs = await firestoreInfrastructureApi.queryCollectionGroup<Record<string, unknown>>(
-      "records",
-      [{ field: "accountId", op: "==", value: accountId }],
-    );
-    const target = docs.find((d) => d.id === id);
-    if (!target) throw new Error(`Record ${id} not found`);
-    await firestoreInfrastructureApi.update(target.path, { properties, updatedAtISO: new Date().toISOString() });
-    const refreshed = await firestoreInfrastructureApi.get<Record<string, unknown>>(target.path);
-    if (!refreshed) {
-      throw new Error(`Record ${id} not found after update`);
-    }
-    return toSnapshot(id, refreshed);
+export async function deleteRecord(accountId: string, id: string): Promise<CommandResult> {
+  try {
+    return await new DeleteRecordUseCase(makeRecordRepo()).execute({ id, accountId });
+  } catch (err) {
+    return commandFailureFrom("RECORD_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
+}
 
-  async delete(id: string, accountId: string): Promise<void> {
-    const docs = await firestoreInfrastructureApi.queryCollectionGroup<Record<string, unknown>>(
-      "records",
-      [{ field: "accountId", op: "==", value: accountId }],
-    );
-    const target = docs.find((d) => d.id === id);
-    if (target) {
-      await firestoreInfrastructureApi.delete(target.path);
-    }
+// — — — View — — —
+
+export async function createView(input: CreateViewDto): Promise<CommandResult> {
+  try {
+    return await new CreateViewUseCase(makeViewRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("VIEW_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
+}
 
-  async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRecordSnapshot[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      recordsPath(accountId, databaseId),
-    );
-    return docs.map((d) => toSnapshot(d.id, d.data));
+export async function updateView(input: UpdateViewDto): Promise<CommandResult> {
+  try {
+    return await new UpdateViewUseCase(makeViewRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("VIEW_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteView(input: DeleteViewDto): Promise<CommandResult> {
+  try {
+    return await new DeleteViewUseCase(makeViewRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("VIEW_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+// — — — Automation — — —
+
+export async function createAutomation(input: CreateAutomationInput): Promise<CommandResult> {
+  try {
+    return await new CreateAutomationUseCase(makeAutomationRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("AUTOMATION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateAutomation(input: UpdateAutomationInput): Promise<CommandResult> {
+  try {
+    return await new UpdateAutomationUseCase(makeAutomationRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("AUTOMATION_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteAutomation(id: string, accountId: string, databaseId: string): Promise<CommandResult> {
+  try {
+    return await new DeleteAutomationUseCase(makeAutomationRepo()).execute(id, accountId, databaseId);
+  } catch (err) {
+    return commandFailureFrom("AUTOMATION_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
 ````
 
-## File: modules/notion/subdomains/database/infrastructure/firebase/FirebaseDatabaseRepository.ts
+## File: modules/notion/interfaces/database/_actions/index.ts
 ````typescript
+export {
+  createDatabase,
+  updateDatabase,
+  addDatabaseField,
+  archiveDatabase,
+  createRecord,
+  updateRecord,
+  deleteRecord,
+  createView,
+  updateView,
+  deleteView,
+  createAutomation,
+  updateAutomation,
+  deleteAutomation,
+} from "./database.actions";
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseAddFieldDialog.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import type { FieldType } from "@/modules/notion/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@ui-shadcn/ui/select";
+
+export const FIELD_TYPES: { value: FieldType; label: string }[] = [
+  { value: "text", label: "文字" },
+  { value: "number", label: "數字" },
+  { value: "checkbox", label: "核取方塊" },
+  { value: "date", label: "日期" },
+  { value: "select", label: "單選" },
+  { value: "multi_select", label: "多選" },
+  { value: "url", label: "URL" },
+  { value: "email", label: "電子郵件" },
+];
+
+interface AddFieldDialogProps {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onAdd: (name: string, type: FieldType, required: boolean) => void;
+  isPending: boolean;
+}
+
+export function AddFieldDialog({ open, onOpenChange, onAdd, isPending }: AddFieldDialogProps) {
+  const [name, setName] = useState("");
+  const [type, setType] = useState<FieldType>("text");
+  const [required, setRequired] = useState(false);
+
+  function reset() {
+    setName(""); setType("text"); setRequired(false);
+  }
+
+  function handleOpenChange(v: boolean) {
+    if (!v) reset();
+    onOpenChange(v);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onAdd(name.trim(), type, required);
+    reset();
+    onOpenChange(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader><DialogTitle>新增欄位</DialogTitle></DialogHeader>
+        <form id="field-form" className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-1.5">
+            <Label htmlFor="field-name">名稱 *</Label>
+            <Input id="field-name" value={name} onChange={(e) => setName(e.target.value)} disabled={isPending} placeholder="欄位名稱" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>類型</Label>
+            <Select value={type} onValueChange={(v) => setType(v as FieldType)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {FIELD_TYPES.map((ft) => (
+                  <SelectItem key={ft.value} value={ft.value}>{ft.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              id="field-required"
+              type="checkbox"
+              checked={required}
+              onChange={(e) => setRequired(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <Label htmlFor="field-required" className="cursor-pointer">必填欄位</Label>
+          </div>
+        </form>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isPending}>取消</Button>
+          <Button type="submit" form="field-form" disabled={isPending || !name.trim()}>新增</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseAutomationView.tsx
+````typescript
+"use client";
+
 /**
  * Module: notion/subdomains/database
- * Layer: infrastructure/firebase
- * Purpose: Firestore implementation of IDatabaseRepository.
- *          Firestore path: accounts/{accountId}/knowledgeDatabases/{databaseId}
+ * Layer: interfaces/components
+ * Purpose: Manage automation rules for a database — list/create/toggle/delete.
  */
 
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api";
-import { generateId } from "@shared-utils";
-import type { IDatabaseRepository, CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../../domain/repositories/IDatabaseRepository";
-import type { DatabaseSnapshot, Field } from "../../domain/aggregates/Database";
+import { useEffect, useState, useTransition } from "react";
+import type { DatabaseAutomationSnapshot, AutomationTrigger, AutomationActionType } from "../../../subdomains/database/application/dto/database.dto";
+import { getAutomations } from "../queries";
+import { createAutomation, updateAutomation, deleteAutomation } from "../_actions/database.actions";
 
-function databasesPath(accountId: string): string {
-  return `accounts/${accountId}/knowledgeDatabases`;
+interface Props {
+  databaseId: string;
+  accountId: string;
+  currentUserId: string;
 }
 
-function databasePath(accountId: string, id: string): string {
-  return `accounts/${accountId}/knowledgeDatabases/${id}`;
-}
+const TRIGGER_OPTIONS: { value: AutomationTrigger; label: string }[] = [
+  { value: "record_created", label: "Record created" },
+  { value: "record_updated", label: "Record updated" },
+  { value: "record_deleted", label: "Record deleted" },
+  { value: "property_changed", label: "Property changed" },
+];
 
-function toISO(ts: unknown): string {
-  if (typeof ts === "object" && ts !== null && "toDate" in ts && typeof (ts as { toDate: () => Date }).toDate === "function") {
-    return (ts as { toDate: () => Date }).toDate().toISOString();
-  }
-  if (typeof ts === "string") return ts;
-  return new Date().toISOString();
-}
+const ACTION_OPTIONS: { value: AutomationActionType; label: string }[] = [
+  { value: "send_notification", label: "Send notification" },
+  { value: "update_property", label: "Update property" },
+  { value: "create_record", label: "Create record" },
+  { value: "webhook", label: "Call webhook" },
+];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toSnapshot(id: string, data: Record<string, any>): DatabaseSnapshot {
-  return {
-    id,
-    workspaceId: data.workspaceId ?? "",
-    accountId: data.accountId ?? "",
-    name: data.name ?? "",
-    description: data.description ?? null,
-    fields: Array.isArray(data.fields) ? data.fields : [],
-    viewIds: Array.isArray(data.viewIds) ? data.viewIds : [],
-    icon: data.icon ?? null,
-    coverImageUrl: data.coverImageUrl ?? null,
-    createdByUserId: data.createdByUserId ?? "",
-    createdAtISO: toISO(data.createdAt),
-    updatedAtISO: toISO(data.updatedAt),
-  };
-}
+export function DatabaseAutomationView({ databaseId, accountId, currentUserId }: Props) {
+  const [automations, setAutomations] = useState<DatabaseAutomationSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState("");
+  const [trigger, setTrigger] = useState<AutomationTrigger>("record_created");
+  const [actionType, setActionType] = useState<AutomationActionType>("send_notification");
+  const [, startTransition] = useTransition();
 
-export class FirebaseDatabaseRepository implements IDatabaseRepository {
-  async create(input: CreateDatabaseInput): Promise<DatabaseSnapshot> {
-    const id = generateId();
-    const now = new Date().toISOString();
-    const data = {
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      name: input.name,
-      description: input.description ?? null,
-      fields: [],
-      viewIds: [],
-      icon: null,
-      coverImageUrl: null,
-      createdByUserId: input.createdByUserId,
-      createdAtISO: now,
-      updatedAtISO: now,
-    };
-    await firestoreInfrastructureApi.set(databasePath(input.accountId, id), data);
-    return toSnapshot(id, data);
-  }
+  useEffect(() => {
+    getAutomations(accountId, databaseId)
+      .then(setAutomations)
+      .finally(() => setLoading(false));
+  }, [accountId, databaseId]);
 
-  async update(input: UpdateDatabaseInput): Promise<DatabaseSnapshot> {
-    const path = databasePath(input.accountId, input.id);
-    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!existing) {
-      throw new Error(`Database ${input.id} not found`);
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const changes: Record<string, any> = { updatedAtISO: new Date().toISOString() };
-    if (input.name !== undefined) changes.name = input.name;
-    if (input.description !== undefined) changes.description = input.description;
-    if (input.icon !== undefined) changes.icon = input.icon;
-    if (input.coverImageUrl !== undefined) changes.coverImageUrl = input.coverImageUrl;
-    await firestoreInfrastructureApi.update(path, changes);
-    return toSnapshot(input.id, { ...existing, ...changes });
-  }
-
-  async addField(input: AddFieldInput): Promise<Field> {
-    const path = databasePath(input.accountId, input.databaseId);
-    const data = (await firestoreInfrastructureApi.get<Record<string, unknown>>(path)) ?? {};
-    const fields: Field[] = Array.isArray(data.fields) ? [...data.fields] : [];
-    const newField: Field = {
-      id: generateId(),
-      name: input.name,
-      type: input.type,
-      config: input.config ?? {},
-      required: input.required ?? false,
-      order: fields.length,
-    };
-    fields.push(newField);
-    await firestoreInfrastructureApi.update(path, { fields, updatedAtISO: new Date().toISOString() });
-    return newField;
-  }
-
-  async archive(id: string, accountId: string): Promise<void> {
-    const now = new Date().toISOString();
-    await firestoreInfrastructureApi.update(databasePath(accountId, id), {
-      archived: true,
-      archivedAtISO: now,
-      updatedAtISO: now,
+  function handleCreate() {
+    if (!name.trim()) return;
+    startTransition(async () => {
+      const result = await createAutomation({
+        databaseId,
+        accountId,
+        name: name.trim(),
+        trigger,
+        actions: [{ type: actionType, config: {} }],
+        createdByUserId: currentUserId,
+      });
+      if (result.success) {
+        const updated = await getAutomations(accountId, databaseId);
+        setAutomations(updated);
+        setName("");
+        setShowForm(false);
+      }
     });
   }
 
-  async findById(id: string, accountId: string): Promise<DatabaseSnapshot | null> {
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(databasePath(accountId, id));
-    if (!data) return null;
-    return toSnapshot(id, data);
+  function handleToggle(automation: DatabaseAutomationSnapshot) {
+    startTransition(async () => {
+      await updateAutomation({
+        id: automation.id,
+        accountId,
+        databaseId,
+        enabled: !automation.enabled,
+      });
+      setAutomations((prev) =>
+        prev.map((a) => (a.id === automation.id ? { ...a, enabled: !a.enabled } : a)),
+      );
+    });
   }
 
-  async listByWorkspace(accountId: string, workspaceId: string): Promise<DatabaseSnapshot[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      databasesPath(accountId),
-      [{ field: "workspaceId", op: "==", value: workspaceId }],
-    );
-    return docs
-      .filter((d) => d.data.archived !== true)
-      .map((d) => toSnapshot(d.id, d.data));
+  function handleDelete(automationId: string) {
+    startTransition(async () => {
+      await deleteAutomation(automationId, accountId, databaseId);
+      setAutomations((prev) => prev.filter((a) => a.id !== automationId));
+    });
   }
+
+  if (loading) return <div className="p-4 text-sm text-muted-foreground">Loading automations…</div>;
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold">Automations</h3>
+        <button
+          className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground"
+          onClick={() => setShowForm((v) => !v)}
+        >
+          + New automation
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="border rounded p-3 space-y-2 text-sm">
+          <input
+            className="w-full border rounded px-2 py-1 text-sm"
+            placeholder="Automation name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <select
+              className="border rounded px-2 py-1 text-xs flex-1"
+              value={trigger}
+              onChange={(e) => setTrigger(e.target.value as AutomationTrigger)}
+            >
+              {TRIGGER_OPTIONS.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+            <select
+              className="border rounded px-2 py-1 text-xs flex-1"
+              value={actionType}
+              onChange={(e) => setActionType(e.target.value as AutomationActionType)}
+            >
+              {ACTION_OPTIONS.map((a) => (
+                <option key={a.value} value={a.value}>{a.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button
+              className="text-xs px-3 py-1 rounded bg-primary text-primary-foreground"
+              onClick={handleCreate}
+            >
+              Create
+            </button>
+            <button
+              className="text-xs px-3 py-1 rounded border"
+              onClick={() => setShowForm(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {automations.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No automations yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {automations.map((a) => (
+            <li key={a.id} className="flex items-center justify-between border rounded px-3 py-2 text-sm">
+              <div className="space-y-0.5">
+                <p className="font-medium">{a.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  Trigger: {a.trigger} · Action: {a.actions[0]?.type ?? "—"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  className={`text-xs px-2 py-0.5 rounded ${a.enabled ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}
+                  onClick={() => handleToggle(a)}
+                >
+                  {a.enabled ? "Enabled" : "Disabled"}
+                </button>
+                <button
+                  className="text-xs text-destructive"
+                  onClick={() => handleDelete(a.id)}
+                >
+                  Delete
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 ````
 
-## File: modules/notion/subdomains/database/infrastructure/firebase/FirebaseViewRepository.ts
+## File: modules/notion/interfaces/database/components/DatabaseBoardView.tsx
 ````typescript
+"use client";
+
 /**
  * Module: notion/subdomains/database
- * Layer: infrastructure/firebase
- * Purpose: Firestore implementation of IViewRepository.
- *          Firestore path: accounts/{accountId}/knowledgeDatabases/{databaseId}/views/{viewId}
+ * Layer: interfaces/components
+ * Purpose: DatabaseBoardView — Kanban board grouped by first select/multi_select field.
  */
 
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api";
-import { v7 as generateId } from "@lib-uuid";
-import type { IViewRepository, CreateViewInput, UpdateViewInput } from "../../domain/repositories/IViewRepository";
-import type { ViewSnapshot } from "../../domain/aggregates/View";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { Plus, Trash2 } from "lucide-react";
 
-function viewsPath(accountId: string, databaseId: string): string {
-  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/views`;
+import { Button } from "@ui-shadcn/ui/button";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import { getRecords } from "../queries";
+import { createRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+
+interface DatabaseBoardViewProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
 }
 
-function viewPath(accountId: string, databaseId: string, id: string): string {
-  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/views/${id}`;
-}
-
-function toISO(ts: unknown): string {
-  if (typeof ts === "object" && ts !== null && "toDate" in ts && typeof (ts as { toDate: () => Date }).toDate === "function") {
-    return (ts as { toDate: () => Date }).toDate().toISOString();
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
+  if (record.properties && typeof record.properties === "object") {
+    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
   }
-  if (typeof ts === "string") return ts;
-  return new Date().toISOString();
+  return null;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toSnapshot(id: string, data: Record<string, any>): ViewSnapshot {
-  return {
-    id,
-    databaseId: data.databaseId ?? "",
-    workspaceId: data.workspaceId ?? "",
-    accountId: data.accountId ?? "",
-    name: data.name ?? "",
-    type: data.type ?? "table",
-    filters: Array.isArray(data.filters) ? data.filters : [],
-    sorts: Array.isArray(data.sorts) ? data.sorts : [],
-    groupBy: data.groupBy ?? null,
-    visibleFieldIds: Array.isArray(data.visibleFieldIds) ? data.visibleFieldIds : [],
-    hiddenFieldIds: Array.isArray(data.hiddenFieldIds) ? data.hiddenFieldIds : [],
-    boardGroupFieldId: data.boardGroupFieldId ?? null,
-    calendarDateFieldId: data.calendarDateFieldId ?? null,
-    timelineStartFieldId: data.timelineStartFieldId ?? null,
-    timelineEndFieldId: data.timelineEndFieldId ?? null,
-    createdByUserId: data.createdByUserId ?? "",
-    createdAtISO: toISO(data.createdAt),
-    updatedAtISO: toISO(data.updatedAt),
-  };
-}
+export function DatabaseBoardView({ database, accountId, workspaceId, currentUserId }: DatabaseBoardViewProps) {
+  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
 
-export class FirebaseViewRepository implements IViewRepository {
-  async create(input: CreateViewInput): Promise<ViewSnapshot> {
-    const id = generateId();
-    const now = new Date().toISOString();
-    const data = {
-      databaseId: input.databaseId,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      name: input.name,
-      type: input.type,
-      filters: [],
-      sorts: [],
-      groupBy: null,
-      visibleFieldIds: [],
-      hiddenFieldIds: [],
-      boardGroupFieldId: null,
-      calendarDateFieldId: null,
-      timelineStartFieldId: null,
-      timelineEndFieldId: null,
-      createdByUserId: input.createdByUserId,
-      createdAtISO: now,
-      updatedAtISO: now,
-    };
-    await firestoreInfrastructureApi.set(viewPath(input.accountId, input.databaseId, id), data);
-    return toSnapshot(id, data);
-  }
+  const groupField = database.fields.find((f) => f.type === "select" || f.type === "multi_select") ?? null;
 
-  async update(input: UpdateViewInput): Promise<ViewSnapshot> {
-    const docs = await firestoreInfrastructureApi.queryCollectionGroup<Record<string, unknown>>(
-      "views",
-      [{ field: "accountId", op: "==", value: input.accountId }],
-    );
-    const target = docs.find((d) => d.id === input.id);
-    if (!target) {
-      throw new Error(`View ${input.id} not found`);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getRecords(accountId, database.id);
+      setRecords(data);
+    } finally {
+      setLoading(false);
     }
+  }, [accountId, database.id]);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const changes: Record<string, any> = { updatedAtISO: new Date().toISOString() };
-    if (input.name !== undefined) changes.name = input.name;
-    if (input.filters !== undefined) changes.filters = input.filters;
-    if (input.sorts !== undefined) changes.sorts = input.sorts;
-    if (input.visibleFieldIds !== undefined) changes.visibleFieldIds = input.visibleFieldIds;
-    if (input.hiddenFieldIds !== undefined) changes.hiddenFieldIds = input.hiddenFieldIds;
-    await firestoreInfrastructureApi.update(target.path, changes);
-    const refreshed = await firestoreInfrastructureApi.get<Record<string, unknown>>(target.path);
-    if (!refreshed) {
-      throw new Error(`View ${input.id} not found after update`);
-    }
-    return toSnapshot(input.id, refreshed);
+  useEffect(() => { void load(); }, [load]);
+
+  function getTitle(record: DatabaseRecordSnapshot): string {
+    const textField = database.fields.find((f) => f.type === "text");
+    if (!textField) return record.id.slice(0, 8);
+    return String(getProperty(record, textField.id) ?? "—");
   }
 
-  async delete(id: string, accountId: string): Promise<void> {
-    const docs = await firestoreInfrastructureApi.queryCollectionGroup<Record<string, unknown>>(
-      "views",
-      [{ field: "accountId", op: "==", value: accountId }],
-    );
-    const target = docs.find((d) => d.id === id);
-    if (target) {
-      await firestoreInfrastructureApi.delete(target.path);
+  const groups: Record<string, DatabaseRecordSnapshot[]> = {};
+  if (!groupField) {
+    groups["所有記錄"] = records;
+  } else {
+    for (const record of records) {
+      const val = getProperty(record, groupField.id);
+      const key = val != null && val !== "" ? String(val) : "（無分組）";
+      (groups[key] ??= []).push(record);
+    }
+    if ("（無分組）" in groups) {
+      const noGroup = groups["（無分組）"];
+      delete groups["（無分組）"];
+      groups["（無分組）"] = noGroup;
     }
   }
 
-  async listByDatabase(accountId: string, databaseId: string): Promise<ViewSnapshot[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      viewsPath(accountId, databaseId),
-    );
-    return docs.map((d) => toSnapshot(d.id, d.data));
+  function handleAdd(groupValue: string) {
+    startTransition(async () => {
+      const props: Record<string, unknown> = groupField && groupValue !== "（無分組）" && groupValue !== "所有記錄"
+        ? { [groupField.id]: groupValue }
+        : {};
+      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: props, createdByUserId: currentUserId });
+      void load();
+    });
   }
+
+  function handleDelete(recordId: string) {
+    startTransition(async () => {
+      await deleteRecord(accountId, recordId);
+      setRecords((prev) => prev.filter((r) => r.id !== recordId));
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="flex gap-3 overflow-x-auto pb-2">
+        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-64 w-48 shrink-0 rounded-lg" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-3 overflow-x-auto pb-4">
+      {Object.entries(groups).map(([group, groupRecords]) => (
+        <div key={group} className="flex w-52 shrink-0 flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 p-3">
+          <div className="flex items-center justify-between">
+            <Badge variant="outline" className="text-xs">{group}</Badge>
+            <span className="text-[10px] text-muted-foreground">{groupRecords.length}</span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {groupRecords.map((record) => (
+              <div key={record.id} className="group relative rounded-md border border-border/60 bg-card px-3 py-2 shadow-sm">
+                <p className="text-sm font-medium leading-snug">{getTitle(record)}</p>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1 hidden h-5 w-5 text-muted-foreground hover:text-destructive group-hover:flex"
+                  disabled={isPending}
+                  onClick={() => handleDelete(record.id)}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full text-xs text-muted-foreground"
+            disabled={isPending}
+            onClick={() => handleAdd(group)}
+          >
+            <Plus className="mr-1 h-3 w-3" /> 新增
+          </Button>
+        </div>
+      ))}
+    </div>
+  );
 }
 ````
 
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseDetailPage.tsx
+## File: modules/notion/interfaces/database/components/DatabaseCalendarView.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseCalendarView — month-grid calendar grouped by a date field.
+ */
+
+import { useCallback, useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+import { getRecords } from "../queries";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+
+interface DatabaseCalendarViewProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+}
+
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
+  if (record.properties && typeof record.properties === "object") {
+    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
+  }
+  return null;
+}
+
+export function DatabaseCalendarView({ database, accountId }: DatabaseCalendarViewProps) {
+  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [cursor, setCursor] = useState(() => new Date());
+
+  const dateField = database.fields.find((f) => f.type === "date") ?? null;
+  const titleField = database.fields.find((f) => f.type === "text") ?? null;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getRecords(accountId, database.id);
+      setRecords(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, database.id]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const recordsByDay: Record<string, DatabaseRecordSnapshot[]> = {};
+  if (dateField) {
+    for (const record of records) {
+      const val = getProperty(record, dateField.id);
+      if (!val) continue;
+      try {
+        const d = new Date(String(val));
+        if (!isNaN(d.getTime()) && d.getFullYear() === year && d.getMonth() === month) {
+          const key = String(d.getDate());
+          (recordsByDay[key] ??= []).push(record);
+        }
+      } catch {}
+    }
+  }
+
+  function prevMonth() { setCursor(new Date(year, month - 1, 1)); }
+  function nextMonth() { setCursor(new Date(year, month + 1, 1)); }
+
+  const weekDays = ["日", "一", "二", "三", "四", "五", "六"];
+
+  if (!dateField) {
+    return (
+      <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
+        此資料庫未包含「日期」欄位，無法顯示日曆視圖。
+      </p>
+    );
+  }
+
+  if (loading) {
+    return <Skeleton className="h-64 w-full rounded-lg" />;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={prevMonth}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span className="text-sm font-medium">
+          {year}年 {month + 1}月
+        </span>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={nextMonth}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-border/60">
+        <div className="grid grid-cols-7 bg-muted/30">
+          {weekDays.map((d) => (
+            <div key={d} className="px-2 py-1.5 text-center text-[10px] font-semibold text-muted-foreground">
+              {d}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 border-t border-border/40">
+          {Array.from({ length: firstDay }).map((_, i) => (
+            <div key={`empty-${i}`} className="min-h-[60px] border-b border-r border-border/30 bg-muted/10" />
+          ))}
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const day = i + 1;
+            const dayRecords = recordsByDay[String(day)] ?? [];
+            const today = new Date();
+            const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+            return (
+              <div key={day} className={`min-h-[60px] border-b border-r border-border/30 p-1 ${isToday ? "bg-primary/5" : ""}`}>
+                <span className={`text-[10px] font-medium ${isToday ? "text-primary" : "text-muted-foreground"}`}>{day}</span>
+                <div className="mt-0.5 flex flex-col gap-0.5">
+                  {dayRecords.slice(0, 3).map((record) => {
+                    const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "—" : "—";
+                    return (
+                      <Badge key={record.id} variant="secondary" className="w-full justify-start truncate text-[9px]">
+                        {title}
+                      </Badge>
+                    );
+                  })}
+                  {dayRecords.length > 3 && (
+                    <span className="text-[9px] text-muted-foreground">+{dayRecords.length - 3}</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseDetailPage.tsx
 ````typescript
 "use client";
 
@@ -9770,7 +8661,7 @@ import { DatabaseCalendarView } from "./DatabaseCalendarView";
 import { DatabaseGalleryView } from "./DatabaseGalleryView";
 import { DatabaseAutomationView } from "./DatabaseAutomationView";
 import { AddFieldDialog } from "./DatabaseAddFieldDialog";
-import type { DatabaseSnapshot as Database, FieldType } from "../../application/dto/database.dto";
+import type { DatabaseSnapshot as Database, FieldType } from "../../../subdomains/database/application/dto/database.dto";
 import { Button } from "@ui-shadcn/ui/button";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
@@ -9801,7 +8692,9 @@ export function DatabaseDetailPage({
   const workspaceBasePath =
     accountId && workspaceId
       ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : "/workspace";
+      : accountId
+        ? `/${encodeURIComponent(accountId)}`
+        : "/";
   const databasesHref =
     accountId && workspaceId
       ? `${workspaceBasePath}/knowledge-database/databases`
@@ -10016,7 +8909,118 @@ export function DatabaseDetailPage({
 }
 ````
 
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseFormsPage.tsx
+## File: modules/notion/interfaces/database/components/DatabaseDialog.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseDialog — modal for creating a new Database.
+ */
+
+import { useState, useTransition } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import { createDatabase } from "../_actions/database.actions";
+
+interface DatabaseDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+  onSuccess?: () => void;
+}
+
+export function DatabaseDialog({ open, onOpenChange, accountId, workspaceId, currentUserId, onSuccess }: DatabaseDialogProps) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function reset() {
+    setName("");
+    setDescription("");
+    setError(null);
+  }
+
+  function handleOpenChange(next: boolean) {
+    if (!next) reset();
+    onOpenChange(next);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await createDatabase({
+        accountId,
+        workspaceId,
+        name: name.trim(),
+        description: description.trim() || undefined,
+        createdByUserId: currentUserId,
+      });
+      if (result.success) {
+        handleOpenChange(false);
+        onSuccess?.();
+      } else {
+        setError(result.error.message ?? "建立失敗");
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>新增資料庫</DialogTitle>
+        </DialogHeader>
+        <form id="db-form" className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-1.5">
+            <Label htmlFor="db-name">名稱 *</Label>
+            <Input
+              id="db-name"
+              placeholder="資料庫名稱"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={isPending}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="db-desc">說明</Label>
+            <Textarea
+              id="db-desc"
+              placeholder="選填：說明此資料庫的用途"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={isPending}
+            />
+          </div>
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </form>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isPending}>
+            取消
+          </Button>
+          <Button type="submit" form="db-form" disabled={isPending || !name.trim()}>
+            {isPending ? "建立中…" : "建立"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseFormsPage.tsx
 ````typescript
 "use client";
 
@@ -10031,7 +9035,7 @@ import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
 
 import { getDatabase } from "../queries";
 import { DatabaseFormView } from "./DatabaseFormView";
-import type { DatabaseSnapshot as Database } from "../../application/dto/database.dto";
+import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
 import { Button } from "@ui-shadcn/ui/button";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
@@ -10169,734 +9173,1075 @@ export function DatabaseFormsPage({
 }
 ````
 
-## File: modules/notion/subdomains/database/README.md
-````markdown
-# Database
-
-結構化資料多視圖管理。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Baseline
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/knowledge/application/dto/index.ts
+## File: modules/notion/interfaces/database/components/DatabaseFormView.tsx
 ````typescript
-export * from "./KnowledgePageDto";
-export * from "./ContentBlockDto";
-export * from "./KnowledgeCollectionDto";
-export * from "./KnowledgePageLifecycleDto";
-````
+"use client";
 
-## File: modules/notion/subdomains/knowledge/application/dto/KnowledgePageLifecycleDto.ts
-````typescript
 /**
- * Module: notion/subdomains/knowledge
- * Layer: application/dto
- * Purpose: Zod-validated input schemas for knowledge page lifecycle use cases.
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseFormView — public-facing form to collect one Record into a Database.
  */
 
-import { z } from "@lib-zod";
+import { useState, useTransition } from "react";
+import { CheckCircle2 } from "lucide-react";
 
-const AccountScopeSchema = z.object({ accountId: z.string().min(1) });
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
 
-export const VerifyKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  verifiedByUserId: z.string().min(1),
-  verificationExpiresAtISO: z.string().datetime({ offset: true }).optional(),
-});
-export type VerifyKnowledgePageDto = z.infer<typeof VerifyKnowledgePageSchema>;
+import { createRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, Field } from "../../../subdomains/database/application/dto/database.dto";
 
-export const RequestPageReviewSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  requestedByUserId: z.string().min(1),
-});
-export type RequestPageReviewDto = z.infer<typeof RequestPageReviewSchema>;
-
-export const AssignPageOwnerSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  ownerId: z.string().min(1),
-  assignedByUserId: z.string().min(1),
-});
-export type AssignPageOwnerDto = z.infer<typeof AssignPageOwnerSchema>;
-
-export const UpdatePageIconSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  iconUrl: z.string().max(2000),
-});
-export type UpdatePageIconDto = z.infer<typeof UpdatePageIconSchema>;
-
-export const UpdatePageCoverSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  coverUrl: z.string().max(2000),
-});
-export type UpdatePageCoverDto = z.infer<typeof UpdatePageCoverSchema>;
-````
-
-## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageAppearanceUseCases.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: application/use-cases
- * Purpose: Page appearance use cases — update icon, update cover.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
-import {
-  UpdatePageIconSchema,
-  type UpdatePageIconDto,
-  UpdatePageCoverSchema,
-  type UpdatePageCoverDto,
-} from "../dto/KnowledgePageLifecycleDto";
-
-export class UpdatePageIconUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: UpdatePageIconDto): Promise<CommandResult> {
-    const parsed = UpdatePageIconSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, iconUrl } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.updateIcon(iconUrl);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
+interface DatabaseFormViewProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  /** The user submitting the form. Pass anonymous ID or guest token for public forms. */
+  submitterId: string;
+  /** Optional: restrict to a subset of fields. */
+  fieldIds?: string[];
+  title?: string;
+  description?: string;
 }
 
-export class UpdatePageCoverUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: UpdatePageCoverDto): Promise<CommandResult> {
-    const parsed = UpdatePageCoverSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, coverUrl } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.updateCover(coverUrl);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
+function FieldInput({ field, value, onChange, disabled }: { field: Field; value: unknown; onChange: (v: unknown) => void; disabled: boolean }) {
+  if (field.type === "checkbox") {
+    return (
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id={`field-${field.id}`}
+          checked={Boolean(value)}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.checked)}
+          className="h-4 w-4 rounded border-border"
+        />
+        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
+      </div>
+    );
   }
+  if (field.type === "number") {
+    return (
+      <div className="space-y-1">
+        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
+        <Input
+          id={`field-${field.id}`}
+          type="number"
+          value={value == null ? "" : String(value)}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+        />
+      </div>
+    );
+  }
+  if (field.type === "date") {
+    return (
+      <div className="space-y-1">
+        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
+        <Input
+          id={`field-${field.id}`}
+          type="date"
+          value={value == null ? "" : String(value)}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    );
+  }
+  if (field.type === "url" || field.type === "email") {
+    return (
+      <div className="space-y-1">
+        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
+        <Input
+          id={`field-${field.id}`}
+          type={field.type}
+          value={value == null ? "" : String(value)}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
+      <Textarea
+        id={`field-${field.id}`}
+        rows={2}
+        value={value == null ? "" : String(value)}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
 }
-````
 
-## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageReviewUseCases.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: application/use-cases
- * Purpose: Page review/wiki use cases — approve, verify, request review, assign owner.
- */
+export function DatabaseFormView({ database, accountId, workspaceId, submitterId, fieldIds, title, description }: DatabaseFormViewProps) {
+  const visibleFields = fieldIds && fieldIds.length > 0
+    ? database.fields.filter((f) => fieldIds.includes(f.id))
+    : database.fields;
 
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
+  const [values, setValues] = useState<Record<string, unknown>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
-import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
-import {
-  PublishDomainEventUseCase,
-  type IEventStoreRepository,
-  type IEventBusRepository,
-} from "@shared-events";
-import {
-  ApproveKnowledgePageSchema,
-  type ApproveKnowledgePageDto,
-} from "../dto/KnowledgePageDto";
-import {
-  VerifyKnowledgePageSchema,
-  type VerifyKnowledgePageDto,
-  RequestPageReviewSchema,
-  type RequestPageReviewDto,
-  AssignPageOwnerSchema,
-  type AssignPageOwnerDto,
-} from "../dto/KnowledgePageLifecycleDto";
+  function handleChange(fieldId: string, value: unknown) {
+    setValues((prev) => ({ ...prev, [fieldId]: value }));
+  }
 
-export class ApproveKnowledgePageUseCase {
-  constructor(
-    private readonly repo: IKnowledgePageRepository,
-    private readonly eventStore: IEventStoreRepository,
-    private readonly eventBus: IEventBusRepository,
-  ) {}
-
-  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = ApproveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const {
-      accountId,
-      pageId,
-      actorId,
-      causationId: inputCausationId,
-      extractedTasks,
-      extractedInvoices,
-      correlationId: inputCorrelationId,
-      workspaceId,
-    } = parsed.data;
-
-    const causationId = inputCausationId ?? generateId();
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    if (page.status === "archived") return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
-    if (page.approvalState === "approved") return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
-
-    const nowISO = new Date().toISOString();
-    page.approve(actorId, nowISO);
-    await this.repo.save(page);
-
-    const correlationId = inputCorrelationId ?? generateId();
-    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
-      id: generateId(),
-      eventName: "knowledge.page_approved",
-      aggregateType: "KnowledgePage",
-      aggregateId: pageId,
-      payload: {
-        pageId,
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      const result = await createRecord({
+        databaseId: database.id,
+        workspaceId,
         accountId,
-        workspaceId: workspaceId ?? page.workspaceId,
-        extractedTasks,
-        extractedInvoices,
-        actorId,
-        causationId: inputCausationId,
-        correlationId,
-      },
-      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
-    });
-
-    return commandSuccess(pageId, Date.now());
-  }
-}
-
-export class VerifyKnowledgePageUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
-    const parsed = VerifyKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.verify(verifiedByUserId, verificationExpiresAtISO);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class RequestPageReviewUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
-    const parsed = RequestPageReviewSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, requestedByUserId } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.requestReview(requestedByUserId);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class AssignPageOwnerUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
-    const parsed = AssignPageOwnerSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, ownerId } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.assignOwner(ownerId);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
-````
-
-## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseBacklinkIndexRepository.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: infrastructure/firebase
- * Purpose: Firebase adapter implementing IBacklinkIndexRepository.
- * Firestore paths:
- *   accounts/{accountId}/backlinkIndex/{targetPageId}
- *   accounts/{accountId}/backlinkOutbound/{sourcePageId}
- */
-
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
-import type { IBacklinkIndexRepository, UpsertBacklinkEntriesInput, RemoveBacklinksFromSourceInput } from "../../domain/repositories/IBacklinkIndexRepository";
-import { BacklinkIndex } from "../../domain/aggregates/BacklinkIndex";
-import type { BacklinkEntry, BacklinkIndexSnapshot } from "../../domain/aggregates/BacklinkIndex";
-
-function backlinkIndexPath(accountId: string, targetPageId: string): string {
-  return `accounts/${accountId}/backlinkIndex/${targetPageId}`;
-}
-
-function backlinkOutboundPath(accountId: string, sourcePageId: string): string {
-  return `accounts/${accountId}/backlinkOutbound/${sourcePageId}`;
-}
-
-function toEntries(raw: unknown): BacklinkEntry[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .filter((e): e is Record<string, unknown> => typeof e === "object" && e !== null)
-    .map((e) => ({
-      sourcePageId: typeof e.sourcePageId === "string" ? e.sourcePageId : "",
-      sourcePageTitle: typeof e.sourcePageTitle === "string" ? e.sourcePageTitle : "",
-      blockId: typeof e.blockId === "string" ? e.blockId : "",
-      lastSeenAtISO: typeof e.lastSeenAtISO === "string" ? e.lastSeenAtISO : "",
-    }));
-}
-
-export class FirebaseBacklinkIndexRepository implements IBacklinkIndexRepository {
-  async upsertFromSource(input: UpsertBacklinkEntriesInput): Promise<void> {
-    const { accountId, targetPageId, sourcePageId, entries } = input;
-    const existingIndex = await firestoreInfrastructureApi.get<Record<string, unknown>>(
-      backlinkIndexPath(accountId, targetPageId),
-    );
-    const existing = existingIndex ? toEntries(existingIndex.entries) : [];
-    const nowISO = new Date().toISOString();
-    const filtered = existing.filter((e) => !entries.some((ne) => e.blockId === ne.blockId && e.sourcePageId === sourcePageId));
-    const newEntries: BacklinkEntry[] = entries.map((e) => ({ sourcePageId, sourcePageTitle: (e as BacklinkEntry).sourcePageTitle ?? "", blockId: e.blockId, lastSeenAtISO: nowISO }));
-    const merged = [...filtered, ...newEntries];
-
-    const existingOut = await firestoreInfrastructureApi.get<Record<string, unknown>>(
-      backlinkOutboundPath(accountId, sourcePageId),
-    );
-    const currentTargetIds = Array.isArray(existingOut?.targetPageIds)
-      ? existingOut.targetPageIds.filter((item): item is string => typeof item === "string")
-      : [];
-
-    const nextTargetIds = Array.from(new Set([...currentTargetIds, targetPageId]));
-
-    await firestoreInfrastructureApi.setMany([
-      {
-        path: backlinkIndexPath(accountId, targetPageId),
-        data: { targetPageId, accountId, entries: merged, updatedAtISO: nowISO },
-      },
-      {
-        path: backlinkOutboundPath(accountId, sourcePageId),
-        data: { sourcePageId, accountId, targetPageIds: nextTargetIds, updatedAtISO: nowISO },
-      },
-    ]);
-  }
-
-  async removeFromSource(input: RemoveBacklinksFromSourceInput): Promise<void> {
-    const { accountId, sourcePageId } = input;
-    const outbound = await firestoreInfrastructureApi.get<Record<string, unknown>>(
-      backlinkOutboundPath(accountId, sourcePageId),
-    );
-    const targetPageIds = Array.isArray(outbound?.targetPageIds)
-      ? outbound.targetPageIds.filter((item): item is string => typeof item === "string")
-      : [];
-
-    const nowISO = new Date().toISOString();
-
-    const writes: { path: string; data: Record<string, unknown> }[] = [];
-    for (const targetPageId of targetPageIds) {
-      const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(
-        backlinkIndexPath(accountId, targetPageId),
-      );
-      if (!existing) continue;
-      const entries = toEntries(existing.entries).filter((e) => e.sourcePageId !== sourcePageId);
-      writes.push({
-        path: backlinkIndexPath(accountId, targetPageId),
-        data: {
-          targetPageId,
-          accountId,
-          entries,
-          updatedAtISO: nowISO,
-        },
+        properties: values,
+        createdByUserId: submitterId,
       });
-    }
-    writes.push({
-      path: backlinkOutboundPath(accountId, sourcePageId),
-      data: { sourcePageId, accountId, targetPageIds: [], updatedAtISO: nowISO },
+      if (result.success) {
+        setSubmitted(true);
+        setValues({});
+      } else {
+        setError("提交失敗，請稍後再試。");
+      }
     });
-    await firestoreInfrastructureApi.setMany(writes);
   }
 
-  async findByTargetPage(accountId: string, targetPageId: string): Promise<BacklinkIndex | null> {
-    const d = await firestoreInfrastructureApi.get<Record<string, unknown>>(
-      backlinkIndexPath(accountId, targetPageId),
+  if (submitted) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+        <CheckCircle2 className="h-10 w-10 text-green-500" />
+        <h2 className="text-lg font-semibold">已成功提交！</h2>
+        <p className="text-sm text-muted-foreground">感謝您的填寫。</p>
+        <Button variant="outline" size="sm" onClick={() => setSubmitted(false)}>
+          再次提交
+        </Button>
+      </div>
     );
-    if (!d) return null;
-    const snapshot: BacklinkIndexSnapshot = {
-      targetPageId,
-      accountId,
-      entries: toEntries(d.entries),
-      updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
-    };
-    return BacklinkIndex.reconstitute(snapshot);
   }
 
-  async listOutboundTargets(accountId: string, sourcePageId: string): Promise<ReadonlyArray<string>> {
-    const d = await firestoreInfrastructureApi.get<Record<string, unknown>>(
-      backlinkOutboundPath(accountId, sourcePageId),
-    );
-    if (!d) return [];
-    return Array.isArray(d.targetPageIds) ? (d.targetPageIds as string[]) : [];
-  }
+  return (
+    <div className="mx-auto max-w-lg space-y-6 py-6">
+      <div className="space-y-1">
+        <h2 className="text-xl font-semibold">{title ?? database.name}</h2>
+        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+      </div>
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        {visibleFields.map((field) => (
+          <FieldInput
+            key={field.id}
+            field={field}
+            value={values[field.id]}
+            onChange={(v) => handleChange(field.id, v)}
+            disabled={isPending}
+          />
+        ))}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <Button type="submit" disabled={isPending} className="w-full">
+          {isPending ? "提交中…" : "送出表單"}
+        </Button>
+      </form>
+    </div>
+  );
 }
 ````
 
-## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseContentBlockRepository.ts
+## File: modules/notion/interfaces/database/components/DatabaseGalleryView.tsx
 ````typescript
+"use client";
+
 /**
- * Module: notion/subdomains/knowledge
- * Layer: infrastructure/firebase
- * Purpose: Firebase adapter implementing IContentBlockRepository.
- * Firestore path: accounts/{accountId}/contentBlocks/{blockId}
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseGalleryView — card grid for database records.
  */
 
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api";
-import { v7 as _generateId } from "@lib-uuid";
-import { ContentBlock } from "../../domain/aggregates/ContentBlock";
-import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
-import type { IContentBlockRepository } from "../../domain/repositories/IContentBlockRepository";
-import type { BlockContent } from "../../domain/value-objects/BlockContent";
-import { BLOCK_TYPES } from "../../domain/value-objects/BlockContent";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { Plus, Trash2 } from "lucide-react";
 
-const VALID_TYPES = new Set<string>(BLOCK_TYPES);
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
 
-function blocksPath(accountId: string): string {
-  return `accounts/${accountId}/contentBlocks`;
+import { getRecords } from "../queries";
+import { createRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+
+interface DatabaseGalleryViewProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
 }
 
-function blockPath(accountId: string, blockId: string): string {
-  return `accounts/${accountId}/contentBlocks/${blockId}`;
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
+  if (record.properties && typeof record.properties === "object") {
+    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
+  }
+  return null;
 }
 
-function toBlockContent(raw: unknown): BlockContent {
-  if (typeof raw !== "object" || raw === null) return { type: "text", richText: [] };
-  const obj = raw as Record<string, unknown>;
-  const type = typeof obj.type === "string" && VALID_TYPES.has(obj.type) ? (obj.type as BlockContent["type"]) : "text";
-  return {
-    type,
-    richText: Array.isArray(obj.richText) ? (obj.richText as BlockContent["richText"]) : [],
-    properties: typeof obj.properties === "object" && obj.properties !== null ? (obj.properties as Record<string, unknown>) : undefined,
-  };
+export function DatabaseGalleryView({ database, accountId, workspaceId, currentUserId }: DatabaseGalleryViewProps) {
+  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
+
+  const titleField = database.fields.find((f) => f.type === "text") ?? null;
+  const metaFields = database.fields.filter((f) => f !== titleField).slice(0, 4);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getRecords(accountId, database.id);
+      setRecords(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, database.id]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function handleAdd() {
+    startTransition(async () => {
+      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId });
+      void load();
+    });
+  }
+
+  function handleDelete(recordId: string) {
+    startTransition(async () => {
+      await deleteRecord(accountId, recordId);
+      setRecords((prev) => prev.filter((r) => r.id !== recordId));
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-lg" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {records.length === 0 ? (
+          <p className="col-span-full rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">尚無記錄</p>
+        ) : (
+          records.map((record) => {
+            const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "（未命名）" : "（未命名）";
+            return (
+              <div key={record.id} className="group relative flex flex-col gap-2 rounded-lg border border-border/60 bg-card p-3 shadow-sm">
+                <p className="truncate text-sm font-medium leading-snug">{title}</p>
+                <div className="flex flex-wrap gap-1">
+                  {metaFields.map((field) => {
+                    const val = getProperty(record, field.id);
+                    if (val == null || val === "") return null;
+                    return (
+                      <Badge key={field.id} variant="outline" className="text-[10px]">
+                        {field.name}: {String(val).slice(0, 16)}
+                      </Badge>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1 hidden h-6 w-6 text-muted-foreground hover:text-destructive group-hover:flex"
+                  disabled={isPending}
+                  onClick={() => handleDelete(record.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            );
+          })
+        )}
+      </div>
+      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="w-full text-xs">
+        <Plus className="mr-1.5 h-3 w-3" /> 新增記錄
+      </Button>
+    </div>
+  );
+}
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseListView.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseListView — flat record list with fields as readable rows.
+ */
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+import { getRecords } from "../queries";
+import { createRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+
+interface DatabaseListViewProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
 }
 
-function toSnapshot(id: string, d: Record<string, unknown>): ContentBlockSnapshot {
-  return {
-    id,
-    pageId: typeof d.pageId === "string" ? d.pageId : "",
-    accountId: typeof d.accountId === "string" ? d.accountId : "",
-    content: toBlockContent(d.content),
-    order: typeof d.order === "number" ? d.order : 0,
-    parentBlockId: typeof d.parentBlockId === "string" ? d.parentBlockId : null,
-    childBlockIds: Array.isArray(d.childBlockIds) ? (d.childBlockIds as string[]) : [],
-    createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
-    updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
-  };
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
+  if (record.properties && typeof record.properties === "object") {
+    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
+  }
+  return null;
 }
 
-export class FirebaseContentBlockRepository implements IContentBlockRepository {
-  async save(block: ContentBlock): Promise<void> {
-    const snap = block.getSnapshot();
-    const path = blockPath(snap.accountId, snap.id);
-    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    const data: Record<string, unknown> = { ...snap };
-    if (!existing) {
-      await firestoreInfrastructureApi.set(path, data);
+function displayValue(val: unknown, type: string): string {
+  if (val == null || val === "") return "";
+  if (type === "checkbox") return val ? "✓" : "✗";
+  return String(val);
+}
+
+export function DatabaseListView({ database, accountId, workspaceId, currentUserId }: DatabaseListViewProps) {
+  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [isPending, startTransition] = useTransition();
+
+  const titleField = database.fields.find((f) => f.type === "text") ?? database.fields[0] ?? null;
+  const secondaryFields = database.fields.filter((f) => f !== titleField);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getRecords(accountId, database.id);
+      setRecords(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, database.id]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function toggleExpand(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function handleAdd() {
+    startTransition(async () => {
+      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId });
+      void load();
+    });
+  }
+
+  function handleDelete(recordId: string) {
+    startTransition(async () => {
+      await deleteRecord(accountId, recordId);
+      setRecords((prev) => prev.filter((r) => r.id !== recordId));
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      {records.length === 0 ? (
+        <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">尚無記錄</p>
+      ) : (
+        records.map((record) => {
+          const isOpen = expanded.has(record.id);
+          const title = titleField ? displayValue(getProperty(record, titleField.id), titleField.type) || "（未命名）" : record.id.slice(0, 8);
+
+          return (
+            <div key={record.id} className="rounded-md border border-border/60 bg-card">
+              <div className="flex items-center gap-2 px-3 py-2">
+                <button
+                  type="button"
+                  className="rounded p-0.5 text-muted-foreground hover:bg-muted"
+                  onClick={() => toggleExpand(record.id)}
+                >
+                  {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                </button>
+                <span className="flex-1 truncate text-sm font-medium text-foreground">{title}</span>
+                <div className="hidden gap-1 sm:flex">
+                  {secondaryFields.slice(0, 2).map((field) => {
+                    const val = displayValue(getProperty(record, field.id), field.type);
+                    if (!val) return null;
+                    return (
+                      <Badge key={field.id} variant="outline" className="text-[10px]">
+                        {field.name}: {val.length > 12 ? `${val.slice(0, 12)}…` : val}
+                      </Badge>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                  disabled={isPending}
+                  onClick={() => handleDelete(record.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              {isOpen && (
+                <div className="border-t border-border/40 px-4 py-3">
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+                    {database.fields.map((field) => {
+                      const val = displayValue(getProperty(record, field.id), field.type);
+                      return (
+                        <div key={field.id} className="contents">
+                          <dt className="text-muted-foreground">{field.name}</dt>
+                          <dd className="text-foreground">{val || <span className="text-muted-foreground/50">—</span>}</dd>
+                        </div>
+                      );
+                    })}
+                    <div className="contents">
+                      <dt className="text-muted-foreground">建立時間</dt>
+                      <dd className="text-foreground">
+                        {new Date(record.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="mt-1 w-full text-xs">
+        <Plus className="mr-1.5 h-3 w-3" /> 新增記錄
+      </Button>
+    </div>
+  );
+}
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseTableView.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseTableView — spreadsheet-style table with inline cell editing.
+ */
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { Plus, Trash2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import { getRecords } from "../queries";
+import { createRecord, updateRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, Field, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+
+interface DatabaseTableViewProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+
+const FIELD_WIDTHS: Record<string, string> = {
+  text: "min-w-[180px]",
+  number: "min-w-[100px]",
+  checkbox: "min-w-[80px]",
+  date: "min-w-[140px]",
+  default: "min-w-[140px]",
+};
+
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
+  if (record.properties && typeof record.properties === "object") {
+    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
+  }
+  return null;
+}
+
+function setProperty(record: DatabaseRecordSnapshot, fieldId: string, value: unknown): Record<string, unknown> {
+  const props = typeof record.properties === "object" && record.properties !== null
+    ? { ...(record.properties as Record<string, unknown>) }
+    : {};
+  props[fieldId] = value;
+  return props;
+}
+
+function CellInput({ field, value, onChange, disabled }: { field: Field; value: unknown; onChange: (v: unknown) => void; disabled: boolean }) {
+  if (field.type === "checkbox") {
+    return (
+      <input
+        type="checkbox"
+        checked={Boolean(value)}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4 rounded border-border"
+      />
+    );
+  }
+  if (field.type === "number") {
+    return (
+      <Input
+        type="number"
+        value={value == null ? "" : String(value)}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+        className="h-7 border-transparent bg-transparent px-1 text-xs focus:border-border"
+      />
+    );
+  }
+  return (
+    <Input
+      type="text"
+      value={value == null ? "" : String(value)}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      className="h-7 border-transparent bg-transparent px-1 text-xs focus:border-border"
+    />
+  );
+}
+
+export function DatabaseTableView({ database, accountId, workspaceId, currentUserId }: DatabaseTableViewProps) {
+  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [edits, setEdits] = useState<Record<string, Record<string, unknown>>>({});
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [isPending, startTransition] = useTransition();
+
+  const fields = database.fields;
+
+  const load = useCallback(async () => {
+    if (!accountId || !database.id) return;
+    setLoading(true);
+    try {
+      const data = await getRecords(accountId, database.id);
+      setRecords(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, database.id]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function handleCellChange(recordId: string, fieldId: string, value: unknown) {
+    setEdits((prev) => ({
+      ...prev,
+      [recordId]: { ...(prev[recordId] ?? {}), [fieldId]: value },
+    }));
+  }
+
+  function handleCellBlur(record: DatabaseRecordSnapshot, fieldId: string) {
+    const cellValue = edits[record.id]?.[fieldId];
+    if (cellValue === undefined) return;
+    setSaving((prev) => ({ ...prev, [record.id]: true }));
+    startTransition(async () => {
+      await updateRecord({ id: record.id, accountId, properties: setProperty(record, fieldId, cellValue) });
+      setEdits((prev) => {
+        const next = { ...prev };
+        delete next[record.id];
+        return next;
+      });
+      setSaving((prev) => ({ ...prev, [record.id]: false }));
+    });
+  }
+
+  function handleAddRecord() {
+    startTransition(async () => {
+      await createRecord({
+        databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId,
+      });
+      void load();
+    });
+  }
+
+  function handleDeleteRecord(recordId: string) {
+    startTransition(async () => {
+      await deleteRecord(accountId, recordId);
+      setRecords((prev) => prev.filter((r) => r.id !== recordId));
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
+      </div>
+    );
+  }
+
+  if (fields.length === 0) {
+    return (
+      <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
+        此資料庫尚無欄位。請先新增欄位。
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="overflow-x-auto rounded-lg border border-border/60">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border/60 bg-muted/30">
+              {fields.map((field) => (
+                <th key={field.id} className={`px-3 py-2 text-left text-xs font-semibold text-muted-foreground ${FIELD_WIDTHS[field.type] ?? FIELD_WIDTHS.default}`}>
+                  {field.name}
+                  {field.required && <span className="ml-0.5 text-destructive">*</span>}
+                </th>
+              ))}
+              <th className="w-10" />
+            </tr>
+          </thead>
+          <tbody>
+            {records.length === 0 ? (
+              <tr>
+                <td colSpan={fields.length + 1} className="px-3 py-6 text-center text-xs text-muted-foreground">
+                  尚無記錄
+                </td>
+              </tr>
+            ) : (
+              records.map((record) => (
+                <tr key={record.id} className="border-b border-border/30 last:border-b-0 hover:bg-muted/10">
+                  {fields.map((field) => {
+                    const edited = edits[record.id]?.[field.id];
+                    const current = edited !== undefined ? edited : getProperty(record, field.id);
+                    return (
+                      <td key={field.id} className="px-2 py-1">
+                        <CellInput
+                          field={field}
+                          value={current}
+                          onChange={(v) => handleCellChange(record.id, field.id, v)}
+                          disabled={saving[record.id] ?? false}
+                        />
+                      </td>
+                    );
+                  })}
+                  <td className="px-1 py-1 text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                      disabled={isPending}
+                      onBlur={() => {
+                        fields.forEach((f) => { if (edits[record.id]?.[f.id] !== undefined) handleCellBlur(record, f.id); });
+                      }}
+                      onClick={() => handleDeleteRecord(record.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAddRecord} className="w-full text-xs">
+        <Plus className="mr-1.5 h-3 w-3" /> 新增記錄
+      </Button>
+    </div>
+  );
+}
+````
+
+## File: modules/notion/interfaces/database/components/index.ts
+````typescript
+export { DatabaseDialog } from "./DatabaseDialog";
+export { DatabaseTableView } from "./DatabaseTableView";
+export { DatabaseBoardView } from "./DatabaseBoardView";
+export { DatabaseListView } from "./DatabaseListView";
+export { DatabaseCalendarView } from "./DatabaseCalendarView";
+export { DatabaseGalleryView } from "./DatabaseGalleryView";
+export { DatabaseFormView } from "./DatabaseFormView";
+export { DatabaseAutomationView } from "./DatabaseAutomationView";
+````
+
+## File: modules/notion/interfaces/database/components/KnowledgeDatabasesRouteScreen.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Table2 } from "lucide-react";
+
+import { useAuth } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
+import { getDatabases } from "../queries";
+import { DatabaseDialog } from "./DatabaseDialog";
+
+/**
+ * KnowledgeDatabasesRouteScreen
+ * Route-level screen component for /knowledge-database/databases.
+ * Encapsulates data-loading and layout so the Next.js route file stays thin.
+ */
+export interface KnowledgeDatabasesRouteScreenProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly currentUserId?: string | null;
+}
+
+export function KnowledgeDatabasesRouteScreen({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: KnowledgeDatabasesRouteScreenProps) {
+  const router = useRouter();
+  const { state: authState } = useAuth();
+
+  const resolvedAccountId = accountId.trim();
+  const resolvedWorkspaceId = workspaceId.trim();
+  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
+  const workspaceBasePath =
+    resolvedAccountId && resolvedWorkspaceId
+      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
+      : resolvedAccountId
+        ? `/${encodeURIComponent(resolvedAccountId)}`
+        : "/";
+  const overviewHref = resolvedWorkspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-databases`
+    : resolvedAccountId
+      ? `/${encodeURIComponent(resolvedAccountId)}`
+      : "/";
+
+  const [databases, setDatabases] = useState<Database[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!resolvedAccountId || !resolvedWorkspaceId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await getDatabases(resolvedAccountId, resolvedWorkspaceId);
+      setDatabases(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [resolvedAccountId, resolvedWorkspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function handleSuccess(databaseId?: string) {
+    if (databaseId) {
+      if (resolvedAccountId && resolvedWorkspaceId) {
+        router.push(
+          `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}`,
+        );
+      } else {
+        router.push(resolvedAccountId ? `/${encodeURIComponent(resolvedAccountId)}` : "/");
+      }
     } else {
-      await firestoreInfrastructureApi.update(path, data);
+      load();
     }
   }
 
-  async findById(accountId: string, blockId: string): Promise<ContentBlock | null> {
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
-      blockPath(accountId, blockId),
-    );
-    if (!data) return null;
-    return ContentBlock.reconstitute(toSnapshot(blockId, data));
-  }
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Database</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
+        <p className="text-sm text-muted-foreground">
+          結構化資料表、看板、日曆與多視圖管理，對應 Notion Database 能力。
+        </p>
+      </header>
 
-  async listByPageId(accountId: string, pageId: string): Promise<ContentBlock[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      blocksPath(accountId),
-      [{ field: "pageId", op: "==", value: pageId }],
-    );
-    return docs.map((d) => ContentBlock.reconstitute(toSnapshot(d.id, d.data)));
-  }
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(overviewHref)}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!resolvedAccountId || !resolvedWorkspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          新增資料庫
+        </Button>
+      </div>
 
-  async delete(accountId: string, blockId: string): Promise<void> {
-    await firestoreInfrastructureApi.delete(blockPath(accountId, blockId));
-  }
+      <DatabaseDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        accountId={resolvedAccountId}
+        workspaceId={resolvedWorkspaceId}
+        currentUserId={resolvedCurrentUserId}
+        onSuccess={handleSuccess}
+      />
 
-  async nextOrder(accountId: string, pageId: string): Promise<number> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      blocksPath(accountId),
-      [{ field: "pageId", op: "==", value: pageId }],
-    );
-    return docs.length;
-  }
-
-  async countByPageId(accountId: string, pageId: string): Promise<number> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      blocksPath(accountId),
-      [{ field: "pageId", op: "==", value: pageId }],
-    );
-    return docs.length;
-  }
+      {!resolvedAccountId || !resolvedWorkspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號/工作區情境，請先登入或切換帳號。
+        </p>
+      ) : loading ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : databases.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+          <Table2 className="h-8 w-8 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">尚無資料庫。點擊「新增資料庫」開始建立。</p>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {databases.map((db) => (
+            <Card
+              key={db.id}
+              className="cursor-pointer hover:bg-muted/10 transition-colors"
+              onClick={() => handleSuccess(db.id)}
+            >
+              <CardHeader className="pb-2">
+                <div className="flex items-start gap-2">
+                  {db.icon ? (
+                    <span className="text-lg leading-none">{db.icon}</span>
+                  ) : (
+                    <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <CardTitle className="line-clamp-1 text-sm font-medium">{db.name}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {db.description && (
+                  <p className="line-clamp-2 text-xs text-muted-foreground">{db.description}</p>
+                )}
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
+                  <span>{db.fields.length} 個欄位</span>
+                  <span>·</span>
+                  <span>{db.viewIds.length} 個視圖</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground/50">
+                  {new Date(db.updatedAtISO).toLocaleDateString("zh-TW")}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 ````
 
-## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseKnowledgeCollectionRepository.ts
+## File: modules/notion/interfaces/database/queries/index.ts
 ````typescript
 /**
- * Module: notion/subdomains/knowledge
- * Layer: infrastructure/firebase
- * Purpose: Firebase adapter implementing IKnowledgeCollectionRepository.
- * Firestore path: accounts/{accountId}/knowledgeCollections/{collectionId}
+ * Module: notion/subdomains/database
+ * Layer: interfaces/queries
+ * Purpose: Read-side queries for database, record, view, and automation data.
  */
 
 import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api";
-import { KnowledgeCollection } from "../../domain/aggregates/KnowledgeCollection";
-import type { KnowledgeCollectionSnapshot } from "../../domain/aggregates/KnowledgeCollection";
-import type { IKnowledgeCollectionRepository } from "../../domain/repositories/IKnowledgeCollectionRepository";
+  makeAutomationRepo,
+  makeDatabaseRepo,
+  makeRecordRepo,
+  makeViewRepo,
+} from "../../../subdomains/database/api/factories";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot, ViewSnapshot, DatabaseAutomationSnapshot } from "../../../subdomains/database/application/dto/database.dto";
 
-function collectionsPath(accountId: string): string {
-  return `accounts/${accountId}/knowledgeCollections`;
+export async function getDatabases(accountId: string, workspaceId: string): Promise<DatabaseSnapshot[]> {
+  return makeDatabaseRepo().listByWorkspace(accountId, workspaceId);
 }
 
-function collectionPath(accountId: string, id: string): string {
-  return `accounts/${accountId}/knowledgeCollections/${id}`;
+export async function getDatabase(accountId: string, databaseId: string): Promise<DatabaseSnapshot | null> {
+  return makeDatabaseRepo().findById(databaseId, accountId);
 }
 
-function toSnapshot(id: string, d: Record<string, unknown>): KnowledgeCollectionSnapshot {
-  return {
-    id,
-    accountId: typeof d.accountId === "string" ? d.accountId : "",
-    workspaceId: typeof d.workspaceId === "string" ? d.workspaceId : undefined,
-    name: typeof d.name === "string" ? d.name : "",
-    description: typeof d.description === "string" ? d.description : undefined,
-    columns: Array.isArray(d.columns) ? (d.columns as KnowledgeCollectionSnapshot["columns"]) : [],
-    pageIds: Array.isArray(d.pageIds) ? (d.pageIds as string[]) : [],
-    status: d.status === "archived" ? "archived" : "active",
-    spaceType: d.spaceType === "wiki" ? "wiki" : "database",
-    createdByUserId: typeof d.createdByUserId === "string" ? d.createdByUserId : "",
-    createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
-    updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
-  };
+export async function getRecords(accountId: string, databaseId: string): Promise<DatabaseRecordSnapshot[]> {
+  return makeRecordRepo().listByDatabase(accountId, databaseId);
 }
 
-export class FirebaseKnowledgeCollectionRepository implements IKnowledgeCollectionRepository {
-  async save(coll: KnowledgeCollection): Promise<void> {
-    const snap = coll.getSnapshot();
-    const path = collectionPath(snap.accountId, snap.id);
-    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    const data: Record<string, unknown> = { ...snap, columns: [...snap.columns], pageIds: [...snap.pageIds] };
-    if (!existing) {
-      await firestoreInfrastructureApi.set(path, data);
-    } else {
-      await firestoreInfrastructureApi.update(path, data);
-    }
-  }
+export async function getViews(accountId: string, databaseId: string): Promise<ViewSnapshot[]> {
+  return makeViewRepo().listByDatabase(accountId, databaseId);
+}
 
-  async findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null> {
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
-      collectionPath(accountId, collectionId),
-    );
-    if (!data) return null;
-    return KnowledgeCollection.reconstitute(toSnapshot(collectionId, data));
-  }
-
-  async listByAccountId(accountId: string): Promise<KnowledgeCollection[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      collectionsPath(accountId),
-    );
-    return docs.map((d) => KnowledgeCollection.reconstitute(toSnapshot(d.id, d.data)));
-  }
-
-  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      collectionsPath(accountId),
-      [{ field: "workspaceId", op: "==", value: workspaceId }],
-    );
-    return docs.map((d) => KnowledgeCollection.reconstitute(toSnapshot(d.id, d.data)));
-  }
+export async function getAutomations(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]> {
+  return makeAutomationRepo().listByDatabase(accountId, databaseId);
 }
 ````
 
-## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseKnowledgePageRepository.ts
+## File: modules/notion/interfaces/database/store/index.ts
 ````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: infrastructure/firebase
- * Purpose: Firebase adapter implementing IKnowledgePageRepository.
- * Firestore path: accounts/{accountId}/contentPages/{pageId}
- */
+// TODO: export useDatabaseStore, useRecordStore
 
+export {};
+````
+
+## File: modules/notion/interfaces/knowledge/_actions/index.ts
+````typescript
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+} from "./knowledge-page.actions";
+
+export {
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+} from "./knowledge-block.actions";
+
+export {
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+} from "./knowledge-collection.actions";
+````
+
+## File: modules/notion/interfaces/knowledge/_actions/knowledge-block.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { makeBlockRepo } from "../../../subdomains/knowledge/api/factories";
 import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api";
-import { v7 as _generateId } from "@lib-uuid";
-import { KnowledgePage } from "../../domain/aggregates/KnowledgePage";
-import type { KnowledgePageSnapshot } from "../../domain/aggregates/KnowledgePage";
-import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+  AddContentBlockUseCase,
+  UpdateContentBlockUseCase,
+  DeleteContentBlockUseCase,
+} from "../../../subdomains/knowledge/application/queries/content-block.queries";
+import type { AddKnowledgeBlockDto as AddContentBlockDto, UpdateKnowledgeBlockDto as UpdateContentBlockDto, DeleteKnowledgeBlockDto as DeleteContentBlockDto } from "../../../subdomains/knowledge/application/dto/ContentBlockDto";
 
-function pagesPath(accountId: string): string {
-  return `accounts/${accountId}/contentPages`;
+export async function addKnowledgeBlock(input: AddContentBlockDto): Promise<CommandResult> {
+  try { return await new AddContentBlockUseCase(makeBlockRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("BLOCK_ADD_FAILED", (e as Error)?.message ?? "Unknown"); }
 }
 
-function pagePath(accountId: string, pageId: string): string {
-  return `accounts/${accountId}/contentPages/${pageId}`;
+export async function updateKnowledgeBlock(input: UpdateContentBlockDto): Promise<CommandResult> {
+  try { return await new UpdateContentBlockUseCase(makeBlockRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("BLOCK_UPDATE_FAILED", (e as Error)?.message ?? "Unknown"); }
 }
 
-function toSnapshot(id: string, d: Record<string, unknown>): KnowledgePageSnapshot {
-  return {
-    id,
-    accountId: typeof d.accountId === "string" ? d.accountId : "",
-    workspaceId: typeof d.workspaceId === "string" ? d.workspaceId : undefined,
-    title: typeof d.title === "string" ? d.title : "",
-    slug: typeof d.slug === "string" ? d.slug : "",
-    parentPageId: typeof d.parentPageId === "string" ? d.parentPageId : null,
-    order: typeof d.order === "number" ? d.order : 0,
-    blockIds: Array.isArray(d.blockIds) ? (d.blockIds as string[]) : [],
-    status: d.status === "archived" ? "archived" : "active",
-    approvalState: d.approvalState === "approved" ? "approved" : d.approvalState === "pending" ? "pending" : undefined,
-    approvedAtISO: typeof d.approvedAtISO === "string" ? d.approvedAtISO : undefined,
-    approvedByUserId: typeof d.approvedByUserId === "string" ? d.approvedByUserId : undefined,
-    verificationState: d.verificationState === "verified" ? "verified" : d.verificationState === "needs_review" ? "needs_review" : undefined,
-    ownerId: typeof d.ownerId === "string" ? d.ownerId : undefined,
-    verifiedByUserId: typeof d.verifiedByUserId === "string" ? d.verifiedByUserId : undefined,
-    verifiedAtISO: typeof d.verifiedAtISO === "string" ? d.verifiedAtISO : undefined,
-    verificationExpiresAtISO: typeof d.verificationExpiresAtISO === "string" ? d.verificationExpiresAtISO : undefined,
-    iconUrl: typeof d.iconUrl === "string" ? d.iconUrl : undefined,
-    coverUrl: typeof d.coverUrl === "string" ? d.coverUrl : undefined,
-    createdByUserId: typeof d.createdByUserId === "string" ? d.createdByUserId : "",
-    createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
-    updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
-  };
-}
-
-export class FirebaseKnowledgePageRepository implements IKnowledgePageRepository {
-  async save(page: KnowledgePage): Promise<void> {
-    const snap = page.getSnapshot();
-    const path = pagePath(snap.accountId, snap.id);
-    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    const data: Record<string, unknown> = {
-      ...snap,
-      blockIds: [...snap.blockIds],
-    };
-    if (!existing) {
-      await firestoreInfrastructureApi.set(path, data);
-    } else {
-      await firestoreInfrastructureApi.update(path, data);
-    }
-  }
-
-  async findById(accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(pagePath(accountId, pageId));
-    if (!data) return null;
-    return KnowledgePage.reconstitute(toSnapshot(pageId, data));
-  }
-
-  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      pagesPath(accountId),
-      [{ field: "status", op: "==", value: "active" }],
-      { orderBy: [{ field: "order", direction: "asc" }] },
-    );
-    return docs.map((d) => KnowledgePage.reconstitute(toSnapshot(d.id, d.data)));
-  }
-
-  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      pagesPath(accountId),
-      [
-        { field: "workspaceId", op: "==", value: workspaceId },
-        { field: "status", op: "==", value: "active" },
-      ],
-      { orderBy: [{ field: "order", direction: "asc" }] },
-    );
-    return docs.map((d) => KnowledgePage.reconstitute(toSnapshot(d.id, d.data)));
-  }
-
-  async countByParent(accountId: string, parentPageId: string | null): Promise<number> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      pagesPath(accountId),
-      [{ field: "parentPageId", op: "==", value: parentPageId ?? null }],
-    );
-    return docs.length;
-  }
-
-  async findSnapshotById(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {
-    const page = await this.findById(accountId, pageId);
-    return page ? page.getSnapshot() : null;
-  }
-
-  async listSnapshotsByAccountId(accountId: string): Promise<KnowledgePageSnapshot[]> {
-    const pages = await this.listByAccountId(accountId);
-    return pages.map((p) => p.getSnapshot());
-  }
-
-  async listSnapshotsByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]> {
-    const pages = await this.listByWorkspaceId(accountId, workspaceId);
-    return pages.map((p) => p.getSnapshot());
-  }
+export async function deleteKnowledgeBlock(input: DeleteContentBlockDto): Promise<CommandResult> {
+  try { return await new DeleteContentBlockUseCase(makeBlockRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("BLOCK_DELETE_FAILED", (e as Error)?.message ?? "Unknown"); }
 }
 ````
 
-## File: modules/notion/subdomains/knowledge/interfaces/_actions/knowledge-page.actions.ts
+## File: modules/notion/interfaces/knowledge/_actions/knowledge-collection.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { makeCollectionRepo } from "../../../subdomains/knowledge/api/factories";
+import {
+  CreateKnowledgeCollectionUseCase,
+  RenameKnowledgeCollectionUseCase,
+  AddPageToCollectionUseCase,
+  RemovePageFromCollectionUseCase,
+  AddCollectionColumnUseCase,
+  ArchiveKnowledgeCollectionUseCase,
+} from "../../../subdomains/knowledge/application/use-cases/KnowledgeCollectionUseCases";
+import type {
+  CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionDto,
+  AddPageToCollectionDto,
+  RemovePageFromCollectionDto,
+  AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionDto,
+} from "../../../subdomains/knowledge/application/dto/KnowledgeCollectionDto";
+
+export async function createKnowledgeCollection(input: CreateKnowledgeCollectionDto): Promise<CommandResult> {
+  try { return await new CreateKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("COLLECTION_CREATE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function renameKnowledgeCollection(input: RenameKnowledgeCollectionDto): Promise<CommandResult> {
+  try { return await new RenameKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("COLLECTION_RENAME_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function addPageToCollection(input: AddPageToCollectionDto): Promise<CommandResult> {
+  try { return await new AddPageToCollectionUseCase(makeCollectionRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("COLLECTION_ADD_PAGE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function removePageFromCollection(input: RemovePageFromCollectionDto): Promise<CommandResult> {
+  try { return await new RemovePageFromCollectionUseCase(makeCollectionRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("COLLECTION_REMOVE_PAGE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function addCollectionColumn(input: AddCollectionColumnDto): Promise<CommandResult> {
+  try { return await new AddCollectionColumnUseCase(makeCollectionRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("COLLECTION_ADD_COLUMN_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function archiveKnowledgeCollection(input: ArchiveKnowledgeCollectionDto): Promise<CommandResult> {
+  try { return await new ArchiveKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("COLLECTION_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+````
+
+## File: modules/notion/interfaces/knowledge/_actions/knowledge-page.actions.ts
 ````typescript
 "use server";
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import type { IEventStoreRepository, IEventBusRepository } from "@shared-events";
-import { makePageRepo } from "../../api/factories";
+import { makePageRepo } from "../../../subdomains/knowledge/api/factories";
 import {
   CreateKnowledgePageUseCase,
   RenameKnowledgePageUseCase,
   MoveKnowledgePageUseCase,
   ArchiveKnowledgePageUseCase,
   ReorderKnowledgePageBlocksUseCase,
-} from "../../application/use-cases/KnowledgePageUseCases";
+} from "../../../subdomains/knowledge/application/use-cases/KnowledgePageUseCases";
 import {
   ApproveKnowledgePageUseCase,
   VerifyKnowledgePageUseCase,
   RequestPageReviewUseCase,
   AssignPageOwnerUseCase,
-} from "../../application/use-cases/KnowledgePageReviewUseCases";
+} from "../../../subdomains/knowledge/application/use-cases/KnowledgePageReviewUseCases";
 import {
   UpdatePageIconUseCase,
   UpdatePageCoverUseCase,
-} from "../../application/use-cases/KnowledgePageAppearanceUseCases";
-import { PublishKnowledgeVersionUseCase } from "../../application/queries/knowledge-version.queries";
+} from "../../../subdomains/knowledge/application/use-cases/KnowledgePageAppearanceUseCases";
+import { PublishKnowledgeVersionUseCase } from "../../../subdomains/knowledge/application/queries/knowledge-version.queries";
 import type {
   CreateKnowledgePageDto,
   RenameKnowledgePageDto,
@@ -10904,8 +10249,8 @@ import type {
   ArchiveKnowledgePageDto,
   ReorderKnowledgePageBlocksDto,
   ApproveKnowledgePageDto,
-} from "../../application/dto/KnowledgePageDto";
-import type { VerifyKnowledgePageDto, RequestPageReviewDto, AssignPageOwnerDto, UpdatePageIconDto, UpdatePageCoverDto } from "../../application/dto/KnowledgePageLifecycleDto";
+} from "../../../subdomains/knowledge/application/dto/KnowledgePageDto";
+import type { VerifyKnowledgePageDto, RequestPageReviewDto, AssignPageOwnerDto, UpdatePageIconDto, UpdatePageCoverDto } from "../../../subdomains/knowledge/application/dto/KnowledgePageLifecycleDto";
 
 /** Stub event store — persists nothing. Replace with a real impl once infrastructure is wired. */
 const makeEventStore = (): IEventStoreRepository => ({
@@ -10982,7 +10327,87 @@ export async function updateKnowledgePageCover(input: UpdatePageCoverDto): Promi
 }
 ````
 
-## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgePageDetailPage.tsx
+## File: modules/notion/interfaces/knowledge/components/BlockEditorView.tsx
+````typescript
+"use client";
+
+import { useRef } from "react";
+import { useBlockEditorStore } from "../store/block-editor.store";
+import { richTextToPlainText } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+
+/**
+ * Notion knowledge subdomain — minimal block editor.
+ * Full drag-and-drop and rich block types are in the extensions/ layer.
+ */
+export function BlockEditorView() {
+  const { blocks, addBlock, updateBlock, deleteBlock } = useBlockEditorStore();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>, blockId: string) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      addBlock(blockId);
+    }
+    if (e.key === "Backspace") {
+      const target = e.currentTarget;
+      if (target.textContent === "") {
+        e.preventDefault();
+        deleteBlock(blockId);
+      }
+    }
+  }
+
+  function handleInput(e: React.FormEvent<HTMLDivElement>, blockId: string) {
+    const text = (e.currentTarget as HTMLDivElement).textContent ?? "";
+    updateBlock(blockId, { type: "text", richText: [{ type: "text", plainText: text }] });
+  }
+
+  if (!blocks.length) {
+    return (
+      <div className="flex min-h-[200px] flex-col gap-1 rounded-lg border border-dashed p-4">
+        <div
+          role="textbox"
+          aria-multiline="true"
+          aria-label="新區塊內容"
+          tabIndex={0}
+          contentEditable
+          suppressContentEditableWarning
+          className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); addBlock(null); }
+          }}
+          data-placeholder="開始輸入…"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef} className="flex flex-col gap-0.5">
+      {blocks.map((block) => {
+        const text = richTextToPlainText(block.content.richText);
+        return (
+          <div
+            key={block.id}
+            role="textbox"
+            aria-multiline="true"
+            aria-label={`區塊 ${block.id}`}
+            tabIndex={0}
+            contentEditable
+            suppressContentEditableWarning
+            className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"
+            onKeyDown={(e) => handleKeyDown(e, block.id)}
+            onInput={(e) => handleInput(e, block.id)}
+            dangerouslySetInnerHTML={{ __html: text }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+````
+
+## File: modules/notion/interfaces/knowledge/components/KnowledgePageDetailPage.tsx
 ````typescript
 "use client";
 
@@ -10997,7 +10422,7 @@ import {
   updateKnowledgePageIcon,
   updateKnowledgePageCover,
 } from "../_actions/knowledge-page.actions";
-import type { KnowledgePageSnapshot as KnowledgePage } from "../../application/dto/knowledge.dto";
+import type { KnowledgePageSnapshot as KnowledgePage } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
 import { PageEditorView } from "./PageEditorView";
 import { CommentPanel } from "@/modules/notion/api";
 import { Button } from "@ui-shadcn/ui/button";
@@ -11031,11 +10456,15 @@ export function KnowledgePageDetailPage({
   const workspaceBasePath =
     accountId && activeWorkspaceId
       ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(activeWorkspaceId)}`
-      : "/workspace";
+      : accountId
+        ? `/${encodeURIComponent(accountId)}`
+        : "/";
   const pageListHref =
     accountId && activeWorkspaceId
       ? `${workspaceBasePath}/knowledge/pages`
-      : "/workspace?tab=Overview&panel=knowledge-pages";
+      : accountId
+        ? `/${encodeURIComponent(accountId)}?tab=Overview&panel=knowledge-pages`
+        : "/";
 
   const load = useCallback(async () => {
     if (!accountId || !pageId) { setLoading(false); return; }
@@ -11239,7 +10668,569 @@ export function KnowledgePageDetailPage({
 }
 ````
 
-## File: modules/notion/subdomains/knowledge/interfaces/components/PageDialog.tsx
+## File: modules/notion/interfaces/knowledge/components/KnowledgePageHeaderWidgets.tsx
+````typescript
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { Check, ImageIcon, Pencil, Smile } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@ui-shadcn/ui/popover";
+
+// ── Title editor ──────────────────────────────────────────────────────────────
+
+export interface TitleEditorProps {
+  initialTitle: string;
+  onSave: (title: string) => void;
+  isPending: boolean;
+}
+
+export function TitleEditor({ initialTitle, onSave, isPending }: TitleEditorProps) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(initialTitle);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setValue(initialTitle); }, [initialTitle]);
+
+  function startEdit() {
+    setEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }
+
+  function commit() {
+    setEditing(false);
+    const trimmed = value.trim();
+    if (trimmed && trimmed !== initialTitle) {
+      onSave(trimmed);
+    } else {
+      setValue(initialTitle);
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") { e.preventDefault(); commit(); }
+    if (e.key === "Escape") { setValue(initialTitle); setEditing(false); }
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2">
+        <Input
+          ref={inputRef}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={commit}
+          onKeyDown={handleKeyDown}
+          disabled={isPending}
+          className="h-auto border-0 bg-transparent px-0 text-2xl font-semibold tracking-tight shadow-none focus-visible:ring-0"
+        />
+        <button
+          type="button"
+          onClick={commit}
+          disabled={isPending}
+          className="rounded p-1 text-muted-foreground hover:text-foreground"
+          aria-label="儲存標題"
+        >
+          <Check className="size-4" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="group flex items-center gap-2">
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground">{value}</h1>
+      <button
+        type="button"
+        onClick={startEdit}
+        disabled={isPending}
+        className="invisible rounded p-1 text-muted-foreground hover:text-foreground group-hover:visible"
+        aria-label="重新命名頁面"
+      >
+        <Pencil className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
+// ── Icon picker ───────────────────────────────────────────────────────────────
+
+const QUICK_EMOJIS = ["📄", "📝", "📚", "💡", "🎯", "🚀", "⭐", "🔑", "📌", "🗂️", "🏷️", "🔖", "📋", "🗒️", "📊", "🔍"];
+
+export interface IconPickerProps {
+  value?: string;
+  onChange: (icon: string) => void;
+  isPending: boolean;
+}
+
+export function IconPicker({ value, onChange, isPending }: IconPickerProps) {
+  const [open, setOpen] = useState(false);
+  const [custom, setCustom] = useState("");
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={isPending}
+          className="flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-muted/30 text-xl hover:bg-muted/60 transition"
+          title="設定頁面圖示"
+        >
+          {value ? value : <Smile className="h-5 w-5 text-muted-foreground" />}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-3">
+        <p className="mb-2 text-xs font-medium text-muted-foreground">選擇圖示</p>
+        <div className="mb-3 grid grid-cols-8 gap-1">
+          {QUICK_EMOJIS.map((e) => (
+            <button
+              key={e}
+              type="button"
+              onClick={() => { onChange(e); setOpen(false); }}
+              className="rounded p-1 text-lg hover:bg-muted transition"
+            >
+              {e}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Input
+            value={custom}
+            onChange={(e) => setCustom(e.target.value)}
+            placeholder="輸入 emoji 或文字"
+            className="h-7 text-xs"
+          />
+          <Button
+            size="sm"
+            className="h-7 px-2 text-xs"
+            disabled={!custom.trim()}
+            onClick={() => { onChange(custom.trim()); setCustom(""); setOpen(false); }}
+          >
+            套用
+          </Button>
+        </div>
+        {value && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-2 h-7 w-full text-xs text-muted-foreground"
+            onClick={() => { onChange(""); setOpen(false); }}
+          >
+            移除圖示
+          </Button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ── Cover editor ──────────────────────────────────────────────────────────────
+
+export interface CoverEditorProps {
+  value?: string;
+  onChange: (url: string) => void;
+  isPending: boolean;
+}
+
+export function CoverEditor({ value, onChange, isPending }: CoverEditorProps) {
+  const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState(value ?? "");
+
+  return (
+    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (v) setUrl(value ?? ""); }}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={isPending}
+          className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition"
+          title="設定封面圖片"
+        >
+          <ImageIcon className="h-3.5 w-3.5" />
+          {value ? "變更封面" : "新增封面"}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-3">
+        <p className="mb-2 text-xs font-medium text-muted-foreground">封面圖片 URL</p>
+        <div className="flex gap-2">
+          <Input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://..."
+            className="h-7 text-xs"
+          />
+          <Button
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => { onChange(url.trim()); setOpen(false); }}
+          >
+            套用
+          </Button>
+        </div>
+        {value && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-2 h-7 w-full text-xs text-muted-foreground"
+            onClick={() => { onChange(""); setOpen(false); }}
+          >
+            移除封面
+          </Button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+````
+
+## File: modules/notion/interfaces/knowledge/components/KnowledgePagesRouteScreen.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import { useAuth } from "@/modules/platform/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
+import { PageTreeView } from "./PageTreeView";
+
+/**
+ * KnowledgePagesRouteScreen
+ * Route-level screen component for /knowledge/pages.
+ * Encapsulates data-loading, scope resolution and layout so that the
+ * Next.js route file stays thin (params/context wiring only).
+ */
+export interface KnowledgePagesRouteScreenProps {
+  readonly accountId: string;
+  readonly workspaceId?: string | null;
+  readonly currentUserId?: string | null;
+  readonly scope?: "workspace" | "account";
+}
+
+export function KnowledgePagesRouteScreen({
+  accountId,
+  workspaceId,
+  currentUserId,
+  scope,
+}: KnowledgePagesRouteScreenProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { state: authState } = useAuth();
+
+  const resolvedAccountId = accountId.trim();
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+  const scopeParam = scope ?? searchParams.get("scope")?.trim() ?? "";
+  const isAccountSummary = scopeParam === "account";
+  const resolvedWorkspaceId = isAccountSummary ? "" : workspaceId?.trim() || requestedWorkspaceId || "";
+  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
+  const workspaceBasePath =
+    resolvedAccountId && resolvedWorkspaceId
+      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
+      : resolvedAccountId
+        ? `/${encodeURIComponent(resolvedAccountId)}`
+        : "/";
+  const overviewHref = resolvedWorkspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
+    : resolvedAccountId
+      ? `/${encodeURIComponent(resolvedAccountId)}`
+      : "/";
+
+  function buildPageDetailHref(pageId: string) {
+    if (resolvedAccountId && resolvedWorkspaceId) {
+      return `${workspaceBasePath}/knowledge/pages/${encodeURIComponent(pageId)}`;
+    }
+    return `/knowledge/pages/${encodeURIComponent(pageId)}${
+      resolvedWorkspaceId ? `?workspaceId=${encodeURIComponent(resolvedWorkspaceId)}` : ""
+    }`;
+  }
+
+  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    if (!resolvedAccountId) {
+      setLoading(false);
+      return;
+    }
+    if (!isAccountSummary && !resolvedWorkspaceId) {
+      setNodes([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const tree = isAccountSummary
+        ? await getKnowledgePageTree(resolvedAccountId)
+        : await getKnowledgePageTreeByWorkspace(resolvedAccountId, resolvedWorkspaceId);
+      setNodes(tree);
+    } finally {
+      setLoading(false);
+    }
+  }, [resolvedAccountId, isAccountSummary, resolvedWorkspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={isAccountSummary ? "secondary" : "outline"}>
+            {isAccountSummary ? "Account Summary" : "Workspace Scope"}
+          </Badge>
+          <p className="text-sm text-muted-foreground">
+            {isAccountSummary
+              ? "這是顯式 account summary mode。僅用於跨工作區總覽，預設不在此建立新頁面。"
+              : "知識頁面階層樹預設綁定目前工作區。點選頁面進入內容編輯器。"}
+          </p>
+        </div>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(overviewHref)}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+      </div>
+
+      {!resolvedAccountId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號情境，請先登入。
+        </p>
+      ) : !isAccountSummary && !resolvedWorkspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未選定工作區。請先從工作區進入知識頁面，或在網址帶入 workspaceId 後再查看頁面樹。
+        </p>
+      ) : loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-full" />
+          ))}
+        </div>
+      ) : (
+        <PageTreeView
+          nodes={nodes}
+          accountId={resolvedAccountId}
+          workspaceId={resolvedWorkspaceId || undefined}
+          currentUserId={resolvedCurrentUserId}
+          allowCreate={!isAccountSummary && Boolean(resolvedWorkspaceId)}
+          emptyStateDescription={
+            isAccountSummary
+              ? "這個 account summary 目前沒有可顯示的頁面。請改從工作區建立與維護頁面。"
+              : "這個工作區尚無頁面。點擊「新增頁面」開始建立。"
+          }
+          onPageClick={(pageId) => router.push(buildPageDetailHref(pageId))}
+          onCreated={() => load()}
+        />
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/notion/interfaces/knowledge/components/KnowledgeSidebarSection.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { useState } from "react";
+
+interface WorkspaceLinkItem {
+  id: string;
+  name: string;
+  href: string;
+}
+
+interface KnowledgeSidebarSectionProps {
+  readonly pathname: string;
+  readonly workspacesHydrated: boolean;
+  readonly allWorkspaceLinks: WorkspaceLinkItem[];
+  readonly activeAccountId: string | null;
+  readonly activeWorkspaceId: string | null;
+  readonly creatingKind: "page" | "database" | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onQuickCreatePage: () => void | Promise<void>;
+}
+
+function withContextQuery(href: string, accountId: string | null, workspaceId: string | null): string {
+  if (!accountId && !workspaceId) {
+    return href;
+  }
+
+  const [path, search = ""] = href.split("?");
+  const params = new URLSearchParams(search);
+
+  if (accountId) {
+    params.set("accountId", accountId);
+  }
+
+  if (workspaceId) {
+    params.set("workspaceId", workspaceId);
+  }
+
+  const query = params.toString();
+  return query.length > 0 ? `${path}?${query}` : path;
+}
+
+export function KnowledgeSidebarSection({
+  pathname,
+  workspacesHydrated,
+  allWorkspaceLinks,
+  activeAccountId,
+  activeWorkspaceId,
+  creatingKind,
+  onSelectWorkspace,
+  onQuickCreatePage,
+}: KnowledgeSidebarSectionProps) {
+  const [isKnowledgeWorkspacesExpanded, setIsKnowledgeWorkspacesExpanded] = useState(
+    () => Boolean(activeWorkspaceId),
+  );
+
+  const workspaceBasePath =
+    activeAccountId && activeWorkspaceId
+      ? `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(activeWorkspaceId)}`
+      : "";
+
+  const contextualPagesHref = workspaceBasePath
+    ? `${workspaceBasePath}/knowledge/pages`
+    : withContextQuery("/knowledge/pages", activeAccountId, activeWorkspaceId);
+
+  return (
+    <nav className="space-y-0.5" aria-label="Knowledge navigation">
+      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+        知識管理
+      </p>
+      {(activeAccountId || activeWorkspaceId) && (
+        <p className="px-2 pb-1 text-[11px] text-muted-foreground">
+          {activeAccountId ? `Account: ${activeAccountId.slice(0, 8)}` : "Account: -"}
+          {" · "}
+          {activeWorkspaceId ? `Workspace: ${activeWorkspaceId.slice(0, 8)}` : "Workspace: -"}
+        </p>
+      )}
+      <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
+        <Link
+          href={contextualPagesHref}
+          aria-current={pathname.includes("/knowledge/pages") ? "page" : undefined}
+          className={`flex-1 ${
+            pathname.includes("/knowledge/pages")
+              ? "text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          頁面
+        </Link>
+        <button
+          type="button"
+          onClick={() => void onQuickCreatePage()}
+          disabled={creatingKind !== null}
+          className="ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15 disabled:opacity-50"
+          aria-label="快速新增頁面"
+          title="新增頁面"
+        >
+          <Plus className="size-3.5" />
+        </button>
+      </div>
+      {(
+        [
+          {
+            href: workspaceBasePath
+              ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
+              : "/",
+            label: "Knowledge Hub",
+          },
+          {
+            href: workspaceBasePath
+              ? `${workspaceBasePath}/knowledge/block-editor`
+              : "/",
+            label: "區塊編輯器",
+          },
+        ] as const
+      ).map((item) => {
+        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const contextualHref = workspaceBasePath
+          ? item.href
+          : withContextQuery(item.href, activeAccountId, activeWorkspaceId);
+        return (
+          <Link
+            key={item.href}
+            href={contextualHref}
+            aria-current={active ? "page" : undefined}
+            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+              active
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+      <div className="my-1.5 border-t border-border/40" />
+
+      <button
+        type="button"
+        onClick={() => {
+          setIsKnowledgeWorkspacesExpanded((prev) => !prev);
+        }}
+        className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+        aria-expanded={isKnowledgeWorkspacesExpanded}
+      >
+        <span>Workspaces</span>
+        {isKnowledgeWorkspacesExpanded ? (
+          <ChevronDown className="size-3.5" />
+        ) : (
+          <ChevronRight className="size-3.5" />
+        )}
+      </button>
+
+      {isKnowledgeWorkspacesExpanded && (
+        <div className="space-y-0.5 pl-2">
+          {!workspacesHydrated ? (
+            <p className="px-2 py-1.5 text-[11px] text-muted-foreground">工作區載入中...</p>
+          ) : allWorkspaceLinks.length === 0 ? (
+            <p className="px-2 py-1.5 text-[11px] text-muted-foreground">目前帳號沒有工作區</p>
+          ) : (
+            allWorkspaceLinks.map((workspace) => {
+              const active = activeWorkspaceId === workspace.id;
+              return (
+                <Link
+                  key={workspace.id}
+                  href={workspace.href}
+                  onClick={() => {
+                    onSelectWorkspace(workspace.id);
+                  }}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                    active
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                  title={workspace.name}
+                >
+                  <span className="truncate">{workspace.name}</span>
+                </Link>
+              );
+            })
+          )}
+        </div>
+      )}
+    </nav>
+  );
+}
+````
+
+## File: modules/notion/interfaces/knowledge/components/PageDialog.tsx
 ````typescript
 "use client";
 
@@ -11300,37 +11291,398 @@ export function PageDialog({ open, onOpenChange, accountId, workspaceId, current
 }
 ````
 
-## File: modules/notion/subdomains/knowledge/README.md
-````markdown
-# Knowledge
+## File: modules/notion/interfaces/knowledge/components/PageEditorView.tsx
+````typescript
+"use client";
 
-頁面建立、組織、版本化與交付。
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: interfaces/components
+ * Purpose: PageEditorView — renders the block editor for a knowledge page.
+ *          Connects accountId/pageId context to BlockEditorView.
+ */
 
-## Ownership
+import { useEffect, useCallback } from "react";
+import { useBlockEditorStore } from "../store/block-editor.store";
+import { getKnowledgeBlocks } from "../queries";
+import { BlockEditorView } from "./BlockEditorView";
 
-- **Bounded Context**: notion
-- **Subdomain Type**: Baseline
-- **Status**: Active
+export interface PageEditorViewProps {
+  accountId: string;
+  pageId: string;
+}
 
-## Layers
+export function PageEditorView({ accountId, pageId }: PageEditorViewProps) {
+  const { setPage, setBlocks } = useBlockEditorStore();
 
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
+  const loadBlocks = useCallback(async () => {
+    if (!accountId || !pageId) return;
+    setPage(accountId, pageId);
+    const snapshots = await getKnowledgeBlocks(accountId, pageId);
+    setBlocks(
+      snapshots.map((b) => ({
+        id: b.id,
+        content: b.content,
+        order: b.order,
+        parentBlockId: b.parentBlockId,
+        isFocused: false,
+      })),
+    );
+  }, [accountId, pageId, setPage, setBlocks]);
 
-## Dependency Direction
+  useEffect(() => { void loadBlocks(); }, [loadBlocks]);
 
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
+  return <BlockEditorView />;
+}
+````
 
-## Development Order
+## File: modules/notion/interfaces/knowledge/components/PageTreeView.tsx
+````typescript
+"use client";
 
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+import { ChevronDown, ChevronRight, FilePlus, FileText } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@ui-shadcn/ui/button";
+import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+import { PageDialog } from "./PageDialog";
+
+export interface PageTreeViewProps {
+  nodes: KnowledgePageTreeNode[];
+  accountId: string;
+  workspaceId?: string;
+  currentUserId: string;
+  allowCreate?: boolean;
+  emptyStateDescription?: string;
+  onPageClick?: (pageId: string) => void;
+  onCreated?: () => void;
+}
+
+function TreeNode({
+  node, accountId, workspaceId, currentUserId, allowCreate, onPageClick, onCreated, depth,
+}: { node: KnowledgePageTreeNode; accountId: string; workspaceId?: string; currentUserId: string; allowCreate: boolean; onPageClick?: (id: string) => void; onCreated?: () => void; depth: number }) {
+  const [expanded, setExpanded] = useState(depth < 1);
+  const [addChildOpen, setAddChildOpen] = useState(false);
+  const hasChildren = node.children && node.children.length > 0;
+  const canCreate = allowCreate && Boolean(workspaceId);
+
+  return (
+    <li>
+      <div className="group flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted/30" style={{ paddingLeft: `${8 + depth * 16}px` }}>
+        <button type="button" className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground" onClick={() => setExpanded((v) => !v)}>
+          {hasChildren ? (expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />) : <FileText className="h-3.5 w-3.5" />}
+        </button>
+        <button type="button" className="min-w-0 flex-1 truncate text-left text-sm" onClick={() => onPageClick?.(node.id)}>
+          {node.title}
+        </button>
+        {canCreate && (
+          <button type="button" className="invisible shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground group-hover:visible" onClick={(e) => { e.stopPropagation(); setAddChildOpen(true); }}>
+            <FilePlus className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+      {expanded && hasChildren && (
+        <ul>
+          {node.children.map((child) => (
+            <TreeNode key={child.id} node={child} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} allowCreate={allowCreate} onPageClick={onPageClick} onCreated={onCreated} depth={depth + 1} />
+          ))}
+        </ul>
+      )}
+      {addChildOpen && (
+        <PageDialog open={addChildOpen} onOpenChange={setAddChildOpen} accountId={accountId} workspaceId={workspaceId ?? ""} currentUserId={currentUserId} parentPageId={node.id} onSuccess={onCreated} />
+      )}
+    </li>
+  );
+}
+
+export function PageTreeView({ nodes, accountId, workspaceId, currentUserId, allowCreate = true, emptyStateDescription, onPageClick, onCreated }: PageTreeViewProps) {
+  const [createOpen, setCreateOpen] = useState(false);
+  if (!nodes.length) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-8 text-center text-sm text-muted-foreground">
+        <FileText className="h-8 w-8 opacity-40" />
+        <p>{emptyStateDescription ?? "尚無頁面"}</p>
+        {allowCreate && workspaceId && (
+          <>
+            <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>新增頁面</Button>
+            <PageDialog open={createOpen} onOpenChange={setCreateOpen} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} parentPageId={null} onSuccess={onCreated} />
+          </>
+        )}
+      </div>
+    );
+  }
+  return <ul className="space-y-0.5">{nodes.map((n) => <TreeNode key={n.id} node={n} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} allowCreate={allowCreate} onPageClick={onPageClick} onCreated={onCreated} depth={0} />)}</ul>;
+}
+````
+
+## File: modules/notion/interfaces/knowledge/queries/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: interfaces/queries
+ * Purpose: Server-side read helpers for the knowledge subdomain.
+ */
+
+import { makeBlockRepo, makeCollectionRepo, makePageRepo } from "../../../subdomains/knowledge/api/factories";
+import {
+  GetKnowledgePageUseCase,
+  ListKnowledgePagesUseCase,
+  ListKnowledgePagesByWorkspaceUseCase,
+  GetKnowledgePageTreeUseCase,
+  GetKnowledgePageTreeByWorkspaceUseCase,
+} from "../../../subdomains/knowledge/application/queries/knowledge-page.queries";
+import { ListContentBlocksUseCase } from "../../../subdomains/knowledge/application/queries/content-block.queries";
+import {
+  GetKnowledgeCollectionUseCase,
+  ListKnowledgeCollectionsUseCase,
+} from "../../../subdomains/knowledge/application/queries/knowledge-collection.queries";
+import type { KnowledgePageSnapshot, ContentBlockSnapshot, KnowledgeCollectionSnapshot } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+
+export async function getKnowledgePage(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {
+  return new GetKnowledgePageUseCase(makePageRepo()).execute(accountId, pageId);
+}
+
+export async function getKnowledgePages(accountId: string): Promise<KnowledgePageSnapshot[]> {
+  return new ListKnowledgePagesUseCase(makePageRepo()).execute(accountId);
+}
+
+export async function getKnowledgePagesByWorkspace(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]> {
+  return new ListKnowledgePagesByWorkspaceUseCase(makePageRepo()).execute(accountId, workspaceId);
+}
+
+export async function getKnowledgePageTree(accountId: string) {
+  return new GetKnowledgePageTreeUseCase(makePageRepo()).execute(accountId);
+}
+
+export async function getKnowledgePageTreeByWorkspace(accountId: string, workspaceId: string) {
+  return new GetKnowledgePageTreeByWorkspaceUseCase(makePageRepo()).execute(accountId, workspaceId);
+}
+
+export async function getKnowledgeBlocks(accountId: string, pageId: string): Promise<ContentBlockSnapshot[]> {
+  return new ListContentBlocksUseCase(makeBlockRepo()).execute(accountId, pageId);
+}
+
+export async function getKnowledgeCollection(accountId: string, collectionId: string): Promise<KnowledgeCollectionSnapshot | null> {
+  return new GetKnowledgeCollectionUseCase(makeCollectionRepo()).execute(accountId, collectionId);
+}
+
+export async function getKnowledgeCollections(accountId: string): Promise<KnowledgeCollectionSnapshot[]> {
+  return new ListKnowledgeCollectionsUseCase(makeCollectionRepo()).execute(accountId);
+}
+````
+
+## File: modules/notion/interfaces/knowledge/store/block-editor.store.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: interfaces/store
+ * Purpose: Zustand store for the block editor UI state.
+ *          Manages optimistic block operations before persistence.
+ */
+"use client";
+
+import { create } from "zustand";
+import type { BlockContent } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+
+export interface EditorBlock {
+  id: string;
+  content: BlockContent;
+  order: number;
+  parentBlockId: string | null;
+  isFocused: boolean;
+}
+
+interface BlockEditorState {
+  pageId: string | null;
+  accountId: string | null;
+  blocks: EditorBlock[];
+  isDirty: boolean;
+
+  setPage: (accountId: string, pageId: string) => void;
+  setBlocks: (blocks: EditorBlock[]) => void;
+  addBlock: (after: string | null, content?: BlockContent) => EditorBlock;
+  updateBlock: (id: string, content: BlockContent) => void;
+  deleteBlock: (id: string) => void;
+  reorder: (ids: string[]) => void;
+  clearDirty: () => void;
+}
+
+function makeId() {
+  return crypto.randomUUID();
+}
+
+export const useBlockEditorStore = create<BlockEditorState>((set, get) => ({
+  pageId: null,
+  accountId: null,
+  blocks: [],
+  isDirty: false,
+
+  setPage(accountId, pageId) {
+    set({ accountId, pageId, blocks: [], isDirty: false });
+  },
+
+  setBlocks(blocks) {
+    set({ blocks, isDirty: false });
+  },
+
+  addBlock(afterId, content = { type: "text", richText: [] }) {
+    const blocks = [...get().blocks];
+    const idx = afterId ? blocks.findIndex((b) => b.id === afterId) : blocks.length - 1;
+    const newBlock: EditorBlock = {
+      id: makeId(),
+      content,
+      order: idx + 1,
+      parentBlockId: null,
+      isFocused: true,
+    };
+    const updated = [
+      ...blocks.slice(0, idx + 1),
+      newBlock,
+      ...blocks.slice(idx + 1).map((b) => ({ ...b, order: b.order + 1 })),
+    ];
+    set({ blocks: updated, isDirty: true });
+    return newBlock;
+  },
+
+  updateBlock(id, content) {
+    set({
+      blocks: get().blocks.map((b) => (b.id === id ? { ...b, content } : b)),
+      isDirty: true,
+    });
+  },
+
+  deleteBlock(id) {
+    set({
+      blocks: get().blocks.filter((b) => b.id !== id),
+      isDirty: true,
+    });
+  },
+
+  reorder(ids) {
+    const map = new Map(get().blocks.map((b) => [b.id, b]));
+    const reordered = ids
+      .map((id, i) => {
+        const b = map.get(id);
+        return b ? { ...b, order: i } : null;
+      })
+      .filter((b): b is EditorBlock => b !== null);
+    set({ blocks: reordered, isDirty: true });
+  },
+
+  clearDirty() {
+    set({ isDirty: false });
+  },
+}));
+````
+
+## File: modules/notion/subdomains/authoring/api/factories.ts
+````typescript
+import { FirebaseArticleRepository } from "../../../infrastructure/authoring/firebase/FirebaseArticleRepository";
+import { FirebaseCategoryRepository } from "../../../infrastructure/authoring/firebase/FirebaseCategoryRepository";
+
+export function makeArticleRepo() {
+  return new FirebaseArticleRepository();
+}
+
+export function makeCategoryRepo() {
+  return new FirebaseCategoryRepository();
+}
+````
+
+## File: modules/notion/subdomains/collaboration/api/factories.ts
+````typescript
+import { FirebaseCommentRepository } from "../../../infrastructure/collaboration/firebase/FirebaseCommentRepository";
+import { FirebasePermissionRepository } from "../../../infrastructure/collaboration/firebase/FirebasePermissionRepository";
+import { FirebaseVersionRepository } from "../../../infrastructure/collaboration/firebase/FirebaseVersionRepository";
+
+export function makeCommentRepo() {
+  return new FirebaseCommentRepository();
+}
+
+export function makeVersionRepo() {
+  return new FirebaseVersionRepository();
+}
+
+export function makePermissionRepo() {
+  return new FirebasePermissionRepository();
+}
+````
+
+## File: modules/notion/subdomains/collaboration/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/collaboration
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ */
+
+// Aggregate snapshot types
+export type { CommentSnapshot, SelectionRange, ContentType, CommentId } from "../domain/aggregates/Comment";
+export type { CommentUnsubscribe } from "../domain/repositories/ICommentRepository";
+export type { VersionSnapshot, VersionId } from "../domain/aggregates/Version";
+export type { PermissionSnapshot, PermissionLevel, PrincipalType, PermissionId } from "../domain/aggregates/Permission";
+
+// DTOs
+export type {
+  CreateCommentDto, UpdateCommentDto, ResolveCommentDto, DeleteCommentDto,
+  CreateVersionDto, DeleteVersionDto,
+  GrantPermissionDto, RevokePermissionDto,
+} from "../application/dto/CollaborationDto";
+
+// Server actions
+export { createComment, updateComment, resolveComment, deleteComment } from "../../../interfaces/collaboration/_actions/comment.actions";
+export { createVersion, deleteVersion } from "../../../interfaces/collaboration/_actions/version.actions";
+export { grantPermission, revokePermission } from "../../../interfaces/collaboration/_actions/permission.actions";
+
+// Queries
+export { getComments, getVersions, getPermissions, subscribeComments } from "../../../interfaces/collaboration/queries";
+
+// UI components
+export { CommentPanel } from "../../../interfaces/collaboration/components/CommentPanel";
+export { VersionHistoryPanel } from "../../../interfaces/collaboration/components/VersionHistoryPanel";
+````
+
+## File: modules/notion/subdomains/database/api/factories.ts
+````typescript
+import { FirebaseAutomationRepository } from "../../../infrastructure/database/firebase/FirebaseAutomationRepository";
+import { FirebaseDatabaseRecordRepository } from "../../../infrastructure/database/firebase/FirebaseDatabaseRecordRepository";
+import { FirebaseDatabaseRepository } from "../../../infrastructure/database/firebase/FirebaseDatabaseRepository";
+import { FirebaseViewRepository } from "../../../infrastructure/database/firebase/FirebaseViewRepository";
+
+export function makeDatabaseRepo() {
+  return new FirebaseDatabaseRepository();
+}
+
+export function makeRecordRepo() {
+  return new FirebaseDatabaseRecordRepository();
+}
+
+export function makeViewRepo() {
+  return new FirebaseViewRepository();
+}
+
+export function makeAutomationRepo() {
+  return new FirebaseAutomationRepository();
+}
+````
+
+## File: modules/notion/subdomains/knowledge/api/factories.ts
+````typescript
+import { FirebaseContentBlockRepository } from "../../../infrastructure/knowledge/firebase/FirebaseContentBlockRepository";
+import { FirebaseKnowledgeCollectionRepository } from "../../../infrastructure/knowledge/firebase/FirebaseKnowledgeCollectionRepository";
+import { FirebaseKnowledgePageRepository } from "../../../infrastructure/knowledge/firebase/FirebaseKnowledgePageRepository";
+
+export function makePageRepo() {
+  return new FirebaseKnowledgePageRepository();
+}
+
+export function makeBlockRepo() {
+  return new FirebaseContentBlockRepository();
+}
+
+export function makeCollectionRepo() {
+  return new FirebaseKnowledgeCollectionRepository();
+}
 ````
 
 ## File: modules/notion/subdomains/relations/api/index.ts
@@ -11450,38 +11802,6 @@ export interface IRelationRepository {
 }
 ````
 
-## File: modules/notion/subdomains/relations/README.md
-````markdown
-# Relations
-
-建立內容之間關聯與 backlink 的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/notion/subdomains/taxonomy/api/index.ts
 ````typescript
 /**
@@ -11593,38 +11913,6 @@ export interface ITaxonomyRepository {
   save(node: TaxonomyNode): Promise<void>;
   remove(nodeId: string): Promise<void>;
 }
-````
-
-## File: modules/notion/subdomains/taxonomy/README.md
-````markdown
-# Taxonomy
-
-建立分類法與語義組織的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notion/AGENT.md
@@ -11784,528 +12072,6 @@ Legacy migration (Strangler Pattern):
 3. Converge Application layer
 4. Isolate legacy via Ports
 5. Replace Infrastructure adapter; remove old path when stable
-````
-
-## File: modules/notion/subdomains/authoring/interfaces/components/KnowledgeBaseArticlesRouteScreen.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
-
-import { useApp } from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
-import { getArticles, getCategories } from "../queries";
-import { ArticleDialog } from "./ArticleDialog";
-import { CategoryTreePanel } from "./CategoryTreePanel";
-
-const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  draft: { label: "草稿", variant: "outline" },
-  published: { label: "已發佈", variant: "default" },
-  archived: { label: "已封存", variant: "secondary" },
-};
-
-const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
-  verified: { label: "已驗證", icon: BadgeCheck },
-  needs_review: { label: "待審查", icon: FileClock },
-  unverified: { label: "未驗證", icon: CircleDot },
-};
-
-/**
- * KnowledgeBaseArticlesRouteScreen
- * Route-level screen component for /knowledge-base/articles.
- * Encapsulates data-loading, filtering and layout so the Next.js route
- * file stays thin (params/context wiring only).
- */
-export function KnowledgeBaseArticlesRouteScreen() {
-  const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = wsState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-  const workspaceBasePath =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : "/workspace";
-  const overviewHref = workspaceId
-    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-base-articles`
-    : "/workspace";
-
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    if (!accountId || !workspaceId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const [arts, cats] = await Promise.all([
-        getArticles({ accountId, workspaceId }),
-        getCategories(accountId, workspaceId),
-      ]);
-      setArticles(arts);
-      setCategories(cats);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, workspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const filteredArticles = useMemo(() => {
-    if (!selectedCategoryId) return articles;
-    const cat = categories.find((c) => c.id === selectedCategoryId);
-    if (!cat) return articles;
-    return articles.filter((a) => cat.articleIds.includes(a.id));
-  }, [articles, categories, selectedCategoryId]);
-
-  function handleSuccess(articleId?: string) {
-    if (articleId) {
-      if (accountId && workspaceId) {
-        router.push(
-          `${workspaceBasePath}/knowledge-base/articles/${encodeURIComponent(articleId)}`,
-        );
-      } else {
-        router.push(`/knowledge-base/articles/${encodeURIComponent(articleId)}`);
-      }
-    } else {
-      load();
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
-        <p className="text-sm text-muted-foreground">
-          組織知識庫的 SOP 文章、通用文件與驗證管治。
-        </p>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push(overviewHref)}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-        <Button
-          size="sm"
-          className="ml-auto"
-          disabled={!accountId || !workspaceId}
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增文章
-        </Button>
-      </div>
-
-      <ArticleDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        categories={categories}
-        onSuccess={handleSuccess}
-      />
-
-      {!accountId || !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
-        </p>
-      ) : loading ? (
-        <div className="flex gap-4">
-          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
-          <div className="grid flex-1 gap-3 sm:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 w-full rounded-lg" />
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="flex gap-4">
-          <CategoryTreePanel
-            categories={categories}
-            selectedId={selectedCategoryId}
-            onSelect={setSelectedCategoryId}
-          />
-
-          <div className="flex-1">
-            {filteredArticles.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">
-                  {selectedCategoryId ? "此分類尚無文章。" : "尚無文章。點擊「新增文章」開始建立。"}
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {filteredArticles.map((article) => {
-                  const status = STATUS_CONFIG[article.status];
-                  const veri = VERIFICATION_CONFIG[article.verificationState];
-                  const VeriIcon = veri.icon;
-                  return (
-                    <Card
-                      key={article.id}
-                      className="cursor-pointer hover:bg-muted/10 transition-colors"
-                      onClick={() => handleSuccess(article.id)}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
-                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <VeriIcon className="h-3 w-3" />
-                          <span>{veri.label}</span>
-                        </div>
-                        {article.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {article.tags.slice(0, 3).map((tag) => (
-                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <p className="text-[10px] text-muted-foreground/70">
-                          v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/KnowledgeDatabasesRouteScreen.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Table2 } from "lucide-react";
-
-import { useApp } from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import type { DatabaseSnapshot as Database } from "../../application/dto/database.dto";
-import { getDatabases } from "../queries";
-import { DatabaseDialog } from "./DatabaseDialog";
-
-/**
- * KnowledgeDatabasesRouteScreen
- * Route-level screen component for /knowledge-database/databases.
- * Encapsulates data-loading and layout so the Next.js route file stays thin.
- */
-export function KnowledgeDatabasesRouteScreen() {
-  const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = wsState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-  const workspaceBasePath =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : "/workspace";
-  const overviewHref = workspaceId
-    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-databases`
-    : "/workspace";
-
-  const [databases, setDatabases] = useState<Database[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-
-  const load = useCallback(async () => {
-    if (!accountId || !workspaceId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const data = await getDatabases(accountId, workspaceId);
-      setDatabases(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, workspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  function handleSuccess(databaseId?: string) {
-    if (databaseId) {
-      if (accountId && workspaceId) {
-        router.push(
-          `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}`,
-        );
-      } else {
-        router.push(`/knowledge-database/databases/${encodeURIComponent(databaseId)}`);
-      }
-    } else {
-      load();
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Database</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
-        <p className="text-sm text-muted-foreground">
-          結構化資料表、看板、日曆與多視圖管理，對應 Notion Database 能力。
-        </p>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push(overviewHref)}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-        <Button
-          size="sm"
-          className="ml-auto"
-          disabled={!accountId || !workspaceId}
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增資料庫
-        </Button>
-      </div>
-
-      <DatabaseDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        onSuccess={handleSuccess}
-      />
-
-      {!accountId || !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
-        </p>
-      ) : loading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : databases.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-          <Table2 className="h-8 w-8 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">尚無資料庫。點擊「新增資料庫」開始建立。</p>
-        </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {databases.map((db) => (
-            <Card
-              key={db.id}
-              className="cursor-pointer hover:bg-muted/10 transition-colors"
-              onClick={() => handleSuccess(db.id)}
-            >
-              <CardHeader className="pb-2">
-                <div className="flex items-start gap-2">
-                  {db.icon ? (
-                    <span className="text-lg leading-none">{db.icon}</span>
-                  ) : (
-                    <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  )}
-                  <CardTitle className="line-clamp-1 text-sm font-medium">{db.name}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {db.description && (
-                  <p className="line-clamp-2 text-xs text-muted-foreground">{db.description}</p>
-                )}
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
-                  <span>{db.fields.length} 個欄位</span>
-                  <span>·</span>
-                  <span>{db.viewIds.length} 個視圖</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground/50">
-                  {new Date(db.updatedAtISO).toLocaleDateString("zh-TW")}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgePagesRouteScreen.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-
-import { useApp } from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import type { KnowledgePageTreeNode } from "../../application/dto/knowledge.dto";
-import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
-import { PageTreeView } from "./PageTreeView";
-
-/**
- * KnowledgePagesRouteScreen
- * Route-level screen component for /knowledge/pages.
- * Encapsulates data-loading, scope resolution and layout so that the
- * Next.js route file stays thin (params/context wiring only).
- */
-export function KnowledgePagesRouteScreen() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-  const scopeParam = searchParams.get("scope")?.trim() ?? "";
-  const isAccountSummary = scopeParam === "account";
-  const workspaceId = isAccountSummary ? "" : requestedWorkspaceId || wsState.activeWorkspaceId || "";
-  const currentUserId = authState.user?.id ?? "";
-  const workspaceBasePath =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : "/workspace";
-  const overviewHref = workspaceId
-    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
-    : "/workspace";
-
-  function buildPageDetailHref(pageId: string) {
-    if (accountId && workspaceId) {
-      return `${workspaceBasePath}/knowledge/pages/${encodeURIComponent(pageId)}`;
-    }
-    return `/knowledge/pages/${encodeURIComponent(pageId)}${
-      workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : ""
-    }`;
-  }
-
-  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    if (!accountId) { setLoading(false); return; }
-    if (!isAccountSummary && !workspaceId) {
-      setNodes([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const tree = isAccountSummary
-        ? await getKnowledgePageTree(accountId)
-        : await getKnowledgePageTreeByWorkspace(accountId, workspaceId);
-      setNodes(tree);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, isAccountSummary, workspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={isAccountSummary ? "secondary" : "outline"}>
-            {isAccountSummary ? "Account Summary" : "Workspace Scope"}
-          </Badge>
-          <p className="text-sm text-muted-foreground">
-            {isAccountSummary
-              ? "這是顯式 account summary mode。僅用於跨工作區總覽，預設不在此建立新頁面。"
-              : "知識頁面階層樹預設綁定目前工作區。點選頁面進入內容編輯器。"}
-          </p>
-        </div>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push(overviewHref)}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-      </div>
-
-      {!accountId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號情境，請先登入。
-        </p>
-      ) : !isAccountSummary && !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未選定工作區。請先從工作區進入知識頁面，或在網址帶入 workspaceId 後再查看頁面樹。
-        </p>
-      ) : loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-8 w-full" />
-          ))}
-        </div>
-      ) : (
-        <PageTreeView
-          nodes={nodes}
-          accountId={accountId}
-          workspaceId={workspaceId || undefined}
-          currentUserId={currentUserId}
-          allowCreate={!isAccountSummary && Boolean(workspaceId)}
-          emptyStateDescription={
-            isAccountSummary
-              ? "這個 account summary 目前沒有可顯示的頁面。請改從工作區建立與維護頁面。"
-              : "這個工作區尚無頁面。點擊「新增頁面」開始建立。"
-          }
-          onPageClick={(pageId) => router.push(buildPageDetailHref(pageId))}
-          onCreated={() => load()}
-        />
-      )}
-    </div>
-  );
-}
 ````
 
 ## File: modules/notion/api/index.ts
@@ -12482,194 +12248,244 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
-## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgeSidebarSection.tsx
+## File: modules/notion/subdomains/authoring/api/index.ts
 ````typescript
-"use client";
+/**
+ * Module: notion/subdomains/authoring
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ */
 
-import Link from "next/link";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
-import { useState } from "react";
+// ─── Read contracts ────────────────────────────────────────────────────────────
+export type { ArticleSnapshot, ArticleStatus, ArticleVerificationState } from "../domain/aggregates/Article";
+export type { CategorySnapshot } from "../domain/aggregates/Category";
 
-interface WorkspaceLinkItem {
-  id: string;
-  name: string;
-  href: string;
-}
+// ─── Identifiers used by other BCs ────────────────────────────────────────────
+export type ArticleId = string;
+export type CategoryId = string;
 
-interface KnowledgeSidebarSectionProps {
-  readonly pathname: string;
-  readonly workspacesHydrated: boolean;
-  readonly allWorkspaceLinks: WorkspaceLinkItem[];
-  readonly activeAccountId: string | null;
-  readonly activeWorkspaceId: string | null;
-  readonly creatingKind: "page" | "database" | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onQuickCreatePage: () => void | Promise<void>;
-}
+// ─── Server Actions (write-side) ──────────────────────────────────────────────
+export {
+  createArticle,
+  updateArticle,
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+  deleteArticle,
+} from "../../../interfaces/authoring/_actions/article.actions";
 
-function withContextQuery(href: string, accountId: string | null, workspaceId: string | null): string {
-  if (!accountId && !workspaceId) {
-    return href;
-  }
+export {
+  createCategory,
+  renameCategory,
+  moveCategory,
+  deleteCategory,
+} from "../../../interfaces/authoring/_actions/category.actions";
 
-  const [path, search = ""] = href.split("?");
-  const params = new URLSearchParams(search);
+// ─── Queries (read-side) ──────────────────────────────────────────────────────
+export { getArticles, getArticle, getCategories, getBacklinks } from "../../../interfaces/authoring/queries";
 
-  if (accountId) {
-    params.set("accountId", accountId);
-  }
+// ─── UI Components ────────────────────────────────────────────────────────────
+export { ArticleDialog } from "../../../interfaces/authoring/components/ArticleDialog";
+export { KnowledgeBaseArticlesRouteScreen } from "../../../interfaces/authoring/components/KnowledgeBaseArticlesRouteScreen";
+export type { KnowledgeBaseArticlesRouteScreenProps } from "../../../interfaces/authoring/components/KnowledgeBaseArticlesRouteScreen";
+export { ArticleDetailPage } from "../../../interfaces/authoring/components/ArticleDetailPage";
+export type { ArticleDetailPageProps } from "../../../interfaces/authoring/components/ArticleDetailPage";
+````
 
-  if (workspaceId) {
-    params.set("workspaceId", workspaceId);
-  }
+## File: modules/notion/subdomains/database/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ *
+ * Open Host Service contracts:
+ *   - getDatabaseById  — consumed by knowledge subdomain (opaque reference resolution)
+ */
 
-  const query = params.toString();
-  return query.length > 0 ? `${path}?${query}` : path;
-}
+// Domain types
+export type {
+  DatabaseSnapshot,
+  DatabaseSnapshot as Database,
+  Field,
+  FieldType,
+  DatabaseId,
+  FieldId,
+} from "../domain/aggregates/Database";
 
-export function KnowledgeSidebarSection({
-  pathname,
-  workspacesHydrated,
-  allWorkspaceLinks,
-  activeAccountId,
-  activeWorkspaceId,
-  creatingKind,
-  onSelectWorkspace,
-  onQuickCreatePage,
-}: KnowledgeSidebarSectionProps) {
-  const [isKnowledgeWorkspacesExpanded, setIsKnowledgeWorkspacesExpanded] = useState(
-    () => Boolean(activeWorkspaceId),
-  );
+export type {
+  DatabaseRecordSnapshot,
+  RecordId,
+} from "../domain/aggregates/DatabaseRecord";
 
-  const workspaceBasePath =
-    activeAccountId && activeWorkspaceId
-      ? `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(activeWorkspaceId)}`
-      : "";
+export type {
+  ViewSnapshot,
+  ViewType,
+  FilterRule,
+  SortRule,
+  ViewId,
+} from "../domain/aggregates/View";
 
-  const contextualPagesHref = workspaceBasePath
-    ? `${workspaceBasePath}/knowledge/pages`
-    : withContextQuery("/knowledge/pages", activeAccountId, activeWorkspaceId);
+export type {
+  DatabaseAutomationSnapshot,
+  AutomationTrigger,
+  AutomationActionType,
+  AutomationCondition,
+  AutomationAction,
+} from "../domain/aggregates/DatabaseAutomation";
 
-  return (
-    <nav className="space-y-0.5" aria-label="Knowledge navigation">
-      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-        知識管理
-      </p>
-      {(activeAccountId || activeWorkspaceId) && (
-        <p className="px-2 pb-1 text-[11px] text-muted-foreground">
-          {activeAccountId ? `Account: ${activeAccountId.slice(0, 8)}` : "Account: -"}
-          {" · "}
-          {activeWorkspaceId ? `Workspace: ${activeWorkspaceId.slice(0, 8)}` : "Workspace: -"}
-        </p>
-      )}
-      <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
-        <Link
-          href={contextualPagesHref}
-          aria-current={pathname.includes("/knowledge/pages") ? "page" : undefined}
-          className={`flex-1 ${
-            pathname.includes("/knowledge/pages")
-              ? "text-primary"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          頁面
-        </Link>
-        <button
-          type="button"
-          onClick={() => void onQuickCreatePage()}
-          disabled={creatingKind !== null}
-          className="ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15 disabled:opacity-50"
-          aria-label="快速新增頁面"
-          title="新增頁面"
-        >
-          <Plus className="size-3.5" />
-        </button>
-      </div>
-      {(
-        [
-          {
-            href: workspaceBasePath
-              ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
-              : "/workspace",
-            label: "Knowledge Hub",
-          },
-          {
-            href: workspaceBasePath
-              ? `${workspaceBasePath}/knowledge/block-editor`
-              : "/workspace",
-            label: "區塊編輯器",
-          },
-        ] as const
-      ).map((item) => {
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-        const contextualHref = workspaceBasePath
-          ? item.href
-          : withContextQuery(item.href, activeAccountId, activeWorkspaceId);
-        return (
-          <Link
-            key={item.href}
-            href={contextualHref}
-            aria-current={active ? "page" : undefined}
-            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-              active
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-      <div className="my-1.5 border-t border-border/40" />
+// Repository input types
+export type {
+  CreateAutomationInput,
+  UpdateAutomationInput,
+} from "../domain/repositories/IAutomationRepository";
 
-      <button
-        type="button"
-        onClick={() => {
-          setIsKnowledgeWorkspacesExpanded((prev) => !prev);
-        }}
-        className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-        aria-expanded={isKnowledgeWorkspacesExpanded}
-      >
-        <span>Workspaces</span>
-        {isKnowledgeWorkspacesExpanded ? (
-          <ChevronDown className="size-3.5" />
-        ) : (
-          <ChevronRight className="size-3.5" />
-        )}
-      </button>
+// Application DTOs
+export type {
+  CreateDatabaseDto,
+  UpdateDatabaseDto,
+  AddFieldDto,
+  ArchiveDatabaseDto,
+  CreateRecordDto,
+  UpdateRecordDto,
+  DeleteRecordDto,
+  CreateViewDto,
+  UpdateViewDto,
+  DeleteViewDto,
+} from "../application/dto/DatabaseDto";
 
-      {isKnowledgeWorkspacesExpanded && (
-        <div className="space-y-0.5 pl-2">
-          {!workspacesHydrated ? (
-            <p className="px-2 py-1.5 text-[11px] text-muted-foreground">工作區載入中...</p>
-          ) : allWorkspaceLinks.length === 0 ? (
-            <p className="px-2 py-1.5 text-[11px] text-muted-foreground">目前帳號沒有工作區</p>
-          ) : (
-            allWorkspaceLinks.map((workspace) => {
-              const active = activeWorkspaceId === workspace.id;
-              return (
-                <Link
-                  key={workspace.id}
-                  href={workspace.href}
-                  onClick={() => {
-                    onSelectWorkspace(workspace.id);
-                  }}
-                  aria-current={active ? "page" : undefined}
-                  className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                    active
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                  title={workspace.name}
-                >
-                  <span className="truncate">{workspace.name}</span>
-                </Link>
-              );
-            })
-          )}
-        </div>
-      )}
-    </nav>
-  );
-}
+// Server actions
+export {
+  createDatabase,
+  updateDatabase,
+  addDatabaseField,
+  archiveDatabase,
+  createRecord,
+  updateRecord,
+  deleteRecord,
+  createView,
+  updateView,
+  deleteView,
+  createAutomation,
+  updateAutomation,
+  deleteAutomation,
+} from "../../../interfaces/database/_actions/database.actions";
+
+// Queries
+export {
+  getDatabases,
+  getDatabase,
+  getRecords,
+  getViews,
+  getAutomations,
+} from "../../../interfaces/database/queries";
+
+// UI components
+export { DatabaseDialog } from "../../../interfaces/database/components/DatabaseDialog";
+export { DatabaseTableView } from "../../../interfaces/database/components/DatabaseTableView";
+export { DatabaseBoardView } from "../../../interfaces/database/components/DatabaseBoardView";
+export { DatabaseListView } from "../../../interfaces/database/components/DatabaseListView";
+export { DatabaseCalendarView } from "../../../interfaces/database/components/DatabaseCalendarView";
+export { DatabaseGalleryView } from "../../../interfaces/database/components/DatabaseGalleryView";
+export { DatabaseFormView } from "../../../interfaces/database/components/DatabaseFormView";
+export { DatabaseAutomationView } from "../../../interfaces/database/components/DatabaseAutomationView";
+export { KnowledgeDatabasesRouteScreen } from "../../../interfaces/database/components/KnowledgeDatabasesRouteScreen";
+export type { KnowledgeDatabasesRouteScreenProps } from "../../../interfaces/database/components/KnowledgeDatabasesRouteScreen";
+export { AddFieldDialog, FIELD_TYPES } from "../../../interfaces/database/components/DatabaseAddFieldDialog";
+export { DatabaseDetailPage } from "../../../interfaces/database/components/DatabaseDetailPage";
+export type { DatabaseDetailPageProps } from "../../../interfaces/database/components/DatabaseDetailPage";
+export { DatabaseFormsPage } from "../../../interfaces/database/components/DatabaseFormsPage";
+export type { DatabaseFormsPageProps } from "../../../interfaces/database/components/DatabaseFormsPage";
+````
+
+## File: modules/notion/subdomains/knowledge/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ */
+
+// ── Types (read-only snapshots – no aggregate class refs) ─────────────────────
+export type { KnowledgePageSnapshot } from "../domain/aggregates/KnowledgePage";
+/** @alias KnowledgePageSnapshot — provided for backward-compatibility */
+export type { KnowledgePageSnapshot as KnowledgePage } from "../domain/aggregates/KnowledgePage";
+export type { ContentBlockSnapshot } from "../domain/aggregates/ContentBlock";
+export type { KnowledgeCollectionSnapshot } from "../domain/aggregates/KnowledgeCollection";
+
+// ── Server action DTOs ────────────────────────────────────────────────────────
+export type { CreateKnowledgePageDto, RenameKnowledgePageDto, MoveKnowledgePageDto, ArchiveKnowledgePageDto, ReorderKnowledgePageBlocksDto } from "../application/dto/KnowledgePageDto";
+export type { AddKnowledgeBlockDto, UpdateKnowledgeBlockDto, DeleteKnowledgeBlockDto } from "../application/dto/ContentBlockDto";
+export type { CreateKnowledgeCollectionDto } from "../application/dto/KnowledgeCollectionDto";
+
+// ── Query functions (server-side reads) ───────────────────────────────────────
+export {
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePagesByWorkspace,
+  getKnowledgePageTree,
+  getKnowledgePageTreeByWorkspace,
+  getKnowledgeBlocks,
+  getKnowledgeCollection,
+  getKnowledgeCollections,
+} from "../../../interfaces/knowledge/queries";
+
+// ── Server actions (drives: app router, Server Components) ────────────────────
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  archiveKnowledgeCollection,
+} from "../../../interfaces/knowledge/_actions";
+
+// ── UI Components ─────────────────────────────────────────────────────────────
+export { PageTreeView } from "../../../interfaces/knowledge/components/PageTreeView";
+export type { PageTreeViewProps } from "../../../interfaces/knowledge/components/PageTreeView";
+export { PageDialog } from "../../../interfaces/knowledge/components/PageDialog";
+export { BlockEditorView } from "../../../interfaces/knowledge/components/BlockEditorView";
+export { PageEditorView } from "../../../interfaces/knowledge/components/PageEditorView";
+export type { PageEditorViewProps } from "../../../interfaces/knowledge/components/PageEditorView";
+export { KnowledgePagesRouteScreen } from "../../../interfaces/knowledge/components/KnowledgePagesRouteScreen";
+export type { KnowledgePagesRouteScreenProps } from "../../../interfaces/knowledge/components/KnowledgePagesRouteScreen";
+
+// ── Store ─────────────────────────────────────────────────────────────────────
+export { useBlockEditorStore } from "../../../interfaces/knowledge/store/block-editor.store";
+export type { EditorBlock } from "../../../interfaces/knowledge/store/block-editor.store";
+
+// ── Tree node type (needed by app/ pages) ─────────────────────────────────────
+export type { KnowledgePageTreeNode } from "../domain/aggregates/KnowledgePage";
+
+// ── Domain events (published language — for cross-module event subscriptions) ─
+export type { PageApprovedEvent, PageApprovedPayload, ExtractedTask, ExtractedInvoice } from "../domain/events/KnowledgePageEvents";
+
+// ── Sidebar component ─────────────────────────────────────────────────────────
+export { KnowledgeSidebarSection } from "../../../interfaces/knowledge/components/KnowledgeSidebarSection";
+
+// ── Page header widgets ───────────────────────────────────────────────────────
+export { TitleEditor, IconPicker, CoverEditor } from "../../../interfaces/knowledge/components/KnowledgePageHeaderWidgets";
+export type { TitleEditorProps, IconPickerProps, CoverEditorProps } from "../../../interfaces/knowledge/components/KnowledgePageHeaderWidgets";
+
+// ── Route screen components ───────────────────────────────────────────────────
+export { KnowledgePageDetailPage } from "../../../interfaces/knowledge/components/KnowledgePageDetailPage";
+export type { KnowledgePageDetailPageProps } from "../../../interfaces/knowledge/components/KnowledgePageDetailPage";
 ````

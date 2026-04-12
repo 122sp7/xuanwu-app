@@ -38,23 +38,23 @@ This skill contains the following reference files:
 
 ## Statistics
 
-150 files | 8,013 lines
+143 files | 7,784 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 121 | 5,316 |
-| Markdown | 15 | 514 |
-| TypeScript (TSX) | 11 | 2,180 |
+| TypeScript | 123 | 5,544 |
+| TypeScript (TSX) | 10 | 1,909 |
+| Markdown | 7 | 328 |
 | No Extension | 3 | 3 |
 
 **Largest files:**
-- `modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx` (344 lines)
-- `modules/notebooklm/subdomains/source/interfaces/components/LibrariesView.tsx` (239 lines)
-- `modules/notebooklm/subdomains/source/interfaces/components/FileProcessingDialog.tsx` (233 lines)
-- `modules/notebooklm/subdomains/source/interfaces/components/LibraryTableView.tsx` (231 lines)
-- `modules/notebooklm/subdomains/source/interfaces/components/WorkspaceFilesTab.tsx` (227 lines)
-- `modules/notebooklm/subdomains/synthesis/infrastructure/firebase/FirebaseKnowledgeContentAdapter.ts` (212 lines)
+- `modules/notebooklm/interfaces/conversation/components/AiChatPage.tsx` (344 lines)
+- `modules/notebooklm/interfaces/source/components/LibrariesView.tsx` (239 lines)
+- `modules/notebooklm/interfaces/source/components/LibraryTableView.tsx` (231 lines)
+- `modules/notebooklm/interfaces/source/components/WorkspaceFilesTab.tsx` (227 lines)
+- `modules/notebooklm/infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter.ts` (212 lines)
 - `modules/notebooklm/subdomains/source/application/use-cases/wiki-library.use-cases.ts` (191 lines)
-- `modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseWikiLibraryAdapter.ts` (190 lines)
-- `modules/notebooklm/subdomains/source/interfaces/components/SourceDocumentsView.tsx` (185 lines)
-- `modules/notebooklm/subdomains/synthesis/interfaces/components/RagQueryView.tsx` (185 lines)
+- `modules/notebooklm/infrastructure/source/firebase/FirebaseWikiLibraryAdapter.ts` (190 lines)
+- `modules/notebooklm/interfaces/source/components/SourceDocumentsView.tsx` (185 lines)
+- `modules/notebooklm/interfaces/synthesis/components/RagQueryView.tsx` (185 lines)
+- `modules/notebooklm/subdomains/source/application/use-cases/process-source-document-workflow.use-case.ts` (167 lines)
