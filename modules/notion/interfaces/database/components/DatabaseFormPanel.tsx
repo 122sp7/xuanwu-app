@@ -166,7 +166,7 @@ export function DatabaseFormPanel({ database, accountId, workspaceId, submitterI
         ))}
         {error && <p className="text-sm text-destructive">{error}</p>}
         <Button type="submit" disabled={isPending} className="w-full">
-          {isPending ? "?漱銝凌? : "?銵典"}
+          {isPending ? "Submitting..." : "Submit"}
         </Button>
       </form>
     </div>

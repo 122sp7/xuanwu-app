@@ -117,7 +117,7 @@ export function DatabaseListPanel({ database, accountId, workspaceId, currentUse
                     if (!val) return null;
                     return (
                       <Badge key={field.id} variant="outline" className="text-[10px]">
-                        {field.name}: {val.length > 12 ? `${val.slice(0, 12)}?圳 : val}
+                        {field.name}: {val.length > 12 ? `${val.slice(0, 12)}...` : val}
                       </Badge>
                     );
                   })}
@@ -140,7 +140,7 @@ export function DatabaseListPanel({ database, accountId, workspaceId, currentUse
                       return (
                         <div key={field.id} className="contents">
                           <dt className="text-muted-foreground">{field.name}</dt>
-                          <dd className="text-foreground">{val || <span className="text-muted-foreground/50">??/span>}</dd>
+                          <dd className="text-foreground">{val || <span className="text-muted-foreground/50">N/A</span>}</dd>
                         </div>
                       );
                     })}
@@ -158,7 +158,7 @@ export function DatabaseListPanel({ database, accountId, workspaceId, currentUse
         })
       )}
       <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="mt-1 w-full text-xs">
-        <Plus className="mr-1.5 h-3 w-3" /> ?啣?閮?
+        <Plus className="mr-1.5 h-3 w-3" /> Add record
       </Button>
     </div>
   );

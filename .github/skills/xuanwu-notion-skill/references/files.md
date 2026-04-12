@@ -1,5 +1,164 @@
 # Files
 
+## File: modules/notion/AGENT.md
+````markdown
+# Notion Agent
+
+> Strategic agent documentation: [docs/contexts/notion/AGENT.md](../../docs/contexts/notion/AGENT.md)
+
+## Mission
+
+保護 notion 主域作為知識內容生命週期邊界。notion 擁有正式知識內容（KnowledgePage、Article、Database），不擁有治理、工作區範疇或推理輸出。任何變更都應維持 notion 擁有內容建立、結構化、協作、版本化與交付語言。
+
+## Bounded Context Summary
+
+| Aspect | Description |
+|--------|-------------|
+| Primary role | 正典知識內容生命週期 |
+| Upstream | platform（治理、AI capability）、workspace（workspaceId、membership scope、share scope） |
+| Downstream | notebooklm（knowledge artifact reference、attachment reference、taxonomy hint） |
+| Core invariant | notion 只能修改自己的正典內容，不可直接呼叫 notebooklm 的推理流程 |
+| Published language | KnowledgeArtifact reference、attachment reference、taxonomy hint |
+
+## Bounded Contexts
+
+| Cluster | Subdomains | Responsibility |
+|---------|------------|----------------|
+| Content Core | knowledge, authoring | 知識頁面與文章生命週期、分類、內容區塊 |
+| Collaboration & Change | collaboration | 協作留言、細粒度權限與版本快照 |
+| Structured Data | database | 結構化資料多視圖管理與自動化 |
+| Semantic Organization | taxonomy, relations | 分類法與語義關聯圖 |
+| Future Extensions | publishing, attachments | 正式發布流程、附件管理 |
+
+## Route Here When
+
+- 問題核心是知識頁面（KnowledgePage）、內容區塊（ContentBlock）、知識集合（KnowledgeCollection）。
+- 問題需要把內容建立、編輯、分類、關聯、版本或交付收斂到正典狀態。
+- 問題涉及知識庫文章（Article）、分類（Category）、樣板（Template）。
+- 問題涉及結構化資料視圖（Database、DatabaseView、Record）。
+- 問題涉及協作留言（Comment）、細粒度權限（Permission）或版本快照（Version）。
+- 問題涉及分類法（Taxonomy）或語義關聯（Relation）。
+
+## Route Elsewhere When
+
+- 身份、租戶、授權、權益、憑證治理屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
+- 工作區生命週期、成員管理、共享範圍屬於 workspace。
+- notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
+
+## Subdomain Delivery Tiers
+
+### Tier 1 — Core (Active)
+
+| Subdomain | Purpose | Key Aggregates |
+|-----------|---------|----------------|
+| knowledge | KnowledgePage 生命週期、ContentBlock 編輯、BacklinkIndex | KnowledgePage, ContentBlock, KnowledgeCollection, BacklinkIndex |
+| authoring | 知識庫文章建立、驗證、分類與發布工作流程 | Article, Category |
+| collaboration | 協作留言、細粒度權限與版本快照 | Comment, Permission, Version |
+| database | 結構化資料多視圖（Table/Board/Calendar/Gallery） | Database, DatabaseRecord, View, DatabaseAutomation |
+
+### Tier 2 — Near-Term (Domain Contracts — High Business Value)
+
+| Subdomain | Purpose | Note |
+|-----------|---------|------|
+| taxonomy | 分類法、標籤樹與語義組織（跨頁面分類的正典邊界） | ≠ authoring.Category（局部文章分類）；taxonomy 是全域語義網 |
+| relations | 內容之間的正式語義關聯與 backlink 管理 | ≠ knowledge.BacklinkIndex（自動反向索引）；relations 是明確語義圖（有類型、有方向） |
+| attachments | 附件與媒體關聯儲存 | 檔案儲存整合的正典邊界。待附件需要獨立於頁面的保留策略時充實 |
+
+### Tier 3 — Medium-Term (Stubs)
+
+| Subdomain | Purpose | Note |
+|-----------|---------|------|
+| publishing | 正式發布與對外交付（Publication 狀態邊界） | authoring 的 `ArticlePublicationUseCases` 是前置邊界 |
+| knowledge-versioning | 全域版本快照策略（workspace-level checkpoint、保留政策） | ≠ collaboration.Version（逐次編輯歷史）；是策略量，不是操作量 |
+
+### Premature Stubs（目錄保留，不建議擴充）
+
+| Subdomain | Reason |
+|-----------|--------|
+| automation | database 子域已涵蓋 DatabaseAutomation；跨內容類型事件自動化目前無獨立領域需求 |
+| knowledge-analytics | 知識使用行為量測是讀模型關注，非獨立領域模型。可由 infrastructure 查詢層處理 |
+| knowledge-integration | 外部系統整合是 infrastructure adapter 關注，非獨立子域 |
+| notes | 輕量筆記可作為 KnowledgePage 的頁面類型處理，不需獨立子域 |
+| templates | 頁面範本是 authoring 的內部關注（內容結構起點），非獨立子域 |
+
+### Domain Invariants
+
+- 知識內容的正典狀態屬於 notion。
+- taxonomy 應獨立於具體 UI 視圖存在（目前由 Category 承載部分）。
+- BacklinkIndex 描述自動反向連結；Relation 描述主動宣告的語義關係。兩者不互相取代。
+- platform.ai 可被 notion use case 消費，但 AI provider / policy ownership 不屬於 notion。
+- 任何來自 notebooklm 的輸出，若要成為正典內容，必須先被 notion 吸收。
+
+## Subdomain Analysis — 子域數量合理性
+
+**14 個目錄（4 Active + 2 Domain Contracts + 1 Stub + 3 Medium-Term Stubs + 5 Premature = 15 分類，共 14 目錄），分析如下：**
+
+1. **`knowledge` 與 `authoring` 不重疊**：`knowledge` 是 KnowledgePage + ContentBlock（自由形式的 wiki 頁面）；`authoring` 是 Article + Category（有工作流程的結構化 KB 文章）。
+2. **`collaboration.Version` 與 `knowledge-versioning` 不重疊**：`collaboration.Version` 是逐次編輯快照（per-change history）；`knowledge-versioning` 是全域 checkpoint 策略（workspace-level snapshot policy）。
+3. **`relations` 與 `knowledge.BacklinkIndex` 不重疊**：`BacklinkIndex` 是自動反向連結索引；`relations` 是明確的語義關係圖（有類型、有方向的關聯）。
+4. **5 個 premature stubs** 有明確理由：每個都已被現有 active 子域或 infrastructure 層吸收。
+
+## Ubiquitous Language
+
+| Term | Meaning | Owning Subdomain | Do Not Use |
+|------|---------|------------------|------------|
+| KnowledgeArtifact | notion 主域擁有的知識內容總稱 | （跨子域概念） | Doc, Wiki (混指) |
+| KnowledgePage | 正典頁面型知識單位（block-based） | knowledge | Wiki, Page (generic) |
+| ContentBlock | 知識頁面的最小可組合內容單位 | knowledge | Block (generic) |
+| KnowledgeCollection | 頁面集合容器（非 Database） | knowledge | Folder, Section |
+| BacklinkIndex | 自動反向連結索引 | knowledge | - |
+| PageStatus | 頁面生命週期狀態（draft, published, archived） | knowledge | - |
+| Article | 經過撰寫與驗證流程的知識庫文章 | authoring | Post, Content |
+| Category | 文章分類樹結構 | authoring | Tag System |
+| Template | 可重複套用的內容結構起點 | authoring | Preset, Layout |
+| Comment | 內容附著的協作討論 | collaboration | Chat, Discussion |
+| Permission | 內容的細粒度存取權限 | collaboration | - |
+| Version | 內容某一時點的不可變快照（逐次編輯歷史） | collaboration | - |
+| Database | 結構化知識集合 | database | Table, Spreadsheet |
+| DatabaseView | 對 Database 的投影與檢視配置 | database | View (generic) |
+| DatabaseRecord | Database 中的一筆記錄 | database | - |
+| DatabaseAutomation | Database 事件觸發的自動化動作 | database | - |
+| Taxonomy | 分類法、標籤樹等語義組織結構 | taxonomy | Tag System, Category (混稱全域分類) |
+| Relation | 內容對內容之間的正式語義關聯 | relations | Link, Connection |
+| Publication | 對外可見且可交付的內容狀態 | publishing (stub) | Published, Public |
+| Attachment | 綁定於知識內容的檔案或媒體 | attachments | File, Upload |
+| VersionSnapshot | 全域版本 checkpoint 策略的不可變快照 | knowledge-versioning (stub) | Backup, History |
+
+### Avoid
+
+| Avoid | Use Instead |
+|-------|-------------|
+| Wiki | KnowledgePage 或 Article |
+| Table | Database 或 DatabaseView |
+| Tag System | Category (current) or Taxonomy (Tier 2) |
+| Content Link | BacklinkIndex (automatic) or Relation (explicit semantic) |
+| Publish Action | Publication 或 ArticlePublication |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+api/ ← 唯一跨模組入口
+```
+
+## Development Order (Domain-First)
+
+New features:
+1. Define Domain (entities, value objects, aggregates, events)
+2. Define Application (use cases, DTOs)
+3. Define Ports (only if boundary isolation needed)
+4. Implement Infrastructure (adapters, persistence)
+5. Implement Interfaces (UI, actions, hooks)
+
+Legacy migration (Strangler Pattern):
+1. Find a Use Case to extract
+2. Build Domain model in the owning subdomain
+3. Converge Application layer
+4. Isolate legacy via Ports
+5. Replace Infrastructure adapter; remove old path when stable
+````
+
 ## File: modules/notion/application/services/.gitkeep
 ````
 
@@ -33,9 +192,216 @@ Strategic architecture documentation lives in `docs/contexts/notion/`:
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
+## File: modules/notion/domain/events/index.ts
+````typescript
+export type { NotionDomainEvent } from "./NotionDomainEvent";
+````
+
+## File: modules/notion/domain/events/NotionDomainEvent.ts
+````typescript
+/**
+ * Module: notion
+ * Layer: domain/events (context-wide)
+ * Purpose: Base domain event interface for the notion bounded context.
+ *          All subdomain events (knowledge, authoring, collaboration, database, etc.)
+ *          should extend this interface.
+ *
+ * NOTE: subdomains/knowledge/domain/events/NotionDomainEvent.ts carries the same shape.
+ *       Future convergence should re-export this context-wide version.
+ */
+
+export interface NotionDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
+}
+````
+
+## File: modules/notion/domain/published-language/index.ts
+````typescript
+/**
+ * Module: notion
+ * Layer: domain (context-wide published language)
+ * Purpose: Reference types exposed to downstream bounded contexts.
+ *
+ * These types represent notion's public vocabulary as defined in the context map.
+ * Downstream consumers (notebooklm, workspace) receive opaque references — never
+ * raw aggregates or internal domain models.
+ *
+ * Context Map tokens:
+ *   - KnowledgeArtifactReference: opaque ref consumed by notebooklm for retrieval/grounding
+ *   - AttachmentReference: traceable ref to an attachment asset
+ *   - TaxonomyHint: classification hint forwarded as retrieval aid
+ */
+
+/** Opaque reference to a KnowledgePage or Article (cross-module token) */
+export interface KnowledgeArtifactReference {
+  readonly artifactId: string;
+  readonly artifactType: "page" | "article";
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly slug: string;
+}
+
+/** Opaque reference to an attachment asset (cross-module token) */
+export interface AttachmentReference {
+  readonly attachmentId: string;
+  readonly artifactId: string;
+  readonly accountId: string;
+  readonly displayName: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+}
+
+/**
+ * Classification hint forwarded to downstream contexts as retrieval aid.
+ * The downstream context (notebooklm) does not own taxonomy semantics —
+ * it only consumes the hint for filtering and ranking.
+ */
+export interface TaxonomyHint {
+  readonly taxonomyId: string;
+  readonly label: string;
+  readonly path: readonly string[];
+}
+````
+
 ## File: modules/notion/domain/services/.gitkeep
 ````
 
+````
+
+## File: modules/notion/README.md
+````markdown
+# Notion
+
+知識內容生命週期主域
+
+## Bounded Context
+
+| Aspect | Description |
+|--------|-------------|
+| Primary role | 正典知識內容生命週期（頁面、文章、資料庫、協作、版本） |
+| Upstream | platform（治理、AI capability）、workspace（workspaceId、membership scope、share scope） |
+| Downstream | notebooklm（knowledge artifact reference、attachment reference、taxonomy hint） |
+| Core principle | notion 擁有正典知識內容，不擁有治理或推理過程 |
+| Cross-module boundary | `api/` only — no direct import of platform/workspace/notebooklm internals |
+
+## Ubiquitous Language
+
+| Term | Meaning |
+|------|---------|
+| KnowledgeArtifact | notion 主域擁有的知識內容總稱 |
+| KnowledgePage | 正典頁面型知識單位（block-based 自由頁面） |
+| ContentBlock | 知識頁面的最小可組合內容單位（段落、標題、程式碼等） |
+| KnowledgeCollection | 頁面集合容器（分組 KnowledgePage，非 Database） |
+| BacklinkIndex | 自動反向連結索引（哪些頁面引用了此頁面） |
+| Article | 經過撰寫與驗證工作流程的知識庫文章 |
+| Database | 結構化知識集合（可投影多種視圖） |
+| DatabaseView | 對 Database 的投影配置（Table/Board/Calendar/Gallery/Form） |
+| DatabaseRecord | Database 中的一筆記錄 |
+| Taxonomy | 跨頁面的分類法與語義組織結構 |
+| Relation | 內容對內容之間的正式語義關聯（有類型、有方向） |
+| Publication | 對外可見且可交付的內容狀態 |
+| VersionSnapshot | 全域版本 checkpoint 策略的不可變快照（≠ 逐次編輯 Version） |
+| Template | 可重複套用的內容結構起點 |
+| Attachment | 綁定於知識內容的檔案或媒體 |
+
+## Implementation Structure
+
+```text
+modules/notion/
+├── api/              # Public API boundary — cross-module entry point only
+├── application/      # Context-wide orchestration (empty, use subdomain layers)
+├── domain/           # Context-wide domain concepts (events, published-language)
+├── infrastructure/   # Context-wide driven adapters (empty, use subdomain layers)
+├── interfaces/       # Context-wide driving adapters (empty, use subdomain layers)
+├── docs/             # Links to strategic documentation
+└── subdomains/
+    ├── knowledge/             # Tier 1 — Active (KnowledgePage, ContentBlock)
+    ├── authoring/             # Tier 1 — Active (Article, Category)
+    ├── collaboration/         # Tier 1 — Active (Comment, Permission, Version)
+    ├── database/              # Tier 1 — Active (Database, Record, View)
+    ├── taxonomy/              # Tier 2 — Domain contracts (semantic classification)
+    ├── relations/             # Tier 2 — Domain contracts (explicit semantic graph)
+    ├── attachments/           # Tier 2 — Stub (file/media association)
+    ├── publishing/            # Tier 3 — Stub (external delivery boundary)
+    ├── knowledge-versioning/  # Tier 3 — Stub (global snapshot policy)
+    ├── notes/                 # Premature — absorbed by KnowledgePage
+    ├── templates/             # Premature — absorbed by authoring
+    ├── automation/            # Premature — absorbed by database
+    ├── knowledge-analytics/   # Premature — read model concern
+    └── knowledge-integration/ # Premature — infrastructure adapter concern
+```
+
+> **Premature stubs** — `notes/`, `templates/`, `automation/`, `knowledge-analytics/`, `knowledge-integration/` 目錄存在但不建議擴充。見 [Premature Stubs](#premature-stubs) 段落。
+
+## Subdomains
+
+### Tier 1 — Core (Active)
+
+| Subdomain | Purpose | Key Aggregates / Entities |
+|-----------|---------|--------------------------|
+| knowledge | KnowledgePage 生命週期、ContentBlock 編輯、BacklinkIndex、版本查詢 | KnowledgePage, ContentBlock, KnowledgeCollection, BacklinkIndex |
+| authoring | 知識庫文章建立、驗證工作流程與分類目錄 | Article, Category |
+| collaboration | 協作留言、細粒度權限與版本快照（逐次編輯歷史） | Comment, Permission, Version |
+| database | 結構化資料視圖（Table/Board/Calendar/Gallery/Form）、記錄、自動化 | Database, DatabaseRecord, View, DatabaseAutomation |
+
+### Tier 2 — Near-Term (Domain Contracts — High Business Value)
+
+| Subdomain | Purpose | Distinction |
+|-----------|---------|------------|
+| taxonomy | 跨頁面分類法與語義組織（全域標籤樹、主題分類） | ≠ authoring.Category（局部文章分類）；taxonomy 是全域語義網 |
+| relations | 內容對內容的明確語義關聯（有類型、方向） | ≠ knowledge.BacklinkIndex（自動反向連結）；relations 是主動宣告的語義圖 |
+| attachments | 附件與媒體關聯儲存（Storage 整合正典邊界） | 獨立於知識頁面內容模型。待附件需要獨立保留策略時充實 |
+
+### Tier 3 — Medium-Term (Stubs)
+
+| Subdomain | Purpose | Note |
+|-----------|---------|------|
+| publishing | 正式對外交付的 Publication 狀態邊界 | authoring 的 `ArticlePublicationUseCases` 是前置邊界 |
+| knowledge-versioning | 全域版本 checkpoint 策略（workspace-level, 保留政策） | ≠ collaboration.Version（per-edit 歷史）；是策略量，不是操作量 |
+
+### Premature Stubs（目錄保留，不建議擴充）
+
+| Subdomain | Reason |
+|-----------|--------|
+| notes | 輕量筆記可作為 KnowledgePage 的頁面類型處理，不需獨立子域 |
+| templates | 頁面範本是 authoring 的內部關注（內容結構起點），非獨立子域 |
+| automation | database 子域已涵蓋 DatabaseAutomation；跨內容類型事件自動化目前無獨立領域需求 |
+| knowledge-analytics | 知識使用行為量測是讀模型關注，非獨立領域模型。可由 infrastructure 查詢層處理 |
+| knowledge-integration | 外部系統整合是 infrastructure adapter 關注，非獨立子域 |
+
+## Subdomain Analysis
+
+**14 個目錄（4 Active + 2 Domain Contracts + 1 Stub + 2 Medium-Term + 5 Premature），分析如下：**
+
+- ✅ `knowledge` 與 `authoring` 分工正確：自由頁面（block-based wiki）vs. 結構化文章（KB article workflow）。
+- ✅ `collaboration.Version`（逐次編輯快照）與 `knowledge-versioning`（全域 checkpoint 策略）是不同責任，分開正確。
+- ✅ `knowledge.BacklinkIndex`（自動反向索引）與 `relations`（明確語義圖）不重疊。
+- ✅ `taxonomy` 是全域語義組織核心，與 `authoring.Category`（局部文章分類）不重疊，維持 Tier 2。
+- ✅ 5 個 premature stubs 有明確理由：每個都已被現有 active 子域或 infrastructure 層吸收。
+- ⚠️ `knowledge-versioning` 需持續明確與 `collaboration.Version` 的分界，避免實作者混淆。
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `api/` is the only cross-module public boundary.
+- `domain/` must not import infrastructure, interfaces, React, Firebase SDK, or any runtime framework.
+- Cross-module collaboration goes through `api/` only.
+
+## Strategic Documentation
+
+- [Context README](../../docs/contexts/notion/README.md)
+- [Subdomains](../../docs/contexts/notion/subdomains.md)
+- [Bounded Context](../../docs/contexts/notion/bounded-contexts.md)
+- [Context Map](../../docs/contexts/notion/context-map.md)
+- [Ubiquitous Language](../../docs/contexts/notion/ubiquitous-language.md)
+- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
 ## File: modules/notion/subdomains/authoring/application/dto/ArticleDto.ts
@@ -4743,9 +5109,126 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/notion/subdomains/relations/api/index.ts
+````typescript
+/**
+ * Public API boundary for the relations subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Status: Tier 2 Recommended Gap Subdomain
+ */
+
+// ── Domain types ──────────────────────────────────────────────────────────────
+export type {
+  RelationDirection,
+  Relation,
+  CreateRelationInput,
+} from "../domain/entities/Relation";
+
+// ── Repository contracts ───────────────────────────────────────────────────────
+export type {
+  IRelationRepository,
+} from "../domain/repositories/IRelationRepository";
+
+// ── Domain events ─────────────────────────────────────────────────────────────
+export type {
+  RelationCreatedEvent,
+  RelationRemovedEvent,
+} from "../domain/events/RelationEvents";
+````
+
 ## File: modules/notion/subdomains/relations/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for notion subdomain 'relations'.
+````
+
+## File: modules/notion/subdomains/relations/domain/entities/Relation.ts
+````typescript
+/**
+ * Module: notion/subdomains/relations
+ * Layer: domain/entities
+ * Purpose: Relation — a typed link between two knowledge artifacts.
+ *
+ * Canonical boundary: relations own backlinks, forward links, and reference graphs.
+ * knowledge subdomain already has BacklinkIndex — future convergence or delegation TBD.
+ */
+
+export type RelationDirection = "forward" | "backward";
+
+export interface Relation {
+  readonly relationId: string;
+  readonly sourceArtifactId: string;
+  readonly targetArtifactId: string;
+  readonly relationType: string;
+  readonly direction: RelationDirection;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly createdAtISO: string;
+}
+
+export interface CreateRelationInput {
+  readonly sourceArtifactId: string;
+  readonly targetArtifactId: string;
+  readonly relationType: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+}
+````
+
+## File: modules/notion/subdomains/relations/domain/events/RelationEvents.ts
+````typescript
+/**
+ * Module: notion/subdomains/relations
+ * Layer: domain/events
+ * Purpose: Domain events for relation operations.
+ */
+
+import type { NotionDomainEvent } from "../../../../domain/events/NotionDomainEvent";
+
+export interface RelationCreatedEvent extends NotionDomainEvent {
+  readonly type: "notion.relations.relation_created";
+  readonly payload: {
+    readonly relationId: string;
+    readonly sourceArtifactId: string;
+    readonly targetArtifactId: string;
+    readonly relationType: string;
+    readonly organizationId: string;
+  };
+}
+
+export interface RelationRemovedEvent extends NotionDomainEvent {
+  readonly type: "notion.relations.relation_removed";
+  readonly payload: {
+    readonly relationId: string;
+    readonly organizationId: string;
+  };
+}
+````
+
+## File: modules/notion/subdomains/relations/domain/index.ts
+````typescript
+export type { RelationDirection, Relation, CreateRelationInput } from "./entities/Relation";
+export type { IRelationRepository } from "./repositories/IRelationRepository";
+export type { RelationCreatedEvent, RelationRemovedEvent } from "./events/RelationEvents";
+````
+
+## File: modules/notion/subdomains/relations/domain/repositories/IRelationRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/relations
+ * Layer: domain/repositories
+ * Purpose: IRelationRepository — domain port for relation persistence.
+ */
+
+import type { Relation } from "../entities/Relation";
+
+export interface IRelationRepository {
+  findById(relationId: string): Promise<Relation | null>;
+  listBySource(sourceArtifactId: string): Promise<readonly Relation[]>;
+  listByTarget(targetArtifactId: string): Promise<readonly Relation[]>;
+  save(relation: Relation): Promise<void>;
+  remove(relationId: string): Promise<void>;
+}
 ````
 
 ## File: modules/notion/subdomains/relations/README.md
@@ -4780,9 +5263,122 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/notion/subdomains/taxonomy/api/index.ts
+````typescript
+/**
+ * Public API boundary for the taxonomy subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Status: Tier 2 Recommended Gap Subdomain
+ */
+
+// ── Domain types ──────────────────────────────────────────────────────────────
+export type {
+  TaxonomyNode,
+  CreateTaxonomyNodeInput,
+} from "../domain/entities/TaxonomyNode";
+
+// ── Repository contracts ───────────────────────────────────────────────────────
+export type {
+  ITaxonomyRepository,
+} from "../domain/repositories/ITaxonomyRepository";
+
+// ── Domain events ─────────────────────────────────────────────────────────────
+export type {
+  TaxonomyNodeCreatedEvent,
+  TaxonomyNodeRemovedEvent,
+} from "../domain/events/TaxonomyEvents";
+````
+
 ## File: modules/notion/subdomains/taxonomy/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for notion subdomain 'taxonomy'.
+````
+
+## File: modules/notion/subdomains/taxonomy/domain/entities/TaxonomyNode.ts
+````typescript
+/**
+ * Module: notion/subdomains/taxonomy
+ * Layer: domain/entities
+ * Purpose: TaxonomyNode — a node in a hierarchical classification system.
+ *
+ * Canonical boundary: taxonomy owns classification hierarchy and semantic tags.
+ * notion/knowledge may reference taxonomy via TaxonomyHint published language.
+ */
+
+export interface TaxonomyNode {
+  readonly nodeId: string;
+  readonly label: string;
+  readonly parentNodeId: string | null;
+  readonly path: readonly string[];
+  readonly depth: number;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+export interface CreateTaxonomyNodeInput {
+  readonly label: string;
+  readonly parentNodeId: string | null;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+}
+````
+
+## File: modules/notion/subdomains/taxonomy/domain/events/TaxonomyEvents.ts
+````typescript
+/**
+ * Module: notion/subdomains/taxonomy
+ * Layer: domain/events
+ * Purpose: Domain events for taxonomy operations.
+ */
+
+import type { NotionDomainEvent } from "../../../../domain/events/NotionDomainEvent";
+
+export interface TaxonomyNodeCreatedEvent extends NotionDomainEvent {
+  readonly type: "notion.taxonomy.node_created";
+  readonly payload: {
+    readonly nodeId: string;
+    readonly label: string;
+    readonly parentNodeId: string | null;
+    readonly organizationId: string;
+  };
+}
+
+export interface TaxonomyNodeRemovedEvent extends NotionDomainEvent {
+  readonly type: "notion.taxonomy.node_removed";
+  readonly payload: {
+    readonly nodeId: string;
+    readonly organizationId: string;
+  };
+}
+````
+
+## File: modules/notion/subdomains/taxonomy/domain/index.ts
+````typescript
+export type { TaxonomyNode, CreateTaxonomyNodeInput } from "./entities/TaxonomyNode";
+export type { ITaxonomyRepository } from "./repositories/ITaxonomyRepository";
+export type { TaxonomyNodeCreatedEvent, TaxonomyNodeRemovedEvent } from "./events/TaxonomyEvents";
+````
+
+## File: modules/notion/subdomains/taxonomy/domain/repositories/ITaxonomyRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/taxonomy
+ * Layer: domain/repositories
+ * Purpose: ITaxonomyRepository — domain port for taxonomy node persistence.
+ */
+
+import type { TaxonomyNode } from "../entities/TaxonomyNode";
+
+export interface ITaxonomyRepository {
+  findById(nodeId: string): Promise<TaxonomyNode | null>;
+  listChildren(parentNodeId: string): Promise<readonly TaxonomyNode[]>;
+  listRoots(organizationId: string): Promise<readonly TaxonomyNode[]>;
+  save(node: TaxonomyNode): Promise<void>;
+  remove(nodeId: string): Promise<void>;
+}
 ````
 
 ## File: modules/notion/subdomains/taxonomy/README.md
@@ -4817,6 +5413,48 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/notion/api/index.ts
+````typescript
+/**
+ * Module: notion
+ * Layer: api (top-level public boundary)
+ * Purpose: Unified ACL for all notion subdomains.
+ *          External consumers (app/, other modules) must only import from here.
+ */
+
+// ── Context-wide published language ───────────────────────────────────────────
+export type {
+  KnowledgeArtifactReference,
+  AttachmentReference,
+  TaxonomyHint,
+} from "../domain/published-language";
+
+export type { NotionDomainEvent } from "../domain/events";
+
+// ── knowledge subdomain ───────────────────────────────────────────────────────
+export * from "../subdomains/knowledge/api";
+
+// ── authoring subdomain ───────────────────────────────────────────────────────
+// Migration-Pending: full implementation from modules/knowledge-base/
+export * from "../subdomains/authoring/api";
+
+// ── collaboration subdomain ───────────────────────────────────────────────────
+// Migration-Pending: full implementation from modules/knowledge-collaboration/
+export * from "../subdomains/collaboration/api";
+
+// ── database subdomain ────────────────────────────────────────────────────────
+// Migration-Pending: full implementation from modules/knowledge-database/
+export * from "../subdomains/database/api";
+
+// ── taxonomy subdomain ────────────────────────────────────────────────────────
+// Tier 2 — classification hierarchy and semantic organization
+export * from "../subdomains/taxonomy/api";
+
+// ── relations subdomain ───────────────────────────────────────────────────────
+// Tier 2 — backlinks, forward links, and reference graphs
+export * from "../subdomains/relations/api";
+````
+
 ## File: modules/notion/application/dtos/index.ts
 ````typescript
 export * as authoringDtos from '../../subdomains/authoring/application/dto';
@@ -4825,90 +5463,6 @@ export * as databaseDtos from '../../subdomains/database/application/dto';
 export * as knowledgeDtos from '../../subdomains/knowledge/application/dto';
 
 // relations and taxonomy currently expose no DTO barrel.
-````
-
-## File: modules/notion/application/use-cases/index.ts
-````typescript
-export * as authoringUseCases from '../../subdomains/authoring/application/use-cases';
-export * as collaborationUseCases from '../../subdomains/collaboration/application/use-cases';
-export * as databaseUseCases from '../../subdomains/database/application/use-cases';
-
-// knowledge, relations, taxonomy currently expose no root-level use-case barrel.
-````
-
-## File: modules/notion/domain/events/index.ts
-````typescript
-export type { NotionDomainEvent } from "./NotionDomainEvent";
-````
-
-## File: modules/notion/domain/events/NotionDomainEvent.ts
-````typescript
-/**
- * Module: notion
- * Layer: domain/events (context-wide)
- * Purpose: Base domain event interface for the notion bounded context.
- *          All subdomain events (knowledge, authoring, collaboration, database, etc.)
- *          should extend this interface.
- *
- * NOTE: subdomains/knowledge/domain/events/NotionDomainEvent.ts carries the same shape.
- *       Future convergence should re-export this context-wide version.
- */
-
-export interface NotionDomainEvent {
-  readonly eventId: string;
-  readonly occurredAt: string;
-  readonly type: string;
-  readonly payload: object;
-}
-````
-
-## File: modules/notion/domain/published-language/index.ts
-````typescript
-/**
- * Module: notion
- * Layer: domain (context-wide published language)
- * Purpose: Reference types exposed to downstream bounded contexts.
- *
- * These types represent notion's public vocabulary as defined in the context map.
- * Downstream consumers (notebooklm, workspace) receive opaque references — never
- * raw aggregates or internal domain models.
- *
- * Context Map tokens:
- *   - KnowledgeArtifactReference: opaque ref consumed by notebooklm for retrieval/grounding
- *   - AttachmentReference: traceable ref to an attachment asset
- *   - TaxonomyHint: classification hint forwarded as retrieval aid
- */
-
-/** Opaque reference to a KnowledgePage or Article (cross-module token) */
-export interface KnowledgeArtifactReference {
-  readonly artifactId: string;
-  readonly artifactType: "page" | "article";
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly title: string;
-  readonly slug: string;
-}
-
-/** Opaque reference to an attachment asset (cross-module token) */
-export interface AttachmentReference {
-  readonly attachmentId: string;
-  readonly artifactId: string;
-  readonly accountId: string;
-  readonly displayName: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-}
-
-/**
- * Classification hint forwarded to downstream contexts as retrieval aid.
- * The downstream context (notebooklm) does not own taxonomy semantics —
- * it only consumes the hint for filtering and ranking.
- */
-export interface TaxonomyHint {
-  readonly taxonomyId: string;
-  readonly label: string;
-  readonly path: readonly string[];
-}
 ````
 
 ## File: modules/notion/infrastructure/authoring/firebase/FirebaseArticleRepository.ts
@@ -6514,7 +7068,7 @@ export {
 } from "./category.actions";
 ````
 
-## File: modules/notion/interfaces/authoring/components/ArticleDetailPage.tsx
+## File: modules/notion/interfaces/authoring/components/ArticleDetailPanel.tsx
 ````typescript
 "use client";
 
@@ -6552,7 +7106,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-export interface ArticleDetailPageProps {
+export interface ArticleDetailPanelProps {
   accountId: string;
   workspaceId: string;
   currentUserId: string;
@@ -6560,11 +7114,11 @@ export interface ArticleDetailPageProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ArticleDetailPage({
+export function ArticleDetailPanel({
   accountId,
   workspaceId,
   currentUserId,
-}: ArticleDetailPageProps) {
+}: ArticleDetailPanelProps) {
   const params = useParams();
   const router = useRouter();
   const articleId = params.articleId as string;
@@ -7171,237 +7725,6 @@ function CategoryNodeRow({ node, selectedId, onSelect }: CategoryNodeRowProps) {
 export { ArticleDialog } from "./ArticleDialog";
 ````
 
-## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesRouteScreen.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
-
-import { useAuth } from "@/modules/platform/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import { getArticles, getCategories } from "../queries";
-import { ArticleDialog } from "./ArticleDialog";
-import { CategoryTreePanel } from "./CategoryTreePanel";
-
-const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  draft: { label: "草稿", variant: "outline" },
-  published: { label: "已發佈", variant: "default" },
-  archived: { label: "已封存", variant: "secondary" },
-};
-
-const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
-  verified: { label: "已驗證", icon: BadgeCheck },
-  needs_review: { label: "待審查", icon: FileClock },
-  unverified: { label: "未驗證", icon: CircleDot },
-};
-
-/**
- * KnowledgeBaseArticlesRouteScreen
- * Route-level screen component for /knowledge-base/articles.
- * Encapsulates data-loading, filtering and layout so the Next.js route
- * file stays thin (params/context wiring only).
- */
-export interface KnowledgeBaseArticlesRouteScreenProps {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly currentUserId?: string | null;
-}
-
-export function KnowledgeBaseArticlesRouteScreen({
-  accountId,
-  workspaceId,
-  currentUserId,
-}: KnowledgeBaseArticlesRouteScreenProps) {
-  const router = useRouter();
-  const { state: authState } = useAuth();
-
-  const resolvedAccountId = accountId.trim();
-  const resolvedWorkspaceId = workspaceId.trim();
-  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
-  const workspaceBasePath =
-    resolvedAccountId && resolvedWorkspaceId
-      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
-      : resolvedAccountId
-        ? `/${encodeURIComponent(resolvedAccountId)}`
-        : "/";
-  const overviewHref = resolvedWorkspaceId
-    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-base-articles`
-    : resolvedAccountId
-      ? `/${encodeURIComponent(resolvedAccountId)}`
-      : "/";
-
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    if (!resolvedAccountId || !resolvedWorkspaceId) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const [arts, cats] = await Promise.all([
-        getArticles({ accountId: resolvedAccountId, workspaceId: resolvedWorkspaceId }),
-        getCategories(resolvedAccountId, resolvedWorkspaceId),
-      ]);
-      setArticles(arts);
-      setCategories(cats);
-    } finally {
-      setLoading(false);
-    }
-  }, [resolvedAccountId, resolvedWorkspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const filteredArticles = useMemo(() => {
-    if (!selectedCategoryId) return articles;
-    const cat = categories.find((c) => c.id === selectedCategoryId);
-    if (!cat) return articles;
-    return articles.filter((a) => cat.articleIds.includes(a.id));
-  }, [articles, categories, selectedCategoryId]);
-
-  function handleSuccess(articleId?: string) {
-    if (articleId) {
-      if (resolvedAccountId && resolvedWorkspaceId) {
-        router.push(
-          `${workspaceBasePath}/knowledge-base/articles/${encodeURIComponent(articleId)}`,
-        );
-      } else {
-        router.push(`/knowledge-base/articles/${encodeURIComponent(articleId)}`);
-      }
-    } else {
-      load();
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
-        <p className="text-sm text-muted-foreground">
-          組織知識庫的 SOP 文章、通用文件與驗證管治。
-        </p>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push(overviewHref)}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-        <Button
-          size="sm"
-          className="ml-auto"
-          disabled={!resolvedAccountId || !resolvedWorkspaceId}
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增文章
-        </Button>
-      </div>
-
-      <ArticleDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        accountId={resolvedAccountId}
-        workspaceId={resolvedWorkspaceId}
-        currentUserId={resolvedCurrentUserId}
-        categories={categories}
-        onSuccess={handleSuccess}
-      />
-
-      {!resolvedAccountId || !resolvedWorkspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
-        </p>
-      ) : loading ? (
-        <div className="flex gap-4">
-          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
-          <div className="grid flex-1 gap-3 sm:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 w-full rounded-lg" />
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="flex gap-4">
-          <CategoryTreePanel
-            categories={categories}
-            selectedId={selectedCategoryId}
-            onSelect={setSelectedCategoryId}
-          />
-
-          <div className="flex-1">
-            {filteredArticles.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">
-                  {selectedCategoryId ? "此分類尚無文章。" : "尚無文章。點擊「新增文章」開始建立。"}
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {filteredArticles.map((article) => {
-                  const status = STATUS_CONFIG[article.status];
-                  const veri = VERIFICATION_CONFIG[article.verificationState];
-                  const VeriIcon = veri.icon;
-                  return (
-                    <Card
-                      key={article.id}
-                      className="cursor-pointer hover:bg-muted/10 transition-colors"
-                      onClick={() => handleSuccess(article.id)}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
-                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <VeriIcon className="h-3 w-3" />
-                          <span>{veri.label}</span>
-                        </div>
-                        {article.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {article.tags.slice(0, 3).map((tag) => (
-                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <p className="text-[10px] text-muted-foreground/70">
-                          v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-````
-
 ## File: modules/notion/interfaces/authoring/queries/index.ts
 ````typescript
 // TODO: export getArticle, getArticlesByWorkspace, getCategoryTree
@@ -7885,11 +8208,6 @@ export function subscribeComments(
 export {};
 ````
 
-## File: modules/notion/interfaces/components/.gitkeep
-````
-
-````
-
 ## File: modules/notion/interfaces/database/_actions/database.actions.ts
 ````typescript
 "use server";
@@ -8161,754 +8479,6 @@ export function AddFieldDialog({ open, onOpenChange, onAdd, isPending }: AddFiel
 }
 ````
 
-## File: modules/notion/interfaces/database/components/DatabaseAutomationView.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: Manage automation rules for a database — list/create/toggle/delete.
- */
-
-import { useEffect, useState, useTransition } from "react";
-import type { DatabaseAutomationSnapshot, AutomationTrigger, AutomationActionType } from "../../../subdomains/database/application/dto/database.dto";
-import { getAutomations } from "../queries";
-import { createAutomation, updateAutomation, deleteAutomation } from "../_actions/database.actions";
-
-interface Props {
-  databaseId: string;
-  accountId: string;
-  currentUserId: string;
-}
-
-const TRIGGER_OPTIONS: { value: AutomationTrigger; label: string }[] = [
-  { value: "record_created", label: "Record created" },
-  { value: "record_updated", label: "Record updated" },
-  { value: "record_deleted", label: "Record deleted" },
-  { value: "property_changed", label: "Property changed" },
-];
-
-const ACTION_OPTIONS: { value: AutomationActionType; label: string }[] = [
-  { value: "send_notification", label: "Send notification" },
-  { value: "update_property", label: "Update property" },
-  { value: "create_record", label: "Create record" },
-  { value: "webhook", label: "Call webhook" },
-];
-
-export function DatabaseAutomationView({ databaseId, accountId, currentUserId }: Props) {
-  const [automations, setAutomations] = useState<DatabaseAutomationSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [name, setName] = useState("");
-  const [trigger, setTrigger] = useState<AutomationTrigger>("record_created");
-  const [actionType, setActionType] = useState<AutomationActionType>("send_notification");
-  const [, startTransition] = useTransition();
-
-  useEffect(() => {
-    getAutomations(accountId, databaseId)
-      .then(setAutomations)
-      .finally(() => setLoading(false));
-  }, [accountId, databaseId]);
-
-  function handleCreate() {
-    if (!name.trim()) return;
-    startTransition(async () => {
-      const result = await createAutomation({
-        databaseId,
-        accountId,
-        name: name.trim(),
-        trigger,
-        actions: [{ type: actionType, config: {} }],
-        createdByUserId: currentUserId,
-      });
-      if (result.success) {
-        const updated = await getAutomations(accountId, databaseId);
-        setAutomations(updated);
-        setName("");
-        setShowForm(false);
-      }
-    });
-  }
-
-  function handleToggle(automation: DatabaseAutomationSnapshot) {
-    startTransition(async () => {
-      await updateAutomation({
-        id: automation.id,
-        accountId,
-        databaseId,
-        enabled: !automation.enabled,
-      });
-      setAutomations((prev) =>
-        prev.map((a) => (a.id === automation.id ? { ...a, enabled: !a.enabled } : a)),
-      );
-    });
-  }
-
-  function handleDelete(automationId: string) {
-    startTransition(async () => {
-      await deleteAutomation(automationId, accountId, databaseId);
-      setAutomations((prev) => prev.filter((a) => a.id !== automationId));
-    });
-  }
-
-  if (loading) return <div className="p-4 text-sm text-muted-foreground">Loading automations…</div>;
-
-  return (
-    <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Automations</h3>
-        <button
-          className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground"
-          onClick={() => setShowForm((v) => !v)}
-        >
-          + New automation
-        </button>
-      </div>
-
-      {showForm && (
-        <div className="border rounded p-3 space-y-2 text-sm">
-          <input
-            className="w-full border rounded px-2 py-1 text-sm"
-            placeholder="Automation name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <div className="flex gap-2">
-            <select
-              className="border rounded px-2 py-1 text-xs flex-1"
-              value={trigger}
-              onChange={(e) => setTrigger(e.target.value as AutomationTrigger)}
-            >
-              {TRIGGER_OPTIONS.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
-            <select
-              className="border rounded px-2 py-1 text-xs flex-1"
-              value={actionType}
-              onChange={(e) => setActionType(e.target.value as AutomationActionType)}
-            >
-              {ACTION_OPTIONS.map((a) => (
-                <option key={a.value} value={a.value}>{a.label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex gap-2">
-            <button
-              className="text-xs px-3 py-1 rounded bg-primary text-primary-foreground"
-              onClick={handleCreate}
-            >
-              Create
-            </button>
-            <button
-              className="text-xs px-3 py-1 rounded border"
-              onClick={() => setShowForm(false)}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {automations.length === 0 ? (
-        <p className="text-xs text-muted-foreground">No automations yet.</p>
-      ) : (
-        <ul className="space-y-2">
-          {automations.map((a) => (
-            <li key={a.id} className="flex items-center justify-between border rounded px-3 py-2 text-sm">
-              <div className="space-y-0.5">
-                <p className="font-medium">{a.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  Trigger: {a.trigger} · Action: {a.actions[0]?.type ?? "—"}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  className={`text-xs px-2 py-0.5 rounded ${a.enabled ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}
-                  onClick={() => handleToggle(a)}
-                >
-                  {a.enabled ? "Enabled" : "Disabled"}
-                </button>
-                <button
-                  className="text-xs text-destructive"
-                  onClick={() => handleDelete(a.id)}
-                >
-                  Delete
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseBoardView.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseBoardView — Kanban board grouped by first select/multi_select field.
- */
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { Plus, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import { getRecords } from "../queries";
-import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
-
-interface DatabaseBoardViewProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
-  if (record.properties && typeof record.properties === "object") {
-    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
-  }
-  return null;
-}
-
-export function DatabaseBoardView({ database, accountId, workspaceId, currentUserId }: DatabaseBoardViewProps) {
-  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isPending, startTransition] = useTransition();
-
-  const groupField = database.fields.find((f) => f.type === "select" || f.type === "multi_select") ?? null;
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getRecords(accountId, database.id);
-      setRecords(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, database.id]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function getTitle(record: DatabaseRecordSnapshot): string {
-    const textField = database.fields.find((f) => f.type === "text");
-    if (!textField) return record.id.slice(0, 8);
-    return String(getProperty(record, textField.id) ?? "—");
-  }
-
-  const groups: Record<string, DatabaseRecordSnapshot[]> = {};
-  if (!groupField) {
-    groups["所有記錄"] = records;
-  } else {
-    for (const record of records) {
-      const val = getProperty(record, groupField.id);
-      const key = val != null && val !== "" ? String(val) : "（無分組）";
-      (groups[key] ??= []).push(record);
-    }
-    if ("（無分組）" in groups) {
-      const noGroup = groups["（無分組）"];
-      delete groups["（無分組）"];
-      groups["（無分組）"] = noGroup;
-    }
-  }
-
-  function handleAdd(groupValue: string) {
-    startTransition(async () => {
-      const props: Record<string, unknown> = groupField && groupValue !== "（無分組）" && groupValue !== "所有記錄"
-        ? { [groupField.id]: groupValue }
-        : {};
-      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: props, createdByUserId: currentUserId });
-      void load();
-    });
-  }
-
-  function handleDelete(recordId: string) {
-    startTransition(async () => {
-      await deleteRecord(accountId, recordId);
-      setRecords((prev) => prev.filter((r) => r.id !== recordId));
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="flex gap-3 overflow-x-auto pb-2">
-        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-64 w-48 shrink-0 rounded-lg" />)}
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex gap-3 overflow-x-auto pb-4">
-      {Object.entries(groups).map(([group, groupRecords]) => (
-        <div key={group} className="flex w-52 shrink-0 flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 p-3">
-          <div className="flex items-center justify-between">
-            <Badge variant="outline" className="text-xs">{group}</Badge>
-            <span className="text-[10px] text-muted-foreground">{groupRecords.length}</span>
-          </div>
-          <div className="flex flex-col gap-2">
-            {groupRecords.map((record) => (
-              <div key={record.id} className="group relative rounded-md border border-border/60 bg-card px-3 py-2 shadow-sm">
-                <p className="text-sm font-medium leading-snug">{getTitle(record)}</p>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1 hidden h-5 w-5 text-muted-foreground hover:text-destructive group-hover:flex"
-                  disabled={isPending}
-                  onClick={() => handleDelete(record.id)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            ))}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full text-xs text-muted-foreground"
-            disabled={isPending}
-            onClick={() => handleAdd(group)}
-          >
-            <Plus className="mr-1 h-3 w-3" /> 新增
-          </Button>
-        </div>
-      ))}
-    </div>
-  );
-}
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseCalendarView.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseCalendarView — month-grid calendar grouped by a date field.
- */
-
-import { useCallback, useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-import { getRecords } from "../queries";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
-
-interface DatabaseCalendarViewProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-}
-
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
-  if (record.properties && typeof record.properties === "object") {
-    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
-  }
-  return null;
-}
-
-export function DatabaseCalendarView({ database, accountId }: DatabaseCalendarViewProps) {
-  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [cursor, setCursor] = useState(() => new Date());
-
-  const dateField = database.fields.find((f) => f.type === "date") ?? null;
-  const titleField = database.fields.find((f) => f.type === "text") ?? null;
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getRecords(accountId, database.id);
-      setRecords(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, database.id]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  const year = cursor.getFullYear();
-  const month = cursor.getMonth();
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-  const recordsByDay: Record<string, DatabaseRecordSnapshot[]> = {};
-  if (dateField) {
-    for (const record of records) {
-      const val = getProperty(record, dateField.id);
-      if (!val) continue;
-      try {
-        const d = new Date(String(val));
-        if (!isNaN(d.getTime()) && d.getFullYear() === year && d.getMonth() === month) {
-          const key = String(d.getDate());
-          (recordsByDay[key] ??= []).push(record);
-        }
-      } catch {}
-    }
-  }
-
-  function prevMonth() { setCursor(new Date(year, month - 1, 1)); }
-  function nextMonth() { setCursor(new Date(year, month + 1, 1)); }
-
-  const weekDays = ["日", "一", "二", "三", "四", "五", "六"];
-
-  if (!dateField) {
-    return (
-      <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
-        此資料庫未包含「日期」欄位，無法顯示日曆視圖。
-      </p>
-    );
-  }
-
-  if (loading) {
-    return <Skeleton className="h-64 w-full rounded-lg" />;
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={prevMonth}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <span className="text-sm font-medium">
-          {year}年 {month + 1}月
-        </span>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={nextMonth}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <div className="overflow-hidden rounded-lg border border-border/60">
-        <div className="grid grid-cols-7 bg-muted/30">
-          {weekDays.map((d) => (
-            <div key={d} className="px-2 py-1.5 text-center text-[10px] font-semibold text-muted-foreground">
-              {d}
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 border-t border-border/40">
-          {Array.from({ length: firstDay }).map((_, i) => (
-            <div key={`empty-${i}`} className="min-h-[60px] border-b border-r border-border/30 bg-muted/10" />
-          ))}
-          {Array.from({ length: daysInMonth }).map((_, i) => {
-            const day = i + 1;
-            const dayRecords = recordsByDay[String(day)] ?? [];
-            const today = new Date();
-            const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
-            return (
-              <div key={day} className={`min-h-[60px] border-b border-r border-border/30 p-1 ${isToday ? "bg-primary/5" : ""}`}>
-                <span className={`text-[10px] font-medium ${isToday ? "text-primary" : "text-muted-foreground"}`}>{day}</span>
-                <div className="mt-0.5 flex flex-col gap-0.5">
-                  {dayRecords.slice(0, 3).map((record) => {
-                    const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "—" : "—";
-                    return (
-                      <Badge key={record.id} variant="secondary" className="w-full justify-start truncate text-[9px]">
-                        {title}
-                      </Badge>
-                    );
-                  })}
-                  {dayRecords.length > 3 && (
-                    <span className="text-[9px] text-muted-foreground">+{dayRecords.length - 3}</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseDetailPage.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  Archive,
-  FileText,
-  PlusCircle,
-  Table2,
-  Kanban,
-  List,
-  Calendar,
-  LayoutGrid,
-  Zap,
-} from "lucide-react";
-
-import { getDatabase } from "../queries";
-import { addDatabaseField, archiveDatabase } from "../_actions/database.actions";
-import { DatabaseTableView } from "./DatabaseTableView";
-import { DatabaseBoardView } from "./DatabaseBoardView";
-import { DatabaseListView } from "./DatabaseListView";
-import { DatabaseCalendarView } from "./DatabaseCalendarView";
-import { DatabaseGalleryView } from "./DatabaseGalleryView";
-import { DatabaseAutomationView } from "./DatabaseAutomationView";
-import { AddFieldDialog } from "./DatabaseAddFieldDialog";
-import type { DatabaseSnapshot as Database, FieldType } from "../../../subdomains/database/application/dto/database.dto";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-export interface DatabaseDetailPageProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function DatabaseDetailPage({
-  accountId,
-  workspaceId,
-  currentUserId,
-}: DatabaseDetailPageProps) {
-  const params = useParams();
-  const router = useRouter();
-  const databaseId = params.databaseId as string;
-
-  const [database, setDatabase] = useState<Database | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [addFieldOpen, setAddFieldOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"table" | "board" | "list" | "calendar" | "gallery" | "automations">("table");
-  const [isPending, startTransition] = useTransition();
-  const workspaceBasePath =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : accountId
-        ? `/${encodeURIComponent(accountId)}`
-        : "/";
-  const databasesHref =
-    accountId && workspaceId
-      ? `${workspaceBasePath}/knowledge-database/databases`
-      : "/knowledge-database/databases";
-  const formsHref =
-    accountId && workspaceId
-      ? `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`
-      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`;
-
-  const load = useCallback(async () => {
-    if (!accountId || !databaseId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const db = await getDatabase(accountId, databaseId);
-      setDatabase(db);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, databaseId]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function handleAddField(name: string, type: FieldType, required: boolean) {
-    startTransition(async () => {
-      await addDatabaseField({
-        databaseId,
-        accountId,
-        name,
-        type,
-        config: {},
-        required,
-      });
-      await load();
-    });
-  }
-
-  function handleArchive() {
-    startTransition(async () => {
-      await archiveDatabase({ id: databaseId, accountId });
-      router.push(databasesHref);
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full rounded-lg" />
-      </div>
-    );
-  }
-
-  if (!database) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Top bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 資料庫列表
-        </Button>
-      </div>
-
-      {/* Page header */}
-      <header className="space-y-1 border-b border-border/60 pb-4">
-        <div className="flex items-center gap-2">
-          {database.icon && <span className="text-xl">{database.icon}</span>}
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{database.name}</h1>
-        </div>
-        {database.description && (
-          <p className="text-sm text-muted-foreground">{database.description}</p>
-        )}
-        <p className="text-xs text-muted-foreground/70">
-          {database.fields.length} 個欄位 · 更新於 {new Date(database.updatedAtISO).toLocaleDateString("zh-TW")}
-        </p>
-      </header>
-
-      {/* View switcher + actions */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center rounded-md border border-border/60 p-0.5">
-          <button
-            type="button"
-            onClick={() => setViewMode("table")}
-            title="表格視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Table2 className="h-3 w-3" /> 表格
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("board")}
-            title="看板視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "board" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Kanban className="h-3 w-3" /> 看板
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("list")}
-            title="清單視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <List className="h-3 w-3" /> 清單
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("calendar")}
-            title="日曆視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Calendar className="h-3 w-3" /> 日曆
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("gallery")}
-            title="圖庫視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "gallery" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <LayoutGrid className="h-3 w-3" /> 圖庫
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("automations")}
-            title="自動化規則"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "automations" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Zap className="h-3 w-3" /> 自動化
-          </button>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => router.push(formsHref)}
-            disabled={isPending}
-          >
-            <FileText className="mr-1.5 h-3.5 w-3.5" /> 表單
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
-            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> 新增欄位
-          </Button>
-          <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
-            <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
-          </Button>
-        </div>
-      </div>
-
-      {/* View */}
-      {viewMode === "table" && (
-        <DatabaseTableView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "board" && (
-        <DatabaseBoardView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "list" && (
-        <DatabaseListView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "calendar" && (
-        <DatabaseCalendarView
-          database={database}
-          accountId={accountId}
-        />
-      )}
-      {viewMode === "gallery" && (
-        <DatabaseGalleryView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "automations" && (
-        <DatabaseAutomationView
-          databaseId={databaseId}
-          accountId={accountId}
-          currentUserId={currentUserId}
-        />
-      )}
-
-      <AddFieldDialog
-        open={addFieldOpen}
-        onOpenChange={setAddFieldOpen}
-        onAdd={handleAddField}
-        isPending={isPending}
-      />
-    </div>
-  );
-}
-````
-
 ## File: modules/notion/interfaces/database/components/DatabaseDialog.tsx
 ````typescript
 "use client";
@@ -9020,633 +8590,14 @@ export function DatabaseDialog({ open, onOpenChange, accountId, workspaceId, cur
 }
 ````
 
-## File: modules/notion/interfaces/database/components/DatabaseFormsPage.tsx
-````typescript
-"use client";
-
-/**
- * Route: /knowledge-database/databases/[databaseId]/forms
- * Purpose: Manage database forms — create and embed form links for a specific database.
- */
-
-import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
-
-import { getDatabase } from "../queries";
-import { DatabaseFormView } from "./DatabaseFormView";
-import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-export interface DatabaseFormsPageProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function DatabaseFormsPage({
-  accountId,
-  workspaceId,
-  currentUserId,
-}: DatabaseFormsPageProps) {
-  const params = useParams();
-  const router = useRouter();
-  const databaseId = params.databaseId as string;
-
-  const [database, setDatabase] = useState<Database | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"preview" | "share">("preview");
-  const databaseDetailHref =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-database/databases/${encodeURIComponent(databaseId)}`
-      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}`;
-
-  const load = useCallback(async () => {
-    if (!accountId || !databaseId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const db = await getDatabase(accountId, databaseId);
-      setDatabase(db);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, databaseId]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full rounded-lg" />
-      </div>
-    );
-  }
-
-  if (!database) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
-      </div>
-    );
-  }
-
-  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-
-  return (
-    <div className="space-y-4">
-      {/* Top bar */}
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push(databaseDetailHref)}
-        >
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回資料庫
-        </Button>
-        <div className="ml-auto">
-          <Button size="sm" variant="outline" disabled>
-            <Plus className="mr-1.5 h-3.5 w-3.5" /> 建立新表單
-          </Button>
-        </div>
-      </div>
-
-      <header className="space-y-1 border-b border-border/60 pb-4">
-        <h1 className="text-xl font-semibold">{database.name} — 表單</h1>
-        <p className="text-sm text-muted-foreground">
-          使用表單讓外部使用者提交記錄到此資料庫。
-        </p>
-      </header>
-
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "preview" | "share")}>
-        <TabsList>
-          <TabsTrigger value="preview">預覽表單</TabsTrigger>
-          <TabsTrigger value="share">分享設定</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="preview" className="mt-4">
-          <div className="rounded-xl border border-border/60 bg-card px-6 py-2">
-            <DatabaseFormView
-              database={database}
-              accountId={accountId}
-              workspaceId={workspaceId}
-              submitterId={currentUserId}
-              title={`${database.name} 表單`}
-              description={database.description ?? undefined}
-            />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="share" className="mt-4">
-          <div className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
-            <div className="space-y-1.5">
-              <p className="text-sm font-medium">表單連結</p>
-              <div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                <span className="flex-1 truncate">{shareUrl}</span>
-                <button
-                  type="button"
-                  onClick={() => void navigator.clipboard.writeText(shareUrl)}
-                  className="shrink-0 text-muted-foreground hover:text-foreground"
-                  title="複製連結"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                分享此連結讓其他人填寫表單並將記錄直接存入資料庫。
-              </p>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseFormView.tsx
+## File: modules/notion/interfaces/database/components/DatabaseTablePanel.tsx
 ````typescript
 "use client";
 
 /**
  * Module: notion/subdomains/database
  * Layer: interfaces/components
- * Purpose: DatabaseFormView — public-facing form to collect one Record into a Database.
- */
-
-import { useState, useTransition } from "react";
-import { CheckCircle2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import { createRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, Field } from "../../../subdomains/database/application/dto/database.dto";
-
-interface DatabaseFormViewProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  /** The user submitting the form. Pass anonymous ID or guest token for public forms. */
-  submitterId: string;
-  /** Optional: restrict to a subset of fields. */
-  fieldIds?: string[];
-  title?: string;
-  description?: string;
-}
-
-function FieldInput({ field, value, onChange, disabled }: { field: Field; value: unknown; onChange: (v: unknown) => void; disabled: boolean }) {
-  if (field.type === "checkbox") {
-    return (
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id={`field-${field.id}`}
-          checked={Boolean(value)}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.checked)}
-          className="h-4 w-4 rounded border-border"
-        />
-        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
-      </div>
-    );
-  }
-  if (field.type === "number") {
-    return (
-      <div className="space-y-1">
-        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
-        <Input
-          id={`field-${field.id}`}
-          type="number"
-          value={value == null ? "" : String(value)}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
-        />
-      </div>
-    );
-  }
-  if (field.type === "date") {
-    return (
-      <div className="space-y-1">
-        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
-        <Input
-          id={`field-${field.id}`}
-          type="date"
-          value={value == null ? "" : String(value)}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </div>
-    );
-  }
-  if (field.type === "url" || field.type === "email") {
-    return (
-      <div className="space-y-1">
-        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
-        <Input
-          id={`field-${field.id}`}
-          type={field.type}
-          value={value == null ? "" : String(value)}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </div>
-    );
-  }
-  return (
-    <div className="space-y-1">
-      <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
-      <Textarea
-        id={`field-${field.id}`}
-        rows={2}
-        value={value == null ? "" : String(value)}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </div>
-  );
-}
-
-export function DatabaseFormView({ database, accountId, workspaceId, submitterId, fieldIds, title, description }: DatabaseFormViewProps) {
-  const visibleFields = fieldIds && fieldIds.length > 0
-    ? database.fields.filter((f) => fieldIds.includes(f.id))
-    : database.fields;
-
-  const [values, setValues] = useState<Record<string, unknown>>({});
-  const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function handleChange(fieldId: string, value: unknown) {
-    setValues((prev) => ({ ...prev, [fieldId]: value }));
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    startTransition(async () => {
-      const result = await createRecord({
-        databaseId: database.id,
-        workspaceId,
-        accountId,
-        properties: values,
-        createdByUserId: submitterId,
-      });
-      if (result.success) {
-        setSubmitted(true);
-        setValues({});
-      } else {
-        setError("提交失敗，請稍後再試。");
-      }
-    });
-  }
-
-  if (submitted) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-        <CheckCircle2 className="h-10 w-10 text-green-500" />
-        <h2 className="text-lg font-semibold">已成功提交！</h2>
-        <p className="text-sm text-muted-foreground">感謝您的填寫。</p>
-        <Button variant="outline" size="sm" onClick={() => setSubmitted(false)}>
-          再次提交
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mx-auto max-w-lg space-y-6 py-6">
-      <div className="space-y-1">
-        <h2 className="text-xl font-semibold">{title ?? database.name}</h2>
-        {description && <p className="text-sm text-muted-foreground">{description}</p>}
-      </div>
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        {visibleFields.map((field) => (
-          <FieldInput
-            key={field.id}
-            field={field}
-            value={values[field.id]}
-            onChange={(v) => handleChange(field.id, v)}
-            disabled={isPending}
-          />
-        ))}
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button type="submit" disabled={isPending} className="w-full">
-          {isPending ? "提交中…" : "送出表單"}
-        </Button>
-      </form>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseGalleryView.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseGalleryView — card grid for database records.
- */
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { Plus, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-import { getRecords } from "../queries";
-import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
-
-interface DatabaseGalleryViewProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
-  if (record.properties && typeof record.properties === "object") {
-    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
-  }
-  return null;
-}
-
-export function DatabaseGalleryView({ database, accountId, workspaceId, currentUserId }: DatabaseGalleryViewProps) {
-  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isPending, startTransition] = useTransition();
-
-  const titleField = database.fields.find((f) => f.type === "text") ?? null;
-  const metaFields = database.fields.filter((f) => f !== titleField).slice(0, 4);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getRecords(accountId, database.id);
-      setRecords(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, database.id]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function handleAdd() {
-    startTransition(async () => {
-      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId });
-      void load();
-    });
-  }
-
-  function handleDelete(recordId: string) {
-    startTransition(async () => {
-      await deleteRecord(accountId, recordId);
-      setRecords((prev) => prev.filter((r) => r.id !== recordId));
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-lg" />)}
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {records.length === 0 ? (
-          <p className="col-span-full rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">尚無記錄</p>
-        ) : (
-          records.map((record) => {
-            const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "（未命名）" : "（未命名）";
-            return (
-              <div key={record.id} className="group relative flex flex-col gap-2 rounded-lg border border-border/60 bg-card p-3 shadow-sm">
-                <p className="truncate text-sm font-medium leading-snug">{title}</p>
-                <div className="flex flex-wrap gap-1">
-                  {metaFields.map((field) => {
-                    const val = getProperty(record, field.id);
-                    if (val == null || val === "") return null;
-                    return (
-                      <Badge key={field.id} variant="outline" className="text-[10px]">
-                        {field.name}: {String(val).slice(0, 16)}
-                      </Badge>
-                    );
-                  })}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1 hidden h-6 w-6 text-muted-foreground hover:text-destructive group-hover:flex"
-                  disabled={isPending}
-                  onClick={() => handleDelete(record.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            );
-          })
-        )}
-      </div>
-      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="w-full text-xs">
-        <Plus className="mr-1.5 h-3 w-3" /> 新增記錄
-      </Button>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseListView.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseListView — flat record list with fields as readable rows.
- */
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-import { getRecords } from "../queries";
-import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
-
-interface DatabaseListViewProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
-  if (record.properties && typeof record.properties === "object") {
-    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
-  }
-  return null;
-}
-
-function displayValue(val: unknown, type: string): string {
-  if (val == null || val === "") return "";
-  if (type === "checkbox") return val ? "✓" : "✗";
-  return String(val);
-}
-
-export function DatabaseListView({ database, accountId, workspaceId, currentUserId }: DatabaseListViewProps) {
-  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [isPending, startTransition] = useTransition();
-
-  const titleField = database.fields.find((f) => f.type === "text") ?? database.fields[0] ?? null;
-  const secondaryFields = database.fields.filter((f) => f !== titleField);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getRecords(accountId, database.id);
-      setRecords(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, database.id]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function toggleExpand(id: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function handleAdd() {
-    startTransition(async () => {
-      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId });
-      void load();
-    });
-  }
-
-  function handleDelete(recordId: string) {
-    startTransition(async () => {
-      await deleteRecord(accountId, recordId);
-      setRecords((prev) => prev.filter((r) => r.id !== recordId));
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-2">
-        {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-1">
-      {records.length === 0 ? (
-        <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">尚無記錄</p>
-      ) : (
-        records.map((record) => {
-          const isOpen = expanded.has(record.id);
-          const title = titleField ? displayValue(getProperty(record, titleField.id), titleField.type) || "（未命名）" : record.id.slice(0, 8);
-
-          return (
-            <div key={record.id} className="rounded-md border border-border/60 bg-card">
-              <div className="flex items-center gap-2 px-3 py-2">
-                <button
-                  type="button"
-                  className="rounded p-0.5 text-muted-foreground hover:bg-muted"
-                  onClick={() => toggleExpand(record.id)}
-                >
-                  {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                </button>
-                <span className="flex-1 truncate text-sm font-medium text-foreground">{title}</span>
-                <div className="hidden gap-1 sm:flex">
-                  {secondaryFields.slice(0, 2).map((field) => {
-                    const val = displayValue(getProperty(record, field.id), field.type);
-                    if (!val) return null;
-                    return (
-                      <Badge key={field.id} variant="outline" className="text-[10px]">
-                        {field.name}: {val.length > 12 ? `${val.slice(0, 12)}…` : val}
-                      </Badge>
-                    );
-                  })}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                  disabled={isPending}
-                  onClick={() => handleDelete(record.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              {isOpen && (
-                <div className="border-t border-border/40 px-4 py-3">
-                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
-                    {database.fields.map((field) => {
-                      const val = displayValue(getProperty(record, field.id), field.type);
-                      return (
-                        <div key={field.id} className="contents">
-                          <dt className="text-muted-foreground">{field.name}</dt>
-                          <dd className="text-foreground">{val || <span className="text-muted-foreground/50">—</span>}</dd>
-                        </div>
-                      );
-                    })}
-                    <div className="contents">
-                      <dt className="text-muted-foreground">建立時間</dt>
-                      <dd className="text-foreground">
-                        {new Date(record.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-              )}
-            </div>
-          );
-        })
-      )}
-      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="mt-1 w-full text-xs">
-        <Plus className="mr-1.5 h-3 w-3" /> 新增記錄
-      </Button>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseTableView.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseTableView — spreadsheet-style table with inline cell editing.
+ * Purpose: DatabaseTablePanel ??spreadsheet-style table with inline cell editing.
  */
 
 import { useCallback, useEffect, useState, useTransition } from "react";
@@ -9660,7 +8611,7 @@ import { getRecords } from "../queries";
 import { createRecord, updateRecord, deleteRecord } from "../_actions/database.actions";
 import type { DatabaseSnapshot, Field, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
 
-interface DatabaseTableViewProps {
+interface DatabaseTablePanelProps {
   database: DatabaseSnapshot;
   accountId: string;
   workspaceId: string;
@@ -9724,7 +8675,7 @@ function CellInput({ field, value, onChange, disabled }: { field: Field; value: 
   );
 }
 
-export function DatabaseTableView({ database, accountId, workspaceId, currentUserId }: DatabaseTableViewProps) {
+export function DatabaseTablePanel({ database, accountId, workspaceId, currentUserId }: DatabaseTablePanelProps) {
   const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [edits, setEdits] = useState<Record<string, Record<string, unknown>>>({});
@@ -9795,7 +8746,7 @@ export function DatabaseTableView({ database, accountId, workspaceId, currentUse
   if (fields.length === 0) {
     return (
       <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
-        此資料庫尚無欄位。請先新增欄位。
+        甇方??澈撠甈????憓?雿?
       </p>
     );
   }
@@ -9819,7 +8770,7 @@ export function DatabaseTableView({ database, accountId, workspaceId, currentUse
             {records.length === 0 ? (
               <tr>
                 <td colSpan={fields.length + 1} className="px-3 py-6 text-center text-xs text-muted-foreground">
-                  尚無記錄
+                  撠閮?
                 </td>
               </tr>
             ) : (
@@ -9860,198 +8811,8 @@ export function DatabaseTableView({ database, accountId, workspaceId, currentUse
         </table>
       </div>
       <Button variant="outline" size="sm" disabled={isPending} onClick={handleAddRecord} className="w-full text-xs">
-        <Plus className="mr-1.5 h-3 w-3" /> 新增記錄
+        <Plus className="mr-1.5 h-3 w-3" /> ?啣?閮?
       </Button>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/interfaces/database/components/index.ts
-````typescript
-export { DatabaseDialog } from "./DatabaseDialog";
-export { DatabaseTableView } from "./DatabaseTableView";
-export { DatabaseBoardView } from "./DatabaseBoardView";
-export { DatabaseListView } from "./DatabaseListView";
-export { DatabaseCalendarView } from "./DatabaseCalendarView";
-export { DatabaseGalleryView } from "./DatabaseGalleryView";
-export { DatabaseFormView } from "./DatabaseFormView";
-export { DatabaseAutomationView } from "./DatabaseAutomationView";
-````
-
-## File: modules/notion/interfaces/database/components/KnowledgeDatabasesRouteScreen.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Table2 } from "lucide-react";
-
-import { useAuth } from "@/modules/platform/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
-import { getDatabases } from "../queries";
-import { DatabaseDialog } from "./DatabaseDialog";
-
-/**
- * KnowledgeDatabasesRouteScreen
- * Route-level screen component for /knowledge-database/databases.
- * Encapsulates data-loading and layout so the Next.js route file stays thin.
- */
-export interface KnowledgeDatabasesRouteScreenProps {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly currentUserId?: string | null;
-}
-
-export function KnowledgeDatabasesRouteScreen({
-  accountId,
-  workspaceId,
-  currentUserId,
-}: KnowledgeDatabasesRouteScreenProps) {
-  const router = useRouter();
-  const { state: authState } = useAuth();
-
-  const resolvedAccountId = accountId.trim();
-  const resolvedWorkspaceId = workspaceId.trim();
-  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
-  const workspaceBasePath =
-    resolvedAccountId && resolvedWorkspaceId
-      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
-      : resolvedAccountId
-        ? `/${encodeURIComponent(resolvedAccountId)}`
-        : "/";
-  const overviewHref = resolvedWorkspaceId
-    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-databases`
-    : resolvedAccountId
-      ? `/${encodeURIComponent(resolvedAccountId)}`
-      : "/";
-
-  const [databases, setDatabases] = useState<Database[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-
-  const load = useCallback(async () => {
-    if (!resolvedAccountId || !resolvedWorkspaceId) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const data = await getDatabases(resolvedAccountId, resolvedWorkspaceId);
-      setDatabases(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [resolvedAccountId, resolvedWorkspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  function handleSuccess(databaseId?: string) {
-    if (databaseId) {
-      if (resolvedAccountId && resolvedWorkspaceId) {
-        router.push(
-          `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}`,
-        );
-      } else {
-        router.push(resolvedAccountId ? `/${encodeURIComponent(resolvedAccountId)}` : "/");
-      }
-    } else {
-      load();
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Database</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
-        <p className="text-sm text-muted-foreground">
-          結構化資料表、看板、日曆與多視圖管理，對應 Notion Database 能力。
-        </p>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push(overviewHref)}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-        <Button
-          size="sm"
-          className="ml-auto"
-          disabled={!resolvedAccountId || !resolvedWorkspaceId}
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增資料庫
-        </Button>
-      </div>
-
-      <DatabaseDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        accountId={resolvedAccountId}
-        workspaceId={resolvedWorkspaceId}
-        currentUserId={resolvedCurrentUserId}
-        onSuccess={handleSuccess}
-      />
-
-      {!resolvedAccountId || !resolvedWorkspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
-        </p>
-      ) : loading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : databases.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-          <Table2 className="h-8 w-8 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">尚無資料庫。點擊「新增資料庫」開始建立。</p>
-        </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {databases.map((db) => (
-            <Card
-              key={db.id}
-              className="cursor-pointer hover:bg-muted/10 transition-colors"
-              onClick={() => handleSuccess(db.id)}
-            >
-              <CardHeader className="pb-2">
-                <div className="flex items-start gap-2">
-                  {db.icon ? (
-                    <span className="text-lg leading-none">{db.icon}</span>
-                  ) : (
-                    <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  )}
-                  <CardTitle className="line-clamp-1 text-sm font-medium">{db.name}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {db.description && (
-                  <p className="line-clamp-2 text-xs text-muted-foreground">{db.description}</p>
-                )}
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
-                  <span>{db.fields.length} 個欄位</span>
-                  <span>·</span>
-                  <span>{db.viewIds.length} 個視圖</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground/50">
-                  {new Date(db.updatedAtISO).toLocaleDateString("zh-TW")}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -10327,347 +9088,6 @@ export async function updateKnowledgePageCover(input: UpdatePageCoverDto): Promi
 }
 ````
 
-## File: modules/notion/interfaces/knowledge/components/BlockEditorView.tsx
-````typescript
-"use client";
-
-import { useRef } from "react";
-import { useBlockEditorStore } from "../store/block-editor.store";
-import { richTextToPlainText } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
-
-/**
- * Notion knowledge subdomain — minimal block editor.
- * Full drag-and-drop and rich block types are in the extensions/ layer.
- */
-export function BlockEditorView() {
-  const { blocks, addBlock, updateBlock, deleteBlock } = useBlockEditorStore();
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>, blockId: string) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      addBlock(blockId);
-    }
-    if (e.key === "Backspace") {
-      const target = e.currentTarget;
-      if (target.textContent === "") {
-        e.preventDefault();
-        deleteBlock(blockId);
-      }
-    }
-  }
-
-  function handleInput(e: React.FormEvent<HTMLDivElement>, blockId: string) {
-    const text = (e.currentTarget as HTMLDivElement).textContent ?? "";
-    updateBlock(blockId, { type: "text", richText: [{ type: "text", plainText: text }] });
-  }
-
-  if (!blocks.length) {
-    return (
-      <div className="flex min-h-[200px] flex-col gap-1 rounded-lg border border-dashed p-4">
-        <div
-          role="textbox"
-          aria-multiline="true"
-          aria-label="新區塊內容"
-          tabIndex={0}
-          contentEditable
-          suppressContentEditableWarning
-          className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") { e.preventDefault(); addBlock(null); }
-          }}
-          data-placeholder="開始輸入…"
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div ref={containerRef} className="flex flex-col gap-0.5">
-      {blocks.map((block) => {
-        const text = richTextToPlainText(block.content.richText);
-        return (
-          <div
-            key={block.id}
-            role="textbox"
-            aria-multiline="true"
-            aria-label={`區塊 ${block.id}`}
-            tabIndex={0}
-            contentEditable
-            suppressContentEditableWarning
-            className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"
-            onKeyDown={(e) => handleKeyDown(e, block.id)}
-            onInput={(e) => handleInput(e, block.id)}
-            dangerouslySetInnerHTML={{ __html: text }}
-          />
-        );
-      })}
-    </div>
-  );
-}
-````
-
-## File: modules/notion/interfaces/knowledge/components/KnowledgePageDetailPage.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
-
-import { getKnowledgePage } from "../queries";
-import {
-  renameKnowledgePage,
-  archiveKnowledgePage,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-} from "../_actions/knowledge-page.actions";
-import type { KnowledgePageSnapshot as KnowledgePage } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
-import { PageEditorView } from "./PageEditorView";
-import { CommentPanel } from "@/modules/notion/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-export interface KnowledgePageDetailPageProps {
-  accountId: string;
-  activeWorkspaceId: string | null;
-  currentUserId: string;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function KnowledgePageDetailPage({
-  accountId,
-  activeWorkspaceId,
-  currentUserId,
-}: KnowledgePageDetailPageProps) {
-  const params = useParams();
-  const router = useRouter();
-  const pageId = params.pageId as string;
-
-  const [page, setPage] = useState<KnowledgePage | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [commentOpen, setCommentOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const workspaceBasePath =
-    accountId && activeWorkspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(activeWorkspaceId)}`
-      : accountId
-        ? `/${encodeURIComponent(accountId)}`
-        : "/";
-  const pageListHref =
-    accountId && activeWorkspaceId
-      ? `${workspaceBasePath}/knowledge/pages`
-      : accountId
-        ? `/${encodeURIComponent(accountId)}?tab=Overview&panel=knowledge-pages`
-        : "/";
-
-  const load = useCallback(async () => {
-    if (!accountId || !pageId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const p = await getKnowledgePage(accountId, pageId);
-      setPage(p);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, pageId]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function handleRename(title: string) {
-    startTransition(async () => {
-      const result = await renameKnowledgePage({ accountId, pageId, title });
-      if (result.success) {
-        setPage((prev) => prev ? { ...prev, title } : prev);
-      }
-    });
-  }
-
-  function handleIconChange(iconUrl: string) {
-    startTransition(async () => {
-      const result = await updateKnowledgePageIcon({ accountId, pageId, iconUrl });
-      if (result.success) {
-        setPage((prev) => prev ? { ...prev, iconUrl: iconUrl || undefined } : prev);
-      }
-    });
-  }
-
-  function handleCoverChange(coverUrl: string) {
-    startTransition(async () => {
-      const result = await updateKnowledgePageCover({ accountId, pageId, coverUrl });
-      if (result.success) {
-        setPage((prev) => prev ? { ...prev, coverUrl: coverUrl || undefined } : prev);
-      }
-    });
-  }
-
-  function handleArchive() {
-    startTransition(async () => {
-      await archiveKnowledgePage({ accountId, pageId });
-      router.push(pageListHref);
-    });
-  }
-
-  // ── Loading skeleton ────────────────────────────────────────────────────────
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-6 w-72" />
-        <Skeleton className="h-64 w-full rounded-xl" />
-      </div>
-    );
-  }
-
-  // ── Not found ───────────────────────────────────────────────────────────────
-
-  if (!page) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" />
-          頁面列表
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到此頁面，可能已被封存或刪除。</p>
-      </div>
-    );
-  }
-
-  // ── Page view ───────────────────────────────────────────────────────────────
-
-  const updatedAt = page.updatedAtISO
-    ? new Date(page.updatedAtISO).toLocaleDateString("zh-TW", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : null;
-
-  return (
-    <div className="space-y-0">
-      {/* Cover image */}
-      {page.coverUrl && (
-        <div
-          className="relative h-40 w-full overflow-hidden rounded-t-xl bg-muted"
-          style={{ backgroundImage: `url(${page.coverUrl})`, backgroundSize: "cover", backgroundPosition: "center" }}
-        />
-      )}
-
-      <div className="space-y-4 px-0 pt-4">
-        {/* Top bar */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
-            <ArrowLeft className="mr-1.5 h-4 w-4" />
-            頁面列表
-          </Button>
-          <div className="ml-auto flex items-center gap-2">
-            <Button
-              size="sm"
-              variant={commentOpen ? "default" : "outline"}
-              onClick={() => setCommentOpen((v) => !v)}
-            >
-              <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
-              留言
-            </Button>
-            {page.status === "active" && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleArchive}
-                disabled={isPending}
-              >
-                <Archive className="mr-1.5 h-3.5 w-3.5" />
-                封存
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Page header */}
-        <header className="space-y-2 border-b border-border/60 pb-4">
-          {/* Icon row */}
-          <div className="flex items-end gap-3">
-            <IconPicker
-              value={page.iconUrl}
-              onChange={handleIconChange}
-              isPending={isPending}
-            />
-            <CoverEditor
-              value={page.coverUrl}
-              onChange={handleCoverChange}
-              isPending={isPending}
-            />
-          </div>
-          <TitleEditor
-            initialTitle={page.title}
-            onSave={handleRename}
-            isPending={isPending}
-          />
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            {page.status === "archived" && (
-              <Badge variant="secondary">已封存</Badge>
-            )}
-            {page.approvalState === "approved" && (
-              <Badge variant="default">已審核</Badge>
-            )}
-            {page.verificationState === "verified" && (
-              <Badge variant="outline">已驗證</Badge>
-            )}
-            {page.verificationState === "needs_review" && (
-              <Badge variant="destructive">待審查</Badge>
-            )}
-            {updatedAt && <span>更新於 {updatedAt}</span>}
-          </div>
-        </header>
-
-        {/* Main content + optional comment side panel */}
-        <div className={`flex gap-4 ${commentOpen ? "items-start" : ""}`}>
-          {/* Block editor — connected to Firebase */}
-          <div className="min-w-0 flex-1">
-            {accountId ? (
-              <PageEditorView accountId={accountId} pageId={pageId} />
-            ) : (
-              <p className="text-sm text-muted-foreground">請先登入以載入內容。</p>
-            )}
-          </div>
-
-          {/* Comment panel — slides in from right */}
-          {commentOpen && accountId && (
-            <aside className="w-72 shrink-0 rounded-xl border border-border/60 bg-card p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-semibold">留言</span>
-                <button
-                  type="button"
-                  onClick={() => setCommentOpen(false)}
-                  className="ml-auto rounded p-0.5 text-muted-foreground hover:text-foreground"
-                  aria-label="關閉留言面板"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <CommentPanel
-                accountId={accountId}
-                workspaceId={activeWorkspaceId ?? ""}
-                contentId={pageId}
-                contentType="page"
-                currentUserId={currentUserId}
-              />
-            </aside>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-````
-
 ## File: modules/notion/interfaces/knowledge/components/KnowledgePageHeaderWidgets.tsx
 ````typescript
 "use client";
@@ -10880,160 +9300,6 @@ export function CoverEditor({ value, onChange, isPending }: CoverEditorProps) {
         )}
       </PopoverContent>
     </Popover>
-  );
-}
-````
-
-## File: modules/notion/interfaces/knowledge/components/KnowledgePagesRouteScreen.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-
-import { useAuth } from "@/modules/platform/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
-import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
-import { PageTreeView } from "./PageTreeView";
-
-/**
- * KnowledgePagesRouteScreen
- * Route-level screen component for /knowledge/pages.
- * Encapsulates data-loading, scope resolution and layout so that the
- * Next.js route file stays thin (params/context wiring only).
- */
-export interface KnowledgePagesRouteScreenProps {
-  readonly accountId: string;
-  readonly workspaceId?: string | null;
-  readonly currentUserId?: string | null;
-  readonly scope?: "workspace" | "account";
-}
-
-export function KnowledgePagesRouteScreen({
-  accountId,
-  workspaceId,
-  currentUserId,
-  scope,
-}: KnowledgePagesRouteScreenProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { state: authState } = useAuth();
-
-  const resolvedAccountId = accountId.trim();
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-  const scopeParam = scope ?? searchParams.get("scope")?.trim() ?? "";
-  const isAccountSummary = scopeParam === "account";
-  const resolvedWorkspaceId = isAccountSummary ? "" : workspaceId?.trim() || requestedWorkspaceId || "";
-  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
-  const workspaceBasePath =
-    resolvedAccountId && resolvedWorkspaceId
-      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
-      : resolvedAccountId
-        ? `/${encodeURIComponent(resolvedAccountId)}`
-        : "/";
-  const overviewHref = resolvedWorkspaceId
-    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
-    : resolvedAccountId
-      ? `/${encodeURIComponent(resolvedAccountId)}`
-      : "/";
-
-  function buildPageDetailHref(pageId: string) {
-    if (resolvedAccountId && resolvedWorkspaceId) {
-      return `${workspaceBasePath}/knowledge/pages/${encodeURIComponent(pageId)}`;
-    }
-    return `/knowledge/pages/${encodeURIComponent(pageId)}${
-      resolvedWorkspaceId ? `?workspaceId=${encodeURIComponent(resolvedWorkspaceId)}` : ""
-    }`;
-  }
-
-  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    if (!resolvedAccountId) {
-      setLoading(false);
-      return;
-    }
-    if (!isAccountSummary && !resolvedWorkspaceId) {
-      setNodes([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const tree = isAccountSummary
-        ? await getKnowledgePageTree(resolvedAccountId)
-        : await getKnowledgePageTreeByWorkspace(resolvedAccountId, resolvedWorkspaceId);
-      setNodes(tree);
-    } finally {
-      setLoading(false);
-    }
-  }, [resolvedAccountId, isAccountSummary, resolvedWorkspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={isAccountSummary ? "secondary" : "outline"}>
-            {isAccountSummary ? "Account Summary" : "Workspace Scope"}
-          </Badge>
-          <p className="text-sm text-muted-foreground">
-            {isAccountSummary
-              ? "這是顯式 account summary mode。僅用於跨工作區總覽，預設不在此建立新頁面。"
-              : "知識頁面階層樹預設綁定目前工作區。點選頁面進入內容編輯器。"}
-          </p>
-        </div>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push(overviewHref)}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-      </div>
-
-      {!resolvedAccountId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號情境，請先登入。
-        </p>
-      ) : !isAccountSummary && !resolvedWorkspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未選定工作區。請先從工作區進入知識頁面，或在網址帶入 workspaceId 後再查看頁面樹。
-        </p>
-      ) : loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-8 w-full" />
-          ))}
-        </div>
-      ) : (
-        <PageTreeView
-          nodes={nodes}
-          accountId={resolvedAccountId}
-          workspaceId={resolvedWorkspaceId || undefined}
-          currentUserId={resolvedCurrentUserId}
-          allowCreate={!isAccountSummary && Boolean(resolvedWorkspaceId)}
-          emptyStateDescription={
-            isAccountSummary
-              ? "這個 account summary 目前沒有可顯示的頁面。請改從工作區建立與維護頁面。"
-              : "這個工作區尚無頁面。點擊「新增頁面」開始建立。"
-          }
-          onPageClick={(pageId) => router.push(buildPageDetailHref(pageId))}
-          onCreated={() => load()}
-        />
-      )}
-    </div>
   );
 }
 ````
@@ -11291,28 +9557,28 @@ export function PageDialog({ open, onOpenChange, accountId, workspaceId, current
 }
 ````
 
-## File: modules/notion/interfaces/knowledge/components/PageEditorView.tsx
+## File: modules/notion/interfaces/knowledge/components/PageEditorPanel.tsx
 ````typescript
 "use client";
 
 /**
  * Module: notion/subdomains/knowledge
  * Layer: interfaces/components
- * Purpose: PageEditorView — renders the block editor for a knowledge page.
- *          Connects accountId/pageId context to BlockEditorView.
+ * Purpose: PageEditorPanel ??renders the block editor for a knowledge page.
+ *          Connects accountId/pageId context to BlockEditorPanel.
  */
 
 import { useEffect, useCallback } from "react";
 import { useBlockEditorStore } from "../store/block-editor.store";
 import { getKnowledgeBlocks } from "../queries";
-import { BlockEditorView } from "./BlockEditorView";
+import { BlockEditorPanel } from "./BlockEditorPanel";
 
-export interface PageEditorViewProps {
+export interface PageEditorPanelProps {
   accountId: string;
   pageId: string;
 }
 
-export function PageEditorView({ accountId, pageId }: PageEditorViewProps) {
+export function PageEditorPanel({ accountId, pageId }: PageEditorPanelProps) {
   const { setPage, setBlocks } = useBlockEditorStore();
 
   const loadBlocks = useCallback(async () => {
@@ -11332,11 +9598,11 @@ export function PageEditorView({ accountId, pageId }: PageEditorViewProps) {
 
   useEffect(() => { void loadBlocks(); }, [loadBlocks]);
 
-  return <BlockEditorView />;
+  return <BlockEditorPanel />;
 }
 ````
 
-## File: modules/notion/interfaces/knowledge/components/PageTreeView.tsx
+## File: modules/notion/interfaces/knowledge/components/PageTreePanel.tsx
 ````typescript
 "use client";
 
@@ -11346,7 +9612,7 @@ import { Button } from "@ui-shadcn/ui/button";
 import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
 import { PageDialog } from "./PageDialog";
 
-export interface PageTreeViewProps {
+export interface PageTreePanelProps {
   nodes: KnowledgePageTreeNode[];
   accountId: string;
   workspaceId?: string;
@@ -11394,16 +9660,16 @@ function TreeNode({
   );
 }
 
-export function PageTreeView({ nodes, accountId, workspaceId, currentUserId, allowCreate = true, emptyStateDescription, onPageClick, onCreated }: PageTreeViewProps) {
+export function PageTreePanel({ nodes, accountId, workspaceId, currentUserId, allowCreate = true, emptyStateDescription, onPageClick, onCreated }: PageTreePanelProps) {
   const [createOpen, setCreateOpen] = useState(false);
   if (!nodes.length) {
     return (
       <div className="flex flex-col items-center gap-3 py-8 text-center text-sm text-muted-foreground">
         <FileText className="h-8 w-8 opacity-40" />
-        <p>{emptyStateDescription ?? "尚無頁面"}</p>
+        <p>{emptyStateDescription ?? "撠?"}</p>
         {allowCreate && workspaceId && (
           <>
-            <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>新增頁面</Button>
+            <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>?啣??</Button>
             <PageDialog open={createOpen} onOpenChange={setCreateOpen} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} parentPageId={null} onSuccess={onCreated} />
           </>
         )}
@@ -11574,6 +9840,16 @@ export const useBlockEditorStore = create<BlockEditorState>((set, get) => ({
 }));
 ````
 
+## File: modules/notion/interfaces/relations/.gitkeep
+````
+
+````
+
+## File: modules/notion/interfaces/taxonomy/.gitkeep
+````
+
+````
+
 ## File: modules/notion/subdomains/authoring/api/factories.ts
 ````typescript
 import { FirebaseArticleRepository } from "../../../infrastructure/authoring/firebase/FirebaseArticleRepository";
@@ -11685,567 +9961,2330 @@ export function makeCollectionRepo() {
 }
 ````
 
-## File: modules/notion/subdomains/relations/api/index.ts
+## File: modules/notion/application/use-cases/index.ts
 ````typescript
+export * as authoringUseCases from '../../subdomains/authoring/application/use-cases';
+export * as collaborationUseCases from '../../subdomains/collaboration/application/use-cases';
+export * as databaseUseCases from '../../subdomains/database/application/use-cases';
+export * as knowledgeUseCases from '../../subdomains/knowledge/application/use-cases';
+
+// relations/taxonomy are still placeholder-only at the application layer.
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseBoardPanel.tsx
+````typescript
+"use client";
+
 /**
- * Public API boundary for the relations subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Status: Tier 2 Recommended Gap Subdomain
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseBoardPanel ??Kanban board grouped by first select/multi_select field.
  */
 
-// ── Domain types ──────────────────────────────────────────────────────────────
-export type {
-  RelationDirection,
-  Relation,
-  CreateRelationInput,
-} from "../domain/entities/Relation";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { Plus, Trash2 } from "lucide-react";
 
-// ── Repository contracts ───────────────────────────────────────────────────────
-export type {
-  IRelationRepository,
-} from "../domain/repositories/IRelationRepository";
+import { Button } from "@ui-shadcn/ui/button";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
-// ── Domain events ─────────────────────────────────────────────────────────────
-export type {
-  RelationCreatedEvent,
-  RelationRemovedEvent,
-} from "../domain/events/RelationEvents";
+import { getRecords } from "../queries";
+import { createRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+
+interface DatabaseBoardPanelProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
+  if (record.properties && typeof record.properties === "object") {
+    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
+  }
+  return null;
+}
+
+export function DatabaseBoardPanel({ database, accountId, workspaceId, currentUserId }: DatabaseBoardPanelProps) {
+  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
+
+  const groupField = database.fields.find((f) => f.type === "select" || f.type === "multi_select") ?? null;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getRecords(accountId, database.id);
+      setRecords(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, database.id]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function getTitle(record: DatabaseRecordSnapshot): string {
+    const textField = database.fields.find((f) => f.type === "text");
+    if (!textField) return record.id.slice(0, 8);
+    return String(getProperty(record, textField.id) ?? "Untitled");
+  }
+
+  const groups: Record<string, DatabaseRecordSnapshot[]> = {};
+  if (!groupField) {
+    groups["No Group"] = records;
+  } else {
+    for (const record of records) {
+      const val = getProperty(record, groupField.id);
+      const key = val != null && val !== "" ? String(val) : "No Group";
+      (groups[key] ??= []).push(record);
+    }
+    if ("No Group" in groups) {
+      const noGroup = groups["No Group"];
+      delete groups["No Group"];
+      groups["No Group"] = noGroup;
+    }
+  }
+
+  function handleAdd(groupValue: string) {
+    startTransition(async () => {
+      const props: Record<string, unknown> = groupField && groupValue !== "No Group"
+        ? { [groupField.id]: groupValue }
+        : {};
+      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: props, createdByUserId: currentUserId });
+      void load();
+    });
+  }
+
+  function handleDelete(recordId: string) {
+    startTransition(async () => {
+      await deleteRecord(accountId, recordId);
+      setRecords((prev) => prev.filter((r) => r.id !== recordId));
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="flex gap-3 overflow-x-auto pb-2">
+        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-64 w-48 shrink-0 rounded-lg" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-3 overflow-x-auto pb-4">
+      {Object.entries(groups).map(([group, groupRecords]) => (
+        <div key={group} className="flex w-52 shrink-0 flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 p-3">
+          <div className="flex items-center justify-between">
+            <Badge variant="outline" className="text-xs">{group}</Badge>
+            <span className="text-[10px] text-muted-foreground">{groupRecords.length}</span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {groupRecords.map((record) => (
+              <div key={record.id} className="group relative rounded-md border border-border/60 bg-card px-3 py-2 shadow-sm">
+                <p className="text-sm font-medium leading-snug">{getTitle(record)}</p>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1 hidden h-5 w-5 text-muted-foreground hover:text-destructive group-hover:flex"
+                  disabled={isPending}
+                  onClick={() => handleDelete(record.id)}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full text-xs text-muted-foreground"
+            disabled={isPending}
+            onClick={() => handleAdd(group)}
+          >
+            <Plus className="mr-1 h-3 w-3" /> ?啣?
+          </Button>
+        </div>
+      ))}
+    </div>
+  );
+}
 ````
 
-## File: modules/notion/subdomains/relations/domain/entities/Relation.ts
+## File: modules/notion/interfaces/database/components/DatabaseGalleryPanel.tsx
 ````typescript
+"use client";
+
 /**
- * Module: notion/subdomains/relations
- * Layer: domain/entities
- * Purpose: Relation — a typed link between two knowledge artifacts.
- *
- * Canonical boundary: relations own backlinks, forward links, and reference graphs.
- * knowledge subdomain already has BacklinkIndex — future convergence or delegation TBD.
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseGalleryPanel ??card grid for database records.
  */
 
-export type RelationDirection = "forward" | "backward";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { Plus, Trash2 } from "lucide-react";
 
-export interface Relation {
-  readonly relationId: string;
-  readonly sourceArtifactId: string;
-  readonly targetArtifactId: string;
-  readonly relationType: string;
-  readonly direction: RelationDirection;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly createdAtISO: string;
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+import { getRecords } from "../queries";
+import { createRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+
+interface DatabaseGalleryPanelProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
 }
 
-export interface CreateRelationInput {
-  readonly sourceArtifactId: string;
-  readonly targetArtifactId: string;
-  readonly relationType: string;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
+  if (record.properties && typeof record.properties === "object") {
+    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
+  }
+  return null;
+}
+
+export function DatabaseGalleryPanel({ database, accountId, workspaceId, currentUserId }: DatabaseGalleryPanelProps) {
+  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
+
+  const titleField = database.fields.find((f) => f.type === "text") ?? null;
+  const metaFields = database.fields.filter((f) => f !== titleField).slice(0, 4);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getRecords(accountId, database.id);
+      setRecords(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, database.id]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function handleAdd() {
+    startTransition(async () => {
+      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId });
+      void load();
+    });
+  }
+
+  function handleDelete(recordId: string) {
+    startTransition(async () => {
+      await deleteRecord(accountId, recordId);
+      setRecords((prev) => prev.filter((r) => r.id !== recordId));
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-lg" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {records.length === 0 ? (
+          <p className="col-span-full rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">撠閮?</p>
+        ) : (
+          records.map((record) => {
+            const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "Untitled" : "Untitled";
+            return (
+              <div key={record.id} className="group relative flex flex-col gap-2 rounded-lg border border-border/60 bg-card p-3 shadow-sm">
+                <p className="truncate text-sm font-medium leading-snug">{title}</p>
+                <div className="flex flex-wrap gap-1">
+                  {metaFields.map((field) => {
+                    const val = getProperty(record, field.id);
+                    if (val == null || val === "") return null;
+                    return (
+                      <Badge key={field.id} variant="outline" className="text-[10px]">
+                        {field.name}: {String(val).slice(0, 16)}
+                      </Badge>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1 hidden h-6 w-6 text-muted-foreground hover:text-destructive group-hover:flex"
+                  disabled={isPending}
+                  onClick={() => handleDelete(record.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            );
+          })
+        )}
+      </div>
+      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="w-full text-xs">
+        <Plus className="mr-1.5 h-3 w-3" /> ?啣?閮?
+      </Button>
+    </div>
+  );
 }
 ````
 
-## File: modules/notion/subdomains/relations/domain/events/RelationEvents.ts
+## File: modules/notion/interfaces/database/components/index.ts
 ````typescript
+export { DatabaseDialog } from "./DatabaseDialog";
+export { DatabaseTablePanel } from "./DatabaseTablePanel";
+export { DatabaseBoardPanel } from "./DatabaseBoardPanel";
+export { DatabaseListPanel } from "./DatabaseListPanel";
+export { DatabaseCalendarPanel } from "./DatabaseCalendarPanel";
+export { DatabaseGalleryPanel } from "./DatabaseGalleryPanel";
+export { DatabaseFormPanel } from "./DatabaseFormPanel";
+export { DatabaseAutomationPanel } from "./DatabaseAutomationPanel";
+````
+
+## File: modules/notion/interfaces/database/components/KnowledgeDatabasesPanel.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Table2 } from "lucide-react";
+
+import { useAuth } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
+import { getDatabases } from "../queries";
+import { DatabaseDialog } from "./DatabaseDialog";
+
 /**
- * Module: notion/subdomains/relations
- * Layer: domain/events
- * Purpose: Domain events for relation operations.
+ * KnowledgeDatabasesPanel
+ * Route-level screen component for /knowledge-database/databases.
+ * Encapsulates data-loading and layout so the Next.js route file stays thin.
+ */
+export interface KnowledgeDatabasesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly currentUserId?: string | null;
+}
+
+export function KnowledgeDatabasesPanel({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: KnowledgeDatabasesPanelProps) {
+  const router = useRouter();
+  const { state: authState } = useAuth();
+
+  const resolvedAccountId = accountId.trim();
+  const resolvedWorkspaceId = workspaceId.trim();
+  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
+  const workspaceBasePath =
+    resolvedAccountId && resolvedWorkspaceId
+      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
+      : resolvedAccountId
+        ? `/${encodeURIComponent(resolvedAccountId)}`
+        : "/";
+  const overviewHref = resolvedWorkspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-databases`
+    : resolvedAccountId
+      ? `/${encodeURIComponent(resolvedAccountId)}`
+      : "/";
+
+  const [databases, setDatabases] = useState<Database[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!resolvedAccountId || !resolvedWorkspaceId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await getDatabases(resolvedAccountId, resolvedWorkspaceId);
+      setDatabases(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [resolvedAccountId, resolvedWorkspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function handleSuccess(databaseId?: string) {
+    if (databaseId) {
+      if (resolvedAccountId && resolvedWorkspaceId) {
+        router.push(
+          `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}`,
+        );
+      } else {
+        router.push(resolvedAccountId ? `/${encodeURIComponent(resolvedAccountId)}` : "/");
+      }
+    } else {
+      load();
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Database</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Databases</h1>
+        <p className="text-sm text-muted-foreground">
+          Manage structured knowledge collections for your workspace.
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(overviewHref)}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          Back to Knowledge Hub
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!resolvedAccountId || !resolvedWorkspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          New Database
+        </Button>
+      </div>
+
+      <DatabaseDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        accountId={resolvedAccountId}
+        workspaceId={resolvedWorkspaceId}
+        currentUserId={resolvedCurrentUserId}
+        onSuccess={handleSuccess}
+      />
+
+      {!resolvedAccountId || !resolvedWorkspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          Account and workspace are required to load databases.
+        </p>
+      ) : loading ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : databases.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+          <Table2 className="h-8 w-8 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">No databases yet. Create one to get started.</p>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {databases.map((db) => (
+            <Card
+              key={db.id}
+              className="cursor-pointer hover:bg-muted/10 transition-colors"
+              onClick={() => handleSuccess(db.id)}
+            >
+              <CardHeader className="pb-2">
+                <div className="flex items-start gap-2">
+                  {db.icon ? (
+                    <span className="text-lg leading-none">{db.icon}</span>
+                  ) : (
+                    <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <CardTitle className="line-clamp-1 text-sm font-medium">{db.name}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {db.description && (
+                  <p className="line-clamp-2 text-xs text-muted-foreground">{db.description}</p>
+                )}
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
+                  <span>{db.fields.length} fields</span>
+                  <span>繚</span>
+                  <span>{db.viewIds.length} views</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground/50">
+                  {new Date(db.updatedAtISO).toLocaleDateString("zh-TW")}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/notion/interfaces/knowledge/components/BlockEditorPanel.tsx
+````typescript
+"use client";
+
+import { useRef } from "react";
+import { useBlockEditorStore } from "../store/block-editor.store";
+import { richTextToPlainText } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+
+/**
+ * Notion knowledge subdomain ??minimal block editor.
+ * Full drag-and-drop and rich block types are in the extensions/ layer.
+ */
+export function BlockEditorPanel() {
+  const { blocks, addBlock, updateBlock, deleteBlock } = useBlockEditorStore();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>, blockId: string) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      addBlock(blockId);
+    }
+    if (e.key === "Backspace") {
+      const target = e.currentTarget;
+      if (target.textContent === "") {
+        e.preventDefault();
+        deleteBlock(blockId);
+      }
+    }
+  }
+
+  function handleInput(e: React.FormEvent<HTMLDivElement>, blockId: string) {
+    const text = (e.currentTarget as HTMLDivElement).textContent ?? "";
+    updateBlock(blockId, { type: "text", richText: [{ type: "text", plainText: text }] });
+  }
+
+  if (!blocks.length) {
+    return (
+      <div className="flex min-h-[200px] flex-col gap-1 rounded-lg border border-dashed p-4">
+        <div
+          role="textbox"
+          aria-multiline="true"
+          aria-label="Add block"
+          tabIndex={0}
+          contentEditable
+          suppressContentEditableWarning
+          className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); addBlock(null); }
+          }}
+          data-placeholder="Type '/' for commands"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef} className="flex flex-col gap-0.5">
+      {blocks.map((block) => {
+        const text = richTextToPlainText(block.content.richText);
+        return (
+          <div
+            key={block.id}
+            role="textbox"
+            aria-multiline="true"
+            aria-label={`?憛?${block.id}`}
+            tabIndex={0}
+            contentEditable
+            suppressContentEditableWarning
+            className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"
+            onKeyDown={(e) => handleKeyDown(e, block.id)}
+            onInput={(e) => handleInput(e, block.id)}
+            dangerouslySetInnerHTML={{ __html: text }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+````
+
+## File: modules/notion/subdomains/knowledge/application/use-cases/index.ts
+````typescript
+export {
+  CreateKnowledgePageUseCase,
+  RenameKnowledgePageUseCase,
+  MoveKnowledgePageUseCase,
+  ArchiveKnowledgePageUseCase,
+  ReorderKnowledgePageBlocksUseCase,
+} from "./KnowledgePageUseCases";
+
+export {
+  VerifyKnowledgePageUseCase,
+  ApproveKnowledgePageUseCase,
+  RequestPageReviewUseCase,
+  AssignPageOwnerUseCase,
+} from "./KnowledgePageReviewUseCases";
+
+export {
+  UpdatePageIconUseCase,
+  UpdatePageCoverUseCase,
+} from "./KnowledgePageAppearanceUseCases";
+
+export {
+  CreateKnowledgeCollectionUseCase,
+  RenameKnowledgeCollectionUseCase,
+  AddPageToCollectionUseCase,
+  RemovePageFromCollectionUseCase,
+  ArchiveKnowledgeCollectionUseCase,
+} from "./KnowledgeCollectionUseCases";
+````
+
+## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesPanel.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
+
+import { useAuth } from "@/modules/platform/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import { getArticles, getCategories } from "../queries";
+import { ArticleDialog } from "./ArticleDialog";
+import { CategoryTreePanel } from "./CategoryTreePanel";
+
+const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  draft: { label: "Draft", variant: "outline" },
+  published: { label: "Published", variant: "default" },
+  archived: { label: "Archived", variant: "secondary" },
+};
+
+const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
+  verified: { label: "Verified", icon: BadgeCheck },
+  needs_review: { label: "Needs Review", icon: FileClock },
+  unverified: { label: "Unverified", icon: CircleDot },
+};
+
+/**
+ * KnowledgeBaseArticlesPanel
+ * Route-level screen component for /knowledge-base/articles.
+ * Encapsulates data-loading, filtering and layout so the Next.js route
+ * file stays thin (params/context wiring only).
+ */
+export interface KnowledgeBaseArticlesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly currentUserId?: string | null;
+}
+
+export function KnowledgeBaseArticlesPanel({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: KnowledgeBaseArticlesPanelProps) {
+  const router = useRouter();
+  const { state: authState } = useAuth();
+
+  const resolvedAccountId = accountId.trim();
+  const resolvedWorkspaceId = workspaceId.trim();
+  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
+  const workspaceBasePath =
+    resolvedAccountId && resolvedWorkspaceId
+      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
+      : resolvedAccountId
+        ? `/${encodeURIComponent(resolvedAccountId)}`
+        : "/";
+  const overviewHref = resolvedWorkspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-base-articles`
+    : resolvedAccountId
+      ? `/${encodeURIComponent(resolvedAccountId)}`
+      : "/";
+
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!resolvedAccountId || !resolvedWorkspaceId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const [arts, cats] = await Promise.all([
+        getArticles({ accountId: resolvedAccountId, workspaceId: resolvedWorkspaceId }),
+        getCategories(resolvedAccountId, resolvedWorkspaceId),
+      ]);
+      setArticles(arts);
+      setCategories(cats);
+    } finally {
+      setLoading(false);
+    }
+  }, [resolvedAccountId, resolvedWorkspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filteredArticles = useMemo(() => {
+    if (!selectedCategoryId) return articles;
+    const cat = categories.find((c) => c.id === selectedCategoryId);
+    if (!cat) return articles;
+    return articles.filter((a) => cat.articleIds.includes(a.id));
+  }, [articles, categories, selectedCategoryId]);
+
+  function handleSuccess(articleId?: string) {
+    if (articleId) {
+      if (resolvedAccountId && resolvedWorkspaceId) {
+        router.push(
+          `${workspaceBasePath}/knowledge-base/articles/${encodeURIComponent(articleId)}`,
+        );
+      } else {
+        router.push(`/knowledge-base/articles/${encodeURIComponent(articleId)}`);
+      }
+    } else {
+      load();
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">??</h1>
+        <p className="text-sm text-muted-foreground">
+          蝯??亥?摨怎? SOP ????辣??霅恣瘝颯?
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(overviewHref)}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          餈? Knowledge Hub
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!resolvedAccountId || !resolvedWorkspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          ?啣???
+        </Button>
+      </div>
+
+      <ArticleDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        accountId={resolvedAccountId}
+        workspaceId={resolvedWorkspaceId}
+        currentUserId={resolvedCurrentUserId}
+        categories={categories}
+        onSuccess={handleSuccess}
+      />
+
+      {!resolvedAccountId || !resolvedWorkspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          撠??撣唾?/撌乩????嚗???交???撣唾???
+        </p>
+      ) : loading ? (
+        <div className="flex gap-4">
+          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
+          <div className="grid flex-1 gap-3 sm:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-4">
+          <CategoryTreePanel
+            categories={categories}
+            selectedId={selectedCategoryId}
+            onSelect={setSelectedCategoryId}
+          />
+
+          <div className="flex-1">
+            {filteredArticles.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  {selectedCategoryId ? "No articles in this category yet." : "No articles yet. Create your first article."}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {filteredArticles.map((article) => {
+                  const status = STATUS_CONFIG[article.status];
+                  const veri = VERIFICATION_CONFIG[article.verificationState];
+                  const VeriIcon = veri.icon;
+                  return (
+                    <Card
+                      key={article.id}
+                      className="cursor-pointer hover:bg-muted/10 transition-colors"
+                      onClick={() => handleSuccess(article.id)}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
+                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <VeriIcon className="h-3 w-3" />
+                          <span>{veri.label}</span>
+                        </div>
+                        {article.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {article.tags.slice(0, 3).map((tag) => (
+                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-muted-foreground/70">
+                          v{article.version} 繚 {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseAutomationPanel.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: Manage automation rules for a database ??list/create/toggle/delete.
  */
 
-import type { NotionDomainEvent } from "../../../../domain/events/NotionDomainEvent";
+import { useEffect, useState, useTransition } from "react";
+import type { DatabaseAutomationSnapshot, AutomationTrigger, AutomationActionType } from "../../../subdomains/database/application/dto/database.dto";
+import { getAutomations } from "../queries";
+import { createAutomation, updateAutomation, deleteAutomation } from "../_actions/database.actions";
 
-export interface RelationCreatedEvent extends NotionDomainEvent {
-  readonly type: "notion.relations.relation_created";
-  readonly payload: {
-    readonly relationId: string;
-    readonly sourceArtifactId: string;
-    readonly targetArtifactId: string;
-    readonly relationType: string;
-    readonly organizationId: string;
-  };
+interface Props {
+  databaseId: string;
+  accountId: string;
+  currentUserId: string;
 }
 
-export interface RelationRemovedEvent extends NotionDomainEvent {
-  readonly type: "notion.relations.relation_removed";
-  readonly payload: {
-    readonly relationId: string;
-    readonly organizationId: string;
-  };
+const TRIGGER_OPTIONS: { value: AutomationTrigger; label: string }[] = [
+  { value: "record_created", label: "Record created" },
+  { value: "record_updated", label: "Record updated" },
+  { value: "record_deleted", label: "Record deleted" },
+  { value: "property_changed", label: "Property changed" },
+];
+
+const ACTION_OPTIONS: { value: AutomationActionType; label: string }[] = [
+  { value: "send_notification", label: "Send notification" },
+  { value: "update_property", label: "Update property" },
+  { value: "create_record", label: "Create record" },
+  { value: "webhook", label: "Call webhook" },
+];
+
+export function DatabaseAutomationPanel({ databaseId, accountId, currentUserId }: Props) {
+  const [automations, setAutomations] = useState<DatabaseAutomationSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState("");
+  const [trigger, setTrigger] = useState<AutomationTrigger>("record_created");
+  const [actionType, setActionType] = useState<AutomationActionType>("send_notification");
+  const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    getAutomations(accountId, databaseId)
+      .then(setAutomations)
+      .finally(() => setLoading(false));
+  }, [accountId, databaseId]);
+
+  function handleCreate() {
+    if (!name.trim()) return;
+    startTransition(async () => {
+      const result = await createAutomation({
+        databaseId,
+        accountId,
+        name: name.trim(),
+        trigger,
+        actions: [{ type: actionType, config: {} }],
+        createdByUserId: currentUserId,
+      });
+      if (result.success) {
+        const updated = await getAutomations(accountId, databaseId);
+        setAutomations(updated);
+        setName("");
+        setShowForm(false);
+      }
+    });
+  }
+
+  function handleToggle(automation: DatabaseAutomationSnapshot) {
+    startTransition(async () => {
+      await updateAutomation({
+        id: automation.id,
+        accountId,
+        databaseId,
+        enabled: !automation.enabled,
+      });
+      setAutomations((prev) =>
+        prev.map((a) => (a.id === automation.id ? { ...a, enabled: !a.enabled } : a)),
+      );
+    });
+  }
+
+  function handleDelete(automationId: string) {
+    startTransition(async () => {
+      await deleteAutomation(automationId, accountId, databaseId);
+      setAutomations((prev) => prev.filter((a) => a.id !== automationId));
+    });
+  }
+
+  if (loading) return <div className="p-4 text-sm text-muted-foreground">Loading automations...</div>;
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold">Automations</h3>
+        <button
+          className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground"
+          onClick={() => setShowForm((v) => !v)}
+        >
+          + New automation
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="border rounded p-3 space-y-2 text-sm">
+          <input
+            className="w-full border rounded px-2 py-1 text-sm"
+            placeholder="Automation name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <select
+              className="border rounded px-2 py-1 text-xs flex-1"
+              value={trigger}
+              onChange={(e) => setTrigger(e.target.value as AutomationTrigger)}
+            >
+              {TRIGGER_OPTIONS.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+            <select
+              className="border rounded px-2 py-1 text-xs flex-1"
+              value={actionType}
+              onChange={(e) => setActionType(e.target.value as AutomationActionType)}
+            >
+              {ACTION_OPTIONS.map((a) => (
+                <option key={a.value} value={a.value}>{a.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button
+              className="text-xs px-3 py-1 rounded bg-primary text-primary-foreground"
+              onClick={handleCreate}
+            >
+              Create
+            </button>
+            <button
+              className="text-xs px-3 py-1 rounded border"
+              onClick={() => setShowForm(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {automations.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No automations yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {automations.map((a) => (
+            <li key={a.id} className="flex items-center justify-between border rounded px-3 py-2 text-sm">
+              <div className="space-y-0.5">
+                <p className="font-medium">{a.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  Trigger: {a.trigger} | Action: {a.actions[0]?.type ?? "N/A"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  className={`text-xs px-2 py-0.5 rounded ${a.enabled ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}
+                  onClick={() => handleToggle(a)}
+                >
+                  {a.enabled ? "Enabled" : "Disabled"}
+                </button>
+                <button
+                  className="text-xs text-destructive"
+                  onClick={() => handleDelete(a.id)}
+                >
+                  Delete
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 ````
 
-## File: modules/notion/subdomains/relations/domain/index.ts
+## File: modules/notion/interfaces/database/components/DatabaseCalendarPanel.tsx
 ````typescript
-export type { RelationDirection, Relation, CreateRelationInput } from "./entities/Relation";
-export type { IRelationRepository } from "./repositories/IRelationRepository";
-export type { RelationCreatedEvent, RelationRemovedEvent } from "./events/RelationEvents";
-````
+"use client";
 
-## File: modules/notion/subdomains/relations/domain/repositories/IRelationRepository.ts
-````typescript
 /**
- * Module: notion/subdomains/relations
- * Layer: domain/repositories
- * Purpose: IRelationRepository — domain port for relation persistence.
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseCalendarPanel ??month-grid calendar grouped by a date field.
  */
 
-import type { Relation } from "../entities/Relation";
+import { useCallback, useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
-export interface IRelationRepository {
-  findById(relationId: string): Promise<Relation | null>;
-  listBySource(sourceArtifactId: string): Promise<readonly Relation[]>;
-  listByTarget(targetArtifactId: string): Promise<readonly Relation[]>;
-  save(relation: Relation): Promise<void>;
-  remove(relationId: string): Promise<void>;
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+import { getRecords } from "../queries";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+
+interface DatabaseCalendarPanelProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+}
+
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
+  if (record.properties && typeof record.properties === "object") {
+    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
+  }
+  return null;
+}
+
+export function DatabaseCalendarPanel({ database, accountId }: DatabaseCalendarPanelProps) {
+  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [cursor, setCursor] = useState(() => new Date());
+
+  const dateField = database.fields.find((f) => f.type === "date") ?? null;
+  const titleField = database.fields.find((f) => f.type === "text") ?? null;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getRecords(accountId, database.id);
+      setRecords(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, database.id]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const recordsByDay: Record<string, DatabaseRecordSnapshot[]> = {};
+  if (dateField) {
+    for (const record of records) {
+      const val = getProperty(record, dateField.id);
+      if (!val) continue;
+      try {
+        const d = new Date(String(val));
+        if (!isNaN(d.getTime()) && d.getFullYear() === year && d.getMonth() === month) {
+          const key = String(d.getDate());
+          (recordsByDay[key] ??= []).push(record);
+        }
+      } catch {}
+    }
+  }
+
+  function prevMonth() { setCursor(new Date(year, month - 1, 1)); }
+  function nextMonth() { setCursor(new Date(year, month + 1, 1)); }
+
+  const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  if (!dateField) {
+    return (
+      <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
+        Please configure a date field before using calendar view.
+      </p>
+    );
+  }
+
+  if (loading) {
+    return <Skeleton className="h-64 w-full rounded-lg" />;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={prevMonth}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span className="text-sm font-medium">
+          {year}撟?{month + 1}??
+        </span>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={nextMonth}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-border/60">
+        <div className="grid grid-cols-7 bg-muted/30">
+          {weekDays.map((d) => (
+            <div key={d} className="px-2 py-1.5 text-center text-[10px] font-semibold text-muted-foreground">
+              {d}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 border-t border-border/40">
+          {Array.from({ length: firstDay }).map((_, i) => (
+            <div key={`empty-${i}`} className="min-h-[60px] border-b border-r border-border/30 bg-muted/10" />
+          ))}
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const day = i + 1;
+            const dayRecords = recordsByDay[String(day)] ?? [];
+            const today = new Date();
+            const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+            return (
+              <div key={day} className={`min-h-[60px] border-b border-r border-border/30 p-1 ${isToday ? "bg-primary/5" : ""}`}>
+                <span className={`text-[10px] font-medium ${isToday ? "text-primary" : "text-muted-foreground"}`}>{day}</span>
+                <div className="mt-0.5 flex flex-col gap-0.5">
+                  {dayRecords.slice(0, 3).map((record) => {
+                    const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "Untitled" : "Untitled";
+                    return (
+                      <Badge key={record.id} variant="secondary" className="w-full justify-start truncate text-[9px]">
+                        {title}
+                      </Badge>
+                    );
+                  })}
+                  {dayRecords.length > 3 && (
+                    <span className="text-[9px] text-muted-foreground">+{dayRecords.length - 3}</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 }
 ````
 
-## File: modules/notion/subdomains/taxonomy/api/index.ts
+## File: modules/notion/interfaces/database/components/DatabaseFormPanel.tsx
 ````typescript
+"use client";
+
 /**
- * Public API boundary for the taxonomy subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Status: Tier 2 Recommended Gap Subdomain
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseFormPanel ??public-facing form to collect one Record into a Database.
  */
 
-// ── Domain types ──────────────────────────────────────────────────────────────
-export type {
-  TaxonomyNode,
-  CreateTaxonomyNodeInput,
-} from "../domain/entities/TaxonomyNode";
+import { useState, useTransition } from "react";
+import { CheckCircle2 } from "lucide-react";
 
-// ── Repository contracts ───────────────────────────────────────────────────────
-export type {
-  ITaxonomyRepository,
-} from "../domain/repositories/ITaxonomyRepository";
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
 
-// ── Domain events ─────────────────────────────────────────────────────────────
-export type {
-  TaxonomyNodeCreatedEvent,
-  TaxonomyNodeRemovedEvent,
-} from "../domain/events/TaxonomyEvents";
+import { createRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, Field } from "../../../subdomains/database/application/dto/database.dto";
+
+interface DatabaseFormPanelProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  /** The user submitting the form. Pass anonymous ID or guest token for public forms. */
+  submitterId: string;
+  /** Optional: restrict to a subset of fields. */
+  fieldIds?: string[];
+  title?: string;
+  description?: string;
+}
+
+function FieldInput({ field, value, onChange, disabled }: { field: Field; value: unknown; onChange: (v: unknown) => void; disabled: boolean }) {
+  if (field.type === "checkbox") {
+    return (
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id={`field-${field.id}`}
+          checked={Boolean(value)}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.checked)}
+          className="h-4 w-4 rounded border-border"
+        />
+        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
+      </div>
+    );
+  }
+  if (field.type === "number") {
+    return (
+      <div className="space-y-1">
+        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
+        <Input
+          id={`field-${field.id}`}
+          type="number"
+          value={value == null ? "" : String(value)}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+        />
+      </div>
+    );
+  }
+  if (field.type === "date") {
+    return (
+      <div className="space-y-1">
+        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
+        <Input
+          id={`field-${field.id}`}
+          type="date"
+          value={value == null ? "" : String(value)}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    );
+  }
+  if (field.type === "url" || field.type === "email") {
+    return (
+      <div className="space-y-1">
+        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
+        <Input
+          id={`field-${field.id}`}
+          type={field.type}
+          value={value == null ? "" : String(value)}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
+      <Textarea
+        id={`field-${field.id}`}
+        rows={2}
+        value={value == null ? "" : String(value)}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+}
+
+export function DatabaseFormPanel({ database, accountId, workspaceId, submitterId, fieldIds, title, description }: DatabaseFormPanelProps) {
+  const visibleFields = fieldIds && fieldIds.length > 0
+    ? database.fields.filter((f) => fieldIds.includes(f.id))
+    : database.fields;
+
+  const [values, setValues] = useState<Record<string, unknown>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleChange(fieldId: string, value: unknown) {
+    setValues((prev) => ({ ...prev, [fieldId]: value }));
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      const result = await createRecord({
+        databaseId: database.id,
+        workspaceId,
+        accountId,
+        properties: values,
+        createdByUserId: submitterId,
+      });
+      if (result.success) {
+        setSubmitted(true);
+        setValues({});
+      } else {
+        setError("Failed to submit form.");
+      }
+    });
+  }
+
+  if (submitted) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+        <CheckCircle2 className="h-10 w-10 text-green-500" />
+        <h2 className="text-lg font-semibold">Submitted successfully</h2>
+        <p className="text-sm text-muted-foreground">Your response has been recorded.</p>
+        <Button variant="outline" size="sm" onClick={() => setSubmitted(false)}>
+          Submit another response
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-lg space-y-6 py-6">
+      <div className="space-y-1">
+        <h2 className="text-xl font-semibold">{title ?? database.name}</h2>
+        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+      </div>
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        {visibleFields.map((field) => (
+          <FieldInput
+            key={field.id}
+            field={field}
+            value={values[field.id]}
+            onChange={(v) => handleChange(field.id, v)}
+            disabled={isPending}
+          />
+        ))}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <Button type="submit" disabled={isPending} className="w-full">
+          {isPending ? "Submitting..." : "Submit"}
+        </Button>
+      </form>
+    </div>
+  );
+}
 ````
 
-## File: modules/notion/subdomains/taxonomy/domain/entities/TaxonomyNode.ts
+## File: modules/notion/interfaces/database/components/DatabaseFormsPanel.tsx
 ````typescript
+"use client";
+
 /**
- * Module: notion/subdomains/taxonomy
- * Layer: domain/entities
- * Purpose: TaxonomyNode — a node in a hierarchical classification system.
- *
- * Canonical boundary: taxonomy owns classification hierarchy and semantic tags.
- * notion/knowledge may reference taxonomy via TaxonomyHint published language.
+ * Route: /knowledge-database/databases/[databaseId]/forms
+ * Purpose: Manage database forms ??create and embed form links for a specific database.
  */
 
-export interface TaxonomyNode {
-  readonly nodeId: string;
-  readonly label: string;
-  readonly parentNodeId: string | null;
-  readonly path: readonly string[];
-  readonly depth: number;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
+
+import { getDatabase } from "../queries";
+import { DatabaseFormPanel } from "./DatabaseFormPanel";
+import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
+
+// ?? Props ?????????????????????????????????????????????????????????????????????
+
+export interface DatabaseFormsPanelProps {
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
 }
 
-export interface CreateTaxonomyNodeInput {
-  readonly label: string;
-  readonly parentNodeId: string | null;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
+// ?? Component ?????????????????????????????????????????????????????????????????
+
+export function DatabaseFormsPanel({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: DatabaseFormsPanelProps) {
+  const params = useParams();
+  const router = useRouter();
+  const databaseId = params.databaseId as string;
+
+  const [database, setDatabase] = useState<Database | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"preview" | "share">("preview");
+  const databaseDetailHref =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-database/databases/${encodeURIComponent(databaseId)}`
+      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}`;
+
+  const load = useCallback(async () => {
+    if (!accountId || !databaseId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const db = await getDatabase(accountId, databaseId);
+      setDatabase(db);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, databaseId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  if (!database) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.back()}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
+        </Button>
+        <p className="text-sm text-muted-foreground">Database not found.</p>
+      </div>
+    );
+  }
+
+  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+
+  return (
+    <div className="space-y-4">
+      {/* Top bar */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push(databaseDetailHref)}
+        >
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 餈?鞈?摨?
+        </Button>
+        <div className="ml-auto">
+          <Button size="sm" variant="outline" disabled>
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> 撱箇??啗”??
+          </Button>
+        </div>
+      </div>
+
+      <header className="space-y-1 border-b border-border/60 pb-4">
+        <h1 className="text-xl font-semibold">{database.name} ??銵典</h1>
+        <p className="text-sm text-muted-foreground">
+          雿輻銵典霈??其蝙?刻?鈭方??甇方??澈??
+        </p>
+      </header>
+
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "preview" | "share")}>
+        <TabsList>
+          <TabsTrigger value="preview">?汗銵典</TabsTrigger>
+          <TabsTrigger value="share">?澈閮剖?</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="preview" className="mt-4">
+          <div className="rounded-xl border border-border/60 bg-card px-6 py-2">
+            <DatabaseFormPanel
+              database={database}
+              accountId={accountId}
+              workspaceId={workspaceId}
+              submitterId={currentUserId}
+              title={`${database.name} 銵典`}
+              description={database.description ?? undefined}
+            />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="share" className="mt-4">
+          <div className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium">銵典???</p>
+              <div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                <span className="flex-1 truncate">{shareUrl}</span>
+                <button
+                  type="button"
+                  onClick={() => void navigator.clipboard.writeText(shareUrl)}
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                  title="銴ˊ???"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                ?澈甇日??霈隞犖憛怠神銵典銝血?閮??湔摮鞈?摨怒?
+              </p>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
 }
 ````
 
-## File: modules/notion/subdomains/taxonomy/domain/events/TaxonomyEvents.ts
+## File: modules/notion/interfaces/database/components/DatabaseListPanel.tsx
 ````typescript
+"use client";
+
 /**
- * Module: notion/subdomains/taxonomy
- * Layer: domain/events
- * Purpose: Domain events for taxonomy operations.
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseListPanel ??flat record list with fields as readable rows.
  */
 
-import type { NotionDomainEvent } from "../../../../domain/events/NotionDomainEvent";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 
-export interface TaxonomyNodeCreatedEvent extends NotionDomainEvent {
-  readonly type: "notion.taxonomy.node_created";
-  readonly payload: {
-    readonly nodeId: string;
-    readonly label: string;
-    readonly parentNodeId: string | null;
-    readonly organizationId: string;
-  };
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+import { getRecords } from "../queries";
+import { createRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+
+interface DatabaseListPanelProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
 }
 
-export interface TaxonomyNodeRemovedEvent extends NotionDomainEvent {
-  readonly type: "notion.taxonomy.node_removed";
-  readonly payload: {
-    readonly nodeId: string;
-    readonly organizationId: string;
-  };
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
+  if (record.properties && typeof record.properties === "object") {
+    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
+  }
+  return null;
+}
+
+function displayValue(val: unknown, type: string): string {
+  if (val == null || val === "") return "";
+  if (type === "checkbox") return val ? "Yes" : "No";
+  return String(val);
+}
+
+export function DatabaseListPanel({ database, accountId, workspaceId, currentUserId }: DatabaseListPanelProps) {
+  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [isPending, startTransition] = useTransition();
+
+  const titleField = database.fields.find((f) => f.type === "text") ?? database.fields[0] ?? null;
+  const secondaryFields = database.fields.filter((f) => f !== titleField);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getRecords(accountId, database.id);
+      setRecords(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, database.id]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function toggleExpand(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function handleAdd() {
+    startTransition(async () => {
+      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId });
+      void load();
+    });
+  }
+
+  function handleDelete(recordId: string) {
+    startTransition(async () => {
+      await deleteRecord(accountId, recordId);
+      setRecords((prev) => prev.filter((r) => r.id !== recordId));
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      {records.length === 0 ? (
+        <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">撠閮?</p>
+      ) : (
+        records.map((record) => {
+          const isOpen = expanded.has(record.id);
+          const title = titleField
+            ? displayValue(getProperty(record, titleField.id), titleField.type) || "Untitled"
+            : record.id.slice(0, 8);
+
+          return (
+            <div key={record.id} className="rounded-md border border-border/60 bg-card">
+              <div className="flex items-center gap-2 px-3 py-2">
+                <button
+                  type="button"
+                  className="rounded p-0.5 text-muted-foreground hover:bg-muted"
+                  onClick={() => toggleExpand(record.id)}
+                >
+                  {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                </button>
+                <span className="flex-1 truncate text-sm font-medium text-foreground">{title}</span>
+                <div className="hidden gap-1 sm:flex">
+                  {secondaryFields.slice(0, 2).map((field) => {
+                    const val = displayValue(getProperty(record, field.id), field.type);
+                    if (!val) return null;
+                    return (
+                      <Badge key={field.id} variant="outline" className="text-[10px]">
+                        {field.name}: {val.length > 12 ? `${val.slice(0, 12)}...` : val}
+                      </Badge>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                  disabled={isPending}
+                  onClick={() => handleDelete(record.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              {isOpen && (
+                <div className="border-t border-border/40 px-4 py-3">
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+                    {database.fields.map((field) => {
+                      const val = displayValue(getProperty(record, field.id), field.type);
+                      return (
+                        <div key={field.id} className="contents">
+                          <dt className="text-muted-foreground">{field.name}</dt>
+                          <dd className="text-foreground">{val || <span className="text-muted-foreground/50">N/A</span>}</dd>
+                        </div>
+                      );
+                    })}
+                    <div className="contents">
+                      <dt className="text-muted-foreground">撱箇???</dt>
+                      <dd className="text-foreground">
+                        {new Date(record.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="mt-1 w-full text-xs">
+        <Plus className="mr-1.5 h-3 w-3" /> Add record
+      </Button>
+    </div>
+  );
 }
 ````
 
-## File: modules/notion/subdomains/taxonomy/domain/index.ts
+## File: modules/notion/interfaces/knowledge/components/KnowledgePagesPanel.tsx
 ````typescript
-export type { TaxonomyNode, CreateTaxonomyNodeInput } from "./entities/TaxonomyNode";
-export type { ITaxonomyRepository } from "./repositories/ITaxonomyRepository";
-export type { TaxonomyNodeCreatedEvent, TaxonomyNodeRemovedEvent } from "./events/TaxonomyEvents";
-````
+"use client";
 
-## File: modules/notion/subdomains/taxonomy/domain/repositories/ITaxonomyRepository.ts
-````typescript
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import { useAuth } from "@/modules/platform/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
+import { PageTreePanel } from "./PageTreePanel";
+
 /**
- * Module: notion/subdomains/taxonomy
- * Layer: domain/repositories
- * Purpose: ITaxonomyRepository — domain port for taxonomy node persistence.
+ * KnowledgePagesPanel
+ * Route-level screen component for /knowledge/pages.
+ * Encapsulates data-loading, scope resolution and layout so that the
+ * Next.js route file stays thin (params/context wiring only).
  */
+export interface KnowledgePagesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId?: string | null;
+  readonly currentUserId?: string | null;
+  readonly scope?: "workspace" | "account";
+}
 
-import type { TaxonomyNode } from "../entities/TaxonomyNode";
+export function KnowledgePagesPanel({
+  accountId,
+  workspaceId,
+  currentUserId,
+  scope,
+}: KnowledgePagesPanelProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { state: authState } = useAuth();
 
-export interface ITaxonomyRepository {
-  findById(nodeId: string): Promise<TaxonomyNode | null>;
-  listChildren(parentNodeId: string): Promise<readonly TaxonomyNode[]>;
-  listRoots(organizationId: string): Promise<readonly TaxonomyNode[]>;
-  save(node: TaxonomyNode): Promise<void>;
-  remove(nodeId: string): Promise<void>;
+  const resolvedAccountId = accountId.trim();
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+  const scopeParam = scope ?? searchParams.get("scope")?.trim() ?? "";
+  const isAccountSummary = scopeParam === "account";
+  const resolvedWorkspaceId = isAccountSummary ? "" : workspaceId?.trim() || requestedWorkspaceId || "";
+  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
+  const workspaceBasePath =
+    resolvedAccountId && resolvedWorkspaceId
+      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
+      : resolvedAccountId
+        ? `/${encodeURIComponent(resolvedAccountId)}`
+        : "/";
+  const overviewHref = resolvedWorkspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
+    : resolvedAccountId
+      ? `/${encodeURIComponent(resolvedAccountId)}`
+      : "/";
+
+  function buildPageDetailHref(pageId: string) {
+    if (resolvedAccountId && resolvedWorkspaceId) {
+      return `${workspaceBasePath}/knowledge/pages/${encodeURIComponent(pageId)}`;
+    }
+    return `/knowledge/pages/${encodeURIComponent(pageId)}${
+      resolvedWorkspaceId ? `?workspaceId=${encodeURIComponent(resolvedWorkspaceId)}` : ""
+    }`;
+  }
+
+  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    if (!resolvedAccountId) {
+      setLoading(false);
+      return;
+    }
+    if (!isAccountSummary && !resolvedWorkspaceId) {
+      setNodes([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const tree = isAccountSummary
+        ? await getKnowledgePageTree(resolvedAccountId)
+        : await getKnowledgePageTreeByWorkspace(resolvedAccountId, resolvedWorkspaceId);
+      setNodes(tree);
+    } finally {
+      setLoading(false);
+    }
+  }, [resolvedAccountId, isAccountSummary, resolvedWorkspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">?</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={isAccountSummary ? "secondary" : "outline"}>
+            {isAccountSummary ? "Account Summary" : "Workspace Scope"}
+          </Badge>
+          <p className="text-sm text-muted-foreground">
+            {isAccountSummary
+              ? "Account summary mode: showing account-level pages and metadata."
+              : "Workspace scope mode: showing pages for the selected workspace."}
+          </p>
+        </div>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(overviewHref)}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          餈? Knowledge Hub
+        </button>
+      </div>
+
+      {!resolvedAccountId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          撠??撣唾???嚗???乓?
+        </p>
+      ) : !isAccountSummary && !resolvedWorkspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          撠?詨?撌乩??????撌乩???脣?亥??嚗??函雯?撣嗅 workspaceId 敺??亦??璅嫘?
+        </p>
+      ) : loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-full" />
+          ))}
+        </div>
+      ) : (
+        <PageTreePanel
+          nodes={nodes}
+          accountId={resolvedAccountId}
+          workspaceId={resolvedWorkspaceId || undefined}
+          currentUserId={resolvedCurrentUserId}
+          allowCreate={!isAccountSummary && Boolean(resolvedWorkspaceId)}
+          emptyStateDescription={
+            isAccountSummary
+              ? "No pages in account summary yet."
+              : "No pages in this workspace yet."
+          }
+          onPageClick={(pageId) => router.push(buildPageDetailHref(pageId))}
+          onCreated={() => load()}
+        />
+      )}
+    </div>
+  );
 }
 ````
 
-## File: modules/notion/AGENT.md
-````markdown
-# Notion Agent
-
-> Strategic agent documentation: [docs/contexts/notion/AGENT.md](../../docs/contexts/notion/AGENT.md)
-
-## Mission
-
-保護 notion 主域作為知識內容生命週期邊界。notion 擁有正式知識內容（KnowledgePage、Article、Database），不擁有治理、工作區範疇或推理輸出。任何變更都應維持 notion 擁有內容建立、結構化、協作、版本化與交付語言。
-
-## Bounded Context Summary
-
-| Aspect | Description |
-|--------|-------------|
-| Primary role | 正典知識內容生命週期 |
-| Upstream | platform（治理、AI capability）、workspace（workspaceId、membership scope、share scope） |
-| Downstream | notebooklm（knowledge artifact reference、attachment reference、taxonomy hint） |
-| Core invariant | notion 只能修改自己的正典內容，不可直接呼叫 notebooklm 的推理流程 |
-| Published language | KnowledgeArtifact reference、attachment reference、taxonomy hint |
-
-## Bounded Contexts
-
-| Cluster | Subdomains | Responsibility |
-|---------|------------|----------------|
-| Content Core | knowledge, authoring | 知識頁面與文章生命週期、分類、內容區塊 |
-| Collaboration & Change | collaboration | 協作留言、細粒度權限與版本快照 |
-| Structured Data | database | 結構化資料多視圖管理與自動化 |
-| Semantic Organization | taxonomy, relations | 分類法與語義關聯圖 |
-| Future Extensions | publishing, attachments | 正式發布流程、附件管理 |
-
-## Route Here When
-
-- 問題核心是知識頁面（KnowledgePage）、內容區塊（ContentBlock）、知識集合（KnowledgeCollection）。
-- 問題需要把內容建立、編輯、分類、關聯、版本或交付收斂到正典狀態。
-- 問題涉及知識庫文章（Article）、分類（Category）、樣板（Template）。
-- 問題涉及結構化資料視圖（Database、DatabaseView、Record）。
-- 問題涉及協作留言（Comment）、細粒度權限（Permission）或版本快照（Version）。
-- 問題涉及分類法（Taxonomy）或語義關聯（Relation）。
-
-## Route Elsewhere When
-
-- 身份、租戶、授權、權益、憑證治理屬於 platform。
-- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
-- 工作區生命週期、成員管理、共享範圍屬於 workspace。
-- notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
-
-## Subdomain Delivery Tiers
-
-### Tier 1 — Core (Active)
-
-| Subdomain | Purpose | Key Aggregates |
-|-----------|---------|----------------|
-| knowledge | KnowledgePage 生命週期、ContentBlock 編輯、BacklinkIndex | KnowledgePage, ContentBlock, KnowledgeCollection, BacklinkIndex |
-| authoring | 知識庫文章建立、驗證、分類與發布工作流程 | Article, Category |
-| collaboration | 協作留言、細粒度權限與版本快照 | Comment, Permission, Version |
-| database | 結構化資料多視圖（Table/Board/Calendar/Gallery） | Database, DatabaseRecord, View, DatabaseAutomation |
-
-### Tier 2 — Near-Term (Domain Contracts — High Business Value)
-
-| Subdomain | Purpose | Note |
-|-----------|---------|------|
-| taxonomy | 分類法、標籤樹與語義組織（跨頁面分類的正典邊界） | ≠ authoring.Category（局部文章分類）；taxonomy 是全域語義網 |
-| relations | 內容之間的正式語義關聯與 backlink 管理 | ≠ knowledge.BacklinkIndex（自動反向索引）；relations 是明確語義圖（有類型、有方向） |
-| attachments | 附件與媒體關聯儲存 | 檔案儲存整合的正典邊界。待附件需要獨立於頁面的保留策略時充實 |
-
-### Tier 3 — Medium-Term (Stubs)
-
-| Subdomain | Purpose | Note |
-|-----------|---------|------|
-| publishing | 正式發布與對外交付（Publication 狀態邊界） | authoring 的 `ArticlePublicationUseCases` 是前置邊界 |
-| knowledge-versioning | 全域版本快照策略（workspace-level checkpoint、保留政策） | ≠ collaboration.Version（逐次編輯歷史）；是策略量，不是操作量 |
-
-### Premature Stubs（目錄保留，不建議擴充）
-
-| Subdomain | Reason |
-|-----------|--------|
-| automation | database 子域已涵蓋 DatabaseAutomation；跨內容類型事件自動化目前無獨立領域需求 |
-| knowledge-analytics | 知識使用行為量測是讀模型關注，非獨立領域模型。可由 infrastructure 查詢層處理 |
-| knowledge-integration | 外部系統整合是 infrastructure adapter 關注，非獨立子域 |
-| notes | 輕量筆記可作為 KnowledgePage 的頁面類型處理，不需獨立子域 |
-| templates | 頁面範本是 authoring 的內部關注（內容結構起點），非獨立子域 |
-
-### Domain Invariants
-
-- 知識內容的正典狀態屬於 notion。
-- taxonomy 應獨立於具體 UI 視圖存在（目前由 Category 承載部分）。
-- BacklinkIndex 描述自動反向連結；Relation 描述主動宣告的語義關係。兩者不互相取代。
-- platform.ai 可被 notion use case 消費，但 AI provider / policy ownership 不屬於 notion。
-- 任何來自 notebooklm 的輸出，若要成為正典內容，必須先被 notion 吸收。
-
-## Subdomain Analysis — 子域數量合理性
-
-**14 個目錄（4 Active + 2 Domain Contracts + 1 Stub + 3 Medium-Term Stubs + 5 Premature = 15 分類，共 14 目錄），分析如下：**
-
-1. **`knowledge` 與 `authoring` 不重疊**：`knowledge` 是 KnowledgePage + ContentBlock（自由形式的 wiki 頁面）；`authoring` 是 Article + Category（有工作流程的結構化 KB 文章）。
-2. **`collaboration.Version` 與 `knowledge-versioning` 不重疊**：`collaboration.Version` 是逐次編輯快照（per-change history）；`knowledge-versioning` 是全域 checkpoint 策略（workspace-level snapshot policy）。
-3. **`relations` 與 `knowledge.BacklinkIndex` 不重疊**：`BacklinkIndex` 是自動反向連結索引；`relations` 是明確的語義關係圖（有類型、有方向的關聯）。
-4. **5 個 premature stubs** 有明確理由：每個都已被現有 active 子域或 infrastructure 層吸收。
-
-## Ubiquitous Language
-
-| Term | Meaning | Owning Subdomain | Do Not Use |
-|------|---------|------------------|------------|
-| KnowledgeArtifact | notion 主域擁有的知識內容總稱 | （跨子域概念） | Doc, Wiki (混指) |
-| KnowledgePage | 正典頁面型知識單位（block-based） | knowledge | Wiki, Page (generic) |
-| ContentBlock | 知識頁面的最小可組合內容單位 | knowledge | Block (generic) |
-| KnowledgeCollection | 頁面集合容器（非 Database） | knowledge | Folder, Section |
-| BacklinkIndex | 自動反向連結索引 | knowledge | - |
-| PageStatus | 頁面生命週期狀態（draft, published, archived） | knowledge | - |
-| Article | 經過撰寫與驗證流程的知識庫文章 | authoring | Post, Content |
-| Category | 文章分類樹結構 | authoring | Tag System |
-| Template | 可重複套用的內容結構起點 | authoring | Preset, Layout |
-| Comment | 內容附著的協作討論 | collaboration | Chat, Discussion |
-| Permission | 內容的細粒度存取權限 | collaboration | - |
-| Version | 內容某一時點的不可變快照（逐次編輯歷史） | collaboration | - |
-| Database | 結構化知識集合 | database | Table, Spreadsheet |
-| DatabaseView | 對 Database 的投影與檢視配置 | database | View (generic) |
-| DatabaseRecord | Database 中的一筆記錄 | database | - |
-| DatabaseAutomation | Database 事件觸發的自動化動作 | database | - |
-| Taxonomy | 分類法、標籤樹等語義組織結構 | taxonomy | Tag System, Category (混稱全域分類) |
-| Relation | 內容對內容之間的正式語義關聯 | relations | Link, Connection |
-| Publication | 對外可見且可交付的內容狀態 | publishing (stub) | Published, Public |
-| Attachment | 綁定於知識內容的檔案或媒體 | attachments | File, Upload |
-| VersionSnapshot | 全域版本 checkpoint 策略的不可變快照 | knowledge-versioning (stub) | Backup, History |
-
-### Avoid
-
-| Avoid | Use Instead |
-|-------|-------------|
-| Wiki | KnowledgePage 或 Article |
-| Table | Database 或 DatabaseView |
-| Tag System | Category (current) or Taxonomy (Tier 2) |
-| Content Link | BacklinkIndex (automatic) or Relation (explicit semantic) |
-| Publish Action | Publication 或 ArticlePublication |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-api/ ← 唯一跨模組入口
-```
-
-## Development Order (Domain-First)
-
-New features:
-1. Define Domain (entities, value objects, aggregates, events)
-2. Define Application (use cases, DTOs)
-3. Define Ports (only if boundary isolation needed)
-4. Implement Infrastructure (adapters, persistence)
-5. Implement Interfaces (UI, actions, hooks)
-
-Legacy migration (Strangler Pattern):
-1. Find a Use Case to extract
-2. Build Domain model in the owning subdomain
-3. Converge Application layer
-4. Isolate legacy via Ports
-5. Replace Infrastructure adapter; remove old path when stable
-````
-
-## File: modules/notion/api/index.ts
+## File: modules/notion/interfaces/database/components/DatabaseDetailPanel.tsx
 ````typescript
-/**
- * Module: notion
- * Layer: api (top-level public boundary)
- * Purpose: Unified ACL for all notion subdomains.
- *          External consumers (app/, other modules) must only import from here.
- */
+"use client";
 
-// ── Context-wide published language ───────────────────────────────────────────
-export type {
-  KnowledgeArtifactReference,
-  AttachmentReference,
-  TaxonomyHint,
-} from "../domain/published-language";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Archive,
+  FileText,
+  PlusCircle,
+  Table2,
+  Kanban,
+  List,
+  Calendar,
+  LayoutGrid,
+  Zap,
+} from "lucide-react";
 
-export type { NotionDomainEvent } from "../domain/events";
+import { getDatabase } from "../queries";
+import { addDatabaseField, archiveDatabase } from "../_actions/database.actions";
+import { DatabaseTablePanel } from "./DatabaseTablePanel";
+import { DatabaseBoardPanel } from "./DatabaseBoardPanel";
+import { DatabaseListPanel } from "./DatabaseListPanel";
+import { DatabaseCalendarPanel } from "./DatabaseCalendarPanel";
+import { DatabaseGalleryPanel } from "./DatabaseGalleryPanel";
+import { DatabaseAutomationPanel } from "./DatabaseAutomationPanel";
+import { AddFieldDialog } from "./DatabaseAddFieldDialog";
+import type { DatabaseSnapshot as Database, FieldType } from "../../../subdomains/database/application/dto/database.dto";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
-// ── knowledge subdomain ───────────────────────────────────────────────────────
-export * from "../subdomains/knowledge/api";
+// ?? Props ?????????????????????????????????????????????????????????????????????
 
-// ── authoring subdomain ───────────────────────────────────────────────────────
-// Migration-Pending: full implementation from modules/knowledge-base/
-export * from "../subdomains/authoring/api";
+export interface DatabaseDetailPanelProps {
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
 
-// ── collaboration subdomain ───────────────────────────────────────────────────
-// Migration-Pending: full implementation from modules/knowledge-collaboration/
-export * from "../subdomains/collaboration/api";
+// ?? Component ?????????????????????????????????????????????????????????????????
 
-// ── database subdomain ────────────────────────────────────────────────────────
-// Migration-Pending: full implementation from modules/knowledge-database/
-export * from "../subdomains/database/api";
+export function DatabaseDetailPanel({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: DatabaseDetailPanelProps) {
+  const params = useParams();
+  const router = useRouter();
+  const databaseId = params.databaseId as string;
 
-// ── taxonomy subdomain ────────────────────────────────────────────────────────
-// Tier 2 — classification hierarchy and semantic organization
-export * from "../subdomains/taxonomy/api";
+  const [database, setDatabase] = useState<Database | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [addFieldOpen, setAddFieldOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"table" | "board" | "list" | "calendar" | "gallery" | "automations">("table");
+  const [isPending, startTransition] = useTransition();
+  const workspaceBasePath =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
+      : accountId
+        ? `/${encodeURIComponent(accountId)}`
+        : "/";
+  const databasesHref =
+    accountId && workspaceId
+      ? `${workspaceBasePath}/knowledge-database/databases`
+      : "/knowledge-database/databases";
+  const formsHref =
+    accountId && workspaceId
+      ? `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`
+      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`;
 
-// ── relations subdomain ───────────────────────────────────────────────────────
-// Tier 2 — backlinks, forward links, and reference graphs
-export * from "../subdomains/relations/api";
+  const load = useCallback(async () => {
+    if (!accountId || !databaseId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const db = await getDatabase(accountId, databaseId);
+      setDatabase(db);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, databaseId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function handleAddField(name: string, type: FieldType, required: boolean) {
+    startTransition(async () => {
+      await addDatabaseField({
+        databaseId,
+        accountId,
+        name,
+        type,
+        config: {},
+        required,
+      });
+      await load();
+    });
+  }
+
+  function handleArchive() {
+    startTransition(async () => {
+      await archiveDatabase({ id: databaseId, accountId });
+      router.push(databasesHref);
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  if (!database) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
+        </Button>
+        <p className="text-sm text-muted-foreground">Database not found.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Top bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 鞈?摨怠?銵?
+        </Button>
+      </div>
+
+      {/* Page header */}
+      <header className="space-y-1 border-b border-border/60 pb-4">
+        <div className="flex items-center gap-2">
+          {database.icon && <span className="text-xl">{database.icon}</span>}
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{database.name}</h1>
+        </div>
+        {database.description && (
+          <p className="text-sm text-muted-foreground">{database.description}</p>
+        )}
+        <p className="text-xs text-muted-foreground/70">
+          {database.fields.length} ??雿?繚 ?湔??{new Date(database.updatedAtISO).toLocaleDateString("zh-TW")}
+        </p>
+      </header>
+
+      {/* View switcher + actions */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center rounded-md border border-border/60 p-0.5">
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            title="銵冽閬?"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Table2 className="h-3 w-3" /> 銵冽
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("board")}
+            title="?閬?"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "board" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Kanban className="h-3 w-3" /> ?
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("list")}
+            title="皜閬?"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <List className="h-3 w-3" /> 皜
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("calendar")}
+            title="?交?閬?"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Calendar className="h-3 w-3" /> ?交?
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("gallery")}
+            title="?澈閬?"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "gallery" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <LayoutGrid className="h-3 w-3" /> ?澈
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("automations")}
+            title="Automations"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "automations" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Zap className="h-3 w-3" /> Automations
+          </button>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => router.push(formsHref)}
+            disabled={isPending}
+          >
+            <FileText className="mr-1.5 h-3.5 w-3.5" /> 銵典
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
+            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> ?啣?甈?
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
+            <Archive className="mr-1.5 h-3.5 w-3.5" /> 撠?
+          </Button>
+        </div>
+      </div>
+
+      {/* View */}
+      {viewMode === "table" && (
+        <DatabaseTablePanel
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "board" && (
+        <DatabaseBoardPanel
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "list" && (
+        <DatabaseListPanel
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "calendar" && (
+        <DatabaseCalendarPanel
+          database={database}
+          accountId={accountId}
+        />
+      )}
+      {viewMode === "gallery" && (
+        <DatabaseGalleryPanel
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "automations" && (
+        <DatabaseAutomationPanel
+          databaseId={databaseId}
+          accountId={accountId}
+          currentUserId={currentUserId}
+        />
+      )}
+
+      <AddFieldDialog
+        open={addFieldOpen}
+        onOpenChange={setAddFieldOpen}
+        onAdd={handleAddField}
+        isPending={isPending}
+      />
+    </div>
+  );
+}
 ````
 
-## File: modules/notion/README.md
-````markdown
-# Notion
+## File: modules/notion/interfaces/knowledge/components/KnowledgeDetailPanel.tsx
+````typescript
+"use client";
 
-知識內容生命週期主域
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
 
-## Bounded Context
+import { getKnowledgePage } from "../queries";
+import {
+  renameKnowledgePage,
+  archiveKnowledgePage,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+} from "../_actions/knowledge-page.actions";
+import type { KnowledgePageSnapshot as KnowledgePage } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+import { PageEditorPanel } from "./PageEditorPanel";
+import { CommentPanel } from "@/modules/notion/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
 
-| Aspect | Description |
-|--------|-------------|
-| Primary role | 正典知識內容生命週期（頁面、文章、資料庫、協作、版本） |
-| Upstream | platform（治理、AI capability）、workspace（workspaceId、membership scope、share scope） |
-| Downstream | notebooklm（knowledge artifact reference、attachment reference、taxonomy hint） |
-| Core principle | notion 擁有正典知識內容，不擁有治理或推理過程 |
-| Cross-module boundary | `api/` only — no direct import of platform/workspace/notebooklm internals |
+// ?? Props ?????????????????????????????????????????????????????????????????????
 
-## Ubiquitous Language
+export interface KnowledgeDetailPanelProps {
+  accountId: string;
+  activeWorkspaceId: string | null;
+  currentUserId: string;
+}
 
-| Term | Meaning |
-|------|---------|
-| KnowledgeArtifact | notion 主域擁有的知識內容總稱 |
-| KnowledgePage | 正典頁面型知識單位（block-based 自由頁面） |
-| ContentBlock | 知識頁面的最小可組合內容單位（段落、標題、程式碼等） |
-| KnowledgeCollection | 頁面集合容器（分組 KnowledgePage，非 Database） |
-| BacklinkIndex | 自動反向連結索引（哪些頁面引用了此頁面） |
-| Article | 經過撰寫與驗證工作流程的知識庫文章 |
-| Database | 結構化知識集合（可投影多種視圖） |
-| DatabaseView | 對 Database 的投影配置（Table/Board/Calendar/Gallery/Form） |
-| DatabaseRecord | Database 中的一筆記錄 |
-| Taxonomy | 跨頁面的分類法與語義組織結構 |
-| Relation | 內容對內容之間的正式語義關聯（有類型、有方向） |
-| Publication | 對外可見且可交付的內容狀態 |
-| VersionSnapshot | 全域版本 checkpoint 策略的不可變快照（≠ 逐次編輯 Version） |
-| Template | 可重複套用的內容結構起點 |
-| Attachment | 綁定於知識內容的檔案或媒體 |
+// ?? Component ?????????????????????????????????????????????????????????????????
 
-## Implementation Structure
+export function KnowledgeDetailPanel({
+  accountId,
+  activeWorkspaceId,
+  currentUserId,
+}: KnowledgeDetailPanelProps) {
+  const params = useParams();
+  const router = useRouter();
+  const pageId = params.pageId as string;
 
-```text
-modules/notion/
-├── api/              # Public API boundary — cross-module entry point only
-├── application/      # Context-wide orchestration (empty, use subdomain layers)
-├── domain/           # Context-wide domain concepts (events, published-language)
-├── infrastructure/   # Context-wide driven adapters (empty, use subdomain layers)
-├── interfaces/       # Context-wide driving adapters (empty, use subdomain layers)
-├── docs/             # Links to strategic documentation
-└── subdomains/
-    ├── knowledge/             # Tier 1 — Active (KnowledgePage, ContentBlock)
-    ├── authoring/             # Tier 1 — Active (Article, Category)
-    ├── collaboration/         # Tier 1 — Active (Comment, Permission, Version)
-    ├── database/              # Tier 1 — Active (Database, Record, View)
-    ├── taxonomy/              # Tier 2 — Domain contracts (semantic classification)
-    ├── relations/             # Tier 2 — Domain contracts (explicit semantic graph)
-    ├── attachments/           # Tier 2 — Stub (file/media association)
-    ├── publishing/            # Tier 3 — Stub (external delivery boundary)
-    ├── knowledge-versioning/  # Tier 3 — Stub (global snapshot policy)
-    ├── notes/                 # Premature — absorbed by KnowledgePage
-    ├── templates/             # Premature — absorbed by authoring
-    ├── automation/            # Premature — absorbed by database
-    ├── knowledge-analytics/   # Premature — read model concern
-    └── knowledge-integration/ # Premature — infrastructure adapter concern
-```
+  const [page, setPage] = useState<KnowledgePage | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [commentOpen, setCommentOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const workspaceBasePath =
+    accountId && activeWorkspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(activeWorkspaceId)}`
+      : accountId
+        ? `/${encodeURIComponent(accountId)}`
+        : "/";
+  const pageListHref =
+    accountId && activeWorkspaceId
+      ? `${workspaceBasePath}/knowledge/pages`
+      : accountId
+        ? `/${encodeURIComponent(accountId)}?tab=Overview&panel=knowledge-pages`
+        : "/";
 
-> **Premature stubs** — `notes/`, `templates/`, `automation/`, `knowledge-analytics/`, `knowledge-integration/` 目錄存在但不建議擴充。見 [Premature Stubs](#premature-stubs) 段落。
+  const load = useCallback(async () => {
+    if (!accountId || !pageId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const p = await getKnowledgePage(accountId, pageId);
+      setPage(p);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, pageId]);
 
-## Subdomains
+  useEffect(() => { void load(); }, [load]);
 
-### Tier 1 — Core (Active)
+  function handleRename(title: string) {
+    startTransition(async () => {
+      const result = await renameKnowledgePage({ accountId, pageId, title });
+      if (result.success) {
+        setPage((prev) => prev ? { ...prev, title } : prev);
+      }
+    });
+  }
 
-| Subdomain | Purpose | Key Aggregates / Entities |
-|-----------|---------|--------------------------|
-| knowledge | KnowledgePage 生命週期、ContentBlock 編輯、BacklinkIndex、版本查詢 | KnowledgePage, ContentBlock, KnowledgeCollection, BacklinkIndex |
-| authoring | 知識庫文章建立、驗證工作流程與分類目錄 | Article, Category |
-| collaboration | 協作留言、細粒度權限與版本快照（逐次編輯歷史） | Comment, Permission, Version |
-| database | 結構化資料視圖（Table/Board/Calendar/Gallery/Form）、記錄、自動化 | Database, DatabaseRecord, View, DatabaseAutomation |
+  function handleIconChange(iconUrl: string) {
+    startTransition(async () => {
+      const result = await updateKnowledgePageIcon({ accountId, pageId, iconUrl });
+      if (result.success) {
+        setPage((prev) => prev ? { ...prev, iconUrl: iconUrl || undefined } : prev);
+      }
+    });
+  }
 
-### Tier 2 — Near-Term (Domain Contracts — High Business Value)
+  function handleCoverChange(coverUrl: string) {
+    startTransition(async () => {
+      const result = await updateKnowledgePageCover({ accountId, pageId, coverUrl });
+      if (result.success) {
+        setPage((prev) => prev ? { ...prev, coverUrl: coverUrl || undefined } : prev);
+      }
+    });
+  }
 
-| Subdomain | Purpose | Distinction |
-|-----------|---------|------------|
-| taxonomy | 跨頁面分類法與語義組織（全域標籤樹、主題分類） | ≠ authoring.Category（局部文章分類）；taxonomy 是全域語義網 |
-| relations | 內容對內容的明確語義關聯（有類型、方向） | ≠ knowledge.BacklinkIndex（自動反向連結）；relations 是主動宣告的語義圖 |
-| attachments | 附件與媒體關聯儲存（Storage 整合正典邊界） | 獨立於知識頁面內容模型。待附件需要獨立保留策略時充實 |
+  function handleArchive() {
+    startTransition(async () => {
+      await archiveKnowledgePage({ accountId, pageId });
+      router.push(pageListHref);
+    });
+  }
 
-### Tier 3 — Medium-Term (Stubs)
+  // ?? Loading skeleton ????????????????????????????????????????????????????????
 
-| Subdomain | Purpose | Note |
-|-----------|---------|------|
-| publishing | 正式對外交付的 Publication 狀態邊界 | authoring 的 `ArticlePublicationUseCases` 是前置邊界 |
-| knowledge-versioning | 全域版本 checkpoint 策略（workspace-level, 保留政策） | ≠ collaboration.Version（per-edit 歷史）；是策略量，不是操作量 |
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-6 w-72" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    );
+  }
 
-### Premature Stubs（目錄保留，不建議擴充）
+  // ?? Not found ???????????????????????????????????????????????????????????????
 
-| Subdomain | Reason |
-|-----------|--------|
-| notes | 輕量筆記可作為 KnowledgePage 的頁面類型處理，不需獨立子域 |
-| templates | 頁面範本是 authoring 的內部關注（內容結構起點），非獨立子域 |
-| automation | database 子域已涵蓋 DatabaseAutomation；跨內容類型事件自動化目前無獨立領域需求 |
-| knowledge-analytics | 知識使用行為量測是讀模型關注，非獨立領域模型。可由 infrastructure 查詢層處理 |
-| knowledge-integration | 外部系統整合是 infrastructure adapter 關注，非獨立子域 |
+  if (!page) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" />
+          Back to pages
+        </Button>
+        <p className="text-sm text-muted-foreground">Unable to load page. It may have been removed.</p>
+      </div>
+    );
+  }
 
-## Subdomain Analysis
+  // ?? Page view ???????????????????????????????????????????????????????????????
 
-**14 個目錄（4 Active + 2 Domain Contracts + 1 Stub + 2 Medium-Term + 5 Premature），分析如下：**
+  const updatedAt = page.updatedAtISO
+    ? new Date(page.updatedAtISO).toLocaleDateString("zh-TW", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
 
-- ✅ `knowledge` 與 `authoring` 分工正確：自由頁面（block-based wiki）vs. 結構化文章（KB article workflow）。
-- ✅ `collaboration.Version`（逐次編輯快照）與 `knowledge-versioning`（全域 checkpoint 策略）是不同責任，分開正確。
-- ✅ `knowledge.BacklinkIndex`（自動反向索引）與 `relations`（明確語義圖）不重疊。
-- ✅ `taxonomy` 是全域語義組織核心，與 `authoring.Category`（局部文章分類）不重疊，維持 Tier 2。
-- ✅ 5 個 premature stubs 有明確理由：每個都已被現有 active 子域或 infrastructure 層吸收。
-- ⚠️ `knowledge-versioning` 需持續明確與 `collaboration.Version` 的分界，避免實作者混淆。
+  return (
+    <div className="space-y-0">
+      {/* Cover image */}
+      {page.coverUrl && (
+        <div
+          className="relative h-40 w-full overflow-hidden rounded-t-xl bg-muted"
+          style={{ backgroundImage: `url(${page.coverUrl})`, backgroundSize: "cover", backgroundPosition: "center" }}
+        />
+      )}
 
-## Dependency Direction
+      <div className="space-y-4 px-0 pt-4">
+        {/* Top bar */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
+            <ArrowLeft className="mr-1.5 h-4 w-4" />
+            ??”
+          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={commentOpen ? "default" : "outline"}
+              onClick={() => setCommentOpen((v) => !v)}
+            >
+              <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+              ??
+            </Button>
+            {page.status === "active" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleArchive}
+                disabled={isPending}
+              >
+                <Archive className="mr-1.5 h-3.5 w-3.5" />
+                撠?
+              </Button>
+            )}
+          </div>
+        </div>
 
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
+        {/* Page header */}
+        <header className="space-y-2 border-b border-border/60 pb-4">
+          {/* Icon row */}
+          <div className="flex items-end gap-3">
+            <IconPicker
+              value={page.iconUrl}
+              onChange={handleIconChange}
+              isPending={isPending}
+            />
+            <CoverEditor
+              value={page.coverUrl}
+              onChange={handleCoverChange}
+              isPending={isPending}
+            />
+          </div>
+          <TitleEditor
+            initialTitle={page.title}
+            onSave={handleRename}
+            isPending={isPending}
+          />
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            {page.status === "archived" && (
+              <Badge variant="secondary">Archived</Badge>
+            )}
+            {page.approvalState === "approved" && (
+              <Badge variant="default">Approved</Badge>
+            )}
+            {page.verificationState === "verified" && (
+              <Badge variant="outline">Verified</Badge>
+            )}
+            {page.verificationState === "needs_review" && (
+              <Badge variant="destructive">Needs review</Badge>
+            )}
+            {updatedAt && <span>Updated {updatedAt}</span>}
+          </div>
+        </header>
 
-- `api/` is the only cross-module public boundary.
-- `domain/` must not import infrastructure, interfaces, React, Firebase SDK, or any runtime framework.
-- Cross-module collaboration goes through `api/` only.
+        {/* Main content + optional comment side panel */}
+        <div className={`flex gap-4 ${commentOpen ? "items-start" : ""}`}>
+          {/* Block editor ??connected to Firebase */}
+          <div className="min-w-0 flex-1">
+            {accountId ? (
+              <PageEditorPanel accountId={accountId} pageId={pageId} />
+            ) : (
+              <p className="text-sm text-muted-foreground">Account is required to edit this page.</p>
+            )}
+          </div>
 
-## Strategic Documentation
-
-- [Context README](../../docs/contexts/notion/README.md)
-- [Subdomains](../../docs/contexts/notion/subdomains.md)
-- [Bounded Context](../../docs/contexts/notion/bounded-contexts.md)
-- [Context Map](../../docs/contexts/notion/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/notion/ubiquitous-language.md)
-- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
+          {/* Comment panel ??slides in from right */}
+          {commentOpen && accountId && (
+            <aside className="w-72 shrink-0 rounded-xl border border-border/60 bg-card p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-semibold">Comments</span>
+                <button
+                  type="button"
+                  onClick={() => setCommentOpen(false)}
+                  className="ml-auto rounded p-0.5 text-muted-foreground hover:text-foreground"
+                  aria-label="Close comments"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <CommentPanel
+                accountId={accountId}
+                workspaceId={activeWorkspaceId ?? ""}
+                contentId={pageId}
+                contentType="page"
+                currentUserId={currentUserId}
+              />
+            </aside>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 ````
 
 ## File: modules/notion/subdomains/authoring/api/index.ts
@@ -12257,15 +12296,15 @@ interfaces/ → application/ → domain/ ← infrastructure/
  *          All cross-module access must go through this file only.
  */
 
-// ─── Read contracts ────────────────────────────────────────────────────────────
+// ??? Read contracts ????????????????????????????????????????????????????????????
 export type { ArticleSnapshot, ArticleStatus, ArticleVerificationState } from "../domain/aggregates/Article";
 export type { CategorySnapshot } from "../domain/aggregates/Category";
 
-// ─── Identifiers used by other BCs ────────────────────────────────────────────
+// ??? Identifiers used by other BCs ????????????????????????????????????????????
 export type ArticleId = string;
 export type CategoryId = string;
 
-// ─── Server Actions (write-side) ──────────────────────────────────────────────
+// ??? Server Actions (write-side) ??????????????????????????????????????????????
 export {
   createArticle,
   updateArticle,
@@ -12283,15 +12322,15 @@ export {
   deleteCategory,
 } from "../../../interfaces/authoring/_actions/category.actions";
 
-// ─── Queries (read-side) ──────────────────────────────────────────────────────
+// ??? Queries (read-side) ??????????????????????????????????????????????????????
 export { getArticles, getArticle, getCategories, getBacklinks } from "../../../interfaces/authoring/queries";
 
-// ─── UI Components ────────────────────────────────────────────────────────────
+// ??? UI Components ????????????????????????????????????????????????????????????
 export { ArticleDialog } from "../../../interfaces/authoring/components/ArticleDialog";
-export { KnowledgeBaseArticlesRouteScreen } from "../../../interfaces/authoring/components/KnowledgeBaseArticlesRouteScreen";
-export type { KnowledgeBaseArticlesRouteScreenProps } from "../../../interfaces/authoring/components/KnowledgeBaseArticlesRouteScreen";
-export { ArticleDetailPage } from "../../../interfaces/authoring/components/ArticleDetailPage";
-export type { ArticleDetailPageProps } from "../../../interfaces/authoring/components/ArticleDetailPage";
+export { KnowledgeBaseArticlesPanel } from "../../../interfaces/authoring/components/KnowledgeBaseArticlesPanel";
+export type { KnowledgeBaseArticlesPanelProps } from "../../../interfaces/authoring/components/KnowledgeBaseArticlesPanel";
+export { ArticleDetailPanel } from "../../../interfaces/authoring/components/ArticleDetailPanel";
+export type { ArticleDetailPanelProps } from "../../../interfaces/authoring/components/ArticleDetailPanel";
 ````
 
 ## File: modules/notion/subdomains/database/api/index.ts
@@ -12303,7 +12342,7 @@ export type { ArticleDetailPageProps } from "../../../interfaces/authoring/compo
  *          All cross-module access must go through this file only.
  *
  * Open Host Service contracts:
- *   - getDatabaseById  — consumed by knowledge subdomain (opaque reference resolution)
+ *   - getDatabaseById  ??consumed by knowledge subdomain (opaque reference resolution)
  */
 
 // Domain types
@@ -12385,20 +12424,20 @@ export {
 
 // UI components
 export { DatabaseDialog } from "../../../interfaces/database/components/DatabaseDialog";
-export { DatabaseTableView } from "../../../interfaces/database/components/DatabaseTableView";
-export { DatabaseBoardView } from "../../../interfaces/database/components/DatabaseBoardView";
-export { DatabaseListView } from "../../../interfaces/database/components/DatabaseListView";
-export { DatabaseCalendarView } from "../../../interfaces/database/components/DatabaseCalendarView";
-export { DatabaseGalleryView } from "../../../interfaces/database/components/DatabaseGalleryView";
-export { DatabaseFormView } from "../../../interfaces/database/components/DatabaseFormView";
-export { DatabaseAutomationView } from "../../../interfaces/database/components/DatabaseAutomationView";
-export { KnowledgeDatabasesRouteScreen } from "../../../interfaces/database/components/KnowledgeDatabasesRouteScreen";
-export type { KnowledgeDatabasesRouteScreenProps } from "../../../interfaces/database/components/KnowledgeDatabasesRouteScreen";
+export { DatabaseTablePanel } from "../../../interfaces/database/components/DatabaseTablePanel";
+export { DatabaseBoardPanel } from "../../../interfaces/database/components/DatabaseBoardPanel";
+export { DatabaseListPanel } from "../../../interfaces/database/components/DatabaseListPanel";
+export { DatabaseCalendarPanel } from "../../../interfaces/database/components/DatabaseCalendarPanel";
+export { DatabaseGalleryPanel } from "../../../interfaces/database/components/DatabaseGalleryPanel";
+export { DatabaseFormPanel } from "../../../interfaces/database/components/DatabaseFormPanel";
+export { DatabaseAutomationPanel } from "../../../interfaces/database/components/DatabaseAutomationPanel";
+export { KnowledgeDatabasesPanel } from "../../../interfaces/database/components/KnowledgeDatabasesPanel";
+export type { KnowledgeDatabasesPanelProps } from "../../../interfaces/database/components/KnowledgeDatabasesPanel";
 export { AddFieldDialog, FIELD_TYPES } from "../../../interfaces/database/components/DatabaseAddFieldDialog";
-export { DatabaseDetailPage } from "../../../interfaces/database/components/DatabaseDetailPage";
-export type { DatabaseDetailPageProps } from "../../../interfaces/database/components/DatabaseDetailPage";
-export { DatabaseFormsPage } from "../../../interfaces/database/components/DatabaseFormsPage";
-export type { DatabaseFormsPageProps } from "../../../interfaces/database/components/DatabaseFormsPage";
+export { DatabaseDetailPanel } from "../../../interfaces/database/components/DatabaseDetailPanel";
+export type { DatabaseDetailPanelProps } from "../../../interfaces/database/components/DatabaseDetailPanel";
+export { DatabaseFormsPanel } from "../../../interfaces/database/components/DatabaseFormsPanel";
+export type { DatabaseFormsPanelProps } from "../../../interfaces/database/components/DatabaseFormsPanel";
 ````
 
 ## File: modules/notion/subdomains/knowledge/api/index.ts
@@ -12410,19 +12449,19 @@ export type { DatabaseFormsPageProps } from "../../../interfaces/database/compon
  *          All cross-module access must go through this file only.
  */
 
-// ── Types (read-only snapshots – no aggregate class refs) ─────────────────────
+// ?? Types (read-only snapshots ??no aggregate class refs) ?????????????????????
 export type { KnowledgePageSnapshot } from "../domain/aggregates/KnowledgePage";
-/** @alias KnowledgePageSnapshot — provided for backward-compatibility */
+/** @alias KnowledgePageSnapshot ??provided for backward-compatibility */
 export type { KnowledgePageSnapshot as KnowledgePage } from "../domain/aggregates/KnowledgePage";
 export type { ContentBlockSnapshot } from "../domain/aggregates/ContentBlock";
 export type { KnowledgeCollectionSnapshot } from "../domain/aggregates/KnowledgeCollection";
 
-// ── Server action DTOs ────────────────────────────────────────────────────────
+// ?? Server action DTOs ????????????????????????????????????????????????????????
 export type { CreateKnowledgePageDto, RenameKnowledgePageDto, MoveKnowledgePageDto, ArchiveKnowledgePageDto, ReorderKnowledgePageBlocksDto } from "../application/dto/KnowledgePageDto";
 export type { AddKnowledgeBlockDto, UpdateKnowledgeBlockDto, DeleteKnowledgeBlockDto } from "../application/dto/ContentBlockDto";
 export type { CreateKnowledgeCollectionDto } from "../application/dto/KnowledgeCollectionDto";
 
-// ── Query functions (server-side reads) ───────────────────────────────────────
+// ?? Query functions (server-side reads) ???????????????????????????????????????
 export {
   getKnowledgePage,
   getKnowledgePages,
@@ -12434,7 +12473,7 @@ export {
   getKnowledgeCollections,
 } from "../../../interfaces/knowledge/queries";
 
-// ── Server actions (drives: app router, Server Components) ────────────────────
+// ?? Server actions (drives: app router, Server Components) ????????????????????
 export {
   createKnowledgePage,
   renameKnowledgePage,
@@ -12458,34 +12497,34 @@ export {
   archiveKnowledgeCollection,
 } from "../../../interfaces/knowledge/_actions";
 
-// ── UI Components ─────────────────────────────────────────────────────────────
-export { PageTreeView } from "../../../interfaces/knowledge/components/PageTreeView";
-export type { PageTreeViewProps } from "../../../interfaces/knowledge/components/PageTreeView";
+// ?? UI Components ?????????????????????????????????????????????????????????????
+export { PageTreePanel } from "../../../interfaces/knowledge/components/PageTreePanel";
+export type { PageTreePanelProps } from "../../../interfaces/knowledge/components/PageTreePanel";
 export { PageDialog } from "../../../interfaces/knowledge/components/PageDialog";
-export { BlockEditorView } from "../../../interfaces/knowledge/components/BlockEditorView";
-export { PageEditorView } from "../../../interfaces/knowledge/components/PageEditorView";
-export type { PageEditorViewProps } from "../../../interfaces/knowledge/components/PageEditorView";
-export { KnowledgePagesRouteScreen } from "../../../interfaces/knowledge/components/KnowledgePagesRouteScreen";
-export type { KnowledgePagesRouteScreenProps } from "../../../interfaces/knowledge/components/KnowledgePagesRouteScreen";
+export { BlockEditorPanel } from "../../../interfaces/knowledge/components/BlockEditorPanel";
+export { PageEditorPanel } from "../../../interfaces/knowledge/components/PageEditorPanel";
+export type { PageEditorPanelProps } from "../../../interfaces/knowledge/components/PageEditorPanel";
+export { KnowledgePagesPanel } from "../../../interfaces/knowledge/components/KnowledgePagesPanel";
+export type { KnowledgePagesPanelProps } from "../../../interfaces/knowledge/components/KnowledgePagesPanel";
 
-// ── Store ─────────────────────────────────────────────────────────────────────
+// ?? Store ?????????????????????????????????????????????????????????????????????
 export { useBlockEditorStore } from "../../../interfaces/knowledge/store/block-editor.store";
 export type { EditorBlock } from "../../../interfaces/knowledge/store/block-editor.store";
 
-// ── Tree node type (needed by app/ pages) ─────────────────────────────────────
+// ?? Tree node type (needed by app/ pages) ?????????????????????????????????????
 export type { KnowledgePageTreeNode } from "../domain/aggregates/KnowledgePage";
 
-// ── Domain events (published language — for cross-module event subscriptions) ─
+// ?? Domain events (published language ??for cross-module event subscriptions) ?
 export type { PageApprovedEvent, PageApprovedPayload, ExtractedTask, ExtractedInvoice } from "../domain/events/KnowledgePageEvents";
 
-// ── Sidebar component ─────────────────────────────────────────────────────────
+// ?? Sidebar component ?????????????????????????????????????????????????????????
 export { KnowledgeSidebarSection } from "../../../interfaces/knowledge/components/KnowledgeSidebarSection";
 
-// ── Page header widgets ───────────────────────────────────────────────────────
+// ?? Page header widgets ???????????????????????????????????????????????????????
 export { TitleEditor, IconPicker, CoverEditor } from "../../../interfaces/knowledge/components/KnowledgePageHeaderWidgets";
 export type { TitleEditorProps, IconPickerProps, CoverEditorProps } from "../../../interfaces/knowledge/components/KnowledgePageHeaderWidgets";
 
-// ── Route screen components ───────────────────────────────────────────────────
-export { KnowledgePageDetailPage } from "../../../interfaces/knowledge/components/KnowledgePageDetailPage";
-export type { KnowledgePageDetailPageProps } from "../../../interfaces/knowledge/components/KnowledgePageDetailPage";
+// ?? Route screen components ???????????????????????????????????????????????????
+export { KnowledgeDetailPanel } from "../../../interfaces/knowledge/components/KnowledgeDetailPanel";
+export type { KnowledgeDetailPanelProps } from "../../../interfaces/knowledge/components/KnowledgeDetailPanel";
 ````

@@ -209,9 +209,9 @@ export function KnowledgeDetailPanel({
               <Badge variant="outline">Verified</Badge>
             )}
             {page.verificationState === "needs_review" && (
-              <Badge variant="destructive">敺祟??/Badge>
+              <Badge variant="destructive">Needs review</Badge>
             )}
-            {updatedAt && <span>?湔??{updatedAt}</span>}
+            {updatedAt && <span>Updated {updatedAt}</span>}
           </div>
         </header>
 
@@ -222,7 +222,7 @@ export function KnowledgeDetailPanel({
             {accountId ? (
               <PageEditorPanel accountId={accountId} pageId={pageId} />
             ) : (
-              <p className="text-sm text-muted-foreground">隢??餃隞亥??亙摰嫘?/p>
+              <p className="text-sm text-muted-foreground">Account is required to edit this page.</p>
             )}
           </div>
 
@@ -231,12 +231,12 @@ export function KnowledgeDetailPanel({
             <aside className="w-72 shrink-0 rounded-xl border border-border/60 bg-card p-4">
               <div className="mb-3 flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-semibold">??</span>
+                <span className="text-sm font-semibold">Comments</span>
                 <button
                   type="button"
                   onClick={() => setCommentOpen(false)}
                   className="ml-auto rounded p-0.5 text-muted-foreground hover:text-foreground"
-                  aria-label="?????Ｘ"
+                  aria-label="Close comments"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>

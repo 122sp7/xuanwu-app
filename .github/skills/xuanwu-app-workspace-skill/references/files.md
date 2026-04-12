@@ -472,6 +472,272 @@ export type {
 } from "../../domain/entities/WorkspaceMemberView";
 ````
 
+## File: modules/workspace/application/queries/workspace.queries.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/queries
+ * Purpose: Workspace read query handlers — pure reads with input normalization.
+ *
+ * DDD Rule 5:  Pure reads without business logic → Query, not Use Case.
+ * DDD Rule 13: Read → queries/
+ * DDD Rule 16: GetXxxUseCase → should be Query.
+ * DDD Rule 18: Use Case wrapping a single call → over-design.
+ */
+
+import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
+import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
+import type {
+  Unsubscribe,
+  WorkspaceQueryRepository,
+} from "../../domain/ports/output/WorkspaceQueryRepository";
+
+// ─── Input Normalization ──────────────────────────────────────────────────────
+
+function normalizeId(value: string): string {
+  return value.trim();
+}
+
+// ─── Query Handlers ───────────────────────────────────────────────────────────
+
+export function listWorkspacesForAccount(
+  workspaceRepo: WorkspaceRepository,
+  accountId: string,
+): Promise<WorkspaceEntity[]> {
+  const normalized = normalizeId(accountId);
+  if (!normalized) return Promise.resolve([]);
+  return workspaceRepo.findAllByAccountId(normalized);
+}
+
+export function subscribeToWorkspacesForAccount(
+  workspaceQueryRepo: WorkspaceQueryRepository,
+  accountId: string,
+  onUpdate: (workspaces: WorkspaceEntity[]) => void,
+): Unsubscribe {
+  const normalized = normalizeId(accountId);
+  if (!normalized) {
+    onUpdate([]);
+    return () => {};
+  }
+  return workspaceQueryRepo.subscribeToWorkspacesForAccount(normalized, onUpdate);
+}
+
+export function getWorkspaceById(
+  workspaceRepo: WorkspaceRepository,
+  workspaceId: string,
+): Promise<WorkspaceEntity | null> {
+  const normalized = normalizeId(workspaceId);
+  if (!normalized) return Promise.resolve(null);
+  return workspaceRepo.findById(normalized);
+}
+
+export function getWorkspaceByIdForAccount(
+  workspaceRepo: WorkspaceRepository,
+  accountId: string,
+  workspaceId: string,
+): Promise<WorkspaceEntity | null> {
+  const normalizedAccountId = normalizeId(accountId);
+  const normalizedWorkspaceId = normalizeId(workspaceId);
+  if (!normalizedAccountId || !normalizedWorkspaceId) return Promise.resolve(null);
+  return workspaceRepo.findByIdForAccount(normalizedAccountId, normalizedWorkspaceId);
+}
+````
+
+## File: modules/workspace/application/services/WorkspaceCommandApplicationService.ts
+````typescript
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+
+import {
+  MountCapabilitiesUseCase,
+  CreateWorkspaceLocationUseCase,
+} from "../use-cases/workspace.use-cases";
+import type { WorkspaceCommandPort } from "../../domain/ports/input/WorkspaceCommandPort";
+import type {
+  WorkspaceAccessRepository,
+  WorkspaceCapabilityRepository,
+  WorkspaceDomainEventPublisher,
+  WorkspaceLocationRepository,
+  WorkspaceRepository,
+} from "../../domain/ports";
+import type {
+  Capability,
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceGrant,
+  WorkspaceLocation,
+} from "../../domain/aggregates/Workspace";
+import { WorkspaceLifecycleApplicationService } from "../../subdomains/lifecycle/api";
+import { WorkspaceSharingApplicationService } from "../../subdomains/sharing/api";
+
+interface WorkspaceCommandApplicationServiceDependencies {
+  workspaceRepo: WorkspaceRepository;
+  workspaceCapabilityRepo: WorkspaceCapabilityRepository;
+  workspaceAccessRepo: WorkspaceAccessRepository;
+  workspaceLocationRepo: WorkspaceLocationRepository;
+  workspaceDomainEventPublisher: WorkspaceDomainEventPublisher;
+}
+
+export class WorkspaceCommandApplicationService implements WorkspaceCommandPort {
+  private readonly lifecycleService: WorkspaceLifecycleApplicationService;
+  private readonly sharingService: WorkspaceSharingApplicationService;
+
+  constructor(
+    private readonly dependencies: WorkspaceCommandApplicationServiceDependencies,
+  ) {
+    this.lifecycleService = new WorkspaceLifecycleApplicationService({
+      workspaceRepo: dependencies.workspaceRepo,
+      workspaceCapabilityRepo: dependencies.workspaceCapabilityRepo,
+      eventPublisher: dependencies.workspaceDomainEventPublisher,
+    });
+    this.sharingService = new WorkspaceSharingApplicationService({
+      workspaceAccessRepo: dependencies.workspaceAccessRepo,
+    });
+  }
+
+  // ─── Lifecycle (delegated to lifecycle subdomain) ───────────────────────────
+
+  async createWorkspace(command: CreateWorkspaceCommand): Promise<CommandResult> {
+    return this.lifecycleService.createWorkspace(command);
+  }
+
+  async createWorkspaceWithCapabilities(
+    command: CreateWorkspaceCommand,
+    capabilities: Capability[],
+  ): Promise<CommandResult> {
+    return this.lifecycleService.createWorkspaceWithCapabilities(command, capabilities);
+  }
+
+  async updateWorkspaceSettings(
+    command: UpdateWorkspaceSettingsCommand,
+  ): Promise<CommandResult> {
+    return this.lifecycleService.updateWorkspaceSettings(command);
+  }
+
+  async deleteWorkspace(workspaceId: string): Promise<CommandResult> {
+    return this.lifecycleService.deleteWorkspace(workspaceId);
+  }
+
+  // ─── Sharing (delegated to sharing subdomain) ──────────────────────────────
+
+  async authorizeWorkspaceTeam(workspaceId: string, teamId: string): Promise<CommandResult> {
+    return this.sharingService.authorizeWorkspaceTeam(workspaceId, teamId);
+  }
+
+  async grantIndividualWorkspaceAccess(
+    workspaceId: string,
+    grant: WorkspaceGrant,
+  ): Promise<CommandResult> {
+    return this.sharingService.grantIndividualWorkspaceAccess(workspaceId, grant);
+  }
+
+  // ─── Capabilities (root-level, pending subdomain assignment) ────────────────
+
+  async mountCapabilities(
+    workspaceId: string,
+    capabilities: Capability[],
+  ): Promise<CommandResult> {
+    try {
+      return await new MountCapabilitiesUseCase(this.dependencies.workspaceCapabilityRepo).execute(
+        workspaceId,
+        capabilities,
+      );
+    } catch (err) {
+      return commandFailureFrom(
+        "CAPABILITIES_MOUNT_FAILED",
+        err instanceof Error ? err.message : "Unexpected error",
+      );
+    }
+  }
+
+  // ─── Location (root-level, part of Workspace operational profile) ───────────
+
+  async createWorkspaceLocation(
+    workspaceId: string,
+    location: Omit<WorkspaceLocation, "locationId">,
+  ): Promise<CommandResult> {
+    try {
+      return await new CreateWorkspaceLocationUseCase(this.dependencies.workspaceLocationRepo).execute(
+        workspaceId,
+        location,
+      );
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_LOCATION_CREATE_FAILED",
+        err instanceof Error ? err.message : "Unexpected error",
+      );
+    }
+  }
+}
+````
+
+## File: modules/workspace/application/services/WorkspaceQueryApplicationService.ts
+````typescript
+import type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+} from "../../domain/entities/WikiContentTree";
+import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMemberView";
+import {
+  getWorkspaceByIdForAccount,
+  getWorkspaceById,
+  listWorkspacesForAccount,
+  subscribeToWorkspacesForAccount,
+} from "../queries/workspace.queries";
+import { fetchWorkspaceMembers } from "../../subdomains/membership/api";
+import { buildWikiContentTree } from "../queries/wiki-content-tree.queries";
+import type { WorkspaceQueryPort } from "../../domain/ports/input/WorkspaceQueryPort";
+import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
+import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
+import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
+import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWorkspaceRepository";
+
+interface WorkspaceQueryApplicationServiceDependencies {
+  workspaceRepo: WorkspaceRepository;
+  workspaceQueryRepo: WorkspaceQueryRepository;
+  wikiWorkspaceRepo: WikiWorkspaceRepository;
+}
+
+export class WorkspaceQueryApplicationService implements WorkspaceQueryPort {
+  constructor(
+    private readonly dependencies: WorkspaceQueryApplicationServiceDependencies,
+  ) {}
+
+  getWorkspacesForAccount(accountId: string): Promise<WorkspaceEntity[]> {
+    return listWorkspacesForAccount(this.dependencies.workspaceRepo, accountId);
+  }
+
+  subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: WorkspaceEntity[]) => void,
+  ) {
+    return subscribeToWorkspacesForAccount(
+      this.dependencies.workspaceQueryRepo,
+      accountId,
+      onUpdate,
+    );
+  }
+
+  getWorkspaceById(workspaceId: string): Promise<WorkspaceEntity | null> {
+    return getWorkspaceById(this.dependencies.workspaceRepo, workspaceId);
+  }
+
+  getWorkspaceByIdForAccount(
+    accountId: string,
+    workspaceId: string,
+  ): Promise<WorkspaceEntity | null> {
+    return getWorkspaceByIdForAccount(this.dependencies.workspaceRepo, accountId, workspaceId);
+  }
+
+  getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
+    return fetchWorkspaceMembers(this.dependencies.workspaceQueryRepo, workspaceId);
+  }
+
+  buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]> {
+    return buildWikiContentTree(seeds, this.dependencies.wikiWorkspaceRepo);
+  }
+}
+````
+
 ## File: modules/workspace/application/use-cases/workspace-capabilities.use-cases.ts
 ````typescript
 /**
@@ -501,6 +767,60 @@ export class MountCapabilitiesUseCase {
     }
   }
 }
+````
+
+## File: modules/workspace/application/use-cases/workspace-location.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Workspace location use case — part of workspace operational profile.
+ *
+ * DDD Rule 1: Has business behavior (location creation within workspace scope)
+ * DDD Rule 8: One use case = one business intent (verb: Create)
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { WorkspaceLocationRepository } from "../../domain/ports/output/WorkspaceLocationRepository";
+import type { WorkspaceLocation } from "../../domain/aggregates/Workspace";
+
+export class CreateWorkspaceLocationUseCase {
+  constructor(private readonly workspaceLocationRepo: WorkspaceLocationRepository) {}
+
+  async execute(
+    workspaceId: string,
+    location: Omit<WorkspaceLocation, "locationId">,
+  ): Promise<CommandResult> {
+    try {
+      const locationId = await this.workspaceLocationRepo.createLocation(workspaceId, location);
+      return commandSuccess(locationId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_LOCATION_CREATE_FAILED",
+        err instanceof Error ? err.message : "Failed to create workspace location",
+      );
+    }
+  }
+}
+````
+
+## File: modules/workspace/application/use-cases/workspace.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Re-export barrel for workspace command use cases that remain at root level.
+ *          Lifecycle use cases → subdomains/lifecycle/
+ *          Sharing use cases → subdomains/sharing/
+ *          Queries → application/queries/
+ *
+ * DDD Rule 12: Command → use-cases/
+ * DDD Rule 13: Read → queries/
+ */
+
+export { MountCapabilitiesUseCase } from "./workspace-capabilities.use-cases";
+
+export { CreateWorkspaceLocationUseCase } from "./workspace-location.use-cases";
 ````
 
 ## File: modules/workspace/docs/docs.instructions.md
@@ -1744,494 +2064,6 @@ export class FirebaseWikiWorkspaceRepository implements WikiWorkspaceRepository 
       id: workspace.id,
       name: workspace.name,
     }));
-  }
-}
-````
-
-## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
-````typescript
-import type {
-  WorkspaceMemberAccessChannel,
-  WorkspaceMemberPresence,
-  WorkspaceMemberView,
-} from "../../domain/entities/WorkspaceMemberView";
-import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
-import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
-
-const personnelLabels = {
-  managerId: "Manager",
-  supervisorId: "Supervisor",
-  safetyOfficerId: "Safety officer",
-} as const;
-
-const personnelLabelEntries = Object.entries(personnelLabels) as Array<
-  [keyof typeof personnelLabels, string]
->;
-
-interface OrganizationMemberReference {
-  id: string;
-  name: string;
-  email?: string;
-  role?: string;
-  presence?: string;
-  isExternal?: boolean;
-}
-
-interface OrganizationTeam {
-  id: string;
-  name: string;
-  memberIds: string[];
-}
-
-interface OrganizationDirectoryGateway {
-  getOrganizationMembers(organizationId: string): Promise<OrganizationMemberReference[]>;
-  getOrganizationTeams(organizationId: string): Promise<OrganizationTeam[]>;
-}
-
-const defaultOrganizationDirectoryGateway: OrganizationDirectoryGateway = {
-  async getOrganizationMembers() {
-    return [];
-  },
-  async getOrganizationTeams() {
-    return [];
-  },
-};
-
-function toPresence(value: OrganizationMemberReference["presence"] | undefined): WorkspaceMemberPresence {
-  if (value === "active" || value === "away" || value === "offline") {
-    return value;
-  }
-
-  return "unknown";
-}
-
-function createFallbackMember(id: string): WorkspaceMemberView {
-  return {
-    id,
-    displayName: id,
-    presence: "unknown",
-    isExternal: false,
-    accessChannels: [],
-  };
-}
-
-export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
-  constructor(
-    private readonly organizationDirectoryGateway: OrganizationDirectoryGateway = defaultOrganizationDirectoryGateway,
-  ) {}
-
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
-
-  subscribeToWorkspacesForAccount(
-    accountId: string,
-    onUpdate: (workspaces: WorkspaceEntity[]) => void,
-  ) {
-    const normalizedAccountId = accountId.trim();
-    if (!normalizedAccountId) {
-      onUpdate([]);
-      return () => {};
-    }
-
-    const q = query(
-      collection(this.db, "workspaces"),
-      where("accountId", "==", normalizedAccountId),
-    );
-
-    return onSnapshot(q, (snap) => {
-      const workspaces = snap.docs.map((docSnap) =>
-        toWorkspaceEntity(docSnap.id, docSnap.data() as Record<string, unknown>),
-      );
-      onUpdate(workspaces);
-    });
-  }
-
-  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
-    const workspace = await this.workspaceRepo.findById(workspaceId);
-    if (!workspace) {
-      return [];
-    }
-
-    const members = new Map<string, WorkspaceMemberView>();
-    const memberChannelKeys = new Map<string, Set<string>>();
-
-    const mergeMember = (
-      memberId: string,
-      channel: WorkspaceMemberAccessChannel,
-      orgMember?: OrganizationMemberReference,
-    ) => {
-      const current = members.get(memberId) ?? createFallbackMember(memberId);
-      const channelKey = [
-        channel.source,
-        channel.label,
-        channel.role ?? "",
-        channel.protocol ?? "",
-        channel.teamId ?? "",
-      ].join("::");
-      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
-      memberChannelKeys.set(memberId, knownChannelKeys);
-      const hasSameChannel = knownChannelKeys.has(channelKey);
-      if (!hasSameChannel) {
-        knownChannelKeys.add(channelKey);
-      }
-
-      members.set(memberId, {
-        id: memberId,
-        displayName: orgMember?.name || current.displayName,
-        email: orgMember?.email ?? current.email,
-        organizationRole: orgMember?.role ?? current.organizationRole,
-        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
-        isExternal: orgMember?.isExternal ?? current.isExternal,
-        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
-      });
-    };
-
-    if (workspace.accountType === "organization") {
-      const [organizationMembers, teams] = await Promise.all([
-        this.organizationDirectoryGateway.getOrganizationMembers(workspace.accountId),
-        this.organizationDirectoryGateway.getOrganizationTeams(workspace.accountId),
-      ]);
-
-      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
-      const teamMap = new Map(teams.map((team) => [team.id, team]));
-
-      const mergeTeam = (team: OrganizationTeam, role?: string, protocol?: string) => {
-        const label = team.name || team.id;
-        team.memberIds.forEach((memberId: string) => {
-          mergeMember(
-            memberId,
-            {
-              source: "team",
-              label,
-              role,
-              protocol,
-              teamId: team.id,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        });
-      };
-
-      workspace.teamIds.forEach((teamId) => {
-        const team = teamMap.get(teamId);
-        if (team) {
-          mergeTeam(team);
-        }
-      });
-
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(
-            grant.userId,
-            {
-              source: "direct",
-              label: "Direct access",
-              role: grant.role,
-              protocol: grant.protocol,
-            },
-            organizationMemberMap.get(grant.userId),
-          );
-        }
-
-        if (grant.teamId) {
-          const team = teamMap.get(grant.teamId);
-          if (team) {
-            mergeTeam(team, grant.role, grant.protocol);
-          }
-        }
-      });
-
-      personnelLabelEntries.forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field];
-        if (memberId) {
-          mergeMember(
-            memberId,
-            {
-              source: "personnel",
-              label,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        }
-      });
-    } else {
-      mergeMember(workspace.accountId, {
-        source: "owner",
-        label: "Workspace owner",
-      });
-
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(grant.userId, {
-            source: "direct",
-            label: "Direct access",
-            role: grant.role,
-            protocol: grant.protocol,
-          });
-        }
-      });
-
-      personnelLabelEntries.forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field];
-        if (memberId) {
-          mergeMember(memberId, {
-            source: "personnel",
-            label,
-          });
-        }
-      });
-    }
-
-    return Array.from(members.values()).sort((left, right) =>
-      left.displayName.localeCompare(right.displayName),
-    );
-  }
-}
-````
-
-## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository.ts
-````typescript
-/**
- * FirebaseWorkspaceRepository — Infrastructure adapter for workspace persistence.
- * Translates Firestore documents ↔ Domain WorkspaceEntity.
- * Firebase SDK only exists in this file.
- */
-
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  collection,
-  query,
-  where,
-  documentId,
-  arrayUnion,
-  arrayRemove,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
-import type { WorkspaceCapabilityRepository } from "../../domain/ports/output/WorkspaceCapabilityRepository";
-import type { WorkspaceAccessRepository } from "../../domain/ports/output/WorkspaceAccessRepository";
-import type { WorkspaceLocationRepository } from "../../domain/ports/output/WorkspaceLocationRepository";
-import type {
-  WorkspaceEntity,
-  Capability,
-  WorkspaceGrant,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceLocation,
-} from "../../domain/aggregates/Workspace";
-import { createAddress } from "../../domain/value-objects/Address";
-import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
-import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";
-import { createWorkspaceVisibility } from "../../domain/value-objects/WorkspaceVisibility";
-
-// ─── Mapper ───────────────────────────────────────────────────────────────────
-
-const VALID_ACCOUNT_TYPES = new Set<WorkspaceEntity["accountType"]>(["user", "organization"]);
-
-export function toWorkspaceEntity(id: string, data: Record<string, unknown>): WorkspaceEntity {
-  const accountType = VALID_ACCOUNT_TYPES.has(data.accountType as WorkspaceEntity["accountType"])
-    ? (data.accountType as WorkspaceEntity["accountType"])
-    : "user";
-
-  return {
-    id,
-    name: createWorkspaceName(typeof data.name === "string" ? data.name : "Untitled workspace"),
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    accountType,
-    lifecycleState: createWorkspaceLifecycleState(
-      data.lifecycleState === "active" ||
-        data.lifecycleState === "stopped" ||
-        data.lifecycleState === "preparatory"
-        ? data.lifecycleState
-        : "preparatory",
-    ),
-    visibility: createWorkspaceVisibility(
-      data.visibility === "hidden" || data.visibility === "visible"
-        ? data.visibility
-        : "visible",
-    ),
-    capabilities: Array.isArray(data.capabilities) ? (data.capabilities as Capability[]) : [],
-    grants: Array.isArray(data.grants) ? (data.grants as WorkspaceGrant[]) : [],
-    teamIds: Array.isArray(data.teamIds) ? (data.teamIds as string[]) : [],
-    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
-    address: data.address != null ? createAddress(data.address as NonNullable<UpdateWorkspaceSettingsCommand["address"]>) : undefined,
-    locations: Array.isArray(data.locations) ? (data.locations as WorkspaceLocation[]) : undefined,
-    personnel: data.personnel != null ? (data.personnel as WorkspaceEntity["personnel"]) : undefined,
-    createdAt: data.createdAt as WorkspaceEntity["createdAt"],
-  };
-}
-
-// ─── Repository ───────────────────────────────────────────────────────────────
-
-export class FirebaseWorkspaceRepository
-  implements
-    WorkspaceRepository,
-    WorkspaceCapabilityRepository,
-    WorkspaceAccessRepository,
-    WorkspaceLocationRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async findById(id: string): Promise<WorkspaceEntity | null> {
-    const snap = await getDoc(doc(this.db, "workspaces", id));
-    if (!snap.exists()) return null;
-    return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null> {
-    const q = query(
-      collection(this.db, "workspaces"),
-      where("accountId", "==", accountId),
-      where(documentId(), "==", workspaceId),
-    );
-    const snaps = await getDocs(q);
-    const snap = snaps.docs[0];
-    if (!snap) return null;
-    return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]> {
-    const q = query(collection(this.db, "workspaces"), where("accountId", "==", accountId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toWorkspaceEntity(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async save(workspace: WorkspaceEntity): Promise<string> {
-    const ref = doc(this.db, "workspaces", workspace.id);
-    const payload: Record<string, unknown> = {
-      name: workspace.name,
-      accountId: workspace.accountId,
-      accountType: workspace.accountType,
-      lifecycleState: workspace.lifecycleState,
-      visibility: workspace.visibility,
-      capabilities: workspace.capabilities,
-      grants: workspace.grants,
-      teamIds: workspace.teamIds,
-      createdAt: serverTimestamp(),
-    };
-
-    if (workspace.photoURL !== undefined) payload.photoURL = workspace.photoURL;
-    if (workspace.address !== undefined) payload.address = workspace.address;
-    if (workspace.locations !== undefined) payload.locations = workspace.locations;
-    if (workspace.personnel !== undefined) payload.personnel = workspace.personnel;
-
-    await setDoc(ref, payload);
-    return workspace.id;
-  }
-
-  async updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void> {
-    const updates: Record<string, unknown> = { updatedAt: serverTimestamp() };
-    if (command.name !== undefined) updates.name = command.name;
-    if (command.visibility !== undefined) updates.visibility = command.visibility;
-    if (command.lifecycleState !== undefined) updates.lifecycleState = command.lifecycleState;
-    if (command.address !== undefined) updates.address = command.address;
-    if (command.personnel !== undefined) updates.personnel = command.personnel;
-    await updateDoc(doc(this.db, "workspaces", command.workspaceId), updates);
-  }
-
-  async delete(id: string): Promise<void> {
-    await deleteDoc(doc(this.db, "workspaces", id));
-  }
-
-  async mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      capabilities: arrayUnion(...capabilities),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async unmountCapability(workspaceId: string, capabilityId: string): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const caps = ((data.capabilities as Capability[]) ?? []).filter((c) => c.id !== capabilityId);
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      capabilities: caps,
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async grantTeamAccess(workspaceId: string, teamId: string): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      teamIds: arrayUnion(teamId),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async revokeTeamAccess(workspaceId: string, teamId: string): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      teamIds: arrayRemove(teamId),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async grantIndividualAccess(workspaceId: string, grant: WorkspaceGrant): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      grants: arrayUnion(grant),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async revokeIndividualAccess(workspaceId: string, userId: string): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const grants = ((data.grants as WorkspaceGrant[]) ?? []).filter((g) => g.userId !== userId);
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      grants,
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async createLocation(
-    workspaceId: string,
-    location: Omit<WorkspaceLocation, "locationId">,
-  ): Promise<string> {
-    const locationId = crypto.randomUUID();
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      locations: arrayUnion({ ...location, locationId }),
-      updatedAt: serverTimestamp(),
-    });
-    return locationId;
-  }
-
-  async updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const locations = ((data.locations as WorkspaceLocation[]) ?? []).map((l) =>
-      l.locationId === location.locationId ? location : l,
-    );
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      locations,
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async deleteLocation(workspaceId: string, locationId: string): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const locations = ((data.locations as WorkspaceLocation[]) ?? []).filter(
-      (l) => l.locationId !== locationId,
-    );
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      locations,
-      updatedAt: serverTimestamp(),
-    });
   }
 }
 ````
@@ -4537,221 +4369,6 @@ export function WorkspaceSidebarSection({
 }
 ````
 
-## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
-````typescript
-import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Users } from "lucide-react";
-import type { ReactNode } from "react";
-
-export interface WorkspaceQuickAccessMatcherOptions {
-  panel: string | null;
-  tab: string | null;
-}
-
-export interface WorkspaceQuickAccessItem {
-  href: string;
-  label: string;
-  icon: ReactNode;
-  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
-}
-
-const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
-  {
-    href: "/workspace/{workspaceId}?tab=Overview",
-    label: "首頁",
-    icon: <Home className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") &&
-      (options?.tab == null || options.tab === "Overview") &&
-      options?.panel !== "settings",
-  },
-  {
-    href: "/knowledge/pages?workspaceId={workspaceId}",
-    label: "知識頁面",
-    icon: <FileText className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/knowledge/pages" || pathname.startsWith("/knowledge/pages/"),
-  },
-  {
-    href: "/knowledge-base/articles?workspaceId={workspaceId}",
-    label: "文章",
-    icon: <BookOpen className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/knowledge-base/articles" || pathname.startsWith("/knowledge-base/articles/"),
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Files",
-    label: "檔案",
-    icon: <FolderOpen className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") && options?.tab === "Files",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Members",
-    label: "成員",
-    icon: <Users className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") && options?.tab === "Members",
-  },
-  {
-    href: "/notebook/rag-query?workspaceId={workspaceId}",
-    label: "RAG 查詢",
-    icon: <Brain className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/notebook/rag-query" || pathname.startsWith("/notebook/rag-query/"),
-  },
-  {
-    href: "/source/libraries?workspaceId={workspaceId}",
-    label: "資料庫",
-    icon: <Database className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/source/libraries" || pathname.startsWith("/source/libraries/"),
-  },
-];
-
-export function buildWorkspaceQuickAccessItems(workspaceId: string): WorkspaceQuickAccessItem[] {
-  const encodedWorkspaceId = encodeURIComponent(workspaceId);
-  return WORKSPACE_QUICK_ACCESS_TEMPLATES.map((item) => ({
-    ...item,
-    href: item.href.replaceAll("{workspaceId}", encodedWorkspaceId),
-  }));
-}
-````
-
-## File: modules/workspace/interfaces/web/components/rails/CreateWorkspaceDialogRail.tsx
-````typescript
-"use client";
-
-import { type FormEvent, useState } from "react";
-
-import { createWorkspace } from "../../../api/facades";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-
-interface CreateWorkspaceDialogRailProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  accountId: string | null;
-  accountType: "user" | "organization" | null;
-  creatorUserId?: string | null;
-  onNavigate: (href: string) => void;
-}
-
-export function CreateWorkspaceDialogRail({
-  open,
-  onOpenChange,
-  accountId,
-  accountType,
-  creatorUserId,
-  onNavigate,
-}: CreateWorkspaceDialogRailProps) {
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-
-  function reset() {
-    setWorkspaceName("");
-    setError(null);
-    setIsCreating(false);
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const name = workspaceName.trim();
-    if (!name) {
-      setError("請輸入工作區名稱。");
-      return;
-    }
-    if (!accountId || !accountType) {
-      setError("帳號資訊已失效，請重新登入後再建立工作區。");
-      return;
-    }
-
-    setIsCreating(true);
-    setError(null);
-    const result = await createWorkspace({
-      name,
-      accountId,
-      accountType,
-      creatorUserId: creatorUserId ?? undefined,
-    });
-
-    if (!result.success) {
-      setError(result.error.message);
-      setIsCreating(false);
-      return;
-    }
-
-    reset();
-    onOpenChange(false);
-    onNavigate("/workspace");
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(isOpen) => {
-        onOpenChange(isOpen);
-        if (!isOpen) reset();
-      }}
-    >
-      <DialogContent aria-describedby="rail-create-workspace-description">
-        <DialogHeader>
-          <DialogTitle>建立新工作區</DialogTitle>
-          <DialogDescription id="rail-create-workspace-description">
-            輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
-          </DialogDescription>
-        </DialogHeader>
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
-              工作區名稱
-            </label>
-            <Input
-              id="rail-workspace-name"
-              value={workspaceName}
-              onChange={(e) => {
-                setWorkspaceName(e.target.value);
-                if (error) setError(null);
-              }}
-              placeholder="例如：Project Alpha"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-              disabled={isCreating}
-              maxLength={80}
-            />
-            {error && <p className="text-sm text-destructive">{error}</p>}
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                reset();
-                onOpenChange(false);
-              }}
-              disabled={isCreating}
-            >
-              取消
-            </Button>
-            <Button type="submit" disabled={isCreating || !accountId || !accountType}>
-              {isCreating ? "建立中…" : "直接建立"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
 ## File: modules/workspace/interfaces/web/components/screens/OrganizationWorkspacesScreen.tsx
 ````typescript
 "use client";
@@ -4893,337 +4510,6 @@ export function OrganizationWorkspacesScreen({ accountId }: OrganizationWorkspac
             ))}
         </CardContent>
       </Card>
-    </div>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailRouteScreen.tsx
-````typescript
-"use client";
-
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-
-import { WorkspaceDetailScreen } from "./WorkspaceDetailScreen";
-
-interface WorkspaceDetailRouteScreenProps {
-  workspaceId: string;
-  accountId: string | null | undefined;
-  accountsHydrated: boolean;
-  initialTab?: string;
-  initialOverviewPanel?: string;
-}
-
-export function WorkspaceDetailRouteScreen({
-  workspaceId,
-  accountId,
-  accountsHydrated,
-  initialTab,
-  initialOverviewPanel,
-}: WorkspaceDetailRouteScreenProps) {
-  const router = useRouter();
-
-  useEffect(() => {
-    if (initialTab === "Wiki" && workspaceId) {
-      router.replace(`/knowledge/pages?workspaceId=${encodeURIComponent(workspaceId)}`);
-    }
-  }, [initialTab, router, workspaceId]);
-
-  if (initialTab === "Wiki" && workspaceId) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">正在導向工作區知識頁面…</div>;
-  }
-
-  return (
-    <WorkspaceDetailScreen
-      workspaceId={workspaceId}
-      accountId={accountId}
-      accountsHydrated={accountsHydrated}
-      initialTab={initialTab}
-      initialOverviewPanel={initialOverviewPanel}
-    />
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
-
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-
-import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";
-import { getWorkspaceGovernanceSummary } from "../../view-models/workspace-supporting-records";
-import { CreateWorkspaceDialog } from "../dialogs/CreateWorkspaceDialog";
-
-const lifecycleBadgeVariant: Record<
-  WorkspaceEntity["lifecycleState"],
-  "default" | "secondary" | "outline"
-> = {
-  active: "default",
-  preparatory: "secondary",
-  stopped: "outline",
-};
-
-interface WorkspaceHubScreenProps {
-  readonly accountId: string | null | undefined;
-  readonly accountName: string | null | undefined;
-  readonly accountType: "user" | "organization";
-  readonly accountsHydrated: boolean;
-  readonly isBootstrapSeeded: boolean;
-  readonly currentUserId?: string | null;
-}
-
-export function WorkspaceHubScreen({
-  accountId,
-  accountName,
-  accountType,
-  accountsHydrated,
-  isBootstrapSeeded,
-  currentUserId,
-}: WorkspaceHubScreenProps) {
-  const router = useRouter();
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState("");
-
-  const {
-    createError,
-    clearCreateError,
-    createWorkspaceForAccount,
-    errorMessage,
-    isCreatingWorkspace,
-    loadState,
-    workspaceStats,
-    workspaces,
-  } = useWorkspaceHub({
-    accountId,
-    accountType,
-    creatorUserId: currentUserId,
-  });
-
-  function resetCreateWorkspaceDialog() {
-    setWorkspaceName("");
-    clearCreateError();
-  }
-
-  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const result = await createWorkspaceForAccount(workspaceName);
-
-    if (!result.success) {
-      return;
-    }
-
-    resetCreateWorkspaceDialog();
-    setIsCreateWorkspaceOpen(false);
-    if (result.aggregateId) {
-      router.push(`/workspace/${result.aggregateId}`);
-    }
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold tracking-tight">Workspace Hub</h1>
-          <p className="text-sm text-muted-foreground">
-            Review the workspaces connected to{" "}
-            <span className="font-medium text-foreground">
-              {accountName ?? "the active account"}
-            </span>
-            .
-          </p>
-        </div>
-
-        <Button
-          onClick={() => setIsCreateWorkspaceOpen(true)}
-          disabled={!accountsHydrated || !accountId}
-        >
-          {!accountsHydrated ? "同步帳號中…" : "建立工作區"}
-        </Button>
-      </div>
-
-      {!accountsHydrated && (
-        <div
-          className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground"
-          aria-live="polite"
-          role="status"
-        >
-          {isBootstrapSeeded
-            ? "正在同步可用的組織與工作區內容，完成後即可直接建立或切換工作區。"
-            : "正在載入帳號與工作區內容…"}
-        </div>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Total Workspaces</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.total}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Active</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.active}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Preparatory</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.preparatory}</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
-      <Card className="border border-border/50">
-        <CardHeader>
-          <CardTitle>Workspace-first Product Spine</CardTitle>
-          <CardDescription>
-            目前先把主流程收斂成 Identity → Organization → Workspace，再由工作區承接 Knowledge、知識頁面、Notebook / AI。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-xl border border-border/40 px-4 py-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Entry flow</p>
-            <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
-              <li>
-                <span className="font-medium text-foreground">1. Identity</span>：登入後先建立個人／組織帳號情境。
-              </li>
-              <li>
-                <span className="font-medium text-foreground">2. Organization</span>：切換至目標 account / organization。
-              </li>
-              <li>
-                <span className="font-medium text-foreground">3. Workspace</span>：進入工作區後再分流到知識、知識頁面、Notebook / AI。
-              </li>
-            </ol>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">Knowledge</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                文件、來源、Libraries 與 upload / ingest 流程都由工作區承接。
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">知識頁面</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                頁面樹、內容導覽與知識結構直接從工作區知識頁面進入。
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                問答、推理與 RAG 查詢作為工作區內的消費層，而非獨立入口。
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border border-border/50">
-        <CardHeader>
-          <CardTitle>Workspace Records</CardTitle>
-          <CardDescription>
-            Lifecycle 與 supporting governance records 目前仍由 workspace 模組擁有，但已收斂在專用 supporting ports；點入後會以工作區為樞紐進入 Knowledge / 知識頁面 / Notebook-AI。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-              Loading workspace records…
-            </div>
-          )}
-
-          {loadState === "error" && errorMessage && (
-            <div className="rounded-xl border border-destructive/30 px-4 py-3 text-sm text-destructive">
-              {errorMessage}
-            </div>
-          )}
-
-          {loadState === "loaded" && workspaces.length === 0 && (
-            <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
-              目前這個帳號尚未建立任何工作區。你可以先完成{" "}
-              <Link
-                href="/organization"
-                className="font-medium text-primary hover:underline"
-              >
-                組織情境
-              </Link>{" "}
-              設定，再使用上方的建立工作區入口，回到 workspace-first 主流程。
-            </div>
-          )}
-
-          {workspaces.map((workspace) => {
-            const governanceSummary = getWorkspaceGovernanceSummary(workspace);
-
-            return (
-              <Link
-                key={workspace.id}
-                href={`/workspace/${workspace.id}`}
-                className="block rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-foreground">
-                        {workspace.name}
-                      </p>
-                      <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
-                        {workspace.lifecycleState}
-                      </Badge>
-                      <Badge variant="outline">{workspace.visibility}</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Account scope: {workspace.accountType}
-                    </p>
-                    <p className="text-xs font-medium text-primary">點擊進入工作區</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-right">
-                    <span>Capabilities: {governanceSummary.capabilityCount}</span>
-                    <span>Teams: {governanceSummary.teamCount}</span>
-                    <span>Locations: {governanceSummary.locationCount}</span>
-                    <span>Grants: {governanceSummary.grantCount}</span>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </CardContent>
-      </Card>
-
-      <CreateWorkspaceDialog
-        open={isCreateWorkspaceOpen}
-        workspaceName={workspaceName}
-        createError={createError}
-        isCreatingWorkspace={isCreatingWorkspace}
-        accountId={accountId}
-        onOpenChange={(open) => {
-          setIsCreateWorkspaceOpen(open);
-          if (!open) resetCreateWorkspaceDialog();
-        }}
-        onWorkspaceNameChange={(name) => {
-          setWorkspaceName(name);
-          if (createError) clearCreateError();
-        }}
-        onSubmit={handleCreateWorkspace}
-      />
     </div>
   );
 }
@@ -5559,443 +4845,6 @@ export function WorkspaceOverviewSettingsTab({
 }
 ````
 
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx
-````typescript
-"use client";
-
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Separator } from "@ui-shadcn/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-import { describeGrant } from "../../view-models/workspace-grants";
-import { WorkspaceOverviewSettingsTab } from "./WorkspaceOverviewSettingsTab";
-import { WorkspaceOverviewSummaryCard } from "../cards/WorkspaceOverviewSummaryCard";
-import { WorkspaceProductSpineCard } from "../cards/WorkspaceProductSpineCard";
-import { WorkspaceQuickstartCard } from "../cards/WorkspaceQuickstartCard";
-
-interface WorkspaceOverviewTabProps {
-  readonly workspace: WorkspaceEntity;
-  readonly activeWorkspaceId: string | null | undefined;
-  readonly personnelEntries: Array<{ label: string; value: string | undefined }>;
-  readonly addressLines: string[];
-  readonly showSettingsPanel?: boolean;
-  readonly onEditClick: () => void;
-  readonly onSetActiveWorkspace: () => void;
-}
-
-export function WorkspaceOverviewTab({
-  workspace,
-  activeWorkspaceId,
-  personnelEntries,
-  addressLines,
-  showSettingsPanel = false,
-  onEditClick,
-  onSetActiveWorkspace,
-}: WorkspaceOverviewTabProps) {
-  if (showSettingsPanel) {
-    return (
-      <WorkspaceOverviewSettingsTab
-        workspace={workspace}
-        personnelEntries={personnelEntries}
-        addressLines={addressLines}
-        onEditClick={onEditClick}
-      />
-    );
-  }
-
-  return (
-    <Tabs defaultValue="home" className="space-y-4">
-      <div className="rounded-2xl border border-border/50 bg-card/70 p-3 shadow-sm">
-        <TabsList
-          variant="line"
-          className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b border-border/60 bg-transparent p-0"
-        >
-          <TabsTrigger value="home" className="min-w-fit px-3 py-2">
-            Home
-          </TabsTrigger>
-          <TabsTrigger value="governance" className="min-w-fit px-3 py-2">
-            Governance
-          </TabsTrigger>
-          <TabsTrigger value="profile" className="min-w-fit px-3 py-2">
-            Profile
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="home" className="mt-4 space-y-4">
-          <WorkspaceOverviewSummaryCard
-            workspace={workspace}
-            activeWorkspaceId={activeWorkspaceId}
-            onEditClick={onEditClick}
-            onSetActiveWorkspace={onSetActiveWorkspace}
-          />
-
-          <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-            <WorkspaceProductSpineCard workspace={workspace} />
-
-            <Card className="border border-border/50">
-              <CardHeader>
-                <CardTitle>Capabilities</CardTitle>
-                <CardDescription>
-                  Runtime features currently mounted on this workspace.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {workspace.capabilities.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No capability bindings have been added yet.
-                  </p>
-                ) : (
-                  workspace.capabilities.map((capability) => (
-                    <div
-                      key={capability.id}
-                      className="rounded-xl border border-border/40 px-4 py-4"
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground">
-                          {capability.name}
-                        </p>
-                        <Badge variant="outline">{capability.type}</Badge>
-                        <Badge
-                          variant={capability.status === "stable" ? "secondary" : "outline"}
-                        >
-                          {capability.status}
-                        </Badge>
-                      </div>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {capability.description}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {workspace.lifecycleState === "preparatory" && workspace.capabilities.length === 0 && (
-            <WorkspaceQuickstartCard workspaceId={workspace.id} />
-          )}
-        </TabsContent>
-
-        <TabsContent value="governance" className="mt-4 space-y-4">
-          <div className="grid gap-4 xl:grid-cols-2">
-            <Card className="border border-border/50">
-              <CardHeader>
-                <CardTitle>Access Model</CardTitle>
-                <CardDescription>
-                  Team scopes and direct grants applied to this workspace.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-foreground">Team access</p>
-                  {workspace.teamIds.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No team access assigned.</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {workspace.teamIds.map((teamId) => (
-                        <Badge key={teamId} variant="secondary">
-                          {teamId}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-foreground">Direct grants</p>
-                  {workspace.grants.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No direct grants recorded.</p>
-                  ) : (
-                    workspace.grants.map((grant, index) => (
-                      <div
-                        key={`grant-${grant.role}-${grant.teamId ?? "none"}-${grant.userId ?? "none"}-${grant.protocol ?? "none"}-${index}`}
-                        className="rounded-xl border border-border/40 px-4 py-3"
-                      >
-                        <p className="text-sm font-medium text-foreground">
-                          {describeGrant(grant)}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Role: {grant.role}
-                          {grant.teamId ? ` · Team: ${grant.teamId}` : ""}
-                          {grant.userId ? ` · User: ${grant.userId}` : ""}
-                          {grant.protocol ? ` · Protocol: ${grant.protocol}` : ""}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-border/50">
-              <CardHeader>
-                <CardTitle>Locations</CardTitle>
-                <CardDescription>
-                  Physical or logical locations linked to the workspace.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {workspace.locations == null || workspace.locations.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No locations have been configured yet.
-                  </p>
-                ) : (
-                  workspace.locations.map((location) => (
-                    <div
-                      key={location.locationId}
-                      className="rounded-xl border border-border/40 px-4 py-4"
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground">
-                          {location.label}
-                        </p>
-                        <Badge variant="outline">{location.locationId}</Badge>
-                      </div>
-                      {location.description && (
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          {location.description}
-                        </p>
-                      )}
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Capacity: {location.capacity ?? "—"}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="profile" className="mt-4 space-y-4">
-          <Card className="border border-border/50">
-            <CardHeader>
-              <CardTitle>Workspace Profile</CardTitle>
-              <CardDescription>
-                Operational contacts and registered workspace address.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">Personnel</p>
-                {personnelEntries.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No personnel roles assigned.
-                  </p>
-                ) : (
-                  personnelEntries.map((entry) => (
-                    <div
-                      key={entry.label}
-                      className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3 text-sm"
-                    >
-                      <span className="text-muted-foreground">{entry.label}</span>
-                      <span className="font-medium text-foreground">{entry.value}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">Address</p>
-                {addressLines.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No address information has been provided.
-                  </p>
-                ) : (
-                  <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
-                    {addressLines.map((line, index) => (
-                      <p key={`${line}-${index}`}>{line}</p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-      </div>
-    </Tabs>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
-````typescript
-import { useEffect, useMemo, useState } from "react";
-
-import type { WorkspaceEntity } from "../../api/contracts";
-
-interface RecentWorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-
-const MAX_VISIBLE_RECENT_WORKSPACES = 10;
-const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
-
-function getStorageKey(accountId: string) {
-  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
-}
-
-function readRecentWorkspaceIds(accountId: string): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(getStorageKey(accountId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
-  } catch {
-    return [];
-  }
-}
-
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
-}
-
-function trackWorkspaceFromPath(pathname: string, accountId: string) {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return;
-  const workspaceId = decodeURIComponent(match[1]);
-  const recentIds = readRecentWorkspaceIds(accountId);
-  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
-  persistRecentWorkspaceIds(accountId, deduped);
-}
-
-function getWorkspaceIdFromPath(pathname: string): string | null {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return null;
-  return decodeURIComponent(match[1]);
-}
-
-export function useRecentWorkspaces(
-  accountId: string | undefined,
-  pathname: string,
-  workspaces: WorkspaceEntity[],
-) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  useEffect(() => {
-    if (!accountId) return;
-    trackWorkspaceFromPath(pathname, accountId);
-  }, [accountId, pathname]);
-
-  const workspacesById = useMemo(
-    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
-    [workspaces],
-  );
-
-  const recentWorkspaceIds = useMemo(() => {
-    if (!accountId) return [] as string[];
-    const stored = readRecentWorkspaceIds(accountId);
-    const currentId = getWorkspaceIdFromPath(pathname);
-    if (!currentId) return stored;
-    return [currentId, ...stored.filter((id) => id !== currentId)];
-  }, [accountId, pathname]);
-
-  const recentWorkspaceLinks = useMemo<RecentWorkspaceLink[]>(() => {
-    return recentWorkspaceIds
-      .map<RecentWorkspaceLink | null>((workspaceId) => {
-        const ws = workspacesById[workspaceId];
-        if (!ws) return null;
-        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
-      })
-      .filter((item): item is RecentWorkspaceLink => item !== null);
-  }, [recentWorkspaceIds, workspacesById]);
-
-  return { isExpanded, setIsExpanded, recentWorkspaceLinks };
-}
-
-export { MAX_VISIBLE_RECENT_WORKSPACES, getWorkspaceIdFromPath };
-````
-
-## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { WorkspaceEntity } from "../../api/contracts";
-import { getWorkspaceByIdForAccount } from "../../api/facades";
-
-export type WorkspaceLoadState = "loading" | "loaded" | "error";
-
-export interface UseWorkspaceDetailResult {
-  workspace: WorkspaceEntity | null;
-  loadState: WorkspaceLoadState;
-  setWorkspace: (ws: WorkspaceEntity) => void;
-}
-
-export function useWorkspaceDetail(
-  workspaceId: string,
-  accountId: string | null | undefined,
-  accountsHydrated: boolean,
-): UseWorkspaceDetailResult {
-  const router = useRouter();
-  const [workspace, setWorkspace] = useState<WorkspaceEntity | null>(null);
-  const [loadState, setLoadState] = useState<WorkspaceLoadState>("loading");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadWorkspace() {
-      if (!workspaceId) {
-        setLoadState("error");
-        return;
-      }
-
-      if (!accountId || !accountsHydrated) {
-        setWorkspace(null);
-        setLoadState("loading");
-        return;
-      }
-
-      setLoadState("loading");
-      try {
-        const detail = await getWorkspaceByIdForAccount(accountId, workspaceId);
-        if (cancelled) return;
-        if (!detail) {
-          router.replace("/workspace?context=unavailable");
-          return;
-        }
-        setWorkspace(detail);
-        setLoadState("loaded");
-      } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[useWorkspaceDetail] Failed to load workspace:", error);
-        }
-        if (!cancelled) {
-          setWorkspace(null);
-          setLoadState("error");
-        }
-      }
-    }
-
-    void loadWorkspace();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [accountId, accountsHydrated, router, workspaceId]);
-
-  return { workspace, loadState, setWorkspace };
-}
-````
-
 ## File: modules/workspace/interfaces/web/hooks/useWorkspaceHub.ts
 ````typescript
 "use client";
@@ -6147,147 +4996,6 @@ export function useWorkspaceHub({ accountId, accountType, creatorUserId }: UseWo
     refreshWorkspaces,
     workspaceStats,
     workspaces,
-  };
-}
-````
-
-## File: modules/workspace/interfaces/web/hooks/useWorkspaceSettingsSave.ts
-````typescript
-"use client";
-
-import { type FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { WorkspaceEntity } from "../../api/contracts";
-import { getWorkspaceByIdForAccount, updateWorkspaceSettings } from "../../api/facades";
-import type { WorkspaceSettingsDraft } from "../state/workspace-settings";
-import { trimOrUndefined } from "../components/layout/workspace-detail-helpers";
-
-interface UseWorkspaceSettingsSaveOptions {
-  readonly workspace: WorkspaceEntity | null;
-  readonly accountId: string | null | undefined;
-  readonly onSaved: (updated: WorkspaceEntity) => void;
-}
-
-interface UseWorkspaceSettingsSaveResult {
-  readonly isSaving: boolean;
-  readonly saveError: string | null;
-  readonly clearSaveError: () => void;
-  readonly handleSave: (
-    event: FormEvent<HTMLFormElement>,
-    settingsDraft: WorkspaceSettingsDraft | null,
-  ) => Promise<void>;
-}
-
-export function useWorkspaceSettingsSave({
-  workspace,
-  accountId,
-  onSaved,
-}: UseWorkspaceSettingsSaveOptions): UseWorkspaceSettingsSaveResult {
-  const router = useRouter();
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-
-  async function handleSave(
-    event: FormEvent<HTMLFormElement>,
-    settingsDraft: WorkspaceSettingsDraft | null,
-  ) {
-    event.preventDefault();
-
-    if (!workspace || !settingsDraft) return;
-
-    if (!accountId) {
-      setSaveError("帳號上下文尚未完成同步，請稍候再試。");
-      return;
-    }
-
-    const nextWorkspaceName = settingsDraft.name.trim();
-    if (!nextWorkspaceName) {
-      setSaveError("請輸入工作區名稱。");
-      return;
-    }
-
-    setIsSaving(true);
-    setSaveError(null);
-
-    const hasAddressContent = Boolean(
-      settingsDraft.street.trim() ||
-        settingsDraft.city.trim() ||
-        settingsDraft.state.trim() ||
-        settingsDraft.postalCode.trim() ||
-        settingsDraft.country.trim() ||
-        settingsDraft.details.trim(),
-    );
-    const hasPersonnelContent = Boolean(
-      settingsDraft.managerId.trim() ||
-        settingsDraft.supervisorId.trim() ||
-        settingsDraft.safetyOfficerId.trim() ||
-        settingsDraft.customRoles.some((entry) => entry.roleName.trim() || entry.role.trim()),
-    );
-
-    const normalizedCustomRoles = settingsDraft.customRoles
-      .map((entry) => ({
-        roleId: entry.roleId,
-        roleName: entry.roleName.trim(),
-        role: entry.role.trim(),
-      }))
-      .filter((entry) => entry.roleName || entry.role);
-
-    const result = await updateWorkspaceSettings({
-      workspaceId: workspace.id,
-      accountId,
-      name: nextWorkspaceName,
-      visibility: settingsDraft.visibility,
-      lifecycleState: settingsDraft.lifecycleState,
-      address:
-        workspace.address != null || hasAddressContent
-          ? {
-              street: settingsDraft.street.trim(),
-              city: settingsDraft.city.trim(),
-              state: settingsDraft.state.trim(),
-              postalCode: settingsDraft.postalCode.trim(),
-              country: settingsDraft.country.trim(),
-              details: trimOrUndefined(settingsDraft.details),
-            }
-          : undefined,
-      personnel:
-        workspace.personnel != null || hasPersonnelContent
-          ? {
-              managerId: trimOrUndefined(settingsDraft.managerId),
-              supervisorId: trimOrUndefined(settingsDraft.supervisorId),
-              safetyOfficerId: trimOrUndefined(settingsDraft.safetyOfficerId),
-              customRoles: normalizedCustomRoles.length > 0 ? normalizedCustomRoles : undefined,
-            }
-          : undefined,
-    });
-
-    if (!result.success) {
-      setSaveError(result.error.message);
-      setIsSaving(false);
-      return;
-    }
-
-    try {
-      const detail = await getWorkspaceByIdForAccount(accountId, workspace.id);
-      if (!detail) {
-        router.replace("/workspace?context=unavailable");
-        return;
-      }
-      onSaved(detail);
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[useWorkspaceSettingsSave] Failed to refresh workspace after save:", error);
-      }
-      setSaveError("工作區已更新，但重新整理資料失敗。請稍後再試。");
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  return {
-    isSaving,
-    saveError,
-    clearSaveError: () => setSaveError(null),
-    handleSave,
   };
 }
 ````
@@ -6830,6 +5538,90 @@ export function getWorkspaceGovernanceSummary(
 }
 ````
 
+## File: modules/workspace/README.md
+````markdown
+# Workspace
+
+協作容器與工作區範疇主域
+
+## Implementation Structure
+
+```text
+modules/workspace/
+├── api/              # Public API boundary
+├── application/      # Context-wide orchestration (delegates to subdomains)
+│   ├── queries/      # Read query handlers (pure reads, no business logic)
+│   ├── use-cases/    # Command use cases remaining at root level
+│   └── services/     # Application services (composite orchestrators)
+├── domain/           # Context-wide domain concepts (Workspace aggregate root)
+├── infrastructure/   # Context-wide driven adapters
+├── interfaces/       # Context-wide driving adapters
+├── docs/             # Links to strategic documentation
+└── subdomains/
+    ├── audit/             # Active — append-only audit trail
+    ├── feed/              # Active — workspace activity projection
+    ├── lifecycle/         # Active — workspace create/update/delete/transitions
+    ├── membership/        # Active — member view model and participation queries
+    ├── presence/          # Stub — real-time presence and activity
+    ├── scheduling/        # Active — workspace scheduling management
+    ├── sharing/           # Active — team and individual access grants
+    └── workspace-workflow/ # Active — task/issue/invoice state machines
+```
+
+## Subdomains
+
+| Subdomain | Status | Purpose |
+|-----------|--------|---------|
+| audit | Active | 不可否認稽核追蹤 |
+| feed | Active | 工作區活動投影 |
+| lifecycle | Active | 工作區容器生命週期（建立/修改/刪除/狀態轉換）|
+| membership | Active | 工作區參與者視圖模型與查詢 |
+| presence | Stub | 即時在線狀態 |
+| scheduling | Active | 工作區排程管理 |
+| sharing | Active | 工作區存取授權（團隊/個人）|
+| workspace-workflow | Active | 工作區流程協調 |
+
+## Application Layer Architecture
+
+The root application services act as **composite orchestrators** that delegate to subdomain services:
+
+| Operation | Delegated To |
+|-----------|-------------|
+| Create/Update/Delete workspace | `lifecycle` subdomain |
+| Team/Individual access grants | `sharing` subdomain |
+| Member view queries | `membership` subdomain |
+| Mount capabilities | Root use-case (pending subdomain assignment) |
+| Create workspace location | Root use-case (Workspace operational profile) |
+| Workspace read queries | Root query handlers |
+| Wiki content tree projection | Root query handler |
+
+### DDD Rules Applied
+
+- **Rule 5/13/16**: Pure reads → query handlers in `queries/`, not use cases
+- **Rule 12**: Commands → `use-cases/` or subdomain use cases
+- **Rule 18**: Single-call wrappers eliminated; functions instead of classes for queries
+- **Rule 8**: Each use case = one business intent (verb-first naming)
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `api/` is the only cross-module public boundary.
+- Domain must not import infrastructure, interfaces, or external frameworks.
+- Cross-module collaboration goes through `api/` only.
+- Subdomain cross-collaboration goes through subdomain `api/` only.
+
+## Strategic Documentation
+
+- [Context README](../../docs/contexts/workspace/README.md)
+- [Subdomains](../../docs/contexts/workspace/subdomains.md)
+- [Context Map](../../docs/contexts/workspace/context-map.md)
+- [Ubiquitous Language](../../docs/contexts/workspace/ubiquitous-language.md)
+- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
+````
+
 ## File: modules/workspace/subdomains/audit/api/factories.ts
 ````typescript
 import { FirebaseAuditRepository } from "../infrastructure/firebase/FirebaseAuditRepository";
@@ -7100,6 +5892,28 @@ export { AuditEntry } from "./AuditEntry";
 export type { AuditEntrySnapshot, RecordAuditEntryInput } from "./AuditEntry";
 ````
 
+## File: modules/workspace/subdomains/audit/domain/entities/AuditLog.ts
+````typescript
+export type AuditLogSource = "workspace" | "finance" | "notification" | "system";
+
+/**
+ * AuditLogEntity
+ * 
+ * actorId: Receives platform's "actor reference" published language token.
+ * This field DOES NOT own Actor semantics — it consumes the token from platform.
+ * (See AGENTS.md ubiquitous language for context map rules.)
+ */
+export interface AuditLogEntity {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly actorId: string;
+  readonly action: string;
+  readonly detail: string;
+  readonly source: AuditLogSource;
+  readonly occurredAtISO: string;
+}
+````
+
 ## File: modules/workspace/subdomains/audit/domain/events/AuditDomainEvent.ts
 ````typescript
 export interface AuditDomainEvent {
@@ -7257,6 +6071,34 @@ export class AuditRecordingService {
 export { AuditRecordingService } from "./AuditRecordingService";
 ````
 
+## File: modules/workspace/subdomains/audit/domain/value-objects/ActorId.ts
+````typescript
+import { z } from "@lib-zod";
+
+/**
+ * ActorId — receives platform's "actor reference" published language token.
+ * 
+ * MAPPING (AGENTS.md ubiquitous language):
+ * - platform.Actor (upstream) → workspace.audit.ActorId (downstream)
+ * - Platform defines the "actor reference" token in its ubiquitous language
+ * - workspace.audit consumes this token without redefining Actor semantics
+ * - ActorId is a local value object; does NOT own Actor concept
+ * 
+ * NOTE: Field name uses "Actor" only for clarity; it represents a consumed token.
+ */
+export const ActorIdSchema = z.string().min(1).brand("ActorId");
+
+export type ActorId = z.infer<typeof ActorIdSchema>;
+
+export function createActorId(raw: string): ActorId {
+	return ActorIdSchema.parse(raw);
+}
+
+export function unsafeActorId(raw: string): ActorId {
+	return raw as ActorId;
+}
+````
+
 ## File: modules/workspace/subdomains/audit/domain/value-objects/AuditAction.ts
 ````typescript
 import { z } from "@lib-zod";
@@ -7322,104 +6164,6 @@ export type { AuditSeverity } from "./AuditSeverity";
 
 export { ActorIdSchema, createActorId, unsafeActorId } from "./ActorId";
 export type { ActorId } from "./ActorId";
-````
-
-## File: modules/workspace/subdomains/audit/infrastructure/firebase/FirebaseAuditRepository.ts
-````typescript
-import {
-  addDoc,
-  collection,
-  getDocs,
-  getFirestore,
-  limit,
-  query,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { AuditEntry } from "../../domain/aggregates/AuditEntry";
-import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
-import type { AuditRepository } from "../../domain/repositories/AuditRepository";
-
-const VALID_AUDIT_LOG_SOURCES = new Set<AuditLogSource>([
-  "workspace",
-  "finance",
-  "notification",
-  "system",
-]);
-
-function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEntity {
-  const source = VALID_AUDIT_LOG_SOURCES.has(data.source as AuditLogSource)
-    ? (data.source as AuditLogSource)
-    : "workspace";
-
-  return {
-    id,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    actorId: typeof data.actorId === "string" ? data.actorId : "system",
-    action: typeof data.action === "string" ? data.action : "unknown",
-    detail: typeof data.detail === "string" ? data.detail : "",
-    source,
-    occurredAtISO:
-      typeof data.occurredAtISO === "string"
-        ? data.occurredAtISO
-        : "",
-  };
-}
-
-export class FirebaseAuditRepository implements AuditRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async save(entry: AuditEntry): Promise<void> {
-    await addDoc(collection(this.db, "auditLogs"), entry.getSnapshot());
-  }
-
-  async findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]> {
-    const snaps = await getDocs(
-      query(collection(this.db, "auditLogs"), where("workspaceId", "==", workspaceId)),
-    );
-
-    return snaps.docs
-      .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
-      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO));
-  }
-
-  async findByWorkspaceIds(
-    workspaceIds: string[],
-    maxCount = 200,
-  ): Promise<AuditLogEntity[]> {
-    if (workspaceIds.length === 0) {
-      return [];
-    }
-
-    const chunks: string[][] = [];
-    for (let index = 0; index < workspaceIds.length; index += 10) {
-      chunks.push(workspaceIds.slice(index, index + 10));
-    }
-
-    const perChunkLimit = Math.max(1, Math.ceil(maxCount / chunks.length));
-
-    const snapshots = await Promise.all(
-      chunks.map((chunk) =>
-        getDocs(
-          query(
-            collection(this.db, "auditLogs"),
-            where("workspaceId", "in", chunk),
-            limit(perChunkLimit),
-          ),
-        ),
-      ),
-    );
-
-    return snapshots
-      .flatMap((snapshot) => snapshot.docs)
-      .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
-      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO))
-      .slice(0, maxCount);
-  }
-}
 ````
 
 ## File: modules/workspace/subdomains/audit/interfaces/components/AuditStream.tsx
@@ -8470,320 +7214,6 @@ export interface WorkspaceFeedInteractionRepository {
 }
 ````
 
-## File: modules/workspace/subdomains/feed/infrastructure/firebase/FirebaseWorkspaceFeedInteractionRepository.ts
-````typescript
-import {
-  collection,
-  doc,
-  getDoc,
-  getFirestore,
-  serverTimestamp,
-  setDoc,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-
-import type { WorkspaceFeedInteractionRepository } from "../../domain/repositories/workspace-feed.repositories";
-
-type FirestoreDb = ReturnType<typeof getFirestore>;
-
-function postDoc(db: FirestoreDb, accountId: string, postId: string) {
-  return doc(db, "accounts", accountId, "workspaceFeedPosts", postId);
-}
-
-function likesDoc(db: FirestoreDb, accountId: string, postId: string, actorAccountId: string) {
-  return doc(postDoc(db, accountId, postId), "likes", actorAccountId);
-}
-
-function bookmarksDoc(db: FirestoreDb, accountId: string, postId: string, actorAccountId: string) {
-  return doc(postDoc(db, accountId, postId), "bookmarks", actorAccountId);
-}
-
-function viewsCol(db: FirestoreDb, accountId: string, postId: string) {
-  return collection(postDoc(db, accountId, postId), "views");
-}
-
-function sharesCol(db: FirestoreDb, accountId: string, postId: string) {
-  return collection(postDoc(db, accountId, postId), "shares");
-}
-
-export class FirebaseWorkspaceFeedInteractionRepository implements WorkspaceFeedInteractionRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async like(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
-    const ref = likesDoc(this.db, accountId, postId, actorAccountId);
-    const snap = await getDoc(ref);
-    if (snap.exists()) return false;
-
-    await setDoc(ref, {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-    return true;
-  }
-
-  async bookmark(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
-    const ref = bookmarksDoc(this.db, accountId, postId, actorAccountId);
-    const snap = await getDoc(ref);
-    if (snap.exists()) return false;
-
-    await setDoc(ref, {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-    return true;
-  }
-
-  async view(accountId: string, postId: string, actorAccountId: string): Promise<void> {
-    await setDoc(doc(viewsCol(this.db, accountId, postId), generateId()), {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-  }
-
-  async share(accountId: string, postId: string, actorAccountId: string): Promise<void> {
-    await setDoc(doc(sharesCol(this.db, accountId, postId), generateId()), {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-  }
-}
-````
-
-## File: modules/workspace/subdomains/feed/infrastructure/firebase/FirebaseWorkspaceFeedPostRepository.ts
-````typescript
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  increment,
-  limit,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-
-import type {
-  CreateWorkspaceFeedPostInput,
-  CreateWorkspaceFeedReplyInput,
-  CreateWorkspaceFeedRepostInput,
-  WorkspaceFeedCounterPatch,
-  WorkspaceFeedPost,
-} from "../../domain/entities/workspace-feed-post.entity";
-import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
-
-type FirestoreDb = ReturnType<typeof getFirestore>;
-
-function postsCol(db: FirestoreDb, accountId: string) {
-  return collection(db, "accounts", accountId, "workspaceFeedPosts");
-}
-
-function postDoc(db: FirestoreDb, accountId: string, postId: string) {
-  return doc(db, "accounts", accountId, "workspaceFeedPosts", postId);
-}
-
-function repostMapDoc(db: FirestoreDb, accountId: string, actorAccountId: string, sourcePostId: string) {
-  return doc(db, "accounts", accountId, "workspaceFeedReposts", `${actorAccountId}__${sourcePostId}`);
-}
-
-function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-function asNumber(value: unknown): number {
-  return typeof value === "number" ? value : 0;
-}
-
-function toWorkspaceFeedPost(id: string, data: Record<string, unknown>): WorkspaceFeedPost {
-  const type = asString(data.type, "post");
-  return {
-    id,
-    accountId: asString(data.accountId),
-    workspaceId: asString(data.workspaceId),
-    authorAccountId: asString(data.authorAccountId),
-    type: type === "reply" || type === "repost" ? type : "post",
-    content: asString(data.content),
-    replyToPostId: typeof data.replyToPostId === "string" ? data.replyToPostId : null,
-    repostOfPostId: typeof data.repostOfPostId === "string" ? data.repostOfPostId : null,
-    likeCount: asNumber(data.likeCount),
-    replyCount: asNumber(data.replyCount),
-    repostCount: asNumber(data.repostCount),
-    viewCount: asNumber(data.viewCount),
-    bookmarkCount: asNumber(data.bookmarkCount),
-    shareCount: asNumber(data.shareCount),
-    createdAtISO: asString(data.createdAtISO),
-    updatedAtISO: asString(data.updatedAtISO),
-  };
-}
-
-function createBasePostData(
-  accountId: string,
-  workspaceId: string,
-  authorAccountId: string,
-  content: string,
-  type: "post" | "reply" | "repost",
-): Record<string, unknown> {
-  const nowISO = new Date().toISOString();
-  return {
-    accountId,
-    workspaceId,
-    authorAccountId,
-    type,
-    content,
-    likeCount: 0,
-    replyCount: 0,
-    repostCount: 0,
-    viewCount: 0,
-    bookmarkCount: 0,
-    shareCount: 0,
-    createdAtISO: nowISO,
-    updatedAtISO: nowISO,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  };
-}
-
-export class FirebaseWorkspaceFeedPostRepository implements WorkspaceFeedPostRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async createPost(input: CreateWorkspaceFeedPostInput): Promise<WorkspaceFeedPost> {
-    const id = generateId();
-    const data = createBasePostData(
-      input.accountId,
-      input.workspaceId,
-      input.authorAccountId,
-      input.content,
-      "post",
-    );
-    await setDoc(postDoc(this.db, input.accountId, id), data);
-    return toWorkspaceFeedPost(id, data);
-  }
-
-  async createReply(input: CreateWorkspaceFeedReplyInput): Promise<WorkspaceFeedPost> {
-    const id = generateId();
-    const data: Record<string, unknown> = {
-      ...createBasePostData(
-        input.accountId,
-        input.workspaceId,
-        input.authorAccountId,
-        input.content,
-        "reply",
-      ),
-      replyToPostId: input.parentPostId,
-      repostOfPostId: null,
-    };
-
-    await setDoc(postDoc(this.db, input.accountId, id), data);
-    await this.patchCounters(input.accountId, input.parentPostId, { replyDelta: 1 });
-    return toWorkspaceFeedPost(id, data);
-  }
-
-  async createRepost(input: CreateWorkspaceFeedRepostInput): Promise<WorkspaceFeedPost | null> {
-    const mapRef = repostMapDoc(this.db, input.accountId, input.actorAccountId, input.sourcePostId);
-    const existingMap = await getDoc(mapRef);
-    if (existingMap.exists()) {
-      const repostPostId = asString(existingMap.data().repostPostId);
-      if (!repostPostId) return null;
-      return this.findById(input.accountId, repostPostId);
-    }
-
-    const source = await this.findById(input.accountId, input.sourcePostId);
-    if (!source) return null;
-
-    const id = generateId();
-    const content = input.comment?.trim() || source.content;
-    const data: Record<string, unknown> = {
-      ...createBasePostData(
-        input.accountId,
-        input.workspaceId,
-        input.actorAccountId,
-        content,
-        "repost",
-      ),
-      replyToPostId: null,
-      repostOfPostId: input.sourcePostId,
-    };
-
-    await setDoc(postDoc(this.db, input.accountId, id), data);
-    await setDoc(mapRef, {
-      accountId: input.accountId,
-      workspaceId: input.workspaceId,
-      sourcePostId: input.sourcePostId,
-      actorAccountId: input.actorAccountId,
-      repostPostId: id,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-    await this.patchCounters(input.accountId, input.sourcePostId, { repostDelta: 1 });
-    return toWorkspaceFeedPost(id, data);
-  }
-
-  async patchCounters(accountId: string, postId: string, patch: WorkspaceFeedCounterPatch): Promise<void> {
-    const updates: Record<string, unknown> = {
-      updatedAtISO: new Date().toISOString(),
-      updatedAt: serverTimestamp(),
-    };
-    if (patch.likeDelta) updates.likeCount = increment(patch.likeDelta);
-    if (patch.replyDelta) updates.replyCount = increment(patch.replyDelta);
-    if (patch.repostDelta) updates.repostCount = increment(patch.repostDelta);
-    if (patch.viewDelta) updates.viewCount = increment(patch.viewDelta);
-    if (patch.bookmarkDelta) updates.bookmarkCount = increment(patch.bookmarkDelta);
-    if (patch.shareDelta) updates.shareCount = increment(patch.shareDelta);
-    await updateDoc(postDoc(this.db, accountId, postId), updates);
-  }
-
-  async findById(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
-    const snap = await getDoc(postDoc(this.db, accountId, postId));
-    if (!snap.exists()) return null;
-    return toWorkspaceFeedPost(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listByWorkspaceId(accountId: string, workspaceId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
-    const snaps = await getDocs(
-      query(
-        postsCol(this.db, accountId),
-        where("workspaceId", "==", workspaceId),
-        orderBy("createdAtISO", "desc"),
-        limit(maxRows),
-      ),
-    );
-    return snaps.docs.map((row) => toWorkspaceFeedPost(row.id, row.data() as Record<string, unknown>));
-  }
-
-  async listByAccountId(accountId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
-    const snaps = await getDocs(
-      query(postsCol(this.db, accountId), orderBy("createdAtISO", "desc"), limit(maxRows)),
-    );
-    return snaps.docs.map((row) => toWorkspaceFeedPost(row.id, row.data() as Record<string, unknown>));
-  }
-}
-````
-
 ## File: modules/workspace/subdomains/feed/infrastructure/index.ts
 ````typescript
 export { FirebaseWorkspaceFeedPostRepository } from "./firebase/FirebaseWorkspaceFeedPostRepository";
@@ -9419,6 +7849,662 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/workspace/subdomains/lifecycle/api/index.ts
+````typescript
+/**
+ * Lifecycle Subdomain — Public API Boundary
+ *
+ * Cross-subdomain and cross-module consumers import through this entry point.
+ */
+
+// --- Application service ---
+export {
+  WorkspaceLifecycleApplicationService,
+} from "../application";
+export type { LifecycleServiceDependencies } from "../application";
+
+// --- Domain types (published language for lifecycle) ---
+export type {
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceEntity,
+  WorkspaceLifecycleState,
+  WorkspaceLifecycleStateInput,
+  WorkspaceCreatedEvent,
+  WorkspaceDomainEvent,
+  WorkspaceLifecycleTransitionedEvent,
+  WorkspaceVisibilityChangedEvent,
+} from "../domain";
+
+export {
+  createWorkspaceCreatedEvent,
+  createWorkspaceLifecycleTransitionedEvent,
+  createWorkspaceVisibilityChangedEvent,
+} from "../domain";
+````
+
+## File: modules/workspace/subdomains/lifecycle/application/index.ts
+````typescript
+/**
+ * Lifecycle Subdomain — Application Layer
+ *
+ * Exports use cases and the application service for lifecycle operations.
+ */
+
+export { CreateWorkspaceUseCase, CreateWorkspaceWithCapabilitiesUseCase } from "./use-cases/create-workspace.use-case";
+export { UpdateWorkspaceSettingsUseCase } from "./use-cases/update-workspace-settings.use-case";
+export { DeleteWorkspaceUseCase } from "./use-cases/delete-workspace.use-case";
+export { WorkspaceLifecycleApplicationService } from "./services/WorkspaceLifecycleApplicationService";
+export type { LifecycleServiceDependencies } from "./services/WorkspaceLifecycleApplicationService";
+````
+
+## File: modules/workspace/subdomains/lifecycle/application/services/WorkspaceLifecycleApplicationService.ts
+````typescript
+/**
+ * Lifecycle Subdomain — Application Service
+ *
+ * Composes lifecycle use cases with injected dependencies.
+ * This is the subdomain's application-layer entry point.
+ */
+
+import type { CommandResult } from "@shared-types";
+import type { CreateWorkspaceCommand, UpdateWorkspaceSettingsCommand } from "../../domain";
+import type { Capability } from "../../../../domain/aggregates/Workspace";
+import type {
+  WorkspaceRepository,
+  WorkspaceCapabilityRepository,
+  WorkspaceDomainEventPublisher,
+} from "../../domain/ports";
+import {
+  CreateWorkspaceUseCase,
+  CreateWorkspaceWithCapabilitiesUseCase,
+} from "../use-cases/create-workspace.use-case";
+import { UpdateWorkspaceSettingsUseCase } from "../use-cases/update-workspace-settings.use-case";
+import { DeleteWorkspaceUseCase } from "../use-cases/delete-workspace.use-case";
+
+export interface LifecycleServiceDependencies {
+  workspaceRepo: WorkspaceRepository;
+  workspaceCapabilityRepo: WorkspaceCapabilityRepository;
+  eventPublisher: WorkspaceDomainEventPublisher;
+}
+
+export class WorkspaceLifecycleApplicationService {
+  private readonly createUseCase: CreateWorkspaceUseCase;
+  private readonly createWithCapsUseCase: CreateWorkspaceWithCapabilitiesUseCase;
+  private readonly updateSettingsUseCase: UpdateWorkspaceSettingsUseCase;
+  private readonly deleteUseCase: DeleteWorkspaceUseCase;
+
+  constructor(deps: LifecycleServiceDependencies) {
+    const createDeps = {
+      workspaceRepo: deps.workspaceRepo,
+      workspaceCapabilityRepo: deps.workspaceCapabilityRepo,
+      eventPublisher: deps.eventPublisher,
+    };
+    this.createUseCase = new CreateWorkspaceUseCase(createDeps);
+    this.createWithCapsUseCase = new CreateWorkspaceWithCapabilitiesUseCase(createDeps);
+    this.updateSettingsUseCase = new UpdateWorkspaceSettingsUseCase({
+      workspaceRepo: deps.workspaceRepo,
+      eventPublisher: deps.eventPublisher,
+    });
+    this.deleteUseCase = new DeleteWorkspaceUseCase({
+      workspaceRepo: deps.workspaceRepo,
+    });
+  }
+
+  createWorkspace(command: CreateWorkspaceCommand): Promise<CommandResult> {
+    return this.createUseCase.execute(command);
+  }
+
+  createWorkspaceWithCapabilities(
+    command: CreateWorkspaceCommand,
+    capabilities: Capability[],
+  ): Promise<CommandResult> {
+    return this.createWithCapsUseCase.execute(command, capabilities);
+  }
+
+  updateWorkspaceSettings(command: UpdateWorkspaceSettingsCommand): Promise<CommandResult> {
+    return this.updateSettingsUseCase.execute(command);
+  }
+
+  deleteWorkspace(workspaceId: string): Promise<CommandResult> {
+    return this.deleteUseCase.execute(workspaceId);
+  }
+}
+````
+
+## File: modules/workspace/subdomains/lifecycle/application/use-cases/create-workspace.use-case.ts
+````typescript
+/**
+ * Lifecycle Subdomain — Create Workspace Use Case
+ *
+ * Business intent: Provision a new workspace container within an account scope.
+ *
+ * DDD Rule 1: Has business behavior (aggregate creation, initial state setup)
+ * DDD Rule 2: Has flow (validation → creation → persistence → event)
+ * DDD Rule 8: One use case = one business intent (verb: Create)
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { CreateWorkspaceCommand } from "../../domain";
+import type { Capability } from "../../../../domain/aggregates/Workspace";
+import {
+  createWorkspaceAggregate,
+  toWorkspaceSnapshot,
+} from "../../../../domain/factories/WorkspaceFactory";
+import type {
+  WorkspaceRepository,
+  WorkspaceCapabilityRepository,
+  WorkspaceDomainEventPublisher,
+  WorkspaceEventPublishMetadata,
+} from "../../domain/ports";
+import { createWorkspaceCreatedEvent } from "../../domain";
+
+interface CreateWorkspaceDeps {
+  readonly workspaceRepo: WorkspaceRepository;
+  readonly workspaceCapabilityRepo: WorkspaceCapabilityRepository;
+  readonly eventPublisher: WorkspaceDomainEventPublisher;
+}
+
+function buildEventMetadata(
+  workspaceId: string,
+  accountId: string,
+  accountType: "user" | "organization",
+): WorkspaceEventPublishMetadata {
+  return {
+    workspaceId,
+    organizationId: accountType === "organization" ? accountId : undefined,
+  };
+}
+
+export class CreateWorkspaceUseCase {
+  constructor(private readonly deps: CreateWorkspaceDeps) {}
+
+  async execute(command: CreateWorkspaceCommand): Promise<CommandResult> {
+    try {
+      const workspace = createWorkspaceAggregate(command);
+      const workspaceId = await this.deps.workspaceRepo.save(toWorkspaceSnapshot(workspace));
+
+      await this.deps.eventPublisher.publish(
+        createWorkspaceCreatedEvent({
+          workspaceId,
+          accountId: command.accountId,
+          accountType: command.accountType,
+          name: command.name,
+        }),
+        buildEventMetadata(workspaceId, command.accountId, command.accountType),
+      );
+
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_CREATE_FAILED",
+        err instanceof Error ? err.message : "Failed to create workspace",
+      );
+    }
+  }
+}
+
+export class CreateWorkspaceWithCapabilitiesUseCase {
+  constructor(private readonly deps: CreateWorkspaceDeps) {}
+
+  async execute(
+    command: CreateWorkspaceCommand,
+    capabilities: Capability[] = [],
+  ): Promise<CommandResult> {
+    try {
+      const workspace = createWorkspaceAggregate(command);
+      const workspaceId = await this.deps.workspaceRepo.save(toWorkspaceSnapshot(workspace));
+
+      if (capabilities.length > 0) {
+        await this.deps.workspaceCapabilityRepo.mountCapabilities(workspaceId, capabilities);
+      }
+
+      await this.deps.eventPublisher.publish(
+        createWorkspaceCreatedEvent({
+          workspaceId,
+          accountId: command.accountId,
+          accountType: command.accountType,
+          name: command.name,
+        }),
+        buildEventMetadata(workspaceId, command.accountId, command.accountType),
+      );
+
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_CREATE_WITH_CAPABILITIES_FAILED",
+        err instanceof Error ? err.message : "Failed to create workspace with capabilities",
+      );
+    }
+  }
+}
+````
+
+## File: modules/workspace/subdomains/lifecycle/application/use-cases/delete-workspace.use-case.ts
+````typescript
+/**
+ * Lifecycle Subdomain — Delete Workspace Use Case
+ *
+ * Business intent: Remove a workspace container from the system.
+ *
+ * DDD Rule 1: Has business behavior (existence verification before deletion)
+ * DDD Rule 2: Has flow (verify existence → delete → success/failure)
+ * DDD Rule 8: One use case = one business intent (verb: Delete)
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { WorkspaceRepository } from "../../domain/ports";
+
+interface DeleteWorkspaceDeps {
+  readonly workspaceRepo: WorkspaceRepository;
+}
+
+export class DeleteWorkspaceUseCase {
+  constructor(private readonly deps: DeleteWorkspaceDeps) {}
+
+  async execute(workspaceId: string): Promise<CommandResult> {
+    try {
+      const workspace = await this.deps.workspaceRepo.findById(workspaceId);
+      if (!workspace) {
+        return commandFailureFrom("WORKSPACE_NOT_FOUND", `Workspace ${workspaceId} not found`);
+      }
+
+      await this.deps.workspaceRepo.delete(workspaceId);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_DELETE_FAILED",
+        err instanceof Error ? err.message : "Failed to delete workspace",
+      );
+    }
+  }
+}
+````
+
+## File: modules/workspace/subdomains/lifecycle/application/use-cases/update-workspace-settings.use-case.ts
+````typescript
+/**
+ * Lifecycle Subdomain — Update Workspace Settings Use Case
+ *
+ * Business intent: Apply setting changes to an existing workspace with
+ * domain validation and lifecycle/visibility change event emission.
+ *
+ * DDD Rule 1: Has business behavior (aggregate reconstitution, state transition)
+ * DDD Rule 2: Has flow (fetch → validate → apply → persist → events)
+ * DDD Rule 4: Needs consistency (settings + events must be coherent)
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { UpdateWorkspaceSettingsCommand, WorkspaceEntity } from "../../domain";
+import {
+  createWorkspaceLifecycleTransitionedEvent,
+  createWorkspaceVisibilityChangedEvent,
+} from "../../domain";
+import {
+  reconstituteWorkspaceAggregate,
+} from "../../../../domain/factories/WorkspaceFactory";
+import type {
+  WorkspaceRepository,
+  WorkspaceDomainEventPublisher,
+  WorkspaceEventPublishMetadata,
+} from "../../domain/ports";
+import type { Workspace } from "../../../../domain/aggregates/Workspace";
+
+interface UpdateSettingsDeps {
+  readonly workspaceRepo: WorkspaceRepository;
+  readonly eventPublisher: WorkspaceDomainEventPublisher;
+}
+
+function sanitizeSettings(
+  workspace: Workspace,
+  command: UpdateWorkspaceSettingsCommand,
+): UpdateWorkspaceSettingsCommand {
+  workspace.applySettings(command);
+
+  return {
+    workspaceId: command.workspaceId,
+    accountId: command.accountId,
+    name: command.name !== undefined ? workspace.name : undefined,
+    visibility: command.visibility !== undefined ? workspace.visibility : undefined,
+    lifecycleState: command.lifecycleState !== undefined ? workspace.lifecycleState : undefined,
+    address: command.address !== undefined ? workspace.address : undefined,
+    personnel: command.personnel !== undefined ? workspace.personnel : undefined,
+  };
+}
+
+function buildEventMetadata(
+  workspaceId: string,
+  accountId: string,
+  accountType: "user" | "organization",
+): WorkspaceEventPublishMetadata {
+  return {
+    workspaceId,
+    organizationId: accountType === "organization" ? accountId : undefined,
+  };
+}
+
+export class UpdateWorkspaceSettingsUseCase {
+  constructor(private readonly deps: UpdateSettingsDeps) {}
+
+  async execute(command: UpdateWorkspaceSettingsCommand): Promise<CommandResult> {
+    try {
+      const previous = await this.deps.workspaceRepo.findByIdForAccount(
+        command.accountId,
+        command.workspaceId,
+      );
+      if (!previous) {
+        return commandFailureFrom(
+          "WORKSPACE_NOT_FOUND",
+          `Workspace ${command.workspaceId} not found`,
+        );
+      }
+
+      const sanitized = sanitizeSettings(reconstituteWorkspaceAggregate(previous), command);
+      await this.deps.workspaceRepo.updateSettings(sanitized);
+
+      await this.publishTransitionEvents(command, previous);
+
+      return commandSuccess(command.workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_UPDATE_FAILED",
+        err instanceof Error ? err.message : "Failed to update workspace settings",
+      );
+    }
+  }
+
+  private async publishTransitionEvents(
+    command: UpdateWorkspaceSettingsCommand,
+    previous: WorkspaceEntity,
+  ): Promise<void> {
+    const metadata = buildEventMetadata(
+      command.workspaceId,
+      command.accountId,
+      previous.accountType,
+    );
+
+    if (
+      command.lifecycleState !== undefined &&
+      command.lifecycleState !== previous.lifecycleState
+    ) {
+      await this.deps.eventPublisher.publish(
+        createWorkspaceLifecycleTransitionedEvent({
+          workspaceId: command.workspaceId,
+          accountId: command.accountId,
+          fromState: previous.lifecycleState,
+          toState: command.lifecycleState,
+        }),
+        metadata,
+      );
+    }
+
+    if (
+      command.visibility !== undefined &&
+      command.visibility !== previous.visibility
+    ) {
+      await this.deps.eventPublisher.publish(
+        createWorkspaceVisibilityChangedEvent({
+          workspaceId: command.workspaceId,
+          accountId: command.accountId,
+          fromVisibility: previous.visibility,
+          toVisibility: command.visibility,
+        }),
+        metadata,
+      );
+    }
+  }
+}
+````
+
+## File: modules/workspace/subdomains/lifecycle/domain/index.ts
+````typescript
+/**
+ * Lifecycle Subdomain — Domain Layer
+ *
+ * Owns workspace container lifecycle: creation, settings update, deletion,
+ * and lifecycle state transitions (preparatory → active → stopped).
+ *
+ * Depends on root workspace domain aggregate and value objects.
+ * Does not duplicate the Workspace aggregate — references it through ports.
+ */
+
+// Re-export lifecycle-relevant root domain types for subdomain consumers
+export type {
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceEntity,
+} from "../../../domain/aggregates/Workspace";
+
+export type {
+  WorkspaceLifecycleState,
+  WorkspaceLifecycleStateInput,
+} from "../../../domain/value-objects/WorkspaceLifecycleState";
+
+export type {
+  WorkspaceCreatedEvent,
+  WorkspaceDomainEvent,
+  WorkspaceLifecycleTransitionedEvent,
+  WorkspaceVisibilityChangedEvent,
+} from "../../../domain/events/workspace.events";
+
+export {
+  createWorkspaceCreatedEvent,
+  createWorkspaceLifecycleTransitionedEvent,
+  createWorkspaceVisibilityChangedEvent,
+} from "../../../domain/events/workspace.events";
+````
+
+## File: modules/workspace/subdomains/lifecycle/domain/ports/index.ts
+````typescript
+/**
+ * Lifecycle Subdomain — Domain Ports
+ *
+ * These ports define what the lifecycle subdomain needs from the outside world.
+ * They reference root domain repository interfaces since the Workspace aggregate
+ * lives at the bounded-context root level.
+ */
+
+export type { WorkspaceRepository } from "../../../../domain/ports/output/WorkspaceRepository";
+export type { WorkspaceCapabilityRepository } from "../../../../domain/ports/output/WorkspaceCapabilityRepository";
+export type {
+  WorkspaceDomainEventPublisher,
+  WorkspaceEventPublishMetadata,
+} from "../../../../domain/ports/output/WorkspaceDomainEventPublisher";
+````
+
+## File: modules/workspace/subdomains/lifecycle/infrastructure/index.ts
+````typescript
+/**
+ * Lifecycle Subdomain — Infrastructure Layer
+ *
+ * The lifecycle subdomain uses root-level infrastructure adapters
+ * (FirebaseWorkspaceRepository, SharedWorkspaceDomainEventPublisher)
+ * injected through ports. No subdomain-specific adapters needed yet.
+ */
+export {};
+````
+
+## File: modules/workspace/subdomains/lifecycle/README.md
+````markdown
+# Lifecycle
+
+把工作區容器生命週期獨立成正典邊界。
+
+## Ownership
+
+- **Bounded Context**: workspace
+- **Subdomain Type**: Active
+- **Status**: Active — lifecycle use cases implemented
+
+## Responsibility
+
+- Workspace creation (with optional capabilities)
+- Workspace settings update (with lifecycle/visibility transition events)
+- Workspace deletion
+- Lifecycle state machine (preparatory → active → stopped)
+
+## Dependency Direction
+
+```
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+
+## Key Design Decisions
+
+- The Workspace aggregate root lives at context root level (`modules/workspace/domain/`), not inside this subdomain.
+- This subdomain's use cases operate on the root aggregate through ports.
+- Event publishing follows the "persist-then-publish" pattern.
+- The `UpdateWorkspaceSettingsUseCase` consolidates both settings persistence and transition event emission into one cohesive use case, eliminating the prior split where the application service handled event logic.
+````
+
+## File: modules/workspace/subdomains/membership/api/index.ts
+````typescript
+/**
+ * Membership Subdomain — Public API Boundary
+ *
+ * Cross-subdomain and cross-module consumers import through this entry point.
+ */
+
+// --- Domain types (published language for membership) ---
+export type {
+  WorkspaceMemberView,
+  WorkspaceMemberPresence,
+  WorkspaceMemberAccessSource,
+  WorkspaceMemberAccessChannel,
+} from "../domain";
+
+// --- Application queries ---
+export { fetchWorkspaceMembers } from "../application";
+````
+
+## File: modules/workspace/subdomains/membership/application/index.ts
+````typescript
+/**
+ * Membership Subdomain — Application Layer
+ *
+ * Exports member-related queries for the membership subdomain.
+ */
+
+export { fetchWorkspaceMembers } from "./queries/workspace-member.queries";
+````
+
+## File: modules/workspace/subdomains/membership/application/queries/workspace-member.queries.ts
+````typescript
+/**
+ * Membership Subdomain — Workspace Member Query Handler
+ *
+ * Pure read query for workspace members — no business logic.
+ * Delegates to workspace query repository for member resolution.
+ *
+ * DDD Rule 5:  Pure reads → Query, not Use Case.
+ * DDD Rule 13: Read → queries/
+ */
+
+import type { WorkspaceMemberView } from "../../domain";
+import type { WorkspaceQueryRepository } from "../../domain/ports";
+
+export function fetchWorkspaceMembers(
+  workspaceQueryRepo: WorkspaceQueryRepository,
+  workspaceId: string,
+): Promise<WorkspaceMemberView[]> {
+  return workspaceQueryRepo.getWorkspaceMembers(workspaceId);
+}
+````
+
+## File: modules/workspace/subdomains/membership/domain/index.ts
+````typescript
+/**
+ * Membership Subdomain — Domain Layer
+ *
+ * Owns the workspace member view model and participation concepts.
+ * The WorkspaceMemberView is the canonical read model for workspace participants.
+ *
+ * Per ubiquitous language: "Membership" represents workspace participation,
+ * not "User" which belongs to platform identity.
+ */
+
+// Re-export membership-relevant domain types from root domain
+export type {
+  WorkspaceMemberView,
+  WorkspaceMemberPresence,
+  WorkspaceMemberAccessSource,
+  WorkspaceMemberAccessChannel,
+} from "../../../domain/entities/WorkspaceMemberView";
+````
+
+## File: modules/workspace/subdomains/membership/domain/ports/index.ts
+````typescript
+/**
+ * Membership Subdomain — Domain Ports
+ *
+ * The membership subdomain needs the workspace query repository port
+ * to resolve member views from the root infrastructure layer.
+ */
+
+export type { WorkspaceQueryRepository } from "../../../../domain/ports/output/WorkspaceQueryRepository";
+````
+
+## File: modules/workspace/subdomains/membership/infrastructure/index.ts
+````typescript
+/**
+ * Membership Subdomain — Infrastructure Layer
+ *
+ * The membership subdomain uses the root-level WorkspaceQueryRepository
+ * (FirebaseWorkspaceQueryRepository) injected through ports. The complex
+ * member resolution logic (merging grants, teams, personnel) lives in
+ * the root infrastructure adapter since it depends on the full workspace
+ * document model.
+ */
+export {};
+````
+
+## File: modules/workspace/subdomains/membership/README.md
+````markdown
+# Membership
+
+把工作區參與關係從平台身份治理中切開。
+
+## Ownership
+
+- **Bounded Context**: workspace
+- **Subdomain Type**: Active
+- **Status**: Active — member view query implemented
+
+## Responsibility
+
+- Workspace member view model (canonical read model for participants)
+- Member resolution queries (merging grants, teams, personnel sources)
+- Workspace participation semantics distinct from platform identity
+
+## Ubiquitous Language
+
+- **Membership**: Workspace participation relationship, NOT platform identity
+- **WorkspaceMemberView**: Read-only projection of a workspace participant
+- **AccessChannel**: The route through which a member gained workspace access (owner, direct, team, personnel)
+
+## Dependency Direction
+
+```
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+
+## Key Design Decisions
+
+- WorkspaceMemberView is the membership read model, not a full Membership aggregate (that would come when invitation/seat management is needed).
+- Complex member resolution logic (merging from grants, teams, personnel) stays in the root infrastructure adapter since it depends on the full workspace document model.
+- The subdomain's query handler delegates to the root WorkspaceQueryRepository port.
+````
+
 ## File: modules/workspace/subdomains/scheduling/api/factories.ts
 ````typescript
 import { FirebaseDemandRepository } from "../infrastructure/firebase/FirebaseDemandRepository";
@@ -9723,124 +8809,6 @@ export type WorkDemandAssignedEvent = {
 export type WorkDemandDomainEvent =
   | WorkDemandCreatedEvent
   | WorkDemandAssignedEvent;
-````
-
-## File: modules/workspace/subdomains/scheduling/infrastructure/firebase/FirebaseDemandRepository.ts
-````typescript
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  query,
-  serverTimestamp,
-  setDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-
-import type { WorkDemand } from "../../domain/types";
-import type { IDemandRepository } from "../../domain/repository";
-
-const DEMANDS_COLLECTION = "workspacePlannerDemands";
-
-function toWorkDemand(id: string, data: Record<string, unknown>): WorkDemand {
-  const status = data.status;
-  const priority = data.priority;
-
-  return {
-    id,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    requesterId: typeof data.requesterId === "string" ? data.requesterId : "",
-    title: typeof data.title === "string" ? data.title : "",
-    description: typeof data.description === "string" ? data.description : "",
-    status:
-      status === "draft" || status === "open" || status === "in_progress" || status === "completed"
-        ? status
-        : "draft",
-    priority: priority === "low" || priority === "medium" || priority === "high" ? priority : "medium",
-    scheduledAt: typeof data.scheduledAt === "string" ? data.scheduledAt : "",
-    assignedUserId: typeof data.assignedUserId === "string" ? data.assignedUserId : undefined,
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-export class FirebaseDemandRepository implements IDemandRepository {
-  private readonly db = getFirestore(firebaseClientApp);
-
-  private get collectionRef() {
-    return collection(this.db, DEMANDS_COLLECTION);
-  }
-
-  async listByWorkspace(workspaceId: string): Promise<WorkDemand[]> {
-    const snaps = await getDocs(
-      query(this.collectionRef, where("workspaceId", "==", workspaceId)),
-    );
-    return snaps.docs
-      .map((item) => toWorkDemand(item.id, item.data() as Record<string, unknown>))
-      .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
-  }
-
-  async listByAccount(accountId: string): Promise<WorkDemand[]> {
-    const snaps = await getDocs(
-      query(this.collectionRef, where("accountId", "==", accountId)),
-    );
-    return snaps.docs
-      .map((item) => toWorkDemand(item.id, item.data() as Record<string, unknown>))
-      .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
-  }
-
-  async save(demand: WorkDemand): Promise<void> {
-    const demandRef = doc(this.db, DEMANDS_COLLECTION, demand.id);
-    const existing = await getDoc(demandRef);
-    if (existing.exists()) {
-      await this.update(demand);
-      return;
-    }
-
-    await setDoc(demandRef, {
-      workspaceId: demand.workspaceId,
-      accountId: demand.accountId,
-      requesterId: demand.requesterId,
-      title: demand.title,
-      description: demand.description,
-      status: demand.status,
-      priority: demand.priority,
-      scheduledAt: demand.scheduledAt,
-      assignedUserId: demand.assignedUserId ?? null,
-      createdAtISO: demand.createdAtISO,
-      updatedAtISO: demand.updatedAtISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async update(demand: WorkDemand): Promise<void> {
-    await setDoc(doc(this.db, DEMANDS_COLLECTION, demand.id), {
-      workspaceId: demand.workspaceId,
-      accountId: demand.accountId,
-      requesterId: demand.requesterId,
-      title: demand.title,
-      description: demand.description,
-      status: demand.status,
-      priority: demand.priority,
-      scheduledAt: demand.scheduledAt,
-      assignedUserId: demand.assignedUserId ?? null,
-      updatedAtISO: demand.updatedAtISO,
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
-  }
-
-  async findById(id: string): Promise<WorkDemand | null> {
-    const snap = await getDoc(doc(this.db, DEMANDS_COLLECTION, id));
-    if (!snap.exists()) return null;
-    return toWorkDemand(snap.id, snap.data() as Record<string, unknown>);
-  }
-}
 ````
 
 ## File: modules/workspace/subdomains/scheduling/infrastructure/mock-demand-repository.ts
@@ -10374,189 +9342,6 @@ export function CalendarWidget({ demands, onDayClick }: CalendarWidgetProps) {
 }
 ````
 
-## File: modules/workspace/subdomains/scheduling/interfaces/components/CreateDemandForm.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import { format } from "@lib-date-fns";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import { DEMAND_PRIORITY_LABELS } from "../../application/dto/work-demand.dto";
-import type { DemandPriority } from "../../application/dto/work-demand.dto";
-
-export interface CreateDemandFormValues {
-  title: string;
-  description: string;
-  priority: DemandPriority;
-  scheduledAt: string;
-}
-
-interface CreateDemandFormProps {
-  open: boolean;
-  initialDate?: Date;
-  onClose: () => void;
-  onSubmit: (values: CreateDemandFormValues) => Promise<void>;
-}
-
-export function CreateDemandForm({
-  open,
-  initialDate,
-  onClose,
-  onSubmit,
-}: CreateDemandFormProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState<DemandPriority>("medium");
-  const [scheduledAt, setScheduledAt] = useState(
-    initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
-  );
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleOpen = (isOpen: boolean) => {
-    if (isOpen && initialDate) {
-      setScheduledAt(format(initialDate, "yyyy-MM-dd"));
-    }
-    if (!isOpen) handleClose();
-  };
-
-  function handleClose() {
-    setTitle("");
-    setDescription("");
-    setPriority("medium");
-    setScheduledAt(initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"));
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) {
-      setError("請輸入需求標題。");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      await onSubmit({ title: t, description: description.trim(), priority, scheduledAt });
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "提交失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>建立工作需求</DialogTitle>
-          <DialogDescription>
-            填寫需求詳情後送出，Account 管理員將收到通知並指派成員。
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="demand-title">標題 *</Label>
-            <Input
-              id="demand-title"
-              placeholder="需要完成什麼工作？"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={submitting}
-              autoFocus
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="demand-description">描述（選填）</Label>
-            <Textarea
-              id="demand-description"
-              placeholder="詳細說明需求背景或驗收條件…"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="demand-priority">優先級</Label>
-              <Select
-                value={priority}
-                onValueChange={(v) => setPriority(v as DemandPriority)}
-                disabled={submitting}
-              >
-                <SelectTrigger id="demand-priority">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(["low", "medium", "high"] as const).map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {DEMAND_PRIORITY_LABELS[p]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="demand-date">排程日期 *</Label>
-              <Input
-                id="demand-date"
-                type="date"
-                value={scheduledAt}
-                onChange={(e) => setScheduledAt(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-          </div>
-
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>
-              取消
-            </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "提交中…" : "建立需求"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
 ## File: modules/workspace/subdomains/scheduling/interfaces/queries/work-demand.queries.ts
 ````typescript
 import type { WorkDemand } from "../../application/dto/work-demand.dto";
@@ -10818,6 +9603,239 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/workspace/subdomains/sharing/api/index.ts
+````typescript
+/**
+ * Sharing Subdomain — Public API Boundary
+ *
+ * Cross-subdomain and cross-module consumers import through this entry point.
+ */
+
+// --- Application service ---
+export {
+  WorkspaceSharingApplicationService,
+} from "../application";
+export type { SharingServiceDependencies } from "../application";
+
+// --- Domain types (published language for sharing) ---
+export type {
+  WorkspaceGrant,
+  WorkspaceAccessPolicy,
+} from "../domain";
+````
+
+## File: modules/workspace/subdomains/sharing/application/index.ts
+````typescript
+/**
+ * Sharing Subdomain — Application Layer
+ *
+ * Exports sharing use cases and the application service.
+ */
+
+export { GrantTeamAccessUseCase } from "./use-cases/grant-team-access.use-case";
+export { GrantIndividualAccessUseCase } from "./use-cases/grant-individual-access.use-case";
+export { WorkspaceSharingApplicationService } from "./services/WorkspaceSharingApplicationService";
+export type { SharingServiceDependencies } from "./services/WorkspaceSharingApplicationService";
+````
+
+## File: modules/workspace/subdomains/sharing/application/services/WorkspaceSharingApplicationService.ts
+````typescript
+/**
+ * Sharing Subdomain — Application Service
+ *
+ * Composes sharing use cases with injected dependencies.
+ */
+
+import type { CommandResult } from "@shared-types";
+import type { WorkspaceGrant } from "../../domain";
+import type { WorkspaceAccessRepository } from "../../domain/ports";
+import { GrantTeamAccessUseCase } from "../use-cases/grant-team-access.use-case";
+import { GrantIndividualAccessUseCase } from "../use-cases/grant-individual-access.use-case";
+
+export interface SharingServiceDependencies {
+  workspaceAccessRepo: WorkspaceAccessRepository;
+}
+
+export class WorkspaceSharingApplicationService {
+  private readonly grantTeamUseCase: GrantTeamAccessUseCase;
+  private readonly grantIndividualUseCase: GrantIndividualAccessUseCase;
+
+  constructor(deps: SharingServiceDependencies) {
+    this.grantTeamUseCase = new GrantTeamAccessUseCase({
+      workspaceAccessRepo: deps.workspaceAccessRepo,
+    });
+    this.grantIndividualUseCase = new GrantIndividualAccessUseCase({
+      workspaceAccessRepo: deps.workspaceAccessRepo,
+    });
+  }
+
+  authorizeWorkspaceTeam(workspaceId: string, teamId: string): Promise<CommandResult> {
+    return this.grantTeamUseCase.execute(workspaceId, teamId);
+  }
+
+  grantIndividualWorkspaceAccess(
+    workspaceId: string,
+    grant: WorkspaceGrant,
+  ): Promise<CommandResult> {
+    return this.grantIndividualUseCase.execute(workspaceId, grant);
+  }
+}
+````
+
+## File: modules/workspace/subdomains/sharing/application/use-cases/grant-individual-access.use-case.ts
+````typescript
+/**
+ * Sharing Subdomain — Grant Individual Access Use Case
+ *
+ * Business intent: Grant an individual user access to a workspace.
+ *
+ * DDD Rule 1: Has business behavior (individual access grant)
+ * DDD Rule 8: One use case = one business intent (verb: Grant)
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { WorkspaceGrant } from "../../domain";
+import type { WorkspaceAccessRepository } from "../../domain/ports";
+
+interface GrantIndividualAccessDeps {
+  readonly workspaceAccessRepo: WorkspaceAccessRepository;
+}
+
+export class GrantIndividualAccessUseCase {
+  constructor(private readonly deps: GrantIndividualAccessDeps) {}
+
+  async execute(workspaceId: string, grant: WorkspaceGrant): Promise<CommandResult> {
+    try {
+      await this.deps.workspaceAccessRepo.grantIndividualAccess(workspaceId, grant);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_GRANT_FAILED",
+        err instanceof Error ? err.message : "Failed to grant individual access",
+      );
+    }
+  }
+}
+````
+
+## File: modules/workspace/subdomains/sharing/application/use-cases/grant-team-access.use-case.ts
+````typescript
+/**
+ * Sharing Subdomain — Grant Team Access Use Case
+ *
+ * Business intent: Authorize a team to access a workspace.
+ *
+ * DDD Rule 1: Has business behavior (authorization grant)
+ * DDD Rule 8: One use case = one business intent (verb: Grant)
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { WorkspaceAccessRepository } from "../../domain/ports";
+
+interface GrantTeamAccessDeps {
+  readonly workspaceAccessRepo: WorkspaceAccessRepository;
+}
+
+export class GrantTeamAccessUseCase {
+  constructor(private readonly deps: GrantTeamAccessDeps) {}
+
+  async execute(workspaceId: string, teamId: string): Promise<CommandResult> {
+    try {
+      await this.deps.workspaceAccessRepo.grantTeamAccess(workspaceId, teamId);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_TEAM_GRANT_FAILED",
+        err instanceof Error ? err.message : "Failed to grant team access",
+      );
+    }
+  }
+}
+````
+
+## File: modules/workspace/subdomains/sharing/domain/index.ts
+````typescript
+/**
+ * Sharing Subdomain — Domain Layer
+ *
+ * Owns workspace access grants and sharing scope.
+ *
+ * Per ubiquitous language: "ShareScope" represents the sharing boundary,
+ * not generic "Permission" which belongs to platform access control.
+ */
+
+// Re-export sharing-relevant domain types from root domain
+export type {
+  WorkspaceGrant,
+  WorkspaceAccessPolicy,
+} from "../../../domain/entities/WorkspaceAccess";
+````
+
+## File: modules/workspace/subdomains/sharing/domain/ports/index.ts
+````typescript
+/**
+ * Sharing Subdomain — Domain Ports
+ *
+ * The sharing subdomain needs the workspace access repository port
+ * to manage team and individual access grants.
+ */
+
+export type { WorkspaceAccessRepository } from "../../../../domain/ports/output/WorkspaceAccessRepository";
+````
+
+## File: modules/workspace/subdomains/sharing/infrastructure/index.ts
+````typescript
+/**
+ * Sharing Subdomain — Infrastructure Layer
+ *
+ * The sharing subdomain uses the root-level WorkspaceAccessRepository
+ * (FirebaseWorkspaceRepository) injected through ports.
+ */
+export {};
+````
+
+## File: modules/workspace/subdomains/sharing/README.md
+````markdown
+# Sharing
+
+把對外共享與可見性規則收斂到單一上下文。
+
+## Ownership
+
+- **Bounded Context**: workspace
+- **Subdomain Type**: Active
+- **Status**: Active — access grant use cases implemented
+
+## Responsibility
+
+- Team access grants (authorize a team to access a workspace)
+- Individual access grants (grant a user direct workspace access)
+- Workspace sharing scope semantics
+
+## Ubiquitous Language
+
+- **ShareScope**: The sharing boundary and visibility extent, NOT generic "Permission"
+- **WorkspaceGrant**: An individual access authorization to a workspace
+- **WorkspaceAccessPolicy**: The aggregate access policy including grants and team associations
+
+## Dependency Direction
+
+```
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+
+## Key Design Decisions
+
+- Access grant use cases take injected WorkspaceAccessRepository through the deps pattern.
+- WorkspaceSharingApplicationService composes grant use cases and exposes team/individual grant operations.
+- Location management stays at root level (part of Workspace operational profile, not sharing semantics).
 ````
 
 ## File: modules/workspace/subdomains/subdomains.instructions.md
@@ -14521,575 +13539,6 @@ export const WF_INVOICES_COLLECTION = "workspaceFlowInvoices" as const;
 export const WF_INVOICE_ITEMS_COLLECTION = "workspaceFlowInvoiceItems" as const;
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseInvoiceItemRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseInvoiceItemRepository.ts
- * @description Firebase Firestore repository for InvoiceItem CRUD operations.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add query pagination support
- */
-
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  query,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
-import { toInvoiceItem } from "../firebase/invoice-item.converter";
-import { WF_INVOICE_ITEMS_COLLECTION } from "../firebase/workspace-flow.collections";
-
-export class FirebaseInvoiceItemRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private get collectionRef() {
-    return collection(this.db, WF_INVOICE_ITEMS_COLLECTION);
-  }
-
-  async findById(itemId: string): Promise<InvoiceItem | null> {
-    const snap = await getDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, itemId));
-    if (!snap.exists()) return null;
-    return toInvoiceItem(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByInvoiceId(invoiceId: string): Promise<InvoiceItem[]> {
-    const snaps = await getDocs(
-      query(this.collectionRef, where("invoiceId", "==", invoiceId)),
-    );
-    return snaps.docs.map((d) => toInvoiceItem(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async delete(itemId: string): Promise<void> {
-    await deleteDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, itemId));
-  }
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseInvoiceRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseInvoiceRepository.ts
- * @description Firebase Firestore implementation of InvoiceRepository for workspace-flow.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add query pagination support and composite indexes
- */
-
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  increment,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { Invoice, CreateInvoiceInput } from "../../domain/entities/Invoice";
-import type { InvoiceItem, AddInvoiceItemInput } from "../../domain/entities/InvoiceItem";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-import { toInvoice } from "../firebase/invoice.converter";
-import { toInvoiceItem } from "../firebase/invoice-item.converter";
-import {
-  WF_INVOICES_COLLECTION,
-  WF_INVOICE_ITEMS_COLLECTION,
-} from "../firebase/workspace-flow.collections";
-
-const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
-const DEFAULT_STATUS: InvoiceStatus = "draft";
-
-export class FirebaseInvoiceRepository implements InvoiceRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private get invoiceCollectionRef() {
-    return collection(this.db, WF_INVOICES_COLLECTION);
-  }
-
-  private get itemCollectionRef() {
-    return collection(this.db, WF_INVOICE_ITEMS_COLLECTION);
-  }
-
-  async create(input: CreateInvoiceInput): Promise<Invoice> {
-    const nowISO = new Date().toISOString();
-    const docData: Record<string, unknown> = {
-      workspaceId: input.workspaceId,
-      status: DEFAULT_STATUS,
-      totalAmount: 0,
-      submittedAtISO: null,
-      approvedAtISO: null,
-      paidAtISO: null,
-      closedAtISO: null,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-    if (input.sourceReference) {
-      docData.sourceReference = { ...input.sourceReference };
-    }
-
-    const docRef = await addDoc(this.invoiceCollectionRef, docData);
-
-    return {
-      id: docRef.id,
-      workspaceId: input.workspaceId,
-      status: DEFAULT_STATUS,
-      totalAmount: 0,
-      sourceReference: input.sourceReference,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async delete(invoiceId: string): Promise<void> {
-    await deleteDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));
-  }
-
-  async findById(invoiceId: string): Promise<Invoice | null> {
-    const snap = await getDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));
-    if (!snap.exists()) return null;
-    return toInvoice(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByWorkspaceId(workspaceId: string): Promise<Invoice[]> {
-    const snaps = await getDocs(
-      query(
-        this.invoiceCollectionRef,
-        where("workspaceId", "==", workspaceId),
-      ),
-    );
-    const invoices = snaps.docs.map((d) => toInvoice(d.id, d.data() as Record<string, unknown>));
-    return invoices.sort((a, b) => b.createdAtISO.localeCompare(a.createdAtISO));
-  }
-
-  async transitionStatus(
-    invoiceId: string,
-    to: InvoiceStatus,
-    nowISO: string,
-  ): Promise<Invoice | null> {
-    const invoiceRef = doc(this.db, WF_INVOICES_COLLECTION, invoiceId);
-    const snap = await getDoc(invoiceRef);
-    if (!snap.exists()) return null;
-
-    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
-    const patch: Record<string, unknown> = {
-      status: validTo,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    };
-    if (validTo === "submitted") patch.submittedAtISO = nowISO;
-    if (validTo === "approved") patch.approvedAtISO = nowISO;
-    if (validTo === "paid") patch.paidAtISO = nowISO;
-    if (validTo === "closed") patch.closedAtISO = nowISO;
-
-    await updateDoc(invoiceRef, patch);
-    const updated = await getDoc(invoiceRef);
-    if (!updated.exists()) return null;
-    return toInvoice(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async addItem(input: AddInvoiceItemInput): Promise<InvoiceItem> {
-    const nowISO = new Date().toISOString();
-    const docRef = await addDoc(this.itemCollectionRef, {
-      invoiceId: input.invoiceId,
-      taskId: input.taskId,
-      amount: input.amount,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    // Update invoice totalAmount
-    await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, input.invoiceId), {
-      totalAmount: increment(input.amount),
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    return {
-      id: docRef.id,
-      invoiceId: input.invoiceId,
-      taskId: input.taskId,
-      amount: input.amount,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async findItemById(invoiceItemId: string): Promise<InvoiceItem | null> {
-    const snap = await getDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId));
-    if (!snap.exists()) return null;
-    return toInvoiceItem(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null> {
-    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
-    const snap = await getDoc(itemRef);
-    if (!snap.exists()) return null;
-
-    const data = snap.data() as Record<string, unknown>;
-    const oldAmount = typeof data.amount === "number" ? data.amount : 0;
-    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
-    const nowISO = new Date().toISOString();
-
-    await updateDoc(itemRef, { amount, updatedAtISO: nowISO, updatedAt: serverTimestamp() });
-
-    if (invoiceId) {
-      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {
-        totalAmount: increment(amount - oldAmount),
-        updatedAtISO: nowISO,
-        updatedAt: serverTimestamp(),
-      });
-    }
-
-    const updated = await getDoc(itemRef);
-    if (!updated.exists()) return null;
-    return toInvoiceItem(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async removeItem(invoiceItemId: string): Promise<void> {
-    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
-    const snap = await getDoc(itemRef);
-    if (!snap.exists()) return;
-
-    const data = snap.data() as Record<string, unknown>;
-    const amount = typeof data.amount === "number" ? data.amount : 0;
-    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
-
-    await deleteDoc(itemRef);
-
-    if (invoiceId) {
-      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {
-        totalAmount: increment(-amount),
-        updatedAtISO: new Date().toISOString(),
-        updatedAt: serverTimestamp(),
-      });
-    }
-  }
-
-  async listItems(invoiceId: string): Promise<InvoiceItem[]> {
-    const snaps = await getDocs(
-      query(this.itemCollectionRef, where("invoiceId", "==", invoiceId)),
-    );
-    return snaps.docs.map((d) => toInvoiceItem(d.id, d.data() as Record<string, unknown>));
-  }
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseIssueRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseIssueRepository.ts
- * @description Firebase Firestore implementation of IssueRepository for workspace-flow.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add query pagination support and composite indexes
- */
-
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  orderBy,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { Issue, OpenIssueInput, UpdateIssueInput } from "../../domain/entities/Issue";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { ISSUE_STATUSES, type IssueStatus } from "../../domain/value-objects/IssueStatus";
-import { toIssue } from "../firebase/issue.converter";
-import { WF_ISSUES_COLLECTION } from "../firebase/workspace-flow.collections";
-
-const VALID_STATUSES = new Set<IssueStatus>(ISSUE_STATUSES);
-const DEFAULT_STATUS: IssueStatus = "open";
-const OPEN_STATUSES: IssueStatus[] = ["open", "investigating", "fixing", "retest"];
-
-export class FirebaseIssueRepository implements IssueRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private get collectionRef() {
-    return collection(this.db, WF_ISSUES_COLLECTION);
-  }
-
-  async create(input: OpenIssueInput): Promise<Issue> {
-    const nowISO = new Date().toISOString();
-    const docRef = await addDoc(this.collectionRef, {
-      taskId: input.taskId,
-      stage: input.stage,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      createdBy: input.createdBy,
-      assignedTo: input.assignedTo ?? null,
-      resolvedAtISO: null,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    return {
-      id: docRef.id,
-      taskId: input.taskId,
-      stage: input.stage,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      createdBy: input.createdBy,
-      assignedTo: input.assignedTo,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async update(issueId: string, input: UpdateIssueInput): Promise<Issue | null> {
-    const issueRef = doc(this.db, WF_ISSUES_COLLECTION, issueId);
-    const snap = await getDoc(issueRef);
-    if (!snap.exists()) return null;
-
-    const patch: Record<string, unknown> = {
-      updatedAtISO: new Date().toISOString(),
-      updatedAt: serverTimestamp(),
-    };
-    if (typeof input.title === "string") patch.title = input.title;
-    if (typeof input.description === "string") patch.description = input.description;
-    if (typeof input.assignedTo === "string") patch.assignedTo = input.assignedTo;
-
-    await updateDoc(issueRef, patch);
-    const updated = await getDoc(issueRef);
-    if (!updated.exists()) return null;
-    return toIssue(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async delete(issueId: string): Promise<void> {
-    await deleteDoc(doc(this.db, WF_ISSUES_COLLECTION, issueId));
-  }
-
-  async findById(issueId: string): Promise<Issue | null> {
-    const snap = await getDoc(doc(this.db, WF_ISSUES_COLLECTION, issueId));
-    if (!snap.exists()) return null;
-    return toIssue(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByTaskId(taskId: string): Promise<Issue[]> {
-    const snaps = await getDocs(
-      query(
-        this.collectionRef,
-        where("taskId", "==", taskId),
-        orderBy("createdAtISO", "desc"),
-      ),
-    );
-    return snaps.docs.map((d) => toIssue(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async countOpenByTaskId(taskId: string): Promise<number> {
-    const snaps = await getDocs(
-      query(
-        this.collectionRef,
-        where("taskId", "==", taskId),
-        where("status", "in", OPEN_STATUSES),
-      ),
-    );
-    return snaps.size;
-  }
-
-  async transitionStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<Issue | null> {
-    const issueRef = doc(this.db, WF_ISSUES_COLLECTION, issueId);
-    const snap = await getDoc(issueRef);
-    if (!snap.exists()) return null;
-
-    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
-    const patch: Record<string, unknown> = {
-      status: validTo,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    };
-    if (validTo === "resolved") patch.resolvedAtISO = nowISO;
-
-    await updateDoc(issueRef, patch);
-    const updated = await getDoc(issueRef);
-    if (!updated.exists()) return null;
-    return toIssue(updated.id, updated.data() as Record<string, unknown>);
-  }
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseTaskRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseTaskRepository.ts
- * @description Firebase Firestore implementation of TaskRepository for workspace-flow.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add query pagination support and composite indexes
- */
-
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { Task, CreateTaskInput, UpdateTaskInput } from "../../domain/entities/Task";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
-import { toTask } from "../firebase/task.converter";
-import { WF_TASKS_COLLECTION } from "../firebase/workspace-flow.collections";
-
-const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
-const DEFAULT_STATUS: TaskStatus = "draft";
-
-export class FirebaseTaskRepository implements TaskRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private get collectionRef() {
-    return collection(this.db, WF_TASKS_COLLECTION);
-  }
-
-  async create(input: CreateTaskInput): Promise<Task> {
-    const nowISO = new Date().toISOString();
-    const docData: Record<string, unknown> = {
-      workspaceId: input.workspaceId,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      assigneeId: input.assigneeId ?? null,
-      dueDateISO: input.dueDateISO ?? null,
-      acceptedAtISO: null,
-      archivedAtISO: null,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-    if (input.sourceReference) {
-      docData.sourceReference = { ...input.sourceReference };
-    }
-
-    const docRef = await addDoc(this.collectionRef, docData);
-
-    return {
-      id: docRef.id,
-      workspaceId: input.workspaceId,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      assigneeId: input.assigneeId,
-      dueDateISO: input.dueDateISO,
-      sourceReference: input.sourceReference,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async update(taskId: string, input: UpdateTaskInput): Promise<Task | null> {
-    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);
-    const snap = await getDoc(taskRef);
-    if (!snap.exists()) return null;
-
-    const patch: Record<string, unknown> = {
-      updatedAtISO: new Date().toISOString(),
-      updatedAt: serverTimestamp(),
-    };
-    if (typeof input.title === "string") patch.title = input.title;
-    if (typeof input.description === "string") patch.description = input.description;
-    if (typeof input.assigneeId === "string") patch.assigneeId = input.assigneeId;
-    if (typeof input.dueDateISO === "string") patch.dueDateISO = input.dueDateISO;
-
-    await updateDoc(taskRef, patch);
-    const updated = await getDoc(taskRef);
-    if (!updated.exists()) return null;
-    return toTask(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async delete(taskId: string): Promise<void> {
-    await deleteDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));
-  }
-
-  async findById(taskId: string): Promise<Task | null> {
-    const snap = await getDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));
-    if (!snap.exists()) return null;
-    return toTask(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByWorkspaceId(workspaceId: string): Promise<Task[]> {
-    const snaps = await getDocs(
-      query(
-        this.collectionRef,
-        where("workspaceId", "==", workspaceId),
-      ),
-    );
-    const tasks = snaps.docs.map((d) => toTask(d.id, d.data() as Record<string, unknown>));
-    return tasks.sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
-  }
-
-  async transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null> {
-    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);
-    const snap = await getDoc(taskRef);
-    if (!snap.exists()) return null;
-
-    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
-    const patch: Record<string, unknown> = {
-      status: validTo,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    };
-    if (validTo === "accepted") patch.acceptedAtISO = nowISO;
-    if (validTo === "archived") patch.archivedAtISO = nowISO;
-
-    await updateDoc(taskRef, patch);
-    const updated = await getDoc(taskRef);
-    if (!updated.exists()) return null;
-    return toTask(updated.id, updated.data() as Record<string, unknown>);
-  }
-}
-````
-
 ## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow-invoice.actions.ts
 ````typescript
 "use server";
@@ -16828,10 +15277,25 @@ import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWork
 function buildContentBaseItems(workspaceId: string): WikiContentItemNode[] {
   return [
     { key: "spaces", label: "Workspace", href: `/workspace/${workspaceId}`, enabled: true },
-    { key: "pages", label: "Knowledge Pages", href: `/knowledge/pages?workspaceId=${workspaceId}`, enabled: true },
-    { key: "libraries", label: "Libraries", href: `/source/libraries?workspaceId=${workspaceId}`, enabled: true },
+    {
+      key: "pages",
+      label: "Knowledge Pages",
+      href: `/workspace/${workspaceId}?tab=Overview&panel=knowledge-pages`,
+      enabled: true,
+    },
+    {
+      key: "libraries",
+      label: "Libraries",
+      href: `/workspace/${workspaceId}?tab=Overview&panel=source-libraries`,
+      enabled: true,
+    },
     { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
-    { key: "vector-index", label: "Vector Index", href: "/knowledge", enabled: false },
+    {
+      key: "vector-index",
+      label: "Vector Index",
+      href: `/workspace/${workspaceId}?tab=Overview&panel=knowledge-databases`,
+      enabled: false,
+    },
     { key: "rag", label: "RAG", href: `/notebook/rag-query?workspaceId=${workspaceId}`, enabled: true },
     { key: "ai-tools", label: "AI Tools", href: `/ai-chat?workspaceId=${workspaceId}`, enabled: true },
   ];
@@ -16874,109 +15338,1050 @@ export async function buildWikiContentTree(
 }
 ````
 
-## File: modules/workspace/application/queries/workspace.queries.ts
+## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
 ````typescript
-/**
- * Module: workspace
- * Layer: application/queries
- * Purpose: Workspace read query handlers — pure reads with input normalization.
- *
- * DDD Rule 5:  Pure reads without business logic → Query, not Use Case.
- * DDD Rule 13: Read → queries/
- * DDD Rule 16: GetXxxUseCase → should be Query.
- * DDD Rule 18: Use Case wrapping a single call → over-design.
- */
-
-import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
 import type {
-  Unsubscribe,
-  WorkspaceQueryRepository,
-} from "../../domain/ports/output/WorkspaceQueryRepository";
+  WorkspaceMemberAccessChannel,
+  WorkspaceMemberPresence,
+  WorkspaceMemberView,
+} from "../../domain/entities/WorkspaceMemberView";
+import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
+import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
 
-// ─── Input Normalization ──────────────────────────────────────────────────────
+const personnelLabels = {
+  managerId: "Manager",
+  supervisorId: "Supervisor",
+  safetyOfficerId: "Safety officer",
+} as const;
 
-function normalizeId(value: string): string {
-  return value.trim();
+const personnelLabelEntries = Object.entries(personnelLabels) as Array<
+  [keyof typeof personnelLabels, string]
+>;
+
+interface OrganizationMemberReference {
+  id: string;
+  name: string;
+  email?: string;
+  role?: string;
+  presence?: string;
+  isExternal?: boolean;
 }
 
-// ─── Query Handlers ───────────────────────────────────────────────────────────
-
-export function listWorkspacesForAccount(
-  workspaceRepo: WorkspaceRepository,
-  accountId: string,
-): Promise<WorkspaceEntity[]> {
-  const normalized = normalizeId(accountId);
-  if (!normalized) return Promise.resolve([]);
-  return workspaceRepo.findAllByAccountId(normalized);
+interface OrganizationTeam {
+  id: string;
+  name: string;
+  memberIds: string[];
 }
 
-export function subscribeToWorkspacesForAccount(
-  workspaceQueryRepo: WorkspaceQueryRepository,
-  accountId: string,
-  onUpdate: (workspaces: WorkspaceEntity[]) => void,
-): Unsubscribe {
-  const normalized = normalizeId(accountId);
-  if (!normalized) {
-    onUpdate([]);
-    return () => {};
+interface OrganizationDirectoryGateway {
+  getOrganizationMembers(organizationId: string): Promise<OrganizationMemberReference[]>;
+  getOrganizationTeams(organizationId: string): Promise<OrganizationTeam[]>;
+}
+
+const defaultOrganizationDirectoryGateway: OrganizationDirectoryGateway = {
+  async getOrganizationMembers() {
+    return [];
+  },
+  async getOrganizationTeams() {
+    return [];
+  },
+};
+
+function toPresence(value: OrganizationMemberReference["presence"] | undefined): WorkspaceMemberPresence {
+  if (value === "active" || value === "away" || value === "offline") {
+    return value;
   }
-  return workspaceQueryRepo.subscribeToWorkspacesForAccount(normalized, onUpdate);
+
+  return "unknown";
 }
 
-export function getWorkspaceById(
-  workspaceRepo: WorkspaceRepository,
-  workspaceId: string,
-): Promise<WorkspaceEntity | null> {
-  const normalized = normalizeId(workspaceId);
-  if (!normalized) return Promise.resolve(null);
-  return workspaceRepo.findById(normalized);
+function createFallbackMember(id: string): WorkspaceMemberView {
+  return {
+    id,
+    displayName: id,
+    presence: "unknown",
+    isExternal: false,
+    accessChannels: [],
+  };
 }
 
-export function getWorkspaceByIdForAccount(
-  workspaceRepo: WorkspaceRepository,
-  accountId: string,
-  workspaceId: string,
-): Promise<WorkspaceEntity | null> {
-  const normalizedAccountId = normalizeId(accountId);
-  const normalizedWorkspaceId = normalizeId(workspaceId);
-  if (!normalizedAccountId || !normalizedWorkspaceId) return Promise.resolve(null);
-  return workspaceRepo.findByIdForAccount(normalizedAccountId, normalizedWorkspaceId);
+export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
+  constructor(
+    private readonly organizationDirectoryGateway: OrganizationDirectoryGateway = defaultOrganizationDirectoryGateway,
+  ) {}
+
+  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
+
+  subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: WorkspaceEntity[]) => void,
+  ) {
+    const normalizedAccountId = accountId.trim();
+    if (!normalizedAccountId) {
+      onUpdate([]);
+      return () => {};
+    }
+
+    return firestoreInfrastructureApi.watchCollection<Record<string, unknown>>(
+      "workspaces",
+      {
+        onNext: (documents) => {
+          const workspaces = documents.map((document) => toWorkspaceEntity(document.id, document.data));
+          onUpdate(workspaces);
+        },
+      },
+      [{ field: "accountId", op: "==", value: normalizedAccountId }],
+    );
+  }
+
+  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
+    const workspace = await this.workspaceRepo.findById(workspaceId);
+    if (!workspace) {
+      return [];
+    }
+
+    const members = new Map<string, WorkspaceMemberView>();
+    const memberChannelKeys = new Map<string, Set<string>>();
+
+    const mergeMember = (
+      memberId: string,
+      channel: WorkspaceMemberAccessChannel,
+      orgMember?: OrganizationMemberReference,
+    ) => {
+      const current = members.get(memberId) ?? createFallbackMember(memberId);
+      const channelKey = [
+        channel.source,
+        channel.label,
+        channel.role ?? "",
+        channel.protocol ?? "",
+        channel.teamId ?? "",
+      ].join("::");
+      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
+      memberChannelKeys.set(memberId, knownChannelKeys);
+      const hasSameChannel = knownChannelKeys.has(channelKey);
+      if (!hasSameChannel) {
+        knownChannelKeys.add(channelKey);
+      }
+
+      members.set(memberId, {
+        id: memberId,
+        displayName: orgMember?.name || current.displayName,
+        email: orgMember?.email ?? current.email,
+        organizationRole: orgMember?.role ?? current.organizationRole,
+        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
+        isExternal: orgMember?.isExternal ?? current.isExternal,
+        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
+      });
+    };
+
+    if (workspace.accountType === "organization") {
+      const [organizationMembers, teams] = await Promise.all([
+        this.organizationDirectoryGateway.getOrganizationMembers(workspace.accountId),
+        this.organizationDirectoryGateway.getOrganizationTeams(workspace.accountId),
+      ]);
+
+      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
+      const teamMap = new Map(teams.map((team) => [team.id, team]));
+
+      const mergeTeam = (team: OrganizationTeam, role?: string, protocol?: string) => {
+        const label = team.name || team.id;
+        team.memberIds.forEach((memberId: string) => {
+          mergeMember(
+            memberId,
+            {
+              source: "team",
+              label,
+              role,
+              protocol,
+              teamId: team.id,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        });
+      };
+
+      workspace.teamIds.forEach((teamId) => {
+        const team = teamMap.get(teamId);
+        if (team) {
+          mergeTeam(team);
+        }
+      });
+
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(
+            grant.userId,
+            {
+              source: "direct",
+              label: "Direct access",
+              role: grant.role,
+              protocol: grant.protocol,
+            },
+            organizationMemberMap.get(grant.userId),
+          );
+        }
+
+        if (grant.teamId) {
+          const team = teamMap.get(grant.teamId);
+          if (team) {
+            mergeTeam(team, grant.role, grant.protocol);
+          }
+        }
+      });
+
+      personnelLabelEntries.forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field];
+        if (memberId) {
+          mergeMember(
+            memberId,
+            {
+              source: "personnel",
+              label,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        }
+      });
+    } else {
+      mergeMember(workspace.accountId, {
+        source: "owner",
+        label: "Workspace owner",
+      });
+
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(grant.userId, {
+            source: "direct",
+            label: "Direct access",
+            role: grant.role,
+            protocol: grant.protocol,
+          });
+        }
+      });
+
+      personnelLabelEntries.forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field];
+        if (memberId) {
+          mergeMember(memberId, {
+            source: "personnel",
+            label,
+          });
+        }
+      });
+    }
+
+    return Array.from(members.values()).sort((left, right) =>
+      left.displayName.localeCompare(right.displayName),
+    );
+  }
 }
 ````
 
-## File: modules/workspace/application/use-cases/workspace-location.use-cases.ts
+## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository.ts
 ````typescript
 /**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Workspace location use case — part of workspace operational profile.
- *
- * DDD Rule 1: Has business behavior (location creation within workspace scope)
- * DDD Rule 8: One use case = one business intent (verb: Create)
+ * FirebaseWorkspaceRepository — Infrastructure adapter for workspace persistence.
+ * Translates Firestore documents ↔ Domain WorkspaceEntity.
+ * Firebase SDK only exists in this file.
  */
 
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
+import type { WorkspaceCapabilityRepository } from "../../domain/ports/output/WorkspaceCapabilityRepository";
+import type { WorkspaceAccessRepository } from "../../domain/ports/output/WorkspaceAccessRepository";
 import type { WorkspaceLocationRepository } from "../../domain/ports/output/WorkspaceLocationRepository";
-import type { WorkspaceLocation } from "../../domain/aggregates/Workspace";
+import type {
+  WorkspaceEntity,
+  Capability,
+  WorkspaceGrant,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceLocation,
+} from "../../domain/aggregates/Workspace";
+import { createAddress } from "../../domain/value-objects/Address";
+import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
+import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";
+import { createWorkspaceVisibility } from "../../domain/value-objects/WorkspaceVisibility";
 
-export class CreateWorkspaceLocationUseCase {
-  constructor(private readonly workspaceLocationRepo: WorkspaceLocationRepository) {}
+// ─── Mapper ───────────────────────────────────────────────────────────────────
 
-  async execute(
+const VALID_ACCOUNT_TYPES = new Set<WorkspaceEntity["accountType"]>(["user", "organization"]);
+
+export function toWorkspaceEntity(id: string, data: Record<string, unknown>): WorkspaceEntity {
+  const accountType = VALID_ACCOUNT_TYPES.has(data.accountType as WorkspaceEntity["accountType"])
+    ? (data.accountType as WorkspaceEntity["accountType"])
+    : "user";
+
+  return {
+    id,
+    name: createWorkspaceName(typeof data.name === "string" ? data.name : "Untitled workspace"),
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    accountType,
+    lifecycleState: createWorkspaceLifecycleState(
+      data.lifecycleState === "active" ||
+        data.lifecycleState === "stopped" ||
+        data.lifecycleState === "preparatory"
+        ? data.lifecycleState
+        : "preparatory",
+    ),
+    visibility: createWorkspaceVisibility(
+      data.visibility === "hidden" || data.visibility === "visible"
+        ? data.visibility
+        : "visible",
+    ),
+    capabilities: Array.isArray(data.capabilities) ? (data.capabilities as Capability[]) : [],
+    grants: Array.isArray(data.grants) ? (data.grants as WorkspaceGrant[]) : [],
+    teamIds: Array.isArray(data.teamIds) ? (data.teamIds as string[]) : [],
+    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
+    address: data.address != null ? createAddress(data.address as NonNullable<UpdateWorkspaceSettingsCommand["address"]>) : undefined,
+    locations: Array.isArray(data.locations) ? (data.locations as WorkspaceLocation[]) : undefined,
+    personnel: data.personnel != null ? (data.personnel as WorkspaceEntity["personnel"]) : undefined,
+    createdAt: data.createdAt as WorkspaceEntity["createdAt"],
+  };
+}
+
+// ─── Repository ───────────────────────────────────────────────────────────────
+
+export class FirebaseWorkspaceRepository
+  implements
+    WorkspaceRepository,
+    WorkspaceCapabilityRepository,
+    WorkspaceAccessRepository,
+    WorkspaceLocationRepository {
+  private workspacePath(workspaceId: string): string {
+    return `workspaces/${workspaceId}`;
+  }
+
+  async findById(id: string): Promise<WorkspaceEntity | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.workspacePath(id));
+    if (!data) return null;
+    return toWorkspaceEntity(id, data);
+  }
+
+  async findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      "workspaces",
+      [{ field: "accountId", op: "==", value: accountId }],
+    );
+    const target = docs.find((doc) => doc.id === workspaceId);
+    if (!target) return null;
+    return toWorkspaceEntity(target.id, target.data);
+  }
+
+  async findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      "workspaces",
+      [{ field: "accountId", op: "==", value: accountId }],
+    );
+    return docs.map((doc) => toWorkspaceEntity(doc.id, doc.data));
+  }
+
+  async save(workspace: WorkspaceEntity): Promise<string> {
+    const payload: Record<string, unknown> = {
+      name: workspace.name,
+      accountId: workspace.accountId,
+      accountType: workspace.accountType,
+      lifecycleState: workspace.lifecycleState,
+      visibility: workspace.visibility,
+      capabilities: workspace.capabilities,
+      grants: workspace.grants,
+      teamIds: workspace.teamIds,
+      createdAtISO: new Date().toISOString(),
+    };
+
+    if (workspace.photoURL !== undefined) payload.photoURL = workspace.photoURL;
+    if (workspace.address !== undefined) payload.address = workspace.address;
+    if (workspace.locations !== undefined) payload.locations = workspace.locations;
+    if (workspace.personnel !== undefined) payload.personnel = workspace.personnel;
+
+    await firestoreInfrastructureApi.set(this.workspacePath(workspace.id), payload);
+    return workspace.id;
+  }
+
+  async updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void> {
+    const updates: Record<string, unknown> = { updatedAtISO: new Date().toISOString() };
+    if (command.name !== undefined) updates.name = command.name;
+    if (command.visibility !== undefined) updates.visibility = command.visibility;
+    if (command.lifecycleState !== undefined) updates.lifecycleState = command.lifecycleState;
+    if (command.address !== undefined) updates.address = command.address;
+    if (command.personnel !== undefined) updates.personnel = command.personnel;
+    await firestoreInfrastructureApi.update(this.workspacePath(command.workspaceId), updates);
+  }
+
+  async delete(id: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(this.workspacePath(id));
+  }
+
+  async mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const existing = Array.isArray(data.capabilities) ? (data.capabilities as Capability[]) : [];
+    const merged = [...existing];
+    capabilities.forEach((capability) => {
+      if (!merged.some((item) => item.id === capability.id)) {
+        merged.push(capability);
+      }
+    });
+
+    await firestoreInfrastructureApi.update(path, {
+      capabilities: merged,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async unmountCapability(workspaceId: string, capabilityId: string): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const caps = ((data.capabilities as Capability[]) ?? []).filter((c) => c.id !== capabilityId);
+    await firestoreInfrastructureApi.update(path, {
+      capabilities: caps,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async grantTeamAccess(workspaceId: string, teamId: string): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const teamIds = Array.isArray(data.teamIds) ? [...(data.teamIds as string[])] : [];
+    if (!teamIds.includes(teamId)) {
+      teamIds.push(teamId);
+    }
+    await firestoreInfrastructureApi.update(path, {
+      teamIds,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async revokeTeamAccess(workspaceId: string, teamId: string): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const teamIds = (Array.isArray(data.teamIds) ? (data.teamIds as string[]) : []).filter((item) => item !== teamId);
+    await firestoreInfrastructureApi.update(path, {
+      teamIds,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async grantIndividualAccess(workspaceId: string, grant: WorkspaceGrant): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const grants = Array.isArray(data.grants) ? [...(data.grants as WorkspaceGrant[])] : [];
+    const exists = grants.some((item) => item.userId === grant.userId && item.teamId === grant.teamId);
+    if (!exists) {
+      grants.push(grant);
+    }
+    await firestoreInfrastructureApi.update(path, {
+      grants,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async revokeIndividualAccess(workspaceId: string, userId: string): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const grants = ((data.grants as WorkspaceGrant[]) ?? []).filter((g) => g.userId !== userId);
+    await firestoreInfrastructureApi.update(path, {
+      grants,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async createLocation(
     workspaceId: string,
     location: Omit<WorkspaceLocation, "locationId">,
-  ): Promise<CommandResult> {
-    try {
-      const locationId = await this.workspaceLocationRepo.createLocation(workspaceId, location);
-      return commandSuccess(locationId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_LOCATION_CREATE_FAILED",
-        err instanceof Error ? err.message : "Failed to create workspace location",
-      );
+  ): Promise<string> {
+    const locationId = crypto.randomUUID();
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return locationId;
+    const locations = Array.isArray(data.locations) ? [...(data.locations as WorkspaceLocation[])] : [];
+    locations.push({ ...location, locationId });
+    await firestoreInfrastructureApi.update(path, {
+      locations,
+      updatedAtISO: new Date().toISOString(),
+    });
+    return locationId;
+  }
+
+  async updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const locations = ((data.locations as WorkspaceLocation[]) ?? []).map((l) =>
+      l.locationId === location.locationId ? location : l,
+    );
+    await firestoreInfrastructureApi.update(path, {
+      locations,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async deleteLocation(workspaceId: string, locationId: string): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const locations = ((data.locations as WorkspaceLocation[]) ?? []).filter(
+      (l) => l.locationId !== locationId,
+    );
+    await firestoreInfrastructureApi.update(path, {
+      locations,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+}
+````
+
+## File: modules/workspace/interfaces/web/components/rails/CreateWorkspaceDialogRail.tsx
+````typescript
+"use client";
+
+import { type FormEvent, useState } from "react";
+
+import { createWorkspace } from "../../../api/facades";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+
+interface CreateWorkspaceDialogRailProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  accountId: string | null;
+  accountType: "user" | "organization" | null;
+  creatorUserId?: string | null;
+  onNavigate: (href: string) => void;
+}
+
+export function CreateWorkspaceDialogRail({
+  open,
+  onOpenChange,
+  accountId,
+  accountType,
+  creatorUserId,
+  onNavigate,
+}: CreateWorkspaceDialogRailProps) {
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  function reset() {
+    setWorkspaceName("");
+    setError(null);
+    setIsCreating(false);
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = workspaceName.trim();
+    if (!name) {
+      setError("請輸入工作區名稱。");
+      return;
+    }
+    if (!accountId || !accountType) {
+      setError("帳號資訊已失效，請重新登入後再建立工作區。");
+      return;
+    }
+
+    setIsCreating(true);
+    setError(null);
+    const result = await createWorkspace({
+      name,
+      accountId,
+      accountType,
+      creatorUserId: creatorUserId ?? undefined,
+    });
+
+    if (!result.success) {
+      setError(result.error.message);
+      setIsCreating(false);
+      return;
+    }
+
+    reset();
+    onOpenChange(false);
+    onNavigate(`/${encodeURIComponent(accountId)}`);
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        onOpenChange(isOpen);
+        if (!isOpen) reset();
+      }}
+    >
+      <DialogContent aria-describedby="rail-create-workspace-description">
+        <DialogHeader>
+          <DialogTitle>建立新工作區</DialogTitle>
+          <DialogDescription id="rail-create-workspace-description">
+            輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
+          </DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
+              工作區名稱
+            </label>
+            <Input
+              id="rail-workspace-name"
+              value={workspaceName}
+              onChange={(e) => {
+                setWorkspaceName(e.target.value);
+                if (error) setError(null);
+              }}
+              placeholder="例如：Project Alpha"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+              disabled={isCreating}
+              maxLength={80}
+            />
+            {error && <p className="text-sm text-destructive">{error}</p>}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                reset();
+                onOpenChange(false);
+              }}
+              disabled={isCreating}
+            >
+              取消
+            </Button>
+            <Button type="submit" disabled={isCreating || !accountId || !accountType}>
+              {isCreating ? "建立中…" : "直接建立"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailRouteScreen.tsx
+````typescript
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+import { WorkspaceDetailScreen } from "./WorkspaceDetailScreen";
+
+interface WorkspaceDetailRouteScreenProps {
+  workspaceId: string;
+  accountId: string | null | undefined;
+  accountsHydrated: boolean;
+  initialTab?: string;
+  initialOverviewPanel?: string;
+}
+
+export function WorkspaceDetailRouteScreen({
+  workspaceId,
+  accountId,
+  accountsHydrated,
+  initialTab,
+  initialOverviewPanel,
+}: WorkspaceDetailRouteScreenProps) {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (initialTab === "Wiki" && workspaceId) {
+      router.replace(`/workspace/${encodeURIComponent(workspaceId)}?tab=Overview&panel=knowledge-pages`);
+    }
+  }, [initialTab, router, workspaceId]);
+
+  if (initialTab === "Wiki" && workspaceId) {
+    return <div className="px-4 py-6 text-sm text-muted-foreground">正在導向工作區 Overview（Knowledge Pages）…</div>;
+  }
+
+  return (
+    <WorkspaceDetailScreen
+      workspaceId={workspaceId}
+      accountId={accountId}
+      accountsHydrated={accountsHydrated}
+      initialTab={initialTab}
+      initialOverviewPanel={initialOverviewPanel}
+    />
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { type FormEvent, useState } from "react";
+
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+
+import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";
+import { getWorkspaceGovernanceSummary } from "../../view-models/workspace-supporting-records";
+import { CreateWorkspaceDialog } from "../dialogs/CreateWorkspaceDialog";
+
+const lifecycleBadgeVariant: Record<
+  WorkspaceEntity["lifecycleState"],
+  "default" | "secondary" | "outline"
+> = {
+  active: "default",
+  preparatory: "secondary",
+  stopped: "outline",
+};
+
+interface WorkspaceHubScreenProps {
+  readonly accountId: string | null | undefined;
+  readonly accountName: string | null | undefined;
+  readonly accountType: "user" | "organization";
+  readonly accountsHydrated: boolean;
+  readonly isBootstrapSeeded: boolean;
+  readonly currentUserId?: string | null;
+}
+
+export function WorkspaceHubScreen({
+  accountId,
+  accountName,
+  accountType,
+  accountsHydrated,
+  isBootstrapSeeded,
+  currentUserId,
+}: WorkspaceHubScreenProps) {
+  const router = useRouter();
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+
+  const {
+    createError,
+    clearCreateError,
+    createWorkspaceForAccount,
+    errorMessage,
+    isCreatingWorkspace,
+    loadState,
+    workspaceStats,
+    workspaces,
+  } = useWorkspaceHub({
+    accountId,
+    accountType,
+    creatorUserId: currentUserId,
+  });
+
+  function resetCreateWorkspaceDialog() {
+    setWorkspaceName("");
+    clearCreateError();
+  }
+
+  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const result = await createWorkspaceForAccount(workspaceName);
+
+    if (!result.success) {
+      return;
+    }
+
+    resetCreateWorkspaceDialog();
+    setIsCreateWorkspaceOpen(false);
+    if (result.aggregateId) {
+      if (accountId) {
+        router.push(`/${encodeURIComponent(accountId)}/${encodeURIComponent(result.aggregateId)}`);
+      } else {
+        router.push("/");
+      }
     }
   }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">Workspace Hub</h1>
+          <p className="text-sm text-muted-foreground">
+            Review the workspaces connected to{" "}
+            <span className="font-medium text-foreground">
+              {accountName ?? "the active account"}
+            </span>
+            .
+          </p>
+        </div>
+
+        <Button
+          onClick={() => setIsCreateWorkspaceOpen(true)}
+          disabled={!accountsHydrated || !accountId}
+        >
+          {!accountsHydrated ? "同步帳號中…" : "建立工作區"}
+        </Button>
+      </div>
+
+      {!accountsHydrated && (
+        <div
+          className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground"
+          aria-live="polite"
+          role="status"
+        >
+          {isBootstrapSeeded
+            ? "正在同步可用的組織與工作區內容，完成後即可直接建立或切換工作區。"
+            : "正在載入帳號與工作區內容…"}
+        </div>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Total Workspaces</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.total}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Active</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.active}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Preparatory</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.preparatory}</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
+      <Card className="border border-border/50">
+        <CardHeader>
+          <CardTitle>Workspace-first Product Spine</CardTitle>
+          <CardDescription>
+            目前先把主流程收斂成 Identity → Organization → Workspace，再由工作區承接 Knowledge、知識頁面、Notebook / AI。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-xl border border-border/40 px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Entry flow</p>
+            <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <li>
+                <span className="font-medium text-foreground">1. Identity</span>：登入後先建立個人／組織帳號情境。
+              </li>
+              <li>
+                <span className="font-medium text-foreground">2. Organization</span>：切換至目標 account / organization。
+              </li>
+              <li>
+                <span className="font-medium text-foreground">3. Workspace</span>：進入工作區後再分流到知識、知識頁面、Notebook / AI。
+              </li>
+            </ol>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Knowledge</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                文件、來源、Libraries 與 upload / ingest 流程都由工作區承接。
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">知識頁面</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                頁面樹、內容導覽與知識結構直接從工作區知識頁面進入。
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                問答、推理與 RAG 查詢作為工作區內的消費層，而非獨立入口。
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border/50">
+        <CardHeader>
+          <CardTitle>Workspace Records</CardTitle>
+          <CardDescription>
+            Lifecycle 與 supporting governance records 目前仍由 workspace 模組擁有，但已收斂在專用 supporting ports；點入後會以工作區為樞紐進入 Knowledge / 知識頁面 / Notebook-AI。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+              Loading workspace records…
+            </div>
+          )}
+
+          {loadState === "error" && errorMessage && (
+            <div className="rounded-xl border border-destructive/30 px-4 py-3 text-sm text-destructive">
+              {errorMessage}
+            </div>
+          )}
+
+          {loadState === "loaded" && workspaces.length === 0 && (
+            <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
+              目前這個帳號尚未建立任何工作區。你可以先完成{" "}
+              <Link
+                href={accountId ? `/${encodeURIComponent(accountId)}/organization` : "/"}
+                className="font-medium text-primary hover:underline"
+              >
+                組織情境
+              </Link>{" "}
+              設定，再使用上方的建立工作區入口，回到 workspace-first 主流程。
+            </div>
+          )}
+
+          {workspaces.map((workspace) => {
+            const governanceSummary = getWorkspaceGovernanceSummary(workspace);
+
+            return (
+              <Link
+                key={workspace.id}
+                href={accountId
+                  ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspace.id)}`
+                  : "/"}
+                className="block rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">
+                        {workspace.name}
+                      </p>
+                      <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
+                        {workspace.lifecycleState}
+                      </Badge>
+                      <Badge variant="outline">{workspace.visibility}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Account scope: {workspace.accountType}
+                    </p>
+                    <p className="text-xs font-medium text-primary">點擊進入工作區</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-right">
+                    <span>Capabilities: {governanceSummary.capabilityCount}</span>
+                    <span>Teams: {governanceSummary.teamCount}</span>
+                    <span>Locations: {governanceSummary.locationCount}</span>
+                    <span>Grants: {governanceSummary.grantCount}</span>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      <CreateWorkspaceDialog
+        open={isCreateWorkspaceOpen}
+        workspaceName={workspaceName}
+        createError={createError}
+        isCreatingWorkspace={isCreatingWorkspace}
+        accountId={accountId}
+        onOpenChange={(open) => {
+          setIsCreateWorkspaceOpen(open);
+          if (!open) resetCreateWorkspaceDialog();
+        }}
+        onWorkspaceNameChange={(name) => {
+          setWorkspaceName(name);
+          if (createError) clearCreateError();
+        }}
+        onSubmit={handleCreateWorkspace}
+      />
+    </div>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { WorkspaceEntity } from "../../api/contracts";
+import { getWorkspaceByIdForAccount } from "../../api/facades";
+
+export type WorkspaceLoadState = "loading" | "loaded" | "error";
+
+export interface UseWorkspaceDetailResult {
+  workspace: WorkspaceEntity | null;
+  loadState: WorkspaceLoadState;
+  setWorkspace: (ws: WorkspaceEntity) => void;
+}
+
+export function useWorkspaceDetail(
+  workspaceId: string,
+  accountId: string | null | undefined,
+  accountsHydrated: boolean,
+): UseWorkspaceDetailResult {
+  const router = useRouter();
+  const [workspace, setWorkspace] = useState<WorkspaceEntity | null>(null);
+  const [loadState, setLoadState] = useState<WorkspaceLoadState>("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWorkspace() {
+      if (!workspaceId) {
+        setLoadState("error");
+        return;
+      }
+
+      if (!accountId || !accountsHydrated) {
+        setWorkspace(null);
+        setLoadState("loading");
+        return;
+      }
+
+      setLoadState("loading");
+      try {
+        const detail = await getWorkspaceByIdForAccount(accountId, workspaceId);
+        if (cancelled) return;
+        if (!detail) {
+          router.replace(`/${encodeURIComponent(accountId)}?context=unavailable`);
+          return;
+        }
+        setWorkspace(detail);
+        setLoadState("loaded");
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[useWorkspaceDetail] Failed to load workspace:", error);
+        }
+        if (!cancelled) {
+          setWorkspace(null);
+          setLoadState("error");
+        }
+      }
+    }
+
+    void loadWorkspace();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accountId, accountsHydrated, router, workspaceId]);
+
+  return { workspace, loadState, setWorkspace };
 }
 ````
 
@@ -17025,6 +16430,147 @@ export function useWorkspaceOrchestrationContext(
     currentUserId,
     activeWorkspaceId,
     workspaceId,
+  };
+}
+````
+
+## File: modules/workspace/interfaces/web/hooks/useWorkspaceSettingsSave.ts
+````typescript
+"use client";
+
+import { type FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { WorkspaceEntity } from "../../api/contracts";
+import { getWorkspaceByIdForAccount, updateWorkspaceSettings } from "../../api/facades";
+import type { WorkspaceSettingsDraft } from "../state/workspace-settings";
+import { trimOrUndefined } from "../components/layout/workspace-detail-helpers";
+
+interface UseWorkspaceSettingsSaveOptions {
+  readonly workspace: WorkspaceEntity | null;
+  readonly accountId: string | null | undefined;
+  readonly onSaved: (updated: WorkspaceEntity) => void;
+}
+
+interface UseWorkspaceSettingsSaveResult {
+  readonly isSaving: boolean;
+  readonly saveError: string | null;
+  readonly clearSaveError: () => void;
+  readonly handleSave: (
+    event: FormEvent<HTMLFormElement>,
+    settingsDraft: WorkspaceSettingsDraft | null,
+  ) => Promise<void>;
+}
+
+export function useWorkspaceSettingsSave({
+  workspace,
+  accountId,
+  onSaved,
+}: UseWorkspaceSettingsSaveOptions): UseWorkspaceSettingsSaveResult {
+  const router = useRouter();
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  async function handleSave(
+    event: FormEvent<HTMLFormElement>,
+    settingsDraft: WorkspaceSettingsDraft | null,
+  ) {
+    event.preventDefault();
+
+    if (!workspace || !settingsDraft) return;
+
+    if (!accountId) {
+      setSaveError("帳號上下文尚未完成同步，請稍候再試。");
+      return;
+    }
+
+    const nextWorkspaceName = settingsDraft.name.trim();
+    if (!nextWorkspaceName) {
+      setSaveError("請輸入工作區名稱。");
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    const hasAddressContent = Boolean(
+      settingsDraft.street.trim() ||
+        settingsDraft.city.trim() ||
+        settingsDraft.state.trim() ||
+        settingsDraft.postalCode.trim() ||
+        settingsDraft.country.trim() ||
+        settingsDraft.details.trim(),
+    );
+    const hasPersonnelContent = Boolean(
+      settingsDraft.managerId.trim() ||
+        settingsDraft.supervisorId.trim() ||
+        settingsDraft.safetyOfficerId.trim() ||
+        settingsDraft.customRoles.some((entry) => entry.roleName.trim() || entry.role.trim()),
+    );
+
+    const normalizedCustomRoles = settingsDraft.customRoles
+      .map((entry) => ({
+        roleId: entry.roleId,
+        roleName: entry.roleName.trim(),
+        role: entry.role.trim(),
+      }))
+      .filter((entry) => entry.roleName || entry.role);
+
+    const result = await updateWorkspaceSettings({
+      workspaceId: workspace.id,
+      accountId,
+      name: nextWorkspaceName,
+      visibility: settingsDraft.visibility,
+      lifecycleState: settingsDraft.lifecycleState,
+      address:
+        workspace.address != null || hasAddressContent
+          ? {
+              street: settingsDraft.street.trim(),
+              city: settingsDraft.city.trim(),
+              state: settingsDraft.state.trim(),
+              postalCode: settingsDraft.postalCode.trim(),
+              country: settingsDraft.country.trim(),
+              details: trimOrUndefined(settingsDraft.details),
+            }
+          : undefined,
+      personnel:
+        workspace.personnel != null || hasPersonnelContent
+          ? {
+              managerId: trimOrUndefined(settingsDraft.managerId),
+              supervisorId: trimOrUndefined(settingsDraft.supervisorId),
+              safetyOfficerId: trimOrUndefined(settingsDraft.safetyOfficerId),
+              customRoles: normalizedCustomRoles.length > 0 ? normalizedCustomRoles : undefined,
+            }
+          : undefined,
+    });
+
+    if (!result.success) {
+      setSaveError(result.error.message);
+      setIsSaving(false);
+      return;
+    }
+
+    try {
+      const detail = await getWorkspaceByIdForAccount(accountId, workspace.id);
+      if (!detail) {
+        router.replace(`/${encodeURIComponent(accountId)}?context=unavailable`);
+        return;
+      }
+      onSaved(detail);
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[useWorkspaceSettingsSave] Failed to refresh workspace after save:", error);
+      }
+      setSaveError("工作區已更新，但重新整理資料失敗。請稍後再試。");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return {
+    isSaving,
+    saveError,
+    clearSaveError: () => setSaveError(null),
+    handleSave,
   };
 }
 ````
@@ -17097,1272 +16643,1298 @@ export {
 } from "./hooks/useRecentWorkspaces";
 ````
 
-## File: modules/workspace/interfaces/web/navigation/workspace-context-links.ts
+## File: modules/workspace/subdomains/audit/infrastructure/firebase/FirebaseAuditRepository.ts
 ````typescript
-export interface WorkspaceNavigationContext {
-  readonly accountId: string | null;
-  readonly workspaceId: string | null;
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import type { AuditEntry } from "../../domain/aggregates/AuditEntry";
+import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
+import type { AuditRepository } from "../../domain/repositories/AuditRepository";
+
+const VALID_AUDIT_LOG_SOURCES = new Set<AuditLogSource>([
+  "workspace",
+  "finance",
+  "notification",
+  "system",
+]);
+
+function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEntity {
+  const source = VALID_AUDIT_LOG_SOURCES.has(data.source as AuditLogSource)
+    ? (data.source as AuditLogSource)
+    : "workspace";
+
+  return {
+    id,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    actorId: typeof data.actorId === "string" ? data.actorId : "system",
+    action: typeof data.action === "string" ? data.action : "unknown",
+    detail: typeof data.detail === "string" ? data.detail : "",
+    source,
+    occurredAtISO:
+      typeof data.occurredAtISO === "string"
+        ? data.occurredAtISO
+        : "",
+  };
 }
 
-export function supportsWorkspaceSearchContext(pathname: string): boolean {
+export class FirebaseAuditRepository implements AuditRepository {
+  async save(entry: AuditEntry): Promise<void> {
+    const id = crypto.randomUUID();
+    await firestoreInfrastructureApi.set(`auditLogs/${id}`, entry.getSnapshot());
+  }
+
+  async findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      "auditLogs",
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+    );
+
+    return docs
+      .map((doc) => toAuditLogEntity(doc.id, doc.data))
+      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO));
+  }
+
+  async findByWorkspaceIds(
+    workspaceIds: string[],
+    maxCount = 200,
+  ): Promise<AuditLogEntity[]> {
+    if (workspaceIds.length === 0) {
+      return [];
+    }
+
+    const chunks: string[][] = [];
+    for (let index = 0; index < workspaceIds.length; index += 10) {
+      chunks.push(workspaceIds.slice(index, index + 10));
+    }
+
+    const perChunkLimit = Math.max(1, Math.ceil(maxCount / chunks.length));
+
+    const documents = await Promise.all(
+      chunks.map((chunk) =>
+        firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+          "auditLogs",
+          [{ field: "workspaceId", op: "in", value: chunk }],
+          { limit: perChunkLimit },
+        ),
+      ),
+    );
+
+    return documents
+      .flatMap((document) => document)
+      .map((doc) => toAuditLogEntity(doc.id, doc.data))
+      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO))
+      .slice(0, maxCount);
+  }
+}
+````
+
+## File: modules/workspace/subdomains/feed/infrastructure/firebase/FirebaseWorkspaceFeedInteractionRepository.ts
+````typescript
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+
+import type { WorkspaceFeedInteractionRepository } from "../../domain/repositories/workspace-feed.repositories";
+
+function postPath(accountId: string, postId: string): string {
+  return `accounts/${accountId}/workspaceFeedPosts/${postId}`;
+}
+
+function likesPath(accountId: string, postId: string, actorAccountId: string): string {
+  return `${postPath(accountId, postId)}/likes/${actorAccountId}`;
+}
+
+function bookmarksPath(accountId: string, postId: string, actorAccountId: string): string {
+  return `${postPath(accountId, postId)}/bookmarks/${actorAccountId}`;
+}
+
+function viewsPath(accountId: string, postId: string): string {
+  return `${postPath(accountId, postId)}/views`;
+}
+
+function sharesPath(accountId: string, postId: string): string {
+  return `${postPath(accountId, postId)}/shares`;
+}
+
+export class FirebaseWorkspaceFeedInteractionRepository implements WorkspaceFeedInteractionRepository {
+  async like(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
+    const path = likesPath(accountId, postId, actorAccountId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (snap) return false;
+
+    await firestoreInfrastructureApi.set(path, {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+    });
+    return true;
+  }
+
+  async bookmark(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
+    const path = bookmarksPath(accountId, postId, actorAccountId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (snap) return false;
+
+    await firestoreInfrastructureApi.set(path, {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+    });
+    return true;
+  }
+
+  async view(accountId: string, postId: string, actorAccountId: string): Promise<void> {
+    await firestoreInfrastructureApi.set(`${viewsPath(accountId, postId)}/${generateId()}`, {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+    });
+  }
+
+  async share(accountId: string, postId: string, actorAccountId: string): Promise<void> {
+    await firestoreInfrastructureApi.set(`${sharesPath(accountId, postId)}/${generateId()}`, {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+    });
+  }
+}
+````
+
+## File: modules/workspace/subdomains/feed/infrastructure/firebase/FirebaseWorkspaceFeedPostRepository.ts
+````typescript
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+
+import type {
+  CreateWorkspaceFeedPostInput,
+  CreateWorkspaceFeedReplyInput,
+  CreateWorkspaceFeedRepostInput,
+  WorkspaceFeedCounterPatch,
+  WorkspaceFeedPost,
+} from "../../domain/entities/workspace-feed-post.entity";
+import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
+
+function postsPath(accountId: string): string {
+  return `accounts/${accountId}/workspaceFeedPosts`;
+}
+
+function postPath(accountId: string, postId: string): string {
+  return `accounts/${accountId}/workspaceFeedPosts/${postId}`;
+}
+
+function repostMapPath(accountId: string, actorAccountId: string, sourcePostId: string): string {
+  return `accounts/${accountId}/workspaceFeedReposts/${actorAccountId}__${sourcePostId}`;
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function asNumber(value: unknown): number {
+  return typeof value === "number" ? value : 0;
+}
+
+function toWorkspaceFeedPost(id: string, data: Record<string, unknown>): WorkspaceFeedPost {
+  const type = asString(data.type, "post");
+  return {
+    id,
+    accountId: asString(data.accountId),
+    workspaceId: asString(data.workspaceId),
+    authorAccountId: asString(data.authorAccountId),
+    type: type === "reply" || type === "repost" ? type : "post",
+    content: asString(data.content),
+    replyToPostId: typeof data.replyToPostId === "string" ? data.replyToPostId : null,
+    repostOfPostId: typeof data.repostOfPostId === "string" ? data.repostOfPostId : null,
+    likeCount: asNumber(data.likeCount),
+    replyCount: asNumber(data.replyCount),
+    repostCount: asNumber(data.repostCount),
+    viewCount: asNumber(data.viewCount),
+    bookmarkCount: asNumber(data.bookmarkCount),
+    shareCount: asNumber(data.shareCount),
+    createdAtISO: asString(data.createdAtISO),
+    updatedAtISO: asString(data.updatedAtISO),
+  };
+}
+
+function createBasePostData(
+  accountId: string,
+  workspaceId: string,
+  authorAccountId: string,
+  content: string,
+  type: "post" | "reply" | "repost",
+): Record<string, unknown> {
+  const nowISO = new Date().toISOString();
+  return {
+    accountId,
+    workspaceId,
+    authorAccountId,
+    type,
+    content,
+    likeCount: 0,
+    replyCount: 0,
+    repostCount: 0,
+    viewCount: 0,
+    bookmarkCount: 0,
+    shareCount: 0,
+    createdAtISO: nowISO,
+    updatedAtISO: nowISO,
+  };
+}
+
+export class FirebaseWorkspaceFeedPostRepository implements WorkspaceFeedPostRepository {
+  async createPost(input: CreateWorkspaceFeedPostInput): Promise<WorkspaceFeedPost> {
+    const id = generateId();
+    const data = createBasePostData(
+      input.accountId,
+      input.workspaceId,
+      input.authorAccountId,
+      input.content,
+      "post",
+    );
+    await firestoreInfrastructureApi.set(postPath(input.accountId, id), data);
+    return toWorkspaceFeedPost(id, data);
+  }
+
+  async createReply(input: CreateWorkspaceFeedReplyInput): Promise<WorkspaceFeedPost> {
+    const id = generateId();
+    const data: Record<string, unknown> = {
+      ...createBasePostData(
+        input.accountId,
+        input.workspaceId,
+        input.authorAccountId,
+        input.content,
+        "reply",
+      ),
+      replyToPostId: input.parentPostId,
+      repostOfPostId: null,
+    };
+
+    await firestoreInfrastructureApi.set(postPath(input.accountId, id), data);
+    await this.patchCounters(input.accountId, input.parentPostId, { replyDelta: 1 });
+    return toWorkspaceFeedPost(id, data);
+  }
+
+  async createRepost(input: CreateWorkspaceFeedRepostInput): Promise<WorkspaceFeedPost | null> {
+    const mapPath = repostMapPath(input.accountId, input.actorAccountId, input.sourcePostId);
+    const existingMap = await firestoreInfrastructureApi.get<Record<string, unknown>>(mapPath);
+    if (existingMap) {
+      const repostPostId = asString(existingMap.repostPostId);
+      if (!repostPostId) return null;
+      return this.findById(input.accountId, repostPostId);
+    }
+
+    const source = await this.findById(input.accountId, input.sourcePostId);
+    if (!source) return null;
+
+    const id = generateId();
+    const content = input.comment?.trim() || source.content;
+    const data: Record<string, unknown> = {
+      ...createBasePostData(
+        input.accountId,
+        input.workspaceId,
+        input.actorAccountId,
+        content,
+        "repost",
+      ),
+      replyToPostId: null,
+      repostOfPostId: input.sourcePostId,
+    };
+
+    await firestoreInfrastructureApi.set(postPath(input.accountId, id), data);
+    await firestoreInfrastructureApi.set(mapPath, {
+      accountId: input.accountId,
+      workspaceId: input.workspaceId,
+      sourcePostId: input.sourcePostId,
+      actorAccountId: input.actorAccountId,
+      repostPostId: id,
+      createdAtISO: new Date().toISOString(),
+    });
+    await this.patchCounters(input.accountId, input.sourcePostId, { repostDelta: 1 });
+    return toWorkspaceFeedPost(id, data);
+  }
+
+  async patchCounters(accountId: string, postId: string, patch: WorkspaceFeedCounterPatch): Promise<void> {
+    const path = postPath(accountId, postId);
+    const current = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!current) return;
+
+    const updates: Record<string, unknown> = {
+      updatedAtISO: new Date().toISOString(),
+    };
+
+    const applyDelta = (field: string, delta: number | undefined) => {
+      if (!delta) return;
+      const base = asNumber(current[field]);
+      updates[field] = base + delta;
+    };
+
+    applyDelta("likeCount", patch.likeDelta);
+    applyDelta("replyCount", patch.replyDelta);
+    applyDelta("repostCount", patch.repostDelta);
+    applyDelta("viewCount", patch.viewDelta);
+    applyDelta("bookmarkCount", patch.bookmarkDelta);
+    applyDelta("shareCount", patch.shareDelta);
+
+    await firestoreInfrastructureApi.update(path, updates);
+  }
+
+  async findById(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(postPath(accountId, postId));
+    if (!data) return null;
+    return toWorkspaceFeedPost(postId, data);
+  }
+
+  async listByWorkspaceId(accountId: string, workspaceId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      postsPath(accountId),
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+      { orderBy: [{ field: "createdAtISO", direction: "desc" }], limit: maxRows },
+    );
+    return docs.map((row) => toWorkspaceFeedPost(row.id, row.data));
+  }
+
+  async listByAccountId(accountId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      postsPath(accountId),
+      [],
+      { orderBy: [{ field: "createdAtISO", direction: "desc" }], limit: maxRows },
+    );
+    return docs.map((row) => toWorkspaceFeedPost(row.id, row.data));
+  }
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/infrastructure/firebase/FirebaseDemandRepository.ts
+````typescript
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+
+import type { WorkDemand } from "../../domain/types";
+import type { IDemandRepository } from "../../domain/repository";
+
+const DEMANDS_COLLECTION = "workspacePlannerDemands";
+
+function toWorkDemand(id: string, data: Record<string, unknown>): WorkDemand {
+  const status = data.status;
+  const priority = data.priority;
+
+  return {
+    id,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    requesterId: typeof data.requesterId === "string" ? data.requesterId : "",
+    title: typeof data.title === "string" ? data.title : "",
+    description: typeof data.description === "string" ? data.description : "",
+    status:
+      status === "draft" || status === "open" || status === "in_progress" || status === "completed"
+        ? status
+        : "draft",
+    priority: priority === "low" || priority === "medium" || priority === "high" ? priority : "medium",
+    scheduledAt: typeof data.scheduledAt === "string" ? data.scheduledAt : "",
+    assignedUserId: typeof data.assignedUserId === "string" ? data.assignedUserId : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseDemandRepository implements IDemandRepository {
+  private demandPath(id: string): string {
+    return `${DEMANDS_COLLECTION}/${id}`;
+  }
+
+  async listByWorkspace(workspaceId: string): Promise<WorkDemand[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      DEMANDS_COLLECTION,
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+    );
+    return docs
+      .map((item) => toWorkDemand(item.id, item.data))
+      .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
+  }
+
+  async listByAccount(accountId: string): Promise<WorkDemand[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      DEMANDS_COLLECTION,
+      [{ field: "accountId", op: "==", value: accountId }],
+    );
+    return docs
+      .map((item) => toWorkDemand(item.id, item.data))
+      .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
+  }
+
+  async save(demand: WorkDemand): Promise<void> {
+    const path = this.demandPath(demand.id);
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (existing) {
+      await this.update(demand);
+      return;
+    }
+
+    await firestoreInfrastructureApi.set(path, {
+      workspaceId: demand.workspaceId,
+      accountId: demand.accountId,
+      requesterId: demand.requesterId,
+      title: demand.title,
+      description: demand.description,
+      status: demand.status,
+      priority: demand.priority,
+      scheduledAt: demand.scheduledAt,
+      assignedUserId: demand.assignedUserId ?? null,
+      createdAtISO: demand.createdAtISO,
+      updatedAtISO: demand.updatedAtISO,
+    });
+  }
+
+  async update(demand: WorkDemand): Promise<void> {
+    await firestoreInfrastructureApi.update(this.demandPath(demand.id), {
+      workspaceId: demand.workspaceId,
+      accountId: demand.accountId,
+      requesterId: demand.requesterId,
+      title: demand.title,
+      description: demand.description,
+      status: demand.status,
+      priority: demand.priority,
+      scheduledAt: demand.scheduledAt,
+      assignedUserId: demand.assignedUserId ?? null,
+      updatedAtISO: demand.updatedAtISO,
+    });
+  }
+
+  async findById(id: string): Promise<WorkDemand | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.demandPath(id));
+    if (!data) return null;
+    return toWorkDemand(id, data);
+  }
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/components/CreateDemandForm.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import { format } from "@lib-date-fns";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import { DEMAND_PRIORITY_LABELS } from "../../application/dto/work-demand.dto";
+import type { DemandPriority } from "../../application/dto/work-demand.dto";
+
+export interface CreateDemandFormValues {
+  title: string;
+  description: string;
+  priority: DemandPriority;
+  scheduledAt: string;
+}
+
+interface CreateDemandFormProps {
+  open: boolean;
+  initialDate?: Date;
+  onClose: () => void;
+  onSubmit: (values: CreateDemandFormValues) => Promise<void>;
+}
+
+export function CreateDemandForm({
+  open,
+  initialDate,
+  onClose,
+  onSubmit,
+}: CreateDemandFormProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState<DemandPriority>("medium");
+  const [scheduledAt, setScheduledAt] = useState(
+    initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleOpen = (isOpen: boolean) => {
+    if (isOpen && initialDate) {
+      setScheduledAt(format(initialDate, "yyyy-MM-dd"));
+    }
+    if (!isOpen) handleClose();
+  };
+
+  function handleClose() {
+    setTitle("");
+    setDescription("");
+    setPriority("medium");
+    setScheduledAt(initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"));
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) {
+      setError("請輸入需求標題。");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onSubmit({ title: t, description: description.trim(), priority, scheduledAt });
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "提交失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
-    pathname.startsWith("/knowledge") ||
-    pathname.startsWith("/source") ||
-    pathname.startsWith("/notebook")
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>建立工作需求</DialogTitle>
+          <DialogDescription>
+            填寫需求詳情後送出，Account 管理員將收到通知並指派成員。
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="demand-title">標題 *</Label>
+            <Input
+              id="demand-title"
+              placeholder="需要完成什麼工作？"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="demand-description">描述（選填）</Label>
+            <Textarea
+              id="demand-description"
+              placeholder="詳細說明需求背景或驗收條件…"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="demand-priority">優先級</Label>
+              <Select
+                value={priority}
+                onValueChange={(v) => setPriority(v as DemandPriority)}
+                disabled={submitting}
+              >
+                <SelectTrigger id="demand-priority">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(["low", "medium", "high"] as const).map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {DEMAND_PRIORITY_LABELS[p]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="demand-date">排程日期 *</Label>
+              <Input
+                id="demand-date"
+                type="date"
+                value={scheduledAt}
+                onChange={(e) => setScheduledAt(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+          </div>
+
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>
+              取消
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "提交中…" : "建立需求"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
-
-export function buildWorkspaceContextHref(pathname: string, workspaceId: string): string {
-  if (pathname.startsWith("/knowledge")) {
-    const targetPath = pathname === "/knowledge" ? "/knowledge/pages" : pathname;
-    return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
-  }
-
-  return `/workspace/${workspaceId}`;
-}
-
-export function appendWorkspaceContextQuery(
-  href: string,
-  context: WorkspaceNavigationContext,
-): string {
-  const { accountId, workspaceId } = context;
-
-  if (!accountId && !workspaceId) {
-    return href;
-  }
-
-  const [path, search = ""] = href.split("?");
-  const params = new URLSearchParams(search);
-
-  if (accountId) {
-    params.set("accountId", accountId);
-  }
-
-  if (workspaceId) {
-    params.set("workspaceId", workspaceId);
-  }
-
-  const query = params.toString();
-  return query.length > 0 ? `${path}?${query}` : path;
-}
 ````
 
-## File: modules/workspace/README.md
-````markdown
-# Workspace
-
-協作容器與工作區範疇主域
-
-## Implementation Structure
-
-```text
-modules/workspace/
-├── api/              # Public API boundary
-├── application/      # Context-wide orchestration (delegates to subdomains)
-│   ├── queries/      # Read query handlers (pure reads, no business logic)
-│   ├── use-cases/    # Command use cases remaining at root level
-│   └── services/     # Application services (composite orchestrators)
-├── domain/           # Context-wide domain concepts (Workspace aggregate root)
-├── infrastructure/   # Context-wide driven adapters
-├── interfaces/       # Context-wide driving adapters
-├── docs/             # Links to strategic documentation
-└── subdomains/
-    ├── audit/             # Active — append-only audit trail
-    ├── feed/              # Active — workspace activity projection
-    ├── lifecycle/         # Active — workspace create/update/delete/transitions
-    ├── membership/        # Active — member view model and participation queries
-    ├── presence/          # Stub — real-time presence and activity
-    ├── scheduling/        # Active — workspace scheduling management
-    ├── sharing/           # Active — team and individual access grants
-    └── workspace-workflow/ # Active — task/issue/invoice state machines
-```
-
-## Subdomains
-
-| Subdomain | Status | Purpose |
-|-----------|--------|---------|
-| audit | Active | 不可否認稽核追蹤 |
-| feed | Active | 工作區活動投影 |
-| lifecycle | Active | 工作區容器生命週期（建立/修改/刪除/狀態轉換）|
-| membership | Active | 工作區參與者視圖模型與查詢 |
-| presence | Stub | 即時在線狀態 |
-| scheduling | Active | 工作區排程管理 |
-| sharing | Active | 工作區存取授權（團隊/個人）|
-| workspace-workflow | Active | 工作區流程協調 |
-
-## Application Layer Architecture
-
-The root application services act as **composite orchestrators** that delegate to subdomain services:
-
-| Operation | Delegated To |
-|-----------|-------------|
-| Create/Update/Delete workspace | `lifecycle` subdomain |
-| Team/Individual access grants | `sharing` subdomain |
-| Member view queries | `membership` subdomain |
-| Mount capabilities | Root use-case (pending subdomain assignment) |
-| Create workspace location | Root use-case (Workspace operational profile) |
-| Workspace read queries | Root query handlers |
-| Wiki content tree projection | Root query handler |
-
-### DDD Rules Applied
-
-- **Rule 5/13/16**: Pure reads → query handlers in `queries/`, not use cases
-- **Rule 12**: Commands → `use-cases/` or subdomain use cases
-- **Rule 18**: Single-call wrappers eliminated; functions instead of classes for queries
-- **Rule 8**: Each use case = one business intent (verb-first naming)
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `api/` is the only cross-module public boundary.
-- Domain must not import infrastructure, interfaces, or external frameworks.
-- Cross-module collaboration goes through `api/` only.
-- Subdomain cross-collaboration goes through subdomain `api/` only.
-
-## Strategic Documentation
-
-- [Context README](../../docs/contexts/workspace/README.md)
-- [Subdomains](../../docs/contexts/workspace/subdomains.md)
-- [Context Map](../../docs/contexts/workspace/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/workspace/ubiquitous-language.md)
-- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
-````
-
-## File: modules/workspace/subdomains/audit/domain/entities/AuditLog.ts
-````typescript
-export type AuditLogSource = "workspace" | "finance" | "notification" | "system";
-
-/**
- * AuditLogEntity
- * 
- * actorId: Receives platform's "actor reference" published language token.
- * This field DOES NOT own Actor semantics — it consumes the token from platform.
- * (See AGENTS.md ubiquitous language for context map rules.)
- */
-export interface AuditLogEntity {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly actorId: string;
-  readonly action: string;
-  readonly detail: string;
-  readonly source: AuditLogSource;
-  readonly occurredAtISO: string;
-}
-````
-
-## File: modules/workspace/subdomains/audit/domain/value-objects/ActorId.ts
-````typescript
-import { z } from "@lib-zod";
-
-/**
- * ActorId — receives platform's "actor reference" published language token.
- * 
- * MAPPING (AGENTS.md ubiquitous language):
- * - platform.Actor (upstream) → workspace.audit.ActorId (downstream)
- * - Platform defines the "actor reference" token in its ubiquitous language
- * - workspace.audit consumes this token without redefining Actor semantics
- * - ActorId is a local value object; does NOT own Actor concept
- * 
- * NOTE: Field name uses "Actor" only for clarity; it represents a consumed token.
- */
-export const ActorIdSchema = z.string().min(1).brand("ActorId");
-
-export type ActorId = z.infer<typeof ActorIdSchema>;
-
-export function createActorId(raw: string): ActorId {
-	return ActorIdSchema.parse(raw);
-}
-
-export function unsafeActorId(raw: string): ActorId {
-	return raw as ActorId;
-}
-````
-
-## File: modules/workspace/subdomains/lifecycle/api/index.ts
+## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseInvoiceItemRepository.ts
 ````typescript
 /**
- * Lifecycle Subdomain — Public API Boundary
- *
- * Cross-subdomain and cross-module consumers import through this entry point.
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseInvoiceItemRepository.ts
+ * @description Firebase Firestore repository for InvoiceItem CRUD operations.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add query pagination support
  */
 
-// --- Application service ---
-export {
-  WorkspaceLifecycleApplicationService,
-} from "../application";
-export type { LifecycleServiceDependencies } from "../application";
-
-// --- Domain types (published language for lifecycle) ---
-export type {
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceEntity,
-  WorkspaceLifecycleState,
-  WorkspaceLifecycleStateInput,
-  WorkspaceCreatedEvent,
-  WorkspaceDomainEvent,
-  WorkspaceLifecycleTransitionedEvent,
-  WorkspaceVisibilityChangedEvent,
-} from "../domain";
-
-export {
-  createWorkspaceCreatedEvent,
-  createWorkspaceLifecycleTransitionedEvent,
-  createWorkspaceVisibilityChangedEvent,
-} from "../domain";
-````
-
-## File: modules/workspace/subdomains/lifecycle/application/index.ts
-````typescript
-/**
- * Lifecycle Subdomain — Application Layer
- *
- * Exports use cases and the application service for lifecycle operations.
- */
-
-export { CreateWorkspaceUseCase, CreateWorkspaceWithCapabilitiesUseCase } from "./use-cases/create-workspace.use-case";
-export { UpdateWorkspaceSettingsUseCase } from "./use-cases/update-workspace-settings.use-case";
-export { DeleteWorkspaceUseCase } from "./use-cases/delete-workspace.use-case";
-export { WorkspaceLifecycleApplicationService } from "./services/WorkspaceLifecycleApplicationService";
-export type { LifecycleServiceDependencies } from "./services/WorkspaceLifecycleApplicationService";
-````
-
-## File: modules/workspace/subdomains/lifecycle/application/services/WorkspaceLifecycleApplicationService.ts
-````typescript
-/**
- * Lifecycle Subdomain — Application Service
- *
- * Composes lifecycle use cases with injected dependencies.
- * This is the subdomain's application-layer entry point.
- */
-
-import type { CommandResult } from "@shared-types";
-import type { CreateWorkspaceCommand, UpdateWorkspaceSettingsCommand } from "../../domain";
-import type { Capability } from "../../../../domain/aggregates/Workspace";
-import type {
-  WorkspaceRepository,
-  WorkspaceCapabilityRepository,
-  WorkspaceDomainEventPublisher,
-} from "../../domain/ports";
 import {
-  CreateWorkspaceUseCase,
-  CreateWorkspaceWithCapabilitiesUseCase,
-} from "../use-cases/create-workspace.use-case";
-import { UpdateWorkspaceSettingsUseCase } from "../use-cases/update-workspace-settings.use-case";
-import { DeleteWorkspaceUseCase } from "../use-cases/delete-workspace.use-case";
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
+import { toInvoiceItem } from "../firebase/invoice-item.converter";
+import { WF_INVOICE_ITEMS_COLLECTION } from "../firebase/workspace-flow.collections";
 
-export interface LifecycleServiceDependencies {
-  workspaceRepo: WorkspaceRepository;
-  workspaceCapabilityRepo: WorkspaceCapabilityRepository;
-  eventPublisher: WorkspaceDomainEventPublisher;
+export class FirebaseInvoiceItemRepository {
+  private itemPath(itemId: string): string {
+    return `${WF_INVOICE_ITEMS_COLLECTION}/${itemId}`;
+  }
+
+  async findById(itemId: string): Promise<InvoiceItem | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.itemPath(itemId));
+    if (!data) return null;
+    return toInvoiceItem(itemId, data);
+  }
+
+  async findByInvoiceId(invoiceId: string): Promise<InvoiceItem[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_INVOICE_ITEMS_COLLECTION,
+      [{ field: "invoiceId", op: "==", value: invoiceId }],
+    );
+    return docs.map((d) => toInvoiceItem(d.id, d.data));
+  }
+
+  async delete(itemId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(this.itemPath(itemId));
+  }
 }
+````
 
-export class WorkspaceLifecycleApplicationService {
-  private readonly createUseCase: CreateWorkspaceUseCase;
-  private readonly createWithCapsUseCase: CreateWorkspaceWithCapabilitiesUseCase;
-  private readonly updateSettingsUseCase: UpdateWorkspaceSettingsUseCase;
-  private readonly deleteUseCase: DeleteWorkspaceUseCase;
+## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseInvoiceRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseInvoiceRepository.ts
+ * @description Firebase Firestore implementation of InvoiceRepository for workspace-flow.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add query pagination support and composite indexes
+ */
 
-  constructor(deps: LifecycleServiceDependencies) {
-    const createDeps = {
-      workspaceRepo: deps.workspaceRepo,
-      workspaceCapabilityRepo: deps.workspaceCapabilityRepo,
-      eventPublisher: deps.eventPublisher,
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+import type { Invoice, CreateInvoiceInput } from "../../domain/entities/Invoice";
+import type { InvoiceItem, AddInvoiceItemInput } from "../../domain/entities/InvoiceItem";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+import { toInvoice } from "../firebase/invoice.converter";
+import { toInvoiceItem } from "../firebase/invoice-item.converter";
+import {
+  WF_INVOICES_COLLECTION,
+  WF_INVOICE_ITEMS_COLLECTION,
+} from "../firebase/workspace-flow.collections";
+
+const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
+const DEFAULT_STATUS: InvoiceStatus = "draft";
+
+export class FirebaseInvoiceRepository implements InvoiceRepository {
+  private invoicePath(invoiceId: string): string {
+    return `${WF_INVOICES_COLLECTION}/${invoiceId}`;
+  }
+
+  private itemPath(itemId: string): string {
+    return `${WF_INVOICE_ITEMS_COLLECTION}/${itemId}`;
+  }
+
+  async create(input: CreateInvoiceInput): Promise<Invoice> {
+    const nowISO = new Date().toISOString();
+    const docData: Record<string, unknown> = {
+      workspaceId: input.workspaceId,
+      status: DEFAULT_STATUS,
+      totalAmount: 0,
+      submittedAtISO: null,
+      approvedAtISO: null,
+      paidAtISO: null,
+      closedAtISO: null,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
     };
-    this.createUseCase = new CreateWorkspaceUseCase(createDeps);
-    this.createWithCapsUseCase = new CreateWorkspaceWithCapabilitiesUseCase(createDeps);
-    this.updateSettingsUseCase = new UpdateWorkspaceSettingsUseCase({
-      workspaceRepo: deps.workspaceRepo,
-      eventPublisher: deps.eventPublisher,
-    });
-    this.deleteUseCase = new DeleteWorkspaceUseCase({
-      workspaceRepo: deps.workspaceRepo,
-    });
-  }
-
-  createWorkspace(command: CreateWorkspaceCommand): Promise<CommandResult> {
-    return this.createUseCase.execute(command);
-  }
-
-  createWorkspaceWithCapabilities(
-    command: CreateWorkspaceCommand,
-    capabilities: Capability[],
-  ): Promise<CommandResult> {
-    return this.createWithCapsUseCase.execute(command, capabilities);
-  }
-
-  updateWorkspaceSettings(command: UpdateWorkspaceSettingsCommand): Promise<CommandResult> {
-    return this.updateSettingsUseCase.execute(command);
-  }
-
-  deleteWorkspace(workspaceId: string): Promise<CommandResult> {
-    return this.deleteUseCase.execute(workspaceId);
-  }
-}
-````
-
-## File: modules/workspace/subdomains/lifecycle/application/use-cases/create-workspace.use-case.ts
-````typescript
-/**
- * Lifecycle Subdomain — Create Workspace Use Case
- *
- * Business intent: Provision a new workspace container within an account scope.
- *
- * DDD Rule 1: Has business behavior (aggregate creation, initial state setup)
- * DDD Rule 2: Has flow (validation → creation → persistence → event)
- * DDD Rule 8: One use case = one business intent (verb: Create)
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { CreateWorkspaceCommand } from "../../domain";
-import type { Capability } from "../../../../domain/aggregates/Workspace";
-import {
-  createWorkspaceAggregate,
-  toWorkspaceSnapshot,
-} from "../../../../domain/factories/WorkspaceFactory";
-import type {
-  WorkspaceRepository,
-  WorkspaceCapabilityRepository,
-  WorkspaceDomainEventPublisher,
-  WorkspaceEventPublishMetadata,
-} from "../../domain/ports";
-import { createWorkspaceCreatedEvent } from "../../domain";
-
-interface CreateWorkspaceDeps {
-  readonly workspaceRepo: WorkspaceRepository;
-  readonly workspaceCapabilityRepo: WorkspaceCapabilityRepository;
-  readonly eventPublisher: WorkspaceDomainEventPublisher;
-}
-
-function buildEventMetadata(
-  workspaceId: string,
-  accountId: string,
-  accountType: "user" | "organization",
-): WorkspaceEventPublishMetadata {
-  return {
-    workspaceId,
-    organizationId: accountType === "organization" ? accountId : undefined,
-  };
-}
-
-export class CreateWorkspaceUseCase {
-  constructor(private readonly deps: CreateWorkspaceDeps) {}
-
-  async execute(command: CreateWorkspaceCommand): Promise<CommandResult> {
-    try {
-      const workspace = createWorkspaceAggregate(command);
-      const workspaceId = await this.deps.workspaceRepo.save(toWorkspaceSnapshot(workspace));
-
-      await this.deps.eventPublisher.publish(
-        createWorkspaceCreatedEvent({
-          workspaceId,
-          accountId: command.accountId,
-          accountType: command.accountType,
-          name: command.name,
-        }),
-        buildEventMetadata(workspaceId, command.accountId, command.accountType),
-      );
-
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_CREATE_FAILED",
-        err instanceof Error ? err.message : "Failed to create workspace",
-      );
+    if (input.sourceReference) {
+      docData.sourceReference = { ...input.sourceReference };
     }
-  }
-}
 
-export class CreateWorkspaceWithCapabilitiesUseCase {
-  constructor(private readonly deps: CreateWorkspaceDeps) {}
+    const id = generateId();
+    await firestoreInfrastructureApi.set(this.invoicePath(id), docData);
 
-  async execute(
-    command: CreateWorkspaceCommand,
-    capabilities: Capability[] = [],
-  ): Promise<CommandResult> {
-    try {
-      const workspace = createWorkspaceAggregate(command);
-      const workspaceId = await this.deps.workspaceRepo.save(toWorkspaceSnapshot(workspace));
-
-      if (capabilities.length > 0) {
-        await this.deps.workspaceCapabilityRepo.mountCapabilities(workspaceId, capabilities);
-      }
-
-      await this.deps.eventPublisher.publish(
-        createWorkspaceCreatedEvent({
-          workspaceId,
-          accountId: command.accountId,
-          accountType: command.accountType,
-          name: command.name,
-        }),
-        buildEventMetadata(workspaceId, command.accountId, command.accountType),
-      );
-
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_CREATE_WITH_CAPABILITIES_FAILED",
-        err instanceof Error ? err.message : "Failed to create workspace with capabilities",
-      );
-    }
-  }
-}
-````
-
-## File: modules/workspace/subdomains/lifecycle/application/use-cases/delete-workspace.use-case.ts
-````typescript
-/**
- * Lifecycle Subdomain — Delete Workspace Use Case
- *
- * Business intent: Remove a workspace container from the system.
- *
- * DDD Rule 1: Has business behavior (existence verification before deletion)
- * DDD Rule 2: Has flow (verify existence → delete → success/failure)
- * DDD Rule 8: One use case = one business intent (verb: Delete)
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceRepository } from "../../domain/ports";
-
-interface DeleteWorkspaceDeps {
-  readonly workspaceRepo: WorkspaceRepository;
-}
-
-export class DeleteWorkspaceUseCase {
-  constructor(private readonly deps: DeleteWorkspaceDeps) {}
-
-  async execute(workspaceId: string): Promise<CommandResult> {
-    try {
-      const workspace = await this.deps.workspaceRepo.findById(workspaceId);
-      if (!workspace) {
-        return commandFailureFrom("WORKSPACE_NOT_FOUND", `Workspace ${workspaceId} not found`);
-      }
-
-      await this.deps.workspaceRepo.delete(workspaceId);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_DELETE_FAILED",
-        err instanceof Error ? err.message : "Failed to delete workspace",
-      );
-    }
-  }
-}
-````
-
-## File: modules/workspace/subdomains/lifecycle/application/use-cases/update-workspace-settings.use-case.ts
-````typescript
-/**
- * Lifecycle Subdomain — Update Workspace Settings Use Case
- *
- * Business intent: Apply setting changes to an existing workspace with
- * domain validation and lifecycle/visibility change event emission.
- *
- * DDD Rule 1: Has business behavior (aggregate reconstitution, state transition)
- * DDD Rule 2: Has flow (fetch → validate → apply → persist → events)
- * DDD Rule 4: Needs consistency (settings + events must be coherent)
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { UpdateWorkspaceSettingsCommand, WorkspaceEntity } from "../../domain";
-import {
-  createWorkspaceLifecycleTransitionedEvent,
-  createWorkspaceVisibilityChangedEvent,
-} from "../../domain";
-import {
-  reconstituteWorkspaceAggregate,
-} from "../../../../domain/factories/WorkspaceFactory";
-import type {
-  WorkspaceRepository,
-  WorkspaceDomainEventPublisher,
-  WorkspaceEventPublishMetadata,
-} from "../../domain/ports";
-import type { Workspace } from "../../../../domain/aggregates/Workspace";
-
-interface UpdateSettingsDeps {
-  readonly workspaceRepo: WorkspaceRepository;
-  readonly eventPublisher: WorkspaceDomainEventPublisher;
-}
-
-function sanitizeSettings(
-  workspace: Workspace,
-  command: UpdateWorkspaceSettingsCommand,
-): UpdateWorkspaceSettingsCommand {
-  workspace.applySettings(command);
-
-  return {
-    workspaceId: command.workspaceId,
-    accountId: command.accountId,
-    name: command.name !== undefined ? workspace.name : undefined,
-    visibility: command.visibility !== undefined ? workspace.visibility : undefined,
-    lifecycleState: command.lifecycleState !== undefined ? workspace.lifecycleState : undefined,
-    address: command.address !== undefined ? workspace.address : undefined,
-    personnel: command.personnel !== undefined ? workspace.personnel : undefined,
-  };
-}
-
-function buildEventMetadata(
-  workspaceId: string,
-  accountId: string,
-  accountType: "user" | "organization",
-): WorkspaceEventPublishMetadata {
-  return {
-    workspaceId,
-    organizationId: accountType === "organization" ? accountId : undefined,
-  };
-}
-
-export class UpdateWorkspaceSettingsUseCase {
-  constructor(private readonly deps: UpdateSettingsDeps) {}
-
-  async execute(command: UpdateWorkspaceSettingsCommand): Promise<CommandResult> {
-    try {
-      const previous = await this.deps.workspaceRepo.findByIdForAccount(
-        command.accountId,
-        command.workspaceId,
-      );
-      if (!previous) {
-        return commandFailureFrom(
-          "WORKSPACE_NOT_FOUND",
-          `Workspace ${command.workspaceId} not found`,
-        );
-      }
-
-      const sanitized = sanitizeSettings(reconstituteWorkspaceAggregate(previous), command);
-      await this.deps.workspaceRepo.updateSettings(sanitized);
-
-      await this.publishTransitionEvents(command, previous);
-
-      return commandSuccess(command.workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_UPDATE_FAILED",
-        err instanceof Error ? err.message : "Failed to update workspace settings",
-      );
-    }
+    return {
+      id,
+      workspaceId: input.workspaceId,
+      status: DEFAULT_STATUS,
+      totalAmount: 0,
+      sourceReference: input.sourceReference,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
   }
 
-  private async publishTransitionEvents(
-    command: UpdateWorkspaceSettingsCommand,
-    previous: WorkspaceEntity,
-  ): Promise<void> {
-    const metadata = buildEventMetadata(
-      command.workspaceId,
-      command.accountId,
-      previous.accountType,
+  async delete(invoiceId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(this.invoicePath(invoiceId));
+  }
+
+  async findById(invoiceId: string): Promise<Invoice | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.invoicePath(invoiceId));
+    if (!data) return null;
+    return toInvoice(invoiceId, data);
+  }
+
+  async findByWorkspaceId(workspaceId: string): Promise<Invoice[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_INVOICES_COLLECTION,
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
     );
-
-    if (
-      command.lifecycleState !== undefined &&
-      command.lifecycleState !== previous.lifecycleState
-    ) {
-      await this.deps.eventPublisher.publish(
-        createWorkspaceLifecycleTransitionedEvent({
-          workspaceId: command.workspaceId,
-          accountId: command.accountId,
-          fromState: previous.lifecycleState,
-          toState: command.lifecycleState,
-        }),
-        metadata,
-      );
-    }
-
-    if (
-      command.visibility !== undefined &&
-      command.visibility !== previous.visibility
-    ) {
-      await this.deps.eventPublisher.publish(
-        createWorkspaceVisibilityChangedEvent({
-          workspaceId: command.workspaceId,
-          accountId: command.accountId,
-          fromVisibility: previous.visibility,
-          toVisibility: command.visibility,
-        }),
-        metadata,
-      );
-    }
+    const invoices = docs.map((d) => toInvoice(d.id, d.data));
+    return invoices.sort((a, b) => b.createdAtISO.localeCompare(a.createdAtISO));
   }
-}
-````
 
-## File: modules/workspace/subdomains/lifecycle/domain/index.ts
-````typescript
-/**
- * Lifecycle Subdomain — Domain Layer
- *
- * Owns workspace container lifecycle: creation, settings update, deletion,
- * and lifecycle state transitions (preparatory → active → stopped).
- *
- * Depends on root workspace domain aggregate and value objects.
- * Does not duplicate the Workspace aggregate — references it through ports.
- */
+  async transitionStatus(
+    invoiceId: string,
+    to: InvoiceStatus,
+    nowISO: string,
+  ): Promise<Invoice | null> {
+    const path = this.invoicePath(invoiceId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
 
-// Re-export lifecycle-relevant root domain types for subdomain consumers
-export type {
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceEntity,
-} from "../../../domain/aggregates/Workspace";
+    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
+    const patch: Record<string, unknown> = {
+      status: validTo,
+      updatedAtISO: nowISO,
+    };
+    if (validTo === "submitted") patch.submittedAtISO = nowISO;
+    if (validTo === "approved") patch.approvedAtISO = nowISO;
+    if (validTo === "paid") patch.paidAtISO = nowISO;
+    if (validTo === "closed") patch.closedAtISO = nowISO;
 
-export type {
-  WorkspaceLifecycleState,
-  WorkspaceLifecycleStateInput,
-} from "../../../domain/value-objects/WorkspaceLifecycleState";
+    await firestoreInfrastructureApi.update(path, patch);
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!updated) return null;
+    return toInvoice(invoiceId, updated);
+  }
 
-export type {
-  WorkspaceCreatedEvent,
-  WorkspaceDomainEvent,
-  WorkspaceLifecycleTransitionedEvent,
-  WorkspaceVisibilityChangedEvent,
-} from "../../../domain/events/workspace.events";
-
-export {
-  createWorkspaceCreatedEvent,
-  createWorkspaceLifecycleTransitionedEvent,
-  createWorkspaceVisibilityChangedEvent,
-} from "../../../domain/events/workspace.events";
-````
-
-## File: modules/workspace/subdomains/lifecycle/domain/ports/index.ts
-````typescript
-/**
- * Lifecycle Subdomain — Domain Ports
- *
- * These ports define what the lifecycle subdomain needs from the outside world.
- * They reference root domain repository interfaces since the Workspace aggregate
- * lives at the bounded-context root level.
- */
-
-export type { WorkspaceRepository } from "../../../../domain/ports/output/WorkspaceRepository";
-export type { WorkspaceCapabilityRepository } from "../../../../domain/ports/output/WorkspaceCapabilityRepository";
-export type {
-  WorkspaceDomainEventPublisher,
-  WorkspaceEventPublishMetadata,
-} from "../../../../domain/ports/output/WorkspaceDomainEventPublisher";
-````
-
-## File: modules/workspace/subdomains/lifecycle/infrastructure/index.ts
-````typescript
-/**
- * Lifecycle Subdomain — Infrastructure Layer
- *
- * The lifecycle subdomain uses root-level infrastructure adapters
- * (FirebaseWorkspaceRepository, SharedWorkspaceDomainEventPublisher)
- * injected through ports. No subdomain-specific adapters needed yet.
- */
-export {};
-````
-
-## File: modules/workspace/subdomains/lifecycle/README.md
-````markdown
-# Lifecycle
-
-把工作區容器生命週期獨立成正典邊界。
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Subdomain Type**: Active
-- **Status**: Active — lifecycle use cases implemented
-
-## Responsibility
-
-- Workspace creation (with optional capabilities)
-- Workspace settings update (with lifecycle/visibility transition events)
-- Workspace deletion
-- Lifecycle state machine (preparatory → active → stopped)
-
-## Dependency Direction
-
-```
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-
-## Key Design Decisions
-
-- The Workspace aggregate root lives at context root level (`modules/workspace/domain/`), not inside this subdomain.
-- This subdomain's use cases operate on the root aggregate through ports.
-- Event publishing follows the "persist-then-publish" pattern.
-- The `UpdateWorkspaceSettingsUseCase` consolidates both settings persistence and transition event emission into one cohesive use case, eliminating the prior split where the application service handled event logic.
-````
-
-## File: modules/workspace/subdomains/membership/api/index.ts
-````typescript
-/**
- * Membership Subdomain — Public API Boundary
- *
- * Cross-subdomain and cross-module consumers import through this entry point.
- */
-
-// --- Domain types (published language for membership) ---
-export type {
-  WorkspaceMemberView,
-  WorkspaceMemberPresence,
-  WorkspaceMemberAccessSource,
-  WorkspaceMemberAccessChannel,
-} from "../domain";
-
-// --- Application queries ---
-export { fetchWorkspaceMembers } from "../application";
-````
-
-## File: modules/workspace/subdomains/membership/application/index.ts
-````typescript
-/**
- * Membership Subdomain — Application Layer
- *
- * Exports member-related queries for the membership subdomain.
- */
-
-export { fetchWorkspaceMembers } from "./queries/workspace-member.queries";
-````
-
-## File: modules/workspace/subdomains/membership/application/queries/workspace-member.queries.ts
-````typescript
-/**
- * Membership Subdomain — Workspace Member Query Handler
- *
- * Pure read query for workspace members — no business logic.
- * Delegates to workspace query repository for member resolution.
- *
- * DDD Rule 5:  Pure reads → Query, not Use Case.
- * DDD Rule 13: Read → queries/
- */
-
-import type { WorkspaceMemberView } from "../../domain";
-import type { WorkspaceQueryRepository } from "../../domain/ports";
-
-export function fetchWorkspaceMembers(
-  workspaceQueryRepo: WorkspaceQueryRepository,
-  workspaceId: string,
-): Promise<WorkspaceMemberView[]> {
-  return workspaceQueryRepo.getWorkspaceMembers(workspaceId);
-}
-````
-
-## File: modules/workspace/subdomains/membership/domain/index.ts
-````typescript
-/**
- * Membership Subdomain — Domain Layer
- *
- * Owns the workspace member view model and participation concepts.
- * The WorkspaceMemberView is the canonical read model for workspace participants.
- *
- * Per ubiquitous language: "Membership" represents workspace participation,
- * not "User" which belongs to platform identity.
- */
-
-// Re-export membership-relevant domain types from root domain
-export type {
-  WorkspaceMemberView,
-  WorkspaceMemberPresence,
-  WorkspaceMemberAccessSource,
-  WorkspaceMemberAccessChannel,
-} from "../../../domain/entities/WorkspaceMemberView";
-````
-
-## File: modules/workspace/subdomains/membership/domain/ports/index.ts
-````typescript
-/**
- * Membership Subdomain — Domain Ports
- *
- * The membership subdomain needs the workspace query repository port
- * to resolve member views from the root infrastructure layer.
- */
-
-export type { WorkspaceQueryRepository } from "../../../../domain/ports/output/WorkspaceQueryRepository";
-````
-
-## File: modules/workspace/subdomains/membership/infrastructure/index.ts
-````typescript
-/**
- * Membership Subdomain — Infrastructure Layer
- *
- * The membership subdomain uses the root-level WorkspaceQueryRepository
- * (FirebaseWorkspaceQueryRepository) injected through ports. The complex
- * member resolution logic (merging grants, teams, personnel) lives in
- * the root infrastructure adapter since it depends on the full workspace
- * document model.
- */
-export {};
-````
-
-## File: modules/workspace/subdomains/membership/README.md
-````markdown
-# Membership
-
-把工作區參與關係從平台身份治理中切開。
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Subdomain Type**: Active
-- **Status**: Active — member view query implemented
-
-## Responsibility
-
-- Workspace member view model (canonical read model for participants)
-- Member resolution queries (merging grants, teams, personnel sources)
-- Workspace participation semantics distinct from platform identity
-
-## Ubiquitous Language
-
-- **Membership**: Workspace participation relationship, NOT platform identity
-- **WorkspaceMemberView**: Read-only projection of a workspace participant
-- **AccessChannel**: The route through which a member gained workspace access (owner, direct, team, personnel)
-
-## Dependency Direction
-
-```
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-
-## Key Design Decisions
-
-- WorkspaceMemberView is the membership read model, not a full Membership aggregate (that would come when invitation/seat management is needed).
-- Complex member resolution logic (merging from grants, teams, personnel) stays in the root infrastructure adapter since it depends on the full workspace document model.
-- The subdomain's query handler delegates to the root WorkspaceQueryRepository port.
-````
-
-## File: modules/workspace/subdomains/sharing/api/index.ts
-````typescript
-/**
- * Sharing Subdomain — Public API Boundary
- *
- * Cross-subdomain and cross-module consumers import through this entry point.
- */
-
-// --- Application service ---
-export {
-  WorkspaceSharingApplicationService,
-} from "../application";
-export type { SharingServiceDependencies } from "../application";
-
-// --- Domain types (published language for sharing) ---
-export type {
-  WorkspaceGrant,
-  WorkspaceAccessPolicy,
-} from "../domain";
-````
-
-## File: modules/workspace/subdomains/sharing/application/index.ts
-````typescript
-/**
- * Sharing Subdomain — Application Layer
- *
- * Exports sharing use cases and the application service.
- */
-
-export { GrantTeamAccessUseCase } from "./use-cases/grant-team-access.use-case";
-export { GrantIndividualAccessUseCase } from "./use-cases/grant-individual-access.use-case";
-export { WorkspaceSharingApplicationService } from "./services/WorkspaceSharingApplicationService";
-export type { SharingServiceDependencies } from "./services/WorkspaceSharingApplicationService";
-````
-
-## File: modules/workspace/subdomains/sharing/application/services/WorkspaceSharingApplicationService.ts
-````typescript
-/**
- * Sharing Subdomain — Application Service
- *
- * Composes sharing use cases with injected dependencies.
- */
-
-import type { CommandResult } from "@shared-types";
-import type { WorkspaceGrant } from "../../domain";
-import type { WorkspaceAccessRepository } from "../../domain/ports";
-import { GrantTeamAccessUseCase } from "../use-cases/grant-team-access.use-case";
-import { GrantIndividualAccessUseCase } from "../use-cases/grant-individual-access.use-case";
-
-export interface SharingServiceDependencies {
-  workspaceAccessRepo: WorkspaceAccessRepository;
-}
-
-export class WorkspaceSharingApplicationService {
-  private readonly grantTeamUseCase: GrantTeamAccessUseCase;
-  private readonly grantIndividualUseCase: GrantIndividualAccessUseCase;
-
-  constructor(deps: SharingServiceDependencies) {
-    this.grantTeamUseCase = new GrantTeamAccessUseCase({
-      workspaceAccessRepo: deps.workspaceAccessRepo,
+  async addItem(input: AddInvoiceItemInput): Promise<InvoiceItem> {
+    const nowISO = new Date().toISOString();
+    const itemId = generateId();
+    await firestoreInfrastructureApi.set(this.itemPath(itemId), {
+      invoiceId: input.invoiceId,
+      taskId: input.taskId,
+      amount: input.amount,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
     });
-    this.grantIndividualUseCase = new GrantIndividualAccessUseCase({
-      workspaceAccessRepo: deps.workspaceAccessRepo,
-    });
-  }
 
-  authorizeWorkspaceTeam(workspaceId: string, teamId: string): Promise<CommandResult> {
-    return this.grantTeamUseCase.execute(workspaceId, teamId);
-  }
-
-  grantIndividualWorkspaceAccess(
-    workspaceId: string,
-    grant: WorkspaceGrant,
-  ): Promise<CommandResult> {
-    return this.grantIndividualUseCase.execute(workspaceId, grant);
-  }
-}
-````
-
-## File: modules/workspace/subdomains/sharing/application/use-cases/grant-individual-access.use-case.ts
-````typescript
-/**
- * Sharing Subdomain — Grant Individual Access Use Case
- *
- * Business intent: Grant an individual user access to a workspace.
- *
- * DDD Rule 1: Has business behavior (individual access grant)
- * DDD Rule 8: One use case = one business intent (verb: Grant)
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceGrant } from "../../domain";
-import type { WorkspaceAccessRepository } from "../../domain/ports";
-
-interface GrantIndividualAccessDeps {
-  readonly workspaceAccessRepo: WorkspaceAccessRepository;
-}
-
-export class GrantIndividualAccessUseCase {
-  constructor(private readonly deps: GrantIndividualAccessDeps) {}
-
-  async execute(workspaceId: string, grant: WorkspaceGrant): Promise<CommandResult> {
-    try {
-      await this.deps.workspaceAccessRepo.grantIndividualAccess(workspaceId, grant);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_GRANT_FAILED",
-        err instanceof Error ? err.message : "Failed to grant individual access",
-      );
+    // Update invoice totalAmount
+    const invoicePath = this.invoicePath(input.invoiceId);
+    const invoice = await firestoreInfrastructureApi.get<Record<string, unknown>>(invoicePath);
+    if (invoice) {
+      const totalAmount = typeof invoice.totalAmount === "number" ? invoice.totalAmount : 0;
+      await firestoreInfrastructureApi.update(invoicePath, {
+        totalAmount: totalAmount + input.amount,
+        updatedAtISO: nowISO,
+      });
     }
+
+    return {
+      id: itemId,
+      invoiceId: input.invoiceId,
+      taskId: input.taskId,
+      amount: input.amount,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
   }
-}
-````
 
-## File: modules/workspace/subdomains/sharing/application/use-cases/grant-team-access.use-case.ts
-````typescript
-/**
- * Sharing Subdomain — Grant Team Access Use Case
- *
- * Business intent: Authorize a team to access a workspace.
- *
- * DDD Rule 1: Has business behavior (authorization grant)
- * DDD Rule 8: One use case = one business intent (verb: Grant)
- */
+  async findItemById(invoiceItemId: string): Promise<InvoiceItem | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.itemPath(invoiceItemId));
+    if (!data) return null;
+    return toInvoiceItem(invoiceItemId, data);
+  }
 
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceAccessRepository } from "../../domain/ports";
+  async updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null> {
+    const itemPath = this.itemPath(invoiceItemId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(itemPath);
+    if (!data) return null;
 
-interface GrantTeamAccessDeps {
-  readonly workspaceAccessRepo: WorkspaceAccessRepository;
-}
+    const oldAmount = typeof data.amount === "number" ? data.amount : 0;
+    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
+    const nowISO = new Date().toISOString();
 
-export class GrantTeamAccessUseCase {
-  constructor(private readonly deps: GrantTeamAccessDeps) {}
+    await firestoreInfrastructureApi.update(itemPath, { amount, updatedAtISO: nowISO });
 
-  async execute(workspaceId: string, teamId: string): Promise<CommandResult> {
-    try {
-      await this.deps.workspaceAccessRepo.grantTeamAccess(workspaceId, teamId);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_TEAM_GRANT_FAILED",
-        err instanceof Error ? err.message : "Failed to grant team access",
-      );
+    if (invoiceId) {
+      const invoicePath = this.invoicePath(invoiceId);
+      const invoice = await firestoreInfrastructureApi.get<Record<string, unknown>>(invoicePath);
+      if (invoice) {
+        const totalAmount = typeof invoice.totalAmount === "number" ? invoice.totalAmount : 0;
+        await firestoreInfrastructureApi.update(invoicePath, {
+          totalAmount: totalAmount + (amount - oldAmount),
+          updatedAtISO: nowISO,
+        });
+      }
     }
-  }
-}
-````
 
-## File: modules/workspace/subdomains/sharing/domain/index.ts
-````typescript
-/**
- * Sharing Subdomain — Domain Layer
- *
- * Owns workspace access grants and sharing scope.
- *
- * Per ubiquitous language: "ShareScope" represents the sharing boundary,
- * not generic "Permission" which belongs to platform access control.
- */
-
-// Re-export sharing-relevant domain types from root domain
-export type {
-  WorkspaceGrant,
-  WorkspaceAccessPolicy,
-} from "../../../domain/entities/WorkspaceAccess";
-````
-
-## File: modules/workspace/subdomains/sharing/domain/ports/index.ts
-````typescript
-/**
- * Sharing Subdomain — Domain Ports
- *
- * The sharing subdomain needs the workspace access repository port
- * to manage team and individual access grants.
- */
-
-export type { WorkspaceAccessRepository } from "../../../../domain/ports/output/WorkspaceAccessRepository";
-````
-
-## File: modules/workspace/subdomains/sharing/infrastructure/index.ts
-````typescript
-/**
- * Sharing Subdomain — Infrastructure Layer
- *
- * The sharing subdomain uses the root-level WorkspaceAccessRepository
- * (FirebaseWorkspaceRepository) injected through ports.
- */
-export {};
-````
-
-## File: modules/workspace/subdomains/sharing/README.md
-````markdown
-# Sharing
-
-把對外共享與可見性規則收斂到單一上下文。
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Subdomain Type**: Active
-- **Status**: Active — access grant use cases implemented
-
-## Responsibility
-
-- Team access grants (authorize a team to access a workspace)
-- Individual access grants (grant a user direct workspace access)
-- Workspace sharing scope semantics
-
-## Ubiquitous Language
-
-- **ShareScope**: The sharing boundary and visibility extent, NOT generic "Permission"
-- **WorkspaceGrant**: An individual access authorization to a workspace
-- **WorkspaceAccessPolicy**: The aggregate access policy including grants and team associations
-
-## Dependency Direction
-
-```
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-
-## Key Design Decisions
-
-- Access grant use cases take injected WorkspaceAccessRepository through the deps pattern.
-- WorkspaceSharingApplicationService composes grant use cases and exposes team/individual grant operations.
-- Location management stays at root level (part of Workspace operational profile, not sharing semantics).
-````
-
-## File: modules/workspace/application/services/WorkspaceCommandApplicationService.ts
-````typescript
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-
-import {
-  MountCapabilitiesUseCase,
-  CreateWorkspaceLocationUseCase,
-} from "../use-cases/workspace.use-cases";
-import type { WorkspaceCommandPort } from "../../domain/ports/input/WorkspaceCommandPort";
-import type {
-  WorkspaceAccessRepository,
-  WorkspaceCapabilityRepository,
-  WorkspaceDomainEventPublisher,
-  WorkspaceLocationRepository,
-  WorkspaceRepository,
-} from "../../domain/ports";
-import type {
-  Capability,
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceGrant,
-  WorkspaceLocation,
-} from "../../domain/aggregates/Workspace";
-import { WorkspaceLifecycleApplicationService } from "../../subdomains/lifecycle/api";
-import { WorkspaceSharingApplicationService } from "../../subdomains/sharing/api";
-
-interface WorkspaceCommandApplicationServiceDependencies {
-  workspaceRepo: WorkspaceRepository;
-  workspaceCapabilityRepo: WorkspaceCapabilityRepository;
-  workspaceAccessRepo: WorkspaceAccessRepository;
-  workspaceLocationRepo: WorkspaceLocationRepository;
-  workspaceDomainEventPublisher: WorkspaceDomainEventPublisher;
-}
-
-export class WorkspaceCommandApplicationService implements WorkspaceCommandPort {
-  private readonly lifecycleService: WorkspaceLifecycleApplicationService;
-  private readonly sharingService: WorkspaceSharingApplicationService;
-
-  constructor(
-    private readonly dependencies: WorkspaceCommandApplicationServiceDependencies,
-  ) {
-    this.lifecycleService = new WorkspaceLifecycleApplicationService({
-      workspaceRepo: dependencies.workspaceRepo,
-      workspaceCapabilityRepo: dependencies.workspaceCapabilityRepo,
-      eventPublisher: dependencies.workspaceDomainEventPublisher,
-    });
-    this.sharingService = new WorkspaceSharingApplicationService({
-      workspaceAccessRepo: dependencies.workspaceAccessRepo,
-    });
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(itemPath);
+    if (!updated) return null;
+    return toInvoiceItem(invoiceItemId, updated);
   }
 
-  // ─── Lifecycle (delegated to lifecycle subdomain) ───────────────────────────
+  async removeItem(invoiceItemId: string): Promise<void> {
+    const itemPath = this.itemPath(invoiceItemId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(itemPath);
+    if (!data) return;
 
-  async createWorkspace(command: CreateWorkspaceCommand): Promise<CommandResult> {
-    return this.lifecycleService.createWorkspace(command);
-  }
+    const amount = typeof data.amount === "number" ? data.amount : 0;
+    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
 
-  async createWorkspaceWithCapabilities(
-    command: CreateWorkspaceCommand,
-    capabilities: Capability[],
-  ): Promise<CommandResult> {
-    return this.lifecycleService.createWorkspaceWithCapabilities(command, capabilities);
-  }
+    await firestoreInfrastructureApi.delete(itemPath);
 
-  async updateWorkspaceSettings(
-    command: UpdateWorkspaceSettingsCommand,
-  ): Promise<CommandResult> {
-    return this.lifecycleService.updateWorkspaceSettings(command);
-  }
-
-  async deleteWorkspace(workspaceId: string): Promise<CommandResult> {
-    return this.lifecycleService.deleteWorkspace(workspaceId);
-  }
-
-  // ─── Sharing (delegated to sharing subdomain) ──────────────────────────────
-
-  async authorizeWorkspaceTeam(workspaceId: string, teamId: string): Promise<CommandResult> {
-    return this.sharingService.authorizeWorkspaceTeam(workspaceId, teamId);
-  }
-
-  async grantIndividualWorkspaceAccess(
-    workspaceId: string,
-    grant: WorkspaceGrant,
-  ): Promise<CommandResult> {
-    return this.sharingService.grantIndividualWorkspaceAccess(workspaceId, grant);
-  }
-
-  // ─── Capabilities (root-level, pending subdomain assignment) ────────────────
-
-  async mountCapabilities(
-    workspaceId: string,
-    capabilities: Capability[],
-  ): Promise<CommandResult> {
-    try {
-      return await new MountCapabilitiesUseCase(this.dependencies.workspaceCapabilityRepo).execute(
-        workspaceId,
-        capabilities,
-      );
-    } catch (err) {
-      return commandFailureFrom(
-        "CAPABILITIES_MOUNT_FAILED",
-        err instanceof Error ? err.message : "Unexpected error",
-      );
+    if (invoiceId) {
+      const invoicePath = this.invoicePath(invoiceId);
+      const invoice = await firestoreInfrastructureApi.get<Record<string, unknown>>(invoicePath);
+      if (invoice) {
+        const totalAmount = typeof invoice.totalAmount === "number" ? invoice.totalAmount : 0;
+        await firestoreInfrastructureApi.update(invoicePath, {
+          totalAmount: totalAmount - amount,
+          updatedAtISO: new Date().toISOString(),
+        });
+      }
     }
   }
 
-  // ─── Location (root-level, part of Workspace operational profile) ───────────
-
-  async createWorkspaceLocation(
-    workspaceId: string,
-    location: Omit<WorkspaceLocation, "locationId">,
-  ): Promise<CommandResult> {
-    try {
-      return await new CreateWorkspaceLocationUseCase(this.dependencies.workspaceLocationRepo).execute(
-        workspaceId,
-        location,
-      );
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_LOCATION_CREATE_FAILED",
-        err instanceof Error ? err.message : "Unexpected error",
-      );
-    }
-  }
-}
-````
-
-## File: modules/workspace/application/services/WorkspaceQueryApplicationService.ts
-````typescript
-import type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-} from "../../domain/entities/WikiContentTree";
-import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMemberView";
-import {
-  getWorkspaceByIdForAccount,
-  getWorkspaceById,
-  listWorkspacesForAccount,
-  subscribeToWorkspacesForAccount,
-} from "../queries/workspace.queries";
-import { fetchWorkspaceMembers } from "../../subdomains/membership/api";
-import { buildWikiContentTree } from "../queries/wiki-content-tree.queries";
-import type { WorkspaceQueryPort } from "../../domain/ports/input/WorkspaceQueryPort";
-import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
-import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
-import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWorkspaceRepository";
-
-interface WorkspaceQueryApplicationServiceDependencies {
-  workspaceRepo: WorkspaceRepository;
-  workspaceQueryRepo: WorkspaceQueryRepository;
-  wikiWorkspaceRepo: WikiWorkspaceRepository;
-}
-
-export class WorkspaceQueryApplicationService implements WorkspaceQueryPort {
-  constructor(
-    private readonly dependencies: WorkspaceQueryApplicationServiceDependencies,
-  ) {}
-
-  getWorkspacesForAccount(accountId: string): Promise<WorkspaceEntity[]> {
-    return listWorkspacesForAccount(this.dependencies.workspaceRepo, accountId);
-  }
-
-  subscribeToWorkspacesForAccount(
-    accountId: string,
-    onUpdate: (workspaces: WorkspaceEntity[]) => void,
-  ) {
-    return subscribeToWorkspacesForAccount(
-      this.dependencies.workspaceQueryRepo,
-      accountId,
-      onUpdate,
+  async listItems(invoiceId: string): Promise<InvoiceItem[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_INVOICE_ITEMS_COLLECTION,
+      [{ field: "invoiceId", op: "==", value: invoiceId }],
     );
-  }
-
-  getWorkspaceById(workspaceId: string): Promise<WorkspaceEntity | null> {
-    return getWorkspaceById(this.dependencies.workspaceRepo, workspaceId);
-  }
-
-  getWorkspaceByIdForAccount(
-    accountId: string,
-    workspaceId: string,
-  ): Promise<WorkspaceEntity | null> {
-    return getWorkspaceByIdForAccount(this.dependencies.workspaceRepo, accountId, workspaceId);
-  }
-
-  getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
-    return fetchWorkspaceMembers(this.dependencies.workspaceQueryRepo, workspaceId);
-  }
-
-  buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]> {
-    return buildWikiContentTree(seeds, this.dependencies.wikiWorkspaceRepo);
+    return docs.map((d) => toInvoiceItem(d.id, d.data));
   }
 }
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseIssueRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseIssueRepository.ts
+ * @description Firebase Firestore implementation of IssueRepository for workspace-flow.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add query pagination support and composite indexes
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+import type { Issue, OpenIssueInput, UpdateIssueInput } from "../../domain/entities/Issue";
+import type { IssueRepository } from "../../domain/repositories/IssueRepository";
+import { ISSUE_STATUSES, type IssueStatus } from "../../domain/value-objects/IssueStatus";
+import { toIssue } from "../firebase/issue.converter";
+import { WF_ISSUES_COLLECTION } from "../firebase/workspace-flow.collections";
+
+const VALID_STATUSES = new Set<IssueStatus>(ISSUE_STATUSES);
+const DEFAULT_STATUS: IssueStatus = "open";
+const OPEN_STATUSES: IssueStatus[] = ["open", "investigating", "fixing", "retest"];
+
+export class FirebaseIssueRepository implements IssueRepository {
+  private issuePath(issueId: string): string {
+    return `${WF_ISSUES_COLLECTION}/${issueId}`;
+  }
+
+  async create(input: OpenIssueInput): Promise<Issue> {
+    const nowISO = new Date().toISOString();
+    const issueId = generateId();
+    await firestoreInfrastructureApi.set(this.issuePath(issueId), {
+      taskId: input.taskId,
+      stage: input.stage,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      createdBy: input.createdBy,
+      assignedTo: input.assignedTo ?? null,
+      resolvedAtISO: null,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    });
+
+    return {
+      id: issueId,
+      taskId: input.taskId,
+      stage: input.stage,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      createdBy: input.createdBy,
+      assignedTo: input.assignedTo,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async update(issueId: string, input: UpdateIssueInput): Promise<Issue | null> {
+    const path = this.issuePath(issueId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
+
+    const patch: Record<string, unknown> = {
+      updatedAtISO: new Date().toISOString(),
+    };
+    if (typeof input.title === "string") patch.title = input.title;
+    if (typeof input.description === "string") patch.description = input.description;
+    if (typeof input.assignedTo === "string") patch.assignedTo = input.assignedTo;
+
+    await firestoreInfrastructureApi.update(path, patch);
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!updated) return null;
+    return toIssue(issueId, updated);
+  }
+
+  async delete(issueId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(this.issuePath(issueId));
+  }
+
+  async findById(issueId: string): Promise<Issue | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.issuePath(issueId));
+    if (!data) return null;
+    return toIssue(issueId, data);
+  }
+
+  async findByTaskId(taskId: string): Promise<Issue[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_ISSUES_COLLECTION,
+      [{ field: "taskId", op: "==", value: taskId }],
+      { orderBy: [{ field: "createdAtISO", direction: "desc" }] },
+    );
+    return docs.map((d) => toIssue(d.id, d.data));
+  }
+
+  async countOpenByTaskId(taskId: string): Promise<number> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_ISSUES_COLLECTION,
+      [
+        { field: "taskId", op: "==", value: taskId },
+        { field: "status", op: "in", value: OPEN_STATUSES },
+      ],
+    );
+    return docs.length;
+  }
+
+  async transitionStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<Issue | null> {
+    const path = this.issuePath(issueId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
+
+    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
+    const patch: Record<string, unknown> = {
+      status: validTo,
+      updatedAtISO: nowISO,
+    };
+    if (validTo === "resolved") patch.resolvedAtISO = nowISO;
+
+    await firestoreInfrastructureApi.update(path, patch);
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!updated) return null;
+    return toIssue(issueId, updated);
+  }
+}
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseTaskRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseTaskRepository.ts
+ * @description Firebase Firestore implementation of TaskRepository for workspace-flow.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add query pagination support and composite indexes
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+import type { Task, CreateTaskInput, UpdateTaskInput } from "../../domain/entities/Task";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
+import { toTask } from "../firebase/task.converter";
+import { WF_TASKS_COLLECTION } from "../firebase/workspace-flow.collections";
+
+const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
+const DEFAULT_STATUS: TaskStatus = "draft";
+
+export class FirebaseTaskRepository implements TaskRepository {
+  private taskPath(taskId: string): string {
+    return `${WF_TASKS_COLLECTION}/${taskId}`;
+  }
+
+  async create(input: CreateTaskInput): Promise<Task> {
+    const nowISO = new Date().toISOString();
+    const docData: Record<string, unknown> = {
+      workspaceId: input.workspaceId,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      assigneeId: input.assigneeId ?? null,
+      dueDateISO: input.dueDateISO ?? null,
+      acceptedAtISO: null,
+      archivedAtISO: null,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+    if (input.sourceReference) {
+      docData.sourceReference = { ...input.sourceReference };
+    }
+
+    const taskId = generateId();
+    await firestoreInfrastructureApi.set(this.taskPath(taskId), docData);
+
+    return {
+      id: taskId,
+      workspaceId: input.workspaceId,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      assigneeId: input.assigneeId,
+      dueDateISO: input.dueDateISO,
+      sourceReference: input.sourceReference,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async update(taskId: string, input: UpdateTaskInput): Promise<Task | null> {
+    const path = this.taskPath(taskId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
+
+    const patch: Record<string, unknown> = {
+      updatedAtISO: new Date().toISOString(),
+    };
+    if (typeof input.title === "string") patch.title = input.title;
+    if (typeof input.description === "string") patch.description = input.description;
+    if (typeof input.assigneeId === "string") patch.assigneeId = input.assigneeId;
+    if (typeof input.dueDateISO === "string") patch.dueDateISO = input.dueDateISO;
+
+    await firestoreInfrastructureApi.update(path, patch);
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!updated) return null;
+    return toTask(taskId, updated);
+  }
+
+  async delete(taskId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(this.taskPath(taskId));
+  }
+
+  async findById(taskId: string): Promise<Task | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.taskPath(taskId));
+    if (!data) return null;
+    return toTask(taskId, data);
+  }
+
+  async findByWorkspaceId(workspaceId: string): Promise<Task[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_TASKS_COLLECTION,
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+    );
+    const tasks = docs.map((d) => toTask(d.id, d.data));
+    return tasks.sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
+  }
+
+  async transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null> {
+    const path = this.taskPath(taskId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
+
+    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
+    const patch: Record<string, unknown> = {
+      status: validTo,
+      updatedAtISO: nowISO,
+    };
+    if (validTo === "accepted") patch.acceptedAtISO = nowISO;
+    if (validTo === "archived") patch.archivedAtISO = nowISO;
+
+    await firestoreInfrastructureApi.update(path, patch);
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!updated) return null;
+    return toTask(taskId, updated);
+  }
+}
+````
+
+## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
+````typescript
+import { useEffect, useMemo, useState } from "react";
+
+import type { WorkspaceEntity } from "../../api/contracts";
+
+interface RecentWorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+
+const MAX_VISIBLE_RECENT_WORKSPACES = 10;
+const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
+
+const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
+  "workspace",
+  "workspace-feed",
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "organization",
+  "settings",
+  "dashboard",
+  "dev-tools",
+]);
+
+function getStorageKey(accountId: string) {
+  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
+}
+
+function readRecentWorkspaceIds(accountId: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(getStorageKey(accountId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
+}
+
+function trackWorkspaceFromPath(pathname: string, accountId: string) {
+  const workspaceId = getWorkspaceIdFromPath(pathname);
+  if (!workspaceId) return;
+  const recentIds = readRecentWorkspaceIds(accountId);
+  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
+  persistRecentWorkspaceIds(accountId, deduped);
+}
+
+function getWorkspaceIdFromPath(pathname: string): string | null {
+  const legacyMatch = pathname.match(/^\/workspace\/([^/]+)/);
+  if (legacyMatch) {
+    return decodeURIComponent(legacyMatch[1]);
+  }
+
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length < 2) {
+    return null;
+  }
+
+  const [firstSegment, secondSegment] = segments;
+  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
+    return null;
+  }
+
+  if (["organization", "settings", "dev-tools"].includes(secondSegment)) {
+    return null;
+  }
+
+  if (!secondSegment) {
+    return null;
+  }
+
+  return decodeURIComponent(secondSegment);
+}
+
+export function useRecentWorkspaces(
+  accountId: string | undefined,
+  pathname: string,
+  workspaces: WorkspaceEntity[],
+) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!accountId) return;
+    trackWorkspaceFromPath(pathname, accountId);
+  }, [accountId, pathname]);
+
+  const workspacesById = useMemo(
+    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
+    [workspaces],
+  );
+
+  const recentWorkspaceIds = useMemo(() => {
+    if (!accountId) return [] as string[];
+    const stored = readRecentWorkspaceIds(accountId);
+    const currentId = getWorkspaceIdFromPath(pathname);
+    if (!currentId) return stored;
+    return [currentId, ...stored.filter((id) => id !== currentId)];
+  }, [accountId, pathname]);
+
+  const recentWorkspaceLinks = useMemo<RecentWorkspaceLink[]>(() => {
+    return recentWorkspaceIds
+      .map<RecentWorkspaceLink | null>((workspaceId) => {
+        const ws = workspacesById[workspaceId];
+        if (!ws) return null;
+        const href = accountId
+          ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(ws.id)}`
+          : `/workspace/${encodeURIComponent(ws.id)}`;
+        return { id: ws.id, name: ws.name, href };
+      })
+      .filter((item): item is RecentWorkspaceLink => item !== null);
+  }, [accountId, recentWorkspaceIds, workspacesById]);
+
+  return { isExpanded, setIsExpanded, recentWorkspaceLinks };
+}
+
+export { MAX_VISIBLE_RECENT_WORKSPACES, getWorkspaceIdFromPath };
 ````
 
 ## File: modules/workspace/interfaces/web/providers/WorkspaceContextProvider.tsx
@@ -18655,9 +18227,11 @@ export { useSidebarLocale } from "../interfaces/web/navigation/use-sidebar-local
 
 export {
   appendWorkspaceContextQuery,
+  buildWorkspaceOverviewPanelHref,
   buildWorkspaceContextHref,
   supportsWorkspaceSearchContext,
   type WorkspaceNavigationContext,
+  type WorkspaceOverviewPanel,
 } from "../interfaces/web/navigation/workspace-context-links";
 
 // ── Navigation customize dialog ───────────────────────────────────────────────
@@ -18684,23 +18258,692 @@ export {
 export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";
 ````
 
-## File: modules/workspace/application/use-cases/workspace.use-cases.ts
+## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
 ````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Re-export barrel for workspace command use cases that remain at root level.
- *          Lifecycle use cases → subdomains/lifecycle/
- *          Sharing use cases → subdomains/sharing/
- *          Queries → application/queries/
- *
- * DDD Rule 12: Command → use-cases/
- * DDD Rule 13: Read → queries/
- */
+import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Users } from "lucide-react";
+import type { ReactNode } from "react";
 
-export { MountCapabilitiesUseCase } from "./workspace-capabilities.use-cases";
+const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
+  "workspace",
+  "workspace-feed",
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "organization",
+  "settings",
+  "dashboard",
+  "dev-tools",
+]);
 
-export { CreateWorkspaceLocationUseCase } from "./workspace-location.use-cases";
+function isWorkspaceScopedPath(pathname: string) {
+  if (pathname.startsWith("/workspace/")) {
+    return true;
+  }
+
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length < 2) {
+    return false;
+  }
+
+  return !NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(segments[0]);
+}
+
+export interface WorkspaceQuickAccessMatcherOptions {
+  panel: string | null;
+  tab: string | null;
+}
+
+export interface WorkspaceQuickAccessItem {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
+}
+
+const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
+  {
+    href: "/workspace/{workspaceId}?tab=Overview",
+    label: "首頁",
+    icon: <Home className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) &&
+      (options?.tab == null || options.tab === "Overview") &&
+      options?.panel !== "settings",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-pages",
+    label: "知識頁面",
+    icon: <FileText className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "knowledge-pages",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-base-articles",
+    label: "文章",
+    icon: <BookOpen className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "knowledge-base-articles",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Files",
+    label: "檔案",
+    icon: <FolderOpen className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Files",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Members",
+    label: "成員",
+    icon: <Users className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Members",
+  },
+  {
+    href: "/notebook/rag-query?workspaceId={workspaceId}",
+    label: "RAG 查詢",
+    icon: <Brain className="size-3.5" />,
+    isActive: (pathname: string) =>
+      pathname === "/notebook/rag-query" ||
+      pathname.startsWith("/notebook/rag-query/") ||
+      pathname.includes("/notebook/rag-query"),
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=source-libraries",
+    label: "資料庫",
+    icon: <Database className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "source-libraries",
+  },
+];
+
+export function buildWorkspaceQuickAccessItems(
+  workspaceId: string,
+  accountId?: string | null,
+): WorkspaceQuickAccessItem[] {
+  const encodedWorkspaceId = encodeURIComponent(workspaceId);
+  const encodedAccountId = accountId ? encodeURIComponent(accountId) : "";
+  const workspaceBaseHref = accountId
+    ? `/${encodedAccountId}/${encodedWorkspaceId}`
+    : "/";
+
+  return WORKSPACE_QUICK_ACCESS_TEMPLATES.map((item) => ({
+    ...item,
+    href: item.href
+      .replaceAll("/workspace/{workspaceId}", workspaceBaseHref)
+      .replaceAll(
+        "/notebook/rag-query?workspaceId={workspaceId}",
+        `${workspaceBaseHref}/notebook/rag-query`,
+      )
+      .replaceAll("{workspaceId}", encodedWorkspaceId),
+  }));
+}
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx
+````typescript
+"use client";
+
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { Badge } from "@ui-shadcn/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Separator } from "@ui-shadcn/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
+import { describeGrant } from "../../view-models/workspace-grants";
+import { WorkspaceOverviewSettingsTab } from "./WorkspaceOverviewSettingsTab";
+import { WorkspaceOverviewSummaryCard } from "../cards/WorkspaceOverviewSummaryCard";
+import { WorkspaceProductSpineCard } from "../cards/WorkspaceProductSpineCard";
+import { WorkspaceQuickstartCard } from "../cards/WorkspaceQuickstartCard";
+import { WorkspaceOverviewKnowledgePanels } from "./WorkspaceOverviewKnowledgePanels";
+
+interface WorkspaceOverviewTabProps {
+  readonly workspace: WorkspaceEntity;
+  readonly activeWorkspaceId: string | null | undefined;
+  readonly currentUserId?: string | null;
+  readonly personnelEntries: Array<{ label: string; value: string | undefined }>;
+  readonly addressLines: string[];
+  readonly initialPanel?: string;
+  readonly onEditClick: () => void;
+  readonly onSetActiveWorkspace: () => void;
+}
+
+type WorkspaceOverviewSurface =
+  | "home"
+  | "knowledge-pages"
+  | "knowledge-base-articles"
+  | "knowledge-databases"
+  | "source-libraries"
+  | "governance"
+  | "profile";
+
+function resolveWorkspaceOverviewSurface(panel?: string): WorkspaceOverviewSurface {
+  switch (panel) {
+    case "knowledge-pages":
+    case "knowledge-base-articles":
+    case "knowledge-databases":
+    case "source-libraries":
+      return panel;
+    case "governance":
+    case "profile":
+      return panel;
+    default:
+      return "home";
+  }
+}
+
+export function WorkspaceOverviewTab({
+  workspace,
+  activeWorkspaceId,
+  currentUserId,
+  personnelEntries,
+  addressLines,
+  initialPanel,
+  onEditClick,
+  onSetActiveWorkspace,
+}: WorkspaceOverviewTabProps) {
+  if (initialPanel === "settings") {
+    return (
+      <WorkspaceOverviewSettingsTab
+        workspace={workspace}
+        personnelEntries={personnelEntries}
+        addressLines={addressLines}
+        onEditClick={onEditClick}
+      />
+    );
+  }
+
+  const initialSurface = resolveWorkspaceOverviewSurface(initialPanel);
+
+  return (
+    <Tabs defaultValue={initialSurface} className="space-y-4">
+      <div className="rounded-2xl border border-border/50 bg-card/70 p-3 shadow-sm">
+        <TabsList
+          variant="line"
+          className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b border-border/60 bg-transparent p-0"
+        >
+          <TabsTrigger value="home" className="min-w-fit px-3 py-2">
+            Home
+          </TabsTrigger>
+          <TabsTrigger value="knowledge-pages" className="min-w-fit px-3 py-2">
+            Pages
+          </TabsTrigger>
+          <TabsTrigger value="knowledge-base-articles" className="min-w-fit px-3 py-2">
+            Articles
+          </TabsTrigger>
+          <TabsTrigger value="knowledge-databases" className="min-w-fit px-3 py-2">
+            Databases
+          </TabsTrigger>
+          <TabsTrigger value="source-libraries" className="min-w-fit px-3 py-2">
+            Libraries
+          </TabsTrigger>
+          <TabsTrigger value="governance" className="min-w-fit px-3 py-2">
+            Governance
+          </TabsTrigger>
+          <TabsTrigger value="profile" className="min-w-fit px-3 py-2">
+            Profile
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="home" className="mt-4 space-y-4">
+          <WorkspaceOverviewSummaryCard
+            workspace={workspace}
+            activeWorkspaceId={activeWorkspaceId}
+            onEditClick={onEditClick}
+            onSetActiveWorkspace={onSetActiveWorkspace}
+          />
+
+          <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+            <WorkspaceProductSpineCard workspace={workspace} />
+
+            <Card className="border border-border/50">
+              <CardHeader>
+                <CardTitle>Capabilities</CardTitle>
+                <CardDescription>
+                  Runtime features currently mounted on this workspace.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {workspace.capabilities.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No capability bindings have been added yet.
+                  </p>
+                ) : (
+                  workspace.capabilities.map((capability) => (
+                    <div
+                      key={capability.id}
+                      className="rounded-xl border border-border/40 px-4 py-4"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground">
+                          {capability.name}
+                        </p>
+                        <Badge variant="outline">{capability.type}</Badge>
+                        <Badge
+                          variant={capability.status === "stable" ? "secondary" : "outline"}
+                        >
+                          {capability.status}
+                        </Badge>
+                      </div>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {capability.description}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {workspace.lifecycleState === "preparatory" && workspace.capabilities.length === 0 && (
+            <WorkspaceQuickstartCard workspaceId={workspace.id} />
+          )}
+        </TabsContent>
+
+        <WorkspaceOverviewKnowledgePanels workspace={workspace} currentUserId={currentUserId} />
+
+        <TabsContent value="governance" className="mt-4 space-y-4">
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Card className="border border-border/50">
+              <CardHeader>
+                <CardTitle>Access Model</CardTitle>
+                <CardDescription>
+                  Team scopes and direct grants applied to this workspace.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-foreground">Team access</p>
+                  {workspace.teamIds.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No team access assigned.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {workspace.teamIds.map((teamId) => (
+                        <Badge key={teamId} variant="secondary">
+                          {teamId}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-foreground">Direct grants</p>
+                  {workspace.grants.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No direct grants recorded.</p>
+                  ) : (
+                    workspace.grants.map((grant, index) => (
+                      <div
+                        key={`grant-${grant.role}-${grant.teamId ?? "none"}-${grant.userId ?? "none"}-${grant.protocol ?? "none"}-${index}`}
+                        className="rounded-xl border border-border/40 px-4 py-3"
+                      >
+                        <p className="text-sm font-medium text-foreground">
+                          {describeGrant(grant)}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Role: {grant.role}
+                          {grant.teamId ? ` · Team: ${grant.teamId}` : ""}
+                          {grant.userId ? ` · User: ${grant.userId}` : ""}
+                          {grant.protocol ? ` · Protocol: ${grant.protocol}` : ""}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-border/50">
+              <CardHeader>
+                <CardTitle>Locations</CardTitle>
+                <CardDescription>
+                  Physical or logical locations linked to the workspace.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {workspace.locations == null || workspace.locations.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No locations have been configured yet.
+                  </p>
+                ) : (
+                  workspace.locations.map((location) => (
+                    <div
+                      key={location.locationId}
+                      className="rounded-xl border border-border/40 px-4 py-4"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground">
+                          {location.label}
+                        </p>
+                        <Badge variant="outline">{location.locationId}</Badge>
+                      </div>
+                      {location.description && (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {location.description}
+                        </p>
+                      )}
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Capacity: {location.capacity ?? "—"}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="profile" className="mt-4 space-y-4">
+          <Card className="border border-border/50">
+            <CardHeader>
+              <CardTitle>Workspace Profile</CardTitle>
+              <CardDescription>
+                Operational contacts and registered workspace address.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">Personnel</p>
+                {personnelEntries.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No personnel roles assigned.
+                  </p>
+                ) : (
+                  personnelEntries.map((entry) => (
+                    <div
+                      key={entry.label}
+                      className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3 text-sm"
+                    >
+                      <span className="text-muted-foreground">{entry.label}</span>
+                      <span className="font-medium text-foreground">{entry.value}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">Address</p>
+                {addressLines.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No address information has been provided.
+                  </p>
+                ) : (
+                  <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
+                    {addressLines.map((line, index) => (
+                      <p key={`${line}-${index}`}>{line}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+      </div>
+    </Tabs>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewKnowledgePanels.tsx
+````typescript
+"use client";
+
+import { KnowledgeBaseArticlesPanel, KnowledgeDatabasesPanel, KnowledgePagesPanel } from "@/modules/notion/api";
+import { LibrariesPanel, LibraryTablePanel } from "@/modules/notebooklm/api";
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { TabsContent } from "@ui-shadcn/ui/tabs";
+
+interface WorkspaceOverviewKnowledgePanelsProps {
+  readonly workspace: WorkspaceEntity;
+  readonly currentUserId?: string | null;
+}
+
+export function WorkspaceOverviewKnowledgePanels({
+  workspace,
+  currentUserId,
+}: WorkspaceOverviewKnowledgePanelsProps) {
+  return (
+    <>
+      <TabsContent value="knowledge-pages" className="mt-4 space-y-4">
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardTitle>Knowledge Pages</CardTitle>
+            <CardDescription>
+              Workspace orchestration surface for notion knowledge page tree and page entry flow.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <KnowledgePagesPanel
+              accountId={workspace.accountId}
+              workspaceId={workspace.id}
+              currentUserId={currentUserId}
+            />
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="knowledge-base-articles" className="mt-4 space-y-4">
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardTitle>Knowledge Base Articles</CardTitle>
+            <CardDescription>
+              Workspace orchestration surface for notion authoring article lifecycle and categorization.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <KnowledgeBaseArticlesPanel
+              accountId={workspace.accountId}
+              workspaceId={workspace.id}
+              currentUserId={currentUserId}
+            />
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="knowledge-databases" className="mt-4 space-y-4">
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardTitle>Knowledge Databases</CardTitle>
+            <CardDescription>
+              Workspace orchestration surface for notion structured database views.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <KnowledgeDatabasesPanel
+              accountId={workspace.accountId}
+              workspaceId={workspace.id}
+              currentUserId={currentUserId}
+            />
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="source-libraries" className="mt-4 space-y-4">
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardTitle>Source Libraries</CardTitle>
+            <CardDescription>
+              Workspace orchestration surface for notebooklm source libraries.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <LibraryTablePanel accountId={workspace.accountId} workspaceId={workspace.id} />
+            <LibrariesPanel accountId={workspace.accountId} workspaceId={workspace.id} />
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/navigation/workspace-context-links.ts
+````typescript
+export interface WorkspaceNavigationContext {
+  readonly accountId: string | null;
+  readonly workspaceId: string | null;
+}
+
+const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
+  "workspace",
+  "workspace-feed",
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "organization",
+  "settings",
+  "dashboard",
+  "dev-tools",
+]);
+
+export const WORKSPACE_OVERVIEW_PANELS = [
+  "knowledge-pages",
+  "knowledge-base-articles",
+  "knowledge-databases",
+  "source-libraries",
+  "settings",
+] as const;
+
+export type WorkspaceOverviewPanel = (typeof WORKSPACE_OVERVIEW_PANELS)[number];
+
+function normalizeWorkspaceToolPath(pathname: string): string {
+  const [pathOnly] = pathname.split("?");
+  const segments = pathOnly.split("/").filter(Boolean);
+
+  if (segments.length === 0) {
+    return "/";
+  }
+
+  const [firstSegment, secondSegment, ...restSegments] = segments;
+
+  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
+    return pathOnly;
+  }
+
+  if (!secondSegment) {
+    return "/workspace";
+  }
+
+  if (["organization", "settings", "dev-tools"].includes(secondSegment)) {
+    return `/${[secondSegment, ...restSegments].join("/")}`;
+  }
+
+  if (restSegments.length === 0) {
+    return "/workspace";
+  }
+
+  return `/${restSegments.join("/")}`;
+}
+
+function tryGetAccountIdFromPath(pathname: string): string | null {
+  const [firstSegment] = pathname.split("/").filter(Boolean);
+  if (!firstSegment) {
+    return null;
+  }
+  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
+    return null;
+  }
+  return decodeURIComponent(firstSegment);
+}
+
+function buildWorkspaceBaseHref(workspaceId: string, accountId?: string | null): string {
+  const encodedWorkspaceId = encodeURIComponent(workspaceId);
+  if (accountId) {
+    return `/${encodeURIComponent(accountId)}/${encodedWorkspaceId}`;
+  }
+  return "/";
+}
+
+export function buildWorkspaceOverviewPanelHref(
+  workspaceId: string,
+  panel?: WorkspaceOverviewPanel,
+  accountId?: string | null,
+): string {
+  const baseHref = buildWorkspaceBaseHref(workspaceId, accountId);
+  if (!panel) {
+    return `${baseHref}?tab=Overview`;
+  }
+  return `${baseHref}?tab=Overview&panel=${encodeURIComponent(panel)}`;
+}
+
+export function supportsWorkspaceSearchContext(pathname: string): boolean {
+  const normalizedPathname = normalizeWorkspaceToolPath(pathname);
+  return (
+    normalizedPathname.startsWith("/knowledge") ||
+    normalizedPathname.startsWith("/knowledge-base") ||
+    normalizedPathname.startsWith("/knowledge-database") ||
+    normalizedPathname.startsWith("/source") ||
+    normalizedPathname.startsWith("/notebook")
+  );
+}
+
+export function buildWorkspaceContextHref(pathname: string, workspaceId: string): string {
+  const accountId = tryGetAccountIdFromPath(pathname);
+  const normalizedPathname = normalizeWorkspaceToolPath(pathname);
+
+  if (normalizedPathname.startsWith("/knowledge-base")) {
+    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-base-articles", accountId);
+  }
+
+  if (normalizedPathname.startsWith("/knowledge-database")) {
+    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-databases", accountId);
+  }
+
+  if (normalizedPathname.startsWith("/knowledge")) {
+    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-pages", accountId);
+  }
+
+  if (normalizedPathname.startsWith("/source/libraries")) {
+    return buildWorkspaceOverviewPanelHref(workspaceId, "source-libraries", accountId);
+  }
+
+  if (normalizedPathname.startsWith("/source/documents")) {
+    return `${buildWorkspaceBaseHref(workspaceId, accountId)}?tab=Files`;
+  }
+
+  return buildWorkspaceBaseHref(workspaceId, accountId);
+}
+
+export function appendWorkspaceContextQuery(
+  href: string,
+  context: WorkspaceNavigationContext,
+): string {
+  const { accountId, workspaceId } = context;
+
+  if (!accountId && !workspaceId) {
+    return href;
+  }
+
+  const [path, search = ""] = href.split("?");
+  const params = new URLSearchParams(search);
+
+  if (accountId) {
+    params.set("accountId", accountId);
+  }
+
+  if (workspaceId) {
+    params.set("workspaceId", workspaceId);
+  }
+
+  const query = params.toString();
+  return query.length > 0 ? `${path}?${query}` : path;
+}
 ````
 
 ## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
@@ -18715,6 +18958,7 @@ import {
   CardContent,
 } from "@ui-shadcn/ui/card";
 import { Badge } from "@ui-shadcn/ui/badge";
+import { useAuth } from "@/modules/platform/api";
 import { WorkspaceAuditTab } from "@/modules/workspace/api";
 import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
 import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
@@ -18762,6 +19006,7 @@ export function WorkspaceDetailScreen({
   initialOverviewPanel,
 }: WorkspaceDetailScreenProps) {
   const { state: wsState, dispatch: wsDispatch } = useWorkspaceContext();
+  const { state: authState } = useAuth();
   const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
     workspaceId,
     accountId,
@@ -18797,9 +19042,10 @@ export function WorkspaceDetailScreen({
           <WorkspaceOverviewTab
             workspace={workspace}
             activeWorkspaceId={wsState.activeWorkspaceId}
+            currentUserId={authState.user?.id}
             personnelEntries={personnelEntries}
             addressLines={addressLines}
-            showSettingsPanel={initialOverviewPanel === "settings"}
+            initialPanel={initialOverviewPanel}
             onEditClick={() => {
               setSettingsDraft(createSettingsDraft(workspace));
               clearSaveError();
@@ -18885,7 +19131,10 @@ export function WorkspaceDetailScreen({
 
   return (
     <div className="space-y-6">
-      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
+      <Link
+        href={accountId ? `/${encodeURIComponent(accountId)}` : "/"}
+        className="inline-flex text-sm font-medium text-primary hover:underline md:hidden"
+      >
         ← 返回 Workspace Hub
       </Link>
 
@@ -18934,7 +19183,9 @@ export function WorkspaceDetailScreen({
                   return (
                     <Link
                       key={tab}
-                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
+                      href={accountId
+                        ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}?tab=${encodeURIComponent(tab)}`
+                        : "/"}
                       aria-current={isActive ? "page" : undefined}
                       className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
                         isActive
