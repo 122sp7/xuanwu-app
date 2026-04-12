@@ -8,7 +8,7 @@ import {
   CardContent,
 } from "@ui-shadcn/ui/card";
 import { Badge } from "@ui-shadcn/ui/badge";
-import { useAuth } from "@/modules/platform/api";
+import { useApp, useAuth } from "@/modules/platform/api";
 import {
   ConversationPanel,
   RagQueryPanel,
@@ -61,10 +61,21 @@ export function WorkspaceDetailScreen({
 }: WorkspaceDetailScreenProps) {
   const { state: wsState, dispatch: wsDispatch } = useWorkspaceContext();
   const { state: authState } = useAuth();
+  const { state: appState } = useApp();
+  const accessibleAccountIds = useMemo(
+    () =>
+      [
+        authState.user?.id,
+        appState.activeAccount?.id,
+        ...Object.keys(appState.accounts),
+      ].filter((id): id is string => Boolean(id && id.trim())),
+    [authState.user?.id, appState.activeAccount?.id, appState.accounts],
+  );
   const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
     workspaceId,
     accountId,
     accountsHydrated,
+    accessibleAccountIds,
   );
   const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
   const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
