@@ -1609,6 +1609,11 @@ export { makeThreadRepo } from "../subdomains/conversation/api/factories";
 export { makeNotebookRepo } from "../subdomains/notebook/api/factories";
 ````
 
+## File: modules/notebooklm/domain/.gitkeep
+````
+
+````
+
 ## File: modules/notebooklm/subdomains/conversation/api/factories.ts
 ````typescript
 import { FirebaseThreadRepository } from "../infrastructure/firebase/FirebaseThreadRepository";
@@ -1692,77 +1697,6 @@ import type { Thread } from "../entities/thread";
 export interface IThreadRepository {
   save(accountId: string, thread: Thread): Promise<void>;
   getById(accountId: string, threadId: string): Promise<Thread | null>;
-}
-````
-
-## File: modules/notebooklm/subdomains/conversation/infrastructure/firebase/FirebaseThreadRepository.ts
-````typescript
-/**
- * Module: notebooklm/conversation
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/threads/{threadId}
- *
- * Persists Thread (messages array) to Firestore so conversations survive page reload.
- */
-
-import { doc, getDoc, getFirestore, serverTimestamp, setDoc } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { Thread } from "../../domain/entities/thread";
-import type { Message } from "../../domain/entities/message";
-import type { IThreadRepository } from "../../domain/repositories/IThreadRepository";
-
-function threadDoc(
-  db: ReturnType<typeof getFirestore>,
-  accountId: string,
-  threadId: string,
-) {
-  return doc(db, "accounts", accountId, "threads", threadId);
-}
-
-function toMessage(m: Record<string, unknown>): Message {
-  return {
-    id: typeof m.id === "string" ? m.id : "",
-    role: (m.role as Message["role"]) ?? "user",
-    content: typeof m.content === "string" ? m.content : "",
-    createdAt: typeof m.createdAt === "string" ? m.createdAt : new Date().toISOString(),
-  };
-}
-
-function toThread(id: string, data: Record<string, unknown>): Thread {
-  const messages = Array.isArray(data.messages)
-    ? (data.messages as Record<string, unknown>[]).map(toMessage)
-    : [];
-  return {
-    id,
-    messages,
-    createdAt: typeof data.createdAt === "string" ? data.createdAt : new Date().toISOString(),
-    updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString(),
-  };
-}
-
-export class FirebaseThreadRepository implements IThreadRepository {
-  private db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async save(accountId: string, thread: Thread): Promise<void> {
-    const db = this.db();
-    const ref = threadDoc(db, accountId, thread.id);
-    await setDoc(ref, {
-      id: thread.id,
-      messages: thread.messages,
-      createdAt: thread.createdAt,
-      updatedAt: new Date().toISOString(),
-      _savedAt: serverTimestamp(),
-    });
-  }
-
-  async getById(accountId: string, threadId: string): Promise<Thread | null> {
-    const db = this.db();
-    const snap = await getDoc(threadDoc(db, accountId, threadId));
-    if (!snap.exists()) return null;
-    return toThread(snap.id, snap.data() as Record<string, unknown>);
-  }
 }
 ````
 
@@ -3184,543 +3118,6 @@ export function resolveSourceOrganizationId(
 }
 ````
 
-## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseRagDocumentAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/firebase
- * Adapter: FirebaseRagDocumentAdapter — Firestore implementation of IRagDocumentRepository.
- *
- * Collection path:
- *   knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}
- */
-
-import {
-  collection,
-  doc,
-  getDocs,
-  getFirestore,
-  limit,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-
-import type { RagDocumentRecord, RagDocumentStatus } from "../../domain/entities/RagDocument";
-import type { IRagDocumentRepository } from "../../domain/repositories/IRagDocumentRepository";
-
-function buildDocRef(input: {
-  readonly organizationId: string;
-  readonly workspaceId: string;
-  readonly documentId: string;
-}) {
-  return doc(
-    getFirestore(firebaseClientApp),
-    "knowledge_base", input.organizationId,
-    "workspaces", input.workspaceId,
-    "documents", input.documentId,
-  );
-}
-
-function buildDocCollection(input: { readonly organizationId: string; readonly workspaceId: string }) {
-  return collection(
-    getFirestore(firebaseClientApp),
-    "knowledge_base", input.organizationId,
-    "workspaces", input.workspaceId,
-    "documents",
-  );
-}
-
-function toStringArray(value: unknown): readonly string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => typeof item === "string");
-}
-
-function isRagDocumentStatus(value: unknown): value is RagDocumentStatus {
-  return (
-    value === "uploaded" ||
-    value === "processing" ||
-    value === "ready" ||
-    value === "failed" ||
-    value === "archived"
-  );
-}
-
-function toRagDocumentRecord(
-  documentId: string,
-  data: Record<string, unknown>,
-  fallback: { organizationId: string; workspaceId: string },
-): RagDocumentRecord {
-  return {
-    id: documentId,
-    organizationId: typeof data.organizationId === "string" ? data.organizationId : fallback.organizationId,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : fallback.workspaceId,
-    displayName:
-      (typeof data.displayName === "string" && data.displayName) ||
-      (typeof data.sourceFileName === "string" && data.sourceFileName) ||
-      "",
-    title: typeof data.title === "string" ? data.title : "",
-    sourceFileName: typeof data.sourceFileName === "string" ? data.sourceFileName : "",
-    mimeType: typeof data.mimeType === "string" ? data.mimeType : "application/octet-stream",
-    storagePath: typeof data.storagePath === "string" ? data.storagePath : "",
-    sizeBytes: typeof data.sizeBytes === "number" ? data.sizeBytes : 0,
-    status: isRagDocumentStatus(data.status) ? data.status : "uploaded",
-    statusMessage: typeof data.statusMessage === "string" ? data.statusMessage : undefined,
-    checksum: typeof data.checksum === "string" ? data.checksum : undefined,
-    taxonomy: typeof data.taxonomy === "string" ? data.taxonomy : undefined,
-    category: typeof data.category === "string" ? data.category : undefined,
-    department: typeof data.department === "string" ? data.department : undefined,
-    tags: toStringArray(data.tags),
-    language: typeof data.language === "string" ? data.language : undefined,
-    accessControl: toStringArray(data.accessControl),
-    versionGroupId: typeof data.versionGroupId === "string" ? data.versionGroupId : documentId,
-    versionNumber: typeof data.versionNumber === "number" ? data.versionNumber : 1,
-    isLatest: typeof data.isLatest === "boolean" ? data.isLatest : true,
-    updateLog: typeof data.updateLog === "string" ? data.updateLog : undefined,
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    chunkCount: typeof data.chunkCount === "number" ? data.chunkCount : undefined,
-    indexedAtISO: typeof data.indexedAtISO === "string" ? data.indexedAtISO : undefined,
-    expiresAtISO: typeof data.expiresAtISO === "string" ? data.expiresAtISO : undefined,
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-export class FirebaseRagDocumentAdapter implements IRagDocumentRepository {
-  async findByStoragePath(scope: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-    readonly storagePath: string;
-  }): Promise<RagDocumentRecord | null> {
-    const snapshots = await getDocs(
-      query(
-        buildDocCollection(scope),
-        where("storagePath", "==", scope.storagePath),
-        limit(1),
-      ),
-    );
-    const [first] = snapshots.docs;
-    if (!first) return null;
-    return toRagDocumentRecord(first.id, first.data() as Record<string, unknown>, scope);
-  }
-
-  async findByWorkspace(scope: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-  }): Promise<readonly RagDocumentRecord[]> {
-    const snapshots = await getDocs(
-      query(buildDocCollection(scope), orderBy("createdAtISO", "desc")),
-    );
-    return snapshots.docs.map((snap) =>
-      toRagDocumentRecord(snap.id, snap.data() as Record<string, unknown>, scope),
-    );
-  }
-
-  async saveUploaded(record: RagDocumentRecord): Promise<void> {
-    await setDoc(buildDocRef({ organizationId: record.organizationId, workspaceId: record.workspaceId, documentId: record.id }), {
-      id: record.id,
-      organizationId: record.organizationId,
-      workspaceId: record.workspaceId,
-      displayName: record.displayName,
-      title: record.title,
-      sourceFileName: record.sourceFileName,
-      mimeType: record.mimeType,
-      storagePath: record.storagePath,
-      sizeBytes: record.sizeBytes,
-      status: record.status,
-      ...(record.statusMessage ? { statusMessage: record.statusMessage } : {}),
-      ...(record.checksum ? { checksum: record.checksum } : {}),
-      ...(record.taxonomy ? { taxonomy: record.taxonomy } : {}),
-      ...(record.category ? { category: record.category } : {}),
-      ...(record.department ? { department: record.department } : {}),
-      tags: record.tags ?? [],
-      ...(record.language ? { language: record.language } : {}),
-      accessControl: record.accessControl ?? [],
-      versionGroupId: record.versionGroupId,
-      versionNumber: record.versionNumber,
-      isLatest: record.isLatest,
-      ...(record.updateLog ? { updateLog: record.updateLog } : {}),
-      accountId: record.accountId,
-      ...(record.chunkCount !== undefined ? { chunkCount: record.chunkCount } : {}),
-      ...(record.indexedAtISO ? { indexedAtISO: record.indexedAtISO } : {}),
-      ...(record.expiresAtISO ? { expiresAtISO: record.expiresAtISO } : {}),
-      createdAtISO: record.createdAtISO,
-      updatedAtISO: record.updatedAtISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseSourceFileAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/firebase
- * Adapter: FirebaseSourceFileAdapter — Firestore implementation of ISourceFileRepository.
- *
- * Collections:
- *   workspaceFiles/{fileId}
- *   workspaceFiles/{fileId}/versions/{versionId}
- */
-
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  query,
-  where,
-  writeBatch,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-
-import type { SourceFile } from "../../domain/entities/SourceFile";
-import type { SourceFileVersion } from "../../domain/entities/SourceFileVersion";
-import type { ISourceFileRepository, ListSourceFilesScope } from "../../domain/repositories/ISourceFileRepository";
-
-const FILE_COLLECTION = "workspaceFiles";
-const VERSION_SUBCOLLECTION = "versions";
-
-function isSourceFileStatus(value: unknown): value is SourceFile["status"] {
-  return value === "active" || value === "archived" || value === "deleted";
-}
-
-function isSourceFileClassification(value: unknown): value is SourceFile["classification"] {
-  return value === "image" || value === "manifest" || value === "record" || value === "other";
-}
-
-function toStringArray(value: unknown): readonly string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => typeof item === "string");
-}
-
-function toSourceFileEntity(fileId: string, data: Record<string, unknown>): SourceFile {
-  return {
-    id: fileId,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    organizationId: typeof data.organizationId === "string" ? data.organizationId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    name: typeof data.name === "string" ? data.name : "",
-    mimeType: typeof data.mimeType === "string" ? data.mimeType : "application/octet-stream",
-    sizeBytes: typeof data.sizeBytes === "number" ? data.sizeBytes : 0,
-    classification: isSourceFileClassification(data.classification) ? data.classification : "other",
-    tags: toStringArray(data.tags),
-    currentVersionId: typeof data.currentVersionId === "string" ? data.currentVersionId : "",
-    retentionPolicyId: typeof data.retentionPolicyId === "string" ? data.retentionPolicyId : undefined,
-    status: isSourceFileStatus(data.status) ? data.status : "active",
-    source: typeof data.source === "string" ? data.source : undefined,
-    detail: typeof data.detail === "string" ? data.detail : undefined,
-    href: typeof data.href === "string" ? data.href : undefined,
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-    deletedAtISO: typeof data.deletedAtISO === "string" ? data.deletedAtISO : undefined,
-  };
-}
-
-function isVersionStatus(value: unknown): value is SourceFileVersion["status"] {
-  return value === "pending" || value === "stored" || value === "active" || value === "superseded";
-}
-
-function toSourceFileVersionEntity(versionId: string, data: Record<string, unknown>): SourceFileVersion {
-  return {
-    id: versionId,
-    fileId: typeof data.fileId === "string" ? data.fileId : "",
-    versionNumber: typeof data.versionNumber === "number" ? data.versionNumber : 0,
-    status: isVersionStatus(data.status) ? data.status : "pending",
-    storagePath: typeof data.storagePath === "string" ? data.storagePath : "",
-    checksum: typeof data.checksum === "string" ? data.checksum : undefined,
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-  };
-}
-
-export class FirebaseSourceFileAdapter implements ISourceFileRepository {
-  private readonly db = getFirestore(firebaseClientApp);
-
-  private get collectionRef() {
-    return collection(this.db, FILE_COLLECTION);
-  }
-
-  async findById(fileId: string): Promise<SourceFile | null> {
-    const normalizedId = fileId.trim();
-    if (!normalizedId) return null;
-    const snapshot = await getDoc(doc(this.db, FILE_COLLECTION, normalizedId));
-    if (!snapshot.exists()) return null;
-    return toSourceFileEntity(snapshot.id, snapshot.data() as Record<string, unknown>);
-  }
-
-  async findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null> {
-    const nFileId = fileId.trim();
-    const nVersionId = versionId.trim();
-    if (!nFileId || !nVersionId) return null;
-    const snapshot = await getDoc(
-      doc(this.db, FILE_COLLECTION, nFileId, VERSION_SUBCOLLECTION, nVersionId),
-    );
-    if (!snapshot.exists()) return null;
-    return toSourceFileVersionEntity(snapshot.id, snapshot.data() as Record<string, unknown>);
-  }
-
-  async listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]> {
-    const workspaceId = scope.workspaceId.trim();
-    const organizationId = scope.organizationId.trim();
-    if (!workspaceId) return [];
-
-    const snapshots = await getDocs(
-      query(
-        this.collectionRef,
-        where("workspaceId", "==", workspaceId),
-        where("organizationId", "==", organizationId),
-      ),
-    );
-
-    return snapshots.docs
-      .map((snap) => toSourceFileEntity(snap.id, snap.data() as Record<string, unknown>))
-      .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
-  }
-
-  async save(file: SourceFile, versions: readonly SourceFileVersion[] = []): Promise<void> {
-    const batch = writeBatch(this.db);
-    const fileRef = doc(this.db, FILE_COLLECTION, file.id);
-
-    batch.set(fileRef, {
-      workspaceId: file.workspaceId,
-      organizationId: file.organizationId,
-      accountId: file.accountId,
-      name: file.name,
-      mimeType: file.mimeType,
-      sizeBytes: file.sizeBytes,
-      classification: file.classification,
-      tags: [...file.tags],
-      currentVersionId: file.currentVersionId,
-      ...(file.retentionPolicyId ? { retentionPolicyId: file.retentionPolicyId } : {}),
-      status: file.status,
-      ...(file.source ? { source: file.source } : {}),
-      ...(file.detail ? { detail: file.detail } : {}),
-      ...(file.href ? { href: file.href } : {}),
-      createdAtISO: file.createdAtISO,
-      updatedAtISO: file.updatedAtISO,
-      ...(file.deletedAtISO ? { deletedAtISO: file.deletedAtISO } : {}),
-    });
-
-    for (const version of versions) {
-      batch.set(doc(fileRef, VERSION_SUBCOLLECTION, version.id), {
-        fileId: version.fileId,
-        versionNumber: version.versionNumber,
-        status: version.status,
-        storagePath: version.storagePath,
-        ...(version.checksum ? { checksum: version.checksum } : {}),
-        createdAtISO: version.createdAtISO,
-      });
-    }
-
-    await batch.commit();
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseWikiLibraryAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/firebase
- * Adapter: FirebaseWikiLibraryAdapter — Firestore implementation of IWikiLibraryRepository.
- *
- * Paths:
- *   accounts/{accountId}/wikiLibraries/{libraryId}
- *   accounts/{accountId}/wikiLibraries/{libraryId}/fields/{fieldId}
- *   accounts/{accountId}/wikiLibraries/{libraryId}/rows/{rowId}
- */
-
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  orderBy,
-  query,
-  setDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-
-import type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryFieldType,
-  WikiLibraryRow,
-  WikiLibraryStatus,
-} from "../../domain/entities/WikiLibrary";
-import type { IWikiLibraryRepository } from "../../domain/repositories/IWikiLibraryRepository";
-
-// ── Firestore shapes (ISO strings; no Timestamp to avoid serialisation issues)
-
-interface FsLibrary {
-  accountId: string;
-  workspaceId?: string;
-  name: string;
-  slug: string;
-  status: WikiLibraryStatus;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-
-interface FsField {
-  libraryId: string;
-  key: string;
-  label: string;
-  type: WikiLibraryFieldType;
-  required: boolean;
-  options?: string[];
-  createdAtISO: string;
-}
-
-interface FsRow {
-  libraryId: string;
-  values: Record<string, unknown>;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-
-// ── Path helpers ──────────────────────────────────────────────────────────────
-
-type Db = ReturnType<typeof getFirestore>;
-
-const libCol = (db: Db, accountId: string) =>
-  collection(db, "accounts", accountId, "wikiLibraries");
-const libDoc = (db: Db, accountId: string, libraryId: string) =>
-  doc(db, "accounts", accountId, "wikiLibraries", libraryId);
-const fieldCol = (db: Db, accountId: string, libraryId: string) =>
-  collection(db, "accounts", accountId, "wikiLibraries", libraryId, "fields");
-const fieldDoc = (db: Db, accountId: string, libraryId: string, fieldId: string) =>
-  doc(db, "accounts", accountId, "wikiLibraries", libraryId, "fields", fieldId);
-const rowCol = (db: Db, accountId: string, libraryId: string) =>
-  collection(db, "accounts", accountId, "wikiLibraries", libraryId, "rows");
-const rowDoc = (db: Db, accountId: string, libraryId: string, rowId: string) =>
-  doc(db, "accounts", accountId, "wikiLibraries", libraryId, "rows", rowId);
-
-// ── Mappers ───────────────────────────────────────────────────────────────────
-
-function toLibrary(id: string, data: FsLibrary): WikiLibrary {
-  return {
-    id,
-    accountId: data.accountId,
-    workspaceId: data.workspaceId,
-    name: data.name,
-    slug: data.slug,
-    status: data.status ?? "active",
-    createdAt: new Date(data.createdAtISO),
-    updatedAt: new Date(data.updatedAtISO),
-  };
-}
-
-function toField(id: string, data: FsField): WikiLibraryField {
-  return {
-    id,
-    libraryId: data.libraryId,
-    key: data.key,
-    label: data.label,
-    type: data.type ?? "text",
-    required: data.required === true,
-    options: Array.isArray(data.options) ? data.options : undefined,
-    createdAt: new Date(data.createdAtISO),
-  };
-}
-
-function toRow(id: string, data: FsRow): WikiLibraryRow {
-  return {
-    id,
-    libraryId: data.libraryId,
-    values:
-      typeof data.values === "object" && data.values !== null
-        ? (data.values as Record<string, unknown>)
-        : {},
-    createdAt: new Date(data.createdAtISO),
-    updatedAt: new Date(data.updatedAtISO),
-  };
-}
-
-// ── Implementation ────────────────────────────────────────────────────────────
-
-export class FirebaseWikiLibraryAdapter implements IWikiLibraryRepository {
-  private db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async listByAccountId(accountId: string): Promise<WikiLibrary[]> {
-    const db = this.db();
-    const snaps = await getDocs(
-      query(libCol(db, accountId), where("status", "==", "active"), orderBy("createdAtISO", "asc")),
-    );
-    return snaps.docs.map((d) => toLibrary(d.id, d.data() as FsLibrary));
-  }
-
-  async findById(accountId: string, libraryId: string): Promise<WikiLibrary | null> {
-    const snap = await getDoc(libDoc(this.db(), accountId, libraryId));
-    if (!snap.exists()) return null;
-    return toLibrary(snap.id, snap.data() as FsLibrary);
-  }
-
-  async create(library: WikiLibrary): Promise<void> {
-    const data: FsLibrary = {
-      accountId: library.accountId,
-      ...(library.workspaceId !== undefined ? { workspaceId: library.workspaceId } : {}),
-      name: library.name,
-      slug: library.slug,
-      status: library.status,
-      createdAtISO: library.createdAt.toISOString(),
-      updatedAtISO: library.updatedAt.toISOString(),
-    };
-    await setDoc(libDoc(this.db(), library.accountId, library.id), data);
-  }
-
-  async createField(accountId: string, field: WikiLibraryField): Promise<void> {
-    const data: FsField = {
-      libraryId: field.libraryId,
-      key: field.key,
-      label: field.label,
-      type: field.type,
-      required: field.required,
-      createdAtISO: field.createdAt.toISOString(),
-      ...(field.options !== undefined ? { options: [...field.options] } : {}),
-    };
-    await setDoc(fieldDoc(this.db(), accountId, field.libraryId, field.id), data);
-  }
-
-  async listFields(accountId: string, libraryId: string): Promise<WikiLibraryField[]> {
-    const snaps = await getDocs(
-      query(fieldCol(this.db(), accountId, libraryId), orderBy("createdAtISO", "asc")),
-    );
-    return snaps.docs.map((d) => toField(d.id, d.data() as FsField));
-  }
-
-  async createRow(accountId: string, row: WikiLibraryRow): Promise<void> {
-    const data: FsRow = {
-      libraryId: row.libraryId,
-      values: row.values,
-      createdAtISO: row.createdAt.toISOString(),
-      updatedAtISO: row.updatedAt.toISOString(),
-    };
-    await setDoc(rowDoc(this.db(), accountId, row.libraryId, row.id), data);
-  }
-
-  async listRows(accountId: string, libraryId: string): Promise<WikiLibraryRow[]> {
-    const snaps = await getDocs(
-      query(rowCol(this.db(), accountId, libraryId), orderBy("createdAtISO", "asc")),
-    );
-    return snaps.docs.map((d) => toRow(d.id, d.data() as FsRow));
-  }
-}
-````
-
 ## File: modules/notebooklm/subdomains/source/infrastructure/memory/InMemoryWikiLibraryAdapter.ts
 ````typescript
 /**
@@ -4153,6 +3550,484 @@ export function FileProcessingDialogSurface({
         ) : null}
       </DialogContent>
     </Dialog>
+  );
+}
+````
+
+## File: modules/notebooklm/subdomains/source/interfaces/components/LibrariesView.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
+
+import {
+  addWikiLibraryField,
+  createWikiLibrary,
+  createWikiLibraryRow,
+  getWikiLibrarySnapshot,
+  listWikiLibraries,
+  type WikiLibrary,
+  type WikiLibraryFieldType,
+  type WikiLibraryRow,
+} from "../../api";
+
+interface WikiLibrariesViewProps {
+  readonly accountId: string;
+  readonly workspaceId?: string;
+}
+
+const FIELD_TYPES: WikiLibraryFieldType[] = ["title", "text", "number", "select", "relation"];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function parseFieldType(value: string): WikiLibraryFieldType {
+  if (value === "title") return "title";
+  if (value === "text") return "text";
+  if (value === "number") return "number";
+  if (value === "select") return "select";
+  if (value === "relation") return "relation";
+  return "text";
+}
+
+export function LibrariesView({ accountId, workspaceId }: WikiLibrariesViewProps) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [libraries, setLibraries] = useState<WikiLibrary[]>([]);
+  const [selectedLibraryId, setSelectedLibraryId] = useState<string>("");
+  const [fieldsPreview, setFieldsPreview] = useState<{ key: string; label: string; type: string }[]>([]);
+  const [rowsPreview, setRowsPreview] = useState<WikiLibraryRow[]>([]);
+  const [libraryName, setLibraryName] = useState("");
+  const [fieldKey, setFieldKey] = useState("");
+  const [fieldLabel, setFieldLabel] = useState("");
+  const [fieldType, setFieldType] = useState<WikiLibraryFieldType>("text");
+  const [rowJson, setRowJson] = useState('{"title":"New record"}');
+
+  const selectedLibrary = useMemo(
+    () => libraries.find((library) => library.id === selectedLibraryId) ?? null,
+    [libraries, selectedLibraryId],
+  );
+
+  const refreshLibraries = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await listWikiLibraries(accountId, workspaceId);
+      setLibraries(result);
+      if (!selectedLibraryId && result.length > 0) setSelectedLibraryId(result[0]?.id ?? "");
+      if (result.length === 0) setSelectedLibraryId("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "failed to list libraries");
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, selectedLibraryId, workspaceId]);
+
+  const refreshSelectedSnapshot = useCallback(async () => {
+    if (!selectedLibraryId) {
+      setFieldsPreview([]);
+      setRowsPreview([]);
+      return;
+    }
+    try {
+      const snapshot = await getWikiLibrarySnapshot(accountId, selectedLibraryId);
+      setFieldsPreview(snapshot.fields.map((field) => ({ key: field.key, label: field.label, type: field.type })));
+      setRowsPreview(snapshot.rows);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "failed to load library snapshot");
+    }
+  }, [accountId, selectedLibraryId]);
+
+  useEffect(() => { void refreshLibraries(); }, [refreshLibraries]);
+  useEffect(() => { void refreshSelectedSnapshot(); }, [refreshSelectedSnapshot]);
+
+  const handleCreateLibrary = useCallback(async () => {
+    try {
+      await createWikiLibrary({ accountId, workspaceId, name: libraryName });
+      setLibraryName("");
+      await refreshLibraries();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "failed to create library");
+    }
+  }, [accountId, libraryName, refreshLibraries, workspaceId]);
+
+  const handleAddField = useCallback(async () => {
+    if (!selectedLibraryId) return;
+    try {
+      await addWikiLibraryField({ accountId, libraryId: selectedLibraryId, key: fieldKey, label: fieldLabel, type: fieldType });
+      setFieldKey("");
+      setFieldLabel("");
+      await refreshSelectedSnapshot();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "failed to add field");
+    }
+  }, [accountId, fieldKey, fieldLabel, fieldType, refreshSelectedSnapshot, selectedLibraryId]);
+
+  const handleCreateRow = useCallback(async () => {
+    if (!selectedLibraryId) return;
+    try {
+      const parsed = JSON.parse(rowJson);
+      if (!isRecord(parsed)) throw new Error("row JSON must be an object");
+      await createWikiLibraryRow({ accountId, libraryId: selectedLibraryId, values: parsed });
+      await refreshSelectedSnapshot();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "failed to create row");
+    }
+  }, [accountId, refreshSelectedSnapshot, rowJson, selectedLibraryId]);
+
+  return (
+    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Libraries MVP</p>
+        <h2 className="mt-2 text-xl font-semibold text-foreground">Notion-like Structured Data</h2>
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+          對齊命名：Database/Data Source 在產品層統一為 Libraries。MVP 支援建立 library、定義 fields、建立 rows。
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />載入 libraries 中...
+        </div>
+      ) : null}
+
+      {error ? (
+        <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>
+      ) : null}
+
+      <div className="grid gap-2 rounded-lg border border-border/60 bg-muted/20 p-3 md:grid-cols-[1fr_auto]">
+        <input
+          type="text"
+          value={libraryName}
+          onChange={(event) => setLibraryName(event.target.value)}
+          placeholder="Library name"
+          className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm outline-none focus:border-primary/40"
+        />
+        <button
+          type="button"
+          onClick={() => void handleCreateLibrary()}
+          className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90"
+        >
+          建立 Library
+        </button>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
+          <h3 className="text-sm font-semibold text-foreground">Libraries</h3>
+          <select
+            value={selectedLibraryId}
+            onChange={(event) => setSelectedLibraryId(event.target.value)}
+            className="h-9 w-full rounded-md border border-border/60 bg-background px-2 text-sm"
+            aria-label="Select library"
+          >
+            <option value="">Select library</option>
+            {libraries.map((library) => (
+              <option key={library.id} value={library.id}>
+                {library.name} ({library.slug})
+              </option>
+            ))}
+          </select>
+          {selectedLibrary ? (
+            <p className="text-xs text-muted-foreground">{selectedLibrary.name} / {selectedLibrary.slug}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">請先建立或選擇一個 library。</p>
+          )}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Fields</p>
+            {fieldsPreview.length === 0 ? (
+              <p className="text-xs text-muted-foreground">尚無欄位</p>
+            ) : (
+              <ul className="space-y-1 text-xs text-muted-foreground">
+                {fieldsPreview.map((field) => (
+                  <li key={field.key} className="rounded border border-border/60 bg-background px-2 py-1">
+                    {field.label} ({field.key}) - {field.type}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
+          <h3 className="text-sm font-semibold text-foreground">Add Field / Add Row</h3>
+          <div className="grid gap-2 md:grid-cols-2">
+            <input type="text" value={fieldKey} onChange={(event) => setFieldKey(event.target.value)} placeholder="field key"
+              className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm" />
+            <input type="text" value={fieldLabel} onChange={(event) => setFieldLabel(event.target.value)} placeholder="field label"
+              className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <select value={fieldType} onChange={(event) => setFieldType(parseFieldType(event.target.value))}
+              className="h-9 rounded-md border border-border/60 bg-background px-2 text-sm">
+              {FIELD_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+            </select>
+            <button type="button" onClick={() => void handleAddField()}
+              className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm text-muted-foreground hover:text-foreground">
+              新增欄位
+            </button>
+          </div>
+          <textarea value={rowJson} onChange={(event) => setRowJson(event.target.value)}
+            className="min-h-24 w-full rounded-md border border-border/60 bg-background px-3 py-2 text-xs"
+            placeholder='{"title":"My record"}' />
+          <button type="button" onClick={() => void handleCreateRow()}
+            className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm text-muted-foreground hover:text-foreground">
+            建立 Row
+          </button>
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Rows Preview</p>
+            {rowsPreview.length === 0 ? (
+              <p className="text-xs text-muted-foreground">尚無資料列</p>
+            ) : (
+              <ul className="space-y-1 text-xs text-muted-foreground">
+                {rowsPreview.slice(0, 5).map((row) => (
+                  <li key={row.id} className="rounded border border-border/60 bg-background px-2 py-1">
+                    {JSON.stringify(row.values)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+````
+
+## File: modules/notebooklm/subdomains/source/interfaces/components/LibraryTableView.tsx
+````typescript
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { GripVertical } from "lucide-react";
+
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  useReactTable,
+} from "@lib-tanstack";
+import { draggable, dropTargetForElements, monitorForElements } from "@lib-dragdrop";
+
+import { getWikiLibrarySnapshot, listWikiLibraries, type WikiLibraryRow } from "../../api";
+
+interface LibraryTableViewProps {
+  readonly accountId: string;
+  readonly workspaceId?: string;
+}
+
+type RowData = WikiLibraryRow & { _values: Record<string, unknown> };
+
+const columnHelper = createColumnHelper<RowData>();
+
+/**
+ * LibraryTableView
+ *
+ * TanStack Table rendering library rows with:
+ * - Column-level text filter (global filter input)
+ * - Drag-to-reorder rows via pragmatic-drag-and-drop
+ */
+export function LibraryTableView({ accountId, workspaceId }: LibraryTableViewProps) {
+  const [libraries, setLibraries] = useState<{ id: string; name: string }[]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [fieldKeys, setFieldKeys] = useState<string[]>([]);
+  const [rows, setRows] = useState<RowData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  // Load library list
+  useEffect(() => {
+    void (async () => {
+      try {
+        const result = await listWikiLibraries(accountId, workspaceId);
+        setLibraries(result.map((l) => ({ id: l.id, name: l.name })));
+        if (result.length > 0 && result[0]) setSelectedId(result[0].id);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "載入 Libraries 失敗");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [accountId, workspaceId]);
+
+  // Load rows when selection changes
+  useEffect(() => {
+    if (!selectedId) return;
+    void (async () => {
+      setLoading(true);
+      try {
+        const snap = await getWikiLibrarySnapshot(accountId, selectedId);
+        const keys = snap.fields.map((f) => f.key);
+        setFieldKeys(keys);
+        setRows(snap.rows.map((r) => ({ ...r, _values: r.values as Record<string, unknown> })));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "載入資料列失敗");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [accountId, selectedId]);
+
+  // DnD row reorder
+  useEffect(() => {
+    return monitorForElements({
+      onDrop({ source, location }) {
+        const target = location.current.dropTargets[0];
+        if (!target) return;
+        const fromId = source.data["rowId"] as string | undefined;
+        const toId = target.data["rowId"] as string | undefined;
+        if (!fromId || !toId || fromId === toId) return;
+        setRows((prev) => {
+          const fromIdx = prev.findIndex((r) => r.id === fromId);
+          const toIdx = prev.findIndex((r) => r.id === toId);
+          if (fromIdx === -1 || toIdx === -1) return prev;
+          const next = [...prev];
+          const [moved] = next.splice(fromIdx, 1);
+          if (!moved) return prev;
+          next.splice(toIdx, 0, moved);
+          return next;
+        });
+      },
+    });
+  }, []);
+
+  const columns = useMemo(
+    () =>
+      fieldKeys.map((key) =>
+        columnHelper.accessor((row) => String(row._values[key] ?? ""), {
+          id: key,
+          header: key,
+          cell: (info) => info.getValue(),
+        }),
+      ),
+    [fieldKeys],
+  );
+
+  const table = useReactTable({
+    data: rows,
+    columns,
+    state: { globalFilter: filter },
+    onGlobalFilterChange: setFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+  });
+
+  return (
+    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Library Table</p>
+        <h2 className="mt-2 text-xl font-semibold text-foreground">資料庫表格</h2>
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+          TanStack Table · 全域篩選 · 拖曳重排列
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <select
+          value={selectedId}
+          onChange={(e) => setSelectedId(e.target.value)}
+          className="h-9 rounded-md border border-border/60 bg-background px-2 text-sm"
+          aria-label="選擇 Library"
+        >
+          {libraries.map((lib) => (
+            <option key={lib.id} value={lib.id}>{lib.name}</option>
+          ))}
+        </select>
+        <input
+          type="search"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="篩選…"
+          className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/40"
+        />
+      </div>
+
+      {loading && <p className="text-sm text-muted-foreground">載入中…</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {!loading && fieldKeys.length === 0 && (
+        <p className="text-sm text-muted-foreground">此 Library 尚未定義欄位，請先在 Libraries 頁面新增欄位與資料列。</p>
+      )}
+
+      {fieldKeys.length > 0 && (
+        <div className="overflow-x-auto rounded-lg border border-border/60">
+          <table className="min-w-full text-sm">
+            <thead className="bg-muted/40">
+              {table.getHeaderGroups().map((hg) => (
+                <tr key={hg.id}>
+                  <th className="w-8 px-2 py-2" />
+                  {hg.headers.map((header) => (
+                    <th key={header.id} className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody className="divide-y divide-border/40">
+              {table.getRowModel().rows.length === 0 ? (
+                <tr>
+                  <td colSpan={fieldKeys.length + 1} className="px-3 py-4 text-center text-sm text-muted-foreground">無資料</td>
+                </tr>
+              ) : (
+                table.getRowModel().rows.map((row) => (
+                  <DraggableRow key={row.id} rowId={row.original.id}>
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-3 py-2">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </DraggableRow>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+interface DraggableRowProps {
+  readonly rowId: string;
+  readonly children: React.ReactNode;
+}
+
+function DraggableRow({ rowId, children }: DraggableRowProps) {
+  const dragHandleRef = useRef<HTMLButtonElement>(null);
+  const rowRef = useRef<HTMLTableRowElement>(null);
+
+  useEffect(() => {
+    const handleEl = dragHandleRef.current;
+    const rowEl = rowRef.current;
+    if (!handleEl || !rowEl) return;
+    const cleanupDraggable = draggable({ element: handleEl, getInitialData: () => ({ rowId }) });
+    const cleanupDrop = dropTargetForElements({ element: rowEl, getData: () => ({ rowId }) });
+    return () => {
+      cleanupDraggable();
+      cleanupDrop();
+    };
+  }, [rowId]);
+
+  return (
+    <tr ref={rowRef} className="transition hover:bg-muted/20">
+      <td className="px-2 py-2">
+        <button
+          ref={dragHandleRef}
+          type="button"
+          aria-label="拖曳重排"
+          className="cursor-grab touch-none opacity-30 hover:opacity-80 active:cursor-grabbing"
+        >
+          <GripVertical className="size-4 text-muted-foreground" />
+        </button>
+      </td>
+      {children}
+    </tr>
   );
 }
 ````
@@ -39408,87 +39283,6 @@ export default function DevToolsPage() {
 }
 ````
 
-## File: app/(shell)/knowledge-base/articles/[articleId]/page.tsx
-````typescript
-"use client";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import { useWorkspaceContext } from "@/modules/workspace/api";
-import { ArticleDetailPage } from "@/modules/notion/api";
-
-export default function ArticleDetailPageRoute() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = wsState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  return (
-    <ArticleDetailPage
-      accountId={accountId}
-      workspaceId={workspaceId}
-      currentUserId={currentUserId}
-    />
-  );
-}
-````
-
-## File: app/(shell)/knowledge-database/databases/[databaseId]/forms/page.tsx
-````typescript
-"use client";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import { useWorkspaceContext } from "@/modules/workspace/api";
-import { DatabaseFormsPage } from "@/modules/notion/api";
-
-export default function DatabaseFormsPageRoute() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = wsState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  return (
-    <DatabaseFormsPage
-      accountId={accountId}
-      workspaceId={workspaceId}
-      currentUserId={currentUserId}
-    />
-  );
-}
-````
-
-## File: app/(shell)/knowledge-database/databases/[databaseId]/page.tsx
-````typescript
-"use client";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import { useWorkspaceContext } from "@/modules/workspace/api";
-import { DatabaseDetailPage } from "@/modules/notion/api";
-
-export default function DatabaseDetailPageRoute() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = wsState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  return (
-    <DatabaseDetailPage
-      accountId={accountId}
-      workspaceId={workspaceId}
-      currentUserId={currentUserId}
-    />
-  );
-}
-````
-
 ## File: app/(shell)/knowledge/page.tsx
 ````typescript
 "use client";
@@ -39775,33 +39569,6 @@ export default function KnowledgeHubPage() {
 }
 ````
 
-## File: app/(shell)/knowledge/pages/[pageId]/page.tsx
-````typescript
-"use client";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import { useWorkspaceContext } from "@/modules/workspace/api";
-import { KnowledgePageDetailPage } from "@/modules/notion/api";
-
-export default function KnowledgePageDetailPageRoute() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const activeWorkspaceId = wsState.activeWorkspaceId ?? null;
-  const currentUserId = authState.user?.id ?? "";
-
-  return (
-    <KnowledgePageDetailPage
-      accountId={accountId}
-      activeWorkspaceId={activeWorkspaceId}
-      currentUserId={currentUserId}
-    />
-  );
-}
-````
-
 ## File: app/(shell)/organization/audit/_components/OrganizationAuditPage.tsx
 ````typescript
 "use client";
@@ -40038,47 +39805,6 @@ export default function SourceDocumentsPage() {
 }
 ````
 
-## File: app/(shell)/source/libraries/page.tsx
-````typescript
-"use client";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import { useWorkspaceContext } from "@/modules/workspace/api";
-import { LibrariesView, LibraryTableView } from "@/modules/notebooklm/api";
-
-export default function SourceLibrariesPage() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = wsState.activeWorkspaceId ?? undefined;
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Source</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
-        <p className="text-sm text-muted-foreground">
-          對齊資料庫／資料來源能力的 MVP，產品命名統一為 Libraries。
-        </p>
-      </header>
-
-      {accountId ? (
-        <>
-          <LibraryTableView accountId={accountId} workspaceId={workspaceId} />
-          <LibrariesView accountId={accountId} workspaceId={workspaceId} />
-        </>
-      ) : (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號情境，請先登入或切換帳號。
-        </p>
-      )}
-    </div>
-  );
-}
-````
-
 ## File: app/(shell)/workspace-feed/page.tsx
 ````typescript
 "use client";
@@ -40241,11 +39967,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/notebooklm/domain/.gitkeep
-````
-
-````
-
 ## File: modules/notebooklm/domain/domain-modeling.instructions.md
 ````markdown
 ---
@@ -40335,11 +40056,6 @@ export interface ConversationReference {
 
 ````
 
-## File: modules/notebooklm/infrastructure/.gitkeep
-````
-
-````
-
 ## File: modules/notebooklm/infrastructure/infrastructure.instructions.md
 ````markdown
 ---
@@ -40364,11 +40080,6 @@ For full reference, align with `.github/instructions/firestore-schema.instructio
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill rag-architecture
-````
-
-## File: modules/notebooklm/interfaces/.gitkeep
-````
-
 ````
 
 ## File: modules/notebooklm/interfaces/interfaces.instructions.md
@@ -40427,6 +40138,66 @@ export * from "./ports";
  * explicitly visible in the directory structure.
  */
 export type { IThreadRepository as IThreadPort } from "../repositories/IThreadRepository";
+````
+
+## File: modules/notebooklm/subdomains/conversation/infrastructure/firebase/FirebaseThreadRepository.ts
+````typescript
+/**
+ * Module: notebooklm/conversation
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/threads/{threadId}
+ *
+ * Persists Thread (messages array) to Firestore so conversations survive page reload.
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import type { Thread } from "../../domain/entities/thread";
+import type { Message } from "../../domain/entities/message";
+import type { IThreadRepository } from "../../domain/repositories/IThreadRepository";
+
+function threadPath(accountId: string, threadId: string): string {
+  return `accounts/${accountId}/threads/${threadId}`;
+}
+
+function toMessage(m: Record<string, unknown>): Message {
+  return {
+    id: typeof m.id === "string" ? m.id : "",
+    role: (m.role as Message["role"]) ?? "user",
+    content: typeof m.content === "string" ? m.content : "",
+    createdAt: typeof m.createdAt === "string" ? m.createdAt : new Date().toISOString(),
+  };
+}
+
+function toThread(id: string, data: Record<string, unknown>): Thread {
+  const messages = Array.isArray(data.messages)
+    ? (data.messages as Record<string, unknown>[]).map(toMessage)
+    : [];
+  return {
+    id,
+    messages,
+    createdAt: typeof data.createdAt === "string" ? data.createdAt : new Date().toISOString(),
+    updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString(),
+  };
+}
+
+export class FirebaseThreadRepository implements IThreadRepository {
+  async save(accountId: string, thread: Thread): Promise<void> {
+    await firestoreInfrastructureApi.set(threadPath(accountId, thread.id), {
+      id: thread.id,
+      messages: thread.messages,
+      createdAt: thread.createdAt,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  async getById(accountId: string, threadId: string): Promise<Thread | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      threadPath(accountId, threadId),
+    );
+    if (!data) return null;
+    return toThread(threadId, data);
+  }
+}
 ````
 
 ## File: modules/notebooklm/subdomains/conversation/interfaces/_actions/chat.actions.ts
@@ -41429,131 +41200,502 @@ export interface ISourcePipelinePort {
 }
 ````
 
-## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseDocumentStatusAdapter.ts
+## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseRagDocumentAdapter.ts
 ````typescript
 /**
  * Module: notebooklm/subdomains/source
  * Layer: infrastructure/firebase
- * Adapter: FirebaseDocumentStatusAdapter — watches Firestore document status via onSnapshot.
+ * Adapter: FirebaseRagDocumentAdapter — Firestore implementation of IRagDocumentRepository.
  *
- * Extracted from interfaces/components to keep Firestore access in infrastructure layer.
+ * Collection path:
+ *   knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}
  */
 
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
 
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+import type { RagDocumentRecord, RagDocumentStatus } from "../../domain/entities/RagDocument";
+import type { IRagDocumentRepository } from "../../domain/repositories/IRagDocumentRepository";
+
+function buildDocPath(input: {
+  readonly organizationId: string;
+  readonly workspaceId: string;
+  readonly documentId: string;
+}): string {
+  return `knowledge_base/${input.organizationId}/workspaces/${input.workspaceId}/documents/${input.documentId}`;
 }
 
-function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
+function buildDocCollectionPath(input: { readonly organizationId: string; readonly workspaceId: string }): string {
+  return `knowledge_base/${input.organizationId}/workspaces/${input.workspaceId}/documents`;
 }
 
-function asNumber(value: unknown, fallback = 0): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+function toStringArray(value: unknown): readonly string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string");
 }
 
-export async function waitForParsedDocument(
-  accountId: string,
-  docId: string,
-): Promise<{ pageCount: number; jsonGcsUri: string }> {
-  const db = getFirebaseFirestore();
+function isRagDocumentStatus(value: unknown): value is RagDocumentStatus {
+  return (
+    value === "uploaded" ||
+    value === "processing" ||
+    value === "ready" ||
+    value === "failed" ||
+    value === "archived"
+  );
+}
 
-  return new Promise((resolve, reject) => {
-    const docRef = firestoreApi.doc(db, "accounts", accountId, "documents", docId);
-    const unsubscribe = firestoreApi.onSnapshot(docRef, (snapshot) => {
-      if (!snapshot.exists()) return;
+function toRagDocumentRecord(
+  documentId: string,
+  data: Record<string, unknown>,
+  fallback: { organizationId: string; workspaceId: string },
+): RagDocumentRecord {
+  return {
+    id: documentId,
+    organizationId: typeof data.organizationId === "string" ? data.organizationId : fallback.organizationId,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : fallback.workspaceId,
+    displayName:
+      (typeof data.displayName === "string" && data.displayName) ||
+      (typeof data.sourceFileName === "string" && data.sourceFileName) ||
+      "",
+    title: typeof data.title === "string" ? data.title : "",
+    sourceFileName: typeof data.sourceFileName === "string" ? data.sourceFileName : "",
+    mimeType: typeof data.mimeType === "string" ? data.mimeType : "application/octet-stream",
+    storagePath: typeof data.storagePath === "string" ? data.storagePath : "",
+    sizeBytes: typeof data.sizeBytes === "number" ? data.sizeBytes : 0,
+    status: isRagDocumentStatus(data.status) ? data.status : "uploaded",
+    statusMessage: typeof data.statusMessage === "string" ? data.statusMessage : undefined,
+    checksum: typeof data.checksum === "string" ? data.checksum : undefined,
+    taxonomy: typeof data.taxonomy === "string" ? data.taxonomy : undefined,
+    category: typeof data.category === "string" ? data.category : undefined,
+    department: typeof data.department === "string" ? data.department : undefined,
+    tags: toStringArray(data.tags),
+    language: typeof data.language === "string" ? data.language : undefined,
+    accessControl: toStringArray(data.accessControl),
+    versionGroupId: typeof data.versionGroupId === "string" ? data.versionGroupId : documentId,
+    versionNumber: typeof data.versionNumber === "number" ? data.versionNumber : 1,
+    isLatest: typeof data.isLatest === "boolean" ? data.isLatest : true,
+    updateLog: typeof data.updateLog === "string" ? data.updateLog : undefined,
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    chunkCount: typeof data.chunkCount === "number" ? data.chunkCount : undefined,
+    indexedAtISO: typeof data.indexedAtISO === "string" ? data.indexedAtISO : undefined,
+    expiresAtISO: typeof data.expiresAtISO === "string" ? data.expiresAtISO : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
 
-      const data = asRecord(snapshot.data());
-      const status = asString(data.status, "unknown");
+export class FirebaseRagDocumentAdapter implements IRagDocumentRepository {
+  async findByStoragePath(scope: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+    readonly storagePath: string;
+  }): Promise<RagDocumentRecord | null> {
+    const documents = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      buildDocCollectionPath(scope),
+      [{ field: "storagePath", op: "==", value: scope.storagePath }],
+      { limit: 1 },
+    );
+    const [first] = documents;
+    if (!first) return null;
+    return toRagDocumentRecord(first.id, first.data, scope);
+  }
 
-      if (status === "completed") {
-        const parsed = asRecord(data.parsed);
-        unsubscribe();
-        resolve({
-          pageCount: asNumber(parsed.page_count, 0),
-          jsonGcsUri: asString(parsed.json_gcs_uri),
-        });
-        return;
-      }
+  async findByWorkspace(scope: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+  }): Promise<readonly RagDocumentRecord[]> {
+    const documents = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      buildDocCollectionPath(scope),
+      [],
+      { orderBy: [{ field: "createdAtISO", direction: "desc" }] },
+    );
+    return documents.map((document) =>
+      toRagDocumentRecord(document.id, document.data, scope),
+    );
+  }
 
-      if (status === "error") {
-        const error = asRecord(data.error);
-        unsubscribe();
-        reject(new Error(asString(error.message, "文件解析失敗")));
-      }
+  async saveUploaded(record: RagDocumentRecord): Promise<void> {
+    await firestoreInfrastructureApi.set(buildDocPath({ organizationId: record.organizationId, workspaceId: record.workspaceId, documentId: record.id }), {
+      id: record.id,
+      organizationId: record.organizationId,
+      workspaceId: record.workspaceId,
+      displayName: record.displayName,
+      title: record.title,
+      sourceFileName: record.sourceFileName,
+      mimeType: record.mimeType,
+      storagePath: record.storagePath,
+      sizeBytes: record.sizeBytes,
+      status: record.status,
+      ...(record.statusMessage ? { statusMessage: record.statusMessage } : {}),
+      ...(record.checksum ? { checksum: record.checksum } : {}),
+      ...(record.taxonomy ? { taxonomy: record.taxonomy } : {}),
+      ...(record.category ? { category: record.category } : {}),
+      ...(record.department ? { department: record.department } : {}),
+      tags: record.tags ?? [],
+      ...(record.language ? { language: record.language } : {}),
+      accessControl: record.accessControl ?? [],
+      versionGroupId: record.versionGroupId,
+      versionNumber: record.versionNumber,
+      isLatest: record.isLatest,
+      ...(record.updateLog ? { updateLog: record.updateLog } : {}),
+      accountId: record.accountId,
+      ...(record.chunkCount !== undefined ? { chunkCount: record.chunkCount } : {}),
+      ...(record.indexedAtISO ? { indexedAtISO: record.indexedAtISO } : {}),
+      ...(record.expiresAtISO ? { expiresAtISO: record.expiresAtISO } : {}),
+      createdAtISO: record.createdAtISO,
+      updatedAtISO: record.updatedAtISO,
     });
-  });
-}
-````
-
-## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseParsedDocumentAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/firebase
- * Adapter: FirebaseParsedDocumentAdapter — Firebase Storage implementation of IParsedDocumentPort.
- *
- * Reads parsed JSON from a GCS URI and extracts the text content.
- */
-
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-
-import type { IParsedDocumentPort } from "../../domain/ports/IParsedDocumentPort";
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-}
-
-function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-export class FirebaseParsedDocumentAdapter implements IParsedDocumentPort {
-  async loadParsedDocumentText(jsonGcsUri: string): Promise<string> {
-    if (!jsonGcsUri) return "";
-    const storage = getFirebaseStorage();
-    const ref = storageApi.ref(storage, jsonGcsUri);
-    const url = await storageApi.getDownloadURL(ref);
-    const response = await fetch(url, { cache: "no-store" });
-    if (!response.ok) throw new Error(`無法讀取解析 JSON (${response.status})`);
-    const payload = asRecord(await response.json());
-    return asString(payload.text);
   }
 }
 ````
 
-## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseSourceDocumentCommandAdapter.ts
+## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseSourceFileAdapter.ts
 ````typescript
 /**
  * Module: notebooklm/subdomains/source
  * Layer: infrastructure/firebase
- * Adapter: FirebaseSourceDocumentCommandAdapter — Firestore implementation of ISourceDocumentCommandPort.
+ * Adapter: FirebaseSourceFileAdapter — Firestore implementation of ISourceFileRepository.
  *
- * Collection path: accounts/{accountId}/documents/{documentId}
- * This is a legacy collection; new data should use the workspaceFiles collection.
+ * Collections:
+ *   workspaceFiles/{fileId}
+ *   workspaceFiles/{fileId}/versions/{versionId}
  */
 
-import { deleteDoc, doc, getFirestore, serverTimestamp, updateDoc } from "firebase/firestore";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
 
-import { firebaseClientApp } from "@integration-firebase/client";
+import type { SourceFile } from "../../domain/entities/SourceFile";
+import type { SourceFileVersion } from "../../domain/entities/SourceFileVersion";
+import type { ISourceFileRepository, ListSourceFilesScope } from "../../domain/repositories/ISourceFileRepository";
 
-import type { ISourceDocumentCommandPort } from "../../domain/ports/ISourceDocumentPort";
+const FILE_COLLECTION = "workspaceFiles";
+const VERSION_SUBCOLLECTION = "versions";
 
-export class FirebaseSourceDocumentCommandAdapter implements ISourceDocumentCommandPort {
-  private readonly db = getFirestore(firebaseClientApp);
+function isSourceFileStatus(value: unknown): value is SourceFile["status"] {
+  return value === "active" || value === "archived" || value === "deleted";
+}
 
-  async deleteDocument(accountId: string, documentId: string): Promise<void> {
-    await deleteDoc(doc(this.db, "accounts", accountId, "documents", documentId));
+function isSourceFileClassification(value: unknown): value is SourceFile["classification"] {
+  return value === "image" || value === "manifest" || value === "record" || value === "other";
+}
+
+function toStringArray(value: unknown): readonly string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+function toSourceFileEntity(fileId: string, data: Record<string, unknown>): SourceFile {
+  return {
+    id: fileId,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    organizationId: typeof data.organizationId === "string" ? data.organizationId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    name: typeof data.name === "string" ? data.name : "",
+    mimeType: typeof data.mimeType === "string" ? data.mimeType : "application/octet-stream",
+    sizeBytes: typeof data.sizeBytes === "number" ? data.sizeBytes : 0,
+    classification: isSourceFileClassification(data.classification) ? data.classification : "other",
+    tags: toStringArray(data.tags),
+    currentVersionId: typeof data.currentVersionId === "string" ? data.currentVersionId : "",
+    retentionPolicyId: typeof data.retentionPolicyId === "string" ? data.retentionPolicyId : undefined,
+    status: isSourceFileStatus(data.status) ? data.status : "active",
+    source: typeof data.source === "string" ? data.source : undefined,
+    detail: typeof data.detail === "string" ? data.detail : undefined,
+    href: typeof data.href === "string" ? data.href : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+    deletedAtISO: typeof data.deletedAtISO === "string" ? data.deletedAtISO : undefined,
+  };
+}
+
+function isVersionStatus(value: unknown): value is SourceFileVersion["status"] {
+  return value === "pending" || value === "stored" || value === "active" || value === "superseded";
+}
+
+function toSourceFileVersionEntity(versionId: string, data: Record<string, unknown>): SourceFileVersion {
+  return {
+    id: versionId,
+    fileId: typeof data.fileId === "string" ? data.fileId : "",
+    versionNumber: typeof data.versionNumber === "number" ? data.versionNumber : 0,
+    status: isVersionStatus(data.status) ? data.status : "pending",
+    storagePath: typeof data.storagePath === "string" ? data.storagePath : "",
+    checksum: typeof data.checksum === "string" ? data.checksum : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+  };
+}
+
+export class FirebaseSourceFileAdapter implements ISourceFileRepository {
+  async findById(fileId: string): Promise<SourceFile | null> {
+    const normalizedId = fileId.trim();
+    if (!normalizedId) return null;
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      `${FILE_COLLECTION}/${normalizedId}`,
+    );
+    if (!data) return null;
+    return toSourceFileEntity(normalizedId, data);
   }
 
-  async renameDocument(accountId: string, documentId: string, newName: string): Promise<void> {
-    await updateDoc(doc(this.db, "accounts", accountId, "documents", documentId), {
-      title: newName,
-      "source.filename": newName,
-      "metadata.filename": newName,
-      updatedAt: serverTimestamp(),
-    });
+  async findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null> {
+    const nFileId = fileId.trim();
+    const nVersionId = versionId.trim();
+    if (!nFileId || !nVersionId) return null;
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      `${FILE_COLLECTION}/${nFileId}/${VERSION_SUBCOLLECTION}/${nVersionId}`,
+    );
+    if (!data) return null;
+    return toSourceFileVersionEntity(nVersionId, data);
+  }
+
+  async listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]> {
+    const workspaceId = scope.workspaceId.trim();
+    const organizationId = scope.organizationId.trim();
+    if (!workspaceId) return [];
+
+    const documents = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      FILE_COLLECTION,
+      [
+        { field: "workspaceId", op: "==", value: workspaceId },
+        { field: "organizationId", op: "==", value: organizationId },
+      ],
+    );
+
+    return documents
+      .map((document) => toSourceFileEntity(document.id, document.data))
+      .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
+  }
+
+  async save(file: SourceFile, versions: readonly SourceFileVersion[] = []): Promise<void> {
+    const writes: { path: string; data: Record<string, unknown> }[] = [
+      {
+        path: `${FILE_COLLECTION}/${file.id}`,
+        data: {
+          workspaceId: file.workspaceId,
+          organizationId: file.organizationId,
+          accountId: file.accountId,
+          name: file.name,
+          mimeType: file.mimeType,
+          sizeBytes: file.sizeBytes,
+          classification: file.classification,
+          tags: [...file.tags],
+          currentVersionId: file.currentVersionId,
+          ...(file.retentionPolicyId ? { retentionPolicyId: file.retentionPolicyId } : {}),
+          status: file.status,
+          ...(file.source ? { source: file.source } : {}),
+          ...(file.detail ? { detail: file.detail } : {}),
+          ...(file.href ? { href: file.href } : {}),
+          createdAtISO: file.createdAtISO,
+          updatedAtISO: file.updatedAtISO,
+          ...(file.deletedAtISO ? { deletedAtISO: file.deletedAtISO } : {}),
+        },
+      },
+    ];
+
+    for (const version of versions) {
+      writes.push({
+        path: `${FILE_COLLECTION}/${file.id}/${VERSION_SUBCOLLECTION}/${version.id}`,
+        data: {
+          fileId: version.fileId,
+          versionNumber: version.versionNumber,
+          status: version.status,
+          storagePath: version.storagePath,
+          ...(version.checksum ? { checksum: version.checksum } : {}),
+          createdAtISO: version.createdAtISO,
+        },
+      });
+    }
+
+    await firestoreInfrastructureApi.setMany(writes);
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseWikiLibraryAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/firebase
+ * Adapter: FirebaseWikiLibraryAdapter — Firestore implementation of IWikiLibraryRepository.
+ *
+ * Paths:
+ *   accounts/{accountId}/wikiLibraries/{libraryId}
+ *   accounts/{accountId}/wikiLibraries/{libraryId}/fields/{fieldId}
+ *   accounts/{accountId}/wikiLibraries/{libraryId}/rows/{rowId}
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+
+import type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+} from "../../domain/entities/WikiLibrary";
+import type { IWikiLibraryRepository } from "../../domain/repositories/IWikiLibraryRepository";
+
+// ── Firestore shapes (ISO strings; no Timestamp to avoid serialisation issues)
+
+interface FsLibrary {
+  accountId: string;
+  workspaceId?: string;
+  name: string;
+  slug: string;
+  status: WikiLibraryStatus;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+
+interface FsField {
+  libraryId: string;
+  key: string;
+  label: string;
+  type: WikiLibraryFieldType;
+  required: boolean;
+  options?: string[];
+  createdAtISO: string;
+}
+
+interface FsRow {
+  libraryId: string;
+  values: Record<string, unknown>;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+
+function libraryCollectionPath(accountId: string): string {
+  return `accounts/${accountId}/wikiLibraries`;
+}
+
+function libraryDocumentPath(accountId: string, libraryId: string): string {
+  return `accounts/${accountId}/wikiLibraries/${libraryId}`;
+}
+
+function fieldCollectionPath(accountId: string, libraryId: string): string {
+  return `accounts/${accountId}/wikiLibraries/${libraryId}/fields`;
+}
+
+function fieldDocumentPath(accountId: string, libraryId: string, fieldId: string): string {
+  return `accounts/${accountId}/wikiLibraries/${libraryId}/fields/${fieldId}`;
+}
+
+function rowCollectionPath(accountId: string, libraryId: string): string {
+  return `accounts/${accountId}/wikiLibraries/${libraryId}/rows`;
+}
+
+function rowDocumentPath(accountId: string, libraryId: string, rowId: string): string {
+  return `accounts/${accountId}/wikiLibraries/${libraryId}/rows/${rowId}`;
+}
+
+// ── Mappers ───────────────────────────────────────────────────────────────────
+
+function toLibrary(id: string, data: FsLibrary): WikiLibrary {
+  return {
+    id,
+    accountId: data.accountId,
+    workspaceId: data.workspaceId,
+    name: data.name,
+    slug: data.slug,
+    status: data.status ?? "active",
+    createdAt: new Date(data.createdAtISO),
+    updatedAt: new Date(data.updatedAtISO),
+  };
+}
+
+function toField(id: string, data: FsField): WikiLibraryField {
+  return {
+    id,
+    libraryId: data.libraryId,
+    key: data.key,
+    label: data.label,
+    type: data.type ?? "text",
+    required: data.required === true,
+    options: Array.isArray(data.options) ? data.options : undefined,
+    createdAt: new Date(data.createdAtISO),
+  };
+}
+
+function toRow(id: string, data: FsRow): WikiLibraryRow {
+  return {
+    id,
+    libraryId: data.libraryId,
+    values:
+      typeof data.values === "object" && data.values !== null
+        ? (data.values as Record<string, unknown>)
+        : {},
+    createdAt: new Date(data.createdAtISO),
+    updatedAt: new Date(data.updatedAtISO),
+  };
+}
+
+// ── Implementation ────────────────────────────────────────────────────────────
+
+export class FirebaseWikiLibraryAdapter implements IWikiLibraryRepository {
+  async listByAccountId(accountId: string): Promise<WikiLibrary[]> {
+    const documents = await firestoreInfrastructureApi.queryDocuments<FsLibrary>(
+      libraryCollectionPath(accountId),
+      [{ field: "status", op: "==", value: "active" }],
+      { orderBy: [{ field: "createdAtISO", direction: "asc" }] },
+    );
+    return documents.map((document) => toLibrary(document.id, document.data));
+  }
+
+  async findById(accountId: string, libraryId: string): Promise<WikiLibrary | null> {
+    const data = await firestoreInfrastructureApi.get<FsLibrary>(
+      libraryDocumentPath(accountId, libraryId),
+    );
+    if (!data) return null;
+    return toLibrary(libraryId, data);
+  }
+
+  async create(library: WikiLibrary): Promise<void> {
+    const data: FsLibrary = {
+      accountId: library.accountId,
+      ...(library.workspaceId !== undefined ? { workspaceId: library.workspaceId } : {}),
+      name: library.name,
+      slug: library.slug,
+      status: library.status,
+      createdAtISO: library.createdAt.toISOString(),
+      updatedAtISO: library.updatedAt.toISOString(),
+    };
+    await firestoreInfrastructureApi.set(libraryDocumentPath(library.accountId, library.id), data);
+  }
+
+  async createField(accountId: string, field: WikiLibraryField): Promise<void> {
+    const data: FsField = {
+      libraryId: field.libraryId,
+      key: field.key,
+      label: field.label,
+      type: field.type,
+      required: field.required,
+      createdAtISO: field.createdAt.toISOString(),
+      ...(field.options !== undefined ? { options: [...field.options] } : {}),
+    };
+    await firestoreInfrastructureApi.set(fieldDocumentPath(accountId, field.libraryId, field.id), data);
+  }
+
+  async listFields(accountId: string, libraryId: string): Promise<WikiLibraryField[]> {
+    const documents = await firestoreInfrastructureApi.queryDocuments<FsField>(
+      fieldCollectionPath(accountId, libraryId),
+      [],
+      { orderBy: [{ field: "createdAtISO", direction: "asc" }] },
+    );
+    return documents.map((document) => toField(document.id, document.data));
+  }
+
+  async createRow(accountId: string, row: WikiLibraryRow): Promise<void> {
+    const data: FsRow = {
+      libraryId: row.libraryId,
+      values: row.values,
+      createdAtISO: row.createdAt.toISOString(),
+      updatedAtISO: row.updatedAt.toISOString(),
+    };
+    await firestoreInfrastructureApi.set(rowDocumentPath(accountId, row.libraryId, row.id), data);
+  }
+
+  async listRows(accountId: string, libraryId: string): Promise<WikiLibraryRow[]> {
+    const documents = await firestoreInfrastructureApi.queryDocuments<FsRow>(
+      rowCollectionPath(accountId, libraryId),
+      [],
+      { orderBy: [{ field: "createdAtISO", direction: "asc" }] },
+    );
+    return documents.map((document) => toRow(document.id, document.data));
   }
 }
 ````
@@ -42072,484 +42214,6 @@ export function FileProcessingDialog({
         summary={summary}
       />
     </FileProcessingDialogSurface>
-  );
-}
-````
-
-## File: modules/notebooklm/subdomains/source/interfaces/components/LibrariesView.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
-
-import {
-  addWikiLibraryField,
-  createWikiLibrary,
-  createWikiLibraryRow,
-  getWikiLibrarySnapshot,
-  listWikiLibraries,
-  type WikiLibrary,
-  type WikiLibraryFieldType,
-  type WikiLibraryRow,
-} from "../../api";
-
-interface WikiLibrariesViewProps {
-  readonly accountId: string;
-  readonly workspaceId?: string;
-}
-
-const FIELD_TYPES: WikiLibraryFieldType[] = ["title", "text", "number", "select", "relation"];
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function parseFieldType(value: string): WikiLibraryFieldType {
-  if (value === "title") return "title";
-  if (value === "text") return "text";
-  if (value === "number") return "number";
-  if (value === "select") return "select";
-  if (value === "relation") return "relation";
-  return "text";
-}
-
-export function LibrariesView({ accountId, workspaceId }: WikiLibrariesViewProps) {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [libraries, setLibraries] = useState<WikiLibrary[]>([]);
-  const [selectedLibraryId, setSelectedLibraryId] = useState<string>("");
-  const [fieldsPreview, setFieldsPreview] = useState<{ key: string; label: string; type: string }[]>([]);
-  const [rowsPreview, setRowsPreview] = useState<WikiLibraryRow[]>([]);
-  const [libraryName, setLibraryName] = useState("");
-  const [fieldKey, setFieldKey] = useState("");
-  const [fieldLabel, setFieldLabel] = useState("");
-  const [fieldType, setFieldType] = useState<WikiLibraryFieldType>("text");
-  const [rowJson, setRowJson] = useState('{"title":"New record"}');
-
-  const selectedLibrary = useMemo(
-    () => libraries.find((library) => library.id === selectedLibraryId) ?? null,
-    [libraries, selectedLibraryId],
-  );
-
-  const refreshLibraries = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await listWikiLibraries(accountId, workspaceId);
-      setLibraries(result);
-      if (!selectedLibraryId && result.length > 0) setSelectedLibraryId(result[0]?.id ?? "");
-      if (result.length === 0) setSelectedLibraryId("");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to list libraries");
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, selectedLibraryId, workspaceId]);
-
-  const refreshSelectedSnapshot = useCallback(async () => {
-    if (!selectedLibraryId) {
-      setFieldsPreview([]);
-      setRowsPreview([]);
-      return;
-    }
-    try {
-      const snapshot = await getWikiLibrarySnapshot(accountId, selectedLibraryId);
-      setFieldsPreview(snapshot.fields.map((field) => ({ key: field.key, label: field.label, type: field.type })));
-      setRowsPreview(snapshot.rows);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to load library snapshot");
-    }
-  }, [accountId, selectedLibraryId]);
-
-  useEffect(() => { void refreshLibraries(); }, [refreshLibraries]);
-  useEffect(() => { void refreshSelectedSnapshot(); }, [refreshSelectedSnapshot]);
-
-  const handleCreateLibrary = useCallback(async () => {
-    try {
-      await createWikiLibrary({ accountId, workspaceId, name: libraryName });
-      setLibraryName("");
-      await refreshLibraries();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to create library");
-    }
-  }, [accountId, libraryName, refreshLibraries, workspaceId]);
-
-  const handleAddField = useCallback(async () => {
-    if (!selectedLibraryId) return;
-    try {
-      await addWikiLibraryField({ accountId, libraryId: selectedLibraryId, key: fieldKey, label: fieldLabel, type: fieldType });
-      setFieldKey("");
-      setFieldLabel("");
-      await refreshSelectedSnapshot();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to add field");
-    }
-  }, [accountId, fieldKey, fieldLabel, fieldType, refreshSelectedSnapshot, selectedLibraryId]);
-
-  const handleCreateRow = useCallback(async () => {
-    if (!selectedLibraryId) return;
-    try {
-      const parsed = JSON.parse(rowJson);
-      if (!isRecord(parsed)) throw new Error("row JSON must be an object");
-      await createWikiLibraryRow({ accountId, libraryId: selectedLibraryId, values: parsed });
-      await refreshSelectedSnapshot();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to create row");
-    }
-  }, [accountId, refreshSelectedSnapshot, rowJson, selectedLibraryId]);
-
-  return (
-    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Libraries MVP</p>
-        <h2 className="mt-2 text-xl font-semibold text-foreground">Notion-like Structured Data</h2>
-        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          對齊命名：Database/Data Source 在產品層統一為 Libraries。MVP 支援建立 library、定義 fields、建立 rows。
-        </p>
-      </div>
-
-      {loading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />載入 libraries 中...
-        </div>
-      ) : null}
-
-      {error ? (
-        <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>
-      ) : null}
-
-      <div className="grid gap-2 rounded-lg border border-border/60 bg-muted/20 p-3 md:grid-cols-[1fr_auto]">
-        <input
-          type="text"
-          value={libraryName}
-          onChange={(event) => setLibraryName(event.target.value)}
-          placeholder="Library name"
-          className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm outline-none focus:border-primary/40"
-        />
-        <button
-          type="button"
-          onClick={() => void handleCreateLibrary()}
-          className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
-          建立 Library
-        </button>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
-          <h3 className="text-sm font-semibold text-foreground">Libraries</h3>
-          <select
-            value={selectedLibraryId}
-            onChange={(event) => setSelectedLibraryId(event.target.value)}
-            className="h-9 w-full rounded-md border border-border/60 bg-background px-2 text-sm"
-            aria-label="Select library"
-          >
-            <option value="">Select library</option>
-            {libraries.map((library) => (
-              <option key={library.id} value={library.id}>
-                {library.name} ({library.slug})
-              </option>
-            ))}
-          </select>
-          {selectedLibrary ? (
-            <p className="text-xs text-muted-foreground">{selectedLibrary.name} / {selectedLibrary.slug}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">請先建立或選擇一個 library。</p>
-          )}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Fields</p>
-            {fieldsPreview.length === 0 ? (
-              <p className="text-xs text-muted-foreground">尚無欄位</p>
-            ) : (
-              <ul className="space-y-1 text-xs text-muted-foreground">
-                {fieldsPreview.map((field) => (
-                  <li key={field.key} className="rounded border border-border/60 bg-background px-2 py-1">
-                    {field.label} ({field.key}) - {field.type}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
-          <h3 className="text-sm font-semibold text-foreground">Add Field / Add Row</h3>
-          <div className="grid gap-2 md:grid-cols-2">
-            <input type="text" value={fieldKey} onChange={(event) => setFieldKey(event.target.value)} placeholder="field key"
-              className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm" />
-            <input type="text" value={fieldLabel} onChange={(event) => setFieldLabel(event.target.value)} placeholder="field label"
-              className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm" />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <select value={fieldType} onChange={(event) => setFieldType(parseFieldType(event.target.value))}
-              className="h-9 rounded-md border border-border/60 bg-background px-2 text-sm">
-              {FIELD_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
-            </select>
-            <button type="button" onClick={() => void handleAddField()}
-              className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm text-muted-foreground hover:text-foreground">
-              新增欄位
-            </button>
-          </div>
-          <textarea value={rowJson} onChange={(event) => setRowJson(event.target.value)}
-            className="min-h-24 w-full rounded-md border border-border/60 bg-background px-3 py-2 text-xs"
-            placeholder='{"title":"My record"}' />
-          <button type="button" onClick={() => void handleCreateRow()}
-            className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm text-muted-foreground hover:text-foreground">
-            建立 Row
-          </button>
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Rows Preview</p>
-            {rowsPreview.length === 0 ? (
-              <p className="text-xs text-muted-foreground">尚無資料列</p>
-            ) : (
-              <ul className="space-y-1 text-xs text-muted-foreground">
-                {rowsPreview.slice(0, 5).map((row) => (
-                  <li key={row.id} className="rounded border border-border/60 bg-background px-2 py-1">
-                    {JSON.stringify(row.values)}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-````
-
-## File: modules/notebooklm/subdomains/source/interfaces/components/LibraryTableView.tsx
-````typescript
-"use client";
-
-import { useEffect, useMemo, useRef, useState } from "react";
-import { GripVertical } from "lucide-react";
-
-import {
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  useReactTable,
-} from "@lib-tanstack";
-import { draggable, dropTargetForElements, monitorForElements } from "@lib-dragdrop";
-
-import { getWikiLibrarySnapshot, listWikiLibraries, type WikiLibraryRow } from "../../api";
-
-interface LibraryTableViewProps {
-  readonly accountId: string;
-  readonly workspaceId?: string;
-}
-
-type RowData = WikiLibraryRow & { _values: Record<string, unknown> };
-
-const columnHelper = createColumnHelper<RowData>();
-
-/**
- * LibraryTableView
- *
- * TanStack Table rendering library rows with:
- * - Column-level text filter (global filter input)
- * - Drag-to-reorder rows via pragmatic-drag-and-drop
- */
-export function LibraryTableView({ accountId, workspaceId }: LibraryTableViewProps) {
-  const [libraries, setLibraries] = useState<{ id: string; name: string }[]>([]);
-  const [selectedId, setSelectedId] = useState("");
-  const [fieldKeys, setFieldKeys] = useState<string[]>([]);
-  const [rows, setRows] = useState<RowData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  // Load library list
-  useEffect(() => {
-    void (async () => {
-      try {
-        const result = await listWikiLibraries(accountId, workspaceId);
-        setLibraries(result.map((l) => ({ id: l.id, name: l.name })));
-        if (result.length > 0 && result[0]) setSelectedId(result[0].id);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "載入 Libraries 失敗");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [accountId, workspaceId]);
-
-  // Load rows when selection changes
-  useEffect(() => {
-    if (!selectedId) return;
-    void (async () => {
-      setLoading(true);
-      try {
-        const snap = await getWikiLibrarySnapshot(accountId, selectedId);
-        const keys = snap.fields.map((f) => f.key);
-        setFieldKeys(keys);
-        setRows(snap.rows.map((r) => ({ ...r, _values: r.values as Record<string, unknown> })));
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "載入資料列失敗");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [accountId, selectedId]);
-
-  // DnD row reorder
-  useEffect(() => {
-    return monitorForElements({
-      onDrop({ source, location }) {
-        const target = location.current.dropTargets[0];
-        if (!target) return;
-        const fromId = source.data["rowId"] as string | undefined;
-        const toId = target.data["rowId"] as string | undefined;
-        if (!fromId || !toId || fromId === toId) return;
-        setRows((prev) => {
-          const fromIdx = prev.findIndex((r) => r.id === fromId);
-          const toIdx = prev.findIndex((r) => r.id === toId);
-          if (fromIdx === -1 || toIdx === -1) return prev;
-          const next = [...prev];
-          const [moved] = next.splice(fromIdx, 1);
-          if (!moved) return prev;
-          next.splice(toIdx, 0, moved);
-          return next;
-        });
-      },
-    });
-  }, []);
-
-  const columns = useMemo(
-    () =>
-      fieldKeys.map((key) =>
-        columnHelper.accessor((row) => String(row._values[key] ?? ""), {
-          id: key,
-          header: key,
-          cell: (info) => info.getValue(),
-        }),
-      ),
-    [fieldKeys],
-  );
-
-  const table = useReactTable({
-    data: rows,
-    columns,
-    state: { globalFilter: filter },
-    onGlobalFilterChange: setFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-  });
-
-  return (
-    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Library Table</p>
-        <h2 className="mt-2 text-xl font-semibold text-foreground">資料庫表格</h2>
-        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          TanStack Table · 全域篩選 · 拖曳重排列
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <select
-          value={selectedId}
-          onChange={(e) => setSelectedId(e.target.value)}
-          className="h-9 rounded-md border border-border/60 bg-background px-2 text-sm"
-          aria-label="選擇 Library"
-        >
-          {libraries.map((lib) => (
-            <option key={lib.id} value={lib.id}>{lib.name}</option>
-          ))}
-        </select>
-        <input
-          type="search"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder="篩選…"
-          className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/40"
-        />
-      </div>
-
-      {loading && <p className="text-sm text-muted-foreground">載入中…</p>}
-      {error && <p className="text-sm text-destructive">{error}</p>}
-
-      {!loading && fieldKeys.length === 0 && (
-        <p className="text-sm text-muted-foreground">此 Library 尚未定義欄位，請先在 Libraries 頁面新增欄位與資料列。</p>
-      )}
-
-      {fieldKeys.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border border-border/60">
-          <table className="min-w-full text-sm">
-            <thead className="bg-muted/40">
-              {table.getHeaderGroups().map((hg) => (
-                <tr key={hg.id}>
-                  <th className="w-8 px-2 py-2" />
-                  {hg.headers.map((header) => (
-                    <th key={header.id} className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody className="divide-y divide-border/40">
-              {table.getRowModel().rows.length === 0 ? (
-                <tr>
-                  <td colSpan={fieldKeys.length + 1} className="px-3 py-4 text-center text-sm text-muted-foreground">無資料</td>
-                </tr>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <DraggableRow key={row.id} rowId={row.original.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-3 py-2">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </DraggableRow>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
-  );
-}
-
-interface DraggableRowProps {
-  readonly rowId: string;
-  readonly children: React.ReactNode;
-}
-
-function DraggableRow({ rowId, children }: DraggableRowProps) {
-  const dragHandleRef = useRef<HTMLButtonElement>(null);
-  const rowRef = useRef<HTMLTableRowElement>(null);
-
-  useEffect(() => {
-    const handleEl = dragHandleRef.current;
-    const rowEl = rowRef.current;
-    if (!handleEl || !rowEl) return;
-    const cleanupDraggable = draggable({ element: handleEl, getInitialData: () => ({ rowId }) });
-    const cleanupDrop = dropTargetForElements({ element: rowEl, getData: () => ({ rowId }) });
-    return () => {
-      cleanupDraggable();
-      cleanupDrop();
-    };
-  }, [rowId]);
-
-  return (
-    <tr ref={rowRef} className="transition hover:bg-muted/20">
-      <td className="px-2 py-2">
-        <button
-          ref={dragHandleRef}
-          type="button"
-          aria-label="拖曳重排"
-          className="cursor-grab touch-none opacity-30 hover:opacity-80 active:cursor-grabbing"
-        >
-          <GripVertical className="size-4 text-muted-foreground" />
-        </button>
-      </td>
-      {children}
-    </tr>
   );
 }
 ````
@@ -44158,11 +43822,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/notion/domain/.gitkeep
-````
-
-````
-
 ## File: modules/notion/domain/domain-modeling.instructions.md
 ````markdown
 ---
@@ -44266,11 +43925,6 @@ export interface TaxonomyHint {
 
 ````
 
-## File: modules/notion/infrastructure/.gitkeep
-````
-
-````
-
 ## File: modules/notion/infrastructure/infrastructure.instructions.md
 ````markdown
 ---
@@ -44297,7 +43951,7 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-development-contracts
 ````
 
-## File: modules/notion/interfaces/.gitkeep
+## File: modules/notion/interfaces/components/.gitkeep
 ````
 
 ````
@@ -56573,6 +56227,55 @@ export function buildWorkspaceQuickAccessItems(workspaceId: string): WorkspaceQu
 }
 ````
 
+## File: modules/workspace/interfaces/web/hooks/useWorkspaceOrchestrationContext.ts
+````typescript
+import { useApp, useAuth } from "@/modules/platform/api";
+
+import { resolveWorkspaceFromMap } from "../utils/workspace-map";
+import { useWorkspaceContext } from "../providers/WorkspaceContextProvider";
+
+export interface WorkspaceOrchestrationContext {
+  readonly accountId: string;
+  readonly currentUserId: string;
+  readonly activeWorkspaceId: string;
+  readonly workspaceId: string;
+}
+
+export interface UseWorkspaceOrchestrationContextOptions {
+  readonly requestedWorkspaceId?: string;
+}
+
+/**
+ * Provides normalized account/workspace actor context for app route shims.
+ * This keeps route-level composition thin and moves orchestration into workspace API.
+ */
+export function useWorkspaceOrchestrationContext(
+  options: UseWorkspaceOrchestrationContextOptions = {},
+): WorkspaceOrchestrationContext {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const { state: workspaceState } = useWorkspaceContext();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const currentUserId = authState.user?.id ?? "";
+  const activeWorkspaceId = workspaceState.activeWorkspaceId ?? "";
+
+  const requestedWorkspaceId = options.requestedWorkspaceId?.trim() ?? "";
+  const resolvedWorkspace = resolveWorkspaceFromMap(
+    workspaceState.workspaces,
+    requestedWorkspaceId,
+  );
+  const workspaceId = resolvedWorkspace?.id ?? activeWorkspaceId;
+
+  return {
+    accountId,
+    currentUserId,
+    activeWorkspaceId,
+    workspaceId,
+  };
+}
+````
+
 ## File: modules/workspace/interfaces/web/index.ts
 ````typescript
 /**
@@ -61304,6 +61007,86 @@ export function DashboardSidebarBody({
 }
 ````
 
+## File: app/(shell)/knowledge-base/articles/[articleId]/page.tsx
+````typescript
+"use client";
+
+import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
+import { ArticleDetailPage } from "@/modules/notion/api";
+
+export default function ArticleDetailPageRoute() {
+  const { accountId, workspaceId, currentUserId } = useWorkspaceOrchestrationContext();
+
+  return (
+    <ArticleDetailPage
+      accountId={accountId}
+      workspaceId={workspaceId}
+      currentUserId={currentUserId}
+    />
+  );
+}
+````
+
+## File: app/(shell)/knowledge-database/databases/[databaseId]/forms/page.tsx
+````typescript
+"use client";
+
+import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
+import { DatabaseFormsPage } from "@/modules/notion/api";
+
+export default function DatabaseFormsPageRoute() {
+  const { accountId, workspaceId, currentUserId } = useWorkspaceOrchestrationContext();
+
+  return (
+    <DatabaseFormsPage
+      accountId={accountId}
+      workspaceId={workspaceId}
+      currentUserId={currentUserId}
+    />
+  );
+}
+````
+
+## File: app/(shell)/knowledge-database/databases/[databaseId]/page.tsx
+````typescript
+"use client";
+
+import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
+import { DatabaseDetailPage } from "@/modules/notion/api";
+
+export default function DatabaseDetailPageRoute() {
+  const { accountId, workspaceId, currentUserId } = useWorkspaceOrchestrationContext();
+
+  return (
+    <DatabaseDetailPage
+      accountId={accountId}
+      workspaceId={workspaceId}
+      currentUserId={currentUserId}
+    />
+  );
+}
+````
+
+## File: app/(shell)/knowledge/pages/[pageId]/page.tsx
+````typescript
+"use client";
+
+import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
+import { KnowledgePageDetailPage } from "@/modules/notion/api";
+
+export default function KnowledgePageDetailPageRoute() {
+  const { accountId, activeWorkspaceId, currentUserId } = useWorkspaceOrchestrationContext();
+
+  return (
+    <KnowledgePageDetailPage
+      accountId={accountId}
+      activeWorkspaceId={activeWorkspaceId || null}
+      currentUserId={currentUserId}
+    />
+  );
+}
+````
+
 ## File: app/(shell)/layout.tsx
 ````typescript
 "use client";
@@ -61320,31 +61103,36 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 ````
 
-## File: app/(shell)/notebook/rag-query/page.tsx
+## File: app/(shell)/source/libraries/page.tsx
 ````typescript
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
+import { LibrariesView, LibraryTableView } from "@/modules/notebooklm/api";
 
-import { resolveWorkspaceFromMap, useWorkspaceContext } from "@/modules/workspace/api";
-import { RagQueryView } from "@/modules/notebooklm/api";
-
-export default function NotebookRagQueryPage() {
-  const searchParams = useSearchParams();
-  const { state: wsState } = useWorkspaceContext();
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const resolvedWorkspace = resolveWorkspaceFromMap(wsState.workspaces, requestedWorkspaceId);
-  const workspaceId = resolvedWorkspace?.id ?? wsState.activeWorkspaceId ?? undefined;
+export default function SourceLibrariesPage() {
+  const { accountId, workspaceId } = useWorkspaceOrchestrationContext();
 
   return (
     <div className="space-y-4">
       <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Notebook</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
-        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Source</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
+        <p className="text-sm text-muted-foreground">
+          對齊資料庫／資料來源能力的 MVP，產品命名統一為 Libraries。
+        </p>
       </header>
 
-      <RagQueryView workspaceId={workspaceId} />
+      {accountId ? (
+        <>
+          <LibraryTableView accountId={accountId} workspaceId={workspaceId || undefined} />
+          <LibrariesView accountId={accountId} workspaceId={workspaceId || undefined} />
+        </>
+      ) : (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號情境，請先登入或切換帳號。
+        </p>
+      )}
     </div>
   );
 }
@@ -61700,6 +61488,148 @@ export type {
 export type { IRagDocumentRepository as IRagDocumentPort } from "../repositories/IRagDocumentRepository";
 export type { ISourceFileRepository as ISourceFilePort } from "../repositories/ISourceFileRepository";
 export type { IWikiLibraryRepository as IWikiLibraryPort } from "../repositories/IWikiLibraryRepository";
+````
+
+## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseDocumentStatusAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/firebase
+ * Adapter: FirebaseDocumentStatusAdapter — watches Firestore document status via onSnapshot.
+ *
+ * Extracted from interfaces/components to keep Firestore access in infrastructure layer.
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+export async function waitForParsedDocument(
+  accountId: string,
+  docId: string,
+): Promise<{ pageCount: number; jsonGcsUri: string }> {
+  return new Promise((resolve, reject) => {
+    const unsubscribe = firestoreInfrastructureApi.watchDocument<Record<string, unknown>>(
+      `accounts/${accountId}/documents/${docId}`,
+      {
+        onNext: (document) => {
+          if (!document) return;
+
+          const data = asRecord(document.data);
+          const status = asString(data.status, "unknown");
+
+          if (status === "completed") {
+            const parsed = asRecord(data.parsed);
+            unsubscribe();
+            resolve({
+              pageCount: asNumber(parsed.page_count, 0),
+              jsonGcsUri: asString(parsed.json_gcs_uri),
+            });
+            return;
+          }
+
+          if (status === "error") {
+            const error = asRecord(data.error);
+            unsubscribe();
+            reject(new Error(asString(error.message, "文件解析失敗")));
+          }
+        },
+        onError: (error) => {
+          unsubscribe();
+          reject(error instanceof Error ? error : new Error("文件解析監聽失敗"));
+        },
+      },
+    );
+  });
+}
+````
+
+## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseParsedDocumentAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/firebase
+ * Adapter: FirebaseParsedDocumentAdapter — Firebase Storage implementation of IParsedDocumentPort.
+ *
+ * Reads parsed JSON from a GCS URI and extracts the text content.
+ */
+
+import { storageInfrastructureApi } from "@/modules/platform/api";
+
+import type { IParsedDocumentPort } from "../../domain/ports/IParsedDocumentPort";
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function resolveStoragePathFromGsUri(input: string): string {
+  const normalized = input.trim();
+  if (!normalized) return "";
+  if (!normalized.startsWith("gs://")) return normalized;
+
+  const withoutScheme = normalized.slice(5);
+  const firstSlash = withoutScheme.indexOf("/");
+  if (firstSlash === -1) return "";
+  return withoutScheme.slice(firstSlash + 1);
+}
+
+export class FirebaseParsedDocumentAdapter implements IParsedDocumentPort {
+  async loadParsedDocumentText(jsonGcsUri: string): Promise<string> {
+    if (!jsonGcsUri) return "";
+    const storagePath = resolveStoragePathFromGsUri(jsonGcsUri);
+    if (!storagePath) return "";
+    const url = await storageInfrastructureApi.getUrl(storagePath);
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) throw new Error(`無法讀取解析 JSON (${response.status})`);
+    const payload = asRecord(await response.json());
+    return asString(payload.text);
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseSourceDocumentCommandAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/firebase
+ * Adapter: FirebaseSourceDocumentCommandAdapter — Firestore implementation of ISourceDocumentCommandPort.
+ *
+ * Collection path: accounts/{accountId}/documents/{documentId}
+ * This is a legacy collection; new data should use the workspaceFiles collection.
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+
+import type { ISourceDocumentCommandPort } from "../../domain/ports/ISourceDocumentPort";
+
+export class FirebaseSourceDocumentCommandAdapter implements ISourceDocumentCommandPort {
+  async deleteDocument(accountId: string, documentId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(`accounts/${accountId}/documents/${documentId}`);
+  }
+
+  async renameDocument(accountId: string, documentId: string, newName: string): Promise<void> {
+    await firestoreInfrastructureApi.update(`accounts/${accountId}/documents/${documentId}`, {
+      title: newName,
+      "source.filename": newName,
+      "metadata.filename": newName,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+}
 ````
 
 ## File: modules/notebooklm/subdomains/source/interfaces/components/WorkspaceFilesTab.tsx
@@ -68454,6 +68384,34 @@ export function SimpleNavLinks({
 }
 ````
 
+## File: app/(shell)/notebook/rag-query/page.tsx
+````typescript
+"use client";
+
+import { useSearchParams } from "next/navigation";
+
+import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
+import { RagQueryView } from "@/modules/notebooklm/api";
+
+export default function NotebookRagQueryPage() {
+  const searchParams = useSearchParams();
+  const requestedWorkspaceId = searchParams.get("workspaceId") ?? "";
+  const { workspaceId } = useWorkspaceOrchestrationContext({ requestedWorkspaceId });
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Notebook</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
+        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
+      </header>
+
+      <RagQueryView workspaceId={workspaceId || undefined} />
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/settings/profile/page.tsx
 ````typescript
 "use client";
@@ -69132,264 +69090,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/api/infrastructure-api.ts
-````typescript
-import {
-	functionsApi,
-	firestoreApi,
-	getFirebaseFirestore,
-	getFirebaseFunctions,
-	getFirebaseStorage,
-	storageApi,
-} from "@integration-firebase";
-import { collectionGroup } from "firebase/firestore";
-
-import type {
-	FirestoreAPI,
-	FunctionsAPI,
-	FunctionsCallOptions,
-	FirestoreQueryOptions,
-	FirestoreWhereClause,
-	GenkitAPI,
-	StorageAPI,
-	StorageUploadOptions,
-} from "./contracts";
-
-const DEFAULT_STORAGE_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
-const DEFAULT_FUNCTION_REGION = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_REGION ?? "asia-east1";
-
-function splitPath(path: string): string[] {
-	const segments = path
-		.split("/")
-		.map((segment) => segment.trim())
-		.filter(Boolean);
-
-	if (segments.length === 0) {
-		throw new Error("Path is required.");
-	}
-
-	return segments;
-}
-
-function resolveDocumentPath(path: string): string[] {
-	const segments = splitPath(path);
-	if (segments.length % 2 !== 0) {
-		throw new Error(`Expected a document path but got collection path: ${path}`);
-	}
-	return segments;
-}
-
-function resolveCollectionPath(path: string): string[] {
-	const segments = splitPath(path);
-	if (segments.length % 2 === 0) {
-		throw new Error(`Expected a collection path but got document path: ${path}`);
-	}
-	return segments;
-}
-
-function resolveStorageBucket(): string {
-	return process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || DEFAULT_STORAGE_BUCKET;
-}
-
-function resolveStoragePath(path: string): string {
-	const normalized = path.trim().replace(/^\/+/, "");
-	if (!normalized) {
-		throw new Error("Storage path is required.");
-	}
-	return normalized;
-}
-
-function toUploadMetadata(options?: StorageUploadOptions) {
-	if (!options) return undefined;
-	return {
-		contentType: options.contentType,
-		customMetadata: options.customMetadata,
-	};
-}
-
-function applyQueryConstraints(
-	baseQuery: ReturnType<typeof firestoreApi.query>,
-	where: readonly FirestoreWhereClause[],
-	options?: FirestoreQueryOptions,
-) {
-	const whereConstraints = where.map((clause) =>
-		firestoreApi.where(clause.field, clause.op, clause.value),
-	);
-
-	const orderByConstraints = (options?.orderBy ?? []).map((clause) =>
-		firestoreApi.orderBy(clause.field, clause.direction ?? "asc"),
-	);
-
-	const limitConstraint =
-		typeof options?.limit === "number" && options.limit > 0
-			? [firestoreApi.limit(options.limit)]
-			: [];
-
-	return firestoreApi.query(baseQuery, ...whereConstraints, ...orderByConstraints, ...limitConstraint);
-}
-
-export const firestoreInfrastructureApi: FirestoreAPI = {
-	async get<T>(path: string): Promise<T | null> {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-		const snapshot = await firestoreApi.getDoc(ref);
-		if (!snapshot.exists()) return null;
-		return snapshot.data() as T;
-	},
-
-	async set<T>(path: string, data: T): Promise<void> {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-		await firestoreApi.setDoc(ref, data as Record<string, unknown>);
-	},
-
-	async query<T>(
-		collectionPath: string,
-		where: readonly FirestoreWhereClause[] = [],
-		options?: FirestoreQueryOptions,
-	): Promise<T[]> {
-		const documents = await firestoreInfrastructureApi.queryDocuments<T>(collectionPath, where, options);
-		return documents.map((document) => document.data);
-	},
-
-	async queryDocuments<T>(
-		collectionPath: string,
-		where: readonly FirestoreWhereClause[] = [],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly { id: string; data: T }[]> {
-		const db = getFirebaseFirestore();
-		const collectionRef = firestoreApi.collection(
-			db,
-			resolveCollectionPath(collectionPath).join("/"),
-		);
-
-		const queryRef = applyQueryConstraints(firestoreApi.query(collectionRef), where, options);
-		const snapshot = await firestoreApi.getDocs(queryRef);
-		return snapshot.docs.map((doc) => ({
-			id: doc.id,
-			data: doc.data() as T,
-		}));
-	},
-
-	async queryCollectionGroup<T>(
-		collectionId: string,
-		where: readonly FirestoreWhereClause[] = [],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly { id: string; data: T }[]> {
-		const normalizedCollectionId = collectionId.trim();
-		if (!normalizedCollectionId) {
-			throw new Error("Collection group id is required.");
-		}
-
-		const db = getFirebaseFirestore();
-		const collectionGroupRef = collectionGroup(db, normalizedCollectionId);
-		const queryRef = applyQueryConstraints(firestoreApi.query(collectionGroupRef), where, options);
-		const snapshot = await firestoreApi.getDocs(queryRef);
-		return snapshot.docs.map((doc) => ({
-			id: doc.id,
-			data: doc.data() as T,
-		}));
-	},
-
-	watchCollection<T>(
-		collectionPath: string,
-		handlers: {
-			onNext: (documents: readonly { id: string; data: T }[]) => void;
-			onError?: (error: unknown) => void;
-		},
-		where: readonly FirestoreWhereClause[] = [],
-	): () => void {
-		const db = getFirebaseFirestore();
-		const collectionRef = firestoreApi.collection(
-			db,
-			resolveCollectionPath(collectionPath).join("/"),
-		);
-
-		const queryConstraints = where.map((clause) =>
-			firestoreApi.where(clause.field, clause.op, clause.value),
-		);
-		const queryRef = firestoreApi.query(collectionRef, ...queryConstraints);
-
-		return firestoreApi.onSnapshot(
-			queryRef,
-			(snapshot) => {
-				handlers.onNext(
-					snapshot.docs.map((doc) => ({
-						id: doc.id,
-						data: doc.data() as T,
-					})),
-				);
-			},
-			(error) => {
-				handlers.onError?.(error);
-			},
-		);
-	},
-};
-
-export const storageInfrastructureApi: StorageAPI = {
-	async upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string> {
-		const normalizedPath = resolveStoragePath(path);
-		const storage = getFirebaseStorage(resolveStorageBucket());
-		const ref = storageApi.ref(storage, normalizedPath);
-		await storageApi.uploadBytes(ref, file, toUploadMetadata(options));
-		return storageApi.getDownloadURL(ref);
-	},
-
-	async getUrl(path: string): Promise<string> {
-		const normalizedPath = resolveStoragePath(path);
-		const storage = getFirebaseStorage(resolveStorageBucket());
-		const ref = storageApi.ref(storage, normalizedPath);
-		return storageApi.getDownloadURL(ref);
-	},
-
-	async delete(path: string): Promise<void> {
-		const normalizedPath = resolveStoragePath(path);
-		const storage = getFirebaseStorage(resolveStorageBucket());
-		const ref = storageApi.ref(storage, normalizedPath);
-		await storageApi.deleteObject(ref);
-	},
-
-	toGsUri(path: string): string {
-		const normalizedPath = resolveStoragePath(path);
-		return `gs://${resolveStorageBucket()}/${normalizedPath}`;
-	},
-};
-
-export const genkitInfrastructureApi: GenkitAPI = {
-	async runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput> {
-		const normalizedFlow = flow.trim();
-		if (!normalizedFlow) {
-			throw new Error("Flow name is required.");
-		}
-
-		const functions = getFirebaseFunctions(DEFAULT_FUNCTION_REGION);
-		const runFlow = functionsApi.httpsCallable(functions, "platform_run_genkit_flow");
-		const response = await runFlow({ flow: normalizedFlow, input });
-		return response.data as TOutput;
-	},
-};
-
-export const functionsInfrastructureApi: FunctionsAPI = {
-	async call<TInput, TOutput>(
-		functionName: string,
-		input: TInput,
-		options?: FunctionsCallOptions,
-	): Promise<TOutput> {
-		const normalizedName = functionName.trim();
-		if (!normalizedName) {
-			throw new Error("Function name is required.");
-		}
-
-		const region = options?.region?.trim() || DEFAULT_FUNCTION_REGION;
-		const functions = getFirebaseFunctions(region);
-		const callable = functionsApi.httpsCallable(functions, normalizedName);
-		const response = await callable(input);
-		return response.data as TOutput;
-	},
-};
-````
-
 ## File: modules/platform/interfaces/web/providers/ShellAppContext.ts
 ````typescript
 "use client";
@@ -69838,6 +69538,133 @@ export async function updateAccountProfile(
 	input: UpdateAccountProfileInput,
 ): Promise<CommandResult> {
 	return getUpdateAccountProfileUseCase().execute(actorId, input);
+}
+````
+
+## File: modules/platform/subdomains/account-profile/infrastructure/create-legacy-account-profile-application.adapter.ts
+````typescript
+import {
+	createAccountProfile,
+	type AccountProfile,
+	type AccountProfileId,
+	type AccountProfileTheme,
+	type UpdateAccountProfileInput,
+} from "../domain";
+import type {
+	AccountProfileCommandRepository,
+	AccountProfileQueryRepository,
+	Unsubscribe,
+} from "../domain";
+
+type LegacyTheme = Partial<AccountProfileTheme> | null | undefined;
+type LegacyUpdateProfileInput = {
+	name?: string;
+	bio?: string;
+	photoURL?: string;
+	theme?: AccountProfileTheme;
+};
+
+type LegacyAccountProfileRecord = {
+	id: string;
+	name?: string | null;
+	email?: string | null;
+	photoURL?: string | null;
+	bio?: string | null;
+	theme?: LegacyTheme;
+} | null;
+
+export interface LegacyAccountProfileDataSource {
+	getUserProfile(userId: string): Promise<LegacyAccountProfileRecord>;
+	subscribeToUserProfile(
+		userId: string,
+		onUpdate: (profile: LegacyAccountProfileRecord) => void,
+	): Unsubscribe;
+	updateUserProfile(userId: string, input: LegacyUpdateProfileInput): Promise<void>;
+}
+
+function normalizeTheme(theme: LegacyTheme): AccountProfileTheme | undefined {
+	if (!theme?.primary || !theme?.background || !theme?.accent) {
+		return undefined;
+	}
+
+	return {
+		primary: theme.primary,
+		background: theme.background,
+		accent: theme.accent,
+	};
+}
+
+function mapLegacyProfile(record: LegacyAccountProfileRecord): AccountProfile | null {
+	if (!record) {
+		return null;
+	}
+
+	const displayName = (record.name ?? "").trim() || "Unknown Actor";
+
+	return createAccountProfile({
+		id: record.id as AccountProfileId,
+		displayName,
+		email: record.email ?? undefined,
+		photoURL: record.photoURL ?? undefined,
+		bio: record.bio ?? undefined,
+		theme: normalizeTheme(record.theme),
+	});
+}
+
+/** Read-side adapter: maps legacy data source to AccountProfileQueryRepository. */
+class LegacyAccountProfileQueryAdapter implements AccountProfileQueryRepository {
+	constructor(
+		private readonly legacyDataSource: LegacyAccountProfileDataSource,
+	) {}
+
+	async getAccountProfile(
+		actorId: AccountProfileId,
+	): Promise<AccountProfile | null> {
+		const profile = await this.legacyDataSource.getUserProfile(actorId);
+		return mapLegacyProfile(profile);
+	}
+
+	subscribeToAccountProfile(
+		actorId: AccountProfileId,
+		onUpdate: (profile: AccountProfile | null) => void,
+	): Unsubscribe {
+		return this.legacyDataSource.subscribeToUserProfile(actorId, (profile) => {
+			onUpdate(mapLegacyProfile(profile));
+		});
+	}
+}
+
+/** Write-side adapter: maps legacy data source to AccountProfileCommandRepository. */
+class LegacyAccountProfileCommandAdapter implements AccountProfileCommandRepository {
+	constructor(
+		private readonly legacyDataSource: LegacyAccountProfileDataSource,
+	) {}
+
+	async updateAccountProfile(
+		actorId: AccountProfileId,
+		input: UpdateAccountProfileInput,
+	): Promise<void> {
+		const legacyInput: LegacyUpdateProfileInput = {
+			name: input.displayName,
+			bio: input.bio,
+			photoURL: input.photoURL,
+			theme: input.theme,
+		};
+
+		await this.legacyDataSource.updateUserProfile(actorId, legacyInput);
+	}
+}
+
+export function createLegacyAccountProfileQueryRepository(
+	legacyDataSource: LegacyAccountProfileDataSource,
+): AccountProfileQueryRepository {
+	return new LegacyAccountProfileQueryAdapter(legacyDataSource);
+}
+
+export function createLegacyAccountProfileCommandRepository(
+	legacyDataSource: LegacyAccountProfileDataSource,
+): AccountProfileCommandRepository {
+	return new LegacyAccountProfileCommandAdapter(legacyDataSource);
 }
 ````
 
@@ -70555,157 +70382,6 @@ Team management within organizations.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/workspace/api/ui.ts
-````typescript
-/**
- * workspace api/ui.ts
- *
- * Canonical public web UI surface for the workspace bounded context.
- * App-layer consumers that need workspace UI components, hooks, and
- * navigation utilities should import from here.
- *
- * Internal source: interfaces/web/
- */
-
-// ── Screen components ────────────────────────────────────────────────────────
-
-export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/WorkspaceDetailScreen";
-export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
-export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
-export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
-
-// ── Card components ──────────────────────────────────────────────────────────
-
-export { WorkspaceContextCard } from "../interfaces/web/components/cards/WorkspaceContextCard";
-
-// ── Tab components ───────────────────────────────────────────────────────────
-
-export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
-
-// ── Layout components ────────────────────────────────────────────────────────
-
-export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
-export { WorkspaceQuickAccessRow } from "../interfaces/web/components/layout/WorkspaceQuickAccessRow";
-export { WorkspaceSectionContent } from "../interfaces/web/components/layout/WorkspaceSectionContent";
-
-// ── Rail components ──────────────────────────────────────────────────────────
-
-export { CreateWorkspaceDialogRail } from "../interfaces/web/components/rails/CreateWorkspaceDialogRail";
-
-// ── Navigation ────────────────────────────────────────────────────────────────
-
-export type {
-  WorkspaceTabDevStatus,
-  WorkspaceTabGroup,
-  WorkspaceTabValue,
-} from "../interfaces/web/navigation/workspace-tabs";
-
-export {
-  WORKSPACE_TAB_GROUPS,
-  WORKSPACE_TAB_META,
-  WORKSPACE_TAB_VALUES,
-  getWorkspaceTabLabel,
-  getWorkspaceTabMeta,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-} from "../interfaces/web/navigation/workspace-tabs";
-
-export type { WorkspaceNavItem } from "../interfaces/web/navigation/workspace-nav-items";
-export {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "../interfaces/web/navigation/workspace-nav-items";
-
-// ── Quick-access navigation ───────────────────────────────────────────────────
-
-export type {
-  WorkspaceQuickAccessItem,
-  WorkspaceQuickAccessMatcherOptions,
-} from "../interfaces/web/components/navigation/workspace-quick-access";
-
-export { buildWorkspaceQuickAccessItems } from "../interfaces/web/components/navigation/workspace-quick-access";
-
-// ── State helpers ─────────────────────────────────────────────────────────────
-
-export { getWorkspaceStorageKey } from "../interfaces/web/state/workspace-session";
-
-// ── Map utilities ─────────────────────────────────────────────────────────────
-
-export {
-  resolveWorkspaceFromMap,
-  toWorkspaceMap,
-} from "../interfaces/web/utils/workspace-map";
-
-// ── Hooks ─────────────────────────────────────────────────────────────────────
-
-export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
-export {
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  getWorkspaceIdFromPath,
-  useRecentWorkspaces,
-} from "../interfaces/web/hooks/useRecentWorkspaces";
-
-// ── Workspace context provider ────────────────────────────────────────────────
-
-export {
-  WorkspaceContextProvider,
-  useWorkspaceContext,
-} from "../interfaces/web/providers/WorkspaceContextProvider";
-export type {
-  WorkspaceContextState,
-  WorkspaceContextAction,
-  WorkspaceContextValue,
-} from "../interfaces/web/providers/WorkspaceContextProvider";
-
-// ── Navigation preferences ────────────────────────────────────────────────────
-
-export type { NavPreferences, SidebarLocaleBundle } from "../interfaces/web/navigation/nav-preferences-data";
-export {
-  PERSONAL_ITEMS,
-  ORGANIZATION_NAV_ITEMS,
-  DIALOG_TEXT,
-  DEFAULT_PREFS,
-  readNavPreferences,
-  writeNavPreferences,
-} from "../interfaces/web/navigation/nav-preferences-data";
-
-// ── Sidebar locale ────────────────────────────────────────────────────────────
-
-export { useSidebarLocale } from "../interfaces/web/navigation/use-sidebar-locale";
-
-export {
-  appendWorkspaceContextQuery,
-  buildWorkspaceContextHref,
-  supportsWorkspaceSearchContext,
-  type WorkspaceNavigationContext,
-} from "../interfaces/web/navigation/workspace-context-links";
-
-// ── Navigation customize dialog ───────────────────────────────────────────────
-
-export { CustomizeNavigationDialog } from "../interfaces/web/components/dialogs/CustomizeNavigationDialog";
-export { CheckRow, WorkspaceCheckRow } from "../interfaces/web/components/dialogs/NavCheckRow";
-
-export {
-  AuditStream,
-  WorkspaceAuditTab,
-} from "../subdomains/audit/api";
-
-export {
-  WorkspaceFeedAccountView,
-  WorkspaceFeedWorkspaceView,
-} from "../subdomains/feed/api";
-
-export type { AccountMember } from "../subdomains/scheduling/api";
-export {
-  AccountSchedulingView,
-  WorkspaceSchedulingTab,
-} from "../subdomains/scheduling/api";
-
-export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";
 ````
 
 ## File: modules/workspace/application/services/WorkspaceQueryApplicationService.ts
@@ -71716,9 +71392,22 @@ export interface FirestoreCollectionWatchHandlers<T> {
 	readonly onError?: (error: unknown) => void;
 }
 
+export interface FirestoreDocumentWatchHandlers<T> {
+	readonly onNext: (document: FirestoreCollectionDocument<T> | null) => void;
+	readonly onError?: (error: unknown) => void;
+}
+
+export interface FirestoreSetDocumentInput<T> {
+	readonly path: string;
+	readonly data: T;
+}
+
 export interface FirestoreAPI {
 	get<T>(path: string): Promise<T | null>;
 	set<T>(path: string, data: T): Promise<void>;
+	setMany<T>(inputs: readonly FirestoreSetDocumentInput<T>[]): Promise<void>;
+	update(path: string, data: Record<string, unknown>): Promise<void>;
+	delete(path: string): Promise<void>;
 	query<T>(
 		collectionPath: string,
 		where?: readonly FirestoreWhereClause[],
@@ -71739,6 +71428,7 @@ export interface FirestoreAPI {
 		handlers: FirestoreCollectionWatchHandlers<T>,
 		where?: readonly FirestoreWhereClause[],
 	): () => void;
+	watchDocument<T>(path: string, handlers: FirestoreDocumentWatchHandlers<T>): () => void;
 }
 
 export interface StorageUploadOptions {
@@ -71815,6 +71505,318 @@ import type { AccountEntity } from "../subdomains/account/api";
 export type ActiveAccount = AccountEntity | AuthUser;
 ````
 
+## File: modules/platform/api/infrastructure-api.ts
+````typescript
+import {
+	functionsApi,
+	firestoreApi,
+	getFirebaseFirestore,
+	getFirebaseFunctions,
+	getFirebaseStorage,
+	storageApi,
+} from "@integration-firebase";
+import { collectionGroup } from "firebase/firestore";
+
+import type {
+	FirestoreAPI,
+	FunctionsAPI,
+	FunctionsCallOptions,
+	FirestoreQueryOptions,
+	FirestoreWhereClause,
+	GenkitAPI,
+	StorageAPI,
+	StorageUploadOptions,
+} from "./contracts";
+
+const DEFAULT_STORAGE_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
+const DEFAULT_FUNCTION_REGION = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_REGION ?? "asia-east1";
+
+function splitPath(path: string): string[] {
+	const segments = path
+		.split("/")
+		.map((segment) => segment.trim())
+		.filter(Boolean);
+
+	if (segments.length === 0) {
+		throw new Error("Path is required.");
+	}
+
+	return segments;
+}
+
+function resolveDocumentPath(path: string): string[] {
+	const segments = splitPath(path);
+	if (segments.length % 2 !== 0) {
+		throw new Error(`Expected a document path but got collection path: ${path}`);
+	}
+	return segments;
+}
+
+function resolveCollectionPath(path: string): string[] {
+	const segments = splitPath(path);
+	if (segments.length % 2 === 0) {
+		throw new Error(`Expected a collection path but got document path: ${path}`);
+	}
+	return segments;
+}
+
+function resolveStorageBucket(): string {
+	return process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || DEFAULT_STORAGE_BUCKET;
+}
+
+function resolveStoragePath(path: string): string {
+	const normalized = path.trim().replace(/^\/+/, "");
+	if (!normalized) {
+		throw new Error("Storage path is required.");
+	}
+	return normalized;
+}
+
+function toUploadMetadata(options?: StorageUploadOptions) {
+	if (!options) return undefined;
+	return {
+		contentType: options.contentType,
+		customMetadata: options.customMetadata,
+	};
+}
+
+function applyQueryConstraints(
+	baseQuery: ReturnType<typeof firestoreApi.query>,
+	where: readonly FirestoreWhereClause[],
+	options?: FirestoreQueryOptions,
+) {
+	const whereConstraints = where.map((clause) =>
+		firestoreApi.where(clause.field, clause.op, clause.value),
+	);
+
+	const orderByConstraints = (options?.orderBy ?? []).map((clause) =>
+		firestoreApi.orderBy(clause.field, clause.direction ?? "asc"),
+	);
+
+	const limitConstraint =
+		typeof options?.limit === "number" && options.limit > 0
+			? [firestoreApi.limit(options.limit)]
+			: [];
+
+	return firestoreApi.query(baseQuery, ...whereConstraints, ...orderByConstraints, ...limitConstraint);
+}
+
+export const firestoreInfrastructureApi: FirestoreAPI = {
+	async get<T>(path: string): Promise<T | null> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		const snapshot = await firestoreApi.getDoc(ref);
+		if (!snapshot.exists()) return null;
+		return snapshot.data() as T;
+	},
+
+	async set<T>(path: string, data: T): Promise<void> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		await firestoreApi.setDoc(ref, data as Record<string, unknown>);
+	},
+
+	async setMany<T>(inputs: readonly { path: string; data: T }[]): Promise<void> {
+		if (inputs.length === 0) return;
+
+		const db = getFirebaseFirestore();
+		const batch = firestoreApi.writeBatch(db);
+
+		for (const input of inputs) {
+			const ref = firestoreApi.doc(db, resolveDocumentPath(input.path).join("/"));
+			batch.set(ref, input.data as Record<string, unknown>);
+		}
+
+		await batch.commit();
+	},
+
+	async update(path: string, data: Record<string, unknown>): Promise<void> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		await firestoreApi.updateDoc(ref, data);
+	},
+
+	async delete(path: string): Promise<void> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		await firestoreApi.deleteDoc(ref);
+	},
+
+	async query<T>(
+		collectionPath: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+	): Promise<T[]> {
+		const documents = await firestoreInfrastructureApi.queryDocuments<T>(collectionPath, where, options);
+		return documents.map((document) => document.data);
+	},
+
+	async queryDocuments<T>(
+		collectionPath: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly { id: string; data: T }[]> {
+		const db = getFirebaseFirestore();
+		const collectionRef = firestoreApi.collection(
+			db,
+			resolveCollectionPath(collectionPath).join("/"),
+		);
+
+		const queryRef = applyQueryConstraints(firestoreApi.query(collectionRef), where, options);
+		const snapshot = await firestoreApi.getDocs(queryRef);
+		return snapshot.docs.map((doc) => ({
+			id: doc.id,
+			data: doc.data() as T,
+		}));
+	},
+
+	async queryCollectionGroup<T>(
+		collectionId: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly { id: string; data: T }[]> {
+		const normalizedCollectionId = collectionId.trim();
+		if (!normalizedCollectionId) {
+			throw new Error("Collection group id is required.");
+		}
+
+		const db = getFirebaseFirestore();
+		const collectionGroupRef = collectionGroup(db, normalizedCollectionId);
+		const queryRef = applyQueryConstraints(firestoreApi.query(collectionGroupRef), where, options);
+		const snapshot = await firestoreApi.getDocs(queryRef);
+		return snapshot.docs.map((doc) => ({
+			id: doc.id,
+			data: doc.data() as T,
+		}));
+	},
+
+	watchCollection<T>(
+		collectionPath: string,
+		handlers: {
+			onNext: (documents: readonly { id: string; data: T }[]) => void;
+			onError?: (error: unknown) => void;
+		},
+		where: readonly FirestoreWhereClause[] = [],
+	): () => void {
+		const db = getFirebaseFirestore();
+		const collectionRef = firestoreApi.collection(
+			db,
+			resolveCollectionPath(collectionPath).join("/"),
+		);
+
+		const queryConstraints = where.map((clause) =>
+			firestoreApi.where(clause.field, clause.op, clause.value),
+		);
+		const queryRef = firestoreApi.query(collectionRef, ...queryConstraints);
+
+		return firestoreApi.onSnapshot(
+			queryRef,
+			(snapshot) => {
+				handlers.onNext(
+					snapshot.docs.map((doc) => ({
+						id: doc.id,
+						data: doc.data() as T,
+					})),
+				);
+			},
+			(error) => {
+				handlers.onError?.(error);
+			},
+		);
+	},
+
+	watchDocument<T>(
+		path: string,
+		handlers: {
+			onNext: (document: { id: string; data: T } | null) => void;
+			onError?: (error: unknown) => void;
+		},
+	): () => void {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+
+		return firestoreApi.onSnapshot(
+			ref,
+			(snapshot) => {
+				if (!snapshot.exists()) {
+					handlers.onNext(null);
+					return;
+				}
+				handlers.onNext({
+					id: snapshot.id,
+					data: snapshot.data() as T,
+				});
+			},
+			(error) => {
+				handlers.onError?.(error);
+			},
+		);
+	},
+};
+
+export const storageInfrastructureApi: StorageAPI = {
+	async upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string> {
+		const normalizedPath = resolveStoragePath(path);
+		const storage = getFirebaseStorage(resolveStorageBucket());
+		const ref = storageApi.ref(storage, normalizedPath);
+		await storageApi.uploadBytes(ref, file, toUploadMetadata(options));
+		return storageApi.getDownloadURL(ref);
+	},
+
+	async getUrl(path: string): Promise<string> {
+		const normalizedPath = resolveStoragePath(path);
+		const storage = getFirebaseStorage(resolveStorageBucket());
+		const ref = storageApi.ref(storage, normalizedPath);
+		return storageApi.getDownloadURL(ref);
+	},
+
+	async delete(path: string): Promise<void> {
+		const normalizedPath = resolveStoragePath(path);
+		const storage = getFirebaseStorage(resolveStorageBucket());
+		const ref = storageApi.ref(storage, normalizedPath);
+		await storageApi.deleteObject(ref);
+	},
+
+	toGsUri(path: string): string {
+		const normalizedPath = resolveStoragePath(path);
+		return `gs://${resolveStorageBucket()}/${normalizedPath}`;
+	},
+};
+
+export const genkitInfrastructureApi: GenkitAPI = {
+	async runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput> {
+		const normalizedFlow = flow.trim();
+		if (!normalizedFlow) {
+			throw new Error("Flow name is required.");
+		}
+
+		const functions = getFirebaseFunctions(DEFAULT_FUNCTION_REGION);
+		const runFlow = functionsApi.httpsCallable(functions, "platform_run_genkit_flow");
+		const response = await runFlow({ flow: normalizedFlow, input });
+		return response.data as TOutput;
+	},
+};
+
+export const functionsInfrastructureApi: FunctionsAPI = {
+	async call<TInput, TOutput>(
+		functionName: string,
+		input: TInput,
+		options?: FunctionsCallOptions,
+	): Promise<TOutput> {
+		const normalizedName = functionName.trim();
+		if (!normalizedName) {
+			throw new Error("Function name is required.");
+		}
+
+		const region = options?.region?.trim() || DEFAULT_FUNCTION_REGION;
+		const functions = getFirebaseFunctions(region);
+		const callable = functionsApi.httpsCallable(functions, normalizedName);
+		const response = await callable(input);
+		return response.data as TOutput;
+	},
+};
+````
+
 ## File: modules/platform/application/use-cases/index.ts
 ````typescript
 /**
@@ -71879,133 +71881,6 @@ export type { IAccountProfileQueryPort, IAccountProfileCommandPort } from "./por
 export * from "./aggregates";
 export * from "./events";
 export * from "./value-objects";
-````
-
-## File: modules/platform/subdomains/account-profile/infrastructure/create-legacy-account-profile-application.adapter.ts
-````typescript
-import {
-	createAccountProfile,
-	type AccountProfile,
-	type AccountProfileId,
-	type AccountProfileTheme,
-	type UpdateAccountProfileInput,
-} from "../domain";
-import type {
-	AccountProfileCommandRepository,
-	AccountProfileQueryRepository,
-	Unsubscribe,
-} from "../domain";
-
-type LegacyTheme = Partial<AccountProfileTheme> | null | undefined;
-type LegacyUpdateProfileInput = {
-	name?: string;
-	bio?: string;
-	photoURL?: string;
-	theme?: AccountProfileTheme;
-};
-
-type LegacyAccountProfileRecord = {
-	id: string;
-	name?: string | null;
-	email?: string | null;
-	photoURL?: string | null;
-	bio?: string | null;
-	theme?: LegacyTheme;
-} | null;
-
-export interface LegacyAccountProfileDataSource {
-	getUserProfile(userId: string): Promise<LegacyAccountProfileRecord>;
-	subscribeToUserProfile(
-		userId: string,
-		onUpdate: (profile: LegacyAccountProfileRecord) => void,
-	): Unsubscribe;
-	updateUserProfile(userId: string, input: LegacyUpdateProfileInput): Promise<void>;
-}
-
-function normalizeTheme(theme: LegacyTheme): AccountProfileTheme | undefined {
-	if (!theme?.primary || !theme?.background || !theme?.accent) {
-		return undefined;
-	}
-
-	return {
-		primary: theme.primary,
-		background: theme.background,
-		accent: theme.accent,
-	};
-}
-
-function mapLegacyProfile(record: LegacyAccountProfileRecord): AccountProfile | null {
-	if (!record) {
-		return null;
-	}
-
-	const displayName = (record.name ?? "").trim() || "Unknown Actor";
-
-	return createAccountProfile({
-		id: record.id as AccountProfileId,
-		displayName,
-		email: record.email ?? undefined,
-		photoURL: record.photoURL ?? undefined,
-		bio: record.bio ?? undefined,
-		theme: normalizeTheme(record.theme),
-	});
-}
-
-/** Read-side adapter: maps legacy data source to AccountProfileQueryRepository. */
-class LegacyAccountProfileQueryAdapter implements AccountProfileQueryRepository {
-	constructor(
-		private readonly legacyDataSource: LegacyAccountProfileDataSource,
-	) {}
-
-	async getAccountProfile(
-		actorId: AccountProfileId,
-	): Promise<AccountProfile | null> {
-		const profile = await this.legacyDataSource.getUserProfile(actorId);
-		return mapLegacyProfile(profile);
-	}
-
-	subscribeToAccountProfile(
-		actorId: AccountProfileId,
-		onUpdate: (profile: AccountProfile | null) => void,
-	): Unsubscribe {
-		return this.legacyDataSource.subscribeToUserProfile(actorId, (profile) => {
-			onUpdate(mapLegacyProfile(profile));
-		});
-	}
-}
-
-/** Write-side adapter: maps legacy data source to AccountProfileCommandRepository. */
-class LegacyAccountProfileCommandAdapter implements AccountProfileCommandRepository {
-	constructor(
-		private readonly legacyDataSource: LegacyAccountProfileDataSource,
-	) {}
-
-	async updateAccountProfile(
-		actorId: AccountProfileId,
-		input: UpdateAccountProfileInput,
-	): Promise<void> {
-		const legacyInput: LegacyUpdateProfileInput = {
-			name: input.displayName,
-			bio: input.bio,
-			photoURL: input.photoURL,
-			theme: input.theme,
-		};
-
-		await this.legacyDataSource.updateUserProfile(actorId, legacyInput);
-	}
-}
-
-export function createLegacyAccountProfileQueryRepository(
-	legacyDataSource: LegacyAccountProfileDataSource,
-): AccountProfileQueryRepository {
-	return new LegacyAccountProfileQueryAdapter(legacyDataSource);
-}
-
-export function createLegacyAccountProfileCommandRepository(
-	legacyDataSource: LegacyAccountProfileDataSource,
-): AccountProfileCommandRepository {
-	return new LegacyAccountProfileCommandAdapter(legacyDataSource);
-}
 ````
 
 ## File: modules/platform/subdomains/account-profile/infrastructure/index.ts
@@ -72084,6 +71959,162 @@ export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
 export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
   return organizationQueryService.getOrgPolicies(orgId);
 }
+````
+
+## File: modules/workspace/api/ui.ts
+````typescript
+/**
+ * workspace api/ui.ts
+ *
+ * Canonical public web UI surface for the workspace bounded context.
+ * App-layer consumers that need workspace UI components, hooks, and
+ * navigation utilities should import from here.
+ *
+ * Internal source: interfaces/web/
+ */
+
+// ── Screen components ────────────────────────────────────────────────────────
+
+export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/WorkspaceDetailScreen";
+export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
+export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
+export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
+
+// ── Card components ──────────────────────────────────────────────────────────
+
+export { WorkspaceContextCard } from "../interfaces/web/components/cards/WorkspaceContextCard";
+
+// ── Tab components ───────────────────────────────────────────────────────────
+
+export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
+
+// ── Layout components ────────────────────────────────────────────────────────
+
+export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
+export { WorkspaceQuickAccessRow } from "../interfaces/web/components/layout/WorkspaceQuickAccessRow";
+export { WorkspaceSectionContent } from "../interfaces/web/components/layout/WorkspaceSectionContent";
+
+// ── Rail components ──────────────────────────────────────────────────────────
+
+export { CreateWorkspaceDialogRail } from "../interfaces/web/components/rails/CreateWorkspaceDialogRail";
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+
+export type {
+  WorkspaceTabDevStatus,
+  WorkspaceTabGroup,
+  WorkspaceTabValue,
+} from "../interfaces/web/navigation/workspace-tabs";
+
+export {
+  WORKSPACE_TAB_GROUPS,
+  WORKSPACE_TAB_META,
+  WORKSPACE_TAB_VALUES,
+  getWorkspaceTabLabel,
+  getWorkspaceTabMeta,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+} from "../interfaces/web/navigation/workspace-tabs";
+
+export type { WorkspaceNavItem } from "../interfaces/web/navigation/workspace-nav-items";
+export {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "../interfaces/web/navigation/workspace-nav-items";
+
+// ── Quick-access navigation ───────────────────────────────────────────────────
+
+export type {
+  WorkspaceQuickAccessItem,
+  WorkspaceQuickAccessMatcherOptions,
+} from "../interfaces/web/components/navigation/workspace-quick-access";
+
+export { buildWorkspaceQuickAccessItems } from "../interfaces/web/components/navigation/workspace-quick-access";
+
+// ── State helpers ─────────────────────────────────────────────────────────────
+
+export { getWorkspaceStorageKey } from "../interfaces/web/state/workspace-session";
+
+// ── Map utilities ─────────────────────────────────────────────────────────────
+
+export {
+  resolveWorkspaceFromMap,
+  toWorkspaceMap,
+} from "../interfaces/web/utils/workspace-map";
+
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+
+export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
+export type {
+  UseWorkspaceOrchestrationContextOptions,
+  WorkspaceOrchestrationContext,
+} from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
+export { useWorkspaceOrchestrationContext } from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
+export {
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  getWorkspaceIdFromPath,
+  useRecentWorkspaces,
+} from "../interfaces/web/hooks/useRecentWorkspaces";
+
+// ── Workspace context provider ────────────────────────────────────────────────
+
+export {
+  WorkspaceContextProvider,
+  useWorkspaceContext,
+} from "../interfaces/web/providers/WorkspaceContextProvider";
+export type {
+  WorkspaceContextState,
+  WorkspaceContextAction,
+  WorkspaceContextValue,
+} from "../interfaces/web/providers/WorkspaceContextProvider";
+
+// ── Navigation preferences ────────────────────────────────────────────────────
+
+export type { NavPreferences, SidebarLocaleBundle } from "../interfaces/web/navigation/nav-preferences-data";
+export {
+  PERSONAL_ITEMS,
+  ORGANIZATION_NAV_ITEMS,
+  DIALOG_TEXT,
+  DEFAULT_PREFS,
+  readNavPreferences,
+  writeNavPreferences,
+} from "../interfaces/web/navigation/nav-preferences-data";
+
+// ── Sidebar locale ────────────────────────────────────────────────────────────
+
+export { useSidebarLocale } from "../interfaces/web/navigation/use-sidebar-locale";
+
+export {
+  appendWorkspaceContextQuery,
+  buildWorkspaceContextHref,
+  supportsWorkspaceSearchContext,
+  type WorkspaceNavigationContext,
+} from "../interfaces/web/navigation/workspace-context-links";
+
+// ── Navigation customize dialog ───────────────────────────────────────────────
+
+export { CustomizeNavigationDialog } from "../interfaces/web/components/dialogs/CustomizeNavigationDialog";
+export { CheckRow, WorkspaceCheckRow } from "../interfaces/web/components/dialogs/NavCheckRow";
+
+export {
+  AuditStream,
+  WorkspaceAuditTab,
+} from "../subdomains/audit/api";
+
+export {
+  WorkspaceFeedAccountView,
+  WorkspaceFeedWorkspaceView,
+} from "../subdomains/feed/api";
+
+export type { AccountMember } from "../subdomains/scheduling/api";
+export {
+  AccountSchedulingView,
+  WorkspaceSchedulingTab,
+} from "../subdomains/scheduling/api";
+
+export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";
 ````
 
 ## File: modules/workspace/application/use-cases/workspace.use-cases.ts
@@ -72534,6 +72565,69 @@ export * from "./use-cases";
 export * from "./handlers";
 ````
 
+## File: modules/platform/subdomains/account-profile/api/index.ts
+````typescript
+/**
+ * Public API boundary for the account-profile subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Composition root lives in infrastructure/account-profile-service.ts;
+ * this boundary is intentionally thin — it only re-exports public contracts.
+ */
+
+import {
+	getAccountProfileFromService,
+	subscribeToAccountProfileFromService,
+	updateAccountProfileFromService,
+	configureLegacyAccountProfileDataSource,
+} from "../infrastructure";
+import {
+	getLegacyUserProfile,
+	subscribeToLegacyUserProfile,
+	updateLegacyUserProfile,
+} from "../../account/api/legacy-account-profile.bridge";
+import type { AccountProfile, Unsubscribe } from "../domain";
+import type { UpdateAccountProfileInput } from "../application";
+import type { CommandResult } from "@shared-types";
+
+configureLegacyAccountProfileDataSource({
+	getUserProfile: getLegacyUserProfile,
+	subscribeToUserProfile: subscribeToLegacyUserProfile,
+	updateUserProfile: updateLegacyUserProfile,
+});
+
+// ── Use-case delegators ──────────────────────────────────────────────────
+
+export async function getAccountProfile(actorId: string): Promise<AccountProfile | null> {
+	return getAccountProfileFromService(actorId);
+}
+
+export function subscribeToAccountProfile(
+	actorId: string,
+	onUpdate: (profile: AccountProfile | null) => void,
+): Unsubscribe {
+	return subscribeToAccountProfileFromService(actorId, onUpdate);
+}
+
+export async function updateAccountProfile(
+	actorId: string,
+	input: UpdateAccountProfileInput,
+): Promise<CommandResult> {
+	return updateAccountProfileFromService(actorId, input);
+}
+
+// Legacy compatibility exports for migration window.
+export const getUserProfile = getAccountProfile;
+export const subscribeToUserProfile = subscribeToAccountProfile;
+
+export { getProfile, subscribeToProfile, updateProfile } from "../interfaces";
+
+export * from "../application";
+export * from "../domain";
+export { SettingsProfileRouteScreen } from "../interfaces";
+export type { LegacyAccountProfileDataSource } from "../infrastructure";
+````
+
 ## File: modules/platform/subdomains/account/interfaces/queries/account.queries.ts
 ````typescript
 /**
@@ -72816,69 +72910,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
-## File: modules/platform/subdomains/account-profile/api/index.ts
-````typescript
-/**
- * Public API boundary for the account-profile subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Composition root lives in infrastructure/account-profile-service.ts;
- * this boundary is intentionally thin — it only re-exports public contracts.
- */
-
-import {
-	getAccountProfileFromService,
-	subscribeToAccountProfileFromService,
-	updateAccountProfileFromService,
-	configureLegacyAccountProfileDataSource,
-} from "../infrastructure";
-import {
-	getLegacyUserProfile,
-	subscribeToLegacyUserProfile,
-	updateLegacyUserProfile,
-} from "../../account/api/legacy-account-profile.bridge";
-import type { AccountProfile, Unsubscribe } from "../domain";
-import type { UpdateAccountProfileInput } from "../application";
-import type { CommandResult } from "@shared-types";
-
-configureLegacyAccountProfileDataSource({
-	getUserProfile: getLegacyUserProfile,
-	subscribeToUserProfile: subscribeToLegacyUserProfile,
-	updateUserProfile: updateLegacyUserProfile,
-});
-
-// ── Use-case delegators ──────────────────────────────────────────────────
-
-export async function getAccountProfile(actorId: string): Promise<AccountProfile | null> {
-	return getAccountProfileFromService(actorId);
-}
-
-export function subscribeToAccountProfile(
-	actorId: string,
-	onUpdate: (profile: AccountProfile | null) => void,
-): Unsubscribe {
-	return subscribeToAccountProfileFromService(actorId, onUpdate);
-}
-
-export async function updateAccountProfile(
-	actorId: string,
-	input: UpdateAccountProfileInput,
-): Promise<CommandResult> {
-	return updateAccountProfileFromService(actorId, input);
-}
-
-// Legacy compatibility exports for migration window.
-export const getUserProfile = getAccountProfile;
-export const subscribeToUserProfile = subscribeToAccountProfile;
-
-export { getProfile, subscribeToProfile, updateProfile } from "../interfaces";
-
-export * from "../application";
-export * from "../domain";
-export { SettingsProfileRouteScreen } from "../interfaces";
-export type { LegacyAccountProfileDataSource } from "../infrastructure";
-````
-
 ## File: modules/platform/subdomains/organization/infrastructure/organization-service.ts
 ````typescript
 /**
@@ -73023,28 +73054,6 @@ export const organizationQueryService = {
   getTeams: (organizationId: string) => getOrgRepo().getTeams(organizationId),
   getOrgPolicies: (orgId: string) => getPolicyRepo().getPolicies(orgId),
 };
-````
-
-## File: modules/platform/interfaces/web/index.ts
-````typescript
-export { ShellHeaderControls } from "./shell/header/components/ShellHeaderControls";
-export { ShellThemeToggle } from "./shell/header/components/ShellThemeToggle";
-export { ShellNotificationButton } from "./shell/header/components/ShellNotificationButton";
-export { ShellUserAvatar } from "./shell/header/components/ShellUserAvatar";
-export { ShellTranslationSwitcher } from "./shell/header/components/ShellTranslationSwitcher";
-export { ShellAppBreadcrumbs } from "./shell/breadcrumbs/ShellAppBreadcrumbs";
-export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./shell/search/ShellGlobalSearchDialog";
-
-// providers — context and useApp from platform-only ShellAppContext
-export {
-  AppContext,
-  APP_INITIAL_STATE,
-  useApp,
-  type AppState,
-  type AppAction,
-  type AppContextValue,
-} from "./providers/ShellAppContext";
-export type { ActiveAccount } from "../../api/contracts";
 ````
 
 ## File: modules/platform/api/index.ts
@@ -73200,4 +73209,26 @@ export {
   resolveOrganizationRouteFallback,
   type ShellAccountActor,
 } from "../subdomains/access-control/api";
+````
+
+## File: modules/platform/interfaces/web/index.ts
+````typescript
+export { ShellHeaderControls } from "./shell/header/components/ShellHeaderControls";
+export { ShellThemeToggle } from "./shell/header/components/ShellThemeToggle";
+export { ShellNotificationButton } from "./shell/header/components/ShellNotificationButton";
+export { ShellUserAvatar } from "./shell/header/components/ShellUserAvatar";
+export { ShellTranslationSwitcher } from "./shell/header/components/ShellTranslationSwitcher";
+export { ShellAppBreadcrumbs } from "./shell/breadcrumbs/ShellAppBreadcrumbs";
+export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./shell/search/ShellGlobalSearchDialog";
+
+// providers — context and useApp from platform-only ShellAppContext
+export {
+  AppContext,
+  APP_INITIAL_STATE,
+  useApp,
+  type AppState,
+  type AppAction,
+  type AppContextValue,
+} from "./providers/ShellAppContext";
+export type { ActiveAccount } from "../../api/contracts";
 ````
