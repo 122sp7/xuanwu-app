@@ -6,7 +6,7 @@
  * route handlers, or server-side infrastructure.
  */
 
-export { GenerateNotebookResponseUseCase, GenkitNotebookRepository } from "../subdomains/notebook/api/server";
+export { GenerateNotebookResponseUseCase, PlatformTextGenerationAdapter } from "../subdomains/notebook/api/server";
 
 // Q&A subdomain — AnswerRagQueryUseCase factory (now in synthesis subdomain)
 export { createAnswerRagQueryUseCase } from "../subdomains/synthesis/api/server";

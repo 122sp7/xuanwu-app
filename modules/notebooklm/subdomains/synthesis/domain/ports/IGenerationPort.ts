@@ -3,8 +3,7 @@
  * Layer: domain/ports
  * Purpose: IGenerationPort — output port for AI answer generation.
  *
- * Migration source: ai/domain/repositories/IRagGenerationRepository.ts
- * The Genkit adapter (infrastructure) implements this port.
+ * The platform AI adapter (infrastructure) implements this port.
  */
 
 import type { GenerateAnswerInput, GenerateAnswerResult } from "../entities/SynthesisResult";

@@ -1,5 +1,5 @@
-import { GenkitNotebookRepository } from "../infrastructure/genkit/GenkitNotebookRepository";
+import { PlatformTextGenerationAdapter } from "../infrastructure/platform/PlatformTextGenerationAdapter";
 
 export function makeNotebookRepo() {
-  return new GenkitNotebookRepository();
+  return new PlatformTextGenerationAdapter();
 }

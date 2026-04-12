@@ -1,24 +1,22 @@
 /**
  * Module: notebooklm/subdomains/synthesis
- * Layer: infrastructure/genkit
- * Purpose: GenkitRagGenerationAdapter — implements IRagGenerationRepository
- *          using Genkit to invoke Google AI (or any configured model).
+ * Layer: infrastructure/platform
+ * Purpose: Implements IRagGenerationRepository by delegating model invocation
+ *          to platform AI API. Prompt construction and citation building stay
+ *          in this adapter (domain-specific to synthesis).
  *
- * Design notes:
- * - All prompt construction is encapsulated here (not in domain / use cases).
- * - Citations are derived from the input chunks, not re-extracted from the
- *   model output (avoids hallucination in citation attribution).
- * - Unhandled model errors are wrapped in a structured DomainError value.
+ * All Genkit wiring lives exclusively in
+ * modules/platform/subdomains/ai/infrastructure.
  */
 
+import { generateAiText } from "@/modules/platform/api";
 import type { IRagGenerationRepository } from "../../domain/repositories/IRagGenerationRepository";
 import type {
   GenerateRagAnswerInput,
-  GenerateRagAnswerOutput,
   GenerateRagAnswerResult,
+  GenerateRagAnswerOutput,
   GenerationCitation,
 } from "../../domain/entities/generation.entities";
-import { synthesisAiClient, resolveGenerationModel } from "./genkit-ai-client";
 
 // --- Prompt construction helpers (pure, testable) ----------------------------
 
@@ -52,18 +50,18 @@ function buildCitations(input: GenerateRagAnswerInput): readonly GenerationCitat
 const SYSTEM_PROMPT =
   "You are the Xuanwu RAG orchestration layer. Answer only from the supplied context and preserve citations.";
 
-export class GenkitRagGenerationAdapter implements IRagGenerationRepository {
+export class PlatformRagGenerationAdapter implements IRagGenerationRepository {
   async generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult> {
     try {
-      const response = await synthesisAiClient.generate({
+      const result = await generateAiText({
         prompt: buildGenerationPrompt(input),
         system: SYSTEM_PROMPT,
         ...(input.model ? { model: input.model } : {}),
       });
 
       const output: GenerateRagAnswerOutput = {
-        answer: response.text,
-        model: resolveGenerationModel(input.model),
+        answer: result.text,
+        model: result.model,
         citations: buildCitations(input),
       };
 

@@ -100,6 +100,16 @@ export type { MembersPageProps, TeamsPageProps, PermissionsPageProps } from "../
 // background-job — knowledge ingestion pipeline management
 export * from "../subdomains/background-job/api";
 
+// ai — shared AI provider capability (text generation, model routing)
+export {
+  generateAiText,
+  summarize,
+  type AIAPI,
+  type GenerateAiTextInput,
+  type GenerateAiTextOutput,
+  type AiTextGenerationPort,
+} from "../subdomains/ai/api";
+
 // Cross-module and app-composition hooks from interfaces layer.
 // Only selective exports — do NOT wildcard re-export "../interfaces".
 export {

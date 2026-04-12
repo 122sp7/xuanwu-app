@@ -1,14 +1,25 @@
+/**
+ * Module: notebooklm/subdomains/notebook
+ * Layer: infrastructure/platform
+ * Purpose: Delegates text generation to platform AI API.
+ *
+ * The notebook subdomain owns its NotebookRepository port; this adapter
+ * satisfies it by calling the platform AI capability instead of importing
+ * Genkit directly. All Genkit wiring lives exclusively in
+ * modules/platform/subdomains/ai/infrastructure.
+ */
+
+import { generateAiText } from "@/modules/platform/api";
 import type {
   GenerateNotebookResponseInput,
   GenerateNotebookResponseResult,
 } from "../../domain/entities/AgentGeneration";
 import type { NotebookRepository } from "../../domain/repositories/NotebookRepository";
-import { agentClient, getConfiguredGenkitModel } from "./client";
 
-export class GenkitNotebookRepository implements NotebookRepository {
+export class PlatformTextGenerationAdapter implements NotebookRepository {
   async generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult> {
     try {
-      const response = await agentClient.generate({
+      const result = await generateAiText({
         prompt: input.prompt,
         ...(input.system ? { system: input.system } : {}),
         ...(input.model ? { model: input.model } : {}),
@@ -17,9 +28,9 @@ export class GenkitNotebookRepository implements NotebookRepository {
       return {
         ok: true,
         data: {
-          text: response.text,
-          model: getConfiguredGenkitModel(input.model),
-          finishReason: response.finishReason ? String(response.finishReason) : undefined,
+          text: result.text,
+          model: result.model,
+          finishReason: result.finishReason,
         },
       };
     } catch (error) {

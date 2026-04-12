@@ -6,6 +6,13 @@ import { GenerateAiTextUseCase } from "../application/use-cases/generate-ai-text
 import { GenkitAiTextGenerationAdapter } from "../infrastructure/genkit/GenkitAiTextGenerationAdapter";
 import type { GenerateAiTextInput, GenerateAiTextOutput } from "../domain/ports/AiTextGenerationPort";
 
+// Re-export domain types through API boundary
+export type {
+	GenerateAiTextInput,
+	GenerateAiTextOutput,
+	AiTextGenerationPort,
+} from "../domain/ports/AiTextGenerationPort";
+
 let _useCase: GenerateAiTextUseCase | undefined;
 
 function getUseCase(): GenerateAiTextUseCase {
