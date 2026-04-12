@@ -7,7 +7,6 @@
 
 import Link from "next/link";
 
-import { KnowledgeSidebarSection } from "@/modules/notion/api";
 import {
   WorkspaceSectionContent,
   type NavPreferences,
@@ -51,12 +50,7 @@ interface ShellSidebarBodyProps {
   activeWorkspaceId: string | null;
   onSelectWorkspace: (workspaceId: string | null) => void;
   onToggleExpanded: () => void;
-  pathname: string;
-  workspacesHydrated: boolean;
-  allWorkspaceLinks: WorkspaceLink[];
   currentSearchWorkspaceId: string;
-  creatingKind: "page" | "database" | null;
-  onQuickCreatePage: () => void;
 }
 
 function ManagedNavGroup({
@@ -113,14 +107,10 @@ export function DashboardSidebarBody({
   activeWorkspaceId,
   onSelectWorkspace,
   onToggleExpanded,
-  pathname,
-  workspacesHydrated,
-  allWorkspaceLinks,
   currentSearchWorkspaceId,
-  creatingKind,
-  onQuickCreatePage,
 }: ShellSidebarBodyProps) {
   const contextSection = SHELL_CONTEXT_SECTION_CONFIG[section];
+  const scopedWorkspacePathId = workspacePathId ?? currentSearchWorkspaceId ?? activeWorkspaceId;
 
   return (
     <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
@@ -162,6 +152,17 @@ export function DashboardSidebarBody({
         </div>
       )}
 
+      {section === "dashboard" && (
+        <div className="space-y-2">
+          <nav className="space-y-0.5" aria-label="儀表板導覽">
+            <p className={sidebarSectionTitleClass}>儀表板</p>
+            <p className="px-2 py-2 text-[11px] text-muted-foreground">
+              帳號總覽與工作區快速存取。
+            </p>
+          </nav>
+        </div>
+      )}
+
       {section === "workspace" && (
         <div className="space-y-2">
           <WorkspaceSectionContent
@@ -180,19 +181,6 @@ export function DashboardSidebarBody({
             sectionTitleClassName={sidebarSectionTitleClass}
           />
         </div>
-      )}
-
-      {section === "knowledge" && (
-        <KnowledgeSidebarSection
-          pathname={pathname}
-          workspacesHydrated={workspacesHydrated}
-          allWorkspaceLinks={allWorkspaceLinks}
-          activeAccountId={activeAccountId}
-          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
-          creatingKind={creatingKind}
-          onSelectWorkspace={onSelectWorkspace}
-          onQuickCreatePage={onQuickCreatePage}
-        />
       )}
 
       {contextSection && (

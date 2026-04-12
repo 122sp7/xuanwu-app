@@ -8,4 +8,4 @@ export type { NotebookRepository } from "../domain/repositories/NotebookReposito
 
 export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-notebook-response.use-case";
 
-export { generateNotebookResponse } from "../interfaces/_actions/generate-notebook-response.actions";
+export { generateNotebookResponse } from "../../../interfaces/notebook/_actions/generate-notebook-response.actions";

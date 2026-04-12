@@ -15,6 +15,7 @@ import {
   CalendarDays,
   ClipboardList,
   FlaskConical,
+  LayoutDashboard,
   NotebookText,
   Plus,
   SlidersHorizontal,
@@ -80,6 +81,7 @@ function getInitial(name: string | undefined | null): string {
 
 const RAIL_ICON_MAP: Record<string, React.ReactNode> = {
   workspace: <Building2 className="size-[18px]" />,
+  dashboard: <LayoutDashboard className="size-[18px]" />,
   "org-members": <UserRound className="size-[18px]" />,
   "org-teams": <Users className="size-[18px]" />,
   "org-daily": <NotebookText className="size-[18px]" />,
@@ -219,7 +221,7 @@ export function AppRail({
 
             if (item.id === "workspace") {
               return (
-                <DropdownMenu key={item.href}>
+                <DropdownMenu key={item.id}>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <DropdownMenuTrigger asChild>
@@ -287,7 +289,7 @@ export function AppRail({
             }
 
             return (
-              <Tooltip key={item.href}>
+              <Tooltip key={item.id}>
                 <TooltipTrigger asChild>
                   <Link
                     href={item.href}

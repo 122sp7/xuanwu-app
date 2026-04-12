@@ -104,7 +104,7 @@ export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-r
 
 // ── Wiki convenience wrappers with default repository ────────────────────────
 
-import { FirebaseKnowledgeContentAdapter } from "../infrastructure/firebase/FirebaseKnowledgeContentAdapter";
+import { FirebaseKnowledgeContentAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter";
 import type { KnowledgeParsedDocument, KnowledgeRagQueryResult, KnowledgeReindexInput } from "../domain/repositories/IKnowledgeContentRepository";
 
 let _knowledgeContentRepository: FirebaseKnowledgeContentAdapter | undefined;
@@ -136,10 +136,10 @@ export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20)
 
 // ── Infrastructure adapters (client-safe, for composition roots) ─────────────
 
-export { FirebaseRagRetrievalAdapter } from "../infrastructure/firebase/FirebaseRagRetrievalAdapter";
-export { FirebaseKnowledgeContentAdapter } from "../infrastructure/firebase/FirebaseKnowledgeContentAdapter";
-export { FirebaseRagQueryFeedbackAdapter } from "../infrastructure/firebase/FirebaseRagQueryFeedbackAdapter";
+export { FirebaseRagRetrievalAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseRagRetrievalAdapter";
+export { FirebaseKnowledgeContentAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter";
+export { FirebaseRagQueryFeedbackAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseRagQueryFeedbackAdapter";
 
 // ── UI components ────────────────────────────────────────────────────────────
 
-export { RagQueryView } from "../interfaces/components/RagQueryView";
+export { RagQueryPanel } from "../../../interfaces/synthesis/components/RagQueryPanel";

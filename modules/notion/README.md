@@ -37,10 +37,10 @@
 ```text
 modules/notion/
 ├── api/              # Public API boundary — cross-module entry point only
-├── application/      # Context-wide orchestration (empty, use subdomain layers)
+├── application/      # Context-wide orchestration
 ├── domain/           # Context-wide domain concepts (events, published-language)
-├── infrastructure/   # Context-wide driven adapters (empty, use subdomain layers)
-├── interfaces/       # Context-wide driving adapters (empty, use subdomain layers)
+├── infrastructure/   # Context-wide driven adapters, grouped by subdomain when needed
+├── interfaces/       # Context-wide driving adapters, grouped by subdomain when needed
 ├── docs/             # Links to strategic documentation
 └── subdomains/
     ├── knowledge/             # Tier 1 — Active (KnowledgePage, ContentBlock)

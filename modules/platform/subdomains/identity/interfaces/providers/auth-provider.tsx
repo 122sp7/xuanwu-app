@@ -21,11 +21,7 @@ import {
   type AuthState,
   type AuthUser,
 } from "../contexts/auth-context";
-import {
-  clearDevDemoSession,
-  isLocalDevDemoAllowed,
-  readDevDemoSession,
-} from "../utils/dev-demo-auth";
+
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -39,13 +35,6 @@ function toAuthUser(user: User): AuthUser {
     name: user.displayName ?? "Dimension Member",
     email: user.email ?? "",
   };
-}
-
-function resolveSignedOutStatePayload(): { user: AuthUser | null; status: "authenticated" | "unauthenticated" } {
-  const demoUser = readDevDemoSession();
-  return demoUser
-    ? { user: demoUser, status: "authenticated" }
-    : { user: null, status: "unauthenticated" };
 }
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
@@ -99,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           dispatch({
             type: "SET_AUTH_STATE",
-            payload: resolveSignedOutStatePayload(),
+            payload: { user: null, status: "unauthenticated" },
           });
         }
       });
@@ -111,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.clearTimeout(timeoutId);
       dispatch({
         type: "SET_AUTH_STATE",
-        payload: resolveSignedOutStatePayload(),
+        payload: { user: null, status: "unauthenticated" },
       });
     }
 
@@ -122,10 +111,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = async () => {
-    if (isLocalDevDemoAllowed()) {
-      clearDevDemoSession();
-    }
-
     try {
       await signOutFirebase(getFirebaseAuth());
     } catch (error) {

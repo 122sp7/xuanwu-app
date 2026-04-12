@@ -8,12 +8,14 @@ import {
   CardContent,
 } from "@ui-shadcn/ui/card";
 import { Badge } from "@ui-shadcn/ui/badge";
-import { useAuth } from "@/modules/platform/api";
-import { WorkspaceAuditTab } from "@/modules/workspace/api";
-import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
-import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
-import { WorkspaceFlowTab } from "@/modules/workspace/api";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
+import { useApp, useAuth } from "@/modules/platform/api";
+import {
+  WorkspaceAuditTab,
+  WorkspaceFeedWorkspaceView,
+  WorkspaceFilesTab,
+  WorkspaceFlowTab,
+  WorkspaceSchedulingTab,
+} from "@/modules/workspace/api";
 import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
 
 import {
@@ -35,6 +37,7 @@ import {
 } from "../../navigation/workspace-tabs";
 import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
 import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
+import { renderWorkspaceCrossModuleTabSurface } from "../tabs/WorkspaceCrossModuleTabSurface";
 import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
 import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
 import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
@@ -57,10 +60,21 @@ export function WorkspaceDetailScreen({
 }: WorkspaceDetailScreenProps) {
   const { state: wsState, dispatch: wsDispatch } = useWorkspaceContext();
   const { state: authState } = useAuth();
+  const { state: appState } = useApp();
+  const accessibleAccountIds = useMemo(
+    () =>
+      [
+        authState.user?.id,
+        appState.activeAccount?.id,
+        ...Object.keys(appState.accounts),
+      ].filter((id): id is string => Boolean(id && id.trim())),
+    [authState.user?.id, appState.activeAccount?.id, appState.accounts],
+  );
   const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
     workspaceId,
     accountId,
     accountsHydrated,
+    accessibleAccountIds,
   );
   const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
   const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
@@ -86,8 +100,41 @@ export function WorkspaceDetailScreen({
   function renderTabContent(tab: WorkspaceTabValue) {
     if (!workspace) return null;
 
+    const crossModuleTabContent = renderWorkspaceCrossModuleTabSurface({
+      tab,
+      workspace,
+      accountId: accountId ?? workspace.accountId,
+      currentUserId: authState.user?.id,
+      workspaces: wsState.workspaces ?? {},
+    });
+    if (crossModuleTabContent) {
+      return crossModuleTabContent;
+    }
+
+    const flowSection: Record<string, "tasks" | "qa" | "acceptance" | "issues" | "invoices"> = {
+      Tasks: "tasks", TaskQa: "qa", TaskAcceptance: "acceptance",
+      TaskIssues: "issues", TaskFinance: "invoices",
+    };
+
+    if (tab in flowSection) {
+      return (
+        <WorkspaceFlowTab
+          workspaceId={workspace.id}
+          currentUserId={accountId ?? "anonymous"}
+          initialSection={flowSection[tab]}
+        />
+      );
+    }
+
+    const overviewPanel: Record<string, string> = {
+      Knowledge: "knowledge-pages",
+      WorkspaceSettings: "settings",
+    };
+
     switch (tab) {
       case "Overview":
+      case "Knowledge":
+      case "WorkspaceSettings":
         return (
           <WorkspaceOverviewTab
             workspace={workspace}
@@ -95,7 +142,7 @@ export function WorkspaceDetailScreen({
             currentUserId={authState.user?.id}
             personnelEntries={personnelEntries}
             addressLines={addressLines}
-            initialPanel={initialOverviewPanel}
+            initialPanel={overviewPanel[tab] ?? initialOverviewPanel}
             onEditClick={() => {
               setSettingsDraft(createSettingsDraft(workspace));
               clearSaveError();
@@ -122,46 +169,6 @@ export function WorkspaceDetailScreen({
         );
       case "Audit":
         return <WorkspaceAuditTab workspaceId={workspace.id} />;
-      case "Tasks":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="tasks"
-          />
-        );
-      case "TaskQa":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="qa"
-          />
-        );
-      case "TaskAcceptance":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="acceptance"
-          />
-        );
-      case "TaskIssues":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="issues"
-          />
-        );
-      case "TaskFinance":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="invoices"
-          />
-        );
       case "Feed":
         return (
           <WorkspaceFeedWorkspaceView

@@ -19,13 +19,13 @@ export type {
 } from "../application/dto/CollaborationDto";
 
 // Server actions
-export { createComment, updateComment, resolveComment, deleteComment } from "../interfaces/_actions/comment.actions";
-export { createVersion, deleteVersion } from "../interfaces/_actions/version.actions";
-export { grantPermission, revokePermission } from "../interfaces/_actions/permission.actions";
+export { createComment, updateComment, resolveComment, deleteComment } from "../../../interfaces/collaboration/_actions/comment.actions";
+export { createVersion, deleteVersion } from "../../../interfaces/collaboration/_actions/version.actions";
+export { grantPermission, revokePermission } from "../../../interfaces/collaboration/_actions/permission.actions";
 
 // Queries
-export { getComments, getVersions, getPermissions, subscribeComments } from "../interfaces/queries";
+export { getComments, getVersions, getPermissions, subscribeComments } from "../../../interfaces/collaboration/queries";
 
 // UI components
-export { CommentPanel } from "../interfaces/components/CommentPanel";
-export { VersionHistoryPanel } from "../interfaces/components/VersionHistoryPanel";
+export { CommentPanel } from "../../../interfaces/collaboration/components/CommentPanel";
+export { VersionHistoryPanel } from "../../../interfaces/collaboration/components/VersionHistoryPanel";

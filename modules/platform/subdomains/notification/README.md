@@ -11,11 +11,11 @@ Notification delivery and preference management.
 
 | Layer | Purpose |
 |-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
+| `api/` | Local public boundary for same bounded context access |
 | `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
+| `domain/` | Entities, value objects, events, repositories, and business rules |
+
+> By default, `infrastructure/` and `interfaces/` live at the bounded-context root and are grouped by subdomain. Add local `infrastructure/` or `interfaces/` inside a subdomain only when the mini-module gate is explicitly justified.
 
 ## Dependency Direction
 

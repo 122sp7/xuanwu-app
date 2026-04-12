@@ -13,13 +13,6 @@ const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
 
 const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
   "workspace",
-  "workspace-feed",
-  "knowledge",
-  "knowledge-base",
-  "knowledge-database",
-  "source",
-  "notebook",
-  "ai-chat",
   "organization",
   "settings",
   "dashboard",
@@ -72,7 +65,7 @@ function getWorkspaceIdFromPath(pathname: string): string | null {
     return null;
   }
 
-  if (["organization", "settings", "dev-tools"].includes(secondSegment)) {
+  if (["organization", "settings", "dashboard", "dev-tools"].includes(secondSegment)) {
     return null;
   }
 

@@ -6,16 +6,17 @@
 
 - **Bounded Context**: notion
 - **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
+- **Status**: Active — domain + application + infrastructure adapter + composition wired
 
 ## Layers
 
 | Layer | Purpose |
 |-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
+| `api/` | Local public boundary for same bounded context access |
 | `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
+| `domain/` | Entities, value objects, events, repositories, and business rules |
+
+> By default, `infrastructure/` and `interfaces/` live at the bounded-context root and are grouped by subdomain. Add local `infrastructure/` or `interfaces/` inside a subdomain only when the mini-module gate is explicitly justified.
 
 ## Dependency Direction
 

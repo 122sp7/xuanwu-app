@@ -11,7 +11,13 @@ import type { Task } from "../../application/dto/workflow.dto";
 import type { Issue } from "../../application/dto/workflow.dto";
 import type { Invoice } from "../../application/dto/workflow.dto";
 import type { InvoiceItem } from "../../application/dto/workflow.dto";
-import { makeInvoiceRepo, makeIssueRepo, makeTaskRepo } from "../../api/factories";
+import type { TaskMaterializationBatchJob } from "../../application/dto/workflow.dto";
+import {
+  makeInvoiceRepo,
+  makeIssueRepo,
+  makeTaskMaterializationBatchJobRepo,
+  makeTaskRepo,
+} from "../../api/factories";
 
 /**
  * List all tasks for a workspace.
@@ -56,5 +62,23 @@ export async function getWorkspaceFlowInvoices(workspaceId: string): Promise<Inv
  */
 export async function getWorkspaceFlowInvoiceItems(invoiceId: string): Promise<InvoiceItem[]> {
   return makeInvoiceRepo().listItems(invoiceId);
+}
+
+/**
+ * List task materialization batch jobs for a workspace.
+ */
+export async function getWorkspaceFlowTaskMaterializationBatchJobs(
+  workspaceId: string,
+): Promise<TaskMaterializationBatchJob[]> {
+  return makeTaskMaterializationBatchJobRepo().findByWorkspaceId(workspaceId);
+}
+
+/**
+ * Get a single task materialization batch job by id.
+ */
+export async function getWorkspaceFlowTaskMaterializationBatchJob(
+  jobId: string,
+): Promise<TaskMaterializationBatchJob | null> {
+  return makeTaskMaterializationBatchJobRepo().findById(jobId);
 }
  

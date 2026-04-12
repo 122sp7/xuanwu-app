@@ -174,7 +174,7 @@ export class Workspace implements WorkspaceEntity {
 
   static create(command: CreateWorkspaceCommand): Workspace {
     const initialGrants: WorkspaceGrant[] =
-      command.accountType === "organization" && command.creatorUserId?.trim()
+      command.creatorUserId?.trim()
         ? [{ userId: command.creatorUserId.trim(), role: "owner" }]
         : [];
 

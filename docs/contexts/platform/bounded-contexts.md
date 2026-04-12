@@ -36,7 +36,7 @@ platform 是治理與營運支撐主域。依 bounded context 原則，它應把
 
 ## Dependency Direction
 
-- platform 子域內部一律遵守 interfaces -> application -> domain <- infrastructure。
+- platform 子域在存在對應層時必須遵守 interfaces -> application -> domain <- infrastructure；不必為形式完整而預建所有層。
 - identity、organization、billing、notification 等外部整合能力必須透過 port/adapter 進入核心。
 - domain 不得向外依賴 HTTP、Firebase、secret provider 或 message transport 細節。
 

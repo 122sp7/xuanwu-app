@@ -7,7 +7,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { toast } from "sonner";
 
 import {
   buildWorkspaceQuickAccessItems,
@@ -15,7 +14,6 @@ import {
   getWorkspaceIdFromPath,
   MAX_VISIBLE_RECENT_WORKSPACES,
   readNavPreferences,
-  buildWorkspaceContextHref,
   supportsWorkspaceSearchContext,
   type NavPreferences,
   useRecentWorkspaces,
@@ -23,9 +21,6 @@ import {
   WorkspaceQuickAccessRow,
 } from "@/modules/workspace/api";
 
-import {
-  quickCreateKnowledgePage,
-} from "./shell-quick-create";
 import {
   type DashboardSidebarProps,
   ORGANIZATION_MANAGEMENT_ITEMS,
@@ -40,10 +35,8 @@ import { DashboardSidebarBody } from "./ShellSidebarBody";
 
 export function ShellDashboardSidebar({
   pathname,
-  userId,
   activeAccount,
   workspaces,
-  workspacesHydrated,
   activeWorkspaceId,
   collapsed,
   onToggleCollapsed,
@@ -56,7 +49,6 @@ export function ShellDashboardSidebar({
     pathname,
     workspaces,
   );
-  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
   const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const localeBundle = useSidebarLocale();
@@ -102,32 +94,15 @@ export function ShellDashboardSidebar({
     ? recentWorkspaceLinks
     : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
 
-  const allWorkspaceLinks = useMemo(
-    () =>
-      workspaces
-        .map((workspace) => ({
-          id: workspace.id,
-          name: workspace.name,
-          href: buildWorkspaceContextHref(pathname, workspace.id),
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces, pathname],
-  );
-
   const section = resolveNavSection(pathname);
   const sectionMeta = SECTION_TITLES[section];
   const workspacePathId = getWorkspaceIdFromPath(pathname);
   const currentPanel = searchParams.get("panel");
   const currentWorkspaceTab = searchParams.get("tab");
   const hasSingleWorkspaceContext = section === "workspace" && Boolean(workspacePathId);
-  const hasWorkspaceToolContext =
-    Boolean(activeWorkspaceId || currentSearchWorkspaceId) &&
-    (section === "knowledge" ||
-      section === "knowledge-base" ||
-      section === "source" ||
-      section === "notebook");
+  const hasWorkspaceToolContext = false;
   const workspaceQuickAccessId =
-    workspacePathId || currentSearchWorkspaceId || (hasWorkspaceToolContext ? activeWorkspaceId ?? "" : "");
+    workspacePathId || currentSearchWorkspaceId || "";
   const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
   const workspaceSettingsHref = workspaceQuickAccessId
     ? activeAccount?.id
@@ -141,32 +116,6 @@ export function ShellDashboardSidebar({
         : [],
     [showWorkspaceQuickAccess, workspaceQuickAccessId, activeAccount?.id],
   );
-
-  async function handleQuickCreatePage() {
-    const accountId = activeAccount?.id ?? "";
-    if (!accountId || !activeWorkspaceId) {
-      toast.error(!accountId ? "目前沒有 active account，無法建立" : "請先切換到工作區，再建立頁面");
-      return;
-    }
-    setCreatingKind("page");
-    try {
-      const result = await quickCreateKnowledgePage({
-        accountId,
-        workspaceId: activeWorkspaceId,
-        createdByUserId: userId ?? accountId,
-      });
-      if (result.success) {
-        toast.success("已建立頁面");
-      } else {
-        toast.error(result.error?.message ?? "建立頁面失敗");
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("建立頁面失敗");
-    } finally {
-      setCreatingKind(null);
-    }
-  }
 
   return (
     <div className="contents">
@@ -213,14 +162,7 @@ export function ShellDashboardSidebar({
           onToggleExpanded={() => {
             setIsExpanded((prev) => !prev);
           }}
-          pathname={pathname}
-          workspacesHydrated={workspacesHydrated}
-          allWorkspaceLinks={allWorkspaceLinks}
           currentSearchWorkspaceId={currentSearchWorkspaceId}
-          creatingKind={creatingKind}
-          onQuickCreatePage={() => {
-            void handleQuickCreatePage();
-          }}
         />
       </aside>
 

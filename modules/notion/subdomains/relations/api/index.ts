@@ -22,3 +22,15 @@ export type {
   RelationCreatedEvent,
   RelationRemovedEvent,
 } from "../domain/events/RelationEvents";
+
+// ── Application DTOs ──────────────────────────────────────────────────────────
+export type {
+  CreateRelationDto,
+  RelationDto,
+} from "../application/dto/RelationDto";
+
+// ── Application contracts ─────────────────────────────────────────────────────
+export * from "../application";
+
+// Note: server-only composition and infrastructure adapters are exported from
+// `./server` to keep the default boundary runtime-safe.

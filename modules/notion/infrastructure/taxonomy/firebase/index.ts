@@ -1,0 +1,1 @@
+export { FirebaseTaxonomyRepository } from "./FirebaseTaxonomyRepository";

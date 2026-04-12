@@ -100,10 +100,10 @@ export function WorkspaceProductSpineCard({ workspace }: WorkspaceProductSpineCa
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline">
-              <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.id)}`}>AI 對話</Link>
+              <Link href={`/${encodeURIComponent(workspace.accountId)}/${encodeURIComponent(workspace.id)}?tab=AiChat`}>AI 對話</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>
+              <Link href={`/${encodeURIComponent(workspace.accountId)}/${encodeURIComponent(workspace.id)}?tab=Notebook`}>
                 RAG Query
               </Link>
             </Button>

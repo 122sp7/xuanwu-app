@@ -8,5 +8,5 @@ interface AccountWorkspaceDashboardPageProps {
 }
 
 export default function AccountWorkspaceDashboardPage({ params }: AccountWorkspaceDashboardPageProps) {
-  redirect(`/${encodeURIComponent(params.accountId)}/${encodeURIComponent(params.workspaceId)}`);
+  redirect(`/${encodeURIComponent(params.accountId)}/dashboard`);
 }

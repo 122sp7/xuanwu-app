@@ -21,3 +21,17 @@ export type {
   TaxonomyNodeCreatedEvent,
   TaxonomyNodeRemovedEvent,
 } from "../domain/events/TaxonomyEvents";
+
+// ── Application DTOs ──────────────────────────────────────────────────────────
+export type {
+  CreateTaxonomyNodeDto,
+  TaxonomyNodeDto,
+} from "../application/dto/TaxonomyDto";
+
+// ── Use cases ─────────────────────────────────────────────────────────────────
+export {
+  CreateTaxonomyNodeUseCase,
+  RemoveTaxonomyNodeUseCase,
+  ListTaxonomyRootsUseCase,
+  ListTaxonomyChildrenUseCase,
+} from "../application/use-cases/TaxonomyUseCases";

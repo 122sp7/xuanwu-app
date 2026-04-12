@@ -39,8 +39,8 @@ function buildContentBaseItems(workspaceId: string): WikiContentItemNode[] {
       href: `/workspace/${workspaceId}?tab=Overview&panel=knowledge-databases`,
       enabled: false,
     },
-    { key: "rag", label: "RAG", href: `/notebook/rag-query?workspaceId=${workspaceId}`, enabled: true },
-    { key: "ai-tools", label: "AI Tools", href: `/ai-chat?workspaceId=${workspaceId}`, enabled: true },
+    { key: "rag", label: "RAG", href: `/workspace/${workspaceId}?tab=Notebook`, enabled: true },
+    { key: "ai-tools", label: "AI Tools", href: `/workspace/${workspaceId}?tab=AiChat`, enabled: true },
   ];
 }
 

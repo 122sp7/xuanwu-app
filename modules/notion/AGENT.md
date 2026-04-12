@@ -41,6 +41,7 @@
 - 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
 - 工作區生命週期、成員管理、共享範圍屬於 workspace。
 - notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
+- browser-facing shell composition、tab orchestration、panel assembly 屬於 workspace；notion 提供下游能力，不擁有外層 UI orchestration。
 
 ## Subdomain Delivery Tiers
 

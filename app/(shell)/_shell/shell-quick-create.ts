@@ -4,7 +4,7 @@
  * Kept as a composition adapter at the app boundary.
  */
 
-import { createKnowledgePage } from "@/modules/notion/api";
+import { createKnowledgePage } from "@/modules/workspace/api";
 
 export interface QuickCreatePageInput {
   readonly accountId: string;

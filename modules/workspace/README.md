@@ -71,6 +71,12 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - Cross-module collaboration goes through `api/` only.
 - Subdomain cross-collaboration goes through subdomain `api/` only.
 
+## UI Orchestration Boundary
+
+- App-layer browser composition should prefer `modules/workspace/api/ui` and `modules/workspace/api/facade`.
+- workspace is the composition owner for notion/notebooklm panels, commands, and navigation flows rendered in the shell.
+- notion and notebooklm root `api/` surfaces provide downstream semantic capabilities for orchestrators; they are not the preferred browser-facing import path for app routes when workspace owns the flow.
+
 ## Strategic Documentation
 
 - [Context README](../../docs/contexts/workspace/README.md)

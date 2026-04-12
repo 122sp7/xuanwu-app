@@ -69,6 +69,7 @@ export type {
 export {
   WorkspaceFlowFacade,
   WorkspaceFlowTaskFacade,
+  WorkspaceFlowTaskBatchJobFacade,
   WorkspaceFlowIssueFacade,
   WorkspaceFlowInvoiceFacade,
   getWorkspaceFlowTasks,
@@ -76,9 +77,15 @@ export {
   getWorkspaceFlowIssues,
   getWorkspaceFlowInvoices,
   getWorkspaceFlowInvoiceItems,
+  getWorkspaceFlowTaskMaterializationBatchJobs,
+  getWorkspaceFlowTaskMaterializationBatchJob,
   createKnowledgeToWorkflowListener,
 } from "../subdomains/workspace-workflow/api";
 
 export type {
   KnowledgePageApprovedHandler,
 } from "../subdomains/workspace-workflow/api";
+
+// ── Orchestrated notion commands (workspace as composition owner) ─────────────
+
+export { createKnowledgePage } from "@/modules/notion/api";
