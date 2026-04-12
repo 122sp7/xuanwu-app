@@ -292,2106 +292,6 @@ export default function PublicPage() {
 }
 ````
 
-## File: app/(shell)/(legacy)/_shell/WorkspaceRouteShim.tsx
-````typescript
-"use client";
-
-import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-
-import { useApp } from "@/modules/platform/api";
-import {
-  buildWorkspaceOverviewPanelHref,
-  type WorkspaceOverviewPanel,
-  useWorkspaceContext,
-} from "@/modules/workspace/api";
-
-interface WorkspaceRouteShimProps {
-  readonly panel?: WorkspaceOverviewPanel;
-  readonly tab?: "Overview" | "Files";
-  readonly loadingMessage: string;
-}
-
-export function WorkspaceRouteShim({
-  panel,
-  tab = "Overview",
-  loadingMessage,
-}: WorkspaceRouteShimProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const {
-    state: { activeAccount },
-  } = useApp();
-  const {
-    state: { activeWorkspaceId },
-  } = useWorkspaceContext();
-
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-  const targetWorkspaceId = requestedWorkspaceId || activeWorkspaceId || "";
-  const activeAccountId = activeAccount?.id ?? "";
-
-  const targetHref = targetWorkspaceId
-    ? activeAccountId
-      ? tab === "Files"
-        ? `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(targetWorkspaceId)}?tab=Files`
-        : `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(targetWorkspaceId)}?tab=Overview${
-            panel ? `&panel=${encodeURIComponent(panel)}` : ""
-          }`
-      : tab === "Files"
-        ? `/workspace/${encodeURIComponent(targetWorkspaceId)}?tab=Files`
-        : buildWorkspaceOverviewPanelHref(targetWorkspaceId, panel)
-    : "/workspace";
-
-  useEffect(() => {
-    router.replace(targetHref);
-  }, [router, targetHref]);
-
-  return <div className="px-4 py-6 text-sm text-muted-foreground">{loadingMessage}</div>;
-}
-````
-
-## File: app/(shell)/(legacy)/ai-chat/page.tsx
-````typescript
-"use client";
-
-import { useEffect } from "react";
-import { useSearchParams } from "next/navigation";
-import { useRouter } from "next/navigation";
-
-import { useApp } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
-
-export default function AiChatRoutePage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const {
-    state: { activeAccount },
-  } = useApp();
-  const { state: wsState } = useWorkspaceContext();
-
-  const accountId = activeAccount?.id ?? "";
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-  const workspaceId = requestedWorkspaceId || wsState.activeWorkspaceId || "";
-
-  useEffect(() => {
-    if (!accountId || !workspaceId) {
-      return;
-    }
-    router.replace(
-      `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/ai-chat`,
-    );
-  }, [accountId, workspaceId, router]);
-
-  return <div className="px-4 py-6 text-sm text-muted-foreground">正在導向 AI Chat…</div>;
-}
-````
-
-## File: app/(shell)/(legacy)/dashboard/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
-
-export default function DashboardPage() {
-  return (
-    <WorkspaceRouteShim
-      loadingMessage="正在導向 Workspace Overview…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/dev-tools/dev-tools-badges.tsx
-````typescript
-"use client";
-
-import { CheckCircle2, Loader2, XCircle } from "lucide-react";
-
-export function StatusBadge({ status, errorMessage }: { status: string; errorMessage?: string }) {
-  if (status === "completed") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
-        <CheckCircle2 className="size-3" /> 完成
-      </span>
-    );
-  }
-  if (status === "processing") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
-        <Loader2 className="size-3 animate-spin" /> 處理中
-      </span>
-    );
-  }
-  if (status === "error") {
-    return (
-      <span
-        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
-        title={errorMessage}
-      >
-        <XCircle className="size-3" /> 錯誤
-      </span>
-    );
-  }
-  return <span className="text-xs text-muted-foreground">{status || "—"}</span>;
-}
-
-export function RagBadge({ status, error }: { status?: string; error?: string }) {
-  if (status === "ready") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
-        <CheckCircle2 className="size-3" /> RAG Ready
-      </span>
-    );
-  }
-  if (status === "error") {
-    return (
-      <span
-        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
-        title={error}
-      >
-        <XCircle className="size-3" /> RAG Error
-      </span>
-    );
-  }
-  if (status) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
-        <Loader2 className="size-3 animate-spin" /> {status}
-      </span>
-    );
-  }
-  return <span className="text-xs text-muted-foreground">—</span>;
-}
-````
-
-## File: app/(shell)/(legacy)/dev-tools/dev-tools-helpers.ts
-````typescript
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export interface ParseResult {
-  doc_id: string;
-  status: "processing" | "completed" | "error";
-  page_count?: number;
-  json_gcs_uri?: string;
-  error_message?: string;
-}
-
-export interface DocRecord {
-  id: string;
-  status: "processing" | "completed" | "error" | string;
-  filename: string;
-  gcs_uri: string;
-  uploaded_at: Date | null;
-  page_count?: number;
-  json_gcs_uri?: string;
-  error_message?: string;
-  rag_status?: string;
-  rag_chunk_count?: number;
-  rag_vector_count?: number;
-  rag_raw_chars?: number;
-  rag_normalized_chars?: number;
-  rag_normalization_version?: string;
-  rag_language_hint?: string;
-  rag_error?: string;
-}
-
-export type UploadStatus = "idle" | "uploading" | "waiting" | "done" | "error";
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-export const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
-export const WATCH_PATH = "uploads/";
-export const ACCEPTED_MIME: Record<string, string> = {
-  pdf: "application/pdf",
-  tif: "image/tiff",
-  tiff: "image/tiff",
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-};
-export const ACCEPTED_EXTS = ".pdf, .tif / .tiff, .png, .jpg / .jpeg";
-
-// ── Data-mapping helpers ──────────────────────────────────────────────────────
-
-export function formatDateTime(value: Date | null): string {
-  if (!value) return "—";
-  return value.toLocaleString("zh-TW", { hour12: false });
-}
-
-function deriveJsonUri(gcsUri: string): string {
-  if (!gcsUri.startsWith("gs://")) return "";
-  const withoutPrefix = gcsUri.slice(5);
-  const firstSlash = withoutPrefix.indexOf("/");
-  if (firstSlash < 0) return "";
-
-  const bucket = withoutPrefix.slice(0, firstSlash);
-  const objectPath = withoutPrefix.slice(firstSlash + 1);
-  if (!objectPath.startsWith("uploads/")) return "";
-
-  const relativePath = objectPath.slice("uploads/".length);
-  const dotIndex = relativePath.lastIndexOf(".");
-  const stem = dotIndex > -1 ? relativePath.slice(0, dotIndex) : relativePath;
-  return `gs://${bucket}/files/${stem}.json`;
-}
-
-export function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-}
-
-export function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-export function asNumber(value: unknown): number | undefined {
-  return typeof value === "number" ? value : undefined;
-}
-
-function asDate(value: unknown): Date | null {
-  if (value instanceof Date) return value;
-  if (value && typeof value === "object" && "toDate" in value) {
-    if (typeof (value as { toDate?: unknown }).toDate === "function") {
-      const converted = (value as { toDate: () => unknown }).toDate();
-      return converted instanceof Date ? converted : null;
-    }
-  }
-  return null;
-}
-
-export function mapSnapshotDoc(doc: { id: string; data: () => unknown }): DocRecord {
-  const data = asRecord(doc.data());
-  const source = asRecord(data.source);
-  const parsed = asRecord(data.parsed);
-  const rag = asRecord(data.rag);
-  const err = asRecord(data.error);
-
-  return {
-    id: doc.id,
-    status: asString(data.status, "unknown"),
-    filename: asString(source.filename, doc.id),
-    gcs_uri: asString(source.gcs_uri),
-    uploaded_at: asDate(source.uploaded_at),
-    page_count: asNumber(parsed.page_count),
-    json_gcs_uri: asString(parsed.json_gcs_uri, deriveJsonUri(asString(source.gcs_uri))),
-    error_message: asString(err.message) || undefined,
-    rag_status: asString(rag.status) || undefined,
-    rag_chunk_count: asNumber(rag.chunk_count),
-    rag_vector_count: asNumber(rag.vector_count),
-    rag_raw_chars: asNumber(rag.raw_chars),
-    rag_normalized_chars: asNumber(rag.normalized_chars),
-    rag_normalization_version: asString(rag.normalization_version) || undefined,
-    rag_language_hint: asString(rag.language_hint) || undefined,
-    rag_error: asString(rag.error) || undefined,
-  };
-}
-````
-
-## File: app/(shell)/(legacy)/dev-tools/dev-tools-parsed-docs-section.tsx
-````typescript
-"use client";
-
-/**
- * DevToolsParsedDocsSection.tsx
- * Owns: the "已解析檔案" (completed-only) table section in the Dev Tools page.
- * Receives all doc data and handlers as props; contains no state.
- */
-
-import { CheckCircle2, FlaskConical, Loader2 } from "lucide-react";
-
-import { type DocRecord } from "./dev-tools-helpers";
-import { RagBadge } from "./dev-tools-badges";
-import { formatDateTime } from "./use-dev-tools-doc-list";
-
-interface DevToolsParsedDocsSectionProps {
-  parsedDocs: DocRecord[];
-  reindexingId: string | null;
-  onViewJson: (doc: DocRecord) => void;
-  onManualProcess: (doc: DocRecord) => void;
-  formatNormalizationRatio: (doc: DocRecord) => string;
-}
-
-export function DevToolsParsedDocsSection({
-  parsedDocs,
-  reindexingId,
-  onViewJson,
-  onManualProcess,
-  formatNormalizationRatio,
-}: DevToolsParsedDocsSectionProps) {
-  return (
-    <section className="space-y-3">
-      <div className="flex items-center gap-2">
-        <CheckCircle2 className="size-4 text-emerald-600" />
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-          已解析檔案（{parsedDocs.length}）
-        </h2>
-      </div>
-      {parsedDocs.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-          尚無解析完成檔案
-        </p>
-      ) : (
-        <div className="overflow-hidden rounded-xl border border-emerald-500/20">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-sm">
-              <thead>
-                <tr className="border-b border-emerald-500/10 bg-emerald-500/5">
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Chunks / Vectors</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Normalization</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">版本 / 語系</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">JSON</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">完成時間</th>
-                </tr>
-              </thead>
-              <tbody>
-                {parsedDocs.map((doc, i) => (
-                  <tr
-                    key={`parsed-${doc.id}`}
-                    className={`border-b border-border/30 last:border-0 ${i % 2 === 0 ? "bg-background" : "bg-muted/20"}`}
-                  >
-                    <td className="px-4 py-2.5 font-mono text-xs max-w-[220px] truncate" title={doc.filename}>
-                      {doc.filename}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs font-medium">{doc.page_count ?? "—"}</td>
-                    <td className="px-4 py-2.5 text-xs">
-                      <RagBadge status={doc.rag_status} error={doc.rag_error} />
-                    </td>
-                    <td className="px-4 py-2.5 text-xs font-mono">
-                      {(doc.rag_chunk_count ?? 0).toLocaleString()} /{" "}
-                      {(doc.rag_vector_count ?? 0).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs font-mono">
-                      {formatNormalizationRatio(doc)}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs font-mono">
-                      {(doc.rag_normalization_version || "—").toUpperCase()} /{" "}
-                      {(doc.rag_language_hint || "—").toUpperCase()}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs max-w-[320px]">
-                      {doc.json_gcs_uri ? (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => { onViewJson(doc); }}
-                            className="font-mono text-left truncate text-primary hover:underline"
-                            title={doc.json_gcs_uri}
-                          >
-                            {doc.json_gcs_uri}
-                          </button>
-                          <button
-                            onClick={() => { onManualProcess(doc); }}
-                            disabled={reindexingId === doc.id}
-                            title="手動整理（Normalization + RAG）"
-                            className="inline-flex h-6 items-center gap-1 rounded-md border border-border/60 px-2 text-[11px] text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
-                          >
-                            {reindexingId === doc.id ? (
-                              <Loader2 className="size-3 animate-spin" />
-                            ) : (
-                              <FlaskConical className="size-3" />
-                            )}
-                            手動整理
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                      {formatDateTime(doc.uploaded_at)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </section>
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/dev-tools/page.tsx
-````typescript
-"use client";
-
-/**
- * Module: dev-tools page — /dev-tools
- * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
- * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
- * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
- *   Doc-list state and operations → useDevToolsDocList hook.
- *   Parsed-docs table → DevToolsParsedDocsSection component.
- */
-
-import { useRef, useState, useEffect } from "react";
-import {
-  FlaskConical,
-  FileUp,
-  AlertCircle,
-  FileText,
-  Trash2,
-  Code2,
-  ExternalLink,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-} from "lucide-react";
-
-import { useApp } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  UPLOAD_BUCKET,
-  WATCH_PATH,
-  ACCEPTED_MIME,
-  ACCEPTED_EXTS,
-  asRecord,
-  asString,
-  asNumber,
-  type ParseResult,
-  type UploadStatus,
-} from "./dev-tools-helpers";
-import { StatusBadge, RagBadge } from "./dev-tools-badges";
-import { useDevToolsDocList, formatDateTime } from "./use-dev-tools-doc-list";
-import { DevToolsParsedDocsSection } from "./dev-tools-parsed-docs-section";
-
-// ── Page component ─────────────────────────────────────────────────────────
-
-export default function DevToolsPage() {
-  const { state: appState } = useApp();
-  const { state: wsState } = useWorkspaceContext();
-  const activeAccountId = appState.activeAccount?.id ?? "";
-  const activeWorkspaceId = wsState.activeWorkspaceId ?? "";
-
-  // ── Upload state ──────────────────────────────────────────────────────────
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<UploadStatus>("idle");
-  const [result, setResult] = useState<ParseResult | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [logs, setLogs] = useState<string[]>([]);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
-
-  // ── Doc list + operations (extracted hook) ────────────────────────────────
-  const {
-    allDocs,
-    selectedDocId,
-    selectedDoc,
-    jsonContent,
-    jsonLoading,
-    deletingId,
-    reindexingId,
-    handleViewOriginal,
-    handleViewJson,
-    handleDeleteDoc,
-    handleManualProcess,
-    closeJsonPreview,
-    formatNormalizationRatio,
-  } = useDevToolsDocList(activeAccountId);
-
-  // Cleanup upload subscription on unmount
-  useEffect(() => {
-    return () => { if (unsubscribeRef.current) unsubscribeRef.current(); };
-  }, []);
-
-  function appendLog(msg: string) {
-    setLogs((prev) => [
-      ...prev,
-      `[${new Date().toISOString().split("T")[1]?.slice(0, 8)}] ${msg}`,
-    ]);
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null;
-    setSelectedFile(file);
-    setResult(null);
-    setErrorMsg(null);
-    setStatus("idle");
-    setLogs([]);
-    if (file) appendLog(`已選取：${file.name}（${(file.size / 1024).toFixed(1)} KB）`);
-  }
-
-  function buildUuidUploadPath(accountId: string, file: File) {
-    const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
-    const docId = crypto.randomUUID();
-    return { uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`, docId };
-  }
-
-  function watchDocument(docId: string) {
-    if (!activeAccountId) {
-      appendLog("❌ 缺少 active account，無法監聽文件狀態");
-      return;
-    }
-    try {
-      const db = getFirebaseFirestore();
-      const docRef = firestoreApi.doc(db, "accounts", activeAccountId, "documents", docId);
-      if (unsubscribeRef.current) unsubscribeRef.current();
-      unsubscribeRef.current = firestoreApi.onSnapshot(docRef, (snapshot) => {
-        if (!snapshot.exists()) { appendLog("等待 Firestore 初始化…"); return; }
-        const data = asRecord(snapshot.data());
-        const docStatus = asString(data.status, "unknown");
-        appendLog(`Firestore update: status=${docStatus}`);
-        if (docStatus === "completed") {
-          const parsed = asRecord(data.parsed);
-          const r: ParseResult = {
-            doc_id: docId,
-            status: "completed",
-            page_count: asNumber(parsed.page_count) ?? 0,
-            json_gcs_uri: asString(parsed.json_gcs_uri),
-          };
-          setResult(r);
-          setStatus("done");
-          appendLog(`✅ 解析完成：${asNumber(parsed.page_count) ?? 0} 頁`);
-          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-        } else if (docStatus === "error") {
-          const error = asRecord(data.error);
-          const msg = asString(error.message, "未知錯誤");
-          setErrorMsg(msg);
-          setStatus("error");
-          appendLog(`❌ 錯誤：${msg}`);
-          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-        }
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      appendLog(`❌ 監聽失敗：${msg}`);
-      setErrorMsg(msg);
-      setStatus("error");
-    }
-  }
-
-  async function handleUploadAndParse() {
-    if (!selectedFile) return;
-    if (!activeAccountId) {
-      setErrorMsg("缺少 active account，無法上傳與解析");
-      setStatus("error");
-      return;
-    }
-    setStatus("uploading");
-    setResult(null);
-    setErrorMsg(null);
-    appendLog("📤 上傳檔案到 Cloud Storage…");
-    try {
-      // Step 1: Upload to GCS
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const { uploadPath, docId } = buildUuidUploadPath(activeAccountId, selectedFile);
-      const fileRef = storageApi.ref(storage, uploadPath);
-      const snap = await storageApi.uploadBytes(fileRef, selectedFile, {
-        contentType: ACCEPTED_MIME[selectedFile.name.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream",
-        customMetadata: {
-          account_id: activeAccountId,
-          workspace_id: activeWorkspaceId,
-          filename: selectedFile.name,
-        },
-      });
-      appendLog(`✅ 上傳完成：${snap.ref.fullPath}`);
-      // Step 2: Watch Firestore for status updates
-      setStatus("waiting");
-      appendLog("⏳ 等待 parse_document 處理…");
-      watchDocument(docId);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setErrorMsg(msg);
-      setStatus("error");
-      appendLog(`❌ 上傳失敗：${msg}`);
-    }
-  }
-
-  function reset() {
-    if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-    setSelectedFile(null);
-    setResult(null);
-    setErrorMsg(null);
-    setStatus("idle");
-    setLogs([]);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
-
-  const isLoading = status === "uploading" || status === "waiting";
-  const parsedDocs = allDocs.filter((doc) => doc.status === "completed");
-  const ragReadyCount = allDocs.filter((doc) => doc.rag_status === "ready").length;
-  const ragErrorCount = allDocs.filter((doc) => doc.rag_status === "error").length;
-
-  return (
-    <div className="mx-auto max-w-2xl space-y-8">
-      {/* ── Header ─────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10">
-          <FlaskConical className="size-5 text-amber-500" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Dev Tools</h1>
-          <p className="text-xs text-muted-foreground">
-            py_fn · parse_document · Document AI · Firestore 實時監聽
-          </p>
-        </div>
-      </div>
-
-      {/* ── Stats ──────────────────────────────────────────────────── */}
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-border/60 bg-card px-3 py-2">
-          <p className="text-[11px] text-muted-foreground">全部文件</p>
-          <p className="text-lg font-semibold tracking-tight">{allDocs.length}</p>
-        </div>
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
-          <p className="text-[11px] text-emerald-700">解析完成</p>
-          <p className="text-lg font-semibold tracking-tight text-emerald-700">{parsedDocs.length}</p>
-        </div>
-        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-3 py-2">
-          <p className="text-[11px] text-blue-700">RAG Ready</p>
-          <p className="text-lg font-semibold tracking-tight text-blue-700">{ragReadyCount}</p>
-        </div>
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2">
-          <p className="text-[11px] text-destructive">RAG Error</p>
-          <p className="text-lg font-semibold tracking-tight text-destructive">{ragErrorCount}</p>
-        </div>
-      </section>
-
-      {/* ── File picker ────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-          1. 選擇檔案
-        </h2>
-        <label
-          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-8 transition
-            ${selectedFile ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
-        >
-          <FileUp className="size-8 text-muted-foreground" />
-          <div className="text-center">
-            <p className="text-sm font-medium">
-              {selectedFile ? selectedFile.name : "點擊或拖曳上傳"}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={Object.keys(ACCEPTED_MIME).join(",")}
-            className="sr-only"
-            onChange={handleFileChange}
-          />
-        </label>
-      </section>
-
-      {/* ── Actions ────────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-          2. 執行上傳 &amp; 解析
-        </h2>
-        <div className="flex gap-3">
-          <Button onClick={handleUploadAndParse} disabled={!selectedFile || isLoading} className="gap-2">
-            {isLoading ? <Loader2 className="size-4 animate-spin" /> : <FlaskConical className="size-4" />}
-            {status === "uploading" ? "上傳中…" : status === "waiting" ? "等待中…" : "開始"}
-          </Button>
-          <Button variant="outline" onClick={reset} disabled={isLoading}>
-            重置
-          </Button>
-        </div>
-      </section>
-
-      {/* ── Result ─────────────────────────────────────────────────── */}
-      {(status === "done" || status === "error") && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            3. 結果
-          </h2>
-          {status === "done" && result && (
-            <div className="rounded-xl border border-border/60 bg-card p-5 space-y-4">
-              <div className="flex items-center gap-2 text-emerald-600">
-                <CheckCircle2 className="size-4 shrink-0" />
-                <span className="text-sm font-medium">解析成功</span>
-              </div>
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <dt className="text-muted-foreground">doc_id</dt>
-                <dd className="font-mono text-xs">{result.doc_id}</dd>
-                <dt className="text-muted-foreground">page_count</dt>
-                <dd className="font-bold">{result.page_count}</dd>
-                <dt className="text-muted-foreground">JSON 位置</dt>
-                <dd className="font-mono text-xs break-all">{result.json_gcs_uri || "—"}</dd>
-              </dl>
-            </div>
-          )}
-          {status === "error" && (
-            <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-              <XCircle className="mt-0.5 size-4 shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-        </section>
-      )}
-
-      {status === "waiting" && (
-        <section className="space-y-3">
-          <div className="flex items-start gap-2 rounded-xl border border-blue-300/30 bg-blue-500/5 p-4 text-sm text-blue-600">
-            <AlertCircle className="mt-0.5 size-4 shrink-0 animate-pulse" />
-            <div>
-              <p className="font-medium">處理中…</p>
-              <p className="mt-1 text-xs opacity-75">Document AI 正在解析檔案，請稍候</p>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── All uploaded docs table ─────────────────────────────────── */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <FileText className="size-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            已上傳檔案（{allDocs.length}）
-          </h2>
-        </div>
-        {allDocs.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-            尚無上傳記錄
-          </p>
-        ) : (
-          <div className="space-y-0 overflow-hidden rounded-xl border border-border/60">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead>
-                  <tr className="border-b border-border/60 bg-muted/40">
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allDocs.map((doc, i) => (
-                    <tr
-                      key={doc.id}
-                      className={`border-b border-border/40 last:border-0 transition-colors ${
-                        selectedDocId === doc.id
-                          ? "bg-primary/8 ring-1 ring-inset ring-primary/20"
-                          : i % 2 === 0 ? "bg-background" : "bg-muted/20"
-                      }`}
-                    >
-                      <td className="px-4 py-2.5 font-mono text-xs max-w-[180px] truncate" title={doc.filename}>
-                        {doc.filename}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <StatusBadge status={doc.status} errorMessage={doc.error_message} />
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <RagBadge status={doc.rag_status} error={doc.rag_error} />
-                      </td>
-                      <td className="px-4 py-2.5 text-xs">
-                        {doc.page_count != null ? doc.page_count : "—"}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                        {formatDateTime(doc.uploaded_at)}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => { void handleViewOriginal(doc); }}
-                            disabled={!doc.gcs_uri}
-                            title="查看原始檔案"
-                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
-                          >
-                            <ExternalLink className="size-3.5" />
-                          </button>
-                          <button
-                            onClick={() => { void handleViewJson(doc); }}
-                            disabled={doc.status !== "completed" || !doc.json_gcs_uri}
-                            title="查看 JSON 解析結果"
-                            className={`inline-flex size-7 items-center justify-center rounded-md transition hover:bg-muted disabled:opacity-30 ${
-                              selectedDocId === doc.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                            }`}
-                          >
-                            <Code2 className="size-3.5" />
-                          </button>
-                          <button
-                            onClick={() => { void handleDeleteDoc(doc); }}
-                            disabled={deletingId === doc.id}
-                            title="刪除"
-                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
-                          >
-                            {deletingId === doc.id
-                              ? <Loader2 className="size-3.5 animate-spin" />
-                              : <Trash2 className="size-3.5" />}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* JSON preview panel */}
-            {selectedDocId && (
-              <div className="border-t border-border/60 bg-[#0d1117]">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
-                  <div className="flex items-center gap-2 text-xs text-green-400">
-                    <Code2 className="size-3.5" />
-                    <span className="font-mono">
-                      {selectedDoc?.filename ?? selectedDocId} — JSON
-                    </span>
-                  </div>
-                  <button
-                    onClick={closeJsonPreview}
-                    className="text-white/30 hover:text-white/70 transition text-xs"
-                  >
-                    ✕ 關閉
-                  </button>
-                </div>
-                {selectedDoc?.rag_status === "error" && (
-                  <div className="border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs text-destructive">
-                    RAG 失敗：{selectedDoc.rag_error || "未知錯誤"}
-                  </div>
-                )}
-                <div className="max-h-80 overflow-y-auto p-4">
-                  {jsonLoading ? (
-                    <div className="flex items-center gap-2 text-green-400/60 text-xs">
-                      <Loader2 className="size-3.5 animate-spin" /> 載入中…
-                    </div>
-                  ) : (
-                    <pre className="font-mono text-xs leading-relaxed text-green-400 whitespace-pre-wrap break-words">
-                      {jsonContent}
-                    </pre>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* ── Parsed docs table (extracted component) ─────────────────── */}
-      <DevToolsParsedDocsSection
-        parsedDocs={parsedDocs}
-        reindexingId={reindexingId}
-        onViewJson={(doc) => { void handleViewJson(doc); }}
-        onManualProcess={(doc) => { void handleManualProcess(doc, appendLog); }}
-        formatNormalizationRatio={formatNormalizationRatio}
-      />
-
-      {/* ── Console log ────────────────────────────────────────────── */}
-      {logs.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            Console
-          </h2>
-          <div className="max-h-48 overflow-y-auto rounded-xl bg-[#0d1117] p-4">
-            {logs.map((line, i) => (
-              <p key={i} className="font-mono text-xs leading-relaxed text-green-400">
-                {line}
-              </p>
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/dev-tools/use-dev-tools-doc-list.ts
-````typescript
-"use client";
-
-/**
- * useDevToolsDocList.ts
- * Owns: Firestore subscription for the document list, JSON-preview state,
- *   and all per-document async operations (view, delete, reindex).
- */
-
-import { useEffect, useRef, useState } from "react";
-
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
-
-import {
-  UPLOAD_BUCKET,
-  mapSnapshotDoc,
-  formatDateTime,
-  type DocRecord,
-} from "./dev-tools-helpers";
-
-// ── Public state ───────────────────────────────────────────────────────────
-
-export interface DocListState {
-  allDocs: DocRecord[];
-  selectedDocId: string | null;
-  selectedDoc: DocRecord | undefined;
-  jsonContent: string | null;
-  jsonLoading: boolean;
-  deletingId: string | null;
-  reindexingId: string | null;
-}
-
-export interface DocListHandlers {
-  handleViewOriginal: (doc: DocRecord) => Promise<void>;
-  handleViewJson: (doc: DocRecord) => Promise<void>;
-  handleDeleteDoc: (doc: DocRecord) => Promise<void>;
-  handleManualProcess: (doc: DocRecord, appendLog: (msg: string) => void) => Promise<void>;
-  closeJsonPreview: () => void;
-  formatNormalizationRatio: (doc: DocRecord) => string;
-}
-
-// ── Hook ───────────────────────────────────────────────────────────────────
-
-export function useDevToolsDocList(activeAccountId: string): DocListState & DocListHandlers {
-  const [allDocs, setAllDocs] = useState<DocRecord[]>([]);
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
-  const [jsonContent, setJsonContent] = useState<string | null>(null);
-  const [jsonLoading, setJsonLoading] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [reindexingId, setReindexingId] = useState<string | null>(null);
-
-  const unsubscribeListRef = useRef<(() => void) | null>(null);
-
-  // Subscribe to all documents for this account
-  useEffect(() => {
-    if (!activeAccountId) {
-      setAllDocs([]);
-      return;
-    }
-    try {
-      const db = getFirebaseFirestore();
-      const colRef = firestoreApi.collection(db, "accounts", activeAccountId, "documents");
-      unsubscribeListRef.current = firestoreApi.onSnapshot(colRef, (snapshot) => {
-        const docs: DocRecord[] = snapshot.docs.map(mapSnapshotDoc);
-        docs.sort((a, b) => (b.uploaded_at?.getTime() ?? 0) - (a.uploaded_at?.getTime() ?? 0));
-        setAllDocs(docs);
-      });
-    } catch (_err) {}
-    return () => { unsubscribeListRef.current?.(); };
-  }, [activeAccountId]);
-
-  function closeJsonPreview() {
-    setSelectedDocId(null);
-    setJsonContent(null);
-  }
-
-  async function handleViewOriginal(doc: DocRecord) {
-    if (!doc.gcs_uri) return;
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const fileRef = storageApi.ref(storage, doc.gcs_uri);
-      const url = await storageApi.getDownloadURL(fileRef);
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch (err: unknown) {
-      alert(`無法取得下載連結：${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
-  async function handleViewJson(doc: DocRecord) {
-    if (!doc.json_gcs_uri) return;
-    if (selectedDocId === doc.id && jsonContent !== null) {
-      closeJsonPreview();
-      return;
-    }
-    setSelectedDocId(doc.id);
-    setJsonContent(null);
-    setJsonLoading(true);
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const jsonRef = storageApi.ref(storage, doc.json_gcs_uri);
-      const url = await storageApi.getDownloadURL(jsonRef);
-      const res = await fetch(url);
-      const text = await res.text();
-      setJsonContent(text);
-    } catch (err: unknown) {
-      setJsonContent(`// 載入失敗：${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setJsonLoading(false);
-    }
-  }
-
-  async function handleDeleteDoc(doc: DocRecord) {
-    if (
-      !window.confirm(
-        `確定刪除「${doc.filename}」？\n此操作將同時刪除 Firestore 記錄與 GCS 檔案，無法復原。`,
-      )
-    )
-      return;
-    setDeletingId(doc.id);
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const db = getFirebaseFirestore();
-      if (doc.gcs_uri) {
-        try { await storageApi.deleteObject(storageApi.ref(storage, doc.gcs_uri)); } catch (_err) {}
-      }
-      if (doc.json_gcs_uri) {
-        try { await storageApi.deleteObject(storageApi.ref(storage, doc.json_gcs_uri)); } catch (_err) {}
-      }
-      if (!activeAccountId) throw new Error("缺少 active account");
-      await firestoreApi.deleteDoc(
-        firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id),
-      );
-      if (selectedDocId === doc.id) closeJsonPreview();
-    } catch (err: unknown) {
-      alert(`刪除失敗：${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setDeletingId(null);
-    }
-  }
-
-  async function handleManualProcess(
-    doc: DocRecord,
-    appendLog: (msg: string) => void,
-  ) {
-    if (!doc.json_gcs_uri) return;
-    if (!activeAccountId) {
-      alert("缺少 active account，無法手動整理");
-      return;
-    }
-    setReindexingId(doc.id);
-    appendLog(`🧹 手動整理開始：${doc.id}`);
-    try {
-      const functions = getFirebaseFunctions("asia-southeast1");
-      const callable = functionsApi.httpsCallable(functions, "rag_reindex_document");
-      await callable({
-        account_id: activeAccountId,
-        doc_id: doc.id,
-        json_gcs_uri: doc.json_gcs_uri,
-        source_gcs_uri: doc.gcs_uri,
-        filename: doc.filename,
-        page_count: doc.page_count ?? 0,
-      });
-      appendLog(`✅ 手動整理完成：${doc.id}`);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      appendLog(`❌ 手動整理失敗：${msg}`);
-      alert(`手動整理失敗：${msg}`);
-    } finally {
-      setReindexingId(null);
-    }
-  }
-
-  function formatNormalizationRatio(doc: DocRecord): string {
-    const raw = doc.rag_raw_chars ?? 0;
-    const normalized = doc.rag_normalized_chars ?? 0;
-    if (raw <= 0 || normalized <= 0) return "—";
-    const ratio = (normalized / raw) * 100;
-    return `${normalized.toLocaleString()} / ${raw.toLocaleString()} (${ratio.toFixed(1)}%)`;
-  }
-
-  const selectedDoc = selectedDocId ? allDocs.find((d) => d.id === selectedDocId) : undefined;
-
-  return {
-    allDocs,
-    selectedDocId,
-    selectedDoc,
-    jsonContent,
-    jsonLoading,
-    deletingId,
-    reindexingId,
-    handleViewOriginal,
-    handleViewJson,
-    handleDeleteDoc,
-    handleManualProcess,
-    closeJsonPreview,
-    formatNormalizationRatio,
-    // re-export for table columns
-  };
-}
-
-// Re-export for convenience in table components
-export { formatDateTime };
-````
-
-## File: app/(shell)/(legacy)/knowledge-base/articles/[articleId]/page.tsx
-````typescript
-"use client";
-
-import { useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-
-import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
-
-export default function ArticleDetailPageRoute() {
-  const params = useParams<{ articleId: string }>();
-  const router = useRouter();
-  const { accountId, workspaceId } = useWorkspaceOrchestrationContext();
-
-  useEffect(() => {
-    if (!accountId || !workspaceId || !params?.articleId) {
-      return;
-    }
-    router.replace(
-      `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-base/articles/${encodeURIComponent(params.articleId)}`,
-    );
-  }, [accountId, workspaceId, params?.articleId, router]);
-
-  return null;
-}
-````
-
-## File: app/(shell)/(legacy)/knowledge-base/articles/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
-
-export default function KnowledgeBaseArticlesPage() {
-  return (
-    <WorkspaceRouteShim
-      panel="knowledge-base-articles"
-      loadingMessage="正在導向 Workspace Overview（Knowledge Base Articles）…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/knowledge-base/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
-
-export default function KnowledgeBasePage() {
-  return (
-    <WorkspaceRouteShim
-      panel="knowledge-base-articles"
-      loadingMessage="正在導向 Workspace Overview（Knowledge Base Articles）…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/knowledge-database/databases/[databaseId]/forms/page.tsx
-````typescript
-"use client";
-
-import { useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-
-import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
-
-export default function DatabaseFormsPageRoute() {
-  const params = useParams<{ databaseId: string }>();
-  const router = useRouter();
-  const { accountId, workspaceId } = useWorkspaceOrchestrationContext();
-
-  useEffect(() => {
-    if (!accountId || !workspaceId || !params?.databaseId) {
-      return;
-    }
-    router.replace(
-      `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-database/databases/${encodeURIComponent(params.databaseId)}/forms`,
-    );
-  }, [accountId, workspaceId, params?.databaseId, router]);
-
-  return null;
-}
-````
-
-## File: app/(shell)/(legacy)/knowledge-database/databases/[databaseId]/page.tsx
-````typescript
-"use client";
-
-import { useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-
-import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
-
-export default function DatabaseDetailPageRoute() {
-  const params = useParams<{ databaseId: string }>();
-  const router = useRouter();
-  const { accountId, workspaceId } = useWorkspaceOrchestrationContext();
-
-  useEffect(() => {
-    if (!accountId || !workspaceId || !params?.databaseId) {
-      return;
-    }
-    router.replace(
-      `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-database/databases/${encodeURIComponent(params.databaseId)}`,
-    );
-  }, [accountId, workspaceId, params?.databaseId, router]);
-
-  return null;
-}
-````
-
-## File: app/(shell)/(legacy)/knowledge-database/databases/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
-
-export default function KnowledgeDatabaseDatabasesPage() {
-  return (
-    <WorkspaceRouteShim
-      panel="knowledge-databases"
-      loadingMessage="正在導向 Workspace Overview（Knowledge Databases）…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/knowledge-database/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
-
-export default function KnowledgeDatabasePage() {
-  return (
-    <WorkspaceRouteShim
-      panel="knowledge-databases"
-      loadingMessage="正在導向 Workspace Overview（Knowledge Databases）…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/knowledge/block-editor/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
-
-export default function KnowledgeBlockEditorPage() {
-  return (
-    <WorkspaceRouteShim
-      panel="knowledge-pages"
-      loadingMessage="正在導向 Workspace Overview（Knowledge Pages）…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/knowledge/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
-
-export default function KnowledgeHubPage() {
-  return (
-    <WorkspaceRouteShim
-      panel="knowledge-pages"
-      loadingMessage="正在導向 Workspace Overview（Knowledge Pages）…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/knowledge/pages/[pageId]/page.tsx
-````typescript
-"use client";
-
-import { useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-
-import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
-
-export default function KnowledgePageDetailPageRoute() {
-  const params = useParams<{ pageId: string }>();
-  const router = useRouter();
-  const { accountId, activeWorkspaceId } = useWorkspaceOrchestrationContext();
-
-  useEffect(() => {
-    if (!accountId || !activeWorkspaceId || !params?.pageId) {
-      return;
-    }
-    router.replace(
-      `/${encodeURIComponent(accountId)}/${encodeURIComponent(activeWorkspaceId)}/knowledge/pages/${encodeURIComponent(params.pageId)}`,
-    );
-  }, [accountId, activeWorkspaceId, params?.pageId, router]);
-
-  return null;
-}
-````
-
-## File: app/(shell)/(legacy)/knowledge/pages/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
-
-export default function KnowledgePagesPage() {
-  return (
-    <WorkspaceRouteShim
-      panel="knowledge-pages"
-      loadingMessage="正在導向 Workspace Overview（Knowledge Pages）…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/notebook/page.tsx
-````typescript
-"use client";
-
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-
-import { useApp } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
-
-export default function NotebookPage() {
-  const router = useRouter();
-  const {
-    state: { activeAccount },
-  } = useApp();
-  const {
-    state: { activeWorkspaceId },
-  } = useWorkspaceContext();
-
-  const accountId = activeAccount?.id ?? "";
-  const workspaceId = activeWorkspaceId ?? "";
-
-  useEffect(() => {
-    if (!accountId || !workspaceId) {
-      return;
-    }
-    router.replace(
-      `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/notebook/rag-query`,
-    );
-  }, [accountId, workspaceId, router]);
-
-  if (!accountId || !workspaceId) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        請先選擇工作區
-      </div>
-    );
-  }
-
-  return <div className="px-4 py-6 text-sm text-muted-foreground">正在導向 Notebook…</div>;
-}
-````
-
-## File: app/(shell)/(legacy)/notebook/rag-query/page.tsx
-````typescript
-"use client";
-
-import { useEffect } from "react";
-import { useSearchParams } from "next/navigation";
-import { useRouter } from "next/navigation";
-
-import { useApp } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
-
-export default function NotebookRagQueryPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const {
-    state: { activeAccount },
-  } = useApp();
-  const { state: wsState } = useWorkspaceContext();
-
-  const accountId = activeAccount?.id ?? "";
-  const requestedWorkspaceId = searchParams.get("workspaceId") ?? "";
-  const workspaceId = requestedWorkspaceId || wsState.activeWorkspaceId || "";
-
-  useEffect(() => {
-    if (!accountId || !workspaceId) {
-      return;
-    }
-
-    router.replace(
-      `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/notebook/rag-query`,
-    );
-  }, [accountId, workspaceId, router]);
-
-  if (!accountId || !workspaceId) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        請先選擇工作區
-      </div>
-    );
-  }
-
-  return <div className="px-4 py-6 text-sm text-muted-foreground">正在導向 Notebook RAG 查詢…</div>;
-}
-````
-
-## File: app/(shell)/(legacy)/organization/_utils.ts
-````typescript
-export function formatDateTime(value: string | Date | null | undefined): string {
-  if (!value) return "—";
-  try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(value instanceof Date ? value : new Date(value));
-  } catch {
-    return value instanceof Date ? value.toISOString() : String(value);
-  }
-}
-````
-
-## File: app/(shell)/(legacy)/organization/audit/_components/OrganizationAuditPage.tsx
-````typescript
-"use client";
-
-import { useEffect, useMemo, useState } from "react";
-
-import { AuditStream, getOrganizationAuditLogs } from "@/modules/workspace/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-export interface OrganizationAuditPageProps {
-  organizationId: string | null;
-  workspaces: Record<string, WorkspaceEntity>;
-  workspacesHydrated: boolean;
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function formatDateTime(value: string | Date | null | undefined): string {
-  if (!value) return "—";
-  try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(value instanceof Date ? value : new Date(value));
-  } catch {
-    return value instanceof Date ? value.toISOString() : String(value);
-  }
-}
-
-const MAX_DISPLAYED_AUDIT_LOGS = 50;
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function OrganizationAuditPage({
-  organizationId,
-  workspaces,
-  workspacesHydrated,
-}: OrganizationAuditPageProps) {
-  const [auditLogs, setAuditLogs] = useState<
-    Awaited<ReturnType<typeof getOrganizationAuditLogs>>
-  >([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  // workspaceNameById is derived from the workspaces prop — no extra fetch needed.
-  const workspaceNameById = useMemo(
-    () => new Map(Object.values(workspaces).map((w) => [w.id, w.name])),
-    [workspaces],
-  );
-
-  useEffect(() => {
-    if (!organizationId || !workspacesHydrated) return;
-    let cancelled = false;
-    const workspaceIds = Object.keys(workspaces);
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const logs = await getOrganizationAuditLogs(workspaceIds, MAX_DISPLAYED_AUDIT_LOGS);
-        if (!cancelled) {
-          setAuditLogs(logs);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setAuditLogs([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [organizationId, workspacesHydrated, workspaces]);
-
-  if (!organizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">稽核</h1>
-        <p className="mt-1 text-sm text-muted-foreground">組織下所有工作區的 audit log 彙整。</p>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Audit</CardTitle>
-          <CardDescription>組織下所有工作區的 audit log 彙整。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入稽核資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取稽核資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && auditLogs.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的 audit logs。</p>
-          )}
-          {loadState === "loaded" &&
-            auditLogs.slice(0, MAX_DISPLAYED_AUDIT_LOGS).map((log) => (
-              <div key={log.id} className="rounded-lg border border-border/40 px-3 py-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium">{log.action}</p>
-                  <Badge variant="outline">{log.source}</Badge>
-                  <Badge variant="secondary">
-                    {workspaceNameById.get(log.workspaceId) ?? log.workspaceId}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{log.detail || "—"}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {formatDateTime(log.occurredAtISO)}
-                </p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      {/* ── 稽核時間軸（新版 AuditStream）─────────────────────────────── */}
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>稽核時間軸</CardTitle>
-          <CardDescription>
-            以時間軸視覺化呈現稽核事件；嚴重程度由色點標示（藍 = 中、橘 = 高、紅 = 嚴重）。
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AuditStream logs={auditLogs} height={500} />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/organization/audit/page.tsx
-````typescript
-"use client";
-
-import { useApp, isActiveOrganizationAccount } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
-import { OrganizationAuditPage } from "./_components/OrganizationAuditPage";
-
-export default function OrganizationAuditPageRoute() {
-  const { state: appState } = useApp();
-  const { state: wsState } = useWorkspaceContext();
-  const { activeAccount } = appState;
-  const organizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  return (
-    <OrganizationAuditPage
-      organizationId={organizationId}
-      workspaces={wsState.workspaces}
-      workspacesHydrated={wsState.workspacesHydrated}
-    />
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/organization/content/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
-
-export default function OrganizationKnowledgePage() {
-  return (
-    <WorkspaceRouteShim
-      panel="knowledge-pages"
-      loadingMessage="正在導向 Workspace Overview（Knowledge Pages）…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/organization/daily/page.tsx
-````typescript
-"use client";
-
-import { useApp } from "@/modules/platform/api";
-import { WorkspaceFeedAccountView } from "@/modules/workspace/api";
-import { isActiveOrganizationAccount } from "@/modules/platform/api";
-
-export default function OrganizationDailyPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <section className="mx-auto max-w-4xl space-y-6">
-      <header className="rounded-3xl border border-border/60 bg-card/50 p-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold">Account Workspace Feed</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              聚合名下所有 workspace 的 feed，並提供 Reply / Repost / Like / View / Bookmark / Share 互動。
-            </p>
-          </div>
-          <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-            live
-          </div>
-        </div>
-      </header>
-
-      <WorkspaceFeedAccountView accountId={activeOrganizationId} />
-    </section>
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/organization/members/page.tsx
-````typescript
-"use client";
-
-import { useApp, isActiveOrganizationAccount, MembersPage } from "@/modules/platform/api"
-
-export default function OrganizationMembersPage() {
-  const { state: { activeAccount } } = useApp();
-  const organizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
-  return <MembersPage organizationId={organizationId} />;
-}
-````
-
-## File: app/(shell)/(legacy)/organization/page.tsx
-````typescript
-"use client";
-
-/**
- * Organization Overview Page — /organization
- * Lists organizations visible to the current user and allows switching
- * to an organization account context.
- * Section pages live under /organization/[section].
- */
-
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import type { AccountEntity } from "@/modules/platform/api";
-import { isActiveOrganizationAccount } from "@/modules/platform/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-
-export default function OrganizationPage() {
-  const router = useRouter();
-  const { state: appState, dispatch } = useApp();
-  const { state: authState } = useAuth();
-  const { user } = authState;
-  const { accounts, activeAccount, accountsHydrated, bootstrapPhase } = appState;
-
-  const orgList = Object.values(accounts);
-  const activeOrganizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  function handleSwitch(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-    router.replace("/workspace");
-  }
-
-  function handleSwitchToPersonal() {
-    if (!user) return;
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: user });
-    router.replace("/workspace");
-  }
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Account Context Switcher</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          先選擇個人或組織帳號情境，再回到 workspace-first 主流程。
-        </p>
-      </div>
-
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="text-base font-semibold">Recommended flow</h2>
-        <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
-          <li>
-            <span className="font-medium text-foreground">1. Identity</span>：登入後確認你目前要操作的個人／組織帳號。
-          </li>
-          <li>
-            <span className="font-medium text-foreground">2. Organization</span>：在這裡切換 active account。
-          </li>
-          <li>
-            <span className="font-medium text-foreground">3. Workspace</span>：回到工作區，再進入 Knowledge、知識頁面、Notebook / AI。
-          </li>
-        </ol>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button asChild size="sm">
-            <Link href="/workspace">回到 Workspace Hub</Link>
-          </Button>
-          {activeOrganizationId && (
-            <Button asChild size="sm" variant="outline">
-              <Link href="/organization/members">組織治理模組</Link>
-            </Button>
-          )}
-        </div>
-      </section>
-
-      {/* Quick-access dashboard — visible only when an org context is active */}
-      {activeOrganizationId && (
-        <section className="space-y-3">
-          <h2 className="text-base font-semibold">組織功能</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {[
-              { href: "/organization/members", title: "成員管理", desc: "邀請與管理組織成員" },
-              { href: "/organization/teams", title: "團隊管理", desc: "建立與編輯團隊" },
-              { href: "/organization/permissions", title: "權限政策", desc: "設定存取規則" },
-              { href: "/organization/workspaces", title: "工作區", desc: "組織下的工作區清單" },
-              { href: "/organization/schedule", title: "工作需求排程", desc: "排程與容量總覽" },
-              { href: "/organization/audit", title: "稽核記錄", desc: "操作歷史追蹤" },
-              { href: "/organization/daily", title: "動態牆", desc: "組織工作區動態" },
-            ].map((item) => (
-              <Link key={item.href} href={item.href} className="group">
-                <Card className="h-full transition-colors group-hover:border-primary/50 group-hover:bg-accent/40">
-                  <CardHeader className="pb-2 pt-4">
-                    <CardTitle className="text-sm">{item.title}</CardTitle>
-                    <CardDescription className="text-xs">{item.desc}</CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {!accountsHydrated && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          {bootstrapPhase === "seeded"
-            ? "正在同步你的組織清單，完成後就能切換到對應的組織上下文。"
-            : "正在載入組織資料…"}
-        </div>
-      )}
-
-      {/* Personal account */}
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="mb-4 text-base font-semibold">Personal Account</h2>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-medium">{user?.name ?? "—"}</p>
-            <p className="text-xs text-muted-foreground">{user?.email}</p>
-          </div>
-          {activeAccount?.id === user?.id ? (
-            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-              Active
-            </span>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleSwitchToPersonal}
-            >
-              Switch
-            </Button>
-          )}
-        </div>
-      </section>
-
-      {/* Organizations */}
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="mb-4 text-base font-semibold">
-          Organizations
-          <span className="ml-2 text-xs font-normal text-muted-foreground">
-            ({orgList.length})
-          </span>
-        </h2>
-
-        {orgList.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            You are not a member of any organization yet.
-          </p>
-        ) : (
-          <ul className="space-y-3">
-            {orgList.map((org) => (
-              <li
-                key={org.id}
-                className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3"
-              >
-                <div>
-                  <p className="font-medium">{org.name}</p>
-                  {org.description && (
-                    <p className="text-xs text-muted-foreground">{org.description}</p>
-                  )}
-                </div>
-                {activeAccount?.id === org.id ? (
-                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                    Active
-                  </span>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleSwitch(org)}
-                  >
-                    Switch
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {activeOrganizationId && (
-        <p className="text-sm text-muted-foreground">
-          已切換組織情境；下一步建議先回到 Workspace Hub，再從工作區進入知識與協作模組。
-        </p>
-      )}
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/organization/permissions/page.tsx
-````typescript
-"use client";
-
-import { useApp, isActiveOrganizationAccount, PermissionsPage } from "@/modules/platform/api"
-
-export default function OrganizationPermissionsPage() {
-  const { state: { activeAccount } } = useApp();
-  const organizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
-  return <PermissionsPage organizationId={organizationId} />;
-}
-````
-
-## File: app/(shell)/(legacy)/organization/schedule/dispatcher/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-
-/**
- * Dispatcher page — redirects to the organization schedule view.
- * Route: /organization/schedule/dispatcher
- */
-export default function DispatcherPage() {
-  redirect("/organization/schedule");
-}
-````
-
-## File: app/(shell)/(legacy)/organization/schedule/page.tsx
-````typescript
-"use client";
-
-import { useApp } from "@/modules/platform/api";
-import { AccountSchedulingView } from "@/modules/workspace/api";
-import { isActiveOrganizationAccount } from "@/modules/platform/api";
-
-export default function OrganizationSchedulePage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-
-  const activeOrganizationId = isActiveOrganizationAccount(activeAccount)
-    ? activeAccount.id
-    : null;
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <section className="flex flex-col gap-6 px-4 py-6">
-      <header className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">
-          Account Scheduling
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          工作需求總覽
-        </h1>
-      </header>
-
-      <AccountSchedulingView
-        accountId={activeOrganizationId}
-        currentUserId={activeOrganizationId}
-      />
-    </section>
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/organization/teams/page.tsx
-````typescript
-"use client";
-
-import { useApp, isActiveOrganizationAccount, TeamsPage } from "@/modules/platform/api"
-
-export default function OrganizationTeamsPage() {
-  const { state: { activeAccount } } = useApp();
-  const organizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
-  return <TeamsPage organizationId={organizationId} />;
-}
-````
-
-## File: app/(shell)/(legacy)/organization/workspaces/page.tsx
-````typescript
-"use client";
-
-import { useApp } from "@/modules/platform/api";
-import { OrganizationWorkspacesScreen } from "@/modules/workspace/api";
-import { isActiveOrganizationAccount } from "@/modules/platform/api";
-
-export default function OrganizationWorkspacesPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  return <OrganizationWorkspacesScreen accountId={activeOrganizationId} />;
-}
-````
-
-## File: app/(shell)/(legacy)/settings/general/page.tsx
-````typescript
-/**
- * /settings/general — redirect to workspace (removed from MVP nav, Occam's Razor)
- */
-import { redirect } from "next/navigation";
-
-export default function SettingsGeneralPage() {
-  redirect("/workspace");
-}
-````
-
-## File: app/(shell)/(legacy)/settings/notifications/page.tsx
-````typescript
-"use client";
-
-import { useAuth, NotificationsPage } from "@/modules/platform/api"
-
-export default function NotificationCenterPage() {
-  const { state: authState } = useAuth();
-  const recipientId = authState.user?.id ?? "";
-  return <NotificationsPage recipientId={recipientId} />;
-}
-````
-
-## File: app/(shell)/(legacy)/settings/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
-
-export default function SettingsPage() {
-  return (
-    <WorkspaceRouteShim
-      panel="settings"
-      loadingMessage="正在導向 Workspace Settings…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/settings/profile/page.tsx
-````typescript
-"use client";
-
-import { SettingsProfileRouteScreen, useAuth } from "@/modules/platform/api";
-
-export default function SettingsProfilePage() {
-  const { state: authState } = useAuth();
-
-  return (
-    <SettingsProfileRouteScreen
-      actorId={authState.user?.id ?? null}
-      fallbackDisplayName={authState.user?.name ?? ""}
-    />
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/source/documents/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
-
-export default function SourceDocumentsPage() {
-  return (
-    <WorkspaceRouteShim
-      tab="Files"
-      loadingMessage="正在導向 Workspace Files…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/source/libraries/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
-
-export default function SourceLibrariesPage() {
-  return (
-    <WorkspaceRouteShim
-      panel="source-libraries"
-      loadingMessage="正在導向 Workspace Overview（Source Libraries）…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/source/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
-
-export default function SourcePage() {
-  return (
-    <WorkspaceRouteShim
-      panel="source-libraries"
-      loadingMessage="正在導向 Workspace Overview（Source Libraries）…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/(legacy)/workspace-feed/page.tsx
-````typescript
-"use client";
-
-/**
- * Route: /workspace-feed
- * Purpose: Workspace activity feed — shows posts, reactions, and replies for the
- *          currently active workspace.
- */
-
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-
-import { useApp } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
-
-export default function WorkspaceFeedPage() {
-  const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: wsState } = useWorkspaceContext();
-  const accountId = appState.activeAccount?.id ?? "";
-  const workspaceId = wsState.activeWorkspaceId ?? "";
-
-  useEffect(() => {
-    if (!accountId || !workspaceId) {
-      return;
-    }
-    router.replace(
-      `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/workspace-feed`,
-    );
-  }, [accountId, workspaceId, router]);
-
-  if (!accountId || !workspaceId) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        請先選擇工作區
-      </div>
-    );
-  }
-
-  return <div className="px-4 py-6 text-sm text-muted-foreground">正在導向 Workspace Feed…</div>;
-}
-````
-
 ## File: app/globals.css
 ````css
 @import "tailwindcss";
@@ -2641,6 +541,15 @@ export type { IThreadRepository } from "../domain/repositories/IThreadRepository
 export { saveThread, loadThread } from "../interfaces/_actions/thread.actions";
 ````
 
+## File: modules/notebooklm/subdomains/conversation/application/dto/conversation.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the conversation subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type { Thread } from "../../domain/entities/thread";
+````
+
 ## File: modules/notebooklm/subdomains/conversation/domain/entities/message.ts
 ````typescript
 /**
@@ -2687,6 +596,22 @@ import type { Thread } from "../entities/thread";
 export interface IThreadRepository {
   save(accountId: string, thread: Thread): Promise<void>;
   getById(accountId: string, threadId: string): Promise<Thread | null>;
+}
+````
+
+## File: modules/notebooklm/subdomains/conversation/interfaces/_actions/thread.actions.ts
+````typescript
+"use server";
+
+import type { Thread } from "../../application/dto/conversation.dto";
+import { makeThreadRepo } from "../../api/factories";
+
+export async function saveThread(accountId: string, thread: Thread): Promise<void> {
+  await makeThreadRepo().save(accountId, thread);
+}
+
+export async function loadThread(accountId: string, threadId: string): Promise<Thread | null> {
+  return makeThreadRepo().getById(accountId, threadId);
 }
 ````
 
@@ -2742,6 +667,18 @@ export type { NotebookRepository } from "../domain/repositories/NotebookReposito
 export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-notebook-response.use-case";
 
 export { generateNotebookResponse } from "../interfaces/_actions/generate-notebook-response.actions";
+````
+
+## File: modules/notebooklm/subdomains/notebook/application/dto/notebook.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the notebook subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type {
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "../../domain/entities/AgentGeneration";
 ````
 
 ## File: modules/notebooklm/subdomains/notebook/application/use-cases/generate-notebook-response.use-case.ts
@@ -2806,6 +743,25 @@ import type {
 
 export interface NotebookRepository {
   generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>;
+}
+````
+
+## File: modules/notebooklm/subdomains/notebook/interfaces/_actions/generate-notebook-response.actions.ts
+````typescript
+"use server";
+
+import type {
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "../../application/dto/notebook.dto";
+import { GenerateNotebookResponseUseCase } from "../../application/use-cases/generate-notebook-response.use-case";
+import { makeNotebookRepo } from "../../api/factories";
+
+export async function generateNotebookResponse(
+  input: GenerateNotebookResponseInput,
+): Promise<GenerateNotebookResponseResult> {
+  const useCase = new GenerateNotebookResponseUseCase(makeNotebookRepo());
+  return useCase.execute(input);
 }
 ````
 
@@ -2958,6 +914,16 @@ export type SourceFileCommandErrorCode =
   | "FILE_INVALID_INPUT"
   | "FILE_DELETE_FAILED"
   | "FILE_RENAME_FAILED";
+````
+
+## File: modules/notebooklm/subdomains/source/application/dto/source.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the source subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export { resolveSourceOrganizationId } from "../../domain/services/resolve-source-organization-id.service";
+export type { RagDocumentRecord } from "../../domain/entities/RagDocument";
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/use-cases/register-rag-document.use-case.ts
@@ -4831,6 +2797,16 @@ export const RequestArticleReviewSchema = z.object({
 });
 ````
 
+## File: modules/notion/subdomains/authoring/application/dto/authoring.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the authoring subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type { ArticleSnapshot, ArticleStatus, ArticleVerificationState } from "../../domain/aggregates/Article";
+export type { CategorySnapshot } from "../../domain/aggregates/Category";
+````
+
 ## File: modules/notion/subdomains/authoring/application/dto/CategoryDto.ts
 ````typescript
 /**
@@ -5734,11 +3710,391 @@ export {
 } from "./category.actions";
 ````
 
+## File: modules/notion/subdomains/authoring/interfaces/components/ArticleDialog.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notion/subdomains/authoring
+ * Layer: interfaces/components
+ * Purpose: Dialog for creating and editing Knowledge Base articles.
+ */
+
+import { useEffect, useState, useTransition } from "react";
+import { X } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@ui-shadcn/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+
+import { createArticle, updateArticle } from "../_actions/article.actions";
+import type { ArticleSnapshot } from "../../application/dto/authoring.dto";
+import type { CategorySnapshot } from "../../application/dto/authoring.dto";
+
+interface ArticleDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+  categories: CategorySnapshot[];
+  /** Article to edit — omit for create mode */
+  article?: ArticleSnapshot;
+  onSuccess?: (articleId?: string) => void;
+}
+
+export function ArticleDialog({
+  open,
+  onOpenChange,
+  accountId,
+  workspaceId,
+  currentUserId,
+  categories,
+  article,
+  onSuccess,
+}: ArticleDialogProps) {
+  const isEdit = !!article;
+  const [title, setTitle] = useState(article?.title ?? "");
+  const [content, setContent] = useState(article?.content ?? "");
+  const [categoryId, setCategoryId] = useState<string>(article?.categoryId ?? "__none__");
+  const [tags, setTags] = useState(article?.tags.join(", ") ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    void Promise.resolve().then(() => {
+      setTitle(article?.title ?? "");
+      setContent(article?.content ?? "");
+      setCategoryId(article?.categoryId ?? "__none__");
+      setTags(article?.tags.join(", ") ?? "");
+      setError(null);
+    });
+  }, [article, open]);
+
+  function handleSubmit() {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setError("標題不可空白");
+      return;
+    }
+    const parsedTags = tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const resolvedCategoryId = categoryId === "__none__" ? null : categoryId;
+
+    startTransition(async () => {
+      setError(null);
+      if (isEdit) {
+        const result = await updateArticle({
+          id: article!.id,
+          accountId,
+          title: trimmedTitle,
+          content,
+          categoryId: resolvedCategoryId,
+          tags: parsedTags,
+        });
+        if (!result.success) {
+          setError(result.error.message ?? "更新失敗");
+          return;
+        }
+        onSuccess?.();
+      } else {
+        const result = await createArticle({
+          accountId,
+          workspaceId,
+          title: trimmedTitle,
+          content,
+          categoryId: resolvedCategoryId,
+          tags: parsedTags,
+          createdByUserId: currentUserId,
+        });
+        if (!result.success) {
+          setError(result.error.message ?? "建立失敗");
+          return;
+        }
+        onSuccess?.(result.aggregateId);
+      }
+      onOpenChange(false);
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "編輯文章" : "新增文章"}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {error && (
+            <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              <X className="h-4 w-4 shrink-0" />
+              {error}
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-title">標題</Label>
+            <Input
+              id="kb-article-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="文章標題"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-category">分類</Label>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger id="kb-article-category">
+                <SelectValue placeholder="選擇分類（選填）" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— 不指定 —</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-tags">
+              標籤{" "}
+              <span className="text-muted-foreground text-xs">（以逗號分隔）</span>
+            </Label>
+            <Input
+              id="kb-article-tags"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="標籤1, 標籤2"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-content">內容</Label>
+            <Textarea
+              id="kb-article-content"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="文章內容（支援 Markdown）"
+              rows={6}
+              className="resize-none font-mono text-sm"
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+            取消
+          </Button>
+          <Button onClick={handleSubmit} disabled={isPending || !title.trim()}>
+            {isPending ? "儲存中…" : isEdit ? "更新文章" : "建立文章"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/notion/subdomains/authoring/interfaces/components/CategoryTreePanel.tsx
+````typescript
+"use client";
+
+import { useMemo, useState } from "react";
+import { ChevronDown, ChevronRight, FolderOpen, Layers } from "lucide-react";
+
+import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
+
+// ── Category tree helpers ────────────────────────────────────────────────────
+
+export interface CategoryNode extends Category {
+  children: CategoryNode[];
+}
+
+export function buildCategoryTree(categories: Category[]): CategoryNode[] {
+  const map = new Map<string, CategoryNode>();
+  for (const cat of categories) {
+    map.set(cat.id, { ...cat, children: [] });
+  }
+  const roots: CategoryNode[] = [];
+  for (const node of map.values()) {
+    if (node.parentCategoryId) {
+      map.get(node.parentCategoryId)?.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+  return roots;
+}
+
+// ── Category tree panel ──────────────────────────────────────────────────────
+
+interface CategoryTreePanelProps {
+  categories: Category[];
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+}
+
+export function CategoryTreePanel({ categories, selectedId, onSelect }: CategoryTreePanelProps) {
+  const roots = useMemo(() => buildCategoryTree(categories), [categories]);
+
+  return (
+    <aside className="w-52 shrink-0 space-y-1">
+      <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        分類
+      </p>
+      <button
+        type="button"
+        onClick={() => onSelect(null)}
+        className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
+          selectedId === null
+            ? "bg-primary/10 text-primary font-medium"
+            : "text-foreground hover:bg-muted"
+        }`}
+      >
+        <Layers className="size-3.5 shrink-0 text-muted-foreground" />
+        全部文章
+      </button>
+      {roots.map((node) => (
+        <CategoryNodeRow
+          key={node.id}
+          node={node}
+          selectedId={selectedId}
+          onSelect={onSelect}
+        />
+      ))}
+      {categories.length === 0 && (
+        <p className="px-2 text-xs text-muted-foreground/60">尚無分類</p>
+      )}
+    </aside>
+  );
+}
+
+interface CategoryNodeRowProps {
+  node: CategoryNode;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+}
+
+function CategoryNodeRow({ node, selectedId, onSelect }: CategoryNodeRowProps) {
+  const [expanded, setExpanded] = useState(true);
+  const hasChildren = node.children.length > 0;
+  const isSelected = selectedId === node.id;
+
+  return (
+    <div>
+      <div className="flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="p-0.5 text-muted-foreground opacity-0 transition hover:opacity-100"
+          style={{ visibility: hasChildren ? "visible" : "hidden" }}
+          aria-label={expanded ? "折疊" : "展開"}
+        >
+          {expanded ? (
+            <ChevronDown className="size-3" />
+          ) : (
+            <ChevronRight className="size-3" />
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => onSelect(node.id)}
+          className={`flex flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors ${
+            isSelected
+              ? "bg-primary/10 text-primary font-medium"
+              : "text-foreground hover:bg-muted"
+          }`}
+        >
+          <FolderOpen className="size-3.5 shrink-0 text-muted-foreground" />
+          <span className="truncate">{node.name}</span>
+          {node.articleIds.length > 0 && (
+            <span className="ml-auto text-[10px] text-muted-foreground/60">
+              {node.articleIds.length}
+            </span>
+          )}
+        </button>
+      </div>
+      {hasChildren && expanded && (
+        <div className="ml-4 space-y-0.5 border-l border-border/40 pl-1">
+          {node.children.map((child) => (
+            <CategoryNodeRow
+              key={child.id}
+              node={child}
+              selectedId={selectedId}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
 ## File: modules/notion/subdomains/authoring/interfaces/components/index.ts
 ````typescript
 // TODO: export ArticleEditorView, ArticleListView, CategoryTreeView
 
 export { ArticleDialog } from "./ArticleDialog";
+````
+
+## File: modules/notion/subdomains/authoring/interfaces/queries/index.ts
+````typescript
+// TODO: export getArticle, getArticlesByWorkspace, getCategoryTree
+
+/**
+ * Module: notion/subdomains/authoring
+ * Layer: interfaces/queries
+ * Purpose: Direct-instantiation query functions (read-side).
+ */
+
+import { makeArticleRepo, makeCategoryRepo } from "../../api/factories";
+import type { ArticleSnapshot, ArticleStatus } from "../../application/dto/authoring.dto";
+import type { CategorySnapshot } from "../../application/dto/authoring.dto";
+
+export async function getArticles(params: {
+  accountId: string;
+  workspaceId: string;
+  categoryId?: string;
+  status?: ArticleStatus;
+}): Promise<ArticleSnapshot[]> {
+  return makeArticleRepo().list(params);
+}
+
+export async function getArticle(accountId: string, articleId: string): Promise<ArticleSnapshot | null> {
+  return makeArticleRepo().getById(accountId, articleId);
+}
+
+export async function getCategories(accountId: string, workspaceId: string): Promise<CategorySnapshot[]> {
+  return makeCategoryRepo().listByWorkspace(accountId, workspaceId);
+}
+
+export async function getBacklinks(accountId: string, articleId: string): Promise<ArticleSnapshot[]> {
+  return makeArticleRepo().listByLinkedArticleId(accountId, articleId);
+}
 ````
 
 ## File: modules/notion/subdomains/authoring/interfaces/store/index.ts
@@ -5800,6 +4156,18 @@ export { getComments, getVersions, getPermissions, subscribeComments } from "../
 // UI components
 export { CommentPanel } from "../interfaces/components/CommentPanel";
 export { VersionHistoryPanel } from "../interfaces/components/VersionHistoryPanel";
+````
+
+## File: modules/notion/subdomains/collaboration/application/dto/collaboration.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the collaboration subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type { CommentSnapshot } from "../../domain/aggregates/Comment";
+export type { CommentUnsubscribe } from "../../domain/repositories/ICommentRepository";
+export type { VersionSnapshot } from "../../domain/aggregates/Version";
+export type { PermissionSnapshot } from "../../domain/aggregates/Permission";
 ````
 
 ## File: modules/notion/subdomains/collaboration/application/dto/CollaborationDto.ts
@@ -6490,10 +4858,292 @@ export async function deleteVersion(input: DeleteVersionDto): Promise<CommandRes
 }
 ````
 
+## File: modules/notion/subdomains/collaboration/interfaces/components/CommentPanel.tsx
+````typescript
+"use client";
+
+import { useEffect, useState, useTransition } from "react";
+import { MessageCircle, Loader2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Separator } from "@ui-shadcn/ui/separator";
+
+import { subscribeComments } from "../queries";
+import { createComment, resolveComment, deleteComment } from "../_actions/comment.actions";
+import type { CommentSnapshot } from "../../application/dto/collaboration.dto";
+
+interface CommentPanelProps {
+  accountId: string;
+  workspaceId: string;
+  contentId: string;
+  contentType: "page" | "article";
+  currentUserId: string;
+}
+
+export function CommentPanel({ accountId, workspaceId, contentId, contentType, currentUserId }: CommentPanelProps) {
+  const [comments, setComments] = useState<CommentSnapshot[]>([]);
+  const [body, setBody] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    const unsub = subscribeComments(accountId, contentId, setComments);
+    return () => unsub();
+  }, [accountId, contentId]);
+
+  function handlePost() {
+    const trimmed = body.trim();
+    if (!trimmed) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await createComment({
+        accountId,
+        workspaceId,
+        contentId,
+        contentType,
+        authorId: currentUserId,
+        body: trimmed,
+      });
+      if (result.success) {
+        setBody("");
+      } else {
+        setError(result.error.message ?? "留言失敗");
+      }
+    });
+  }
+
+  function handleResolve(commentId: string) {
+    startTransition(async () => {
+      await resolveComment({ id: commentId, accountId, resolvedByUserId: currentUserId });
+    });
+  }
+
+  function handleDelete(commentId: string) {
+    startTransition(async () => {
+      await deleteComment({ id: commentId, accountId });
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <MessageCircle className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium">留言</span>
+        {comments.length > 0 && (
+          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{comments.length}</Badge>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Textarea
+          placeholder="撰寫留言…"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={3}
+          disabled={isPending}
+          className="resize-none text-sm"
+        />
+        {error && <p className="text-xs text-destructive">{error}</p>}
+        <Button
+          size="sm"
+          disabled={isPending || !body.trim()}
+          onClick={handlePost}
+          className="w-full"
+        >
+          {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "留言"}
+        </Button>
+      </div>
+
+      {comments.length > 0 && (
+        <>
+          <Separator />
+          <ul className="space-y-3">
+            {comments.map((c) => (
+              <li key={c.id} className="flex flex-col gap-1">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs text-muted-foreground">{c.authorId}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {new Date(c.createdAtISO).toLocaleString("zh-TW", {
+                      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{c.body}</p>
+                {c.resolvedAt ? (
+                  <Badge variant="outline" className="w-fit text-[10px]">已解決</Badge>
+                ) : (
+                  <div className="flex gap-1.5">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-[10px] text-muted-foreground"
+                      disabled={isPending}
+                      onClick={() => handleResolve(c.id)}
+                    >
+                      標記解決
+                    </Button>
+                    {c.authorId === currentUserId && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] text-destructive"
+                        disabled={isPending}
+                        onClick={() => handleDelete(c.id)}
+                      >
+                        刪除
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+````
+
 ## File: modules/notion/subdomains/collaboration/interfaces/components/index.ts
 ````typescript
 export { CommentPanel } from "./CommentPanel";
 export { VersionHistoryPanel } from "./VersionHistoryPanel";
+````
+
+## File: modules/notion/subdomains/collaboration/interfaces/components/VersionHistoryPanel.tsx
+````typescript
+"use client";
+
+import { useEffect, useState, useTransition } from "react";
+import { History, Trash2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+import { getVersions } from "../queries";
+import { deleteVersion } from "../_actions/version.actions";
+import type { VersionSnapshot } from "../../application/dto/collaboration.dto";
+
+interface VersionHistoryPanelProps {
+  accountId: string;
+  contentId: string;
+  currentUserId: string;
+}
+
+export function VersionHistoryPanel({ accountId, contentId, currentUserId }: VersionHistoryPanelProps) {
+  const [versions, setVersions] = useState<VersionSnapshot[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    let disposed = false;
+    void Promise.resolve().then(async () => {
+      if (disposed) return;
+      setLoading(true);
+      try {
+        const data = await getVersions(accountId, contentId);
+        if (!disposed) { setVersions(data); setLoading(false); }
+      } catch {
+        if (!disposed) setLoading(false);
+      }
+    });
+    return () => { disposed = true; };
+  }, [accountId, contentId]);
+
+  function handleDelete(versionId: string) {
+    startTransition(async () => {
+      await deleteVersion({ id: versionId, accountId });
+      setVersions((prev) => prev.filter((v) => v.id !== versionId));
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <History className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium">版本歷史</span>
+        {versions.length > 0 && (
+          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{versions.length}</Badge>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full rounded-md" />)}
+        </div>
+      ) : versions.length === 0 ? (
+        <p className="text-xs text-muted-foreground">尚無已儲存的版本快照。</p>
+      ) : (
+        <ol className="space-y-2">
+          {versions.map((v, idx) => (
+            <li key={v.id} className="flex items-start gap-3 rounded-md border border-border/60 bg-background px-3 py-2">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
+                {versions.length - idx}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="truncate text-sm font-medium">{v.label || `版本 ${versions.length - idx}`}</p>
+                {v.description && (
+                  <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{v.description}</p>
+                )}
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  {new Date(v.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </p>
+              </div>
+              {v.createdByUserId === currentUserId && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                  disabled={isPending}
+                  onClick={() => handleDelete(v.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/notion/subdomains/collaboration/interfaces/queries/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/collaboration
+ * Layer: interfaces/queries
+ * Purpose: Read-side queries for comment, version, and permission data.
+ */
+
+import { makeCommentRepo, makePermissionRepo, makeVersionRepo } from "../../api/factories";
+import type { CommentSnapshot, CommentUnsubscribe, VersionSnapshot, PermissionSnapshot } from "../../application/dto/collaboration.dto";
+
+export async function getComments(accountId: string, contentId: string): Promise<CommentSnapshot[]> {
+  return makeCommentRepo().listByContent(accountId, contentId);
+}
+
+export async function getVersions(accountId: string, contentId: string): Promise<VersionSnapshot[]> {
+  return makeVersionRepo().listByContent(accountId, contentId);
+}
+
+export async function getPermissions(accountId: string, subjectId: string): Promise<PermissionSnapshot[]> {
+  return makePermissionRepo().listBySubject(accountId, subjectId);
+}
+
+export function subscribeComments(
+  accountId: string,
+  contentId: string,
+  onUpdate: (comments: CommentSnapshot[]) => void,
+): CommentUnsubscribe {
+  return makeCommentRepo().subscribe(accountId, contentId, onUpdate);
+}
 ````
 
 ## File: modules/notion/subdomains/collaboration/interfaces/store/index.ts
@@ -6631,6 +5281,19 @@ export { DatabaseDetailPage } from "../interfaces/components/DatabaseDetailPage"
 export type { DatabaseDetailPageProps } from "../interfaces/components/DatabaseDetailPage";
 export { DatabaseFormsPage } from "../interfaces/components/DatabaseFormsPage";
 export type { DatabaseFormsPageProps } from "../interfaces/components/DatabaseFormsPage";
+````
+
+## File: modules/notion/subdomains/database/application/dto/database.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the database subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type { DatabaseSnapshot, Field, FieldType } from "../../domain/aggregates/Database";
+export type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRecord";
+export type { ViewSnapshot } from "../../domain/aggregates/View";
+export type { DatabaseAutomationSnapshot, AutomationTrigger, AutomationActionType } from "../../domain/aggregates/DatabaseAutomation";
+export type { CreateAutomationInput, UpdateAutomationInput } from "../../domain/repositories/IAutomationRepository";
 ````
 
 ## File: modules/notion/subdomains/database/application/dto/DatabaseDto.ts
@@ -7176,6 +5839,164 @@ export { FirebaseAutomationRepository } from "./FirebaseAutomationRepository";
 export * from "./firebase";
 ````
 
+## File: modules/notion/subdomains/database/interfaces/_actions/database.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/_actions
+ * Purpose: Database, Record, View, and Automation server actions.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import {
+  makeAutomationRepo,
+  makeDatabaseRepo,
+  makeRecordRepo,
+  makeViewRepo,
+} from "../../api/factories";
+import {
+  CreateDatabaseUseCase,
+  UpdateDatabaseUseCase,
+  AddFieldUseCase,
+  ArchiveDatabaseUseCase,
+  CreateRecordUseCase,
+  UpdateRecordUseCase,
+  DeleteRecordUseCase,
+  CreateViewUseCase,
+  UpdateViewUseCase,
+  DeleteViewUseCase,
+  CreateAutomationUseCase,
+  UpdateAutomationUseCase,
+  DeleteAutomationUseCase,
+} from "../../application/use-cases";
+import type { CreateAutomationInput, UpdateAutomationInput } from "../../application/dto/database.dto";
+import type {
+  CreateDatabaseDto,
+  UpdateDatabaseDto,
+  AddFieldDto,
+  ArchiveDatabaseDto,
+  CreateRecordDto,
+  UpdateRecordDto,
+  CreateViewDto,
+  UpdateViewDto,
+  DeleteViewDto,
+} from "../../application/dto/DatabaseDto";
+
+// — — — Database — — —
+
+export async function createDatabase(input: CreateDatabaseDto): Promise<CommandResult> {
+  try {
+    return await new CreateDatabaseUseCase(makeDatabaseRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("DATABASE_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateDatabase(input: UpdateDatabaseDto): Promise<CommandResult> {
+  try {
+    return await new UpdateDatabaseUseCase(makeDatabaseRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("DATABASE_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function addDatabaseField(input: AddFieldDto): Promise<CommandResult> {
+  try {
+    return await new AddFieldUseCase(makeDatabaseRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("DATABASE_ADD_FIELD_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function archiveDatabase(input: ArchiveDatabaseDto): Promise<CommandResult> {
+  try {
+    return await new ArchiveDatabaseUseCase(makeDatabaseRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("DATABASE_ARCHIVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+// — — — Record — — —
+
+export async function createRecord(input: CreateRecordDto): Promise<CommandResult> {
+  try {
+    return await new CreateRecordUseCase(makeRecordRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("RECORD_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateRecord(input: UpdateRecordDto): Promise<CommandResult> {
+  try {
+    return await new UpdateRecordUseCase(makeRecordRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("RECORD_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteRecord(accountId: string, id: string): Promise<CommandResult> {
+  try {
+    return await new DeleteRecordUseCase(makeRecordRepo()).execute({ id, accountId });
+  } catch (err) {
+    return commandFailureFrom("RECORD_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+// — — — View — — —
+
+export async function createView(input: CreateViewDto): Promise<CommandResult> {
+  try {
+    return await new CreateViewUseCase(makeViewRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("VIEW_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateView(input: UpdateViewDto): Promise<CommandResult> {
+  try {
+    return await new UpdateViewUseCase(makeViewRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("VIEW_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteView(input: DeleteViewDto): Promise<CommandResult> {
+  try {
+    return await new DeleteViewUseCase(makeViewRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("VIEW_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+// — — — Automation — — —
+
+export async function createAutomation(input: CreateAutomationInput): Promise<CommandResult> {
+  try {
+    return await new CreateAutomationUseCase(makeAutomationRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("AUTOMATION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateAutomation(input: UpdateAutomationInput): Promise<CommandResult> {
+  try {
+    return await new UpdateAutomationUseCase(makeAutomationRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("AUTOMATION_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteAutomation(id: string, accountId: string, databaseId: string): Promise<CommandResult> {
+  try {
+    return await new DeleteAutomationUseCase(makeAutomationRepo()).execute(id, accountId, databaseId);
+  } catch (err) {
+    return commandFailureFrom("AUTOMATION_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
 ## File: modules/notion/subdomains/database/interfaces/_actions/index.ts
 ````typescript
 export {
@@ -7285,6 +6106,478 @@ export function AddFieldDialog({ open, onOpenChange, onAdd, isPending }: AddFiel
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+````
+
+## File: modules/notion/subdomains/database/interfaces/components/DatabaseAutomationView.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: Manage automation rules for a database — list/create/toggle/delete.
+ */
+
+import { useEffect, useState, useTransition } from "react";
+import type { DatabaseAutomationSnapshot, AutomationTrigger, AutomationActionType } from "../../application/dto/database.dto";
+import { getAutomations } from "../queries";
+import { createAutomation, updateAutomation, deleteAutomation } from "../_actions/database.actions";
+
+interface Props {
+  databaseId: string;
+  accountId: string;
+  currentUserId: string;
+}
+
+const TRIGGER_OPTIONS: { value: AutomationTrigger; label: string }[] = [
+  { value: "record_created", label: "Record created" },
+  { value: "record_updated", label: "Record updated" },
+  { value: "record_deleted", label: "Record deleted" },
+  { value: "property_changed", label: "Property changed" },
+];
+
+const ACTION_OPTIONS: { value: AutomationActionType; label: string }[] = [
+  { value: "send_notification", label: "Send notification" },
+  { value: "update_property", label: "Update property" },
+  { value: "create_record", label: "Create record" },
+  { value: "webhook", label: "Call webhook" },
+];
+
+export function DatabaseAutomationView({ databaseId, accountId, currentUserId }: Props) {
+  const [automations, setAutomations] = useState<DatabaseAutomationSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState("");
+  const [trigger, setTrigger] = useState<AutomationTrigger>("record_created");
+  const [actionType, setActionType] = useState<AutomationActionType>("send_notification");
+  const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    getAutomations(accountId, databaseId)
+      .then(setAutomations)
+      .finally(() => setLoading(false));
+  }, [accountId, databaseId]);
+
+  function handleCreate() {
+    if (!name.trim()) return;
+    startTransition(async () => {
+      const result = await createAutomation({
+        databaseId,
+        accountId,
+        name: name.trim(),
+        trigger,
+        actions: [{ type: actionType, config: {} }],
+        createdByUserId: currentUserId,
+      });
+      if (result.success) {
+        const updated = await getAutomations(accountId, databaseId);
+        setAutomations(updated);
+        setName("");
+        setShowForm(false);
+      }
+    });
+  }
+
+  function handleToggle(automation: DatabaseAutomationSnapshot) {
+    startTransition(async () => {
+      await updateAutomation({
+        id: automation.id,
+        accountId,
+        databaseId,
+        enabled: !automation.enabled,
+      });
+      setAutomations((prev) =>
+        prev.map((a) => (a.id === automation.id ? { ...a, enabled: !a.enabled } : a)),
+      );
+    });
+  }
+
+  function handleDelete(automationId: string) {
+    startTransition(async () => {
+      await deleteAutomation(automationId, accountId, databaseId);
+      setAutomations((prev) => prev.filter((a) => a.id !== automationId));
+    });
+  }
+
+  if (loading) return <div className="p-4 text-sm text-muted-foreground">Loading automations…</div>;
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold">Automations</h3>
+        <button
+          className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground"
+          onClick={() => setShowForm((v) => !v)}
+        >
+          + New automation
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="border rounded p-3 space-y-2 text-sm">
+          <input
+            className="w-full border rounded px-2 py-1 text-sm"
+            placeholder="Automation name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <select
+              className="border rounded px-2 py-1 text-xs flex-1"
+              value={trigger}
+              onChange={(e) => setTrigger(e.target.value as AutomationTrigger)}
+            >
+              {TRIGGER_OPTIONS.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+            <select
+              className="border rounded px-2 py-1 text-xs flex-1"
+              value={actionType}
+              onChange={(e) => setActionType(e.target.value as AutomationActionType)}
+            >
+              {ACTION_OPTIONS.map((a) => (
+                <option key={a.value} value={a.value}>{a.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button
+              className="text-xs px-3 py-1 rounded bg-primary text-primary-foreground"
+              onClick={handleCreate}
+            >
+              Create
+            </button>
+            <button
+              className="text-xs px-3 py-1 rounded border"
+              onClick={() => setShowForm(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {automations.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No automations yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {automations.map((a) => (
+            <li key={a.id} className="flex items-center justify-between border rounded px-3 py-2 text-sm">
+              <div className="space-y-0.5">
+                <p className="font-medium">{a.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  Trigger: {a.trigger} · Action: {a.actions[0]?.type ?? "—"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  className={`text-xs px-2 py-0.5 rounded ${a.enabled ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}
+                  onClick={() => handleToggle(a)}
+                >
+                  {a.enabled ? "Enabled" : "Disabled"}
+                </button>
+                <button
+                  className="text-xs text-destructive"
+                  onClick={() => handleDelete(a.id)}
+                >
+                  Delete
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/notion/subdomains/database/interfaces/components/DatabaseBoardView.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseBoardView — Kanban board grouped by first select/multi_select field.
+ */
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { Plus, Trash2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import { getRecords } from "../queries";
+import { createRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../application/dto/database.dto";
+
+interface DatabaseBoardViewProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
+  if (record.properties && typeof record.properties === "object") {
+    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
+  }
+  return null;
+}
+
+export function DatabaseBoardView({ database, accountId, workspaceId, currentUserId }: DatabaseBoardViewProps) {
+  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
+
+  const groupField = database.fields.find((f) => f.type === "select" || f.type === "multi_select") ?? null;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getRecords(accountId, database.id);
+      setRecords(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, database.id]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function getTitle(record: DatabaseRecordSnapshot): string {
+    const textField = database.fields.find((f) => f.type === "text");
+    if (!textField) return record.id.slice(0, 8);
+    return String(getProperty(record, textField.id) ?? "—");
+  }
+
+  const groups: Record<string, DatabaseRecordSnapshot[]> = {};
+  if (!groupField) {
+    groups["所有記錄"] = records;
+  } else {
+    for (const record of records) {
+      const val = getProperty(record, groupField.id);
+      const key = val != null && val !== "" ? String(val) : "（無分組）";
+      (groups[key] ??= []).push(record);
+    }
+    if ("（無分組）" in groups) {
+      const noGroup = groups["（無分組）"];
+      delete groups["（無分組）"];
+      groups["（無分組）"] = noGroup;
+    }
+  }
+
+  function handleAdd(groupValue: string) {
+    startTransition(async () => {
+      const props: Record<string, unknown> = groupField && groupValue !== "（無分組）" && groupValue !== "所有記錄"
+        ? { [groupField.id]: groupValue }
+        : {};
+      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: props, createdByUserId: currentUserId });
+      void load();
+    });
+  }
+
+  function handleDelete(recordId: string) {
+    startTransition(async () => {
+      await deleteRecord(accountId, recordId);
+      setRecords((prev) => prev.filter((r) => r.id !== recordId));
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="flex gap-3 overflow-x-auto pb-2">
+        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-64 w-48 shrink-0 rounded-lg" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-3 overflow-x-auto pb-4">
+      {Object.entries(groups).map(([group, groupRecords]) => (
+        <div key={group} className="flex w-52 shrink-0 flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 p-3">
+          <div className="flex items-center justify-between">
+            <Badge variant="outline" className="text-xs">{group}</Badge>
+            <span className="text-[10px] text-muted-foreground">{groupRecords.length}</span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {groupRecords.map((record) => (
+              <div key={record.id} className="group relative rounded-md border border-border/60 bg-card px-3 py-2 shadow-sm">
+                <p className="text-sm font-medium leading-snug">{getTitle(record)}</p>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1 hidden h-5 w-5 text-muted-foreground hover:text-destructive group-hover:flex"
+                  disabled={isPending}
+                  onClick={() => handleDelete(record.id)}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full text-xs text-muted-foreground"
+            disabled={isPending}
+            onClick={() => handleAdd(group)}
+          >
+            <Plus className="mr-1 h-3 w-3" /> 新增
+          </Button>
+        </div>
+      ))}
+    </div>
+  );
+}
+````
+
+## File: modules/notion/subdomains/database/interfaces/components/DatabaseCalendarView.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseCalendarView — month-grid calendar grouped by a date field.
+ */
+
+import { useCallback, useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+import { getRecords } from "../queries";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../application/dto/database.dto";
+
+interface DatabaseCalendarViewProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+}
+
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
+  if (record.properties && typeof record.properties === "object") {
+    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
+  }
+  return null;
+}
+
+export function DatabaseCalendarView({ database, accountId }: DatabaseCalendarViewProps) {
+  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [cursor, setCursor] = useState(() => new Date());
+
+  const dateField = database.fields.find((f) => f.type === "date") ?? null;
+  const titleField = database.fields.find((f) => f.type === "text") ?? null;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getRecords(accountId, database.id);
+      setRecords(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, database.id]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const recordsByDay: Record<string, DatabaseRecordSnapshot[]> = {};
+  if (dateField) {
+    for (const record of records) {
+      const val = getProperty(record, dateField.id);
+      if (!val) continue;
+      try {
+        const d = new Date(String(val));
+        if (!isNaN(d.getTime()) && d.getFullYear() === year && d.getMonth() === month) {
+          const key = String(d.getDate());
+          (recordsByDay[key] ??= []).push(record);
+        }
+      } catch {}
+    }
+  }
+
+  function prevMonth() { setCursor(new Date(year, month - 1, 1)); }
+  function nextMonth() { setCursor(new Date(year, month + 1, 1)); }
+
+  const weekDays = ["日", "一", "二", "三", "四", "五", "六"];
+
+  if (!dateField) {
+    return (
+      <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
+        此資料庫未包含「日期」欄位，無法顯示日曆視圖。
+      </p>
+    );
+  }
+
+  if (loading) {
+    return <Skeleton className="h-64 w-full rounded-lg" />;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={prevMonth}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span className="text-sm font-medium">
+          {year}年 {month + 1}月
+        </span>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={nextMonth}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-border/60">
+        <div className="grid grid-cols-7 bg-muted/30">
+          {weekDays.map((d) => (
+            <div key={d} className="px-2 py-1.5 text-center text-[10px] font-semibold text-muted-foreground">
+              {d}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 border-t border-border/40">
+          {Array.from({ length: firstDay }).map((_, i) => (
+            <div key={`empty-${i}`} className="min-h-[60px] border-b border-r border-border/30 bg-muted/10" />
+          ))}
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const day = i + 1;
+            const dayRecords = recordsByDay[String(day)] ?? [];
+            const today = new Date();
+            const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+            return (
+              <div key={day} className={`min-h-[60px] border-b border-r border-border/30 p-1 ${isToday ? "bg-primary/5" : ""}`}>
+                <span className={`text-[10px] font-medium ${isToday ? "text-primary" : "text-muted-foreground"}`}>{day}</span>
+                <div className="mt-0.5 flex flex-col gap-0.5">
+                  {dayRecords.slice(0, 3).map((record) => {
+                    const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "—" : "—";
+                    return (
+                      <Badge key={record.id} variant="secondary" className="w-full justify-start truncate text-[9px]">
+                        {title}
+                      </Badge>
+                    );
+                  })}
+                  {dayRecords.length > 3 && (
+                    <span className="text-[9px] text-muted-foreground">+{dayRecords.length - 3}</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }
 ````
@@ -7400,6 +6693,700 @@ export function DatabaseDialog({ open, onOpenChange, accountId, workspaceId, cur
 }
 ````
 
+## File: modules/notion/subdomains/database/interfaces/components/DatabaseFormView.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseFormView — public-facing form to collect one Record into a Database.
+ */
+
+import { useState, useTransition } from "react";
+import { CheckCircle2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import { createRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, Field } from "../../application/dto/database.dto";
+
+interface DatabaseFormViewProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  /** The user submitting the form. Pass anonymous ID or guest token for public forms. */
+  submitterId: string;
+  /** Optional: restrict to a subset of fields. */
+  fieldIds?: string[];
+  title?: string;
+  description?: string;
+}
+
+function FieldInput({ field, value, onChange, disabled }: { field: Field; value: unknown; onChange: (v: unknown) => void; disabled: boolean }) {
+  if (field.type === "checkbox") {
+    return (
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id={`field-${field.id}`}
+          checked={Boolean(value)}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.checked)}
+          className="h-4 w-4 rounded border-border"
+        />
+        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
+      </div>
+    );
+  }
+  if (field.type === "number") {
+    return (
+      <div className="space-y-1">
+        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
+        <Input
+          id={`field-${field.id}`}
+          type="number"
+          value={value == null ? "" : String(value)}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+        />
+      </div>
+    );
+  }
+  if (field.type === "date") {
+    return (
+      <div className="space-y-1">
+        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
+        <Input
+          id={`field-${field.id}`}
+          type="date"
+          value={value == null ? "" : String(value)}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    );
+  }
+  if (field.type === "url" || field.type === "email") {
+    return (
+      <div className="space-y-1">
+        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
+        <Input
+          id={`field-${field.id}`}
+          type={field.type}
+          value={value == null ? "" : String(value)}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
+      <Textarea
+        id={`field-${field.id}`}
+        rows={2}
+        value={value == null ? "" : String(value)}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+}
+
+export function DatabaseFormView({ database, accountId, workspaceId, submitterId, fieldIds, title, description }: DatabaseFormViewProps) {
+  const visibleFields = fieldIds && fieldIds.length > 0
+    ? database.fields.filter((f) => fieldIds.includes(f.id))
+    : database.fields;
+
+  const [values, setValues] = useState<Record<string, unknown>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleChange(fieldId: string, value: unknown) {
+    setValues((prev) => ({ ...prev, [fieldId]: value }));
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      const result = await createRecord({
+        databaseId: database.id,
+        workspaceId,
+        accountId,
+        properties: values,
+        createdByUserId: submitterId,
+      });
+      if (result.success) {
+        setSubmitted(true);
+        setValues({});
+      } else {
+        setError("提交失敗，請稍後再試。");
+      }
+    });
+  }
+
+  if (submitted) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+        <CheckCircle2 className="h-10 w-10 text-green-500" />
+        <h2 className="text-lg font-semibold">已成功提交！</h2>
+        <p className="text-sm text-muted-foreground">感謝您的填寫。</p>
+        <Button variant="outline" size="sm" onClick={() => setSubmitted(false)}>
+          再次提交
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-lg space-y-6 py-6">
+      <div className="space-y-1">
+        <h2 className="text-xl font-semibold">{title ?? database.name}</h2>
+        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+      </div>
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        {visibleFields.map((field) => (
+          <FieldInput
+            key={field.id}
+            field={field}
+            value={values[field.id]}
+            onChange={(v) => handleChange(field.id, v)}
+            disabled={isPending}
+          />
+        ))}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <Button type="submit" disabled={isPending} className="w-full">
+          {isPending ? "提交中…" : "送出表單"}
+        </Button>
+      </form>
+    </div>
+  );
+}
+````
+
+## File: modules/notion/subdomains/database/interfaces/components/DatabaseGalleryView.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseGalleryView — card grid for database records.
+ */
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { Plus, Trash2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+import { getRecords } from "../queries";
+import { createRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../application/dto/database.dto";
+
+interface DatabaseGalleryViewProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
+  if (record.properties && typeof record.properties === "object") {
+    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
+  }
+  return null;
+}
+
+export function DatabaseGalleryView({ database, accountId, workspaceId, currentUserId }: DatabaseGalleryViewProps) {
+  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
+
+  const titleField = database.fields.find((f) => f.type === "text") ?? null;
+  const metaFields = database.fields.filter((f) => f !== titleField).slice(0, 4);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getRecords(accountId, database.id);
+      setRecords(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, database.id]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function handleAdd() {
+    startTransition(async () => {
+      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId });
+      void load();
+    });
+  }
+
+  function handleDelete(recordId: string) {
+    startTransition(async () => {
+      await deleteRecord(accountId, recordId);
+      setRecords((prev) => prev.filter((r) => r.id !== recordId));
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-lg" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {records.length === 0 ? (
+          <p className="col-span-full rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">尚無記錄</p>
+        ) : (
+          records.map((record) => {
+            const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "（未命名）" : "（未命名）";
+            return (
+              <div key={record.id} className="group relative flex flex-col gap-2 rounded-lg border border-border/60 bg-card p-3 shadow-sm">
+                <p className="truncate text-sm font-medium leading-snug">{title}</p>
+                <div className="flex flex-wrap gap-1">
+                  {metaFields.map((field) => {
+                    const val = getProperty(record, field.id);
+                    if (val == null || val === "") return null;
+                    return (
+                      <Badge key={field.id} variant="outline" className="text-[10px]">
+                        {field.name}: {String(val).slice(0, 16)}
+                      </Badge>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1 hidden h-6 w-6 text-muted-foreground hover:text-destructive group-hover:flex"
+                  disabled={isPending}
+                  onClick={() => handleDelete(record.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            );
+          })
+        )}
+      </div>
+      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="w-full text-xs">
+        <Plus className="mr-1.5 h-3 w-3" /> 新增記錄
+      </Button>
+    </div>
+  );
+}
+````
+
+## File: modules/notion/subdomains/database/interfaces/components/DatabaseListView.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseListView — flat record list with fields as readable rows.
+ */
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+import { getRecords } from "../queries";
+import { createRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../application/dto/database.dto";
+
+interface DatabaseListViewProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
+  if (record.properties && typeof record.properties === "object") {
+    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
+  }
+  return null;
+}
+
+function displayValue(val: unknown, type: string): string {
+  if (val == null || val === "") return "";
+  if (type === "checkbox") return val ? "✓" : "✗";
+  return String(val);
+}
+
+export function DatabaseListView({ database, accountId, workspaceId, currentUserId }: DatabaseListViewProps) {
+  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [isPending, startTransition] = useTransition();
+
+  const titleField = database.fields.find((f) => f.type === "text") ?? database.fields[0] ?? null;
+  const secondaryFields = database.fields.filter((f) => f !== titleField);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getRecords(accountId, database.id);
+      setRecords(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, database.id]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function toggleExpand(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function handleAdd() {
+    startTransition(async () => {
+      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId });
+      void load();
+    });
+  }
+
+  function handleDelete(recordId: string) {
+    startTransition(async () => {
+      await deleteRecord(accountId, recordId);
+      setRecords((prev) => prev.filter((r) => r.id !== recordId));
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      {records.length === 0 ? (
+        <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">尚無記錄</p>
+      ) : (
+        records.map((record) => {
+          const isOpen = expanded.has(record.id);
+          const title = titleField ? displayValue(getProperty(record, titleField.id), titleField.type) || "（未命名）" : record.id.slice(0, 8);
+
+          return (
+            <div key={record.id} className="rounded-md border border-border/60 bg-card">
+              <div className="flex items-center gap-2 px-3 py-2">
+                <button
+                  type="button"
+                  className="rounded p-0.5 text-muted-foreground hover:bg-muted"
+                  onClick={() => toggleExpand(record.id)}
+                >
+                  {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                </button>
+                <span className="flex-1 truncate text-sm font-medium text-foreground">{title}</span>
+                <div className="hidden gap-1 sm:flex">
+                  {secondaryFields.slice(0, 2).map((field) => {
+                    const val = displayValue(getProperty(record, field.id), field.type);
+                    if (!val) return null;
+                    return (
+                      <Badge key={field.id} variant="outline" className="text-[10px]">
+                        {field.name}: {val.length > 12 ? `${val.slice(0, 12)}…` : val}
+                      </Badge>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                  disabled={isPending}
+                  onClick={() => handleDelete(record.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              {isOpen && (
+                <div className="border-t border-border/40 px-4 py-3">
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+                    {database.fields.map((field) => {
+                      const val = displayValue(getProperty(record, field.id), field.type);
+                      return (
+                        <div key={field.id} className="contents">
+                          <dt className="text-muted-foreground">{field.name}</dt>
+                          <dd className="text-foreground">{val || <span className="text-muted-foreground/50">—</span>}</dd>
+                        </div>
+                      );
+                    })}
+                    <div className="contents">
+                      <dt className="text-muted-foreground">建立時間</dt>
+                      <dd className="text-foreground">
+                        {new Date(record.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="mt-1 w-full text-xs">
+        <Plus className="mr-1.5 h-3 w-3" /> 新增記錄
+      </Button>
+    </div>
+  );
+}
+````
+
+## File: modules/notion/subdomains/database/interfaces/components/DatabaseTableView.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseTableView — spreadsheet-style table with inline cell editing.
+ */
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { Plus, Trash2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import { getRecords } from "../queries";
+import { createRecord, updateRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, Field, DatabaseRecordSnapshot } from "../../application/dto/database.dto";
+
+interface DatabaseTableViewProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+
+const FIELD_WIDTHS: Record<string, string> = {
+  text: "min-w-[180px]",
+  number: "min-w-[100px]",
+  checkbox: "min-w-[80px]",
+  date: "min-w-[140px]",
+  default: "min-w-[140px]",
+};
+
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
+  if (record.properties && typeof record.properties === "object") {
+    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
+  }
+  return null;
+}
+
+function setProperty(record: DatabaseRecordSnapshot, fieldId: string, value: unknown): Record<string, unknown> {
+  const props = typeof record.properties === "object" && record.properties !== null
+    ? { ...(record.properties as Record<string, unknown>) }
+    : {};
+  props[fieldId] = value;
+  return props;
+}
+
+function CellInput({ field, value, onChange, disabled }: { field: Field; value: unknown; onChange: (v: unknown) => void; disabled: boolean }) {
+  if (field.type === "checkbox") {
+    return (
+      <input
+        type="checkbox"
+        checked={Boolean(value)}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4 rounded border-border"
+      />
+    );
+  }
+  if (field.type === "number") {
+    return (
+      <Input
+        type="number"
+        value={value == null ? "" : String(value)}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+        className="h-7 border-transparent bg-transparent px-1 text-xs focus:border-border"
+      />
+    );
+  }
+  return (
+    <Input
+      type="text"
+      value={value == null ? "" : String(value)}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      className="h-7 border-transparent bg-transparent px-1 text-xs focus:border-border"
+    />
+  );
+}
+
+export function DatabaseTableView({ database, accountId, workspaceId, currentUserId }: DatabaseTableViewProps) {
+  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [edits, setEdits] = useState<Record<string, Record<string, unknown>>>({});
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [isPending, startTransition] = useTransition();
+
+  const fields = database.fields;
+
+  const load = useCallback(async () => {
+    if (!accountId || !database.id) return;
+    setLoading(true);
+    try {
+      const data = await getRecords(accountId, database.id);
+      setRecords(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, database.id]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function handleCellChange(recordId: string, fieldId: string, value: unknown) {
+    setEdits((prev) => ({
+      ...prev,
+      [recordId]: { ...(prev[recordId] ?? {}), [fieldId]: value },
+    }));
+  }
+
+  function handleCellBlur(record: DatabaseRecordSnapshot, fieldId: string) {
+    const cellValue = edits[record.id]?.[fieldId];
+    if (cellValue === undefined) return;
+    setSaving((prev) => ({ ...prev, [record.id]: true }));
+    startTransition(async () => {
+      await updateRecord({ id: record.id, accountId, properties: setProperty(record, fieldId, cellValue) });
+      setEdits((prev) => {
+        const next = { ...prev };
+        delete next[record.id];
+        return next;
+      });
+      setSaving((prev) => ({ ...prev, [record.id]: false }));
+    });
+  }
+
+  function handleAddRecord() {
+    startTransition(async () => {
+      await createRecord({
+        databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId,
+      });
+      void load();
+    });
+  }
+
+  function handleDeleteRecord(recordId: string) {
+    startTransition(async () => {
+      await deleteRecord(accountId, recordId);
+      setRecords((prev) => prev.filter((r) => r.id !== recordId));
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
+      </div>
+    );
+  }
+
+  if (fields.length === 0) {
+    return (
+      <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
+        此資料庫尚無欄位。請先新增欄位。
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="overflow-x-auto rounded-lg border border-border/60">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border/60 bg-muted/30">
+              {fields.map((field) => (
+                <th key={field.id} className={`px-3 py-2 text-left text-xs font-semibold text-muted-foreground ${FIELD_WIDTHS[field.type] ?? FIELD_WIDTHS.default}`}>
+                  {field.name}
+                  {field.required && <span className="ml-0.5 text-destructive">*</span>}
+                </th>
+              ))}
+              <th className="w-10" />
+            </tr>
+          </thead>
+          <tbody>
+            {records.length === 0 ? (
+              <tr>
+                <td colSpan={fields.length + 1} className="px-3 py-6 text-center text-xs text-muted-foreground">
+                  尚無記錄
+                </td>
+              </tr>
+            ) : (
+              records.map((record) => (
+                <tr key={record.id} className="border-b border-border/30 last:border-b-0 hover:bg-muted/10">
+                  {fields.map((field) => {
+                    const edited = edits[record.id]?.[field.id];
+                    const current = edited !== undefined ? edited : getProperty(record, field.id);
+                    return (
+                      <td key={field.id} className="px-2 py-1">
+                        <CellInput
+                          field={field}
+                          value={current}
+                          onChange={(v) => handleCellChange(record.id, field.id, v)}
+                          disabled={saving[record.id] ?? false}
+                        />
+                      </td>
+                    );
+                  })}
+                  <td className="px-1 py-1 text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                      disabled={isPending}
+                      onBlur={() => {
+                        fields.forEach((f) => { if (edits[record.id]?.[f.id] !== undefined) handleCellBlur(record, f.id); });
+                      }}
+                      onClick={() => handleDeleteRecord(record.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAddRecord} className="w-full text-xs">
+        <Plus className="mr-1.5 h-3 w-3" /> 新增記錄
+      </Button>
+    </div>
+  );
+}
+````
+
 ## File: modules/notion/subdomains/database/interfaces/components/index.ts
 ````typescript
 export { DatabaseDialog } from "./DatabaseDialog";
@@ -7410,6 +7397,43 @@ export { DatabaseCalendarView } from "./DatabaseCalendarView";
 export { DatabaseGalleryView } from "./DatabaseGalleryView";
 export { DatabaseFormView } from "./DatabaseFormView";
 export { DatabaseAutomationView } from "./DatabaseAutomationView";
+````
+
+## File: modules/notion/subdomains/database/interfaces/queries/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/queries
+ * Purpose: Read-side queries for database, record, view, and automation data.
+ */
+
+import {
+  makeAutomationRepo,
+  makeDatabaseRepo,
+  makeRecordRepo,
+  makeViewRepo,
+} from "../../api/factories";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot, ViewSnapshot, DatabaseAutomationSnapshot } from "../../application/dto/database.dto";
+
+export async function getDatabases(accountId: string, workspaceId: string): Promise<DatabaseSnapshot[]> {
+  return makeDatabaseRepo().listByWorkspace(accountId, workspaceId);
+}
+
+export async function getDatabase(accountId: string, databaseId: string): Promise<DatabaseSnapshot | null> {
+  return makeDatabaseRepo().findById(databaseId, accountId);
+}
+
+export async function getRecords(accountId: string, databaseId: string): Promise<DatabaseRecordSnapshot[]> {
+  return makeRecordRepo().listByDatabase(accountId, databaseId);
+}
+
+export async function getViews(accountId: string, databaseId: string): Promise<ViewSnapshot[]> {
+  return makeViewRepo().listByDatabase(accountId, databaseId);
+}
+
+export async function getAutomations(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]> {
+  return makeAutomationRepo().listByDatabase(accountId, databaseId);
+}
 ````
 
 ## File: modules/notion/subdomains/database/interfaces/store/index.ts
@@ -7581,6 +7605,19 @@ export const UnnestKnowledgeBlockSchema = z.object({
   index: z.number().int().min(0).optional(),
 });
 export type UnnestKnowledgeBlockDto = z.infer<typeof UnnestKnowledgeBlockSchema>;
+````
+
+## File: modules/notion/subdomains/knowledge/application/dto/knowledge.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the knowledge subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type { KnowledgePageSnapshot, KnowledgePageTreeNode } from "../../domain/aggregates/KnowledgePage";
+export type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
+export type { KnowledgeCollectionSnapshot } from "../../domain/aggregates/KnowledgeCollection";
+export type { BlockContent } from "../../domain/value-objects/BlockContent";
+export { richTextToPlainText } from "../../domain/value-objects/BlockContent";
 ````
 
 ## File: modules/notion/subdomains/knowledge/application/dto/KnowledgeCollectionDto.ts
@@ -9179,6 +9216,86 @@ export async function archiveKnowledgeCollection(input: ArchiveKnowledgeCollecti
 }
 ````
 
+## File: modules/notion/subdomains/knowledge/interfaces/components/BlockEditorView.tsx
+````typescript
+"use client";
+
+import { useRef } from "react";
+import { useBlockEditorStore } from "../store/block-editor.store";
+import { richTextToPlainText } from "../../application/dto/knowledge.dto";
+
+/**
+ * Notion knowledge subdomain — minimal block editor.
+ * Full drag-and-drop and rich block types are in the extensions/ layer.
+ */
+export function BlockEditorView() {
+  const { blocks, addBlock, updateBlock, deleteBlock } = useBlockEditorStore();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>, blockId: string) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      addBlock(blockId);
+    }
+    if (e.key === "Backspace") {
+      const target = e.currentTarget;
+      if (target.textContent === "") {
+        e.preventDefault();
+        deleteBlock(blockId);
+      }
+    }
+  }
+
+  function handleInput(e: React.FormEvent<HTMLDivElement>, blockId: string) {
+    const text = (e.currentTarget as HTMLDivElement).textContent ?? "";
+    updateBlock(blockId, { type: "text", richText: [{ type: "text", plainText: text }] });
+  }
+
+  if (!blocks.length) {
+    return (
+      <div className="flex min-h-[200px] flex-col gap-1 rounded-lg border border-dashed p-4">
+        <div
+          role="textbox"
+          aria-multiline="true"
+          aria-label="新區塊內容"
+          tabIndex={0}
+          contentEditable
+          suppressContentEditableWarning
+          className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); addBlock(null); }
+          }}
+          data-placeholder="開始輸入…"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef} className="flex flex-col gap-0.5">
+      {blocks.map((block) => {
+        const text = richTextToPlainText(block.content.richText);
+        return (
+          <div
+            key={block.id}
+            role="textbox"
+            aria-multiline="true"
+            aria-label={`區塊 ${block.id}`}
+            tabIndex={0}
+            contentEditable
+            suppressContentEditableWarning
+            className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"
+            onKeyDown={(e) => handleKeyDown(e, block.id)}
+            onInput={(e) => handleInput(e, block.id)}
+            dangerouslySetInnerHTML={{ __html: text }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+````
+
 ## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgePageHeaderWidgets.tsx
 ````typescript
 "use client";
@@ -9438,6 +9555,188 @@ export function PageEditorView({ accountId, pageId }: PageEditorViewProps) {
 
   return <BlockEditorView />;
 }
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/components/PageTreeView.tsx
+````typescript
+"use client";
+
+import { ChevronDown, ChevronRight, FilePlus, FileText } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@ui-shadcn/ui/button";
+import type { KnowledgePageTreeNode } from "../../application/dto/knowledge.dto";
+import { PageDialog } from "./PageDialog";
+
+export interface PageTreeViewProps {
+  nodes: KnowledgePageTreeNode[];
+  accountId: string;
+  workspaceId?: string;
+  currentUserId: string;
+  allowCreate?: boolean;
+  emptyStateDescription?: string;
+  onPageClick?: (pageId: string) => void;
+  onCreated?: () => void;
+}
+
+function TreeNode({
+  node, accountId, workspaceId, currentUserId, allowCreate, onPageClick, onCreated, depth,
+}: { node: KnowledgePageTreeNode; accountId: string; workspaceId?: string; currentUserId: string; allowCreate: boolean; onPageClick?: (id: string) => void; onCreated?: () => void; depth: number }) {
+  const [expanded, setExpanded] = useState(depth < 1);
+  const [addChildOpen, setAddChildOpen] = useState(false);
+  const hasChildren = node.children && node.children.length > 0;
+  const canCreate = allowCreate && Boolean(workspaceId);
+
+  return (
+    <li>
+      <div className="group flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted/30" style={{ paddingLeft: `${8 + depth * 16}px` }}>
+        <button type="button" className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground" onClick={() => setExpanded((v) => !v)}>
+          {hasChildren ? (expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />) : <FileText className="h-3.5 w-3.5" />}
+        </button>
+        <button type="button" className="min-w-0 flex-1 truncate text-left text-sm" onClick={() => onPageClick?.(node.id)}>
+          {node.title}
+        </button>
+        {canCreate && (
+          <button type="button" className="invisible shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground group-hover:visible" onClick={(e) => { e.stopPropagation(); setAddChildOpen(true); }}>
+            <FilePlus className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+      {expanded && hasChildren && (
+        <ul>
+          {node.children.map((child) => (
+            <TreeNode key={child.id} node={child} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} allowCreate={allowCreate} onPageClick={onPageClick} onCreated={onCreated} depth={depth + 1} />
+          ))}
+        </ul>
+      )}
+      {addChildOpen && (
+        <PageDialog open={addChildOpen} onOpenChange={setAddChildOpen} accountId={accountId} workspaceId={workspaceId ?? ""} currentUserId={currentUserId} parentPageId={node.id} onSuccess={onCreated} />
+      )}
+    </li>
+  );
+}
+
+export function PageTreeView({ nodes, accountId, workspaceId, currentUserId, allowCreate = true, emptyStateDescription, onPageClick, onCreated }: PageTreeViewProps) {
+  const [createOpen, setCreateOpen] = useState(false);
+  if (!nodes.length) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-8 text-center text-sm text-muted-foreground">
+        <FileText className="h-8 w-8 opacity-40" />
+        <p>{emptyStateDescription ?? "尚無頁面"}</p>
+        {allowCreate && workspaceId && (
+          <>
+            <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>新增頁面</Button>
+            <PageDialog open={createOpen} onOpenChange={setCreateOpen} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} parentPageId={null} onSuccess={onCreated} />
+          </>
+        )}
+      </div>
+    );
+  }
+  return <ul className="space-y-0.5">{nodes.map((n) => <TreeNode key={n.id} node={n} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} allowCreate={allowCreate} onPageClick={onPageClick} onCreated={onCreated} depth={0} />)}</ul>;
+}
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/store/block-editor.store.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: interfaces/store
+ * Purpose: Zustand store for the block editor UI state.
+ *          Manages optimistic block operations before persistence.
+ */
+"use client";
+
+import { create } from "zustand";
+import type { BlockContent } from "../../application/dto/knowledge.dto";
+
+export interface EditorBlock {
+  id: string;
+  content: BlockContent;
+  order: number;
+  parentBlockId: string | null;
+  isFocused: boolean;
+}
+
+interface BlockEditorState {
+  pageId: string | null;
+  accountId: string | null;
+  blocks: EditorBlock[];
+  isDirty: boolean;
+
+  setPage: (accountId: string, pageId: string) => void;
+  setBlocks: (blocks: EditorBlock[]) => void;
+  addBlock: (after: string | null, content?: BlockContent) => EditorBlock;
+  updateBlock: (id: string, content: BlockContent) => void;
+  deleteBlock: (id: string) => void;
+  reorder: (ids: string[]) => void;
+  clearDirty: () => void;
+}
+
+function makeId() {
+  return crypto.randomUUID();
+}
+
+export const useBlockEditorStore = create<BlockEditorState>((set, get) => ({
+  pageId: null,
+  accountId: null,
+  blocks: [],
+  isDirty: false,
+
+  setPage(accountId, pageId) {
+    set({ accountId, pageId, blocks: [], isDirty: false });
+  },
+
+  setBlocks(blocks) {
+    set({ blocks, isDirty: false });
+  },
+
+  addBlock(afterId, content = { type: "text", richText: [] }) {
+    const blocks = [...get().blocks];
+    const idx = afterId ? blocks.findIndex((b) => b.id === afterId) : blocks.length - 1;
+    const newBlock: EditorBlock = {
+      id: makeId(),
+      content,
+      order: idx + 1,
+      parentBlockId: null,
+      isFocused: true,
+    };
+    const updated = [
+      ...blocks.slice(0, idx + 1),
+      newBlock,
+      ...blocks.slice(idx + 1).map((b) => ({ ...b, order: b.order + 1 })),
+    ];
+    set({ blocks: updated, isDirty: true });
+    return newBlock;
+  },
+
+  updateBlock(id, content) {
+    set({
+      blocks: get().blocks.map((b) => (b.id === id ? { ...b, content } : b)),
+      isDirty: true,
+    });
+  },
+
+  deleteBlock(id) {
+    set({
+      blocks: get().blocks.filter((b) => b.id !== id),
+      isDirty: true,
+    });
+  },
+
+  reorder(ids) {
+    const map = new Map(get().blocks.map((b) => [b.id, b]));
+    const reordered = ids
+      .map((id, i) => {
+        const b = map.get(id);
+        return b ? { ...b, order: i } : null;
+      })
+      .filter((b): b is EditorBlock => b !== null);
+    set({ blocks: reordered, isDirty: true });
+  },
+
+  clearDirty() {
+    set({ isDirty: false });
+  },
+}));
 ````
 
 ## File: modules/platform/api/facade.ts
@@ -41202,6 +41501,1620 @@ export default function AccountWorkspaceFeedPage() {
 }
 ````
 
+## File: app/(shell)/(account)/[accountId]/dev-tools/dev-tools-badges.tsx
+````typescript
+"use client";
+
+import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+
+export function StatusBadge({ status, errorMessage }: { status: string; errorMessage?: string }) {
+  if (status === "completed") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
+        <CheckCircle2 className="size-3" /> 完成
+      </span>
+    );
+  }
+  if (status === "processing") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
+        <Loader2 className="size-3 animate-spin" /> 處理中
+      </span>
+    );
+  }
+  if (status === "error") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
+        title={errorMessage}
+      >
+        <XCircle className="size-3" /> 錯誤
+      </span>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">{status || "—"}</span>;
+}
+
+export function RagBadge({ status, error }: { status?: string; error?: string }) {
+  if (status === "ready") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
+        <CheckCircle2 className="size-3" /> RAG Ready
+      </span>
+    );
+  }
+  if (status === "error") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
+        title={error}
+      >
+        <XCircle className="size-3" /> RAG Error
+      </span>
+    );
+  }
+  if (status) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
+        <Loader2 className="size-3 animate-spin" /> {status}
+      </span>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">—</span>;
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/dev-tools/dev-tools-helpers.ts
+````typescript
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface ParseResult {
+  doc_id: string;
+  status: "processing" | "completed" | "error";
+  page_count?: number;
+  json_gcs_uri?: string;
+  error_message?: string;
+}
+
+export interface DocRecord {
+  id: string;
+  status: "processing" | "completed" | "error" | string;
+  filename: string;
+  gcs_uri: string;
+  uploaded_at: Date | null;
+  page_count?: number;
+  json_gcs_uri?: string;
+  error_message?: string;
+  rag_status?: string;
+  rag_chunk_count?: number;
+  rag_vector_count?: number;
+  rag_raw_chars?: number;
+  rag_normalized_chars?: number;
+  rag_normalization_version?: string;
+  rag_language_hint?: string;
+  rag_error?: string;
+}
+
+export type UploadStatus = "idle" | "uploading" | "waiting" | "done" | "error";
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+export const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
+export const WATCH_PATH = "uploads/";
+export const ACCEPTED_MIME: Record<string, string> = {
+  pdf: "application/pdf",
+  tif: "image/tiff",
+  tiff: "image/tiff",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+};
+export const ACCEPTED_EXTS = ".pdf, .tif / .tiff, .png, .jpg / .jpeg";
+
+// ── Data-mapping helpers ──────────────────────────────────────────────────────
+
+export function formatDateTime(value: Date | null): string {
+  if (!value) return "—";
+  return value.toLocaleString("zh-TW", { hour12: false });
+}
+
+function deriveJsonUri(gcsUri: string): string {
+  if (!gcsUri.startsWith("gs://")) return "";
+  const withoutPrefix = gcsUri.slice(5);
+  const firstSlash = withoutPrefix.indexOf("/");
+  if (firstSlash < 0) return "";
+
+  const bucket = withoutPrefix.slice(0, firstSlash);
+  const objectPath = withoutPrefix.slice(firstSlash + 1);
+  if (!objectPath.startsWith("uploads/")) return "";
+
+  const relativePath = objectPath.slice("uploads/".length);
+  const dotIndex = relativePath.lastIndexOf(".");
+  const stem = dotIndex > -1 ? relativePath.slice(0, dotIndex) : relativePath;
+  return `gs://${bucket}/files/${stem}.json`;
+}
+
+export function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+export function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+export function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" ? value : undefined;
+}
+
+function asDate(value: unknown): Date | null {
+  if (value instanceof Date) return value;
+  if (value && typeof value === "object" && "toDate" in value) {
+    if (typeof (value as { toDate?: unknown }).toDate === "function") {
+      const converted = (value as { toDate: () => unknown }).toDate();
+      return converted instanceof Date ? converted : null;
+    }
+  }
+  return null;
+}
+
+export function mapSnapshotDoc(doc: { id: string; data: () => unknown }): DocRecord {
+  const data = asRecord(doc.data());
+  const source = asRecord(data.source);
+  const parsed = asRecord(data.parsed);
+  const rag = asRecord(data.rag);
+  const err = asRecord(data.error);
+
+  return {
+    id: doc.id,
+    status: asString(data.status, "unknown"),
+    filename: asString(source.filename, doc.id),
+    gcs_uri: asString(source.gcs_uri),
+    uploaded_at: asDate(source.uploaded_at),
+    page_count: asNumber(parsed.page_count),
+    json_gcs_uri: asString(parsed.json_gcs_uri, deriveJsonUri(asString(source.gcs_uri))),
+    error_message: asString(err.message) || undefined,
+    rag_status: asString(rag.status) || undefined,
+    rag_chunk_count: asNumber(rag.chunk_count),
+    rag_vector_count: asNumber(rag.vector_count),
+    rag_raw_chars: asNumber(rag.raw_chars),
+    rag_normalized_chars: asNumber(rag.normalized_chars),
+    rag_normalization_version: asString(rag.normalization_version) || undefined,
+    rag_language_hint: asString(rag.language_hint) || undefined,
+    rag_error: asString(rag.error) || undefined,
+  };
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/dev-tools/dev-tools-parsed-docs-section.tsx
+````typescript
+"use client";
+
+/**
+ * DevToolsParsedDocsSection.tsx
+ * Owns: the "已解析檔案" (completed-only) table section in the Dev Tools page.
+ * Receives all doc data and handlers as props; contains no state.
+ */
+
+import { CheckCircle2, FlaskConical, Loader2 } from "lucide-react";
+
+import { type DocRecord } from "./dev-tools-helpers";
+import { RagBadge } from "./dev-tools-badges";
+import { formatDateTime } from "./use-dev-tools-doc-list";
+
+interface DevToolsParsedDocsSectionProps {
+  parsedDocs: DocRecord[];
+  reindexingId: string | null;
+  onViewJson: (doc: DocRecord) => void;
+  onManualProcess: (doc: DocRecord) => void;
+  formatNormalizationRatio: (doc: DocRecord) => string;
+}
+
+export function DevToolsParsedDocsSection({
+  parsedDocs,
+  reindexingId,
+  onViewJson,
+  onManualProcess,
+  formatNormalizationRatio,
+}: DevToolsParsedDocsSectionProps) {
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center gap-2">
+        <CheckCircle2 className="size-4 text-emerald-600" />
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+          已解析檔案（{parsedDocs.length}）
+        </h2>
+      </div>
+      {parsedDocs.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+          尚無解析完成檔案
+        </p>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-emerald-500/20">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1100px] text-sm">
+              <thead>
+                <tr className="border-b border-emerald-500/10 bg-emerald-500/5">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Chunks / Vectors</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Normalization</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">版本 / 語系</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">JSON</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">完成時間</th>
+                </tr>
+              </thead>
+              <tbody>
+                {parsedDocs.map((doc, i) => (
+                  <tr
+                    key={`parsed-${doc.id}`}
+                    className={`border-b border-border/30 last:border-0 ${i % 2 === 0 ? "bg-background" : "bg-muted/20"}`}
+                  >
+                    <td className="px-4 py-2.5 font-mono text-xs max-w-[220px] truncate" title={doc.filename}>
+                      {doc.filename}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs font-medium">{doc.page_count ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-xs">
+                      <RagBadge status={doc.rag_status} error={doc.rag_error} />
+                    </td>
+                    <td className="px-4 py-2.5 text-xs font-mono">
+                      {(doc.rag_chunk_count ?? 0).toLocaleString()} /{" "}
+                      {(doc.rag_vector_count ?? 0).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs font-mono">
+                      {formatNormalizationRatio(doc)}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs font-mono">
+                      {(doc.rag_normalization_version || "—").toUpperCase()} /{" "}
+                      {(doc.rag_language_hint || "—").toUpperCase()}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs max-w-[320px]">
+                      {doc.json_gcs_uri ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => { onViewJson(doc); }}
+                            className="font-mono text-left truncate text-primary hover:underline"
+                            title={doc.json_gcs_uri}
+                          >
+                            {doc.json_gcs_uri}
+                          </button>
+                          <button
+                            onClick={() => { onManualProcess(doc); }}
+                            disabled={reindexingId === doc.id}
+                            title="手動整理（Normalization + RAG）"
+                            className="inline-flex h-6 items-center gap-1 rounded-md border border-border/60 px-2 text-[11px] text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+                          >
+                            {reindexingId === doc.id ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <FlaskConical className="size-3" />
+                            )}
+                            手動整理
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                      {formatDateTime(doc.uploaded_at)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/dev-tools/page.tsx
+````typescript
+"use client";
+
+/**
+ * Module: dev-tools page — /dev-tools
+ * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
+ * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
+ * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
+ *   Doc-list state and operations → useDevToolsDocList hook.
+ *   Parsed-docs table → DevToolsParsedDocsSection component.
+ */
+
+import { useRef, useState, useEffect } from "react";
+import {
+  FlaskConical,
+  FileUp,
+  AlertCircle,
+  FileText,
+  Trash2,
+  Code2,
+  ExternalLink,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
+
+import { useApp } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  UPLOAD_BUCKET,
+  WATCH_PATH,
+  ACCEPTED_MIME,
+  ACCEPTED_EXTS,
+  asRecord,
+  asString,
+  asNumber,
+  type ParseResult,
+  type UploadStatus,
+} from "./dev-tools-helpers";
+import { StatusBadge, RagBadge } from "./dev-tools-badges";
+import { useDevToolsDocList, formatDateTime } from "./use-dev-tools-doc-list";
+import { DevToolsParsedDocsSection } from "./dev-tools-parsed-docs-section";
+
+// ── Page component ─────────────────────────────────────────────────────────
+
+export default function DevToolsPage() {
+  const { state: appState } = useApp();
+  const { state: wsState } = useWorkspaceContext();
+  const activeAccountId = appState.activeAccount?.id ?? "";
+  const activeWorkspaceId = wsState.activeWorkspaceId ?? "";
+
+  // ── Upload state ──────────────────────────────────────────────────────────
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<UploadStatus>("idle");
+  const [result, setResult] = useState<ParseResult | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [logs, setLogs] = useState<string[]>([]);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
+
+  // ── Doc list + operations (extracted hook) ────────────────────────────────
+  const {
+    allDocs,
+    selectedDocId,
+    selectedDoc,
+    jsonContent,
+    jsonLoading,
+    deletingId,
+    reindexingId,
+    handleViewOriginal,
+    handleViewJson,
+    handleDeleteDoc,
+    handleManualProcess,
+    closeJsonPreview,
+    formatNormalizationRatio,
+  } = useDevToolsDocList(activeAccountId);
+
+  // Cleanup upload subscription on unmount
+  useEffect(() => {
+    return () => { if (unsubscribeRef.current) unsubscribeRef.current(); };
+  }, []);
+
+  function appendLog(msg: string) {
+    setLogs((prev) => [
+      ...prev,
+      `[${new Date().toISOString().split("T")[1]?.slice(0, 8)}] ${msg}`,
+    ]);
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setSelectedFile(file);
+    setResult(null);
+    setErrorMsg(null);
+    setStatus("idle");
+    setLogs([]);
+    if (file) appendLog(`已選取：${file.name}（${(file.size / 1024).toFixed(1)} KB）`);
+  }
+
+  function buildUuidUploadPath(accountId: string, file: File) {
+    const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
+    const docId = crypto.randomUUID();
+    return { uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`, docId };
+  }
+
+  function watchDocument(docId: string) {
+    if (!activeAccountId) {
+      appendLog("❌ 缺少 active account，無法監聽文件狀態");
+      return;
+    }
+    try {
+      const db = getFirebaseFirestore();
+      const docRef = firestoreApi.doc(db, "accounts", activeAccountId, "documents", docId);
+      if (unsubscribeRef.current) unsubscribeRef.current();
+      unsubscribeRef.current = firestoreApi.onSnapshot(docRef, (snapshot) => {
+        if (!snapshot.exists()) { appendLog("等待 Firestore 初始化…"); return; }
+        const data = asRecord(snapshot.data());
+        const docStatus = asString(data.status, "unknown");
+        appendLog(`Firestore update: status=${docStatus}`);
+        if (docStatus === "completed") {
+          const parsed = asRecord(data.parsed);
+          const r: ParseResult = {
+            doc_id: docId,
+            status: "completed",
+            page_count: asNumber(parsed.page_count) ?? 0,
+            json_gcs_uri: asString(parsed.json_gcs_uri),
+          };
+          setResult(r);
+          setStatus("done");
+          appendLog(`✅ 解析完成：${asNumber(parsed.page_count) ?? 0} 頁`);
+          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+        } else if (docStatus === "error") {
+          const error = asRecord(data.error);
+          const msg = asString(error.message, "未知錯誤");
+          setErrorMsg(msg);
+          setStatus("error");
+          appendLog(`❌ 錯誤：${msg}`);
+          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+        }
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      appendLog(`❌ 監聽失敗：${msg}`);
+      setErrorMsg(msg);
+      setStatus("error");
+    }
+  }
+
+  async function handleUploadAndParse() {
+    if (!selectedFile) return;
+    if (!activeAccountId) {
+      setErrorMsg("缺少 active account，無法上傳與解析");
+      setStatus("error");
+      return;
+    }
+    setStatus("uploading");
+    setResult(null);
+    setErrorMsg(null);
+    appendLog("📤 上傳檔案到 Cloud Storage…");
+    try {
+      // Step 1: Upload to GCS
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const { uploadPath, docId } = buildUuidUploadPath(activeAccountId, selectedFile);
+      const fileRef = storageApi.ref(storage, uploadPath);
+      const snap = await storageApi.uploadBytes(fileRef, selectedFile, {
+        contentType: ACCEPTED_MIME[selectedFile.name.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream",
+        customMetadata: {
+          account_id: activeAccountId,
+          workspace_id: activeWorkspaceId,
+          filename: selectedFile.name,
+        },
+      });
+      appendLog(`✅ 上傳完成：${snap.ref.fullPath}`);
+      // Step 2: Watch Firestore for status updates
+      setStatus("waiting");
+      appendLog("⏳ 等待 parse_document 處理…");
+      watchDocument(docId);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setErrorMsg(msg);
+      setStatus("error");
+      appendLog(`❌ 上傳失敗：${msg}`);
+    }
+  }
+
+  function reset() {
+    if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+    setSelectedFile(null);
+    setResult(null);
+    setErrorMsg(null);
+    setStatus("idle");
+    setLogs([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  const isLoading = status === "uploading" || status === "waiting";
+  const parsedDocs = allDocs.filter((doc) => doc.status === "completed");
+  const ragReadyCount = allDocs.filter((doc) => doc.rag_status === "ready").length;
+  const ragErrorCount = allDocs.filter((doc) => doc.rag_status === "error").length;
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-8">
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3">
+        <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10">
+          <FlaskConical className="size-5 text-amber-500" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Dev Tools</h1>
+          <p className="text-xs text-muted-foreground">
+            py_fn · parse_document · Document AI · Firestore 實時監聽
+          </p>
+        </div>
+      </div>
+
+      {/* ── Stats ──────────────────────────────────────────────────── */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-border/60 bg-card px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">全部文件</p>
+          <p className="text-lg font-semibold tracking-tight">{allDocs.length}</p>
+        </div>
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+          <p className="text-[11px] text-emerald-700">解析完成</p>
+          <p className="text-lg font-semibold tracking-tight text-emerald-700">{parsedDocs.length}</p>
+        </div>
+        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-3 py-2">
+          <p className="text-[11px] text-blue-700">RAG Ready</p>
+          <p className="text-lg font-semibold tracking-tight text-blue-700">{ragReadyCount}</p>
+        </div>
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2">
+          <p className="text-[11px] text-destructive">RAG Error</p>
+          <p className="text-lg font-semibold tracking-tight text-destructive">{ragErrorCount}</p>
+        </div>
+      </section>
+
+      {/* ── File picker ────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+          1. 選擇檔案
+        </h2>
+        <label
+          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-8 transition
+            ${selectedFile ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
+        >
+          <FileUp className="size-8 text-muted-foreground" />
+          <div className="text-center">
+            <p className="text-sm font-medium">
+              {selectedFile ? selectedFile.name : "點擊或拖曳上傳"}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={Object.keys(ACCEPTED_MIME).join(",")}
+            className="sr-only"
+            onChange={handleFileChange}
+          />
+        </label>
+      </section>
+
+      {/* ── Actions ────────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+          2. 執行上傳 &amp; 解析
+        </h2>
+        <div className="flex gap-3">
+          <Button onClick={handleUploadAndParse} disabled={!selectedFile || isLoading} className="gap-2">
+            {isLoading ? <Loader2 className="size-4 animate-spin" /> : <FlaskConical className="size-4" />}
+            {status === "uploading" ? "上傳中…" : status === "waiting" ? "等待中…" : "開始"}
+          </Button>
+          <Button variant="outline" onClick={reset} disabled={isLoading}>
+            重置
+          </Button>
+        </div>
+      </section>
+
+      {/* ── Result ─────────────────────────────────────────────────── */}
+      {(status === "done" || status === "error") && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            3. 結果
+          </h2>
+          {status === "done" && result && (
+            <div className="rounded-xl border border-border/60 bg-card p-5 space-y-4">
+              <div className="flex items-center gap-2 text-emerald-600">
+                <CheckCircle2 className="size-4 shrink-0" />
+                <span className="text-sm font-medium">解析成功</span>
+              </div>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <dt className="text-muted-foreground">doc_id</dt>
+                <dd className="font-mono text-xs">{result.doc_id}</dd>
+                <dt className="text-muted-foreground">page_count</dt>
+                <dd className="font-bold">{result.page_count}</dd>
+                <dt className="text-muted-foreground">JSON 位置</dt>
+                <dd className="font-mono text-xs break-all">{result.json_gcs_uri || "—"}</dd>
+              </dl>
+            </div>
+          )}
+          {status === "error" && (
+            <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+              <XCircle className="mt-0.5 size-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+        </section>
+      )}
+
+      {status === "waiting" && (
+        <section className="space-y-3">
+          <div className="flex items-start gap-2 rounded-xl border border-blue-300/30 bg-blue-500/5 p-4 text-sm text-blue-600">
+            <AlertCircle className="mt-0.5 size-4 shrink-0 animate-pulse" />
+            <div>
+              <p className="font-medium">處理中…</p>
+              <p className="mt-1 text-xs opacity-75">Document AI 正在解析檔案，請稍候</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── All uploaded docs table ─────────────────────────────────── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <FileText className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            已上傳檔案（{allDocs.length}）
+          </h2>
+        </div>
+        {allDocs.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+            尚無上傳記錄
+          </p>
+        ) : (
+          <div className="space-y-0 overflow-hidden rounded-xl border border-border/60">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead>
+                  <tr className="border-b border-border/60 bg-muted/40">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allDocs.map((doc, i) => (
+                    <tr
+                      key={doc.id}
+                      className={`border-b border-border/40 last:border-0 transition-colors ${
+                        selectedDocId === doc.id
+                          ? "bg-primary/8 ring-1 ring-inset ring-primary/20"
+                          : i % 2 === 0 ? "bg-background" : "bg-muted/20"
+                      }`}
+                    >
+                      <td className="px-4 py-2.5 font-mono text-xs max-w-[180px] truncate" title={doc.filename}>
+                        {doc.filename}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <StatusBadge status={doc.status} errorMessage={doc.error_message} />
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <RagBadge status={doc.rag_status} error={doc.rag_error} />
+                      </td>
+                      <td className="px-4 py-2.5 text-xs">
+                        {doc.page_count != null ? doc.page_count : "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                        {formatDateTime(doc.uploaded_at)}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => { void handleViewOriginal(doc); }}
+                            disabled={!doc.gcs_uri}
+                            title="查看原始檔案"
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
+                          >
+                            <ExternalLink className="size-3.5" />
+                          </button>
+                          <button
+                            onClick={() => { void handleViewJson(doc); }}
+                            disabled={doc.status !== "completed" || !doc.json_gcs_uri}
+                            title="查看 JSON 解析結果"
+                            className={`inline-flex size-7 items-center justify-center rounded-md transition hover:bg-muted disabled:opacity-30 ${
+                              selectedDocId === doc.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            <Code2 className="size-3.5" />
+                          </button>
+                          <button
+                            onClick={() => { void handleDeleteDoc(doc); }}
+                            disabled={deletingId === doc.id}
+                            title="刪除"
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
+                          >
+                            {deletingId === doc.id
+                              ? <Loader2 className="size-3.5 animate-spin" />
+                              : <Trash2 className="size-3.5" />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* JSON preview panel */}
+            {selectedDocId && (
+              <div className="border-t border-border/60 bg-[#0d1117]">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
+                  <div className="flex items-center gap-2 text-xs text-green-400">
+                    <Code2 className="size-3.5" />
+                    <span className="font-mono">
+                      {selectedDoc?.filename ?? selectedDocId} — JSON
+                    </span>
+                  </div>
+                  <button
+                    onClick={closeJsonPreview}
+                    className="text-white/30 hover:text-white/70 transition text-xs"
+                  >
+                    ✕ 關閉
+                  </button>
+                </div>
+                {selectedDoc?.rag_status === "error" && (
+                  <div className="border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs text-destructive">
+                    RAG 失敗：{selectedDoc.rag_error || "未知錯誤"}
+                  </div>
+                )}
+                <div className="max-h-80 overflow-y-auto p-4">
+                  {jsonLoading ? (
+                    <div className="flex items-center gap-2 text-green-400/60 text-xs">
+                      <Loader2 className="size-3.5 animate-spin" /> 載入中…
+                    </div>
+                  ) : (
+                    <pre className="font-mono text-xs leading-relaxed text-green-400 whitespace-pre-wrap break-words">
+                      {jsonContent}
+                    </pre>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ── Parsed docs table (extracted component) ─────────────────── */}
+      <DevToolsParsedDocsSection
+        parsedDocs={parsedDocs}
+        reindexingId={reindexingId}
+        onViewJson={(doc) => { void handleViewJson(doc); }}
+        onManualProcess={(doc) => { void handleManualProcess(doc, appendLog); }}
+        formatNormalizationRatio={formatNormalizationRatio}
+      />
+
+      {/* ── Console log ────────────────────────────────────────────── */}
+      {logs.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            Console
+          </h2>
+          <div className="max-h-48 overflow-y-auto rounded-xl bg-[#0d1117] p-4">
+            {logs.map((line, i) => (
+              <p key={i} className="font-mono text-xs leading-relaxed text-green-400">
+                {line}
+              </p>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/dev-tools/use-dev-tools-doc-list.ts
+````typescript
+"use client";
+
+/**
+ * useDevToolsDocList.ts
+ * Owns: Firestore subscription for the document list, JSON-preview state,
+ *   and all per-document async operations (view, delete, reindex).
+ */
+
+import { useEffect, useRef, useState } from "react";
+
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
+
+import {
+  UPLOAD_BUCKET,
+  mapSnapshotDoc,
+  formatDateTime,
+  type DocRecord,
+} from "./dev-tools-helpers";
+
+// ── Public state ───────────────────────────────────────────────────────────
+
+export interface DocListState {
+  allDocs: DocRecord[];
+  selectedDocId: string | null;
+  selectedDoc: DocRecord | undefined;
+  jsonContent: string | null;
+  jsonLoading: boolean;
+  deletingId: string | null;
+  reindexingId: string | null;
+}
+
+export interface DocListHandlers {
+  handleViewOriginal: (doc: DocRecord) => Promise<void>;
+  handleViewJson: (doc: DocRecord) => Promise<void>;
+  handleDeleteDoc: (doc: DocRecord) => Promise<void>;
+  handleManualProcess: (doc: DocRecord, appendLog: (msg: string) => void) => Promise<void>;
+  closeJsonPreview: () => void;
+  formatNormalizationRatio: (doc: DocRecord) => string;
+}
+
+// ── Hook ───────────────────────────────────────────────────────────────────
+
+export function useDevToolsDocList(activeAccountId: string): DocListState & DocListHandlers {
+  const [allDocs, setAllDocs] = useState<DocRecord[]>([]);
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [jsonContent, setJsonContent] = useState<string | null>(null);
+  const [jsonLoading, setJsonLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [reindexingId, setReindexingId] = useState<string | null>(null);
+
+  const unsubscribeListRef = useRef<(() => void) | null>(null);
+
+  // Subscribe to all documents for this account
+  useEffect(() => {
+    if (!activeAccountId) {
+      setAllDocs([]);
+      return;
+    }
+    try {
+      const db = getFirebaseFirestore();
+      const colRef = firestoreApi.collection(db, "accounts", activeAccountId, "documents");
+      unsubscribeListRef.current = firestoreApi.onSnapshot(colRef, (snapshot) => {
+        const docs: DocRecord[] = snapshot.docs.map(mapSnapshotDoc);
+        docs.sort((a, b) => (b.uploaded_at?.getTime() ?? 0) - (a.uploaded_at?.getTime() ?? 0));
+        setAllDocs(docs);
+      });
+    } catch (_err) {}
+    return () => { unsubscribeListRef.current?.(); };
+  }, [activeAccountId]);
+
+  function closeJsonPreview() {
+    setSelectedDocId(null);
+    setJsonContent(null);
+  }
+
+  async function handleViewOriginal(doc: DocRecord) {
+    if (!doc.gcs_uri) return;
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const fileRef = storageApi.ref(storage, doc.gcs_uri);
+      const url = await storageApi.getDownloadURL(fileRef);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err: unknown) {
+      alert(`無法取得下載連結：${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  async function handleViewJson(doc: DocRecord) {
+    if (!doc.json_gcs_uri) return;
+    if (selectedDocId === doc.id && jsonContent !== null) {
+      closeJsonPreview();
+      return;
+    }
+    setSelectedDocId(doc.id);
+    setJsonContent(null);
+    setJsonLoading(true);
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const jsonRef = storageApi.ref(storage, doc.json_gcs_uri);
+      const url = await storageApi.getDownloadURL(jsonRef);
+      const res = await fetch(url);
+      const text = await res.text();
+      setJsonContent(text);
+    } catch (err: unknown) {
+      setJsonContent(`// 載入失敗：${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setJsonLoading(false);
+    }
+  }
+
+  async function handleDeleteDoc(doc: DocRecord) {
+    if (
+      !window.confirm(
+        `確定刪除「${doc.filename}」？\n此操作將同時刪除 Firestore 記錄與 GCS 檔案，無法復原。`,
+      )
+    )
+      return;
+    setDeletingId(doc.id);
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const db = getFirebaseFirestore();
+      if (doc.gcs_uri) {
+        try { await storageApi.deleteObject(storageApi.ref(storage, doc.gcs_uri)); } catch (_err) {}
+      }
+      if (doc.json_gcs_uri) {
+        try { await storageApi.deleteObject(storageApi.ref(storage, doc.json_gcs_uri)); } catch (_err) {}
+      }
+      if (!activeAccountId) throw new Error("缺少 active account");
+      await firestoreApi.deleteDoc(
+        firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id),
+      );
+      if (selectedDocId === doc.id) closeJsonPreview();
+    } catch (err: unknown) {
+      alert(`刪除失敗：${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleManualProcess(
+    doc: DocRecord,
+    appendLog: (msg: string) => void,
+  ) {
+    if (!doc.json_gcs_uri) return;
+    if (!activeAccountId) {
+      alert("缺少 active account，無法手動整理");
+      return;
+    }
+    setReindexingId(doc.id);
+    appendLog(`🧹 手動整理開始：${doc.id}`);
+    try {
+      const functions = getFirebaseFunctions("asia-southeast1");
+      const callable = functionsApi.httpsCallable(functions, "rag_reindex_document");
+      await callable({
+        account_id: activeAccountId,
+        doc_id: doc.id,
+        json_gcs_uri: doc.json_gcs_uri,
+        source_gcs_uri: doc.gcs_uri,
+        filename: doc.filename,
+        page_count: doc.page_count ?? 0,
+      });
+      appendLog(`✅ 手動整理完成：${doc.id}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      appendLog(`❌ 手動整理失敗：${msg}`);
+      alert(`手動整理失敗：${msg}`);
+    } finally {
+      setReindexingId(null);
+    }
+  }
+
+  function formatNormalizationRatio(doc: DocRecord): string {
+    const raw = doc.rag_raw_chars ?? 0;
+    const normalized = doc.rag_normalized_chars ?? 0;
+    if (raw <= 0 || normalized <= 0) return "—";
+    const ratio = (normalized / raw) * 100;
+    return `${normalized.toLocaleString()} / ${raw.toLocaleString()} (${ratio.toFixed(1)}%)`;
+  }
+
+  const selectedDoc = selectedDocId ? allDocs.find((d) => d.id === selectedDocId) : undefined;
+
+  return {
+    allDocs,
+    selectedDocId,
+    selectedDoc,
+    jsonContent,
+    jsonLoading,
+    deletingId,
+    reindexingId,
+    handleViewOriginal,
+    handleViewJson,
+    handleDeleteDoc,
+    handleManualProcess,
+    closeJsonPreview,
+    formatNormalizationRatio,
+    // re-export for table columns
+  };
+}
+
+// Re-export for convenience in table components
+export { formatDateTime };
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/_utils.ts
+````typescript
+export function formatDateTime(value: string | Date | null | undefined): string {
+  if (!value) return "—";
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(value instanceof Date ? value : new Date(value));
+  } catch {
+    return value instanceof Date ? value.toISOString() : String(value);
+  }
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/audit/_components/OrganizationAuditPage.tsx
+````typescript
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
+import { AuditStream, getOrganizationAuditLogs } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+
+// ── Props ─────────────────────────────────────────────────────────────────────
+
+export interface OrganizationAuditPageProps {
+  organizationId: string | null;
+  workspaces: Record<string, WorkspaceEntity>;
+  workspacesHydrated: boolean;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function formatDateTime(value: string | Date | null | undefined): string {
+  if (!value) return "—";
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(value instanceof Date ? value : new Date(value));
+  } catch {
+    return value instanceof Date ? value.toISOString() : String(value);
+  }
+}
+
+const MAX_DISPLAYED_AUDIT_LOGS = 50;
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export function OrganizationAuditPage({
+  organizationId,
+  workspaces,
+  workspacesHydrated,
+}: OrganizationAuditPageProps) {
+  const [auditLogs, setAuditLogs] = useState<
+    Awaited<ReturnType<typeof getOrganizationAuditLogs>>
+  >([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  // workspaceNameById is derived from the workspaces prop — no extra fetch needed.
+  const workspaceNameById = useMemo(
+    () => new Map(Object.values(workspaces).map((w) => [w.id, w.name])),
+    [workspaces],
+  );
+
+  useEffect(() => {
+    if (!organizationId || !workspacesHydrated) return;
+    let cancelled = false;
+    const workspaceIds = Object.keys(workspaces);
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const logs = await getOrganizationAuditLogs(workspaceIds, MAX_DISPLAYED_AUDIT_LOGS);
+        if (!cancelled) {
+          setAuditLogs(logs);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setAuditLogs([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationId, workspacesHydrated, workspaces]);
+
+  if (!organizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">稽核</h1>
+        <p className="mt-1 text-sm text-muted-foreground">組織下所有工作區的 audit log 彙整。</p>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Audit</CardTitle>
+          <CardDescription>組織下所有工作區的 audit log 彙整。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入稽核資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取稽核資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && auditLogs.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的 audit logs。</p>
+          )}
+          {loadState === "loaded" &&
+            auditLogs.slice(0, MAX_DISPLAYED_AUDIT_LOGS).map((log) => (
+              <div key={log.id} className="rounded-lg border border-border/40 px-3 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium">{log.action}</p>
+                  <Badge variant="outline">{log.source}</Badge>
+                  <Badge variant="secondary">
+                    {workspaceNameById.get(log.workspaceId) ?? log.workspaceId}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{log.detail || "—"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {formatDateTime(log.occurredAtISO)}
+                </p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      {/* ── 稽核時間軸（新版 AuditStream）─────────────────────────────── */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>稽核時間軸</CardTitle>
+          <CardDescription>
+            以時間軸視覺化呈現稽核事件；嚴重程度由色點標示（藍 = 中、橘 = 高、紅 = 嚴重）。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AuditStream logs={auditLogs} height={500} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/audit/page.tsx
+````typescript
+"use client";
+
+import { useApp, isActiveOrganizationAccount } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
+import { OrganizationAuditPage } from "./_components/OrganizationAuditPage";
+
+export default function OrganizationAuditPageRoute() {
+  const { state: appState } = useApp();
+  const { state: wsState } = useWorkspaceContext();
+  const { activeAccount } = appState;
+  const organizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  return (
+    <OrganizationAuditPage
+      organizationId={organizationId}
+      workspaces={wsState.workspaces}
+      workspacesHydrated={wsState.workspacesHydrated}
+    />
+  );
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/content/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+interface OrganizationKnowledgePageProps {
+  params: {
+    accountId: string;
+  };
+}
+
+export default function OrganizationKnowledgePage({ params }: OrganizationKnowledgePageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}?tab=Overview&panel=knowledge-pages`);
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/daily/page.tsx
+````typescript
+"use client";
+
+import { useApp } from "@/modules/platform/api";
+import { WorkspaceFeedAccountView } from "@/modules/workspace/api";
+import { isActiveOrganizationAccount } from "@/modules/platform/api";
+
+export default function OrganizationDailyPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <section className="mx-auto max-w-4xl space-y-6">
+      <header className="rounded-3xl border border-border/60 bg-card/50 p-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold">Account Workspace Feed</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              聚合名下所有 workspace 的 feed，並提供 Reply / Repost / Like / View / Bookmark / Share 互動。
+            </p>
+          </div>
+          <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+            live
+          </div>
+        </div>
+      </header>
+
+      <WorkspaceFeedAccountView accountId={activeOrganizationId} />
+    </section>
+  );
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/members/page.tsx
+````typescript
+"use client";
+
+import { useApp, isActiveOrganizationAccount, MembersPage } from "@/modules/platform/api"
+
+export default function OrganizationMembersPage() {
+  const { state: { activeAccount } } = useApp();
+  const organizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
+  return <MembersPage organizationId={organizationId} />;
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/page.tsx
+````typescript
+"use client";
+
+/**
+ * Organization Overview Page — /organization
+ * Lists organizations visible to the current user and allows switching
+ * to an organization account context.
+ * Section pages live under /organization/[section].
+ */
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+import { useApp, useAuth } from "@/modules/platform/api"
+import type { AccountEntity } from "@/modules/platform/api";
+import { isActiveOrganizationAccount } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+
+export default function OrganizationPage() {
+  const router = useRouter();
+  const { state: appState, dispatch } = useApp();
+  const { state: authState } = useAuth();
+  const { user } = authState;
+  const { accounts, activeAccount, accountsHydrated, bootstrapPhase } = appState;
+
+  const orgList = Object.values(accounts);
+  const activeOrganizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  function handleSwitch(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+    router.replace("/workspace");
+  }
+
+  function handleSwitchToPersonal() {
+    if (!user) return;
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: user });
+    router.replace("/workspace");
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Account Context Switcher</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          先選擇個人或組織帳號情境，再回到 workspace-first 主流程。
+        </p>
+      </div>
+
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="text-base font-semibold">Recommended flow</h2>
+        <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
+          <li>
+            <span className="font-medium text-foreground">1. Identity</span>：登入後確認你目前要操作的個人／組織帳號。
+          </li>
+          <li>
+            <span className="font-medium text-foreground">2. Organization</span>：在這裡切換 active account。
+          </li>
+          <li>
+            <span className="font-medium text-foreground">3. Workspace</span>：回到工作區，再進入 Knowledge、知識頁面、Notebook / AI。
+          </li>
+        </ol>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button asChild size="sm">
+            <Link href="/workspace">回到 Workspace Hub</Link>
+          </Button>
+          {activeOrganizationId && (
+            <Button asChild size="sm" variant="outline">
+              <Link href="/organization/members">組織治理模組</Link>
+            </Button>
+          )}
+        </div>
+      </section>
+
+      {/* Quick-access dashboard — visible only when an org context is active */}
+      {activeOrganizationId && (
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold">組織功能</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {[
+              { href: "/organization/members", title: "成員管理", desc: "邀請與管理組織成員" },
+              { href: "/organization/teams", title: "團隊管理", desc: "建立與編輯團隊" },
+              { href: "/organization/permissions", title: "權限政策", desc: "設定存取規則" },
+              { href: "/organization/workspaces", title: "工作區", desc: "組織下的工作區清單" },
+              { href: "/organization/schedule", title: "工作需求排程", desc: "排程與容量總覽" },
+              { href: "/organization/audit", title: "稽核記錄", desc: "操作歷史追蹤" },
+              { href: "/organization/daily", title: "動態牆", desc: "組織工作區動態" },
+            ].map((item) => (
+              <Link key={item.href} href={item.href} className="group">
+                <Card className="h-full transition-colors group-hover:border-primary/50 group-hover:bg-accent/40">
+                  <CardHeader className="pb-2 pt-4">
+                    <CardTitle className="text-sm">{item.title}</CardTitle>
+                    <CardDescription className="text-xs">{item.desc}</CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!accountsHydrated && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          {bootstrapPhase === "seeded"
+            ? "正在同步你的組織清單，完成後就能切換到對應的組織上下文。"
+            : "正在載入組織資料…"}
+        </div>
+      )}
+
+      {/* Personal account */}
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="mb-4 text-base font-semibold">Personal Account</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-medium">{user?.name ?? "—"}</p>
+            <p className="text-xs text-muted-foreground">{user?.email}</p>
+          </div>
+          {activeAccount?.id === user?.id ? (
+            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              Active
+            </span>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleSwitchToPersonal}
+            >
+              Switch
+            </Button>
+          )}
+        </div>
+      </section>
+
+      {/* Organizations */}
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="mb-4 text-base font-semibold">
+          Organizations
+          <span className="ml-2 text-xs font-normal text-muted-foreground">
+            ({orgList.length})
+          </span>
+        </h2>
+
+        {orgList.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            You are not a member of any organization yet.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {orgList.map((org) => (
+              <li
+                key={org.id}
+                className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3"
+              >
+                <div>
+                  <p className="font-medium">{org.name}</p>
+                  {org.description && (
+                    <p className="text-xs text-muted-foreground">{org.description}</p>
+                  )}
+                </div>
+                {activeAccount?.id === org.id ? (
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    Active
+                  </span>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSwitch(org)}
+                  >
+                    Switch
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {activeOrganizationId && (
+        <p className="text-sm text-muted-foreground">
+          已切換組織情境；下一步建議先回到 Workspace Hub，再從工作區進入知識與協作模組。
+        </p>
+      )}
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/permissions/page.tsx
+````typescript
+"use client";
+
+import { useApp, isActiveOrganizationAccount, PermissionsPage } from "@/modules/platform/api"
+
+export default function OrganizationPermissionsPage() {
+  const { state: { activeAccount } } = useApp();
+  const organizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
+  return <PermissionsPage organizationId={organizationId} />;
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/schedule/dispatcher/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+/**
+ * Dispatcher page — redirects to the organization schedule view.
+ * Route: /organization/schedule/dispatcher
+ */
+export default function DispatcherPage() {
+  redirect("/organization/schedule");
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/schedule/page.tsx
+````typescript
+"use client";
+
+import { useApp } from "@/modules/platform/api";
+import { AccountSchedulingView } from "@/modules/workspace/api";
+import { isActiveOrganizationAccount } from "@/modules/platform/api";
+
+export default function OrganizationSchedulePage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+
+  const activeOrganizationId = isActiveOrganizationAccount(activeAccount)
+    ? activeAccount.id
+    : null;
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <section className="flex flex-col gap-6 px-4 py-6">
+      <header className="space-y-1">
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">
+          Account Scheduling
+        </p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          工作需求總覽
+        </h1>
+      </header>
+
+      <AccountSchedulingView
+        accountId={activeOrganizationId}
+        currentUserId={activeOrganizationId}
+      />
+    </section>
+  );
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/teams/page.tsx
+````typescript
+"use client";
+
+import { useApp, isActiveOrganizationAccount, TeamsPage } from "@/modules/platform/api"
+
+export default function OrganizationTeamsPage() {
+  const { state: { activeAccount } } = useApp();
+  const organizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
+  return <TeamsPage organizationId={organizationId} />;
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/workspaces/page.tsx
+````typescript
+"use client";
+
+import { useApp } from "@/modules/platform/api";
+import { OrganizationWorkspacesScreen } from "@/modules/workspace/api";
+import { isActiveOrganizationAccount } from "@/modules/platform/api";
+
+export default function OrganizationWorkspacesPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  return <OrganizationWorkspacesScreen accountId={activeOrganizationId} />;
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/settings/general/page.tsx
+````typescript
+/**
+ * /settings/general — redirect to workspace (removed from MVP nav, Occam's Razor)
+ */
+import { redirect } from "next/navigation";
+
+export default function SettingsGeneralPage() {
+  redirect("/workspace");
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/settings/notifications/page.tsx
+````typescript
+"use client";
+
+import { useAuth, NotificationsPage } from "@/modules/platform/api"
+
+export default function NotificationCenterPage() {
+  const { state: authState } = useAuth();
+  const recipientId = authState.user?.id ?? "";
+  return <NotificationsPage recipientId={recipientId} />;
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/settings/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
+
+export default function SettingsPage() {
+  return (
+    <WorkspaceRouteShim
+      panel="settings"
+      loadingMessage="正在導向 Workspace Settings…"
+    />
+  );
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/settings/profile/page.tsx
+````typescript
+"use client";
+
+import { SettingsProfileRouteScreen, useAuth } from "@/modules/platform/api";
+
+export default function SettingsProfilePage() {
+  const { state: authState } = useAuth();
+
+  return (
+    <SettingsProfileRouteScreen
+      actorId={authState.user?.id ?? null}
+      fallbackDisplayName={authState.user?.name ?? ""}
+    />
+  );
+}
+````
+
 ## File: app/layout.tsx
 ````typescript
 import type { Metadata } from "next";
@@ -41479,15 +43392,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vercel-react-best-practices
 ````
 
-## File: modules/notebooklm/subdomains/conversation/application/dto/conversation.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the conversation subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type { Thread } from "../../domain/entities/thread";
-````
-
 ## File: modules/notebooklm/subdomains/conversation/domain/index.ts
 ````typescript
 /**
@@ -41594,22 +43498,6 @@ export async function sendChatMessage(
 
 export { saveThread, loadThread };
 export type { Thread };
-````
-
-## File: modules/notebooklm/subdomains/conversation/interfaces/_actions/thread.actions.ts
-````typescript
-"use server";
-
-import type { Thread } from "../../application/dto/conversation.dto";
-import { makeThreadRepo } from "../../api/factories";
-
-export async function saveThread(accountId: string, thread: Thread): Promise<void> {
-  await makeThreadRepo().save(accountId, thread);
-}
-
-export async function loadThread(accountId: string, threadId: string): Promise<Thread | null> {
-  return makeThreadRepo().getById(accountId, threadId);
-}
 ````
 
 ## File: modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx
@@ -41983,18 +43871,6 @@ export { GenerateNotebookResponseUseCase } from "../application/use-cases/genera
 export { makeNotebookRepo } from "./factories";
 ````
 
-## File: modules/notebooklm/subdomains/notebook/application/dto/notebook.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the notebook subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type {
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-} from "../../domain/entities/AgentGeneration";
-````
-
 ## File: modules/notebooklm/subdomains/notebook/domain/index.ts
 ````typescript
 /**
@@ -42013,25 +43889,6 @@ export * from "./ports";
  * explicitly visible in the directory structure.
  */
 export type { NotebookRepository as INotebookPort } from "../repositories/NotebookRepository";
-````
-
-## File: modules/notebooklm/subdomains/notebook/interfaces/_actions/generate-notebook-response.actions.ts
-````typescript
-"use server";
-
-import type {
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-} from "../../application/dto/notebook.dto";
-import { GenerateNotebookResponseUseCase } from "../../application/use-cases/generate-notebook-response.use-case";
-import { makeNotebookRepo } from "../../api/factories";
-
-export async function generateNotebookResponse(
-  input: GenerateNotebookResponseInput,
-): Promise<GenerateNotebookResponseResult> {
-  const useCase = new GenerateNotebookResponseUseCase(makeNotebookRepo());
-  return useCase.execute(input);
-}
 ````
 
 ## File: modules/notebooklm/subdomains/source/api/index.ts
@@ -42327,16 +44184,6 @@ export type ParseSourceDocumentInputDto = ParseSourceDocumentInput;
 export type ParseSourceDocumentOutputDto = ParseSourceDocumentOutput;
 export type ReindexSourceDocumentInputDto = ReindexSourceDocumentInput;
 export type ReindexSourceDocumentOutputDto = ReindexSourceDocumentOutput;
-````
-
-## File: modules/notebooklm/subdomains/source/application/dto/source.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the source subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export { resolveSourceOrganizationId } from "../../domain/services/resolve-source-organization-id.service";
-export type { RagDocumentRecord } from "../../domain/entities/RagDocument";
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/queries/source-file.queries.ts
@@ -44124,6 +45971,266 @@ export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
 }
 ````
 
+## File: modules/notebooklm/subdomains/source/interfaces/components/WorkspaceFilesTab.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { storageInfrastructureApi } from "@/modules/platform/api";
+
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+
+import type { WorkspaceFileListItemDto } from "../../application/dto/source-file.dto";
+import { resolveSourceOrganizationId } from "../../application/dto/source.dto";
+import { getWorkspaceFiles } from "../queries/source-file.queries";
+import { uploadCompleteFile, uploadInitFile } from "../_actions/source-file.actions";
+import { FileProcessingDialog } from "./FileProcessingDialog";
+
+interface WorkspaceFilesTabProps {
+  readonly workspace: WorkspaceEntity;
+}
+
+interface PendingUploadProcessing {
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+}
+
+export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
+  const [assets, setAssets] = useState<WorkspaceFileListItemDto[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">("idle");
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [pendingUploadProcessing, setPendingUploadProcessing] = useState<PendingUploadProcessing | null>(null);
+
+  const reloadFiles = useCallback(async () => {
+    setLoadState("loading");
+    try {
+      const nextAssets = await getWorkspaceFiles(workspace);
+      setAssets(nextAssets);
+      setLoadState("loaded");
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[WorkspaceFilesTab] Failed to load file metadata:", error);
+      }
+      setAssets([]);
+      setLoadState("error");
+    }
+  }, [workspace]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      await reloadFiles();
+      if (!cancelled) return;
+    })();
+    return () => { cancelled = true; };
+  }, [reloadFiles]);
+
+  async function handleUploadFile(file: File) {
+    const organizationId = resolveSourceOrganizationId(workspace.accountType, workspace.accountId);
+    setUploadState("uploading");
+    setUploadMessage(null);
+
+    try {
+      const initResult = await uploadInitFile({
+        workspaceId: workspace.id,
+        organizationId,
+        actorAccountId: workspace.accountId,
+        fileName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+      });
+
+      if (!initResult.ok) {
+        setUploadState("error");
+        setUploadMessage(`Upload initialization failed: ${initResult.error.message}`);
+        return;
+      }
+
+      await storageInfrastructureApi.upload(file, initResult.data.uploadPath, {
+        contentType: file.type || "application/octet-stream",
+      });
+
+      const completeResult = await uploadCompleteFile({
+        workspaceId: workspace.id,
+        organizationId,
+        actorAccountId: workspace.accountId,
+        fileId: initResult.data.fileId,
+        versionId: initResult.data.versionId,
+      });
+
+      if (!completeResult.ok) {
+        setUploadState("error");
+        setUploadMessage(`Upload completion failed: ${completeResult.error.message}`);
+        return;
+      }
+
+      setUploadState("success");
+      setUploadMessage(`Uploaded ${file.name}`);
+      setPendingUploadProcessing({
+        sourceFileId: initResult.data.fileId,
+        filename: file.name,
+        gcsUri: storageInfrastructureApi.toGsUri(initResult.data.uploadPath),
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+      });
+      await reloadFiles();
+    } catch (error) {
+      setUploadState("error");
+      setUploadMessage(error instanceof Error ? `Storage upload failed: ${error.message}` : "Storage upload failed unexpectedly.");
+    }
+  }
+
+  const availableCount = useMemo(
+    () => assets.filter((asset) => asset.status === "active").length,
+    [assets],
+  );
+
+  return (
+    <Card className="border border-border/50">
+      <CardHeader>
+        <CardTitle>Files</CardTitle>
+        <CardDescription>
+          Manage workspace source files. Upload triggers storage → Firestore → RAG pipeline.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="rounded-xl border border-border/40 px-4 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="workspace-file-upload" className="text-sm font-semibold">
+                Upload file
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Triggers upload-init → Storage → completion + RAG registration.
+              </p>
+            </div>
+            <Input
+              id="workspace-file-upload"
+              type="file"
+              className="max-w-xs"
+              disabled={uploadState === "uploading"}
+              onChange={(event) => {
+                const nextFile = event.target.files?.[0];
+                if (nextFile) void handleUploadFile(nextFile);
+                event.currentTarget.value = "";
+              }}
+            />
+          </div>
+          {uploadMessage && (
+            <p className={`mt-3 text-xs ${uploadState === "error" ? "text-destructive" : "text-emerald-600"}`}>
+              {uploadMessage}
+            </p>
+          )}
+          {uploadState === "uploading" && (
+            <p className="mt-3 text-xs text-muted-foreground">Uploading and persisting metadata…</p>
+          )}
+        </div>
+
+        {loadState === "loading" && <p className="text-sm text-muted-foreground">Loading file metadata…</p>}
+        {loadState === "error" && <p className="text-sm text-destructive">無法載入已持久化的檔案資料，請稍後再試。</p>}
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Registered assets</p>
+            <p className="mt-1 text-xl font-semibold">{assets.length}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Directly available</p>
+            <p className="mt-1 text-xl font-semibold">{availableCount}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Derived manifests</p>
+            <p className="mt-1 text-xl font-semibold">{assets.length - availableCount}</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {loadState === "loaded" && assets.length === 0 && (
+            <div className="rounded-xl border border-dashed border-border/40 px-4 py-6 text-sm text-muted-foreground">
+              No file records yet. Upload-init will create metadata here.
+            </div>
+          )}
+          {assets.map((asset) => (
+            <div key={asset.id} className="rounded-xl border border-border/40 px-4 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold">{asset.name}</p>
+                    <Badge variant={asset.status === "active" ? "secondary" : "outline"}>{asset.status}</Badge>
+                    <Badge variant="outline">{asset.kind}</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{asset.detail}</p>
+                </div>
+                <div className="text-xs text-muted-foreground sm:text-right">
+                  <p>Source: {asset.source}</p>
+                  {asset.href && (
+                    <Button asChild variant="link" className="mt-1 inline-flex h-auto p-0 text-xs">
+                      <a href={asset.href} target="_blank" rel="noreferrer">Open asset</a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+
+      {pendingUploadProcessing && (
+        <FileProcessingDialog
+          open
+          onClose={() => setPendingUploadProcessing(null)}
+          accountId={workspace.accountId}
+          workspaceId={workspace.id}
+          sourceFileId={pendingUploadProcessing.sourceFileId}
+          filename={pendingUploadProcessing.filename}
+          gcsUri={pendingUploadProcessing.gcsUri}
+          mimeType={pendingUploadProcessing.mimeType}
+          sizeBytes={pendingUploadProcessing.sizeBytes}
+        />
+      )}
+    </Card>
+  );
+}
+````
+
+## File: modules/notebooklm/subdomains/source/interfaces/queries/source-file.queries.ts
+````typescript
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+
+import type { WorkspaceFileListItemDto } from "../../application/dto/source-file.dto";
+import { resolveSourceOrganizationId } from "../../application/dto/source.dto";
+import type { RagDocumentRecord } from "../../application/dto/source.dto";
+import { makeRagDocumentAdapter, makeSourceFileAdapter } from "../../api/factories";
+import { ListSourceFilesUseCase } from "../../application/queries/source-file.queries";
+
+export async function getWorkspaceFiles(
+  workspace: WorkspaceEntity,
+): Promise<WorkspaceFileListItemDto[]> {
+  const useCase = new ListSourceFilesUseCase(makeSourceFileAdapter());
+  const organizationId = resolveSourceOrganizationId(workspace.accountType, workspace.accountId);
+  return useCase.execute({ workspaceId: workspace.id, organizationId, actorAccountId: workspace.accountId });
+}
+
+export async function getWorkspaceRagDocuments(
+  workspace: WorkspaceEntity,
+): Promise<readonly RagDocumentRecord[]> {
+  const organizationId = resolveSourceOrganizationId(workspace.accountType, workspace.accountId);
+  return makeRagDocumentAdapter().findByWorkspace({
+    organizationId,
+    workspaceId: workspace.id,
+  });
+}
+````
+
 ## File: modules/notebooklm/subdomains/subdomains.instructions.md
 ````markdown
 ---
@@ -45757,16 +47864,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/notion/subdomains/authoring/application/dto/authoring.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the authoring subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type { ArticleSnapshot, ArticleStatus, ArticleVerificationState } from "../../domain/aggregates/Article";
-export type { CategorySnapshot } from "../../domain/aggregates/Category";
-````
-
 ## File: modules/notion/subdomains/authoring/application/use-cases/index.ts
 ````typescript
 export {
@@ -45980,396 +48077,310 @@ export class FirebaseCategoryRepository implements ICategoryRepository {
 }
 ````
 
-## File: modules/notion/subdomains/authoring/interfaces/components/ArticleDialog.tsx
+## File: modules/notion/subdomains/authoring/interfaces/components/ArticleDetailPage.tsx
 ````typescript
 "use client";
 
-/**
- * Module: notion/subdomains/authoring
- * Layer: interfaces/components
- * Purpose: Dialog for creating and editing Knowledge Base articles.
- */
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  Archive,
+  ArrowLeft,
+  BadgeCheck,
+  Edit,
+  FileClock,
+  MessageSquare,
+  History,
+  Globe,
+  Link2,
+} from "lucide-react";
 
-import { useEffect, useState, useTransition } from "react";
-import { X } from "lucide-react";
-
+import { getArticle, getCategories, getBacklinks } from "../queries";
+import {
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+} from "../_actions/article.actions";
+import { ArticleDialog } from "./ArticleDialog";
+import type { ArticleSnapshot as Article } from "../../application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
+import { CommentPanel, VersionHistoryPanel } from "@/modules/notion/api";
+import { ReactMarkdown } from "@lib-react-markdown";
+import { remarkGfm } from "@lib-remark-gfm";
+import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@ui-shadcn/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
 
-import { createArticle, updateArticle } from "../_actions/article.actions";
-import type { ArticleSnapshot } from "../../application/dto/authoring.dto";
-import type { CategorySnapshot } from "../../application/dto/authoring.dto";
+// ── Props ─────────────────────────────────────────────────────────────────────
 
-interface ArticleDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+export interface ArticleDetailPageProps {
   accountId: string;
   workspaceId: string;
   currentUserId: string;
-  categories: CategorySnapshot[];
-  /** Article to edit — omit for create mode */
-  article?: ArticleSnapshot;
-  onSuccess?: (articleId?: string) => void;
 }
 
-export function ArticleDialog({
-  open,
-  onOpenChange,
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export function ArticleDetailPage({
   accountId,
   workspaceId,
   currentUserId,
-  categories,
-  article,
-  onSuccess,
-}: ArticleDialogProps) {
-  const isEdit = !!article;
-  const [title, setTitle] = useState(article?.title ?? "");
-  const [content, setContent] = useState(article?.content ?? "");
-  const [categoryId, setCategoryId] = useState<string>(article?.categoryId ?? "__none__");
-  const [tags, setTags] = useState(article?.tags.join(", ") ?? "");
-  const [error, setError] = useState<string | null>(null);
+}: ArticleDetailPageProps) {
+  const params = useParams();
+  const router = useRouter();
+  const articleId = params.articleId as string;
+
+  const [article, setArticle] = useState<Article | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [backlinks, setBacklinks] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const articleListHref =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-base/articles`
+      : "/knowledge-base/articles";
 
-  useEffect(() => {
-    void Promise.resolve().then(() => {
-      setTitle(article?.title ?? "");
-      setContent(article?.content ?? "");
-      setCategoryId(article?.categoryId ?? "__none__");
-      setTags(article?.tags.join(", ") ?? "");
-      setError(null);
-    });
-  }, [article, open]);
-
-  function handleSubmit() {
-    const trimmedTitle = title.trim();
-    if (!trimmedTitle) {
-      setError("標題不可空白");
-      return;
+  const load = useCallback(async () => {
+    if (!accountId || !articleId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const [art, cats, bls] = await Promise.all([
+        getArticle(accountId, articleId),
+        getCategories(accountId, workspaceId),
+        getBacklinks(accountId, articleId),
+      ]);
+      setArticle(art);
+      setCategories(cats);
+      setBacklinks(bls);
+    } finally {
+      setLoading(false);
     }
-    const parsedTags = tags
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
-    const resolvedCategoryId = categoryId === "__none__" ? null : categoryId;
+  }, [accountId, workspaceId, articleId]);
 
+  useEffect(() => { void load(); }, [load]);
+
+  function handlePublish() {
     startTransition(async () => {
-      setError(null);
-      if (isEdit) {
-        const result = await updateArticle({
-          id: article!.id,
-          accountId,
-          title: trimmedTitle,
-          content,
-          categoryId: resolvedCategoryId,
-          tags: parsedTags,
-        });
-        if (!result.success) {
-          setError(result.error.message ?? "更新失敗");
-          return;
-        }
-        onSuccess?.();
-      } else {
-        const result = await createArticle({
-          accountId,
-          workspaceId,
-          title: trimmedTitle,
-          content,
-          categoryId: resolvedCategoryId,
-          tags: parsedTags,
-          createdByUserId: currentUserId,
-        });
-        if (!result.success) {
-          setError(result.error.message ?? "建立失敗");
-          return;
-        }
-        onSuccess?.(result.aggregateId);
-      }
-      onOpenChange(false);
+      await publishArticle({ id: articleId, accountId });
+      await load();
     });
   }
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "編輯文章" : "新增文章"}</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          {error && (
-            <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-              <X className="h-4 w-4 shrink-0" />
-              {error}
-            </div>
-          )}
-
-          <div className="space-y-1.5">
-            <Label htmlFor="kb-article-title">標題</Label>
-            <Input
-              id="kb-article-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="文章標題"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="kb-article-category">分類</Label>
-            <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger id="kb-article-category">
-                <SelectValue placeholder="選擇分類（選填）" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">— 不指定 —</SelectItem>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="kb-article-tags">
-              標籤{" "}
-              <span className="text-muted-foreground text-xs">（以逗號分隔）</span>
-            </Label>
-            <Input
-              id="kb-article-tags"
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              placeholder="標籤1, 標籤2"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="kb-article-content">內容</Label>
-            <Textarea
-              id="kb-article-content"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="文章內容（支援 Markdown）"
-              rows={6}
-              className="resize-none font-mono text-sm"
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
-            取消
-          </Button>
-          <Button onClick={handleSubmit} disabled={isPending || !title.trim()}>
-            {isPending ? "儲存中…" : isEdit ? "更新文章" : "建立文章"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/notion/subdomains/authoring/interfaces/components/CategoryTreePanel.tsx
-````typescript
-"use client";
-
-import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, FolderOpen, Layers } from "lucide-react";
-
-import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
-
-// ── Category tree helpers ────────────────────────────────────────────────────
-
-export interface CategoryNode extends Category {
-  children: CategoryNode[];
-}
-
-export function buildCategoryTree(categories: Category[]): CategoryNode[] {
-  const map = new Map<string, CategoryNode>();
-  for (const cat of categories) {
-    map.set(cat.id, { ...cat, children: [] });
+  function handleArchive() {
+    startTransition(async () => {
+      await archiveArticle({ id: articleId, accountId });
+      await load();
+    });
   }
-  const roots: CategoryNode[] = [];
-  for (const node of map.values()) {
-    if (node.parentCategoryId) {
-      map.get(node.parentCategoryId)?.children.push(node);
-    } else {
-      roots.push(node);
-    }
+
+  function handleVerify() {
+    startTransition(async () => {
+      await verifyArticle({ id: articleId, accountId, verifiedByUserId: currentUserId });
+      await load();
+    });
   }
-  return roots;
-}
 
-// ── Category tree panel ──────────────────────────────────────────────────────
+  function handleRequestReview() {
+    startTransition(async () => {
+      await requestArticleReview({ id: articleId, accountId });
+      await load();
+    });
+  }
 
-interface CategoryTreePanelProps {
-  categories: Category[];
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-}
-
-export function CategoryTreePanel({ categories, selectedId, onSelect }: CategoryTreePanelProps) {
-  const roots = useMemo(() => buildCategoryTree(categories), [categories]);
-
-  return (
-    <aside className="w-52 shrink-0 space-y-1">
-      <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-        分類
-      </p>
-      <button
-        type="button"
-        onClick={() => onSelect(null)}
-        className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
-          selectedId === null
-            ? "bg-primary/10 text-primary font-medium"
-            : "text-foreground hover:bg-muted"
-        }`}
-      >
-        <Layers className="size-3.5 shrink-0 text-muted-foreground" />
-        全部文章
-      </button>
-      {roots.map((node) => (
-        <CategoryNodeRow
-          key={node.id}
-          node={node}
-          selectedId={selectedId}
-          onSelect={onSelect}
-        />
-      ))}
-      {categories.length === 0 && (
-        <p className="px-2 text-xs text-muted-foreground/60">尚無分類</p>
-      )}
-    </aside>
-  );
-}
-
-interface CategoryNodeRowProps {
-  node: CategoryNode;
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-}
-
-function CategoryNodeRow({ node, selectedId, onSelect }: CategoryNodeRowProps) {
-  const [expanded, setExpanded] = useState(true);
-  const hasChildren = node.children.length > 0;
-  const isSelected = selectedId === node.id;
-
-  return (
-    <div>
-      <div className="flex items-center gap-0.5">
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="p-0.5 text-muted-foreground opacity-0 transition hover:opacity-100"
-          style={{ visibility: hasChildren ? "visible" : "hidden" }}
-          aria-label={expanded ? "折疊" : "展開"}
-        >
-          {expanded ? (
-            <ChevronDown className="size-3" />
-          ) : (
-            <ChevronRight className="size-3" />
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => onSelect(node.id)}
-          className={`flex flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors ${
-            isSelected
-              ? "bg-primary/10 text-primary font-medium"
-              : "text-foreground hover:bg-muted"
-          }`}
-        >
-          <FolderOpen className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="truncate">{node.name}</span>
-          {node.articleIds.length > 0 && (
-            <span className="ml-auto text-[10px] text-muted-foreground/60">
-              {node.articleIds.length}
-            </span>
-          )}
-        </button>
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-64 w-full rounded-lg" />
       </div>
-      {hasChildren && expanded && (
-        <div className="ml-4 space-y-0.5 border-l border-border/40 pl-1">
-          {node.children.map((child) => (
-            <CategoryNodeRow
-              key={child.id}
-              node={child}
-              selectedId={selectedId}
-              onSelect={onSelect}
-            />
+    );
+  }
+
+  if (!article) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.back()}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到文章。</p>
+      </div>
+    );
+  }
+
+  const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
+    draft: "outline",
+    published: "default",
+    archived: "secondary",
+  };
+  const statusLabel: Record<string, string> = {
+    draft: "草稿",
+    published: "已發佈",
+    archived: "已封存",
+  };
+  const veriLabel: Record<string, string> = {
+    verified: "已驗證",
+    needs_review: "待審查",
+    unverified: "未驗證",
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Back + actions bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => router.push(articleListHref)}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 文章列表
+        </Button>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {article.status === "draft" && (
+            <Button size="sm" variant="outline" onClick={handlePublish} disabled={isPending}>
+              <Globe className="mr-1.5 h-3.5 w-3.5" /> 發佈
+            </Button>
+          )}
+          {article.status !== "archived" && (
+            <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
+              <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
+            </Button>
+          )}
+          {article.verificationState !== "verified" && (
+            <Button size="sm" variant="outline" onClick={handleVerify} disabled={isPending}>
+              <BadgeCheck className="mr-1.5 h-3.5 w-3.5" /> 標記已驗證
+            </Button>
+          )}
+          {article.verificationState === "verified" && (
+            <Button size="sm" variant="outline" onClick={handleRequestReview} disabled={isPending}>
+              <FileClock className="mr-1.5 h-3.5 w-3.5" /> 請求審查
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setEditOpen(true)}>
+            <Edit className="mr-1.5 h-3.5 w-3.5" /> 編輯
+          </Button>
+        </div>
+      </div>
+
+      {/* Header */}
+      <header className="space-y-2 border-b border-border/60 pb-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={statusVariant[article.status] ?? "outline"}>
+            {statusLabel[article.status] ?? article.status}
+          </Badge>
+          {article.verificationState && (
+            <Badge variant="outline" className="text-xs">
+              {veriLabel[article.verificationState] ?? article.verificationState}
+            </Badge>
+          )}
+          {article.tags.map((tag) => (
+            <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              {tag}
+            </span>
           ))}
         </div>
-      )}
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{article.title}</h1>
+        <p className="text-xs text-muted-foreground">
+          v{article.version} · 更新於 {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+        </p>
+      </header>
+
+      {/* Body tabs */}
+      <Tabs defaultValue="content" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="content">內容</TabsTrigger>
+          <TabsTrigger value="backlinks">
+            <Link2 className="mr-1 h-3.5 w-3.5" /> 反向連結
+            {backlinks.length > 0 && (
+              <span className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">
+                {backlinks.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="comments">
+            <MessageSquare className="mr-1 h-3.5 w-3.5" /> 留言
+          </TabsTrigger>
+          <TabsTrigger value="versions">
+            <History className="mr-1 h-3.5 w-3.5" /> 版本
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="content">
+          <div className="prose prose-sm dark:prose-invert min-h-[200px] max-w-none rounded-lg border border-border/60 bg-muted/10 p-4">
+            {article.content ? (
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {article.content}
+              </ReactMarkdown>
+            ) : (
+              <p className="text-sm text-muted-foreground">此文章尚無內容。</p>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="backlinks">
+          {backlinks.length === 0 ? (
+            <p className="rounded-lg border border-border/60 bg-muted/10 p-4 text-sm text-muted-foreground">
+              尚無其他文章引用此文章。
+            </p>
+          ) : (
+            <ul className="space-y-2 rounded-lg border border-border/60 bg-muted/10 p-4">
+              {backlinks.map((bl) => (
+                <li key={bl.id}>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/knowledge-base/articles/${bl.id}`)}
+                    className="text-sm text-primary hover:underline text-left"
+                  >
+                    {bl.title}
+                  </button>
+                  <p className="text-[10px] text-muted-foreground">
+                    {new Date(bl.updatedAtISO).toLocaleDateString("zh-TW")}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </TabsContent>
+
+        <TabsContent value="comments">
+          {currentUserId ? (
+            <CommentPanel
+              accountId={accountId}
+              workspaceId={workspaceId}
+              contentId={articleId}
+              contentType="article"
+              currentUserId={currentUserId}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">請先登入以查看留言。</p>
+          )}
+        </TabsContent>
+
+        <TabsContent value="versions">
+          {currentUserId ? (
+            <VersionHistoryPanel
+              accountId={accountId}
+              contentId={articleId}
+              currentUserId={currentUserId}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">請先登入以查看版本歷程。</p>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      <ArticleDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        categories={categories}
+        article={article}
+        onSuccess={() => void load()}
+      />
     </div>
   );
 }
-````
-
-## File: modules/notion/subdomains/authoring/interfaces/queries/index.ts
-````typescript
-// TODO: export getArticle, getArticlesByWorkspace, getCategoryTree
-
-/**
- * Module: notion/subdomains/authoring
- * Layer: interfaces/queries
- * Purpose: Direct-instantiation query functions (read-side).
- */
-
-import { makeArticleRepo, makeCategoryRepo } from "../../api/factories";
-import type { ArticleSnapshot, ArticleStatus } from "../../application/dto/authoring.dto";
-import type { CategorySnapshot } from "../../application/dto/authoring.dto";
-
-export async function getArticles(params: {
-  accountId: string;
-  workspaceId: string;
-  categoryId?: string;
-  status?: ArticleStatus;
-}): Promise<ArticleSnapshot[]> {
-  return makeArticleRepo().list(params);
-}
-
-export async function getArticle(accountId: string, articleId: string): Promise<ArticleSnapshot | null> {
-  return makeArticleRepo().getById(accountId, articleId);
-}
-
-export async function getCategories(accountId: string, workspaceId: string): Promise<CategorySnapshot[]> {
-  return makeCategoryRepo().listByWorkspace(accountId, workspaceId);
-}
-
-export async function getBacklinks(accountId: string, articleId: string): Promise<ArticleSnapshot[]> {
-  return makeArticleRepo().listByLinkedArticleId(accountId, articleId);
-}
-````
-
-## File: modules/notion/subdomains/collaboration/application/dto/collaboration.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the collaboration subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type { CommentSnapshot } from "../../domain/aggregates/Comment";
-export type { CommentUnsubscribe } from "../../domain/repositories/ICommentRepository";
-export type { VersionSnapshot } from "../../domain/aggregates/Version";
-export type { PermissionSnapshot } from "../../domain/aggregates/Permission";
 ````
 
 ## File: modules/notion/subdomains/collaboration/domain/index.ts
@@ -46698,301 +48709,6 @@ export class FirebaseVersionRepository implements IVersionRepository {
     await firestoreInfrastructureApi.delete(versionPath(accountId, versionId));
   }
 }
-````
-
-## File: modules/notion/subdomains/collaboration/interfaces/components/CommentPanel.tsx
-````typescript
-"use client";
-
-import { useEffect, useState, useTransition } from "react";
-import { MessageCircle, Loader2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Separator } from "@ui-shadcn/ui/separator";
-
-import { subscribeComments } from "../queries";
-import { createComment, resolveComment, deleteComment } from "../_actions/comment.actions";
-import type { CommentSnapshot } from "../../application/dto/collaboration.dto";
-
-interface CommentPanelProps {
-  accountId: string;
-  workspaceId: string;
-  contentId: string;
-  contentType: "page" | "article";
-  currentUserId: string;
-}
-
-export function CommentPanel({ accountId, workspaceId, contentId, contentType, currentUserId }: CommentPanelProps) {
-  const [comments, setComments] = useState<CommentSnapshot[]>([]);
-  const [body, setBody] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    const unsub = subscribeComments(accountId, contentId, setComments);
-    return () => unsub();
-  }, [accountId, contentId]);
-
-  function handlePost() {
-    const trimmed = body.trim();
-    if (!trimmed) return;
-    setError(null);
-    startTransition(async () => {
-      const result = await createComment({
-        accountId,
-        workspaceId,
-        contentId,
-        contentType,
-        authorId: currentUserId,
-        body: trimmed,
-      });
-      if (result.success) {
-        setBody("");
-      } else {
-        setError(result.error.message ?? "留言失敗");
-      }
-    });
-  }
-
-  function handleResolve(commentId: string) {
-    startTransition(async () => {
-      await resolveComment({ id: commentId, accountId, resolvedByUserId: currentUserId });
-    });
-  }
-
-  function handleDelete(commentId: string) {
-    startTransition(async () => {
-      await deleteComment({ id: commentId, accountId });
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
-    });
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <MessageCircle className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">留言</span>
-        {comments.length > 0 && (
-          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{comments.length}</Badge>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Textarea
-          placeholder="撰寫留言…"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={3}
-          disabled={isPending}
-          className="resize-none text-sm"
-        />
-        {error && <p className="text-xs text-destructive">{error}</p>}
-        <Button
-          size="sm"
-          disabled={isPending || !body.trim()}
-          onClick={handlePost}
-          className="w-full"
-        >
-          {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "留言"}
-        </Button>
-      </div>
-
-      {comments.length > 0 && (
-        <>
-          <Separator />
-          <ul className="space-y-3">
-            {comments.map((c) => (
-              <li key={c.id} className="flex flex-col gap-1">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-xs text-muted-foreground">{c.authorId}</p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {new Date(c.createdAtISO).toLocaleString("zh-TW", {
-                      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
-                    })}
-                  </p>
-                </div>
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{c.body}</p>
-                {c.resolvedAt ? (
-                  <Badge variant="outline" className="w-fit text-[10px]">已解決</Badge>
-                ) : (
-                  <div className="flex gap-1.5">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-[10px] text-muted-foreground"
-                      disabled={isPending}
-                      onClick={() => handleResolve(c.id)}
-                    >
-                      標記解決
-                    </Button>
-                    {c.authorId === currentUserId && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-[10px] text-destructive"
-                        disabled={isPending}
-                        onClick={() => handleDelete(c.id)}
-                      >
-                        刪除
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/collaboration/interfaces/components/VersionHistoryPanel.tsx
-````typescript
-"use client";
-
-import { useEffect, useState, useTransition } from "react";
-import { History, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-import { getVersions } from "../queries";
-import { deleteVersion } from "../_actions/version.actions";
-import type { VersionSnapshot } from "../../application/dto/collaboration.dto";
-
-interface VersionHistoryPanelProps {
-  accountId: string;
-  contentId: string;
-  currentUserId: string;
-}
-
-export function VersionHistoryPanel({ accountId, contentId, currentUserId }: VersionHistoryPanelProps) {
-  const [versions, setVersions] = useState<VersionSnapshot[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    let disposed = false;
-    void Promise.resolve().then(async () => {
-      if (disposed) return;
-      setLoading(true);
-      try {
-        const data = await getVersions(accountId, contentId);
-        if (!disposed) { setVersions(data); setLoading(false); }
-      } catch {
-        if (!disposed) setLoading(false);
-      }
-    });
-    return () => { disposed = true; };
-  }, [accountId, contentId]);
-
-  function handleDelete(versionId: string) {
-    startTransition(async () => {
-      await deleteVersion({ id: versionId, accountId });
-      setVersions((prev) => prev.filter((v) => v.id !== versionId));
-    });
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <History className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">版本歷史</span>
-        {versions.length > 0 && (
-          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{versions.length}</Badge>
-        )}
-      </div>
-
-      {loading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full rounded-md" />)}
-        </div>
-      ) : versions.length === 0 ? (
-        <p className="text-xs text-muted-foreground">尚無已儲存的版本快照。</p>
-      ) : (
-        <ol className="space-y-2">
-          {versions.map((v, idx) => (
-            <li key={v.id} className="flex items-start gap-3 rounded-md border border-border/60 bg-background px-3 py-2">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
-                {versions.length - idx}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="truncate text-sm font-medium">{v.label || `版本 ${versions.length - idx}`}</p>
-                {v.description && (
-                  <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{v.description}</p>
-                )}
-                <p className="mt-0.5 text-[10px] text-muted-foreground">
-                  {new Date(v.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                </p>
-              </div>
-              {v.createdByUserId === currentUserId && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                  disabled={isPending}
-                  onClick={() => handleDelete(v.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              )}
-            </li>
-          ))}
-        </ol>
-      )}
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/collaboration/interfaces/queries/index.ts
-````typescript
-/**
- * Module: notion/subdomains/collaboration
- * Layer: interfaces/queries
- * Purpose: Read-side queries for comment, version, and permission data.
- */
-
-import { makeCommentRepo, makePermissionRepo, makeVersionRepo } from "../../api/factories";
-import type { CommentSnapshot, CommentUnsubscribe, VersionSnapshot, PermissionSnapshot } from "../../application/dto/collaboration.dto";
-
-export async function getComments(accountId: string, contentId: string): Promise<CommentSnapshot[]> {
-  return makeCommentRepo().listByContent(accountId, contentId);
-}
-
-export async function getVersions(accountId: string, contentId: string): Promise<VersionSnapshot[]> {
-  return makeVersionRepo().listByContent(accountId, contentId);
-}
-
-export async function getPermissions(accountId: string, subjectId: string): Promise<PermissionSnapshot[]> {
-  return makePermissionRepo().listBySubject(accountId, subjectId);
-}
-
-export function subscribeComments(
-  accountId: string,
-  contentId: string,
-  onUpdate: (comments: CommentSnapshot[]) => void,
-): CommentUnsubscribe {
-  return makeCommentRepo().subscribe(accountId, contentId, onUpdate);
-}
-````
-
-## File: modules/notion/subdomains/database/application/dto/database.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the database subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type { DatabaseSnapshot, Field, FieldType } from "../../domain/aggregates/Database";
-export type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRecord";
-export type { ViewSnapshot } from "../../domain/aggregates/View";
-export type { DatabaseAutomationSnapshot, AutomationTrigger, AutomationActionType } from "../../domain/aggregates/DatabaseAutomation";
-export type { CreateAutomationInput, UpdateAutomationInput } from "../../domain/repositories/IAutomationRepository";
 ````
 
 ## File: modules/notion/subdomains/database/application/queries/automation.queries.ts
@@ -47568,1364 +49284,430 @@ export class FirebaseViewRepository implements IViewRepository {
 }
 ````
 
-## File: modules/notion/subdomains/database/interfaces/_actions/database.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/_actions
- * Purpose: Database, Record, View, and Automation server actions.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import {
-  makeAutomationRepo,
-  makeDatabaseRepo,
-  makeRecordRepo,
-  makeViewRepo,
-} from "../../api/factories";
-import {
-  CreateDatabaseUseCase,
-  UpdateDatabaseUseCase,
-  AddFieldUseCase,
-  ArchiveDatabaseUseCase,
-  CreateRecordUseCase,
-  UpdateRecordUseCase,
-  DeleteRecordUseCase,
-  CreateViewUseCase,
-  UpdateViewUseCase,
-  DeleteViewUseCase,
-  CreateAutomationUseCase,
-  UpdateAutomationUseCase,
-  DeleteAutomationUseCase,
-} from "../../application/use-cases";
-import type { CreateAutomationInput, UpdateAutomationInput } from "../../application/dto/database.dto";
-import type {
-  CreateDatabaseDto,
-  UpdateDatabaseDto,
-  AddFieldDto,
-  ArchiveDatabaseDto,
-  CreateRecordDto,
-  UpdateRecordDto,
-  CreateViewDto,
-  UpdateViewDto,
-  DeleteViewDto,
-} from "../../application/dto/DatabaseDto";
-
-// — — — Database — — —
-
-export async function createDatabase(input: CreateDatabaseDto): Promise<CommandResult> {
-  try {
-    return await new CreateDatabaseUseCase(makeDatabaseRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("DATABASE_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateDatabase(input: UpdateDatabaseDto): Promise<CommandResult> {
-  try {
-    return await new UpdateDatabaseUseCase(makeDatabaseRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("DATABASE_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function addDatabaseField(input: AddFieldDto): Promise<CommandResult> {
-  try {
-    return await new AddFieldUseCase(makeDatabaseRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("DATABASE_ADD_FIELD_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function archiveDatabase(input: ArchiveDatabaseDto): Promise<CommandResult> {
-  try {
-    return await new ArchiveDatabaseUseCase(makeDatabaseRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("DATABASE_ARCHIVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-// — — — Record — — —
-
-export async function createRecord(input: CreateRecordDto): Promise<CommandResult> {
-  try {
-    return await new CreateRecordUseCase(makeRecordRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("RECORD_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateRecord(input: UpdateRecordDto): Promise<CommandResult> {
-  try {
-    return await new UpdateRecordUseCase(makeRecordRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("RECORD_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteRecord(accountId: string, id: string): Promise<CommandResult> {
-  try {
-    return await new DeleteRecordUseCase(makeRecordRepo()).execute({ id, accountId });
-  } catch (err) {
-    return commandFailureFrom("RECORD_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-// — — — View — — —
-
-export async function createView(input: CreateViewDto): Promise<CommandResult> {
-  try {
-    return await new CreateViewUseCase(makeViewRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("VIEW_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateView(input: UpdateViewDto): Promise<CommandResult> {
-  try {
-    return await new UpdateViewUseCase(makeViewRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("VIEW_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteView(input: DeleteViewDto): Promise<CommandResult> {
-  try {
-    return await new DeleteViewUseCase(makeViewRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("VIEW_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-// — — — Automation — — —
-
-export async function createAutomation(input: CreateAutomationInput): Promise<CommandResult> {
-  try {
-    return await new CreateAutomationUseCase(makeAutomationRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("AUTOMATION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateAutomation(input: UpdateAutomationInput): Promise<CommandResult> {
-  try {
-    return await new UpdateAutomationUseCase(makeAutomationRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("AUTOMATION_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteAutomation(id: string, accountId: string, databaseId: string): Promise<CommandResult> {
-  try {
-    return await new DeleteAutomationUseCase(makeAutomationRepo()).execute(id, accountId, databaseId);
-  } catch (err) {
-    return commandFailureFrom("AUTOMATION_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseAutomationView.tsx
+## File: modules/notion/subdomains/database/interfaces/components/DatabaseDetailPage.tsx
 ````typescript
 "use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: Manage automation rules for a database — list/create/toggle/delete.
- */
-
-import { useEffect, useState, useTransition } from "react";
-import type { DatabaseAutomationSnapshot, AutomationTrigger, AutomationActionType } from "../../application/dto/database.dto";
-import { getAutomations } from "../queries";
-import { createAutomation, updateAutomation, deleteAutomation } from "../_actions/database.actions";
-
-interface Props {
-  databaseId: string;
-  accountId: string;
-  currentUserId: string;
-}
-
-const TRIGGER_OPTIONS: { value: AutomationTrigger; label: string }[] = [
-  { value: "record_created", label: "Record created" },
-  { value: "record_updated", label: "Record updated" },
-  { value: "record_deleted", label: "Record deleted" },
-  { value: "property_changed", label: "Property changed" },
-];
-
-const ACTION_OPTIONS: { value: AutomationActionType; label: string }[] = [
-  { value: "send_notification", label: "Send notification" },
-  { value: "update_property", label: "Update property" },
-  { value: "create_record", label: "Create record" },
-  { value: "webhook", label: "Call webhook" },
-];
-
-export function DatabaseAutomationView({ databaseId, accountId, currentUserId }: Props) {
-  const [automations, setAutomations] = useState<DatabaseAutomationSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [name, setName] = useState("");
-  const [trigger, setTrigger] = useState<AutomationTrigger>("record_created");
-  const [actionType, setActionType] = useState<AutomationActionType>("send_notification");
-  const [, startTransition] = useTransition();
-
-  useEffect(() => {
-    getAutomations(accountId, databaseId)
-      .then(setAutomations)
-      .finally(() => setLoading(false));
-  }, [accountId, databaseId]);
-
-  function handleCreate() {
-    if (!name.trim()) return;
-    startTransition(async () => {
-      const result = await createAutomation({
-        databaseId,
-        accountId,
-        name: name.trim(),
-        trigger,
-        actions: [{ type: actionType, config: {} }],
-        createdByUserId: currentUserId,
-      });
-      if (result.success) {
-        const updated = await getAutomations(accountId, databaseId);
-        setAutomations(updated);
-        setName("");
-        setShowForm(false);
-      }
-    });
-  }
-
-  function handleToggle(automation: DatabaseAutomationSnapshot) {
-    startTransition(async () => {
-      await updateAutomation({
-        id: automation.id,
-        accountId,
-        databaseId,
-        enabled: !automation.enabled,
-      });
-      setAutomations((prev) =>
-        prev.map((a) => (a.id === automation.id ? { ...a, enabled: !a.enabled } : a)),
-      );
-    });
-  }
-
-  function handleDelete(automationId: string) {
-    startTransition(async () => {
-      await deleteAutomation(automationId, accountId, databaseId);
-      setAutomations((prev) => prev.filter((a) => a.id !== automationId));
-    });
-  }
-
-  if (loading) return <div className="p-4 text-sm text-muted-foreground">Loading automations…</div>;
-
-  return (
-    <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Automations</h3>
-        <button
-          className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground"
-          onClick={() => setShowForm((v) => !v)}
-        >
-          + New automation
-        </button>
-      </div>
-
-      {showForm && (
-        <div className="border rounded p-3 space-y-2 text-sm">
-          <input
-            className="w-full border rounded px-2 py-1 text-sm"
-            placeholder="Automation name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <div className="flex gap-2">
-            <select
-              className="border rounded px-2 py-1 text-xs flex-1"
-              value={trigger}
-              onChange={(e) => setTrigger(e.target.value as AutomationTrigger)}
-            >
-              {TRIGGER_OPTIONS.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
-            <select
-              className="border rounded px-2 py-1 text-xs flex-1"
-              value={actionType}
-              onChange={(e) => setActionType(e.target.value as AutomationActionType)}
-            >
-              {ACTION_OPTIONS.map((a) => (
-                <option key={a.value} value={a.value}>{a.label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex gap-2">
-            <button
-              className="text-xs px-3 py-1 rounded bg-primary text-primary-foreground"
-              onClick={handleCreate}
-            >
-              Create
-            </button>
-            <button
-              className="text-xs px-3 py-1 rounded border"
-              onClick={() => setShowForm(false)}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {automations.length === 0 ? (
-        <p className="text-xs text-muted-foreground">No automations yet.</p>
-      ) : (
-        <ul className="space-y-2">
-          {automations.map((a) => (
-            <li key={a.id} className="flex items-center justify-between border rounded px-3 py-2 text-sm">
-              <div className="space-y-0.5">
-                <p className="font-medium">{a.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  Trigger: {a.trigger} · Action: {a.actions[0]?.type ?? "—"}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  className={`text-xs px-2 py-0.5 rounded ${a.enabled ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}
-                  onClick={() => handleToggle(a)}
-                >
-                  {a.enabled ? "Enabled" : "Disabled"}
-                </button>
-                <button
-                  className="text-xs text-destructive"
-                  onClick={() => handleDelete(a.id)}
-                >
-                  Delete
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseBoardView.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseBoardView — Kanban board grouped by first select/multi_select field.
- */
 
 import { useCallback, useEffect, useState, useTransition } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Archive,
+  FileText,
+  PlusCircle,
+  Table2,
+  Kanban,
+  List,
+  Calendar,
+  LayoutGrid,
+  Zap,
+} from "lucide-react";
 
+import { getDatabase } from "../queries";
+import { addDatabaseField, archiveDatabase } from "../_actions/database.actions";
+import { DatabaseTableView } from "./DatabaseTableView";
+import { DatabaseBoardView } from "./DatabaseBoardView";
+import { DatabaseListView } from "./DatabaseListView";
+import { DatabaseCalendarView } from "./DatabaseCalendarView";
+import { DatabaseGalleryView } from "./DatabaseGalleryView";
+import { DatabaseAutomationView } from "./DatabaseAutomationView";
+import { AddFieldDialog } from "./DatabaseAddFieldDialog";
+import type { DatabaseSnapshot as Database, FieldType } from "../../application/dto/database.dto";
 import { Button } from "@ui-shadcn/ui/button";
-import { Badge } from "@ui-shadcn/ui/badge";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
-import { getRecords } from "../queries";
-import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../application/dto/database.dto";
+// ── Props ─────────────────────────────────────────────────────────────────────
 
-interface DatabaseBoardViewProps {
-  database: DatabaseSnapshot;
+export interface DatabaseDetailPageProps {
   accountId: string;
   workspaceId: string;
   currentUserId: string;
 }
 
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
-  if (record.properties && typeof record.properties === "object") {
-    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
-  }
-  return null;
-}
+// ── Component ─────────────────────────────────────────────────────────────────
 
-export function DatabaseBoardView({ database, accountId, workspaceId, currentUserId }: DatabaseBoardViewProps) {
-  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+export function DatabaseDetailPage({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: DatabaseDetailPageProps) {
+  const params = useParams();
+  const router = useRouter();
+  const databaseId = params.databaseId as string;
+
+  const [database, setDatabase] = useState<Database | null>(null);
   const [loading, setLoading] = useState(true);
+  const [addFieldOpen, setAddFieldOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"table" | "board" | "list" | "calendar" | "gallery" | "automations">("table");
   const [isPending, startTransition] = useTransition();
-
-  const groupField = database.fields.find((f) => f.type === "select" || f.type === "multi_select") ?? null;
+  const workspaceBasePath =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
+      : "/workspace";
+  const databasesHref =
+    accountId && workspaceId
+      ? `${workspaceBasePath}/knowledge-database/databases`
+      : "/knowledge-database/databases";
+  const formsHref =
+    accountId && workspaceId
+      ? `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`
+      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`;
 
   const load = useCallback(async () => {
+    if (!accountId || !databaseId) { setLoading(false); return; }
     setLoading(true);
     try {
-      const data = await getRecords(accountId, database.id);
-      setRecords(data);
+      const db = await getDatabase(accountId, databaseId);
+      setDatabase(db);
     } finally {
       setLoading(false);
     }
-  }, [accountId, database.id]);
+  }, [accountId, databaseId]);
 
   useEffect(() => { void load(); }, [load]);
 
-  function getTitle(record: DatabaseRecordSnapshot): string {
-    const textField = database.fields.find((f) => f.type === "text");
-    if (!textField) return record.id.slice(0, 8);
-    return String(getProperty(record, textField.id) ?? "—");
-  }
-
-  const groups: Record<string, DatabaseRecordSnapshot[]> = {};
-  if (!groupField) {
-    groups["所有記錄"] = records;
-  } else {
-    for (const record of records) {
-      const val = getProperty(record, groupField.id);
-      const key = val != null && val !== "" ? String(val) : "（無分組）";
-      (groups[key] ??= []).push(record);
-    }
-    if ("（無分組）" in groups) {
-      const noGroup = groups["（無分組）"];
-      delete groups["（無分組）"];
-      groups["（無分組）"] = noGroup;
-    }
-  }
-
-  function handleAdd(groupValue: string) {
+  function handleAddField(name: string, type: FieldType, required: boolean) {
     startTransition(async () => {
-      const props: Record<string, unknown> = groupField && groupValue !== "（無分組）" && groupValue !== "所有記錄"
-        ? { [groupField.id]: groupValue }
-        : {};
-      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: props, createdByUserId: currentUserId });
-      void load();
+      await addDatabaseField({
+        databaseId,
+        accountId,
+        name,
+        type,
+        config: {},
+        required,
+      });
+      await load();
     });
   }
 
-  function handleDelete(recordId: string) {
+  function handleArchive() {
     startTransition(async () => {
-      await deleteRecord(accountId, recordId);
-      setRecords((prev) => prev.filter((r) => r.id !== recordId));
+      await archiveDatabase({ id: databaseId, accountId });
+      router.push(databasesHref);
     });
   }
 
   if (loading) {
     return (
-      <div className="flex gap-3 overflow-x-auto pb-2">
-        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-64 w-48 shrink-0 rounded-lg" />)}
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  if (!database) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
       </div>
     );
   }
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-4">
-      {Object.entries(groups).map(([group, groupRecords]) => (
-        <div key={group} className="flex w-52 shrink-0 flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 p-3">
-          <div className="flex items-center justify-between">
-            <Badge variant="outline" className="text-xs">{group}</Badge>
-            <span className="text-[10px] text-muted-foreground">{groupRecords.length}</span>
-          </div>
-          <div className="flex flex-col gap-2">
-            {groupRecords.map((record) => (
-              <div key={record.id} className="group relative rounded-md border border-border/60 bg-card px-3 py-2 shadow-sm">
-                <p className="text-sm font-medium leading-snug">{getTitle(record)}</p>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1 hidden h-5 w-5 text-muted-foreground hover:text-destructive group-hover:flex"
-                  disabled={isPending}
-                  onClick={() => handleDelete(record.id)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            ))}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full text-xs text-muted-foreground"
-            disabled={isPending}
-            onClick={() => handleAdd(group)}
+    <div className="space-y-4">
+      {/* Top bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 資料庫列表
+        </Button>
+      </div>
+
+      {/* Page header */}
+      <header className="space-y-1 border-b border-border/60 pb-4">
+        <div className="flex items-center gap-2">
+          {database.icon && <span className="text-xl">{database.icon}</span>}
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{database.name}</h1>
+        </div>
+        {database.description && (
+          <p className="text-sm text-muted-foreground">{database.description}</p>
+        )}
+        <p className="text-xs text-muted-foreground/70">
+          {database.fields.length} 個欄位 · 更新於 {new Date(database.updatedAtISO).toLocaleDateString("zh-TW")}
+        </p>
+      </header>
+
+      {/* View switcher + actions */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center rounded-md border border-border/60 p-0.5">
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            title="表格視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
-            <Plus className="mr-1 h-3 w-3" /> 新增
+            <Table2 className="h-3 w-3" /> 表格
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("board")}
+            title="看板視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "board" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Kanban className="h-3 w-3" /> 看板
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("list")}
+            title="清單視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <List className="h-3 w-3" /> 清單
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("calendar")}
+            title="日曆視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Calendar className="h-3 w-3" /> 日曆
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("gallery")}
+            title="圖庫視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "gallery" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <LayoutGrid className="h-3 w-3" /> 圖庫
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("automations")}
+            title="自動化規則"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "automations" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Zap className="h-3 w-3" /> 自動化
+          </button>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => router.push(formsHref)}
+            disabled={isPending}
+          >
+            <FileText className="mr-1.5 h-3.5 w-3.5" /> 表單
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
+            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> 新增欄位
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
+            <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
           </Button>
         </div>
-      ))}
+      </div>
+
+      {/* View */}
+      {viewMode === "table" && (
+        <DatabaseTableView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "board" && (
+        <DatabaseBoardView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "list" && (
+        <DatabaseListView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "calendar" && (
+        <DatabaseCalendarView
+          database={database}
+          accountId={accountId}
+        />
+      )}
+      {viewMode === "gallery" && (
+        <DatabaseGalleryView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "automations" && (
+        <DatabaseAutomationView
+          databaseId={databaseId}
+          accountId={accountId}
+          currentUserId={currentUserId}
+        />
+      )}
+
+      <AddFieldDialog
+        open={addFieldOpen}
+        onOpenChange={setAddFieldOpen}
+        onAdd={handleAddField}
+        isPending={isPending}
+      />
     </div>
   );
 }
 ````
 
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseCalendarView.tsx
+## File: modules/notion/subdomains/database/interfaces/components/DatabaseFormsPage.tsx
 ````typescript
 "use client";
 
 /**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseCalendarView — month-grid calendar grouped by a date field.
+ * Route: /knowledge-database/databases/[databaseId]/forms
+ * Purpose: Manage database forms — create and embed form links for a specific database.
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
 
+import { getDatabase } from "../queries";
+import { DatabaseFormView } from "./DatabaseFormView";
+import type { DatabaseSnapshot as Database } from "../../application/dto/database.dto";
 import { Button } from "@ui-shadcn/ui/button";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
 
-import { getRecords } from "../queries";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../application/dto/database.dto";
+// ── Props ─────────────────────────────────────────────────────────────────────
 
-interface DatabaseCalendarViewProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-}
-
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
-  if (record.properties && typeof record.properties === "object") {
-    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
-  }
-  return null;
-}
-
-export function DatabaseCalendarView({ database, accountId }: DatabaseCalendarViewProps) {
-  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [cursor, setCursor] = useState(() => new Date());
-
-  const dateField = database.fields.find((f) => f.type === "date") ?? null;
-  const titleField = database.fields.find((f) => f.type === "text") ?? null;
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getRecords(accountId, database.id);
-      setRecords(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, database.id]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  const year = cursor.getFullYear();
-  const month = cursor.getMonth();
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-  const recordsByDay: Record<string, DatabaseRecordSnapshot[]> = {};
-  if (dateField) {
-    for (const record of records) {
-      const val = getProperty(record, dateField.id);
-      if (!val) continue;
-      try {
-        const d = new Date(String(val));
-        if (!isNaN(d.getTime()) && d.getFullYear() === year && d.getMonth() === month) {
-          const key = String(d.getDate());
-          (recordsByDay[key] ??= []).push(record);
-        }
-      } catch {}
-    }
-  }
-
-  function prevMonth() { setCursor(new Date(year, month - 1, 1)); }
-  function nextMonth() { setCursor(new Date(year, month + 1, 1)); }
-
-  const weekDays = ["日", "一", "二", "三", "四", "五", "六"];
-
-  if (!dateField) {
-    return (
-      <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
-        此資料庫未包含「日期」欄位，無法顯示日曆視圖。
-      </p>
-    );
-  }
-
-  if (loading) {
-    return <Skeleton className="h-64 w-full rounded-lg" />;
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={prevMonth}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <span className="text-sm font-medium">
-          {year}年 {month + 1}月
-        </span>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={nextMonth}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <div className="overflow-hidden rounded-lg border border-border/60">
-        <div className="grid grid-cols-7 bg-muted/30">
-          {weekDays.map((d) => (
-            <div key={d} className="px-2 py-1.5 text-center text-[10px] font-semibold text-muted-foreground">
-              {d}
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 border-t border-border/40">
-          {Array.from({ length: firstDay }).map((_, i) => (
-            <div key={`empty-${i}`} className="min-h-[60px] border-b border-r border-border/30 bg-muted/10" />
-          ))}
-          {Array.from({ length: daysInMonth }).map((_, i) => {
-            const day = i + 1;
-            const dayRecords = recordsByDay[String(day)] ?? [];
-            const today = new Date();
-            const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
-            return (
-              <div key={day} className={`min-h-[60px] border-b border-r border-border/30 p-1 ${isToday ? "bg-primary/5" : ""}`}>
-                <span className={`text-[10px] font-medium ${isToday ? "text-primary" : "text-muted-foreground"}`}>{day}</span>
-                <div className="mt-0.5 flex flex-col gap-0.5">
-                  {dayRecords.slice(0, 3).map((record) => {
-                    const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "—" : "—";
-                    return (
-                      <Badge key={record.id} variant="secondary" className="w-full justify-start truncate text-[9px]">
-                        {title}
-                      </Badge>
-                    );
-                  })}
-                  {dayRecords.length > 3 && (
-                    <span className="text-[9px] text-muted-foreground">+{dayRecords.length - 3}</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseFormView.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseFormView — public-facing form to collect one Record into a Database.
- */
-
-import { useState, useTransition } from "react";
-import { CheckCircle2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import { createRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, Field } from "../../application/dto/database.dto";
-
-interface DatabaseFormViewProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  /** The user submitting the form. Pass anonymous ID or guest token for public forms. */
-  submitterId: string;
-  /** Optional: restrict to a subset of fields. */
-  fieldIds?: string[];
-  title?: string;
-  description?: string;
-}
-
-function FieldInput({ field, value, onChange, disabled }: { field: Field; value: unknown; onChange: (v: unknown) => void; disabled: boolean }) {
-  if (field.type === "checkbox") {
-    return (
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id={`field-${field.id}`}
-          checked={Boolean(value)}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.checked)}
-          className="h-4 w-4 rounded border-border"
-        />
-        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
-      </div>
-    );
-  }
-  if (field.type === "number") {
-    return (
-      <div className="space-y-1">
-        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
-        <Input
-          id={`field-${field.id}`}
-          type="number"
-          value={value == null ? "" : String(value)}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
-        />
-      </div>
-    );
-  }
-  if (field.type === "date") {
-    return (
-      <div className="space-y-1">
-        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
-        <Input
-          id={`field-${field.id}`}
-          type="date"
-          value={value == null ? "" : String(value)}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </div>
-    );
-  }
-  if (field.type === "url" || field.type === "email") {
-    return (
-      <div className="space-y-1">
-        <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
-        <Input
-          id={`field-${field.id}`}
-          type={field.type}
-          value={value == null ? "" : String(value)}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </div>
-    );
-  }
-  return (
-    <div className="space-y-1">
-      <Label htmlFor={`field-${field.id}`}>{field.name}{field.required && " *"}</Label>
-      <Textarea
-        id={`field-${field.id}`}
-        rows={2}
-        value={value == null ? "" : String(value)}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </div>
-  );
-}
-
-export function DatabaseFormView({ database, accountId, workspaceId, submitterId, fieldIds, title, description }: DatabaseFormViewProps) {
-  const visibleFields = fieldIds && fieldIds.length > 0
-    ? database.fields.filter((f) => fieldIds.includes(f.id))
-    : database.fields;
-
-  const [values, setValues] = useState<Record<string, unknown>>({});
-  const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function handleChange(fieldId: string, value: unknown) {
-    setValues((prev) => ({ ...prev, [fieldId]: value }));
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    startTransition(async () => {
-      const result = await createRecord({
-        databaseId: database.id,
-        workspaceId,
-        accountId,
-        properties: values,
-        createdByUserId: submitterId,
-      });
-      if (result.success) {
-        setSubmitted(true);
-        setValues({});
-      } else {
-        setError("提交失敗，請稍後再試。");
-      }
-    });
-  }
-
-  if (submitted) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-        <CheckCircle2 className="h-10 w-10 text-green-500" />
-        <h2 className="text-lg font-semibold">已成功提交！</h2>
-        <p className="text-sm text-muted-foreground">感謝您的填寫。</p>
-        <Button variant="outline" size="sm" onClick={() => setSubmitted(false)}>
-          再次提交
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mx-auto max-w-lg space-y-6 py-6">
-      <div className="space-y-1">
-        <h2 className="text-xl font-semibold">{title ?? database.name}</h2>
-        {description && <p className="text-sm text-muted-foreground">{description}</p>}
-      </div>
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        {visibleFields.map((field) => (
-          <FieldInput
-            key={field.id}
-            field={field}
-            value={values[field.id]}
-            onChange={(v) => handleChange(field.id, v)}
-            disabled={isPending}
-          />
-        ))}
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button type="submit" disabled={isPending} className="w-full">
-          {isPending ? "提交中…" : "送出表單"}
-        </Button>
-      </form>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseGalleryView.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseGalleryView — card grid for database records.
- */
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { Plus, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-import { getRecords } from "../queries";
-import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../application/dto/database.dto";
-
-interface DatabaseGalleryViewProps {
-  database: DatabaseSnapshot;
+export interface DatabaseFormsPageProps {
   accountId: string;
   workspaceId: string;
   currentUserId: string;
 }
 
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
-  if (record.properties && typeof record.properties === "object") {
-    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
-  }
-  return null;
-}
+// ── Component ─────────────────────────────────────────────────────────────────
 
-export function DatabaseGalleryView({ database, accountId, workspaceId, currentUserId }: DatabaseGalleryViewProps) {
-  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+export function DatabaseFormsPage({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: DatabaseFormsPageProps) {
+  const params = useParams();
+  const router = useRouter();
+  const databaseId = params.databaseId as string;
+
+  const [database, setDatabase] = useState<Database | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isPending, startTransition] = useTransition();
-
-  const titleField = database.fields.find((f) => f.type === "text") ?? null;
-  const metaFields = database.fields.filter((f) => f !== titleField).slice(0, 4);
+  const [activeTab, setActiveTab] = useState<"preview" | "share">("preview");
+  const databaseDetailHref =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-database/databases/${encodeURIComponent(databaseId)}`
+      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}`;
 
   const load = useCallback(async () => {
+    if (!accountId || !databaseId) { setLoading(false); return; }
     setLoading(true);
     try {
-      const data = await getRecords(accountId, database.id);
-      setRecords(data);
+      const db = await getDatabase(accountId, databaseId);
+      setDatabase(db);
     } finally {
       setLoading(false);
     }
-  }, [accountId, database.id]);
+  }, [accountId, databaseId]);
 
   useEffect(() => { void load(); }, [load]);
 
-  function handleAdd() {
-    startTransition(async () => {
-      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId });
-      void load();
-    });
-  }
-
-  function handleDelete(recordId: string) {
-    startTransition(async () => {
-      await deleteRecord(accountId, recordId);
-      setRecords((prev) => prev.filter((r) => r.id !== recordId));
-    });
-  }
-
   if (loading) {
     return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-lg" />)}
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full rounded-lg" />
       </div>
     );
   }
 
-  return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {records.length === 0 ? (
-          <p className="col-span-full rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">尚無記錄</p>
-        ) : (
-          records.map((record) => {
-            const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "（未命名）" : "（未命名）";
-            return (
-              <div key={record.id} className="group relative flex flex-col gap-2 rounded-lg border border-border/60 bg-card p-3 shadow-sm">
-                <p className="truncate text-sm font-medium leading-snug">{title}</p>
-                <div className="flex flex-wrap gap-1">
-                  {metaFields.map((field) => {
-                    const val = getProperty(record, field.id);
-                    if (val == null || val === "") return null;
-                    return (
-                      <Badge key={field.id} variant="outline" className="text-[10px]">
-                        {field.name}: {String(val).slice(0, 16)}
-                      </Badge>
-                    );
-                  })}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1 hidden h-6 w-6 text-muted-foreground hover:text-destructive group-hover:flex"
-                  disabled={isPending}
-                  onClick={() => handleDelete(record.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            );
-          })
-        )}
-      </div>
-      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="w-full text-xs">
-        <Plus className="mr-1.5 h-3 w-3" /> 新增記錄
-      </Button>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseListView.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseListView — flat record list with fields as readable rows.
- */
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-import { getRecords } from "../queries";
-import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../application/dto/database.dto";
-
-interface DatabaseListViewProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
-  if (record.properties && typeof record.properties === "object") {
-    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
-  }
-  return null;
-}
-
-function displayValue(val: unknown, type: string): string {
-  if (val == null || val === "") return "";
-  if (type === "checkbox") return val ? "✓" : "✗";
-  return String(val);
-}
-
-export function DatabaseListView({ database, accountId, workspaceId, currentUserId }: DatabaseListViewProps) {
-  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [isPending, startTransition] = useTransition();
-
-  const titleField = database.fields.find((f) => f.type === "text") ?? database.fields[0] ?? null;
-  const secondaryFields = database.fields.filter((f) => f !== titleField);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getRecords(accountId, database.id);
-      setRecords(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, database.id]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function toggleExpand(id: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function handleAdd() {
-    startTransition(async () => {
-      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId });
-      void load();
-    });
-  }
-
-  function handleDelete(recordId: string) {
-    startTransition(async () => {
-      await deleteRecord(accountId, recordId);
-      setRecords((prev) => prev.filter((r) => r.id !== recordId));
-    });
-  }
-
-  if (loading) {
+  if (!database) {
     return (
-      <div className="space-y-2">
-        {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.back()}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
       </div>
     );
   }
 
-  return (
-    <div className="space-y-1">
-      {records.length === 0 ? (
-        <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">尚無記錄</p>
-      ) : (
-        records.map((record) => {
-          const isOpen = expanded.has(record.id);
-          const title = titleField ? displayValue(getProperty(record, titleField.id), titleField.type) || "（未命名）" : record.id.slice(0, 8);
+  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
 
-          return (
-            <div key={record.id} className="rounded-md border border-border/60 bg-card">
-              <div className="flex items-center gap-2 px-3 py-2">
+  return (
+    <div className="space-y-4">
+      {/* Top bar */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push(databaseDetailHref)}
+        >
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回資料庫
+        </Button>
+        <div className="ml-auto">
+          <Button size="sm" variant="outline" disabled>
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> 建立新表單
+          </Button>
+        </div>
+      </div>
+
+      <header className="space-y-1 border-b border-border/60 pb-4">
+        <h1 className="text-xl font-semibold">{database.name} — 表單</h1>
+        <p className="text-sm text-muted-foreground">
+          使用表單讓外部使用者提交記錄到此資料庫。
+        </p>
+      </header>
+
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "preview" | "share")}>
+        <TabsList>
+          <TabsTrigger value="preview">預覽表單</TabsTrigger>
+          <TabsTrigger value="share">分享設定</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="preview" className="mt-4">
+          <div className="rounded-xl border border-border/60 bg-card px-6 py-2">
+            <DatabaseFormView
+              database={database}
+              accountId={accountId}
+              workspaceId={workspaceId}
+              submitterId={currentUserId}
+              title={`${database.name} 表單`}
+              description={database.description ?? undefined}
+            />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="share" className="mt-4">
+          <div className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium">表單連結</p>
+              <div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                <span className="flex-1 truncate">{shareUrl}</span>
                 <button
                   type="button"
-                  className="rounded p-0.5 text-muted-foreground hover:bg-muted"
-                  onClick={() => toggleExpand(record.id)}
+                  onClick={() => void navigator.clipboard.writeText(shareUrl)}
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                  title="複製連結"
                 >
-                  {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                  <ExternalLink className="h-3.5 w-3.5" />
                 </button>
-                <span className="flex-1 truncate text-sm font-medium text-foreground">{title}</span>
-                <div className="hidden gap-1 sm:flex">
-                  {secondaryFields.slice(0, 2).map((field) => {
-                    const val = displayValue(getProperty(record, field.id), field.type);
-                    if (!val) return null;
-                    return (
-                      <Badge key={field.id} variant="outline" className="text-[10px]">
-                        {field.name}: {val.length > 12 ? `${val.slice(0, 12)}…` : val}
-                      </Badge>
-                    );
-                  })}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                  disabled={isPending}
-                  onClick={() => handleDelete(record.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
               </div>
-              {isOpen && (
-                <div className="border-t border-border/40 px-4 py-3">
-                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
-                    {database.fields.map((field) => {
-                      const val = displayValue(getProperty(record, field.id), field.type);
-                      return (
-                        <div key={field.id} className="contents">
-                          <dt className="text-muted-foreground">{field.name}</dt>
-                          <dd className="text-foreground">{val || <span className="text-muted-foreground/50">—</span>}</dd>
-                        </div>
-                      );
-                    })}
-                    <div className="contents">
-                      <dt className="text-muted-foreground">建立時間</dt>
-                      <dd className="text-foreground">
-                        {new Date(record.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-              )}
+              <p className="text-xs text-muted-foreground">
+                分享此連結讓其他人填寫表單並將記錄直接存入資料庫。
+              </p>
             </div>
-          );
-        })
-      )}
-      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="mt-1 w-full text-xs">
-        <Plus className="mr-1.5 h-3 w-3" /> 新增記錄
-      </Button>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseTableView.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseTableView — spreadsheet-style table with inline cell editing.
- */
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { Plus, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import { getRecords } from "../queries";
-import { createRecord, updateRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, Field, DatabaseRecordSnapshot } from "../../application/dto/database.dto";
-
-interface DatabaseTableViewProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-const FIELD_WIDTHS: Record<string, string> = {
-  text: "min-w-[180px]",
-  number: "min-w-[100px]",
-  checkbox: "min-w-[80px]",
-  date: "min-w-[140px]",
-  default: "min-w-[140px]",
-};
-
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
-  if (record.properties && typeof record.properties === "object") {
-    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
-  }
-  return null;
-}
-
-function setProperty(record: DatabaseRecordSnapshot, fieldId: string, value: unknown): Record<string, unknown> {
-  const props = typeof record.properties === "object" && record.properties !== null
-    ? { ...(record.properties as Record<string, unknown>) }
-    : {};
-  props[fieldId] = value;
-  return props;
-}
-
-function CellInput({ field, value, onChange, disabled }: { field: Field; value: unknown; onChange: (v: unknown) => void; disabled: boolean }) {
-  if (field.type === "checkbox") {
-    return (
-      <input
-        type="checkbox"
-        checked={Boolean(value)}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 rounded border-border"
-      />
-    );
-  }
-  if (field.type === "number") {
-    return (
-      <Input
-        type="number"
-        value={value == null ? "" : String(value)}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
-        className="h-7 border-transparent bg-transparent px-1 text-xs focus:border-border"
-      />
-    );
-  }
-  return (
-    <Input
-      type="text"
-      value={value == null ? "" : String(value)}
-      disabled={disabled}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-7 border-transparent bg-transparent px-1 text-xs focus:border-border"
-    />
-  );
-}
-
-export function DatabaseTableView({ database, accountId, workspaceId, currentUserId }: DatabaseTableViewProps) {
-  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [edits, setEdits] = useState<Record<string, Record<string, unknown>>>({});
-  const [saving, setSaving] = useState<Record<string, boolean>>({});
-  const [isPending, startTransition] = useTransition();
-
-  const fields = database.fields;
-
-  const load = useCallback(async () => {
-    if (!accountId || !database.id) return;
-    setLoading(true);
-    try {
-      const data = await getRecords(accountId, database.id);
-      setRecords(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, database.id]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function handleCellChange(recordId: string, fieldId: string, value: unknown) {
-    setEdits((prev) => ({
-      ...prev,
-      [recordId]: { ...(prev[recordId] ?? {}), [fieldId]: value },
-    }));
-  }
-
-  function handleCellBlur(record: DatabaseRecordSnapshot, fieldId: string) {
-    const cellValue = edits[record.id]?.[fieldId];
-    if (cellValue === undefined) return;
-    setSaving((prev) => ({ ...prev, [record.id]: true }));
-    startTransition(async () => {
-      await updateRecord({ id: record.id, accountId, properties: setProperty(record, fieldId, cellValue) });
-      setEdits((prev) => {
-        const next = { ...prev };
-        delete next[record.id];
-        return next;
-      });
-      setSaving((prev) => ({ ...prev, [record.id]: false }));
-    });
-  }
-
-  function handleAddRecord() {
-    startTransition(async () => {
-      await createRecord({
-        databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId,
-      });
-      void load();
-    });
-  }
-
-  function handleDeleteRecord(recordId: string) {
-    startTransition(async () => {
-      await deleteRecord(accountId, recordId);
-      setRecords((prev) => prev.filter((r) => r.id !== recordId));
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-2">
-        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
-      </div>
-    );
-  }
-
-  if (fields.length === 0) {
-    return (
-      <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
-        此資料庫尚無欄位。請先新增欄位。
-      </p>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="overflow-x-auto rounded-lg border border-border/60">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border/60 bg-muted/30">
-              {fields.map((field) => (
-                <th key={field.id} className={`px-3 py-2 text-left text-xs font-semibold text-muted-foreground ${FIELD_WIDTHS[field.type] ?? FIELD_WIDTHS.default}`}>
-                  {field.name}
-                  {field.required && <span className="ml-0.5 text-destructive">*</span>}
-                </th>
-              ))}
-              <th className="w-10" />
-            </tr>
-          </thead>
-          <tbody>
-            {records.length === 0 ? (
-              <tr>
-                <td colSpan={fields.length + 1} className="px-3 py-6 text-center text-xs text-muted-foreground">
-                  尚無記錄
-                </td>
-              </tr>
-            ) : (
-              records.map((record) => (
-                <tr key={record.id} className="border-b border-border/30 last:border-b-0 hover:bg-muted/10">
-                  {fields.map((field) => {
-                    const edited = edits[record.id]?.[field.id];
-                    const current = edited !== undefined ? edited : getProperty(record, field.id);
-                    return (
-                      <td key={field.id} className="px-2 py-1">
-                        <CellInput
-                          field={field}
-                          value={current}
-                          onChange={(v) => handleCellChange(record.id, field.id, v)}
-                          disabled={saving[record.id] ?? false}
-                        />
-                      </td>
-                    );
-                  })}
-                  <td className="px-1 py-1 text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                      disabled={isPending}
-                      onBlur={() => {
-                        fields.forEach((f) => { if (edits[record.id]?.[f.id] !== undefined) handleCellBlur(record, f.id); });
-                      }}
-                      onClick={() => handleDeleteRecord(record.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAddRecord} className="w-full text-xs">
-        <Plus className="mr-1.5 h-3 w-3" /> 新增記錄
-      </Button>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/queries/index.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/queries
- * Purpose: Read-side queries for database, record, view, and automation data.
- */
-
-import {
-  makeAutomationRepo,
-  makeDatabaseRepo,
-  makeRecordRepo,
-  makeViewRepo,
-} from "../../api/factories";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot, ViewSnapshot, DatabaseAutomationSnapshot } from "../../application/dto/database.dto";
-
-export async function getDatabases(accountId: string, workspaceId: string): Promise<DatabaseSnapshot[]> {
-  return makeDatabaseRepo().listByWorkspace(accountId, workspaceId);
-}
-
-export async function getDatabase(accountId: string, databaseId: string): Promise<DatabaseSnapshot | null> {
-  return makeDatabaseRepo().findById(databaseId, accountId);
-}
-
-export async function getRecords(accountId: string, databaseId: string): Promise<DatabaseRecordSnapshot[]> {
-  return makeRecordRepo().listByDatabase(accountId, databaseId);
-}
-
-export async function getViews(accountId: string, databaseId: string): Promise<ViewSnapshot[]> {
-  return makeViewRepo().listByDatabase(accountId, databaseId);
-}
-
-export async function getAutomations(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]> {
-  return makeAutomationRepo().listByDatabase(accountId, databaseId);
 }
 ````
 
@@ -48935,19 +49717,6 @@ export * from "./KnowledgePageDto";
 export * from "./ContentBlockDto";
 export * from "./KnowledgeCollectionDto";
 export * from "./KnowledgePageLifecycleDto";
-````
-
-## File: modules/notion/subdomains/knowledge/application/dto/knowledge.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the knowledge subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type { KnowledgePageSnapshot, KnowledgePageTreeNode } from "../../domain/aggregates/KnowledgePage";
-export type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
-export type { KnowledgeCollectionSnapshot } from "../../domain/aggregates/KnowledgeCollection";
-export type { BlockContent } from "../../domain/value-objects/BlockContent";
-export { richTextToPlainText } from "../../domain/value-objects/BlockContent";
 ````
 
 ## File: modules/notion/subdomains/knowledge/application/dto/KnowledgePageLifecycleDto.ts
@@ -50173,81 +50942,258 @@ export async function deleteKnowledgeBlock(input: DeleteContentBlockDto): Promis
 }
 ````
 
-## File: modules/notion/subdomains/knowledge/interfaces/components/BlockEditorView.tsx
+## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgePageDetailPage.tsx
 ````typescript
 "use client";
 
-import { useRef } from "react";
-import { useBlockEditorStore } from "../store/block-editor.store";
-import { richTextToPlainText } from "../../application/dto/knowledge.dto";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
 
-/**
- * Notion knowledge subdomain — minimal block editor.
- * Full drag-and-drop and rich block types are in the extensions/ layer.
- */
-export function BlockEditorView() {
-  const { blocks, addBlock, updateBlock, deleteBlock } = useBlockEditorStore();
-  const containerRef = useRef<HTMLDivElement>(null);
+import { getKnowledgePage } from "../queries";
+import {
+  renameKnowledgePage,
+  archiveKnowledgePage,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+} from "../_actions/knowledge-page.actions";
+import type { KnowledgePageSnapshot as KnowledgePage } from "../../application/dto/knowledge.dto";
+import { PageEditorView } from "./PageEditorView";
+import { CommentPanel } from "@/modules/notion/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>, blockId: string) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      addBlock(blockId);
+// ── Props ─────────────────────────────────────────────────────────────────────
+
+export interface KnowledgePageDetailPageProps {
+  accountId: string;
+  activeWorkspaceId: string | null;
+  currentUserId: string;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export function KnowledgePageDetailPage({
+  accountId,
+  activeWorkspaceId,
+  currentUserId,
+}: KnowledgePageDetailPageProps) {
+  const params = useParams();
+  const router = useRouter();
+  const pageId = params.pageId as string;
+
+  const [page, setPage] = useState<KnowledgePage | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [commentOpen, setCommentOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const workspaceBasePath =
+    accountId && activeWorkspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(activeWorkspaceId)}`
+      : "/workspace";
+  const pageListHref =
+    accountId && activeWorkspaceId
+      ? `${workspaceBasePath}/knowledge/pages`
+      : "/workspace?tab=Overview&panel=knowledge-pages";
+
+  const load = useCallback(async () => {
+    if (!accountId || !pageId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const p = await getKnowledgePage(accountId, pageId);
+      setPage(p);
+    } finally {
+      setLoading(false);
     }
-    if (e.key === "Backspace") {
-      const target = e.currentTarget;
-      if (target.textContent === "") {
-        e.preventDefault();
-        deleteBlock(blockId);
+  }, [accountId, pageId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function handleRename(title: string) {
+    startTransition(async () => {
+      const result = await renameKnowledgePage({ accountId, pageId, title });
+      if (result.success) {
+        setPage((prev) => prev ? { ...prev, title } : prev);
       }
-    }
+    });
   }
 
-  function handleInput(e: React.FormEvent<HTMLDivElement>, blockId: string) {
-    const text = (e.currentTarget as HTMLDivElement).textContent ?? "";
-    updateBlock(blockId, { type: "text", richText: [{ type: "text", plainText: text }] });
+  function handleIconChange(iconUrl: string) {
+    startTransition(async () => {
+      const result = await updateKnowledgePageIcon({ accountId, pageId, iconUrl });
+      if (result.success) {
+        setPage((prev) => prev ? { ...prev, iconUrl: iconUrl || undefined } : prev);
+      }
+    });
   }
 
-  if (!blocks.length) {
+  function handleCoverChange(coverUrl: string) {
+    startTransition(async () => {
+      const result = await updateKnowledgePageCover({ accountId, pageId, coverUrl });
+      if (result.success) {
+        setPage((prev) => prev ? { ...prev, coverUrl: coverUrl || undefined } : prev);
+      }
+    });
+  }
+
+  function handleArchive() {
+    startTransition(async () => {
+      await archiveKnowledgePage({ accountId, pageId });
+      router.push(pageListHref);
+    });
+  }
+
+  // ── Loading skeleton ────────────────────────────────────────────────────────
+
+  if (loading) {
     return (
-      <div className="flex min-h-[200px] flex-col gap-1 rounded-lg border border-dashed p-4">
-        <div
-          role="textbox"
-          aria-multiline="true"
-          aria-label="新區塊內容"
-          tabIndex={0}
-          contentEditable
-          suppressContentEditableWarning
-          className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") { e.preventDefault(); addBlock(null); }
-          }}
-          data-placeholder="開始輸入…"
-        />
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-6 w-72" />
+        <Skeleton className="h-64 w-full rounded-xl" />
       </div>
     );
   }
 
+  // ── Not found ───────────────────────────────────────────────────────────────
+
+  if (!page) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" />
+          頁面列表
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到此頁面，可能已被封存或刪除。</p>
+      </div>
+    );
+  }
+
+  // ── Page view ───────────────────────────────────────────────────────────────
+
+  const updatedAt = page.updatedAtISO
+    ? new Date(page.updatedAtISO).toLocaleDateString("zh-TW", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
+
   return (
-    <div ref={containerRef} className="flex flex-col gap-0.5">
-      {blocks.map((block) => {
-        const text = richTextToPlainText(block.content.richText);
-        return (
-          <div
-            key={block.id}
-            role="textbox"
-            aria-multiline="true"
-            aria-label={`區塊 ${block.id}`}
-            tabIndex={0}
-            contentEditable
-            suppressContentEditableWarning
-            className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"
-            onKeyDown={(e) => handleKeyDown(e, block.id)}
-            onInput={(e) => handleInput(e, block.id)}
-            dangerouslySetInnerHTML={{ __html: text }}
+    <div className="space-y-0">
+      {/* Cover image */}
+      {page.coverUrl && (
+        <div
+          className="relative h-40 w-full overflow-hidden rounded-t-xl bg-muted"
+          style={{ backgroundImage: `url(${page.coverUrl})`, backgroundSize: "cover", backgroundPosition: "center" }}
+        />
+      )}
+
+      <div className="space-y-4 px-0 pt-4">
+        {/* Top bar */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
+            <ArrowLeft className="mr-1.5 h-4 w-4" />
+            頁面列表
+          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={commentOpen ? "default" : "outline"}
+              onClick={() => setCommentOpen((v) => !v)}
+            >
+              <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+              留言
+            </Button>
+            {page.status === "active" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleArchive}
+                disabled={isPending}
+              >
+                <Archive className="mr-1.5 h-3.5 w-3.5" />
+                封存
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Page header */}
+        <header className="space-y-2 border-b border-border/60 pb-4">
+          {/* Icon row */}
+          <div className="flex items-end gap-3">
+            <IconPicker
+              value={page.iconUrl}
+              onChange={handleIconChange}
+              isPending={isPending}
+            />
+            <CoverEditor
+              value={page.coverUrl}
+              onChange={handleCoverChange}
+              isPending={isPending}
+            />
+          </div>
+          <TitleEditor
+            initialTitle={page.title}
+            onSave={handleRename}
+            isPending={isPending}
           />
-        );
-      })}
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            {page.status === "archived" && (
+              <Badge variant="secondary">已封存</Badge>
+            )}
+            {page.approvalState === "approved" && (
+              <Badge variant="default">已審核</Badge>
+            )}
+            {page.verificationState === "verified" && (
+              <Badge variant="outline">已驗證</Badge>
+            )}
+            {page.verificationState === "needs_review" && (
+              <Badge variant="destructive">待審查</Badge>
+            )}
+            {updatedAt && <span>更新於 {updatedAt}</span>}
+          </div>
+        </header>
+
+        {/* Main content + optional comment side panel */}
+        <div className={`flex gap-4 ${commentOpen ? "items-start" : ""}`}>
+          {/* Block editor — connected to Firebase */}
+          <div className="min-w-0 flex-1">
+            {accountId ? (
+              <PageEditorView accountId={accountId} pageId={pageId} />
+            ) : (
+              <p className="text-sm text-muted-foreground">請先登入以載入內容。</p>
+            )}
+          </div>
+
+          {/* Comment panel — slides in from right */}
+          {commentOpen && accountId && (
+            <aside className="w-72 shrink-0 rounded-xl border border-border/60 bg-card p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-semibold">留言</span>
+                <button
+                  type="button"
+                  onClick={() => setCommentOpen(false)}
+                  className="ml-auto rounded p-0.5 text-muted-foreground hover:text-foreground"
+                  aria-label="關閉留言面板"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <CommentPanel
+                accountId={accountId}
+                workspaceId={activeWorkspaceId ?? ""}
+                contentId={pageId}
+                contentType="page"
+                currentUserId={currentUserId}
+              />
+            </aside>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -50314,186 +51260,60 @@ export function PageDialog({ open, onOpenChange, accountId, workspaceId, current
 }
 ````
 
-## File: modules/notion/subdomains/knowledge/interfaces/components/PageTreeView.tsx
-````typescript
-"use client";
-
-import { ChevronDown, ChevronRight, FilePlus, FileText } from "lucide-react";
-import { useState } from "react";
-import { Button } from "@ui-shadcn/ui/button";
-import type { KnowledgePageTreeNode } from "../../application/dto/knowledge.dto";
-import { PageDialog } from "./PageDialog";
-
-export interface PageTreeViewProps {
-  nodes: KnowledgePageTreeNode[];
-  accountId: string;
-  workspaceId?: string;
-  currentUserId: string;
-  allowCreate?: boolean;
-  emptyStateDescription?: string;
-  onPageClick?: (pageId: string) => void;
-  onCreated?: () => void;
-}
-
-function TreeNode({
-  node, accountId, workspaceId, currentUserId, allowCreate, onPageClick, onCreated, depth,
-}: { node: KnowledgePageTreeNode; accountId: string; workspaceId?: string; currentUserId: string; allowCreate: boolean; onPageClick?: (id: string) => void; onCreated?: () => void; depth: number }) {
-  const [expanded, setExpanded] = useState(depth < 1);
-  const [addChildOpen, setAddChildOpen] = useState(false);
-  const hasChildren = node.children && node.children.length > 0;
-  const canCreate = allowCreate && Boolean(workspaceId);
-
-  return (
-    <li>
-      <div className="group flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted/30" style={{ paddingLeft: `${8 + depth * 16}px` }}>
-        <button type="button" className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground" onClick={() => setExpanded((v) => !v)}>
-          {hasChildren ? (expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />) : <FileText className="h-3.5 w-3.5" />}
-        </button>
-        <button type="button" className="min-w-0 flex-1 truncate text-left text-sm" onClick={() => onPageClick?.(node.id)}>
-          {node.title}
-        </button>
-        {canCreate && (
-          <button type="button" className="invisible shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground group-hover:visible" onClick={(e) => { e.stopPropagation(); setAddChildOpen(true); }}>
-            <FilePlus className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
-      {expanded && hasChildren && (
-        <ul>
-          {node.children.map((child) => (
-            <TreeNode key={child.id} node={child} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} allowCreate={allowCreate} onPageClick={onPageClick} onCreated={onCreated} depth={depth + 1} />
-          ))}
-        </ul>
-      )}
-      {addChildOpen && (
-        <PageDialog open={addChildOpen} onOpenChange={setAddChildOpen} accountId={accountId} workspaceId={workspaceId ?? ""} currentUserId={currentUserId} parentPageId={node.id} onSuccess={onCreated} />
-      )}
-    </li>
-  );
-}
-
-export function PageTreeView({ nodes, accountId, workspaceId, currentUserId, allowCreate = true, emptyStateDescription, onPageClick, onCreated }: PageTreeViewProps) {
-  const [createOpen, setCreateOpen] = useState(false);
-  if (!nodes.length) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-8 text-center text-sm text-muted-foreground">
-        <FileText className="h-8 w-8 opacity-40" />
-        <p>{emptyStateDescription ?? "尚無頁面"}</p>
-        {allowCreate && workspaceId && (
-          <>
-            <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>新增頁面</Button>
-            <PageDialog open={createOpen} onOpenChange={setCreateOpen} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} parentPageId={null} onSuccess={onCreated} />
-          </>
-        )}
-      </div>
-    );
-  }
-  return <ul className="space-y-0.5">{nodes.map((n) => <TreeNode key={n.id} node={n} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} allowCreate={allowCreate} onPageClick={onPageClick} onCreated={onCreated} depth={0} />)}</ul>;
-}
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/store/block-editor.store.ts
+## File: modules/notion/subdomains/knowledge/interfaces/queries/index.ts
 ````typescript
 /**
  * Module: notion/subdomains/knowledge
- * Layer: interfaces/store
- * Purpose: Zustand store for the block editor UI state.
- *          Manages optimistic block operations before persistence.
+ * Layer: interfaces/queries
+ * Purpose: Server-side read helpers for the knowledge subdomain.
  */
-"use client";
 
-import { create } from "zustand";
-import type { BlockContent } from "../../application/dto/knowledge.dto";
+import { makeBlockRepo, makeCollectionRepo, makePageRepo } from "../../api/factories";
+import {
+  GetKnowledgePageUseCase,
+  ListKnowledgePagesUseCase,
+  ListKnowledgePagesByWorkspaceUseCase,
+  GetKnowledgePageTreeUseCase,
+  GetKnowledgePageTreeByWorkspaceUseCase,
+} from "../../application/queries/knowledge-page.queries";
+import { ListContentBlocksUseCase } from "../../application/queries/content-block.queries";
+import {
+  GetKnowledgeCollectionUseCase,
+  ListKnowledgeCollectionsUseCase,
+} from "../../application/queries/knowledge-collection.queries";
+import type { KnowledgePageSnapshot, ContentBlockSnapshot, KnowledgeCollectionSnapshot } from "../../application/dto/knowledge.dto";
 
-export interface EditorBlock {
-  id: string;
-  content: BlockContent;
-  order: number;
-  parentBlockId: string | null;
-  isFocused: boolean;
+export async function getKnowledgePage(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {
+  return new GetKnowledgePageUseCase(makePageRepo()).execute(accountId, pageId);
 }
 
-interface BlockEditorState {
-  pageId: string | null;
-  accountId: string | null;
-  blocks: EditorBlock[];
-  isDirty: boolean;
-
-  setPage: (accountId: string, pageId: string) => void;
-  setBlocks: (blocks: EditorBlock[]) => void;
-  addBlock: (after: string | null, content?: BlockContent) => EditorBlock;
-  updateBlock: (id: string, content: BlockContent) => void;
-  deleteBlock: (id: string) => void;
-  reorder: (ids: string[]) => void;
-  clearDirty: () => void;
+export async function getKnowledgePages(accountId: string): Promise<KnowledgePageSnapshot[]> {
+  return new ListKnowledgePagesUseCase(makePageRepo()).execute(accountId);
 }
 
-function makeId() {
-  return crypto.randomUUID();
+export async function getKnowledgePagesByWorkspace(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]> {
+  return new ListKnowledgePagesByWorkspaceUseCase(makePageRepo()).execute(accountId, workspaceId);
 }
 
-export const useBlockEditorStore = create<BlockEditorState>((set, get) => ({
-  pageId: null,
-  accountId: null,
-  blocks: [],
-  isDirty: false,
+export async function getKnowledgePageTree(accountId: string) {
+  return new GetKnowledgePageTreeUseCase(makePageRepo()).execute(accountId);
+}
 
-  setPage(accountId, pageId) {
-    set({ accountId, pageId, blocks: [], isDirty: false });
-  },
+export async function getKnowledgePageTreeByWorkspace(accountId: string, workspaceId: string) {
+  return new GetKnowledgePageTreeByWorkspaceUseCase(makePageRepo()).execute(accountId, workspaceId);
+}
 
-  setBlocks(blocks) {
-    set({ blocks, isDirty: false });
-  },
+export async function getKnowledgeBlocks(accountId: string, pageId: string): Promise<ContentBlockSnapshot[]> {
+  return new ListContentBlocksUseCase(makeBlockRepo()).execute(accountId, pageId);
+}
 
-  addBlock(afterId, content = { type: "text", richText: [] }) {
-    const blocks = [...get().blocks];
-    const idx = afterId ? blocks.findIndex((b) => b.id === afterId) : blocks.length - 1;
-    const newBlock: EditorBlock = {
-      id: makeId(),
-      content,
-      order: idx + 1,
-      parentBlockId: null,
-      isFocused: true,
-    };
-    const updated = [
-      ...blocks.slice(0, idx + 1),
-      newBlock,
-      ...blocks.slice(idx + 1).map((b) => ({ ...b, order: b.order + 1 })),
-    ];
-    set({ blocks: updated, isDirty: true });
-    return newBlock;
-  },
+export async function getKnowledgeCollection(accountId: string, collectionId: string): Promise<KnowledgeCollectionSnapshot | null> {
+  return new GetKnowledgeCollectionUseCase(makeCollectionRepo()).execute(accountId, collectionId);
+}
 
-  updateBlock(id, content) {
-    set({
-      blocks: get().blocks.map((b) => (b.id === id ? { ...b, content } : b)),
-      isDirty: true,
-    });
-  },
-
-  deleteBlock(id) {
-    set({
-      blocks: get().blocks.filter((b) => b.id !== id),
-      isDirty: true,
-    });
-  },
-
-  reorder(ids) {
-    const map = new Map(get().blocks.map((b) => [b.id, b]));
-    const reordered = ids
-      .map((id, i) => {
-        const b = map.get(id);
-        return b ? { ...b, order: i } : null;
-      })
-      .filter((b): b is EditorBlock => b !== null);
-    set({ blocks: reordered, isDirty: true });
-  },
-
-  clearDirty() {
-    set({ isDirty: false });
-  },
-}));
+export async function getKnowledgeCollections(accountId: string): Promise<KnowledgeCollectionSnapshot[]> {
+  return new ListKnowledgeCollectionsUseCase(makeCollectionRepo()).execute(accountId);
+}
 ````
 
 ## File: modules/notion/subdomains/relations/application/index.ts
@@ -60949,237 +61769,6 @@ export class FirebaseSourceDocumentCommandAdapter implements ISourceDocumentComm
 }
 ````
 
-## File: modules/notebooklm/subdomains/source/interfaces/components/WorkspaceFilesTab.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { storageInfrastructureApi } from "@/modules/platform/api";
-
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-
-import type { WorkspaceFileListItemDto } from "../../application/dto/source-file.dto";
-import { resolveSourceOrganizationId } from "../../application/dto/source.dto";
-import { getWorkspaceFiles } from "../queries/source-file.queries";
-import { uploadCompleteFile, uploadInitFile } from "../_actions/source-file.actions";
-import { FileProcessingDialog } from "./FileProcessingDialog";
-
-interface WorkspaceFilesTabProps {
-  readonly workspace: WorkspaceEntity;
-}
-
-interface PendingUploadProcessing {
-  readonly sourceFileId: string;
-  readonly filename: string;
-  readonly gcsUri: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-}
-
-export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
-  const [assets, setAssets] = useState<WorkspaceFileListItemDto[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">("idle");
-  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
-  const [pendingUploadProcessing, setPendingUploadProcessing] = useState<PendingUploadProcessing | null>(null);
-
-  const reloadFiles = useCallback(async () => {
-    setLoadState("loading");
-    try {
-      const nextAssets = await getWorkspaceFiles(workspace);
-      setAssets(nextAssets);
-      setLoadState("loaded");
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[WorkspaceFilesTab] Failed to load file metadata:", error);
-      }
-      setAssets([]);
-      setLoadState("error");
-    }
-  }, [workspace]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      await reloadFiles();
-      if (!cancelled) return;
-    })();
-    return () => { cancelled = true; };
-  }, [reloadFiles]);
-
-  async function handleUploadFile(file: File) {
-    const organizationId = resolveSourceOrganizationId(workspace.accountType, workspace.accountId);
-    setUploadState("uploading");
-    setUploadMessage(null);
-
-    try {
-      const initResult = await uploadInitFile({
-        workspaceId: workspace.id,
-        organizationId,
-        actorAccountId: workspace.accountId,
-        fileName: file.name,
-        mimeType: file.type || "application/octet-stream",
-        sizeBytes: file.size,
-      });
-
-      if (!initResult.ok) {
-        setUploadState("error");
-        setUploadMessage(`Upload initialization failed: ${initResult.error.message}`);
-        return;
-      }
-
-      await storageInfrastructureApi.upload(file, initResult.data.uploadPath, {
-        contentType: file.type || "application/octet-stream",
-      });
-
-      const completeResult = await uploadCompleteFile({
-        workspaceId: workspace.id,
-        organizationId,
-        actorAccountId: workspace.accountId,
-        fileId: initResult.data.fileId,
-        versionId: initResult.data.versionId,
-      });
-
-      if (!completeResult.ok) {
-        setUploadState("error");
-        setUploadMessage(`Upload completion failed: ${completeResult.error.message}`);
-        return;
-      }
-
-      setUploadState("success");
-      setUploadMessage(`Uploaded ${file.name}`);
-      setPendingUploadProcessing({
-        sourceFileId: initResult.data.fileId,
-        filename: file.name,
-        gcsUri: storageInfrastructureApi.toGsUri(initResult.data.uploadPath),
-        mimeType: file.type || "application/octet-stream",
-        sizeBytes: file.size,
-      });
-      await reloadFiles();
-    } catch (error) {
-      setUploadState("error");
-      setUploadMessage(error instanceof Error ? `Storage upload failed: ${error.message}` : "Storage upload failed unexpectedly.");
-    }
-  }
-
-  const availableCount = useMemo(
-    () => assets.filter((asset) => asset.status === "active").length,
-    [assets],
-  );
-
-  return (
-    <Card className="border border-border/50">
-      <CardHeader>
-        <CardTitle>Files</CardTitle>
-        <CardDescription>
-          Manage workspace source files. Upload triggers storage → Firestore → RAG pipeline.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="rounded-xl border border-border/40 px-4 py-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="space-y-1">
-              <Label htmlFor="workspace-file-upload" className="text-sm font-semibold">
-                Upload file
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                Triggers upload-init → Storage → completion + RAG registration.
-              </p>
-            </div>
-            <Input
-              id="workspace-file-upload"
-              type="file"
-              className="max-w-xs"
-              disabled={uploadState === "uploading"}
-              onChange={(event) => {
-                const nextFile = event.target.files?.[0];
-                if (nextFile) void handleUploadFile(nextFile);
-                event.currentTarget.value = "";
-              }}
-            />
-          </div>
-          {uploadMessage && (
-            <p className={`mt-3 text-xs ${uploadState === "error" ? "text-destructive" : "text-emerald-600"}`}>
-              {uploadMessage}
-            </p>
-          )}
-          {uploadState === "uploading" && (
-            <p className="mt-3 text-xs text-muted-foreground">Uploading and persisting metadata…</p>
-          )}
-        </div>
-
-        {loadState === "loading" && <p className="text-sm text-muted-foreground">Loading file metadata…</p>}
-        {loadState === "error" && <p className="text-sm text-destructive">無法載入已持久化的檔案資料，請稍後再試。</p>}
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Registered assets</p>
-            <p className="mt-1 text-xl font-semibold">{assets.length}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Directly available</p>
-            <p className="mt-1 text-xl font-semibold">{availableCount}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Derived manifests</p>
-            <p className="mt-1 text-xl font-semibold">{assets.length - availableCount}</p>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          {loadState === "loaded" && assets.length === 0 && (
-            <div className="rounded-xl border border-dashed border-border/40 px-4 py-6 text-sm text-muted-foreground">
-              No file records yet. Upload-init will create metadata here.
-            </div>
-          )}
-          {assets.map((asset) => (
-            <div key={asset.id} className="rounded-xl border border-border/40 px-4 py-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold">{asset.name}</p>
-                    <Badge variant={asset.status === "active" ? "secondary" : "outline"}>{asset.status}</Badge>
-                    <Badge variant="outline">{asset.kind}</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{asset.detail}</p>
-                </div>
-                <div className="text-xs text-muted-foreground sm:text-right">
-                  <p>Source: {asset.source}</p>
-                  {asset.href && (
-                    <Button asChild variant="link" className="mt-1 inline-flex h-auto p-0 text-xs">
-                      <a href={asset.href} target="_blank" rel="noreferrer">Open asset</a>
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-
-      {pendingUploadProcessing && (
-        <FileProcessingDialog
-          open
-          onClose={() => setPendingUploadProcessing(null)}
-          accountId={workspace.accountId}
-          workspaceId={workspace.id}
-          sourceFileId={pendingUploadProcessing.sourceFileId}
-          filename={pendingUploadProcessing.filename}
-          gcsUri={pendingUploadProcessing.gcsUri}
-          mimeType={pendingUploadProcessing.mimeType}
-          sizeBytes={pendingUploadProcessing.sizeBytes}
-        />
-      )}
-    </Card>
-  );
-}
-````
-
 ## File: modules/notebooklm/subdomains/source/interfaces/hooks/useSourceDocumentsSnapshot.ts
 ````typescript
 "use client";
@@ -61288,35 +61877,6 @@ export function useSourceDocumentsSnapshot(
   const pendingDocs = accountId ? rawPending : [];
 
   return { docs, loading, pendingDocs, addPending, removePending };
-}
-````
-
-## File: modules/notebooklm/subdomains/source/interfaces/queries/source-file.queries.ts
-````typescript
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-
-import type { WorkspaceFileListItemDto } from "../../application/dto/source-file.dto";
-import { resolveSourceOrganizationId } from "../../application/dto/source.dto";
-import type { RagDocumentRecord } from "../../application/dto/source.dto";
-import { makeRagDocumentAdapter, makeSourceFileAdapter } from "../../api/factories";
-import { ListSourceFilesUseCase } from "../../application/queries/source-file.queries";
-
-export async function getWorkspaceFiles(
-  workspace: WorkspaceEntity,
-): Promise<WorkspaceFileListItemDto[]> {
-  const useCase = new ListSourceFilesUseCase(makeSourceFileAdapter());
-  const organizationId = resolveSourceOrganizationId(workspace.accountType, workspace.accountId);
-  return useCase.execute({ workspaceId: workspace.id, organizationId, actorAccountId: workspace.accountId });
-}
-
-export async function getWorkspaceRagDocuments(
-  workspace: WorkspaceEntity,
-): Promise<readonly RagDocumentRecord[]> {
-  const organizationId = resolveSourceOrganizationId(workspace.accountType, workspace.accountId);
-  return makeRagDocumentAdapter().findByWorkspace({
-    organizationId,
-    workspaceId: workspace.id,
-  });
 }
 ````
 
@@ -61976,307 +62536,219 @@ Strategic architecture documentation lives in `docs/contexts/notion/`:
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
-## File: modules/notion/subdomains/authoring/interfaces/components/ArticleDetailPage.tsx
+## File: modules/notion/subdomains/authoring/interfaces/components/KnowledgeBaseArticlesRouteScreen.tsx
 ````typescript
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import {
-  Archive,
-  ArrowLeft,
-  BadgeCheck,
-  Edit,
-  FileClock,
-  MessageSquare,
-  History,
-  Globe,
-  Link2,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
 
-import { getArticle, getCategories, getBacklinks } from "../queries";
-import {
-  publishArticle,
-  archiveArticle,
-  verifyArticle,
-  requestArticleReview,
-} from "../_actions/article.actions";
-import { ArticleDialog } from "./ArticleDialog";
-import type { ArticleSnapshot as Article } from "../../application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
-import { CommentPanel, VersionHistoryPanel } from "@/modules/notion/api";
-import { ReactMarkdown } from "@lib-react-markdown";
-import { remarkGfm } from "@lib-remark-gfm";
+import { useApp } from "@/modules/platform/api";
+import { useAuth } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
 
-// ── Props ─────────────────────────────────────────────────────────────────────
+import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
+import { getArticles, getCategories } from "../queries";
+import { ArticleDialog } from "./ArticleDialog";
+import { CategoryTreePanel } from "./CategoryTreePanel";
 
-export interface ArticleDetailPageProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
+const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  draft: { label: "草稿", variant: "outline" },
+  published: { label: "已發佈", variant: "default" },
+  archived: { label: "已封存", variant: "secondary" },
+};
 
-// ── Component ─────────────────────────────────────────────────────────────────
+const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
+  verified: { label: "已驗證", icon: BadgeCheck },
+  needs_review: { label: "待審查", icon: FileClock },
+  unverified: { label: "未驗證", icon: CircleDot },
+};
 
-export function ArticleDetailPage({
-  accountId,
-  workspaceId,
-  currentUserId,
-}: ArticleDetailPageProps) {
-  const params = useParams();
+/**
+ * KnowledgeBaseArticlesRouteScreen
+ * Route-level screen component for /knowledge-base/articles.
+ * Encapsulates data-loading, filtering and layout so the Next.js route
+ * file stays thin (params/context wiring only).
+ */
+export function KnowledgeBaseArticlesRouteScreen() {
   const router = useRouter();
-  const articleId = params.articleId as string;
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
 
-  const [article, setArticle] = useState<Article | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [backlinks, setBacklinks] = useState<Article[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editOpen, setEditOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const articleListHref =
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = wsState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+  const workspaceBasePath =
     accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-base/articles`
-      : "/knowledge-base/articles";
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
+      : "/workspace";
+  const overviewHref = workspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-base-articles`
+    : "/workspace";
+
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!accountId || !articleId) { setLoading(false); return; }
+    if (!accountId || !workspaceId) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [art, cats, bls] = await Promise.all([
-        getArticle(accountId, articleId),
+      const [arts, cats] = await Promise.all([
+        getArticles({ accountId, workspaceId }),
         getCategories(accountId, workspaceId),
-        getBacklinks(accountId, articleId),
       ]);
-      setArticle(art);
+      setArticles(arts);
       setCategories(cats);
-      setBacklinks(bls);
     } finally {
       setLoading(false);
     }
-  }, [accountId, workspaceId, articleId]);
+  }, [accountId, workspaceId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { load(); }, [load]);
 
-  function handlePublish() {
-    startTransition(async () => {
-      await publishArticle({ id: articleId, accountId });
-      await load();
-    });
+  const filteredArticles = useMemo(() => {
+    if (!selectedCategoryId) return articles;
+    const cat = categories.find((c) => c.id === selectedCategoryId);
+    if (!cat) return articles;
+    return articles.filter((a) => cat.articleIds.includes(a.id));
+  }, [articles, categories, selectedCategoryId]);
+
+  function handleSuccess(articleId?: string) {
+    if (articleId) {
+      if (accountId && workspaceId) {
+        router.push(
+          `${workspaceBasePath}/knowledge-base/articles/${encodeURIComponent(articleId)}`,
+        );
+      } else {
+        router.push(`/knowledge-base/articles/${encodeURIComponent(articleId)}`);
+      }
+    } else {
+      load();
+    }
   }
-
-  function handleArchive() {
-    startTransition(async () => {
-      await archiveArticle({ id: articleId, accountId });
-      await load();
-    });
-  }
-
-  function handleVerify() {
-    startTransition(async () => {
-      await verifyArticle({ id: articleId, accountId, verifiedByUserId: currentUserId });
-      await load();
-    });
-  }
-
-  function handleRequestReview() {
-    startTransition(async () => {
-      await requestArticleReview({ id: articleId, accountId });
-      await load();
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-40" />
-        <Skeleton className="h-64 w-full rounded-lg" />
-      </div>
-    );
-  }
-
-  if (!article) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到文章。</p>
-      </div>
-    );
-  }
-
-  const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
-    draft: "outline",
-    published: "default",
-    archived: "secondary",
-  };
-  const statusLabel: Record<string, string> = {
-    draft: "草稿",
-    published: "已發佈",
-    archived: "已封存",
-  };
-  const veriLabel: Record<string, string> = {
-    verified: "已驗證",
-    needs_review: "待審查",
-    unverified: "未驗證",
-  };
 
   return (
     <div className="space-y-4">
-      {/* Back + actions bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => router.push(articleListHref)}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 文章列表
-        </Button>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          {article.status === "draft" && (
-            <Button size="sm" variant="outline" onClick={handlePublish} disabled={isPending}>
-              <Globe className="mr-1.5 h-3.5 w-3.5" /> 發佈
-            </Button>
-          )}
-          {article.status !== "archived" && (
-            <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
-              <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
-            </Button>
-          )}
-          {article.verificationState !== "verified" && (
-            <Button size="sm" variant="outline" onClick={handleVerify} disabled={isPending}>
-              <BadgeCheck className="mr-1.5 h-3.5 w-3.5" /> 標記已驗證
-            </Button>
-          )}
-          {article.verificationState === "verified" && (
-            <Button size="sm" variant="outline" onClick={handleRequestReview} disabled={isPending}>
-              <FileClock className="mr-1.5 h-3.5 w-3.5" /> 請求審查
-            </Button>
-          )}
-          <Button size="sm" onClick={() => setEditOpen(true)}>
-            <Edit className="mr-1.5 h-3.5 w-3.5" /> 編輯
-          </Button>
-        </div>
-      </div>
-
-      {/* Header */}
-      <header className="space-y-2 border-b border-border/60 pb-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={statusVariant[article.status] ?? "outline"}>
-            {statusLabel[article.status] ?? article.status}
-          </Badge>
-          {article.verificationState && (
-            <Badge variant="outline" className="text-xs">
-              {veriLabel[article.verificationState] ?? article.verificationState}
-            </Badge>
-          )}
-          {article.tags.map((tag) => (
-            <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-              {tag}
-            </span>
-          ))}
-        </div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{article.title}</h1>
-        <p className="text-xs text-muted-foreground">
-          v{article.version} · 更新於 {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
+        <p className="text-sm text-muted-foreground">
+          組織知識庫的 SOP 文章、通用文件與驗證管治。
         </p>
       </header>
 
-      {/* Body tabs */}
-      <Tabs defaultValue="content" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="content">內容</TabsTrigger>
-          <TabsTrigger value="backlinks">
-            <Link2 className="mr-1 h-3.5 w-3.5" /> 反向連結
-            {backlinks.length > 0 && (
-              <span className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">
-                {backlinks.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="comments">
-            <MessageSquare className="mr-1 h-3.5 w-3.5" /> 留言
-          </TabsTrigger>
-          <TabsTrigger value="versions">
-            <History className="mr-1 h-3.5 w-3.5" /> 版本
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="content">
-          <div className="prose prose-sm dark:prose-invert min-h-[200px] max-w-none rounded-lg border border-border/60 bg-muted/10 p-4">
-            {article.content ? (
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {article.content}
-              </ReactMarkdown>
-            ) : (
-              <p className="text-sm text-muted-foreground">此文章尚無內容。</p>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="backlinks">
-          {backlinks.length === 0 ? (
-            <p className="rounded-lg border border-border/60 bg-muted/10 p-4 text-sm text-muted-foreground">
-              尚無其他文章引用此文章。
-            </p>
-          ) : (
-            <ul className="space-y-2 rounded-lg border border-border/60 bg-muted/10 p-4">
-              {backlinks.map((bl) => (
-                <li key={bl.id}>
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/knowledge-base/articles/${bl.id}`)}
-                    className="text-sm text-primary hover:underline text-left"
-                  >
-                    {bl.title}
-                  </button>
-                  <p className="text-[10px] text-muted-foreground">
-                    {new Date(bl.updatedAtISO).toLocaleDateString("zh-TW")}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </TabsContent>
-
-        <TabsContent value="comments">
-          {currentUserId ? (
-            <CommentPanel
-              accountId={accountId}
-              workspaceId={workspaceId}
-              contentId={articleId}
-              contentType="article"
-              currentUserId={currentUserId}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">請先登入以查看留言。</p>
-          )}
-        </TabsContent>
-
-        <TabsContent value="versions">
-          {currentUserId ? (
-            <VersionHistoryPanel
-              accountId={accountId}
-              contentId={articleId}
-              currentUserId={currentUserId}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">請先登入以查看版本歷程。</p>
-          )}
-        </TabsContent>
-      </Tabs>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(overviewHref)}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!accountId || !workspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          新增文章
+        </Button>
+      </div>
 
       <ArticleDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
         accountId={accountId}
         workspaceId={workspaceId}
         currentUserId={currentUserId}
         categories={categories}
-        article={article}
-        onSuccess={() => void load()}
+        onSuccess={handleSuccess}
       />
+
+      {!accountId || !workspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號/工作區情境，請先登入或切換帳號。
+        </p>
+      ) : loading ? (
+        <div className="flex gap-4">
+          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
+          <div className="grid flex-1 gap-3 sm:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-4">
+          <CategoryTreePanel
+            categories={categories}
+            selectedId={selectedCategoryId}
+            onSelect={setSelectedCategoryId}
+          />
+
+          <div className="flex-1">
+            {filteredArticles.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  {selectedCategoryId ? "此分類尚無文章。" : "尚無文章。點擊「新增文章」開始建立。"}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {filteredArticles.map((article) => {
+                  const status = STATUS_CONFIG[article.status];
+                  const veri = VERIFICATION_CONFIG[article.verificationState];
+                  const VeriIcon = veri.icon;
+                  return (
+                    <Card
+                      key={article.id}
+                      className="cursor-pointer hover:bg-muted/10 transition-colors"
+                      onClick={() => handleSuccess(article.id)}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
+                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <VeriIcon className="h-3 w-3" />
+                          <span>{veri.label}</span>
+                        </div>
+                        {article.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {article.tags.slice(0, 3).map((tag) => (
+                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-muted-foreground/70">
+                          v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -62479,428 +62951,166 @@ export class DeleteViewUseCase {
 export { ListViewsUseCase } from "../queries/view.queries";
 ````
 
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseDetailPage.tsx
+## File: modules/notion/subdomains/database/interfaces/components/KnowledgeDatabasesRouteScreen.tsx
 ````typescript
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  Archive,
-  FileText,
-  PlusCircle,
-  Table2,
-  Kanban,
-  List,
-  Calendar,
-  LayoutGrid,
-  Zap,
-} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Table2 } from "lucide-react";
 
-import { getDatabase } from "../queries";
-import { addDatabaseField, archiveDatabase } from "../_actions/database.actions";
-import { DatabaseTableView } from "./DatabaseTableView";
-import { DatabaseBoardView } from "./DatabaseBoardView";
-import { DatabaseListView } from "./DatabaseListView";
-import { DatabaseCalendarView } from "./DatabaseCalendarView";
-import { DatabaseGalleryView } from "./DatabaseGalleryView";
-import { DatabaseAutomationView } from "./DatabaseAutomationView";
-import { AddFieldDialog } from "./DatabaseAddFieldDialog";
-import type { DatabaseSnapshot as Database, FieldType } from "../../application/dto/database.dto";
+import { useApp } from "@/modules/platform/api";
+import { useAuth } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
 import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
-// ── Props ─────────────────────────────────────────────────────────────────────
+import type { DatabaseSnapshot as Database } from "../../application/dto/database.dto";
+import { getDatabases } from "../queries";
+import { DatabaseDialog } from "./DatabaseDialog";
 
-export interface DatabaseDetailPageProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function DatabaseDetailPage({
-  accountId,
-  workspaceId,
-  currentUserId,
-}: DatabaseDetailPageProps) {
-  const params = useParams();
+/**
+ * KnowledgeDatabasesRouteScreen
+ * Route-level screen component for /knowledge-database/databases.
+ * Encapsulates data-loading and layout so the Next.js route file stays thin.
+ */
+export function KnowledgeDatabasesRouteScreen() {
   const router = useRouter();
-  const databaseId = params.databaseId as string;
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
 
-  const [database, setDatabase] = useState<Database | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [addFieldOpen, setAddFieldOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"table" | "board" | "list" | "calendar" | "gallery" | "automations">("table");
-  const [isPending, startTransition] = useTransition();
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = wsState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
   const workspaceBasePath =
     accountId && workspaceId
       ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
       : "/workspace";
-  const databasesHref =
-    accountId && workspaceId
-      ? `${workspaceBasePath}/knowledge-database/databases`
-      : "/knowledge-database/databases";
-  const formsHref =
-    accountId && workspaceId
-      ? `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`
-      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`;
+  const overviewHref = workspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-databases`
+    : "/workspace";
 
-  const load = useCallback(async () => {
-    if (!accountId || !databaseId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const db = await getDatabase(accountId, databaseId);
-      setDatabase(db);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, databaseId]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function handleAddField(name: string, type: FieldType, required: boolean) {
-    startTransition(async () => {
-      await addDatabaseField({
-        databaseId,
-        accountId,
-        name,
-        type,
-        config: {},
-        required,
-      });
-      await load();
-    });
-  }
-
-  function handleArchive() {
-    startTransition(async () => {
-      await archiveDatabase({ id: databaseId, accountId });
-      router.push(databasesHref);
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full rounded-lg" />
-      </div>
-    );
-  }
-
-  if (!database) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Top bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 資料庫列表
-        </Button>
-      </div>
-
-      {/* Page header */}
-      <header className="space-y-1 border-b border-border/60 pb-4">
-        <div className="flex items-center gap-2">
-          {database.icon && <span className="text-xl">{database.icon}</span>}
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{database.name}</h1>
-        </div>
-        {database.description && (
-          <p className="text-sm text-muted-foreground">{database.description}</p>
-        )}
-        <p className="text-xs text-muted-foreground/70">
-          {database.fields.length} 個欄位 · 更新於 {new Date(database.updatedAtISO).toLocaleDateString("zh-TW")}
-        </p>
-      </header>
-
-      {/* View switcher + actions */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center rounded-md border border-border/60 p-0.5">
-          <button
-            type="button"
-            onClick={() => setViewMode("table")}
-            title="表格視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Table2 className="h-3 w-3" /> 表格
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("board")}
-            title="看板視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "board" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Kanban className="h-3 w-3" /> 看板
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("list")}
-            title="清單視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <List className="h-3 w-3" /> 清單
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("calendar")}
-            title="日曆視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Calendar className="h-3 w-3" /> 日曆
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("gallery")}
-            title="圖庫視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "gallery" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <LayoutGrid className="h-3 w-3" /> 圖庫
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("automations")}
-            title="自動化規則"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "automations" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Zap className="h-3 w-3" /> 自動化
-          </button>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => router.push(formsHref)}
-            disabled={isPending}
-          >
-            <FileText className="mr-1.5 h-3.5 w-3.5" /> 表單
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
-            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> 新增欄位
-          </Button>
-          <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
-            <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
-          </Button>
-        </div>
-      </div>
-
-      {/* View */}
-      {viewMode === "table" && (
-        <DatabaseTableView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "board" && (
-        <DatabaseBoardView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "list" && (
-        <DatabaseListView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "calendar" && (
-        <DatabaseCalendarView
-          database={database}
-          accountId={accountId}
-        />
-      )}
-      {viewMode === "gallery" && (
-        <DatabaseGalleryView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "automations" && (
-        <DatabaseAutomationView
-          databaseId={databaseId}
-          accountId={accountId}
-          currentUserId={currentUserId}
-        />
-      )}
-
-      <AddFieldDialog
-        open={addFieldOpen}
-        onOpenChange={setAddFieldOpen}
-        onAdd={handleAddField}
-        isPending={isPending}
-      />
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseFormsPage.tsx
-````typescript
-"use client";
-
-/**
- * Route: /knowledge-database/databases/[databaseId]/forms
- * Purpose: Manage database forms — create and embed form links for a specific database.
- */
-
-import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
-
-import { getDatabase } from "../queries";
-import { DatabaseFormView } from "./DatabaseFormView";
-import type { DatabaseSnapshot as Database } from "../../application/dto/database.dto";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-export interface DatabaseFormsPageProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function DatabaseFormsPage({
-  accountId,
-  workspaceId,
-  currentUserId,
-}: DatabaseFormsPageProps) {
-  const params = useParams();
-  const router = useRouter();
-  const databaseId = params.databaseId as string;
-
-  const [database, setDatabase] = useState<Database | null>(null);
+  const [databases, setDatabases] = useState<Database[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"preview" | "share">("preview");
-  const databaseDetailHref =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-database/databases/${encodeURIComponent(databaseId)}`
-      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}`;
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const load = useCallback(async () => {
-    if (!accountId || !databaseId) { setLoading(false); return; }
+    if (!accountId || !workspaceId) { setLoading(false); return; }
     setLoading(true);
     try {
-      const db = await getDatabase(accountId, databaseId);
-      setDatabase(db);
+      const data = await getDatabases(accountId, workspaceId);
+      setDatabases(data);
     } finally {
       setLoading(false);
     }
-  }, [accountId, databaseId]);
+  }, [accountId, workspaceId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { load(); }, [load]);
 
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full rounded-lg" />
-      </div>
-    );
+  function handleSuccess(databaseId?: string) {
+    if (databaseId) {
+      if (accountId && workspaceId) {
+        router.push(
+          `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}`,
+        );
+      } else {
+        router.push(`/knowledge-database/databases/${encodeURIComponent(databaseId)}`);
+      }
+    } else {
+      load();
+    }
   }
-
-  if (!database) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
-      </div>
-    );
-  }
-
-  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
 
   return (
     <div className="space-y-4">
-      {/* Top bar */}
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push(databaseDetailHref)}
-        >
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回資料庫
-        </Button>
-        <div className="ml-auto">
-          <Button size="sm" variant="outline" disabled>
-            <Plus className="mr-1.5 h-3.5 w-3.5" /> 建立新表單
-          </Button>
-        </div>
-      </div>
-
-      <header className="space-y-1 border-b border-border/60 pb-4">
-        <h1 className="text-xl font-semibold">{database.name} — 表單</h1>
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Database</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
         <p className="text-sm text-muted-foreground">
-          使用表單讓外部使用者提交記錄到此資料庫。
+          結構化資料表、看板、日曆與多視圖管理，對應 Notion Database 能力。
         </p>
       </header>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "preview" | "share")}>
-        <TabsList>
-          <TabsTrigger value="preview">預覽表單</TabsTrigger>
-          <TabsTrigger value="share">分享設定</TabsTrigger>
-        </TabsList>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(overviewHref)}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!accountId || !workspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          新增資料庫
+        </Button>
+      </div>
 
-        <TabsContent value="preview" className="mt-4">
-          <div className="rounded-xl border border-border/60 bg-card px-6 py-2">
-            <DatabaseFormView
-              database={database}
-              accountId={accountId}
-              workspaceId={workspaceId}
-              submitterId={currentUserId}
-              title={`${database.name} 表單`}
-              description={database.description ?? undefined}
-            />
-          </div>
-        </TabsContent>
+      <DatabaseDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        onSuccess={handleSuccess}
+      />
 
-        <TabsContent value="share" className="mt-4">
-          <div className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
-            <div className="space-y-1.5">
-              <p className="text-sm font-medium">表單連結</p>
-              <div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                <span className="flex-1 truncate">{shareUrl}</span>
-                <button
-                  type="button"
-                  onClick={() => void navigator.clipboard.writeText(shareUrl)}
-                  className="shrink-0 text-muted-foreground hover:text-foreground"
-                  title="複製連結"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                分享此連結讓其他人填寫表單並將記錄直接存入資料庫。
-              </p>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
+      {!accountId || !workspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號/工作區情境，請先登入或切換帳號。
+        </p>
+      ) : loading ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : databases.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+          <Table2 className="h-8 w-8 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">尚無資料庫。點擊「新增資料庫」開始建立。</p>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {databases.map((db) => (
+            <Card
+              key={db.id}
+              className="cursor-pointer hover:bg-muted/10 transition-colors"
+              onClick={() => handleSuccess(db.id)}
+            >
+              <CardHeader className="pb-2">
+                <div className="flex items-start gap-2">
+                  {db.icon ? (
+                    <span className="text-lg leading-none">{db.icon}</span>
+                  ) : (
+                    <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <CardTitle className="line-clamp-1 text-sm font-medium">{db.name}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {db.description && (
+                  <p className="line-clamp-2 text-xs text-muted-foreground">{db.description}</p>
+                )}
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
+                  <span>{db.fields.length} 個欄位</span>
+                  <span>·</span>
+                  <span>{db.viewIds.length} 個視圖</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground/50">
+                  {new Date(db.updatedAtISO).toLocaleDateString("zh-TW")}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -63016,316 +63226,142 @@ export async function updateKnowledgePageCover(input: UpdatePageCoverDto): Promi
 }
 ````
 
-## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgePageDetailPage.tsx
+## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgePagesRouteScreen.tsx
 ````typescript
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
-import { getKnowledgePage } from "../queries";
-import {
-  renameKnowledgePage,
-  archiveKnowledgePage,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-} from "../_actions/knowledge-page.actions";
-import type { KnowledgePageSnapshot as KnowledgePage } from "../../application/dto/knowledge.dto";
-import { PageEditorView } from "./PageEditorView";
-import { CommentPanel } from "@/modules/notion/api";
-import { Button } from "@ui-shadcn/ui/button";
+import { useApp } from "@/modules/platform/api";
+import { useAuth } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
 
-// ── Props ─────────────────────────────────────────────────────────────────────
+import type { KnowledgePageTreeNode } from "../../application/dto/knowledge.dto";
+import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
+import { PageTreeView } from "./PageTreeView";
 
-export interface KnowledgePageDetailPageProps {
-  accountId: string;
-  activeWorkspaceId: string | null;
-  currentUserId: string;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function KnowledgePageDetailPage({
-  accountId,
-  activeWorkspaceId,
-  currentUserId,
-}: KnowledgePageDetailPageProps) {
-  const params = useParams();
+/**
+ * KnowledgePagesRouteScreen
+ * Route-level screen component for /knowledge/pages.
+ * Encapsulates data-loading, scope resolution and layout so that the
+ * Next.js route file stays thin (params/context wiring only).
+ */
+export function KnowledgePagesRouteScreen() {
   const router = useRouter();
-  const pageId = params.pageId as string;
+  const searchParams = useSearchParams();
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
 
-  const [page, setPage] = useState<KnowledgePage | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [commentOpen, setCommentOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+  const scopeParam = searchParams.get("scope")?.trim() ?? "";
+  const isAccountSummary = scopeParam === "account";
+  const workspaceId = isAccountSummary ? "" : requestedWorkspaceId || wsState.activeWorkspaceId || "";
+  const currentUserId = authState.user?.id ?? "";
   const workspaceBasePath =
-    accountId && activeWorkspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(activeWorkspaceId)}`
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
       : "/workspace";
-  const pageListHref =
-    accountId && activeWorkspaceId
-      ? `${workspaceBasePath}/knowledge/pages`
-      : "/workspace?tab=Overview&panel=knowledge-pages";
+  const overviewHref = workspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
+    : "/workspace";
+
+  function buildPageDetailHref(pageId: string) {
+    if (accountId && workspaceId) {
+      return `${workspaceBasePath}/knowledge/pages/${encodeURIComponent(pageId)}`;
+    }
+    return `/knowledge/pages/${encodeURIComponent(pageId)}${
+      workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : ""
+    }`;
+  }
+
+  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!accountId || !pageId) { setLoading(false); return; }
+    if (!accountId) { setLoading(false); return; }
+    if (!isAccountSummary && !workspaceId) {
+      setNodes([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      const p = await getKnowledgePage(accountId, pageId);
-      setPage(p);
+      const tree = isAccountSummary
+        ? await getKnowledgePageTree(accountId)
+        : await getKnowledgePageTreeByWorkspace(accountId, workspaceId);
+      setNodes(tree);
     } finally {
       setLoading(false);
     }
-  }, [accountId, pageId]);
+  }, [accountId, isAccountSummary, workspaceId]);
 
-  useEffect(() => { void load(); }, [load]);
-
-  function handleRename(title: string) {
-    startTransition(async () => {
-      const result = await renameKnowledgePage({ accountId, pageId, title });
-      if (result.success) {
-        setPage((prev) => prev ? { ...prev, title } : prev);
-      }
-    });
-  }
-
-  function handleIconChange(iconUrl: string) {
-    startTransition(async () => {
-      const result = await updateKnowledgePageIcon({ accountId, pageId, iconUrl });
-      if (result.success) {
-        setPage((prev) => prev ? { ...prev, iconUrl: iconUrl || undefined } : prev);
-      }
-    });
-  }
-
-  function handleCoverChange(coverUrl: string) {
-    startTransition(async () => {
-      const result = await updateKnowledgePageCover({ accountId, pageId, coverUrl });
-      if (result.success) {
-        setPage((prev) => prev ? { ...prev, coverUrl: coverUrl || undefined } : prev);
-      }
-    });
-  }
-
-  function handleArchive() {
-    startTransition(async () => {
-      await archiveKnowledgePage({ accountId, pageId });
-      router.push(pageListHref);
-    });
-  }
-
-  // ── Loading skeleton ────────────────────────────────────────────────────────
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-6 w-72" />
-        <Skeleton className="h-64 w-full rounded-xl" />
-      </div>
-    );
-  }
-
-  // ── Not found ───────────────────────────────────────────────────────────────
-
-  if (!page) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" />
-          頁面列表
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到此頁面，可能已被封存或刪除。</p>
-      </div>
-    );
-  }
-
-  // ── Page view ───────────────────────────────────────────────────────────────
-
-  const updatedAt = page.updatedAtISO
-    ? new Date(page.updatedAtISO).toLocaleDateString("zh-TW", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : null;
+  useEffect(() => { load(); }, [load]);
 
   return (
-    <div className="space-y-0">
-      {/* Cover image */}
-      {page.coverUrl && (
-        <div
-          className="relative h-40 w-full overflow-hidden rounded-t-xl bg-muted"
-          style={{ backgroundImage: `url(${page.coverUrl})`, backgroundSize: "cover", backgroundPosition: "center" }}
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={isAccountSummary ? "secondary" : "outline"}>
+            {isAccountSummary ? "Account Summary" : "Workspace Scope"}
+          </Badge>
+          <p className="text-sm text-muted-foreground">
+            {isAccountSummary
+              ? "這是顯式 account summary mode。僅用於跨工作區總覽，預設不在此建立新頁面。"
+              : "知識頁面階層樹預設綁定目前工作區。點選頁面進入內容編輯器。"}
+          </p>
+        </div>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(overviewHref)}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+      </div>
+
+      {!accountId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號情境，請先登入。
+        </p>
+      ) : !isAccountSummary && !workspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未選定工作區。請先從工作區進入知識頁面，或在網址帶入 workspaceId 後再查看頁面樹。
+        </p>
+      ) : loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-full" />
+          ))}
+        </div>
+      ) : (
+        <PageTreeView
+          nodes={nodes}
+          accountId={accountId}
+          workspaceId={workspaceId || undefined}
+          currentUserId={currentUserId}
+          allowCreate={!isAccountSummary && Boolean(workspaceId)}
+          emptyStateDescription={
+            isAccountSummary
+              ? "這個 account summary 目前沒有可顯示的頁面。請改從工作區建立與維護頁面。"
+              : "這個工作區尚無頁面。點擊「新增頁面」開始建立。"
+          }
+          onPageClick={(pageId) => router.push(buildPageDetailHref(pageId))}
+          onCreated={() => load()}
         />
       )}
-
-      <div className="space-y-4 px-0 pt-4">
-        {/* Top bar */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
-            <ArrowLeft className="mr-1.5 h-4 w-4" />
-            頁面列表
-          </Button>
-          <div className="ml-auto flex items-center gap-2">
-            <Button
-              size="sm"
-              variant={commentOpen ? "default" : "outline"}
-              onClick={() => setCommentOpen((v) => !v)}
-            >
-              <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
-              留言
-            </Button>
-            {page.status === "active" && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleArchive}
-                disabled={isPending}
-              >
-                <Archive className="mr-1.5 h-3.5 w-3.5" />
-                封存
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Page header */}
-        <header className="space-y-2 border-b border-border/60 pb-4">
-          {/* Icon row */}
-          <div className="flex items-end gap-3">
-            <IconPicker
-              value={page.iconUrl}
-              onChange={handleIconChange}
-              isPending={isPending}
-            />
-            <CoverEditor
-              value={page.coverUrl}
-              onChange={handleCoverChange}
-              isPending={isPending}
-            />
-          </div>
-          <TitleEditor
-            initialTitle={page.title}
-            onSave={handleRename}
-            isPending={isPending}
-          />
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            {page.status === "archived" && (
-              <Badge variant="secondary">已封存</Badge>
-            )}
-            {page.approvalState === "approved" && (
-              <Badge variant="default">已審核</Badge>
-            )}
-            {page.verificationState === "verified" && (
-              <Badge variant="outline">已驗證</Badge>
-            )}
-            {page.verificationState === "needs_review" && (
-              <Badge variant="destructive">待審查</Badge>
-            )}
-            {updatedAt && <span>更新於 {updatedAt}</span>}
-          </div>
-        </header>
-
-        {/* Main content + optional comment side panel */}
-        <div className={`flex gap-4 ${commentOpen ? "items-start" : ""}`}>
-          {/* Block editor — connected to Firebase */}
-          <div className="min-w-0 flex-1">
-            {accountId ? (
-              <PageEditorView accountId={accountId} pageId={pageId} />
-            ) : (
-              <p className="text-sm text-muted-foreground">請先登入以載入內容。</p>
-            )}
-          </div>
-
-          {/* Comment panel — slides in from right */}
-          {commentOpen && accountId && (
-            <aside className="w-72 shrink-0 rounded-xl border border-border/60 bg-card p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-semibold">留言</span>
-                <button
-                  type="button"
-                  onClick={() => setCommentOpen(false)}
-                  className="ml-auto rounded p-0.5 text-muted-foreground hover:text-foreground"
-                  aria-label="關閉留言面板"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <CommentPanel
-                accountId={accountId}
-                workspaceId={activeWorkspaceId ?? ""}
-                contentId={pageId}
-                contentType="page"
-                currentUserId={currentUserId}
-              />
-            </aside>
-          )}
-        </div>
-      </div>
     </div>
   );
-}
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/queries/index.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: interfaces/queries
- * Purpose: Server-side read helpers for the knowledge subdomain.
- */
-
-import { makeBlockRepo, makeCollectionRepo, makePageRepo } from "../../api/factories";
-import {
-  GetKnowledgePageUseCase,
-  ListKnowledgePagesUseCase,
-  ListKnowledgePagesByWorkspaceUseCase,
-  GetKnowledgePageTreeUseCase,
-  GetKnowledgePageTreeByWorkspaceUseCase,
-} from "../../application/queries/knowledge-page.queries";
-import { ListContentBlocksUseCase } from "../../application/queries/content-block.queries";
-import {
-  GetKnowledgeCollectionUseCase,
-  ListKnowledgeCollectionsUseCase,
-} from "../../application/queries/knowledge-collection.queries";
-import type { KnowledgePageSnapshot, ContentBlockSnapshot, KnowledgeCollectionSnapshot } from "../../application/dto/knowledge.dto";
-
-export async function getKnowledgePage(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {
-  return new GetKnowledgePageUseCase(makePageRepo()).execute(accountId, pageId);
-}
-
-export async function getKnowledgePages(accountId: string): Promise<KnowledgePageSnapshot[]> {
-  return new ListKnowledgePagesUseCase(makePageRepo()).execute(accountId);
-}
-
-export async function getKnowledgePagesByWorkspace(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]> {
-  return new ListKnowledgePagesByWorkspaceUseCase(makePageRepo()).execute(accountId, workspaceId);
-}
-
-export async function getKnowledgePageTree(accountId: string) {
-  return new GetKnowledgePageTreeUseCase(makePageRepo()).execute(accountId);
-}
-
-export async function getKnowledgePageTreeByWorkspace(accountId: string, workspaceId: string) {
-  return new GetKnowledgePageTreeByWorkspaceUseCase(makePageRepo()).execute(accountId, workspaceId);
-}
-
-export async function getKnowledgeBlocks(accountId: string, pageId: string): Promise<ContentBlockSnapshot[]> {
-  return new ListContentBlocksUseCase(makeBlockRepo()).execute(accountId, pageId);
-}
-
-export async function getKnowledgeCollection(accountId: string, collectionId: string): Promise<KnowledgeCollectionSnapshot | null> {
-  return new GetKnowledgeCollectionUseCase(makeCollectionRepo()).execute(accountId, collectionId);
-}
-
-export async function getKnowledgeCollections(accountId: string): Promise<KnowledgeCollectionSnapshot[]> {
-  return new ListKnowledgeCollectionsUseCase(makeCollectionRepo()).execute(accountId);
 }
 ````
 
@@ -68904,224 +68940,6 @@ export * from "../subdomains/taxonomy/api";
 export * from "../subdomains/relations/api";
 ````
 
-## File: modules/notion/subdomains/authoring/interfaces/components/KnowledgeBaseArticlesRouteScreen.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
-
-import { useApp } from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
-import { getArticles, getCategories } from "../queries";
-import { ArticleDialog } from "./ArticleDialog";
-import { CategoryTreePanel } from "./CategoryTreePanel";
-
-const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  draft: { label: "草稿", variant: "outline" },
-  published: { label: "已發佈", variant: "default" },
-  archived: { label: "已封存", variant: "secondary" },
-};
-
-const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
-  verified: { label: "已驗證", icon: BadgeCheck },
-  needs_review: { label: "待審查", icon: FileClock },
-  unverified: { label: "未驗證", icon: CircleDot },
-};
-
-/**
- * KnowledgeBaseArticlesRouteScreen
- * Route-level screen component for /knowledge-base/articles.
- * Encapsulates data-loading, filtering and layout so the Next.js route
- * file stays thin (params/context wiring only).
- */
-export function KnowledgeBaseArticlesRouteScreen() {
-  const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = wsState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-  const workspaceBasePath =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : "/workspace";
-  const overviewHref = workspaceId
-    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-base-articles`
-    : "/workspace";
-
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    if (!accountId || !workspaceId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const [arts, cats] = await Promise.all([
-        getArticles({ accountId, workspaceId }),
-        getCategories(accountId, workspaceId),
-      ]);
-      setArticles(arts);
-      setCategories(cats);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, workspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const filteredArticles = useMemo(() => {
-    if (!selectedCategoryId) return articles;
-    const cat = categories.find((c) => c.id === selectedCategoryId);
-    if (!cat) return articles;
-    return articles.filter((a) => cat.articleIds.includes(a.id));
-  }, [articles, categories, selectedCategoryId]);
-
-  function handleSuccess(articleId?: string) {
-    if (articleId) {
-      if (accountId && workspaceId) {
-        router.push(
-          `${workspaceBasePath}/knowledge-base/articles/${encodeURIComponent(articleId)}`,
-        );
-      } else {
-        router.push(`/knowledge-base/articles/${encodeURIComponent(articleId)}`);
-      }
-    } else {
-      load();
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
-        <p className="text-sm text-muted-foreground">
-          組織知識庫的 SOP 文章、通用文件與驗證管治。
-        </p>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push(overviewHref)}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-        <Button
-          size="sm"
-          className="ml-auto"
-          disabled={!accountId || !workspaceId}
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增文章
-        </Button>
-      </div>
-
-      <ArticleDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        categories={categories}
-        onSuccess={handleSuccess}
-      />
-
-      {!accountId || !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
-        </p>
-      ) : loading ? (
-        <div className="flex gap-4">
-          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
-          <div className="grid flex-1 gap-3 sm:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 w-full rounded-lg" />
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="flex gap-4">
-          <CategoryTreePanel
-            categories={categories}
-            selectedId={selectedCategoryId}
-            onSelect={setSelectedCategoryId}
-          />
-
-          <div className="flex-1">
-            {filteredArticles.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">
-                  {selectedCategoryId ? "此分類尚無文章。" : "尚無文章。點擊「新增文章」開始建立。"}
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {filteredArticles.map((article) => {
-                  const status = STATUS_CONFIG[article.status];
-                  const veri = VERIFICATION_CONFIG[article.verificationState];
-                  const VeriIcon = veri.icon;
-                  return (
-                    <Card
-                      key={article.id}
-                      className="cursor-pointer hover:bg-muted/10 transition-colors"
-                      onClick={() => handleSuccess(article.id)}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
-                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <VeriIcon className="h-3 w-3" />
-                          <span>{veri.label}</span>
-                        </div>
-                        {article.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {article.tags.slice(0, 3).map((tag) => (
-                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <p className="text-[10px] text-muted-foreground/70">
-                          v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-````
-
 ## File: modules/notion/subdomains/authoring/README.md
 ````markdown
 # Authoring
@@ -69188,171 +69006,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notion/subdomains/database/interfaces/components/KnowledgeDatabasesRouteScreen.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Table2 } from "lucide-react";
-
-import { useApp } from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import type { DatabaseSnapshot as Database } from "../../application/dto/database.dto";
-import { getDatabases } from "../queries";
-import { DatabaseDialog } from "./DatabaseDialog";
-
-/**
- * KnowledgeDatabasesRouteScreen
- * Route-level screen component for /knowledge-database/databases.
- * Encapsulates data-loading and layout so the Next.js route file stays thin.
- */
-export function KnowledgeDatabasesRouteScreen() {
-  const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = wsState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-  const workspaceBasePath =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : "/workspace";
-  const overviewHref = workspaceId
-    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-databases`
-    : "/workspace";
-
-  const [databases, setDatabases] = useState<Database[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-
-  const load = useCallback(async () => {
-    if (!accountId || !workspaceId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const data = await getDatabases(accountId, workspaceId);
-      setDatabases(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, workspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  function handleSuccess(databaseId?: string) {
-    if (databaseId) {
-      if (accountId && workspaceId) {
-        router.push(
-          `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}`,
-        );
-      } else {
-        router.push(`/knowledge-database/databases/${encodeURIComponent(databaseId)}`);
-      }
-    } else {
-      load();
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Database</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
-        <p className="text-sm text-muted-foreground">
-          結構化資料表、看板、日曆與多視圖管理，對應 Notion Database 能力。
-        </p>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push(overviewHref)}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-        <Button
-          size="sm"
-          className="ml-auto"
-          disabled={!accountId || !workspaceId}
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增資料庫
-        </Button>
-      </div>
-
-      <DatabaseDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        onSuccess={handleSuccess}
-      />
-
-      {!accountId || !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
-        </p>
-      ) : loading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : databases.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-          <Table2 className="h-8 w-8 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">尚無資料庫。點擊「新增資料庫」開始建立。</p>
-        </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {databases.map((db) => (
-            <Card
-              key={db.id}
-              className="cursor-pointer hover:bg-muted/10 transition-colors"
-              onClick={() => handleSuccess(db.id)}
-            >
-              <CardHeader className="pb-2">
-                <div className="flex items-start gap-2">
-                  {db.icon ? (
-                    <span className="text-lg leading-none">{db.icon}</span>
-                  ) : (
-                    <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  )}
-                  <CardTitle className="line-clamp-1 text-sm font-medium">{db.name}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {db.description && (
-                  <p className="line-clamp-2 text-xs text-muted-foreground">{db.description}</p>
-                )}
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
-                  <span>{db.fields.length} 個欄位</span>
-                  <span>·</span>
-                  <span>{db.viewIds.length} 個視圖</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground/50">
-                  {new Date(db.updatedAtISO).toLocaleDateString("zh-TW")}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-````
-
 ## File: modules/notion/subdomains/database/README.md
 ````markdown
 # Database
@@ -69384,337 +69037,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgePagesRouteScreen.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-
-import { useApp } from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import type { KnowledgePageTreeNode } from "../../application/dto/knowledge.dto";
-import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
-import { PageTreeView } from "./PageTreeView";
-
-/**
- * KnowledgePagesRouteScreen
- * Route-level screen component for /knowledge/pages.
- * Encapsulates data-loading, scope resolution and layout so that the
- * Next.js route file stays thin (params/context wiring only).
- */
-export function KnowledgePagesRouteScreen() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-  const scopeParam = searchParams.get("scope")?.trim() ?? "";
-  const isAccountSummary = scopeParam === "account";
-  const workspaceId = isAccountSummary ? "" : requestedWorkspaceId || wsState.activeWorkspaceId || "";
-  const currentUserId = authState.user?.id ?? "";
-  const workspaceBasePath =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : "/workspace";
-  const overviewHref = workspaceId
-    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
-    : "/workspace";
-
-  function buildPageDetailHref(pageId: string) {
-    if (accountId && workspaceId) {
-      return `${workspaceBasePath}/knowledge/pages/${encodeURIComponent(pageId)}`;
-    }
-    return `/knowledge/pages/${encodeURIComponent(pageId)}${
-      workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : ""
-    }`;
-  }
-
-  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    if (!accountId) { setLoading(false); return; }
-    if (!isAccountSummary && !workspaceId) {
-      setNodes([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const tree = isAccountSummary
-        ? await getKnowledgePageTree(accountId)
-        : await getKnowledgePageTreeByWorkspace(accountId, workspaceId);
-      setNodes(tree);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, isAccountSummary, workspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={isAccountSummary ? "secondary" : "outline"}>
-            {isAccountSummary ? "Account Summary" : "Workspace Scope"}
-          </Badge>
-          <p className="text-sm text-muted-foreground">
-            {isAccountSummary
-              ? "這是顯式 account summary mode。僅用於跨工作區總覽，預設不在此建立新頁面。"
-              : "知識頁面階層樹預設綁定目前工作區。點選頁面進入內容編輯器。"}
-          </p>
-        </div>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push(overviewHref)}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-      </div>
-
-      {!accountId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號情境，請先登入。
-        </p>
-      ) : !isAccountSummary && !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未選定工作區。請先從工作區進入知識頁面，或在網址帶入 workspaceId 後再查看頁面樹。
-        </p>
-      ) : loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-8 w-full" />
-          ))}
-        </div>
-      ) : (
-        <PageTreeView
-          nodes={nodes}
-          accountId={accountId}
-          workspaceId={workspaceId || undefined}
-          currentUserId={currentUserId}
-          allowCreate={!isAccountSummary && Boolean(workspaceId)}
-          emptyStateDescription={
-            isAccountSummary
-              ? "這個 account summary 目前沒有可顯示的頁面。請改從工作區建立與維護頁面。"
-              : "這個工作區尚無頁面。點擊「新增頁面」開始建立。"
-          }
-          onPageClick={(pageId) => router.push(buildPageDetailHref(pageId))}
-          onCreated={() => load()}
-        />
-      )}
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgeSidebarSection.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
-import { useState } from "react";
-
-interface WorkspaceLinkItem {
-  id: string;
-  name: string;
-  href: string;
-}
-
-interface KnowledgeSidebarSectionProps {
-  readonly pathname: string;
-  readonly workspacesHydrated: boolean;
-  readonly allWorkspaceLinks: WorkspaceLinkItem[];
-  readonly activeAccountId: string | null;
-  readonly activeWorkspaceId: string | null;
-  readonly creatingKind: "page" | "database" | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onQuickCreatePage: () => void | Promise<void>;
-}
-
-function withContextQuery(href: string, accountId: string | null, workspaceId: string | null): string {
-  if (!accountId && !workspaceId) {
-    return href;
-  }
-
-  const [path, search = ""] = href.split("?");
-  const params = new URLSearchParams(search);
-
-  if (accountId) {
-    params.set("accountId", accountId);
-  }
-
-  if (workspaceId) {
-    params.set("workspaceId", workspaceId);
-  }
-
-  const query = params.toString();
-  return query.length > 0 ? `${path}?${query}` : path;
-}
-
-export function KnowledgeSidebarSection({
-  pathname,
-  workspacesHydrated,
-  allWorkspaceLinks,
-  activeAccountId,
-  activeWorkspaceId,
-  creatingKind,
-  onSelectWorkspace,
-  onQuickCreatePage,
-}: KnowledgeSidebarSectionProps) {
-  const [isKnowledgeWorkspacesExpanded, setIsKnowledgeWorkspacesExpanded] = useState(
-    () => Boolean(activeWorkspaceId),
-  );
-
-  const workspaceBasePath =
-    activeAccountId && activeWorkspaceId
-      ? `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(activeWorkspaceId)}`
-      : "";
-
-  const contextualPagesHref = workspaceBasePath
-    ? `${workspaceBasePath}/knowledge/pages`
-    : withContextQuery("/knowledge/pages", activeAccountId, activeWorkspaceId);
-
-  return (
-    <nav className="space-y-0.5" aria-label="Knowledge navigation">
-      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-        知識管理
-      </p>
-      {(activeAccountId || activeWorkspaceId) && (
-        <p className="px-2 pb-1 text-[11px] text-muted-foreground">
-          {activeAccountId ? `Account: ${activeAccountId.slice(0, 8)}` : "Account: -"}
-          {" · "}
-          {activeWorkspaceId ? `Workspace: ${activeWorkspaceId.slice(0, 8)}` : "Workspace: -"}
-        </p>
-      )}
-      <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
-        <Link
-          href={contextualPagesHref}
-          aria-current={pathname.includes("/knowledge/pages") ? "page" : undefined}
-          className={`flex-1 ${
-            pathname.includes("/knowledge/pages")
-              ? "text-primary"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          頁面
-        </Link>
-        <button
-          type="button"
-          onClick={() => void onQuickCreatePage()}
-          disabled={creatingKind !== null}
-          className="ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15 disabled:opacity-50"
-          aria-label="快速新增頁面"
-          title="新增頁面"
-        >
-          <Plus className="size-3.5" />
-        </button>
-      </div>
-      {(
-        [
-          {
-            href: workspaceBasePath
-              ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
-              : "/workspace",
-            label: "Knowledge Hub",
-          },
-          {
-            href: workspaceBasePath
-              ? `${workspaceBasePath}/knowledge/block-editor`
-              : "/workspace",
-            label: "區塊編輯器",
-          },
-        ] as const
-      ).map((item) => {
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-        const contextualHref = workspaceBasePath
-          ? item.href
-          : withContextQuery(item.href, activeAccountId, activeWorkspaceId);
-        return (
-          <Link
-            key={item.href}
-            href={contextualHref}
-            aria-current={active ? "page" : undefined}
-            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-              active
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-      <div className="my-1.5 border-t border-border/40" />
-
-      <button
-        type="button"
-        onClick={() => {
-          setIsKnowledgeWorkspacesExpanded((prev) => !prev);
-        }}
-        className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-        aria-expanded={isKnowledgeWorkspacesExpanded}
-      >
-        <span>Workspaces</span>
-        {isKnowledgeWorkspacesExpanded ? (
-          <ChevronDown className="size-3.5" />
-        ) : (
-          <ChevronRight className="size-3.5" />
-        )}
-      </button>
-
-      {isKnowledgeWorkspacesExpanded && (
-        <div className="space-y-0.5 pl-2">
-          {!workspacesHydrated ? (
-            <p className="px-2 py-1.5 text-[11px] text-muted-foreground">工作區載入中...</p>
-          ) : allWorkspaceLinks.length === 0 ? (
-            <p className="px-2 py-1.5 text-[11px] text-muted-foreground">目前帳號沒有工作區</p>
-          ) : (
-            allWorkspaceLinks.map((workspace) => {
-              const active = activeWorkspaceId === workspace.id;
-              return (
-                <Link
-                  key={workspace.id}
-                  href={workspace.href}
-                  onClick={() => {
-                    onSelectWorkspace(workspace.id);
-                  }}
-                  aria-current={active ? "page" : undefined}
-                  className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                    active
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                  title={workspace.name}
-                >
-                  <span className="truncate">{workspace.name}</span>
-                </Link>
-              );
-            })
-          )}
-        </div>
-      )}
-    </nav>
-  );
-}
 ````
 
 ## File: modules/notion/subdomains/knowledge/README.md
@@ -71982,6 +71304,198 @@ Legacy migration (Strangler Pattern):
 3. Converge Application layer
 4. Isolate legacy via Ports
 5. Replace Infrastructure adapter; remove old path when stable
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgeSidebarSection.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { useState } from "react";
+
+interface WorkspaceLinkItem {
+  id: string;
+  name: string;
+  href: string;
+}
+
+interface KnowledgeSidebarSectionProps {
+  readonly pathname: string;
+  readonly workspacesHydrated: boolean;
+  readonly allWorkspaceLinks: WorkspaceLinkItem[];
+  readonly activeAccountId: string | null;
+  readonly activeWorkspaceId: string | null;
+  readonly creatingKind: "page" | "database" | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onQuickCreatePage: () => void | Promise<void>;
+}
+
+function withContextQuery(href: string, accountId: string | null, workspaceId: string | null): string {
+  if (!accountId && !workspaceId) {
+    return href;
+  }
+
+  const [path, search = ""] = href.split("?");
+  const params = new URLSearchParams(search);
+
+  if (accountId) {
+    params.set("accountId", accountId);
+  }
+
+  if (workspaceId) {
+    params.set("workspaceId", workspaceId);
+  }
+
+  const query = params.toString();
+  return query.length > 0 ? `${path}?${query}` : path;
+}
+
+export function KnowledgeSidebarSection({
+  pathname,
+  workspacesHydrated,
+  allWorkspaceLinks,
+  activeAccountId,
+  activeWorkspaceId,
+  creatingKind,
+  onSelectWorkspace,
+  onQuickCreatePage,
+}: KnowledgeSidebarSectionProps) {
+  const [isKnowledgeWorkspacesExpanded, setIsKnowledgeWorkspacesExpanded] = useState(
+    () => Boolean(activeWorkspaceId),
+  );
+
+  const workspaceBasePath =
+    activeAccountId && activeWorkspaceId
+      ? `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(activeWorkspaceId)}`
+      : "";
+
+  const contextualPagesHref = workspaceBasePath
+    ? `${workspaceBasePath}/knowledge/pages`
+    : withContextQuery("/knowledge/pages", activeAccountId, activeWorkspaceId);
+
+  return (
+    <nav className="space-y-0.5" aria-label="Knowledge navigation">
+      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+        知識管理
+      </p>
+      {(activeAccountId || activeWorkspaceId) && (
+        <p className="px-2 pb-1 text-[11px] text-muted-foreground">
+          {activeAccountId ? `Account: ${activeAccountId.slice(0, 8)}` : "Account: -"}
+          {" · "}
+          {activeWorkspaceId ? `Workspace: ${activeWorkspaceId.slice(0, 8)}` : "Workspace: -"}
+        </p>
+      )}
+      <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
+        <Link
+          href={contextualPagesHref}
+          aria-current={pathname.includes("/knowledge/pages") ? "page" : undefined}
+          className={`flex-1 ${
+            pathname.includes("/knowledge/pages")
+              ? "text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          頁面
+        </Link>
+        <button
+          type="button"
+          onClick={() => void onQuickCreatePage()}
+          disabled={creatingKind !== null}
+          className="ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15 disabled:opacity-50"
+          aria-label="快速新增頁面"
+          title="新增頁面"
+        >
+          <Plus className="size-3.5" />
+        </button>
+      </div>
+      {(
+        [
+          {
+            href: workspaceBasePath
+              ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
+              : "/workspace",
+            label: "Knowledge Hub",
+          },
+          {
+            href: workspaceBasePath
+              ? `${workspaceBasePath}/knowledge/block-editor`
+              : "/workspace",
+            label: "區塊編輯器",
+          },
+        ] as const
+      ).map((item) => {
+        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const contextualHref = workspaceBasePath
+          ? item.href
+          : withContextQuery(item.href, activeAccountId, activeWorkspaceId);
+        return (
+          <Link
+            key={item.href}
+            href={contextualHref}
+            aria-current={active ? "page" : undefined}
+            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+              active
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+      <div className="my-1.5 border-t border-border/40" />
+
+      <button
+        type="button"
+        onClick={() => {
+          setIsKnowledgeWorkspacesExpanded((prev) => !prev);
+        }}
+        className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+        aria-expanded={isKnowledgeWorkspacesExpanded}
+      >
+        <span>Workspaces</span>
+        {isKnowledgeWorkspacesExpanded ? (
+          <ChevronDown className="size-3.5" />
+        ) : (
+          <ChevronRight className="size-3.5" />
+        )}
+      </button>
+
+      {isKnowledgeWorkspacesExpanded && (
+        <div className="space-y-0.5 pl-2">
+          {!workspacesHydrated ? (
+            <p className="px-2 py-1.5 text-[11px] text-muted-foreground">工作區載入中...</p>
+          ) : allWorkspaceLinks.length === 0 ? (
+            <p className="px-2 py-1.5 text-[11px] text-muted-foreground">目前帳號沒有工作區</p>
+          ) : (
+            allWorkspaceLinks.map((workspace) => {
+              const active = activeWorkspaceId === workspace.id;
+              return (
+                <Link
+                  key={workspace.id}
+                  href={workspace.href}
+                  onClick={() => {
+                    onSelectWorkspace(workspace.id);
+                  }}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                    active
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                  title={workspace.name}
+                >
+                  <span className="truncate">{workspace.name}</span>
+                </Link>
+              );
+            })
+          )}
+        </div>
+      )}
+    </nav>
+  );
+}
 ````
 
 ## File: modules/platform/application/use-cases/index.ts

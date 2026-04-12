@@ -1,11 +1,12 @@
-import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
+import { redirect } from "next/navigation";
 
-export default function SettingsPage() {
-  return (
-    <WorkspaceRouteShim
-      panel="settings"
-      loadingMessage="正在導向 Workspace Settings…"
-    />
-  );
+interface SettingsPageProps {
+  params: {
+    accountId: string;
+  };
+}
+
+export default function SettingsPage({ params }: SettingsPageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}?tab=Overview&panel=settings`);
 }
 

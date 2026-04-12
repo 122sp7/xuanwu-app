@@ -1,10 +1,11 @@
-import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
+import { redirect } from "next/navigation";
 
-export default function OrganizationKnowledgePage() {
-  return (
-    <WorkspaceRouteShim
-      panel="knowledge-pages"
-      loadingMessage="正在導向 Workspace Overview（Knowledge Pages）…"
-    />
-  );
+interface OrganizationKnowledgePageProps {
+  params: {
+    accountId: string;
+  };
+}
+
+export default function OrganizationKnowledgePage({ params }: OrganizationKnowledgePageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}?tab=Overview&panel=knowledge-pages`);
 }
