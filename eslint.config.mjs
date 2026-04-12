@@ -57,7 +57,7 @@ const moduleElementTypeRules = [
   { from: { type: "main-domain-domain" }, allow: [sameDomain("main-domain-domain")] },
   { from: { type: "main-domain-application" }, allow: [sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-api"), sameDomain("subdomain-application")] },
   { from: { type: "main-domain-infrastructure" }, allow: [sameDomain("main-domain-infrastructure"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-domain"), sameDomain("subdomain-application"), anyDomain("main-domain-api")] },
-  { from: { type: "main-domain-interfaces" }, allow: [sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-api"), sameDomain("subdomain-application"), sameDomain("subdomain-domain"), anyDomain("main-domain-api")] },
+  { from: { type: "main-domain-interfaces" }, allow: [sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("main-domain-infrastructure"), sameDomain("subdomain-api"), sameDomain("subdomain-application"), sameDomain("subdomain-domain"), anyDomain("main-domain-api")] },
   { from: { type: "main-domain-api" }, allow: [sameDomain("main-domain-api"), sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("main-domain-infrastructure"), sameDomain("subdomain-api")] },
   { from: { type: "subdomain-domain" }, allow: [sameSubdomain("subdomain-domain"), sameDomain("main-domain-domain")] },
   { from: { type: "subdomain-application" }, allow: [sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameDomain("main-domain-domain")] },
