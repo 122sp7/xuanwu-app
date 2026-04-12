@@ -7,4 +7,3 @@
 
 export { PlatformTextGenerationAdapter } from "../../../infrastructure/notebook/platform/PlatformTextGenerationAdapter";
 export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-notebook-response.use-case";
-export { makeNotebookRepo } from "./factories";
