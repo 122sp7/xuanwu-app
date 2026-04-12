@@ -55,7 +55,7 @@ export function buildWorkspaceContextHref(pathname: string, workspaceId: string)
     return `/workspace/${encodeURIComponent(workspaceId)}?tab=Files`;
   }
 
-  return `/workspace/${workspaceId}`;
+  return `/workspace/${encodeURIComponent(workspaceId)}`;
 }
 
 export function appendWorkspaceContextQuery(

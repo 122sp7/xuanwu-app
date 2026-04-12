@@ -1,5 +1,10 @@
-import { redirect } from "next/navigation";
+import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
 
 export default function KnowledgeBasePage() {
-  redirect("/knowledge-base/articles");
+  return (
+    <WorkspaceRouteShim
+      panel="knowledge-base-articles"
+      loadingMessage="正在導向 Workspace Overview（Knowledge Base Articles）…"
+    />
+  );
 }
