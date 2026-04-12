@@ -292,6 +292,26 @@ export default function PublicPage() {
 }
 ````
 
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/knowledge/pages/[pageId]/page.tsx
+````typescript
+"use client";
+
+import { KnowledgePageDetailPage } from "@/modules/notion/api";
+import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
+
+export default function AccountWorkspaceKnowledgePageDetailRoute() {
+  const { accountId, activeWorkspaceId, currentUserId } = useWorkspaceOrchestrationContext();
+
+  return (
+    <KnowledgePageDetailPage
+      accountId={accountId}
+      activeWorkspaceId={activeWorkspaceId || null}
+      currentUserId={currentUserId}
+    />
+  );
+}
+````
+
 ## File: app/(shell)/dashboard/page.tsx
 ````typescript
 /**
@@ -821,80 +841,6 @@ export function useDevToolsDocList(activeAccountId: string): DocListState & DocL
 export { formatDateTime };
 ````
 
-## File: app/(shell)/knowledge-base/articles/page.tsx
-````typescript
-"use client";
-
-import { KnowledgeBaseArticlesRouteScreen } from "@/modules/notion/api";
-
-export default function KnowledgeBaseArticlesPage() {
-  return <KnowledgeBaseArticlesRouteScreen />;
-}
-````
-
-## File: app/(shell)/knowledge-base/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-
-export default function KnowledgeBasePage() {
-  redirect("/knowledge-base/articles");
-}
-````
-
-## File: app/(shell)/knowledge-database/databases/page.tsx
-````typescript
-"use client";
-
-import { KnowledgeDatabasesRouteScreen } from "@/modules/notion/api";
-
-export default function KnowledgeDatabaseDatabasesPage() {
-  return <KnowledgeDatabasesRouteScreen />;
-}
-````
-
-## File: app/(shell)/knowledge-database/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-
-export default function KnowledgeDatabasePage() {
-  redirect("/knowledge-database/databases");
-}
-````
-
-## File: app/(shell)/knowledge/block-editor/page.tsx
-````typescript
-"use client";
-
-import { BlockEditorView } from "@/modules/notion/api";
-
-export default function KnowledgeBlockEditorPage() {
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">區塊編輯器</h1>
-        <p className="text-sm text-muted-foreground">
-          極簡 Zustand 狀態管理。Enter 新增區塊，Backspace 刪除空白區塊，拖曳重排。
-        </p>
-      </header>
-
-      <BlockEditorView />
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/knowledge/pages/page.tsx
-````typescript
-"use client";
-
-import { KnowledgePagesRouteScreen } from "@/modules/notion/api";
-
-export default function KnowledgePagesPage() {
-  return <KnowledgePagesRouteScreen />;
-}
-````
-
 ## File: app/(shell)/notebook/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
@@ -1319,89 +1265,6 @@ export default function SettingsPage() {
 }
 ````
 
-## File: app/(shell)/source/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-
-export default function SourcePage() {
-  redirect("/workspace");
-}
-````
-
-## File: app/(shell)/workspace/[workspaceId]/page.tsx
-````typescript
-"use client";
-
-import { useParams, useSearchParams } from "next/navigation";
-
-import { useApp } from "@/modules/platform/api";
-import { WorkspaceDetailRouteScreen } from "@/modules/workspace/api";
-
-export default function WorkspaceDetailPage() {
-  const params = useParams<{ workspaceId: string }>();
-  const searchParams = useSearchParams();
-  const workspaceId = typeof params.workspaceId === "string" ? params.workspaceId : "";
-  const initialTab = searchParams.get("tab") ?? undefined;
-  const initialOverviewPanel = searchParams.get("panel") ?? undefined;
-  const {
-    state: { activeAccount, accountsHydrated },
-  } = useApp();
-
-  return (
-    <WorkspaceDetailRouteScreen
-      workspaceId={workspaceId}
-      accountId={activeAccount?.id}
-      accountsHydrated={accountsHydrated}
-      initialTab={initialTab}
-      initialOverviewPanel={initialOverviewPanel}
-    />
-  );
-}
-````
-
-## File: app/(shell)/workspace/page.tsx
-````typescript
-"use client";
-
-import { useSearchParams } from "next/navigation";
-
-import type { ActiveAccount } from "@/modules/platform/api";
-import { useApp, useAuth, isActiveOrganizationAccount } from "@/modules/platform/api"
-import { WorkspaceHubScreen } from "@/modules/workspace/api";
-
-function getActiveAccountType(activeAccount: ActiveAccount | null) {
-  return isActiveOrganizationAccount(activeAccount) ? "organization" : "user";
-}
-
-export default function WorkspacePage() {
-  const searchParams = useSearchParams();
-  const {
-    state: { activeAccount, accountsHydrated, bootstrapPhase },
-  } = useApp();
-  const { state: authState } = useAuth();
-  const context = searchParams.get("context");
-
-  return (
-    <div className="space-y-4">
-      {context === "unavailable" && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          目前帳戶無法存取該工作區，已返回工作區清單。
-        </div>
-      )}
-
-      <WorkspaceHubScreen
-        accountId={activeAccount?.id}
-        accountName={activeAccount?.name}
-        accountType={getActiveAccountType(activeAccount)}
-        accountsHydrated={accountsHydrated}
-        isBootstrapSeeded={bootstrapPhase === "seeded"}
-        currentUserId={authState.user?.id}
-      />
-    </div>
-  );
-}
-````
-
 ## File: app/globals.css
 ````css
 @import "tailwindcss";
@@ -1697,351 +1560,6 @@ import type { Thread } from "../entities/thread";
 export interface IThreadRepository {
   save(accountId: string, thread: Thread): Promise<void>;
   getById(accountId: string, threadId: string): Promise<Thread | null>;
-}
-````
-
-## File: modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx
-````typescript
-"use client";
-
-/**
- * Module: notebooklm/subdomains/conversation
- * Component: AiChatPage
- * Purpose: Full-page AI chat UI — wired to conversation server actions.
- *          Thread persistence via Firestore. Multi-turn context support.
- *
- * Props are injected by the app/ shim so this component has no provider dependencies.
- */
-
-import Link from "next/link";
-import { Bot, BookOpen, Brain, FileText, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { v7 as uuid } from "@lib-uuid";
-
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { resolveWorkspaceFromMap, WorkspaceContextCard } from "@/modules/workspace/api";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-
-import { sendChatMessage, saveThread, loadThread } from "../_actions/chat.actions";
-import {
-  type ChatMessage,
-  STORAGE_KEY,
-  buildContextPrompt,
-  generateMsgId,
-  threadFromMessages,
-} from "../helpers";
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-export interface AiChatPageProps {
-  accountId: string;
-  workspaces: Record<string, WorkspaceEntity>;
-  requestedWorkspaceId: string;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function AiChatPage({ accountId, workspaces, requestedWorkspaceId }: AiChatPageProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
-  const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [threadId, setThreadId] = useState<string | null>(null);
-  const [threadCreatedAt, setThreadCreatedAt] = useState<string>(new Date().toISOString());
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  const currentWorkspace = resolveWorkspaceFromMap(workspaces, requestedWorkspaceId);
-  const workspaceName = currentWorkspace?.name ?? null;
-  const workspaceQuery = currentWorkspace ? `?workspaceId=${encodeURIComponent(currentWorkspace.id)}` : "";
-  const latestUserPrompt = [...messages].reverse().find((m) => m.role === "user")?.content ?? null;
-
-  // Load persisted thread on mount
-  useEffect(() => {
-    if (!accountId) return;
-    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-    const storedId = localStorage.getItem(storageKey);
-    if (!storedId) return;
-    setThreadId(storedId);
-    void loadThread(accountId, storedId).then((thread) => {
-      if (!thread || thread.messages.length === 0) return;
-      setThreadCreatedAt(thread.createdAt);
-      setMessages(
-        thread.messages
-          .filter((m) => m.role === "user" || m.role === "assistant")
-          .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })),
-      );
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId]);
-
-  const summaryItems = useMemo(() => {
-    if (messages.length === 0) {
-      return [
-        "先整理來源文件與工作區脈絡，再開始對話。",
-        "需要帶引用的回答時，可搭配 Ask / Cite 使用。",
-      ];
-    }
-    return [
-      `目前已有 ${messages.length} 則訊息，包含 ${messages.filter((m) => m.role === "assistant").length} 次模型回覆。`,
-      latestUserPrompt ? `最近一次提問：${latestUserPrompt}` : "最近一次提問尚未建立。",
-    ];
-  }, [latestUserPrompt, messages]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text || isPending) return;
-
-    const userMsg: ChatMessage = { id: generateMsgId(), role: "user", content: text };
-    const nextMessages = [...messages, userMsg];
-    setMessages(nextMessages);
-    setInput("");
-    setError(null);
-    setIsPending(true);
-
-    const contextPrompt = buildContextPrompt(messages);
-
-    try {
-      const result = await sendChatMessage({
-        prompt: text,
-        ...(contextPrompt ? { system: contextPrompt } : {}),
-      });
-      if (result.ok) {
-        const assistantMsg: ChatMessage = {
-          id: generateMsgId(),
-          role: "assistant",
-          content: result.data.text,
-        };
-        const finalMessages = [...nextMessages, assistantMsg];
-        setMessages(finalMessages);
-
-        if (accountId) {
-          const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-          let currentThreadId = threadId;
-          if (!currentThreadId) {
-            currentThreadId = uuid();
-            setThreadId(currentThreadId);
-            localStorage.setItem(storageKey, currentThreadId);
-          }
-          const thread = threadFromMessages(currentThreadId, finalMessages, threadCreatedAt);
-          void saveThread(accountId, thread);
-        }
-      } else {
-        setError(result.error.message);
-      }
-    } catch {
-      setError("無法連接至 AI 服務，請稍後再試。");
-    } finally {
-      setIsPending(false);
-      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
-    }
-  }
-
-  function handleNewThread() {
-    if (!accountId) return;
-    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-    localStorage.removeItem(storageKey);
-    setThreadId(null);
-    setMessages([]);
-    setThreadCreatedAt(new Date().toISOString());
-    setError(null);
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSubmit(e as unknown as React.FormEvent);
-    }
-  }
-
-  return (
-    <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
-      <aside className="border-b border-border/60 bg-muted/20 p-4 lg:border-b-0 lg:border-r">
-        <div className="space-y-4">
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Brain className="size-4 text-primary" />
-                Notebook / AI
-              </CardTitle>
-              <CardDescription>
-                將工作區知識、知識頁面與查詢消費層收斂成單一 workspace-scoped notebook 介面，而不是獨立聊天產品。
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <WorkspaceContextCard workspace={currentWorkspace} />
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <BookOpen className="size-4 text-primary" />
-                Source context
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              <Link href={`/source/documents${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <FileText className="size-3.5" />
-                文件來源 / Documents
-              </Link>
-              <Link href={`/knowledge/pages${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <BookOpen className="size-3.5" />
-                知識頁面 / Pages
-              </Link>
-              <Link href={`/notebook/rag-query${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <Bot className="size-3.5" />
-                Ask / Cite / RAG Query
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Summary snapshot</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              {summaryItems.map((item) => (
-                <p key={item} className="rounded-md border border-border/50 px-3 py-2">
-                  {item}
-                </p>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <Lightbulb className="size-4 text-primary" />
-                Insight board
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              <p className="rounded-md border border-border/50 px-3 py-2">
-                目前仍是 Notebook shell，摘要、洞察、引用整理會在後續 phase 持續補齊。
-              </p>
-              <p className="rounded-md border border-border/50 px-3 py-2">
-                若你需要可追溯回答，優先改從 Ask / Cite 取得引用，再回到這裡整理觀點。
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </aside>
-
-      <section className="flex min-h-0 flex-col">
-        <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-4 py-3">
-          <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10">
-            <Bot className="size-4 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-sm font-semibold leading-none">Notebook / AI</h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">工作區問答 · 摘要草稿 · 洞察整理</p>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            {threadId && (
-              <span className="text-[10px] text-muted-foreground/60">
-                Thread · {messages.length} 則
-              </span>
-            )}
-            <Button size="sm" variant="ghost" onClick={handleNewThread} disabled={messages.length === 0}>
-              <Plus className="mr-1 size-3.5" />
-              新對話
-            </Button>
-          </div>
-        </div>
-
-        {workspaceName && (
-          <div className="shrink-0 border-b border-border/40 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
-            目前從工作區 <span className="font-medium text-foreground">{workspaceName}</span> 進入；Notebook 會把這裡視為主要知識上下文。
-          </div>
-        )}
-
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          {messages.length === 0 && !isPending && (
-            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10">
-                <Bot className="size-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">開始你的 notebook conversation</p>
-                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                  先問工作區背景、文件摘要、會議筆記整理或知識問答，再逐步累積 summary 與 insight。
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="mx-auto max-w-2xl space-y-4">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
-              >
-                <div
-                  className={cn(
-                    "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground",
-                  )}
-                >
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
-                </div>
-              </div>
-            ))}
-
-            {isPending && (
-              <div className="flex justify-start">
-                <div className="rounded-2xl bg-muted px-4 py-2.5">
-                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
-                {error}
-              </div>
-            )}
-
-            <div ref={bottomRef} />
-          </div>
-        </div>
-
-        <form
-          onSubmit={(e) => void handleSubmit(e)}
-          className="shrink-0 border-t border-border/60 bg-background/80 px-4 py-3 backdrop-blur"
-        >
-          <div className="mx-auto flex max-w-2xl items-end gap-2">
-            <textarea
-              rows={1}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="輸入你的 notebook 問題… (Enter 送出，Shift+Enter 換行)"
-              disabled={isPending}
-              className="flex-1 resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ maxHeight: "120px" }}
-            />
-            <Button
-              type="submit"
-              size="sm"
-              disabled={isPending || !input.trim()}
-              className="shrink-0 gap-1.5"
-            >
-              {isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <SendHorizonal className="size-4" />
-              )}
-              <span className="hidden sm:inline">送出</span>
-            </Button>
-          </div>
-        </form>
-      </section>
-    </div>
-  );
 }
 ````
 
@@ -16676,6 +16194,366 @@ export class DeleteOrgPolicyUseCase {
 }
 ````
 
+## File: modules/platform/subdomains/organization/domain/aggregates/index.ts
+````typescript
+export * from "./Organization";
+````
+
+## File: modules/platform/subdomains/organization/domain/aggregates/Organization.ts
+````typescript
+import type {
+	MemberAddedEvent,
+	MemberRemovedEvent,
+	MemberRoleUpdatedEvent,
+	OrganizationCreatedEvent,
+	OrganizationDissolvedEvent,
+	OrganizationDomainEventType,
+	OrganizationReactivatedEvent,
+	OrganizationSuspendedEvent,
+	SettingsUpdatedEvent,
+} from "../events";
+import type { ThemeConfig } from "../entities/Organization";
+import {
+	canDissolve,
+	canReactivate,
+	canSuspend,
+	createMemberRole,
+	createOrganizationId,
+	type MemberRole,
+	type OrganizationStatus,
+} from "../value-objects";
+
+export interface OrganizationSnapshot {
+	readonly id: string;
+	readonly name: string;
+	readonly ownerId: string;
+	readonly ownerName: string;
+	readonly ownerEmail: string;
+	readonly description: string | null;
+	readonly photoURL: string | null;
+	readonly theme: ThemeConfig | null;
+	readonly memberCount: number;
+	readonly teamCount: number;
+	readonly status: "active" | "suspended" | "dissolved";
+	readonly createdAtISO: string;
+	readonly updatedAtISO: string;
+}
+
+export interface CreateOrganizationInput {
+	readonly name: string;
+	readonly ownerId: string;
+	readonly ownerName: string;
+	readonly ownerEmail: string;
+	readonly description?: string | null;
+	readonly photoURL?: string | null;
+	readonly theme?: ThemeConfig | null;
+}
+
+export class Organization {
+	private readonly _domainEvents: OrganizationDomainEventType[] = [];
+	private readonly _memberRoles = new Map<string, MemberRole>();
+
+	private constructor(private _props: OrganizationSnapshot) {}
+
+	static create(id: string, input: CreateOrganizationInput): Organization {
+		createOrganizationId(id);
+		Organization.assertRequired(input.name, "Organization name is required.");
+		Organization.assertRequired(input.ownerId, "Owner id is required.");
+		Organization.assertRequired(input.ownerName, "Owner name is required.");
+		Organization.assertRequired(input.ownerEmail, "Owner email is required.");
+		const now = new Date().toISOString();
+		const aggregate = new Organization({
+			id,
+			name: input.name.trim(),
+			ownerId: input.ownerId.trim(),
+			ownerName: input.ownerName.trim(),
+			ownerEmail: input.ownerEmail.trim(),
+			description: input.description ?? null,
+			photoURL: input.photoURL ?? null,
+			theme: input.theme ?? null,
+			memberCount: 1,
+			teamCount: 0,
+			status: "active",
+			createdAtISO: now,
+			updatedAtISO: now,
+		});
+		aggregate._memberRoles.set(aggregate._props.ownerId, "Owner");
+		aggregate.recordEvent<OrganizationCreatedEvent>({
+			type: "platform.organization.created",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				organizationId: aggregate._props.id,
+				name: aggregate._props.name,
+				ownerId: aggregate._props.ownerId,
+				ownerName: aggregate._props.ownerName,
+				ownerEmail: aggregate._props.ownerEmail,
+				theme: aggregate._props.theme,
+			},
+		});
+		return aggregate;
+	}
+
+	static reconstitute(snapshot: OrganizationSnapshot): Organization {
+		createOrganizationId(snapshot.id);
+		if (snapshot.memberCount < 1) {
+			throw new Error("Organization memberCount must be at least 1.");
+		}
+		if (snapshot.teamCount < 0) {
+			throw new Error("Organization teamCount cannot be negative.");
+		}
+		const aggregate = new Organization({ ...snapshot });
+		aggregate._memberRoles.set(snapshot.ownerId, "Owner");
+		return aggregate;
+	}
+
+	updateSettings(input: { name?: string; description?: string | null; photoURL?: string | null; theme?: ThemeConfig | null }): void {
+		this.ensureActive("Only active organization can update settings.");
+		if (input.name !== undefined) {
+			Organization.assertRequired(input.name, "Organization name is required.");
+		}
+		const now = new Date().toISOString();
+		this._props = {
+			...this._props,
+			name: input.name === undefined ? this._props.name : input.name.trim(),
+			description: input.description === undefined ? this._props.description : input.description,
+			photoURL: input.photoURL === undefined ? this._props.photoURL : input.photoURL,
+			theme: input.theme === undefined ? this._props.theme : input.theme,
+			updatedAtISO: now,
+		};
+		this.recordEvent<SettingsUpdatedEvent>({
+			type: "platform.organization.settings_updated",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				organizationId: this._props.id,
+				name: this._props.name,
+				description: this._props.description,
+				photoURL: this._props.photoURL,
+				theme: this._props.theme,
+			},
+		});
+	}
+
+	addMember(memberId: string, name: string, email: string, role: MemberRole): void {
+		this.ensureActive("Only active organization can add members.");
+		Organization.assertRequired(memberId, "Member id is required.");
+		Organization.assertRequired(name, "Member name is required.");
+		Organization.assertRequired(email, "Member email is required.");
+		const normalizedRole = createMemberRole(role);
+		if (memberId === this._props.ownerId || this._memberRoles.has(memberId)) {
+			throw new Error("Member already exists in organization.");
+		}
+		const now = new Date().toISOString();
+		this._memberRoles.set(memberId, normalizedRole);
+		this._props = {
+			...this._props,
+			memberCount: this._props.memberCount + 1,
+			updatedAtISO: now,
+		};
+		this.recordEvent<MemberAddedEvent>({
+			type: "platform.organization.member_added",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				organizationId: this._props.id,
+				memberId,
+				name: name.trim(),
+				email: email.trim(),
+				role: normalizedRole,
+				memberCount: this._props.memberCount,
+			},
+		});
+	}
+
+	removeMember(memberId: string): void {
+		this.ensureActive("Only active organization can remove members.");
+		Organization.assertRequired(memberId, "Member id is required.");
+		if (memberId === this._props.ownerId) {
+			throw new Error("Cannot remove organization owner.");
+		}
+		if (!this._memberRoles.has(memberId)) {
+			throw new Error("Member does not exist in organization.");
+		}
+		const now = new Date().toISOString();
+		this._memberRoles.delete(memberId);
+		this._props = {
+			...this._props,
+			memberCount: this._props.memberCount - 1,
+			updatedAtISO: now,
+		};
+		this.recordEvent<MemberRemovedEvent>({
+			type: "platform.organization.member_removed",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				organizationId: this._props.id,
+				memberId,
+				memberCount: this._props.memberCount,
+			},
+		});
+	}
+
+	updateMemberRole(memberId: string, newRole: MemberRole): void {
+		this.ensureActive("Only active organization can update member roles.");
+		Organization.assertRequired(memberId, "Member id is required.");
+		if (memberId === this._props.ownerId) {
+			throw new Error("Cannot change organization owner role.");
+		}
+		if (!this._memberRoles.has(memberId)) {
+			throw new Error("Member does not exist in organization.");
+		}
+		const normalizedRole = createMemberRole(newRole);
+		const previousRole = this._memberRoles.get(memberId) ?? "Member";
+		const now = new Date().toISOString();
+		this._memberRoles.set(memberId, normalizedRole);
+		this._props = { ...this._props, updatedAtISO: now };
+		this.recordEvent<MemberRoleUpdatedEvent>({
+			type: "platform.organization.member_role_updated",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				organizationId: this._props.id,
+				memberId,
+				previousRole,
+				role: normalizedRole,
+			},
+		});
+	}
+
+	suspend(): void {
+		if (!canSuspend(this._props.status)) {
+			throw new Error("Only active organization can be suspended.");
+		}
+		this.changeStatus("suspended", "platform.organization.suspended");
+	}
+
+	dissolve(): void {
+		if (!canDissolve(this._props.status)) {
+			throw new Error("Organization is already dissolved.");
+		}
+		this.changeStatus("dissolved", "platform.organization.dissolved");
+	}
+
+	reactivate(): void {
+		if (!canReactivate(this._props.status)) {
+			throw new Error("Only suspended organization can be reactivated.");
+		}
+		this.changeStatus("active", "platform.organization.reactivated");
+	}
+
+	get id(): string {
+		return this._props.id;
+	}
+
+	get name(): string {
+		return this._props.name;
+	}
+
+	get ownerId(): string {
+		return this._props.ownerId;
+	}
+
+	get ownerName(): string {
+		return this._props.ownerName;
+	}
+
+	get ownerEmail(): string {
+		return this._props.ownerEmail;
+	}
+
+	get description(): string | null {
+		return this._props.description;
+	}
+
+	get photoURL(): string | null {
+		return this._props.photoURL;
+	}
+
+	get theme(): ThemeConfig | null {
+		return this._props.theme;
+	}
+
+	get memberCount(): number {
+		return this._props.memberCount;
+	}
+
+	get teamCount(): number {
+		return this._props.teamCount;
+	}
+
+	get status(): OrganizationStatus {
+		return this._props.status;
+	}
+
+	get createdAtISO(): string {
+		return this._props.createdAtISO;
+	}
+
+	get updatedAtISO(): string {
+		return this._props.updatedAtISO;
+	}
+
+	getSnapshot(): Readonly<OrganizationSnapshot> {
+		return Object.freeze({ ...this._props });
+	}
+
+	pullDomainEvents(): OrganizationDomainEventType[] {
+		const events = [...this._domainEvents];
+		this._domainEvents.length = 0;
+		return events;
+	}
+
+	private changeStatus(
+		status: OrganizationStatus,
+		eventType: "platform.organization.suspended" | "platform.organization.dissolved" | "platform.organization.reactivated",
+	): void {
+		const now = new Date().toISOString();
+		this._props = { ...this._props, status, updatedAtISO: now };
+		if (eventType === "platform.organization.suspended") {
+			this.recordEvent<OrganizationSuspendedEvent>({
+				type: eventType,
+				eventId: crypto.randomUUID(),
+				occurredAt: now,
+				payload: { organizationId: this._props.id, status },
+			});
+			return;
+		}
+		if (eventType === "platform.organization.dissolved") {
+			this.recordEvent<OrganizationDissolvedEvent>({
+				type: eventType,
+				eventId: crypto.randomUUID(),
+				occurredAt: now,
+				payload: { organizationId: this._props.id, status },
+			});
+			return;
+		}
+		this.recordEvent<OrganizationReactivatedEvent>({
+			type: eventType,
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: { organizationId: this._props.id, status },
+		});
+	}
+
+	private ensureActive(message: string): void {
+		if (this._props.status !== "active") {
+			throw new Error(message);
+		}
+	}
+
+	private recordEvent<TEvent extends OrganizationDomainEventType>(event: TEvent): void {
+		this._domainEvents.push(event);
+	}
+
+	private static assertRequired(value: string, message: string): void {
+		if (value.trim().length === 0) {
+			throw new Error(message);
+		}
+	}
+}
+````
+
 ## File: modules/platform/subdomains/organization/domain/entities/Organization.ts
 ````typescript
 /**
@@ -16812,6 +16690,112 @@ export interface UpdateOrgPolicyInput {
 }
 ````
 
+## File: modules/platform/subdomains/organization/domain/events/index.ts
+````typescript
+export * from "./OrganizationDomainEvent";
+````
+
+## File: modules/platform/subdomains/organization/domain/events/OrganizationDomainEvent.ts
+````typescript
+import type { ThemeConfig } from "../entities/Organization";
+import type { MemberRole, OrganizationStatus } from "../value-objects";
+
+export interface OrganizationDomainEvent {
+	readonly eventId: string;
+	readonly occurredAt: string;
+	readonly type: string;
+	readonly payload: object;
+}
+
+export interface OrganizationCreatedEvent extends OrganizationDomainEvent {
+	readonly type: "platform.organization.created";
+	readonly payload: {
+		readonly organizationId: string;
+		readonly name: string;
+		readonly ownerId: string;
+		readonly ownerName: string;
+		readonly ownerEmail: string;
+		readonly theme: ThemeConfig | null;
+	};
+}
+
+export interface SettingsUpdatedEvent extends OrganizationDomainEvent {
+	readonly type: "platform.organization.settings_updated";
+	readonly payload: {
+		readonly organizationId: string;
+		readonly name: string;
+		readonly description: string | null;
+		readonly photoURL: string | null;
+		readonly theme: ThemeConfig | null;
+	};
+}
+
+export interface MemberAddedEvent extends OrganizationDomainEvent {
+	readonly type: "platform.organization.member_added";
+	readonly payload: {
+		readonly organizationId: string;
+		readonly memberId: string;
+		readonly name: string;
+		readonly email: string;
+		readonly role: MemberRole;
+		readonly memberCount: number;
+	};
+}
+
+export interface MemberRemovedEvent extends OrganizationDomainEvent {
+	readonly type: "platform.organization.member_removed";
+	readonly payload: {
+		readonly organizationId: string;
+		readonly memberId: string;
+		readonly memberCount: number;
+	};
+}
+
+export interface MemberRoleUpdatedEvent extends OrganizationDomainEvent {
+	readonly type: "platform.organization.member_role_updated";
+	readonly payload: {
+		readonly organizationId: string;
+		readonly memberId: string;
+		readonly previousRole: MemberRole;
+		readonly role: MemberRole;
+	};
+}
+
+export interface OrganizationSuspendedEvent extends OrganizationDomainEvent {
+	readonly type: "platform.organization.suspended";
+	readonly payload: {
+		readonly organizationId: string;
+		readonly status: OrganizationStatus;
+	};
+}
+
+export interface OrganizationDissolvedEvent extends OrganizationDomainEvent {
+	readonly type: "platform.organization.dissolved";
+	readonly payload: {
+		readonly organizationId: string;
+		readonly status: OrganizationStatus;
+	};
+}
+
+export interface OrganizationReactivatedEvent extends OrganizationDomainEvent {
+	readonly type: "platform.organization.reactivated";
+	readonly payload: {
+		readonly organizationId: string;
+		readonly status: OrganizationStatus;
+	};
+}
+
+export type OrganizationDomainEventType =
+	| OrganizationCreatedEvent
+	| SettingsUpdatedEvent
+	| MemberAddedEvent
+	| MemberRemovedEvent
+	| MemberRoleUpdatedEvent
+	| OrganizationSuspendedEvent
+	| OrganizationDissolvedEvent
+	| OrganizationReactivatedEvent;
+````
+
 ## File: modules/platform/subdomains/organization/domain/repositories/OrganizationRepository.ts
 ````typescript
 /**
@@ -16872,6 +16856,75 @@ export interface OrgPolicyRepository {
   updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void>;
   deletePolicy(policyId: string): Promise<void>;
   getPolicies(orgId: string): Promise<OrgPolicy[]>;
+}
+````
+
+## File: modules/platform/subdomains/organization/domain/value-objects/index.ts
+````typescript
+export { OrganizationIdSchema, createOrganizationId } from "./OrganizationId";
+export type { OrganizationId } from "./OrganizationId";
+
+export { MEMBER_ROLES, MemberRoleSchema, createMemberRole, canManageRole } from "./MemberRole";
+export type { MemberRole } from "./MemberRole";
+
+export { ORGANIZATION_STATUSES, canSuspend, canDissolve, canReactivate } from "./OrganizationStatus";
+export type { OrganizationStatus } from "./OrganizationStatus";
+````
+
+## File: modules/platform/subdomains/organization/domain/value-objects/MemberRole.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const MEMBER_ROLES = ["Owner", "Admin", "Member", "Guest"] as const;
+export const MemberRoleSchema = z.enum(MEMBER_ROLES);
+export type MemberRole = z.infer<typeof MemberRoleSchema>;
+
+const ROLE_RANK: Record<MemberRole, number> = {
+	Owner: 4,
+	Admin: 3,
+	Member: 2,
+	Guest: 1,
+};
+
+export function createMemberRole(raw: string): MemberRole {
+	return MemberRoleSchema.parse(raw);
+}
+
+export function canManageRole(managerRole: MemberRole, targetRole: MemberRole): boolean {
+	if (managerRole === "Owner") {
+		return targetRole !== "Owner";
+	}
+	return ROLE_RANK[managerRole] > ROLE_RANK[targetRole];
+}
+````
+
+## File: modules/platform/subdomains/organization/domain/value-objects/OrganizationId.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const OrganizationIdSchema = z.string().min(1).brand("OrganizationId");
+export type OrganizationId = z.infer<typeof OrganizationIdSchema>;
+
+export function createOrganizationId(raw: string): OrganizationId {
+	return OrganizationIdSchema.parse(raw);
+}
+````
+
+## File: modules/platform/subdomains/organization/domain/value-objects/OrganizationStatus.ts
+````typescript
+export const ORGANIZATION_STATUSES = ["active", "suspended", "dissolved"] as const;
+export type OrganizationStatus = (typeof ORGANIZATION_STATUSES)[number];
+
+export function canSuspend(status: OrganizationStatus): boolean {
+	return status === "active";
+}
+
+export function canDissolve(status: OrganizationStatus): boolean {
+	return status !== "dissolved";
+}
+
+export function canReactivate(status: OrganizationStatus): boolean {
+	return status === "suspended";
 }
 ````
 
@@ -18420,6 +18473,186 @@ export {};
 ## File: modules/platform/subdomains/support/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'support'.
+````
+
+## File: modules/platform/subdomains/team/application/use-cases/team.use-cases.ts
+````typescript
+/**
+ * Module: platform/subdomains/team
+ * Layer: application/use-cases
+ * Purpose: Team management use cases — create, delete, and member updates.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { TeamRepository } from "../../domain/repositories/TeamRepository";
+import type { CreateTeamInput } from "../../domain/entities/Team";
+
+export class CreateTeamUseCase {
+  constructor(private readonly teamRepo: TeamRepository) {}
+
+  async execute(input: CreateTeamInput): Promise<CommandResult> {
+    try {
+      const teamId = await this.teamRepo.createTeam(input);
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Failed to create team");
+    }
+  }
+}
+
+export class DeleteTeamUseCase {
+  constructor(private readonly teamRepo: TeamRepository) {}
+
+  async execute(organizationId: string, teamId: string): Promise<CommandResult> {
+    try {
+      await this.teamRepo.deleteTeam(organizationId, teamId);
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Failed to delete team");
+    }
+  }
+}
+
+export class UpdateTeamMembersUseCase {
+  constructor(private readonly teamRepo: TeamRepository) {}
+
+  async execute(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+    action: "add" | "remove",
+  ): Promise<CommandResult> {
+    try {
+      if (action === "add") {
+        await this.teamRepo.addMemberToTeam(organizationId, teamId, memberId);
+      } else {
+        await this.teamRepo.removeMemberFromTeam(organizationId, teamId, memberId);
+      }
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Failed to update team members");
+    }
+  }
+}
+````
+
+## File: modules/platform/subdomains/team/domain/entities/Team.ts
+````typescript
+/**
+ * Module: platform/subdomains/team
+ * Layer: domain/entities
+ * Purpose: Team entity and related input types owned by the team subdomain.
+ */
+
+export interface Team {
+  id: string;
+  name: string;
+  description: string;
+  type: "internal" | "external";
+  memberIds: string[];
+}
+
+export interface CreateTeamInput {
+  organizationId: string;
+  name: string;
+  description: string;
+  type: "internal" | "external";
+}
+````
+
+## File: modules/platform/subdomains/team/domain/repositories/TeamRepository.ts
+````typescript
+/**
+ * Module: platform/subdomains/team
+ * Layer: domain/repositories
+ * Purpose: TeamRepository port — team-scoped operations only.
+ *          Implemented in the firebase adapter.
+ */
+
+import type { Team, CreateTeamInput } from "../entities/Team";
+
+export interface TeamRepository {
+  createTeam(input: CreateTeamInput): Promise<string>;
+  deleteTeam(organizationId: string, teamId: string): Promise<void>;
+  addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
+  removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
+  getTeams(organizationId: string): Promise<Team[]>;
+}
+````
+
+## File: modules/platform/subdomains/team/infrastructure/firebase/FirebaseTeamRepository.ts
+````typescript
+/**
+ * Module: platform/subdomains/team
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase implementation of TeamRepository.
+ *          Directly accesses the organizations/{orgId}/teams sub-collection.
+ */
+
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  arrayUnion,
+  arrayRemove,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { TeamRepository } from "../../domain/repositories/TeamRepository";
+import type { Team, CreateTeamInput } from "../../domain/entities/Team";
+
+function toTeam(id: string, data: Record<string, unknown>): Team {
+  return {
+    id,
+    name: typeof data.name === "string" ? data.name : "",
+    description: typeof data.description === "string" ? data.description : "",
+    type: data.type === "external" ? "external" : "internal",
+    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
+  };
+}
+
+export class FirebaseTeamRepository implements TeamRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async createTeam(input: CreateTeamInput): Promise<string> {
+    const teamRef = doc(collection(this.db, "organizations", input.organizationId, "teams"));
+    await setDoc(teamRef, {
+      name: input.name,
+      description: input.description,
+      type: input.type,
+      memberIds: [],
+      createdAt: serverTimestamp(),
+    });
+    return teamRef.id;
+  }
+
+  async deleteTeam(organizationId: string, teamId: string): Promise<void> {
+    await deleteDoc(doc(this.db, "organizations", organizationId, "teams", teamId));
+  }
+
+  async addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void> {
+    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
+      memberIds: arrayUnion(memberId),
+    });
+  }
+
+  async removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void> {
+    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
+      memberIds: arrayRemove(memberId),
+    });
+  }
+
+  async getTeams(organizationId: string): Promise<Team[]> {
+    const snaps = await getDocs(collection(this.db, "organizations", organizationId, "teams"));
+    return snaps.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>));
+  }
+}
 ````
 
 ## File: modules/platform/subdomains/workflow/api/index.ts
@@ -21902,54 +22135,6 @@ export function OrganizationWorkspacesScreen({ accountId }: OrganizationWorkspac
 }
 ````
 
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailRouteScreen.tsx
-````typescript
-"use client";
-
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-
-import { WorkspaceDetailScreen } from "./WorkspaceDetailScreen";
-
-interface WorkspaceDetailRouteScreenProps {
-  workspaceId: string;
-  accountId: string | null | undefined;
-  accountsHydrated: boolean;
-  initialTab?: string;
-  initialOverviewPanel?: string;
-}
-
-export function WorkspaceDetailRouteScreen({
-  workspaceId,
-  accountId,
-  accountsHydrated,
-  initialTab,
-  initialOverviewPanel,
-}: WorkspaceDetailRouteScreenProps) {
-  const router = useRouter();
-
-  useEffect(() => {
-    if (initialTab === "Wiki" && workspaceId) {
-      router.replace(`/knowledge/pages?workspaceId=${encodeURIComponent(workspaceId)}`);
-    }
-  }, [initialTab, router, workspaceId]);
-
-  if (initialTab === "Wiki" && workspaceId) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">正在導向工作區知識頁面…</div>;
-  }
-
-  return (
-    <WorkspaceDetailScreen
-      workspaceId={workspaceId}
-      accountId={accountId}
-      accountsHydrated={accountsHydrated}
-      initialTab={initialTab}
-      initialOverviewPanel={initialOverviewPanel}
-    />
-  );
-}
-````
-
 ## File: modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx
 ````typescript
 "use client";
@@ -22563,370 +22748,6 @@ export function WorkspaceOverviewSettingsTab({
 }
 ````
 
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx
-````typescript
-"use client";
-
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Separator } from "@ui-shadcn/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-import { describeGrant } from "../../view-models/workspace-grants";
-import { WorkspaceOverviewSettingsTab } from "./WorkspaceOverviewSettingsTab";
-import { WorkspaceOverviewSummaryCard } from "../cards/WorkspaceOverviewSummaryCard";
-import { WorkspaceProductSpineCard } from "../cards/WorkspaceProductSpineCard";
-import { WorkspaceQuickstartCard } from "../cards/WorkspaceQuickstartCard";
-
-interface WorkspaceOverviewTabProps {
-  readonly workspace: WorkspaceEntity;
-  readonly activeWorkspaceId: string | null | undefined;
-  readonly personnelEntries: Array<{ label: string; value: string | undefined }>;
-  readonly addressLines: string[];
-  readonly showSettingsPanel?: boolean;
-  readonly onEditClick: () => void;
-  readonly onSetActiveWorkspace: () => void;
-}
-
-export function WorkspaceOverviewTab({
-  workspace,
-  activeWorkspaceId,
-  personnelEntries,
-  addressLines,
-  showSettingsPanel = false,
-  onEditClick,
-  onSetActiveWorkspace,
-}: WorkspaceOverviewTabProps) {
-  if (showSettingsPanel) {
-    return (
-      <WorkspaceOverviewSettingsTab
-        workspace={workspace}
-        personnelEntries={personnelEntries}
-        addressLines={addressLines}
-        onEditClick={onEditClick}
-      />
-    );
-  }
-
-  return (
-    <Tabs defaultValue="home" className="space-y-4">
-      <div className="rounded-2xl border border-border/50 bg-card/70 p-3 shadow-sm">
-        <TabsList
-          variant="line"
-          className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b border-border/60 bg-transparent p-0"
-        >
-          <TabsTrigger value="home" className="min-w-fit px-3 py-2">
-            Home
-          </TabsTrigger>
-          <TabsTrigger value="governance" className="min-w-fit px-3 py-2">
-            Governance
-          </TabsTrigger>
-          <TabsTrigger value="profile" className="min-w-fit px-3 py-2">
-            Profile
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="home" className="mt-4 space-y-4">
-          <WorkspaceOverviewSummaryCard
-            workspace={workspace}
-            activeWorkspaceId={activeWorkspaceId}
-            onEditClick={onEditClick}
-            onSetActiveWorkspace={onSetActiveWorkspace}
-          />
-
-          <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-            <WorkspaceProductSpineCard workspace={workspace} />
-
-            <Card className="border border-border/50">
-              <CardHeader>
-                <CardTitle>Capabilities</CardTitle>
-                <CardDescription>
-                  Runtime features currently mounted on this workspace.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {workspace.capabilities.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No capability bindings have been added yet.
-                  </p>
-                ) : (
-                  workspace.capabilities.map((capability) => (
-                    <div
-                      key={capability.id}
-                      className="rounded-xl border border-border/40 px-4 py-4"
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground">
-                          {capability.name}
-                        </p>
-                        <Badge variant="outline">{capability.type}</Badge>
-                        <Badge
-                          variant={capability.status === "stable" ? "secondary" : "outline"}
-                        >
-                          {capability.status}
-                        </Badge>
-                      </div>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {capability.description}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {workspace.lifecycleState === "preparatory" && workspace.capabilities.length === 0 && (
-            <WorkspaceQuickstartCard workspaceId={workspace.id} />
-          )}
-        </TabsContent>
-
-        <TabsContent value="governance" className="mt-4 space-y-4">
-          <div className="grid gap-4 xl:grid-cols-2">
-            <Card className="border border-border/50">
-              <CardHeader>
-                <CardTitle>Access Model</CardTitle>
-                <CardDescription>
-                  Team scopes and direct grants applied to this workspace.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-foreground">Team access</p>
-                  {workspace.teamIds.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No team access assigned.</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {workspace.teamIds.map((teamId) => (
-                        <Badge key={teamId} variant="secondary">
-                          {teamId}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-foreground">Direct grants</p>
-                  {workspace.grants.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No direct grants recorded.</p>
-                  ) : (
-                    workspace.grants.map((grant, index) => (
-                      <div
-                        key={`grant-${grant.role}-${grant.teamId ?? "none"}-${grant.userId ?? "none"}-${grant.protocol ?? "none"}-${index}`}
-                        className="rounded-xl border border-border/40 px-4 py-3"
-                      >
-                        <p className="text-sm font-medium text-foreground">
-                          {describeGrant(grant)}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Role: {grant.role}
-                          {grant.teamId ? ` · Team: ${grant.teamId}` : ""}
-                          {grant.userId ? ` · User: ${grant.userId}` : ""}
-                          {grant.protocol ? ` · Protocol: ${grant.protocol}` : ""}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-border/50">
-              <CardHeader>
-                <CardTitle>Locations</CardTitle>
-                <CardDescription>
-                  Physical or logical locations linked to the workspace.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {workspace.locations == null || workspace.locations.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No locations have been configured yet.
-                  </p>
-                ) : (
-                  workspace.locations.map((location) => (
-                    <div
-                      key={location.locationId}
-                      className="rounded-xl border border-border/40 px-4 py-4"
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground">
-                          {location.label}
-                        </p>
-                        <Badge variant="outline">{location.locationId}</Badge>
-                      </div>
-                      {location.description && (
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          {location.description}
-                        </p>
-                      )}
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Capacity: {location.capacity ?? "—"}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="profile" className="mt-4 space-y-4">
-          <Card className="border border-border/50">
-            <CardHeader>
-              <CardTitle>Workspace Profile</CardTitle>
-              <CardDescription>
-                Operational contacts and registered workspace address.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">Personnel</p>
-                {personnelEntries.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No personnel roles assigned.
-                  </p>
-                ) : (
-                  personnelEntries.map((entry) => (
-                    <div
-                      key={entry.label}
-                      className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3 text-sm"
-                    >
-                      <span className="text-muted-foreground">{entry.label}</span>
-                      <span className="font-medium text-foreground">{entry.value}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">Address</p>
-                {addressLines.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No address information has been provided.
-                  </p>
-                ) : (
-                  <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
-                    {addressLines.map((line, index) => (
-                      <p key={`${line}-${index}`}>{line}</p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-      </div>
-    </Tabs>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
-````typescript
-import { useEffect, useMemo, useState } from "react";
-
-import type { WorkspaceEntity } from "../../api/contracts";
-
-interface RecentWorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-
-const MAX_VISIBLE_RECENT_WORKSPACES = 10;
-const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
-
-function getStorageKey(accountId: string) {
-  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
-}
-
-function readRecentWorkspaceIds(accountId: string): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(getStorageKey(accountId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
-  } catch {
-    return [];
-  }
-}
-
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
-}
-
-function trackWorkspaceFromPath(pathname: string, accountId: string) {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return;
-  const workspaceId = decodeURIComponent(match[1]);
-  const recentIds = readRecentWorkspaceIds(accountId);
-  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
-  persistRecentWorkspaceIds(accountId, deduped);
-}
-
-function getWorkspaceIdFromPath(pathname: string): string | null {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return null;
-  return decodeURIComponent(match[1]);
-}
-
-export function useRecentWorkspaces(
-  accountId: string | undefined,
-  pathname: string,
-  workspaces: WorkspaceEntity[],
-) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  useEffect(() => {
-    if (!accountId) return;
-    trackWorkspaceFromPath(pathname, accountId);
-  }, [accountId, pathname]);
-
-  const workspacesById = useMemo(
-    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
-    [workspaces],
-  );
-
-  const recentWorkspaceIds = useMemo(() => {
-    if (!accountId) return [] as string[];
-    const stored = readRecentWorkspaceIds(accountId);
-    const currentId = getWorkspaceIdFromPath(pathname);
-    if (!currentId) return stored;
-    return [currentId, ...stored.filter((id) => id !== currentId)];
-  }, [accountId, pathname]);
-
-  const recentWorkspaceLinks = useMemo<RecentWorkspaceLink[]>(() => {
-    return recentWorkspaceIds
-      .map<RecentWorkspaceLink | null>((workspaceId) => {
-        const ws = workspacesById[workspaceId];
-        if (!ws) return null;
-        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
-      })
-      .filter((item): item is RecentWorkspaceLink => item !== null);
-  }, [recentWorkspaceIds, workspacesById]);
-
-  return { isExpanded, setIsExpanded, recentWorkspaceLinks };
-}
-
-export { MAX_VISIBLE_RECENT_WORKSPACES, getWorkspaceIdFromPath };
-````
-
 ## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
 ````typescript
 "use client";
@@ -23534,6 +23355,236 @@ export function makeAuditRepo() {
 }
 ````
 
+## File: modules/workspace/subdomains/audit/domain/aggregates/AuditEntry.ts
+````typescript
+import type { AuditLogSource } from "../entities/AuditLog";
+import type { AuditDomainEventType } from "../events";
+import type { AuditAction } from "../schema";
+import type { AuditSeverity } from "../value-objects";
+import type { ChangeRecord } from "../schema";
+
+export interface AuditEntrySnapshot {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly actorId: string;
+	readonly action: AuditAction;
+	readonly resourceType: string;
+	readonly resourceId: string;
+	readonly severity: AuditSeverity;
+	readonly detail: string;
+	readonly source: AuditLogSource;
+	readonly changes: readonly ChangeRecord[];
+	readonly recordedAtISO: string;
+}
+
+export interface RecordAuditEntryInput {
+	readonly workspaceId: string;
+	readonly actorId: string;
+	readonly action: string;
+	readonly resourceType: string;
+	readonly resourceId: string;
+	readonly severity: string;
+	readonly detail: string;
+	readonly source: AuditLogSource;
+	readonly changes?: readonly ChangeRecord[];
+}
+
+/**
+ * AuditEntry — Immutable aggregate root for audit records.
+ *
+ * Audit entries are write-once: once recorded they cannot be modified or deleted.
+ * All mutation methods are intentionally absent.
+ */
+export class AuditEntry {
+	private readonly _domainEvents: AuditDomainEventType[] = [];
+
+	private constructor(private readonly _props: AuditEntrySnapshot) {}
+
+	/**
+	 * Record a new audit entry. This is the only way to create an AuditEntry.
+	 * Validates action and severity via Zod branded types.
+	 */
+	static record(id: string, input: RecordAuditEntryInput): AuditEntry {
+		// Import dynamically is not possible in domain — validate via type narrowing
+		// The caller is responsible for passing valid action/severity strings;
+		// Zod validation happens at the value-object layer boundary.
+		const now = new Date().toISOString();
+		const entry = new AuditEntry({
+			id,
+			workspaceId: input.workspaceId,
+			actorId: input.actorId,
+			action: input.action as AuditAction,
+			resourceType: input.resourceType,
+			resourceId: input.resourceId,
+			severity: input.severity as AuditSeverity,
+			detail: input.detail,
+			source: input.source,
+			changes: input.changes ?? [],
+			recordedAtISO: now,
+		});
+		entry._domainEvents.push({
+			type: "workspace.audit.entry_recorded",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				auditId: id,
+				workspaceId: input.workspaceId,
+				actorId: input.actorId,
+				action: input.action,
+				resourceType: input.resourceType,
+				resourceId: input.resourceId,
+				severity: input.severity,
+			},
+		});
+
+		// Auto-escalation: critical entries emit an additional alert event
+		if (entry.isCritical()) {
+			entry._domainEvents.push({
+				type: "workspace.audit.critical_detected",
+				eventId: crypto.randomUUID(),
+				occurredAt: now,
+				payload: {
+					auditId: id,
+					workspaceId: input.workspaceId,
+					actorId: input.actorId,
+					action: input.action,
+					resourceType: input.resourceType,
+				},
+			});
+		}
+
+		return entry;
+	}
+
+	static reconstitute(snapshot: AuditEntrySnapshot): AuditEntry {
+		return new AuditEntry({ ...snapshot });
+	}
+
+	// ── Query methods (audit is immutable — no mutation) ─────────────────────
+
+	/** Returns true when severity is "critical". */
+	isCritical(): boolean {
+		return this._props.severity === ("critical" as AuditSeverity);
+	}
+
+	/** Returns true when severity is "critical" or "high". */
+	isHighSeverity(): boolean {
+		return (
+			this._props.severity === ("critical" as AuditSeverity) ||
+			this._props.severity === ("high" as AuditSeverity)
+		);
+	}
+
+	// ── Getters ──────────────────────────────────────────────────────────────
+
+	get id(): string {
+		return this._props.id;
+	}
+
+	get workspaceId(): string {
+		return this._props.workspaceId;
+	}
+
+	get actorId(): string {
+		return this._props.actorId;
+	}
+
+	get action(): AuditAction {
+		return this._props.action;
+	}
+
+	get resourceType(): string {
+		return this._props.resourceType;
+	}
+
+	get resourceId(): string {
+		return this._props.resourceId;
+	}
+
+	get severity(): AuditSeverity {
+		return this._props.severity;
+	}
+
+	get detail(): string {
+		return this._props.detail;
+	}
+
+	get source(): AuditLogSource {
+		return this._props.source;
+	}
+
+	get changes(): readonly ChangeRecord[] {
+		return this._props.changes;
+	}
+
+	get recordedAtISO(): string {
+		return this._props.recordedAtISO;
+	}
+
+	getSnapshot(): Readonly<AuditEntrySnapshot> {
+		return Object.freeze({ ...this._props });
+	}
+
+	pullDomainEvents(): AuditDomainEventType[] {
+		const events = [...this._domainEvents];
+		(this._domainEvents as AuditDomainEventType[]).length = 0;
+		return events;
+	}
+}
+````
+
+## File: modules/workspace/subdomains/audit/domain/aggregates/index.ts
+````typescript
+export { AuditEntry } from "./AuditEntry";
+export type { AuditEntrySnapshot, RecordAuditEntryInput } from "./AuditEntry";
+````
+
+## File: modules/workspace/subdomains/audit/domain/events/AuditDomainEvent.ts
+````typescript
+export interface AuditDomainEvent {
+	readonly eventId: string;
+	readonly occurredAt: string;
+	readonly type: string;
+	readonly payload: object;
+}
+
+export interface AuditEntryRecordedEvent extends AuditDomainEvent {
+	readonly type: "workspace.audit.entry_recorded";
+	readonly payload: {
+		readonly auditId: string;
+		readonly workspaceId: string;
+		readonly actorId: string;
+		readonly action: string;
+		readonly resourceType: string;
+		readonly resourceId: string;
+		readonly severity: string;
+	};
+}
+
+export interface CriticalAuditDetectedEvent extends AuditDomainEvent {
+	readonly type: "workspace.audit.critical_detected";
+	readonly payload: {
+		readonly auditId: string;
+		readonly workspaceId: string;
+		readonly actorId: string;
+		readonly action: string;
+		readonly resourceType: string;
+	};
+}
+
+export type AuditDomainEventType = AuditEntryRecordedEvent | CriticalAuditDetectedEvent;
+````
+
+## File: modules/workspace/subdomains/audit/domain/events/index.ts
+````typescript
+export type {
+	AuditDomainEvent,
+	AuditEntryRecordedEvent,
+	CriticalAuditDetectedEvent,
+	AuditDomainEventType,
+} from "./AuditDomainEvent";
+````
+
 ## File: modules/workspace/subdomains/audit/domain/schema.ts
 ````typescript
 /**
@@ -23566,6 +23617,109 @@ export const AuditLogSchema = BaseEntitySchema.extend({
 });
 
 export type AuditLog = z.infer<typeof AuditLogSchema>;
+````
+
+## File: modules/workspace/subdomains/audit/domain/services/AuditRecordingService.ts
+````typescript
+import { AuditEntry } from "../aggregates/AuditEntry";
+import type { RecordAuditEntryInput } from "../aggregates/AuditEntry";
+import { createAuditAction } from "../value-objects/AuditAction";
+import { createAuditSeverity } from "../value-objects/AuditSeverity";
+import { createActorId } from "../value-objects/ActorId";
+
+/**
+ * AuditRecordingService — Stateless domain service for recording audit entries.
+ *
+ * Validates inputs via value-object constructors and delegates to AuditEntry.record().
+ * Critical-severity escalation is handled by the aggregate itself.
+ */
+export class AuditRecordingService {
+	/**
+	 * Record a new audit entry with full input validation.
+	 *
+	 * @throws ZodError if action, severity, or actorId is invalid
+	 */
+	record(id: string, input: RecordAuditEntryInput): AuditEntry {
+		// Validate through branded value objects (throws on invalid input)
+		createAuditAction(input.action);
+		createAuditSeverity(input.severity);
+		createActorId(input.actorId);
+
+		return AuditEntry.record(id, input);
+	}
+}
+````
+
+## File: modules/workspace/subdomains/audit/domain/services/index.ts
+````typescript
+export { AuditRecordingService } from "./AuditRecordingService";
+````
+
+## File: modules/workspace/subdomains/audit/domain/value-objects/AuditAction.ts
+````typescript
+import { z } from "@lib-zod";
+
+import { AUDIT_ACTIONS } from "../schema";
+
+export const AuditActionSchema = z.enum(AUDIT_ACTIONS).brand("AuditAction");
+
+export type AuditAction = z.infer<typeof AuditActionSchema>;
+
+export function createAuditAction(raw: string): AuditAction {
+  return AuditActionSchema.parse(raw);
+}
+
+export function unsafeAuditAction(raw: string): AuditAction {
+  return raw as AuditAction;
+}
+````
+
+## File: modules/workspace/subdomains/audit/domain/value-objects/AuditSeverity.ts
+````typescript
+import { z } from "@lib-zod";
+
+import { AUDIT_SEVERITIES } from "../schema";
+
+export const AuditSeveritySchema = z.enum(AUDIT_SEVERITIES).brand("AuditSeverity");
+
+export type AuditSeverity = z.infer<typeof AuditSeveritySchema>;
+
+export function createAuditSeverity(raw: string): AuditSeverity {
+	return AuditSeveritySchema.parse(raw);
+}
+
+export function unsafeAuditSeverity(raw: string): AuditSeverity {
+	return raw as AuditSeverity;
+}
+
+const SEVERITY_LEVELS: Record<string, number> = {
+	low: 0,
+	medium: 1,
+	high: 2,
+	critical: 3,
+};
+
+/** Numeric level for ordering/comparison (low=0, medium=1, high=2, critical=3). */
+export function severityLevel(severity: AuditSeverity): number {
+	return SEVERITY_LEVELS[severity] ?? 0;
+}
+
+/** Returns true when `severity` is at or above the given threshold. */
+export function isAtLeast(severity: AuditSeverity, threshold: AuditSeverity): boolean {
+	return severityLevel(severity) >= severityLevel(threshold);
+}
+````
+
+## File: modules/workspace/subdomains/audit/domain/value-objects/index.ts
+````typescript
+export { AuditActionSchema, createAuditAction, unsafeAuditAction } from "./AuditAction";
+export type { AuditAction } from "./AuditAction";
+
+export { AuditSeveritySchema, createAuditSeverity, unsafeAuditSeverity, severityLevel, isAtLeast } from "./AuditSeverity";
+export type { AuditSeverity } from "./AuditSeverity";
+
+export { ActorIdSchema, createActorId, unsafeActorId } from "./ActorId";
+export type { ActorId } from "./ActorId";
 ````
 
 ## File: modules/workspace/subdomains/feed/api/factories.ts
@@ -37293,6 +37447,271 @@ export function ShellSidebarHeader({
 }
 ````
 
+## File: app/(shell)/_shell/WorkspaceRouteShim.tsx
+````typescript
+"use client";
+
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import {
+  buildWorkspaceOverviewPanelHref,
+  type WorkspaceOverviewPanel,
+  useWorkspaceContext,
+} from "@/modules/workspace/api";
+
+interface WorkspaceRouteShimProps {
+  readonly panel?: WorkspaceOverviewPanel;
+  readonly tab?: "Overview" | "Files";
+  readonly loadingMessage: string;
+}
+
+export function WorkspaceRouteShim({
+  panel,
+  tab = "Overview",
+  loadingMessage,
+}: WorkspaceRouteShimProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const {
+    state: { activeWorkspaceId },
+  } = useWorkspaceContext();
+
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+  const targetWorkspaceId = requestedWorkspaceId || activeWorkspaceId || "";
+
+  const targetHref = targetWorkspaceId
+    ? tab === "Files"
+      ? `/workspace/${encodeURIComponent(targetWorkspaceId)}?tab=Files`
+      : buildWorkspaceOverviewPanelHref(targetWorkspaceId, panel)
+    : "/workspace";
+
+  useEffect(() => {
+    router.replace(targetHref);
+  }, [router, targetHref]);
+
+  return <div className="px-4 py-6 text-sm text-muted-foreground">{loadingMessage}</div>;
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/dashboard/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+interface AccountWorkspaceDashboardPageProps {
+  params: {
+    accountId: string;
+    workspaceId: string;
+  };
+}
+
+export default function AccountWorkspaceDashboardPage({ params }: AccountWorkspaceDashboardPageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}/${encodeURIComponent(params.workspaceId)}`);
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/knowledge-base/articles/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+interface AccountWorkspaceKnowledgeBaseArticlesPageProps {
+  params: {
+    accountId: string;
+    workspaceId: string;
+  };
+}
+
+export default function AccountWorkspaceKnowledgeBaseArticlesPage({ params }: AccountWorkspaceKnowledgeBaseArticlesPageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}/${encodeURIComponent(params.workspaceId)}?tab=Overview&panel=knowledge-base-articles`);
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/knowledge-base/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+interface AccountWorkspaceKnowledgeBasePageProps {
+  params: {
+    accountId: string;
+    workspaceId: string;
+  };
+}
+
+export default function AccountWorkspaceKnowledgeBasePage({ params }: AccountWorkspaceKnowledgeBasePageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}/${encodeURIComponent(params.workspaceId)}?tab=Overview&panel=knowledge-base-articles`);
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/knowledge-database/databases/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+interface AccountWorkspaceKnowledgeDatabasesPageProps {
+  params: {
+    accountId: string;
+    workspaceId: string;
+  };
+}
+
+export default function AccountWorkspaceKnowledgeDatabasesPage({ params }: AccountWorkspaceKnowledgeDatabasesPageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}/${encodeURIComponent(params.workspaceId)}?tab=Overview&panel=knowledge-databases`);
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/knowledge-database/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+interface AccountWorkspaceKnowledgeDatabasePageProps {
+  params: {
+    accountId: string;
+    workspaceId: string;
+  };
+}
+
+export default function AccountWorkspaceKnowledgeDatabasePage({ params }: AccountWorkspaceKnowledgeDatabasePageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}/${encodeURIComponent(params.workspaceId)}?tab=Overview&panel=knowledge-databases`);
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/knowledge/block-editor/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+interface AccountWorkspaceKnowledgeBlockEditorPageProps {
+  params: {
+    accountId: string;
+    workspaceId: string;
+  };
+}
+
+export default function AccountWorkspaceKnowledgeBlockEditorPage({ params }: AccountWorkspaceKnowledgeBlockEditorPageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}/${encodeURIComponent(params.workspaceId)}?tab=Overview&panel=knowledge-pages`);
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/knowledge/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+interface AccountWorkspaceKnowledgePageProps {
+  params: {
+    accountId: string;
+    workspaceId: string;
+  };
+}
+
+export default function AccountWorkspaceKnowledgePage({ params }: AccountWorkspaceKnowledgePageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}/${encodeURIComponent(params.workspaceId)}?tab=Overview&panel=knowledge-pages`);
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/knowledge/pages/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+interface AccountWorkspaceKnowledgePagesPageProps {
+  params: {
+    accountId: string;
+    workspaceId: string;
+  };
+}
+
+export default function AccountWorkspaceKnowledgePagesPage({ params }: AccountWorkspaceKnowledgePagesPageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}/${encodeURIComponent(params.workspaceId)}?tab=Overview&panel=knowledge-pages`);
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/notebook/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+interface AccountWorkspaceNotebookPageProps {
+  params: {
+    accountId: string;
+    workspaceId: string;
+  };
+}
+
+export default function AccountWorkspaceNotebookPage({ params }: AccountWorkspaceNotebookPageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}/${encodeURIComponent(params.workspaceId)}/notebook/rag-query`);
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/notebook/rag-query/page.tsx
+````typescript
+"use client";
+
+import { useParams } from "next/navigation";
+
+import { RagQueryView } from "@/modules/notebooklm/api";
+
+export default function AccountWorkspaceNotebookRagQueryPage() {
+  const params = useParams<{ workspaceId: string }>();
+  const workspaceId = typeof params.workspaceId === "string" ? params.workspaceId : "";
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Notebook</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
+        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
+      </header>
+
+      <RagQueryView workspaceId={workspaceId || undefined} />
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/source/documents/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+interface AccountWorkspaceSourceDocumentsPageProps {
+  params: {
+    accountId: string;
+    workspaceId: string;
+  };
+}
+
+export default function AccountWorkspaceSourceDocumentsPage({ params }: AccountWorkspaceSourceDocumentsPageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}/${encodeURIComponent(params.workspaceId)}?tab=Files`);
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/source/libraries/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+interface AccountWorkspaceSourceLibrariesPageProps {
+  params: {
+    accountId: string;
+    workspaceId: string;
+  };
+}
+
+export default function AccountWorkspaceSourceLibrariesPage({ params }: AccountWorkspaceSourceLibrariesPageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}/${encodeURIComponent(params.workspaceId)}?tab=Overview&panel=source-libraries`);
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/source/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+interface AccountWorkspaceSourcePageProps {
+  params: {
+    accountId: string;
+    workspaceId: string;
+  };
+}
+
+export default function AccountWorkspaceSourcePage({ params }: AccountWorkspaceSourcePageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}/${encodeURIComponent(params.workspaceId)}?tab=Overview&panel=source-libraries`);
+}
+````
+
 ## File: app/(shell)/ai-chat/page.tsx
 ````typescript
 "use client";
@@ -37801,288 +38220,86 @@ export default function DevToolsPage() {
 }
 ````
 
-## File: app/(shell)/knowledge/page.tsx
+## File: app/(shell)/knowledge-base/articles/page.tsx
 ````typescript
-"use client";
+import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { Brain, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import { buildWikiContentTree, useWorkspaceContext } from "@/modules/workspace/api";
-import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-const QUICK_ACCESS = [
-  {
-    href: "/knowledge/pages?scope=account",
-    title: "Pages",
-    description: "顯式 account summary 的頁面樹檢視與維運工具；日常建立與整理請從工作區進入。",
-    icon: FileText,
-  },
-  {
-    href: "/source/libraries",
-    title: "Libraries",
-    description: "維持 schema / table 型知識資產。",
-    icon: Database,
-  },
-  {
-    href: "/knowledge-base/articles",
-    title: "Articles",
-    description: "組織知識庫 SOP 文章、驗證管治與分類樹。",
-    icon: FolderKanban,
-  },
-  {
-    href: "/knowledge-database/databases",
-    title: "Databases",
-    description: "結構化資料庫、多視圖（表格、看板、日曆）管理。",
-    icon: Brain,
-  },
-  {
-    href: "/notebook/rag-query",
-    title: "Ask / Cite",
-    description: "查詢、引用與回答檢視。",
-    icon: MessageSquare,
-  },
-] as const;
-
-export default function KnowledgeHubPage() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
-  const [contentTree, setContentTree] = useState<WikiAccountContentNode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const accountSeeds = useMemo<WikiAccountSeed[]>(() => {
-    const personalUser = authState.user;
-    const activeAccountId = appState.activeAccount?.id;
-    const seeds: WikiAccountSeed[] = [];
-
-    if (personalUser) {
-      seeds.push({
-        accountId: personalUser.id,
-        accountName: personalUser.name,
-        accountType: "personal",
-        isActive: activeAccountId === personalUser.id,
-      });
-    }
-
-    const organizations = Object.values(appState.accounts);
-    for (const organization of organizations) {
-      seeds.push({
-        accountId: organization.id,
-        accountName: organization.name,
-        accountType: "organization",
-        isActive: activeAccountId === organization.id,
-      });
-    }
-
-    return seeds;
-  }, [appState.accounts, appState.activeAccount?.id, authState.user]);
-
-  useEffect(() => {
-    let disposed = false;
-
-    async function load() {
-      setLoading(true);
-      try {
-        const result = await buildWikiContentTree(accountSeeds);
-        if (!disposed) {
-          setContentTree(result);
-        }
-      } catch {
-        if (!disposed) {
-          setContentTree([]);
-        }
-      } finally {
-        if (!disposed) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void load();
-
-    return () => {
-      disposed = true;
-    };
-  }, [accountSeeds]);
-
-  const activeAccount = contentTree.find((node) => node.isActive);
-  const highlightedWorkspace =
-    activeAccount?.workspaces.find((workspace) => workspace.workspaceId === wsState.activeWorkspaceId) ??
-    activeAccount?.workspaces[0];
-
+export default function KnowledgeBaseArticlesPage() {
   return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Hub</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Knowledge Hub</h1>
-        <p className="text-sm text-muted-foreground">
-          從這裡進入 Knowledge、Knowledge Base、Knowledge Database、Source 與 Notebook 各模組。
-        </p>
-      </header>
+    <WorkspaceRouteShim
+      panel="knowledge-base-articles"
+      loadingMessage="正在導向 Workspace Overview（Knowledge Base Articles）…"
+    />
+  );
+}
+````
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Workspace-first entry</CardTitle>
-          <CardDescription>先鎖定 active account，再選擇要進入的工作區，最後才分流到 Knowledge、知識頁面、Notebook / AI。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loading ? (
-            <Skeleton className="h-6 w-48" />
-          ) : activeAccount ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Active Account</p>
-                <div className="mt-2 flex items-center gap-2 text-sm">
-                  <Building2 className="size-4 text-primary" />
-                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
-                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
-                </div>
-              </div>
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
-                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
-                  <FolderKanban className="size-4 text-primary" />
-                  <span>{activeAccount.workspaces.length} 個工作區可直接進入各自的知識頁面</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
-          )}
+## File: app/(shell)/knowledge-base/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
 
-          {highlightedWorkspace && (
-            <div className="grid gap-3 lg:grid-cols-[1fr_1.1fr]">
-              <div className="rounded-xl border border-border/60 px-4 py-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Highlighted workspace</p>
-                <p className="mt-2 text-sm font-semibold text-foreground">{highlightedWorkspace.workspaceName}</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  先把這個工作區當成知識主樞紐，再從裡面打開知識頁面與 Notebook / AI。
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Button asChild size="sm">
-                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}`}>進入工作區</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>知識頁面</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/ai-chat?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>
-                      Notebook / AI
-                    </Link>
-                  </Button>
-                </div>
-              </div>
+export default function KnowledgeBasePage() {
+  return (
+    <WorkspaceRouteShim
+      panel="knowledge-base-articles"
+      loadingMessage="正在導向 Workspace Overview（Knowledge Base Articles）…"
+    />
+  );
+}
+````
 
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">Knowledge</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    先整理文件來源、Libraries 與 upload / ingest。
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">知識頁面</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    再用頁面樹與內容脈絡整理知識結構。
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    最後才消費這些知識做問答、摘要與洞察。
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+## File: app/(shell)/knowledge-database/databases/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {QUICK_ACCESS.map((item) => (
-              <Link key={item.href} href={item.href} className="group">
-                <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-                        <item.icon className="size-4" />
-                      </div>
-                      <CardTitle className="text-sm">{item.title}</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+export default function KnowledgeDatabaseDatabasesPage() {
+  return (
+    <WorkspaceRouteShim
+      panel="knowledge-databases"
+      loadingMessage="正在導向 Workspace Overview（Knowledge Databases）…"
+    />
+  );
+}
+````
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Workspace Snapshot</CardTitle>
-          <CardDescription>以下工作區皆屬於目前 active account；請優先從工作區進入，再分流到 Knowledge、知識頁面與 Notebook / AI。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-            </div>
-          ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
-            <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {activeAccount.workspaces.map((workspace) => (
-                <Card key={workspace.workspaceId} className="transition-colors hover:border-primary/40 hover:shadow-sm">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex flex-wrap gap-1">
-                      {workspace.contentBaseItems
-                        .filter((item) => item.enabled)
-                        .map((item) => (
-                          <Badge key={item.key} variant="secondary" className="text-[10px]">
-                            {item.label}
-                          </Badge>
-                        ))}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/workspace/${workspace.workspaceId}`}>Workspace</Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>知識頁面</Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/workspace/${workspace.workspaceId}?tab=Files`}>
-                          Files
-                        </Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
-                          <Brain className="mr-1 size-3.5" />
-                          Notebook
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+## File: app/(shell)/knowledge-database/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
+
+export default function KnowledgeDatabasePage() {
+  return (
+    <WorkspaceRouteShim
+      panel="knowledge-databases"
+      loadingMessage="正在導向 Workspace Overview（Knowledge Databases）…"
+    />
+  );
+}
+````
+
+## File: app/(shell)/knowledge/block-editor/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
+
+export default function KnowledgeBlockEditorPage() {
+  return (
+    <WorkspaceRouteShim
+      panel="knowledge-pages"
+      loadingMessage="正在導向 Workspace Overview（Knowledge Pages）…"
+    />
+  );
+}
+````
+
+## File: app/(shell)/knowledge/pages/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
+
+export default function KnowledgePagesPage() {
+  return (
+    <WorkspaceRouteShim
+      panel="knowledge-pages"
+      loadingMessage="正在導向 Workspace Overview（Knowledge Pages）…"
+    />
   );
 }
 ````
@@ -38266,59 +38483,16 @@ export default function OrganizationAuditPageRoute() {
 }
 ````
 
-## File: app/(shell)/source/documents/page.tsx
+## File: app/(shell)/source/page.tsx
 ````typescript
-"use client";
+import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
 
-import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-
-import { useWorkspaceContext } from "@/modules/workspace/api";
-
-/**
- * /source/documents is now a redirect shim.
- * Canonical file management lives at /workspace/[id]?tab=Files.
- * If a workspaceId is available (via URL param or active workspace),
- * we redirect immediately; otherwise we show a picker placeholder.
- */
-export default function SourceDocumentsPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const {
-    state: { activeWorkspaceId },
-  } = useWorkspaceContext();
-
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const targetWorkspaceId = requestedWorkspaceId || activeWorkspaceId || "";
-
-  useEffect(() => {
-    if (targetWorkspaceId) {
-      router.replace(`/workspace/${encodeURIComponent(targetWorkspaceId)}?tab=Files`);
-    }
-  }, [router, targetWorkspaceId]);
-
-  if (targetWorkspaceId) {
-    return (
-      <div className="px-4 py-6 text-sm text-muted-foreground">
-        正在導向工作區檔案管理頁面…
-      </div>
-    );
-  }
-
+export default function SourcePage() {
   return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Source</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文件</h1>
-        <p className="text-sm text-muted-foreground">工作區來源文件管理（已整合至工作區 Files 頁簽）。</p>
-      </header>
-      <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-        請先從側邊欄選擇一個工作區，系統將自動導向至該工作區的檔案管理頁面（
-        <code className="rounded bg-muted px-1">?tab=Files</code>
-        ）。你也可以直接在網址帶入{" "}
-        <code className="rounded bg-muted px-1">workspaceId</code> 參數。
-      </p>
-    </div>
+    <WorkspaceRouteShim
+      panel="source-libraries"
+      loadingMessage="正在導向 Workspace Overview（Source Libraries）…"
+    />
   );
 }
 ````
@@ -38772,6 +38946,354 @@ export async function saveThread(accountId: string, thread: Thread): Promise<voi
 
 export async function loadThread(accountId: string, threadId: string): Promise<Thread | null> {
   return makeThreadRepo().getById(accountId, threadId);
+}
+````
+
+## File: modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notebooklm/subdomains/conversation
+ * Component: AiChatPage
+ * Purpose: Full-page AI chat UI — wired to conversation server actions.
+ *          Thread persistence via Firestore. Multi-turn context support.
+ *
+ * Props are injected by the app/ shim so this component has no provider dependencies.
+ */
+
+import Link from "next/link";
+import { Bot, BookOpen, Brain, FileText, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { v7 as uuid } from "@lib-uuid";
+
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { resolveWorkspaceFromMap, WorkspaceContextCard } from "@/modules/workspace/api";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+
+import { sendChatMessage, saveThread, loadThread } from "../_actions/chat.actions";
+import {
+  type ChatMessage,
+  STORAGE_KEY,
+  buildContextPrompt,
+  generateMsgId,
+  threadFromMessages,
+} from "../helpers";
+
+// ── Props ─────────────────────────────────────────────────────────────────────
+
+export interface AiChatPageProps {
+  accountId: string;
+  workspaces: Record<string, WorkspaceEntity>;
+  requestedWorkspaceId: string;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export function AiChatPage({ accountId, workspaces, requestedWorkspaceId }: AiChatPageProps) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [threadCreatedAt, setThreadCreatedAt] = useState<string>(new Date().toISOString());
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const currentWorkspace = resolveWorkspaceFromMap(workspaces, requestedWorkspaceId);
+  const workspaceName = currentWorkspace?.name ?? null;
+  const workspaceQuery = currentWorkspace ? `?workspaceId=${encodeURIComponent(currentWorkspace.id)}` : "";
+  const workspaceRouteRoot = currentWorkspace
+    ? `/workspace/${encodeURIComponent(currentWorkspace.id)}`
+    : "/workspace";
+  const latestUserPrompt = [...messages].reverse().find((m) => m.role === "user")?.content ?? null;
+
+  // Load persisted thread on mount
+  useEffect(() => {
+    if (!accountId) return;
+    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+    const storedId = localStorage.getItem(storageKey);
+    if (!storedId) return;
+    setThreadId(storedId);
+    void loadThread(accountId, storedId).then((thread) => {
+      if (!thread || thread.messages.length === 0) return;
+      setThreadCreatedAt(thread.createdAt);
+      setMessages(
+        thread.messages
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })),
+      );
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
+
+  const summaryItems = useMemo(() => {
+    if (messages.length === 0) {
+      return [
+        "先整理來源文件與工作區脈絡，再開始對話。",
+        "需要帶引用的回答時，可搭配 Ask / Cite 使用。",
+      ];
+    }
+    return [
+      `目前已有 ${messages.length} 則訊息，包含 ${messages.filter((m) => m.role === "assistant").length} 次模型回覆。`,
+      latestUserPrompt ? `最近一次提問：${latestUserPrompt}` : "最近一次提問尚未建立。",
+    ];
+  }, [latestUserPrompt, messages]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || isPending) return;
+
+    const userMsg: ChatMessage = { id: generateMsgId(), role: "user", content: text };
+    const nextMessages = [...messages, userMsg];
+    setMessages(nextMessages);
+    setInput("");
+    setError(null);
+    setIsPending(true);
+
+    const contextPrompt = buildContextPrompt(messages);
+
+    try {
+      const result = await sendChatMessage({
+        prompt: text,
+        ...(contextPrompt ? { system: contextPrompt } : {}),
+      });
+      if (result.ok) {
+        const assistantMsg: ChatMessage = {
+          id: generateMsgId(),
+          role: "assistant",
+          content: result.data.text,
+        };
+        const finalMessages = [...nextMessages, assistantMsg];
+        setMessages(finalMessages);
+
+        if (accountId) {
+          const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+          let currentThreadId = threadId;
+          if (!currentThreadId) {
+            currentThreadId = uuid();
+            setThreadId(currentThreadId);
+            localStorage.setItem(storageKey, currentThreadId);
+          }
+          const thread = threadFromMessages(currentThreadId, finalMessages, threadCreatedAt);
+          void saveThread(accountId, thread);
+        }
+      } else {
+        setError(result.error.message);
+      }
+    } catch {
+      setError("無法連接至 AI 服務，請稍後再試。");
+    } finally {
+      setIsPending(false);
+      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
+    }
+  }
+
+  function handleNewThread() {
+    if (!accountId) return;
+    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+    localStorage.removeItem(storageKey);
+    setThreadId(null);
+    setMessages([]);
+    setThreadCreatedAt(new Date().toISOString());
+    setError(null);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void handleSubmit(e as unknown as React.FormEvent);
+    }
+  }
+
+  return (
+    <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <aside className="border-b border-border/60 bg-muted/20 p-4 lg:border-b-0 lg:border-r">
+        <div className="space-y-4">
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Brain className="size-4 text-primary" />
+                Notebook / AI
+              </CardTitle>
+              <CardDescription>
+                將工作區知識、知識頁面與查詢消費層收斂成單一 workspace-scoped notebook 介面，而不是獨立聊天產品。
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <WorkspaceContextCard workspace={currentWorkspace} />
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <BookOpen className="size-4 text-primary" />
+                Source context
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              <Link href={`${workspaceRouteRoot}?tab=Files`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <FileText className="size-3.5" />
+                文件來源 / Documents
+              </Link>
+              <Link href={`${workspaceRouteRoot}?tab=Overview&panel=knowledge-pages`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <BookOpen className="size-3.5" />
+                知識頁面 / Pages
+              </Link>
+              <Link href={`/notebook/rag-query${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <Bot className="size-3.5" />
+                Ask / Cite / RAG Query
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Summary snapshot</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              {summaryItems.map((item) => (
+                <p key={item} className="rounded-md border border-border/50 px-3 py-2">
+                  {item}
+                </p>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Lightbulb className="size-4 text-primary" />
+                Insight board
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              <p className="rounded-md border border-border/50 px-3 py-2">
+                目前仍是 Notebook shell，摘要、洞察、引用整理會在後續 phase 持續補齊。
+              </p>
+              <p className="rounded-md border border-border/50 px-3 py-2">
+                若你需要可追溯回答，優先改從 Ask / Cite 取得引用，再回到這裡整理觀點。
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </aside>
+
+      <section className="flex min-h-0 flex-col">
+        <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-4 py-3">
+          <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10">
+            <Bot className="size-4 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-sm font-semibold leading-none">Notebook / AI</h1>
+            <p className="mt-0.5 text-xs text-muted-foreground">工作區問答 · 摘要草稿 · 洞察整理</p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            {threadId && (
+              <span className="text-[10px] text-muted-foreground/60">
+                Thread · {messages.length} 則
+              </span>
+            )}
+            <Button size="sm" variant="ghost" onClick={handleNewThread} disabled={messages.length === 0}>
+              <Plus className="mr-1 size-3.5" />
+              新對話
+            </Button>
+          </div>
+        </div>
+
+        {workspaceName && (
+          <div className="shrink-0 border-b border-border/40 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+            目前從工作區 <span className="font-medium text-foreground">{workspaceName}</span> 進入；Notebook 會把這裡視為主要知識上下文。
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {messages.length === 0 && !isPending && (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10">
+                <Bot className="size-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">開始你的 notebook conversation</p>
+                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                  先問工作區背景、文件摘要、會議筆記整理或知識問答，再逐步累積 summary 與 insight。
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="mx-auto max-w-2xl space-y-4">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
+              >
+                <div
+                  className={cn(
+                    "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground",
+                  )}
+                >
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                </div>
+              </div>
+            ))}
+
+            {isPending && (
+              <div className="flex justify-start">
+                <div className="rounded-2xl bg-muted px-4 py-2.5">
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
+                {error}
+              </div>
+            )}
+
+            <div ref={bottomRef} />
+          </div>
+        </div>
+
+        <form
+          onSubmit={(e) => void handleSubmit(e)}
+          className="shrink-0 border-t border-border/60 bg-background/80 px-4 py-3 backdrop-blur"
+        >
+          <div className="mx-auto flex max-w-2xl items-end gap-2">
+            <textarea
+              rows={1}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="輸入你的 notebook 問題… (Enter 送出，Shift+Enter 換行)"
+              disabled={isPending}
+              className="flex-1 resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ maxHeight: "120px" }}
+            />
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isPending || !input.trim()}
+              className="shrink-0 gap-1.5"
+            >
+              {isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <SendHorizonal className="size-4" />
+              )}
+              <span className="hidden sm:inline">送出</span>
+            </Button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
 }
 ````
 
@@ -42856,6 +43378,10 @@ export function ArticleDetailPage({
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const articleListHref =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-base/articles`
+      : "/knowledge-base/articles";
 
   const load = useCallback(async () => {
     if (!accountId || !articleId) { setLoading(false); return; }
@@ -42945,7 +43471,7 @@ export function ArticleDetailPage({
     <div className="space-y-4">
       {/* Back + actions bar */}
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-base/articles")}>
+        <Button variant="ghost" size="sm" onClick={() => router.push(articleListHref)}>
           <ArrowLeft className="mr-1.5 h-4 w-4" /> 文章列表
         </Button>
         <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -45371,6 +45897,18 @@ export function DatabaseDetailPage({
   const [addFieldOpen, setAddFieldOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "board" | "list" | "calendar" | "gallery" | "automations">("table");
   const [isPending, startTransition] = useTransition();
+  const workspaceBasePath =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
+      : "/workspace";
+  const databasesHref =
+    accountId && workspaceId
+      ? `${workspaceBasePath}/knowledge-database/databases`
+      : "/knowledge-database/databases";
+  const formsHref =
+    accountId && workspaceId
+      ? `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`
+      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`;
 
   const load = useCallback(async () => {
     if (!accountId || !databaseId) { setLoading(false); return; }
@@ -45402,7 +45940,7 @@ export function DatabaseDetailPage({
   function handleArchive() {
     startTransition(async () => {
       await archiveDatabase({ id: databaseId, accountId });
-      router.push("/knowledge-database/databases");
+      router.push(databasesHref);
     });
   }
 
@@ -45418,7 +45956,7 @@ export function DatabaseDetailPage({
   if (!database) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-database/databases")}>
+        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
           <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
         </Button>
         <p className="text-sm text-muted-foreground">找不到資料庫。</p>
@@ -45430,7 +45968,7 @@ export function DatabaseDetailPage({
     <div className="space-y-4">
       {/* Top bar */}
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-database/databases")}>
+        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
           <ArrowLeft className="mr-1.5 h-4 w-4" /> 資料庫列表
         </Button>
       </div>
@@ -45505,7 +46043,7 @@ export function DatabaseDetailPage({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => router.push(`/knowledge-database/databases/${databaseId}/forms`)}
+            onClick={() => router.push(formsHref)}
             disabled={isPending}
           >
             <FileText className="mr-1.5 h-3.5 w-3.5" /> 表單
@@ -45619,6 +46157,10 @@ export function DatabaseFormsPage({
   const [database, setDatabase] = useState<Database | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"preview" | "share">("preview");
+  const databaseDetailHref =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-database/databases/${encodeURIComponent(databaseId)}`
+      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}`;
 
   const load = useCallback(async () => {
     if (!accountId || !databaseId) { setLoading(false); return; }
@@ -45653,9 +46195,7 @@ export function DatabaseFormsPage({
     );
   }
 
-  const shareUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/knowledge-database/databases/${databaseId}/forms`
-    : "";
+  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
 
   return (
     <div className="space-y-4">
@@ -45664,7 +46204,7 @@ export function DatabaseFormsPage({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => router.push(`/knowledge-database/databases/${databaseId}`)}
+          onClick={() => router.push(databaseDetailHref)}
         >
           <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回資料庫
         </Button>
@@ -47829,6 +48369,14 @@ export function KnowledgePageDetailPage({
   const [loading, setLoading] = useState(true);
   const [commentOpen, setCommentOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const workspaceBasePath =
+    accountId && activeWorkspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(activeWorkspaceId)}`
+      : "/workspace";
+  const pageListHref =
+    accountId && activeWorkspaceId
+      ? `${workspaceBasePath}/knowledge/pages`
+      : "/workspace?tab=Overview&panel=knowledge-pages";
 
   const load = useCallback(async () => {
     if (!accountId || !pageId) { setLoading(false); return; }
@@ -47873,7 +48421,7 @@ export function KnowledgePageDetailPage({
   function handleArchive() {
     startTransition(async () => {
       await archiveKnowledgePage({ accountId, pageId });
-      router.push("/knowledge/pages");
+      router.push(pageListHref);
     });
   }
 
@@ -47894,7 +48442,7 @@ export function KnowledgePageDetailPage({
   if (!page) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge/pages")}>
+        <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
           <ArrowLeft className="mr-1.5 h-4 w-4" />
           頁面列表
         </Button>
@@ -47926,7 +48474,7 @@ export function KnowledgePageDetailPage({
       <div className="space-y-4 px-0 pt-4">
         {/* Top bar */}
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge/pages")}>
+          <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
             <ArrowLeft className="mr-1.5 h-4 w-4" />
             頁面列表
           </Button>
@@ -48095,7 +48643,14 @@ export function KnowledgeSidebarSection({
     () => Boolean(activeWorkspaceId),
   );
 
-  const contextualPagesHref = withContextQuery("/knowledge/pages", activeAccountId, activeWorkspaceId);
+  const workspaceBasePath =
+    activeAccountId && activeWorkspaceId
+      ? `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(activeWorkspaceId)}`
+      : "";
+
+  const contextualPagesHref = workspaceBasePath
+    ? `${workspaceBasePath}/knowledge/pages`
+    : withContextQuery("/knowledge/pages", activeAccountId, activeWorkspaceId);
 
   return (
     <nav className="space-y-0.5" aria-label="Knowledge navigation">
@@ -48112,9 +48667,9 @@ export function KnowledgeSidebarSection({
       <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
         <Link
           href={contextualPagesHref}
-          aria-current={isActiveRoute(pathname, "/knowledge/pages") ? "page" : undefined}
+          aria-current={pathname.includes("/knowledge/pages") ? "page" : undefined}
           className={`flex-1 ${
-            isActiveRoute(pathname, "/knowledge/pages")
+            pathname.includes("/knowledge/pages")
               ? "text-primary"
               : "text-muted-foreground hover:text-foreground"
           }`}
@@ -48134,12 +48689,24 @@ export function KnowledgeSidebarSection({
       </div>
       {(
         [
-          { href: "/knowledge", label: "Knowledge Hub" },
-          { href: "/knowledge/block-editor", label: "區塊編輯器" },
+          {
+            href: workspaceBasePath
+              ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
+              : "/knowledge",
+            label: "Knowledge Hub",
+          },
+          {
+            href: workspaceBasePath
+              ? `${workspaceBasePath}/knowledge/block-editor`
+              : "/knowledge/block-editor",
+            label: "區塊編輯器",
+          },
         ] as const
       ).map((item) => {
-        const active = isActiveRoute(pathname, item.href);
-        const contextualHref = withContextQuery(item.href, activeAccountId, activeWorkspaceId);
+        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const contextualHref = workspaceBasePath
+          ? item.href
+          : withContextQuery(item.href, activeAccountId, activeWorkspaceId);
         return (
           <Link
             key={item.href}
@@ -52303,470 +52870,107 @@ export type {
 } from "../../domain/entities/Organization";
 ````
 
-## File: modules/platform/subdomains/organization/domain/aggregates/index.ts
+## File: modules/platform/subdomains/organization/application/use-cases/organization-team.use-cases.ts
 ````typescript
-export * from "./Organization";
-````
+/**
+ * Organization Team Use Cases — team-scoped operations owned by the organization subdomain.
+ *
+ * These use cases depend only on IOrganizationTeamPort (defined in organization's own
+ * domain/ports/), keeping the application layer free from direct peer-subdomain imports.
+ * The infrastructure composition root (organization-service.ts) injects the concrete
+ * team adapter that satisfies the port.
+ */
 
-## File: modules/platform/subdomains/organization/domain/aggregates/Organization.ts
-````typescript
-import type {
-	MemberAddedEvent,
-	MemberRemovedEvent,
-	MemberRoleUpdatedEvent,
-	OrganizationCreatedEvent,
-	OrganizationDissolvedEvent,
-	OrganizationDomainEventType,
-	OrganizationReactivatedEvent,
-	OrganizationSuspendedEvent,
-	SettingsUpdatedEvent,
-} from "../events";
-import type { ThemeConfig } from "../entities/Organization";
-import {
-	canDissolve,
-	canReactivate,
-	canSuspend,
-	createMemberRole,
-	createOrganizationId,
-	type MemberRole,
-	type OrganizationStatus,
-} from "../value-objects";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { IOrganizationTeamPort } from "../../domain/ports/IOrganizationTeamPort";
+import type { CreateTeamInput } from "../../domain/entities/Organization";
 
-export interface OrganizationSnapshot {
-	readonly id: string;
-	readonly name: string;
-	readonly ownerId: string;
-	readonly ownerName: string;
-	readonly ownerEmail: string;
-	readonly description: string | null;
-	readonly photoURL: string | null;
-	readonly theme: ThemeConfig | null;
-	readonly memberCount: number;
-	readonly teamCount: number;
-	readonly status: "active" | "suspended" | "dissolved";
-	readonly createdAtISO: string;
-	readonly updatedAtISO: string;
+export class CreateTeamUseCase {
+  constructor(private readonly teamPort: IOrganizationTeamPort) {}
+
+  async execute(input: CreateTeamInput): Promise<CommandResult> {
+    try {
+      const teamId = await this.teamPort.createTeam(input);
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CREATE_TEAM_FAILED",
+        err instanceof Error ? err.message : "Failed to create team",
+      );
+    }
+  }
 }
 
-export interface CreateOrganizationInput {
-	readonly name: string;
-	readonly ownerId: string;
-	readonly ownerName: string;
-	readonly ownerEmail: string;
-	readonly description?: string | null;
-	readonly photoURL?: string | null;
-	readonly theme?: ThemeConfig | null;
+export class DeleteTeamUseCase {
+  constructor(private readonly teamPort: IOrganizationTeamPort) {}
+
+  async execute(organizationId: string, teamId: string): Promise<CommandResult> {
+    try {
+      await this.teamPort.deleteTeam(organizationId, teamId);
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "DELETE_TEAM_FAILED",
+        err instanceof Error ? err.message : "Failed to delete team",
+      );
+    }
+  }
 }
 
-export class Organization {
-	private readonly _domainEvents: OrganizationDomainEventType[] = [];
-	private readonly _memberRoles = new Map<string, MemberRole>();
+export class UpdateTeamMembersUseCase {
+  constructor(private readonly teamPort: IOrganizationTeamPort) {}
 
-	private constructor(private _props: OrganizationSnapshot) {}
-
-	static create(id: string, input: CreateOrganizationInput): Organization {
-		createOrganizationId(id);
-		Organization.assertRequired(input.name, "Organization name is required.");
-		Organization.assertRequired(input.ownerId, "Owner id is required.");
-		Organization.assertRequired(input.ownerName, "Owner name is required.");
-		Organization.assertRequired(input.ownerEmail, "Owner email is required.");
-		const now = new Date().toISOString();
-		const aggregate = new Organization({
-			id,
-			name: input.name.trim(),
-			ownerId: input.ownerId.trim(),
-			ownerName: input.ownerName.trim(),
-			ownerEmail: input.ownerEmail.trim(),
-			description: input.description ?? null,
-			photoURL: input.photoURL ?? null,
-			theme: input.theme ?? null,
-			memberCount: 1,
-			teamCount: 0,
-			status: "active",
-			createdAtISO: now,
-			updatedAtISO: now,
-		});
-		aggregate._memberRoles.set(aggregate._props.ownerId, "Owner");
-		aggregate.recordEvent<OrganizationCreatedEvent>({
-			type: "platform.organization.created",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				organizationId: aggregate._props.id,
-				name: aggregate._props.name,
-				ownerId: aggregate._props.ownerId,
-				ownerName: aggregate._props.ownerName,
-				ownerEmail: aggregate._props.ownerEmail,
-				theme: aggregate._props.theme,
-			},
-		});
-		return aggregate;
-	}
-
-	static reconstitute(snapshot: OrganizationSnapshot): Organization {
-		createOrganizationId(snapshot.id);
-		if (snapshot.memberCount < 1) {
-			throw new Error("Organization memberCount must be at least 1.");
-		}
-		if (snapshot.teamCount < 0) {
-			throw new Error("Organization teamCount cannot be negative.");
-		}
-		const aggregate = new Organization({ ...snapshot });
-		aggregate._memberRoles.set(snapshot.ownerId, "Owner");
-		return aggregate;
-	}
-
-	updateSettings(input: { name?: string; description?: string | null; photoURL?: string | null; theme?: ThemeConfig | null }): void {
-		this.ensureActive("Only active organization can update settings.");
-		if (input.name !== undefined) {
-			Organization.assertRequired(input.name, "Organization name is required.");
-		}
-		const now = new Date().toISOString();
-		this._props = {
-			...this._props,
-			name: input.name === undefined ? this._props.name : input.name.trim(),
-			description: input.description === undefined ? this._props.description : input.description,
-			photoURL: input.photoURL === undefined ? this._props.photoURL : input.photoURL,
-			theme: input.theme === undefined ? this._props.theme : input.theme,
-			updatedAtISO: now,
-		};
-		this.recordEvent<SettingsUpdatedEvent>({
-			type: "platform.organization.settings_updated",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				organizationId: this._props.id,
-				name: this._props.name,
-				description: this._props.description,
-				photoURL: this._props.photoURL,
-				theme: this._props.theme,
-			},
-		});
-	}
-
-	addMember(memberId: string, name: string, email: string, role: MemberRole): void {
-		this.ensureActive("Only active organization can add members.");
-		Organization.assertRequired(memberId, "Member id is required.");
-		Organization.assertRequired(name, "Member name is required.");
-		Organization.assertRequired(email, "Member email is required.");
-		const normalizedRole = createMemberRole(role);
-		if (memberId === this._props.ownerId || this._memberRoles.has(memberId)) {
-			throw new Error("Member already exists in organization.");
-		}
-		const now = new Date().toISOString();
-		this._memberRoles.set(memberId, normalizedRole);
-		this._props = {
-			...this._props,
-			memberCount: this._props.memberCount + 1,
-			updatedAtISO: now,
-		};
-		this.recordEvent<MemberAddedEvent>({
-			type: "platform.organization.member_added",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				organizationId: this._props.id,
-				memberId,
-				name: name.trim(),
-				email: email.trim(),
-				role: normalizedRole,
-				memberCount: this._props.memberCount,
-			},
-		});
-	}
-
-	removeMember(memberId: string): void {
-		this.ensureActive("Only active organization can remove members.");
-		Organization.assertRequired(memberId, "Member id is required.");
-		if (memberId === this._props.ownerId) {
-			throw new Error("Cannot remove organization owner.");
-		}
-		if (!this._memberRoles.has(memberId)) {
-			throw new Error("Member does not exist in organization.");
-		}
-		const now = new Date().toISOString();
-		this._memberRoles.delete(memberId);
-		this._props = {
-			...this._props,
-			memberCount: this._props.memberCount - 1,
-			updatedAtISO: now,
-		};
-		this.recordEvent<MemberRemovedEvent>({
-			type: "platform.organization.member_removed",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				organizationId: this._props.id,
-				memberId,
-				memberCount: this._props.memberCount,
-			},
-		});
-	}
-
-	updateMemberRole(memberId: string, newRole: MemberRole): void {
-		this.ensureActive("Only active organization can update member roles.");
-		Organization.assertRequired(memberId, "Member id is required.");
-		if (memberId === this._props.ownerId) {
-			throw new Error("Cannot change organization owner role.");
-		}
-		if (!this._memberRoles.has(memberId)) {
-			throw new Error("Member does not exist in organization.");
-		}
-		const normalizedRole = createMemberRole(newRole);
-		const previousRole = this._memberRoles.get(memberId) ?? "Member";
-		const now = new Date().toISOString();
-		this._memberRoles.set(memberId, normalizedRole);
-		this._props = { ...this._props, updatedAtISO: now };
-		this.recordEvent<MemberRoleUpdatedEvent>({
-			type: "platform.organization.member_role_updated",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				organizationId: this._props.id,
-				memberId,
-				previousRole,
-				role: normalizedRole,
-			},
-		});
-	}
-
-	suspend(): void {
-		if (!canSuspend(this._props.status)) {
-			throw new Error("Only active organization can be suspended.");
-		}
-		this.changeStatus("suspended", "platform.organization.suspended");
-	}
-
-	dissolve(): void {
-		if (!canDissolve(this._props.status)) {
-			throw new Error("Organization is already dissolved.");
-		}
-		this.changeStatus("dissolved", "platform.organization.dissolved");
-	}
-
-	reactivate(): void {
-		if (!canReactivate(this._props.status)) {
-			throw new Error("Only suspended organization can be reactivated.");
-		}
-		this.changeStatus("active", "platform.organization.reactivated");
-	}
-
-	get id(): string {
-		return this._props.id;
-	}
-
-	get name(): string {
-		return this._props.name;
-	}
-
-	get ownerId(): string {
-		return this._props.ownerId;
-	}
-
-	get ownerName(): string {
-		return this._props.ownerName;
-	}
-
-	get ownerEmail(): string {
-		return this._props.ownerEmail;
-	}
-
-	get description(): string | null {
-		return this._props.description;
-	}
-
-	get photoURL(): string | null {
-		return this._props.photoURL;
-	}
-
-	get theme(): ThemeConfig | null {
-		return this._props.theme;
-	}
-
-	get memberCount(): number {
-		return this._props.memberCount;
-	}
-
-	get teamCount(): number {
-		return this._props.teamCount;
-	}
-
-	get status(): OrganizationStatus {
-		return this._props.status;
-	}
-
-	get createdAtISO(): string {
-		return this._props.createdAtISO;
-	}
-
-	get updatedAtISO(): string {
-		return this._props.updatedAtISO;
-	}
-
-	getSnapshot(): Readonly<OrganizationSnapshot> {
-		return Object.freeze({ ...this._props });
-	}
-
-	pullDomainEvents(): OrganizationDomainEventType[] {
-		const events = [...this._domainEvents];
-		this._domainEvents.length = 0;
-		return events;
-	}
-
-	private changeStatus(
-		status: OrganizationStatus,
-		eventType: "platform.organization.suspended" | "platform.organization.dissolved" | "platform.organization.reactivated",
-	): void {
-		const now = new Date().toISOString();
-		this._props = { ...this._props, status, updatedAtISO: now };
-		if (eventType === "platform.organization.suspended") {
-			this.recordEvent<OrganizationSuspendedEvent>({
-				type: eventType,
-				eventId: crypto.randomUUID(),
-				occurredAt: now,
-				payload: { organizationId: this._props.id, status },
-			});
-			return;
-		}
-		if (eventType === "platform.organization.dissolved") {
-			this.recordEvent<OrganizationDissolvedEvent>({
-				type: eventType,
-				eventId: crypto.randomUUID(),
-				occurredAt: now,
-				payload: { organizationId: this._props.id, status },
-			});
-			return;
-		}
-		this.recordEvent<OrganizationReactivatedEvent>({
-			type: eventType,
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: { organizationId: this._props.id, status },
-		});
-	}
-
-	private ensureActive(message: string): void {
-		if (this._props.status !== "active") {
-			throw new Error(message);
-		}
-	}
-
-	private recordEvent<TEvent extends OrganizationDomainEventType>(event: TEvent): void {
-		this._domainEvents.push(event);
-	}
-
-	private static assertRequired(value: string, message: string): void {
-		if (value.trim().length === 0) {
-			throw new Error(message);
-		}
-	}
+  async execute(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+    action: "add" | "remove",
+  ): Promise<CommandResult> {
+    try {
+      if (action === "add") {
+        await this.teamPort.addMemberToTeam(organizationId, teamId, memberId);
+      } else {
+        await this.teamPort.removeMemberFromTeam(organizationId, teamId, memberId);
+      }
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "UPDATE_TEAM_MEMBERS_FAILED",
+        err instanceof Error ? err.message : "Failed to update team members",
+      );
+    }
+  }
 }
 ````
 
-## File: modules/platform/subdomains/organization/domain/events/index.ts
+## File: modules/platform/subdomains/organization/domain/index.ts
 ````typescript
-export * from "./OrganizationDomainEvent";
-````
-
-## File: modules/platform/subdomains/organization/domain/events/OrganizationDomainEvent.ts
-````typescript
-import type { ThemeConfig } from "../entities/Organization";
-import type { MemberRole, OrganizationStatus } from "../value-objects";
-
-export interface OrganizationDomainEvent {
-	readonly eventId: string;
-	readonly occurredAt: string;
-	readonly type: string;
-	readonly payload: object;
-}
-
-export interface OrganizationCreatedEvent extends OrganizationDomainEvent {
-	readonly type: "platform.organization.created";
-	readonly payload: {
-		readonly organizationId: string;
-		readonly name: string;
-		readonly ownerId: string;
-		readonly ownerName: string;
-		readonly ownerEmail: string;
-		readonly theme: ThemeConfig | null;
-	};
-}
-
-export interface SettingsUpdatedEvent extends OrganizationDomainEvent {
-	readonly type: "platform.organization.settings_updated";
-	readonly payload: {
-		readonly organizationId: string;
-		readonly name: string;
-		readonly description: string | null;
-		readonly photoURL: string | null;
-		readonly theme: ThemeConfig | null;
-	};
-}
-
-export interface MemberAddedEvent extends OrganizationDomainEvent {
-	readonly type: "platform.organization.member_added";
-	readonly payload: {
-		readonly organizationId: string;
-		readonly memberId: string;
-		readonly name: string;
-		readonly email: string;
-		readonly role: MemberRole;
-		readonly memberCount: number;
-	};
-}
-
-export interface MemberRemovedEvent extends OrganizationDomainEvent {
-	readonly type: "platform.organization.member_removed";
-	readonly payload: {
-		readonly organizationId: string;
-		readonly memberId: string;
-		readonly memberCount: number;
-	};
-}
-
-export interface MemberRoleUpdatedEvent extends OrganizationDomainEvent {
-	readonly type: "platform.organization.member_role_updated";
-	readonly payload: {
-		readonly organizationId: string;
-		readonly memberId: string;
-		readonly previousRole: MemberRole;
-		readonly role: MemberRole;
-	};
-}
-
-export interface OrganizationSuspendedEvent extends OrganizationDomainEvent {
-	readonly type: "platform.organization.suspended";
-	readonly payload: {
-		readonly organizationId: string;
-		readonly status: OrganizationStatus;
-	};
-}
-
-export interface OrganizationDissolvedEvent extends OrganizationDomainEvent {
-	readonly type: "platform.organization.dissolved";
-	readonly payload: {
-		readonly organizationId: string;
-		readonly status: OrganizationStatus;
-	};
-}
-
-export interface OrganizationReactivatedEvent extends OrganizationDomainEvent {
-	readonly type: "platform.organization.reactivated";
-	readonly payload: {
-		readonly organizationId: string;
-		readonly status: OrganizationStatus;
-	};
-}
-
-export type OrganizationDomainEventType =
-	| OrganizationCreatedEvent
-	| SettingsUpdatedEvent
-	| MemberAddedEvent
-	| MemberRemovedEvent
-	| MemberRoleUpdatedEvent
-	| OrganizationSuspendedEvent
-	| OrganizationDissolvedEvent
-	| OrganizationReactivatedEvent;
+export type { OrganizationEntity,
+  OrganizationRole,
+  Presence,
+  InviteState,
+  PolicyEffect,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  ThemeConfig,
+  OrgPolicy,
+  OrgPolicyRule,
+  OrgPolicyScope,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "./entities/Organization";
+export type { OrganizationRepository, Unsubscribe } from "./repositories/OrganizationRepository";
+export type { OrgPolicyRepository } from "./repositories/OrgPolicyRepository";
+export type { IOrganizationTeamPort } from "./ports/IOrganizationTeamPort";
+export * from "./aggregates";
+export * from "./events";
+export * from "./value-objects";
 ````
 
 ## File: modules/platform/subdomains/organization/domain/ports/index.ts
@@ -52793,75 +52997,6 @@ export interface IOrganizationTeamPort {
   addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
   removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
   getTeams(organizationId: string): Promise<Team[]>;
-}
-````
-
-## File: modules/platform/subdomains/organization/domain/value-objects/index.ts
-````typescript
-export { OrganizationIdSchema, createOrganizationId } from "./OrganizationId";
-export type { OrganizationId } from "./OrganizationId";
-
-export { MEMBER_ROLES, MemberRoleSchema, createMemberRole, canManageRole } from "./MemberRole";
-export type { MemberRole } from "./MemberRole";
-
-export { ORGANIZATION_STATUSES, canSuspend, canDissolve, canReactivate } from "./OrganizationStatus";
-export type { OrganizationStatus } from "./OrganizationStatus";
-````
-
-## File: modules/platform/subdomains/organization/domain/value-objects/MemberRole.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const MEMBER_ROLES = ["Owner", "Admin", "Member", "Guest"] as const;
-export const MemberRoleSchema = z.enum(MEMBER_ROLES);
-export type MemberRole = z.infer<typeof MemberRoleSchema>;
-
-const ROLE_RANK: Record<MemberRole, number> = {
-	Owner: 4,
-	Admin: 3,
-	Member: 2,
-	Guest: 1,
-};
-
-export function createMemberRole(raw: string): MemberRole {
-	return MemberRoleSchema.parse(raw);
-}
-
-export function canManageRole(managerRole: MemberRole, targetRole: MemberRole): boolean {
-	if (managerRole === "Owner") {
-		return targetRole !== "Owner";
-	}
-	return ROLE_RANK[managerRole] > ROLE_RANK[targetRole];
-}
-````
-
-## File: modules/platform/subdomains/organization/domain/value-objects/OrganizationId.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const OrganizationIdSchema = z.string().min(1).brand("OrganizationId");
-export type OrganizationId = z.infer<typeof OrganizationIdSchema>;
-
-export function createOrganizationId(raw: string): OrganizationId {
-	return OrganizationIdSchema.parse(raw);
-}
-````
-
-## File: modules/platform/subdomains/organization/domain/value-objects/OrganizationStatus.ts
-````typescript
-export const ORGANIZATION_STATUSES = ["active", "suspended", "dissolved"] as const;
-export type OrganizationStatus = (typeof ORGANIZATION_STATUSES)[number];
-
-export function canSuspend(status: OrganizationStatus): boolean {
-	return status === "active";
-}
-
-export function canDissolve(status: OrganizationStatus): boolean {
-	return status !== "dissolved";
-}
-
-export function canReactivate(status: OrganizationStatus): boolean {
-	return status === "suspended";
 }
 ````
 
@@ -52926,31 +53061,6 @@ export {
 	listShellCommandCatalogItems,
 	type ShellCommandCatalogItem,
 } from "./services/shell-command-catalog";
-````
-
-## File: modules/platform/subdomains/search/application/services/shell-command-catalog.ts
-````typescript
-export interface ShellCommandCatalogItem {
-  readonly href: string;
-  readonly label: string;
-  readonly group: "導覽" | "Knowledge" | "Source";
-}
-
-const SHELL_COMMAND_CATALOG_ITEMS: readonly ShellCommandCatalogItem[] = [
-  { href: "/workspace", label: "Workspace Hub", group: "導覽" },
-  { href: "/knowledge", label: "Knowledge Hub", group: "導覽" },
-  { href: "/knowledge-base/articles", label: "Knowledge Base", group: "導覽" },
-  { href: "/knowledge-database/databases", label: "Knowledge Database", group: "導覽" },
-  { href: "/notebook/rag-query", label: "Notebook / AI", group: "導覽" },
-  { href: "/ai-chat", label: "AI Chat", group: "導覽" },
-  { href: "/knowledge/pages", label: "頁面管理", group: "Knowledge" },
-  { href: "/knowledge/block-editor", label: "區塊編輯器", group: "Knowledge" },
-  { href: "/source/libraries", label: "Libraries 表格", group: "Source" },
-] as const;
-
-export function listShellCommandCatalogItems(): readonly ShellCommandCatalogItem[] {
-  return SHELL_COMMAND_CATALOG_ITEMS;
-}
 ````
 
 ## File: modules/platform/subdomains/secret-management/api/index.ts
@@ -53359,64 +53469,30 @@ export const subscriptionService = {
 };
 ````
 
-## File: modules/platform/subdomains/team/application/use-cases/team.use-cases.ts
+## File: modules/platform/subdomains/team/api/index.ts
 ````typescript
 /**
  * Module: platform/subdomains/team
- * Layer: application/use-cases
- * Purpose: Team management use cases — create, delete, and member updates.
+ * Layer: api (public boundary)
+ * Purpose: Exports types, use cases, and a factory function for the team
+ *          subdomain. Consumers must use the TeamRepository port interface
+ *          and the createTeamRepository factory — never the concrete adapter.
  */
 
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { TeamRepository } from "../../domain/repositories/TeamRepository";
-import type { CreateTeamInput } from "../../domain/entities/Team";
+import type { TeamRepository } from "../domain/repositories/TeamRepository";
+import { FirebaseTeamRepository } from "../infrastructure/firebase/FirebaseTeamRepository";
 
-export class CreateTeamUseCase {
-  constructor(private readonly teamRepo: TeamRepository) {}
+export type { Team, CreateTeamInput } from "../domain/entities/Team";
+export type { TeamRepository } from "../domain/repositories/TeamRepository";
+export {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "../application/use-cases/team.use-cases";
 
-  async execute(input: CreateTeamInput): Promise<CommandResult> {
-    try {
-      const teamId = await this.teamRepo.createTeam(input);
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Failed to create team");
-    }
-  }
-}
-
-export class DeleteTeamUseCase {
-  constructor(private readonly teamRepo: TeamRepository) {}
-
-  async execute(organizationId: string, teamId: string): Promise<CommandResult> {
-    try {
-      await this.teamRepo.deleteTeam(organizationId, teamId);
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Failed to delete team");
-    }
-  }
-}
-
-export class UpdateTeamMembersUseCase {
-  constructor(private readonly teamRepo: TeamRepository) {}
-
-  async execute(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-    action: "add" | "remove",
-  ): Promise<CommandResult> {
-    try {
-      if (action === "add") {
-        await this.teamRepo.addMemberToTeam(organizationId, teamId, memberId);
-      } else {
-        await this.teamRepo.removeMemberFromTeam(organizationId, teamId, memberId);
-      }
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Failed to update team members");
-    }
-  }
+/** Factory — returns a TeamRepository backed by Firebase. */
+export function createTeamRepository(): TeamRepository {
+  return new FirebaseTeamRepository();
 }
 ````
 
@@ -53424,30 +53500,6 @@ export class UpdateTeamMembersUseCase {
 ````typescript
 export { OrganizationTeam } from "./OrganizationTeam";
 export type { OrganizationTeamSnapshot, CreateOrganizationTeamProps } from "./OrganizationTeam";
-````
-
-## File: modules/platform/subdomains/team/domain/entities/Team.ts
-````typescript
-/**
- * Module: platform/subdomains/team
- * Layer: domain/entities
- * Purpose: Team entity and related input types owned by the team subdomain.
- */
-
-export interface Team {
-  id: string;
-  name: string;
-  description: string;
-  type: "internal" | "external";
-  memberIds: string[];
-}
-
-export interface CreateTeamInput {
-  organizationId: string;
-  name: string;
-  description: string;
-  type: "internal" | "external";
-}
 ````
 
 ## File: modules/platform/subdomains/team/domain/events/index.ts
@@ -53564,26 +53616,6 @@ export * from "./value-objects";
 export type { TeamRepository as ITeamPort } from "../repositories/TeamRepository";
 ````
 
-## File: modules/platform/subdomains/team/domain/repositories/TeamRepository.ts
-````typescript
-/**
- * Module: platform/subdomains/team
- * Layer: domain/repositories
- * Purpose: TeamRepository port — team-scoped operations only.
- *          Implemented in the firebase adapter.
- */
-
-import type { Team, CreateTeamInput } from "../entities/Team";
-
-export interface TeamRepository {
-  createTeam(input: CreateTeamInput): Promise<string>;
-  deleteTeam(organizationId: string, teamId: string): Promise<void>;
-  addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
-  removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
-  getTeams(organizationId: string): Promise<Team[]>;
-}
-````
-
 ## File: modules/platform/subdomains/team/domain/value-objects/index.ts
 ````typescript
 export type { TeamId } from "./TeamId";
@@ -53619,81 +53651,6 @@ import { z } from "zod";
 
 export const TeamTypeSchema = z.enum(["internal", "external"]);
 export type TeamType = z.infer<typeof TeamTypeSchema>;
-````
-
-## File: modules/platform/subdomains/team/infrastructure/firebase/FirebaseTeamRepository.ts
-````typescript
-/**
- * Module: platform/subdomains/team
- * Layer: infrastructure/firebase
- * Purpose: Firebase implementation of TeamRepository.
- *          Directly accesses the organizations/{orgId}/teams sub-collection.
- */
-
-import {
-  getFirestore,
-  doc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  collection,
-  getDocs,
-  arrayUnion,
-  arrayRemove,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { TeamRepository } from "../../domain/repositories/TeamRepository";
-import type { Team, CreateTeamInput } from "../../domain/entities/Team";
-
-function toTeam(id: string, data: Record<string, unknown>): Team {
-  return {
-    id,
-    name: typeof data.name === "string" ? data.name : "",
-    description: typeof data.description === "string" ? data.description : "",
-    type: data.type === "external" ? "external" : "internal",
-    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
-  };
-}
-
-export class FirebaseTeamRepository implements TeamRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async createTeam(input: CreateTeamInput): Promise<string> {
-    const teamRef = doc(collection(this.db, "organizations", input.organizationId, "teams"));
-    await setDoc(teamRef, {
-      name: input.name,
-      description: input.description,
-      type: input.type,
-      memberIds: [],
-      createdAt: serverTimestamp(),
-    });
-    return teamRef.id;
-  }
-
-  async deleteTeam(organizationId: string, teamId: string): Promise<void> {
-    await deleteDoc(doc(this.db, "organizations", organizationId, "teams", teamId));
-  }
-
-  async addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void> {
-    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
-      memberIds: arrayUnion(memberId),
-    });
-  }
-
-  async removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void> {
-    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
-      memberIds: arrayRemove(memberId),
-    });
-  }
-
-  async getTeams(organizationId: string): Promise<Team[]> {
-    const snaps = await getDocs(collection(this.db, "organizations", organizationId, "teams"));
-    return snaps.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>));
-  }
-}
 ````
 
 ## File: modules/platform/subdomains/team/interfaces/_actions/team.actions.ts
@@ -53905,76 +53862,6 @@ export {
 // --- Ports ---
 export type { WorkspaceCommandPort } from "../../domain/ports/input/WorkspaceCommandPort";
 export type { WorkspaceQueryPort } from "../../domain/ports/input/WorkspaceQueryPort";
-````
-
-## File: modules/workspace/application/queries/wiki-content-tree.queries.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/queries
- * Purpose: Build the workspace content-tree from account/workspace seeds.
- *          This is a query projection, not a use case — it aggregates
- *          workspace-scoped content nodes for read-only display.
- *
- * DDD Rule 5:  Pure reads → Query, not Use Case.
- * DDD Rule 13: Read → queries/
- */
-
-import type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-  WikiContentItemNode,
-  WikiWorkspaceContentNode,
-} from "../../domain/entities/WikiContentTree";
-import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWorkspaceRepository";
-
-function buildContentBaseItems(workspaceId: string): WikiContentItemNode[] {
-  return [
-    { key: "spaces", label: "Workspace", href: `/workspace/${workspaceId}`, enabled: true },
-    { key: "pages", label: "Knowledge Pages", href: `/knowledge/pages?workspaceId=${workspaceId}`, enabled: true },
-    { key: "libraries", label: "Libraries", href: `/source/libraries?workspaceId=${workspaceId}`, enabled: true },
-    { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
-    { key: "vector-index", label: "Vector Index", href: "/knowledge", enabled: false },
-    { key: "rag", label: "RAG", href: `/notebook/rag-query?workspaceId=${workspaceId}`, enabled: true },
-    { key: "ai-tools", label: "AI Tools", href: `/ai-chat?workspaceId=${workspaceId}`, enabled: true },
-  ];
-}
-
-function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiWorkspaceContentNode {
-  return {
-    workspaceId,
-    workspaceName,
-    href: `/workspace/${workspaceId}`,
-    contentBaseItems: buildContentBaseItems(workspaceId),
-  };
-}
-
-export async function buildWikiContentTree(
-  seeds: WikiAccountSeed[],
-  workspaceRepository: WikiWorkspaceRepository,
-): Promise<WikiAccountContentNode[]> {
-  const accountNodes = await Promise.all(
-    seeds.map(async (seed) => {
-      const workspaces = await workspaceRepository.listByAccountId(seed.accountId);
-      return {
-        accountId: seed.accountId,
-        accountName: seed.accountName,
-        accountType: seed.accountType,
-        isActive: seed.isActive,
-        membersHref: seed.accountType === "organization" ? "/organization/members" : undefined,
-        teamsHref: seed.accountType === "organization" ? "/organization/teams" : undefined,
-        workspaces: workspaces.map((workspace) => buildWorkspaceNode(workspace.id, workspace.name)),
-      } satisfies WikiAccountContentNode;
-    }),
-  );
-
-  return accountNodes.sort((a, b) => {
-    if (a.accountType !== b.accountType) {
-      return a.accountType === "personal" ? -1 : 1;
-    }
-    return a.accountName.localeCompare(b.accountName, "zh-Hant");
-  });
-}
 ````
 
 ## File: modules/workspace/application/use-cases/workspace-location.use-cases.ts
@@ -55214,84 +55101,259 @@ export function WorkspaceSidebarSection({
 }
 ````
 
-## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailRouteScreen.tsx
 ````typescript
-import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Users } from "lucide-react";
-import type { ReactNode } from "react";
+"use client";
 
-export interface WorkspaceQuickAccessMatcherOptions {
-  panel: string | null;
-  tab: string | null;
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+import { WorkspaceDetailScreen } from "./WorkspaceDetailScreen";
+
+interface WorkspaceDetailRouteScreenProps {
+  workspaceId: string;
+  accountId: string | null | undefined;
+  accountsHydrated: boolean;
+  initialTab?: string;
+  initialOverviewPanel?: string;
 }
 
-export interface WorkspaceQuickAccessItem {
+export function WorkspaceDetailRouteScreen({
+  workspaceId,
+  accountId,
+  accountsHydrated,
+  initialTab,
+  initialOverviewPanel,
+}: WorkspaceDetailRouteScreenProps) {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (initialTab === "Wiki" && workspaceId) {
+      router.replace(`/workspace/${encodeURIComponent(workspaceId)}?tab=Overview&panel=knowledge-pages`);
+    }
+  }, [initialTab, router, workspaceId]);
+
+  if (initialTab === "Wiki" && workspaceId) {
+    return <div className="px-4 py-6 text-sm text-muted-foreground">正在導向工作區 Overview（Knowledge Pages）…</div>;
+  }
+
+  return (
+    <WorkspaceDetailScreen
+      workspaceId={workspaceId}
+      accountId={accountId}
+      accountsHydrated={accountsHydrated}
+      initialTab={initialTab}
+      initialOverviewPanel={initialOverviewPanel}
+    />
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewKnowledgePanels.tsx
+````typescript
+"use client";
+
+import { KnowledgeBaseArticlesRouteScreen, KnowledgeDatabasesRouteScreen, KnowledgePagesRouteScreen } from "@/modules/notion/api";
+import { LibrariesView, LibraryTableView } from "@/modules/notebooklm/api";
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { TabsContent } from "@ui-shadcn/ui/tabs";
+
+interface WorkspaceOverviewKnowledgePanelsProps {
+  readonly workspace: WorkspaceEntity;
+}
+
+export function WorkspaceOverviewKnowledgePanels({
+  workspace,
+}: WorkspaceOverviewKnowledgePanelsProps) {
+  return (
+    <>
+      <TabsContent value="knowledge-pages" className="mt-4 space-y-4">
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardTitle>Knowledge Pages</CardTitle>
+            <CardDescription>
+              Workspace orchestration surface for notion knowledge page tree and page entry flow.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <KnowledgePagesRouteScreen />
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="knowledge-base-articles" className="mt-4 space-y-4">
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardTitle>Knowledge Base Articles</CardTitle>
+            <CardDescription>
+              Workspace orchestration surface for notion authoring article lifecycle and categorization.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <KnowledgeBaseArticlesRouteScreen />
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="knowledge-databases" className="mt-4 space-y-4">
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardTitle>Knowledge Databases</CardTitle>
+            <CardDescription>
+              Workspace orchestration surface for notion structured database views.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <KnowledgeDatabasesRouteScreen />
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="source-libraries" className="mt-4 space-y-4">
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardTitle>Source Libraries</CardTitle>
+            <CardDescription>
+              Workspace orchestration surface for notebooklm source libraries.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <LibraryTableView accountId={workspace.accountId} workspaceId={workspace.id} />
+            <LibrariesView accountId={workspace.accountId} workspaceId={workspace.id} />
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
+````typescript
+import { useEffect, useMemo, useState } from "react";
+
+import type { WorkspaceEntity } from "../../api/contracts";
+
+interface RecentWorkspaceLink {
+  id: string;
+  name: string;
   href: string;
-  label: string;
-  icon: ReactNode;
-  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
 }
 
-const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
-  {
-    href: "/workspace/{workspaceId}?tab=Overview",
-    label: "首頁",
-    icon: <Home className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") &&
-      (options?.tab == null || options.tab === "Overview") &&
-      options?.panel !== "settings",
-  },
-  {
-    href: "/knowledge/pages?workspaceId={workspaceId}",
-    label: "知識頁面",
-    icon: <FileText className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/knowledge/pages" || pathname.startsWith("/knowledge/pages/"),
-  },
-  {
-    href: "/knowledge-base/articles?workspaceId={workspaceId}",
-    label: "文章",
-    icon: <BookOpen className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/knowledge-base/articles" || pathname.startsWith("/knowledge-base/articles/"),
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Files",
-    label: "檔案",
-    icon: <FolderOpen className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") && options?.tab === "Files",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Members",
-    label: "成員",
-    icon: <Users className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") && options?.tab === "Members",
-  },
-  {
-    href: "/notebook/rag-query?workspaceId={workspaceId}",
-    label: "RAG 查詢",
-    icon: <Brain className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/notebook/rag-query" || pathname.startsWith("/notebook/rag-query/"),
-  },
-  {
-    href: "/source/libraries?workspaceId={workspaceId}",
-    label: "資料庫",
-    icon: <Database className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/source/libraries" || pathname.startsWith("/source/libraries/"),
-  },
-];
+const MAX_VISIBLE_RECENT_WORKSPACES = 10;
+const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
 
-export function buildWorkspaceQuickAccessItems(workspaceId: string): WorkspaceQuickAccessItem[] {
-  const encodedWorkspaceId = encodeURIComponent(workspaceId);
-  return WORKSPACE_QUICK_ACCESS_TEMPLATES.map((item) => ({
-    ...item,
-    href: item.href.replaceAll("{workspaceId}", encodedWorkspaceId),
-  }));
+const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
+  "workspace",
+  "workspace-feed",
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "organization",
+  "settings",
+  "dashboard",
+  "dev-tools",
+]);
+
+function getStorageKey(accountId: string) {
+  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
 }
+
+function readRecentWorkspaceIds(accountId: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(getStorageKey(accountId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
+}
+
+function trackWorkspaceFromPath(pathname: string, accountId: string) {
+  const workspaceId = getWorkspaceIdFromPath(pathname);
+  if (!workspaceId) return;
+  const recentIds = readRecentWorkspaceIds(accountId);
+  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
+  persistRecentWorkspaceIds(accountId, deduped);
+}
+
+function getWorkspaceIdFromPath(pathname: string): string | null {
+  const legacyMatch = pathname.match(/^\/workspace\/([^/]+)/);
+  if (legacyMatch) {
+    return decodeURIComponent(legacyMatch[1]);
+  }
+
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length < 2) {
+    return null;
+  }
+
+  const [firstSegment, secondSegment] = segments;
+  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
+    return null;
+  }
+
+  if (!secondSegment) {
+    return null;
+  }
+
+  return decodeURIComponent(secondSegment);
+}
+
+export function useRecentWorkspaces(
+  accountId: string | undefined,
+  pathname: string,
+  workspaces: WorkspaceEntity[],
+) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!accountId) return;
+    trackWorkspaceFromPath(pathname, accountId);
+  }, [accountId, pathname]);
+
+  const workspacesById = useMemo(
+    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
+    [workspaces],
+  );
+
+  const recentWorkspaceIds = useMemo(() => {
+    if (!accountId) return [] as string[];
+    const stored = readRecentWorkspaceIds(accountId);
+    const currentId = getWorkspaceIdFromPath(pathname);
+    if (!currentId) return stored;
+    return [currentId, ...stored.filter((id) => id !== currentId)];
+  }, [accountId, pathname]);
+
+  const recentWorkspaceLinks = useMemo<RecentWorkspaceLink[]>(() => {
+    return recentWorkspaceIds
+      .map<RecentWorkspaceLink | null>((workspaceId) => {
+        const ws = workspacesById[workspaceId];
+        if (!ws) return null;
+        const href = accountId
+          ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(ws.id)}`
+          : `/workspace/${encodeURIComponent(ws.id)}`;
+        return { id: ws.id, name: ws.name, href };
+      })
+      .filter((item): item is RecentWorkspaceLink => item !== null);
+  }, [accountId, recentWorkspaceIds, workspacesById]);
+
+  return { isExpanded, setIsExpanded, recentWorkspaceLinks };
+}
+
+export { MAX_VISIBLE_RECENT_WORKSPACES, getWorkspaceIdFromPath };
 ````
 
 ## File: modules/workspace/interfaces/web/hooks/useWorkspaceOrchestrationContext.ts
@@ -55573,56 +55635,6 @@ export function writeNavPreferences(prefs: NavPreferences): void {
 }
 ````
 
-## File: modules/workspace/interfaces/web/navigation/workspace-context-links.ts
-````typescript
-export interface WorkspaceNavigationContext {
-  readonly accountId: string | null;
-  readonly workspaceId: string | null;
-}
-
-export function supportsWorkspaceSearchContext(pathname: string): boolean {
-  return (
-    pathname.startsWith("/knowledge") ||
-    pathname.startsWith("/source") ||
-    pathname.startsWith("/notebook")
-  );
-}
-
-export function buildWorkspaceContextHref(pathname: string, workspaceId: string): string {
-  if (pathname.startsWith("/knowledge")) {
-    const targetPath = pathname === "/knowledge" ? "/knowledge/pages" : pathname;
-    return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
-  }
-
-  return `/workspace/${workspaceId}`;
-}
-
-export function appendWorkspaceContextQuery(
-  href: string,
-  context: WorkspaceNavigationContext,
-): string {
-  const { accountId, workspaceId } = context;
-
-  if (!accountId && !workspaceId) {
-    return href;
-  }
-
-  const [path, search = ""] = href.split("?");
-  const params = new URLSearchParams(search);
-
-  if (accountId) {
-    params.set("accountId", accountId);
-  }
-
-  if (workspaceId) {
-    params.set("workspaceId", workspaceId);
-  }
-
-  const query = params.toString();
-  return query.length > 0 ? `${path}?${query}` : path;
-}
-````
-
 ## File: modules/workspace/subdomains/audit/api/index.ts
 ````typescript
 /**
@@ -55700,190 +55712,6 @@ export class RecordAuditEntryUseCase {
 }
 ````
 
-## File: modules/workspace/subdomains/audit/domain/aggregates/AuditEntry.ts
-````typescript
-import type { AuditLogSource } from "../entities/AuditLog";
-import type { AuditDomainEventType } from "../events";
-import type { AuditAction } from "../schema";
-import type { AuditSeverity } from "../value-objects";
-import type { ChangeRecord } from "../schema";
-
-export interface AuditEntrySnapshot {
-	readonly id: string;
-	readonly workspaceId: string;
-	readonly actorId: string;
-	readonly action: AuditAction;
-	readonly resourceType: string;
-	readonly resourceId: string;
-	readonly severity: AuditSeverity;
-	readonly detail: string;
-	readonly source: AuditLogSource;
-	readonly changes: readonly ChangeRecord[];
-	readonly recordedAtISO: string;
-}
-
-export interface RecordAuditEntryInput {
-	readonly workspaceId: string;
-	readonly actorId: string;
-	readonly action: string;
-	readonly resourceType: string;
-	readonly resourceId: string;
-	readonly severity: string;
-	readonly detail: string;
-	readonly source: AuditLogSource;
-	readonly changes?: readonly ChangeRecord[];
-}
-
-/**
- * AuditEntry — Immutable aggregate root for audit records.
- *
- * Audit entries are write-once: once recorded they cannot be modified or deleted.
- * All mutation methods are intentionally absent.
- */
-export class AuditEntry {
-	private readonly _domainEvents: AuditDomainEventType[] = [];
-
-	private constructor(private readonly _props: AuditEntrySnapshot) {}
-
-	/**
-	 * Record a new audit entry. This is the only way to create an AuditEntry.
-	 * Validates action and severity via Zod branded types.
-	 */
-	static record(id: string, input: RecordAuditEntryInput): AuditEntry {
-		// Import dynamically is not possible in domain — validate via type narrowing
-		// The caller is responsible for passing valid action/severity strings;
-		// Zod validation happens at the value-object layer boundary.
-		const now = new Date().toISOString();
-		const entry = new AuditEntry({
-			id,
-			workspaceId: input.workspaceId,
-			actorId: input.actorId,
-			action: input.action as AuditAction,
-			resourceType: input.resourceType,
-			resourceId: input.resourceId,
-			severity: input.severity as AuditSeverity,
-			detail: input.detail,
-			source: input.source,
-			changes: input.changes ?? [],
-			recordedAtISO: now,
-		});
-		entry._domainEvents.push({
-			type: "workspace.audit.entry_recorded",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				auditId: id,
-				workspaceId: input.workspaceId,
-				actorId: input.actorId,
-				action: input.action,
-				resourceType: input.resourceType,
-				resourceId: input.resourceId,
-				severity: input.severity,
-			},
-		});
-
-		// Auto-escalation: critical entries emit an additional alert event
-		if (entry.isCritical()) {
-			entry._domainEvents.push({
-				type: "workspace.audit.critical_detected",
-				eventId: crypto.randomUUID(),
-				occurredAt: now,
-				payload: {
-					auditId: id,
-					workspaceId: input.workspaceId,
-					actorId: input.actorId,
-					action: input.action,
-					resourceType: input.resourceType,
-				},
-			});
-		}
-
-		return entry;
-	}
-
-	static reconstitute(snapshot: AuditEntrySnapshot): AuditEntry {
-		return new AuditEntry({ ...snapshot });
-	}
-
-	// ── Query methods (audit is immutable — no mutation) ─────────────────────
-
-	/** Returns true when severity is "critical". */
-	isCritical(): boolean {
-		return this._props.severity === ("critical" as AuditSeverity);
-	}
-
-	/** Returns true when severity is "critical" or "high". */
-	isHighSeverity(): boolean {
-		return (
-			this._props.severity === ("critical" as AuditSeverity) ||
-			this._props.severity === ("high" as AuditSeverity)
-		);
-	}
-
-	// ── Getters ──────────────────────────────────────────────────────────────
-
-	get id(): string {
-		return this._props.id;
-	}
-
-	get workspaceId(): string {
-		return this._props.workspaceId;
-	}
-
-	get actorId(): string {
-		return this._props.actorId;
-	}
-
-	get action(): AuditAction {
-		return this._props.action;
-	}
-
-	get resourceType(): string {
-		return this._props.resourceType;
-	}
-
-	get resourceId(): string {
-		return this._props.resourceId;
-	}
-
-	get severity(): AuditSeverity {
-		return this._props.severity;
-	}
-
-	get detail(): string {
-		return this._props.detail;
-	}
-
-	get source(): AuditLogSource {
-		return this._props.source;
-	}
-
-	get changes(): readonly ChangeRecord[] {
-		return this._props.changes;
-	}
-
-	get recordedAtISO(): string {
-		return this._props.recordedAtISO;
-	}
-
-	getSnapshot(): Readonly<AuditEntrySnapshot> {
-		return Object.freeze({ ...this._props });
-	}
-
-	pullDomainEvents(): AuditDomainEventType[] {
-		const events = [...this._domainEvents];
-		(this._domainEvents as AuditDomainEventType[]).length = 0;
-		return events;
-	}
-}
-````
-
-## File: modules/workspace/subdomains/audit/domain/aggregates/index.ts
-````typescript
-export { AuditEntry } from "./AuditEntry";
-export type { AuditEntrySnapshot, RecordAuditEntryInput } from "./AuditEntry";
-````
-
 ## File: modules/workspace/subdomains/audit/domain/entities/AuditLog.ts
 ````typescript
 export type AuditLogSource = "workspace" | "finance" | "notification" | "system";
@@ -55906,50 +55734,22 @@ export interface AuditLogEntity {
 }
 ````
 
-## File: modules/workspace/subdomains/audit/domain/events/AuditDomainEvent.ts
+## File: modules/workspace/subdomains/audit/domain/index.ts
 ````typescript
-export interface AuditDomainEvent {
-	readonly eventId: string;
-	readonly occurredAt: string;
-	readonly type: string;
-	readonly payload: object;
-}
+// ── Existing domain types ────────────────────────────────────────────────────
+export type { AuditLogEntity, AuditLogSource } from "./entities/AuditLog";
+export type { AuditLog, AuditAction, AuditSeverity, ChangeRecord } from "./schema";
+export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "./schema";
+export type { AuditRepository } from "./repositories/AuditRepository";
 
-export interface AuditEntryRecordedEvent extends AuditDomainEvent {
-	readonly type: "workspace.audit.entry_recorded";
-	readonly payload: {
-		readonly auditId: string;
-		readonly workspaceId: string;
-		readonly actorId: string;
-		readonly action: string;
-		readonly resourceType: string;
-		readonly resourceId: string;
-		readonly severity: string;
-	};
-}
+// ── Rich DDD additions ──────────────────────────────────────────────────────
+export * from "./aggregates";
+export * from "./events";
+export * from "./services";
+export * from "./value-objects";
 
-export interface CriticalAuditDetectedEvent extends AuditDomainEvent {
-	readonly type: "workspace.audit.critical_detected";
-	readonly payload: {
-		readonly auditId: string;
-		readonly workspaceId: string;
-		readonly actorId: string;
-		readonly action: string;
-		readonly resourceType: string;
-	};
-}
-
-export type AuditDomainEventType = AuditEntryRecordedEvent | CriticalAuditDetectedEvent;
-````
-
-## File: modules/workspace/subdomains/audit/domain/events/index.ts
-````typescript
-export type {
-	AuditDomainEvent,
-	AuditEntryRecordedEvent,
-	CriticalAuditDetectedEvent,
-	AuditDomainEventType,
-} from "./AuditDomainEvent";
+// ── Ports layer ──────────────────────────────────────────────────────────────
+export type { IAuditPort } from "./ports";
 ````
 
 ## File: modules/workspace/subdomains/audit/domain/ports/index.ts
@@ -55975,107 +55775,32 @@ export interface AuditRepository {
 }
 ````
 
-## File: modules/workspace/subdomains/audit/domain/services/AuditRecordingService.ts
+## File: modules/workspace/subdomains/audit/domain/value-objects/ActorId.ts
 ````typescript
-import { AuditEntry } from "../aggregates/AuditEntry";
-import type { RecordAuditEntryInput } from "../aggregates/AuditEntry";
-import { createAuditAction } from "../value-objects/AuditAction";
-import { createAuditSeverity } from "../value-objects/AuditSeverity";
-import { createActorId } from "../value-objects/ActorId";
+import { z } from "@lib-zod";
 
 /**
- * AuditRecordingService — Stateless domain service for recording audit entries.
- *
- * Validates inputs via value-object constructors and delegates to AuditEntry.record().
- * Critical-severity escalation is handled by the aggregate itself.
+ * ActorId — receives platform's "actor reference" published language token.
+ * 
+ * MAPPING (AGENTS.md ubiquitous language):
+ * - platform.Actor (upstream) → workspace.audit.ActorId (downstream)
+ * - Platform defines the "actor reference" token in its ubiquitous language
+ * - workspace.audit consumes this token without redefining Actor semantics
+ * - ActorId is a local value object; does NOT own Actor concept
+ * 
+ * NOTE: Field name uses "Actor" only for clarity; it represents a consumed token.
  */
-export class AuditRecordingService {
-	/**
-	 * Record a new audit entry with full input validation.
-	 *
-	 * @throws ZodError if action, severity, or actorId is invalid
-	 */
-	record(id: string, input: RecordAuditEntryInput): AuditEntry {
-		// Validate through branded value objects (throws on invalid input)
-		createAuditAction(input.action);
-		createAuditSeverity(input.severity);
-		createActorId(input.actorId);
+export const ActorIdSchema = z.string().min(1).brand("ActorId");
 
-		return AuditEntry.record(id, input);
-	}
-}
-````
+export type ActorId = z.infer<typeof ActorIdSchema>;
 
-## File: modules/workspace/subdomains/audit/domain/services/index.ts
-````typescript
-export { AuditRecordingService } from "./AuditRecordingService";
-````
-
-## File: modules/workspace/subdomains/audit/domain/value-objects/AuditAction.ts
-````typescript
-import { z } from "@lib-zod";
-
-import { AUDIT_ACTIONS } from "../schema";
-
-export const AuditActionSchema = z.enum(AUDIT_ACTIONS).brand("AuditAction");
-
-export type AuditAction = z.infer<typeof AuditActionSchema>;
-
-export function createAuditAction(raw: string): AuditAction {
-  return AuditActionSchema.parse(raw);
+export function createActorId(raw: string): ActorId {
+	return ActorIdSchema.parse(raw);
 }
 
-export function unsafeAuditAction(raw: string): AuditAction {
-  return raw as AuditAction;
+export function unsafeActorId(raw: string): ActorId {
+	return raw as ActorId;
 }
-````
-
-## File: modules/workspace/subdomains/audit/domain/value-objects/AuditSeverity.ts
-````typescript
-import { z } from "@lib-zod";
-
-import { AUDIT_SEVERITIES } from "../schema";
-
-export const AuditSeveritySchema = z.enum(AUDIT_SEVERITIES).brand("AuditSeverity");
-
-export type AuditSeverity = z.infer<typeof AuditSeveritySchema>;
-
-export function createAuditSeverity(raw: string): AuditSeverity {
-	return AuditSeveritySchema.parse(raw);
-}
-
-export function unsafeAuditSeverity(raw: string): AuditSeverity {
-	return raw as AuditSeverity;
-}
-
-const SEVERITY_LEVELS: Record<string, number> = {
-	low: 0,
-	medium: 1,
-	high: 2,
-	critical: 3,
-};
-
-/** Numeric level for ordering/comparison (low=0, medium=1, high=2, critical=3). */
-export function severityLevel(severity: AuditSeverity): number {
-	return SEVERITY_LEVELS[severity] ?? 0;
-}
-
-/** Returns true when `severity` is at or above the given threshold. */
-export function isAtLeast(severity: AuditSeverity, threshold: AuditSeverity): boolean {
-	return severityLevel(severity) >= severityLevel(threshold);
-}
-````
-
-## File: modules/workspace/subdomains/audit/domain/value-objects/index.ts
-````typescript
-export { AuditActionSchema, createAuditAction, unsafeAuditAction } from "./AuditAction";
-export type { AuditAction } from "./AuditAction";
-
-export { AuditSeveritySchema, createAuditSeverity, unsafeAuditSeverity, severityLevel, isAtLeast } from "./AuditSeverity";
-export type { AuditSeverity } from "./AuditSeverity";
-
-export { ActorIdSchema, createActorId, unsafeActorId } from "./ActorId";
-export type { ActorId } from "./ActorId";
 ````
 
 ## File: modules/workspace/subdomains/audit/interfaces/components/AuditStream.tsx
@@ -60174,315 +59899,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 }
 ````
 
-## File: app/(shell)/_shell/ShellAppRail.tsx
-````typescript
-"use client";
-
-/**
- * ShellAppRail — app/(shell)/_shell composition layer.
- * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
- * because it composes downstream modules (workspace).
- *
- * Platform is upstream and must not import downstream modules.
- * app/ is the designated composition layer.
- */
-
-import Link from "next/link";
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-
-import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
-import { CreateOrganizationDialog } from "@/modules/platform/api";
-import {
-  listShellRailCatalogItems,
-  isExactOrChildPath,
-  type ShellRailCatalogItem,
-} from "@/modules/platform/api";
-import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-
-interface RailItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-
-function getInitial(name: string | undefined | null): string {
-  return name?.trim().charAt(0).toUpperCase() || "U";
-}
-
-const RAIL_ICON_MAP: Record<string, React.ReactNode> = {
-  workspace: <Building2 className="size-[18px]" />,
-  "org-members": <UserRound className="size-[18px]" />,
-  "org-teams": <Users className="size-[18px]" />,
-  "org-daily": <NotebookText className="size-[18px]" />,
-  "org-schedule": <CalendarDays className="size-[18px]" />,
-  "org-audit": <ClipboardList className="size-[18px]" />,
-  "org-permissions": <SlidersHorizontal className="size-[18px]" />,
-  "dev-tools": <FlaskConical className="size-[18px]" />,
-};
-
-export function AppRail({
-  pathname,
-  user,
-  activeAccount,
-  organizationAccounts,
-  workspaces,
-  workspacesHydrated,
-  isOrganizationAccount,
-  onSelectPersonal,
-  onSelectOrganization,
-  activeWorkspaceId,
-  onSelectWorkspace,
-  onOrganizationCreated,
-  onSignOut: _onSignOut,
-}: AppRailProps) {
-  const router = useRouter();
-  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-
-  function isActive(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  const visibleRailItems: RailItem[] = useMemo(() => {
-    const catalogItems = listShellRailCatalogItems(isOrganizationAccount);
-    return catalogItems.map((item: ShellRailCatalogItem) => ({
-      href: item.href,
-      label: item.label,
-      icon: RAIL_ICON_MAP[item.id] ?? null,
-      isActive: item.activeRoutePrefix
-        ? (currentPathname: string) => isExactOrChildPath(item.activeRoutePrefix!, currentPathname)
-        : undefined,
-    }));
-  }, [isOrganizationAccount]);
-
-  const sortedWorkspaces = useMemo(
-    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces],
-  );
-
-  const accountName = activeAccount?.name ?? user?.name ?? "—";
-
-  return (
-    <TooltipProvider delayDuration={400}>
-      <aside
-        aria-label="App navigation rail"
-        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
-      >
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="切換帳號情境"
-                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  {getInitial(accountName)}
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-[180px]">
-              <p className="text-xs font-medium">{accountName}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-
-          <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
-            {user && (
-              <DropdownMenuItem
-                onClick={onSelectPersonal}
-                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{user.name} (Personal)</span>
-              </DropdownMenuItem>
-            )}
-            {organizationAccounts.map((account) => (
-              <DropdownMenuItem
-                key={account.id}
-                onClick={() => { onSelectOrganization(account); }}
-                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{account.name}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => { setIsCreateOrgOpen(true); }}
-              className="gap-2 text-primary"
-            >
-              <Plus className="size-3.5 shrink-0" />
-              <span>建立組織</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="my-2 h-px w-7 bg-border/50" />
-
-        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
-          {visibleRailItems.map((item) => {
-            const active = item.isActive?.(pathname) ?? isActive(item.href);
-
-            if (item.href === "/workspace") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="工作區中心：切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">工作區中心：切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => { router.push("/workspace"); }}
-                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
-                    >
-                      工作區中心
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(`/workspace/${workspace.id}`);
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => { setIsCreateWorkspaceOpen(true); }}
-                      className="gap-2 text-primary"
-                    >
-                      <Plus className="size-3.5 shrink-0" />
-                      <span>建立工作區</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-
-            return (
-              <Tooltip key={item.href}>
-                <TooltipTrigger asChild>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    aria-label={item.label}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {item.icon}
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p className="text-xs">{item.label}</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </nav>
-
-        <div className="flex-1" />
-        <div className="h-1" />
-      </aside>
-
-      <CreateOrganizationDialog
-        open={isCreateOrgOpen}
-        onOpenChange={setIsCreateOrgOpen}
-        user={user}
-        onOrganizationCreated={onOrganizationCreated}
-        onNavigate={(href) => { router.push(href); }}
-      />
-
-      <CreateWorkspaceDialogRail
-        open={isCreateWorkspaceOpen}
-        onOpenChange={setIsCreateWorkspaceOpen}
-        accountId={activeAccount?.id ?? null}
-        accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
-        creatorUserId={user?.id}
-        onNavigate={(href: string) => { router.push(href); }}
-      />
-    </TooltipProvider>
-  );
-}
-````
-
 ## File: app/(shell)/_shell/ShellSidebarBody.tsx
 ````typescript
 "use client";
@@ -60688,6 +60104,117 @@ export function DashboardSidebarBody({
 }
 ````
 
+## File: app/(shell)/(account)/[accountId]/layout.tsx
+````typescript
+import type { ReactNode } from "react";
+
+interface AccountRouteLayoutProps {
+	readonly children: ReactNode;
+}
+
+export default function AccountRouteLayout({ children }: AccountRouteLayoutProps) {
+	return children;
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/page.tsx
+````typescript
+"use client";
+
+import { useEffect } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+
+import type { ActiveAccount } from "@/modules/platform/api";
+import {
+  isActiveOrganizationAccount,
+  useApp,
+  useAuth,
+} from "@/modules/platform/api";
+import { WorkspaceHubScreen } from "@/modules/workspace/api";
+
+function getAccountTypeFromRoute(accountId: string, authUserId: string | null): "user" | "organization" {
+  if (!accountId) {
+    return "user";
+  }
+  return authUserId && accountId === authUserId ? "user" : "organization";
+}
+
+function getFallbackAccountType(activeAccount: ActiveAccount | null): "user" | "organization" {
+  return isActiveOrganizationAccount(activeAccount) ? "organization" : "user";
+}
+
+export default function AccountWorkspaceHubPage() {
+  const router = useRouter();
+  const params = useParams<{ accountId: string }>();
+  const routeAccountId = typeof params.accountId === "string" ? params.accountId : "";
+  const isLegacyWorkspaceAlias = routeAccountId === "workspace";
+  const searchParams = useSearchParams();
+
+  const {
+    state: { activeAccount, accounts, accountsHydrated, bootstrapPhase },
+  } = useApp();
+  const { state: authState } = useAuth();
+
+  const resolvedAccountId =
+    (isLegacyWorkspaceAlias ? activeAccount?.id : routeAccountId) || activeAccount?.id || "";
+  const authUserId = authState.user?.id ?? null;
+  const authUserName = authState.user?.name ?? null;
+  const organizationAccount = Object.values(accounts).find(
+    (account) => account.id === resolvedAccountId,
+  );
+
+  const accountName =
+    resolvedAccountId === authUserId
+      ? authUserName
+      : organizationAccount?.name ??
+        (resolvedAccountId === activeAccount?.id ? activeAccount?.name : null);
+
+  const accountType = resolvedAccountId
+    ? getAccountTypeFromRoute(resolvedAccountId, authUserId)
+    : getFallbackAccountType(activeAccount);
+
+  const context = searchParams.get("context");
+
+  useEffect(() => {
+    if (!isLegacyWorkspaceAlias || !activeAccount?.id) {
+      return;
+    }
+
+    const query = searchParams.toString();
+    const targetPath = `/${encodeURIComponent(activeAccount.id)}`;
+    router.replace(query.length > 0 ? `${targetPath}?${query}` : targetPath);
+  }, [activeAccount?.id, isLegacyWorkspaceAlias, router, searchParams]);
+
+  if (isLegacyWorkspaceAlias && activeAccount?.id) {
+    return (
+      <div className="px-4 py-6 text-sm text-muted-foreground">
+        正在導向帳號工作區路由…
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {context === "unavailable" && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          目前帳戶無法存取該工作區，已返回工作區清單。
+        </div>
+      )}
+
+      <WorkspaceHubScreen
+        accountId={resolvedAccountId || null}
+        accountName={accountName}
+        accountType={accountType}
+        accountsHydrated={accountsHydrated}
+        isBootstrapSeeded={bootstrapPhase === "seeded"}
+        currentUserId={authUserId}
+      />
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/knowledge-base/articles/[articleId]/page.tsx
 ````typescript
 "use client";
@@ -60748,6 +60275,20 @@ export default function DatabaseDetailPageRoute() {
 }
 ````
 
+## File: app/(shell)/knowledge/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
+
+export default function KnowledgeHubPage() {
+  return (
+    <WorkspaceRouteShim
+      panel="knowledge-pages"
+      loadingMessage="正在導向 Workspace Overview（Knowledge Pages）…"
+    />
+  );
+}
+````
+
 ## File: app/(shell)/knowledge/pages/[pageId]/page.tsx
 ````typescript
 "use client";
@@ -60784,37 +60325,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 ````
 
-## File: app/(shell)/source/libraries/page.tsx
+## File: app/(shell)/source/documents/page.tsx
 ````typescript
-"use client";
+import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
 
-import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
-import { LibrariesView, LibraryTableView } from "@/modules/notebooklm/api";
-
-export default function SourceLibrariesPage() {
-  const { accountId, workspaceId } = useWorkspaceOrchestrationContext();
-
+export default function SourceDocumentsPage() {
   return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Source</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
-        <p className="text-sm text-muted-foreground">
-          對齊資料庫／資料來源能力的 MVP，產品命名統一為 Libraries。
-        </p>
-      </header>
-
-      {accountId ? (
-        <>
-          <LibraryTableView accountId={accountId} workspaceId={workspaceId || undefined} />
-          <LibrariesView accountId={accountId} workspaceId={workspaceId || undefined} />
-        </>
-      ) : (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號情境，請先登入或切換帳號。
-        </p>
-      )}
-    </div>
+    <WorkspaceRouteShim
+      tab="Files"
+      loadingMessage="正在導向 Workspace Files…"
+    />
   );
 }
 ````
@@ -62391,6 +61911,13 @@ export function KnowledgeBaseArticlesRouteScreen() {
   const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
   const workspaceId = wsState.activeWorkspaceId ?? "";
   const currentUserId = authState.user?.id ?? "";
+  const workspaceBasePath =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
+      : "/workspace";
+  const overviewHref = workspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-base-articles`
+    : "/workspace";
 
   const [articles, setArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -62424,7 +61951,13 @@ export function KnowledgeBaseArticlesRouteScreen() {
 
   function handleSuccess(articleId?: string) {
     if (articleId) {
-      router.push(`/knowledge-base/articles/${articleId}`);
+      if (accountId && workspaceId) {
+        router.push(
+          `${workspaceBasePath}/knowledge-base/articles/${encodeURIComponent(articleId)}`,
+        );
+      } else {
+        router.push(`/knowledge-base/articles/${encodeURIComponent(articleId)}`);
+      }
     } else {
       load();
     }
@@ -62443,7 +61976,7 @@ export function KnowledgeBaseArticlesRouteScreen() {
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => router.push("/knowledge")}
+          onClick={() => router.push(overviewHref)}
           className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
         >
           返回 Knowledge Hub
@@ -62508,7 +62041,7 @@ export function KnowledgeBaseArticlesRouteScreen() {
                     <Card
                       key={article.id}
                       className="cursor-pointer hover:bg-muted/10 transition-colors"
-                      onClick={() => router.push(`/knowledge-base/articles/${article.id}`)}
+                      onClick={() => handleSuccess(article.id)}
                     >
                       <CardHeader className="pb-2">
                         <div className="flex items-start justify-between gap-2">
@@ -62777,6 +62310,13 @@ export function KnowledgeDatabasesRouteScreen() {
   const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
   const workspaceId = wsState.activeWorkspaceId ?? "";
   const currentUserId = authState.user?.id ?? "";
+  const workspaceBasePath =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
+      : "/workspace";
+  const overviewHref = workspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-databases`
+    : "/workspace";
 
   const [databases, setDatabases] = useState<Database[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62797,7 +62337,13 @@ export function KnowledgeDatabasesRouteScreen() {
 
   function handleSuccess(databaseId?: string) {
     if (databaseId) {
-      router.push(`/knowledge-database/databases/${databaseId}`);
+      if (accountId && workspaceId) {
+        router.push(
+          `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}`,
+        );
+      } else {
+        router.push(`/knowledge-database/databases/${encodeURIComponent(databaseId)}`);
+      }
     } else {
       load();
     }
@@ -62816,7 +62362,7 @@ export function KnowledgeDatabasesRouteScreen() {
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => router.push("/knowledge")}
+          onClick={() => router.push(overviewHref)}
           className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
         >
           返回 Knowledge Hub
@@ -62862,7 +62408,7 @@ export function KnowledgeDatabasesRouteScreen() {
             <Card
               key={db.id}
               className="cursor-pointer hover:bg-muted/10 transition-colors"
-              onClick={() => router.push(`/knowledge-database/databases/${db.id}`)}
+              onClick={() => handleSuccess(db.id)}
             >
               <CardHeader className="pb-2">
                 <div className="flex items-start gap-2">
@@ -63042,6 +62588,22 @@ export function KnowledgePagesRouteScreen() {
   const isAccountSummary = scopeParam === "account";
   const workspaceId = isAccountSummary ? "" : requestedWorkspaceId || wsState.activeWorkspaceId || "";
   const currentUserId = authState.user?.id ?? "";
+  const workspaceBasePath =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
+      : "/workspace";
+  const overviewHref = workspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
+    : "/workspace";
+
+  function buildPageDetailHref(pageId: string) {
+    if (accountId && workspaceId) {
+      return `${workspaceBasePath}/knowledge/pages/${encodeURIComponent(pageId)}`;
+    }
+    return `/knowledge/pages/${encodeURIComponent(pageId)}${
+      workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : ""
+    }`;
+  }
 
   const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63087,7 +62649,7 @@ export function KnowledgePagesRouteScreen() {
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => router.push("/knowledge")}
+          onClick={() => router.push(overviewHref)}
           className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
         >
           返回 Knowledge Hub
@@ -63120,7 +62682,7 @@ export function KnowledgePagesRouteScreen() {
               ? "這個 account summary 目前沒有可顯示的頁面。請改從工作區建立與維護頁面。"
               : "這個工作區尚無頁面。點擊「新增頁面」開始建立。"
           }
-          onPageClick={(pageId) => router.push(`/knowledge/pages/${pageId}`)}
+          onPageClick={(pageId) => router.push(buildPageDetailHref(pageId))}
           onCreated={() => load()}
         />
       )}
@@ -65730,109 +65292,6 @@ export { organizationService, organizationQueryService } from "../infrastructure
 export * from "../interfaces";
 ````
 
-## File: modules/platform/subdomains/organization/application/use-cases/organization-team.use-cases.ts
-````typescript
-/**
- * Organization Team Use Cases — team-scoped operations owned by the organization subdomain.
- *
- * These use cases depend only on IOrganizationTeamPort (defined in organization's own
- * domain/ports/), keeping the application layer free from direct peer-subdomain imports.
- * The infrastructure composition root (organization-service.ts) injects the concrete
- * team adapter that satisfies the port.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { IOrganizationTeamPort } from "../../domain/ports/IOrganizationTeamPort";
-import type { CreateTeamInput } from "../../domain/entities/Organization";
-
-export class CreateTeamUseCase {
-  constructor(private readonly teamPort: IOrganizationTeamPort) {}
-
-  async execute(input: CreateTeamInput): Promise<CommandResult> {
-    try {
-      const teamId = await this.teamPort.createTeam(input);
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_TEAM_FAILED",
-        err instanceof Error ? err.message : "Failed to create team",
-      );
-    }
-  }
-}
-
-export class DeleteTeamUseCase {
-  constructor(private readonly teamPort: IOrganizationTeamPort) {}
-
-  async execute(organizationId: string, teamId: string): Promise<CommandResult> {
-    try {
-      await this.teamPort.deleteTeam(organizationId, teamId);
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "DELETE_TEAM_FAILED",
-        err instanceof Error ? err.message : "Failed to delete team",
-      );
-    }
-  }
-}
-
-export class UpdateTeamMembersUseCase {
-  constructor(private readonly teamPort: IOrganizationTeamPort) {}
-
-  async execute(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-    action: "add" | "remove",
-  ): Promise<CommandResult> {
-    try {
-      if (action === "add") {
-        await this.teamPort.addMemberToTeam(organizationId, teamId, memberId);
-      } else {
-        await this.teamPort.removeMemberFromTeam(organizationId, teamId, memberId);
-      }
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_TEAM_MEMBERS_FAILED",
-        err instanceof Error ? err.message : "Failed to update team members",
-      );
-    }
-  }
-}
-````
-
-## File: modules/platform/subdomains/organization/domain/index.ts
-````typescript
-export type { OrganizationEntity,
-  OrganizationRole,
-  Presence,
-  InviteState,
-  PolicyEffect,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  ThemeConfig,
-  OrgPolicy,
-  OrgPolicyRule,
-  OrgPolicyScope,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "./entities/Organization";
-export type { OrganizationRepository, Unsubscribe } from "./repositories/OrganizationRepository";
-export type { OrgPolicyRepository } from "./repositories/OrgPolicyRepository";
-export type { IOrganizationTeamPort } from "./ports/IOrganizationTeamPort";
-export * from "./aggregates";
-export * from "./events";
-export * from "./value-objects";
-````
-
 ## File: modules/platform/subdomains/organization/README.md
 ````markdown
 # Organization
@@ -65891,209 +65350,6 @@ export {
 } from "./services/shell-navigation-catalog";
 ````
 
-## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
-````typescript
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-export type ShellNavSection =
-  | "workspace"
-  | "knowledge"
-  | "knowledge-base"
-  | "knowledge-database"
-  | "source"
-  | "notebook"
-  | "ai-chat"
-  | "account"
-  | "organization"
-  | "other";
-
-export interface ShellNavItem {
-  readonly id: string;
-  readonly label: string;
-  readonly href: string;
-}
-
-export interface ShellRailCatalogItem {
-  readonly id: string;
-  readonly href: string;
-  readonly label: string;
-  /** If true, this item is only visible to organization accounts. */
-  readonly requiresOrganization: boolean;
-  /** Route prefix for active-state matching. When absent, defaults to href. */
-  readonly activeRoutePrefix?: string;
-}
-
-export interface ShellContextSectionConfig {
-  readonly title: string;
-  readonly items: readonly { href: string; label: string }[];
-}
-
-// ── Route-matching utility ────────────────────────────────────────────────────
-
-export function isExactOrChildPath(targetPath: string, pathname: string): boolean {
-  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
-}
-
-// ── Account section matchers ──────────────────────────────────────────────────
-
-export const SHELL_ACCOUNT_SECTION_MATCHERS = [
-  "/organization/daily",
-  "/organization/schedule",
-  "/organization/audit",
-] as const;
-
-// ── Route titles & breadcrumb labels ──────────────────────────────────────────
-
-const ROUTE_TITLES: Record<string, string> = {
-  "/organization": "組織治理",
-  "/organization/daily": "帳號 · 每日",
-  "/organization/schedule": "帳號 · 排程",
-  "/organization/schedule/dispatcher": "帳號 · 調度台",
-  "/organization/audit": "帳號 · 稽核",
-  "/workspace": "工作區中心",
-  "/knowledge": "知識中心",
-  "/knowledge/pages": "知識 · 頁面",
-  "/knowledge/block-editor": "知識 · 區塊編輯器",
-  "/knowledge-base/articles": "知識庫 · 文章",
-  "/knowledge-database/databases": "知識資料庫 · 資料庫",
-  "/source/documents": "來源 · 文件",
-  "/source/libraries": "來源 · 資料庫",
-  "/notebook/rag-query": "筆記本 · 問答 / 引用",
-  "/ai-chat": "AI 對話",
-  "/dev-tools": "開發工具",
-};
-
-const BREADCRUMB_LABELS: Record<string, string> = {
-  organization: "組織",
-  workspace: "工作區",
-  wiki: "Account Wiki",
-  "rag-query": "Ask / Cite",
-  documents: "文件",
-  libraries: "Libraries",
-  pages: "頁面",
-  "pages-dnd": "頁面 (DnD)",
-  "block-editor": "區塊編輯器",
-  "rag-reindex": "RAG 重新索引",
-  "ai-chat": "Notebook",
-  "dev-tools": "開發工具",
-  namespaces: "命名空間",
-  members: "成員",
-  teams: "團隊",
-  permissions: "權限",
-  workspaces: "工作區清單",
-  schedule: "排程",
-  daily: "每日",
-  audit: "稽核",
-};
-
-// ── Organization management items ─────────────────────────────────────────────
-
-export const SHELL_ORGANIZATION_MANAGEMENT_ITEMS: readonly ShellNavItem[] = [];
-
-// ── Account nav items ─────────────────────────────────────────────────────────
-
-export const SHELL_ACCOUNT_NAV_ITEMS: readonly ShellNavItem[] = [
-  { id: "schedule", label: "排程", href: "/organization/schedule" },
-  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
-  { id: "daily", label: "每日", href: "/organization/daily" },
-  { id: "audit", label: "稽核", href: "/organization/audit" },
-] as const;
-
-// ── Section labels ────────────────────────────────────────────────────────────
-
-export const SHELL_SECTION_LABELS: Record<ShellNavSection, string> = {
-  workspace: "工作區",
-  knowledge: "知識",
-  "knowledge-base": "知識庫",
-  "knowledge-database": "知識資料庫",
-  source: "來源",
-  notebook: "筆記本",
-  "ai-chat": "AI 對話",
-  account: "帳號",
-  organization: "組織",
-  other: "導覽",
-};
-
-// ── Rail catalog ──────────────────────────────────────────────────────────────
-
-export const SHELL_RAIL_CATALOG_ITEMS: readonly ShellRailCatalogItem[] = [
-  { id: "workspace", href: "/workspace", label: "工作區中心", requiresOrganization: false },
-  { id: "org-members", href: "/organization/members", label: "成員", requiresOrganization: true, activeRoutePrefix: "/organization/members" },
-  { id: "org-teams", href: "/organization/teams", label: "團隊", requiresOrganization: true, activeRoutePrefix: "/organization/teams" },
-  { id: "org-daily", href: "/organization/daily", label: "每日", requiresOrganization: true, activeRoutePrefix: "/organization/daily" },
-  { id: "org-schedule", href: "/organization/schedule", label: "排程", requiresOrganization: true, activeRoutePrefix: "/organization/schedule" },
-  { id: "org-audit", href: "/organization/audit", label: "稽核", requiresOrganization: true, activeRoutePrefix: "/organization/audit" },
-  { id: "org-permissions", href: "/organization/permissions", label: "權限", requiresOrganization: true, activeRoutePrefix: "/organization/permissions" },
-  { id: "dev-tools", href: "/dev-tools", label: "開發工具", requiresOrganization: false },
-];
-
-export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[] {
-  return SHELL_RAIL_CATALOG_ITEMS.filter(
-    (item) => !item.requiresOrganization || isOrganization,
-  );
-}
-
-// ── Context section config ────────────────────────────────────────────────────
-
-export const SHELL_CONTEXT_SECTION_CONFIG: Partial<
-  Record<ShellNavSection, ShellContextSectionConfig>
-> = {
-  "knowledge-base": { title: "知識庫", items: [{ href: "/knowledge-base/articles", label: "文章" }] },
-  "knowledge-database": { title: "資料庫", items: [{ href: "/knowledge-database/databases", label: "資料庫" }] },
-  source: { title: "來源文件", items: [{ href: "/source/libraries", label: "資料庫" }] },
-  notebook: { title: "筆記本", items: [{ href: "/notebook/rag-query", label: "問答 / 引用" }] },
-  "ai-chat": { title: "筆記本 / AI", items: [{ href: "/ai-chat", label: "筆記本介面" }] },
-};
-
-// ── Mobile & organization nav items ───────────────────────────────────────────
-
-export const SHELL_MOBILE_NAV_ITEMS: readonly ShellNavItem[] = [
-  { id: "workspace", label: "工作區", href: "/workspace" },
-];
-
-export const SHELL_ORG_PRIMARY_NAV_ITEMS: readonly ShellNavItem[] = [
-  { id: "members", label: "成員", href: "/organization/members" },
-  { id: "teams", label: "團隊", href: "/organization/teams" },
-  { id: "permissions", label: "權限", href: "/organization/permissions" },
-  { id: "workspaces", label: "工作區", href: "/organization/workspaces" },
-];
-
-export const SHELL_ORG_SECONDARY_NAV_ITEMS: readonly ShellNavItem[] = [
-  { id: "schedule", label: "排程", href: "/organization/schedule" },
-  { id: "daily", label: "每日", href: "/organization/daily" },
-  { id: "audit", label: "稽核", href: "/organization/audit" },
-];
-
-// ── Section resolvers ─────────────────────────────────────────────────────────
-
-export function resolveShellNavSection(pathname: string): ShellNavSection {
-  if (pathname.startsWith("/workspace")) return "workspace";
-  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
-  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
-  if (pathname.startsWith("/knowledge")) return "knowledge";
-  if (pathname.startsWith("/source")) return "source";
-  if (pathname.startsWith("/notebook")) return "notebook";
-  if (pathname.startsWith("/ai-chat")) return "ai-chat";
-  if (
-    SHELL_ACCOUNT_SECTION_MATCHERS.some(
-      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-    )
-  ) {
-    return "account";
-  }
-  if (pathname.startsWith("/organization")) return "organization";
-  return "other";
-}
-
-export function resolveShellPageTitle(pathname: string): string {
-  return ROUTE_TITLES[pathname] ?? "工作區";
-}
-
-export function resolveShellBreadcrumbLabel(segment: string): string {
-  return BREADCRUMB_LABELS[segment] ?? segment;
-}
-````
-
 ## File: modules/platform/subdomains/platform-config/README.md
 ````markdown
 # Platform Config
@@ -66126,6 +65382,32 @@ Referral program management.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/search/application/services/shell-command-catalog.ts
+````typescript
+export interface ShellCommandCatalogItem {
+  readonly href: string;
+  readonly label: string;
+  readonly group: "導覽" | "Knowledge" | "Source";
+}
+
+const SHELL_COMMAND_CATALOG_ITEMS: readonly ShellCommandCatalogItem[] = [
+  { href: "/workspace", label: "Workspace Hub", group: "導覽" },
+  { href: "/workspace?tab=Overview&panel=knowledge-pages", label: "Knowledge Pages", group: "導覽" },
+  { href: "/workspace?tab=Overview&panel=knowledge-base-articles", label: "Knowledge Base", group: "導覽" },
+  { href: "/workspace?tab=Overview&panel=knowledge-databases", label: "Knowledge Database", group: "導覽" },
+  { href: "/workspace?tab=Overview&panel=source-libraries", label: "Source Libraries", group: "導覽" },
+  { href: "/notebook/rag-query", label: "Notebook / AI", group: "導覽" },
+  { href: "/ai-chat", label: "AI Chat", group: "導覽" },
+  { href: "/workspace?tab=Overview&panel=knowledge-pages", label: "頁面管理", group: "Knowledge" },
+  { href: "/knowledge/block-editor", label: "區塊編輯器", group: "Knowledge" },
+  { href: "/workspace?tab=Overview&panel=source-libraries", label: "Libraries 表格", group: "Source" },
+] as const;
+
+export function listShellCommandCatalogItems(): readonly ShellCommandCatalogItem[] {
+  return SHELL_COMMAND_CATALOG_ITEMS;
+}
 ````
 
 ## File: modules/platform/subdomains/search/README.md
@@ -66496,33 +65778,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/team/api/index.ts
-````typescript
-/**
- * Module: platform/subdomains/team
- * Layer: api (public boundary)
- * Purpose: Exports types, use cases, and a factory function for the team
- *          subdomain. Consumers must use the TeamRepository port interface
- *          and the createTeamRepository factory — never the concrete adapter.
- */
-
-import type { TeamRepository } from "../domain/repositories/TeamRepository";
-import { FirebaseTeamRepository } from "../infrastructure/firebase/FirebaseTeamRepository";
-
-export type { Team, CreateTeamInput } from "../domain/entities/Team";
-export type { TeamRepository } from "../domain/repositories/TeamRepository";
-export {
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "../application/use-cases/team.use-cases";
-
-/** Factory — returns a TeamRepository backed by Firebase. */
-export function createTeamRepository(): TeamRepository {
-  return new FirebaseTeamRepository();
-}
-````
-
 ## File: modules/platform/subdomains/team/domain/aggregates/OrganizationTeam.ts
 ````typescript
 /**
@@ -66675,6 +65930,23 @@ export class OrganizationTeam {
 }
 ````
 
+## File: modules/platform/subdomains/team/README.md
+````markdown
+# Team
+
+Team management within organizations.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/tenant/README.md
 ````markdown
 # Tenant
@@ -66753,6 +66025,91 @@ Legacy migration:
 3. Converge Application layer
 4. Isolate legacy via Ports
 5. Replace Infrastructure adapter
+````
+
+## File: modules/workspace/application/queries/wiki-content-tree.queries.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/queries
+ * Purpose: Build the workspace content-tree from account/workspace seeds.
+ *          This is a query projection, not a use case — it aggregates
+ *          workspace-scoped content nodes for read-only display.
+ *
+ * DDD Rule 5:  Pure reads → Query, not Use Case.
+ * DDD Rule 13: Read → queries/
+ */
+
+import type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+  WikiContentItemNode,
+  WikiWorkspaceContentNode,
+} from "../../domain/entities/WikiContentTree";
+import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWorkspaceRepository";
+
+function buildContentBaseItems(workspaceId: string): WikiContentItemNode[] {
+  return [
+    { key: "spaces", label: "Workspace", href: `/workspace/${workspaceId}`, enabled: true },
+    {
+      key: "pages",
+      label: "Knowledge Pages",
+      href: `/workspace/${workspaceId}?tab=Overview&panel=knowledge-pages`,
+      enabled: true,
+    },
+    {
+      key: "libraries",
+      label: "Libraries",
+      href: `/workspace/${workspaceId}?tab=Overview&panel=source-libraries`,
+      enabled: true,
+    },
+    { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
+    {
+      key: "vector-index",
+      label: "Vector Index",
+      href: `/workspace/${workspaceId}?tab=Overview&panel=knowledge-databases`,
+      enabled: false,
+    },
+    { key: "rag", label: "RAG", href: `/notebook/rag-query?workspaceId=${workspaceId}`, enabled: true },
+    { key: "ai-tools", label: "AI Tools", href: `/ai-chat?workspaceId=${workspaceId}`, enabled: true },
+  ];
+}
+
+function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiWorkspaceContentNode {
+  return {
+    workspaceId,
+    workspaceName,
+    href: `/workspace/${workspaceId}`,
+    contentBaseItems: buildContentBaseItems(workspaceId),
+  };
+}
+
+export async function buildWikiContentTree(
+  seeds: WikiAccountSeed[],
+  workspaceRepository: WikiWorkspaceRepository,
+): Promise<WikiAccountContentNode[]> {
+  const accountNodes = await Promise.all(
+    seeds.map(async (seed) => {
+      const workspaces = await workspaceRepository.listByAccountId(seed.accountId);
+      return {
+        accountId: seed.accountId,
+        accountName: seed.accountName,
+        accountType: seed.accountType,
+        isActive: seed.isActive,
+        membersHref: seed.accountType === "organization" ? "/organization/members" : undefined,
+        teamsHref: seed.accountType === "organization" ? "/organization/teams" : undefined,
+        workspaces: workspaces.map((workspace) => buildWorkspaceNode(workspace.id, workspace.name)),
+      } satisfies WikiAccountContentNode;
+    }),
+  );
+
+  return accountNodes.sort((a, b) => {
+    if (a.accountType !== b.accountType) {
+      return a.accountType === "personal" ? -1 : 1;
+    }
+    return a.accountName.localeCompare(b.accountName, "zh-Hant");
+  });
+}
 ````
 
 ## File: modules/workspace/application/queries/workspace.queries.ts
@@ -66979,6 +66336,398 @@ Strategic architecture documentation lives in `docs/contexts/workspace/`:
 
 - Strategic docs in `docs/contexts/workspace/` are the authority for naming, ownership, and boundaries.
 - This `docs/` folder is for implementation-aligned detail only.
+````
+
+## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
+````typescript
+import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Users } from "lucide-react";
+import type { ReactNode } from "react";
+
+export interface WorkspaceQuickAccessMatcherOptions {
+  panel: string | null;
+  tab: string | null;
+}
+
+export interface WorkspaceQuickAccessItem {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
+}
+
+const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
+  {
+    href: "/workspace/{workspaceId}?tab=Overview",
+    label: "首頁",
+    icon: <Home className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      pathname.startsWith("/workspace/") &&
+      (options?.tab == null || options.tab === "Overview") &&
+      options?.panel !== "settings",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-pages",
+    label: "知識頁面",
+    icon: <FileText className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      pathname.startsWith("/workspace/") && options?.tab === "Overview" && options?.panel === "knowledge-pages",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-base-articles",
+    label: "文章",
+    icon: <BookOpen className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      pathname.startsWith("/workspace/") && options?.tab === "Overview" && options?.panel === "knowledge-base-articles",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Files",
+    label: "檔案",
+    icon: <FolderOpen className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      pathname.startsWith("/workspace/") && options?.tab === "Files",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Members",
+    label: "成員",
+    icon: <Users className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      pathname.startsWith("/workspace/") && options?.tab === "Members",
+  },
+  {
+    href: "/notebook/rag-query?workspaceId={workspaceId}",
+    label: "RAG 查詢",
+    icon: <Brain className="size-3.5" />,
+    isActive: (pathname: string) =>
+      pathname === "/notebook/rag-query" || pathname.startsWith("/notebook/rag-query/"),
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=source-libraries",
+    label: "資料庫",
+    icon: <Database className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      pathname.startsWith("/workspace/") && options?.tab === "Overview" && options?.panel === "source-libraries",
+  },
+];
+
+export function buildWorkspaceQuickAccessItems(workspaceId: string): WorkspaceQuickAccessItem[] {
+  const encodedWorkspaceId = encodeURIComponent(workspaceId);
+  return WORKSPACE_QUICK_ACCESS_TEMPLATES.map((item) => ({
+    ...item,
+    href: item.href.replaceAll("{workspaceId}", encodedWorkspaceId),
+  }));
+}
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx
+````typescript
+"use client";
+
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { Badge } from "@ui-shadcn/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Separator } from "@ui-shadcn/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
+import { describeGrant } from "../../view-models/workspace-grants";
+import { WorkspaceOverviewSettingsTab } from "./WorkspaceOverviewSettingsTab";
+import { WorkspaceOverviewSummaryCard } from "../cards/WorkspaceOverviewSummaryCard";
+import { WorkspaceProductSpineCard } from "../cards/WorkspaceProductSpineCard";
+import { WorkspaceQuickstartCard } from "../cards/WorkspaceQuickstartCard";
+import { WorkspaceOverviewKnowledgePanels } from "./WorkspaceOverviewKnowledgePanels";
+
+interface WorkspaceOverviewTabProps {
+  readonly workspace: WorkspaceEntity;
+  readonly activeWorkspaceId: string | null | undefined;
+  readonly personnelEntries: Array<{ label: string; value: string | undefined }>;
+  readonly addressLines: string[];
+  readonly initialPanel?: string;
+  readonly onEditClick: () => void;
+  readonly onSetActiveWorkspace: () => void;
+}
+
+type WorkspaceOverviewSurface =
+  | "home"
+  | "knowledge-pages"
+  | "knowledge-base-articles"
+  | "knowledge-databases"
+  | "source-libraries"
+  | "governance"
+  | "profile";
+
+function resolveWorkspaceOverviewSurface(panel?: string): WorkspaceOverviewSurface {
+  switch (panel) {
+    case "knowledge-pages":
+    case "knowledge-base-articles":
+    case "knowledge-databases":
+    case "source-libraries":
+      return panel;
+    case "governance":
+    case "profile":
+      return panel;
+    default:
+      return "home";
+  }
+}
+
+export function WorkspaceOverviewTab({
+  workspace,
+  activeWorkspaceId,
+  personnelEntries,
+  addressLines,
+  initialPanel,
+  onEditClick,
+  onSetActiveWorkspace,
+}: WorkspaceOverviewTabProps) {
+  if (initialPanel === "settings") {
+    return (
+      <WorkspaceOverviewSettingsTab
+        workspace={workspace}
+        personnelEntries={personnelEntries}
+        addressLines={addressLines}
+        onEditClick={onEditClick}
+      />
+    );
+  }
+
+  const initialSurface = resolveWorkspaceOverviewSurface(initialPanel);
+
+  return (
+    <Tabs defaultValue={initialSurface} className="space-y-4">
+      <div className="rounded-2xl border border-border/50 bg-card/70 p-3 shadow-sm">
+        <TabsList
+          variant="line"
+          className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b border-border/60 bg-transparent p-0"
+        >
+          <TabsTrigger value="home" className="min-w-fit px-3 py-2">
+            Home
+          </TabsTrigger>
+          <TabsTrigger value="knowledge-pages" className="min-w-fit px-3 py-2">
+            Pages
+          </TabsTrigger>
+          <TabsTrigger value="knowledge-base-articles" className="min-w-fit px-3 py-2">
+            Articles
+          </TabsTrigger>
+          <TabsTrigger value="knowledge-databases" className="min-w-fit px-3 py-2">
+            Databases
+          </TabsTrigger>
+          <TabsTrigger value="source-libraries" className="min-w-fit px-3 py-2">
+            Libraries
+          </TabsTrigger>
+          <TabsTrigger value="governance" className="min-w-fit px-3 py-2">
+            Governance
+          </TabsTrigger>
+          <TabsTrigger value="profile" className="min-w-fit px-3 py-2">
+            Profile
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="home" className="mt-4 space-y-4">
+          <WorkspaceOverviewSummaryCard
+            workspace={workspace}
+            activeWorkspaceId={activeWorkspaceId}
+            onEditClick={onEditClick}
+            onSetActiveWorkspace={onSetActiveWorkspace}
+          />
+
+          <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+            <WorkspaceProductSpineCard workspace={workspace} />
+
+            <Card className="border border-border/50">
+              <CardHeader>
+                <CardTitle>Capabilities</CardTitle>
+                <CardDescription>
+                  Runtime features currently mounted on this workspace.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {workspace.capabilities.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No capability bindings have been added yet.
+                  </p>
+                ) : (
+                  workspace.capabilities.map((capability) => (
+                    <div
+                      key={capability.id}
+                      className="rounded-xl border border-border/40 px-4 py-4"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground">
+                          {capability.name}
+                        </p>
+                        <Badge variant="outline">{capability.type}</Badge>
+                        <Badge
+                          variant={capability.status === "stable" ? "secondary" : "outline"}
+                        >
+                          {capability.status}
+                        </Badge>
+                      </div>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {capability.description}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {workspace.lifecycleState === "preparatory" && workspace.capabilities.length === 0 && (
+            <WorkspaceQuickstartCard workspaceId={workspace.id} />
+          )}
+        </TabsContent>
+
+        <WorkspaceOverviewKnowledgePanels workspace={workspace} />
+
+        <TabsContent value="governance" className="mt-4 space-y-4">
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Card className="border border-border/50">
+              <CardHeader>
+                <CardTitle>Access Model</CardTitle>
+                <CardDescription>
+                  Team scopes and direct grants applied to this workspace.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-foreground">Team access</p>
+                  {workspace.teamIds.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No team access assigned.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {workspace.teamIds.map((teamId) => (
+                        <Badge key={teamId} variant="secondary">
+                          {teamId}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-foreground">Direct grants</p>
+                  {workspace.grants.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No direct grants recorded.</p>
+                  ) : (
+                    workspace.grants.map((grant, index) => (
+                      <div
+                        key={`grant-${grant.role}-${grant.teamId ?? "none"}-${grant.userId ?? "none"}-${grant.protocol ?? "none"}-${index}`}
+                        className="rounded-xl border border-border/40 px-4 py-3"
+                      >
+                        <p className="text-sm font-medium text-foreground">
+                          {describeGrant(grant)}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Role: {grant.role}
+                          {grant.teamId ? ` · Team: ${grant.teamId}` : ""}
+                          {grant.userId ? ` · User: ${grant.userId}` : ""}
+                          {grant.protocol ? ` · Protocol: ${grant.protocol}` : ""}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-border/50">
+              <CardHeader>
+                <CardTitle>Locations</CardTitle>
+                <CardDescription>
+                  Physical or logical locations linked to the workspace.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {workspace.locations == null || workspace.locations.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No locations have been configured yet.
+                  </p>
+                ) : (
+                  workspace.locations.map((location) => (
+                    <div
+                      key={location.locationId}
+                      className="rounded-xl border border-border/40 px-4 py-4"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground">
+                          {location.label}
+                        </p>
+                        <Badge variant="outline">{location.locationId}</Badge>
+                      </div>
+                      {location.description && (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {location.description}
+                        </p>
+                      )}
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Capacity: {location.capacity ?? "—"}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="profile" className="mt-4 space-y-4">
+          <Card className="border border-border/50">
+            <CardHeader>
+              <CardTitle>Workspace Profile</CardTitle>
+              <CardDescription>
+                Operational contacts and registered workspace address.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">Personnel</p>
+                {personnelEntries.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No personnel roles assigned.
+                  </p>
+                ) : (
+                  personnelEntries.map((entry) => (
+                    <div
+                      key={entry.label}
+                      className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3 text-sm"
+                    >
+                      <span className="text-muted-foreground">{entry.label}</span>
+                      <span className="font-medium text-foreground">{entry.value}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">Address</p>
+                {addressLines.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No address information has been provided.
+                  </p>
+                ) : (
+                  <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
+                    {addressLines.map((line, index) => (
+                      <p key={`${line}-${index}`}>{line}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+      </div>
+    </Tabs>
+  );
+}
 ````
 
 ## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
@@ -67243,52 +66992,6 @@ export function useWorkspaceContext() {
     throw new Error("useWorkspaceContext must be used within WorkspaceContextProvider");
   }
   return ctx;
-}
-````
-
-## File: modules/workspace/subdomains/audit/domain/index.ts
-````typescript
-// ── Existing domain types ────────────────────────────────────────────────────
-export type { AuditLogEntity, AuditLogSource } from "./entities/AuditLog";
-export type { AuditLog, AuditAction, AuditSeverity, ChangeRecord } from "./schema";
-export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "./schema";
-export type { AuditRepository } from "./repositories/AuditRepository";
-
-// ── Rich DDD additions ──────────────────────────────────────────────────────
-export * from "./aggregates";
-export * from "./events";
-export * from "./services";
-export * from "./value-objects";
-
-// ── Ports layer ──────────────────────────────────────────────────────────────
-export type { IAuditPort } from "./ports";
-````
-
-## File: modules/workspace/subdomains/audit/domain/value-objects/ActorId.ts
-````typescript
-import { z } from "@lib-zod";
-
-/**
- * ActorId — receives platform's "actor reference" published language token.
- * 
- * MAPPING (AGENTS.md ubiquitous language):
- * - platform.Actor (upstream) → workspace.audit.ActorId (downstream)
- * - Platform defines the "actor reference" token in its ubiquitous language
- * - workspace.audit consumes this token without redefining Actor semantics
- * - ActorId is a local value object; does NOT own Actor concept
- * 
- * NOTE: Field name uses "Actor" only for clarity; it represents a consumed token.
- */
-export const ActorIdSchema = z.string().min(1).brand("ActorId");
-
-export type ActorId = z.infer<typeof ActorIdSchema>;
-
-export function createActorId(raw: string): ActorId {
-	return ActorIdSchema.parse(raw);
-}
-
-export function unsafeActorId(raw: string): ActorId {
-	return raw as ActorId;
 }
 ````
 
@@ -68330,6 +68033,333 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: app/(shell)/_shell/ShellAppRail.tsx
+````typescript
+"use client";
+
+/**
+ * ShellAppRail — app/(shell)/_shell composition layer.
+ * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
+ * because it composes downstream modules (workspace).
+ *
+ * Platform is upstream and must not import downstream modules.
+ * app/ is the designated composition layer.
+ */
+
+import Link from "next/link";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
+import { CreateOrganizationDialog } from "@/modules/platform/api";
+import {
+  listShellRailCatalogItems,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  type ShellRailCatalogItem,
+} from "@/modules/platform/api";
+import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+
+interface RailItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+
+function getInitial(name: string | undefined | null): string {
+  return name?.trim().charAt(0).toUpperCase() || "U";
+}
+
+const RAIL_ICON_MAP: Record<string, React.ReactNode> = {
+  workspace: <Building2 className="size-[18px]" />,
+  "org-members": <UserRound className="size-[18px]" />,
+  "org-teams": <Users className="size-[18px]" />,
+  "org-daily": <NotebookText className="size-[18px]" />,
+  "org-schedule": <CalendarDays className="size-[18px]" />,
+  "org-audit": <ClipboardList className="size-[18px]" />,
+  "org-permissions": <SlidersHorizontal className="size-[18px]" />,
+  "dev-tools": <FlaskConical className="size-[18px]" />,
+};
+
+export function AppRail({
+  pathname,
+  user,
+  activeAccount,
+  organizationAccounts,
+  workspaces,
+  workspacesHydrated,
+  isOrganizationAccount,
+  onSelectPersonal,
+  onSelectOrganization,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onOrganizationCreated,
+  onSignOut: _onSignOut,
+}: AppRailProps) {
+  const router = useRouter();
+  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  const visibleRailItems: RailItem[] = useMemo(() => {
+    const catalogItems = listShellRailCatalogItems(isOrganizationAccount);
+    return catalogItems.map((item: ShellRailCatalogItem) => ({
+      href: item.href,
+      label: item.label,
+      icon: RAIL_ICON_MAP[item.id] ?? null,
+      isActive: item.id === "workspace"
+        ? (currentPathname: string) => resolveShellNavSection(currentPathname) === "workspace"
+        : item.activeRoutePrefix
+          ? (currentPathname: string) => isExactOrChildPath(item.activeRoutePrefix!, currentPathname)
+          : undefined,
+    }));
+  }, [isOrganizationAccount]);
+
+  const workspaceHubHref = activeAccount?.id
+    ? `/${encodeURIComponent(activeAccount.id)}`
+    : "/workspace";
+
+  function buildWorkspaceDetailHref(workspaceId: string): string {
+    if (activeAccount?.id) {
+      return `/${encodeURIComponent(activeAccount.id)}/${encodeURIComponent(workspaceId)}`;
+    }
+    return `/workspace/${encodeURIComponent(workspaceId)}`;
+  }
+
+  const sortedWorkspaces = useMemo(
+    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces],
+  );
+
+  const accountName = activeAccount?.name ?? user?.name ?? "—";
+
+  return (
+    <TooltipProvider delayDuration={400}>
+      <aside
+        aria-label="App navigation rail"
+        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
+      >
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="切換帳號情境"
+                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {getInitial(accountName)}
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[180px]">
+              <p className="text-xs font-medium">{accountName}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+
+          <DropdownMenuContent side="right" align="start" className="w-52">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
+            {user && (
+              <DropdownMenuItem
+                onClick={onSelectPersonal}
+                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{user.name} (Personal)</span>
+              </DropdownMenuItem>
+            )}
+            {organizationAccounts.map((account) => (
+              <DropdownMenuItem
+                key={account.id}
+                onClick={() => { onSelectOrganization(account); }}
+                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{account.name}</span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => { setIsCreateOrgOpen(true); }}
+              className="gap-2 text-primary"
+            >
+              <Plus className="size-3.5 shrink-0" />
+              <span>建立組織</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="my-2 h-px w-7 bg-border/50" />
+
+        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
+          {visibleRailItems.map((item) => {
+            const active = item.isActive?.(pathname) ?? isActive(item.href);
+
+            if (item.href === "/workspace") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="工作區中心：切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">工作區中心：切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => { router.push(workspaceHubHref); }}
+                      className={
+                        resolveShellNavSection(pathname) === "workspace" && !activeWorkspaceId
+                          ? "bg-primary/10 text-primary"
+                          : ""
+                      }
+                    >
+                      工作區中心
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(buildWorkspaceDetailHref(workspace.id));
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => { setIsCreateWorkspaceOpen(true); }}
+                      className="gap-2 text-primary"
+                    >
+                      <Plus className="size-3.5 shrink-0" />
+                      <span>建立工作區</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            return (
+              <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={item.label}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="text-xs">{item.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
+
+        <div className="flex-1" />
+        <div className="h-1" />
+      </aside>
+
+      <CreateOrganizationDialog
+        open={isCreateOrgOpen}
+        onOpenChange={setIsCreateOrgOpen}
+        user={user}
+        onOrganizationCreated={onOrganizationCreated}
+        onNavigate={(href) => { router.push(href); }}
+      />
+
+      <CreateWorkspaceDialogRail
+        open={isCreateWorkspaceOpen}
+        onOpenChange={setIsCreateWorkspaceOpen}
+        accountId={activeAccount?.id ?? null}
+        accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
+        creatorUserId={user?.id}
+        onNavigate={(href: string) => { router.push(href); }}
+      />
+    </TooltipProvider>
+  );
+}
+````
+
 ## File: app/(shell)/_shell/ShellSidebarNavData.tsx
 ````typescript
 import {
@@ -68464,6 +68494,79 @@ export function SimpleNavLinks({
 }
 ````
 
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/layout.tsx
+````typescript
+import type { ReactNode } from "react";
+
+interface AccountWorkspaceDetailLayoutProps {
+	readonly children: ReactNode;
+}
+
+export default function AccountWorkspaceDetailLayout({
+	children,
+}: AccountWorkspaceDetailLayoutProps) {
+	return children;
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/page.tsx
+````typescript
+"use client";
+
+import { useEffect } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+
+import { useApp } from "@/modules/platform/api";
+import { WorkspaceDetailRouteScreen } from "@/modules/workspace/api";
+
+export default function AccountWorkspaceDetailPage() {
+	const router = useRouter();
+	const params = useParams<{ accountId: string; workspaceId: string }>();
+	const searchParams = useSearchParams();
+	const workspaceId = typeof params.workspaceId === "string" ? params.workspaceId : "";
+	const routeAccountId = typeof params.accountId === "string" ? params.accountId : "";
+	const isLegacyWorkspaceAlias = routeAccountId === "workspace";
+	const initialTab = searchParams.get("tab") ?? undefined;
+	const initialOverviewPanel = searchParams.get("panel") ?? undefined;
+
+	const {
+		state: { activeAccount, accountsHydrated },
+	} = useApp();
+
+	const resolvedAccountId =
+		(isLegacyWorkspaceAlias ? activeAccount?.id : routeAccountId) || activeAccount?.id;
+
+	useEffect(() => {
+		if (!isLegacyWorkspaceAlias || !activeAccount?.id || !workspaceId) {
+			return;
+		}
+
+		const query = searchParams.toString();
+		const targetPath = `/${encodeURIComponent(activeAccount.id)}/${encodeURIComponent(workspaceId)}`;
+		router.replace(query.length > 0 ? `${targetPath}?${query}` : targetPath);
+	}, [activeAccount?.id, isLegacyWorkspaceAlias, router, searchParams, workspaceId]);
+
+	if (isLegacyWorkspaceAlias && activeAccount?.id && workspaceId) {
+		return (
+			<div className="px-4 py-6 text-sm text-muted-foreground">
+				正在導向帳號工作區路由…
+			</div>
+		);
+	}
+
+	return (
+		<WorkspaceDetailRouteScreen
+			workspaceId={workspaceId}
+			accountId={resolvedAccountId}
+			accountsHydrated={accountsHydrated}
+			initialTab={initialTab}
+			initialOverviewPanel={initialOverviewPanel}
+		/>
+	);
+}
+````
+
 ## File: app/(shell)/notebook/rag-query/page.tsx
 ````typescript
 "use client";
@@ -68505,6 +68608,20 @@ export default function SettingsProfilePage() {
     <SettingsProfileRouteScreen
       actorId={authState.user?.id ?? null}
       fallbackDisplayName={authState.user?.name ?? ""}
+    />
+  );
+}
+````
+
+## File: app/(shell)/source/libraries/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
+
+export default function SourceLibrariesPage() {
+  return (
+    <WorkspaceRouteShim
+      panel="source-libraries"
+      loadingMessage="正在導向 Workspace Overview（Source Libraries）…"
     />
   );
 }
@@ -70297,21 +70414,234 @@ export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 }
 ````
 
-## File: modules/platform/subdomains/team/README.md
-````markdown
-# Team
+## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
+````typescript
+// ── Types ──────────────────────────────────────────────────────────────────────
 
-Team management within organizations.
+export type ShellNavSection =
+  | "workspace"
+  | "knowledge"
+  | "knowledge-base"
+  | "knowledge-database"
+  | "source"
+  | "notebook"
+  | "ai-chat"
+  | "account"
+  | "organization"
+  | "other";
 
-## Ownership
+export interface ShellNavItem {
+  readonly id: string;
+  readonly label: string;
+  readonly href: string;
+}
 
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
+export interface ShellRailCatalogItem {
+  readonly id: string;
+  readonly href: string;
+  readonly label: string;
+  /** If true, this item is only visible to organization accounts. */
+  readonly requiresOrganization: boolean;
+  /** Route prefix for active-state matching. When absent, defaults to href. */
+  readonly activeRoutePrefix?: string;
+}
 
-## Development Order
+export interface ShellContextSectionConfig {
+  readonly title: string;
+  readonly items: readonly { href: string; label: string }[];
+}
 
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
+  "workspace",
+  "workspace-feed",
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "organization",
+  "settings",
+  "dashboard",
+  "dev-tools",
+]);
+
+function isAccountScopedWorkspacePath(pathname: string): boolean {
+  const [firstSegment] = pathname.split("/").filter(Boolean);
+  if (!firstSegment) {
+    return false;
+  }
+  return !NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment);
+}
+
+// ── Route-matching utility ────────────────────────────────────────────────────
+
+export function isExactOrChildPath(targetPath: string, pathname: string): boolean {
+  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
+}
+
+// ── Account section matchers ──────────────────────────────────────────────────
+
+export const SHELL_ACCOUNT_SECTION_MATCHERS = [
+  "/organization/daily",
+  "/organization/schedule",
+  "/organization/audit",
+] as const;
+
+// ── Route titles & breadcrumb labels ──────────────────────────────────────────
+
+const ROUTE_TITLES: Record<string, string> = {
+  "/organization": "組織治理",
+  "/organization/daily": "帳號 · 每日",
+  "/organization/schedule": "帳號 · 排程",
+  "/organization/schedule/dispatcher": "帳號 · 調度台",
+  "/organization/audit": "帳號 · 稽核",
+  "/workspace": "工作區中心",
+  "/knowledge": "知識中心",
+  "/knowledge/pages": "知識 · 頁面",
+  "/knowledge/block-editor": "知識 · 區塊編輯器",
+  "/knowledge-base/articles": "知識庫 · 文章",
+  "/knowledge-database/databases": "知識資料庫 · 資料庫",
+  "/source/documents": "來源 · 文件",
+  "/source/libraries": "來源 · 資料庫",
+  "/notebook/rag-query": "筆記本 · 問答 / 引用",
+  "/ai-chat": "AI 對話",
+  "/dev-tools": "開發工具",
+};
+
+const BREADCRUMB_LABELS: Record<string, string> = {
+  organization: "組織",
+  workspace: "工作區",
+  wiki: "Account Wiki",
+  "rag-query": "Ask / Cite",
+  documents: "文件",
+  libraries: "Libraries",
+  pages: "頁面",
+  "pages-dnd": "頁面 (DnD)",
+  "block-editor": "區塊編輯器",
+  "rag-reindex": "RAG 重新索引",
+  "ai-chat": "Notebook",
+  "dev-tools": "開發工具",
+  namespaces: "命名空間",
+  members: "成員",
+  teams: "團隊",
+  permissions: "權限",
+  workspaces: "工作區清單",
+  schedule: "排程",
+  daily: "每日",
+  audit: "稽核",
+};
+
+// ── Organization management items ─────────────────────────────────────────────
+
+export const SHELL_ORGANIZATION_MANAGEMENT_ITEMS: readonly ShellNavItem[] = [];
+
+// ── Account nav items ─────────────────────────────────────────────────────────
+
+export const SHELL_ACCOUNT_NAV_ITEMS: readonly ShellNavItem[] = [
+  { id: "schedule", label: "排程", href: "/organization/schedule" },
+  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
+  { id: "daily", label: "每日", href: "/organization/daily" },
+  { id: "audit", label: "稽核", href: "/organization/audit" },
+] as const;
+
+// ── Section labels ────────────────────────────────────────────────────────────
+
+export const SHELL_SECTION_LABELS: Record<ShellNavSection, string> = {
+  workspace: "工作區",
+  knowledge: "知識",
+  "knowledge-base": "知識庫",
+  "knowledge-database": "知識資料庫",
+  source: "來源",
+  notebook: "筆記本",
+  "ai-chat": "AI 對話",
+  account: "帳號",
+  organization: "組織",
+  other: "導覽",
+};
+
+// ── Rail catalog ──────────────────────────────────────────────────────────────
+
+export const SHELL_RAIL_CATALOG_ITEMS: readonly ShellRailCatalogItem[] = [
+  { id: "workspace", href: "/workspace", label: "工作區中心", requiresOrganization: false },
+  { id: "org-members", href: "/organization/members", label: "成員", requiresOrganization: true, activeRoutePrefix: "/organization/members" },
+  { id: "org-teams", href: "/organization/teams", label: "團隊", requiresOrganization: true, activeRoutePrefix: "/organization/teams" },
+  { id: "org-daily", href: "/organization/daily", label: "每日", requiresOrganization: true, activeRoutePrefix: "/organization/daily" },
+  { id: "org-schedule", href: "/organization/schedule", label: "排程", requiresOrganization: true, activeRoutePrefix: "/organization/schedule" },
+  { id: "org-audit", href: "/organization/audit", label: "稽核", requiresOrganization: true, activeRoutePrefix: "/organization/audit" },
+  { id: "org-permissions", href: "/organization/permissions", label: "權限", requiresOrganization: true, activeRoutePrefix: "/organization/permissions" },
+  { id: "dev-tools", href: "/dev-tools", label: "開發工具", requiresOrganization: false },
+];
+
+export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[] {
+  return SHELL_RAIL_CATALOG_ITEMS.filter(
+    (item) => !item.requiresOrganization || isOrganization,
+  );
+}
+
+// ── Context section config ────────────────────────────────────────────────────
+
+export const SHELL_CONTEXT_SECTION_CONFIG: Partial<
+  Record<ShellNavSection, ShellContextSectionConfig>
+> = {
+  "knowledge-base": { title: "知識庫", items: [{ href: "/knowledge-base/articles", label: "文章" }] },
+  "knowledge-database": { title: "資料庫", items: [{ href: "/knowledge-database/databases", label: "資料庫" }] },
+  source: { title: "來源文件", items: [{ href: "/source/libraries", label: "資料庫" }] },
+  notebook: { title: "筆記本", items: [{ href: "/notebook/rag-query", label: "問答 / 引用" }] },
+  "ai-chat": { title: "筆記本 / AI", items: [{ href: "/ai-chat", label: "筆記本介面" }] },
+};
+
+// ── Mobile & organization nav items ───────────────────────────────────────────
+
+export const SHELL_MOBILE_NAV_ITEMS: readonly ShellNavItem[] = [
+  { id: "workspace", label: "工作區", href: "/workspace" },
+];
+
+export const SHELL_ORG_PRIMARY_NAV_ITEMS: readonly ShellNavItem[] = [
+  { id: "members", label: "成員", href: "/organization/members" },
+  { id: "teams", label: "團隊", href: "/organization/teams" },
+  { id: "permissions", label: "權限", href: "/organization/permissions" },
+  { id: "workspaces", label: "工作區", href: "/organization/workspaces" },
+];
+
+export const SHELL_ORG_SECONDARY_NAV_ITEMS: readonly ShellNavItem[] = [
+  { id: "schedule", label: "排程", href: "/organization/schedule" },
+  { id: "daily", label: "每日", href: "/organization/daily" },
+  { id: "audit", label: "稽核", href: "/organization/audit" },
+];
+
+// ── Section resolvers ─────────────────────────────────────────────────────────
+
+export function resolveShellNavSection(pathname: string): ShellNavSection {
+  if (pathname.startsWith("/workspace")) return "workspace";
+  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
+  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
+  if (pathname.startsWith("/knowledge")) return "knowledge";
+  if (pathname.startsWith("/source")) return "source";
+  if (pathname.startsWith("/notebook")) return "notebook";
+  if (pathname.startsWith("/ai-chat")) return "ai-chat";
+  if (
+    SHELL_ACCOUNT_SECTION_MATCHERS.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    )
+  ) {
+    return "account";
+  }
+  if (pathname.startsWith("/organization")) return "organization";
+  if (isAccountScopedWorkspacePath(pathname)) return "workspace";
+  return "other";
+}
+
+export function resolveShellPageTitle(pathname: string): string {
+  if (isAccountScopedWorkspacePath(pathname)) {
+    return "工作區中心";
+  }
+  return ROUTE_TITLES[pathname] ?? "工作區";
+}
+
+export function resolveShellBreadcrumbLabel(segment: string): string {
+  return BREADCRUMB_LABELS[segment] ?? segment;
+}
 ````
 
 ## File: modules/workspace/application/services/WorkspaceQueryApplicationService.ts
@@ -71436,162 +71766,6 @@ export interface AIAPI {
 }
 ````
 
-## File: modules/workspace/api/ui.ts
-````typescript
-/**
- * workspace api/ui.ts
- *
- * Canonical public web UI surface for the workspace bounded context.
- * App-layer consumers that need workspace UI components, hooks, and
- * navigation utilities should import from here.
- *
- * Internal source: interfaces/web/
- */
-
-// ── Screen components ────────────────────────────────────────────────────────
-
-export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/WorkspaceDetailScreen";
-export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
-export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
-export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
-
-// ── Card components ──────────────────────────────────────────────────────────
-
-export { WorkspaceContextCard } from "../interfaces/web/components/cards/WorkspaceContextCard";
-
-// ── Tab components ───────────────────────────────────────────────────────────
-
-export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
-
-// ── Layout components ────────────────────────────────────────────────────────
-
-export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
-export { WorkspaceQuickAccessRow } from "../interfaces/web/components/layout/WorkspaceQuickAccessRow";
-export { WorkspaceSectionContent } from "../interfaces/web/components/layout/WorkspaceSectionContent";
-
-// ── Rail components ──────────────────────────────────────────────────────────
-
-export { CreateWorkspaceDialogRail } from "../interfaces/web/components/rails/CreateWorkspaceDialogRail";
-
-// ── Navigation ────────────────────────────────────────────────────────────────
-
-export type {
-  WorkspaceTabDevStatus,
-  WorkspaceTabGroup,
-  WorkspaceTabValue,
-} from "../interfaces/web/navigation/workspace-tabs";
-
-export {
-  WORKSPACE_TAB_GROUPS,
-  WORKSPACE_TAB_META,
-  WORKSPACE_TAB_VALUES,
-  getWorkspaceTabLabel,
-  getWorkspaceTabMeta,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-} from "../interfaces/web/navigation/workspace-tabs";
-
-export type { WorkspaceNavItem } from "../interfaces/web/navigation/workspace-nav-items";
-export {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "../interfaces/web/navigation/workspace-nav-items";
-
-// ── Quick-access navigation ───────────────────────────────────────────────────
-
-export type {
-  WorkspaceQuickAccessItem,
-  WorkspaceQuickAccessMatcherOptions,
-} from "../interfaces/web/components/navigation/workspace-quick-access";
-
-export { buildWorkspaceQuickAccessItems } from "../interfaces/web/components/navigation/workspace-quick-access";
-
-// ── State helpers ─────────────────────────────────────────────────────────────
-
-export { getWorkspaceStorageKey } from "../interfaces/web/state/workspace-session";
-
-// ── Map utilities ─────────────────────────────────────────────────────────────
-
-export {
-  resolveWorkspaceFromMap,
-  toWorkspaceMap,
-} from "../interfaces/web/utils/workspace-map";
-
-// ── Hooks ─────────────────────────────────────────────────────────────────────
-
-export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
-export type {
-  UseWorkspaceOrchestrationContextOptions,
-  WorkspaceOrchestrationContext,
-} from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
-export { useWorkspaceOrchestrationContext } from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
-export {
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  getWorkspaceIdFromPath,
-  useRecentWorkspaces,
-} from "../interfaces/web/hooks/useRecentWorkspaces";
-
-// ── Workspace context provider ────────────────────────────────────────────────
-
-export {
-  WorkspaceContextProvider,
-  useWorkspaceContext,
-} from "../interfaces/web/providers/WorkspaceContextProvider";
-export type {
-  WorkspaceContextState,
-  WorkspaceContextAction,
-  WorkspaceContextValue,
-} from "../interfaces/web/providers/WorkspaceContextProvider";
-
-// ── Navigation preferences ────────────────────────────────────────────────────
-
-export type { NavPreferences, SidebarLocaleBundle } from "../interfaces/web/navigation/nav-preferences-data";
-export {
-  PERSONAL_ITEMS,
-  ORGANIZATION_NAV_ITEMS,
-  DIALOG_TEXT,
-  DEFAULT_PREFS,
-  readNavPreferences,
-  writeNavPreferences,
-} from "../interfaces/web/navigation/nav-preferences-data";
-
-// ── Sidebar locale ────────────────────────────────────────────────────────────
-
-export { useSidebarLocale } from "../interfaces/web/navigation/use-sidebar-locale";
-
-export {
-  appendWorkspaceContextQuery,
-  buildWorkspaceContextHref,
-  supportsWorkspaceSearchContext,
-  type WorkspaceNavigationContext,
-} from "../interfaces/web/navigation/workspace-context-links";
-
-// ── Navigation customize dialog ───────────────────────────────────────────────
-
-export { CustomizeNavigationDialog } from "../interfaces/web/components/dialogs/CustomizeNavigationDialog";
-export { CheckRow, WorkspaceCheckRow } from "../interfaces/web/components/dialogs/NavCheckRow";
-
-export {
-  AuditStream,
-  WorkspaceAuditTab,
-} from "../subdomains/audit/api";
-
-export {
-  WorkspaceFeedAccountView,
-  WorkspaceFeedWorkspaceView,
-} from "../subdomains/feed/api";
-
-export type { AccountMember } from "../subdomains/scheduling/api";
-export {
-  AccountSchedulingView,
-  WorkspaceSchedulingTab,
-} from "../subdomains/scheduling/api";
-
-export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";
-````
-
 ## File: modules/workspace/application/use-cases/workspace.use-cases.ts
 ````typescript
 /**
@@ -71611,288 +71785,128 @@ export { MountCapabilitiesUseCase } from "./workspace-capabilities.use-cases";
 export { CreateWorkspaceLocationUseCase } from "./workspace-location.use-cases";
 ````
 
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
+## File: modules/workspace/interfaces/web/navigation/workspace-context-links.ts
 ````typescript
-"use client";
-
-import Link from "next/link";
-import { useMemo, useState } from "react";
-
-import {
-  Card,
-  CardContent,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { WorkspaceAuditTab } from "@/modules/workspace/api";
-import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
-import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
-import { WorkspaceFlowTab } from "@/modules/workspace/api";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
-import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
-
-import {
-  createSettingsDraft,
-  type WorkspaceSettingsDraft,
-} from "../../state/workspace-settings";
-import {
-  getWorkspaceAddressLines,
-  getWorkspacePersonnelEntries,
-} from "../../view-models/workspace-supporting-records";
-import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabValue,
-} from "../../navigation/workspace-tabs";
-import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
-import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
-import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
-import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
-import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
-
-interface WorkspaceDetailScreenProps {
-  readonly workspaceId: string;
-  readonly accountId: string | null | undefined;
-  readonly accountsHydrated: boolean;
-  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-  readonly initialTab?: string;
-  readonly initialOverviewPanel?: string;
+export interface WorkspaceNavigationContext {
+  readonly accountId: string | null;
+  readonly workspaceId: string | null;
 }
 
-export function WorkspaceDetailScreen({
-  workspaceId,
-  accountId,
-  accountsHydrated,
-  initialTab,
-  initialOverviewPanel,
-}: WorkspaceDetailScreenProps) {
-  const { state: wsState, dispatch: wsDispatch } = useWorkspaceContext();
-  const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
-    workspaceId,
-    accountId,
-    accountsHydrated,
+const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
+  "workspace",
+  "workspace-feed",
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "organization",
+  "settings",
+  "dashboard",
+  "dev-tools",
+]);
+
+export const WORKSPACE_OVERVIEW_PANELS = [
+  "knowledge-pages",
+  "knowledge-base-articles",
+  "knowledge-databases",
+  "source-libraries",
+  "settings",
+] as const;
+
+export type WorkspaceOverviewPanel = (typeof WORKSPACE_OVERVIEW_PANELS)[number];
+
+function tryGetAccountIdFromPath(pathname: string): string | null {
+  const [firstSegment] = pathname.split("/").filter(Boolean);
+  if (!firstSegment) {
+    return null;
+  }
+  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
+    return null;
+  }
+  return decodeURIComponent(firstSegment);
+}
+
+function buildWorkspaceBaseHref(workspaceId: string, accountId?: string | null): string {
+  const encodedWorkspaceId = encodeURIComponent(workspaceId);
+  if (accountId) {
+    return `/${encodeURIComponent(accountId)}/${encodedWorkspaceId}`;
+  }
+  return `/workspace/${encodedWorkspaceId}`;
+}
+
+export function buildWorkspaceOverviewPanelHref(
+  workspaceId: string,
+  panel?: WorkspaceOverviewPanel,
+  accountId?: string | null,
+): string {
+  const baseHref = buildWorkspaceBaseHref(workspaceId, accountId);
+  if (!panel) {
+    return `${baseHref}?tab=Overview`;
+  }
+  return `${baseHref}?tab=Overview&panel=${encodeURIComponent(panel)}`;
+}
+
+export function supportsWorkspaceSearchContext(pathname: string): boolean {
+  return (
+    pathname.startsWith("/knowledge") ||
+    pathname.startsWith("/knowledge-base") ||
+    pathname.startsWith("/knowledge-database") ||
+    pathname.startsWith("/source") ||
+    pathname.startsWith("/notebook")
   );
-  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
-  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
+}
 
-  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
-    workspace,
-    accountId,
-    onSaved: (updated) => {
-      setWorkspace(updated);
-      setSettingsDraft(createSettingsDraft(updated));
-      setIsEditWorkspaceOpen(false);
-    },
-  });
+export function buildWorkspaceContextHref(pathname: string, workspaceId: string): string {
+  const accountId = tryGetAccountIdFromPath(pathname);
 
-  const personnelEntries = useMemo(() => {
-    return workspace ? getWorkspacePersonnelEntries(workspace) : [];
-  }, [workspace]);
-
-  const addressLines = useMemo(() => {
-    return workspace ? getWorkspaceAddressLines(workspace) : [];
-  }, [workspace]);
-
-  function renderTabContent(tab: WorkspaceTabValue) {
-    if (!workspace) return null;
-
-    switch (tab) {
-      case "Overview":
-        return (
-          <WorkspaceOverviewTab
-            workspace={workspace}
-            activeWorkspaceId={wsState.activeWorkspaceId}
-            personnelEntries={personnelEntries}
-            addressLines={addressLines}
-            showSettingsPanel={initialOverviewPanel === "settings"}
-            onEditClick={() => {
-              setSettingsDraft(createSettingsDraft(workspace));
-              clearSaveError();
-              setIsEditWorkspaceOpen(true);
-            }}
-            onSetActiveWorkspace={() =>
-              wsDispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
-            }
-          />
-        );
-      case "Members":
-        return <WorkspaceMembersTab workspace={workspace} />;
-      case "Daily":
-        return <WorkspaceDailyTab workspace={workspace} />;
-      case "Files":
-        return <WorkspaceFilesTab workspace={workspace} />;
-      case "Schedule":
-        return (
-          <WorkspaceSchedulingTab
-            workspace={workspace}
-            accountId={accountId ?? workspace.accountId}
-            currentUserId={accountId ?? "anonymous"}
-          />
-        );
-      case "Audit":
-        return <WorkspaceAuditTab workspaceId={workspace.id} />;
-      case "Tasks":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="tasks"
-          />
-        );
-      case "TaskQa":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="qa"
-          />
-        );
-      case "TaskAcceptance":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="acceptance"
-          />
-        );
-      case "TaskIssues":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="issues"
-          />
-        );
-      case "TaskFinance":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="invoices"
-          />
-        );
-      case "Feed":
-        return (
-          <WorkspaceFeedWorkspaceView
-            accountId={accountId ?? workspace.accountId}
-            workspaceId={workspace.id}
-            workspaceName={workspace.name}
-          />
-        );
-      default:
-        return null;
-    }
+  if (pathname.startsWith("/knowledge-base")) {
+    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-base-articles", accountId);
   }
 
-  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
-    ? initialTab
-    : "Overview";
+  if (pathname.startsWith("/knowledge-database")) {
+    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-databases", accountId);
+  }
 
-  return (
-    <div className="space-y-6">
-      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
-        ← 返回 Workspace Hub
-      </Link>
+  if (pathname.startsWith("/knowledge")) {
+    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-pages", accountId);
+  }
 
-      {!accountsHydrated && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          正在同步帳號內容…
-        </div>
-      )}
+  if (pathname.startsWith("/source/libraries")) {
+    return buildWorkspaceOverviewPanelHref(workspaceId, "source-libraries", accountId);
+  }
 
-      {loadState === "loading" && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            Loading workspace detail…
-          </CardContent>
-        </Card>
-      )}
+  if (pathname.startsWith("/source/documents")) {
+    return `${buildWorkspaceBaseHref(workspaceId, accountId)}?tab=Files`;
+  }
 
-      {loadState === "error" && (
-        <Card className="border border-destructive/30">
-          <CardContent className="px-6 py-5 text-sm text-destructive">
-            無法載入工作區資料，請返回清單後重試。
-          </CardContent>
-        </Card>
-      )}
+  return buildWorkspaceBaseHref(workspaceId, accountId);
+}
 
-      {loadState === "loaded" && !workspace && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            找不到此工作區。
-          </CardContent>
-        </Card>
-      )}
+export function appendWorkspaceContextQuery(
+  href: string,
+  context: WorkspaceNavigationContext,
+): string {
+  const { accountId, workspaceId } = context;
 
-      {workspace && (
-        <div className="space-y-6">
-          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
-          <nav
-            aria-label="Workspace tab navigation"
-            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
-          >
-            <div className="flex min-w-max items-center gap-0.5">
-              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
-                const tabs = getWorkspaceTabsByGroup(group);
-                const links = tabs.map((tab) => {
-                  const isActive = resolvedTab === tab;
-                  return (
-                    <Link
-                      key={tab}
-                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
-                      aria-current={isActive ? "page" : undefined}
-                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {getWorkspaceTabLabel(tab)}
-                    </Link>
-                  );
-                });
-                if (groupIndex > 0) {
-                  return [
-                    <div
-                      key={`sep-${group}`}
-                      aria-hidden="true"
-                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
-                    />,
-                    ...links,
-                  ];
-                }
-                return links;
-              })}
-            </div>
-          </nav>
+  if (!accountId && !workspaceId) {
+    return href;
+  }
 
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
-          </div>
-          {renderTabContent(resolvedTab)}
-        </div>
-      )}
+  const [path, search = ""] = href.split("?");
+  const params = new URLSearchParams(search);
 
-      <WorkspaceSettingsDialog
-        open={isEditWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsEditWorkspaceOpen(open);
-          if (!open) {
-            clearSaveError();
-            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
-          }
-        }}
-        settingsDraft={settingsDraft}
-        setSettingsDraft={setSettingsDraft}
-        isSaving={isSavingWorkspace}
-        saveError={saveError}
-        onSubmit={(event) => void handleSave(event, settingsDraft)}
-      />
-    </div>
-  );
+  if (accountId) {
+    params.set("accountId", accountId);
+  }
+
+  if (workspaceId) {
+    params.set("workspaceId", workspaceId);
+  }
+
+  const query = params.toString();
+  return query.length > 0 ? `${path}?${query}` : path;
 }
 ````
 
@@ -72603,6 +72617,595 @@ export { SettingsProfileRouteScreen } from "../interfaces";
 export type { LegacyAccountProfileDataSource } from "../infrastructure";
 ````
 
+## File: modules/platform/subdomains/organization/infrastructure/organization-service.ts
+````typescript
+/**
+ * OrganizationService — Composition root for organization use cases.
+ */
+
+import { FirebaseOrganizationRepository } from "./firebase/FirebaseOrganizationRepository";
+import { FirebaseOrgPolicyRepository } from "./firebase/FirebaseOrgPolicyRepository";
+import {
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+} from "../application/use-cases/organization-lifecycle.use-cases";
+import {
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+} from "../application/use-cases/organization-member.use-cases";
+import {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "../application/use-cases/organization-team.use-cases";
+import type { IOrganizationTeamPort } from "../domain/ports/IOrganizationTeamPort";
+import {
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "../application/use-cases/organization-partner.use-cases";
+import {
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+} from "../application/use-cases/organization-policy.use-cases";
+import type {
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "../domain/entities/Organization";
+import type { CreateTeamInput } from "../domain/entities/Organization";
+import type { CommandResult } from "@shared-types";
+
+let _orgRepo: FirebaseOrganizationRepository | undefined;
+let _policyRepo: FirebaseOrgPolicyRepository | undefined;
+let _teamPort: IOrganizationTeamPort | undefined;
+let _teamPortFactory: (() => IOrganizationTeamPort) | undefined;
+
+export function configureOrganizationTeamPortFactory(
+  factory: () => IOrganizationTeamPort,
+): void {
+  _teamPortFactory = factory;
+  _teamPort = undefined;
+}
+
+function getOrgRepo(): FirebaseOrganizationRepository {
+  if (!_orgRepo) _orgRepo = new FirebaseOrganizationRepository();
+  return _orgRepo;
+}
+
+function getPolicyRepo(): FirebaseOrgPolicyRepository {
+  if (!_policyRepo) _policyRepo = new FirebaseOrgPolicyRepository();
+  return _policyRepo;
+}
+
+function getTeamPort(): IOrganizationTeamPort {
+  if (!_teamPortFactory) {
+    throw new Error("Organization team port factory is not configured.");
+  }
+  if (!_teamPort) _teamPort = _teamPortFactory();
+  return _teamPort;
+}
+
+export const organizationService = {
+  createOrganization: (cmd: CreateOrganizationCommand): Promise<CommandResult> =>
+    new CreateOrganizationUseCase(getOrgRepo()).execute(cmd),
+
+  createOrganizationWithTeam: (
+    cmd: CreateOrganizationCommand,
+    teamName: string,
+    teamType: "internal" | "external" = "internal",
+  ): Promise<CommandResult> =>
+    new CreateOrganizationWithTeamUseCase(getOrgRepo()).execute(cmd, teamName, teamType),
+
+  updateSettings: (cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> =>
+    new UpdateOrganizationSettingsUseCase(getOrgRepo()).execute(cmd),
+
+  deleteOrganization: (orgId: string): Promise<CommandResult> =>
+    new DeleteOrganizationUseCase(getOrgRepo()).execute(orgId),
+
+  inviteMember: (input: InviteMemberInput): Promise<CommandResult> =>
+    new InviteMemberUseCase(getOrgRepo()).execute(input),
+
+  recruitMember: (orgId: string, memberId: string, name: string, email: string): Promise<CommandResult> =>
+    new RecruitMemberUseCase(getOrgRepo()).execute(orgId, memberId, name, email),
+
+  removeMember: (orgId: string, memberId: string): Promise<CommandResult> =>
+    new RemoveMemberUseCase(getOrgRepo()).execute(orgId, memberId),
+
+  updateMemberRole: (input: UpdateMemberRoleInput): Promise<CommandResult> =>
+    new UpdateMemberRoleUseCase(getOrgRepo()).execute(input),
+
+  createTeam: (input: CreateTeamInput): Promise<CommandResult> =>
+    new CreateTeamUseCase(getTeamPort()).execute(input),
+
+  deleteTeam: (orgId: string, teamId: string): Promise<CommandResult> =>
+    new DeleteTeamUseCase(getTeamPort()).execute(orgId, teamId),
+
+  updateTeamMembers: (orgId: string, teamId: string, memberId: string, action: "add" | "remove"): Promise<CommandResult> =>
+    new UpdateTeamMembersUseCase(getTeamPort()).execute(orgId, teamId, memberId, action),
+
+  createPartnerGroup: (orgId: string, groupName: string): Promise<CommandResult> =>
+    new CreatePartnerGroupUseCase(getOrgRepo()).execute(orgId, groupName),
+
+  sendPartnerInvite: (orgId: string, teamId: string, email: string): Promise<CommandResult> =>
+    new SendPartnerInviteUseCase(getOrgRepo()).execute(orgId, teamId, email),
+
+  dismissPartnerMember: (orgId: string, teamId: string, memberId: string): Promise<CommandResult> =>
+    new DismissPartnerMemberUseCase(getOrgRepo()).execute(orgId, teamId, memberId),
+
+  createOrgPolicy: (input: CreateOrgPolicyInput): Promise<CommandResult> =>
+    new CreateOrgPolicyUseCase(getPolicyRepo()).execute(input),
+
+  updateOrgPolicy: (policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> =>
+    new UpdateOrgPolicyUseCase(getPolicyRepo()).execute(policyId, data),
+
+  deleteOrgPolicy: (policyId: string): Promise<CommandResult> =>
+    new DeleteOrgPolicyUseCase(getPolicyRepo()).execute(policyId),
+};
+
+/**
+ * OrganizationQueryService — read-model queries for client-side data.
+ * Composition root: wires Firebase repos for queries; interfaces/ must use this
+ * via the subdomain api/ boundary instead of importing infrastructure directly.
+ */
+export const organizationQueryService = {
+  getMembers: (organizationId: string) => getOrgRepo().getMembers(organizationId),
+  getTeams: (organizationId: string) => getOrgRepo().getTeams(organizationId),
+  getOrgPolicies: (orgId: string) => getPolicyRepo().getPolicies(orgId),
+};
+````
+
+## File: modules/workspace/api/ui.ts
+````typescript
+/**
+ * workspace api/ui.ts
+ *
+ * Canonical public web UI surface for the workspace bounded context.
+ * App-layer consumers that need workspace UI components, hooks, and
+ * navigation utilities should import from here.
+ *
+ * Internal source: interfaces/web/
+ */
+
+// ── Screen components ────────────────────────────────────────────────────────
+
+export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/WorkspaceDetailScreen";
+export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
+export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
+export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
+
+// ── Card components ──────────────────────────────────────────────────────────
+
+export { WorkspaceContextCard } from "../interfaces/web/components/cards/WorkspaceContextCard";
+
+// ── Tab components ───────────────────────────────────────────────────────────
+
+export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
+
+// ── Layout components ────────────────────────────────────────────────────────
+
+export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
+export { WorkspaceQuickAccessRow } from "../interfaces/web/components/layout/WorkspaceQuickAccessRow";
+export { WorkspaceSectionContent } from "../interfaces/web/components/layout/WorkspaceSectionContent";
+
+// ── Rail components ──────────────────────────────────────────────────────────
+
+export { CreateWorkspaceDialogRail } from "../interfaces/web/components/rails/CreateWorkspaceDialogRail";
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+
+export type {
+  WorkspaceTabDevStatus,
+  WorkspaceTabGroup,
+  WorkspaceTabValue,
+} from "../interfaces/web/navigation/workspace-tabs";
+
+export {
+  WORKSPACE_TAB_GROUPS,
+  WORKSPACE_TAB_META,
+  WORKSPACE_TAB_VALUES,
+  getWorkspaceTabLabel,
+  getWorkspaceTabMeta,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+} from "../interfaces/web/navigation/workspace-tabs";
+
+export type { WorkspaceNavItem } from "../interfaces/web/navigation/workspace-nav-items";
+export {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "../interfaces/web/navigation/workspace-nav-items";
+
+// ── Quick-access navigation ───────────────────────────────────────────────────
+
+export type {
+  WorkspaceQuickAccessItem,
+  WorkspaceQuickAccessMatcherOptions,
+} from "../interfaces/web/components/navigation/workspace-quick-access";
+
+export { buildWorkspaceQuickAccessItems } from "../interfaces/web/components/navigation/workspace-quick-access";
+
+// ── State helpers ─────────────────────────────────────────────────────────────
+
+export { getWorkspaceStorageKey } from "../interfaces/web/state/workspace-session";
+
+// ── Map utilities ─────────────────────────────────────────────────────────────
+
+export {
+  resolveWorkspaceFromMap,
+  toWorkspaceMap,
+} from "../interfaces/web/utils/workspace-map";
+
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+
+export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
+export type {
+  UseWorkspaceOrchestrationContextOptions,
+  WorkspaceOrchestrationContext,
+} from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
+export { useWorkspaceOrchestrationContext } from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
+export {
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  getWorkspaceIdFromPath,
+  useRecentWorkspaces,
+} from "../interfaces/web/hooks/useRecentWorkspaces";
+
+// ── Workspace context provider ────────────────────────────────────────────────
+
+export {
+  WorkspaceContextProvider,
+  useWorkspaceContext,
+} from "../interfaces/web/providers/WorkspaceContextProvider";
+export type {
+  WorkspaceContextState,
+  WorkspaceContextAction,
+  WorkspaceContextValue,
+} from "../interfaces/web/providers/WorkspaceContextProvider";
+
+// ── Navigation preferences ────────────────────────────────────────────────────
+
+export type { NavPreferences, SidebarLocaleBundle } from "../interfaces/web/navigation/nav-preferences-data";
+export {
+  PERSONAL_ITEMS,
+  ORGANIZATION_NAV_ITEMS,
+  DIALOG_TEXT,
+  DEFAULT_PREFS,
+  readNavPreferences,
+  writeNavPreferences,
+} from "../interfaces/web/navigation/nav-preferences-data";
+
+// ── Sidebar locale ────────────────────────────────────────────────────────────
+
+export { useSidebarLocale } from "../interfaces/web/navigation/use-sidebar-locale";
+
+export {
+  appendWorkspaceContextQuery,
+  buildWorkspaceOverviewPanelHref,
+  buildWorkspaceContextHref,
+  supportsWorkspaceSearchContext,
+  type WorkspaceNavigationContext,
+  type WorkspaceOverviewPanel,
+} from "../interfaces/web/navigation/workspace-context-links";
+
+// ── Navigation customize dialog ───────────────────────────────────────────────
+
+export { CustomizeNavigationDialog } from "../interfaces/web/components/dialogs/CustomizeNavigationDialog";
+export { CheckRow, WorkspaceCheckRow } from "../interfaces/web/components/dialogs/NavCheckRow";
+
+export {
+  AuditStream,
+  WorkspaceAuditTab,
+} from "../subdomains/audit/api";
+
+export {
+  WorkspaceFeedAccountView,
+  WorkspaceFeedWorkspaceView,
+} from "../subdomains/feed/api";
+
+export type { AccountMember } from "../subdomains/scheduling/api";
+export {
+  AccountSchedulingView,
+  WorkspaceSchedulingTab,
+} from "../subdomains/scheduling/api";
+
+export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";
+````
+
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState } from "react";
+
+import {
+  Card,
+  CardContent,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { WorkspaceAuditTab } from "@/modules/workspace/api";
+import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
+import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
+import { WorkspaceFlowTab } from "@/modules/workspace/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
+import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
+
+import {
+  createSettingsDraft,
+  type WorkspaceSettingsDraft,
+} from "../../state/workspace-settings";
+import {
+  getWorkspaceAddressLines,
+  getWorkspacePersonnelEntries,
+} from "../../view-models/workspace-supporting-records";
+import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
+import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabValue,
+} from "../../navigation/workspace-tabs";
+import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
+import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
+import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
+import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
+import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
+
+interface WorkspaceDetailScreenProps {
+  readonly workspaceId: string;
+  readonly accountId: string | null | undefined;
+  readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
+  readonly initialOverviewPanel?: string;
+}
+
+export function WorkspaceDetailScreen({
+  workspaceId,
+  accountId,
+  accountsHydrated,
+  initialTab,
+  initialOverviewPanel,
+}: WorkspaceDetailScreenProps) {
+  const { state: wsState, dispatch: wsDispatch } = useWorkspaceContext();
+  const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
+    workspaceId,
+    accountId,
+    accountsHydrated,
+  );
+  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
+
+  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
+    workspace,
+    accountId,
+    onSaved: (updated) => {
+      setWorkspace(updated);
+      setSettingsDraft(createSettingsDraft(updated));
+      setIsEditWorkspaceOpen(false);
+    },
+  });
+
+  const personnelEntries = useMemo(() => {
+    return workspace ? getWorkspacePersonnelEntries(workspace) : [];
+  }, [workspace]);
+
+  const addressLines = useMemo(() => {
+    return workspace ? getWorkspaceAddressLines(workspace) : [];
+  }, [workspace]);
+
+  function renderTabContent(tab: WorkspaceTabValue) {
+    if (!workspace) return null;
+
+    switch (tab) {
+      case "Overview":
+        return (
+          <WorkspaceOverviewTab
+            workspace={workspace}
+            activeWorkspaceId={wsState.activeWorkspaceId}
+            personnelEntries={personnelEntries}
+            addressLines={addressLines}
+            initialPanel={initialOverviewPanel}
+            onEditClick={() => {
+              setSettingsDraft(createSettingsDraft(workspace));
+              clearSaveError();
+              setIsEditWorkspaceOpen(true);
+            }}
+            onSetActiveWorkspace={() =>
+              wsDispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
+            }
+          />
+        );
+      case "Members":
+        return <WorkspaceMembersTab workspace={workspace} />;
+      case "Daily":
+        return <WorkspaceDailyTab workspace={workspace} />;
+      case "Files":
+        return <WorkspaceFilesTab workspace={workspace} />;
+      case "Schedule":
+        return (
+          <WorkspaceSchedulingTab
+            workspace={workspace}
+            accountId={accountId ?? workspace.accountId}
+            currentUserId={accountId ?? "anonymous"}
+          />
+        );
+      case "Audit":
+        return <WorkspaceAuditTab workspaceId={workspace.id} />;
+      case "Tasks":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="tasks"
+          />
+        );
+      case "TaskQa":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="qa"
+          />
+        );
+      case "TaskAcceptance":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="acceptance"
+          />
+        );
+      case "TaskIssues":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="issues"
+          />
+        );
+      case "TaskFinance":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="invoices"
+          />
+        );
+      case "Feed":
+        return (
+          <WorkspaceFeedWorkspaceView
+            accountId={accountId ?? workspace.accountId}
+            workspaceId={workspace.id}
+            workspaceName={workspace.name}
+          />
+        );
+      default:
+        return null;
+    }
+  }
+
+  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
+    ? initialTab
+    : "Overview";
+
+  return (
+    <div className="space-y-6">
+      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
+        ← 返回 Workspace Hub
+      </Link>
+
+      {!accountsHydrated && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          正在同步帳號內容…
+        </div>
+      )}
+
+      {loadState === "loading" && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            Loading workspace detail…
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "error" && (
+        <Card className="border border-destructive/30">
+          <CardContent className="px-6 py-5 text-sm text-destructive">
+            無法載入工作區資料，請返回清單後重試。
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "loaded" && !workspace && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            找不到此工作區。
+          </CardContent>
+        </Card>
+      )}
+
+      {workspace && (
+        <div className="space-y-6">
+          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+          <nav
+            aria-label="Workspace tab navigation"
+            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
+          >
+            <div className="flex min-w-max items-center gap-0.5">
+              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
+                const tabs = getWorkspaceTabsByGroup(group);
+                const links = tabs.map((tab) => {
+                  const isActive = resolvedTab === tab;
+                  return (
+                    <Link
+                      key={tab}
+                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {getWorkspaceTabLabel(tab)}
+                    </Link>
+                  );
+                });
+                if (groupIndex > 0) {
+                  return [
+                    <div
+                      key={`sep-${group}`}
+                      aria-hidden="true"
+                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
+                    />,
+                    ...links,
+                  ];
+                }
+                return links;
+              })}
+            </div>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
+          </div>
+          {renderTabContent(resolvedTab)}
+        </div>
+      )}
+
+      <WorkspaceSettingsDialog
+        open={isEditWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsEditWorkspaceOpen(open);
+          if (!open) {
+            clearSaveError();
+            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
+          }
+        }}
+        settingsDraft={settingsDraft}
+        setSettingsDraft={setSettingsDraft}
+        isSaving={isSavingWorkspace}
+        saveError={saveError}
+        onSubmit={(event) => void handleSave(event, settingsDraft)}
+      />
+    </div>
+  );
+}
+````
+
 ## File: modules/notebooklm/AGENT.md
 ````markdown
 # NotebookLM Agent
@@ -72807,152 +73410,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Context Map](../../docs/contexts/notebooklm/context-map.md)
 - [Ubiquitous Language](../../docs/contexts/notebooklm/ubiquitous-language.md)
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
-````
-
-## File: modules/platform/subdomains/organization/infrastructure/organization-service.ts
-````typescript
-/**
- * OrganizationService — Composition root for organization use cases.
- */
-
-import { FirebaseOrganizationRepository } from "./firebase/FirebaseOrganizationRepository";
-import { FirebaseOrgPolicyRepository } from "./firebase/FirebaseOrgPolicyRepository";
-import {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-} from "../application/use-cases/organization-lifecycle.use-cases";
-import {
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-} from "../application/use-cases/organization-member.use-cases";
-import {
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "../application/use-cases/organization-team.use-cases";
-import type { IOrganizationTeamPort } from "../domain/ports/IOrganizationTeamPort";
-import {
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "../application/use-cases/organization-partner.use-cases";
-import {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "../application/use-cases/organization-policy.use-cases";
-import type {
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "../domain/entities/Organization";
-import type { CreateTeamInput } from "../domain/entities/Organization";
-import type { CommandResult } from "@shared-types";
-
-let _orgRepo: FirebaseOrganizationRepository | undefined;
-let _policyRepo: FirebaseOrgPolicyRepository | undefined;
-let _teamPort: IOrganizationTeamPort | undefined;
-let _teamPortFactory: (() => IOrganizationTeamPort) | undefined;
-
-export function configureOrganizationTeamPortFactory(
-  factory: () => IOrganizationTeamPort,
-): void {
-  _teamPortFactory = factory;
-  _teamPort = undefined;
-}
-
-function getOrgRepo(): FirebaseOrganizationRepository {
-  if (!_orgRepo) _orgRepo = new FirebaseOrganizationRepository();
-  return _orgRepo;
-}
-
-function getPolicyRepo(): FirebaseOrgPolicyRepository {
-  if (!_policyRepo) _policyRepo = new FirebaseOrgPolicyRepository();
-  return _policyRepo;
-}
-
-function getTeamPort(): IOrganizationTeamPort {
-  if (!_teamPortFactory) {
-    throw new Error("Organization team port factory is not configured.");
-  }
-  if (!_teamPort) _teamPort = _teamPortFactory();
-  return _teamPort;
-}
-
-export const organizationService = {
-  createOrganization: (cmd: CreateOrganizationCommand): Promise<CommandResult> =>
-    new CreateOrganizationUseCase(getOrgRepo()).execute(cmd),
-
-  createOrganizationWithTeam: (
-    cmd: CreateOrganizationCommand,
-    teamName: string,
-    teamType: "internal" | "external" = "internal",
-  ): Promise<CommandResult> =>
-    new CreateOrganizationWithTeamUseCase(getOrgRepo()).execute(cmd, teamName, teamType),
-
-  updateSettings: (cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> =>
-    new UpdateOrganizationSettingsUseCase(getOrgRepo()).execute(cmd),
-
-  deleteOrganization: (orgId: string): Promise<CommandResult> =>
-    new DeleteOrganizationUseCase(getOrgRepo()).execute(orgId),
-
-  inviteMember: (input: InviteMemberInput): Promise<CommandResult> =>
-    new InviteMemberUseCase(getOrgRepo()).execute(input),
-
-  recruitMember: (orgId: string, memberId: string, name: string, email: string): Promise<CommandResult> =>
-    new RecruitMemberUseCase(getOrgRepo()).execute(orgId, memberId, name, email),
-
-  removeMember: (orgId: string, memberId: string): Promise<CommandResult> =>
-    new RemoveMemberUseCase(getOrgRepo()).execute(orgId, memberId),
-
-  updateMemberRole: (input: UpdateMemberRoleInput): Promise<CommandResult> =>
-    new UpdateMemberRoleUseCase(getOrgRepo()).execute(input),
-
-  createTeam: (input: CreateTeamInput): Promise<CommandResult> =>
-    new CreateTeamUseCase(getTeamPort()).execute(input),
-
-  deleteTeam: (orgId: string, teamId: string): Promise<CommandResult> =>
-    new DeleteTeamUseCase(getTeamPort()).execute(orgId, teamId),
-
-  updateTeamMembers: (orgId: string, teamId: string, memberId: string, action: "add" | "remove"): Promise<CommandResult> =>
-    new UpdateTeamMembersUseCase(getTeamPort()).execute(orgId, teamId, memberId, action),
-
-  createPartnerGroup: (orgId: string, groupName: string): Promise<CommandResult> =>
-    new CreatePartnerGroupUseCase(getOrgRepo()).execute(orgId, groupName),
-
-  sendPartnerInvite: (orgId: string, teamId: string, email: string): Promise<CommandResult> =>
-    new SendPartnerInviteUseCase(getOrgRepo()).execute(orgId, teamId, email),
-
-  dismissPartnerMember: (orgId: string, teamId: string, memberId: string): Promise<CommandResult> =>
-    new DismissPartnerMemberUseCase(getOrgRepo()).execute(orgId, teamId, memberId),
-
-  createOrgPolicy: (input: CreateOrgPolicyInput): Promise<CommandResult> =>
-    new CreateOrgPolicyUseCase(getPolicyRepo()).execute(input),
-
-  updateOrgPolicy: (policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> =>
-    new UpdateOrgPolicyUseCase(getPolicyRepo()).execute(policyId, data),
-
-  deleteOrgPolicy: (policyId: string): Promise<CommandResult> =>
-    new DeleteOrgPolicyUseCase(getPolicyRepo()).execute(policyId),
-};
-
-/**
- * OrganizationQueryService — read-model queries for client-side data.
- * Composition root: wires Firebase repos for queries; interfaces/ must use this
- * via the subdomain api/ boundary instead of importing infrastructure directly.
- */
-export const organizationQueryService = {
-  getMembers: (organizationId: string) => getOrgRepo().getMembers(organizationId),
-  getTeams: (organizationId: string) => getOrgRepo().getTeams(organizationId),
-  getOrgPolicies: (orgId: string) => getPolicyRepo().getPolicies(orgId),
-};
 ````
 
 ## File: modules/platform/api/index.ts

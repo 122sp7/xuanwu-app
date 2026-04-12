@@ -32,6 +32,22 @@ export function KnowledgePagesRouteScreen() {
   const isAccountSummary = scopeParam === "account";
   const workspaceId = isAccountSummary ? "" : requestedWorkspaceId || wsState.activeWorkspaceId || "";
   const currentUserId = authState.user?.id ?? "";
+  const workspaceBasePath =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
+      : "/workspace";
+  const overviewHref = workspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
+    : "/workspace";
+
+  function buildPageDetailHref(pageId: string) {
+    if (accountId && workspaceId) {
+      return `${workspaceBasePath}/knowledge/pages/${encodeURIComponent(pageId)}`;
+    }
+    return `/knowledge/pages/${encodeURIComponent(pageId)}${
+      workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : ""
+    }`;
+  }
 
   const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,7 +93,7 @@ export function KnowledgePagesRouteScreen() {
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => router.push("/knowledge")}
+          onClick={() => router.push(overviewHref)}
           className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
         >
           返回 Knowledge Hub
@@ -110,7 +126,7 @@ export function KnowledgePagesRouteScreen() {
               ? "這個 account summary 目前沒有可顯示的頁面。請改從工作區建立與維護頁面。"
               : "這個工作區尚無頁面。點擊「新增頁面」開始建立。"
           }
-          onPageClick={(pageId) => router.push(`/knowledge/pages/${pageId}`)}
+          onPageClick={(pageId) => router.push(buildPageDetailHref(pageId))}
           onCreated={() => load()}
         />
       )}

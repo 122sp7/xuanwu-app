@@ -57,6 +57,10 @@ export function ArticleDetailPage({
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const articleListHref =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-base/articles`
+      : "/knowledge-base/articles";
 
   const load = useCallback(async () => {
     if (!accountId || !articleId) { setLoading(false); return; }
@@ -146,7 +150,7 @@ export function ArticleDetailPage({
     <div className="space-y-4">
       {/* Back + actions bar */}
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-base/articles")}>
+        <Button variant="ghost" size="sm" onClick={() => router.push(articleListHref)}>
           <ArrowLeft className="mr-1.5 h-4 w-4" /> 文章列表
         </Button>
         <div className="ml-auto flex flex-wrap items-center gap-2">

@@ -1,16 +1,23 @@
 "use client";
 
+import { useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+
 import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
-import { DatabaseFormsPage } from "@/modules/notion/api";
 
 export default function DatabaseFormsPageRoute() {
-  const { accountId, workspaceId, currentUserId } = useWorkspaceOrchestrationContext();
+  const params = useParams<{ databaseId: string }>();
+  const router = useRouter();
+  const { accountId, workspaceId } = useWorkspaceOrchestrationContext();
 
-  return (
-    <DatabaseFormsPage
-      accountId={accountId}
-      workspaceId={workspaceId}
-      currentUserId={currentUserId}
-    />
-  );
+  useEffect(() => {
+    if (!accountId || !workspaceId || !params?.databaseId) {
+      return;
+    }
+    router.replace(
+      `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-database/databases/${encodeURIComponent(params.databaseId)}/forms`,
+    );
+  }, [accountId, workspaceId, params?.databaseId, router]);
+
+  return null;
 }

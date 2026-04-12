@@ -1,16 +1,23 @@
 "use client";
 
+import { useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+
 import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
-import { KnowledgePageDetailPage } from "@/modules/notion/api";
 
 export default function KnowledgePageDetailPageRoute() {
-  const { accountId, activeWorkspaceId, currentUserId } = useWorkspaceOrchestrationContext();
+  const params = useParams<{ pageId: string }>();
+  const router = useRouter();
+  const { accountId, activeWorkspaceId } = useWorkspaceOrchestrationContext();
 
-  return (
-    <KnowledgePageDetailPage
-      accountId={accountId}
-      activeWorkspaceId={activeWorkspaceId || null}
-      currentUserId={currentUserId}
-    />
-  );
+  useEffect(() => {
+    if (!accountId || !activeWorkspaceId || !params?.pageId) {
+      return;
+    }
+    router.replace(
+      `/${encodeURIComponent(accountId)}/${encodeURIComponent(activeWorkspaceId)}/knowledge/pages/${encodeURIComponent(params.pageId)}`,
+    );
+  }, [accountId, activeWorkspaceId, params?.pageId, router]);
+
+  return null;
 }

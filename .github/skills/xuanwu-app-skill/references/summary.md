@@ -41,12 +41,12 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1430 files | 67,412 lines
+1448 files | 67,797 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1137 | 40,914 |
-| TypeScript (TSX) | 196 | 23,759 |
+| TypeScript | 1137 | 41,068 |
+| TypeScript (TSX) | 214 | 23,990 |
 | Markdown | 90 | 2,536 |
 | No Extension | 6 | 6 |
 | CSS | 1 | 197 |
@@ -56,9 +56,9 @@ This skill contains the following reference files:
 - `app/(shell)/dev-tools/page.tsx` (477 lines)
 - `packages/ui-shadcn/ui/chart.tsx` (356 lines)
 - `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)
-- `modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx` (341 lines)
+- `modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx` (344 lines)
 - `modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx` (339 lines)
+- `app/(shell)/_shell/ShellAppRail.tsx` (323 lines)
 - `modules/platform/api/infrastructure-api.ts` (312 lines)
+- `modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx` (308 lines)
 - `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)
-- `modules/workspace/domain/aggregates/Workspace.ts` (305 lines)
-- `app/(shell)/_shell/ShellAppRail.tsx` (305 lines)

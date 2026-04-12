@@ -45,6 +45,13 @@ export function KnowledgeBaseArticlesRouteScreen() {
   const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
   const workspaceId = wsState.activeWorkspaceId ?? "";
   const currentUserId = authState.user?.id ?? "";
+  const workspaceBasePath =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
+      : "/workspace";
+  const overviewHref = workspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-base-articles`
+    : "/workspace";
 
   const [articles, setArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -78,7 +85,13 @@ export function KnowledgeBaseArticlesRouteScreen() {
 
   function handleSuccess(articleId?: string) {
     if (articleId) {
-      router.push(`/knowledge-base/articles/${articleId}`);
+      if (accountId && workspaceId) {
+        router.push(
+          `${workspaceBasePath}/knowledge-base/articles/${encodeURIComponent(articleId)}`,
+        );
+      } else {
+        router.push(`/knowledge-base/articles/${encodeURIComponent(articleId)}`);
+      }
     } else {
       load();
     }
@@ -97,7 +110,7 @@ export function KnowledgeBaseArticlesRouteScreen() {
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => router.push("/knowledge")}
+          onClick={() => router.push(overviewHref)}
           className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
         >
           返回 Knowledge Hub
@@ -162,7 +175,7 @@ export function KnowledgeBaseArticlesRouteScreen() {
                     <Card
                       key={article.id}
                       className="cursor-pointer hover:bg-muted/10 transition-colors"
-                      onClick={() => router.push(`/knowledge-base/articles/${article.id}`)}
+                      onClick={() => handleSuccess(article.id)}
                     >
                       <CardHeader className="pb-2">
                         <div className="flex items-start justify-between gap-2">

@@ -29,6 +29,13 @@ export function KnowledgeDatabasesRouteScreen() {
   const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
   const workspaceId = wsState.activeWorkspaceId ?? "";
   const currentUserId = authState.user?.id ?? "";
+  const workspaceBasePath =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
+      : "/workspace";
+  const overviewHref = workspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-databases`
+    : "/workspace";
 
   const [databases, setDatabases] = useState<Database[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +56,13 @@ export function KnowledgeDatabasesRouteScreen() {
 
   function handleSuccess(databaseId?: string) {
     if (databaseId) {
-      router.push(`/knowledge-database/databases/${databaseId}`);
+      if (accountId && workspaceId) {
+        router.push(
+          `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}`,
+        );
+      } else {
+        router.push(`/knowledge-database/databases/${encodeURIComponent(databaseId)}`);
+      }
     } else {
       load();
     }
@@ -68,7 +81,7 @@ export function KnowledgeDatabasesRouteScreen() {
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => router.push("/knowledge")}
+          onClick={() => router.push(overviewHref)}
           className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
         >
           返回 Knowledge Hub
@@ -114,7 +127,7 @@ export function KnowledgeDatabasesRouteScreen() {
             <Card
               key={db.id}
               className="cursor-pointer hover:bg-muted/10 transition-colors"
-              onClick={() => router.push(`/knowledge-database/databases/${db.id}`)}
+              onClick={() => handleSuccess(db.id)}
             >
               <CardHeader className="pb-2">
                 <div className="flex items-start gap-2">
