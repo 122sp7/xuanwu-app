@@ -175,7 +175,7 @@ export function KnowledgeBaseArticlesPanel({
               <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
                 <BookOpen className="h-8 w-8 text-muted-foreground/50" />
                 <p className="text-sm text-muted-foreground">
-                  {selectedCategoryId ? "甇文?憿??⊥?蝡? : "撠?????憓?蝡?憪遣蝡?}
+                  {selectedCategoryId ? "No articles in this category yet." : "No articles yet. Create your first article."}
                 </p>
               </div>
             ) : (

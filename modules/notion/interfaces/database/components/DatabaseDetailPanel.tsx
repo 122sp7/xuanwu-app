@@ -190,10 +190,10 @@ export function DatabaseDetailPanel({
           <button
             type="button"
             onClick={() => setViewMode("automations")}
-            title="?芸?????
+            title="Automations"
             className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "automations" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
-            <Zap className="h-3 w-3" /> ?芸???
+            <Zap className="h-3 w-3" /> Automations
           </button>
         </div>
         <div className="ml-auto flex items-center gap-2">

@@ -155,7 +155,7 @@ export function DatabaseAutomationPanel({ databaseId, accountId, currentUserId }
               <div className="space-y-0.5">
                 <p className="font-medium">{a.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  Trigger: {a.trigger} 繚 Action: {a.actions[0]?.type ?? "??}
+                  Trigger: {a.trigger} | Action: {a.actions[0]?.type ?? "N/A"}
                 </p>
               </div>
               <div className="flex items-center gap-2">

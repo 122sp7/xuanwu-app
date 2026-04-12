@@ -139,10 +139,10 @@ export function DatabaseFormPanel({ database, accountId, workspaceId, submitterI
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
         <CheckCircle2 className="h-10 w-10 text-green-500" />
-        <h2 className="text-lg font-semibold">撌脫???鈭歹?</h2>
-        <p className="text-sm text-muted-foreground">???函?憛怠神??/p>
+        <h2 className="text-lg font-semibold">Submitted successfully</h2>
+        <p className="text-sm text-muted-foreground">Your response has been recorded.</p>
         <Button variant="outline" size="sm" onClick={() => setSubmitted(false)}>
-          ?活?漱
+          Submit another response
         </Button>
       </div>
     );

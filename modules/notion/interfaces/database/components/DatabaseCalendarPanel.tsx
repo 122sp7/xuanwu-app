@@ -121,7 +121,7 @@ export function DatabaseCalendarPanel({ database, accountId }: DatabaseCalendarP
                 <span className={`text-[10px] font-medium ${isToday ? "text-primary" : "text-muted-foreground"}`}>{day}</span>
                 <div className="mt-0.5 flex flex-col gap-0.5">
                   {dayRecords.slice(0, 3).map((record) => {
-                    const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "?? : "??;
+                    const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "Untitled" : "Untitled";
                     return (
                       <Badge key={record.id} variant="secondary" className="w-full justify-start truncate text-[9px]">
                         {title}
