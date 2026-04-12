@@ -15,9 +15,9 @@ export { generateNotebookResponse } from "../subdomains/notebook/api";
 export { saveThread, loadThread } from "../subdomains/conversation/api";
 
 // ---------------------------------------------------------------------------
-// Q&A subdomain — types and UI (replaces @/modules/search/api)
+// NotebookLM root interfaces — Q&A UI
 // ---------------------------------------------------------------------------
-export { RagQueryView } from "../subdomains/ai/api";
+export { RagQueryView } from "../interfaces/components/RagQueryView";
 
 // ---------------------------------------------------------------------------
 // Source subdomain — types, hooks, and UI (replaces @/modules/source/api)
