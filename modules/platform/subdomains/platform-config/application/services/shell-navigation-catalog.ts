@@ -2,6 +2,7 @@
 
 export type ShellNavSection =
   | "workspace"
+  | "dashboard"
   | "knowledge"
   | "knowledge-base"
   | "knowledge-database"
@@ -53,7 +54,7 @@ const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
   "dev-tools",
 ]);
 
-const ACCOUNT_SCOPED_ACCOUNT_ROOT_ROUTES = new Set(["organization", "settings", "dev-tools"]);
+const ACCOUNT_SCOPED_ACCOUNT_ROOT_ROUTES = new Set(["organization", "settings", "dashboard", "dev-tools"]);
 
 const ACCOUNT_SCOPED_WORKSPACE_TOOL_ROOT_ROUTES = new Set([
   "knowledge",
@@ -62,7 +63,6 @@ const ACCOUNT_SCOPED_WORKSPACE_TOOL_ROOT_ROUTES = new Set([
   "source",
   "notebook",
   "ai-chat",
-  "dashboard",
   "workspace-feed",
 ]);
 
@@ -188,6 +188,7 @@ const ROUTE_TITLES: Record<string, string> = {
   "/source/libraries": "來源 · 資料庫",
   "/notebook/rag-query": "筆記本 · 問答 / 引用",
   "/ai-chat": "AI 對話",
+  "/dashboard": "儀表板",
   "/dev-tools": "開發工具",
 };
 
@@ -203,6 +204,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   "block-editor": "區塊編輯器",
   "rag-reindex": "RAG 重新索引",
   "ai-chat": "Notebook",
+  dashboard: "儀表板",
   "dev-tools": "開發工具",
   namespaces: "命名空間",
   members: "成員",
@@ -231,6 +233,7 @@ export const SHELL_ACCOUNT_NAV_ITEMS: readonly ShellNavItem[] = [
 
 export const SHELL_SECTION_LABELS: Record<ShellNavSection, string> = {
   workspace: "工作區",
+  dashboard: "儀表板",
   knowledge: "知識",
   "knowledge-base": "知識庫",
   "knowledge-database": "知識資料庫",
@@ -246,6 +249,7 @@ export const SHELL_SECTION_LABELS: Record<ShellNavSection, string> = {
 
 export const SHELL_RAIL_CATALOG_ITEMS: readonly ShellRailCatalogItem[] = [
   { id: "workspace", href: "/workspace", label: "工作區中心", requiresOrganization: false },
+  { id: "dashboard", href: "/dashboard", label: "儀表板", requiresOrganization: false, activeRoutePrefix: "/dashboard" },
   { id: "org-members", href: "/organization/members", label: "成員", requiresOrganization: true, activeRoutePrefix: "/organization/members" },
   { id: "org-teams", href: "/organization/teams", label: "團隊", requiresOrganization: true, activeRoutePrefix: "/organization/teams" },
   { id: "org-daily", href: "/organization/daily", label: "每日", requiresOrganization: true, activeRoutePrefix: "/organization/daily" },
@@ -298,6 +302,7 @@ export function resolveShellNavSection(pathname: string): ShellNavSection {
   const normalizedPathname = normalizeShellRoutePath(pathname);
 
   if (normalizedPathname.startsWith("/workspace")) return "workspace";
+  if (normalizedPathname.startsWith("/dashboard")) return "dashboard";
   if (normalizedPathname.startsWith("/knowledge-base")) return "knowledge-base";
   if (normalizedPathname.startsWith("/knowledge-database")) return "knowledge-database";
   if (normalizedPathname.startsWith("/knowledge")) return "knowledge";

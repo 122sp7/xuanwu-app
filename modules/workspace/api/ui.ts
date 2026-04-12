@@ -14,6 +14,7 @@ export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/Work
 export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
 export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
 export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
+export { AccountDashboardScreen } from "../interfaces/web/components/screens/AccountDashboardScreen";
 
 // ── Card components ──────────────────────────────────────────────────────────
 
