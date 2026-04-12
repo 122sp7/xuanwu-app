@@ -1,145 +1,82 @@
 ---
-description: ''
-applyTo: ''
+description: '子域（Subdomain）戰略設計規則：業務能力切分、邊界穩定性、契約溝通、可替換性。'
+applyTo: 'modules/**/subdomains/**/*.{ts,tsx,js,jsx,md}'
 ---
 
-# subdomain-rules.instructions.md
+# 子域（Subdomain）設計規則
 
-## Core Definition
-Subdomain = Business Capability Boundary
+> 完整邊界參考：**先查 `docs/subdomains.md`、`docs/bounded-contexts.md`、`docs/ubiquitous-language.md`**
+> 此文件只包含子域層級的**戰略設計約束**，不複製領域知識或程式碼範例。
 
-A subdomain represents a single, well-defined business capability. It must not mix multiple responsibilities.
+## 核心定義
 
----
+子域 = 業務能力邊界（Business Capability Boundary）
 
-## Layer Constraints (Hard Rules)
+每個子域代表一個獨立、明確定義的業務能力，不得混合多重職責。
 
-Allowed inside a subdomain:
-- domain
-- application
-- ports (optional)
+## 戰略設計規則
 
-Forbidden:
-- interfaces (React / UI)
-- infrastructure (Firebase / DB / API)
+1. 子域必須以「業務能力」切分，而不是技術功能或 UI 功能。
+2. 每個子域必須能獨立描述一個完整業務問題空間（Problem Space）。
+3. 子域之間禁止共享內部模型，只能透過明確契約（ACL / API / Event）。
+4. 子域邊界必須穩定，不能因 UI 或技術重構而頻繁變動。
+5. 子域劃分優先於技術架構（database / service / module）。
+6. 一個子域內可以包含多個 bounded context，但不能跨子域共享 domain model。
+7. 子域必須可被替換（replaceable），不依賴其他子域內部實作。
+8. 子域之間只能透過「輸入/輸出契約」溝通，不允許直接依賴 domain logic。
 
----
+## 層級約束（Hard Rules）
 
-## Single Responsibility
+子域內允許：
+- `domain/`
+- `application/`
+- `ports/`（optional）
 
-Each subdomain must focus on one business capability.
+子域內禁止：
+- `interfaces/`（React / UI）
+- `infrastructure/`（Firebase / DB / API）
 
-Correct:
-- authoring
-- collaboration
-- publishing
+## 單一職責
 
-Incorrect:
-- article + comment + permission mixed together
+每個子域只負責一個業務能力。
 
----
+正確：authoring、collaboration、publishing
 
-## No Cross-Subdomain Dependency
+錯誤：article + comment + permission 混在一起
 
-Subdomains must not import each other directly.
+## 跨子域依賴禁止
 
-Communication must go through:
-- upper application layer
+子域不得直接匯入其他子域。溝通必須經由：
+- 上層 application layer
 - module API boundary
 
----
+## 領域純度
 
-## Domain Purity
+domain 層必須：
+- 零框架依賴
+- 不依賴 Firebase、DB 或 API
+- 不包含 UI logic
 
-Domain layer must:
-- have zero framework dependency
-- not depend on Firebase, DB, or API
-- not include UI logic
+允許：Entities、Value Objects、Domain Services、Business invariants
 
-Allowed:
-- Entities
-- Value Objects
-- Domain Services
-- Business invariants
+## 命名規則
 
----
+使用業務語言命名子域。
 
-## Application Layer Role
+正確：authoring、knowledge-base、workspace
 
-Application layer is responsible for:
-- Use cases
-- Workflow orchestration
-- Calling domain logic
-- Calling ports
+錯誤：utils、common、shared
 
-It must NOT contain:
-- UI
-- database implementation
+## 獨立演化
 
----
+每個子域應：
+- 可獨立測試
+- 可獨立重構
+- 為未來微服務拆分做準備
 
-## Ports (Abstraction Boundary)
-
-Ports define external dependencies.
-
-Examples:
-- ArticleRepository
-- AIContentGeneratorPort
-
-Rules:
-- Defined inside subdomain
-- Implemented in infrastructure layer
-
----
-
-## No UI Logic
-
-Subdomain must not be aware of UI.
-
-Forbidden:
-- React components
-- RouteScreen
-- hooks
-- JSX
-
----
-
-## No Direct Data Access
-
-Subdomain must not directly access:
-- Firestore
-- REST APIs
-- SDKs
-
-All access must go through ports.
-
----
-
-## Naming Rules
-
-Use business language for subdomain names.
-
-Correct:
-- authoring
-- knowledge-base
-- workspace
-
-Incorrect:
-- utils
-- common
-- shared
-
----
-
-## Independent Evolution
-
-Each subdomain should:
-- be independently testable
-- be independently refactorable
-- be ready for future microservice extraction
-
----
-
-## Summary
+## 一句話總結
 
 Subdomain = Pure business logic + No framework + No UI + No database
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
