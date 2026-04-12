@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 
-import { RagQueryPanel } from "@/modules/notebooklm/api";
+import { RagQueryPanel } from "@/modules/workspace/api";
 
 export default function AccountWorkspaceNotebookRagQueryPage() {
   const params = useParams<{ workspaceId: string }>();

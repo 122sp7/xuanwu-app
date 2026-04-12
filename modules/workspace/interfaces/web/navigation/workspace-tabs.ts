@@ -23,6 +23,9 @@ export const WORKSPACE_TAB_VALUES = [
   "TaskIssues",
   "TaskFinance",
   "Feed",
+  "Knowledge",
+  "Notebook",
+  "AiChat",
 ] as const;
 
 export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
@@ -47,6 +50,9 @@ export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
   TaskIssues: { label: "問題單", prefId: "task-issues", group: "modules", status: "🏗️" },
   TaskFinance: { label: "財務", prefId: "task-finance", group: "modules", status: "🏗️" },
   Feed: { label: "Feed", prefId: "feed", group: "modules", status: "🏗️" },
+  Knowledge: { label: "Knowledge", prefId: "knowledge", group: "modules", status: "🏗️" },
+  Notebook: { label: "Notebook", prefId: "notebook", group: "modules", status: "🏗️" },
+  AiChat: { label: "AI Chat", prefId: "ai-chat", group: "modules", status: "🏗️" },
 };
 
 export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceTabValue[]> = {
@@ -64,6 +70,9 @@ export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceT
     "TaskIssues",
     "TaskFinance",
     "Feed",
+    "Knowledge",
+    "Notebook",
+    "AiChat",
   ],
 };
 

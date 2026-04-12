@@ -1,6 +1,6 @@
 "use client";
 
-import { KnowledgeDetailPanel } from "@/modules/notion/api";
+import { KnowledgeDetailPanel } from "@/modules/workspace/api";
 import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
 
 export default function AccountWorkspaceKnowledgePageDetailRoute() {

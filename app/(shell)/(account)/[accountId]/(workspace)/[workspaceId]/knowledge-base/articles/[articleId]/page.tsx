@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { ArticleDetailPanel } from "@/modules/notion/api";
+import { ArticleDetailPanel } from "@/modules/workspace/api";
 import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
 
 export default function AccountWorkspaceArticleDetailPanelRoute() {

@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 
-import { KnowledgeSidebarSection } from "@/modules/notion/api";
+import { KnowledgeSidebarSection } from "@/modules/workspace/api";
 import {
   WorkspaceSectionContent,
   type NavPreferences,

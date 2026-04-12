@@ -82,3 +82,7 @@ export {
 export type {
   KnowledgePageApprovedHandler,
 } from "../subdomains/workspace-workflow/api";
+
+// ── Orchestrated notion commands (workspace as composition owner) ─────────────
+
+export { createKnowledgePage } from "@/modules/notion/api";

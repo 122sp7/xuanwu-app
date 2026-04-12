@@ -9,11 +9,15 @@ import {
 } from "@ui-shadcn/ui/card";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { useAuth } from "@/modules/platform/api";
-import { WorkspaceAuditTab } from "@/modules/workspace/api";
-import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
-import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
-import { WorkspaceFlowTab } from "@/modules/workspace/api";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
+import {
+  ConversationPanel,
+  RagQueryPanel,
+  WorkspaceAuditTab,
+  WorkspaceFeedWorkspaceView,
+  WorkspaceFilesTab,
+  WorkspaceFlowTab,
+  WorkspaceSchedulingTab,
+} from "@/modules/workspace/api";
 import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
 
 import {
@@ -86,8 +90,26 @@ export function WorkspaceDetailScreen({
   function renderTabContent(tab: WorkspaceTabValue) {
     if (!workspace) return null;
 
+    const flowSection: Record<string, "tasks" | "qa" | "acceptance" | "issues" | "invoices"> = {
+      Tasks: "tasks", TaskQa: "qa", TaskAcceptance: "acceptance",
+      TaskIssues: "issues", TaskFinance: "invoices",
+    };
+
+    if (tab in flowSection) {
+      return (
+        <WorkspaceFlowTab
+          workspaceId={workspace.id}
+          currentUserId={accountId ?? "anonymous"}
+          initialSection={flowSection[tab]}
+        />
+      );
+    }
+
+    const overviewPanel: Record<string, string> = { Knowledge: "knowledge-pages" };
+
     switch (tab) {
       case "Overview":
+      case "Knowledge":
         return (
           <WorkspaceOverviewTab
             workspace={workspace}
@@ -95,7 +117,7 @@ export function WorkspaceDetailScreen({
             currentUserId={authState.user?.id}
             personnelEntries={personnelEntries}
             addressLines={addressLines}
-            initialPanel={initialOverviewPanel}
+            initialPanel={overviewPanel[tab] ?? initialOverviewPanel}
             onEditClick={() => {
               setSettingsDraft(createSettingsDraft(workspace));
               clearSaveError();
@@ -122,52 +144,22 @@ export function WorkspaceDetailScreen({
         );
       case "Audit":
         return <WorkspaceAuditTab workspaceId={workspace.id} />;
-      case "Tasks":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="tasks"
-          />
-        );
-      case "TaskQa":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="qa"
-          />
-        );
-      case "TaskAcceptance":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="acceptance"
-          />
-        );
-      case "TaskIssues":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="issues"
-          />
-        );
-      case "TaskFinance":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="invoices"
-          />
-        );
       case "Feed":
         return (
           <WorkspaceFeedWorkspaceView
             accountId={accountId ?? workspace.accountId}
             workspaceId={workspace.id}
             workspaceName={workspace.name}
+          />
+        );
+      case "Notebook":
+        return <RagQueryPanel workspaceId={workspace.id} />;
+      case "AiChat":
+        return (
+          <ConversationPanel
+            accountId={accountId ?? workspace.accountId}
+            workspaces={wsState.workspaces ?? {}}
+            requestedWorkspaceId={workspace.id}
           />
         );
       default:

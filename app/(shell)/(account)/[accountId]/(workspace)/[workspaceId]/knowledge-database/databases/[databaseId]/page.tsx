@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { DatabaseDetailPanel } from "@/modules/notion/api";
+import { DatabaseDetailPanel } from "@/modules/workspace/api";
 import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
 
 export default function AccountWorkspaceDatabaseDetailPanelRoute() {

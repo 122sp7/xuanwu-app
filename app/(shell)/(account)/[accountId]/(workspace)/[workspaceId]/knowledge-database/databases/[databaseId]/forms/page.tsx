@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { DatabaseFormsPanel } from "@/modules/notion/api";
+import { DatabaseFormsPanel } from "@/modules/workspace/api";
 import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
 
 export default function AccountWorkspaceDatabaseFormsPanelRoute() {
