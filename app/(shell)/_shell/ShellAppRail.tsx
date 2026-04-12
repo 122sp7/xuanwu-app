@@ -29,6 +29,7 @@ import { CreateOrganizationDialog } from "@/modules/platform/api";
 import {
   listShellRailCatalogItems,
   isExactOrChildPath,
+  resolveShellNavSection,
   type ShellRailCatalogItem,
 } from "@/modules/platform/api";
 import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
@@ -115,11 +116,24 @@ export function AppRail({
       href: item.href,
       label: item.label,
       icon: RAIL_ICON_MAP[item.id] ?? null,
-      isActive: item.activeRoutePrefix
-        ? (currentPathname: string) => isExactOrChildPath(item.activeRoutePrefix!, currentPathname)
-        : undefined,
+      isActive: item.id === "workspace"
+        ? (currentPathname: string) => resolveShellNavSection(currentPathname) === "workspace"
+        : item.activeRoutePrefix
+          ? (currentPathname: string) => isExactOrChildPath(item.activeRoutePrefix!, currentPathname)
+          : undefined,
     }));
   }, [isOrganizationAccount]);
+
+  const workspaceHubHref = activeAccount?.id
+    ? `/${encodeURIComponent(activeAccount.id)}`
+    : "/workspace";
+
+  function buildWorkspaceDetailHref(workspaceId: string): string {
+    if (activeAccount?.id) {
+      return `/${encodeURIComponent(activeAccount.id)}/${encodeURIComponent(workspaceId)}`;
+    }
+    return `/workspace/${encodeURIComponent(workspaceId)}`;
+  }
 
   const sortedWorkspaces = useMemo(
     () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
@@ -219,8 +233,12 @@ export function AppRail({
                   <DropdownMenuContent side="right" align="start" className="w-56">
                     <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
                     <DropdownMenuItem
-                      onClick={() => { router.push("/workspace"); }}
-                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
+                      onClick={() => { router.push(workspaceHubHref); }}
+                      className={
+                        resolveShellNavSection(pathname) === "workspace" && !activeWorkspaceId
+                          ? "bg-primary/10 text-primary"
+                          : ""
+                      }
                     >
                       工作區中心
                     </DropdownMenuItem>
@@ -235,7 +253,7 @@ export function AppRail({
                           key={workspace.id}
                           onClick={() => {
                             onSelectWorkspace(workspace.id);
-                            router.push(`/workspace/${workspace.id}`);
+                            router.push(buildWorkspaceDetailHref(workspace.id));
                           }}
                           className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
                         >

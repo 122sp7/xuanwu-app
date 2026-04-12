@@ -11,6 +11,21 @@ interface RecentWorkspaceLink {
 const MAX_VISIBLE_RECENT_WORKSPACES = 10;
 const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
 
+const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
+  "workspace",
+  "workspace-feed",
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "organization",
+  "settings",
+  "dashboard",
+  "dev-tools",
+]);
+
 function getStorageKey(accountId: string) {
   return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
 }
@@ -34,18 +49,34 @@ function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
 }
 
 function trackWorkspaceFromPath(pathname: string, accountId: string) {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return;
-  const workspaceId = decodeURIComponent(match[1]);
+  const workspaceId = getWorkspaceIdFromPath(pathname);
+  if (!workspaceId) return;
   const recentIds = readRecentWorkspaceIds(accountId);
   const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
   persistRecentWorkspaceIds(accountId, deduped);
 }
 
 function getWorkspaceIdFromPath(pathname: string): string | null {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return null;
-  return decodeURIComponent(match[1]);
+  const legacyMatch = pathname.match(/^\/workspace\/([^/]+)/);
+  if (legacyMatch) {
+    return decodeURIComponent(legacyMatch[1]);
+  }
+
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length < 2) {
+    return null;
+  }
+
+  const [firstSegment, secondSegment] = segments;
+  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
+    return null;
+  }
+
+  if (!secondSegment) {
+    return null;
+  }
+
+  return decodeURIComponent(secondSegment);
 }
 
 export function useRecentWorkspaces(
@@ -78,10 +109,13 @@ export function useRecentWorkspaces(
       .map<RecentWorkspaceLink | null>((workspaceId) => {
         const ws = workspacesById[workspaceId];
         if (!ws) return null;
-        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
+        const href = accountId
+          ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(ws.id)}`
+          : `/workspace/${encodeURIComponent(ws.id)}`;
+        return { id: ws.id, name: ws.name, href };
       })
       .filter((item): item is RecentWorkspaceLink => item !== null);
-  }, [recentWorkspaceIds, workspacesById]);
+  }, [accountId, recentWorkspaceIds, workspacesById]);
 
   return { isExpanded, setIsExpanded, recentWorkspaceLinks };
 }

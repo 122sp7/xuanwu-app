@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 
-interface AccountWorkspaceRouteLayoutProps {
+interface AccountWorkspaceDetailLayoutProps {
 	readonly children: ReactNode;
 }
 
-export default function AccountWorkspaceRouteLayout({
+export default function AccountWorkspaceDetailLayout({
 	children,
-}: AccountWorkspaceRouteLayoutProps) {
+}: AccountWorkspaceDetailLayoutProps) {
 	return children;
 }

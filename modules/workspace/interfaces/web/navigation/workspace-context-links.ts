@@ -3,6 +3,21 @@ export interface WorkspaceNavigationContext {
   readonly workspaceId: string | null;
 }
 
+const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
+  "workspace",
+  "workspace-feed",
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "organization",
+  "settings",
+  "dashboard",
+  "dev-tools",
+]);
+
 export const WORKSPACE_OVERVIEW_PANELS = [
   "knowledge-pages",
   "knowledge-base-articles",
@@ -13,15 +28,35 @@ export const WORKSPACE_OVERVIEW_PANELS = [
 
 export type WorkspaceOverviewPanel = (typeof WORKSPACE_OVERVIEW_PANELS)[number];
 
+function tryGetAccountIdFromPath(pathname: string): string | null {
+  const [firstSegment] = pathname.split("/").filter(Boolean);
+  if (!firstSegment) {
+    return null;
+  }
+  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
+    return null;
+  }
+  return decodeURIComponent(firstSegment);
+}
+
+function buildWorkspaceBaseHref(workspaceId: string, accountId?: string | null): string {
+  const encodedWorkspaceId = encodeURIComponent(workspaceId);
+  if (accountId) {
+    return `/${encodeURIComponent(accountId)}/${encodedWorkspaceId}`;
+  }
+  return `/workspace/${encodedWorkspaceId}`;
+}
+
 export function buildWorkspaceOverviewPanelHref(
   workspaceId: string,
   panel?: WorkspaceOverviewPanel,
+  accountId?: string | null,
 ): string {
-  const encodedWorkspaceId = encodeURIComponent(workspaceId);
+  const baseHref = buildWorkspaceBaseHref(workspaceId, accountId);
   if (!panel) {
-    return `/workspace/${encodedWorkspaceId}?tab=Overview`;
+    return `${baseHref}?tab=Overview`;
   }
-  return `/workspace/${encodedWorkspaceId}?tab=Overview&panel=${encodeURIComponent(panel)}`;
+  return `${baseHref}?tab=Overview&panel=${encodeURIComponent(panel)}`;
 }
 
 export function supportsWorkspaceSearchContext(pathname: string): boolean {
@@ -35,27 +70,29 @@ export function supportsWorkspaceSearchContext(pathname: string): boolean {
 }
 
 export function buildWorkspaceContextHref(pathname: string, workspaceId: string): string {
+  const accountId = tryGetAccountIdFromPath(pathname);
+
   if (pathname.startsWith("/knowledge-base")) {
-    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-base-articles");
+    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-base-articles", accountId);
   }
 
   if (pathname.startsWith("/knowledge-database")) {
-    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-databases");
+    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-databases", accountId);
   }
 
   if (pathname.startsWith("/knowledge")) {
-    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-pages");
+    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-pages", accountId);
   }
 
   if (pathname.startsWith("/source/libraries")) {
-    return buildWorkspaceOverviewPanelHref(workspaceId, "source-libraries");
+    return buildWorkspaceOverviewPanelHref(workspaceId, "source-libraries", accountId);
   }
 
   if (pathname.startsWith("/source/documents")) {
-    return `/workspace/${encodeURIComponent(workspaceId)}?tab=Files`;
+    return `${buildWorkspaceBaseHref(workspaceId, accountId)}?tab=Files`;
   }
 
-  return `/workspace/${encodeURIComponent(workspaceId)}`;
+  return buildWorkspaceBaseHref(workspaceId, accountId);
 }
 
 export function appendWorkspaceContextQuery(

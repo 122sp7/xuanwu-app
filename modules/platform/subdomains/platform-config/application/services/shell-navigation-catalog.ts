@@ -33,6 +33,29 @@ export interface ShellContextSectionConfig {
   readonly items: readonly { href: string; label: string }[];
 }
 
+const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
+  "workspace",
+  "workspace-feed",
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "organization",
+  "settings",
+  "dashboard",
+  "dev-tools",
+]);
+
+function isAccountScopedWorkspacePath(pathname: string): boolean {
+  const [firstSegment] = pathname.split("/").filter(Boolean);
+  if (!firstSegment) {
+    return false;
+  }
+  return !NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment);
+}
+
 // ── Route-matching utility ────────────────────────────────────────────────────
 
 export function isExactOrChildPath(targetPath: string, pathname: string): boolean {
@@ -187,10 +210,14 @@ export function resolveShellNavSection(pathname: string): ShellNavSection {
     return "account";
   }
   if (pathname.startsWith("/organization")) return "organization";
+  if (isAccountScopedWorkspacePath(pathname)) return "workspace";
   return "other";
 }
 
 export function resolveShellPageTitle(pathname: string): string {
+  if (isAccountScopedWorkspacePath(pathname)) {
+    return "工作區中心";
+  }
   return ROUTE_TITLES[pathname] ?? "工作區";
 }
 

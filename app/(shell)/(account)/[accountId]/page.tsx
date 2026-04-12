@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 import type { ActiveAccount } from "@/modules/platform/api";
 import {
@@ -22,8 +24,10 @@ function getFallbackAccountType(activeAccount: ActiveAccount | null): "user" | "
 }
 
 export default function AccountWorkspaceHubPage() {
+  const router = useRouter();
   const params = useParams<{ accountId: string }>();
   const routeAccountId = typeof params.accountId === "string" ? params.accountId : "";
+  const isLegacyWorkspaceAlias = routeAccountId === "workspace";
   const searchParams = useSearchParams();
 
   const {
@@ -31,7 +35,8 @@ export default function AccountWorkspaceHubPage() {
   } = useApp();
   const { state: authState } = useAuth();
 
-  const resolvedAccountId = routeAccountId || activeAccount?.id || "";
+  const resolvedAccountId =
+    (isLegacyWorkspaceAlias ? activeAccount?.id : routeAccountId) || activeAccount?.id || "";
   const authUserId = authState.user?.id ?? null;
   const authUserName = authState.user?.name ?? null;
   const organizationAccount = Object.values(accounts).find(
@@ -49,6 +54,24 @@ export default function AccountWorkspaceHubPage() {
     : getFallbackAccountType(activeAccount);
 
   const context = searchParams.get("context");
+
+  useEffect(() => {
+    if (!isLegacyWorkspaceAlias || !activeAccount?.id) {
+      return;
+    }
+
+    const query = searchParams.toString();
+    const targetPath = `/${encodeURIComponent(activeAccount.id)}`;
+    router.replace(query.length > 0 ? `${targetPath}?${query}` : targetPath);
+  }, [activeAccount?.id, isLegacyWorkspaceAlias, router, searchParams]);
+
+  if (isLegacyWorkspaceAlias && activeAccount?.id) {
+    return (
+      <div className="px-4 py-6 text-sm text-muted-foreground">
+        正在導向帳號工作區路由…
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
