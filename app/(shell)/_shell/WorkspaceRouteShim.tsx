@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { useApp } from "@/modules/platform/api";
 import {
   buildWorkspaceOverviewPanelHref,
   type WorkspaceOverviewPanel,
@@ -23,16 +24,26 @@ export function WorkspaceRouteShim({
   const router = useRouter();
   const searchParams = useSearchParams();
   const {
+    state: { activeAccount },
+  } = useApp();
+  const {
     state: { activeWorkspaceId },
   } = useWorkspaceContext();
 
   const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
   const targetWorkspaceId = requestedWorkspaceId || activeWorkspaceId || "";
+  const activeAccountId = activeAccount?.id ?? "";
 
   const targetHref = targetWorkspaceId
-    ? tab === "Files"
-      ? `/workspace/${encodeURIComponent(targetWorkspaceId)}?tab=Files`
-      : buildWorkspaceOverviewPanelHref(targetWorkspaceId, panel)
+    ? activeAccountId
+      ? tab === "Files"
+        ? `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(targetWorkspaceId)}?tab=Files`
+        : `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(targetWorkspaceId)}?tab=Overview${
+            panel ? `&panel=${encodeURIComponent(panel)}` : ""
+          }`
+      : tab === "Files"
+        ? `/workspace/${encodeURIComponent(targetWorkspaceId)}?tab=Files`
+        : buildWorkspaceOverviewPanelHref(targetWorkspaceId, panel)
     : "/workspace";
 
   useEffect(() => {

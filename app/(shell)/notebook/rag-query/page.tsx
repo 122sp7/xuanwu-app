@@ -1,24 +1,41 @@
 "use client";
 
+import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
-import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
-import { RagQueryView } from "@/modules/notebooklm/api";
+import { useApp } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
 
 export default function NotebookRagQueryPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const {
+    state: { activeAccount },
+  } = useApp();
+  const { state: wsState } = useWorkspaceContext();
+
+  const accountId = activeAccount?.id ?? "";
   const requestedWorkspaceId = searchParams.get("workspaceId") ?? "";
-  const { workspaceId } = useWorkspaceOrchestrationContext({ requestedWorkspaceId });
+  const workspaceId = requestedWorkspaceId || wsState.activeWorkspaceId || "";
 
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Notebook</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
-        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
-      </header>
+  useEffect(() => {
+    if (!accountId || !workspaceId) {
+      return;
+    }
 
-      <RagQueryView workspaceId={workspaceId || undefined} />
-    </div>
-  );
+    router.replace(
+      `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/notebook/rag-query`,
+    );
+  }, [accountId, workspaceId, router]);
+
+  if (!accountId || !workspaceId) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        請先選擇工作區
+      </div>
+    );
+  }
+
+  return <div className="px-4 py-6 text-sm text-muted-foreground">正在導向 Notebook RAG 查詢…</div>;
 }

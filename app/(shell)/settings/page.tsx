@@ -1,9 +1,11 @@
-/**
- * /settings — redirect to workspace (removed from MVP nav, Occam's Razor)
- */
-import { redirect } from "next/navigation";
+import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
 
 export default function SettingsPage() {
-  redirect("/workspace");
+  return (
+    <WorkspaceRouteShim
+      panel="settings"
+      loadingMessage="正在導向 Workspace Settings…"
+    />
+  );
 }
 

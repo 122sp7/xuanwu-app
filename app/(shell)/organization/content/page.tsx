@@ -1,9 +1,10 @@
-import { redirect } from "next/navigation";
+import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
 
-/**
- * Module: organization/content page
- * Purpose: redirect to the consolidated content hub at /knowledge.
- */
 export default function OrganizationKnowledgePage() {
-  redirect("/knowledge");
+  return (
+    <WorkspaceRouteShim
+      panel="knowledge-pages"
+      loadingMessage="正在導向 Workspace Overview（Knowledge Pages）…"
+    />
+  );
 }

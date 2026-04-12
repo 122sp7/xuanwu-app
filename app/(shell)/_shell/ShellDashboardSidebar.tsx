@@ -130,14 +130,16 @@ export function ShellDashboardSidebar({
     workspacePathId || currentSearchWorkspaceId || (hasWorkspaceToolContext ? activeWorkspaceId ?? "" : "");
   const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
   const workspaceSettingsHref = workspaceQuickAccessId
-    ? `/workspace/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
+    ? activeAccount?.id
+      ? `/${encodeURIComponent(activeAccount.id)}/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
+      : `/workspace/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
     : "";
   const workspaceQuickAccessItems = useMemo(
     () =>
       showWorkspaceQuickAccess && workspaceQuickAccessId
-        ? buildWorkspaceQuickAccessItems(workspaceQuickAccessId)
+        ? buildWorkspaceQuickAccessItems(workspaceQuickAccessId, activeAccount?.id)
         : [],
-    [showWorkspaceQuickAccess, workspaceQuickAccessId],
+    [showWorkspaceQuickAccess, workspaceQuickAccessId, activeAccount?.id],
   );
 
   async function handleQuickCreatePage() {
