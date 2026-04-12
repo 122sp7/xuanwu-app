@@ -200,13 +200,13 @@ export function KnowledgeDetailPanel({
           />
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             {page.status === "archived" && (
-              <Badge variant="secondary">撌脣?摮?/Badge>
+              <Badge variant="secondary">Archived</Badge>
             )}
             {page.approvalState === "approved" && (
-              <Badge variant="default">撌脣祟??/Badge>
+              <Badge variant="default">Approved</Badge>
             )}
             {page.verificationState === "verified" && (
-              <Badge variant="outline">撌脤?霅?/Badge>
+              <Badge variant="outline">Verified</Badge>
             )}
             {page.verificationState === "needs_review" && (
               <Badge variant="destructive">敺祟??/Badge>

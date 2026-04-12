@@ -138,8 +138,8 @@ export function KnowledgePagesPanel({
           allowCreate={!isAccountSummary && Boolean(resolvedWorkspaceId)}
           emptyStateDescription={
             isAccountSummary
-              ? "??account summary ?桀?瘝??舫＊蝷箇?????孵?撌乩??撱箇??雁霅琿??Ｕ?
-              : "?極雿?撠????憓??Ｕ?憪遣蝡?
+              ? "No pages in account summary yet."
+              : "No pages in this workspace yet."
           }
           onPageClick={(pageId) => router.push(buildPageDetailHref(pageId))}
           onCreated={() => load()}

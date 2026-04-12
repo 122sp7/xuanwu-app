@@ -96,7 +96,9 @@ export function DatabaseListPanel({ database, accountId, workspaceId, currentUse
       ) : (
         records.map((record) => {
           const isOpen = expanded.has(record.id);
-          const title = titleField ? displayValue(getProperty(record, titleField.id), titleField.type) || "嚗?賢?嚗? : record.id.slice(0, 8);
+          const title = titleField
+            ? displayValue(getProperty(record, titleField.id), titleField.type) || "Untitled"
+            : record.id.slice(0, 8);
 
           return (
             <div key={record.id} className="rounded-md border border-border/60 bg-card">
