@@ -519,7 +519,7 @@ modules/platform/subdomains/organization/interfaces/queries/organization.queries
 modules/platform/subdomains/organization/README.md (28 lines)
 modules/platform/subdomains/platform-config/api/index.ts (5 lines)
 modules/platform/subdomains/platform-config/application/index.ts (25 lines)
-modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts (329 lines)
+modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts (334 lines)
 modules/platform/subdomains/platform-config/domain/index.ts (1 lines)
 modules/platform/subdomains/platform-config/infrastructure/index.ts (1 lines)
 modules/platform/subdomains/platform-config/README.md (13 lines)

@@ -261,23 +261,6 @@ export interface NotebookRepository {
 }
 ````
 
-## File: modules/notebooklm/subdomains/notebook/README.md
-````markdown
-# Notebook
-
-Notebook container and organization.
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/notebooklm/subdomains/source/application/dto/rag-document.dto.ts
 ````typescript
 /**
@@ -537,6 +520,30 @@ export function mapToSourceLiveDocument(
 }
 
 export const mapToAssetLiveDocument = mapToSourceLiveDocument;
+````
+
+## File: modules/notebooklm/subdomains/source/application/dto/source-pipeline.dto.ts
+````typescript
+import type {
+  ParseSourceDocumentInput,
+  ParseSourceDocumentOutput,
+  ReindexSourceDocumentInput,
+  ReindexSourceDocumentOutput,
+} from "../../domain/ports/ISourcePipelinePort";
+
+export interface SourcePipelineError {
+  readonly code: "SOURCE_PIPELINE_INVALID_INPUT" | "SOURCE_PIPELINE_EXECUTION_FAILED";
+  readonly message: string;
+}
+
+export type SourcePipelineResult<T> =
+  | { readonly ok: true; readonly data: T }
+  | { readonly ok: false; readonly error: SourcePipelineError };
+
+export type ParseSourceDocumentInputDto = ParseSourceDocumentInput;
+export type ParseSourceDocumentOutputDto = ParseSourceDocumentOutput;
+export type ReindexSourceDocumentInputDto = ReindexSourceDocumentInput;
+export type ReindexSourceDocumentOutputDto = ReindexSourceDocumentOutput;
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/dto/source.dto.ts
@@ -892,6 +899,101 @@ export class RenameSourceDocumentUseCase {
       return { ok: true, data: { documentId } };
     } catch (err) {
       return { ok: false, error: { code: "FILE_RENAME_FAILED", message: err instanceof Error ? err.message : "Rename failed." } };
+    }
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/source/application/use-cases/source-pipeline.use-cases.ts
+````typescript
+import type { ISourcePipelinePort } from "../../domain/ports/ISourcePipelinePort";
+import type {
+  ParseSourceDocumentInputDto,
+  ParseSourceDocumentOutputDto,
+  ReindexSourceDocumentInputDto,
+  ReindexSourceDocumentOutputDto,
+  SourcePipelineResult,
+} from "../dto/source-pipeline.dto";
+
+function isBlank(value: string): boolean {
+  return !value.trim();
+}
+
+export class ParseSourceDocumentUseCase {
+  constructor(private readonly pipelinePort: ISourcePipelinePort) {}
+
+  async execute(
+    input: ParseSourceDocumentInputDto,
+  ): Promise<SourcePipelineResult<ParseSourceDocumentOutputDto>> {
+    if (
+      isBlank(input.accountId)
+      || isBlank(input.workspaceId)
+      || isBlank(input.documentId)
+      || isBlank(input.gcsUri)
+      || isBlank(input.filename)
+      || !Number.isFinite(input.sizeBytes)
+      || input.sizeBytes <= 0
+    ) {
+      return {
+        ok: false,
+        error: {
+          code: "SOURCE_PIPELINE_INVALID_INPUT",
+          message: "Invalid parse input.",
+        },
+      };
+    }
+
+    try {
+      const output = await this.pipelinePort.parseDocument(input);
+      return { ok: true, data: output };
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: "SOURCE_PIPELINE_EXECUTION_FAILED",
+          message: error instanceof Error ? error.message : "Parse execution failed.",
+        },
+      };
+    }
+  }
+}
+
+export class ReindexSourceDocumentUseCase {
+  constructor(private readonly pipelinePort: ISourcePipelinePort) {}
+
+  async execute(
+    input: ReindexSourceDocumentInputDto,
+  ): Promise<SourcePipelineResult<ReindexSourceDocumentOutputDto>> {
+    if (
+      isBlank(input.accountId)
+      || isBlank(input.workspaceId)
+      || isBlank(input.documentId)
+      || isBlank(input.jsonGcsUri)
+      || isBlank(input.sourceGcsUri)
+      || isBlank(input.filename)
+      || !Number.isFinite(input.pageCount)
+      || input.pageCount < 0
+    ) {
+      return {
+        ok: false,
+        error: {
+          code: "SOURCE_PIPELINE_INVALID_INPUT",
+          message: "Invalid reindex input.",
+        },
+      };
+    }
+
+    try {
+      const output = await this.pipelinePort.reindexDocument(input);
+      return { ok: true, data: output };
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: "SOURCE_PIPELINE_EXECUTION_FAILED",
+          message: error instanceof Error ? error.message : "Reindex execution failed.",
+        },
+      };
     }
   }
 }
@@ -1651,6 +1753,29 @@ export interface CreateWikiLibraryRowInput {
 }
 ````
 
+## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
+````typescript
+/**
+ * notebooklm/source domain/ports — driven port interfaces for the source subdomain.
+ *
+ * ISourceDocumentCommandPort and IParsedDocumentPort are the primary driven ports.
+ * IRagDocumentPort, ISourceFilePort, IWikiLibraryPort re-export the legacy
+ * repository contracts, making the Ports layer explicitly visible.
+ */
+export type { ISourceDocumentCommandPort } from "./ISourceDocumentPort";
+export type { IParsedDocumentPort } from "./IParsedDocumentPort";
+export type {
+	ISourcePipelinePort,
+	ParseSourceDocumentInput,
+	ParseSourceDocumentOutput,
+	ReindexSourceDocumentInput,
+	ReindexSourceDocumentOutput,
+} from "./ISourcePipelinePort";
+export type { IRagDocumentRepository as IRagDocumentPort } from "../repositories/IRagDocumentRepository";
+export type { ISourceFileRepository as ISourceFilePort } from "../repositories/ISourceFileRepository";
+export type { IWikiLibraryRepository as IWikiLibraryPort } from "../repositories/IWikiLibraryRepository";
+````
+
 ## File: modules/notebooklm/subdomains/source/domain/ports/IParsedDocumentPort.ts
 ````typescript
 /**
@@ -1681,6 +1806,43 @@ export interface IParsedDocumentPort {
 export interface ISourceDocumentCommandPort {
   deleteDocument(accountId: string, documentId: string): Promise<void>;
   renameDocument(accountId: string, documentId: string, newName: string): Promise<void>;
+}
+````
+
+## File: modules/notebooklm/subdomains/source/domain/ports/ISourcePipelinePort.ts
+````typescript
+export interface ParseSourceDocumentInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly documentId: string;
+  readonly gcsUri: string;
+  readonly filename: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+}
+
+export interface ParseSourceDocumentOutput {
+  readonly documentId: string;
+}
+
+export interface ReindexSourceDocumentInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly documentId: string;
+  readonly jsonGcsUri: string;
+  readonly sourceGcsUri: string;
+  readonly filename: string;
+  readonly pageCount: number;
+}
+
+export interface ReindexSourceDocumentOutput {
+  readonly chunkCount: number;
+  readonly vectorCount: number;
+}
+
+export interface ISourcePipelinePort {
+  parseDocument(input: ParseSourceDocumentInput): Promise<ParseSourceDocumentOutput>;
+  reindexDocument(input: ReindexSourceDocumentInput): Promise<ReindexSourceDocumentOutput>;
 }
 ````
 
@@ -2574,6 +2736,23 @@ export interface IFeedbackPort {
 }
 ````
 
+## File: modules/notebooklm/subdomains/synthesis/domain/ports/IGenerationPort.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/ports
+ * Purpose: IGenerationPort — output port for AI answer generation.
+ *
+ * The platform AI adapter (infrastructure) implements this port.
+ */
+
+import type { GenerateAnswerInput, GenerateAnswerResult } from "../entities/SynthesisResult";
+
+export interface IGenerationPort {
+  generate(input: GenerateAnswerInput): Promise<GenerateAnswerResult>;
+}
+````
+
 ## File: modules/notebooklm/subdomains/synthesis/domain/ports/IVectorStore.ts
 ````typescript
 /**
@@ -2704,6 +2883,23 @@ export interface IKnowledgeContentRepository {
   ): Promise<KnowledgeRagQueryResult>;
   reindexDocument(input: KnowledgeReindexInput): Promise<void>;
   listParsedDocuments(accountId: string, limitCount: number): Promise<KnowledgeParsedDocument[]>;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/repositories/IRagGenerationRepository.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/repositories
+ * Purpose: IRagGenerationRepository — output port for AI answer generation.
+ *
+ * Domain owns this contract; the platform-delegating adapter (infrastructure) implements it.
+ */
+
+import type { GenerateRagAnswerInput, GenerateRagAnswerResult } from "../entities/generation.entities";
+
+export interface IRagGenerationRepository {
+  generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult>;
 }
 ````
 
@@ -3123,6 +3319,26 @@ api/ ← 唯一跨模組入口
 3. Define Ports (only if boundary isolation needed)
 4. Implement Infrastructure (adapters, persistence)
 5. Implement Interfaces (UI, actions, hooks)
+````
+
+## File: modules/notebooklm/api/server.ts
+````typescript
+import "server-only";
+
+/**
+ * modules/notebooklm — server-only API barrel.
+ *
+ * Exports concrete notebook implementations that depend on server-only
+ * packages or infrastructure wiring. Must only be imported in Server Actions,
+ * route handlers, or server-side infrastructure.
+ * This surface exists for server-side orchestrators; browser-facing
+ * composition still goes through workspace/api when workspace owns the flow.
+ */
+
+export { GenerateNotebookResponseUseCase, PlatformTextGenerationAdapter } from "../subdomains/notebook/api/server";
+
+// Q&A subdomain — AnswerRagQueryUseCase factory (now in synthesis subdomain)
+export { createAnswerRagQueryUseCase } from "../subdomains/synthesis/api/server";
 ````
 
 ## File: modules/notebooklm/application/dtos/index.ts
@@ -4707,32 +4923,6 @@ export class PlatformRagGenerationAdapter implements IRagGenerationRepository {
 }
 ````
 
-## File: modules/notebooklm/interfaces/conversation/_actions/chat.actions.ts
-````typescript
-"use server";
-
-import type {
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-  Thread,
-} from "@/modules/notebooklm/api";
-import {
-  GenerateNotebookResponseUseCase,
-  PlatformTextGenerationAdapter,
-} from "@/modules/notebooklm/api/server";
-import { saveThread, loadThread } from "@/modules/notebooklm/api";
-
-export async function sendChatMessage(
-  input: GenerateNotebookResponseInput,
-): Promise<GenerateNotebookResponseResult> {
-  const useCase = new GenerateNotebookResponseUseCase(new PlatformTextGenerationAdapter());
-  return useCase.execute(input);
-}
-
-export { saveThread, loadThread };
-export type { Thread };
-````
-
 ## File: modules/notebooklm/interfaces/conversation/components/ConversationPanel.tsx
 ````typescript
 "use client";
@@ -4984,6 +5174,37 @@ import { FirebaseThreadRepository } from "../../../infrastructure/conversation/f
 
 export function makeThreadRepo() {
   return new FirebaseThreadRepository();
+}
+````
+
+## File: modules/notebooklm/interfaces/conversation/composition/use-cases.ts
+````typescript
+/**
+ * Module: notebooklm/interfaces/conversation/composition
+ * Layer: interfaces/composition
+ *
+ * Conversation use-case composition factory.
+ * Wires SaveThreadUseCase and LoadThreadUseCase with their Firestore adapter.
+ * Default arguments make this self-wiring for production use.
+ */
+
+import type { IThreadRepository } from "../../../subdomains/conversation/domain/repositories/IThreadRepository";
+import { SaveThreadUseCase } from "../../../subdomains/conversation/application/use-cases/save-thread.use-case";
+import { LoadThreadUseCase } from "../../../subdomains/conversation/application/use-cases/load-thread.use-case";
+import { makeThreadRepo } from "./adapters";
+
+export interface ConversationUseCases {
+  saveThread: SaveThreadUseCase;
+  loadThread: LoadThreadUseCase;
+}
+
+export function makeConversationUseCases(
+  repo: IThreadRepository = makeThreadRepo(),
+): ConversationUseCases {
+  return {
+    saveThread: new SaveThreadUseCase(repo),
+    loadThread: new LoadThreadUseCase(repo),
+  };
 }
 ````
 
@@ -6715,6 +6936,93 @@ export function waitForParsedDocument(
 }
 ````
 
+## File: modules/notebooklm/interfaces/source/composition/use-cases.ts
+````typescript
+import { UploadInitSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-init-source-file.use-case";
+import { UploadCompleteSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-complete-source-file.use-case";
+import { ParseSourceDocumentUseCase, ReindexSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/source-pipeline.use-cases";
+import { ProcessSourceDocumentWorkflowUseCase } from "../../../subdomains/source/application/use-cases/process-source-document-workflow.use-case";
+import { RegisterUploadedRagDocumentUseCase } from "../../../subdomains/source/application/use-cases/register-rag-document.use-case";
+import { RenameSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/rename-source-document.use-case";
+import { DeleteSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/delete-source-document.use-case";
+import { CreateKnowledgeDraftFromSourceUseCase, type KnowledgePageGateway } from "../../../subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case";
+import type { ISourceFileRepository } from "../../../subdomains/source/domain/repositories/ISourceFileRepository";
+import type { IRagDocumentRepository } from "../../../subdomains/source/domain/repositories/IRagDocumentRepository";
+import type { ISourceDocumentCommandPort } from "../../../subdomains/source/domain/ports/ISourceDocumentPort";
+import type { ISourcePipelinePort } from "../../../subdomains/source/domain/ports/ISourcePipelinePort";
+import type { IParsedDocumentPort } from "../../../subdomains/source/domain/ports/IParsedDocumentPort";
+import {
+  makeSourceFileAdapter,
+  makeRagDocumentAdapter,
+  makeSourceDocumentCommandAdapter,
+  makeSourcePipelineAdapter,
+  makeParsedDocumentAdapter,
+  makeKnowledgePageGateway,
+  waitForParsedDocument,
+} from "./adapters";
+
+export interface SourceUseCases {
+  readonly uploadInitSourceFile: UploadInitSourceFileUseCase;
+  readonly uploadCompleteSourceFile: UploadCompleteSourceFileUseCase;
+  readonly parseSourceDocument: ParseSourceDocumentUseCase;
+  readonly reindexSourceDocument: ReindexSourceDocumentUseCase;
+  readonly processSourceDocumentWorkflow: ProcessSourceDocumentWorkflowUseCase;
+  readonly registerUploadedRagDocument: RegisterUploadedRagDocumentUseCase;
+  readonly renameSourceDocument: RenameSourceDocumentUseCase;
+  readonly deleteSourceDocument: DeleteSourceDocumentUseCase;
+  readonly createKnowledgeDraftFromSource: CreateKnowledgeDraftFromSourceUseCase;
+}
+
+interface ParsedDocumentStatusPort {
+  waitForParsedDocument(
+    accountId: string,
+    documentId: string,
+  ): Promise<{ pageCount: number; jsonGcsUri: string }>;
+}
+
+function makeParsedDocumentStatusPort(): ParsedDocumentStatusPort {
+  return {
+    waitForParsedDocument,
+  };
+}
+
+export function makeSourceUseCases(
+  fileRepository: ISourceFileRepository = makeSourceFileAdapter(),
+  ragDocumentRepository: IRagDocumentRepository = makeRagDocumentAdapter(),
+  documentCommandPort: ISourceDocumentCommandPort = makeSourceDocumentCommandAdapter(),
+  pipelinePort: ISourcePipelinePort = makeSourcePipelineAdapter(),
+  parsedDocumentPort: IParsedDocumentPort = makeParsedDocumentAdapter(),
+  knowledgePageGateway: KnowledgePageGateway = makeKnowledgePageGateway(),
+): SourceUseCases {
+  const parseUseCase = new ParseSourceDocumentUseCase(pipelinePort);
+  const reindexUseCase = new ReindexSourceDocumentUseCase(pipelinePort);
+  const createDraftUseCase = new CreateKnowledgeDraftFromSourceUseCase(
+    parsedDocumentPort,
+    knowledgePageGateway,
+  );
+
+  return {
+    uploadInitSourceFile: new UploadInitSourceFileUseCase(fileRepository),
+    uploadCompleteSourceFile: new UploadCompleteSourceFileUseCase(
+      fileRepository,
+      ragDocumentRepository,
+    ),
+    parseSourceDocument: parseUseCase,
+    reindexSourceDocument: reindexUseCase,
+    processSourceDocumentWorkflow: new ProcessSourceDocumentWorkflowUseCase(
+      parseUseCase,
+      reindexUseCase,
+      createDraftUseCase,
+      makeParsedDocumentStatusPort(),
+    ),
+    registerUploadedRagDocument: new RegisterUploadedRagDocumentUseCase(ragDocumentRepository),
+    renameSourceDocument: new RenameSourceDocumentUseCase(documentCommandPort),
+    deleteSourceDocument: new DeleteSourceDocumentUseCase(documentCommandPort),
+    createKnowledgeDraftFromSource: createDraftUseCase,
+  };
+}
+````
+
 ## File: modules/notebooklm/interfaces/source/contracts/source-command-result.ts
 ````typescript
 import type { SourceFileCommandErrorCode } from "../../../subdomains/source/application/dto/source-file.dto";
@@ -7191,6 +7499,71 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
+## File: modules/notebooklm/subdomains/conversation/api/server.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/conversation
+ * Layer: api/server
+ *
+ * Server-only boundary for the conversation subdomain.
+ * Import this path only from Server Components, Server Actions, or route handlers.
+ * Do NOT import in client components or public api/index.ts.
+ */
+
+export { FirebaseThreadRepository } from "../../../infrastructure/conversation/firebase/FirebaseThreadRepository";
+export { makeThreadRepo } from "../../../interfaces/conversation/composition/adapters";
+export type { ConversationUseCases } from "../../../interfaces/conversation/composition/use-cases";
+export { makeConversationUseCases } from "../../../interfaces/conversation/composition/use-cases";
+````
+
+## File: modules/notebooklm/subdomains/conversation/application/use-cases/load-thread.use-case.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/conversation
+ * Layer: application/use-cases
+ *
+ * LoadThreadUseCase — retrieves a conversation thread by ID (query handler).
+ * Returns null if the thread does not exist.
+ */
+
+import type { Thread } from "../../domain/entities/thread";
+import type { IThreadRepository } from "../../domain/repositories/IThreadRepository";
+
+export class LoadThreadUseCase {
+  constructor(private readonly threadRepository: IThreadRepository) {}
+
+  async execute(accountId: string, threadId: string): Promise<Thread | null> {
+    if (!accountId || !threadId) return null;
+    return this.threadRepository.getById(accountId, threadId);
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/conversation/application/use-cases/save-thread.use-case.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/conversation
+ * Layer: application/use-cases
+ *
+ * SaveThreadUseCase — persists a conversation thread via the repository port.
+ * Validates required fields before delegating to infrastructure.
+ */
+
+import type { Thread } from "../../domain/entities/thread";
+import type { IThreadRepository } from "../../domain/repositories/IThreadRepository";
+
+export class SaveThreadUseCase {
+  constructor(private readonly threadRepository: IThreadRepository) {}
+
+  async execute(accountId: string, thread: Thread): Promise<void> {
+    if (!accountId || !thread.id) {
+      throw new Error("accountId and thread.id are required to save a thread.");
+    }
+    await this.threadRepository.save(accountId, thread);
+  }
+}
+````
+
 ## File: modules/notebooklm/subdomains/conversation/domain/events/ConversationEvents.ts
 ````typescript
 /**
@@ -7336,28 +7709,49 @@ export type {
 } from "./events/NotebookEvents";
 ````
 
-## File: modules/notebooklm/subdomains/source/application/dto/source-pipeline.dto.ts
+## File: modules/notebooklm/subdomains/notebook/README.md
+````markdown
+# Notebook
+
+Notebook container and organization.
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Status**: Active — GenerateNotebookResponseUseCase + PlatformTextGenerationAdapter + Server Actions wired
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notebooklm/subdomains/source/api/server.ts
 ````typescript
-import type {
-  ParseSourceDocumentInput,
-  ParseSourceDocumentOutput,
-  ReindexSourceDocumentInput,
-  ReindexSourceDocumentOutput,
-} from "../../domain/ports/ISourcePipelinePort";
+/**
+ * source subdomain — server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
 
-export interface SourcePipelineError {
-  readonly code: "SOURCE_PIPELINE_INVALID_INPUT" | "SOURCE_PIPELINE_EXECUTION_FAILED";
-  readonly message: string;
-}
-
-export type SourcePipelineResult<T> =
-  | { readonly ok: true; readonly data: T }
-  | { readonly ok: false; readonly error: SourcePipelineError };
-
-export type ParseSourceDocumentInputDto = ParseSourceDocumentInput;
-export type ParseSourceDocumentOutputDto = ParseSourceDocumentOutput;
-export type ReindexSourceDocumentInputDto = ReindexSourceDocumentInput;
-export type ReindexSourceDocumentOutputDto = ReindexSourceDocumentOutput;
+export { FirebaseSourceFileAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceFileAdapter";
+export { FirebaseRagDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseRagDocumentAdapter";
+export { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter";
+export { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
+export { PlatformSourcePipelineAdapter } from "../../../infrastructure/source/platform/PlatformSourcePipelineAdapter";
+export { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
+export {
+  makeSourceFileAdapter,
+  makeRagDocumentAdapter,
+  makeSourceDocumentCommandAdapter,
+  makeParsedDocumentAdapter,
+  makeSourcePipelineAdapter,
+  makeKnowledgePageGateway,
+  waitForParsedDocument,
+} from "../../../interfaces/source/composition/adapters";
+export type { SourceUseCases } from "../../../interfaces/source/composition/use-cases";
+export { makeSourceUseCases } from "../../../interfaces/source/composition/use-cases";
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/dto/source-processing.dto.ts
@@ -7400,101 +7794,6 @@ export * as sourceRenameSourceDocumentUseCase from "./use-cases/rename-source-do
 export * as sourceDeleteSourceDocumentUseCase from "./use-cases/delete-source-document.use-case";
 export * as sourceCreateKnowledgeDraftUseCase from "./use-cases/create-knowledge-draft-from-source.use-case";
 export * as sourceWikiLibraryUseCases from "./use-cases/wiki-library.use-cases";
-````
-
-## File: modules/notebooklm/subdomains/source/application/use-cases/source-pipeline.use-cases.ts
-````typescript
-import type { ISourcePipelinePort } from "../../domain/ports/ISourcePipelinePort";
-import type {
-  ParseSourceDocumentInputDto,
-  ParseSourceDocumentOutputDto,
-  ReindexSourceDocumentInputDto,
-  ReindexSourceDocumentOutputDto,
-  SourcePipelineResult,
-} from "../dto/source-pipeline.dto";
-
-function isBlank(value: string): boolean {
-  return !value.trim();
-}
-
-export class ParseSourceDocumentUseCase {
-  constructor(private readonly pipelinePort: ISourcePipelinePort) {}
-
-  async execute(
-    input: ParseSourceDocumentInputDto,
-  ): Promise<SourcePipelineResult<ParseSourceDocumentOutputDto>> {
-    if (
-      isBlank(input.accountId)
-      || isBlank(input.workspaceId)
-      || isBlank(input.documentId)
-      || isBlank(input.gcsUri)
-      || isBlank(input.filename)
-      || !Number.isFinite(input.sizeBytes)
-      || input.sizeBytes <= 0
-    ) {
-      return {
-        ok: false,
-        error: {
-          code: "SOURCE_PIPELINE_INVALID_INPUT",
-          message: "Invalid parse input.",
-        },
-      };
-    }
-
-    try {
-      const output = await this.pipelinePort.parseDocument(input);
-      return { ok: true, data: output };
-    } catch (error) {
-      return {
-        ok: false,
-        error: {
-          code: "SOURCE_PIPELINE_EXECUTION_FAILED",
-          message: error instanceof Error ? error.message : "Parse execution failed.",
-        },
-      };
-    }
-  }
-}
-
-export class ReindexSourceDocumentUseCase {
-  constructor(private readonly pipelinePort: ISourcePipelinePort) {}
-
-  async execute(
-    input: ReindexSourceDocumentInputDto,
-  ): Promise<SourcePipelineResult<ReindexSourceDocumentOutputDto>> {
-    if (
-      isBlank(input.accountId)
-      || isBlank(input.workspaceId)
-      || isBlank(input.documentId)
-      || isBlank(input.jsonGcsUri)
-      || isBlank(input.sourceGcsUri)
-      || isBlank(input.filename)
-      || !Number.isFinite(input.pageCount)
-      || input.pageCount < 0
-    ) {
-      return {
-        ok: false,
-        error: {
-          code: "SOURCE_PIPELINE_INVALID_INPUT",
-          message: "Invalid reindex input.",
-        },
-      };
-    }
-
-    try {
-      const output = await this.pipelinePort.reindexDocument(input);
-      return { ok: true, data: output };
-    } catch (error) {
-      return {
-        ok: false,
-        error: {
-          code: "SOURCE_PIPELINE_EXECUTION_FAILED",
-          message: error instanceof Error ? error.message : "Reindex execution failed.",
-        },
-      };
-    }
-  }
-}
 ````
 
 ## File: modules/notebooklm/subdomains/source/domain/events/SourceEvents.ts
@@ -7565,66 +7864,6 @@ export type {
 } from "./events/SourceEvents";
 ````
 
-## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
-````typescript
-/**
- * notebooklm/source domain/ports — driven port interfaces for the source subdomain.
- *
- * ISourceDocumentCommandPort and IParsedDocumentPort are the primary driven ports.
- * IRagDocumentPort, ISourceFilePort, IWikiLibraryPort re-export the legacy
- * repository contracts, making the Ports layer explicitly visible.
- */
-export type { ISourceDocumentCommandPort } from "./ISourceDocumentPort";
-export type { IParsedDocumentPort } from "./IParsedDocumentPort";
-export type {
-	ISourcePipelinePort,
-	ParseSourceDocumentInput,
-	ParseSourceDocumentOutput,
-	ReindexSourceDocumentInput,
-	ReindexSourceDocumentOutput,
-} from "./ISourcePipelinePort";
-export type { IRagDocumentRepository as IRagDocumentPort } from "../repositories/IRagDocumentRepository";
-export type { ISourceFileRepository as ISourceFilePort } from "../repositories/ISourceFileRepository";
-export type { IWikiLibraryRepository as IWikiLibraryPort } from "../repositories/IWikiLibraryRepository";
-````
-
-## File: modules/notebooklm/subdomains/source/domain/ports/ISourcePipelinePort.ts
-````typescript
-export interface ParseSourceDocumentInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly documentId: string;
-  readonly gcsUri: string;
-  readonly filename: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-}
-
-export interface ParseSourceDocumentOutput {
-  readonly documentId: string;
-}
-
-export interface ReindexSourceDocumentInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly documentId: string;
-  readonly jsonGcsUri: string;
-  readonly sourceGcsUri: string;
-  readonly filename: string;
-  readonly pageCount: number;
-}
-
-export interface ReindexSourceDocumentOutput {
-  readonly chunkCount: number;
-  readonly vectorCount: number;
-}
-
-export interface ISourcePipelinePort {
-  parseDocument(input: ParseSourceDocumentInput): Promise<ParseSourceDocumentOutput>;
-  reindexDocument(input: ReindexSourceDocumentInput): Promise<ReindexSourceDocumentOutput>;
-}
-````
-
 ## File: modules/notebooklm/subdomains/source/README.md
 ````markdown
 # Source
@@ -7657,60 +7896,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/domain/ports/IGenerationPort.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: domain/ports
- * Purpose: IGenerationPort — output port for AI answer generation.
- *
- * The platform AI adapter (infrastructure) implements this port.
- */
-
-import type { GenerateAnswerInput, GenerateAnswerResult } from "../entities/SynthesisResult";
-
-export interface IGenerationPort {
-  generate(input: GenerateAnswerInput): Promise<GenerateAnswerResult>;
-}
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/repositories/IRagGenerationRepository.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: domain/repositories
- * Purpose: IRagGenerationRepository — output port for AI answer generation.
- *
- * Domain owns this contract; the platform-delegating adapter (infrastructure) implements it.
- */
-
-import type { GenerateRagAnswerInput, GenerateRagAnswerResult } from "../entities/generation.entities";
-
-export interface IRagGenerationRepository {
-  generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult>;
-}
-````
-
-## File: modules/notebooklm/api/server.ts
-````typescript
-import "server-only";
-
-/**
- * modules/notebooklm — server-only API barrel.
- *
- * Exports concrete notebook implementations that depend on server-only
- * packages or infrastructure wiring. Must only be imported in Server Actions,
- * route handlers, or server-side infrastructure.
- * This surface exists for server-side orchestrators; browser-facing
- * composition still goes through workspace/api when workspace owns the flow.
- */
-
-export { GenerateNotebookResponseUseCase, PlatformTextGenerationAdapter } from "../subdomains/notebook/api/server";
-
-// Q&A subdomain — AnswerRagQueryUseCase factory (now in synthesis subdomain)
-export { createAnswerRagQueryUseCase } from "../subdomains/synthesis/api/server";
-````
-
 ## File: modules/notebooklm/application/use-cases/index.ts
 ````typescript
 export { notebookUseCases } from '../../subdomains/notebook/application';
@@ -7727,20 +7912,28 @@ export {
 export * as synthesisUseCases from '../../subdomains/synthesis/application';
 ````
 
-## File: modules/notebooklm/interfaces/conversation/_actions/thread.actions.ts
+## File: modules/notebooklm/interfaces/conversation/_actions/chat.actions.ts
 ````typescript
 "use server";
 
-import type { Thread } from "../../../subdomains/conversation/application/dto/conversation.dto";
-import { makeThreadRepo } from "../composition/adapters";
+import type {
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "@/modules/notebooklm/api";
+import {
+  GenerateNotebookResponseUseCase,
+  PlatformTextGenerationAdapter,
+} from "@/modules/notebooklm/api/server";
+import { saveThread, loadThread } from "@/modules/notebooklm/api";
 
-export async function saveThread(accountId: string, thread: Thread): Promise<void> {
-  await makeThreadRepo().save(accountId, thread);
+export async function sendChatMessage(
+  input: GenerateNotebookResponseInput,
+): Promise<GenerateNotebookResponseResult> {
+  const useCase = new GenerateNotebookResponseUseCase(new PlatformTextGenerationAdapter());
+  return useCase.execute(input);
 }
 
-export async function loadThread(accountId: string, threadId: string): Promise<Thread | null> {
-  return makeThreadRepo().getById(accountId, threadId);
-}
+export { saveThread, loadThread };
 ````
 
 ## File: modules/notebooklm/interfaces/notebook/_actions/generate-notebook-response.actions.ts
@@ -7971,6 +8164,19 @@ export async function getWorkspaceRagDocuments(
 }
 ````
 
+## File: modules/notebooklm/subdomains/notebook/api/server.ts
+````typescript
+/**
+ * notebook subdomain — server-only API.
+ *
+ * Exports infrastructure implementations that depend on server-only packages.
+ * Must only be imported in Server Actions, route handlers, or server-side infrastructure.
+ */
+
+export { PlatformTextGenerationAdapter } from "../../../infrastructure/notebook/platform/PlatformTextGenerationAdapter";
+export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-notebook-response.use-case";
+````
+
 ## File: modules/notebooklm/subdomains/source/application/use-cases/process-source-document-workflow.use-case.ts
 ````typescript
 import {
@@ -8142,6 +8348,81 @@ export class ProcessSourceDocumentWorkflowUseCase {
 }
 ````
 
+## File: modules/notebooklm/subdomains/synthesis/api/server.ts
+````typescript
+/**
+ * synthesis subdomain — server-only API.
+ *
+ * Factory functions and infrastructure adapters that depend on server-only
+ * packages. Must only be imported in Server Actions, route handlers, or
+ * server-side infrastructure.
+ */
+
+import { FirebaseRagRetrievalAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseRagRetrievalAdapter";
+import { FirebaseKnowledgeContentAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter";
+import { PlatformRagGenerationAdapter } from "../../../infrastructure/synthesis/platform/PlatformRagGenerationAdapter";
+import { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
+import type {
+  KnowledgeParsedDocument,
+  KnowledgeRagQueryResult,
+  KnowledgeReindexInput,
+} from "../domain/repositories/IKnowledgeContentRepository";
+
+export { PlatformRagGenerationAdapter } from "../../../infrastructure/synthesis/platform/PlatformRagGenerationAdapter";
+
+let knowledgeContentRepository: FirebaseKnowledgeContentAdapter | undefined;
+
+function getKnowledgeContentRepository(): FirebaseKnowledgeContentAdapter {
+  if (!knowledgeContentRepository) {
+    knowledgeContentRepository = new FirebaseKnowledgeContentAdapter();
+  }
+  return knowledgeContentRepository;
+}
+
+export function createAnswerRagQueryUseCase(): AnswerRagQueryUseCase {
+  return new AnswerRagQueryUseCase(
+    new FirebaseRagRetrievalAdapter(),
+    new PlatformRagGenerationAdapter(),
+  );
+}
+
+export function runKnowledgeRagQuery(
+  query: string,
+  accountId: string,
+  workspaceId: string,
+  topK = 4,
+  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
+): Promise<KnowledgeRagQueryResult> {
+  return getKnowledgeContentRepository().runRagQuery(query, accountId, workspaceId, topK, options);
+}
+
+export function reindexKnowledgeDocument(input: KnowledgeReindexInput): Promise<void> {
+  return getKnowledgeContentRepository().reindexDocument(input);
+}
+
+export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20): Promise<KnowledgeParsedDocument[]> {
+  return getKnowledgeContentRepository().listParsedDocuments(accountId, limitCount);
+}
+````
+
+## File: modules/notebooklm/interfaces/conversation/_actions/thread.actions.ts
+````typescript
+"use server";
+
+import type { Thread } from "../../../subdomains/conversation/application/dto/conversation.dto";
+import { makeConversationUseCases } from "../composition/use-cases";
+
+export async function saveThread(accountId: string, thread: Thread): Promise<void> {
+  const { saveThread: save } = makeConversationUseCases();
+  await save.execute(accountId, thread);
+}
+
+export async function loadThread(accountId: string, threadId: string): Promise<Thread | null> {
+  const { loadThread: load } = makeConversationUseCases();
+  return load.execute(accountId, threadId);
+}
+````
+
 ## File: modules/notebooklm/subdomains/conversation/api/index.ts
 ````typescript
 /**
@@ -8168,19 +8449,6 @@ export type { IThreadRepository } from "../domain/repositories/IThreadRepository
 
 // Thread persistence actions
 export { saveThread, loadThread } from "../../../interfaces/conversation/_actions/thread.actions";
-````
-
-## File: modules/notebooklm/subdomains/notebook/api/server.ts
-````typescript
-/**
- * notebook subdomain — server-only API.
- *
- * Exports infrastructure implementations that depend on server-only packages.
- * Must only be imported in Server Actions, route handlers, or server-side infrastructure.
- */
-
-export { PlatformTextGenerationAdapter } from "../../../infrastructure/notebook/platform/PlatformTextGenerationAdapter";
-export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-notebook-response.use-case";
 ````
 
 ## File: modules/notebooklm/subdomains/synthesis/api/index.ts
@@ -8330,63 +8598,6 @@ export { FirebaseRagQueryFeedbackAdapter } from "../../../infrastructure/synthes
 // ── UI components ────────────────────────────────────────────────────────────
 
 export { RagQueryPanel } from "../../../interfaces/synthesis/components/RagQueryPanel";
-````
-
-## File: modules/notebooklm/subdomains/synthesis/api/server.ts
-````typescript
-/**
- * synthesis subdomain — server-only API.
- *
- * Factory functions and infrastructure adapters that depend on server-only
- * packages. Must only be imported in Server Actions, route handlers, or
- * server-side infrastructure.
- */
-
-import { FirebaseRagRetrievalAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseRagRetrievalAdapter";
-import { FirebaseKnowledgeContentAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter";
-import { PlatformRagGenerationAdapter } from "../../../infrastructure/synthesis/platform/PlatformRagGenerationAdapter";
-import { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
-import type {
-  KnowledgeParsedDocument,
-  KnowledgeRagQueryResult,
-  KnowledgeReindexInput,
-} from "../domain/repositories/IKnowledgeContentRepository";
-
-export { PlatformRagGenerationAdapter } from "../../../infrastructure/synthesis/platform/PlatformRagGenerationAdapter";
-
-let knowledgeContentRepository: FirebaseKnowledgeContentAdapter | undefined;
-
-function getKnowledgeContentRepository(): FirebaseKnowledgeContentAdapter {
-  if (!knowledgeContentRepository) {
-    knowledgeContentRepository = new FirebaseKnowledgeContentAdapter();
-  }
-  return knowledgeContentRepository;
-}
-
-export function createAnswerRagQueryUseCase(): AnswerRagQueryUseCase {
-  return new AnswerRagQueryUseCase(
-    new FirebaseRagRetrievalAdapter(),
-    new PlatformRagGenerationAdapter(),
-  );
-}
-
-export function runKnowledgeRagQuery(
-  query: string,
-  accountId: string,
-  workspaceId: string,
-  topK = 4,
-  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
-): Promise<KnowledgeRagQueryResult> {
-  return getKnowledgeContentRepository().runRagQuery(query, accountId, workspaceId, topK, options);
-}
-
-export function reindexKnowledgeDocument(input: KnowledgeReindexInput): Promise<void> {
-  return getKnowledgeContentRepository().reindexDocument(input);
-}
-
-export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20): Promise<KnowledgeParsedDocument[]> {
-  return getKnowledgeContentRepository().listParsedDocuments(accountId, limitCount);
-}
 ````
 
 ## File: modules/notebooklm/api/index.ts

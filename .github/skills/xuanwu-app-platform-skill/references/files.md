@@ -169,6 +169,161 @@ export function createPlatformFacade(ports: {
 }
 ````
 
+## File: modules/platform/api/index.ts
+````typescript
+/**
+ * platform public API boundary.
+ *
+ * account is listed before organization to establish canonical definitions for
+ * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
+ * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
+ */
+
+export * from "./contracts";
+export * from "./facade";
+export { createPlatformService } from "./platform-service";
+export {
+  firestoreInfrastructureApi,
+  storageInfrastructureApi,
+  genkitInfrastructureApi,
+  functionsInfrastructureApi,
+} from "./infrastructure-api";
+export {
+  authApi,
+  permissionApi,
+  fileApi,
+} from "./service-api";
+export * from "../subdomains/identity/api";
+export * from "../subdomains/account/api";
+export * from "../subdomains/notification/api";
+export * from "../subdomains/platform-config/api";
+
+export {
+  getProfile,
+  subscribeToProfile,
+  updateProfile,
+  SettingsProfileRouteScreen,
+  getAccountProfile,
+  subscribeToAccountProfile,
+  updateAccountProfile,
+} from "../subdomains/account-profile/api";
+
+export type {
+  AccountProfile,
+  UpdateAccountProfileInput,
+} from "../subdomains/account-profile/api";
+
+// organization — explicit to avoid re-export conflicts with account subdomain
+export type {
+  OrganizationEntity,
+  Presence,
+  InviteState,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  OrgPolicy,
+  OrgPolicyRule,
+  OrgPolicyScope,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+  OrganizationRepository,
+  OrgPolicyRepository,
+} from "../subdomains/organization/api";
+export {
+  organizationService,
+  getOrganizationMembers,
+  getOrganizationTeams,
+  getOrgPolicies,
+  createOrganization,
+  createOrganizationWithTeam,
+  updateOrganizationSettings,
+  deleteOrganization,
+  inviteMember,
+  recruitMember,
+  dismissMember,
+  updateMemberRole,
+  createTeam,
+  deleteTeam,
+  updateTeamMembers,
+  createPartnerGroup,
+  sendPartnerInvite,
+  dismissPartnerMember,
+  createOrgPolicy,
+  updateOrgPolicy,
+  deleteOrgPolicy,
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+  // UI components
+  AccountSwitcher,
+  CreateOrganizationDialog,
+  MembersPage,
+  TeamsPage,
+  PermissionsPage,
+} from "../subdomains/organization/api";
+export type { MembersPageProps, TeamsPageProps, PermissionsPageProps } from "../subdomains/organization/api";
+
+// background-job — knowledge ingestion pipeline management
+export * from "../subdomains/background-job/api";
+
+// ai — shared AI provider capability (types only — client-safe)
+// Server-only functions (generateAiText, summarize) are in platform/api/server.ts
+export {
+  type AIAPI,
+  type GenerateAiTextInput,
+  type GenerateAiTextOutput,
+  type AiTextGenerationPort,
+} from "../subdomains/ai/api";
+
+// Cross-module and app-composition hooks from interfaces layer.
+// Only selective exports — do NOT wildcard re-export "../interfaces".
+export {
+  useApp,
+  type AppState,
+  type AppAction,
+  type AppContextValue,
+  AppContext,
+  APP_INITIAL_STATE,
+  type ActiveAccount,
+  // Shell UI components (pure platform — no downstream deps)
+  ShellHeaderControls,
+  ShellThemeToggle,
+  ShellNotificationButton,
+  ShellUserAvatar,
+  ShellTranslationSwitcher,
+  ShellAppBreadcrumbs,
+  ShellGlobalSearchDialog,
+  useShellGlobalSearch,
+} from "../interfaces";
+
+// access-control — account type guards and route fallback
+export {
+  isOrganizationActor,
+  isActiveOrganizationAccount,
+  resolveOrganizationRouteFallback,
+  type ShellAccountActor,
+} from "../subdomains/access-control/api";
+````
+
 ## File: modules/platform/api/platform-service.ts
 ````typescript
 /**
@@ -261,6 +416,235 @@ export function createPlatformService(): PlatformFacade {
 	_platformFacade = createPlatformFacade({ commandPort, queryPort });
 	return _platformFacade;
 }
+````
+
+## File: modules/platform/api/server.ts
+````typescript
+/**
+ * platform — server-only API barrel.
+ *
+ * Exports that depend on server-only packages (genkit, Firebase Admin, etc.).
+ * Must only be imported in Server Actions, route handlers, or server-side
+ * infrastructure adapters.
+ */
+
+export { generateAiText, summarize } from "../subdomains/ai/api/server";
+````
+
+## File: modules/platform/api/service-api.ts
+````typescript
+import { getFirebaseAuth } from "@integration-firebase";
+
+import { accessControlService } from "../subdomains/access-control/api";
+import { isAllowed, type PermissionDecision } from "../domain/value-objects/PermissionDecision";
+import { firestoreInfrastructureApi, storageInfrastructureApi } from "./infrastructure-api";
+import type {
+	AuthAPI,
+	AuthSession,
+	FileAPI,
+	PermissionAPI,
+	UploadUserFileInput,
+	UploadUserFileOutput,
+} from "./contracts";
+
+interface PlatformFileRecord {
+	readonly fileId: string;
+	readonly ownerId: string;
+	readonly storagePath: string;
+	readonly filename: string;
+	readonly contentType: string;
+	readonly url: string;
+	readonly metadata: Record<string, string>;
+	readonly createdAtISO: string;
+	readonly deletedAtISO?: string;
+}
+
+const PLATFORM_FILE_COLLECTION = "platform-files";
+
+function normalizeOwnerId(ownerId: string): string {
+	const normalized = ownerId.trim();
+	if (!normalized) {
+		throw new Error("ownerId is required.");
+	}
+	return normalized;
+}
+
+function normalizeFileName(input: UploadUserFileInput): string {
+	const candidate = input.fileName?.trim();
+	if (candidate) return candidate;
+
+	if ("name" in input.file && typeof input.file.name === "string" && input.file.name.trim()) {
+		return input.file.name.trim();
+	}
+
+	return "uploaded-file";
+}
+
+function sanitizeFileName(fileName: string): string {
+	return fileName.replace(/[^a-zA-Z0-9._-]+/g, "-");
+}
+
+function parseResource(resource: string): { resourceType: string; resourceId?: string } {
+	const normalized = resource.trim();
+	if (!normalized) {
+		return { resourceType: "resource" };
+	}
+
+	const separator = normalized.indexOf(":");
+	if (separator < 0) {
+		return { resourceType: normalized };
+	}
+
+	const resourceType = normalized.slice(0, separator).trim() || "resource";
+	const resourceId = normalized.slice(separator + 1).trim() || undefined;
+	return { resourceType, resourceId };
+}
+
+function parsePermissionDecision(raw: string): PermissionDecision | null {
+	try {
+		const value = JSON.parse(raw) as Partial<PermissionDecision>;
+		if (!value || typeof value !== "object") return null;
+		if (typeof value.outcome !== "string") return null;
+		if (typeof value.reason !== "string") return null;
+		if (typeof value.evaluatedAt !== "string") return null;
+		return value as PermissionDecision;
+	} catch {
+		return null;
+	}
+}
+
+function buildFileRecordPath(fileId: string): string {
+	return `${PLATFORM_FILE_COLLECTION}/${fileId}`;
+}
+
+export const authApi: AuthAPI = {
+	async getSession(): Promise<AuthSession | null> {
+		const auth = getFirebaseAuth();
+		const user = auth.currentUser;
+		if (!user) {
+			return null;
+		}
+
+		return {
+			userId: user.uid,
+			email: user.email,
+			displayName: user.displayName,
+			isAnonymous: user.isAnonymous,
+		};
+	},
+
+	async requireAuth(): Promise<AuthSession> {
+		const session = await authApi.getSession();
+		if (!session) {
+			throw new Error("Unauthorized");
+		}
+		return session;
+	},
+};
+
+export const permissionApi: PermissionAPI = {
+	async can(userId: string, action: string, resource: string): Promise<boolean> {
+		const subjectId = userId.trim();
+		const normalizedAction = action.trim();
+		if (!subjectId || !normalizedAction) {
+			return false;
+		}
+
+		const { resourceType, resourceId } = parseResource(resource);
+		const result = await accessControlService.evaluatePermission({
+			subjectId,
+			resourceType,
+			resourceId,
+			action: normalizedAction,
+		});
+
+		if (!result.success) {
+			return false;
+		}
+
+		const decision = parsePermissionDecision(result.aggregateId);
+		if (!decision) {
+			return false;
+		}
+
+		return isAllowed(decision);
+	},
+};
+
+export const fileApi: FileAPI = {
+	async uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput> {
+		const ownerId = normalizeOwnerId(input.ownerId);
+		const isAllowedToCreate = await permissionApi.can(ownerId, "create:file", `file-owner:${ownerId}`);
+		if (!isAllowedToCreate) {
+			throw new Error("Permission denied: create:file");
+		}
+
+		const fileId = crypto.randomUUID();
+		const fileName = normalizeFileName(input);
+		const normalizedFileName = sanitizeFileName(fileName);
+		const storagePath =
+			input.pathHint?.trim() || `user-files/${ownerId}/${fileId}/${normalizedFileName}`;
+		const contentType = input.contentType?.trim() || input.file.type || "application/octet-stream";
+
+		const url = await storageInfrastructureApi.upload(input.file, storagePath, {
+			contentType,
+			customMetadata: {
+				ownerId,
+				fileId,
+				filename: fileName,
+				...(input.metadata ?? {}),
+			},
+		});
+
+		const record: PlatformFileRecord = {
+			fileId,
+			ownerId,
+			storagePath,
+			filename: fileName,
+			contentType,
+			url,
+			metadata: input.metadata ?? {},
+			createdAtISO: new Date().toISOString(),
+		};
+
+		await firestoreInfrastructureApi.set(buildFileRecordPath(fileId), record);
+
+		return {
+			url,
+			fileId,
+			storagePath,
+			gcsUri: storageInfrastructureApi.toGsUri(storagePath),
+		};
+	},
+
+	async deleteFile(fileId: string): Promise<void> {
+		const normalizedFileId = fileId.trim();
+		if (!normalizedFileId) {
+			throw new Error("fileId is required.");
+		}
+
+		const recordPath = buildFileRecordPath(normalizedFileId);
+		const record = await firestoreInfrastructureApi.get<PlatformFileRecord>(recordPath);
+		if (!record || record.deletedAtISO) {
+			return;
+		}
+
+		const isAllowedToDelete = await permissionApi.can(
+			record.ownerId,
+			"delete:file",
+			`file:${normalizedFileId}`,
+		);
+		if (!isAllowedToDelete) {
+			throw new Error("Permission denied: delete:file");
+		}
+
+		await storageInfrastructureApi.delete(record.storagePath);
+		await firestoreInfrastructureApi.set(recordPath, {
+			...record,
+			deletedAtISO: new Date().toISOString(),
+		});
+	},
+};
 ````
 
 ## File: modules/platform/application/application.instructions.md
@@ -10489,6 +10873,67 @@ export async function getActiveAccountPolicies(_accountId: string): Promise<Acco
 }
 ````
 
+## File: modules/platform/subdomains/ai/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * This barrel is client-safe — it exports only types and interfaces.
+ * Server-only functions (generateAiText, summarize) live in ./server.ts.
+ */
+
+import type { GenerateAiTextInput, GenerateAiTextOutput } from "../domain/ports/AiTextGenerationPort";
+
+// Re-export domain types through API boundary
+export type {
+	GenerateAiTextInput,
+	GenerateAiTextOutput,
+	AiTextGenerationPort,
+} from "../domain/ports/AiTextGenerationPort";
+
+export interface AIAPI {
+	summarize(text: string, model?: string): Promise<string>;
+	generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
+}
+````
+
+## File: modules/platform/subdomains/ai/api/server.ts
+````typescript
+/**
+ * AI subdomain — server-only API.
+ *
+ * Composition root + functions that depend on server-only packages (genkit).
+ * Must only be imported in Server Actions, route handlers, or server-side
+ * infrastructure adapters.
+ */
+
+import { GenerateAiTextUseCase } from "../application/use-cases/generate-ai-text.use-case";
+import { GenkitAiTextGenerationAdapter } from "../infrastructure/genkit/GenkitAiTextGenerationAdapter";
+import type { GenerateAiTextInput, GenerateAiTextOutput } from "../domain/ports/AiTextGenerationPort";
+
+let _useCase: GenerateAiTextUseCase | undefined;
+
+function getUseCase(): GenerateAiTextUseCase {
+	if (_useCase) return _useCase;
+	_useCase = new GenerateAiTextUseCase(new GenkitAiTextGenerationAdapter());
+	return _useCase;
+}
+
+export async function generateAiText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput> {
+	return getUseCase().execute(input);
+}
+
+export async function summarize(text: string, model?: string): Promise<string> {
+	const result = await generateAiText({
+		prompt: text,
+		model,
+		system: "You are a concise summarizer. Return only the summary text.",
+	});
+	return result.text;
+}
+````
+
 ## File: modules/platform/subdomains/ai/application/index.ts
 ````typescript
 export { GenerateAiTextUseCase } from "./use-cases/generate-ai-text.use-case";
@@ -18318,231 +18763,502 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/api/server.ts
+## File: modules/platform/api/contracts.ts
 ````typescript
 /**
- * platform — server-only API barrel.
+ * platform API contracts boundary.
  *
- * Exports that depend on server-only packages (genkit, Firebase Admin, etc.).
- * Must only be imported in Server Actions, route handlers, or server-side
- * infrastructure adapters.
+ * Keep the source of truth in application/domain and re-export here for API consumers.
  */
 
-export { generateAiText, summarize } from "../subdomains/ai/api/server";
-````
+export * from "../application/dtos";
+export type {
+	PlatformContextView,
+	PolicyCatalogView,
+	SubscriptionEntitlementsView,
+	WorkflowPolicyView,
+} from "../domain/ports/output";
+export * from "../domain/events";
 
-## File: modules/platform/api/service-api.ts
-````typescript
-import { getFirebaseAuth } from "@integration-firebase";
+// ── Identity session types ────────────────────────────────────────────────────
+// AuthUser is the canonical projection of an authenticated identity subject.
+// Platform/Identity BC owns this DTO; app/providers/auth-context re-exports it.
 
-import { accessControlService } from "../subdomains/access-control/api";
-import { isAllowed, type PermissionDecision } from "../domain/value-objects/PermissionDecision";
-import { firestoreInfrastructureApi, storageInfrastructureApi } from "./infrastructure-api";
-import type {
-	AuthAPI,
-	AuthSession,
-	FileAPI,
-	PermissionAPI,
-	UploadUserFileInput,
-	UploadUserFileOutput,
-} from "./contracts";
-
-interface PlatformFileRecord {
-	readonly fileId: string;
-	readonly ownerId: string;
-	readonly storagePath: string;
-	readonly filename: string;
-	readonly contentType: string;
-	readonly url: string;
-	readonly metadata: Record<string, string>;
-	readonly createdAtISO: string;
-	readonly deletedAtISO?: string;
+/** Minimal authenticated user record surfaced from identity auth state. */
+export interface AuthUser {
+	readonly id: string;
+	readonly name: string;
+	readonly email: string;
 }
 
-const PLATFORM_FILE_COLLECTION = "platform-files";
+// ── Infrastructure API contracts (platform-owned) ───────────────────────────
 
-function normalizeOwnerId(ownerId: string): string {
-	const normalized = ownerId.trim();
+export type FirestoreWhereOperator =
+	| "<"
+	| "<="
+	| "=="
+	| "!="
+	| ">="
+	| ">"
+	| "array-contains"
+	| "array-contains-any"
+	| "in"
+	| "not-in";
+
+export interface FirestoreWhereClause {
+	readonly field: string;
+	readonly op: FirestoreWhereOperator;
+	readonly value: unknown;
+}
+
+export type FirestoreOrderDirection = "asc" | "desc";
+
+export interface FirestoreOrderByClause {
+	readonly field: string;
+	readonly direction?: FirestoreOrderDirection;
+}
+
+export interface FirestoreQueryOptions {
+	readonly limit?: number;
+	readonly orderBy?: readonly FirestoreOrderByClause[];
+}
+
+export interface FirestoreCollectionDocument<T> {
+	readonly id: string;
+	readonly path: string;
+	readonly data: T;
+}
+
+export interface FirestoreCollectionWatchHandlers<T> {
+	readonly onNext: (documents: readonly FirestoreCollectionDocument<T>[]) => void;
+	readonly onError?: (error: unknown) => void;
+}
+
+export interface FirestoreDocumentWatchHandlers<T> {
+	readonly onNext: (document: FirestoreCollectionDocument<T> | null) => void;
+	readonly onError?: (error: unknown) => void;
+}
+
+export interface FirestoreSetDocumentInput<T> {
+	readonly path: string;
+	readonly data: T;
+}
+
+export interface FirestoreAPI {
+	get<T>(path: string): Promise<T | null>;
+	set<T>(path: string, data: T): Promise<void>;
+	setMany<T>(inputs: readonly FirestoreSetDocumentInput<T>[]): Promise<void>;
+	update(path: string, data: Record<string, unknown>): Promise<void>;
+	delete(path: string): Promise<void>;
+	query<T>(
+		collectionPath: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<T[]>;
+	queryDocuments<T>(
+		collectionPath: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly FirestoreCollectionDocument<T>[]>;
+	queryCollectionGroup<T>(
+		collectionId: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly FirestoreCollectionDocument<T>[]>;
+	watchCollection<T>(
+		collectionPath: string,
+		handlers: FirestoreCollectionWatchHandlers<T>,
+		where?: readonly FirestoreWhereClause[],
+	): () => void;
+	watchDocument<T>(path: string, handlers: FirestoreDocumentWatchHandlers<T>): () => void;
+}
+
+export interface StorageUploadOptions {
+	readonly contentType?: string;
+	readonly customMetadata?: Record<string, string>;
+}
+
+export interface StorageAPI {
+	upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string>;
+	getUrl(path: string): Promise<string>;
+	delete(path: string): Promise<void>;
+	toGsUri(path: string): string;
+}
+
+export interface GenkitAPI {
+	runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput>;
+}
+
+export interface FunctionsCallOptions {
+	readonly region?: string;
+}
+
+export interface FunctionsAPI {
+	call<TInput, TOutput>(
+		functionName: string,
+		input: TInput,
+		options?: FunctionsCallOptions,
+	): Promise<TOutput>;
+}
+
+// ── Platform Service API contracts (cross-domain) ───────────────────────────
+
+export interface AuthSession {
+	readonly userId: string;
+	readonly email: string | null;
+	readonly displayName: string | null;
+	readonly isAnonymous: boolean;
+}
+
+export interface AuthAPI {
+	getSession(): Promise<AuthSession | null>;
+	requireAuth(): Promise<AuthSession>;
+}
+
+export interface PermissionAPI {
+	can(userId: string, action: string, resource: string): Promise<boolean>;
+}
+
+export interface UploadUserFileInput {
+	readonly file: Blob;
+	readonly ownerId: string;
+	readonly fileName?: string;
+	readonly contentType?: string;
+	readonly metadata?: Record<string, string>;
+	readonly pathHint?: string;
+}
+
+export interface UploadUserFileOutput {
+	readonly url: string;
+	readonly fileId: string;
+	readonly storagePath: string;
+	readonly gcsUri: string;
+}
+
+export interface FileAPI {
+	uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>;
+	deleteFile(fileId: string): Promise<void>;
+}
+
+// ── Cross-cutting account context type ───────────────────────────────────────
+// ActiveAccount is the union of an organization AccountEntity or a personal
+// AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
+import type { AccountEntity } from "../subdomains/account/api";
+export type ActiveAccount = AccountEntity | AuthUser;
+````
+
+## File: modules/platform/api/infrastructure-api.ts
+````typescript
+import {
+	functionsApi,
+	firestoreApi,
+	getFirebaseFirestore,
+	getFirebaseFunctions,
+	getFirebaseStorage,
+	storageApi,
+} from "@integration-firebase";
+import { collectionGroup } from "firebase/firestore";
+
+import type {
+	FirestoreAPI,
+	FunctionsAPI,
+	FunctionsCallOptions,
+	FirestoreQueryOptions,
+	FirestoreWhereClause,
+	GenkitAPI,
+	StorageAPI,
+	StorageUploadOptions,
+} from "./contracts";
+
+const DEFAULT_STORAGE_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
+const DEFAULT_FUNCTION_REGION = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_REGION ?? "asia-east1";
+
+function splitPath(path: string): string[] {
+	const segments = path
+		.split("/")
+		.map((segment) => segment.trim())
+		.filter(Boolean);
+
+	if (segments.length === 0) {
+		throw new Error("Path is required.");
+	}
+
+	return segments;
+}
+
+function resolveDocumentPath(path: string): string[] {
+	const segments = splitPath(path);
+	if (segments.length % 2 !== 0) {
+		throw new Error(`Expected a document path but got collection path: ${path}`);
+	}
+	return segments;
+}
+
+function resolveCollectionPath(path: string): string[] {
+	const segments = splitPath(path);
+	if (segments.length % 2 === 0) {
+		throw new Error(`Expected a collection path but got document path: ${path}`);
+	}
+	return segments;
+}
+
+function resolveStorageBucket(): string {
+	return process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || DEFAULT_STORAGE_BUCKET;
+}
+
+function resolveStoragePath(path: string): string {
+	const normalized = path.trim().replace(/^\/+/, "");
 	if (!normalized) {
-		throw new Error("ownerId is required.");
+		throw new Error("Storage path is required.");
 	}
 	return normalized;
 }
 
-function normalizeFileName(input: UploadUserFileInput): string {
-	const candidate = input.fileName?.trim();
-	if (candidate) return candidate;
-
-	if ("name" in input.file && typeof input.file.name === "string" && input.file.name.trim()) {
-		return input.file.name.trim();
-	}
-
-	return "uploaded-file";
+function toUploadMetadata(options?: StorageUploadOptions) {
+	if (!options) return undefined;
+	return {
+		contentType: options.contentType,
+		customMetadata: options.customMetadata,
+	};
 }
 
-function sanitizeFileName(fileName: string): string {
-	return fileName.replace(/[^a-zA-Z0-9._-]+/g, "-");
+function applyQueryConstraints(
+	baseQuery: ReturnType<typeof firestoreApi.query>,
+	where: readonly FirestoreWhereClause[],
+	options?: FirestoreQueryOptions,
+) {
+	const whereConstraints = where.map((clause) =>
+		firestoreApi.where(clause.field, clause.op, clause.value),
+	);
+
+	const orderByConstraints = (options?.orderBy ?? []).map((clause) =>
+		firestoreApi.orderBy(clause.field, clause.direction ?? "asc"),
+	);
+
+	const limitConstraint =
+		typeof options?.limit === "number" && options.limit > 0
+			? [firestoreApi.limit(options.limit)]
+			: [];
+
+	return firestoreApi.query(baseQuery, ...whereConstraints, ...orderByConstraints, ...limitConstraint);
 }
 
-function parseResource(resource: string): { resourceType: string; resourceId?: string } {
-	const normalized = resource.trim();
-	if (!normalized) {
-		return { resourceType: "resource" };
-	}
-
-	const separator = normalized.indexOf(":");
-	if (separator < 0) {
-		return { resourceType: normalized };
-	}
-
-	const resourceType = normalized.slice(0, separator).trim() || "resource";
-	const resourceId = normalized.slice(separator + 1).trim() || undefined;
-	return { resourceType, resourceId };
-}
-
-function parsePermissionDecision(raw: string): PermissionDecision | null {
-	try {
-		const value = JSON.parse(raw) as Partial<PermissionDecision>;
-		if (!value || typeof value !== "object") return null;
-		if (typeof value.outcome !== "string") return null;
-		if (typeof value.reason !== "string") return null;
-		if (typeof value.evaluatedAt !== "string") return null;
-		return value as PermissionDecision;
-	} catch {
-		return null;
-	}
-}
-
-function buildFileRecordPath(fileId: string): string {
-	return `${PLATFORM_FILE_COLLECTION}/${fileId}`;
-}
-
-export const authApi: AuthAPI = {
-	async getSession(): Promise<AuthSession | null> {
-		const auth = getFirebaseAuth();
-		const user = auth.currentUser;
-		if (!user) {
-			return null;
-		}
-
-		return {
-			userId: user.uid,
-			email: user.email,
-			displayName: user.displayName,
-			isAnonymous: user.isAnonymous,
-		};
+export const firestoreInfrastructureApi: FirestoreAPI = {
+	async get<T>(path: string): Promise<T | null> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		const snapshot = await firestoreApi.getDoc(ref);
+		if (!snapshot.exists()) return null;
+		return snapshot.data() as T;
 	},
 
-	async requireAuth(): Promise<AuthSession> {
-		const session = await authApi.getSession();
-		if (!session) {
-			throw new Error("Unauthorized");
-		}
-		return session;
-	},
-};
-
-export const permissionApi: PermissionAPI = {
-	async can(userId: string, action: string, resource: string): Promise<boolean> {
-		const subjectId = userId.trim();
-		const normalizedAction = action.trim();
-		if (!subjectId || !normalizedAction) {
-			return false;
-		}
-
-		const { resourceType, resourceId } = parseResource(resource);
-		const result = await accessControlService.evaluatePermission({
-			subjectId,
-			resourceType,
-			resourceId,
-			action: normalizedAction,
-		});
-
-		if (!result.success) {
-			return false;
-		}
-
-		const decision = parsePermissionDecision(result.aggregateId);
-		if (!decision) {
-			return false;
-		}
-
-		return isAllowed(decision);
-	},
-};
-
-export const fileApi: FileAPI = {
-	async uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput> {
-		const ownerId = normalizeOwnerId(input.ownerId);
-		const isAllowedToCreate = await permissionApi.can(ownerId, "create:file", `file-owner:${ownerId}`);
-		if (!isAllowedToCreate) {
-			throw new Error("Permission denied: create:file");
-		}
-
-		const fileId = crypto.randomUUID();
-		const fileName = normalizeFileName(input);
-		const normalizedFileName = sanitizeFileName(fileName);
-		const storagePath =
-			input.pathHint?.trim() || `user-files/${ownerId}/${fileId}/${normalizedFileName}`;
-		const contentType = input.contentType?.trim() || input.file.type || "application/octet-stream";
-
-		const url = await storageInfrastructureApi.upload(input.file, storagePath, {
-			contentType,
-			customMetadata: {
-				ownerId,
-				fileId,
-				filename: fileName,
-				...(input.metadata ?? {}),
-			},
-		});
-
-		const record: PlatformFileRecord = {
-			fileId,
-			ownerId,
-			storagePath,
-			filename: fileName,
-			contentType,
-			url,
-			metadata: input.metadata ?? {},
-			createdAtISO: new Date().toISOString(),
-		};
-
-		await firestoreInfrastructureApi.set(buildFileRecordPath(fileId), record);
-
-		return {
-			url,
-			fileId,
-			storagePath,
-			gcsUri: storageInfrastructureApi.toGsUri(storagePath),
-		};
+	async set<T>(path: string, data: T): Promise<void> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		await firestoreApi.setDoc(ref, data as Record<string, unknown>);
 	},
 
-	async deleteFile(fileId: string): Promise<void> {
-		const normalizedFileId = fileId.trim();
-		if (!normalizedFileId) {
-			throw new Error("fileId is required.");
+	async setMany<T>(inputs: readonly { path: string; data: T }[]): Promise<void> {
+		if (inputs.length === 0) return;
+
+		const db = getFirebaseFirestore();
+		const batch = firestoreApi.writeBatch(db);
+
+		for (const input of inputs) {
+			const ref = firestoreApi.doc(db, resolveDocumentPath(input.path).join("/"));
+			batch.set(ref, input.data as Record<string, unknown>);
 		}
 
-		const recordPath = buildFileRecordPath(normalizedFileId);
-		const record = await firestoreInfrastructureApi.get<PlatformFileRecord>(recordPath);
-		if (!record || record.deletedAtISO) {
-			return;
-		}
+		await batch.commit();
+	},
 
-		const isAllowedToDelete = await permissionApi.can(
-			record.ownerId,
-			"delete:file",
-			`file:${normalizedFileId}`,
+	async update(path: string, data: Record<string, unknown>): Promise<void> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		await firestoreApi.updateDoc(ref, data);
+	},
+
+	async delete(path: string): Promise<void> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		await firestoreApi.deleteDoc(ref);
+	},
+
+	async query<T>(
+		collectionPath: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+	): Promise<T[]> {
+		const documents = await firestoreInfrastructureApi.queryDocuments<T>(collectionPath, where, options);
+		return documents.map((document) => document.data);
+	},
+
+	async queryDocuments<T>(
+		collectionPath: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly { id: string; path: string; data: T }[]> {
+		const db = getFirebaseFirestore();
+		const collectionRef = firestoreApi.collection(
+			db,
+			resolveCollectionPath(collectionPath).join("/"),
 		);
-		if (!isAllowedToDelete) {
-			throw new Error("Permission denied: delete:file");
+
+		const queryRef = applyQueryConstraints(firestoreApi.query(collectionRef), where, options);
+		const snapshot = await firestoreApi.getDocs(queryRef);
+		return snapshot.docs.map((doc) => ({
+			id: doc.id,
+			path: doc.ref.path,
+			data: doc.data() as T,
+		}));
+	},
+
+	async queryCollectionGroup<T>(
+		collectionId: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly { id: string; path: string; data: T }[]> {
+		const normalizedCollectionId = collectionId.trim();
+		if (!normalizedCollectionId) {
+			throw new Error("Collection group id is required.");
 		}
 
-		await storageInfrastructureApi.delete(record.storagePath);
-		await firestoreInfrastructureApi.set(recordPath, {
-			...record,
-			deletedAtISO: new Date().toISOString(),
-		});
+		const db = getFirebaseFirestore();
+		const collectionGroupRef = collectionGroup(db, normalizedCollectionId);
+		const queryRef = applyQueryConstraints(firestoreApi.query(collectionGroupRef), where, options);
+		const snapshot = await firestoreApi.getDocs(queryRef);
+		return snapshot.docs.map((doc) => ({
+			id: doc.id,
+			path: doc.ref.path,
+			data: doc.data() as T,
+		}));
+	},
+
+	watchCollection<T>(
+		collectionPath: string,
+		handlers: {
+			onNext: (documents: readonly { id: string; path: string; data: T }[]) => void;
+			onError?: (error: unknown) => void;
+		},
+		where: readonly FirestoreWhereClause[] = [],
+	): () => void {
+		const db = getFirebaseFirestore();
+		const collectionRef = firestoreApi.collection(
+			db,
+			resolveCollectionPath(collectionPath).join("/"),
+		);
+
+		const queryConstraints = where.map((clause) =>
+			firestoreApi.where(clause.field, clause.op, clause.value),
+		);
+		const queryRef = firestoreApi.query(collectionRef, ...queryConstraints);
+
+		return firestoreApi.onSnapshot(
+			queryRef,
+			(snapshot) => {
+				handlers.onNext(
+					snapshot.docs.map((doc) => ({
+						id: doc.id,
+						path: doc.ref.path,
+						data: doc.data() as T,
+					})),
+				);
+			},
+			(error) => {
+				handlers.onError?.(error);
+			},
+		);
+	},
+
+	watchDocument<T>(
+		path: string,
+		handlers: {
+			onNext: (document: { id: string; path: string; data: T } | null) => void;
+			onError?: (error: unknown) => void;
+		},
+	): () => void {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+
+		return firestoreApi.onSnapshot(
+			ref,
+			(snapshot) => {
+				if (!snapshot.exists()) {
+					handlers.onNext(null);
+					return;
+				}
+				handlers.onNext({
+					id: snapshot.id,
+					path: snapshot.ref.path,
+					data: snapshot.data() as T,
+				});
+			},
+			(error) => {
+				handlers.onError?.(error);
+			},
+		);
+	},
+};
+
+export const storageInfrastructureApi: StorageAPI = {
+	async upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string> {
+		const normalizedPath = resolveStoragePath(path);
+		const storage = getFirebaseStorage(resolveStorageBucket());
+		const ref = storageApi.ref(storage, normalizedPath);
+		await storageApi.uploadBytes(ref, file, toUploadMetadata(options));
+		return storageApi.getDownloadURL(ref);
+	},
+
+	async getUrl(path: string): Promise<string> {
+		const normalizedPath = resolveStoragePath(path);
+		const storage = getFirebaseStorage(resolveStorageBucket());
+		const ref = storageApi.ref(storage, normalizedPath);
+		return storageApi.getDownloadURL(ref);
+	},
+
+	async delete(path: string): Promise<void> {
+		const normalizedPath = resolveStoragePath(path);
+		const storage = getFirebaseStorage(resolveStorageBucket());
+		const ref = storageApi.ref(storage, normalizedPath);
+		await storageApi.deleteObject(ref);
+	},
+
+	toGsUri(path: string): string {
+		const normalizedPath = resolveStoragePath(path);
+		return `gs://${resolveStorageBucket()}/${normalizedPath}`;
+	},
+};
+
+export const genkitInfrastructureApi: GenkitAPI = {
+	async runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput> {
+		const normalizedFlow = flow.trim();
+		if (!normalizedFlow) {
+			throw new Error("Flow name is required.");
+		}
+
+		const functions = getFirebaseFunctions(DEFAULT_FUNCTION_REGION);
+		const runFlow = functionsApi.httpsCallable(functions, "platform_run_genkit_flow");
+		const response = await runFlow({ flow: normalizedFlow, input });
+		return response.data as TOutput;
+	},
+};
+
+export const functionsInfrastructureApi: FunctionsAPI = {
+	async call<TInput, TOutput>(
+		functionName: string,
+		input: TInput,
+		options?: FunctionsCallOptions,
+	): Promise<TOutput> {
+		const normalizedName = functionName.trim();
+		if (!normalizedName) {
+			throw new Error("Function name is required.");
+		}
+
+		const region = options?.region?.trim() || DEFAULT_FUNCTION_REGION;
+		const functions = getFirebaseFunctions(region);
+		const callable = functionsApi.httpsCallable(functions, normalizedName);
+		const response = await callable(input);
+		return response.data as TOutput;
 	},
 };
 ````
@@ -18707,42 +19423,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/ai/api/server.ts
-````typescript
-/**
- * AI subdomain — server-only API.
- *
- * Composition root + functions that depend on server-only packages (genkit).
- * Must only be imported in Server Actions, route handlers, or server-side
- * infrastructure adapters.
- */
-
-import { GenerateAiTextUseCase } from "../application/use-cases/generate-ai-text.use-case";
-import { GenkitAiTextGenerationAdapter } from "../infrastructure/genkit/GenkitAiTextGenerationAdapter";
-import type { GenerateAiTextInput, GenerateAiTextOutput } from "../domain/ports/AiTextGenerationPort";
-
-let _useCase: GenerateAiTextUseCase | undefined;
-
-function getUseCase(): GenerateAiTextUseCase {
-	if (_useCase) return _useCase;
-	_useCase = new GenerateAiTextUseCase(new GenkitAiTextGenerationAdapter());
-	return _useCase;
-}
-
-export async function generateAiText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput> {
-	return getUseCase().execute(input);
-}
-
-export async function summarize(text: string, model?: string): Promise<string> {
-	const result = await generateAiText({
-		prompt: text,
-		model,
-		system: "You are a concise summarizer. Return only the summary text.",
-	});
-	return result.text;
-}
 ````
 
 ## File: modules/platform/subdomains/identity/README.md
@@ -19654,37 +20334,13 @@ export function resolveOrganizationRouteFallback(
 }
 ````
 
-## File: modules/platform/subdomains/ai/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * This barrel is client-safe — it exports only types and interfaces.
- * Server-only functions (generateAiText, summarize) live in ./server.ts.
- */
-
-import type { GenerateAiTextInput, GenerateAiTextOutput } from "../domain/ports/AiTextGenerationPort";
-
-// Re-export domain types through API boundary
-export type {
-	GenerateAiTextInput,
-	GenerateAiTextOutput,
-	AiTextGenerationPort,
-} from "../domain/ports/AiTextGenerationPort";
-
-export interface AIAPI {
-	summarize(text: string, model?: string): Promise<string>;
-	generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
-}
-````
-
 ## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
 ````typescript
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export type ShellNavSection =
   | "workspace"
+  | "dashboard"
   | "knowledge"
   | "knowledge-base"
   | "knowledge-database"
@@ -19736,7 +20392,7 @@ const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
   "dev-tools",
 ]);
 
-const ACCOUNT_SCOPED_ACCOUNT_ROOT_ROUTES = new Set(["organization", "settings", "dev-tools"]);
+const ACCOUNT_SCOPED_ACCOUNT_ROOT_ROUTES = new Set(["organization", "settings", "dashboard", "dev-tools"]);
 
 const ACCOUNT_SCOPED_WORKSPACE_TOOL_ROOT_ROUTES = new Set([
   "knowledge",
@@ -19745,7 +20401,6 @@ const ACCOUNT_SCOPED_WORKSPACE_TOOL_ROOT_ROUTES = new Set([
   "source",
   "notebook",
   "ai-chat",
-  "dashboard",
   "workspace-feed",
 ]);
 
@@ -19871,6 +20526,7 @@ const ROUTE_TITLES: Record<string, string> = {
   "/source/libraries": "來源 · 資料庫",
   "/notebook/rag-query": "筆記本 · 問答 / 引用",
   "/ai-chat": "AI 對話",
+  "/dashboard": "儀表板",
   "/dev-tools": "開發工具",
 };
 
@@ -19886,6 +20542,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   "block-editor": "區塊編輯器",
   "rag-reindex": "RAG 重新索引",
   "ai-chat": "Notebook",
+  dashboard: "儀表板",
   "dev-tools": "開發工具",
   namespaces: "命名空間",
   members: "成員",
@@ -19914,6 +20571,7 @@ export const SHELL_ACCOUNT_NAV_ITEMS: readonly ShellNavItem[] = [
 
 export const SHELL_SECTION_LABELS: Record<ShellNavSection, string> = {
   workspace: "工作區",
+  dashboard: "儀表板",
   knowledge: "知識",
   "knowledge-base": "知識庫",
   "knowledge-database": "知識資料庫",
@@ -19929,6 +20587,7 @@ export const SHELL_SECTION_LABELS: Record<ShellNavSection, string> = {
 
 export const SHELL_RAIL_CATALOG_ITEMS: readonly ShellRailCatalogItem[] = [
   { id: "workspace", href: "/workspace", label: "工作區中心", requiresOrganization: false },
+  { id: "dashboard", href: "/dashboard", label: "儀表板", requiresOrganization: false, activeRoutePrefix: "/dashboard" },
   { id: "org-members", href: "/organization/members", label: "成員", requiresOrganization: true, activeRoutePrefix: "/organization/members" },
   { id: "org-teams", href: "/organization/teams", label: "團隊", requiresOrganization: true, activeRoutePrefix: "/organization/teams" },
   { id: "org-daily", href: "/organization/daily", label: "每日", requiresOrganization: true, activeRoutePrefix: "/organization/daily" },
@@ -19981,6 +20640,7 @@ export function resolveShellNavSection(pathname: string): ShellNavSection {
   const normalizedPathname = normalizeShellRoutePath(pathname);
 
   if (normalizedPathname.startsWith("/workspace")) return "workspace";
+  if (normalizedPathname.startsWith("/dashboard")) return "dashboard";
   if (normalizedPathname.startsWith("/knowledge-base")) return "knowledge-base";
   if (normalizedPathname.startsWith("/knowledge-database")) return "knowledge-database";
   if (normalizedPathname.startsWith("/knowledge")) return "knowledge";
@@ -20010,659 +20670,4 @@ export function resolveShellPageTitle(pathname: string): string {
 export function resolveShellBreadcrumbLabel(segment: string): string {
   return BREADCRUMB_LABELS[segment] ?? segment;
 }
-````
-
-## File: modules/platform/api/contracts.ts
-````typescript
-/**
- * platform API contracts boundary.
- *
- * Keep the source of truth in application/domain and re-export here for API consumers.
- */
-
-export * from "../application/dtos";
-export type {
-	PlatformContextView,
-	PolicyCatalogView,
-	SubscriptionEntitlementsView,
-	WorkflowPolicyView,
-} from "../domain/ports/output";
-export * from "../domain/events";
-
-// ── Identity session types ────────────────────────────────────────────────────
-// AuthUser is the canonical projection of an authenticated identity subject.
-// Platform/Identity BC owns this DTO; app/providers/auth-context re-exports it.
-
-/** Minimal authenticated user record surfaced from identity auth state. */
-export interface AuthUser {
-	readonly id: string;
-	readonly name: string;
-	readonly email: string;
-}
-
-// ── Infrastructure API contracts (platform-owned) ───────────────────────────
-
-export type FirestoreWhereOperator =
-	| "<"
-	| "<="
-	| "=="
-	| "!="
-	| ">="
-	| ">"
-	| "array-contains"
-	| "array-contains-any"
-	| "in"
-	| "not-in";
-
-export interface FirestoreWhereClause {
-	readonly field: string;
-	readonly op: FirestoreWhereOperator;
-	readonly value: unknown;
-}
-
-export type FirestoreOrderDirection = "asc" | "desc";
-
-export interface FirestoreOrderByClause {
-	readonly field: string;
-	readonly direction?: FirestoreOrderDirection;
-}
-
-export interface FirestoreQueryOptions {
-	readonly limit?: number;
-	readonly orderBy?: readonly FirestoreOrderByClause[];
-}
-
-export interface FirestoreCollectionDocument<T> {
-	readonly id: string;
-	readonly path: string;
-	readonly data: T;
-}
-
-export interface FirestoreCollectionWatchHandlers<T> {
-	readonly onNext: (documents: readonly FirestoreCollectionDocument<T>[]) => void;
-	readonly onError?: (error: unknown) => void;
-}
-
-export interface FirestoreDocumentWatchHandlers<T> {
-	readonly onNext: (document: FirestoreCollectionDocument<T> | null) => void;
-	readonly onError?: (error: unknown) => void;
-}
-
-export interface FirestoreSetDocumentInput<T> {
-	readonly path: string;
-	readonly data: T;
-}
-
-export interface FirestoreAPI {
-	get<T>(path: string): Promise<T | null>;
-	set<T>(path: string, data: T): Promise<void>;
-	setMany<T>(inputs: readonly FirestoreSetDocumentInput<T>[]): Promise<void>;
-	update(path: string, data: Record<string, unknown>): Promise<void>;
-	delete(path: string): Promise<void>;
-	query<T>(
-		collectionPath: string,
-		where?: readonly FirestoreWhereClause[],
-		options?: FirestoreQueryOptions,
-	): Promise<T[]>;
-	queryDocuments<T>(
-		collectionPath: string,
-		where?: readonly FirestoreWhereClause[],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly FirestoreCollectionDocument<T>[]>;
-	queryCollectionGroup<T>(
-		collectionId: string,
-		where?: readonly FirestoreWhereClause[],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly FirestoreCollectionDocument<T>[]>;
-	watchCollection<T>(
-		collectionPath: string,
-		handlers: FirestoreCollectionWatchHandlers<T>,
-		where?: readonly FirestoreWhereClause[],
-	): () => void;
-	watchDocument<T>(path: string, handlers: FirestoreDocumentWatchHandlers<T>): () => void;
-}
-
-export interface StorageUploadOptions {
-	readonly contentType?: string;
-	readonly customMetadata?: Record<string, string>;
-}
-
-export interface StorageAPI {
-	upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string>;
-	getUrl(path: string): Promise<string>;
-	delete(path: string): Promise<void>;
-	toGsUri(path: string): string;
-}
-
-export interface GenkitAPI {
-	runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput>;
-}
-
-export interface FunctionsCallOptions {
-	readonly region?: string;
-}
-
-export interface FunctionsAPI {
-	call<TInput, TOutput>(
-		functionName: string,
-		input: TInput,
-		options?: FunctionsCallOptions,
-	): Promise<TOutput>;
-}
-
-// ── Platform Service API contracts (cross-domain) ───────────────────────────
-
-export interface AuthSession {
-	readonly userId: string;
-	readonly email: string | null;
-	readonly displayName: string | null;
-	readonly isAnonymous: boolean;
-}
-
-export interface AuthAPI {
-	getSession(): Promise<AuthSession | null>;
-	requireAuth(): Promise<AuthSession>;
-}
-
-export interface PermissionAPI {
-	can(userId: string, action: string, resource: string): Promise<boolean>;
-}
-
-export interface UploadUserFileInput {
-	readonly file: Blob;
-	readonly ownerId: string;
-	readonly fileName?: string;
-	readonly contentType?: string;
-	readonly metadata?: Record<string, string>;
-	readonly pathHint?: string;
-}
-
-export interface UploadUserFileOutput {
-	readonly url: string;
-	readonly fileId: string;
-	readonly storagePath: string;
-	readonly gcsUri: string;
-}
-
-export interface FileAPI {
-	uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>;
-	deleteFile(fileId: string): Promise<void>;
-}
-
-// ── Cross-cutting account context type ───────────────────────────────────────
-// ActiveAccount is the union of an organization AccountEntity or a personal
-// AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
-import type { AccountEntity } from "../subdomains/account/api";
-export type ActiveAccount = AccountEntity | AuthUser;
-````
-
-## File: modules/platform/api/infrastructure-api.ts
-````typescript
-import {
-	functionsApi,
-	firestoreApi,
-	getFirebaseFirestore,
-	getFirebaseFunctions,
-	getFirebaseStorage,
-	storageApi,
-} from "@integration-firebase";
-import { collectionGroup } from "firebase/firestore";
-
-import type {
-	FirestoreAPI,
-	FunctionsAPI,
-	FunctionsCallOptions,
-	FirestoreQueryOptions,
-	FirestoreWhereClause,
-	GenkitAPI,
-	StorageAPI,
-	StorageUploadOptions,
-} from "./contracts";
-
-const DEFAULT_STORAGE_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
-const DEFAULT_FUNCTION_REGION = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_REGION ?? "asia-east1";
-
-function splitPath(path: string): string[] {
-	const segments = path
-		.split("/")
-		.map((segment) => segment.trim())
-		.filter(Boolean);
-
-	if (segments.length === 0) {
-		throw new Error("Path is required.");
-	}
-
-	return segments;
-}
-
-function resolveDocumentPath(path: string): string[] {
-	const segments = splitPath(path);
-	if (segments.length % 2 !== 0) {
-		throw new Error(`Expected a document path but got collection path: ${path}`);
-	}
-	return segments;
-}
-
-function resolveCollectionPath(path: string): string[] {
-	const segments = splitPath(path);
-	if (segments.length % 2 === 0) {
-		throw new Error(`Expected a collection path but got document path: ${path}`);
-	}
-	return segments;
-}
-
-function resolveStorageBucket(): string {
-	return process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || DEFAULT_STORAGE_BUCKET;
-}
-
-function resolveStoragePath(path: string): string {
-	const normalized = path.trim().replace(/^\/+/, "");
-	if (!normalized) {
-		throw new Error("Storage path is required.");
-	}
-	return normalized;
-}
-
-function toUploadMetadata(options?: StorageUploadOptions) {
-	if (!options) return undefined;
-	return {
-		contentType: options.contentType,
-		customMetadata: options.customMetadata,
-	};
-}
-
-function applyQueryConstraints(
-	baseQuery: ReturnType<typeof firestoreApi.query>,
-	where: readonly FirestoreWhereClause[],
-	options?: FirestoreQueryOptions,
-) {
-	const whereConstraints = where.map((clause) =>
-		firestoreApi.where(clause.field, clause.op, clause.value),
-	);
-
-	const orderByConstraints = (options?.orderBy ?? []).map((clause) =>
-		firestoreApi.orderBy(clause.field, clause.direction ?? "asc"),
-	);
-
-	const limitConstraint =
-		typeof options?.limit === "number" && options.limit > 0
-			? [firestoreApi.limit(options.limit)]
-			: [];
-
-	return firestoreApi.query(baseQuery, ...whereConstraints, ...orderByConstraints, ...limitConstraint);
-}
-
-export const firestoreInfrastructureApi: FirestoreAPI = {
-	async get<T>(path: string): Promise<T | null> {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-		const snapshot = await firestoreApi.getDoc(ref);
-		if (!snapshot.exists()) return null;
-		return snapshot.data() as T;
-	},
-
-	async set<T>(path: string, data: T): Promise<void> {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-		await firestoreApi.setDoc(ref, data as Record<string, unknown>);
-	},
-
-	async setMany<T>(inputs: readonly { path: string; data: T }[]): Promise<void> {
-		if (inputs.length === 0) return;
-
-		const db = getFirebaseFirestore();
-		const batch = firestoreApi.writeBatch(db);
-
-		for (const input of inputs) {
-			const ref = firestoreApi.doc(db, resolveDocumentPath(input.path).join("/"));
-			batch.set(ref, input.data as Record<string, unknown>);
-		}
-
-		await batch.commit();
-	},
-
-	async update(path: string, data: Record<string, unknown>): Promise<void> {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-		await firestoreApi.updateDoc(ref, data);
-	},
-
-	async delete(path: string): Promise<void> {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-		await firestoreApi.deleteDoc(ref);
-	},
-
-	async query<T>(
-		collectionPath: string,
-		where: readonly FirestoreWhereClause[] = [],
-		options?: FirestoreQueryOptions,
-	): Promise<T[]> {
-		const documents = await firestoreInfrastructureApi.queryDocuments<T>(collectionPath, where, options);
-		return documents.map((document) => document.data);
-	},
-
-	async queryDocuments<T>(
-		collectionPath: string,
-		where: readonly FirestoreWhereClause[] = [],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly { id: string; path: string; data: T }[]> {
-		const db = getFirebaseFirestore();
-		const collectionRef = firestoreApi.collection(
-			db,
-			resolveCollectionPath(collectionPath).join("/"),
-		);
-
-		const queryRef = applyQueryConstraints(firestoreApi.query(collectionRef), where, options);
-		const snapshot = await firestoreApi.getDocs(queryRef);
-		return snapshot.docs.map((doc) => ({
-			id: doc.id,
-			path: doc.ref.path,
-			data: doc.data() as T,
-		}));
-	},
-
-	async queryCollectionGroup<T>(
-		collectionId: string,
-		where: readonly FirestoreWhereClause[] = [],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly { id: string; path: string; data: T }[]> {
-		const normalizedCollectionId = collectionId.trim();
-		if (!normalizedCollectionId) {
-			throw new Error("Collection group id is required.");
-		}
-
-		const db = getFirebaseFirestore();
-		const collectionGroupRef = collectionGroup(db, normalizedCollectionId);
-		const queryRef = applyQueryConstraints(firestoreApi.query(collectionGroupRef), where, options);
-		const snapshot = await firestoreApi.getDocs(queryRef);
-		return snapshot.docs.map((doc) => ({
-			id: doc.id,
-			path: doc.ref.path,
-			data: doc.data() as T,
-		}));
-	},
-
-	watchCollection<T>(
-		collectionPath: string,
-		handlers: {
-			onNext: (documents: readonly { id: string; path: string; data: T }[]) => void;
-			onError?: (error: unknown) => void;
-		},
-		where: readonly FirestoreWhereClause[] = [],
-	): () => void {
-		const db = getFirebaseFirestore();
-		const collectionRef = firestoreApi.collection(
-			db,
-			resolveCollectionPath(collectionPath).join("/"),
-		);
-
-		const queryConstraints = where.map((clause) =>
-			firestoreApi.where(clause.field, clause.op, clause.value),
-		);
-		const queryRef = firestoreApi.query(collectionRef, ...queryConstraints);
-
-		return firestoreApi.onSnapshot(
-			queryRef,
-			(snapshot) => {
-				handlers.onNext(
-					snapshot.docs.map((doc) => ({
-						id: doc.id,
-						path: doc.ref.path,
-						data: doc.data() as T,
-					})),
-				);
-			},
-			(error) => {
-				handlers.onError?.(error);
-			},
-		);
-	},
-
-	watchDocument<T>(
-		path: string,
-		handlers: {
-			onNext: (document: { id: string; path: string; data: T } | null) => void;
-			onError?: (error: unknown) => void;
-		},
-	): () => void {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-
-		return firestoreApi.onSnapshot(
-			ref,
-			(snapshot) => {
-				if (!snapshot.exists()) {
-					handlers.onNext(null);
-					return;
-				}
-				handlers.onNext({
-					id: snapshot.id,
-					path: snapshot.ref.path,
-					data: snapshot.data() as T,
-				});
-			},
-			(error) => {
-				handlers.onError?.(error);
-			},
-		);
-	},
-};
-
-export const storageInfrastructureApi: StorageAPI = {
-	async upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string> {
-		const normalizedPath = resolveStoragePath(path);
-		const storage = getFirebaseStorage(resolveStorageBucket());
-		const ref = storageApi.ref(storage, normalizedPath);
-		await storageApi.uploadBytes(ref, file, toUploadMetadata(options));
-		return storageApi.getDownloadURL(ref);
-	},
-
-	async getUrl(path: string): Promise<string> {
-		const normalizedPath = resolveStoragePath(path);
-		const storage = getFirebaseStorage(resolveStorageBucket());
-		const ref = storageApi.ref(storage, normalizedPath);
-		return storageApi.getDownloadURL(ref);
-	},
-
-	async delete(path: string): Promise<void> {
-		const normalizedPath = resolveStoragePath(path);
-		const storage = getFirebaseStorage(resolveStorageBucket());
-		const ref = storageApi.ref(storage, normalizedPath);
-		await storageApi.deleteObject(ref);
-	},
-
-	toGsUri(path: string): string {
-		const normalizedPath = resolveStoragePath(path);
-		return `gs://${resolveStorageBucket()}/${normalizedPath}`;
-	},
-};
-
-export const genkitInfrastructureApi: GenkitAPI = {
-	async runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput> {
-		const normalizedFlow = flow.trim();
-		if (!normalizedFlow) {
-			throw new Error("Flow name is required.");
-		}
-
-		const functions = getFirebaseFunctions(DEFAULT_FUNCTION_REGION);
-		const runFlow = functionsApi.httpsCallable(functions, "platform_run_genkit_flow");
-		const response = await runFlow({ flow: normalizedFlow, input });
-		return response.data as TOutput;
-	},
-};
-
-export const functionsInfrastructureApi: FunctionsAPI = {
-	async call<TInput, TOutput>(
-		functionName: string,
-		input: TInput,
-		options?: FunctionsCallOptions,
-	): Promise<TOutput> {
-		const normalizedName = functionName.trim();
-		if (!normalizedName) {
-			throw new Error("Function name is required.");
-		}
-
-		const region = options?.region?.trim() || DEFAULT_FUNCTION_REGION;
-		const functions = getFirebaseFunctions(region);
-		const callable = functionsApi.httpsCallable(functions, normalizedName);
-		const response = await callable(input);
-		return response.data as TOutput;
-	},
-};
-````
-
-## File: modules/platform/api/index.ts
-````typescript
-/**
- * platform public API boundary.
- *
- * account is listed before organization to establish canonical definitions for
- * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
- * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
- */
-
-export * from "./contracts";
-export * from "./facade";
-export { createPlatformService } from "./platform-service";
-export {
-  firestoreInfrastructureApi,
-  storageInfrastructureApi,
-  genkitInfrastructureApi,
-  functionsInfrastructureApi,
-} from "./infrastructure-api";
-export {
-  authApi,
-  permissionApi,
-  fileApi,
-} from "./service-api";
-export * from "../subdomains/identity/api";
-export * from "../subdomains/account/api";
-export * from "../subdomains/notification/api";
-export * from "../subdomains/platform-config/api";
-
-export {
-  getProfile,
-  subscribeToProfile,
-  updateProfile,
-  SettingsProfileRouteScreen,
-  getAccountProfile,
-  subscribeToAccountProfile,
-  updateAccountProfile,
-} from "../subdomains/account-profile/api";
-
-export type {
-  AccountProfile,
-  UpdateAccountProfileInput,
-} from "../subdomains/account-profile/api";
-
-// organization — explicit to avoid re-export conflicts with account subdomain
-export type {
-  OrganizationEntity,
-  Presence,
-  InviteState,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  OrgPolicy,
-  OrgPolicyRule,
-  OrgPolicyScope,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-  OrganizationRepository,
-  OrgPolicyRepository,
-} from "../subdomains/organization/api";
-export {
-  organizationService,
-  getOrganizationMembers,
-  getOrganizationTeams,
-  getOrgPolicies,
-  createOrganization,
-  createOrganizationWithTeam,
-  updateOrganizationSettings,
-  deleteOrganization,
-  inviteMember,
-  recruitMember,
-  dismissMember,
-  updateMemberRole,
-  createTeam,
-  deleteTeam,
-  updateTeamMembers,
-  createPartnerGroup,
-  sendPartnerInvite,
-  dismissPartnerMember,
-  createOrgPolicy,
-  updateOrgPolicy,
-  deleteOrgPolicy,
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-  // UI components
-  AccountSwitcher,
-  CreateOrganizationDialog,
-  MembersPage,
-  TeamsPage,
-  PermissionsPage,
-} from "../subdomains/organization/api";
-export type { MembersPageProps, TeamsPageProps, PermissionsPageProps } from "../subdomains/organization/api";
-
-// background-job — knowledge ingestion pipeline management
-export * from "../subdomains/background-job/api";
-
-// ai — shared AI provider capability (types only — client-safe)
-// Server-only functions (generateAiText, summarize) are in platform/api/server.ts
-export {
-  type AIAPI,
-  type GenerateAiTextInput,
-  type GenerateAiTextOutput,
-  type AiTextGenerationPort,
-} from "../subdomains/ai/api";
-
-// Cross-module and app-composition hooks from interfaces layer.
-// Only selective exports — do NOT wildcard re-export "../interfaces".
-export {
-  useApp,
-  type AppState,
-  type AppAction,
-  type AppContextValue,
-  AppContext,
-  APP_INITIAL_STATE,
-  type ActiveAccount,
-  // Shell UI components (pure platform — no downstream deps)
-  ShellHeaderControls,
-  ShellThemeToggle,
-  ShellNotificationButton,
-  ShellUserAvatar,
-  ShellTranslationSwitcher,
-  ShellAppBreadcrumbs,
-  ShellGlobalSearchDialog,
-  useShellGlobalSearch,
-} from "../interfaces";
-
-// access-control — account type guards and route fallback
-export {
-  isOrganizationActor,
-  isActiveOrganizationAccount,
-  resolveOrganizationRouteFallback,
-  type ShellAccountActor,
-} from "../subdomains/access-control/api";
 ````

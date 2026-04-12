@@ -6268,6 +6268,30 @@ Legacy migration:
 5. Replace Infrastructure adapter
 ````
 
+## File: modules/platform/api/api.instructions.md
+````markdown
+---
+description: 'Platform API boundary rules: cross-module entry surface, facade contracts, and published language enforcement.'
+applyTo: 'modules/platform/api/**/*.{ts,tsx}'
+---
+
+# Platform API Layer (Local)
+
+Use this file as execution guardrails for `modules/platform/api/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/platform/context-map.md`.
+
+## Core Rules
+
+- `api/` is the **only** cross-module entry surface for platform; never expose `domain/`, `application/`, or `infrastructure/` internals directly.
+- Expose stable **facade methods** and **contract types** only — no aggregate classes, no repository interfaces.
+- All cross-module tokens must use published language: `actor reference`, `workspaceId`, `entitlement signal`, `knowledge artifact reference`.
+- Never pass upstream aggregates as downstream canonical models; translate at the boundary.
+- Downstream modules import from `modules/platform/api` only — enforce this with lint restricted-import rules.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
 ## File: modules/platform/api/facade.ts
 ````typescript
 /**
@@ -6459,6 +6483,32 @@ export function createPlatformService(): PlatformFacade {
 	_platformFacade = createPlatformFacade({ commandPort, queryPort });
 	return _platformFacade;
 }
+````
+
+## File: modules/platform/application/application.instructions.md
+````markdown
+---
+description: 'Platform application layer rules: use-case orchestration, command/query dispatch, event handling, and DTO contracts.'
+applyTo: 'modules/platform/application/**/*.{ts,tsx}'
+---
+
+# Platform Application Layer (Local)
+
+Use this file as execution guardrails for `modules/platform/application/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/platform/*`.
+
+## Core Rules
+
+- Use cases orchestrate flow only; complex business rules stay in `domain/`.
+- Every use case operates on a **single aggregate** per transaction boundary.
+- After persisting, call `pullDomainEvents()` and publish via `DomainEventPublisher` — never publish before persistence.
+- Pure reads without business logic belong in **query handlers**, not use cases (`GetXxxUseCase` is a smell).
+- DTOs are application-layer contracts; never expose domain entities or value objects across the layer boundary.
+- Event handlers translate ingress events to commands via `mapIngressEventToCommand` before dispatching.
+- `PlatformCommandDispatcher` and `PlatformQueryDispatcher` are the single dispatch entry points — do not bypass them.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: modules/platform/application/dtos/index.ts
@@ -7993,6 +8043,30 @@ export class RequestNotificationDispatchUseCase {
 		}
 	}
 }
+````
+
+## File: modules/platform/docs/docs.instructions.md
+````markdown
+---
+description: 'Platform documentation rules: strategic doc authority, ADR discipline, and ubiquitous language enforcement.'
+applyTo: 'modules/platform/docs/**/*.md'
+---
+
+# Platform Docs Layer (Local)
+
+Use this file as execution guardrails for `modules/platform/docs/*`.
+For full reference, align with `.github/instructions/docs-authority-and-language.instructions.md` and `docs/contexts/platform/*`.
+
+## Core Rules
+
+- `modules/platform/docs/` holds **links and local summaries only** — authoritative content lives in `docs/contexts/platform/`.
+- Do not duplicate strategic knowledge here; point to the canonical source instead.
+- Any new architectural decision affecting platform must have a corresponding ADR in `docs/decisions/`.
+- Use ubiquitous language from `docs/contexts/platform/ubiquitous-language.md`; do not introduce synonyms or aliases.
+- Keep this directory in sync with `docs/contexts/platform/README.md` whenever the subdomain list changes.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: modules/platform/docs/README.md
@@ -11836,6 +11910,33 @@ export * from "./monitoring";
 export * from "./storage";
 ````
 
+## File: modules/platform/infrastructure/infrastructure.instructions.md
+````markdown
+---
+description: 'Platform infrastructure layer rules: Firebase adapters, QStash messaging, event routing, persistence mapping, and cache strategy.'
+applyTo: 'modules/platform/infrastructure/**/*.{ts,tsx}'
+---
+
+# Platform Infrastructure Layer (Local)
+
+Use this file as execution guardrails for `modules/platform/infrastructure/*`.
+For full reference, align with `.github/instructions/firestore-schema.instructions.md` and `docs/contexts/platform/*`.
+
+## Core Rules
+
+- Implement only **port interfaces** declared in `domain/ports/output/`; never invent new contracts here.
+- Keep Firestore collection ownership explicit per bounded context — do not read or write another module's collections.
+- Persistence mappers (`mapXxxToPersistenceRecord`) are the only place to translate between domain objects and storage records.
+- Cached repositories (`cache/`) must delegate to the underlying repository and never bypass domain validation.
+- QStash adapters (`messaging/`) must implement `DomainEventPublisher`, `JobQueuePort`, or `WorkflowDispatcherPort` — no ad-hoc fire-and-forget.
+- Event routing (`events/routing/`) must use `resolveEventHandler` as the single dispatch table; do not hardcode handler selection in consumers.
+- Version breaking schema transitions with migration steps before deploying; update `firestore.indexes.json` with query-shape changes.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+#use skill xuanwu-development-contracts
+````
+
 ## File: modules/platform/infrastructure/messaging/index.ts
 ````typescript
 /**
@@ -12379,6 +12480,79 @@ export type PlatformAdapterCliFunction = (typeof PLATFORM_ADAPTER_CLI_FUNCTIONS)
 ## File: modules/platform/interfaces/index.ts
 ````typescript
 export * from "./web";
+````
+
+## File: modules/platform/interfaces/interfaces.instructions.md
+````markdown
+---
+description: 'Platform interfaces layer rules: input/output translation, Server Actions, UI components, CLI wiring, and HTTP handler contracts.'
+applyTo: 'modules/platform/interfaces/**/*.{ts,tsx}'
+---
+
+# Platform Interfaces Layer (Local)
+
+Use this file as execution guardrails for `modules/platform/interfaces/*`.
+For full reference, align with `.github/instructions/nextjs-server-actions.instructions.md`, `.github/instructions/shadcn-ui.instructions.md`, and `docs/contexts/platform/*`.
+
+## Core Rules
+
+- This layer owns **input/output translation only** — no business rules, no repository calls.
+- Server Actions (`_actions/`) must be thin: validate input, call the use case or dispatcher, return a stable result shape.
+- Never call repositories directly from components, actions, or route handlers.
+- UI components consume data via query hooks or Server Components; they do not hold domain logic.
+- HTTP handlers (`api/`) map requests to platform commands via `mapHttpRequestToPlatformCommand` and map results via `mapPlatformResultToHttpResponse` — do not inline mapping logic.
+- CLI handlers (`cli/`) follow the same pattern: parse → dispatch → render.
+- Use shadcn/ui primitives before creating new components; keep semantic markup and accessibility intact.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+#use skill next-devtools-mcp
+#use skill vercel-react-best-practices
+````
+
+## File: modules/platform/platform.instructions.md
+````markdown
+---
+description: 'Platform bounded context rules: governance upstream role, module shape, subdomain routing, and cross-context dependency direction.'
+applyTo: 'modules/platform/**/*.{ts,tsx,md}'
+---
+
+# Platform Bounded Context (Local)
+
+Use this file as execution guardrails for `modules/platform/`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/contexts/platform/README.md`, and `docs/bounded-contexts.md`.
+
+## Core Rules
+
+- `platform` is the **governance upstream** for all other bounded contexts (`workspace`, `notion`, `notebooklm`); never invert this dependency.
+- Cross-module consumers must import from `modules/platform/api` only — never from `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
+- Route work to the correct subdomain first; do not place subdomain-specific logic in the context-wide `application/` or `domain/` layers.
+- New top-level main domains are forbidden — the system has exactly four: `platform`, `workspace`, `notion`, `notebooklm`.
+- Use ubiquitous language from `docs/contexts/platform/ubiquitous-language.md`: `Actor` not `User`, `Entitlement` not `Plan`, `Membership` not `User` for workspace participant.
+
+## Route to Subdomain When
+
+| Concern | Subdomain |
+|---|---|
+| Authentication, identity federation | `identity` |
+| Account lifecycle | `account` |
+| Account profile & preferences | `account-profile` |
+| Organization, tenant structure | `organization` |
+| Team membership | `team` |
+| Subscription & billing plan | `subscription` |
+| Capability grants | `entitlement` |
+| Access policy enforcement | `access-control` |
+| Notification dispatch | `notification` |
+| Background / ingestion jobs | `background-job` |
+
+## Route Elsewhere When
+
+- Workspace lifecycle, membership, presence → `workspace`
+- Knowledge content creation, taxonomy, publishing → `notion`
+- Conversation, retrieval, synthesis → `notebooklm`
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: modules/platform/README.md
@@ -22156,6 +22330,31 @@ Legacy migration:
 5. Replace Infrastructure adapter
 ````
 
+## File: modules/workspace/api/api.instructions.md
+````markdown
+---
+description: 'Workspace API boundary rules: cross-module entry surface, workspaceId published language, facade/contract/runtime separation, and downstream consumer contracts.'
+applyTo: 'modules/workspace/api/**/*.{ts,tsx}'
+---
+
+# Workspace API Layer (Local)
+
+Use this file as execution guardrails for `modules/workspace/api/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/workspace/context-map.md`.
+
+## Core Rules
+
+- `api/` is the **only** cross-module entry surface; never expose `domain/`, `application/`, or `infrastructure/` internals.
+- `contracts.ts` defines stable cross-module types; `facade.ts` exposes callable service methods; `ui.ts` exposes UI-safe view tokens only.
+- Published language tokens for cross-module use: `workspaceId`, `membershipRef`, `workspaceCapabilitySignal`, `wikiContentTreeRef`.
+- `runtime/factories.ts` wires workspace services for server-side consumption — keep wiring thin, delegate to application services.
+- Never expose `Workspace` aggregate or `WorkspaceMemberView` entity directly across the boundary; translate to contract types.
+- `notebooklm` and `notion` must receive `workspaceId` as a scope token, never as a full workspace object.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
 ## File: modules/workspace/api/contracts.ts
 ````typescript
 /**
@@ -22359,6 +22558,31 @@ export function makeWorkspaceDomainEventPublisher() {
 }
 ````
 
+## File: modules/workspace/application/application.instructions.md
+````markdown
+---
+description: 'Workspace application layer rules: use-case orchestration, command/query application services, event publishing order, and DTO contracts.'
+applyTo: 'modules/workspace/application/**/*.{ts,tsx}'
+---
+
+# Workspace Application Layer (Local)
+
+Use this file as execution guardrails for `modules/workspace/application/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/workspace/*`.
+
+## Core Rules
+
+- `WorkspaceCommandApplicationService` and `WorkspaceQueryApplicationService` are the primary dispatch entry points — do not bypass them from interfaces.
+- Use cases orchestrate flow only; lifecycle invariants, capability rules, and access checks stay in `domain/`.
+- After persisting, call `pullDomainEvents()` and publish via `WorkspaceDomainEventPublisher` — never publish before persistence.
+- DTOs (`workspace-interfaces.dto.ts`, `workspace-member-view.dto.ts`, `wiki-content-tree.dto.ts`) are application-layer contracts; never expose domain aggregates across the boundary.
+- Pure reads (workspace queries, member views, wiki tree) belong in **query handlers** — `WorkspaceQueryApplicationService` owns these.
+- Use case ordering for new workspace features: lifecycle → member → capabilities → access.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
 ## File: modules/workspace/application/dtos/wiki-content-tree.dto.ts
 ````typescript
 export type {
@@ -22474,6 +22698,30 @@ export class MountCapabilitiesUseCase {
     }
   }
 }
+````
+
+## File: modules/workspace/docs/docs.instructions.md
+````markdown
+---
+description: 'Workspace documentation rules: strategic doc authority, subdomain list sync, and ubiquitous language enforcement.'
+applyTo: 'modules/workspace/docs/**/*.md'
+---
+
+# Workspace Docs Layer (Local)
+
+Use this file as execution guardrails for `modules/workspace/docs/*`.
+For full reference, align with `.github/instructions/docs-authority-and-language.instructions.md` and `docs/contexts/workspace/*`.
+
+## Core Rules
+
+- `modules/workspace/docs/` holds **links and local summaries only** — authoritative content lives in `docs/contexts/workspace/`.
+- Do not duplicate strategic knowledge here; point to the canonical source instead.
+- Any new architectural decision affecting workspace must have a corresponding ADR in `docs/decisions/`.
+- Use ubiquitous language from `docs/contexts/workspace/ubiquitous-language.md`; do not introduce synonyms.
+- Keep this directory in sync with `docs/contexts/workspace/README.md` whenever the subdomain list changes.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: modules/workspace/docs/README.md
@@ -22595,315 +22843,6 @@ describe("Workspace aggregate", () => {
     expect(snapshot.personnel?.customRoles?.[0]?.roleName).toBe("Operations");
   });
 });
-````
-
-## File: modules/workspace/domain/aggregates/Workspace.ts
-````typescript
-/**
- * Workspace Domain Entities — pure TypeScript, zero framework dependencies.
- */
-
-import type { Timestamp } from "@shared-types";
-import type { WorkspaceAccessPolicy, WorkspaceGrant } from "../entities/WorkspaceAccess";
-import type {
-  Capability,
-  WorkspaceCapabilityAssignments,
-} from "../entities/WorkspaceCapability";
-import type { WorkspaceLocation } from "../entities/WorkspaceLocation";
-import type {
-  Address,
-  WorkspaceOperationalProfile,
-  WorkspacePersonnel,
-} from "../entities/WorkspaceProfile";
-import { createAddress, type AddressInput } from "../value-objects/Address";
-import type {
-  WorkspaceLifecycleState,
-  WorkspaceLifecycleStateInput,
-} from "../value-objects/WorkspaceLifecycleState";
-import {
-  canTransitionWorkspaceLifecycleState,
-  createWorkspaceLifecycleState,
-} from "../value-objects/WorkspaceLifecycleState";
-import type {
-  WorkspaceName,
-  WorkspaceNameInput,
-} from "../value-objects/WorkspaceName";
-import { createWorkspaceName } from "../value-objects/WorkspaceName";
-import type {
-  WorkspaceVisibility,
-  WorkspaceVisibilityInput,
-} from "../value-objects/WorkspaceVisibility";
-import { createWorkspaceVisibility } from "../value-objects/WorkspaceVisibility";
-
-export interface WorkspaceEntity {
-  id: string;
-  name: WorkspaceName;
-  photoURL?: string;
-  lifecycleState: WorkspaceLifecycleState;
-  visibility: WorkspaceVisibility;
-  accountId: string;
-  accountType: "user" | "organization";
-  createdAt: Timestamp;
-}
-
-export interface WorkspaceEntity
-  extends WorkspaceCapabilityAssignments,
-    WorkspaceAccessPolicy,
-    WorkspaceOperationalProfile {}
-
-// ─── Commands ─────────────────────────────────────────────────────────────────
-
-export interface CreateWorkspaceCommand {
-  readonly name: WorkspaceNameInput;
-  readonly accountId: string;
-  readonly accountType: "user" | "organization";
-  readonly creatorUserId?: string;
-}
-
-export interface UpdateWorkspaceSettingsCommand {
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly name?: WorkspaceNameInput;
-  readonly visibility?: WorkspaceVisibilityInput;
-  readonly lifecycleState?: WorkspaceLifecycleStateInput;
-  readonly address?: AddressInput;
-  readonly personnel?: WorkspacePersonnel;
-}
-
-type WorkspaceSettingsPatch = Omit<
-  UpdateWorkspaceSettingsCommand,
-  "workspaceId" | "accountId"
->;
-
-function createWorkspaceTimestamp(date = new Date()): Timestamp {
-  const milliseconds = date.getTime();
-  const seconds = Math.floor(milliseconds / 1000);
-  const nanoseconds = (milliseconds % 1000) * 1_000_000;
-
-  return {
-    seconds,
-    nanoseconds,
-    toDate: () => new Date(milliseconds),
-  };
-}
-
-function cloneCapabilities(capabilities: Capability[] = []): Capability[] {
-  return capabilities.map((capability) => ({
-    ...capability,
-    config:
-      capability.config !== undefined && capability.config !== null
-        ? { ...capability.config }
-        : capability.config,
-  }));
-}
-
-function cloneGrants(grants: WorkspaceGrant[] = []): WorkspaceGrant[] {
-  return grants.map((grant) => ({ ...grant }));
-}
-
-function cloneLocations(locations?: WorkspaceLocation[]): WorkspaceLocation[] | undefined {
-  return locations?.map((location) => ({ ...location }));
-}
-
-function clonePersonnel(
-  personnel?: WorkspacePersonnel,
-): WorkspacePersonnel | undefined {
-  if (!personnel) {
-    return undefined;
-  }
-
-  return {
-    ...personnel,
-    customRoles: personnel.customRoles?.map((role) => ({ ...role })),
-  };
-}
-
-function normalizeAccountId(accountId: string): string {
-  const normalizedAccountId = accountId.trim();
-  if (!normalizedAccountId) {
-    throw new Error("Workspace accountId is required");
-  }
-
-  return normalizedAccountId;
-}
-
-export class Workspace implements WorkspaceEntity {
-  readonly id: string;
-
-  name: WorkspaceName;
-
-  photoURL?: string;
-
-  lifecycleState: WorkspaceLifecycleState;
-
-  visibility: WorkspaceVisibility;
-
-  readonly accountId: string;
-
-  readonly accountType: "user" | "organization";
-
-  readonly createdAt: Timestamp;
-
-  capabilities: Capability[];
-
-  grants: WorkspaceGrant[];
-
-  teamIds: string[];
-
-  address?: Address;
-
-  locations?: WorkspaceLocation[];
-
-  personnel?: WorkspacePersonnel;
-
-  private constructor(snapshot: WorkspaceEntity) {
-    this.id = snapshot.id;
-    this.name = snapshot.name;
-    this.photoURL = snapshot.photoURL?.trim() || undefined;
-    this.lifecycleState = snapshot.lifecycleState;
-    this.visibility = snapshot.visibility;
-    this.accountId = normalizeAccountId(snapshot.accountId);
-    this.accountType = snapshot.accountType;
-    this.createdAt = snapshot.createdAt;
-    this.capabilities = cloneCapabilities(snapshot.capabilities);
-    this.grants = cloneGrants(snapshot.grants);
-    this.teamIds = [...snapshot.teamIds];
-    this.address = snapshot.address;
-    this.locations = cloneLocations(snapshot.locations);
-    this.personnel = clonePersonnel(snapshot.personnel);
-  }
-
-  static create(command: CreateWorkspaceCommand): Workspace {
-    const initialGrants: WorkspaceGrant[] =
-      command.accountType === "organization" && command.creatorUserId?.trim()
-        ? [{ userId: command.creatorUserId.trim(), role: "owner" }]
-        : [];
-
-    return new Workspace({
-      id: crypto.randomUUID(),
-      name: createWorkspaceName(command.name),
-      accountId: normalizeAccountId(command.accountId),
-      accountType: command.accountType,
-      lifecycleState: createWorkspaceLifecycleState("preparatory"),
-      visibility: createWorkspaceVisibility("visible"),
-      capabilities: [],
-      grants: initialGrants,
-      teamIds: [],
-      createdAt: createWorkspaceTimestamp(),
-    });
-  }
-
-  static reconstitute(snapshot: WorkspaceEntity): Workspace {
-    return new Workspace(snapshot);
-  }
-
-  rename(nextName: WorkspaceNameInput): void {
-    this.name = createWorkspaceName(nextName);
-  }
-
-  changeVisibility(nextVisibility: WorkspaceVisibilityInput): void {
-    this.visibility = createWorkspaceVisibility(nextVisibility);
-  }
-
-  activate(): void {
-    this.transitionLifecycle("active");
-  }
-
-  stop(): void {
-    this.transitionLifecycle("stopped");
-  }
-
-  transitionLifecycle(nextState: WorkspaceLifecycleStateInput): void {
-    const normalizedNextState = createWorkspaceLifecycleState(nextState);
-    if (normalizedNextState === this.lifecycleState) {
-      return;
-    }
-
-    if (
-      !canTransitionWorkspaceLifecycleState(
-        this.lifecycleState,
-        normalizedNextState,
-      )
-    ) {
-      throw new Error(
-        `Invalid workspace lifecycle transition: ${this.lifecycleState} -> ${normalizedNextState}`,
-      );
-    }
-
-    this.lifecycleState = normalizedNextState;
-  }
-
-  updateAddress(nextAddress: AddressInput): void {
-    this.address = createAddress(nextAddress);
-  }
-
-  updatePersonnel(nextPersonnel: WorkspacePersonnel): void {
-    this.personnel = clonePersonnel(nextPersonnel);
-  }
-
-  applySettings(patch: WorkspaceSettingsPatch): void {
-    if (patch.name !== undefined) {
-      this.rename(patch.name);
-    }
-
-    if (patch.visibility !== undefined) {
-      this.changeVisibility(patch.visibility);
-    }
-
-    if (patch.lifecycleState !== undefined) {
-      this.transitionLifecycle(patch.lifecycleState);
-    }
-
-    if (patch.address !== undefined) {
-      this.updateAddress(patch.address);
-    }
-
-    if (patch.personnel !== undefined) {
-      this.updatePersonnel(patch.personnel);
-    }
-  }
-
-  toSnapshot(): WorkspaceEntity {
-    return {
-      id: this.id,
-      name: this.name,
-      photoURL: this.photoURL,
-      lifecycleState: this.lifecycleState,
-      visibility: this.visibility,
-      accountId: this.accountId,
-      accountType: this.accountType,
-      createdAt: this.createdAt,
-      capabilities: cloneCapabilities(this.capabilities),
-      grants: cloneGrants(this.grants),
-      teamIds: [...this.teamIds],
-      address: this.address,
-      locations: cloneLocations(this.locations),
-      personnel: clonePersonnel(this.personnel),
-    };
-  }
-}
-
-export type { WorkspaceGrant } from "../entities/WorkspaceAccess";
-export type { Capability, CapabilitySpec } from "../entities/WorkspaceCapability";
-export type { WorkspaceLocation } from "../entities/WorkspaceLocation";
-export type {
-  Address,
-  AddressInput,
-  WorkspacePersonnel,
-  WorkspacePersonnelCustomRole,
-} from "../entities/WorkspaceProfile";
-export type {
-  WorkspaceLifecycleState,
-  WorkspaceLifecycleStateInput,
-} from "../value-objects/WorkspaceLifecycleState";
-export type {
-  WorkspaceName,
-  WorkspaceNameInput,
-} from "../value-objects/WorkspaceName";
-export type {
-  WorkspaceVisibility,
-  WorkspaceVisibilityInput,
-} from "../value-objects/WorkspaceVisibility";
 ````
 
 ## File: modules/workspace/domain/domain-modeling.instructions.md
@@ -23697,74 +23636,6 @@ export class FirebaseWikiWorkspaceRepository implements WikiWorkspaceRepository 
 }
 ````
 
-## File: modules/workspace/interfaces/api/actions/workspace.command.ts
-````typescript
-"use server";
-
-/**
- * Workspace Server Actions — thin adapter: Next.js Server Actions → Input Port.
- */
-
-import type { CommandResult } from "@shared-types";
-import type {
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  Capability,
-  WorkspaceGrant,
-  WorkspaceLocation,
-} from "../contracts";
-import { workspaceCommandPort } from "../runtime";
-
-export async function createWorkspace(command: CreateWorkspaceCommand): Promise<CommandResult> {
-  return workspaceCommandPort.createWorkspace(command);
-}
-
-export async function createWorkspaceWithCapabilities(
-  command: CreateWorkspaceCommand,
-  capabilities: Capability[],
-): Promise<CommandResult> {
-  return workspaceCommandPort.createWorkspaceWithCapabilities(command, capabilities);
-}
-
-export async function updateWorkspaceSettings(
-  command: UpdateWorkspaceSettingsCommand,
-): Promise<CommandResult> {
-  return workspaceCommandPort.updateWorkspaceSettings(command);
-}
-
-export async function deleteWorkspace(workspaceId: string): Promise<CommandResult> {
-  return workspaceCommandPort.deleteWorkspace(workspaceId);
-}
-
-export async function mountCapabilities(
-  workspaceId: string,
-  capabilities: Capability[],
-): Promise<CommandResult> {
-  return workspaceCommandPort.mountCapabilities(workspaceId, capabilities);
-}
-
-export async function authorizeWorkspaceTeam(
-  workspaceId: string,
-  teamId: string,
-): Promise<CommandResult> {
-  return workspaceCommandPort.authorizeWorkspaceTeam(workspaceId, teamId);
-}
-
-export async function grantIndividualWorkspaceAccess(
-  workspaceId: string,
-  grant: WorkspaceGrant,
-): Promise<CommandResult> {
-  return workspaceCommandPort.grantIndividualWorkspaceAccess(workspaceId, grant);
-}
-
-export async function createWorkspaceLocation(
-  workspaceId: string,
-  location: Omit<WorkspaceLocation, "locationId">,
-): Promise<CommandResult> {
-  return workspaceCommandPort.createWorkspaceLocation(workspaceId, location);
-}
-````
-
 ## File: modules/workspace/interfaces/api/contracts/index.ts
 ````typescript
 /**
@@ -24107,6 +23978,34 @@ export function createWorkspaceSessionContext(
     workspaceQueryPort,
   };
 }
+````
+
+## File: modules/workspace/interfaces/interfaces.instructions.md
+````markdown
+---
+description: 'Workspace interfaces layer rules: input/output translation, Server Actions, workspace UI components, hooks, view-models, and session state wiring.'
+applyTo: 'modules/workspace/interfaces/**/*.{ts,tsx}'
+---
+
+# Workspace Interfaces Layer (Local)
+
+Use this file as execution guardrails for `modules/workspace/interfaces/*`.
+For full reference, align with `.github/instructions/nextjs-server-actions.instructions.md`, `.github/instructions/shadcn-ui.instructions.md`, and `docs/contexts/workspace/*`.
+
+## Core Rules
+
+- This layer owns **input/output translation only** — no workspace lifecycle rules, no capability policy.
+- Server Actions (`interfaces/api/actions/`) must be thin: validate input, call the application service, return a stable result shape.
+- Never call repositories directly from components, hooks, or actions.
+- View-models (`view-models/`) translate DTOs into UI-specific shapes — keep them in `interfaces/`, not in `application/`.
+- Session state (`state/workspace-session.ts`, `state/workspace-settings.ts`) is UI state only; do not persist domain decisions here.
+- `interfaces/api/` exposes tRPC facades and query handlers for workspace — keep route and action wiring separate from business logic.
+- Use shadcn/ui primitives before creating new components; maintain semantic markup and accessibility.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+#use skill next-devtools-mcp
+#use skill vercel-react-best-practices
 ````
 
 ## File: modules/workspace/interfaces/web/components/cards/WorkspaceContextCard.tsx
@@ -35341,6 +35240,49 @@ export async function getWorkspaceFlowInvoices(workspaceId: string): Promise<Inv
 export async function getWorkspaceFlowInvoiceItems(invoiceId: string): Promise<InvoiceItem[]> {
   return makeInvoiceRepo().listItems(invoiceId);
 }
+````
+
+## File: modules/workspace/workspace.instructions.md
+````markdown
+---
+description: 'Workspace bounded context rules: workspaceId anchor ownership, collaboration container scope, downstream dependency position, and subdomain routing.'
+applyTo: 'modules/workspace/**/*.{ts,tsx,md}'
+---
+
+# Workspace Bounded Context (Local)
+
+Use this file as execution guardrails for `modules/workspace/`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/contexts/workspace/README.md`, and `docs/bounded-contexts.md`.
+
+## Core Rules
+
+- `workspace` is **downstream** of `platform`; never import from platform internals — use `modules/platform/api` only.
+- `workspace` is **upstream** of `notebooklm`; expose `workspaceId` scope and membership signals via `modules/workspace/api`.
+- Cross-module consumers import from `modules/workspace/api` only.
+- `workspaceId` is the canonical scope anchor for all downstream modules — always resolve workspace identity through this module.
+- Use ubiquitous language: `Membership` not `User` (for workspace participant), `WorkspaceCapability` not `Feature`, `WorkspaceLifecycleState` not `Status`.
+
+## Route to Subdomain When
+
+| Concern | Subdomain |
+|---|---|
+| Workspace lifecycle (create, archive, restore) | `lifecycle` |
+| Member roles, invitations, participant management | `membership` |
+| Workspace activity feed and posts | `feed` |
+| Audit trail and compliance log | `audit` |
+| Task, issue, invoice workflow | `workspace-workflow` |
+| Scheduling and work demand | `scheduling` |
+| Real-time presence and activity | `presence` |
+| Workspace sharing and access grants | `sharing` |
+
+## Route Elsewhere When
+
+- Identity, entitlements, organization, credentials → `platform`
+- Knowledge pages, articles, databases, content publishing → `notion`
+- Notebook, conversation, source, retrieval, synthesis → `notebooklm`
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: packages/api-contracts/index.ts
@@ -47213,32 +47155,6 @@ export class PlatformRagGenerationAdapter implements IRagGenerationRepository {
 }
 ````
 
-## File: modules/notebooklm/interfaces/conversation/_actions/chat.actions.ts
-````typescript
-"use server";
-
-import type {
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-  Thread,
-} from "@/modules/notebooklm/api";
-import {
-  GenerateNotebookResponseUseCase,
-  PlatformTextGenerationAdapter,
-} from "@/modules/notebooklm/api/server";
-import { saveThread, loadThread } from "@/modules/notebooklm/api";
-
-export async function sendChatMessage(
-  input: GenerateNotebookResponseInput,
-): Promise<GenerateNotebookResponseResult> {
-  const useCase = new GenerateNotebookResponseUseCase(new PlatformTextGenerationAdapter());
-  return useCase.execute(input);
-}
-
-export { saveThread, loadThread };
-export type { Thread };
-````
-
 ## File: modules/notebooklm/interfaces/conversation/components/ConversationPanel.tsx
 ````typescript
 "use client";
@@ -56430,30 +56346,6 @@ export interface ITaxonomyRepository {
 }
 ````
 
-## File: modules/platform/api/api.instructions.md
-````markdown
----
-description: 'Platform API boundary rules: cross-module entry surface, facade contracts, and published language enforcement.'
-applyTo: 'modules/platform/api/**/*.{ts,tsx}'
----
-
-# Platform API Layer (Local)
-
-Use this file as execution guardrails for `modules/platform/api/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/platform/context-map.md`.
-
-## Core Rules
-
-- `api/` is the **only** cross-module entry surface for platform; never expose `domain/`, `application/`, or `infrastructure/` internals directly.
-- Expose stable **facade methods** and **contract types** only — no aggregate classes, no repository interfaces.
-- All cross-module tokens must use published language: `actor reference`, `workspaceId`, `entitlement signal`, `knowledge artifact reference`.
-- Never pass upstream aggregates as downstream canonical models; translate at the boundary.
-- Downstream modules import from `modules/platform/api` only — enforce this with lint restricted-import rules.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
 ## File: modules/platform/api/server.ts
 ````typescript
 /**
@@ -56683,32 +56575,6 @@ export const fileApi: FileAPI = {
 };
 ````
 
-## File: modules/platform/application/application.instructions.md
-````markdown
----
-description: 'Platform application layer rules: use-case orchestration, command/query dispatch, event handling, and DTO contracts.'
-applyTo: 'modules/platform/application/**/*.{ts,tsx}'
----
-
-# Platform Application Layer (Local)
-
-Use this file as execution guardrails for `modules/platform/application/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/platform/*`.
-
-## Core Rules
-
-- Use cases orchestrate flow only; complex business rules stay in `domain/`.
-- Every use case operates on a **single aggregate** per transaction boundary.
-- After persisting, call `pullDomainEvents()` and publish via `DomainEventPublisher` — never publish before persistence.
-- Pure reads without business logic belong in **query handlers**, not use cases (`GetXxxUseCase` is a smell).
-- DTOs are application-layer contracts; never expose domain entities or value objects across the layer boundary.
-- Event handlers translate ingress events to commands via `mapIngressEventToCommand` before dispatching.
-- `PlatformCommandDispatcher` and `PlatformQueryDispatcher` are the single dispatch entry points — do not bypass them.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
 ## File: modules/platform/application/services/index.ts
 ````typescript
 /**
@@ -56725,85 +56591,6 @@ export {
   type QuickCreatePageInput,
   type QuickCreatePageResult,
 } from "./shell-quick-create";
-````
-
-## File: modules/platform/docs/docs.instructions.md
-````markdown
----
-description: 'Platform documentation rules: strategic doc authority, ADR discipline, and ubiquitous language enforcement.'
-applyTo: 'modules/platform/docs/**/*.md'
----
-
-# Platform Docs Layer (Local)
-
-Use this file as execution guardrails for `modules/platform/docs/*`.
-For full reference, align with `.github/instructions/docs-authority-and-language.instructions.md` and `docs/contexts/platform/*`.
-
-## Core Rules
-
-- `modules/platform/docs/` holds **links and local summaries only** — authoritative content lives in `docs/contexts/platform/`.
-- Do not duplicate strategic knowledge here; point to the canonical source instead.
-- Any new architectural decision affecting platform must have a corresponding ADR in `docs/decisions/`.
-- Use ubiquitous language from `docs/contexts/platform/ubiquitous-language.md`; do not introduce synonyms or aliases.
-- Keep this directory in sync with `docs/contexts/platform/README.md` whenever the subdomain list changes.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
-## File: modules/platform/infrastructure/infrastructure.instructions.md
-````markdown
----
-description: 'Platform infrastructure layer rules: Firebase adapters, QStash messaging, event routing, persistence mapping, and cache strategy.'
-applyTo: 'modules/platform/infrastructure/**/*.{ts,tsx}'
----
-
-# Platform Infrastructure Layer (Local)
-
-Use this file as execution guardrails for `modules/platform/infrastructure/*`.
-For full reference, align with `.github/instructions/firestore-schema.instructions.md` and `docs/contexts/platform/*`.
-
-## Core Rules
-
-- Implement only **port interfaces** declared in `domain/ports/output/`; never invent new contracts here.
-- Keep Firestore collection ownership explicit per bounded context — do not read or write another module's collections.
-- Persistence mappers (`mapXxxToPersistenceRecord`) are the only place to translate between domain objects and storage records.
-- Cached repositories (`cache/`) must delegate to the underlying repository and never bypass domain validation.
-- QStash adapters (`messaging/`) must implement `DomainEventPublisher`, `JobQueuePort`, or `WorkflowDispatcherPort` — no ad-hoc fire-and-forget.
-- Event routing (`events/routing/`) must use `resolveEventHandler` as the single dispatch table; do not hardcode handler selection in consumers.
-- Version breaking schema transitions with migration steps before deploying; update `firestore.indexes.json` with query-shape changes.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-#use skill xuanwu-development-contracts
-````
-
-## File: modules/platform/interfaces/interfaces.instructions.md
-````markdown
----
-description: 'Platform interfaces layer rules: input/output translation, Server Actions, UI components, CLI wiring, and HTTP handler contracts.'
-applyTo: 'modules/platform/interfaces/**/*.{ts,tsx}'
----
-
-# Platform Interfaces Layer (Local)
-
-Use this file as execution guardrails for `modules/platform/interfaces/*`.
-For full reference, align with `.github/instructions/nextjs-server-actions.instructions.md`, `.github/instructions/shadcn-ui.instructions.md`, and `docs/contexts/platform/*`.
-
-## Core Rules
-
-- This layer owns **input/output translation only** — no business rules, no repository calls.
-- Server Actions (`_actions/`) must be thin: validate input, call the use case or dispatcher, return a stable result shape.
-- Never call repositories directly from components, actions, or route handlers.
-- UI components consume data via query hooks or Server Components; they do not hold domain logic.
-- HTTP handlers (`api/`) map requests to platform commands via `mapHttpRequestToPlatformCommand` and map results via `mapPlatformResultToHttpResponse` — do not inline mapping logic.
-- CLI handlers (`cli/`) follow the same pattern: parse → dispatch → render.
-- Use shadcn/ui primitives before creating new components; keep semantic markup and accessibility intact.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-#use skill next-devtools-mcp
-#use skill vercel-react-best-practices
 ````
 
 ## File: modules/platform/interfaces/web/shell/header/components/ShellHeaderControls.tsx
@@ -56960,51 +56747,6 @@ export function ShellTranslationSwitcher() {
     </DropdownMenu>
   );
 }
-````
-
-## File: modules/platform/platform.instructions.md
-````markdown
----
-description: 'Platform bounded context rules: governance upstream role, module shape, subdomain routing, and cross-context dependency direction.'
-applyTo: 'modules/platform/**/*.{ts,tsx,md}'
----
-
-# Platform Bounded Context (Local)
-
-Use this file as execution guardrails for `modules/platform/`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/contexts/platform/README.md`, and `docs/bounded-contexts.md`.
-
-## Core Rules
-
-- `platform` is the **governance upstream** for all other bounded contexts (`workspace`, `notion`, `notebooklm`); never invert this dependency.
-- Cross-module consumers must import from `modules/platform/api` only — never from `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- Route work to the correct subdomain first; do not place subdomain-specific logic in the context-wide `application/` or `domain/` layers.
-- New top-level main domains are forbidden — the system has exactly four: `platform`, `workspace`, `notion`, `notebooklm`.
-- Use ubiquitous language from `docs/contexts/platform/ubiquitous-language.md`: `Actor` not `User`, `Entitlement` not `Plan`, `Membership` not `User` for workspace participant.
-
-## Route to Subdomain When
-
-| Concern | Subdomain |
-|---|---|
-| Authentication, identity federation | `identity` |
-| Account lifecycle | `account` |
-| Account profile & preferences | `account-profile` |
-| Organization, tenant structure | `organization` |
-| Team membership | `team` |
-| Subscription & billing plan | `subscription` |
-| Capability grants | `entitlement` |
-| Access policy enforcement | `access-control` |
-| Notification dispatch | `notification` |
-| Background / ingestion jobs | `background-job` |
-
-## Route Elsewhere When
-
-- Workspace lifecycle, membership, presence → `workspace`
-- Knowledge content creation, taxonomy, publishing → `notion`
-- Conversation, retrieval, synthesis → `notebooklm`
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
 ````
 
 ## File: modules/platform/subdomains/access-control/application/index.ts
@@ -58789,6 +58531,32 @@ export {
 } from "./services/shell-command-catalog";
 ````
 
+## File: modules/platform/subdomains/subdomains.instructions.md
+````markdown
+---
+description: 'Platform subdomains structural rules: hexagonal shape per subdomain, status discipline, cross-subdomain collaboration, and stub promotion criteria.'
+applyTo: 'modules/platform/subdomains/**/*.{ts,tsx}'
+---
+
+# Platform Subdomains Layer (Local)
+
+Use this file as execution guardrails for `modules/platform/subdomains/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/platform/subdomains.md`.
+
+## Core Rules
+
+- Every subdomain must maintain the core-first default shape: `api/`, `domain/`, `application/`, optional `ports/`, and `README.md`.
+- `infrastructure/` and `interfaces/` belong at the bounded-context root by default and should be grouped by subdomain there unless the mini-module gate is explicitly justified.
+- Stub subdomains (`domain/index.ts` only) must not be promoted to Active without a corresponding ADR and `README.md` update.
+- Cross-subdomain collaboration within platform goes through the **subdomain's own `api/`** — never import a sibling subdomain's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
+- Each subdomain owns its Firestore collection(s); no subdomain reads or writes another subdomain's data directly.
+- Domain events emitted by a subdomain must use the discriminant format `platform.<subdomain>.<action>` (e.g. `platform.identity.subject-authenticated`).
+- Dependency direction inside each subdomain mirrors the module-level rule: `interfaces → application → domain ← infrastructure`.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
 ## File: modules/platform/subdomains/subscription/application/use-cases/subscription.use-cases.ts
 ````typescript
 /**
@@ -59071,31 +58839,6 @@ export class Subscription {
 }
 ````
 
-## File: modules/workspace/api/api.instructions.md
-````markdown
----
-description: 'Workspace API boundary rules: cross-module entry surface, workspaceId published language, facade/contract/runtime separation, and downstream consumer contracts.'
-applyTo: 'modules/workspace/api/**/*.{ts,tsx}'
----
-
-# Workspace API Layer (Local)
-
-Use this file as execution guardrails for `modules/workspace/api/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/workspace/context-map.md`.
-
-## Core Rules
-
-- `api/` is the **only** cross-module entry surface; never expose `domain/`, `application/`, or `infrastructure/` internals.
-- `contracts.ts` defines stable cross-module types; `facade.ts` exposes callable service methods; `ui.ts` exposes UI-safe view tokens only.
-- Published language tokens for cross-module use: `workspaceId`, `membershipRef`, `workspaceCapabilitySignal`, `wikiContentTreeRef`.
-- `runtime/factories.ts` wires workspace services for server-side consumption — keep wiring thin, delegate to application services.
-- Never expose `Workspace` aggregate or `WorkspaceMemberView` entity directly across the boundary; translate to contract types.
-- `notebooklm` and `notion` must receive `workspaceId` as a scope token, never as a full workspace object.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
 ## File: modules/workspace/api/facade.ts
 ````typescript
 /**
@@ -59186,31 +58929,6 @@ export type {
 // ── Orchestrated notion commands (workspace as composition owner) ─────────────
 
 export { createKnowledgePage } from "@/modules/notion/api";
-````
-
-## File: modules/workspace/application/application.instructions.md
-````markdown
----
-description: 'Workspace application layer rules: use-case orchestration, command/query application services, event publishing order, and DTO contracts.'
-applyTo: 'modules/workspace/application/**/*.{ts,tsx}'
----
-
-# Workspace Application Layer (Local)
-
-Use this file as execution guardrails for `modules/workspace/application/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/workspace/*`.
-
-## Core Rules
-
-- `WorkspaceCommandApplicationService` and `WorkspaceQueryApplicationService` are the primary dispatch entry points — do not bypass them from interfaces.
-- Use cases orchestrate flow only; lifecycle invariants, capability rules, and access checks stay in `domain/`.
-- After persisting, call `pullDomainEvents()` and publish via `WorkspaceDomainEventPublisher` — never publish before persistence.
-- DTOs (`workspace-interfaces.dto.ts`, `workspace-member-view.dto.ts`, `wiki-content-tree.dto.ts`) are application-layer contracts; never expose domain aggregates across the boundary.
-- Pure reads (workspace queries, member views, wiki tree) belong in **query handlers** — `WorkspaceQueryApplicationService` owns these.
-- Use case ordering for new workspace features: lifecycle → member → capabilities → access.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
 ````
 
 ## File: modules/workspace/application/queries/workspace.queries.ts
@@ -59319,28 +59037,313 @@ export class CreateWorkspaceLocationUseCase {
 }
 ````
 
-## File: modules/workspace/docs/docs.instructions.md
-````markdown
----
-description: 'Workspace documentation rules: strategic doc authority, subdomain list sync, and ubiquitous language enforcement.'
-applyTo: 'modules/workspace/docs/**/*.md'
----
+## File: modules/workspace/domain/aggregates/Workspace.ts
+````typescript
+/**
+ * Workspace Domain Entities — pure TypeScript, zero framework dependencies.
+ */
 
-# Workspace Docs Layer (Local)
+import type { Timestamp } from "@shared-types";
+import type { WorkspaceAccessPolicy, WorkspaceGrant } from "../entities/WorkspaceAccess";
+import type {
+  Capability,
+  WorkspaceCapabilityAssignments,
+} from "../entities/WorkspaceCapability";
+import type { WorkspaceLocation } from "../entities/WorkspaceLocation";
+import type {
+  Address,
+  WorkspaceOperationalProfile,
+  WorkspacePersonnel,
+} from "../entities/WorkspaceProfile";
+import { createAddress, type AddressInput } from "../value-objects/Address";
+import type {
+  WorkspaceLifecycleState,
+  WorkspaceLifecycleStateInput,
+} from "../value-objects/WorkspaceLifecycleState";
+import {
+  canTransitionWorkspaceLifecycleState,
+  createWorkspaceLifecycleState,
+} from "../value-objects/WorkspaceLifecycleState";
+import type {
+  WorkspaceName,
+  WorkspaceNameInput,
+} from "../value-objects/WorkspaceName";
+import { createWorkspaceName } from "../value-objects/WorkspaceName";
+import type {
+  WorkspaceVisibility,
+  WorkspaceVisibilityInput,
+} from "../value-objects/WorkspaceVisibility";
+import { createWorkspaceVisibility } from "../value-objects/WorkspaceVisibility";
 
-Use this file as execution guardrails for `modules/workspace/docs/*`.
-For full reference, align with `.github/instructions/docs-authority-and-language.instructions.md` and `docs/contexts/workspace/*`.
+export interface WorkspaceEntity {
+  id: string;
+  name: WorkspaceName;
+  photoURL?: string;
+  lifecycleState: WorkspaceLifecycleState;
+  visibility: WorkspaceVisibility;
+  accountId: string;
+  accountType: "user" | "organization";
+  createdAt: Timestamp;
+}
 
-## Core Rules
+export interface WorkspaceEntity
+  extends WorkspaceCapabilityAssignments,
+    WorkspaceAccessPolicy,
+    WorkspaceOperationalProfile {}
 
-- `modules/workspace/docs/` holds **links and local summaries only** — authoritative content lives in `docs/contexts/workspace/`.
-- Do not duplicate strategic knowledge here; point to the canonical source instead.
-- Any new architectural decision affecting workspace must have a corresponding ADR in `docs/decisions/`.
-- Use ubiquitous language from `docs/contexts/workspace/ubiquitous-language.md`; do not introduce synonyms.
-- Keep this directory in sync with `docs/contexts/workspace/README.md` whenever the subdomain list changes.
+// ─── Commands ─────────────────────────────────────────────────────────────────
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
+export interface CreateWorkspaceCommand {
+  readonly name: WorkspaceNameInput;
+  readonly accountId: string;
+  readonly accountType: "user" | "organization";
+  readonly creatorUserId?: string;
+}
+
+export interface UpdateWorkspaceSettingsCommand {
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly name?: WorkspaceNameInput;
+  readonly visibility?: WorkspaceVisibilityInput;
+  readonly lifecycleState?: WorkspaceLifecycleStateInput;
+  readonly address?: AddressInput;
+  readonly personnel?: WorkspacePersonnel;
+}
+
+type WorkspaceSettingsPatch = Omit<
+  UpdateWorkspaceSettingsCommand,
+  "workspaceId" | "accountId"
+>;
+
+function createWorkspaceTimestamp(date = new Date()): Timestamp {
+  const milliseconds = date.getTime();
+  const seconds = Math.floor(milliseconds / 1000);
+  const nanoseconds = (milliseconds % 1000) * 1_000_000;
+
+  return {
+    seconds,
+    nanoseconds,
+    toDate: () => new Date(milliseconds),
+  };
+}
+
+function cloneCapabilities(capabilities: Capability[] = []): Capability[] {
+  return capabilities.map((capability) => ({
+    ...capability,
+    config:
+      capability.config !== undefined && capability.config !== null
+        ? { ...capability.config }
+        : capability.config,
+  }));
+}
+
+function cloneGrants(grants: WorkspaceGrant[] = []): WorkspaceGrant[] {
+  return grants.map((grant) => ({ ...grant }));
+}
+
+function cloneLocations(locations?: WorkspaceLocation[]): WorkspaceLocation[] | undefined {
+  return locations?.map((location) => ({ ...location }));
+}
+
+function clonePersonnel(
+  personnel?: WorkspacePersonnel,
+): WorkspacePersonnel | undefined {
+  if (!personnel) {
+    return undefined;
+  }
+
+  return {
+    ...personnel,
+    customRoles: personnel.customRoles?.map((role) => ({ ...role })),
+  };
+}
+
+function normalizeAccountId(accountId: string): string {
+  const normalizedAccountId = accountId.trim();
+  if (!normalizedAccountId) {
+    throw new Error("Workspace accountId is required");
+  }
+
+  return normalizedAccountId;
+}
+
+export class Workspace implements WorkspaceEntity {
+  readonly id: string;
+
+  name: WorkspaceName;
+
+  photoURL?: string;
+
+  lifecycleState: WorkspaceLifecycleState;
+
+  visibility: WorkspaceVisibility;
+
+  readonly accountId: string;
+
+  readonly accountType: "user" | "organization";
+
+  readonly createdAt: Timestamp;
+
+  capabilities: Capability[];
+
+  grants: WorkspaceGrant[];
+
+  teamIds: string[];
+
+  address?: Address;
+
+  locations?: WorkspaceLocation[];
+
+  personnel?: WorkspacePersonnel;
+
+  private constructor(snapshot: WorkspaceEntity) {
+    this.id = snapshot.id;
+    this.name = snapshot.name;
+    this.photoURL = snapshot.photoURL?.trim() || undefined;
+    this.lifecycleState = snapshot.lifecycleState;
+    this.visibility = snapshot.visibility;
+    this.accountId = normalizeAccountId(snapshot.accountId);
+    this.accountType = snapshot.accountType;
+    this.createdAt = snapshot.createdAt;
+    this.capabilities = cloneCapabilities(snapshot.capabilities);
+    this.grants = cloneGrants(snapshot.grants);
+    this.teamIds = [...snapshot.teamIds];
+    this.address = snapshot.address;
+    this.locations = cloneLocations(snapshot.locations);
+    this.personnel = clonePersonnel(snapshot.personnel);
+  }
+
+  static create(command: CreateWorkspaceCommand): Workspace {
+    const initialGrants: WorkspaceGrant[] =
+      command.creatorUserId?.trim()
+        ? [{ userId: command.creatorUserId.trim(), role: "owner" }]
+        : [];
+
+    return new Workspace({
+      id: crypto.randomUUID(),
+      name: createWorkspaceName(command.name),
+      accountId: normalizeAccountId(command.accountId),
+      accountType: command.accountType,
+      lifecycleState: createWorkspaceLifecycleState("preparatory"),
+      visibility: createWorkspaceVisibility("visible"),
+      capabilities: [],
+      grants: initialGrants,
+      teamIds: [],
+      createdAt: createWorkspaceTimestamp(),
+    });
+  }
+
+  static reconstitute(snapshot: WorkspaceEntity): Workspace {
+    return new Workspace(snapshot);
+  }
+
+  rename(nextName: WorkspaceNameInput): void {
+    this.name = createWorkspaceName(nextName);
+  }
+
+  changeVisibility(nextVisibility: WorkspaceVisibilityInput): void {
+    this.visibility = createWorkspaceVisibility(nextVisibility);
+  }
+
+  activate(): void {
+    this.transitionLifecycle("active");
+  }
+
+  stop(): void {
+    this.transitionLifecycle("stopped");
+  }
+
+  transitionLifecycle(nextState: WorkspaceLifecycleStateInput): void {
+    const normalizedNextState = createWorkspaceLifecycleState(nextState);
+    if (normalizedNextState === this.lifecycleState) {
+      return;
+    }
+
+    if (
+      !canTransitionWorkspaceLifecycleState(
+        this.lifecycleState,
+        normalizedNextState,
+      )
+    ) {
+      throw new Error(
+        `Invalid workspace lifecycle transition: ${this.lifecycleState} -> ${normalizedNextState}`,
+      );
+    }
+
+    this.lifecycleState = normalizedNextState;
+  }
+
+  updateAddress(nextAddress: AddressInput): void {
+    this.address = createAddress(nextAddress);
+  }
+
+  updatePersonnel(nextPersonnel: WorkspacePersonnel): void {
+    this.personnel = clonePersonnel(nextPersonnel);
+  }
+
+  applySettings(patch: WorkspaceSettingsPatch): void {
+    if (patch.name !== undefined) {
+      this.rename(patch.name);
+    }
+
+    if (patch.visibility !== undefined) {
+      this.changeVisibility(patch.visibility);
+    }
+
+    if (patch.lifecycleState !== undefined) {
+      this.transitionLifecycle(patch.lifecycleState);
+    }
+
+    if (patch.address !== undefined) {
+      this.updateAddress(patch.address);
+    }
+
+    if (patch.personnel !== undefined) {
+      this.updatePersonnel(patch.personnel);
+    }
+  }
+
+  toSnapshot(): WorkspaceEntity {
+    return {
+      id: this.id,
+      name: this.name,
+      photoURL: this.photoURL,
+      lifecycleState: this.lifecycleState,
+      visibility: this.visibility,
+      accountId: this.accountId,
+      accountType: this.accountType,
+      createdAt: this.createdAt,
+      capabilities: cloneCapabilities(this.capabilities),
+      grants: cloneGrants(this.grants),
+      teamIds: [...this.teamIds],
+      address: this.address,
+      locations: cloneLocations(this.locations),
+      personnel: clonePersonnel(this.personnel),
+    };
+  }
+}
+
+export type { WorkspaceGrant } from "../entities/WorkspaceAccess";
+export type { Capability, CapabilitySpec } from "../entities/WorkspaceCapability";
+export type { WorkspaceLocation } from "../entities/WorkspaceLocation";
+export type {
+  Address,
+  AddressInput,
+  WorkspacePersonnel,
+  WorkspacePersonnelCustomRole,
+} from "../entities/WorkspaceProfile";
+export type {
+  WorkspaceLifecycleState,
+  WorkspaceLifecycleStateInput,
+} from "../value-objects/WorkspaceLifecycleState";
+export type {
+  WorkspaceName,
+  WorkspaceNameInput,
+} from "../value-objects/WorkspaceName";
+export type {
+  WorkspaceVisibility,
+  WorkspaceVisibilityInput,
+} from "../value-objects/WorkspaceVisibility";
 ````
 
 ## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
@@ -59845,32 +59848,220 @@ export class FirebaseWorkspaceRepository
 }
 ````
 
-## File: modules/workspace/interfaces/interfaces.instructions.md
+## File: modules/workspace/infrastructure/infrastructure.instructions.md
 ````markdown
 ---
-description: 'Workspace interfaces layer rules: input/output translation, Server Actions, workspace UI components, hooks, view-models, and session state wiring.'
-applyTo: 'modules/workspace/interfaces/**/*.{ts,tsx}'
+description: 'Workspace infrastructure layer rules: Firebase adapters, event publisher, repository implementations, and Firestore collection ownership.'
+applyTo: 'modules/workspace/infrastructure/**/*.{ts,tsx}'
 ---
 
-# Workspace Interfaces Layer (Local)
+# Workspace Infrastructure Layer (Local)
 
-Use this file as execution guardrails for `modules/workspace/interfaces/*`.
-For full reference, align with `.github/instructions/nextjs-server-actions.instructions.md`, `.github/instructions/shadcn-ui.instructions.md`, and `docs/contexts/workspace/*`.
+Use this file as execution guardrails for `modules/workspace/infrastructure/*`.
+For full reference, align with `.github/instructions/firestore-schema.instructions.md` and `docs/contexts/workspace/*`.
 
 ## Core Rules
 
-- This layer owns **input/output translation only** — no workspace lifecycle rules, no capability policy.
-- Server Actions (`interfaces/api/actions/`) must be thin: validate input, call the application service, return a stable result shape.
-- Never call repositories directly from components, hooks, or actions.
-- View-models (`view-models/`) translate DTOs into UI-specific shapes — keep them in `interfaces/`, not in `application/`.
-- Session state (`state/workspace-session.ts`, `state/workspace-settings.ts`) is UI state only; do not persist domain decisions here.
-- `interfaces/api/` exposes tRPC facades and query handlers for workspace — keep route and action wiring separate from business logic.
-- Use shadcn/ui primitives before creating new components; maintain semantic markup and accessibility.
+- Implement only **port interfaces** declared in `domain/ports/output/` — never invent new contracts here.
+- `SharedWorkspaceDomainEventPublisher` is the canonical event publisher; do not create alternative publish paths.
+- Each Firebase repository (`FirebaseWorkspaceRepository`, `FirebaseWorkspaceQueryRepository`, `FirebaseWikiWorkspaceRepository`) owns its Firestore collection(s) — do not cross-read between them without an explicit port.
+- `FirebaseWorkspaceQueryRepository` serves read-model queries; `FirebaseWorkspaceRepository` serves aggregate persistence — keep their responsibilities separate.
+- Version breaking schema transitions with migration steps; update `firestore.indexes.json` with query-shape changes.
+- Subdomain-specific adapters belong in the bounded-context root `infrastructure/<subdomain>/` grouping by default; only place adapters inside `subdomains/<name>/infrastructure/` when the mini-module gate is explicitly justified.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
-#use skill next-devtools-mcp
-#use skill vercel-react-best-practices
+#use skill xuanwu-development-contracts
+````
+
+## File: modules/workspace/interfaces/api/actions/workspace.command.ts
+````typescript
+"use server";
+
+/**
+ * Workspace Server Actions — thin adapter: Next.js Server Actions → Input Port.
+ *
+ * After each successful command, records an audit entry via the audit subdomain.
+ */
+
+import type { CommandResult } from "@shared-types";
+import type {
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  Capability,
+  WorkspaceGrant,
+  WorkspaceLocation,
+} from "../contracts";
+import { workspaceCommandPort } from "../runtime";
+import { RecordAuditEntryUseCase } from "../../../subdomains/audit/application/use-cases/record-audit-entry.use-case";
+import { makeAuditRepo } from "../../../subdomains/audit/api/factories";
+import type { RecordAuditEntryInput } from "../../../subdomains/audit/domain/aggregates/AuditEntry";
+
+const auditUseCase = new RecordAuditEntryUseCase(makeAuditRepo());
+
+async function recordAudit(input: RecordAuditEntryInput): Promise<void> {
+  try {
+    await auditUseCase.execute(input);
+  } catch {
+    // Audit recording is best-effort — do not fail the primary command.
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[workspace.command] Audit recording failed for", input.action);
+    }
+  }
+}
+
+export async function createWorkspace(command: CreateWorkspaceCommand): Promise<CommandResult> {
+  const result = await workspaceCommandPort.createWorkspace(command);
+  if (result.success) {
+    await recordAudit({
+      workspaceId: result.aggregateId,
+      actorId: command.creatorUserId ?? command.accountId,
+      action: "create",
+      resourceType: "workspace",
+      resourceId: result.aggregateId,
+      severity: "medium",
+      detail: `Workspace "${command.name}" created`,
+      source: "workspace",
+    });
+  }
+  return result;
+}
+
+export async function createWorkspaceWithCapabilities(
+  command: CreateWorkspaceCommand,
+  capabilities: Capability[],
+): Promise<CommandResult> {
+  const result = await workspaceCommandPort.createWorkspaceWithCapabilities(command, capabilities);
+  if (result.success) {
+    await recordAudit({
+      workspaceId: result.aggregateId,
+      actorId: command.creatorUserId ?? command.accountId,
+      action: "create",
+      resourceType: "workspace",
+      resourceId: result.aggregateId,
+      severity: "medium",
+      detail: `Workspace "${command.name}" created with ${capabilities.length} capabilities`,
+      source: "workspace",
+    });
+  }
+  return result;
+}
+
+export async function updateWorkspaceSettings(
+  command: UpdateWorkspaceSettingsCommand,
+): Promise<CommandResult> {
+  const result = await workspaceCommandPort.updateWorkspaceSettings(command);
+  if (result.success) {
+    await recordAudit({
+      workspaceId: command.workspaceId,
+      actorId: command.accountId,
+      action: "update",
+      resourceType: "workspace",
+      resourceId: command.workspaceId,
+      severity: "low",
+      detail: "Workspace settings updated",
+      source: "workspace",
+    });
+  }
+  return result;
+}
+
+export async function deleteWorkspace(workspaceId: string): Promise<CommandResult> {
+  const result = await workspaceCommandPort.deleteWorkspace(workspaceId);
+  if (result.success) {
+    await recordAudit({
+      workspaceId,
+      actorId: "system",
+      action: "delete",
+      resourceType: "workspace",
+      resourceId: workspaceId,
+      severity: "high",
+      detail: `Workspace ${workspaceId} deleted`,
+      source: "workspace",
+    });
+  }
+  return result;
+}
+
+export async function mountCapabilities(
+  workspaceId: string,
+  capabilities: Capability[],
+): Promise<CommandResult> {
+  const result = await workspaceCommandPort.mountCapabilities(workspaceId, capabilities);
+  if (result.success) {
+    await recordAudit({
+      workspaceId,
+      actorId: "system",
+      action: "update",
+      resourceType: "workspace",
+      resourceId: workspaceId,
+      severity: "low",
+      detail: `${capabilities.length} capabilities mounted`,
+      source: "workspace",
+    });
+  }
+  return result;
+}
+
+export async function authorizeWorkspaceTeam(
+  workspaceId: string,
+  teamId: string,
+): Promise<CommandResult> {
+  const result = await workspaceCommandPort.authorizeWorkspaceTeam(workspaceId, teamId);
+  if (result.success) {
+    await recordAudit({
+      workspaceId,
+      actorId: "system",
+      action: "update",
+      resourceType: "workspace",
+      resourceId: workspaceId,
+      severity: "medium",
+      detail: `Team ${teamId} authorized`,
+      source: "workspace",
+    });
+  }
+  return result;
+}
+
+export async function grantIndividualWorkspaceAccess(
+  workspaceId: string,
+  grant: WorkspaceGrant,
+): Promise<CommandResult> {
+  const result = await workspaceCommandPort.grantIndividualWorkspaceAccess(workspaceId, grant);
+  if (result.success) {
+    await recordAudit({
+      workspaceId,
+      actorId: grant.userId ?? "system",
+      action: "update",
+      resourceType: "workspace",
+      resourceId: workspaceId,
+      severity: "medium",
+      detail: `Individual access granted: role=${grant.role ?? "member"}`,
+      source: "workspace",
+    });
+  }
+  return result;
+}
+
+export async function createWorkspaceLocation(
+  workspaceId: string,
+  location: Omit<WorkspaceLocation, "locationId">,
+): Promise<CommandResult> {
+  const result = await workspaceCommandPort.createWorkspaceLocation(workspaceId, location);
+  if (result.success) {
+    await recordAudit({
+      workspaceId,
+      actorId: "system",
+      action: "create",
+      resourceType: "workspace-location",
+      resourceId: result.aggregateId,
+      severity: "low",
+      detail: `Location "${location.label}" created`,
+      source: "workspace",
+    });
+  }
+  return result;
+}
 ````
 
 ## File: modules/workspace/interfaces/web/components/rails/CreateWorkspaceDialogRail.tsx
@@ -62939,6 +63130,34 @@ When implementing, follow inside-out:
 - Location management stays at root level (part of Workspace operational profile, not sharing semantics).
 ````
 
+## File: modules/workspace/subdomains/subdomains.instructions.md
+````markdown
+---
+description: 'Workspace subdomains structural rules: hexagonal shape per subdomain, workspaceId scope enforcement, cross-subdomain collaboration, and stub promotion criteria.'
+applyTo: 'modules/workspace/subdomains/**/*.{ts,tsx}'
+---
+
+# Workspace Subdomains Layer (Local)
+
+Use this file as execution guardrails for `modules/workspace/subdomains/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/workspace/subdomains.md`.
+
+## Core Rules
+
+- Every subdomain must maintain the core-first default shape: `api/`, `domain/`, `application/`, optional `ports/`, and `README.md`.
+- `infrastructure/` and `interfaces/` belong at the bounded-context root by default and should be grouped by subdomain there unless the mini-module gate is explicitly justified.
+- Stub subdomains must not be promoted to Active without a corresponding ADR and `README.md` update.
+- Cross-subdomain collaboration within workspace goes through the **subdomain's own `api/`** — never import a sibling's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
+- All subdomain operations must be scoped to a `workspaceId`; never perform workspace-wide queries without an explicit scope check.
+- `workspace-workflow` owns Task, Issue, and Invoice state machines — do not duplicate workflow logic in other subdomains.
+- `audit` subdomain is append-only; never modify or delete audit entries.
+- Domain events use the discriminant format `workspace.<subdomain>.<action>` (e.g. `workspace.feed.post-created`, `workspace.workflow.task-assigned`).
+- Dependency direction inside each subdomain: `interfaces → application → domain ← infrastructure`.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
 ## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseInvoiceItemRepository.ts
 ````typescript
 /**
@@ -63475,49 +63694,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/workspace/workspace.instructions.md
-````markdown
----
-description: 'Workspace bounded context rules: workspaceId anchor ownership, collaboration container scope, downstream dependency position, and subdomain routing.'
-applyTo: 'modules/workspace/**/*.{ts,tsx,md}'
----
-
-# Workspace Bounded Context (Local)
-
-Use this file as execution guardrails for `modules/workspace/`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/contexts/workspace/README.md`, and `docs/bounded-contexts.md`.
-
-## Core Rules
-
-- `workspace` is **downstream** of `platform`; never import from platform internals — use `modules/platform/api` only.
-- `workspace` is **upstream** of `notebooklm`; expose `workspaceId` scope and membership signals via `modules/workspace/api`.
-- Cross-module consumers import from `modules/workspace/api` only.
-- `workspaceId` is the canonical scope anchor for all downstream modules — always resolve workspace identity through this module.
-- Use ubiquitous language: `Membership` not `User` (for workspace participant), `WorkspaceCapability` not `Feature`, `WorkspaceLifecycleState` not `Status`.
-
-## Route to Subdomain When
-
-| Concern | Subdomain |
-|---|---|
-| Workspace lifecycle (create, archive, restore) | `lifecycle` |
-| Member roles, invitations, participant management | `membership` |
-| Workspace activity feed and posts | `feed` |
-| Audit trail and compliance log | `audit` |
-| Task, issue, invoice workflow | `workspace-workflow` |
-| Scheduling and work demand | `scheduling` |
-| Real-time presence and activity | `presence` |
-| Workspace sharing and access grants | `sharing` |
-
-## Route Elsewhere When
-
-- Identity, entitlements, organization, credentials → `platform`
-- Knowledge pages, articles, databases, content publishing → `notion`
-- Notebook, conversation, source, retrieval, synthesis → `notebooklm`
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
 ````
 
 ## File: app/(shell)/_providers/AppProvider.tsx
@@ -64178,6 +64354,30 @@ export {
 	sourceWikiLibraryUseCases,
 } from '../../subdomains/source/application';
 export * as synthesisUseCases from '../../subdomains/synthesis/application';
+````
+
+## File: modules/notebooklm/interfaces/conversation/_actions/chat.actions.ts
+````typescript
+"use server";
+
+import type {
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "@/modules/notebooklm/api";
+import {
+  GenerateNotebookResponseUseCase,
+  PlatformTextGenerationAdapter,
+} from "@/modules/notebooklm/api/server";
+import { saveThread, loadThread } from "@/modules/notebooklm/api";
+
+export async function sendChatMessage(
+  input: GenerateNotebookResponseInput,
+): Promise<GenerateNotebookResponseResult> {
+  const useCase = new GenerateNotebookResponseUseCase(new PlatformTextGenerationAdapter());
+  return useCase.execute(input);
+}
+
+export { saveThread, loadThread };
 ````
 
 ## File: modules/notebooklm/interfaces/notebook/_actions/generate-notebook-response.actions.ts
@@ -67093,32 +67293,6 @@ export function listShellCommandCatalogItems(): readonly ShellCommandCatalogItem
 }
 ````
 
-## File: modules/platform/subdomains/subdomains.instructions.md
-````markdown
----
-description: 'Platform subdomains structural rules: hexagonal shape per subdomain, status discipline, cross-subdomain collaboration, and stub promotion criteria.'
-applyTo: 'modules/platform/subdomains/**/*.{ts,tsx}'
----
-
-# Platform Subdomains Layer (Local)
-
-Use this file as execution guardrails for `modules/platform/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/platform/subdomains.md`.
-
-## Core Rules
-
-- Every subdomain must maintain the core-first default shape: `api/`, `domain/`, `application/`, optional `ports/`, and `README.md`.
-- `infrastructure/` and `interfaces/` belong at the bounded-context root by default and should be grouped by subdomain there unless the mini-module gate is explicitly justified.
-- Stub subdomains (`domain/index.ts` only) must not be promoted to Active without a corresponding ADR and `README.md` update.
-- Cross-subdomain collaboration within platform goes through the **subdomain's own `api/`** — never import a sibling subdomain's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- Each subdomain owns its Firestore collection(s); no subdomain reads or writes another subdomain's data directly.
-- Domain events emitted by a subdomain must use the discriminant format `platform.<subdomain>.<action>` (e.g. `platform.identity.subject-authenticated`).
-- Dependency direction inside each subdomain mirrors the module-level rule: `interfaces → application → domain ← infrastructure`.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
 ## File: modules/workspace/application/queries/wiki-content-tree.queries.ts
 ````typescript
 /**
@@ -67399,32 +67573,6 @@ export class WorkspaceQueryApplicationService implements WorkspaceQueryPort {
 }
 ````
 
-## File: modules/workspace/infrastructure/infrastructure.instructions.md
-````markdown
----
-description: 'Workspace infrastructure layer rules: Firebase adapters, event publisher, repository implementations, and Firestore collection ownership.'
-applyTo: 'modules/workspace/infrastructure/**/*.{ts,tsx}'
----
-
-# Workspace Infrastructure Layer (Local)
-
-Use this file as execution guardrails for `modules/workspace/infrastructure/*`.
-For full reference, align with `.github/instructions/firestore-schema.instructions.md` and `docs/contexts/workspace/*`.
-
-## Core Rules
-
-- Implement only **port interfaces** declared in `domain/ports/output/` — never invent new contracts here.
-- `SharedWorkspaceDomainEventPublisher` is the canonical event publisher; do not create alternative publish paths.
-- Each Firebase repository (`FirebaseWorkspaceRepository`, `FirebaseWorkspaceQueryRepository`, `FirebaseWikiWorkspaceRepository`) owns its Firestore collection(s) — do not cross-read between them without an explicit port.
-- `FirebaseWorkspaceQueryRepository` serves read-model queries; `FirebaseWorkspaceRepository` serves aggregate persistence — keep their responsibilities separate.
-- Version breaking schema transitions with migration steps; update `firestore.indexes.json` with query-shape changes.
-- Subdomain-specific adapters belong in the bounded-context root `infrastructure/<subdomain>/` grouping by default; only place adapters inside `subdomains/<name>/infrastructure/` when the mini-module gate is explicitly justified.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-#use skill xuanwu-development-contracts
-````
-
 ## File: modules/workspace/interfaces/web/providers/WorkspaceContextProvider.tsx
 ````typescript
 "use client";
@@ -67676,34 +67824,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Context Map](../../docs/contexts/workspace/context-map.md)
 - [Ubiquitous Language](../../docs/contexts/workspace/ubiquitous-language.md)
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
-````
-
-## File: modules/workspace/subdomains/subdomains.instructions.md
-````markdown
----
-description: 'Workspace subdomains structural rules: hexagonal shape per subdomain, workspaceId scope enforcement, cross-subdomain collaboration, and stub promotion criteria.'
-applyTo: 'modules/workspace/subdomains/**/*.{ts,tsx}'
----
-
-# Workspace Subdomains Layer (Local)
-
-Use this file as execution guardrails for `modules/workspace/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/workspace/subdomains.md`.
-
-## Core Rules
-
-- Every subdomain must maintain the core-first default shape: `api/`, `domain/`, `application/`, optional `ports/`, and `README.md`.
-- `infrastructure/` and `interfaces/` belong at the bounded-context root by default and should be grouped by subdomain there unless the mini-module gate is explicitly justified.
-- Stub subdomains must not be promoted to Active without a corresponding ADR and `README.md` update.
-- Cross-subdomain collaboration within workspace goes through the **subdomain's own `api/`** — never import a sibling's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- All subdomain operations must be scoped to a `workspaceId`; never perform workspace-wide queries without an explicit scope check.
-- `workspace-workflow` owns Task, Issue, and Invoice state machines — do not duplicate workflow logic in other subdomains.
-- `audit` subdomain is append-only; never modify or delete audit entries.
-- Domain events use the discriminant format `workspace.<subdomain>.<action>` (e.g. `workspace.feed.post-created`, `workspace.workflow.task-assigned`).
-- Dependency direction inside each subdomain: `interfaces → application → domain ← infrastructure`.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
 ````
 
 ## File: app/(shell)/_shell/ShellDashboardSidebar.tsx

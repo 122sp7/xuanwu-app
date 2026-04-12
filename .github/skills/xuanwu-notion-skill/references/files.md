@@ -1486,20 +1486,6 @@ export interface IVersionRepository {
 }
 ````
 
-## File: modules/notion/subdomains/collaboration/domain/services/index.ts
-````typescript
-// TODO: export PermissionResolutionService, VersionRetentionService
-
-export {};
-````
-
-## File: modules/notion/subdomains/collaboration/domain/value-objects/index.ts
-````typescript
-// TODO: export CommentId, PermissionId, VersionId, ContentId, PermissionLevel
-
-export {};
-````
-
 ## File: modules/notion/subdomains/database/application/dto/database.dto.ts
 ````typescript
 /**
@@ -2310,22 +2296,6 @@ export interface IViewRepository {
   delete(id: string, accountId: string): Promise<void>;
   listByDatabase(accountId: string, databaseId: string): Promise<ViewSnapshot[]>;
 }
-````
-
-## File: modules/notion/subdomains/database/domain/services/index.ts
-````typescript
-// TODO: export DatabaseQueryService (filter/sort/group evaluation)
-// TODO: export FormulaEvaluationService, RollupComputationService
-
-export {};
-````
-
-## File: modules/notion/subdomains/database/domain/value-objects/index.ts
-````typescript
-// TODO: export DatabaseId, RecordId, ViewId, FieldId
-// TODO: export FieldType, ViewType, FieldValue
-
-export {};
 ````
 
 ## File: modules/notion/subdomains/knowledge/application/dto/ContentBlockDto.ts
@@ -6489,6 +6459,185 @@ export { FirebaseBacklinkIndexRepository } from "./FirebaseBacklinkIndexReposito
 export * from "./firebase";
 ````
 
+## File: modules/notion/infrastructure/relations/firebase/FirebaseRelationRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/relations
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase adapter implementing IRelationRepository.
+ * Firestore path: notionRelations/{relationId}
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import type { Relation } from "../../../subdomains/relations/domain/entities/Relation";
+import type { IRelationRepository } from "../../../subdomains/relations/domain/repositories/IRelationRepository";
+
+function relationsPath(): string {
+  return "notionRelations";
+}
+
+function relationPath(relationId: string): string {
+  return `notionRelations/${relationId}`;
+}
+
+function toRelation(relationId: string, data: Record<string, unknown>): Relation {
+  return {
+    relationId,
+    sourceArtifactId: typeof data.sourceArtifactId === "string" ? data.sourceArtifactId : "",
+    targetArtifactId: typeof data.targetArtifactId === "string" ? data.targetArtifactId : "",
+    relationType: typeof data.relationType === "string" ? data.relationType : "related",
+    direction: data.direction === "backward" ? "backward" : "forward",
+    organizationId: typeof data.organizationId === "string" ? data.organizationId : "",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+  };
+}
+
+export class FirebaseRelationRepository implements IRelationRepository {
+  async findById(relationId: string): Promise<Relation | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(relationPath(relationId));
+    if (!data) return null;
+    return toRelation(relationId, data);
+  }
+
+  async listBySource(sourceArtifactId: string): Promise<readonly Relation[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      relationsPath(),
+      [{ field: "sourceArtifactId", op: "==", value: sourceArtifactId }],
+      { orderBy: [{ field: "createdAtISO", direction: "desc" }] },
+    );
+    return docs.map((d) => toRelation(d.id, d.data));
+  }
+
+  async listByTarget(targetArtifactId: string): Promise<readonly Relation[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      relationsPath(),
+      [{ field: "targetArtifactId", op: "==", value: targetArtifactId }],
+      { orderBy: [{ field: "createdAtISO", direction: "desc" }] },
+    );
+    return docs.map((d) => toRelation(d.id, d.data));
+  }
+
+  async save(relation: Relation): Promise<void> {
+    const { relationId, ...rest } = relation;
+    await firestoreInfrastructureApi.set(relationPath(relationId), { relationId, ...rest });
+  }
+
+  async remove(relationId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(relationPath(relationId));
+  }
+}
+````
+
+## File: modules/notion/infrastructure/relations/firebase/index.ts
+````typescript
+export { FirebaseRelationRepository } from "./FirebaseRelationRepository";
+````
+
+## File: modules/notion/infrastructure/relations/index.ts
+````typescript
+export * from "./firebase";
+````
+
+## File: modules/notion/infrastructure/taxonomy/firebase/FirebaseTaxonomyRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/taxonomy
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase adapter implementing ITaxonomyRepository.
+ * Firestore path: notionTaxonomyNodes/{nodeId}
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import type { TaxonomyNode } from "../../../subdomains/taxonomy/domain/entities/TaxonomyNode";
+import type { ITaxonomyRepository } from "../../../subdomains/taxonomy/domain/repositories/ITaxonomyRepository";
+
+function collectionPath(): string {
+  return "notionTaxonomyNodes";
+}
+
+function docPath(nodeId: string): string {
+  return `notionTaxonomyNodes/${nodeId}`;
+}
+
+function toTaxonomyNode(nodeId: string, data: Record<string, unknown>): TaxonomyNode {
+  const rawPath = data.path;
+  const path: readonly string[] =
+    Array.isArray(rawPath) && rawPath.every((s) => typeof s === "string")
+      ? (rawPath as string[])
+      : [nodeId];
+
+  return {
+    nodeId,
+    label: typeof data.label === "string" ? data.label : "",
+    parentNodeId: typeof data.parentNodeId === "string" ? data.parentNodeId : null,
+    path,
+    depth: typeof data.depth === "number" ? data.depth : 0,
+    organizationId: typeof data.organizationId === "string" ? data.organizationId : "",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseTaxonomyRepository implements ITaxonomyRepository {
+  async findById(nodeId: string): Promise<TaxonomyNode | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(docPath(nodeId));
+    if (!data) return null;
+    return toTaxonomyNode(nodeId, data);
+  }
+
+  async listRoots(organizationId: string): Promise<readonly TaxonomyNode[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      collectionPath(),
+      [
+        { field: "organizationId", op: "==", value: organizationId },
+        { field: "depth", op: "==", value: 0 },
+      ],
+      { orderBy: [{ field: "createdAtISO", direction: "asc" }] },
+    );
+    return docs.map((d) => toTaxonomyNode(d.id, d.data));
+  }
+
+  async listChildren(parentNodeId: string): Promise<readonly TaxonomyNode[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      collectionPath(),
+      [{ field: "parentNodeId", op: "==", value: parentNodeId }],
+      { orderBy: [{ field: "createdAtISO", direction: "asc" }] },
+    );
+    return docs.map((d) => toTaxonomyNode(d.id, d.data));
+  }
+
+  async save(node: TaxonomyNode): Promise<void> {
+    await firestoreInfrastructureApi.set(docPath(node.nodeId), {
+      nodeId: node.nodeId,
+      label: node.label,
+      parentNodeId: node.parentNodeId ?? null,
+      path: [...node.path],
+      depth: node.depth,
+      organizationId: node.organizationId,
+      workspaceId: node.workspaceId ?? null,
+      createdAtISO: node.createdAtISO,
+      updatedAtISO: node.updatedAtISO,
+    });
+  }
+
+  async remove(nodeId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(docPath(nodeId));
+  }
+}
+````
+
+## File: modules/notion/infrastructure/taxonomy/firebase/index.ts
+````typescript
+export { FirebaseTaxonomyRepository } from "./FirebaseTaxonomyRepository";
+````
+
+## File: modules/notion/infrastructure/taxonomy/index.ts
+````typescript
+export { FirebaseTaxonomyRepository } from "./firebase/FirebaseTaxonomyRepository";
+````
+
 ## File: modules/notion/interfaces/authoring/_actions/index.ts
 ````typescript
 // TODO: export server actions: createArticle, updateArticle, publishArticle, archiveArticle
@@ -7183,6 +7332,59 @@ export function makeCategoryRepo() {
 }
 ````
 
+## File: modules/notion/interfaces/authoring/composition/use-cases.ts
+````typescript
+import {
+  CreateArticleUseCase,
+  UpdateArticleUseCase,
+  ArchiveArticleUseCase,
+  DeleteArticleUseCase,
+  PublishArticleUseCase,
+  VerifyArticleUseCase,
+  RequestArticleReviewUseCase,
+  CreateCategoryUseCase,
+  RenameCategoryUseCase,
+  MoveCategoryUseCase,
+  DeleteCategoryUseCase,
+} from "../../../subdomains/authoring/application/use-cases";
+import type { IArticleRepository } from "../../../subdomains/authoring/domain/repositories/IArticleRepository";
+import type { ICategoryRepository } from "../../../subdomains/authoring/domain/repositories/ICategoryRepository";
+import { makeArticleRepo, makeCategoryRepo } from "./repositories";
+
+export interface AuthoringUseCases {
+  readonly createArticle: CreateArticleUseCase;
+  readonly updateArticle: UpdateArticleUseCase;
+  readonly archiveArticle: ArchiveArticleUseCase;
+  readonly deleteArticle: DeleteArticleUseCase;
+  readonly publishArticle: PublishArticleUseCase;
+  readonly verifyArticle: VerifyArticleUseCase;
+  readonly requestArticleReview: RequestArticleReviewUseCase;
+  readonly createCategory: CreateCategoryUseCase;
+  readonly renameCategory: RenameCategoryUseCase;
+  readonly moveCategory: MoveCategoryUseCase;
+  readonly deleteCategory: DeleteCategoryUseCase;
+}
+
+export function makeAuthoringUseCases(
+  articleRepo: IArticleRepository = makeArticleRepo(),
+  categoryRepo: ICategoryRepository = makeCategoryRepo(),
+): AuthoringUseCases {
+  return {
+    createArticle: new CreateArticleUseCase(articleRepo),
+    updateArticle: new UpdateArticleUseCase(articleRepo),
+    archiveArticle: new ArchiveArticleUseCase(articleRepo),
+    deleteArticle: new DeleteArticleUseCase(articleRepo),
+    publishArticle: new PublishArticleUseCase(articleRepo),
+    verifyArticle: new VerifyArticleUseCase(articleRepo),
+    requestArticleReview: new RequestArticleReviewUseCase(articleRepo),
+    createCategory: new CreateCategoryUseCase(categoryRepo),
+    renameCategory: new RenameCategoryUseCase(categoryRepo),
+    moveCategory: new MoveCategoryUseCase(categoryRepo),
+    deleteCategory: new DeleteCategoryUseCase(categoryRepo),
+  };
+}
+````
+
 ## File: modules/notion/interfaces/authoring/store/index.ts
 ````typescript
 // TODO: export useArticleEditorStore
@@ -7472,6 +7674,55 @@ export function makePermissionRepo() {
 }
 ````
 
+## File: modules/notion/interfaces/collaboration/composition/use-cases.ts
+````typescript
+import {
+  CreateCommentUseCase,
+  UpdateCommentUseCase,
+  ResolveCommentUseCase,
+  DeleteCommentUseCase,
+  ListCommentsUseCase,
+  CreateVersionUseCase,
+  DeleteVersionUseCase,
+  GrantPermissionUseCase,
+  RevokePermissionUseCase,
+} from "../../../subdomains/collaboration/application/use-cases";
+import type { ICommentRepository } from "../../../subdomains/collaboration/domain/repositories/ICommentRepository";
+import type { IVersionRepository } from "../../../subdomains/collaboration/domain/repositories/IVersionRepository";
+import type { IPermissionRepository } from "../../../subdomains/collaboration/domain/repositories/IPermissionRepository";
+import { makeCommentRepo, makeVersionRepo, makePermissionRepo } from "./repositories";
+
+export interface CollaborationUseCases {
+  readonly createComment: CreateCommentUseCase;
+  readonly updateComment: UpdateCommentUseCase;
+  readonly resolveComment: ResolveCommentUseCase;
+  readonly deleteComment: DeleteCommentUseCase;
+  readonly listComments: ListCommentsUseCase;
+  readonly createVersion: CreateVersionUseCase;
+  readonly deleteVersion: DeleteVersionUseCase;
+  readonly grantPermission: GrantPermissionUseCase;
+  readonly revokePermission: RevokePermissionUseCase;
+}
+
+export function makeCollaborationUseCases(
+  commentRepo: ICommentRepository = makeCommentRepo(),
+  versionRepo: IVersionRepository = makeVersionRepo(),
+  permissionRepo: IPermissionRepository = makePermissionRepo(),
+): CollaborationUseCases {
+  return {
+    createComment: new CreateCommentUseCase(commentRepo),
+    updateComment: new UpdateCommentUseCase(commentRepo),
+    resolveComment: new ResolveCommentUseCase(commentRepo),
+    deleteComment: new DeleteCommentUseCase(commentRepo),
+    listComments: new ListCommentsUseCase(commentRepo),
+    createVersion: new CreateVersionUseCase(versionRepo),
+    deleteVersion: new DeleteVersionUseCase(versionRepo),
+    grantPermission: new GrantPermissionUseCase(permissionRepo),
+    revokePermission: new RevokePermissionUseCase(permissionRepo),
+  };
+}
+````
+
 ## File: modules/notion/interfaces/collaboration/store/index.ts
 ````typescript
 // TODO: export useCommentStore, usePermissionStore
@@ -7724,6 +7975,84 @@ export function makeViewRepo() {
 
 export function makeAutomationRepo() {
   return new FirebaseAutomationRepository();
+}
+````
+
+## File: modules/notion/interfaces/database/composition/use-cases.ts
+````typescript
+import {
+  CreateDatabaseUseCase,
+  UpdateDatabaseUseCase,
+  AddFieldUseCase,
+  ArchiveDatabaseUseCase,
+  GetDatabaseUseCase,
+  ListDatabasesUseCase,
+  CreateRecordUseCase,
+  UpdateRecordUseCase,
+  DeleteRecordUseCase,
+  ListRecordsUseCase,
+  CreateViewUseCase,
+  UpdateViewUseCase,
+  DeleteViewUseCase,
+  ListViewsUseCase,
+  CreateAutomationUseCase,
+  UpdateAutomationUseCase,
+  DeleteAutomationUseCase,
+  ListAutomationsUseCase,
+} from "../../../subdomains/database/application/use-cases";
+import type { IDatabaseRepository } from "../../../subdomains/database/domain/repositories/IDatabaseRepository";
+import type { IDatabaseRecordRepository } from "../../../subdomains/database/domain/repositories/IDatabaseRecordRepository";
+import type { IViewRepository } from "../../../subdomains/database/domain/repositories/IViewRepository";
+import type { IAutomationRepository } from "../../../subdomains/database/domain/repositories/IAutomationRepository";
+import { makeDatabaseRepo, makeRecordRepo, makeViewRepo, makeAutomationRepo } from "./repositories";
+
+export interface DatabaseUseCases {
+  readonly createDatabase: CreateDatabaseUseCase;
+  readonly updateDatabase: UpdateDatabaseUseCase;
+  readonly addField: AddFieldUseCase;
+  readonly archiveDatabase: ArchiveDatabaseUseCase;
+  readonly getDatabase: GetDatabaseUseCase;
+  readonly listDatabases: ListDatabasesUseCase;
+  readonly createRecord: CreateRecordUseCase;
+  readonly updateRecord: UpdateRecordUseCase;
+  readonly deleteRecord: DeleteRecordUseCase;
+  readonly listRecords: ListRecordsUseCase;
+  readonly createView: CreateViewUseCase;
+  readonly updateView: UpdateViewUseCase;
+  readonly deleteView: DeleteViewUseCase;
+  readonly listViews: ListViewsUseCase;
+  readonly createAutomation: CreateAutomationUseCase;
+  readonly updateAutomation: UpdateAutomationUseCase;
+  readonly deleteAutomation: DeleteAutomationUseCase;
+  readonly listAutomations: ListAutomationsUseCase;
+}
+
+export function makeDatabaseUseCases(
+  databaseRepo: IDatabaseRepository = makeDatabaseRepo(),
+  recordRepo: IDatabaseRecordRepository = makeRecordRepo(),
+  viewRepo: IViewRepository = makeViewRepo(),
+  automationRepo: IAutomationRepository = makeAutomationRepo(),
+): DatabaseUseCases {
+  return {
+    createDatabase: new CreateDatabaseUseCase(databaseRepo),
+    updateDatabase: new UpdateDatabaseUseCase(databaseRepo),
+    addField: new AddFieldUseCase(databaseRepo),
+    archiveDatabase: new ArchiveDatabaseUseCase(databaseRepo),
+    getDatabase: new GetDatabaseUseCase(databaseRepo),
+    listDatabases: new ListDatabasesUseCase(databaseRepo),
+    createRecord: new CreateRecordUseCase(recordRepo),
+    updateRecord: new UpdateRecordUseCase(recordRepo),
+    deleteRecord: new DeleteRecordUseCase(recordRepo),
+    listRecords: new ListRecordsUseCase(recordRepo),
+    createView: new CreateViewUseCase(viewRepo),
+    updateView: new UpdateViewUseCase(viewRepo),
+    deleteView: new DeleteViewUseCase(viewRepo),
+    listViews: new ListViewsUseCase(viewRepo),
+    createAutomation: new CreateAutomationUseCase(automationRepo),
+    updateAutomation: new UpdateAutomationUseCase(automationRepo),
+    deleteAutomation: new DeleteAutomationUseCase(automationRepo),
+    listAutomations: new ListAutomationsUseCase(automationRepo),
+  };
 }
 ````
 
@@ -8300,6 +8629,95 @@ export function makeCollectionRepo() {
 }
 ````
 
+## File: modules/notion/interfaces/knowledge/composition/use-cases.ts
+````typescript
+import {
+  CreateKnowledgePageUseCase,
+  RenameKnowledgePageUseCase,
+  MoveKnowledgePageUseCase,
+  ArchiveKnowledgePageUseCase,
+  ReorderKnowledgePageBlocksUseCase,
+  VerifyKnowledgePageUseCase,
+  ApproveKnowledgePageUseCase,
+  RequestPageReviewUseCase,
+  AssignPageOwnerUseCase,
+  UpdatePageIconUseCase,
+  UpdatePageCoverUseCase,
+  CreateKnowledgeCollectionUseCase,
+  RenameKnowledgeCollectionUseCase,
+  AddPageToCollectionUseCase,
+  RemovePageFromCollectionUseCase,
+  ArchiveKnowledgeCollectionUseCase,
+} from "../../../subdomains/knowledge/application/use-cases";
+import type { IKnowledgePageRepository } from "../../../subdomains/knowledge/domain/repositories/IKnowledgePageRepository";
+import type { IKnowledgeCollectionRepository } from "../../../subdomains/knowledge/domain/repositories/IKnowledgeCollectionRepository";
+import type { IEventStoreRepository, IEventBusRepository } from "@shared-events";
+import { makePageRepo, makeCollectionRepo } from "./repositories";
+
+/** Stub event store — persists nothing. Replace with a real impl once infrastructure is wired. */
+function makeEventStore(): IEventStoreRepository {
+  return {
+    save: async () => {},
+    findById: async () => null,
+    findByAggregate: async () => [],
+    findUndispatched: async () => [],
+    markDispatched: async () => {},
+  };
+}
+
+/** Stub event bus — publishes nothing. Replace with QStash/Firestore publish once infrastructure is wired. */
+function makeEventBus(): IEventBusRepository {
+  return {
+    publish: async () => {},
+  };
+}
+
+export interface KnowledgeUseCases {
+  readonly createKnowledgePage: CreateKnowledgePageUseCase;
+  readonly renameKnowledgePage: RenameKnowledgePageUseCase;
+  readonly moveKnowledgePage: MoveKnowledgePageUseCase;
+  readonly archiveKnowledgePage: ArchiveKnowledgePageUseCase;
+  readonly reorderKnowledgePageBlocks: ReorderKnowledgePageBlocksUseCase;
+  readonly verifyKnowledgePage: VerifyKnowledgePageUseCase;
+  readonly approveKnowledgePage: ApproveKnowledgePageUseCase;
+  readonly requestPageReview: RequestPageReviewUseCase;
+  readonly assignPageOwner: AssignPageOwnerUseCase;
+  readonly updatePageIcon: UpdatePageIconUseCase;
+  readonly updatePageCover: UpdatePageCoverUseCase;
+  readonly createKnowledgeCollection: CreateKnowledgeCollectionUseCase;
+  readonly renameKnowledgeCollection: RenameKnowledgeCollectionUseCase;
+  readonly addPageToCollection: AddPageToCollectionUseCase;
+  readonly removePageFromCollection: RemovePageFromCollectionUseCase;
+  readonly archiveKnowledgeCollection: ArchiveKnowledgeCollectionUseCase;
+}
+
+export function makeKnowledgeUseCases(
+  pageRepo: IKnowledgePageRepository = makePageRepo(),
+  collectionRepo: IKnowledgeCollectionRepository = makeCollectionRepo(),
+  eventStore: IEventStoreRepository = makeEventStore(),
+  eventBus: IEventBusRepository = makeEventBus(),
+): KnowledgeUseCases {
+  return {
+    createKnowledgePage: new CreateKnowledgePageUseCase(pageRepo),
+    renameKnowledgePage: new RenameKnowledgePageUseCase(pageRepo),
+    moveKnowledgePage: new MoveKnowledgePageUseCase(pageRepo),
+    archiveKnowledgePage: new ArchiveKnowledgePageUseCase(pageRepo),
+    reorderKnowledgePageBlocks: new ReorderKnowledgePageBlocksUseCase(pageRepo),
+    verifyKnowledgePage: new VerifyKnowledgePageUseCase(pageRepo),
+    approveKnowledgePage: new ApproveKnowledgePageUseCase(pageRepo, eventStore, eventBus),
+    requestPageReview: new RequestPageReviewUseCase(pageRepo),
+    assignPageOwner: new AssignPageOwnerUseCase(pageRepo),
+    updatePageIcon: new UpdatePageIconUseCase(pageRepo),
+    updatePageCover: new UpdatePageCoverUseCase(pageRepo),
+    createKnowledgeCollection: new CreateKnowledgeCollectionUseCase(collectionRepo),
+    renameKnowledgeCollection: new RenameKnowledgeCollectionUseCase(collectionRepo),
+    addPageToCollection: new AddPageToCollectionUseCase(collectionRepo),
+    removePageFromCollection: new RemovePageFromCollectionUseCase(collectionRepo),
+    archiveKnowledgeCollection: new ArchiveKnowledgeCollectionUseCase(collectionRepo),
+  };
+}
+````
+
 ## File: modules/notion/interfaces/knowledge/store/block-editor.store.ts
 ````typescript
 /**
@@ -8414,6 +8832,43 @@ export const useBlockEditorStore = create<BlockEditorState>((set, get) => ({
 
 ````
 
+## File: modules/notion/interfaces/relations/composition/repositories.ts
+````typescript
+import { FirebaseRelationRepository } from "../../../infrastructure/relations/firebase/FirebaseRelationRepository";
+
+export function makeRelationRepo() {
+  return new FirebaseRelationRepository();
+}
+````
+
+## File: modules/notion/interfaces/relations/composition/use-cases.ts
+````typescript
+import {
+  CreateRelationUseCase,
+  ListRelationsBySourceUseCase,
+  ListRelationsByTargetUseCase,
+  RemoveRelationUseCase,
+} from "../../../subdomains/relations/application/use-cases/RelationUseCases";
+import type { IRelationRepository } from "../../../subdomains/relations/domain/repositories/IRelationRepository";
+import { makeRelationRepo } from "./repositories";
+
+export interface RelationUseCases {
+  readonly createRelation: CreateRelationUseCase;
+  readonly removeRelation: RemoveRelationUseCase;
+  readonly listRelationsBySource: ListRelationsBySourceUseCase;
+  readonly listRelationsByTarget: ListRelationsByTargetUseCase;
+}
+
+export function makeRelationUseCases(repo: IRelationRepository = makeRelationRepo()): RelationUseCases {
+  return {
+    createRelation: new CreateRelationUseCase(repo),
+    removeRelation: new RemoveRelationUseCase(repo),
+    listRelationsBySource: new ListRelationsBySourceUseCase(repo),
+    listRelationsByTarget: new ListRelationsByTargetUseCase(repo),
+  };
+}
+````
+
 ## File: modules/notion/interfaces/relations/queries/.gitkeep
 ````
 
@@ -8432,6 +8887,45 @@ export const useBlockEditorStore = create<BlockEditorState>((set, get) => ({
 ## File: modules/notion/interfaces/taxonomy/components/.gitkeep
 ````
 
+````
+
+## File: modules/notion/interfaces/taxonomy/composition/repositories.ts
+````typescript
+import { FirebaseTaxonomyRepository } from "../../../infrastructure/taxonomy/firebase/FirebaseTaxonomyRepository";
+
+export function makeTaxonomyRepo() {
+  return new FirebaseTaxonomyRepository();
+}
+````
+
+## File: modules/notion/interfaces/taxonomy/composition/use-cases.ts
+````typescript
+import {
+  CreateTaxonomyNodeUseCase,
+  ListTaxonomyChildrenUseCase,
+  ListTaxonomyRootsUseCase,
+  RemoveTaxonomyNodeUseCase,
+} from "../../../subdomains/taxonomy/application/use-cases/TaxonomyUseCases";
+import type { ITaxonomyRepository } from "../../../subdomains/taxonomy/domain/repositories/ITaxonomyRepository";
+import { makeTaxonomyRepo } from "./repositories";
+
+export interface TaxonomyUseCases {
+  readonly createTaxonomyNode: CreateTaxonomyNodeUseCase;
+  readonly removeTaxonomyNode: RemoveTaxonomyNodeUseCase;
+  readonly listTaxonomyRoots: ListTaxonomyRootsUseCase;
+  readonly listTaxonomyChildren: ListTaxonomyChildrenUseCase;
+}
+
+export function makeTaxonomyUseCases(
+  repo: ITaxonomyRepository = makeTaxonomyRepo(),
+): TaxonomyUseCases {
+  return {
+    createTaxonomyNode: new CreateTaxonomyNodeUseCase(repo),
+    removeTaxonomyNode: new RemoveTaxonomyNodeUseCase(repo),
+    listTaxonomyRoots: new ListTaxonomyRootsUseCase(repo),
+    listTaxonomyChildren: new ListTaxonomyChildrenUseCase(repo),
+  };
+}
 ````
 
 ## File: modules/notion/interfaces/taxonomy/queries/.gitkeep
@@ -8576,6 +9070,22 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
+## File: modules/notion/subdomains/authoring/api/server.ts
+````typescript
+/**
+ * authoring subdomain — server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
+
+export { FirebaseArticleRepository } from "../../../infrastructure/authoring/firebase/FirebaseArticleRepository";
+export { FirebaseCategoryRepository } from "../../../infrastructure/authoring/firebase/FirebaseCategoryRepository";
+export { makeArticleRepo, makeCategoryRepo } from "../../../interfaces/authoring/composition/repositories";
+export type { AuthoringUseCases } from "../../../interfaces/authoring/composition/use-cases";
+export { makeAuthoringUseCases } from "../../../interfaces/authoring/composition/use-cases";
+````
+
 ## File: modules/notion/subdomains/authoring/README.md
 ````markdown
 # Authoring
@@ -8642,6 +9152,23 @@ export { getComments, getVersions, getPermissions, subscribeComments } from "../
 // UI components
 export { CommentPanel } from "../../../interfaces/collaboration/components/CommentPanel";
 export { VersionHistoryPanel } from "../../../interfaces/collaboration/components/VersionHistoryPanel";
+````
+
+## File: modules/notion/subdomains/collaboration/api/server.ts
+````typescript
+/**
+ * collaboration subdomain — server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
+
+export { FirebaseCommentRepository } from "../../../infrastructure/collaboration/firebase/FirebaseCommentRepository";
+export { FirebasePermissionRepository } from "../../../infrastructure/collaboration/firebase/FirebasePermissionRepository";
+export { FirebaseVersionRepository } from "../../../infrastructure/collaboration/firebase/FirebaseVersionRepository";
+export { makeCommentRepo, makeVersionRepo, makePermissionRepo } from "../../../interfaces/collaboration/composition/repositories";
+export type { CollaborationUseCases } from "../../../interfaces/collaboration/composition/use-cases";
+export { makeCollaborationUseCases } from "../../../interfaces/collaboration/composition/use-cases";
 ````
 
 ## File: modules/notion/subdomains/collaboration/domain/events/CollaborationEvents.ts
@@ -8728,6 +9255,26 @@ export type {
 } from "./CollaborationEvents";
 ````
 
+## File: modules/notion/subdomains/collaboration/domain/services/index.ts
+````typescript
+/**
+ * Domain services for the collaboration subdomain.
+ * Deferred: PermissionResolutionService and VersionRetentionService
+ * will be defined when permission and versioning use cases are scoped.
+ */
+export {};
+````
+
+## File: modules/notion/subdomains/collaboration/domain/value-objects/index.ts
+````typescript
+/**
+ * Value objects for the collaboration subdomain.
+ * Deferred: CommentId, PermissionId, VersionId, ContentId, PermissionLevel
+ * will be defined when collaboration use cases are scoped.
+ */
+export {};
+````
+
 ## File: modules/notion/subdomains/collaboration/README.md
 ````markdown
 # Collaboration
@@ -8759,6 +9306,24 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/subdomains/database/api/server.ts
+````typescript
+/**
+ * database subdomain — server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
+
+export { FirebaseDatabaseRepository } from "../../../infrastructure/database/firebase/FirebaseDatabaseRepository";
+export { FirebaseDatabaseRecordRepository } from "../../../infrastructure/database/firebase/FirebaseDatabaseRecordRepository";
+export { FirebaseViewRepository } from "../../../infrastructure/database/firebase/FirebaseViewRepository";
+export { FirebaseAutomationRepository } from "../../../infrastructure/database/firebase/FirebaseAutomationRepository";
+export { makeDatabaseRepo, makeRecordRepo, makeViewRepo, makeAutomationRepo } from "../../../interfaces/database/composition/repositories";
+export type { DatabaseUseCases } from "../../../interfaces/database/composition/use-cases";
+export { makeDatabaseUseCases } from "../../../interfaces/database/composition/use-cases";
 ````
 
 ## File: modules/notion/subdomains/database/domain/events/DatabaseEvents.ts
@@ -8873,6 +9438,26 @@ export type {
 } from "./DatabaseEvents";
 ````
 
+## File: modules/notion/subdomains/database/domain/services/index.ts
+````typescript
+/**
+ * Domain services for the database subdomain.
+ * Deferred: DatabaseQueryService, FormulaEvaluationService, RollupComputationService
+ * will be defined when filter/sort/formula use cases are scoped.
+ */
+export {};
+````
+
+## File: modules/notion/subdomains/database/domain/value-objects/index.ts
+````typescript
+/**
+ * Value objects for the database subdomain.
+ * Deferred: DatabaseId, RecordId, ViewId, FieldId, FieldType, ViewType, FieldValue
+ * will be defined when database record and view use cases are scoped.
+ */
+export {};
+````
+
 ## File: modules/notion/subdomains/database/README.md
 ````markdown
 # Database
@@ -8904,6 +9489,24 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/subdomains/knowledge/api/server.ts
+````typescript
+/**
+ * knowledge subdomain — server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
+
+export { FirebaseKnowledgePageRepository } from "../../../infrastructure/knowledge/firebase/FirebaseKnowledgePageRepository";
+export { FirebaseContentBlockRepository } from "../../../infrastructure/knowledge/firebase/FirebaseContentBlockRepository";
+export { FirebaseKnowledgeCollectionRepository } from "../../../infrastructure/knowledge/firebase/FirebaseKnowledgeCollectionRepository";
+export { FirebaseBacklinkIndexRepository } from "../../../infrastructure/knowledge/firebase/FirebaseBacklinkIndexRepository";
+export { makePageRepo, makeBlockRepo, makeCollectionRepo } from "../../../interfaces/knowledge/composition/repositories";
+export type { KnowledgeUseCases } from "../../../interfaces/knowledge/composition/use-cases";
+export { makeKnowledgeUseCases } from "../../../interfaces/knowledge/composition/use-cases";
 ````
 
 ## File: modules/notion/subdomains/knowledge/README.md
@@ -8939,46 +9542,19 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notion/subdomains/relations/api/index.ts
+## File: modules/notion/subdomains/relations/api/server.ts
 ````typescript
 /**
- * Public API boundary for the relations subdomain.
- * Cross-module consumers must import through this entry point.
+ * relations subdomain - server-only API.
  *
- * Status: Tier 2 Recommended Gap Subdomain
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
  */
 
-// ── Domain types ──────────────────────────────────────────────────────────────
-export type {
-  RelationDirection,
-  Relation,
-  CreateRelationInput,
-} from "../domain/entities/Relation";
-
-// ── Repository contracts ───────────────────────────────────────────────────────
-export type {
-  IRelationRepository,
-} from "../domain/repositories/IRelationRepository";
-
-// ── Domain events ─────────────────────────────────────────────────────────────
-export type {
-  RelationCreatedEvent,
-  RelationRemovedEvent,
-} from "../domain/events/RelationEvents";
-
-// ── Application DTOs ──────────────────────────────────────────────────────────
-export type {
-  CreateRelationDto,
-  RelationDto,
-} from "../application/dto/RelationDto";
-
-// ── Use cases ─────────────────────────────────────────────────────────────────
-export {
-  CreateRelationUseCase,
-  RemoveRelationUseCase,
-  ListRelationsBySourceUseCase,
-  ListRelationsByTargetUseCase,
-} from "../application/use-cases/RelationUseCases";
+export { FirebaseRelationRepository } from "../../../infrastructure/relations/firebase/FirebaseRelationRepository";
+export { makeRelationRepo } from "../../../interfaces/relations/composition/repositories";
+export type { RelationUseCases } from "../../../interfaces/relations/composition/use-cases";
+export { makeRelationUseCases } from "../../../interfaces/relations/composition/use-cases";
 ````
 
 ## File: modules/notion/subdomains/relations/application/dto/RelationDto.ts
@@ -9076,39 +9652,6 @@ export class ListRelationsByTargetUseCase {
 }
 ````
 
-## File: modules/notion/subdomains/relations/README.md
-````markdown
-# Relations
-
-建立內容之間關聯與 backlink 的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Local public boundary for same bounded context access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, events, repositories, and business rules |
-
-> By default, `infrastructure/` and `interfaces/` live at the bounded-context root and are grouped by subdomain. Add local `infrastructure/` or `interfaces/` inside a subdomain only when the mini-module gate is explicitly justified.
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/notion/subdomains/taxonomy/api/index.ts
 ````typescript
 /**
@@ -9148,6 +9691,21 @@ export {
   ListTaxonomyRootsUseCase,
   ListTaxonomyChildrenUseCase,
 } from "../application/use-cases/TaxonomyUseCases";
+````
+
+## File: modules/notion/subdomains/taxonomy/api/server.ts
+````typescript
+/**
+ * taxonomy subdomain - server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
+
+export { FirebaseTaxonomyRepository } from "../../../infrastructure/taxonomy/firebase/FirebaseTaxonomyRepository";
+export { makeTaxonomyRepo } from "../../../interfaces/taxonomy/composition/repositories";
+export type { TaxonomyUseCases } from "../../../interfaces/taxonomy/composition/use-cases";
+export { makeTaxonomyUseCases } from "../../../interfaces/taxonomy/composition/use-cases";
 ````
 
 ## File: modules/notion/subdomains/taxonomy/application/dto/TaxonomyDto.ts
@@ -9261,39 +9819,6 @@ export class ListTaxonomyChildrenUseCase {
     return this.taxonomyRepo.listChildren(parentNodeId);
   }
 }
-````
-
-## File: modules/notion/subdomains/taxonomy/README.md
-````markdown
-# Taxonomy
-
-建立分類法與語義組織的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Local public boundary for same bounded context access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, events, repositories, and business rules |
-
-> By default, `infrastructure/` and `interfaces/` live at the bounded-context root and are grouped by subdomain. Add local `infrastructure/` or `interfaces/` inside a subdomain only when the mini-module gate is explicitly justified.
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notion/application/use-cases/index.ts
@@ -10713,6 +11238,112 @@ export {
   RemovePageFromCollectionUseCase,
   ArchiveKnowledgeCollectionUseCase,
 } from "./KnowledgeCollectionUseCases";
+````
+
+## File: modules/notion/subdomains/relations/api/index.ts
+````typescript
+/**
+ * Public API boundary for the relations subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Status: Tier 2 Recommended Gap Subdomain
+ */
+
+// ── Domain types ──────────────────────────────────────────────────────────────
+export type {
+  RelationDirection,
+  Relation,
+  CreateRelationInput,
+} from "../domain/entities/Relation";
+
+// ── Repository contracts ───────────────────────────────────────────────────────
+export type {
+  IRelationRepository,
+} from "../domain/repositories/IRelationRepository";
+
+// ── Domain events ─────────────────────────────────────────────────────────────
+export type {
+  RelationCreatedEvent,
+  RelationRemovedEvent,
+} from "../domain/events/RelationEvents";
+
+// ── Application DTOs ──────────────────────────────────────────────────────────
+export type {
+  CreateRelationDto,
+  RelationDto,
+} from "../application/dto/RelationDto";
+
+// ── Application contracts ─────────────────────────────────────────────────────
+export * from "../application";
+
+// Note: server-only composition and infrastructure adapters are exported from
+// `./server` to keep the default boundary runtime-safe.
+````
+
+## File: modules/notion/subdomains/relations/README.md
+````markdown
+# Relations
+
+建立內容之間關聯與 backlink 的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Recommended Gap
+- **Status**: Active — domain + application + infrastructure adapter + composition wired
+
+## Layers
+
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Local public boundary for same bounded context access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, events, repositories, and business rules |
+
+> By default, `infrastructure/` and `interfaces/` live at the bounded-context root and are grouped by subdomain. Add local `infrastructure/` or `interfaces/` inside a subdomain only when the mini-module gate is explicitly justified.
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/subdomains/taxonomy/README.md
+````markdown
+# Taxonomy
+
+建立分類法與語義組織的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Recommended Gap
+- **Status**: Active — domain + application + infrastructure adapter + composition wired
+
+## Layers
+
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Local public boundary for same bounded context access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, events, repositories, and business rules |
+
+> By default, `infrastructure/` and `interfaces/` live at the bounded-context root and are grouped by subdomain. Add local `infrastructure/` or `interfaces/` inside a subdomain only when the mini-module gate is explicitly justified.
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notion/interfaces/database/components/DatabaseAutomationPanel.tsx

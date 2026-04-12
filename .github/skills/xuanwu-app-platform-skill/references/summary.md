@@ -38,17 +38,17 @@ This skill contains the following reference files:
 
 ## Statistics
 
-598 files | 18,275 lines
+598 files | 18,280 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 538 | 15,277 |
+| TypeScript | 538 | 15,282 |
 | Markdown | 40 | 796 |
 | TypeScript (TSX) | 20 | 2,202 |
 
 **Largest files:**
 - `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)
-- `modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts` (329 lines)
+- `modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts` (334 lines)
 - `modules/platform/api/infrastructure-api.ts` (312 lines)
 - `modules/platform/subdomains/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts` (293 lines)
 - `modules/platform/subdomains/organization/interfaces/components/MembersPage.tsx` (227 lines)
