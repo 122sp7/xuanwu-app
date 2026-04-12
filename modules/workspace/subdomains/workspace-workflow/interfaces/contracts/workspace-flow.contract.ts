@@ -11,6 +11,7 @@ import type { Task } from "../../application/dto/workflow.dto";
 import type { Issue } from "../../application/dto/workflow.dto";
 import type { Invoice } from "../../application/dto/workflow.dto";
 import type { InvoiceItem } from "../../application/dto/workflow.dto";
+import type { TaskMaterializationBatchJob } from "../../application/dto/workflow.dto";
 
 // ── Summary read models (lean projections for UI) ─────────────────────────────
 
@@ -42,6 +43,17 @@ export interface InvoiceItemSummary {
   readonly invoiceId: string;
   readonly taskId: string;
   readonly amount: InvoiceItem["amount"];
+}
+
+export interface TaskMaterializationBatchJobSummary {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly status: TaskMaterializationBatchJob["status"];
+  readonly totalItems: number;
+  readonly processedItems: number;
+  readonly succeededItems: number;
+  readonly failedItems: number;
+  readonly updatedAtISO: string;
 }
 
 // ── Projection helpers ────────────────────────────────────────────────────────
@@ -81,6 +93,21 @@ export function toInvoiceItemSummary(item: InvoiceItem): InvoiceItemSummary {
     invoiceId: item.invoiceId,
     taskId: item.taskId,
     amount: item.amount,
+  };
+}
+
+export function toTaskMaterializationBatchJobSummary(
+  job: TaskMaterializationBatchJob,
+): TaskMaterializationBatchJobSummary {
+  return {
+    id: job.id,
+    workspaceId: job.workspaceId,
+    status: job.status,
+    totalItems: job.totalItems,
+    processedItems: job.processedItems,
+    succeededItems: job.succeededItems,
+    failedItems: job.failedItems,
+    updatedAtISO: job.updatedAtISO,
   };
 }
  

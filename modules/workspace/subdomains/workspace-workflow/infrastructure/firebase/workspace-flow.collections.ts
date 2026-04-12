@@ -18,4 +18,7 @@ export const WF_INVOICES_COLLECTION = "workspaceFlowInvoices" as const;
 
 /** Top-level Firestore collection for workspace-flow invoice items. */
 export const WF_INVOICE_ITEMS_COLLECTION = "workspaceFlowInvoiceItems" as const;
+
+/** Top-level Firestore collection for task materialization batch jobs. */
+export const WF_TASK_MATERIALIZATION_BATCH_JOBS_COLLECTION = "workspaceFlowTaskMaterializationBatchJobs" as const;
  

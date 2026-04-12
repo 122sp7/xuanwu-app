@@ -20,6 +20,7 @@ export { WorkspaceFlowFacade } from "./workspace-flow.facade";
 export { WorkspaceFlowTaskFacade } from "./workspace-flow-task.facade";
 export { WorkspaceFlowIssueFacade } from "./workspace-flow-issue.facade";
 export { WorkspaceFlowInvoiceFacade } from "./workspace-flow-invoice.facade";
+export { WorkspaceFlowTaskBatchJobFacade } from "./workspace-flow-task-batch-job.facade";
 
 // ── Public contracts ──────────────────────────────────────────────────────────
 
@@ -29,16 +30,19 @@ export type {
   Issue,
   Invoice,
   InvoiceItem,
+  TaskMaterializationBatchJob,
   // Value objects
   TaskStatus,
   IssueStatus,
   IssueStage,
   InvoiceStatus,
+  TaskMaterializationBatchJobStatus,
   // Summary projections
   TaskSummary,
   IssueSummary,
   InvoiceSummary,
   InvoiceItemSummary,
+  TaskMaterializationBatchJobSummary,
   // CRUD / command DTOs
   CreateTaskDto,
   UpdateTaskDto,
@@ -47,6 +51,7 @@ export type {
   AddInvoiceItemDto,
   UpdateInvoiceItemDto,
   RemoveInvoiceItemDto,
+  SubmitTaskMaterializationBatchJobDto,
   // Query / pagination DTOs
   TaskQueryDto,
   IssueQueryDto,
@@ -63,11 +68,13 @@ export {
   ISSUE_STATUSES,
   ISSUE_STAGES,
   INVOICE_STATUSES,
+  TASK_MATERIALIZATION_BATCH_JOB_STATUSES,
   // Summary projection helpers
   toTaskSummary,
   toIssueSummary,
   toInvoiceSummary,
   toInvoiceItemSummary,
+  toTaskMaterializationBatchJobSummary,
 } from "./contracts";
 
 // ── Read queries (server-side) ────────────────────────────────────────────────
@@ -78,6 +85,8 @@ export {
   getWorkspaceFlowIssues,
   getWorkspaceFlowInvoices,
   getWorkspaceFlowInvoiceItems,
+  getWorkspaceFlowTaskMaterializationBatchJobs,
+  getWorkspaceFlowTaskMaterializationBatchJob,
 } from "../interfaces/queries/workspace-flow.queries";
 
 // ── UI components ─────────────────────────────────────────────────────────────

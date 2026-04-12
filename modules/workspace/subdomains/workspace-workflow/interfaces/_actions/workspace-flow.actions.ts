@@ -21,6 +21,12 @@ export {
 } from "./workspace-flow-task.actions";
 
 export {
+  wfSubmitTaskMaterializationBatchJob,
+  wfGetTaskMaterializationBatchJob,
+  wfListTaskMaterializationBatchJobs,
+} from "./workspace-flow-task-batch-job.actions";
+
+export {
   wfOpenIssue,
   wfStartIssue,
   wfFixIssue,

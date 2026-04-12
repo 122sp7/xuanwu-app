@@ -69,6 +69,7 @@ export type {
 export {
   WorkspaceFlowFacade,
   WorkspaceFlowTaskFacade,
+  WorkspaceFlowTaskBatchJobFacade,
   WorkspaceFlowIssueFacade,
   WorkspaceFlowInvoiceFacade,
   getWorkspaceFlowTasks,
@@ -76,6 +77,8 @@ export {
   getWorkspaceFlowIssues,
   getWorkspaceFlowInvoices,
   getWorkspaceFlowInvoiceItems,
+  getWorkspaceFlowTaskMaterializationBatchJobs,
+  getWorkspaceFlowTaskMaterializationBatchJob,
   createKnowledgeToWorkflowListener,
 } from "../subdomains/workspace-workflow/api";
 

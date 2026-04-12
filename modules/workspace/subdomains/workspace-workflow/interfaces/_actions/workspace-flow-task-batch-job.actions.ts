@@ -1,0 +1,42 @@
+"use server";
+
+/**
+ * @module workspace-flow/interfaces/_actions
+ * @file workspace-flow-task-batch-job.actions.ts
+ * @description Server Actions for task materialization batch job operations.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { WorkspaceFlowTaskBatchJobFacade } from "../../api/workspace-flow-task-batch-job.facade";
+import { makeTaskMaterializationBatchJobRepo } from "../../api/factories";
+import type { SubmitTaskMaterializationBatchJobDto } from "../../application/dto/submit-task-materialization-batch-job.dto";
+import type { TaskMaterializationBatchJob } from "../../domain/entities/TaskMaterializationBatchJob";
+
+function makeFacade(): WorkspaceFlowTaskBatchJobFacade {
+  return new WorkspaceFlowTaskBatchJobFacade(makeTaskMaterializationBatchJobRepo());
+}
+
+export async function wfSubmitTaskMaterializationBatchJob(
+  dto: SubmitTaskMaterializationBatchJobDto,
+): Promise<CommandResult> {
+  try {
+    return await makeFacade().submitBatchJob(dto);
+  } catch (err) {
+    return commandFailureFrom(
+      "WF_BATCH_JOB_SUBMIT_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function wfGetTaskMaterializationBatchJob(
+  jobId: string,
+): Promise<TaskMaterializationBatchJob | null> {
+  return makeFacade().getBatchJob(jobId);
+}
+
+export async function wfListTaskMaterializationBatchJobs(
+  workspaceId: string,
+): Promise<TaskMaterializationBatchJob[]> {
+  return makeFacade().listBatchJobs(workspaceId);
+}

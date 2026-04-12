@@ -17,6 +17,7 @@ export type { Task } from "../domain/entities/Task";
 export type { Issue } from "../domain/entities/Issue";
 export type { Invoice } from "../domain/entities/Invoice";
 export type { InvoiceItem } from "../domain/entities/InvoiceItem";
+export type { TaskMaterializationBatchJob } from "../domain/entities/TaskMaterializationBatchJob";
 
 // ── Value objects (enum / list only — no transition helpers) ──────────────────
 
@@ -32,6 +33,11 @@ export { ISSUE_STAGES } from "../domain/value-objects/IssueStage";
 export type { InvoiceStatus } from "../domain/value-objects/InvoiceStatus";
 export { INVOICE_STATUSES } from "../domain/value-objects/InvoiceStatus";
 
+export type { TaskMaterializationBatchJobStatus } from "../domain/value-objects/TaskMaterializationBatchJobStatus";
+export {
+  TASK_MATERIALIZATION_BATCH_JOB_STATUSES,
+} from "../domain/value-objects/TaskMaterializationBatchJobStatus";
+
 // ── Source reference (content → workspace-flow provenance) ────────────────────
 
 export type { SourceReference, SourceReferenceType } from "../domain/value-objects/SourceReference";
@@ -43,6 +49,7 @@ export type {
   IssueSummary,
   InvoiceSummary,
   InvoiceItemSummary,
+  TaskMaterializationBatchJobSummary,
 } from "../interfaces/contracts/workspace-flow.contract";
 
 export {
@@ -50,6 +57,7 @@ export {
   toIssueSummary,
   toInvoiceSummary,
   toInvoiceItemSummary,
+  toTaskMaterializationBatchJobSummary,
 } from "../interfaces/contracts/workspace-flow.contract";
 
 // ── CRUD / command DTOs ───────────────────────────────────────────────────────
@@ -63,6 +71,9 @@ export type { ResolveIssueDto } from "../application/dto/resolve-issue.dto";
 export type { AddInvoiceItemDto } from "../application/dto/add-invoice-item.dto";
 export type { UpdateInvoiceItemDto } from "../application/dto/update-invoice-item.dto";
 export type { RemoveInvoiceItemDto } from "../application/dto/remove-invoice-item.dto";
+export type {
+  SubmitTaskMaterializationBatchJobDto,
+} from "../application/dto/submit-task-materialization-batch-job.dto";
 
 // ── Query / pagination DTOs ───────────────────────────────────────────────────
 
