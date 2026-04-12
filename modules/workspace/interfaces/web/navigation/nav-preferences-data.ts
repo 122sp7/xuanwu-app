@@ -107,7 +107,17 @@ const WORKFLOW_PIN_MIGRATION_IDS = [
  */
 const NOTION_NOTEBOOKLM_PIN_MIGRATION_IDS = [
   "knowledge",
+  "notion-knowledge",
+  "notion-authoring",
+  "notion-database",
+  "notion-collaboration",
+  "notion-relations",
+  "notion-taxonomy",
   "notebook",
+  "notebook-conversation",
+  "notebook-notebook",
+  "notebook-source",
+  "notebook-synthesis",
   "ai-chat",
 ] as const;
 

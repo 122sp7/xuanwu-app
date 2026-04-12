@@ -7,8 +7,8 @@
 
 import Link from "next/link";
 
-import { KnowledgeSidebarSection } from "@/modules/workspace/api";
 import {
+  WorkspaceKnowledgeSidebarSection,
   WorkspaceSectionContent,
   type NavPreferences,
   type SidebarLocaleBundle,
@@ -194,7 +194,7 @@ export function DashboardSidebarBody({
       )}
 
       {section === "knowledge" && (
-        <KnowledgeSidebarSection
+        <WorkspaceKnowledgeSidebarSection
           pathname={pathname}
           workspacesHydrated={workspacesHydrated}
           allWorkspaceLinks={allWorkspaceLinks}

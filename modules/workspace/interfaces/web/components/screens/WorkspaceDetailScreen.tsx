@@ -10,8 +10,6 @@ import {
 import { Badge } from "@ui-shadcn/ui/badge";
 import { useApp, useAuth } from "@/modules/platform/api";
 import {
-  ConversationPanel,
-  RagQueryPanel,
   WorkspaceAuditTab,
   WorkspaceFeedWorkspaceView,
   WorkspaceFilesTab,
@@ -39,6 +37,7 @@ import {
 } from "../../navigation/workspace-tabs";
 import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
 import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
+import { renderWorkspaceCrossModuleTabSurface } from "../tabs/WorkspaceCrossModuleTabSurface";
 import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
 import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
 import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
@@ -101,6 +100,17 @@ export function WorkspaceDetailScreen({
   function renderTabContent(tab: WorkspaceTabValue) {
     if (!workspace) return null;
 
+    const crossModuleTabContent = renderWorkspaceCrossModuleTabSurface({
+      tab,
+      workspace,
+      accountId: accountId ?? workspace.accountId,
+      currentUserId: authState.user?.id,
+      workspaces: wsState.workspaces ?? {},
+    });
+    if (crossModuleTabContent) {
+      return crossModuleTabContent;
+    }
+
     const flowSection: Record<string, "tasks" | "qa" | "acceptance" | "issues" | "invoices"> = {
       Tasks: "tasks", TaskQa: "qa", TaskAcceptance: "acceptance",
       TaskIssues: "issues", TaskFinance: "invoices",
@@ -161,16 +171,6 @@ export function WorkspaceDetailScreen({
             accountId={accountId ?? workspace.accountId}
             workspaceId={workspace.id}
             workspaceName={workspace.name}
-          />
-        );
-      case "Notebook":
-        return <RagQueryPanel workspaceId={workspace.id} />;
-      case "AiChat":
-        return (
-          <ConversationPanel
-            accountId={accountId ?? workspace.accountId}
-            workspaces={wsState.workspaces ?? {}}
-            requestedWorkspaceId={workspace.id}
           />
         );
       default:

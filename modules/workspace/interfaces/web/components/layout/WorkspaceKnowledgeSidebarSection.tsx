@@ -10,7 +10,7 @@ interface WorkspaceLinkItem {
   href: string;
 }
 
-interface KnowledgeSidebarSectionProps {
+interface WorkspaceKnowledgeSidebarSectionProps {
   readonly pathname: string;
   readonly workspacesHydrated: boolean;
   readonly allWorkspaceLinks: WorkspaceLinkItem[];
@@ -41,7 +41,7 @@ function withContextQuery(href: string, accountId: string | null, workspaceId: s
   return query.length > 0 ? `${path}?${query}` : path;
 }
 
-export function KnowledgeSidebarSection({
+export function WorkspaceKnowledgeSidebarSection({
   pathname,
   workspacesHydrated,
   allWorkspaceLinks,
@@ -50,7 +50,7 @@ export function KnowledgeSidebarSection({
   creatingKind,
   onSelectWorkspace,
   onQuickCreatePage,
-}: KnowledgeSidebarSectionProps) {
+}: WorkspaceKnowledgeSidebarSectionProps) {
   const [isKnowledgeWorkspacesExpanded, setIsKnowledgeWorkspacesExpanded] = useState(
     () => Boolean(activeWorkspaceId),
   );

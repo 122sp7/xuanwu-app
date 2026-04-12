@@ -27,6 +27,7 @@ export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/Workspace
 // ── Layout components ────────────────────────────────────────────────────────
 
 export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
+export { WorkspaceKnowledgeSidebarSection } from "../interfaces/web/components/layout/WorkspaceKnowledgeSidebarSection";
 export { WorkspaceQuickAccessRow } from "../interfaces/web/components/layout/WorkspaceQuickAccessRow";
 export { WorkspaceSectionContent } from "../interfaces/web/components/layout/WorkspaceSectionContent";
 
@@ -157,14 +158,17 @@ export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";
 // ── Orchestrated notion UI (workspace as composition owner) ──────────────────
 
 export { ArticleDetailPanel } from "@/modules/notion/api";
+export { KnowledgeBaseArticlesPanel } from "@/modules/notion/api";
 export { DatabaseDetailPanel } from "@/modules/notion/api";
 export { DatabaseFormsPanel } from "@/modules/notion/api";
+export { KnowledgeDatabasesPanel } from "@/modules/notion/api";
 export { KnowledgeDetailPanel } from "@/modules/notion/api";
-export { KnowledgeSidebarSection } from "@/modules/notion/api";
+export { KnowledgePagesPanel } from "@/modules/notion/api";
 
 // ── Orchestrated notebooklm UI (workspace as composition owner) ──────────────
 
 export { RagQueryPanel } from "@/modules/notebooklm/api";
 export { ConversationPanel } from "@/modules/notebooklm/api";
 export type { ConversationPanelProps } from "@/modules/notebooklm/api";
+export { SourceDocumentsPanel } from "@/modules/notebooklm/api";
 export { WorkspaceFilesTab } from "@/modules/notebooklm/api";
