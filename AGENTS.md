@@ -157,6 +157,9 @@ workspace
 
 notion
   └→ notebooklm       (knowledge artifact reference, attachment reference, taxonomy hint)
+
+notebooklm
+  └→ (none)            (terminal context in current strategic map)
 ```
 
 ### Published Language Token Glossary
