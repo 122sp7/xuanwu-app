@@ -24,7 +24,7 @@ import {
 } from "@ui-shadcn/ui/card";
 import { Textarea } from "@ui-shadcn/ui/textarea";
 
-import { runKnowledgeRagQuery, type KnowledgeCitation } from "@/modules/notebooklm/subdomains/source/api";
+import { runKnowledgeRagQuery, type KnowledgeCitation } from "@/modules/notebooklm/subdomains/synthesis/api";
 
 interface RagQueryViewProps {
   readonly workspaceId?: string;

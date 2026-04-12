@@ -29,34 +29,6 @@ export * from "../subdomains/collaboration/api";
 // Migration-Pending: full implementation from modules/knowledge-database/
 export * from "../subdomains/database/api";
 
-// ── notes subdomain ───────────────────────────────────────────────────────────
-// Stub — awaiting use case definition
-export * from "../subdomains/notes/api";
-
-// ── templates subdomain ───────────────────────────────────────────────────────
-// Stub — awaiting use case definition
-export * from "../subdomains/templates/api";
-
-// ── attachments subdomain ─────────────────────────────────────────────────────
-// Stub — awaiting use case definition
-export * from "../subdomains/attachments/api";
-
-// ── automation subdomain ──────────────────────────────────────────────────────
-// Stub — awaiting use case definition
-export * from "../subdomains/automation/api";
-
-// ── knowledge-analytics subdomain ─────────────────────────────────────────────
-// Stub — awaiting use case definition
-export * from "../subdomains/knowledge-analytics/api";
-
-// ── knowledge-integration subdomain ───────────────────────────────────────────
-// Stub — awaiting use case definition
-export * from "../subdomains/knowledge-integration/api";
-
-// ── knowledge-versioning subdomain ────────────────────────────────────────────
-// Stub — awaiting use case definition
-export * from "../subdomains/knowledge-versioning/api";
-
 // ── taxonomy subdomain ────────────────────────────────────────────────────────
 // Tier 2 — classification hierarchy and semantic organization
 export * from "../subdomains/taxonomy/api";
@@ -64,7 +36,3 @@ export * from "../subdomains/taxonomy/api";
 // ── relations subdomain ───────────────────────────────────────────────────────
 // Tier 2 — backlinks, forward links, and reference graphs
 export * from "../subdomains/relations/api";
-
-// ── publishing subdomain ──────────────────────────────────────────────────────
-// Stub — awaiting use case definition
-export * from "../subdomains/publishing/api";
