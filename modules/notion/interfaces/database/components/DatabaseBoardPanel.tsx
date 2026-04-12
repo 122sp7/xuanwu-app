@@ -128,7 +128,7 @@ export function DatabaseBoardPanel({ database, accountId, workspaceId, currentUs
             disabled={isPending}
             onClick={() => handleAdd(group)}
           >
-            <Plus className="mr-1 h-3 w-3" /> ?啣?
+            <Plus className="mr-1 h-3 w-3" /> Add record
           </Button>
         </div>
       ))}

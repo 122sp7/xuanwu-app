@@ -126,7 +126,7 @@ export function KnowledgeBaseArticlesPanel({
           onClick={() => router.push(overviewHref)}
           className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
         >
-          餈? Knowledge Hub
+          Back to Knowledge Hub
         </button>
         <Button
           size="sm"
@@ -135,7 +135,7 @@ export function KnowledgeBaseArticlesPanel({
           onClick={() => setDialogOpen(true)}
         >
           <Plus className="mr-1.5 h-3.5 w-3.5" />
-          ?啣???
+          New Article
         </Button>
       </div>
 
@@ -151,7 +151,7 @@ export function KnowledgeBaseArticlesPanel({
 
       {!resolvedAccountId || !resolvedWorkspaceId ? (
         <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          撠??撣唾?/撌乩????嚗???交???撣唾???
+          Account and workspace are required to load articles.
         </p>
       ) : loading ? (
         <div className="flex gap-4">

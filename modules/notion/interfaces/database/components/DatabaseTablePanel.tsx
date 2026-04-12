@@ -152,7 +152,7 @@ export function DatabaseTablePanel({ database, accountId, workspaceId, currentUs
   if (fields.length === 0) {
     return (
       <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
-        甇方??澈撠甈????憓?雿?
+        No fields yet. Add at least one field to start entering records.
       </p>
     );
   }
@@ -176,7 +176,7 @@ export function DatabaseTablePanel({ database, accountId, workspaceId, currentUs
             {records.length === 0 ? (
               <tr>
                 <td colSpan={fields.length + 1} className="px-3 py-6 text-center text-xs text-muted-foreground">
-                  撠閮?
+                  No records
                 </td>
               </tr>
             ) : (
@@ -217,7 +217,7 @@ export function DatabaseTablePanel({ database, accountId, workspaceId, currentUs
         </table>
       </div>
       <Button variant="outline" size="sm" disabled={isPending} onClick={handleAddRecord} className="w-full text-xs">
-        <Plus className="mr-1.5 h-3 w-3" /> ?啣?閮?
+        <Plus className="mr-1.5 h-3 w-3" /> Add record
       </Button>
     </div>
   );

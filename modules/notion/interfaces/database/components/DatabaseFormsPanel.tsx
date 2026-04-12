@@ -91,22 +91,22 @@ export function DatabaseFormsPanel({
         </Button>
         <div className="ml-auto">
           <Button size="sm" variant="outline" disabled>
-            <Plus className="mr-1.5 h-3.5 w-3.5" /> 撱箇??啗”??
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> Form builder coming soon
           </Button>
         </div>
       </div>
 
       <header className="space-y-1 border-b border-border/60 pb-4">
-        <h1 className="text-xl font-semibold">{database.name} ??銵典</h1>
+        <h1 className="text-xl font-semibold">{database.name} Forms</h1>
         <p className="text-sm text-muted-foreground">
-          雿輻銵典霈??其蝙?刻?鈭方??甇方??澈??
+          Preview and share forms for collecting structured input.
         </p>
       </header>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "preview" | "share")}>
         <TabsList>
-          <TabsTrigger value="preview">?汗銵典</TabsTrigger>
-          <TabsTrigger value="share">?澈閮剖?</TabsTrigger>
+          <TabsTrigger value="preview">Preview form</TabsTrigger>
+          <TabsTrigger value="share">Share link</TabsTrigger>
         </TabsList>
 
         <TabsContent value="preview" className="mt-4">
@@ -132,13 +132,13 @@ export function DatabaseFormsPanel({
                   type="button"
                   onClick={() => void navigator.clipboard.writeText(shareUrl)}
                   className="shrink-0 text-muted-foreground hover:text-foreground"
-                  title="銴ˊ???"
+                  title="Copy URL"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                 </button>
               </div>
               <p className="text-xs text-muted-foreground">
-                ?澈甇日??霈隞犖憛怠神銵典銝血?閮??湔摮鞈?摨怒?
+                Share this URL with users who need to submit records.
               </p>
             </div>
           </div>

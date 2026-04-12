@@ -110,7 +110,7 @@ export function DatabaseGalleryPanel({ database, accountId, workspaceId, current
         )}
       </div>
       <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="w-full text-xs">
-        <Plus className="mr-1.5 h-3 w-3" /> ?啣?閮?
+        <Plus className="mr-1.5 h-3 w-3" /> Add record
       </Button>
     </div>
   );

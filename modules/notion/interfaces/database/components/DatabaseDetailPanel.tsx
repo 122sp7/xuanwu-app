@@ -203,13 +203,13 @@ export function DatabaseDetailPanel({
             onClick={() => router.push(formsHref)}
             disabled={isPending}
           >
-            <FileText className="mr-1.5 h-3.5 w-3.5" /> 銵典
+            <FileText className="mr-1.5 h-3.5 w-3.5" /> Forms
           </Button>
           <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
-            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> ?啣?甈?
+            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> Add field
           </Button>
           <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
-            <Archive className="mr-1.5 h-3.5 w-3.5" /> 撠?
+            <Archive className="mr-1.5 h-3.5 w-3.5" /> Archive
           </Button>
         </div>
       </div>
