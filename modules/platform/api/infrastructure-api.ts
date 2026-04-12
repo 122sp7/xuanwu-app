@@ -9,6 +9,8 @@ import {
 
 import type {
 	FirestoreAPI,
+	FunctionsAPI,
+	FunctionsCallOptions,
 	FirestoreWhereClause,
 	GenkitAPI,
 	StorageAPI,
@@ -97,6 +99,41 @@ export const firestoreInfrastructureApi: FirestoreAPI = {
 		const snapshot = await firestoreApi.getDocs(queryRef);
 		return snapshot.docs.map((doc) => doc.data() as T);
 	},
+
+	watchCollection<T>(
+		collectionPath: string,
+		handlers: {
+			onNext: (documents: readonly { id: string; data: T }[]) => void;
+			onError?: (error: unknown) => void;
+		},
+		where: readonly FirestoreWhereClause[] = [],
+	): () => void {
+		const db = getFirebaseFirestore();
+		const collectionRef = firestoreApi.collection(
+			db,
+			resolveCollectionPath(collectionPath).join("/"),
+		);
+
+		const queryConstraints = where.map((clause) =>
+			firestoreApi.where(clause.field, clause.op, clause.value),
+		);
+		const queryRef = firestoreApi.query(collectionRef, ...queryConstraints);
+
+		return firestoreApi.onSnapshot(
+			queryRef,
+			(snapshot) => {
+				handlers.onNext(
+					snapshot.docs.map((doc) => ({
+						id: doc.id,
+						data: doc.data() as T,
+					})),
+				);
+			},
+			(error) => {
+				handlers.onError?.(error);
+			},
+		);
+	},
 };
 
 export const storageInfrastructureApi: StorageAPI = {
@@ -138,6 +175,25 @@ export const genkitInfrastructureApi: GenkitAPI = {
 		const functions = getFirebaseFunctions(DEFAULT_FUNCTION_REGION);
 		const runFlow = functionsApi.httpsCallable(functions, "platform_run_genkit_flow");
 		const response = await runFlow({ flow: normalizedFlow, input });
+		return response.data as TOutput;
+	},
+};
+
+export const functionsInfrastructureApi: FunctionsAPI = {
+	async call<TInput, TOutput>(
+		functionName: string,
+		input: TInput,
+		options?: FunctionsCallOptions,
+	): Promise<TOutput> {
+		const normalizedName = functionName.trim();
+		if (!normalizedName) {
+			throw new Error("Function name is required.");
+		}
+
+		const region = options?.region?.trim() || DEFAULT_FUNCTION_REGION;
+		const functions = getFirebaseFunctions(region);
+		const callable = functionsApi.httpsCallable(functions, normalizedName);
+		const response = await callable(input);
 		return response.data as TOutput;
 	},
 };

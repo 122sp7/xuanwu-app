@@ -13,6 +13,7 @@ export {
   firestoreInfrastructureApi,
   storageInfrastructureApi,
   genkitInfrastructureApi,
+  functionsInfrastructureApi,
 } from "./infrastructure-api";
 export {
   authApi,

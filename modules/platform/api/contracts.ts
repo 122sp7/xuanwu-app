@@ -44,10 +44,25 @@ export interface FirestoreWhereClause {
 	readonly value: unknown;
 }
 
+export interface FirestoreCollectionDocument<T> {
+	readonly id: string;
+	readonly data: T;
+}
+
+export interface FirestoreCollectionWatchHandlers<T> {
+	readonly onNext: (documents: readonly FirestoreCollectionDocument<T>[]) => void;
+	readonly onError?: (error: unknown) => void;
+}
+
 export interface FirestoreAPI {
 	get<T>(path: string): Promise<T | null>;
 	set<T>(path: string, data: T): Promise<void>;
 	query<T>(collectionPath: string, where?: readonly FirestoreWhereClause[]): Promise<T[]>;
+	watchCollection<T>(
+		collectionPath: string,
+		handlers: FirestoreCollectionWatchHandlers<T>,
+		where?: readonly FirestoreWhereClause[],
+	): () => void;
 }
 
 export interface StorageUploadOptions {
@@ -64,6 +79,18 @@ export interface StorageAPI {
 
 export interface GenkitAPI {
 	runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput>;
+}
+
+export interface FunctionsCallOptions {
+	readonly region?: string;
+}
+
+export interface FunctionsAPI {
+	call<TInput, TOutput>(
+		functionName: string,
+		input: TInput,
+		options?: FunctionsCallOptions,
+	): Promise<TOutput>;
 }
 
 // ── Platform Service API contracts (cross-domain) ───────────────────────────

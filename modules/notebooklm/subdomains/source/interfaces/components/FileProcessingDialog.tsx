@@ -4,17 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 
 import { useAuth } from "@/modules/platform/api";
-import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
 import { Button } from "@ui-shadcn/ui/button";
 
 import { createKnowledgeDraftFromSourceDocument } from "../_actions/source-processing.actions";
+import { parseSourceDocument, reindexSourceDocument } from "../_actions/source-pipeline.actions";
 import { FileProcessingDialogBody } from "./file-processing-dialog.body";
 import { FileProcessingDialogSurface } from "./file-processing-dialog.surface";
 import {
   createIdleSummary,
-  readCallableData,
-  readNumber,
-  readString,
   type ExecutionSummary,
   waitForParsedDocument,
 } from "./file-processing-dialog.utils";
@@ -70,22 +67,21 @@ export function FileProcessingDialog({
     });
 
     try {
-      const functions = getFirebaseFunctions("asia-southeast1");
-      const parseDocument = functionsApi.httpsCallable(functions, "parse_document");
-
-      const parseResponse = await parseDocument({
-        account_id: accountId,
-        workspace_id: workspaceId,
-        doc_id: sourceFileId,
-        gcs_uri: gcsUri,
+      const parseResult = await parseSourceDocument({
+        accountId,
+        workspaceId,
+        documentId: sourceFileId,
+        gcsUri,
         filename,
-        mime_type: mimeType || "application/octet-stream",
-        size_bytes: sizeBytes,
-        run_rag: false,
+        mimeType: mimeType || "application/octet-stream",
+        sizeBytes,
       });
 
-      const parseData = readCallableData(parseResponse.data);
-      const docId = readString(parseData.doc_id, sourceFileId);
+      if (!parseResult.ok) {
+        throw new Error(parseResult.error.message);
+      }
+
+      const docId = parseResult.data.documentId;
 
       setSummary((current) => ({
         ...current,
@@ -108,23 +104,25 @@ export function FileProcessingDialog({
         }));
 
         try {
-          const runRagIndex = functionsApi.httpsCallable(functions, "rag_reindex_document");
-          const ragResponse = await runRagIndex({
-            account_id: accountId,
-            workspace_id: workspaceId,
-            doc_id: docId,
-            json_gcs_uri: parsedDocument.jsonGcsUri,
-            source_gcs_uri: gcsUri,
+          const ragResult = await reindexSourceDocument({
+            accountId,
+            workspaceId,
+            documentId: docId,
+            jsonGcsUri: parsedDocument.jsonGcsUri,
+            sourceGcsUri: gcsUri,
             filename,
-            page_count: parsedDocument.pageCount,
+            pageCount: parsedDocument.pageCount,
           });
-          const ragResult = readCallableData(ragResponse.data);
+
+          if (!ragResult.ok) {
+            throw new Error(ragResult.error.message);
+          }
 
           setSummary((current) => ({
             ...current,
             rag: {
               status: "success",
-              detail: `索引完成，${readNumber(ragResult.chunk_count, 0)} 個 chunks / ${readNumber(ragResult.vector_count, 0)} 個 vectors。`,
+              detail: `索引完成，${ragResult.data.chunkCount} 個 chunks / ${ragResult.data.vectorCount} 個 vectors。`,
             },
           }));
         } catch (error) {

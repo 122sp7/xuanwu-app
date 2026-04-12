@@ -4,6 +4,7 @@ import { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase
 import { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
 import { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
 import { waitForParsedDocument as _waitForParsedDocument } from "../infrastructure/firebase/FirebaseDocumentStatusAdapter";
+import { PlatformSourcePipelineAdapter } from "../infrastructure/platform/PlatformSourcePipelineAdapter";
 import {
   addKnowledgeBlock,
   createKnowledgePage,
@@ -23,6 +24,10 @@ export function makeSourceDocumentCommandAdapter() {
 
 export function makeParsedDocumentAdapter() {
   return new FirebaseParsedDocumentAdapter();
+}
+
+export function makeSourcePipelineAdapter() {
+  return new PlatformSourcePipelineAdapter();
 }
 
 export function makeKnowledgePageGateway() {
