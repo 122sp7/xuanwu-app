@@ -9287,84 +9287,6 @@ export function PageEditorPanel({ accountId, pageId }: PageEditorPanelProps) {
 }
 ````
 
-## File: modules/notion/interfaces/knowledge/components/PageTreePanel.tsx
-````typescript
-"use client";
-
-import { ChevronDown, ChevronRight, FilePlus, FileText } from "lucide-react";
-import { useState } from "react";
-import { Button } from "@ui-shadcn/ui/button";
-import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
-import { PageDialog } from "./PageDialog";
-
-export interface PageTreePanelProps {
-  nodes: KnowledgePageTreeNode[];
-  accountId: string;
-  workspaceId?: string;
-  currentUserId: string;
-  allowCreate?: boolean;
-  emptyStateDescription?: string;
-  onPageClick?: (pageId: string) => void;
-  onCreated?: () => void;
-}
-
-function TreeNode({
-  node, accountId, workspaceId, currentUserId, allowCreate, onPageClick, onCreated, depth,
-}: { node: KnowledgePageTreeNode; accountId: string; workspaceId?: string; currentUserId: string; allowCreate: boolean; onPageClick?: (id: string) => void; onCreated?: () => void; depth: number }) {
-  const [expanded, setExpanded] = useState(depth < 1);
-  const [addChildOpen, setAddChildOpen] = useState(false);
-  const hasChildren = node.children && node.children.length > 0;
-  const canCreate = allowCreate && Boolean(workspaceId);
-
-  return (
-    <li>
-      <div className="group flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted/30" style={{ paddingLeft: `${8 + depth * 16}px` }}>
-        <button type="button" className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground" onClick={() => setExpanded((v) => !v)}>
-          {hasChildren ? (expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />) : <FileText className="h-3.5 w-3.5" />}
-        </button>
-        <button type="button" className="min-w-0 flex-1 truncate text-left text-sm" onClick={() => onPageClick?.(node.id)}>
-          {node.title}
-        </button>
-        {canCreate && (
-          <button type="button" className="invisible shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground group-hover:visible" onClick={(e) => { e.stopPropagation(); setAddChildOpen(true); }}>
-            <FilePlus className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
-      {expanded && hasChildren && (
-        <ul>
-          {node.children.map((child) => (
-            <TreeNode key={child.id} node={child} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} allowCreate={allowCreate} onPageClick={onPageClick} onCreated={onCreated} depth={depth + 1} />
-          ))}
-        </ul>
-      )}
-      {addChildOpen && (
-        <PageDialog open={addChildOpen} onOpenChange={setAddChildOpen} accountId={accountId} workspaceId={workspaceId ?? ""} currentUserId={currentUserId} parentPageId={node.id} onSuccess={onCreated} />
-      )}
-    </li>
-  );
-}
-
-export function PageTreePanel({ nodes, accountId, workspaceId, currentUserId, allowCreate = true, emptyStateDescription, onPageClick, onCreated }: PageTreePanelProps) {
-  const [createOpen, setCreateOpen] = useState(false);
-  if (!nodes.length) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-8 text-center text-sm text-muted-foreground">
-        <FileText className="h-8 w-8 opacity-40" />
-        <p>{emptyStateDescription ?? "撠?"}</p>
-        {allowCreate && workspaceId && (
-          <>
-            <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>?啣??</Button>
-            <PageDialog open={createOpen} onOpenChange={setCreateOpen} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} parentPageId={null} onSuccess={onCreated} />
-          </>
-        )}
-      </div>
-    );
-  }
-  return <ul className="space-y-0.5">{nodes.map((n) => <TreeNode key={n.id} node={n} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} allowCreate={allowCreate} onPageClick={onPageClick} onCreated={onCreated} depth={0} />)}</ul>;
-}
-````
-
 ## File: modules/notion/interfaces/knowledge/queries/index.ts
 ````typescript
 /**
@@ -10641,6 +10563,84 @@ export function BlockEditorPanel() {
 }
 ````
 
+## File: modules/notion/interfaces/knowledge/components/PageTreePanel.tsx
+````typescript
+"use client";
+
+import { ChevronDown, ChevronRight, FilePlus, FileText } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@ui-shadcn/ui/button";
+import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+import { PageDialog } from "./PageDialog";
+
+export interface PageTreePanelProps {
+  nodes: KnowledgePageTreeNode[];
+  accountId: string;
+  workspaceId?: string;
+  currentUserId: string;
+  allowCreate?: boolean;
+  emptyStateDescription?: string;
+  onPageClick?: (pageId: string) => void;
+  onCreated?: () => void;
+}
+
+function TreeNode({
+  node, accountId, workspaceId, currentUserId, allowCreate, onPageClick, onCreated, depth,
+}: { node: KnowledgePageTreeNode; accountId: string; workspaceId?: string; currentUserId: string; allowCreate: boolean; onPageClick?: (id: string) => void; onCreated?: () => void; depth: number }) {
+  const [expanded, setExpanded] = useState(depth < 1);
+  const [addChildOpen, setAddChildOpen] = useState(false);
+  const hasChildren = node.children && node.children.length > 0;
+  const canCreate = allowCreate && Boolean(workspaceId);
+
+  return (
+    <li>
+      <div className="group flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted/30" style={{ paddingLeft: `${8 + depth * 16}px` }}>
+        <button type="button" className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground" onClick={() => setExpanded((v) => !v)}>
+          {hasChildren ? (expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />) : <FileText className="h-3.5 w-3.5" />}
+        </button>
+        <button type="button" className="min-w-0 flex-1 truncate text-left text-sm" onClick={() => onPageClick?.(node.id)}>
+          {node.title}
+        </button>
+        {canCreate && (
+          <button type="button" className="invisible shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground group-hover:visible" onClick={(e) => { e.stopPropagation(); setAddChildOpen(true); }}>
+            <FilePlus className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+      {expanded && hasChildren && (
+        <ul>
+          {node.children.map((child) => (
+            <TreeNode key={child.id} node={child} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} allowCreate={allowCreate} onPageClick={onPageClick} onCreated={onCreated} depth={depth + 1} />
+          ))}
+        </ul>
+      )}
+      {addChildOpen && (
+        <PageDialog open={addChildOpen} onOpenChange={setAddChildOpen} accountId={accountId} workspaceId={workspaceId ?? ""} currentUserId={currentUserId} parentPageId={node.id} onSuccess={onCreated} />
+      )}
+    </li>
+  );
+}
+
+export function PageTreePanel({ nodes, accountId, workspaceId, currentUserId, allowCreate = true, emptyStateDescription, onPageClick, onCreated }: PageTreePanelProps) {
+  const [createOpen, setCreateOpen] = useState(false);
+  if (!nodes.length) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-8 text-center text-sm text-muted-foreground">
+        <FileText className="h-8 w-8 opacity-40" />
+        <p>{emptyStateDescription ?? "No pages yet"}</p>
+        {allowCreate && workspaceId && (
+          <>
+            <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>Create page</Button>
+            <PageDialog open={createOpen} onOpenChange={setCreateOpen} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} parentPageId={null} onSuccess={onCreated} />
+          </>
+        )}
+      </div>
+    );
+  }
+  return <ul className="space-y-0.5">{nodes.map((n) => <TreeNode key={n.id} node={n} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} allowCreate={allowCreate} onPageClick={onPageClick} onCreated={onCreated} depth={0} />)}</ul>;
+}
+````
+
 ## File: modules/notion/subdomains/knowledge/application/use-cases/index.ts
 ````typescript
 export {
@@ -11144,512 +11144,6 @@ export function DatabaseCalendarPanel({ database, accountId }: DatabaseCalendarP
 }
 ````
 
-## File: modules/notion/interfaces/database/components/DatabaseGalleryPanel.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseGalleryPanel ??card grid for database records.
- */
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { Plus, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-import { getRecords } from "../queries";
-import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
-
-interface DatabaseGalleryPanelProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
-  if (record.properties && typeof record.properties === "object") {
-    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
-  }
-  return null;
-}
-
-export function DatabaseGalleryPanel({ database, accountId, workspaceId, currentUserId }: DatabaseGalleryPanelProps) {
-  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isPending, startTransition] = useTransition();
-
-  const titleField = database.fields.find((f) => f.type === "text") ?? null;
-  const metaFields = database.fields.filter((f) => f !== titleField).slice(0, 4);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getRecords(accountId, database.id);
-      setRecords(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, database.id]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function handleAdd() {
-    startTransition(async () => {
-      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId });
-      void load();
-    });
-  }
-
-  function handleDelete(recordId: string) {
-    startTransition(async () => {
-      await deleteRecord(accountId, recordId);
-      setRecords((prev) => prev.filter((r) => r.id !== recordId));
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-lg" />)}
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {records.length === 0 ? (
-          <p className="col-span-full rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">撠閮?</p>
-        ) : (
-          records.map((record) => {
-            const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "Untitled" : "Untitled";
-            return (
-              <div key={record.id} className="group relative flex flex-col gap-2 rounded-lg border border-border/60 bg-card p-3 shadow-sm">
-                <p className="truncate text-sm font-medium leading-snug">{title}</p>
-                <div className="flex flex-wrap gap-1">
-                  {metaFields.map((field) => {
-                    const val = getProperty(record, field.id);
-                    if (val == null || val === "") return null;
-                    return (
-                      <Badge key={field.id} variant="outline" className="text-[10px]">
-                        {field.name}: {String(val).slice(0, 16)}
-                      </Badge>
-                    );
-                  })}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1 hidden h-6 w-6 text-muted-foreground hover:text-destructive group-hover:flex"
-                  disabled={isPending}
-                  onClick={() => handleDelete(record.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            );
-          })
-        )}
-      </div>
-      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="w-full text-xs">
-        <Plus className="mr-1.5 h-3 w-3" /> Add record
-      </Button>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/interfaces/knowledge/components/KnowledgePagesPanel.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-
-import { useAuth } from "@/modules/platform/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
-import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
-import { PageTreePanel } from "./PageTreePanel";
-
-/**
- * KnowledgePagesPanel
- * Route-level screen component for /knowledge/pages.
- * Encapsulates data-loading, scope resolution and layout so that the
- * Next.js route file stays thin (params/context wiring only).
- */
-export interface KnowledgePagesPanelProps {
-  readonly accountId: string;
-  readonly workspaceId?: string | null;
-  readonly currentUserId?: string | null;
-  readonly scope?: "workspace" | "account";
-}
-
-export function KnowledgePagesPanel({
-  accountId,
-  workspaceId,
-  currentUserId,
-  scope,
-}: KnowledgePagesPanelProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { state: authState } = useAuth();
-
-  const resolvedAccountId = accountId.trim();
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-  const scopeParam = scope ?? searchParams.get("scope")?.trim() ?? "";
-  const isAccountSummary = scopeParam === "account";
-  const resolvedWorkspaceId = isAccountSummary ? "" : workspaceId?.trim() || requestedWorkspaceId || "";
-  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
-  const workspaceBasePath =
-    resolvedAccountId && resolvedWorkspaceId
-      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
-      : resolvedAccountId
-        ? `/${encodeURIComponent(resolvedAccountId)}`
-        : "/";
-  const overviewHref = resolvedWorkspaceId
-    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
-    : resolvedAccountId
-      ? `/${encodeURIComponent(resolvedAccountId)}`
-      : "/";
-
-  function buildPageDetailHref(pageId: string) {
-    if (resolvedAccountId && resolvedWorkspaceId) {
-      return `${workspaceBasePath}/knowledge/pages/${encodeURIComponent(pageId)}`;
-    }
-    return `/knowledge/pages/${encodeURIComponent(pageId)}${
-      resolvedWorkspaceId ? `?workspaceId=${encodeURIComponent(resolvedWorkspaceId)}` : ""
-    }`;
-  }
-
-  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    if (!resolvedAccountId) {
-      setLoading(false);
-      return;
-    }
-    if (!isAccountSummary && !resolvedWorkspaceId) {
-      setNodes([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const tree = isAccountSummary
-        ? await getKnowledgePageTree(resolvedAccountId)
-        : await getKnowledgePageTreeByWorkspace(resolvedAccountId, resolvedWorkspaceId);
-      setNodes(tree);
-    } finally {
-      setLoading(false);
-    }
-  }, [resolvedAccountId, isAccountSummary, resolvedWorkspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">?</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={isAccountSummary ? "secondary" : "outline"}>
-            {isAccountSummary ? "Account Summary" : "Workspace Scope"}
-          </Badge>
-          <p className="text-sm text-muted-foreground">
-            {isAccountSummary
-              ? "Account summary mode: showing account-level pages and metadata."
-              : "Workspace scope mode: showing pages for the selected workspace."}
-          </p>
-        </div>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push(overviewHref)}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          餈? Knowledge Hub
-        </button>
-      </div>
-
-      {!resolvedAccountId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          Account is required to load pages.
-        </p>
-      ) : !isAccountSummary && !resolvedWorkspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          Workspace ID is required when viewing workspace-scoped pages.
-        </p>
-      ) : loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-8 w-full" />
-          ))}
-        </div>
-      ) : (
-        <PageTreePanel
-          nodes={nodes}
-          accountId={resolvedAccountId}
-          workspaceId={resolvedWorkspaceId || undefined}
-          currentUserId={resolvedCurrentUserId}
-          allowCreate={!isAccountSummary && Boolean(resolvedWorkspaceId)}
-          emptyStateDescription={
-            isAccountSummary
-              ? "No pages in account summary yet."
-              : "No pages in this workspace yet."
-          }
-          onPageClick={(pageId) => router.push(buildPageDetailHref(pageId))}
-          onCreated={() => load()}
-        />
-      )}
-    </div>
-  );
-}
-````
-
-## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesPanel.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
-
-import { useAuth } from "@/modules/platform/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import { getArticles, getCategories } from "../queries";
-import { ArticleDialog } from "./ArticleDialog";
-import { CategoryTreePanel } from "./CategoryTreePanel";
-
-const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  draft: { label: "Draft", variant: "outline" },
-  published: { label: "Published", variant: "default" },
-  archived: { label: "Archived", variant: "secondary" },
-};
-
-const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
-  verified: { label: "Verified", icon: BadgeCheck },
-  needs_review: { label: "Needs Review", icon: FileClock },
-  unverified: { label: "Unverified", icon: CircleDot },
-};
-
-/**
- * KnowledgeBaseArticlesPanel
- * Route-level screen component for /knowledge-base/articles.
- * Encapsulates data-loading, filtering and layout so the Next.js route
- * file stays thin (params/context wiring only).
- */
-export interface KnowledgeBaseArticlesPanelProps {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly currentUserId?: string | null;
-}
-
-export function KnowledgeBaseArticlesPanel({
-  accountId,
-  workspaceId,
-  currentUserId,
-}: KnowledgeBaseArticlesPanelProps) {
-  const router = useRouter();
-  const { state: authState } = useAuth();
-
-  const resolvedAccountId = accountId.trim();
-  const resolvedWorkspaceId = workspaceId.trim();
-  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
-  const workspaceBasePath =
-    resolvedAccountId && resolvedWorkspaceId
-      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
-      : resolvedAccountId
-        ? `/${encodeURIComponent(resolvedAccountId)}`
-        : "/";
-  const overviewHref = resolvedWorkspaceId
-    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-base-articles`
-    : resolvedAccountId
-      ? `/${encodeURIComponent(resolvedAccountId)}`
-      : "/";
-
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    if (!resolvedAccountId || !resolvedWorkspaceId) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const [arts, cats] = await Promise.all([
-        getArticles({ accountId: resolvedAccountId, workspaceId: resolvedWorkspaceId }),
-        getCategories(resolvedAccountId, resolvedWorkspaceId),
-      ]);
-      setArticles(arts);
-      setCategories(cats);
-    } finally {
-      setLoading(false);
-    }
-  }, [resolvedAccountId, resolvedWorkspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const filteredArticles = useMemo(() => {
-    if (!selectedCategoryId) return articles;
-    const cat = categories.find((c) => c.id === selectedCategoryId);
-    if (!cat) return articles;
-    return articles.filter((a) => cat.articleIds.includes(a.id));
-  }, [articles, categories, selectedCategoryId]);
-
-  function handleSuccess(articleId?: string) {
-    if (articleId) {
-      if (resolvedAccountId && resolvedWorkspaceId) {
-        router.push(
-          `${workspaceBasePath}/knowledge-base/articles/${encodeURIComponent(articleId)}`,
-        );
-      } else {
-        router.push(`/knowledge-base/articles/${encodeURIComponent(articleId)}`);
-      }
-    } else {
-      load();
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">??</h1>
-        <p className="text-sm text-muted-foreground">
-          蝯??亥?摨怎? SOP ????辣??霅恣瘝颯?
-        </p>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push(overviewHref)}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          Back to Knowledge Hub
-        </button>
-        <Button
-          size="sm"
-          className="ml-auto"
-          disabled={!resolvedAccountId || !resolvedWorkspaceId}
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          New Article
-        </Button>
-      </div>
-
-      <ArticleDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        accountId={resolvedAccountId}
-        workspaceId={resolvedWorkspaceId}
-        currentUserId={resolvedCurrentUserId}
-        categories={categories}
-        onSuccess={handleSuccess}
-      />
-
-      {!resolvedAccountId || !resolvedWorkspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          Account and workspace are required to load articles.
-        </p>
-      ) : loading ? (
-        <div className="flex gap-4">
-          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
-          <div className="grid flex-1 gap-3 sm:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 w-full rounded-lg" />
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="flex gap-4">
-          <CategoryTreePanel
-            categories={categories}
-            selectedId={selectedCategoryId}
-            onSelect={setSelectedCategoryId}
-          />
-
-          <div className="flex-1">
-            {filteredArticles.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">
-                  {selectedCategoryId ? "No articles in this category yet." : "No articles yet. Create your first article."}
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {filteredArticles.map((article) => {
-                  const status = STATUS_CONFIG[article.status];
-                  const veri = VERIFICATION_CONFIG[article.verificationState];
-                  const VeriIcon = veri.icon;
-                  return (
-                    <Card
-                      key={article.id}
-                      className="cursor-pointer hover:bg-muted/10 transition-colors"
-                      onClick={() => handleSuccess(article.id)}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
-                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <VeriIcon className="h-3 w-3" />
-                          <span>{veri.label}</span>
-                        </div>
-                        {article.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {article.tags.slice(0, 3).map((tag) => (
-                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <p className="text-[10px] text-muted-foreground/70">
-                          v{article.version} 繚 {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-````
-
 ## File: modules/notion/interfaces/database/components/DatabaseFormPanel.tsx
 ````typescript
 "use client";
@@ -11828,6 +11322,358 @@ export function DatabaseFormPanel({ database, accountId, workspaceId, submitterI
 }
 ````
 
+## File: modules/notion/interfaces/database/components/DatabaseGalleryPanel.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseGalleryPanel ??card grid for database records.
+ */
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { Plus, Trash2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+import { getRecords } from "../queries";
+import { createRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+
+interface DatabaseGalleryPanelProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
+  if (record.properties && typeof record.properties === "object") {
+    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
+  }
+  return null;
+}
+
+export function DatabaseGalleryPanel({ database, accountId, workspaceId, currentUserId }: DatabaseGalleryPanelProps) {
+  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
+
+  const titleField = database.fields.find((f) => f.type === "text") ?? null;
+  const metaFields = database.fields.filter((f) => f !== titleField).slice(0, 4);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getRecords(accountId, database.id);
+      setRecords(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, database.id]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function handleAdd() {
+    startTransition(async () => {
+      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId });
+      void load();
+    });
+  }
+
+  function handleDelete(recordId: string) {
+    startTransition(async () => {
+      await deleteRecord(accountId, recordId);
+      setRecords((prev) => prev.filter((r) => r.id !== recordId));
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-lg" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {records.length === 0 ? (
+          <p className="col-span-full rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">No records</p>
+        ) : (
+          records.map((record) => {
+            const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "Untitled" : "Untitled";
+            return (
+              <div key={record.id} className="group relative flex flex-col gap-2 rounded-lg border border-border/60 bg-card p-3 shadow-sm">
+                <p className="truncate text-sm font-medium leading-snug">{title}</p>
+                <div className="flex flex-wrap gap-1">
+                  {metaFields.map((field) => {
+                    const val = getProperty(record, field.id);
+                    if (val == null || val === "") return null;
+                    return (
+                      <Badge key={field.id} variant="outline" className="text-[10px]">
+                        {field.name}: {String(val).slice(0, 16)}
+                      </Badge>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1 hidden h-6 w-6 text-muted-foreground hover:text-destructive group-hover:flex"
+                  disabled={isPending}
+                  onClick={() => handleDelete(record.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            );
+          })
+        )}
+      </div>
+      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="w-full text-xs">
+        <Plus className="mr-1.5 h-3 w-3" /> Add record
+      </Button>
+    </div>
+  );
+}
+````
+
+## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesPanel.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
+
+import { useAuth } from "@/modules/platform/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import { getArticles, getCategories } from "../queries";
+import { ArticleDialog } from "./ArticleDialog";
+import { CategoryTreePanel } from "./CategoryTreePanel";
+
+const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  draft: { label: "Draft", variant: "outline" },
+  published: { label: "Published", variant: "default" },
+  archived: { label: "Archived", variant: "secondary" },
+};
+
+const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
+  verified: { label: "Verified", icon: BadgeCheck },
+  needs_review: { label: "Needs Review", icon: FileClock },
+  unverified: { label: "Unverified", icon: CircleDot },
+};
+
+/**
+ * KnowledgeBaseArticlesPanel
+ * Route-level screen component for /knowledge-base/articles.
+ * Encapsulates data-loading, filtering and layout so the Next.js route
+ * file stays thin (params/context wiring only).
+ */
+export interface KnowledgeBaseArticlesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly currentUserId?: string | null;
+}
+
+export function KnowledgeBaseArticlesPanel({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: KnowledgeBaseArticlesPanelProps) {
+  const router = useRouter();
+  const { state: authState } = useAuth();
+
+  const resolvedAccountId = accountId.trim();
+  const resolvedWorkspaceId = workspaceId.trim();
+  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
+  const workspaceBasePath =
+    resolvedAccountId && resolvedWorkspaceId
+      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
+      : resolvedAccountId
+        ? `/${encodeURIComponent(resolvedAccountId)}`
+        : "/";
+  const overviewHref = resolvedWorkspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-base-articles`
+    : resolvedAccountId
+      ? `/${encodeURIComponent(resolvedAccountId)}`
+      : "/";
+
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!resolvedAccountId || !resolvedWorkspaceId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const [arts, cats] = await Promise.all([
+        getArticles({ accountId: resolvedAccountId, workspaceId: resolvedWorkspaceId }),
+        getCategories(resolvedAccountId, resolvedWorkspaceId),
+      ]);
+      setArticles(arts);
+      setCategories(cats);
+    } finally {
+      setLoading(false);
+    }
+  }, [resolvedAccountId, resolvedWorkspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filteredArticles = useMemo(() => {
+    if (!selectedCategoryId) return articles;
+    const cat = categories.find((c) => c.id === selectedCategoryId);
+    if (!cat) return articles;
+    return articles.filter((a) => cat.articleIds.includes(a.id));
+  }, [articles, categories, selectedCategoryId]);
+
+  function handleSuccess(articleId?: string) {
+    if (articleId) {
+      if (resolvedAccountId && resolvedWorkspaceId) {
+        router.push(
+          `${workspaceBasePath}/knowledge-base/articles/${encodeURIComponent(articleId)}`,
+        );
+      } else {
+        router.push(`/knowledge-base/articles/${encodeURIComponent(articleId)}`);
+      }
+    } else {
+      load();
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Articles</h1>
+        <p className="text-sm text-muted-foreground">
+          Manage articles, SOPs, and operational documentation.
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(overviewHref)}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          Back to Knowledge Hub
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!resolvedAccountId || !resolvedWorkspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          New Article
+        </Button>
+      </div>
+
+      <ArticleDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        accountId={resolvedAccountId}
+        workspaceId={resolvedWorkspaceId}
+        currentUserId={resolvedCurrentUserId}
+        categories={categories}
+        onSuccess={handleSuccess}
+      />
+
+      {!resolvedAccountId || !resolvedWorkspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          Account and workspace are required to load articles.
+        </p>
+      ) : loading ? (
+        <div className="flex gap-4">
+          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
+          <div className="grid flex-1 gap-3 sm:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-4">
+          <CategoryTreePanel
+            categories={categories}
+            selectedId={selectedCategoryId}
+            onSelect={setSelectedCategoryId}
+          />
+
+          <div className="flex-1">
+            {filteredArticles.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  {selectedCategoryId ? "No articles in this category yet." : "No articles yet. Create your first article."}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {filteredArticles.map((article) => {
+                  const status = STATUS_CONFIG[article.status];
+                  const veri = VERIFICATION_CONFIG[article.verificationState];
+                  const VeriIcon = veri.icon;
+                  return (
+                    <Card
+                      key={article.id}
+                      className="cursor-pointer hover:bg-muted/10 transition-colors"
+                      onClick={() => handleSuccess(article.id)}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
+                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <VeriIcon className="h-3 w-3" />
+                          <span>{veri.label}</span>
+                        </div>
+                        {article.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {article.tags.slice(0, 3).map((tag) => (
+                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-muted-foreground/70">
+                          v{article.version} 繚 {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
 ## File: modules/notion/interfaces/database/components/DatabaseFormsPanel.tsx
 ````typescript
 "use client";
@@ -11919,7 +11765,7 @@ export function DatabaseFormsPanel({
           size="sm"
           onClick={() => router.push(databaseDetailHref)}
         >
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 餈?鞈?摨?
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to database
         </Button>
         <div className="ml-auto">
           <Button size="sm" variant="outline" disabled>
@@ -11948,7 +11794,7 @@ export function DatabaseFormsPanel({
               accountId={accountId}
               workspaceId={workspaceId}
               submitterId={currentUserId}
-              title={`${database.name} 銵典`}
+              title={`${database.name} Form`}
               description={database.description ?? undefined}
             />
           </div>
@@ -11957,7 +11803,7 @@ export function DatabaseFormsPanel({
         <TabsContent value="share" className="mt-4">
           <div className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
             <div className="space-y-1.5">
-              <p className="text-sm font-medium">銵典???</p>
+              <p className="text-sm font-medium">Form URL</p>
               <div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
                 <span className="flex-1 truncate">{shareUrl}</span>
                 <button
@@ -12077,7 +11923,7 @@ export function DatabaseListPanel({ database, accountId, workspaceId, currentUse
   return (
     <div className="space-y-1">
       {records.length === 0 ? (
-        <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">撠閮?</p>
+        <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">No records</p>
       ) : (
         records.map((record) => {
           const isOpen = expanded.has(record.id);
@@ -12148,6 +11994,402 @@ export function DatabaseListPanel({ database, accountId, workspaceId, currentUse
     </div>
   );
 }
+````
+
+## File: modules/notion/interfaces/knowledge/components/KnowledgePagesPanel.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import { useAuth } from "@/modules/platform/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
+import { PageTreePanel } from "./PageTreePanel";
+
+/**
+ * KnowledgePagesPanel
+ * Route-level screen component for /knowledge/pages.
+ * Encapsulates data-loading, scope resolution and layout so that the
+ * Next.js route file stays thin (params/context wiring only).
+ */
+export interface KnowledgePagesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId?: string | null;
+  readonly currentUserId?: string | null;
+  readonly scope?: "workspace" | "account";
+}
+
+export function KnowledgePagesPanel({
+  accountId,
+  workspaceId,
+  currentUserId,
+  scope,
+}: KnowledgePagesPanelProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { state: authState } = useAuth();
+
+  const resolvedAccountId = accountId.trim();
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+  const scopeParam = scope ?? searchParams.get("scope")?.trim() ?? "";
+  const isAccountSummary = scopeParam === "account";
+  const resolvedWorkspaceId = isAccountSummary ? "" : workspaceId?.trim() || requestedWorkspaceId || "";
+  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
+  const workspaceBasePath =
+    resolvedAccountId && resolvedWorkspaceId
+      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
+      : resolvedAccountId
+        ? `/${encodeURIComponent(resolvedAccountId)}`
+        : "/";
+  const overviewHref = resolvedWorkspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
+    : resolvedAccountId
+      ? `/${encodeURIComponent(resolvedAccountId)}`
+      : "/";
+
+  function buildPageDetailHref(pageId: string) {
+    if (resolvedAccountId && resolvedWorkspaceId) {
+      return `${workspaceBasePath}/knowledge/pages/${encodeURIComponent(pageId)}`;
+    }
+    return `/knowledge/pages/${encodeURIComponent(pageId)}${
+      resolvedWorkspaceId ? `?workspaceId=${encodeURIComponent(resolvedWorkspaceId)}` : ""
+    }`;
+  }
+
+  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    if (!resolvedAccountId) {
+      setLoading(false);
+      return;
+    }
+    if (!isAccountSummary && !resolvedWorkspaceId) {
+      setNodes([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const tree = isAccountSummary
+        ? await getKnowledgePageTree(resolvedAccountId)
+        : await getKnowledgePageTreeByWorkspace(resolvedAccountId, resolvedWorkspaceId);
+      setNodes(tree);
+    } finally {
+      setLoading(false);
+    }
+  }, [resolvedAccountId, isAccountSummary, resolvedWorkspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Pages</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={isAccountSummary ? "secondary" : "outline"}>
+            {isAccountSummary ? "Account Summary" : "Workspace Scope"}
+          </Badge>
+          <p className="text-sm text-muted-foreground">
+            {isAccountSummary
+              ? "Account summary mode: showing account-level pages and metadata."
+              : "Workspace scope mode: showing pages for the selected workspace."}
+          </p>
+        </div>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(overviewHref)}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          Back to Knowledge Hub
+        </button>
+      </div>
+
+      {!resolvedAccountId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          Account is required to load pages.
+        </p>
+      ) : !isAccountSummary && !resolvedWorkspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          Workspace ID is required when viewing workspace-scoped pages.
+        </p>
+      ) : loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-full" />
+          ))}
+        </div>
+      ) : (
+        <PageTreePanel
+          nodes={nodes}
+          accountId={resolvedAccountId}
+          workspaceId={resolvedWorkspaceId || undefined}
+          currentUserId={resolvedCurrentUserId}
+          allowCreate={!isAccountSummary && Boolean(resolvedWorkspaceId)}
+          emptyStateDescription={
+            isAccountSummary
+              ? "No pages in account summary yet."
+              : "No pages in this workspace yet."
+          }
+          onPageClick={(pageId) => router.push(buildPageDetailHref(pageId))}
+          onCreated={() => load()}
+        />
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/notion/subdomains/authoring/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/authoring
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ */
+
+// ??? Read contracts ????????????????????????????????????????????????????????????
+export type { ArticleSnapshot, ArticleStatus, ArticleVerificationState } from "../domain/aggregates/Article";
+export type { CategorySnapshot } from "../domain/aggregates/Category";
+
+// ??? Identifiers used by other BCs ????????????????????????????????????????????
+export type ArticleId = string;
+export type CategoryId = string;
+
+// ??? Server Actions (write-side) ??????????????????????????????????????????????
+export {
+  createArticle,
+  updateArticle,
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+  deleteArticle,
+} from "../../../interfaces/authoring/_actions/article.actions";
+
+export {
+  createCategory,
+  renameCategory,
+  moveCategory,
+  deleteCategory,
+} from "../../../interfaces/authoring/_actions/category.actions";
+
+// ??? Queries (read-side) ??????????????????????????????????????????????????????
+export { getArticles, getArticle, getCategories, getBacklinks } from "../../../interfaces/authoring/queries";
+
+// ??? UI Components ????????????????????????????????????????????????????????????
+export { ArticleDialog } from "../../../interfaces/authoring/components/ArticleDialog";
+export { KnowledgeBaseArticlesPanel } from "../../../interfaces/authoring/components/KnowledgeBaseArticlesPanel";
+export type { KnowledgeBaseArticlesPanelProps } from "../../../interfaces/authoring/components/KnowledgeBaseArticlesPanel";
+export { ArticleDetailPanel } from "../../../interfaces/authoring/components/ArticleDetailPanel";
+export type { ArticleDetailPanelProps } from "../../../interfaces/authoring/components/ArticleDetailPanel";
+````
+
+## File: modules/notion/subdomains/database/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ *
+ * Open Host Service contracts:
+ *   - getDatabaseById  ??consumed by knowledge subdomain (opaque reference resolution)
+ */
+
+// Domain types
+export type {
+  DatabaseSnapshot,
+  DatabaseSnapshot as Database,
+  Field,
+  FieldType,
+  DatabaseId,
+  FieldId,
+} from "../domain/aggregates/Database";
+
+export type {
+  DatabaseRecordSnapshot,
+  RecordId,
+} from "../domain/aggregates/DatabaseRecord";
+
+export type {
+  ViewSnapshot,
+  ViewType,
+  FilterRule,
+  SortRule,
+  ViewId,
+} from "../domain/aggregates/View";
+
+export type {
+  DatabaseAutomationSnapshot,
+  AutomationTrigger,
+  AutomationActionType,
+  AutomationCondition,
+  AutomationAction,
+} from "../domain/aggregates/DatabaseAutomation";
+
+// Repository input types
+export type {
+  CreateAutomationInput,
+  UpdateAutomationInput,
+} from "../domain/repositories/IAutomationRepository";
+
+// Application DTOs
+export type {
+  CreateDatabaseDto,
+  UpdateDatabaseDto,
+  AddFieldDto,
+  ArchiveDatabaseDto,
+  CreateRecordDto,
+  UpdateRecordDto,
+  DeleteRecordDto,
+  CreateViewDto,
+  UpdateViewDto,
+  DeleteViewDto,
+} from "../application/dto/DatabaseDto";
+
+// Server actions
+export {
+  createDatabase,
+  updateDatabase,
+  addDatabaseField,
+  archiveDatabase,
+  createRecord,
+  updateRecord,
+  deleteRecord,
+  createView,
+  updateView,
+  deleteView,
+  createAutomation,
+  updateAutomation,
+  deleteAutomation,
+} from "../../../interfaces/database/_actions/database.actions";
+
+// Queries
+export {
+  getDatabases,
+  getDatabase,
+  getRecords,
+  getViews,
+  getAutomations,
+} from "../../../interfaces/database/queries";
+
+// UI components
+export { DatabaseDialog } from "../../../interfaces/database/components/DatabaseDialog";
+export { DatabaseTablePanel } from "../../../interfaces/database/components/DatabaseTablePanel";
+export { DatabaseBoardPanel } from "../../../interfaces/database/components/DatabaseBoardPanel";
+export { DatabaseListPanel } from "../../../interfaces/database/components/DatabaseListPanel";
+export { DatabaseCalendarPanel } from "../../../interfaces/database/components/DatabaseCalendarPanel";
+export { DatabaseGalleryPanel } from "../../../interfaces/database/components/DatabaseGalleryPanel";
+export { DatabaseFormPanel } from "../../../interfaces/database/components/DatabaseFormPanel";
+export { DatabaseAutomationPanel } from "../../../interfaces/database/components/DatabaseAutomationPanel";
+export { KnowledgeDatabasesPanel } from "../../../interfaces/database/components/KnowledgeDatabasesPanel";
+export type { KnowledgeDatabasesPanelProps } from "../../../interfaces/database/components/KnowledgeDatabasesPanel";
+export { AddFieldDialog, FIELD_TYPES } from "../../../interfaces/database/components/DatabaseAddFieldDialog";
+export { DatabaseDetailPanel } from "../../../interfaces/database/components/DatabaseDetailPanel";
+export type { DatabaseDetailPanelProps } from "../../../interfaces/database/components/DatabaseDetailPanel";
+export { DatabaseFormsPanel } from "../../../interfaces/database/components/DatabaseFormsPanel";
+export type { DatabaseFormsPanelProps } from "../../../interfaces/database/components/DatabaseFormsPanel";
+````
+
+## File: modules/notion/subdomains/knowledge/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ */
+
+// ?? Types (read-only snapshots ??no aggregate class refs) ?????????????????????
+export type { KnowledgePageSnapshot } from "../domain/aggregates/KnowledgePage";
+/** @alias KnowledgePageSnapshot ??provided for backward-compatibility */
+export type { KnowledgePageSnapshot as KnowledgePage } from "../domain/aggregates/KnowledgePage";
+export type { ContentBlockSnapshot } from "../domain/aggregates/ContentBlock";
+export type { KnowledgeCollectionSnapshot } from "../domain/aggregates/KnowledgeCollection";
+
+// ?? Server action DTOs ????????????????????????????????????????????????????????
+export type { CreateKnowledgePageDto, RenameKnowledgePageDto, MoveKnowledgePageDto, ArchiveKnowledgePageDto, ReorderKnowledgePageBlocksDto } from "../application/dto/KnowledgePageDto";
+export type { AddKnowledgeBlockDto, UpdateKnowledgeBlockDto, DeleteKnowledgeBlockDto } from "../application/dto/ContentBlockDto";
+export type { CreateKnowledgeCollectionDto } from "../application/dto/KnowledgeCollectionDto";
+
+// ?? Query functions (server-side reads) ???????????????????????????????????????
+export {
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePagesByWorkspace,
+  getKnowledgePageTree,
+  getKnowledgePageTreeByWorkspace,
+  getKnowledgeBlocks,
+  getKnowledgeCollection,
+  getKnowledgeCollections,
+} from "../../../interfaces/knowledge/queries";
+
+// ?? Server actions (drives: app router, Server Components) ????????????????????
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  archiveKnowledgeCollection,
+} from "../../../interfaces/knowledge/_actions";
+
+// ?? UI Components ?????????????????????????????????????????????????????????????
+export { PageTreePanel } from "../../../interfaces/knowledge/components/PageTreePanel";
+export type { PageTreePanelProps } from "../../../interfaces/knowledge/components/PageTreePanel";
+export { PageDialog } from "../../../interfaces/knowledge/components/PageDialog";
+export { BlockEditorPanel } from "../../../interfaces/knowledge/components/BlockEditorPanel";
+export { PageEditorPanel } from "../../../interfaces/knowledge/components/PageEditorPanel";
+export type { PageEditorPanelProps } from "../../../interfaces/knowledge/components/PageEditorPanel";
+export { KnowledgePagesPanel } from "../../../interfaces/knowledge/components/KnowledgePagesPanel";
+export type { KnowledgePagesPanelProps } from "../../../interfaces/knowledge/components/KnowledgePagesPanel";
+
+// ?? Store ?????????????????????????????????????????????????????????????????????
+export { useBlockEditorStore } from "../../../interfaces/knowledge/store/block-editor.store";
+export type { EditorBlock } from "../../../interfaces/knowledge/store/block-editor.store";
+
+// ?? Tree node type (needed by app/ pages) ?????????????????????????????????????
+export type { KnowledgePageTreeNode } from "../domain/aggregates/KnowledgePage";
+
+// ?? Domain events (published language ??for cross-module event subscriptions) ?
+export type { PageApprovedEvent, PageApprovedPayload, ExtractedTask, ExtractedInvoice } from "../domain/events/KnowledgePageEvents";
+
+// ?? Sidebar component ?????????????????????????????????????????????????????????
+export { KnowledgeSidebarSection } from "../../../interfaces/knowledge/components/KnowledgeSidebarSection";
+
+// ?? Page header widgets ???????????????????????????????????????????????????????
+export { TitleEditor, IconPicker, CoverEditor } from "../../../interfaces/knowledge/components/KnowledgePageHeaderWidgets";
+export type { TitleEditorProps, IconPickerProps, CoverEditorProps } from "../../../interfaces/knowledge/components/KnowledgePageHeaderWidgets";
+
+// ?? Route screen components ???????????????????????????????????????????????????
+export { KnowledgeDetailPanel } from "../../../interfaces/knowledge/components/KnowledgeDetailPanel";
+export type { KnowledgeDetailPanelProps } from "../../../interfaces/knowledge/components/KnowledgeDetailPanel";
 ````
 
 ## File: modules/notion/interfaces/database/components/DatabaseDetailPanel.tsx
@@ -12294,7 +12536,7 @@ export function DatabaseDetailPanel({
           <p className="text-sm text-muted-foreground">{database.description}</p>
         )}
         <p className="text-xs text-muted-foreground/70">
-          {database.fields.length} ??雿?繚 ?湔??{new Date(database.updatedAtISO).toLocaleDateString("zh-TW")}
+          {database.fields.length} fields | Updated {new Date(database.updatedAtISO).toLocaleDateString("zh-TW")}
         </p>
       </header>
 
@@ -12583,7 +12825,7 @@ export function KnowledgeDetailPanel({
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
             <ArrowLeft className="mr-1.5 h-4 w-4" />
-            ??”
+            Back to pages
           </Button>
           <div className="ml-auto flex items-center gap-2">
             <Button
@@ -12685,246 +12927,4 @@ export function KnowledgeDetailPanel({
     </div>
   );
 }
-````
-
-## File: modules/notion/subdomains/authoring/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/authoring
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- */
-
-// ??? Read contracts ????????????????????????????????????????????????????????????
-export type { ArticleSnapshot, ArticleStatus, ArticleVerificationState } from "../domain/aggregates/Article";
-export type { CategorySnapshot } from "../domain/aggregates/Category";
-
-// ??? Identifiers used by other BCs ????????????????????????????????????????????
-export type ArticleId = string;
-export type CategoryId = string;
-
-// ??? Server Actions (write-side) ??????????????????????????????????????????????
-export {
-  createArticle,
-  updateArticle,
-  publishArticle,
-  archiveArticle,
-  verifyArticle,
-  requestArticleReview,
-  deleteArticle,
-} from "../../../interfaces/authoring/_actions/article.actions";
-
-export {
-  createCategory,
-  renameCategory,
-  moveCategory,
-  deleteCategory,
-} from "../../../interfaces/authoring/_actions/category.actions";
-
-// ??? Queries (read-side) ??????????????????????????????????????????????????????
-export { getArticles, getArticle, getCategories, getBacklinks } from "../../../interfaces/authoring/queries";
-
-// ??? UI Components ????????????????????????????????????????????????????????????
-export { ArticleDialog } from "../../../interfaces/authoring/components/ArticleDialog";
-export { KnowledgeBaseArticlesPanel } from "../../../interfaces/authoring/components/KnowledgeBaseArticlesPanel";
-export type { KnowledgeBaseArticlesPanelProps } from "../../../interfaces/authoring/components/KnowledgeBaseArticlesPanel";
-export { ArticleDetailPanel } from "../../../interfaces/authoring/components/ArticleDetailPanel";
-export type { ArticleDetailPanelProps } from "../../../interfaces/authoring/components/ArticleDetailPanel";
-````
-
-## File: modules/notion/subdomains/database/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- *
- * Open Host Service contracts:
- *   - getDatabaseById  ??consumed by knowledge subdomain (opaque reference resolution)
- */
-
-// Domain types
-export type {
-  DatabaseSnapshot,
-  DatabaseSnapshot as Database,
-  Field,
-  FieldType,
-  DatabaseId,
-  FieldId,
-} from "../domain/aggregates/Database";
-
-export type {
-  DatabaseRecordSnapshot,
-  RecordId,
-} from "../domain/aggregates/DatabaseRecord";
-
-export type {
-  ViewSnapshot,
-  ViewType,
-  FilterRule,
-  SortRule,
-  ViewId,
-} from "../domain/aggregates/View";
-
-export type {
-  DatabaseAutomationSnapshot,
-  AutomationTrigger,
-  AutomationActionType,
-  AutomationCondition,
-  AutomationAction,
-} from "../domain/aggregates/DatabaseAutomation";
-
-// Repository input types
-export type {
-  CreateAutomationInput,
-  UpdateAutomationInput,
-} from "../domain/repositories/IAutomationRepository";
-
-// Application DTOs
-export type {
-  CreateDatabaseDto,
-  UpdateDatabaseDto,
-  AddFieldDto,
-  ArchiveDatabaseDto,
-  CreateRecordDto,
-  UpdateRecordDto,
-  DeleteRecordDto,
-  CreateViewDto,
-  UpdateViewDto,
-  DeleteViewDto,
-} from "../application/dto/DatabaseDto";
-
-// Server actions
-export {
-  createDatabase,
-  updateDatabase,
-  addDatabaseField,
-  archiveDatabase,
-  createRecord,
-  updateRecord,
-  deleteRecord,
-  createView,
-  updateView,
-  deleteView,
-  createAutomation,
-  updateAutomation,
-  deleteAutomation,
-} from "../../../interfaces/database/_actions/database.actions";
-
-// Queries
-export {
-  getDatabases,
-  getDatabase,
-  getRecords,
-  getViews,
-  getAutomations,
-} from "../../../interfaces/database/queries";
-
-// UI components
-export { DatabaseDialog } from "../../../interfaces/database/components/DatabaseDialog";
-export { DatabaseTablePanel } from "../../../interfaces/database/components/DatabaseTablePanel";
-export { DatabaseBoardPanel } from "../../../interfaces/database/components/DatabaseBoardPanel";
-export { DatabaseListPanel } from "../../../interfaces/database/components/DatabaseListPanel";
-export { DatabaseCalendarPanel } from "../../../interfaces/database/components/DatabaseCalendarPanel";
-export { DatabaseGalleryPanel } from "../../../interfaces/database/components/DatabaseGalleryPanel";
-export { DatabaseFormPanel } from "../../../interfaces/database/components/DatabaseFormPanel";
-export { DatabaseAutomationPanel } from "../../../interfaces/database/components/DatabaseAutomationPanel";
-export { KnowledgeDatabasesPanel } from "../../../interfaces/database/components/KnowledgeDatabasesPanel";
-export type { KnowledgeDatabasesPanelProps } from "../../../interfaces/database/components/KnowledgeDatabasesPanel";
-export { AddFieldDialog, FIELD_TYPES } from "../../../interfaces/database/components/DatabaseAddFieldDialog";
-export { DatabaseDetailPanel } from "../../../interfaces/database/components/DatabaseDetailPanel";
-export type { DatabaseDetailPanelProps } from "../../../interfaces/database/components/DatabaseDetailPanel";
-export { DatabaseFormsPanel } from "../../../interfaces/database/components/DatabaseFormsPanel";
-export type { DatabaseFormsPanelProps } from "../../../interfaces/database/components/DatabaseFormsPanel";
-````
-
-## File: modules/notion/subdomains/knowledge/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- */
-
-// ?? Types (read-only snapshots ??no aggregate class refs) ?????????????????????
-export type { KnowledgePageSnapshot } from "../domain/aggregates/KnowledgePage";
-/** @alias KnowledgePageSnapshot ??provided for backward-compatibility */
-export type { KnowledgePageSnapshot as KnowledgePage } from "../domain/aggregates/KnowledgePage";
-export type { ContentBlockSnapshot } from "../domain/aggregates/ContentBlock";
-export type { KnowledgeCollectionSnapshot } from "../domain/aggregates/KnowledgeCollection";
-
-// ?? Server action DTOs ????????????????????????????????????????????????????????
-export type { CreateKnowledgePageDto, RenameKnowledgePageDto, MoveKnowledgePageDto, ArchiveKnowledgePageDto, ReorderKnowledgePageBlocksDto } from "../application/dto/KnowledgePageDto";
-export type { AddKnowledgeBlockDto, UpdateKnowledgeBlockDto, DeleteKnowledgeBlockDto } from "../application/dto/ContentBlockDto";
-export type { CreateKnowledgeCollectionDto } from "../application/dto/KnowledgeCollectionDto";
-
-// ?? Query functions (server-side reads) ???????????????????????????????????????
-export {
-  getKnowledgePage,
-  getKnowledgePages,
-  getKnowledgePagesByWorkspace,
-  getKnowledgePageTree,
-  getKnowledgePageTreeByWorkspace,
-  getKnowledgeBlocks,
-  getKnowledgeCollection,
-  getKnowledgeCollections,
-} from "../../../interfaces/knowledge/queries";
-
-// ?? Server actions (drives: app router, Server Components) ????????????????????
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  archiveKnowledgeCollection,
-} from "../../../interfaces/knowledge/_actions";
-
-// ?? UI Components ?????????????????????????????????????????????????????????????
-export { PageTreePanel } from "../../../interfaces/knowledge/components/PageTreePanel";
-export type { PageTreePanelProps } from "../../../interfaces/knowledge/components/PageTreePanel";
-export { PageDialog } from "../../../interfaces/knowledge/components/PageDialog";
-export { BlockEditorPanel } from "../../../interfaces/knowledge/components/BlockEditorPanel";
-export { PageEditorPanel } from "../../../interfaces/knowledge/components/PageEditorPanel";
-export type { PageEditorPanelProps } from "../../../interfaces/knowledge/components/PageEditorPanel";
-export { KnowledgePagesPanel } from "../../../interfaces/knowledge/components/KnowledgePagesPanel";
-export type { KnowledgePagesPanelProps } from "../../../interfaces/knowledge/components/KnowledgePagesPanel";
-
-// ?? Store ?????????????????????????????????????????????????????????????????????
-export { useBlockEditorStore } from "../../../interfaces/knowledge/store/block-editor.store";
-export type { EditorBlock } from "../../../interfaces/knowledge/store/block-editor.store";
-
-// ?? Tree node type (needed by app/ pages) ?????????????????????????????????????
-export type { KnowledgePageTreeNode } from "../domain/aggregates/KnowledgePage";
-
-// ?? Domain events (published language ??for cross-module event subscriptions) ?
-export type { PageApprovedEvent, PageApprovedPayload, ExtractedTask, ExtractedInvoice } from "../domain/events/KnowledgePageEvents";
-
-// ?? Sidebar component ?????????????????????????????????????????????????????????
-export { KnowledgeSidebarSection } from "../../../interfaces/knowledge/components/KnowledgeSidebarSection";
-
-// ?? Page header widgets ???????????????????????????????????????????????????????
-export { TitleEditor, IconPicker, CoverEditor } from "../../../interfaces/knowledge/components/KnowledgePageHeaderWidgets";
-export type { TitleEditorProps, IconPickerProps, CoverEditorProps } from "../../../interfaces/knowledge/components/KnowledgePageHeaderWidgets";
-
-// ?? Route screen components ???????????????????????????????????????????????????
-export { KnowledgeDetailPanel } from "../../../interfaces/knowledge/components/KnowledgeDetailPanel";
-export type { KnowledgeDetailPanelProps } from "../../../interfaces/knowledge/components/KnowledgeDetailPanel";
 ````
