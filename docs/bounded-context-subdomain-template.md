@@ -49,15 +49,11 @@ modules/                                        # 系統所有業務模組（bou
     │   ├── application-services.md             # application 層規範
     │   └── domain-services.md                  # domain 層規範
     ├── infrastructure/                         # Driven Adapters：實作 domain ports 與外部整合
-    │   ├── adapters/                           # 外部服務整合（Firebase SDK/Genkit/REST API）
-    │   ├── persistence/                        # 資料庫實作細節與 DTO/Domain mapping
-    │   └── repositories/                       # Repository 實作（例如 Firestore repository）
+    │   ├── <subdomain-a>/                      # 依子域分組的 adapters / persistence / repositories
+    │   └── <subdomain-b>/                      # 只有 context-wide concern 才直接放 root
     ├── interfaces/                             # Driving Adapters：從 UI/HTTP/Action 進入系統
-    │   ├── api/                                # API 入口：request -> use-case -> response
-    │   ├── components/                         # UI 元件，不承載業務規則
-    │   ├── hooks/                              # React hooks：封裝資料存取與互動
-    │   ├── queries/                            # 前端資料查詢層（React Query/Server Components）
-    │   └── _actions/                           # Next.js Server Actions：直接呼叫 use-case
+    │   ├── <subdomain-a>/                      # 依子域分組的 actions / queries / components / routes
+    │   └── <subdomain-b>/                      # 只有 context-wide composition 才直接放 root
     └── subdomains/                             # 子域：bounded context 內部能力拆分
         ├── <subdomain-a>/                      # 單一能力模組（可獨立演化）
         │   ├── README.md                       # 子域說明（責任與邊界）
@@ -66,43 +62,25 @@ modules/                                        # 系統所有業務模組（bou
         │   ├── application/                    # 子域應用層（局部 use-case orchestration）
         │   │   ├── dto/                        # 子域 DTO（input/output）
         │   │   ├── use-cases/                  # 子域 use-cases（局部流程）
-        │   │   └── services/                   # 子域 Application Services：流程輔助，不寫業務規則
+        │   │   └── services/                   # 子域 Application Services：只有在共享流程壓力存在時才建立
         │   ├── domain/                         # 子域領域模型（局部業務核心）
         │   │   ├── entities/                   # 子域 entity
         │   │   ├── value-objects/              # 子域 value object
         │   │   ├── services/                   # 子域 Domain Services（規則）
         │   │   ├── repositories/               # 子域 repository 介面
         │   │   ├── events/                     # 子域事件
-        │   │   └── ports/                      # 子域外部依賴抽象
-        │   ├── infrastructure/                 # optional：僅當子域已具備 mini-module 級獨立性才建立
-        │   │   ├── adapters/                   # optional：外部 API/Genkit/Firebase 整合
-        │   │   ├── persistence/                # optional：Firestore mapping/schema
-        │   │   └── repositories/               # optional：repository implementation
-        │   └── interfaces/                     # optional：僅當子域需自有 UI/transport 邊界才建立
-        │       ├── api/                        # optional：route handlers（子域級）
-        │       ├── components/                 # optional：局部 UI 元件
-        │       ├── hooks/                      # optional：局部 hooks
-        │       ├── queries/                    # optional：子域資料查詢
-        │       └── _actions/                   # optional：子域 server actions
+        │   │   └── ports/                      # optional：真的需要隔離外部依賴時才建立
+        │   └── infrastructure|interfaces/      # optional：只有符合 mini-module gate 時才在子域內建立
         └── <subdomain-b>/                      # 另一個子域（相同結構，獨立演化）
 ```
 
 ## Duplicate Folder Name Notes
 
-- `api`、`application`、`domain` 在 root 與 subdomain 都會出現，屬於**刻意重名**。
-- `infrastructure`、`interfaces` 只在 subdomain 具備 mini-module 級獨立能力時才允許出現於 subdomain。
+- `application` 與 `domain` 在 root 與 subdomain 都可能出現，屬於**刻意重名**。
+- `infrastructure` 與 `interfaces` 預設放在 bounded context 根層，並依 subdomain 名分組；只有符合 mini-module gate 時才會在特定 subdomain 內再出現。
 - 判斷責任時，先看父路徑：`<bounded-context>/...` 代表 context-wide；`subdomains/<name>/...` 代表 subdomain-local。
-- 同名的下一層目錄（如 `dto`、`use-cases`、`services`、`repositories`、`adapters`、`api`、`components`、`hooks`、`queries`、`_actions`）也遵循同一條父路徑判斷規則。
-- 重名不代表可互相直接 import；跨 subdomain 或跨 bounded context 仍必須走 `api/` 邊界。
-
-## Subdomain Mini-Module Gate
-
-- subdomain 預設為 core-only（`api/`、`application/`、`domain/`，必要時 `domain/ports`），不預設建立 `infrastructure/`、`interfaces/`。
-- 只有同時符合以下條件時，才可在 subdomain 內建立 `infrastructure/` 或 `interfaces/`：
-    1. 該子域有明確且長期穩定的獨立外部整合責任（非一次性或暫時性 adapter）。
-    2. 該子域需要獨立演化與測試節奏，且無法由 bounded-context 根層 `infrastructure/`、`interfaces/` 合理承接。
-    3. 在子域 `README.md` 明確記錄為 mini-module 例外，並說明邊界、owned contracts、維運責任。
-- 若不符合上述條件，subdomain 的外部整合與 UI/transport 組裝應維持在 `<bounded-context>/infrastructure` 或 `<bounded-context>/interfaces`。
+- 同名的下一層目錄（如 `dto`、`use-cases`、`services`、`repositories`、`adapters`、`components`、`hooks`、`queries`、`_actions`）也遵循同一條父路徑判斷規則。
+- 重名不代表可互相直接 import；跨 subdomain 或跨 bounded context 仍必須走 `api/` 邊界或事件契約。
 
 ## Layer Responsibilities
 
@@ -111,8 +89,8 @@ modules/                                        # 系統所有業務模組（bou
 | `api/` | bounded context 或 subdomain 對外唯一公開邊界 |
 | `application/` | 協調 use cases、轉換 DTO、執行流程但不承載核心業務規則；若在 bounded context 根層，代表跨 subdomain 的 context-wide orchestration |
 | `domain/` | 聚合根、實體、值對象、領域服務、領域事件與核心規則；若在 bounded context 根層，代表跨 subdomain 的 shared policy、published language 或 context-wide domain concept |
-| `infrastructure/` | repository / adapter 實作、持久化、外部系統整合；若在 bounded context 根層，代表 context-wide driven adapters |
-| `interfaces/` | UI、route handler、server action、query hooks 等 driving adapters；若在 bounded context 根層，代表 context-wide composition / driving adapters |
+| `infrastructure/` | repository / adapter 實作、持久化、外部系統整合；預設在 bounded context 根層，並依 subdomain 名分組 |
+| `interfaces/` | UI、route handler、server action、query hooks 等 driving adapters；預設在 bounded context 根層，並依 subdomain 名分組 |
 
 ## Service Folder Semantics
 
@@ -124,15 +102,16 @@ modules/                                        # 系統所有業務模組（bou
 - `<bounded-context>` 本身也應該維持 Hexagonal Architecture with DDD 的依賴方向，而不只是 `subdomains/<name>/` 內部才有六邊形分層。
 - 但 Hexagonal Architecture 的關鍵是**依賴方向與內外邊界**，不是資料夾一定要叫 `core/`。
 - 依 Context7 驗證的參考，Application Core 是概念上的核心，外層依賴向內；ports 可放在 application 或 domain，取決於規則真正屬於哪一層。
-- 因此本模板的預設寫法是用顯式的 `application/`、`domain/`、`infrastructure/`、`interfaces/` 來表達六邊形邊界，而不是再包一層泛用 `core/`。
+- 因此本模板的預設寫法是用顯式的 `application/`、`domain/`、`infrastructure/`、`interfaces/` 來表達六邊形邊界，而不是再包一層泛用 `core/`；其中 subdomain 預設只保留 core-first 形狀。
 - 如果團隊真的要使用 `core/`，較合理的變體應是 `<bounded-context>/core/application`、`<bounded-context>/core/domain`，必要時加 `core/ports`；**不應**把 `infrastructure/` 或 `interfaces/` 也放進 `core/`，因為它們本來就是外層。
 - 只有當某段邏輯明確屬於整個 bounded context，而不是單一 subdomain 時，才應放在 `<bounded-context>/application|domain|infrastructure|interfaces`；否則優先放回擁有它的 subdomain。
 
 ## Template Rules
 
 - `<bounded-context>` 根層允許有自己的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，用來承接 context-wide concern；不要把整個 bounded context 簡化成只剩 `docs/` 與 `subdomains/` 的外殼。
-- 每個 subdomain 都必須能獨立表達自己的 use case 與 domain model；預設不建立 `infrastructure/`、`interfaces/`。
-- 只有 subdomain 具備 mini-module 級獨立能力時，才可在該 subdomain 建立 `infrastructure/`、`interfaces/`。
+- 每個 subdomain 都必須能獨立表達自己的 use case 與 domain model；adapter/UI 預設由 bounded context 根層承接，並依 subdomain 名分組。
+- subdomain 預設採 core-first：`api/`、`application/`、`domain/`，`ports/` 視需要建立。
+- subdomain 的 `infrastructure/` 與 `interfaces/` 不是預設必建，只有在存在明確且持續的本地 I/O、runtime、process 或 provider boundary 壓力時才建立。
 - `api/` 是 cross-module collaboration 的唯一入口，`index.ts` 不是跨模組公開邊界。
 - adapter 只實作 port，不直接被其他層呼叫。
 - port 只在真的需要隔離 I/O、外部系統、侵入式 library 或 legacy model 時建立。
@@ -144,7 +123,7 @@ modules/                                        # 系統所有業務模組（bou
 1. 建立 bounded context 的 `README.md`、`AGENT.md`、`api/`、`docs/`，以及必要時的根層 `application/`、`domain/`、`infrastructure/`、`interfaces/` 入口。
 2. 先判斷需求是屬於 bounded context 根層還是特定 subdomain；只有 context-wide concern 才進根層，其餘一律先落到 `subdomains/<name>/`。
 3. 先建立 use case contract（actor / goal / success scenario / failure branches），再建立對應檔案 `application/use-cases/<verb-noun>.use-case.ts`。
-4. 對擁有該責任的 subdomain 先落 `domain/` 核心模型，再收斂 `application/` 流程，最後視需要補 `ports/`；只有符合 mini-module gate 才補 subdomain 層級的 `infrastructure/`、`interfaces/`。
+4. 對擁有該責任的 subdomain 先落 `domain/` 核心模型，再收斂 `application/` 流程；`ports/` 視需要補齊，`infrastructure/` 與 `interfaces/` 預設落在 bounded context 根層並依 subdomain 名分組。
 5. 先放入 aggregate、domain event、published language 與 context map，再補 adapter 與 persistence 實作。
 6. 只有在交付需要時才建立 `ports/`、`hooks/`、`queries/`、`_actions/` 等細分資料夾。
 
@@ -170,7 +149,6 @@ modules/                                        # 系統所有業務模組（bou
 - 不得讓 UI 或 route handler 直接呼叫 `domain/` 或 `infrastructure/`。
 - 不得讓 `domain/` 匯入任何 runtime 或 framework 專用套件。
 - 不得把所有子域都預設長成同一個巨型骨架，卻沒有對應的 use case 與業務責任。
-- 不得在未符合 mini-module gate 的前提下，於 `subdomains/<name>/` 直接建立 `infrastructure/` 或 `interfaces/`。
 - 不得把 `infrastructure/`、`interfaces/` 放進一個泛用 `core/` 目錄，讓六邊形的內外層語義失真。
 - 不得因為「看起來完整」而過度建立 repository port、ACL、DTO、facade 或 service。
 - 不得讓 `interfaces/` 承載業務決策，也不得讓 `application/` 重寫 domain 規則。
@@ -224,5 +202,5 @@ flowchart LR
 ## Constraints
 
 - 本模板是 architecture-first 的交付模板，不代表任何既有模組已完全符合此形狀。
-- `ports/`、`queries/`、`_actions/`、`hooks/` 是按需要建立的可選骨架，不是強制清單。
+- `ports/`、`queries/`、`_actions/`、`hooks/`、subdomain-local `infrastructure/`、subdomain-local `interfaces/` 都是按需要建立的可選骨架，不是強制清單。
 - 若某 subdomain 很小，允許比本模板更精簡；若更精簡仍能守住邊界，應優先採用更精簡版本。
