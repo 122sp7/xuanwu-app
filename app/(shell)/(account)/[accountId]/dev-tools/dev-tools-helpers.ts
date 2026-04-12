@@ -31,7 +31,6 @@ export type UploadStatus = "idle" | "uploading" | "waiting" | "done" | "error";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-export const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
 export const WATCH_PATH = "uploads/";
 export const ACCEPTED_MIME: Record<string, string> = {
   pdf: "application/pdf",
@@ -48,6 +47,18 @@ export const ACCEPTED_EXTS = ".pdf, .tif / .tiff, .png, .jpg / .jpeg";
 export function formatDateTime(value: Date | null): string {
   if (!value) return "—";
   return value.toLocaleString("zh-TW", { hour12: false });
+}
+
+/**
+ * Extract the storage object path from a `gs://bucket/path` URI.
+ * Returns the path portion only (e.g. `uploads/abc/file.pdf`).
+ */
+export function gcsUriToPath(gcsUri: string): string {
+  if (!gcsUri.startsWith("gs://")) return gcsUri;
+  const withoutPrefix = gcsUri.slice(5);
+  const firstSlash = withoutPrefix.indexOf("/");
+  if (firstSlash < 0) return "";
+  return withoutPrefix.slice(firstSlash + 1);
 }
 
 function deriveJsonUri(gcsUri: string): string {
@@ -89,8 +100,13 @@ function asDate(value: unknown): Date | null {
   return null;
 }
 
-export function mapSnapshotDoc(doc: { id: string; data: () => unknown }): DocRecord {
-  const data = asRecord(doc.data());
+/**
+ * Map a plain data record (from platform infrastructure API) to DocRecord.
+ * Accepts `{ id, data }` where data is an already-resolved object —
+ * NOT a Firestore DocumentSnapshot with a `data()` method.
+ */
+export function mapDocRecord(doc: { id: string; data: Record<string, unknown> }): DocRecord {
+  const data = asRecord(doc.data);
   const source = asRecord(data.source);
   const parsed = asRecord(data.parsed);
   const rag = asRecord(data.rag);
