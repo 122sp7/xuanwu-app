@@ -221,7 +221,7 @@ export function AppRail({
 
             if (item.id === "workspace") {
               return (
-                <DropdownMenu key={item.href}>
+                <DropdownMenu key={item.id}>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <DropdownMenuTrigger asChild>
@@ -289,7 +289,7 @@ export function AppRail({
             }
 
             return (
-              <Tooltip key={item.href}>
+              <Tooltip key={item.id}>
                 <TooltipTrigger asChild>
                   <Link
                     href={item.href}

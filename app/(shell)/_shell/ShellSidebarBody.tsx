@@ -162,6 +162,17 @@ export function DashboardSidebarBody({
         </div>
       )}
 
+      {section === "dashboard" && (
+        <div className="space-y-2">
+          <nav className="space-y-0.5" aria-label="儀表板導覽">
+            <p className={sidebarSectionTitleClass}>儀表板</p>
+            <p className="px-2 py-2 text-[11px] text-muted-foreground">
+              帳號總覽與工作區快速存取。
+            </p>
+          </nav>
+        </div>
+      )}
+
       {section === "workspace" && (
         <div className="space-y-2">
           <WorkspaceSectionContent

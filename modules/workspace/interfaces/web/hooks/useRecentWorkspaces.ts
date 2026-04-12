@@ -72,7 +72,7 @@ function getWorkspaceIdFromPath(pathname: string): string | null {
     return null;
   }
 
-  if (["organization", "settings", "dev-tools"].includes(secondSegment)) {
+  if (["organization", "settings", "dashboard", "dev-tools"].includes(secondSegment)) {
     return null;
   }
 
