@@ -1738,32 +1738,6 @@ export class FirebaseThreadRepository implements IThreadRepository {
 }
 ````
 
-## File: modules/notebooklm/subdomains/conversation/interfaces/_actions/chat.actions.ts
-````typescript
-"use server";
-
-import type {
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-  Thread,
-} from "@/modules/notebooklm/api";
-import {
-  GenerateNotebookResponseUseCase,
-  GenkitNotebookRepository,
-} from "@/modules/notebooklm/api/server";
-import { saveThread, loadThread } from "@/modules/notebooklm/api";
-
-export async function sendChatMessage(
-  input: GenerateNotebookResponseInput,
-): Promise<GenerateNotebookResponseResult> {
-  const useCase = new GenerateNotebookResponseUseCase(new GenkitNotebookRepository());
-  return useCase.execute(input);
-}
-
-export { saveThread, loadThread };
-export type { Thread };
-````
-
 ## File: modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx
 ````typescript
 "use client";
@@ -2148,15 +2122,6 @@ export function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: s
 }
 ````
 
-## File: modules/notebooklm/subdomains/notebook/api/factories.ts
-````typescript
-import { GenkitNotebookRepository } from "../infrastructure/genkit/GenkitNotebookRepository";
-
-export function makeNotebookRepo() {
-  return new GenkitNotebookRepository();
-}
-````
-
 ## File: modules/notebooklm/subdomains/notebook/application/use-cases/generate-notebook-response.use-case.ts
 ````typescript
 import type {
@@ -2219,75 +2184,6 @@ import type {
 
 export interface NotebookRepository {
   generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>;
-}
-````
-
-## File: modules/notebooklm/subdomains/notebook/infrastructure/genkit/client.ts
-````typescript
-/**
- * @module modules/notebook/infrastructure/genkit/client
- */
-
-import { googleAI } from "@genkit-ai/google-genai";
-import { genkit } from "genkit";
-
-const DEFAULT_MODEL = "googleai/gemini-2.5-flash";
-
-export type GenkitClientOptions = {
-  model?: string;
-};
-
-export function getConfiguredGenkitModel(model?: string) {
-  return model ?? process.env.GENKIT_MODEL ?? DEFAULT_MODEL;
-}
-
-export function createGenkitClient(options?: GenkitClientOptions) {
-  return genkit({
-    plugins: [googleAI()],
-    model: getConfiguredGenkitModel(options?.model),
-  });
-}
-
-export const agentClient = createGenkitClient();
-````
-
-## File: modules/notebooklm/subdomains/notebook/infrastructure/genkit/GenkitNotebookRepository.ts
-````typescript
-import type {
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-} from "../../domain/entities/AgentGeneration";
-import type { NotebookRepository } from "../../domain/repositories/NotebookRepository";
-import { agentClient, getConfiguredGenkitModel } from "./client";
-
-export class GenkitNotebookRepository implements NotebookRepository {
-  async generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult> {
-    try {
-      const response = await agentClient.generate({
-        prompt: input.prompt,
-        ...(input.system ? { system: input.system } : {}),
-        ...(input.model ? { model: input.model } : {}),
-      });
-
-      return {
-        ok: true,
-        data: {
-          text: response.text,
-          model: getConfiguredGenkitModel(input.model),
-          finishReason: response.finishReason ? String(response.finishReason) : undefined,
-        },
-      };
-    } catch (error) {
-      return {
-        ok: false,
-        error: {
-          code: "AGENT_GENERATE_FAILED",
-          message:
-            error instanceof Error ? error.message : `Unexpected agent generation error: ${String(error)}`,
-        },
-      };
-    }
-  }
 }
 ````
 
@@ -20364,6 +20260,95 @@ export const AssignMemberSchema = z.object({
 export type AssignMemberInput = z.infer<typeof AssignMemberSchema>;
 ````
 
+## File: modules/workspace/subdomains/scheduling/application/work-demand.use-cases.ts
+````typescript
+/**
+ * Module: workspace/subdomains/scheduling
+ * Layer: application/use-cases
+ * Purpose: Application services — orchestrate domain logic.
+ */
+
+import type { CommandResult } from "@shared-types";
+import { commandFailureFrom, commandSuccess } from "@shared-types";
+
+import type { WorkDemand } from "../domain/types";
+import type { IDemandRepository } from "../domain/repository";
+import type { AssignMemberInput, CreateDemandInput } from "./dto/work-demand.dto";
+
+export class SubmitWorkDemandUseCase {
+  constructor(private readonly repo: IDemandRepository) {}
+
+  async execute(input: CreateDemandInput): Promise<CommandResult> {
+    try {
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+      const demand: WorkDemand = {
+        id,
+        workspaceId: input.workspaceId,
+        accountId: input.accountId,
+        requesterId: input.requesterId,
+        title: input.title,
+        description: input.description ?? "",
+        priority: input.priority,
+        scheduledAt: input.scheduledAt,
+        status: "open",
+        createdAtISO: now,
+        updatedAtISO: now,
+      };
+      await this.repo.save(demand);
+      return commandSuccess(id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORK_DEMAND_SUBMIT_FAILED",
+        err instanceof Error ? err.message : "Failed to submit work demand",
+      );
+    }
+  }
+}
+
+export class AssignWorkDemandUseCase {
+  constructor(private readonly repo: IDemandRepository) {}
+
+  async execute(input: AssignMemberInput): Promise<CommandResult> {
+    try {
+      const demand = await this.repo.findById(input.demandId);
+      if (!demand) {
+        return commandFailureFrom("DEMAND_NOT_FOUND", `Demand ${input.demandId} not found`);
+      }
+      const updated: WorkDemand = {
+        ...demand,
+        assignedUserId: input.userId,
+        status: "in_progress",
+        updatedAtISO: new Date().toISOString(),
+      };
+      await this.repo.update(updated);
+      return commandSuccess(input.demandId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORK_DEMAND_ASSIGN_FAILED",
+        err instanceof Error ? err.message : "Failed to assign work demand",
+      );
+    }
+  }
+}
+
+export class ListWorkspaceDemandsUseCase {
+  constructor(private readonly repo: IDemandRepository) {}
+
+  async execute(workspaceId: string): Promise<WorkDemand[]> {
+    return this.repo.listByWorkspace(workspaceId);
+  }
+}
+
+export class ListAccountDemandsUseCase {
+  constructor(private readonly repo: IDemandRepository) {}
+
+  async execute(accountId: string): Promise<WorkDemand[]> {
+    return this.repo.listByAccount(accountId);
+  }
+}
+````
+
 ## File: modules/workspace/subdomains/scheduling/domain/repository.ts
 ````typescript
 /**
@@ -35127,6 +35112,292 @@ export default function DatabaseDetailPageRoute() {
 }
 ````
 
+## File: app/(shell)/knowledge/page.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { Brain, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
+
+import { useApp, useAuth } from "@/modules/platform/api"
+import { buildWikiContentTree, useWorkspaceContext } from "@/modules/workspace/api";
+import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+const QUICK_ACCESS = [
+  {
+    href: "/knowledge/pages?scope=account",
+    title: "Pages",
+    description: "顯式 account summary 的頁面樹檢視與維運工具；日常建立與整理請從工作區進入。",
+    icon: FileText,
+  },
+  {
+    href: "/source/libraries",
+    title: "Libraries",
+    description: "維持 schema / table 型知識資產。",
+    icon: Database,
+  },
+  {
+    href: "/knowledge-base/articles",
+    title: "Articles",
+    description: "組織知識庫 SOP 文章、驗證管治與分類樹。",
+    icon: FolderKanban,
+  },
+  {
+    href: "/knowledge-database/databases",
+    title: "Databases",
+    description: "結構化資料庫、多視圖（表格、看板、日曆）管理。",
+    icon: Brain,
+  },
+  {
+    href: "/notebook/rag-query",
+    title: "Ask / Cite",
+    description: "查詢、引用與回答檢視。",
+    icon: MessageSquare,
+  },
+] as const;
+
+export default function KnowledgeHubPage() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
+  const [contentTree, setContentTree] = useState<WikiAccountContentNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const accountSeeds = useMemo<WikiAccountSeed[]>(() => {
+    const personalUser = authState.user;
+    const activeAccountId = appState.activeAccount?.id;
+    const seeds: WikiAccountSeed[] = [];
+
+    if (personalUser) {
+      seeds.push({
+        accountId: personalUser.id,
+        accountName: personalUser.name,
+        accountType: "personal",
+        isActive: activeAccountId === personalUser.id,
+      });
+    }
+
+    const organizations = Object.values(appState.accounts);
+    for (const organization of organizations) {
+      seeds.push({
+        accountId: organization.id,
+        accountName: organization.name,
+        accountType: "organization",
+        isActive: activeAccountId === organization.id,
+      });
+    }
+
+    return seeds;
+  }, [appState.accounts, appState.activeAccount?.id, authState.user]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const result = await buildWikiContentTree(accountSeeds);
+        if (!disposed) {
+          setContentTree(result);
+        }
+      } catch {
+        if (!disposed) {
+          setContentTree([]);
+        }
+      } finally {
+        if (!disposed) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+
+    return () => {
+      disposed = true;
+    };
+  }, [accountSeeds]);
+
+  const activeAccount = contentTree.find((node) => node.isActive);
+  const highlightedWorkspace =
+    activeAccount?.workspaces.find((workspace) => workspace.workspaceId === wsState.activeWorkspaceId) ??
+    activeAccount?.workspaces[0];
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Hub</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Knowledge Hub</h1>
+        <p className="text-sm text-muted-foreground">
+          從這裡進入 Knowledge、Knowledge Base、Knowledge Database、Source 與 Notebook 各模組。
+        </p>
+      </header>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Workspace-first entry</CardTitle>
+          <CardDescription>先鎖定 active account，再選擇要進入的工作區，最後才分流到 Knowledge、知識頁面、Notebook / AI。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loading ? (
+            <Skeleton className="h-6 w-48" />
+          ) : activeAccount ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Active Account</p>
+                <div className="mt-2 flex items-center gap-2 text-sm">
+                  <Building2 className="size-4 text-primary" />
+                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
+                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
+                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
+                  <FolderKanban className="size-4 text-primary" />
+                  <span>{activeAccount.workspaces.length} 個工作區可直接進入各自的知識頁面</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
+          )}
+
+          {highlightedWorkspace && (
+            <div className="grid gap-3 lg:grid-cols-[1fr_1.1fr]">
+              <div className="rounded-xl border border-border/60 px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Highlighted workspace</p>
+                <p className="mt-2 text-sm font-semibold text-foreground">{highlightedWorkspace.workspaceName}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  先把這個工作區當成知識主樞紐，再從裡面打開知識頁面與 Notebook / AI。
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button asChild size="sm">
+                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}`}>進入工作區</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>知識頁面</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/ai-chat?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>
+                      Notebook / AI
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">Knowledge</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    先整理文件來源、Libraries 與 upload / ingest。
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">知識頁面</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    再用頁面樹與內容脈絡整理知識結構。
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    最後才消費這些知識做問答、摘要與洞察。
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {QUICK_ACCESS.map((item) => (
+              <Link key={item.href} href={item.href} className="group">
+                <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <item.icon className="size-4" />
+                      </div>
+                      <CardTitle className="text-sm">{item.title}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Workspace Snapshot</CardTitle>
+          <CardDescription>以下工作區皆屬於目前 active account；請優先從工作區進入，再分流到 Knowledge、知識頁面與 Notebook / AI。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+            </div>
+          ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
+            <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {activeAccount.workspaces.map((workspace) => (
+                <Card key={workspace.workspaceId} className="transition-colors hover:border-primary/40 hover:shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex flex-wrap gap-1">
+                      {workspace.contentBaseItems
+                        .filter((item) => item.enabled)
+                        .map((item) => (
+                          <Badge key={item.key} variant="secondary" className="text-[10px]">
+                            {item.label}
+                          </Badge>
+                        ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/workspace/${workspace.workspaceId}`}>Workspace</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>知識頁面</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/workspace/${workspace.workspaceId}?tab=Files`}>
+                          Files
+                        </Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
+                          <Brain className="mr-1 size-3.5" />
+                          Notebook
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/knowledge/pages/[pageId]/page.tsx
 ````typescript
 "use client";
@@ -35809,6 +36080,32 @@ export * from "./ports";
 export type { IThreadRepository as IThreadPort } from "../repositories/IThreadRepository";
 ````
 
+## File: modules/notebooklm/subdomains/conversation/interfaces/_actions/chat.actions.ts
+````typescript
+"use server";
+
+import type {
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+  Thread,
+} from "@/modules/notebooklm/api";
+import {
+  GenerateNotebookResponseUseCase,
+  PlatformTextGenerationAdapter,
+} from "@/modules/notebooklm/api/server";
+import { saveThread, loadThread } from "@/modules/notebooklm/api";
+
+export async function sendChatMessage(
+  input: GenerateNotebookResponseInput,
+): Promise<GenerateNotebookResponseResult> {
+  const useCase = new GenerateNotebookResponseUseCase(new PlatformTextGenerationAdapter());
+  return useCase.execute(input);
+}
+
+export { saveThread, loadThread };
+export type { Thread };
+````
+
 ## File: modules/notebooklm/subdomains/conversation/interfaces/_actions/thread.actions.ts
 ````typescript
 "use server";
@@ -35825,6 +36122,15 @@ export async function loadThread(accountId: string, threadId: string): Promise<T
 }
 ````
 
+## File: modules/notebooklm/subdomains/notebook/api/factories.ts
+````typescript
+import { PlatformTextGenerationAdapter } from "../infrastructure/platform/PlatformTextGenerationAdapter";
+
+export function makeNotebookRepo() {
+  return new PlatformTextGenerationAdapter();
+}
+````
+
 ## File: modules/notebooklm/subdomains/notebook/api/index.ts
 ````typescript
 export type {
@@ -35838,21 +36144,6 @@ export type { NotebookRepository } from "../domain/repositories/NotebookReposito
 export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-notebook-response.use-case";
 
 export { generateNotebookResponse } from "../interfaces/_actions/generate-notebook-response.actions";
-````
-
-## File: modules/notebooklm/subdomains/notebook/api/server.ts
-````typescript
-/**
- * notebook subdomain — server-only API.
- *
- * Exports infrastructure implementations that depend on server-only packages
- * (genkit, google-genai). Must only be imported in Server Actions, route
- * handlers, or server-side infrastructure.
- */
-
-export { GenkitNotebookRepository } from "../infrastructure/genkit/GenkitNotebookRepository";
-export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-notebook-response.use-case";
-export { makeNotebookRepo } from "./factories";
 ````
 
 ## File: modules/notebooklm/subdomains/notebook/application/dto/notebook.dto.ts
@@ -35885,6 +36176,57 @@ export * from "./ports";
  * explicitly visible in the directory structure.
  */
 export type { NotebookRepository as INotebookPort } from "../repositories/NotebookRepository";
+````
+
+## File: modules/notebooklm/subdomains/notebook/infrastructure/platform/PlatformTextGenerationAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/notebook
+ * Layer: infrastructure/platform
+ * Purpose: Delegates text generation to platform AI API.
+ *
+ * The notebook subdomain owns its NotebookRepository port; this adapter
+ * satisfies it by calling the platform AI capability instead of importing
+ * Genkit directly. All Genkit wiring lives exclusively in
+ * modules/platform/subdomains/ai/infrastructure.
+ */
+
+import { generateAiText } from "@/modules/platform/api";
+import type {
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "../../domain/entities/AgentGeneration";
+import type { NotebookRepository } from "../../domain/repositories/NotebookRepository";
+
+export class PlatformTextGenerationAdapter implements NotebookRepository {
+  async generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult> {
+    try {
+      const result = await generateAiText({
+        prompt: input.prompt,
+        ...(input.system ? { system: input.system } : {}),
+        ...(input.model ? { model: input.model } : {}),
+      });
+
+      return {
+        ok: true,
+        data: {
+          text: result.text,
+          model: result.model,
+          finishReason: result.finishReason,
+        },
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: "AGENT_GENERATE_FAILED",
+          message:
+            error instanceof Error ? error.message : `Unexpected agent generation error: ${String(error)}`,
+        },
+      };
+    }
+  }
+}
 ````
 
 ## File: modules/notebooklm/subdomains/notebook/interfaces/_actions/generate-notebook-response.actions.ts
@@ -37623,30 +37965,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill rag-architecture
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/api/server.ts
-````typescript
-/**
- * synthesis subdomain — server-only API.
- *
- * Factory functions and infrastructure adapters that depend on server-only
- * packages (genkit, google-genai). Must only be imported in Server Actions,
- * route handlers, or server-side infrastructure.
- */
-
-import { FirebaseRagRetrievalAdapter } from "../infrastructure/firebase/FirebaseRagRetrievalAdapter";
-import { GenkitRagGenerationAdapter } from "../infrastructure/genkit/GenkitRagGenerationAdapter";
-import { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
-
-export { GenkitRagGenerationAdapter } from "../infrastructure/genkit/GenkitRagGenerationAdapter";
-
-export function createAnswerRagQueryUseCase(): AnswerRagQueryUseCase {
-  return new AnswerRagQueryUseCase(
-    new FirebaseRagRetrievalAdapter(),
-    new GenkitRagGenerationAdapter(),
-  );
-}
-````
-
 ## File: modules/notebooklm/subdomains/synthesis/application/use-cases/answer-rag-query.use-case.ts
 ````typescript
 /**
@@ -38366,24 +38684,6 @@ export interface IFeedbackPort {
 }
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/domain/ports/IGenerationPort.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: domain/ports
- * Purpose: IGenerationPort — output port for AI answer generation.
- *
- * Migration source: ai/domain/repositories/IRagGenerationRepository.ts
- * The Genkit adapter (infrastructure) implements this port.
- */
-
-import type { GenerateAnswerInput, GenerateAnswerResult } from "../entities/SynthesisResult";
-
-export interface IGenerationPort {
-  generate(input: GenerateAnswerInput): Promise<GenerateAnswerResult>;
-}
-````
-
 ## File: modules/notebooklm/subdomains/synthesis/domain/ports/IVectorStore.ts
 ````typescript
 /**
@@ -38514,23 +38814,6 @@ export interface IKnowledgeContentRepository {
   ): Promise<KnowledgeRagQueryResult>;
   reindexDocument(input: KnowledgeReindexInput): Promise<void>;
   listParsedDocuments(accountId: string, limitCount: number): Promise<KnowledgeParsedDocument[]>;
-}
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/repositories/IRagGenerationRepository.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: domain/repositories
- * Purpose: IRagGenerationRepository — output port for AI answer generation.
- *
- * Domain owns this contract; the Genkit adapter (infrastructure) implements it.
- */
-
-import type { GenerateRagAnswerInput, GenerateRagAnswerResult } from "../entities/generation.entities";
-
-export interface IRagGenerationRepository {
-  generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult>;
 }
 ````
 
@@ -39222,67 +39505,27 @@ export class FirebaseRagRetrievalAdapter implements IRagRetrievalRepository {
 }
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/infrastructure/genkit/genkit-ai-client.ts
+## File: modules/notebooklm/subdomains/synthesis/infrastructure/platform/PlatformRagGenerationAdapter.ts
 ````typescript
 /**
  * Module: notebooklm/subdomains/synthesis
- * Layer: infrastructure/genkit
- * Purpose: Genkit AI client singleton — server-side only.
+ * Layer: infrastructure/platform
+ * Purpose: Implements IRagGenerationRepository by delegating model invocation
+ *          to platform AI API. Prompt construction and citation building stay
+ *          in this adapter (domain-specific to synthesis).
  *
- * Design notes:
- * - Reads GOOGLE_GENAI_API_KEY and GENKIT_MODEL from environment.
- * - If no API key is present (e.g. test environment) the googleAI plugin is
- *   skipped so the server still starts without credentials.
- * - This file must not be imported by any client (browser) bundle.
+ * All Genkit wiring lives exclusively in
+ * modules/platform/subdomains/ai/infrastructure.
  */
 
-import { genkit } from "genkit";
-import { googleAI } from "@genkit-ai/google-genai";
-
-const DEFAULT_SYNTHESIS_MODEL = "googleai/gemini-2.0-flash";
-
-const envModel = process.env.GENKIT_MODEL?.trim();
-const configuredModel =
-  envModel && envModel.length > 0 ? envModel : DEFAULT_SYNTHESIS_MODEL;
-
-const hasApiKey =
-  typeof process.env.GOOGLE_GENAI_API_KEY === "string" &&
-  process.env.GOOGLE_GENAI_API_KEY.trim().length > 0;
-
-export const synthesisAiClient = genkit({
-  plugins: hasApiKey ? [googleAI()] : [],
-  model: configuredModel,
-});
-
-export function resolveGenerationModel(modelOverride?: string): string {
-  const normalized = modelOverride?.trim();
-  return normalized && normalized.length > 0 ? normalized : configuredModel;
-}
-````
-
-## File: modules/notebooklm/subdomains/synthesis/infrastructure/genkit/GenkitRagGenerationAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: infrastructure/genkit
- * Purpose: GenkitRagGenerationAdapter — implements IRagGenerationRepository
- *          using Genkit to invoke Google AI (or any configured model).
- *
- * Design notes:
- * - All prompt construction is encapsulated here (not in domain / use cases).
- * - Citations are derived from the input chunks, not re-extracted from the
- *   model output (avoids hallucination in citation attribution).
- * - Unhandled model errors are wrapped in a structured DomainError value.
- */
-
+import { generateAiText } from "@/modules/platform/api";
 import type { IRagGenerationRepository } from "../../domain/repositories/IRagGenerationRepository";
 import type {
   GenerateRagAnswerInput,
-  GenerateRagAnswerOutput,
   GenerateRagAnswerResult,
+  GenerateRagAnswerOutput,
   GenerationCitation,
 } from "../../domain/entities/generation.entities";
-import { synthesisAiClient, resolveGenerationModel } from "./genkit-ai-client";
 
 // --- Prompt construction helpers (pure, testable) ----------------------------
 
@@ -39316,18 +39559,18 @@ function buildCitations(input: GenerateRagAnswerInput): readonly GenerationCitat
 const SYSTEM_PROMPT =
   "You are the Xuanwu RAG orchestration layer. Answer only from the supplied context and preserve citations.";
 
-export class GenkitRagGenerationAdapter implements IRagGenerationRepository {
+export class PlatformRagGenerationAdapter implements IRagGenerationRepository {
   async generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult> {
     try {
-      const response = await synthesisAiClient.generate({
+      const result = await generateAiText({
         prompt: buildGenerationPrompt(input),
         system: SYSTEM_PROMPT,
         ...(input.model ? { model: input.model } : {}),
       });
 
       const output: GenerateRagAnswerOutput = {
-        answer: response.text,
-        model: resolveGenerationModel(input.model),
+        answer: result.text,
+        model: result.model,
         citations: buildCitations(input),
       };
 
@@ -50734,6 +50977,18 @@ export class FirebaseEntitlementGrantRepository implements EntitlementGrantRepos
 // Purpose: Infrastructure layer placeholder for platform subdomain 'feature-flag'.
 ````
 
+## File: modules/platform/subdomains/identity/api/index.ts
+````typescript
+/**
+ * identity subdomain public API boundary.
+ * Consumers (e.g. infrastructure in sibling subdomains) must import through this barrel.
+ */
+export * from "../application";
+export * from "../infrastructure";
+export * from "../domain";
+export * from "../interfaces";
+````
+
 ## File: modules/platform/subdomains/identity/domain/aggregates/index.ts
 ````typescript
 export * from "./UserIdentity";
@@ -54461,6 +54716,253 @@ export class FirebaseWikiWorkspaceRepository implements WikiWorkspaceRepository 
 }
 ````
 
+## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
+````typescript
+import type {
+  WorkspaceMemberAccessChannel,
+  WorkspaceMemberPresence,
+  WorkspaceMemberView,
+} from "../../domain/entities/WorkspaceMemberView";
+import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
+import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
+import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
+
+const personnelLabels = {
+  managerId: "Manager",
+  supervisorId: "Supervisor",
+  safetyOfficerId: "Safety officer",
+} as const;
+
+const personnelLabelEntries = Object.entries(personnelLabels) as Array<
+  [keyof typeof personnelLabels, string]
+>;
+
+interface OrganizationMemberReference {
+  id: string;
+  name: string;
+  email?: string;
+  role?: string;
+  presence?: string;
+  isExternal?: boolean;
+}
+
+interface OrganizationTeam {
+  id: string;
+  name: string;
+  memberIds: string[];
+}
+
+interface OrganizationDirectoryGateway {
+  getOrganizationMembers(organizationId: string): Promise<OrganizationMemberReference[]>;
+  getOrganizationTeams(organizationId: string): Promise<OrganizationTeam[]>;
+}
+
+const defaultOrganizationDirectoryGateway: OrganizationDirectoryGateway = {
+  async getOrganizationMembers() {
+    return [];
+  },
+  async getOrganizationTeams() {
+    return [];
+  },
+};
+
+function toPresence(value: OrganizationMemberReference["presence"] | undefined): WorkspaceMemberPresence {
+  if (value === "active" || value === "away" || value === "offline") {
+    return value;
+  }
+
+  return "unknown";
+}
+
+function createFallbackMember(id: string): WorkspaceMemberView {
+  return {
+    id,
+    displayName: id,
+    presence: "unknown",
+    isExternal: false,
+    accessChannels: [],
+  };
+}
+
+export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
+  constructor(
+    private readonly organizationDirectoryGateway: OrganizationDirectoryGateway = defaultOrganizationDirectoryGateway,
+  ) {}
+
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
+
+  subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: WorkspaceEntity[]) => void,
+  ) {
+    const normalizedAccountId = accountId.trim();
+    if (!normalizedAccountId) {
+      onUpdate([]);
+      return () => {};
+    }
+
+    const q = query(
+      collection(this.db, "workspaces"),
+      where("accountId", "==", normalizedAccountId),
+    );
+
+    return onSnapshot(q, (snap) => {
+      const workspaces = snap.docs.map((docSnap) =>
+        toWorkspaceEntity(docSnap.id, docSnap.data() as Record<string, unknown>),
+      );
+      onUpdate(workspaces);
+    });
+  }
+
+  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
+    const workspace = await this.workspaceRepo.findById(workspaceId);
+    if (!workspace) {
+      return [];
+    }
+
+    const members = new Map<string, WorkspaceMemberView>();
+    const memberChannelKeys = new Map<string, Set<string>>();
+
+    const mergeMember = (
+      memberId: string,
+      channel: WorkspaceMemberAccessChannel,
+      orgMember?: OrganizationMemberReference,
+    ) => {
+      const current = members.get(memberId) ?? createFallbackMember(memberId);
+      const channelKey = [
+        channel.source,
+        channel.label,
+        channel.role ?? "",
+        channel.protocol ?? "",
+        channel.teamId ?? "",
+      ].join("::");
+      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
+      memberChannelKeys.set(memberId, knownChannelKeys);
+      const hasSameChannel = knownChannelKeys.has(channelKey);
+      if (!hasSameChannel) {
+        knownChannelKeys.add(channelKey);
+      }
+
+      members.set(memberId, {
+        id: memberId,
+        displayName: orgMember?.name || current.displayName,
+        email: orgMember?.email ?? current.email,
+        organizationRole: orgMember?.role ?? current.organizationRole,
+        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
+        isExternal: orgMember?.isExternal ?? current.isExternal,
+        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
+      });
+    };
+
+    if (workspace.accountType === "organization") {
+      const [organizationMembers, teams] = await Promise.all([
+        this.organizationDirectoryGateway.getOrganizationMembers(workspace.accountId),
+        this.organizationDirectoryGateway.getOrganizationTeams(workspace.accountId),
+      ]);
+
+      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
+      const teamMap = new Map(teams.map((team) => [team.id, team]));
+
+      const mergeTeam = (team: OrganizationTeam, role?: string, protocol?: string) => {
+        const label = team.name || team.id;
+        team.memberIds.forEach((memberId: string) => {
+          mergeMember(
+            memberId,
+            {
+              source: "team",
+              label,
+              role,
+              protocol,
+              teamId: team.id,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        });
+      };
+
+      workspace.teamIds.forEach((teamId) => {
+        const team = teamMap.get(teamId);
+        if (team) {
+          mergeTeam(team);
+        }
+      });
+
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(
+            grant.userId,
+            {
+              source: "direct",
+              label: "Direct access",
+              role: grant.role,
+              protocol: grant.protocol,
+            },
+            organizationMemberMap.get(grant.userId),
+          );
+        }
+
+        if (grant.teamId) {
+          const team = teamMap.get(grant.teamId);
+          if (team) {
+            mergeTeam(team, grant.role, grant.protocol);
+          }
+        }
+      });
+
+      personnelLabelEntries.forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field];
+        if (memberId) {
+          mergeMember(
+            memberId,
+            {
+              source: "personnel",
+              label,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        }
+      });
+    } else {
+      mergeMember(workspace.accountId, {
+        source: "owner",
+        label: "Workspace owner",
+      });
+
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(grant.userId, {
+            source: "direct",
+            label: "Direct access",
+            role: grant.role,
+            protocol: grant.protocol,
+          });
+        }
+      });
+
+      personnelLabelEntries.forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field];
+        if (memberId) {
+          mergeMember(memberId, {
+            source: "personnel",
+            label,
+          });
+        }
+      });
+    }
+
+    return Array.from(members.values()).sort((left, right) =>
+      left.displayName.localeCompare(right.displayName),
+    );
+  }
+}
+````
+
 ## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository.ts
 ````typescript
 /**
@@ -57610,95 +58112,6 @@ export interface AssignMemberInput {
 }
 ````
 
-## File: modules/workspace/subdomains/scheduling/application/work-demand.use-cases.ts
-````typescript
-/**
- * Module: workspace/subdomains/scheduling
- * Layer: application/use-cases
- * Purpose: Application services — orchestrate domain logic.
- */
-
-import type { CommandResult } from "@shared-types";
-import { commandFailureFrom, commandSuccess } from "@shared-types";
-
-import type { WorkDemand } from "../domain/types";
-import type { IDemandRepository } from "../domain/repository";
-import type { AssignMemberInput, CreateDemandInput } from "./dto/work-demand.dto";
-
-export class SubmitWorkDemandUseCase {
-  constructor(private readonly repo: IDemandRepository) {}
-
-  async execute(input: CreateDemandInput): Promise<CommandResult> {
-    try {
-      const id = crypto.randomUUID();
-      const now = new Date().toISOString();
-      const demand: WorkDemand = {
-        id,
-        workspaceId: input.workspaceId,
-        accountId: input.accountId,
-        requesterId: input.requesterId,
-        title: input.title,
-        description: input.description ?? "",
-        priority: input.priority,
-        scheduledAt: input.scheduledAt,
-        status: "open",
-        createdAtISO: now,
-        updatedAtISO: now,
-      };
-      await this.repo.save(demand);
-      return commandSuccess(id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORK_DEMAND_SUBMIT_FAILED",
-        err instanceof Error ? err.message : "Failed to submit work demand",
-      );
-    }
-  }
-}
-
-export class AssignWorkDemandUseCase {
-  constructor(private readonly repo: IDemandRepository) {}
-
-  async execute(input: AssignMemberInput): Promise<CommandResult> {
-    try {
-      const demand = await this.repo.findById(input.demandId);
-      if (!demand) {
-        return commandFailureFrom("DEMAND_NOT_FOUND", `Demand ${input.demandId} not found`);
-      }
-      const updated: WorkDemand = {
-        ...demand,
-        assignedUserId: input.userId,
-        status: "in_progress",
-        updatedAtISO: new Date().toISOString(),
-      };
-      await this.repo.update(updated);
-      return commandSuccess(input.demandId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORK_DEMAND_ASSIGN_FAILED",
-        err instanceof Error ? err.message : "Failed to assign work demand",
-      );
-    }
-  }
-}
-
-export class ListWorkspaceDemandsUseCase {
-  constructor(private readonly repo: IDemandRepository) {}
-
-  async execute(workspaceId: string): Promise<WorkDemand[]> {
-    return this.repo.listByWorkspace(workspaceId);
-  }
-}
-
-export class ListAccountDemandsUseCase {
-  constructor(private readonly repo: IDemandRepository) {}
-
-  async execute(accountId: string): Promise<WorkDemand[]> {
-    return this.repo.listByAccount(accountId);
-  }
-}
-````
-
 ## File: modules/workspace/subdomains/scheduling/interfaces/AccountSchedulingView.tsx
 ````typescript
 "use client";
@@ -59782,292 +60195,6 @@ export function SimpleNavLinks({
 }
 ````
 
-## File: app/(shell)/knowledge/page.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { Brain, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import { buildWikiContentTree, useWorkspaceContext } from "@/modules/workspace/api";
-import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-const QUICK_ACCESS = [
-  {
-    href: "/knowledge/pages?scope=account",
-    title: "Pages",
-    description: "顯式 account summary 的頁面樹檢視與維運工具；日常建立與整理請從工作區進入。",
-    icon: FileText,
-  },
-  {
-    href: "/source/libraries",
-    title: "Libraries",
-    description: "維持 schema / table 型知識資產。",
-    icon: Database,
-  },
-  {
-    href: "/knowledge-base/articles",
-    title: "Articles",
-    description: "組織知識庫 SOP 文章、驗證管治與分類樹。",
-    icon: FolderKanban,
-  },
-  {
-    href: "/knowledge-database/databases",
-    title: "Databases",
-    description: "結構化資料庫、多視圖（表格、看板、日曆）管理。",
-    icon: Brain,
-  },
-  {
-    href: "/notebook/rag-query",
-    title: "Ask / Cite",
-    description: "查詢、引用與回答檢視。",
-    icon: MessageSquare,
-  },
-] as const;
-
-export default function KnowledgeHubPage() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
-  const [contentTree, setContentTree] = useState<WikiAccountContentNode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const accountSeeds = useMemo<WikiAccountSeed[]>(() => {
-    const personalUser = authState.user;
-    const activeAccountId = appState.activeAccount?.id;
-    const seeds: WikiAccountSeed[] = [];
-
-    if (personalUser) {
-      seeds.push({
-        accountId: personalUser.id,
-        accountName: personalUser.name,
-        accountType: "personal",
-        isActive: activeAccountId === personalUser.id,
-      });
-    }
-
-    const organizations = Object.values(appState.accounts);
-    for (const organization of organizations) {
-      seeds.push({
-        accountId: organization.id,
-        accountName: organization.name,
-        accountType: "organization",
-        isActive: activeAccountId === organization.id,
-      });
-    }
-
-    return seeds;
-  }, [appState.accounts, appState.activeAccount?.id, authState.user]);
-
-  useEffect(() => {
-    let disposed = false;
-
-    async function load() {
-      setLoading(true);
-      try {
-        const result = await buildWikiContentTree(accountSeeds);
-        if (!disposed) {
-          setContentTree(result);
-        }
-      } catch {
-        if (!disposed) {
-          setContentTree([]);
-        }
-      } finally {
-        if (!disposed) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void load();
-
-    return () => {
-      disposed = true;
-    };
-  }, [accountSeeds]);
-
-  const activeAccount = contentTree.find((node) => node.isActive);
-  const highlightedWorkspace =
-    activeAccount?.workspaces.find((workspace) => workspace.workspaceId === wsState.activeWorkspaceId) ??
-    activeAccount?.workspaces[0];
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Hub</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Knowledge Hub</h1>
-        <p className="text-sm text-muted-foreground">
-          從這裡進入 Knowledge、Knowledge Base、Knowledge Database、Source 與 Notebook 各模組。
-        </p>
-      </header>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Workspace-first entry</CardTitle>
-          <CardDescription>先鎖定 active account，再選擇要進入的工作區，最後才分流到 Knowledge、知識頁面、Notebook / AI。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loading ? (
-            <Skeleton className="h-6 w-48" />
-          ) : activeAccount ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Active Account</p>
-                <div className="mt-2 flex items-center gap-2 text-sm">
-                  <Building2 className="size-4 text-primary" />
-                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
-                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
-                </div>
-              </div>
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
-                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
-                  <FolderKanban className="size-4 text-primary" />
-                  <span>{activeAccount.workspaces.length} 個工作區可直接進入各自的知識頁面</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
-          )}
-
-          {highlightedWorkspace && (
-            <div className="grid gap-3 lg:grid-cols-[1fr_1.1fr]">
-              <div className="rounded-xl border border-border/60 px-4 py-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Highlighted workspace</p>
-                <p className="mt-2 text-sm font-semibold text-foreground">{highlightedWorkspace.workspaceName}</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  先把這個工作區當成知識主樞紐，再從裡面打開知識頁面與 Notebook / AI。
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Button asChild size="sm">
-                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}`}>進入工作區</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>知識頁面</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/ai-chat?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>
-                      Notebook / AI
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">Knowledge</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    先整理文件來源、Libraries 與 upload / ingest。
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">知識頁面</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    再用頁面樹與內容脈絡整理知識結構。
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    最後才消費這些知識做問答、摘要與洞察。
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {QUICK_ACCESS.map((item) => (
-              <Link key={item.href} href={item.href} className="group">
-                <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-                        <item.icon className="size-4" />
-                      </div>
-                      <CardTitle className="text-sm">{item.title}</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Workspace Snapshot</CardTitle>
-          <CardDescription>以下工作區皆屬於目前 active account；請優先從工作區進入，再分流到 Knowledge、知識頁面與 Notebook / AI。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-            </div>
-          ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
-            <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {activeAccount.workspaces.map((workspace) => (
-                <Card key={workspace.workspaceId} className="transition-colors hover:border-primary/40 hover:shadow-sm">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex flex-wrap gap-1">
-                      {workspace.contentBaseItems
-                        .filter((item) => item.enabled)
-                        .map((item) => (
-                          <Badge key={item.key} variant="secondary" className="text-[10px]">
-                            {item.label}
-                          </Badge>
-                        ))}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/workspace/${workspace.workspaceId}`}>Workspace</Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>知識頁面</Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/workspace/${workspace.workspaceId}?tab=Files`}>
-                          Files
-                        </Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
-                          <Brain className="mr-1 size-3.5" />
-                          Notebook
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-````
-
 ## File: app/(shell)/layout.tsx
 ````typescript
 "use client";
@@ -60361,6 +60488,20 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/notebooklm/subdomains/notebook/api/server.ts
+````typescript
+/**
+ * notebook subdomain — server-only API.
+ *
+ * Exports infrastructure implementations that depend on server-only packages.
+ * Must only be imported in Server Actions, route handlers, or server-side infrastructure.
+ */
+
+export { PlatformTextGenerationAdapter } from "../infrastructure/platform/PlatformTextGenerationAdapter";
+export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-notebook-response.use-case";
+export { makeNotebookRepo } from "./factories";
+````
+
 ## File: modules/notebooklm/subdomains/notebook/README.md
 ````markdown
 # Notebook
@@ -60644,6 +60785,30 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/notebooklm/subdomains/synthesis/api/server.ts
+````typescript
+/**
+ * synthesis subdomain — server-only API.
+ *
+ * Factory functions and infrastructure adapters that depend on server-only
+ * packages. Must only be imported in Server Actions, route handlers, or
+ * server-side infrastructure.
+ */
+
+import { FirebaseRagRetrievalAdapter } from "../infrastructure/firebase/FirebaseRagRetrievalAdapter";
+import { PlatformRagGenerationAdapter } from "../infrastructure/platform/PlatformRagGenerationAdapter";
+import { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
+
+export { PlatformRagGenerationAdapter } from "../infrastructure/platform/PlatformRagGenerationAdapter";
+
+export function createAnswerRagQueryUseCase(): AnswerRagQueryUseCase {
+  return new AnswerRagQueryUseCase(
+    new FirebaseRagRetrievalAdapter(),
+    new PlatformRagGenerationAdapter(),
+  );
+}
+````
+
 ## File: modules/notebooklm/subdomains/synthesis/application/index.ts
 ````typescript
 /**
@@ -60654,16 +60819,38 @@ export { AnswerRagQueryUseCase } from "./use-cases/answer-rag-query.use-case";
 export { SubmitRagQueryFeedbackUseCase } from "./use-cases/submit-rag-feedback.use-case";
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/infrastructure/index.ts
+## File: modules/notebooklm/subdomains/synthesis/domain/ports/IGenerationPort.ts
 ````typescript
 /**
- * Infrastructure layer for notebooklm subdomain 'synthesis'.
- * Contains Firebase and Genkit adapters for the RAG pipeline.
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/ports
+ * Purpose: IGenerationPort — output port for AI answer generation.
+ *
+ * The platform AI adapter (infrastructure) implements this port.
  */
-export { FirebaseRagRetrievalAdapter } from "./firebase/FirebaseRagRetrievalAdapter";
-export { FirebaseKnowledgeContentAdapter } from "./firebase/FirebaseKnowledgeContentAdapter";
-export { FirebaseRagQueryFeedbackAdapter } from "./firebase/FirebaseRagQueryFeedbackAdapter";
-export { GenkitRagGenerationAdapter } from "./genkit/GenkitRagGenerationAdapter";
+
+import type { GenerateAnswerInput, GenerateAnswerResult } from "../entities/SynthesisResult";
+
+export interface IGenerationPort {
+  generate(input: GenerateAnswerInput): Promise<GenerateAnswerResult>;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/repositories/IRagGenerationRepository.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/repositories
+ * Purpose: IRagGenerationRepository — output port for AI answer generation.
+ *
+ * Domain owns this contract; the platform-delegating adapter (infrastructure) implements it.
+ */
+
+import type { GenerateRagAnswerInput, GenerateRagAnswerResult } from "../entities/generation.entities";
+
+export interface IRagGenerationRepository {
+  generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult>;
+}
 ````
 
 ## File: modules/notion/docs/README.md
@@ -63295,43 +63482,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/ai/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-import { GenerateAiTextUseCase } from "../application/use-cases/generate-ai-text.use-case";
-import { GenkitAiTextGenerationAdapter } from "../infrastructure/genkit/GenkitAiTextGenerationAdapter";
-import type { GenerateAiTextInput, GenerateAiTextOutput } from "../domain/ports/AiTextGenerationPort";
-
-let _useCase: GenerateAiTextUseCase | undefined;
-
-function getUseCase(): GenerateAiTextUseCase {
-	if (_useCase) return _useCase;
-	_useCase = new GenerateAiTextUseCase(new GenkitAiTextGenerationAdapter());
-	return _useCase;
-}
-
-export interface AIAPI {
-	summarize(text: string, model?: string): Promise<string>;
-	generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
-}
-
-export async function generateAiText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput> {
-	return getUseCase().execute(input);
-}
-
-export async function summarize(text: string, model?: string): Promise<string> {
-	const result = await generateAiText({
-		prompt: text,
-		model,
-		system: "You are a concise summarizer. Return only the summary text.",
-	});
-	return result.text;
-}
-````
-
 ## File: modules/platform/subdomains/ai/application/index.ts
 ````typescript
 export { GenerateAiTextUseCase } from "./use-cases/generate-ai-text.use-case";
@@ -63761,18 +63911,6 @@ Feature flag management and rollout.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/identity/api/index.ts
-````typescript
-/**
- * identity subdomain public API boundary.
- * Consumers (e.g. infrastructure in sibling subdomains) must import through this barrel.
- */
-export * from "../application";
-export * from "../infrastructure";
-export * from "../domain";
-export * from "../interfaces";
 ````
 
 ## File: modules/platform/subdomains/identity/domain/index.ts
@@ -65966,253 +66104,6 @@ export interface WorkspaceRepository {
 }
 ````
 
-## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
-````typescript
-import type {
-  WorkspaceMemberAccessChannel,
-  WorkspaceMemberPresence,
-  WorkspaceMemberView,
-} from "../../domain/entities/WorkspaceMemberView";
-import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
-import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
-
-const personnelLabels = {
-  managerId: "Manager",
-  supervisorId: "Supervisor",
-  safetyOfficerId: "Safety officer",
-} as const;
-
-const personnelLabelEntries = Object.entries(personnelLabels) as Array<
-  [keyof typeof personnelLabels, string]
->;
-
-interface OrganizationMemberReference {
-  id: string;
-  name: string;
-  email?: string;
-  role?: string;
-  presence?: string;
-  isExternal?: boolean;
-}
-
-interface OrganizationTeam {
-  id: string;
-  name: string;
-  memberIds: string[];
-}
-
-interface OrganizationDirectoryGateway {
-  getOrganizationMembers(organizationId: string): Promise<OrganizationMemberReference[]>;
-  getOrganizationTeams(organizationId: string): Promise<OrganizationTeam[]>;
-}
-
-const defaultOrganizationDirectoryGateway: OrganizationDirectoryGateway = {
-  async getOrganizationMembers() {
-    return [];
-  },
-  async getOrganizationTeams() {
-    return [];
-  },
-};
-
-function toPresence(value: OrganizationMemberReference["presence"] | undefined): WorkspaceMemberPresence {
-  if (value === "active" || value === "away" || value === "offline") {
-    return value;
-  }
-
-  return "unknown";
-}
-
-function createFallbackMember(id: string): WorkspaceMemberView {
-  return {
-    id,
-    displayName: id,
-    presence: "unknown",
-    isExternal: false,
-    accessChannels: [],
-  };
-}
-
-export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
-  constructor(
-    private readonly organizationDirectoryGateway: OrganizationDirectoryGateway = defaultOrganizationDirectoryGateway,
-  ) {}
-
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
-
-  subscribeToWorkspacesForAccount(
-    accountId: string,
-    onUpdate: (workspaces: WorkspaceEntity[]) => void,
-  ) {
-    const normalizedAccountId = accountId.trim();
-    if (!normalizedAccountId) {
-      onUpdate([]);
-      return () => {};
-    }
-
-    const q = query(
-      collection(this.db, "workspaces"),
-      where("accountId", "==", normalizedAccountId),
-    );
-
-    return onSnapshot(q, (snap) => {
-      const workspaces = snap.docs.map((docSnap) =>
-        toWorkspaceEntity(docSnap.id, docSnap.data() as Record<string, unknown>),
-      );
-      onUpdate(workspaces);
-    });
-  }
-
-  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
-    const workspace = await this.workspaceRepo.findById(workspaceId);
-    if (!workspace) {
-      return [];
-    }
-
-    const members = new Map<string, WorkspaceMemberView>();
-    const memberChannelKeys = new Map<string, Set<string>>();
-
-    const mergeMember = (
-      memberId: string,
-      channel: WorkspaceMemberAccessChannel,
-      orgMember?: OrganizationMemberReference,
-    ) => {
-      const current = members.get(memberId) ?? createFallbackMember(memberId);
-      const channelKey = [
-        channel.source,
-        channel.label,
-        channel.role ?? "",
-        channel.protocol ?? "",
-        channel.teamId ?? "",
-      ].join("::");
-      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
-      memberChannelKeys.set(memberId, knownChannelKeys);
-      const hasSameChannel = knownChannelKeys.has(channelKey);
-      if (!hasSameChannel) {
-        knownChannelKeys.add(channelKey);
-      }
-
-      members.set(memberId, {
-        id: memberId,
-        displayName: orgMember?.name || current.displayName,
-        email: orgMember?.email ?? current.email,
-        organizationRole: orgMember?.role ?? current.organizationRole,
-        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
-        isExternal: orgMember?.isExternal ?? current.isExternal,
-        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
-      });
-    };
-
-    if (workspace.accountType === "organization") {
-      const [organizationMembers, teams] = await Promise.all([
-        this.organizationDirectoryGateway.getOrganizationMembers(workspace.accountId),
-        this.organizationDirectoryGateway.getOrganizationTeams(workspace.accountId),
-      ]);
-
-      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
-      const teamMap = new Map(teams.map((team) => [team.id, team]));
-
-      const mergeTeam = (team: OrganizationTeam, role?: string, protocol?: string) => {
-        const label = team.name || team.id;
-        team.memberIds.forEach((memberId: string) => {
-          mergeMember(
-            memberId,
-            {
-              source: "team",
-              label,
-              role,
-              protocol,
-              teamId: team.id,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        });
-      };
-
-      workspace.teamIds.forEach((teamId) => {
-        const team = teamMap.get(teamId);
-        if (team) {
-          mergeTeam(team);
-        }
-      });
-
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(
-            grant.userId,
-            {
-              source: "direct",
-              label: "Direct access",
-              role: grant.role,
-              protocol: grant.protocol,
-            },
-            organizationMemberMap.get(grant.userId),
-          );
-        }
-
-        if (grant.teamId) {
-          const team = teamMap.get(grant.teamId);
-          if (team) {
-            mergeTeam(team, grant.role, grant.protocol);
-          }
-        }
-      });
-
-      personnelLabelEntries.forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field];
-        if (memberId) {
-          mergeMember(
-            memberId,
-            {
-              source: "personnel",
-              label,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        }
-      });
-    } else {
-      mergeMember(workspace.accountId, {
-        source: "owner",
-        label: "Workspace owner",
-      });
-
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(grant.userId, {
-            source: "direct",
-            label: "Direct access",
-            role: grant.role,
-            protocol: grant.protocol,
-          });
-        }
-      });
-
-      personnelLabelEntries.forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field];
-        if (memberId) {
-          mergeMember(memberId, {
-            source: "personnel",
-            label,
-          });
-        }
-      });
-    }
-
-    return Array.from(members.values()).sort((left, right) =>
-      left.displayName.localeCompare(right.displayName),
-    );
-  }
-}
-````
-
 ## File: modules/workspace/interfaces/api/runtime/workspace-session-context.ts
 ````typescript
 import type { WorkspaceCommandPort } from "../../../application/dtos/workspace-interfaces.dto";
@@ -67626,22 +67517,6 @@ export default function SettingsProfilePage() {
 }
 ````
 
-## File: modules/notebooklm/api/server.ts
-````typescript
-/**
- * modules/notebooklm — server-only API barrel.
- *
- * Exports concrete notebook implementations that depend on server-only
- * packages or infrastructure wiring. Must only be imported in Server Actions,
- * route handlers, or server-side infrastructure.
- */
-
-export { GenerateNotebookResponseUseCase, GenkitNotebookRepository } from "../subdomains/notebook/api/server";
-
-// Q&A subdomain — AnswerRagQueryUseCase factory (now in synthesis subdomain)
-export { createAnswerRagQueryUseCase } from "../subdomains/synthesis/api/server";
-````
-
 ## File: modules/notebooklm/notebooklm.instructions.md
 ````markdown
 ---
@@ -67985,6 +67860,18 @@ export type { CitationBuilderInput, ICitationBuilder } from "./services/ICitatio
 
 // ── Value objects ────────────────────────────────────────────────────────────
 export * from "./value-objects";
+````
+
+## File: modules/notebooklm/subdomains/synthesis/infrastructure/index.ts
+````typescript
+/**
+ * Infrastructure layer for notebooklm subdomain 'synthesis'.
+ * Contains Firebase adapters and platform-delegating adapters for the RAG pipeline.
+ */
+export { FirebaseRagRetrievalAdapter } from "./firebase/FirebaseRagRetrievalAdapter";
+export { FirebaseKnowledgeContentAdapter } from "./firebase/FirebaseKnowledgeContentAdapter";
+export { FirebaseRagQueryFeedbackAdapter } from "./firebase/FirebaseRagQueryFeedbackAdapter";
+export { PlatformRagGenerationAdapter } from "./platform/PlatformRagGenerationAdapter";
 ````
 
 ## File: modules/notion/api/index.ts
@@ -68921,6 +68808,50 @@ export { accountService, createClientAccountUseCases } from "./account-service";
 export { createAccountQueryRepository } from "./account-service";
 ````
 
+## File: modules/platform/subdomains/ai/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+import { GenerateAiTextUseCase } from "../application/use-cases/generate-ai-text.use-case";
+import { GenkitAiTextGenerationAdapter } from "../infrastructure/genkit/GenkitAiTextGenerationAdapter";
+import type { GenerateAiTextInput, GenerateAiTextOutput } from "../domain/ports/AiTextGenerationPort";
+
+// Re-export domain types through API boundary
+export type {
+	GenerateAiTextInput,
+	GenerateAiTextOutput,
+	AiTextGenerationPort,
+} from "../domain/ports/AiTextGenerationPort";
+
+let _useCase: GenerateAiTextUseCase | undefined;
+
+function getUseCase(): GenerateAiTextUseCase {
+	if (_useCase) return _useCase;
+	_useCase = new GenerateAiTextUseCase(new GenkitAiTextGenerationAdapter());
+	return _useCase;
+}
+
+export interface AIAPI {
+	summarize(text: string, model?: string): Promise<string>;
+	generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
+}
+
+export async function generateAiText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput> {
+	return getUseCase().execute(input);
+}
+
+export async function summarize(text: string, model?: string): Promise<string> {
+	const result = await generateAiText({
+		prompt: text,
+		model,
+		system: "You are a concise summarizer. Return only the summary text.",
+	});
+	return result.text;
+}
+````
+
 ## File: modules/platform/subdomains/identity/interfaces/_actions/identity.actions.ts
 ````typescript
 "use server";
@@ -69734,6 +69665,22 @@ When implementing, follow inside-out:
 - Access grant use cases take injected WorkspaceAccessRepository through the deps pattern.
 - WorkspaceSharingApplicationService composes grant use cases and exposes team/individual grant operations.
 - Location management stays at root level (part of Workspace operational profile, not sharing semantics).
+````
+
+## File: modules/notebooklm/api/server.ts
+````typescript
+/**
+ * modules/notebooklm — server-only API barrel.
+ *
+ * Exports concrete notebook implementations that depend on server-only
+ * packages or infrastructure wiring. Must only be imported in Server Actions,
+ * route handlers, or server-side infrastructure.
+ */
+
+export { GenerateNotebookResponseUseCase, PlatformTextGenerationAdapter } from "../subdomains/notebook/api/server";
+
+// Q&A subdomain — AnswerRagQueryUseCase factory (now in synthesis subdomain)
+export { createAnswerRagQueryUseCase } from "../subdomains/synthesis/api/server";
 ````
 
 ## File: modules/notebooklm/subdomains/synthesis/README.md
@@ -72251,6 +72198,16 @@ export type { MembersPageProps, TeamsPageProps, PermissionsPageProps } from "../
 
 // background-job — knowledge ingestion pipeline management
 export * from "../subdomains/background-job/api";
+
+// ai — shared AI provider capability (text generation, model routing)
+export {
+  generateAiText,
+  summarize,
+  type AIAPI,
+  type GenerateAiTextInput,
+  type GenerateAiTextOutput,
+  type AiTextGenerationPort,
+} from "../subdomains/ai/api";
 
 // Cross-module and app-composition hooks from interfaces layer.
 // Only selective exports — do NOT wildcard re-export "../interfaces".
