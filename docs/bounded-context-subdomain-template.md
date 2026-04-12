@@ -74,25 +74,35 @@ modules/                                        # 系統所有業務模組（bou
         │   │   ├── repositories/               # 子域 repository 介面
         │   │   ├── events/                     # 子域事件
         │   │   └── ports/                      # 子域外部依賴抽象
-        │   ├── infrastructure/                 # 子域 adapter 實作
-        │   │   ├── adapters/                   # 外部 API/Genkit/Firebase 整合
-        │   │   ├── persistence/                # Firestore mapping/schema
-        │   │   └── repositories/               # repository implementation
-        │   └── interfaces/                     # 子域 UI/transport
-        │       ├── api/                        # route handlers（子域級）
-        │       ├── components/                 # 局部 UI 元件
-        │       ├── hooks/                      # 局部 hooks
-        │       ├── queries/                    # 子域資料查詢
-        │       └── _actions/                   # 子域 server actions
+        │   ├── infrastructure/                 # optional：僅當子域已具備 mini-module 級獨立性才建立
+        │   │   ├── adapters/                   # optional：外部 API/Genkit/Firebase 整合
+        │   │   ├── persistence/                # optional：Firestore mapping/schema
+        │   │   └── repositories/               # optional：repository implementation
+        │   └── interfaces/                     # optional：僅當子域需自有 UI/transport 邊界才建立
+        │       ├── api/                        # optional：route handlers（子域級）
+        │       ├── components/                 # optional：局部 UI 元件
+        │       ├── hooks/                      # optional：局部 hooks
+        │       ├── queries/                    # optional：子域資料查詢
+        │       └── _actions/                   # optional：子域 server actions
         └── <subdomain-b>/                      # 另一個子域（相同結構，獨立演化）
 ```
 
 ## Duplicate Folder Name Notes
 
-- `api`、`application`、`domain`、`infrastructure`、`interfaces` 在 root 與 subdomain 都會出現，屬於**刻意重名**。
+- `api`、`application`、`domain` 在 root 與 subdomain 都會出現，屬於**刻意重名**。
+- `infrastructure`、`interfaces` 只在 subdomain 具備 mini-module 級獨立能力時才允許出現於 subdomain。
 - 判斷責任時，先看父路徑：`<bounded-context>/...` 代表 context-wide；`subdomains/<name>/...` 代表 subdomain-local。
 - 同名的下一層目錄（如 `dto`、`use-cases`、`services`、`repositories`、`adapters`、`api`、`components`、`hooks`、`queries`、`_actions`）也遵循同一條父路徑判斷規則。
 - 重名不代表可互相直接 import；跨 subdomain 或跨 bounded context 仍必須走 `api/` 邊界。
+
+## Subdomain Mini-Module Gate
+
+- subdomain 預設為 core-only（`api/`、`application/`、`domain/`，必要時 `domain/ports`），不預設建立 `infrastructure/`、`interfaces/`。
+- 只有同時符合以下條件時，才可在 subdomain 內建立 `infrastructure/` 或 `interfaces/`：
+    1. 該子域有明確且長期穩定的獨立外部整合責任（非一次性或暫時性 adapter）。
+    2. 該子域需要獨立演化與測試節奏，且無法由 bounded-context 根層 `infrastructure/`、`interfaces/` 合理承接。
+    3. 在子域 `README.md` 明確記錄為 mini-module 例外，並說明邊界、owned contracts、維運責任。
+- 若不符合上述條件，subdomain 的外部整合與 UI/transport 組裝應維持在 `<bounded-context>/infrastructure` 或 `<bounded-context>/interfaces`。
 
 ## Layer Responsibilities
 
@@ -121,7 +131,8 @@ modules/                                        # 系統所有業務模組（bou
 ## Template Rules
 
 - `<bounded-context>` 根層允許有自己的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，用來承接 context-wide concern；不要把整個 bounded context 簡化成只剩 `docs/` 與 `subdomains/` 的外殼。
-- 每個 subdomain 都必須能獨立表達自己的 use case、domain model 與 adapter 邊界。
+- 每個 subdomain 都必須能獨立表達自己的 use case 與 domain model；預設不建立 `infrastructure/`、`interfaces/`。
+- 只有 subdomain 具備 mini-module 級獨立能力時，才可在該 subdomain 建立 `infrastructure/`、`interfaces/`。
 - `api/` 是 cross-module collaboration 的唯一入口，`index.ts` 不是跨模組公開邊界。
 - adapter 只實作 port，不直接被其他層呼叫。
 - port 只在真的需要隔離 I/O、外部系統、侵入式 library 或 legacy model 時建立。
@@ -133,7 +144,7 @@ modules/                                        # 系統所有業務模組（bou
 1. 建立 bounded context 的 `README.md`、`AGENT.md`、`api/`、`docs/`，以及必要時的根層 `application/`、`domain/`、`infrastructure/`、`interfaces/` 入口。
 2. 先判斷需求是屬於 bounded context 根層還是特定 subdomain；只有 context-wide concern 才進根層，其餘一律先落到 `subdomains/<name>/`。
 3. 先建立 use case contract（actor / goal / success scenario / failure branches），再建立對應檔案 `application/use-cases/<verb-noun>.use-case.ts`。
-4. 對擁有該責任的 subdomain 先落 `domain/` 核心模型，再收斂 `application/` 流程，最後才補 `ports/`、`infrastructure/`、`interfaces/`。
+4. 對擁有該責任的 subdomain 先落 `domain/` 核心模型，再收斂 `application/` 流程，最後視需要補 `ports/`；只有符合 mini-module gate 才補 subdomain 層級的 `infrastructure/`、`interfaces/`。
 5. 先放入 aggregate、domain event、published language 與 context map，再補 adapter 與 persistence 實作。
 6. 只有在交付需要時才建立 `ports/`、`hooks/`、`queries/`、`_actions/` 等細分資料夾。
 
@@ -159,6 +170,7 @@ modules/                                        # 系統所有業務模組（bou
 - 不得讓 UI 或 route handler 直接呼叫 `domain/` 或 `infrastructure/`。
 - 不得讓 `domain/` 匯入任何 runtime 或 framework 專用套件。
 - 不得把所有子域都預設長成同一個巨型骨架，卻沒有對應的 use case 與業務責任。
+- 不得在未符合 mini-module gate 的前提下，於 `subdomains/<name>/` 直接建立 `infrastructure/` 或 `interfaces/`。
 - 不得把 `infrastructure/`、`interfaces/` 放進一個泛用 `core/` 目錄，讓六邊形的內外層語義失真。
 - 不得因為「看起來完整」而過度建立 repository port、ACL、DTO、facade 或 service。
 - 不得讓 `interfaces/` 承載業務決策，也不得讓 `application/` 重寫 domain 規則。

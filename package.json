@@ -24,7 +24,8 @@
     "repomix:notion": "npx repomix --config repomix.notion.config.json --skill-generate xuanwu-notion-skill --skill-output .github/skills/xuanwu-notion-skill --force",
     "repomix:platform": "npx repomix --config repomix.platform.config.json --skill-generate xuanwu-app-platform-skill --skill-output .github/skills/xuanwu-app-platform-skill --force",
     "repomix:workspace": "npx repomix --config repomix.workspace.config.json --skill-generate xuanwu-app-workspace-skill --skill-output .github/skills/xuanwu-app-workspace-skill --force",
-    "repomix:workspace-workflows": "npx repomix --config repomix.workspace-workflows.config.json --skill-generate xuanwu-app-workspace-workflows-skill --skill-output .github/skills/xuanwu-app-workspace-workflows-skill --force"
+    "repomix:workspace-workflows": "npx repomix --config repomix.workspace-workflows.config.json --skill-generate xuanwu-app-workspace-workflows-skill --skill-output .github/skills/xuanwu-app-workspace-workflows-skill --force",
+    "repomix:markdown": "npx repomix --config repomix.markdown.config.json --skill-generate xuanwu-markdown-skill --skill-output .github/skills/xuanwu-markdown-skill --force"
   },
   "engines": {
     "node": "24"
