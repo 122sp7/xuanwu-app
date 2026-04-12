@@ -59,7 +59,7 @@ modules/notebooklm/interfaces/source/contracts/source-command-result.ts (16 line
 modules/notebooklm/interfaces/source/hooks/useSourceDocumentsSnapshot.ts (107 lines)
 modules/notebooklm/interfaces/source/queries/source-file.queries.ts (25 lines)
 modules/notebooklm/interfaces/synthesis/_actions/rag-query.actions.ts (40 lines)
-modules/notebooklm/interfaces/synthesis/components/RagQueryPanel.tsx (199 lines)
+modules/notebooklm/interfaces/synthesis/components/RagQueryPanel.tsx (196 lines)
 modules/notebooklm/interfaces/synthesis/hooks/.gitkeep (0 lines)
 modules/notebooklm/interfaces/synthesis/queries/.gitkeep (0 lines)
 modules/notebooklm/README.md (84 lines)

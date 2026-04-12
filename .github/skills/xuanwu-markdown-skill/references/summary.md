@@ -39,20 +39,20 @@ This skill contains the following reference files:
 
 ## Statistics
 
-348 files | 15,304 lines
+354 files | 15,442 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 348 | 15,304 |
+| Markdown | 354 | 15,442 |
 
 **Largest files:**
 - `docs/hard-rules-consolidated.md` (420 lines)
 - `py_fn/README.md` (265 lines)
-- `docs/bounded-context-subdomain-template.md` (216 lines)
 - `.github/prompts/serena-hexagonal-ddd-refactor.prompt.md` (215 lines)
+- `docs/bounded-context-subdomain-template.md` (206 lines)
 - `docs/bounded-contexts.md` (190 lines)
 - `docs/subdomains.md` (189 lines)
 - `.serena/memories/session/2026-04-12-agents-md-violations-phase1-complete.md` (171 lines)
 - `.serena/memories/session/2026-04-12-hard-rules-documentation-complete.md` (167 lines)
 - `.github/prompts/playwright-mcp-inspect.prompt.md` (163 lines)
-- `modules/notion/AGENT.md` (155 lines)
+- `modules/notion/AGENT.md` (156 lines)

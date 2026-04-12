@@ -70,6 +70,190 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
+## File: modules/platform/api/contracts.ts
+````typescript
+/**
+ * platform API contracts boundary.
+ *
+ * Keep the source of truth in application/domain and re-export here for API consumers.
+ */
+
+export * from "../application/dtos";
+export type {
+	PlatformContextView,
+	PolicyCatalogView,
+	SubscriptionEntitlementsView,
+	WorkflowPolicyView,
+} from "../domain/ports/output";
+export * from "../domain/events";
+
+// ── Identity session types ────────────────────────────────────────────────────
+// AuthUser is the canonical projection of an authenticated identity subject.
+// Platform/Identity BC owns this DTO; app/providers/auth-context re-exports it.
+
+/** Minimal authenticated user record surfaced from identity auth state. */
+export interface AuthUser {
+	readonly id: string;
+	readonly name: string;
+	readonly email: string;
+}
+
+// ── Infrastructure API contracts (platform-owned) ───────────────────────────
+
+export type FirestoreWhereOperator =
+	| "<"
+	| "<="
+	| "=="
+	| "!="
+	| ">="
+	| ">"
+	| "array-contains"
+	| "array-contains-any"
+	| "in"
+	| "not-in";
+
+export interface FirestoreWhereClause {
+	readonly field: string;
+	readonly op: FirestoreWhereOperator;
+	readonly value: unknown;
+}
+
+export type FirestoreOrderDirection = "asc" | "desc";
+
+export interface FirestoreOrderByClause {
+	readonly field: string;
+	readonly direction?: FirestoreOrderDirection;
+}
+
+export interface FirestoreQueryOptions {
+	readonly limit?: number;
+	readonly orderBy?: readonly FirestoreOrderByClause[];
+}
+
+export interface FirestoreCollectionDocument<T> {
+	readonly id: string;
+	readonly path: string;
+	readonly data: T;
+}
+
+export interface FirestoreCollectionWatchHandlers<T> {
+	readonly onNext: (documents: readonly FirestoreCollectionDocument<T>[]) => void;
+	readonly onError?: (error: unknown) => void;
+}
+
+export interface FirestoreDocumentWatchHandlers<T> {
+	readonly onNext: (document: FirestoreCollectionDocument<T> | null) => void;
+	readonly onError?: (error: unknown) => void;
+}
+
+export interface FirestoreSetDocumentInput<T> {
+	readonly path: string;
+	readonly data: T;
+}
+
+export interface FirestoreAPI {
+	get<T>(path: string): Promise<T | null>;
+	set<T>(path: string, data: T): Promise<void>;
+	setMany<T>(inputs: readonly FirestoreSetDocumentInput<T>[]): Promise<void>;
+	update(path: string, data: Record<string, unknown>): Promise<void>;
+	delete(path: string): Promise<void>;
+	query<T>(
+		collectionPath: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<T[]>;
+	queryDocuments<T>(
+		collectionPath: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly FirestoreCollectionDocument<T>[]>;
+	queryCollectionGroup<T>(
+		collectionId: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly FirestoreCollectionDocument<T>[]>;
+	watchCollection<T>(
+		collectionPath: string,
+		handlers: FirestoreCollectionWatchHandlers<T>,
+		where?: readonly FirestoreWhereClause[],
+	): () => void;
+	watchDocument<T>(path: string, handlers: FirestoreDocumentWatchHandlers<T>): () => void;
+}
+
+export interface StorageUploadOptions {
+	readonly contentType?: string;
+	readonly customMetadata?: Record<string, string>;
+}
+
+export interface StorageAPI {
+	upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string>;
+	getUrl(path: string): Promise<string>;
+	delete(path: string): Promise<void>;
+	toGsUri(path: string): string;
+}
+
+export interface GenkitAPI {
+	runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput>;
+}
+
+export interface FunctionsCallOptions {
+	readonly region?: string;
+}
+
+export interface FunctionsAPI {
+	call<TInput, TOutput>(
+		functionName: string,
+		input: TInput,
+		options?: FunctionsCallOptions,
+	): Promise<TOutput>;
+}
+
+// ── Platform Service API contracts (cross-domain) ───────────────────────────
+
+export interface AuthSession {
+	readonly userId: string;
+	readonly email: string | null;
+	readonly displayName: string | null;
+	readonly isAnonymous: boolean;
+}
+
+export interface AuthAPI {
+	getSession(): Promise<AuthSession | null>;
+	requireAuth(): Promise<AuthSession>;
+}
+
+export interface PermissionAPI {
+	can(userId: string, action: string, resource: string): Promise<boolean>;
+}
+
+export interface UploadUserFileInput {
+	readonly file: Blob;
+	readonly ownerId: string;
+	readonly fileName?: string;
+	readonly contentType?: string;
+	readonly metadata?: Record<string, string>;
+	readonly pathHint?: string;
+}
+
+export interface UploadUserFileOutput {
+	readonly url: string;
+	readonly fileId: string;
+	readonly storagePath: string;
+	readonly gcsUri: string;
+}
+
+export interface FileAPI {
+	uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>;
+	deleteFile(fileId: string): Promise<void>;
+}
+
+// ── Cross-cutting account context type ───────────────────────────────────────
+// ActiveAccount is the union of an organization AccountEntity or a personal
+// AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
+import type { AccountEntity } from "../subdomains/account/api";
+export type ActiveAccount = AccountEntity | AuthUser;
+````
+
 ## File: modules/platform/api/facade.ts
 ````typescript
 /**
@@ -322,6 +506,322 @@ export {
   resolveOrganizationRouteFallback,
   type ShellAccountActor,
 } from "../subdomains/access-control/api";
+````
+
+## File: modules/platform/api/infrastructure-api.ts
+````typescript
+import {
+	functionsApi,
+	firestoreApi,
+	getFirebaseFirestore,
+	getFirebaseFunctions,
+	getFirebaseStorage,
+	storageApi,
+} from "@integration-firebase";
+import { collectionGroup } from "firebase/firestore";
+
+import type {
+	FirestoreAPI,
+	FunctionsAPI,
+	FunctionsCallOptions,
+	FirestoreQueryOptions,
+	FirestoreWhereClause,
+	GenkitAPI,
+	StorageAPI,
+	StorageUploadOptions,
+} from "./contracts";
+
+const DEFAULT_STORAGE_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
+const DEFAULT_FUNCTION_REGION = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_REGION ?? "asia-east1";
+
+function splitPath(path: string): string[] {
+	const segments = path
+		.split("/")
+		.map((segment) => segment.trim())
+		.filter(Boolean);
+
+	if (segments.length === 0) {
+		throw new Error("Path is required.");
+	}
+
+	return segments;
+}
+
+function resolveDocumentPath(path: string): string[] {
+	const segments = splitPath(path);
+	if (segments.length % 2 !== 0) {
+		throw new Error(`Expected a document path but got collection path: ${path}`);
+	}
+	return segments;
+}
+
+function resolveCollectionPath(path: string): string[] {
+	const segments = splitPath(path);
+	if (segments.length % 2 === 0) {
+		throw new Error(`Expected a collection path but got document path: ${path}`);
+	}
+	return segments;
+}
+
+function resolveStorageBucket(): string {
+	return process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || DEFAULT_STORAGE_BUCKET;
+}
+
+function resolveStoragePath(path: string): string {
+	const normalized = path.trim().replace(/^\/+/, "");
+	if (!normalized) {
+		throw new Error("Storage path is required.");
+	}
+	return normalized;
+}
+
+function toUploadMetadata(options?: StorageUploadOptions) {
+	if (!options) return undefined;
+	return {
+		contentType: options.contentType,
+		customMetadata: options.customMetadata,
+	};
+}
+
+function applyQueryConstraints(
+	baseQuery: ReturnType<typeof firestoreApi.query>,
+	where: readonly FirestoreWhereClause[],
+	options?: FirestoreQueryOptions,
+) {
+	const whereConstraints = where.map((clause) =>
+		firestoreApi.where(clause.field, clause.op, clause.value),
+	);
+
+	const orderByConstraints = (options?.orderBy ?? []).map((clause) =>
+		firestoreApi.orderBy(clause.field, clause.direction ?? "asc"),
+	);
+
+	const limitConstraint =
+		typeof options?.limit === "number" && options.limit > 0
+			? [firestoreApi.limit(options.limit)]
+			: [];
+
+	return firestoreApi.query(baseQuery, ...whereConstraints, ...orderByConstraints, ...limitConstraint);
+}
+
+export const firestoreInfrastructureApi: FirestoreAPI = {
+	async get<T>(path: string): Promise<T | null> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		const snapshot = await firestoreApi.getDoc(ref);
+		if (!snapshot.exists()) return null;
+		return snapshot.data() as T;
+	},
+
+	async set<T>(path: string, data: T): Promise<void> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		await firestoreApi.setDoc(ref, data as Record<string, unknown>);
+	},
+
+	async setMany<T>(inputs: readonly { path: string; data: T }[]): Promise<void> {
+		if (inputs.length === 0) return;
+
+		const db = getFirebaseFirestore();
+		const batch = firestoreApi.writeBatch(db);
+
+		for (const input of inputs) {
+			const ref = firestoreApi.doc(db, resolveDocumentPath(input.path).join("/"));
+			batch.set(ref, input.data as Record<string, unknown>);
+		}
+
+		await batch.commit();
+	},
+
+	async update(path: string, data: Record<string, unknown>): Promise<void> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		await firestoreApi.updateDoc(ref, data);
+	},
+
+	async delete(path: string): Promise<void> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		await firestoreApi.deleteDoc(ref);
+	},
+
+	async query<T>(
+		collectionPath: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+	): Promise<T[]> {
+		const documents = await firestoreInfrastructureApi.queryDocuments<T>(collectionPath, where, options);
+		return documents.map((document) => document.data);
+	},
+
+	async queryDocuments<T>(
+		collectionPath: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly { id: string; path: string; data: T }[]> {
+		const db = getFirebaseFirestore();
+		const collectionRef = firestoreApi.collection(
+			db,
+			resolveCollectionPath(collectionPath).join("/"),
+		);
+
+		const queryRef = applyQueryConstraints(firestoreApi.query(collectionRef), where, options);
+		const snapshot = await firestoreApi.getDocs(queryRef);
+		return snapshot.docs.map((doc) => ({
+			id: doc.id,
+			path: doc.ref.path,
+			data: doc.data() as T,
+		}));
+	},
+
+	async queryCollectionGroup<T>(
+		collectionId: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly { id: string; path: string; data: T }[]> {
+		const normalizedCollectionId = collectionId.trim();
+		if (!normalizedCollectionId) {
+			throw new Error("Collection group id is required.");
+		}
+
+		const db = getFirebaseFirestore();
+		const collectionGroupRef = collectionGroup(db, normalizedCollectionId);
+		const queryRef = applyQueryConstraints(firestoreApi.query(collectionGroupRef), where, options);
+		const snapshot = await firestoreApi.getDocs(queryRef);
+		return snapshot.docs.map((doc) => ({
+			id: doc.id,
+			path: doc.ref.path,
+			data: doc.data() as T,
+		}));
+	},
+
+	watchCollection<T>(
+		collectionPath: string,
+		handlers: {
+			onNext: (documents: readonly { id: string; path: string; data: T }[]) => void;
+			onError?: (error: unknown) => void;
+		},
+		where: readonly FirestoreWhereClause[] = [],
+	): () => void {
+		const db = getFirebaseFirestore();
+		const collectionRef = firestoreApi.collection(
+			db,
+			resolveCollectionPath(collectionPath).join("/"),
+		);
+
+		const queryConstraints = where.map((clause) =>
+			firestoreApi.where(clause.field, clause.op, clause.value),
+		);
+		const queryRef = firestoreApi.query(collectionRef, ...queryConstraints);
+
+		return firestoreApi.onSnapshot(
+			queryRef,
+			(snapshot) => {
+				handlers.onNext(
+					snapshot.docs.map((doc) => ({
+						id: doc.id,
+						path: doc.ref.path,
+						data: doc.data() as T,
+					})),
+				);
+			},
+			(error) => {
+				handlers.onError?.(error);
+			},
+		);
+	},
+
+	watchDocument<T>(
+		path: string,
+		handlers: {
+			onNext: (document: { id: string; path: string; data: T } | null) => void;
+			onError?: (error: unknown) => void;
+		},
+	): () => void {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+
+		return firestoreApi.onSnapshot(
+			ref,
+			(snapshot) => {
+				if (!snapshot.exists()) {
+					handlers.onNext(null);
+					return;
+				}
+				handlers.onNext({
+					id: snapshot.id,
+					path: snapshot.ref.path,
+					data: snapshot.data() as T,
+				});
+			},
+			(error) => {
+				handlers.onError?.(error);
+			},
+		);
+	},
+};
+
+export const storageInfrastructureApi: StorageAPI = {
+	async upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string> {
+		const normalizedPath = resolveStoragePath(path);
+		const storage = getFirebaseStorage(resolveStorageBucket());
+		const ref = storageApi.ref(storage, normalizedPath);
+		await storageApi.uploadBytes(ref, file, toUploadMetadata(options));
+		return storageApi.getDownloadURL(ref);
+	},
+
+	async getUrl(path: string): Promise<string> {
+		const normalizedPath = resolveStoragePath(path);
+		const storage = getFirebaseStorage(resolveStorageBucket());
+		const ref = storageApi.ref(storage, normalizedPath);
+		return storageApi.getDownloadURL(ref);
+	},
+
+	async delete(path: string): Promise<void> {
+		const normalizedPath = resolveStoragePath(path);
+		const storage = getFirebaseStorage(resolveStorageBucket());
+		const ref = storageApi.ref(storage, normalizedPath);
+		await storageApi.deleteObject(ref);
+	},
+
+	toGsUri(path: string): string {
+		const normalizedPath = resolveStoragePath(path);
+		return `gs://${resolveStorageBucket()}/${normalizedPath}`;
+	},
+};
+
+export const genkitInfrastructureApi: GenkitAPI = {
+	async runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput> {
+		const normalizedFlow = flow.trim();
+		if (!normalizedFlow) {
+			throw new Error("Flow name is required.");
+		}
+
+		const functions = getFirebaseFunctions(DEFAULT_FUNCTION_REGION);
+		const runFlow = functionsApi.httpsCallable(functions, "platform_run_genkit_flow");
+		const response = await runFlow({ flow: normalizedFlow, input });
+		return response.data as TOutput;
+	},
+};
+
+export const functionsInfrastructureApi: FunctionsAPI = {
+	async call<TInput, TOutput>(
+		functionName: string,
+		input: TInput,
+		options?: FunctionsCallOptions,
+	): Promise<TOutput> {
+		const normalizedName = functionName.trim();
+		if (!normalizedName) {
+			throw new Error("Function name is required.");
+		}
+
+		const region = options?.region?.trim() || DEFAULT_FUNCTION_REGION;
+		const functions = getFirebaseFunctions(region);
+		const callable = functionsApi.httpsCallable(functions, normalizedName);
+		const response = await callable(input);
+		return response.data as TOutput;
+	},
+};
 ````
 
 ## File: modules/platform/api/platform-service.ts
@@ -13482,286 +13982,6 @@ export function useTokenRefreshListener(accountId: string | null | undefined): v
 }
 ````
 
-## File: modules/platform/subdomains/identity/interfaces/index.ts
-````typescript
-export { ShellGuard } from "./components/ShellGuard";
-export {
-  AuthContext,
-  type AuthState,
-  type AuthAction,
-  type AuthContextValue,
-  type AuthStatus,
-  type AuthUser,
-} from "./contexts/auth-context";
-export { AuthProvider, useAuth } from "./providers/auth-provider";
-export {
-  DEV_DEMO_ACCOUNT_EMAIL,
-  isLocalDevDemoAllowed,
-  isDevDemoCredential,
-  createDevDemoUser,
-  readDevDemoSession,
-  writeDevDemoSession,
-  clearDevDemoSession,
-} from "./utils/dev-demo-auth";
-export {
-  register,
-  sendPasswordResetEmail,
-  signIn,
-  signInAnonymously,
-  signOut,
-} from "./_actions/identity.actions";
-export { useTokenRefreshListener } from "./hooks/useTokenRefreshListener";
-````
-
-## File: modules/platform/subdomains/identity/interfaces/providers/auth-provider.tsx
-````typescript
-"use client";
-
-/**
- * auth-provider.tsx — platform/identity interfaces layer
- * Hosts the Firebase auth state lifecycle and exposes useAuth().
- * Syncs onAuthStateChanged → AuthContext → consumed by AppProvider and shell guard.
- *
- * [S6] Token refresh is handled separately by useTokenRefreshListener (Party 3).
- */
-
-import { useReducer, useContext, useEffect, type ReactNode } from "react";
-import {
-  getFirebaseAuth,
-  onFirebaseAuthStateChanged,
-  signOutFirebase,
-  type User,
-} from "@integration-firebase";
-import {
-  AuthContext,
-  type AuthAction,
-  type AuthState,
-  type AuthUser,
-} from "../contexts/auth-context";
-import {
-  clearDevDemoSession,
-  isLocalDevDemoAllowed,
-  readDevDemoSession,
-} from "../utils/dev-demo-auth";
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const AUTH_BOOTSTRAP_TIMEOUT_MS = 6000;
-
-// ─── Mapper ───────────────────────────────────────────────────────────────────
-
-function toAuthUser(user: User): AuthUser {
-  return {
-    id: user.uid,
-    name: user.displayName ?? "Dimension Member",
-    email: user.email ?? "",
-  };
-}
-
-function resolveSignedOutStatePayload(): { user: AuthUser | null; status: "authenticated" | "unauthenticated" } {
-  const demoUser = readDevDemoSession();
-  return demoUser
-    ? { user: demoUser, status: "authenticated" }
-    : { user: null, status: "unauthenticated" };
-}
-
-// ─── Reducer ──────────────────────────────────────────────────────────────────
-
-const authReducer = (state: AuthState, action: AuthAction): AuthState => {
-  switch (action.type) {
-    case "SET_AUTH_STATE":
-      return {
-        ...state,
-        user: action.payload.user,
-        status: action.payload.status,
-      };
-    case "UPDATE_DISPLAY_NAME":
-      if (!state.user) return state;
-      return { ...state, user: { ...state.user, name: action.payload.name } };
-    default:
-      return state;
-  }
-};
-
-const initialState: AuthState = { user: null, status: "initializing" };
-
-// ─── Provider ─────────────────────────────────────────────────────────────────
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(authReducer, initialState);
-
-  useEffect(() => {
-    let resolved = false;
-    let unsubscribe: (() => void) | undefined;
-
-    const timeoutId = window.setTimeout(() => {
-      if (resolved) return;
-      dispatch({
-        type: "SET_AUTH_STATE",
-        payload: { user: null, status: "unauthenticated" },
-      });
-    }, AUTH_BOOTSTRAP_TIMEOUT_MS);
-
-    try {
-      const auth = getFirebaseAuth();
-      unsubscribe = onFirebaseAuthStateChanged(auth, (firebaseUser) => {
-        resolved = true;
-        window.clearTimeout(timeoutId);
-
-        if (firebaseUser) {
-          dispatch({
-            type: "SET_AUTH_STATE",
-            payload: { user: toAuthUser(firebaseUser), status: "authenticated" },
-          });
-        } else {
-          dispatch({
-            type: "SET_AUTH_STATE",
-            payload: resolveSignedOutStatePayload(),
-          });
-        }
-      });
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[AuthProvider] Firebase auth initialization failed:", error);
-      }
-      resolved = true;
-      window.clearTimeout(timeoutId);
-      dispatch({
-        type: "SET_AUTH_STATE",
-        payload: resolveSignedOutStatePayload(),
-      });
-    }
-
-    return () => {
-      window.clearTimeout(timeoutId);
-      unsubscribe?.();
-    };
-  }, []);
-
-  const logout = async () => {
-    if (isLocalDevDemoAllowed()) {
-      clearDevDemoSession();
-    }
-
-    try {
-      await signOutFirebase(getFirebaseAuth());
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[AuthProvider] Firebase sign out failed:", error);
-      }
-    } finally {
-      // Always dispatch unauthenticated: onAuthStateChanged will not fire when
-      // there is no real Firebase session (e.g. dev-demo guest mode), so we
-      // cannot rely solely on the listener to clear the auth state.
-      dispatch({
-        type: "SET_AUTH_STATE",
-        payload: { user: null, status: "unauthenticated" },
-      });
-    }
-  };
-
-  return (
-    <AuthContext.Provider value={{ state, dispatch, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
-}
-````
-
-## File: modules/platform/subdomains/identity/interfaces/utils/dev-demo-auth.ts
-````typescript
-"use client";
-
-import type { AuthUser } from "@/modules/platform/api/contracts";
-
-const DEV_DEMO_SESSION_KEY = "xuanwu_dev_demo_session_v1";
-
-export const DEV_DEMO_ACCOUNT_EMAIL = "test@demo.com";
-// Localhost-only development fallback secret for the requested smoke-test account.
-// Never reuse this pattern for production authentication flows.
-const DEV_DEMO_ACCOUNT_PASSWORD =
-  process.env.NEXT_PUBLIC_DEV_DEMO_PASSWORD ?? "123456";
-
-function isLocalhostHost(hostname: string): boolean {
-  return (
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname === "::1" ||
-    hostname === "[::1]"
-  );
-}
-
-export function isLocalDevDemoAllowed(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  return process.env.NODE_ENV !== "production" && isLocalhostHost(window.location.hostname);
-}
-
-export function isDevDemoCredential(email: string, password: string): boolean {
-  return (
-    email.trim().toLowerCase() === DEV_DEMO_ACCOUNT_EMAIL &&
-    password === DEV_DEMO_ACCOUNT_PASSWORD
-  );
-}
-
-export function createDevDemoUser(): AuthUser {
-  return {
-    id: "dev-demo-user",
-    name: "Demo User",
-    email: DEV_DEMO_ACCOUNT_EMAIL,
-  };
-}
-
-export function readDevDemoSession(): AuthUser | null {
-  if (!isLocalDevDemoAllowed()) {
-    return null;
-  }
-
-  const raw = window.localStorage.getItem(DEV_DEMO_SESSION_KEY);
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as Partial<AuthUser>;
-    if (
-      typeof parsed.id !== "string" ||
-      typeof parsed.name !== "string" ||
-      typeof parsed.email !== "string"
-    ) {
-      return null;
-    }
-    return { id: parsed.id, name: parsed.name, email: parsed.email };
-  } catch {
-    return null;
-  }
-}
-
-export function writeDevDemoSession(user: AuthUser): void {
-  if (!isLocalDevDemoAllowed()) {
-    return;
-  }
-  window.localStorage.setItem(DEV_DEMO_SESSION_KEY, JSON.stringify(user));
-}
-
-export function clearDevDemoSession(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  window.localStorage.removeItem(DEV_DEMO_SESSION_KEY);
-}
-````
-
 ## File: modules/platform/subdomains/integration/api/index.ts
 ````typescript
 /**
@@ -18763,506 +18983,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/api/contracts.ts
-````typescript
-/**
- * platform API contracts boundary.
- *
- * Keep the source of truth in application/domain and re-export here for API consumers.
- */
-
-export * from "../application/dtos";
-export type {
-	PlatformContextView,
-	PolicyCatalogView,
-	SubscriptionEntitlementsView,
-	WorkflowPolicyView,
-} from "../domain/ports/output";
-export * from "../domain/events";
-
-// ── Identity session types ────────────────────────────────────────────────────
-// AuthUser is the canonical projection of an authenticated identity subject.
-// Platform/Identity BC owns this DTO; app/providers/auth-context re-exports it.
-
-/** Minimal authenticated user record surfaced from identity auth state. */
-export interface AuthUser {
-	readonly id: string;
-	readonly name: string;
-	readonly email: string;
-}
-
-// ── Infrastructure API contracts (platform-owned) ───────────────────────────
-
-export type FirestoreWhereOperator =
-	| "<"
-	| "<="
-	| "=="
-	| "!="
-	| ">="
-	| ">"
-	| "array-contains"
-	| "array-contains-any"
-	| "in"
-	| "not-in";
-
-export interface FirestoreWhereClause {
-	readonly field: string;
-	readonly op: FirestoreWhereOperator;
-	readonly value: unknown;
-}
-
-export type FirestoreOrderDirection = "asc" | "desc";
-
-export interface FirestoreOrderByClause {
-	readonly field: string;
-	readonly direction?: FirestoreOrderDirection;
-}
-
-export interface FirestoreQueryOptions {
-	readonly limit?: number;
-	readonly orderBy?: readonly FirestoreOrderByClause[];
-}
-
-export interface FirestoreCollectionDocument<T> {
-	readonly id: string;
-	readonly path: string;
-	readonly data: T;
-}
-
-export interface FirestoreCollectionWatchHandlers<T> {
-	readonly onNext: (documents: readonly FirestoreCollectionDocument<T>[]) => void;
-	readonly onError?: (error: unknown) => void;
-}
-
-export interface FirestoreDocumentWatchHandlers<T> {
-	readonly onNext: (document: FirestoreCollectionDocument<T> | null) => void;
-	readonly onError?: (error: unknown) => void;
-}
-
-export interface FirestoreSetDocumentInput<T> {
-	readonly path: string;
-	readonly data: T;
-}
-
-export interface FirestoreAPI {
-	get<T>(path: string): Promise<T | null>;
-	set<T>(path: string, data: T): Promise<void>;
-	setMany<T>(inputs: readonly FirestoreSetDocumentInput<T>[]): Promise<void>;
-	update(path: string, data: Record<string, unknown>): Promise<void>;
-	delete(path: string): Promise<void>;
-	query<T>(
-		collectionPath: string,
-		where?: readonly FirestoreWhereClause[],
-		options?: FirestoreQueryOptions,
-	): Promise<T[]>;
-	queryDocuments<T>(
-		collectionPath: string,
-		where?: readonly FirestoreWhereClause[],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly FirestoreCollectionDocument<T>[]>;
-	queryCollectionGroup<T>(
-		collectionId: string,
-		where?: readonly FirestoreWhereClause[],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly FirestoreCollectionDocument<T>[]>;
-	watchCollection<T>(
-		collectionPath: string,
-		handlers: FirestoreCollectionWatchHandlers<T>,
-		where?: readonly FirestoreWhereClause[],
-	): () => void;
-	watchDocument<T>(path: string, handlers: FirestoreDocumentWatchHandlers<T>): () => void;
-}
-
-export interface StorageUploadOptions {
-	readonly contentType?: string;
-	readonly customMetadata?: Record<string, string>;
-}
-
-export interface StorageAPI {
-	upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string>;
-	getUrl(path: string): Promise<string>;
-	delete(path: string): Promise<void>;
-	toGsUri(path: string): string;
-}
-
-export interface GenkitAPI {
-	runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput>;
-}
-
-export interface FunctionsCallOptions {
-	readonly region?: string;
-}
-
-export interface FunctionsAPI {
-	call<TInput, TOutput>(
-		functionName: string,
-		input: TInput,
-		options?: FunctionsCallOptions,
-	): Promise<TOutput>;
-}
-
-// ── Platform Service API contracts (cross-domain) ───────────────────────────
-
-export interface AuthSession {
-	readonly userId: string;
-	readonly email: string | null;
-	readonly displayName: string | null;
-	readonly isAnonymous: boolean;
-}
-
-export interface AuthAPI {
-	getSession(): Promise<AuthSession | null>;
-	requireAuth(): Promise<AuthSession>;
-}
-
-export interface PermissionAPI {
-	can(userId: string, action: string, resource: string): Promise<boolean>;
-}
-
-export interface UploadUserFileInput {
-	readonly file: Blob;
-	readonly ownerId: string;
-	readonly fileName?: string;
-	readonly contentType?: string;
-	readonly metadata?: Record<string, string>;
-	readonly pathHint?: string;
-}
-
-export interface UploadUserFileOutput {
-	readonly url: string;
-	readonly fileId: string;
-	readonly storagePath: string;
-	readonly gcsUri: string;
-}
-
-export interface FileAPI {
-	uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>;
-	deleteFile(fileId: string): Promise<void>;
-}
-
-// ── Cross-cutting account context type ───────────────────────────────────────
-// ActiveAccount is the union of an organization AccountEntity or a personal
-// AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
-import type { AccountEntity } from "../subdomains/account/api";
-export type ActiveAccount = AccountEntity | AuthUser;
-````
-
-## File: modules/platform/api/infrastructure-api.ts
-````typescript
-import {
-	functionsApi,
-	firestoreApi,
-	getFirebaseFirestore,
-	getFirebaseFunctions,
-	getFirebaseStorage,
-	storageApi,
-} from "@integration-firebase";
-import { collectionGroup } from "firebase/firestore";
-
-import type {
-	FirestoreAPI,
-	FunctionsAPI,
-	FunctionsCallOptions,
-	FirestoreQueryOptions,
-	FirestoreWhereClause,
-	GenkitAPI,
-	StorageAPI,
-	StorageUploadOptions,
-} from "./contracts";
-
-const DEFAULT_STORAGE_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
-const DEFAULT_FUNCTION_REGION = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_REGION ?? "asia-east1";
-
-function splitPath(path: string): string[] {
-	const segments = path
-		.split("/")
-		.map((segment) => segment.trim())
-		.filter(Boolean);
-
-	if (segments.length === 0) {
-		throw new Error("Path is required.");
-	}
-
-	return segments;
-}
-
-function resolveDocumentPath(path: string): string[] {
-	const segments = splitPath(path);
-	if (segments.length % 2 !== 0) {
-		throw new Error(`Expected a document path but got collection path: ${path}`);
-	}
-	return segments;
-}
-
-function resolveCollectionPath(path: string): string[] {
-	const segments = splitPath(path);
-	if (segments.length % 2 === 0) {
-		throw new Error(`Expected a collection path but got document path: ${path}`);
-	}
-	return segments;
-}
-
-function resolveStorageBucket(): string {
-	return process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || DEFAULT_STORAGE_BUCKET;
-}
-
-function resolveStoragePath(path: string): string {
-	const normalized = path.trim().replace(/^\/+/, "");
-	if (!normalized) {
-		throw new Error("Storage path is required.");
-	}
-	return normalized;
-}
-
-function toUploadMetadata(options?: StorageUploadOptions) {
-	if (!options) return undefined;
-	return {
-		contentType: options.contentType,
-		customMetadata: options.customMetadata,
-	};
-}
-
-function applyQueryConstraints(
-	baseQuery: ReturnType<typeof firestoreApi.query>,
-	where: readonly FirestoreWhereClause[],
-	options?: FirestoreQueryOptions,
-) {
-	const whereConstraints = where.map((clause) =>
-		firestoreApi.where(clause.field, clause.op, clause.value),
-	);
-
-	const orderByConstraints = (options?.orderBy ?? []).map((clause) =>
-		firestoreApi.orderBy(clause.field, clause.direction ?? "asc"),
-	);
-
-	const limitConstraint =
-		typeof options?.limit === "number" && options.limit > 0
-			? [firestoreApi.limit(options.limit)]
-			: [];
-
-	return firestoreApi.query(baseQuery, ...whereConstraints, ...orderByConstraints, ...limitConstraint);
-}
-
-export const firestoreInfrastructureApi: FirestoreAPI = {
-	async get<T>(path: string): Promise<T | null> {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-		const snapshot = await firestoreApi.getDoc(ref);
-		if (!snapshot.exists()) return null;
-		return snapshot.data() as T;
-	},
-
-	async set<T>(path: string, data: T): Promise<void> {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-		await firestoreApi.setDoc(ref, data as Record<string, unknown>);
-	},
-
-	async setMany<T>(inputs: readonly { path: string; data: T }[]): Promise<void> {
-		if (inputs.length === 0) return;
-
-		const db = getFirebaseFirestore();
-		const batch = firestoreApi.writeBatch(db);
-
-		for (const input of inputs) {
-			const ref = firestoreApi.doc(db, resolveDocumentPath(input.path).join("/"));
-			batch.set(ref, input.data as Record<string, unknown>);
-		}
-
-		await batch.commit();
-	},
-
-	async update(path: string, data: Record<string, unknown>): Promise<void> {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-		await firestoreApi.updateDoc(ref, data);
-	},
-
-	async delete(path: string): Promise<void> {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-		await firestoreApi.deleteDoc(ref);
-	},
-
-	async query<T>(
-		collectionPath: string,
-		where: readonly FirestoreWhereClause[] = [],
-		options?: FirestoreQueryOptions,
-	): Promise<T[]> {
-		const documents = await firestoreInfrastructureApi.queryDocuments<T>(collectionPath, where, options);
-		return documents.map((document) => document.data);
-	},
-
-	async queryDocuments<T>(
-		collectionPath: string,
-		where: readonly FirestoreWhereClause[] = [],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly { id: string; path: string; data: T }[]> {
-		const db = getFirebaseFirestore();
-		const collectionRef = firestoreApi.collection(
-			db,
-			resolveCollectionPath(collectionPath).join("/"),
-		);
-
-		const queryRef = applyQueryConstraints(firestoreApi.query(collectionRef), where, options);
-		const snapshot = await firestoreApi.getDocs(queryRef);
-		return snapshot.docs.map((doc) => ({
-			id: doc.id,
-			path: doc.ref.path,
-			data: doc.data() as T,
-		}));
-	},
-
-	async queryCollectionGroup<T>(
-		collectionId: string,
-		where: readonly FirestoreWhereClause[] = [],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly { id: string; path: string; data: T }[]> {
-		const normalizedCollectionId = collectionId.trim();
-		if (!normalizedCollectionId) {
-			throw new Error("Collection group id is required.");
-		}
-
-		const db = getFirebaseFirestore();
-		const collectionGroupRef = collectionGroup(db, normalizedCollectionId);
-		const queryRef = applyQueryConstraints(firestoreApi.query(collectionGroupRef), where, options);
-		const snapshot = await firestoreApi.getDocs(queryRef);
-		return snapshot.docs.map((doc) => ({
-			id: doc.id,
-			path: doc.ref.path,
-			data: doc.data() as T,
-		}));
-	},
-
-	watchCollection<T>(
-		collectionPath: string,
-		handlers: {
-			onNext: (documents: readonly { id: string; path: string; data: T }[]) => void;
-			onError?: (error: unknown) => void;
-		},
-		where: readonly FirestoreWhereClause[] = [],
-	): () => void {
-		const db = getFirebaseFirestore();
-		const collectionRef = firestoreApi.collection(
-			db,
-			resolveCollectionPath(collectionPath).join("/"),
-		);
-
-		const queryConstraints = where.map((clause) =>
-			firestoreApi.where(clause.field, clause.op, clause.value),
-		);
-		const queryRef = firestoreApi.query(collectionRef, ...queryConstraints);
-
-		return firestoreApi.onSnapshot(
-			queryRef,
-			(snapshot) => {
-				handlers.onNext(
-					snapshot.docs.map((doc) => ({
-						id: doc.id,
-						path: doc.ref.path,
-						data: doc.data() as T,
-					})),
-				);
-			},
-			(error) => {
-				handlers.onError?.(error);
-			},
-		);
-	},
-
-	watchDocument<T>(
-		path: string,
-		handlers: {
-			onNext: (document: { id: string; path: string; data: T } | null) => void;
-			onError?: (error: unknown) => void;
-		},
-	): () => void {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-
-		return firestoreApi.onSnapshot(
-			ref,
-			(snapshot) => {
-				if (!snapshot.exists()) {
-					handlers.onNext(null);
-					return;
-				}
-				handlers.onNext({
-					id: snapshot.id,
-					path: snapshot.ref.path,
-					data: snapshot.data() as T,
-				});
-			},
-			(error) => {
-				handlers.onError?.(error);
-			},
-		);
-	},
-};
-
-export const storageInfrastructureApi: StorageAPI = {
-	async upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string> {
-		const normalizedPath = resolveStoragePath(path);
-		const storage = getFirebaseStorage(resolveStorageBucket());
-		const ref = storageApi.ref(storage, normalizedPath);
-		await storageApi.uploadBytes(ref, file, toUploadMetadata(options));
-		return storageApi.getDownloadURL(ref);
-	},
-
-	async getUrl(path: string): Promise<string> {
-		const normalizedPath = resolveStoragePath(path);
-		const storage = getFirebaseStorage(resolveStorageBucket());
-		const ref = storageApi.ref(storage, normalizedPath);
-		return storageApi.getDownloadURL(ref);
-	},
-
-	async delete(path: string): Promise<void> {
-		const normalizedPath = resolveStoragePath(path);
-		const storage = getFirebaseStorage(resolveStorageBucket());
-		const ref = storageApi.ref(storage, normalizedPath);
-		await storageApi.deleteObject(ref);
-	},
-
-	toGsUri(path: string): string {
-		const normalizedPath = resolveStoragePath(path);
-		return `gs://${resolveStorageBucket()}/${normalizedPath}`;
-	},
-};
-
-export const genkitInfrastructureApi: GenkitAPI = {
-	async runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput> {
-		const normalizedFlow = flow.trim();
-		if (!normalizedFlow) {
-			throw new Error("Flow name is required.");
-		}
-
-		const functions = getFirebaseFunctions(DEFAULT_FUNCTION_REGION);
-		const runFlow = functionsApi.httpsCallable(functions, "platform_run_genkit_flow");
-		const response = await runFlow({ flow: normalizedFlow, input });
-		return response.data as TOutput;
-	},
-};
-
-export const functionsInfrastructureApi: FunctionsAPI = {
-	async call<TInput, TOutput>(
-		functionName: string,
-		input: TInput,
-		options?: FunctionsCallOptions,
-	): Promise<TOutput> {
-		const normalizedName = functionName.trim();
-		if (!normalizedName) {
-			throw new Error("Function name is required.");
-		}
-
-		const region = options?.region?.trim() || DEFAULT_FUNCTION_REGION;
-		const functions = getFirebaseFunctions(region);
-		const callable = functionsApi.httpsCallable(functions, normalizedName);
-		const response = await callable(input);
-		return response.data as TOutput;
-	},
-};
-````
-
 ## File: modules/platform/interfaces/web/shell/search/ShellGlobalSearchDialog.tsx
 ````typescript
 "use client";
@@ -19423,6 +19143,176 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/identity/interfaces/index.ts
+````typescript
+export { ShellGuard } from "./components/ShellGuard";
+export {
+  AuthContext,
+  type AuthState,
+  type AuthAction,
+  type AuthContextValue,
+  type AuthStatus,
+  type AuthUser,
+} from "./contexts/auth-context";
+export { AuthProvider, useAuth } from "./providers/auth-provider";
+export {
+  register,
+  sendPasswordResetEmail,
+  signIn,
+  signInAnonymously,
+  signOut,
+} from "./_actions/identity.actions";
+export { useTokenRefreshListener } from "./hooks/useTokenRefreshListener";
+````
+
+## File: modules/platform/subdomains/identity/interfaces/providers/auth-provider.tsx
+````typescript
+"use client";
+
+/**
+ * auth-provider.tsx — platform/identity interfaces layer
+ * Hosts the Firebase auth state lifecycle and exposes useAuth().
+ * Syncs onAuthStateChanged → AuthContext → consumed by AppProvider and shell guard.
+ *
+ * [S6] Token refresh is handled separately by useTokenRefreshListener (Party 3).
+ */
+
+import { useReducer, useContext, useEffect, type ReactNode } from "react";
+import {
+  getFirebaseAuth,
+  onFirebaseAuthStateChanged,
+  signOutFirebase,
+  type User,
+} from "@integration-firebase";
+import {
+  AuthContext,
+  type AuthAction,
+  type AuthState,
+  type AuthUser,
+} from "../contexts/auth-context";
+
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 6000;
+
+// ─── Mapper ───────────────────────────────────────────────────────────────────
+
+function toAuthUser(user: User): AuthUser {
+  return {
+    id: user.uid,
+    name: user.displayName ?? "Dimension Member",
+    email: user.email ?? "",
+  };
+}
+
+// ─── Reducer ──────────────────────────────────────────────────────────────────
+
+const authReducer = (state: AuthState, action: AuthAction): AuthState => {
+  switch (action.type) {
+    case "SET_AUTH_STATE":
+      return {
+        ...state,
+        user: action.payload.user,
+        status: action.payload.status,
+      };
+    case "UPDATE_DISPLAY_NAME":
+      if (!state.user) return state;
+      return { ...state, user: { ...state.user, name: action.payload.name } };
+    default:
+      return state;
+  }
+};
+
+const initialState: AuthState = { user: null, status: "initializing" };
+
+// ─── Provider ─────────────────────────────────────────────────────────────────
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [state, dispatch] = useReducer(authReducer, initialState);
+
+  useEffect(() => {
+    let resolved = false;
+    let unsubscribe: (() => void) | undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      if (resolved) return;
+      dispatch({
+        type: "SET_AUTH_STATE",
+        payload: { user: null, status: "unauthenticated" },
+      });
+    }, AUTH_BOOTSTRAP_TIMEOUT_MS);
+
+    try {
+      const auth = getFirebaseAuth();
+      unsubscribe = onFirebaseAuthStateChanged(auth, (firebaseUser) => {
+        resolved = true;
+        window.clearTimeout(timeoutId);
+
+        if (firebaseUser) {
+          dispatch({
+            type: "SET_AUTH_STATE",
+            payload: { user: toAuthUser(firebaseUser), status: "authenticated" },
+          });
+        } else {
+          dispatch({
+            type: "SET_AUTH_STATE",
+            payload: { user: null, status: "unauthenticated" },
+          });
+        }
+      });
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[AuthProvider] Firebase auth initialization failed:", error);
+      }
+      resolved = true;
+      window.clearTimeout(timeoutId);
+      dispatch({
+        type: "SET_AUTH_STATE",
+        payload: { user: null, status: "unauthenticated" },
+      });
+    }
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      unsubscribe?.();
+    };
+  }, []);
+
+  const logout = async () => {
+    try {
+      await signOutFirebase(getFirebaseAuth());
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[AuthProvider] Firebase sign out failed:", error);
+      }
+    } finally {
+      // Always dispatch unauthenticated: onAuthStateChanged will not fire when
+      // there is no real Firebase session (e.g. dev-demo guest mode), so we
+      // cannot rely solely on the listener to clear the auth state.
+      dispatch({
+        type: "SET_AUTH_STATE",
+        payload: { user: null, status: "unauthenticated" },
+      });
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{ state, dispatch, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
+}
 ````
 
 ## File: modules/platform/subdomains/identity/README.md

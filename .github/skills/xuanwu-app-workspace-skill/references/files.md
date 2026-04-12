@@ -1671,6 +1671,508 @@ export class FirebaseWikiWorkspaceRepository implements WikiWorkspaceRepository 
 }
 ````
 
+## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
+````typescript
+import type {
+  WorkspaceMemberAccessChannel,
+  WorkspaceMemberPresence,
+  WorkspaceMemberView,
+} from "../../domain/entities/WorkspaceMemberView";
+import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
+import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
+
+const personnelLabels = {
+  managerId: "Manager",
+  supervisorId: "Supervisor",
+  safetyOfficerId: "Safety officer",
+} as const;
+
+const personnelLabelEntries = Object.entries(personnelLabels) as Array<
+  [keyof typeof personnelLabels, string]
+>;
+
+interface OrganizationMemberReference {
+  id: string;
+  name: string;
+  email?: string;
+  role?: string;
+  presence?: string;
+  isExternal?: boolean;
+}
+
+interface OrganizationTeam {
+  id: string;
+  name: string;
+  memberIds: string[];
+}
+
+interface OrganizationDirectoryGateway {
+  getOrganizationMembers(organizationId: string): Promise<OrganizationMemberReference[]>;
+  getOrganizationTeams(organizationId: string): Promise<OrganizationTeam[]>;
+}
+
+const defaultOrganizationDirectoryGateway: OrganizationDirectoryGateway = {
+  async getOrganizationMembers() {
+    return [];
+  },
+  async getOrganizationTeams() {
+    return [];
+  },
+};
+
+function toPresence(value: OrganizationMemberReference["presence"] | undefined): WorkspaceMemberPresence {
+  if (value === "active" || value === "away" || value === "offline") {
+    return value;
+  }
+
+  return "unknown";
+}
+
+function createFallbackMember(id: string): WorkspaceMemberView {
+  return {
+    id,
+    displayName: id,
+    presence: "unknown",
+    isExternal: false,
+    accessChannels: [],
+  };
+}
+
+export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
+  constructor(
+    private readonly organizationDirectoryGateway: OrganizationDirectoryGateway = defaultOrganizationDirectoryGateway,
+  ) {}
+
+  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
+
+  subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: WorkspaceEntity[]) => void,
+  ) {
+    const normalizedAccountId = accountId.trim();
+    if (!normalizedAccountId) {
+      onUpdate([]);
+      return () => {};
+    }
+
+    return firestoreInfrastructureApi.watchCollection<Record<string, unknown>>(
+      "workspaces",
+      {
+        onNext: (documents) => {
+          const workspaces = documents.map((document) => toWorkspaceEntity(document.id, document.data));
+          onUpdate(workspaces);
+        },
+      },
+      [{ field: "accountId", op: "==", value: normalizedAccountId }],
+    );
+  }
+
+  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
+    const workspace = await this.workspaceRepo.findById(workspaceId);
+    if (!workspace) {
+      return [];
+    }
+
+    const members = new Map<string, WorkspaceMemberView>();
+    const memberChannelKeys = new Map<string, Set<string>>();
+
+    const mergeMember = (
+      memberId: string,
+      channel: WorkspaceMemberAccessChannel,
+      orgMember?: OrganizationMemberReference,
+    ) => {
+      const current = members.get(memberId) ?? createFallbackMember(memberId);
+      const channelKey = [
+        channel.source,
+        channel.label,
+        channel.role ?? "",
+        channel.protocol ?? "",
+        channel.teamId ?? "",
+      ].join("::");
+      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
+      memberChannelKeys.set(memberId, knownChannelKeys);
+      const hasSameChannel = knownChannelKeys.has(channelKey);
+      if (!hasSameChannel) {
+        knownChannelKeys.add(channelKey);
+      }
+
+      members.set(memberId, {
+        id: memberId,
+        displayName: orgMember?.name || current.displayName,
+        email: orgMember?.email ?? current.email,
+        organizationRole: orgMember?.role ?? current.organizationRole,
+        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
+        isExternal: orgMember?.isExternal ?? current.isExternal,
+        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
+      });
+    };
+
+    if (workspace.accountType === "organization") {
+      const [organizationMembers, teams] = await Promise.all([
+        this.organizationDirectoryGateway.getOrganizationMembers(workspace.accountId),
+        this.organizationDirectoryGateway.getOrganizationTeams(workspace.accountId),
+      ]);
+
+      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
+      const teamMap = new Map(teams.map((team) => [team.id, team]));
+
+      const mergeTeam = (team: OrganizationTeam, role?: string, protocol?: string) => {
+        const label = team.name || team.id;
+        team.memberIds.forEach((memberId: string) => {
+          mergeMember(
+            memberId,
+            {
+              source: "team",
+              label,
+              role,
+              protocol,
+              teamId: team.id,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        });
+      };
+
+      workspace.teamIds.forEach((teamId) => {
+        const team = teamMap.get(teamId);
+        if (team) {
+          mergeTeam(team);
+        }
+      });
+
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(
+            grant.userId,
+            {
+              source: "direct",
+              label: "Direct access",
+              role: grant.role,
+              protocol: grant.protocol,
+            },
+            organizationMemberMap.get(grant.userId),
+          );
+        }
+
+        if (grant.teamId) {
+          const team = teamMap.get(grant.teamId);
+          if (team) {
+            mergeTeam(team, grant.role, grant.protocol);
+          }
+        }
+      });
+
+      personnelLabelEntries.forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field];
+        if (memberId) {
+          mergeMember(
+            memberId,
+            {
+              source: "personnel",
+              label,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        }
+      });
+    } else {
+      mergeMember(workspace.accountId, {
+        source: "owner",
+        label: "Workspace owner",
+      });
+
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(grant.userId, {
+            source: "direct",
+            label: "Direct access",
+            role: grant.role,
+            protocol: grant.protocol,
+          });
+        }
+      });
+
+      personnelLabelEntries.forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field];
+        if (memberId) {
+          mergeMember(memberId, {
+            source: "personnel",
+            label,
+          });
+        }
+      });
+    }
+
+    return Array.from(members.values()).sort((left, right) =>
+      left.displayName.localeCompare(right.displayName),
+    );
+  }
+}
+````
+
+## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository.ts
+````typescript
+/**
+ * FirebaseWorkspaceRepository — Infrastructure adapter for workspace persistence.
+ * Translates Firestore documents ↔ Domain WorkspaceEntity.
+ * Firebase SDK only exists in this file.
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
+import type { WorkspaceCapabilityRepository } from "../../domain/ports/output/WorkspaceCapabilityRepository";
+import type { WorkspaceAccessRepository } from "../../domain/ports/output/WorkspaceAccessRepository";
+import type { WorkspaceLocationRepository } from "../../domain/ports/output/WorkspaceLocationRepository";
+import type {
+  WorkspaceEntity,
+  Capability,
+  WorkspaceGrant,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceLocation,
+} from "../../domain/aggregates/Workspace";
+import { createAddress } from "../../domain/value-objects/Address";
+import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
+import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";
+import { createWorkspaceVisibility } from "../../domain/value-objects/WorkspaceVisibility";
+
+// ─── Mapper ───────────────────────────────────────────────────────────────────
+
+const VALID_ACCOUNT_TYPES = new Set<WorkspaceEntity["accountType"]>(["user", "organization"]);
+
+export function toWorkspaceEntity(id: string, data: Record<string, unknown>): WorkspaceEntity {
+  const accountType = VALID_ACCOUNT_TYPES.has(data.accountType as WorkspaceEntity["accountType"])
+    ? (data.accountType as WorkspaceEntity["accountType"])
+    : "user";
+
+  return {
+    id,
+    name: createWorkspaceName(typeof data.name === "string" ? data.name : "Untitled workspace"),
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    accountType,
+    lifecycleState: createWorkspaceLifecycleState(
+      data.lifecycleState === "active" ||
+        data.lifecycleState === "stopped" ||
+        data.lifecycleState === "preparatory"
+        ? data.lifecycleState
+        : "preparatory",
+    ),
+    visibility: createWorkspaceVisibility(
+      data.visibility === "hidden" || data.visibility === "visible"
+        ? data.visibility
+        : "visible",
+    ),
+    capabilities: Array.isArray(data.capabilities) ? (data.capabilities as Capability[]) : [],
+    grants: Array.isArray(data.grants) ? (data.grants as WorkspaceGrant[]) : [],
+    teamIds: Array.isArray(data.teamIds) ? (data.teamIds as string[]) : [],
+    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
+    address: data.address != null ? createAddress(data.address as NonNullable<UpdateWorkspaceSettingsCommand["address"]>) : undefined,
+    locations: Array.isArray(data.locations) ? (data.locations as WorkspaceLocation[]) : undefined,
+    personnel: data.personnel != null ? (data.personnel as WorkspaceEntity["personnel"]) : undefined,
+    createdAt: data.createdAt as WorkspaceEntity["createdAt"],
+  };
+}
+
+// ─── Repository ───────────────────────────────────────────────────────────────
+
+export class FirebaseWorkspaceRepository
+  implements
+    WorkspaceRepository,
+    WorkspaceCapabilityRepository,
+    WorkspaceAccessRepository,
+    WorkspaceLocationRepository {
+  private workspacePath(workspaceId: string): string {
+    return `workspaces/${workspaceId}`;
+  }
+
+  async findById(id: string): Promise<WorkspaceEntity | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.workspacePath(id));
+    if (!data) return null;
+    return toWorkspaceEntity(id, data);
+  }
+
+  async findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      "workspaces",
+      [{ field: "accountId", op: "==", value: accountId }],
+    );
+    const target = docs.find((doc) => doc.id === workspaceId);
+    if (!target) return null;
+    return toWorkspaceEntity(target.id, target.data);
+  }
+
+  async findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      "workspaces",
+      [{ field: "accountId", op: "==", value: accountId }],
+    );
+    return docs.map((doc) => toWorkspaceEntity(doc.id, doc.data));
+  }
+
+  async save(workspace: WorkspaceEntity): Promise<string> {
+    const payload: Record<string, unknown> = {
+      name: workspace.name,
+      accountId: workspace.accountId,
+      accountType: workspace.accountType,
+      lifecycleState: workspace.lifecycleState,
+      visibility: workspace.visibility,
+      capabilities: workspace.capabilities,
+      grants: workspace.grants,
+      teamIds: workspace.teamIds,
+      createdAtISO: new Date().toISOString(),
+    };
+
+    if (workspace.photoURL !== undefined) payload.photoURL = workspace.photoURL;
+    if (workspace.address !== undefined) payload.address = workspace.address;
+    if (workspace.locations !== undefined) payload.locations = workspace.locations;
+    if (workspace.personnel !== undefined) payload.personnel = workspace.personnel;
+
+    await firestoreInfrastructureApi.set(this.workspacePath(workspace.id), payload);
+    return workspace.id;
+  }
+
+  async updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void> {
+    const updates: Record<string, unknown> = { updatedAtISO: new Date().toISOString() };
+    if (command.name !== undefined) updates.name = command.name;
+    if (command.visibility !== undefined) updates.visibility = command.visibility;
+    if (command.lifecycleState !== undefined) updates.lifecycleState = command.lifecycleState;
+    if (command.address !== undefined) updates.address = command.address;
+    if (command.personnel !== undefined) updates.personnel = command.personnel;
+    await firestoreInfrastructureApi.update(this.workspacePath(command.workspaceId), updates);
+  }
+
+  async delete(id: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(this.workspacePath(id));
+  }
+
+  async mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const existing = Array.isArray(data.capabilities) ? (data.capabilities as Capability[]) : [];
+    const merged = [...existing];
+    capabilities.forEach((capability) => {
+      if (!merged.some((item) => item.id === capability.id)) {
+        merged.push(capability);
+      }
+    });
+
+    await firestoreInfrastructureApi.update(path, {
+      capabilities: merged,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async unmountCapability(workspaceId: string, capabilityId: string): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const caps = ((data.capabilities as Capability[]) ?? []).filter((c) => c.id !== capabilityId);
+    await firestoreInfrastructureApi.update(path, {
+      capabilities: caps,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async grantTeamAccess(workspaceId: string, teamId: string): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const teamIds = Array.isArray(data.teamIds) ? [...(data.teamIds as string[])] : [];
+    if (!teamIds.includes(teamId)) {
+      teamIds.push(teamId);
+    }
+    await firestoreInfrastructureApi.update(path, {
+      teamIds,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async revokeTeamAccess(workspaceId: string, teamId: string): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const teamIds = (Array.isArray(data.teamIds) ? (data.teamIds as string[]) : []).filter((item) => item !== teamId);
+    await firestoreInfrastructureApi.update(path, {
+      teamIds,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async grantIndividualAccess(workspaceId: string, grant: WorkspaceGrant): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const grants = Array.isArray(data.grants) ? [...(data.grants as WorkspaceGrant[])] : [];
+    const exists = grants.some((item) => item.userId === grant.userId && item.teamId === grant.teamId);
+    if (!exists) {
+      grants.push(grant);
+    }
+    await firestoreInfrastructureApi.update(path, {
+      grants,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async revokeIndividualAccess(workspaceId: string, userId: string): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const grants = ((data.grants as WorkspaceGrant[]) ?? []).filter((g) => g.userId !== userId);
+    await firestoreInfrastructureApi.update(path, {
+      grants,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async createLocation(
+    workspaceId: string,
+    location: Omit<WorkspaceLocation, "locationId">,
+  ): Promise<string> {
+    const locationId = crypto.randomUUID();
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return locationId;
+    const locations = Array.isArray(data.locations) ? [...(data.locations as WorkspaceLocation[])] : [];
+    locations.push({ ...location, locationId });
+    await firestoreInfrastructureApi.update(path, {
+      locations,
+      updatedAtISO: new Date().toISOString(),
+    });
+    return locationId;
+  }
+
+  async updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const locations = ((data.locations as WorkspaceLocation[]) ?? []).map((l) =>
+      l.locationId === location.locationId ? location : l,
+    );
+    await firestoreInfrastructureApi.update(path, {
+      locations,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async deleteLocation(workspaceId: string, locationId: string): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const locations = ((data.locations as WorkspaceLocation[]) ?? []).filter(
+      (l) => l.locationId !== locationId,
+    );
+    await firestoreInfrastructureApi.update(path, {
+      locations,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+}
+````
+
 ## File: modules/workspace/interfaces/api/contracts/index.ts
 ````typescript
 /**
@@ -5607,6 +6109,92 @@ export { ActorIdSchema, createActorId, unsafeActorId } from "./ActorId";
 export type { ActorId } from "./ActorId";
 ````
 
+## File: modules/workspace/subdomains/audit/infrastructure/firebase/FirebaseAuditRepository.ts
+````typescript
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import type { AuditEntry } from "../../domain/aggregates/AuditEntry";
+import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
+import type { AuditRepository } from "../../domain/repositories/AuditRepository";
+
+const VALID_AUDIT_LOG_SOURCES = new Set<AuditLogSource>([
+  "workspace",
+  "finance",
+  "notification",
+  "system",
+]);
+
+function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEntity {
+  const source = VALID_AUDIT_LOG_SOURCES.has(data.source as AuditLogSource)
+    ? (data.source as AuditLogSource)
+    : "workspace";
+
+  return {
+    id,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    actorId: typeof data.actorId === "string" ? data.actorId : "system",
+    action: typeof data.action === "string" ? data.action : "unknown",
+    detail: typeof data.detail === "string" ? data.detail : "",
+    source,
+    occurredAtISO:
+      typeof data.occurredAtISO === "string"
+        ? data.occurredAtISO
+        : "",
+  };
+}
+
+export class FirebaseAuditRepository implements AuditRepository {
+  async save(entry: AuditEntry): Promise<void> {
+    const id = crypto.randomUUID();
+    await firestoreInfrastructureApi.set(`auditLogs/${id}`, entry.getSnapshot());
+  }
+
+  async findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      "auditLogs",
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+    );
+
+    return docs
+      .map((doc) => toAuditLogEntity(doc.id, doc.data))
+      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO));
+  }
+
+  async findByWorkspaceIds(
+    workspaceIds: string[],
+    maxCount = 200,
+  ): Promise<AuditLogEntity[]> {
+    if (workspaceIds.length === 0) {
+      return [];
+    }
+
+    const chunks: string[][] = [];
+    for (let index = 0; index < workspaceIds.length; index += 10) {
+      chunks.push(workspaceIds.slice(index, index + 10));
+    }
+
+    const perChunkLimit = Math.max(1, Math.ceil(maxCount / chunks.length));
+
+    const documents = await Promise.all(
+      chunks.map((chunk) =>
+        firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+          "auditLogs",
+          [{ field: "workspaceId", op: "in", value: chunk }],
+          { limit: perChunkLimit },
+        ),
+      ),
+    );
+
+    return documents
+      .flatMap((document) => document)
+      .map((doc) => toAuditLogEntity(doc.id, doc.data))
+      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO))
+      .slice(0, maxCount);
+  }
+}
+````
+
 ## File: modules/workspace/subdomains/audit/interfaces/components/AuditStream.tsx
 ````typescript
 "use client";
@@ -6620,6 +7208,290 @@ export interface WorkspaceFeedInteractionRepository {
   bookmark(accountId: string, postId: string, actorAccountId: string): Promise<boolean>;
   view(accountId: string, postId: string, actorAccountId: string): Promise<void>;
   share(accountId: string, postId: string, actorAccountId: string): Promise<void>;
+}
+````
+
+## File: modules/workspace/subdomains/feed/infrastructure/firebase/FirebaseWorkspaceFeedInteractionRepository.ts
+````typescript
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+
+import type { WorkspaceFeedInteractionRepository } from "../../domain/repositories/workspace-feed.repositories";
+
+function postPath(accountId: string, postId: string): string {
+  return `accounts/${accountId}/workspaceFeedPosts/${postId}`;
+}
+
+function likesPath(accountId: string, postId: string, actorAccountId: string): string {
+  return `${postPath(accountId, postId)}/likes/${actorAccountId}`;
+}
+
+function bookmarksPath(accountId: string, postId: string, actorAccountId: string): string {
+  return `${postPath(accountId, postId)}/bookmarks/${actorAccountId}`;
+}
+
+function viewsPath(accountId: string, postId: string): string {
+  return `${postPath(accountId, postId)}/views`;
+}
+
+function sharesPath(accountId: string, postId: string): string {
+  return `${postPath(accountId, postId)}/shares`;
+}
+
+export class FirebaseWorkspaceFeedInteractionRepository implements WorkspaceFeedInteractionRepository {
+  async like(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
+    const path = likesPath(accountId, postId, actorAccountId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (snap) return false;
+
+    await firestoreInfrastructureApi.set(path, {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+    });
+    return true;
+  }
+
+  async bookmark(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
+    const path = bookmarksPath(accountId, postId, actorAccountId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (snap) return false;
+
+    await firestoreInfrastructureApi.set(path, {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+    });
+    return true;
+  }
+
+  async view(accountId: string, postId: string, actorAccountId: string): Promise<void> {
+    await firestoreInfrastructureApi.set(`${viewsPath(accountId, postId)}/${generateId()}`, {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+    });
+  }
+
+  async share(accountId: string, postId: string, actorAccountId: string): Promise<void> {
+    await firestoreInfrastructureApi.set(`${sharesPath(accountId, postId)}/${generateId()}`, {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+    });
+  }
+}
+````
+
+## File: modules/workspace/subdomains/feed/infrastructure/firebase/FirebaseWorkspaceFeedPostRepository.ts
+````typescript
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+
+import type {
+  CreateWorkspaceFeedPostInput,
+  CreateWorkspaceFeedReplyInput,
+  CreateWorkspaceFeedRepostInput,
+  WorkspaceFeedCounterPatch,
+  WorkspaceFeedPost,
+} from "../../domain/entities/workspace-feed-post.entity";
+import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
+
+function postsPath(accountId: string): string {
+  return `accounts/${accountId}/workspaceFeedPosts`;
+}
+
+function postPath(accountId: string, postId: string): string {
+  return `accounts/${accountId}/workspaceFeedPosts/${postId}`;
+}
+
+function repostMapPath(accountId: string, actorAccountId: string, sourcePostId: string): string {
+  return `accounts/${accountId}/workspaceFeedReposts/${actorAccountId}__${sourcePostId}`;
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function asNumber(value: unknown): number {
+  return typeof value === "number" ? value : 0;
+}
+
+function toWorkspaceFeedPost(id: string, data: Record<string, unknown>): WorkspaceFeedPost {
+  const type = asString(data.type, "post");
+  return {
+    id,
+    accountId: asString(data.accountId),
+    workspaceId: asString(data.workspaceId),
+    authorAccountId: asString(data.authorAccountId),
+    type: type === "reply" || type === "repost" ? type : "post",
+    content: asString(data.content),
+    replyToPostId: typeof data.replyToPostId === "string" ? data.replyToPostId : null,
+    repostOfPostId: typeof data.repostOfPostId === "string" ? data.repostOfPostId : null,
+    likeCount: asNumber(data.likeCount),
+    replyCount: asNumber(data.replyCount),
+    repostCount: asNumber(data.repostCount),
+    viewCount: asNumber(data.viewCount),
+    bookmarkCount: asNumber(data.bookmarkCount),
+    shareCount: asNumber(data.shareCount),
+    createdAtISO: asString(data.createdAtISO),
+    updatedAtISO: asString(data.updatedAtISO),
+  };
+}
+
+function createBasePostData(
+  accountId: string,
+  workspaceId: string,
+  authorAccountId: string,
+  content: string,
+  type: "post" | "reply" | "repost",
+): Record<string, unknown> {
+  const nowISO = new Date().toISOString();
+  return {
+    accountId,
+    workspaceId,
+    authorAccountId,
+    type,
+    content,
+    likeCount: 0,
+    replyCount: 0,
+    repostCount: 0,
+    viewCount: 0,
+    bookmarkCount: 0,
+    shareCount: 0,
+    createdAtISO: nowISO,
+    updatedAtISO: nowISO,
+  };
+}
+
+export class FirebaseWorkspaceFeedPostRepository implements WorkspaceFeedPostRepository {
+  async createPost(input: CreateWorkspaceFeedPostInput): Promise<WorkspaceFeedPost> {
+    const id = generateId();
+    const data = createBasePostData(
+      input.accountId,
+      input.workspaceId,
+      input.authorAccountId,
+      input.content,
+      "post",
+    );
+    await firestoreInfrastructureApi.set(postPath(input.accountId, id), data);
+    return toWorkspaceFeedPost(id, data);
+  }
+
+  async createReply(input: CreateWorkspaceFeedReplyInput): Promise<WorkspaceFeedPost> {
+    const id = generateId();
+    const data: Record<string, unknown> = {
+      ...createBasePostData(
+        input.accountId,
+        input.workspaceId,
+        input.authorAccountId,
+        input.content,
+        "reply",
+      ),
+      replyToPostId: input.parentPostId,
+      repostOfPostId: null,
+    };
+
+    await firestoreInfrastructureApi.set(postPath(input.accountId, id), data);
+    await this.patchCounters(input.accountId, input.parentPostId, { replyDelta: 1 });
+    return toWorkspaceFeedPost(id, data);
+  }
+
+  async createRepost(input: CreateWorkspaceFeedRepostInput): Promise<WorkspaceFeedPost | null> {
+    const mapPath = repostMapPath(input.accountId, input.actorAccountId, input.sourcePostId);
+    const existingMap = await firestoreInfrastructureApi.get<Record<string, unknown>>(mapPath);
+    if (existingMap) {
+      const repostPostId = asString(existingMap.repostPostId);
+      if (!repostPostId) return null;
+      return this.findById(input.accountId, repostPostId);
+    }
+
+    const source = await this.findById(input.accountId, input.sourcePostId);
+    if (!source) return null;
+
+    const id = generateId();
+    const content = input.comment?.trim() || source.content;
+    const data: Record<string, unknown> = {
+      ...createBasePostData(
+        input.accountId,
+        input.workspaceId,
+        input.actorAccountId,
+        content,
+        "repost",
+      ),
+      replyToPostId: null,
+      repostOfPostId: input.sourcePostId,
+    };
+
+    await firestoreInfrastructureApi.set(postPath(input.accountId, id), data);
+    await firestoreInfrastructureApi.set(mapPath, {
+      accountId: input.accountId,
+      workspaceId: input.workspaceId,
+      sourcePostId: input.sourcePostId,
+      actorAccountId: input.actorAccountId,
+      repostPostId: id,
+      createdAtISO: new Date().toISOString(),
+    });
+    await this.patchCounters(input.accountId, input.sourcePostId, { repostDelta: 1 });
+    return toWorkspaceFeedPost(id, data);
+  }
+
+  async patchCounters(accountId: string, postId: string, patch: WorkspaceFeedCounterPatch): Promise<void> {
+    const path = postPath(accountId, postId);
+    const current = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!current) return;
+
+    const updates: Record<string, unknown> = {
+      updatedAtISO: new Date().toISOString(),
+    };
+
+    const applyDelta = (field: string, delta: number | undefined) => {
+      if (!delta) return;
+      const base = asNumber(current[field]);
+      updates[field] = base + delta;
+    };
+
+    applyDelta("likeCount", patch.likeDelta);
+    applyDelta("replyCount", patch.replyDelta);
+    applyDelta("repostCount", patch.repostDelta);
+    applyDelta("viewCount", patch.viewDelta);
+    applyDelta("bookmarkCount", patch.bookmarkDelta);
+    applyDelta("shareCount", patch.shareDelta);
+
+    await firestoreInfrastructureApi.update(path, updates);
+  }
+
+  async findById(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(postPath(accountId, postId));
+    if (!data) return null;
+    return toWorkspaceFeedPost(postId, data);
+  }
+
+  async listByWorkspaceId(accountId: string, workspaceId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      postsPath(accountId),
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+      { orderBy: [{ field: "createdAtISO", direction: "desc" }], limit: maxRows },
+    );
+    return docs.map((row) => toWorkspaceFeedPost(row.id, row.data));
+  }
+
+  async listByAccountId(accountId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      postsPath(accountId),
+      [],
+      { orderBy: [{ field: "createdAtISO", direction: "desc" }], limit: maxRows },
+    );
+    return docs.map((row) => toWorkspaceFeedPost(row.id, row.data));
+  }
 }
 ````
 
@@ -8186,6 +9058,111 @@ export type WorkDemandAssignedEvent = {
 export type WorkDemandDomainEvent =
   | WorkDemandCreatedEvent
   | WorkDemandAssignedEvent;
+````
+
+## File: modules/workspace/subdomains/scheduling/infrastructure/firebase/FirebaseDemandRepository.ts
+````typescript
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+
+import type { WorkDemand } from "../../domain/types";
+import type { IDemandRepository } from "../../domain/repository";
+
+const DEMANDS_COLLECTION = "workspacePlannerDemands";
+
+function toWorkDemand(id: string, data: Record<string, unknown>): WorkDemand {
+  const status = data.status;
+  const priority = data.priority;
+
+  return {
+    id,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    requesterId: typeof data.requesterId === "string" ? data.requesterId : "",
+    title: typeof data.title === "string" ? data.title : "",
+    description: typeof data.description === "string" ? data.description : "",
+    status:
+      status === "draft" || status === "open" || status === "in_progress" || status === "completed"
+        ? status
+        : "draft",
+    priority: priority === "low" || priority === "medium" || priority === "high" ? priority : "medium",
+    scheduledAt: typeof data.scheduledAt === "string" ? data.scheduledAt : "",
+    assignedUserId: typeof data.assignedUserId === "string" ? data.assignedUserId : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseDemandRepository implements IDemandRepository {
+  private demandPath(id: string): string {
+    return `${DEMANDS_COLLECTION}/${id}`;
+  }
+
+  async listByWorkspace(workspaceId: string): Promise<WorkDemand[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      DEMANDS_COLLECTION,
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+    );
+    return docs
+      .map((item) => toWorkDemand(item.id, item.data))
+      .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
+  }
+
+  async listByAccount(accountId: string): Promise<WorkDemand[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      DEMANDS_COLLECTION,
+      [{ field: "accountId", op: "==", value: accountId }],
+    );
+    return docs
+      .map((item) => toWorkDemand(item.id, item.data))
+      .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
+  }
+
+  async save(demand: WorkDemand): Promise<void> {
+    const path = this.demandPath(demand.id);
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (existing) {
+      await this.update(demand);
+      return;
+    }
+
+    await firestoreInfrastructureApi.set(path, {
+      workspaceId: demand.workspaceId,
+      accountId: demand.accountId,
+      requesterId: demand.requesterId,
+      title: demand.title,
+      description: demand.description,
+      status: demand.status,
+      priority: demand.priority,
+      scheduledAt: demand.scheduledAt,
+      assignedUserId: demand.assignedUserId ?? null,
+      createdAtISO: demand.createdAtISO,
+      updatedAtISO: demand.updatedAtISO,
+    });
+  }
+
+  async update(demand: WorkDemand): Promise<void> {
+    await firestoreInfrastructureApi.update(this.demandPath(demand.id), {
+      workspaceId: demand.workspaceId,
+      accountId: demand.accountId,
+      requesterId: demand.requesterId,
+      title: demand.title,
+      description: demand.description,
+      status: demand.status,
+      priority: demand.priority,
+      scheduledAt: demand.scheduledAt,
+      assignedUserId: demand.assignedUserId ?? null,
+      updatedAtISO: demand.updatedAtISO,
+    });
+  }
+
+  async findById(id: string): Promise<WorkDemand | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.demandPath(id));
+    if (!data) return null;
+    return toWorkDemand(id, data);
+  }
+}
 ````
 
 ## File: modules/workspace/subdomains/scheduling/infrastructure/mock-demand-repository.ts
@@ -12857,6 +13834,512 @@ export const WF_INVOICES_COLLECTION = "workspaceFlowInvoices" as const;
 export const WF_INVOICE_ITEMS_COLLECTION = "workspaceFlowInvoiceItems" as const;
 ````
 
+## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseInvoiceItemRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseInvoiceItemRepository.ts
+ * @description Firebase Firestore repository for InvoiceItem CRUD operations.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add query pagination support
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
+import { toInvoiceItem } from "../firebase/invoice-item.converter";
+import { WF_INVOICE_ITEMS_COLLECTION } from "../firebase/workspace-flow.collections";
+
+export class FirebaseInvoiceItemRepository {
+  private itemPath(itemId: string): string {
+    return `${WF_INVOICE_ITEMS_COLLECTION}/${itemId}`;
+  }
+
+  async findById(itemId: string): Promise<InvoiceItem | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.itemPath(itemId));
+    if (!data) return null;
+    return toInvoiceItem(itemId, data);
+  }
+
+  async findByInvoiceId(invoiceId: string): Promise<InvoiceItem[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_INVOICE_ITEMS_COLLECTION,
+      [{ field: "invoiceId", op: "==", value: invoiceId }],
+    );
+    return docs.map((d) => toInvoiceItem(d.id, d.data));
+  }
+
+  async delete(itemId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(this.itemPath(itemId));
+  }
+}
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseInvoiceRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseInvoiceRepository.ts
+ * @description Firebase Firestore implementation of InvoiceRepository for workspace-flow.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add query pagination support and composite indexes
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+import type { Invoice, CreateInvoiceInput } from "../../domain/entities/Invoice";
+import type { InvoiceItem, AddInvoiceItemInput } from "../../domain/entities/InvoiceItem";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+import { toInvoice } from "../firebase/invoice.converter";
+import { toInvoiceItem } from "../firebase/invoice-item.converter";
+import {
+  WF_INVOICES_COLLECTION,
+  WF_INVOICE_ITEMS_COLLECTION,
+} from "../firebase/workspace-flow.collections";
+
+const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
+const DEFAULT_STATUS: InvoiceStatus = "draft";
+
+export class FirebaseInvoiceRepository implements InvoiceRepository {
+  private invoicePath(invoiceId: string): string {
+    return `${WF_INVOICES_COLLECTION}/${invoiceId}`;
+  }
+
+  private itemPath(itemId: string): string {
+    return `${WF_INVOICE_ITEMS_COLLECTION}/${itemId}`;
+  }
+
+  async create(input: CreateInvoiceInput): Promise<Invoice> {
+    const nowISO = new Date().toISOString();
+    const docData: Record<string, unknown> = {
+      workspaceId: input.workspaceId,
+      status: DEFAULT_STATUS,
+      totalAmount: 0,
+      submittedAtISO: null,
+      approvedAtISO: null,
+      paidAtISO: null,
+      closedAtISO: null,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+    if (input.sourceReference) {
+      docData.sourceReference = { ...input.sourceReference };
+    }
+
+    const id = generateId();
+    await firestoreInfrastructureApi.set(this.invoicePath(id), docData);
+
+    return {
+      id,
+      workspaceId: input.workspaceId,
+      status: DEFAULT_STATUS,
+      totalAmount: 0,
+      sourceReference: input.sourceReference,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async delete(invoiceId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(this.invoicePath(invoiceId));
+  }
+
+  async findById(invoiceId: string): Promise<Invoice | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.invoicePath(invoiceId));
+    if (!data) return null;
+    return toInvoice(invoiceId, data);
+  }
+
+  async findByWorkspaceId(workspaceId: string): Promise<Invoice[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_INVOICES_COLLECTION,
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+    );
+    const invoices = docs.map((d) => toInvoice(d.id, d.data));
+    return invoices.sort((a, b) => b.createdAtISO.localeCompare(a.createdAtISO));
+  }
+
+  async transitionStatus(
+    invoiceId: string,
+    to: InvoiceStatus,
+    nowISO: string,
+  ): Promise<Invoice | null> {
+    const path = this.invoicePath(invoiceId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
+
+    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
+    const patch: Record<string, unknown> = {
+      status: validTo,
+      updatedAtISO: nowISO,
+    };
+    if (validTo === "submitted") patch.submittedAtISO = nowISO;
+    if (validTo === "approved") patch.approvedAtISO = nowISO;
+    if (validTo === "paid") patch.paidAtISO = nowISO;
+    if (validTo === "closed") patch.closedAtISO = nowISO;
+
+    await firestoreInfrastructureApi.update(path, patch);
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!updated) return null;
+    return toInvoice(invoiceId, updated);
+  }
+
+  async addItem(input: AddInvoiceItemInput): Promise<InvoiceItem> {
+    const nowISO = new Date().toISOString();
+    const itemId = generateId();
+    await firestoreInfrastructureApi.set(this.itemPath(itemId), {
+      invoiceId: input.invoiceId,
+      taskId: input.taskId,
+      amount: input.amount,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    });
+
+    // Update invoice totalAmount
+    const invoicePath = this.invoicePath(input.invoiceId);
+    const invoice = await firestoreInfrastructureApi.get<Record<string, unknown>>(invoicePath);
+    if (invoice) {
+      const totalAmount = typeof invoice.totalAmount === "number" ? invoice.totalAmount : 0;
+      await firestoreInfrastructureApi.update(invoicePath, {
+        totalAmount: totalAmount + input.amount,
+        updatedAtISO: nowISO,
+      });
+    }
+
+    return {
+      id: itemId,
+      invoiceId: input.invoiceId,
+      taskId: input.taskId,
+      amount: input.amount,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async findItemById(invoiceItemId: string): Promise<InvoiceItem | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.itemPath(invoiceItemId));
+    if (!data) return null;
+    return toInvoiceItem(invoiceItemId, data);
+  }
+
+  async updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null> {
+    const itemPath = this.itemPath(invoiceItemId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(itemPath);
+    if (!data) return null;
+
+    const oldAmount = typeof data.amount === "number" ? data.amount : 0;
+    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
+    const nowISO = new Date().toISOString();
+
+    await firestoreInfrastructureApi.update(itemPath, { amount, updatedAtISO: nowISO });
+
+    if (invoiceId) {
+      const invoicePath = this.invoicePath(invoiceId);
+      const invoice = await firestoreInfrastructureApi.get<Record<string, unknown>>(invoicePath);
+      if (invoice) {
+        const totalAmount = typeof invoice.totalAmount === "number" ? invoice.totalAmount : 0;
+        await firestoreInfrastructureApi.update(invoicePath, {
+          totalAmount: totalAmount + (amount - oldAmount),
+          updatedAtISO: nowISO,
+        });
+      }
+    }
+
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(itemPath);
+    if (!updated) return null;
+    return toInvoiceItem(invoiceItemId, updated);
+  }
+
+  async removeItem(invoiceItemId: string): Promise<void> {
+    const itemPath = this.itemPath(invoiceItemId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(itemPath);
+    if (!data) return;
+
+    const amount = typeof data.amount === "number" ? data.amount : 0;
+    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
+
+    await firestoreInfrastructureApi.delete(itemPath);
+
+    if (invoiceId) {
+      const invoicePath = this.invoicePath(invoiceId);
+      const invoice = await firestoreInfrastructureApi.get<Record<string, unknown>>(invoicePath);
+      if (invoice) {
+        const totalAmount = typeof invoice.totalAmount === "number" ? invoice.totalAmount : 0;
+        await firestoreInfrastructureApi.update(invoicePath, {
+          totalAmount: totalAmount - amount,
+          updatedAtISO: new Date().toISOString(),
+        });
+      }
+    }
+  }
+
+  async listItems(invoiceId: string): Promise<InvoiceItem[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_INVOICE_ITEMS_COLLECTION,
+      [{ field: "invoiceId", op: "==", value: invoiceId }],
+    );
+    return docs.map((d) => toInvoiceItem(d.id, d.data));
+  }
+}
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseIssueRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseIssueRepository.ts
+ * @description Firebase Firestore implementation of IssueRepository for workspace-flow.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add query pagination support and composite indexes
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+import type { Issue, OpenIssueInput, UpdateIssueInput } from "../../domain/entities/Issue";
+import type { IssueRepository } from "../../domain/repositories/IssueRepository";
+import { ISSUE_STATUSES, type IssueStatus } from "../../domain/value-objects/IssueStatus";
+import { toIssue } from "../firebase/issue.converter";
+import { WF_ISSUES_COLLECTION } from "../firebase/workspace-flow.collections";
+
+const VALID_STATUSES = new Set<IssueStatus>(ISSUE_STATUSES);
+const DEFAULT_STATUS: IssueStatus = "open";
+const OPEN_STATUSES: IssueStatus[] = ["open", "investigating", "fixing", "retest"];
+
+export class FirebaseIssueRepository implements IssueRepository {
+  private issuePath(issueId: string): string {
+    return `${WF_ISSUES_COLLECTION}/${issueId}`;
+  }
+
+  async create(input: OpenIssueInput): Promise<Issue> {
+    const nowISO = new Date().toISOString();
+    const issueId = generateId();
+    await firestoreInfrastructureApi.set(this.issuePath(issueId), {
+      taskId: input.taskId,
+      stage: input.stage,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      createdBy: input.createdBy,
+      assignedTo: input.assignedTo ?? null,
+      resolvedAtISO: null,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    });
+
+    return {
+      id: issueId,
+      taskId: input.taskId,
+      stage: input.stage,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      createdBy: input.createdBy,
+      assignedTo: input.assignedTo,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async update(issueId: string, input: UpdateIssueInput): Promise<Issue | null> {
+    const path = this.issuePath(issueId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
+
+    const patch: Record<string, unknown> = {
+      updatedAtISO: new Date().toISOString(),
+    };
+    if (typeof input.title === "string") patch.title = input.title;
+    if (typeof input.description === "string") patch.description = input.description;
+    if (typeof input.assignedTo === "string") patch.assignedTo = input.assignedTo;
+
+    await firestoreInfrastructureApi.update(path, patch);
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!updated) return null;
+    return toIssue(issueId, updated);
+  }
+
+  async delete(issueId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(this.issuePath(issueId));
+  }
+
+  async findById(issueId: string): Promise<Issue | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.issuePath(issueId));
+    if (!data) return null;
+    return toIssue(issueId, data);
+  }
+
+  async findByTaskId(taskId: string): Promise<Issue[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_ISSUES_COLLECTION,
+      [{ field: "taskId", op: "==", value: taskId }],
+      { orderBy: [{ field: "createdAtISO", direction: "desc" }] },
+    );
+    return docs.map((d) => toIssue(d.id, d.data));
+  }
+
+  async countOpenByTaskId(taskId: string): Promise<number> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_ISSUES_COLLECTION,
+      [
+        { field: "taskId", op: "==", value: taskId },
+        { field: "status", op: "in", value: OPEN_STATUSES },
+      ],
+    );
+    return docs.length;
+  }
+
+  async transitionStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<Issue | null> {
+    const path = this.issuePath(issueId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
+
+    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
+    const patch: Record<string, unknown> = {
+      status: validTo,
+      updatedAtISO: nowISO,
+    };
+    if (validTo === "resolved") patch.resolvedAtISO = nowISO;
+
+    await firestoreInfrastructureApi.update(path, patch);
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!updated) return null;
+    return toIssue(issueId, updated);
+  }
+}
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseTaskRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseTaskRepository.ts
+ * @description Firebase Firestore implementation of TaskRepository for workspace-flow.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add query pagination support and composite indexes
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+import type { Task, CreateTaskInput, UpdateTaskInput } from "../../domain/entities/Task";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
+import { toTask } from "../firebase/task.converter";
+import { WF_TASKS_COLLECTION } from "../firebase/workspace-flow.collections";
+
+const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
+const DEFAULT_STATUS: TaskStatus = "draft";
+
+export class FirebaseTaskRepository implements TaskRepository {
+  private taskPath(taskId: string): string {
+    return `${WF_TASKS_COLLECTION}/${taskId}`;
+  }
+
+  async create(input: CreateTaskInput): Promise<Task> {
+    const nowISO = new Date().toISOString();
+    const docData: Record<string, unknown> = {
+      workspaceId: input.workspaceId,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      assigneeId: input.assigneeId ?? null,
+      dueDateISO: input.dueDateISO ?? null,
+      acceptedAtISO: null,
+      archivedAtISO: null,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+    if (input.sourceReference) {
+      docData.sourceReference = { ...input.sourceReference };
+    }
+
+    const taskId = generateId();
+    await firestoreInfrastructureApi.set(this.taskPath(taskId), docData);
+
+    return {
+      id: taskId,
+      workspaceId: input.workspaceId,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      assigneeId: input.assigneeId,
+      dueDateISO: input.dueDateISO,
+      sourceReference: input.sourceReference,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async update(taskId: string, input: UpdateTaskInput): Promise<Task | null> {
+    const path = this.taskPath(taskId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
+
+    const patch: Record<string, unknown> = {
+      updatedAtISO: new Date().toISOString(),
+    };
+    if (typeof input.title === "string") patch.title = input.title;
+    if (typeof input.description === "string") patch.description = input.description;
+    if (typeof input.assigneeId === "string") patch.assigneeId = input.assigneeId;
+    if (typeof input.dueDateISO === "string") patch.dueDateISO = input.dueDateISO;
+
+    await firestoreInfrastructureApi.update(path, patch);
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!updated) return null;
+    return toTask(taskId, updated);
+  }
+
+  async delete(taskId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(this.taskPath(taskId));
+  }
+
+  async findById(taskId: string): Promise<Task | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.taskPath(taskId));
+    if (!data) return null;
+    return toTask(taskId, data);
+  }
+
+  async findByWorkspaceId(workspaceId: string): Promise<Task[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_TASKS_COLLECTION,
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+    );
+    const tasks = docs.map((d) => toTask(d.id, d.data));
+    return tasks.sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
+  }
+
+  async transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null> {
+    const path = this.taskPath(taskId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
+
+    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
+    const patch: Record<string, unknown> = {
+      status: validTo,
+      updatedAtISO: nowISO,
+    };
+    if (validTo === "accepted") patch.acceptedAtISO = nowISO;
+    if (validTo === "archived") patch.archivedAtISO = nowISO;
+
+    await firestoreInfrastructureApi.update(path, patch);
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!updated) return null;
+    return toTask(taskId, updated);
+  }
+}
+````
+
 ## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow-invoice.actions.ts
 ````typescript
 "use server";
@@ -15025,508 +16508,6 @@ export type {
 } from "../value-objects/WorkspaceVisibility";
 ````
 
-## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
-````typescript
-import type {
-  WorkspaceMemberAccessChannel,
-  WorkspaceMemberPresence,
-  WorkspaceMemberView,
-} from "../../domain/entities/WorkspaceMemberView";
-import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
-import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
-import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
-
-const personnelLabels = {
-  managerId: "Manager",
-  supervisorId: "Supervisor",
-  safetyOfficerId: "Safety officer",
-} as const;
-
-const personnelLabelEntries = Object.entries(personnelLabels) as Array<
-  [keyof typeof personnelLabels, string]
->;
-
-interface OrganizationMemberReference {
-  id: string;
-  name: string;
-  email?: string;
-  role?: string;
-  presence?: string;
-  isExternal?: boolean;
-}
-
-interface OrganizationTeam {
-  id: string;
-  name: string;
-  memberIds: string[];
-}
-
-interface OrganizationDirectoryGateway {
-  getOrganizationMembers(organizationId: string): Promise<OrganizationMemberReference[]>;
-  getOrganizationTeams(organizationId: string): Promise<OrganizationTeam[]>;
-}
-
-const defaultOrganizationDirectoryGateway: OrganizationDirectoryGateway = {
-  async getOrganizationMembers() {
-    return [];
-  },
-  async getOrganizationTeams() {
-    return [];
-  },
-};
-
-function toPresence(value: OrganizationMemberReference["presence"] | undefined): WorkspaceMemberPresence {
-  if (value === "active" || value === "away" || value === "offline") {
-    return value;
-  }
-
-  return "unknown";
-}
-
-function createFallbackMember(id: string): WorkspaceMemberView {
-  return {
-    id,
-    displayName: id,
-    presence: "unknown",
-    isExternal: false,
-    accessChannels: [],
-  };
-}
-
-export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
-  constructor(
-    private readonly organizationDirectoryGateway: OrganizationDirectoryGateway = defaultOrganizationDirectoryGateway,
-  ) {}
-
-  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
-
-  subscribeToWorkspacesForAccount(
-    accountId: string,
-    onUpdate: (workspaces: WorkspaceEntity[]) => void,
-  ) {
-    const normalizedAccountId = accountId.trim();
-    if (!normalizedAccountId) {
-      onUpdate([]);
-      return () => {};
-    }
-
-    return firestoreInfrastructureApi.watchCollection<Record<string, unknown>>(
-      "workspaces",
-      {
-        onNext: (documents) => {
-          const workspaces = documents.map((document) => toWorkspaceEntity(document.id, document.data));
-          onUpdate(workspaces);
-        },
-      },
-      [{ field: "accountId", op: "==", value: normalizedAccountId }],
-    );
-  }
-
-  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
-    const workspace = await this.workspaceRepo.findById(workspaceId);
-    if (!workspace) {
-      return [];
-    }
-
-    const members = new Map<string, WorkspaceMemberView>();
-    const memberChannelKeys = new Map<string, Set<string>>();
-
-    const mergeMember = (
-      memberId: string,
-      channel: WorkspaceMemberAccessChannel,
-      orgMember?: OrganizationMemberReference,
-    ) => {
-      const current = members.get(memberId) ?? createFallbackMember(memberId);
-      const channelKey = [
-        channel.source,
-        channel.label,
-        channel.role ?? "",
-        channel.protocol ?? "",
-        channel.teamId ?? "",
-      ].join("::");
-      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
-      memberChannelKeys.set(memberId, knownChannelKeys);
-      const hasSameChannel = knownChannelKeys.has(channelKey);
-      if (!hasSameChannel) {
-        knownChannelKeys.add(channelKey);
-      }
-
-      members.set(memberId, {
-        id: memberId,
-        displayName: orgMember?.name || current.displayName,
-        email: orgMember?.email ?? current.email,
-        organizationRole: orgMember?.role ?? current.organizationRole,
-        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
-        isExternal: orgMember?.isExternal ?? current.isExternal,
-        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
-      });
-    };
-
-    if (workspace.accountType === "organization") {
-      const [organizationMembers, teams] = await Promise.all([
-        this.organizationDirectoryGateway.getOrganizationMembers(workspace.accountId),
-        this.organizationDirectoryGateway.getOrganizationTeams(workspace.accountId),
-      ]);
-
-      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
-      const teamMap = new Map(teams.map((team) => [team.id, team]));
-
-      const mergeTeam = (team: OrganizationTeam, role?: string, protocol?: string) => {
-        const label = team.name || team.id;
-        team.memberIds.forEach((memberId: string) => {
-          mergeMember(
-            memberId,
-            {
-              source: "team",
-              label,
-              role,
-              protocol,
-              teamId: team.id,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        });
-      };
-
-      workspace.teamIds.forEach((teamId) => {
-        const team = teamMap.get(teamId);
-        if (team) {
-          mergeTeam(team);
-        }
-      });
-
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(
-            grant.userId,
-            {
-              source: "direct",
-              label: "Direct access",
-              role: grant.role,
-              protocol: grant.protocol,
-            },
-            organizationMemberMap.get(grant.userId),
-          );
-        }
-
-        if (grant.teamId) {
-          const team = teamMap.get(grant.teamId);
-          if (team) {
-            mergeTeam(team, grant.role, grant.protocol);
-          }
-        }
-      });
-
-      personnelLabelEntries.forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field];
-        if (memberId) {
-          mergeMember(
-            memberId,
-            {
-              source: "personnel",
-              label,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        }
-      });
-    } else {
-      mergeMember(workspace.accountId, {
-        source: "owner",
-        label: "Workspace owner",
-      });
-
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(grant.userId, {
-            source: "direct",
-            label: "Direct access",
-            role: grant.role,
-            protocol: grant.protocol,
-          });
-        }
-      });
-
-      personnelLabelEntries.forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field];
-        if (memberId) {
-          mergeMember(memberId, {
-            source: "personnel",
-            label,
-          });
-        }
-      });
-    }
-
-    return Array.from(members.values()).sort((left, right) =>
-      left.displayName.localeCompare(right.displayName),
-    );
-  }
-}
-````
-
-## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository.ts
-````typescript
-/**
- * FirebaseWorkspaceRepository — Infrastructure adapter for workspace persistence.
- * Translates Firestore documents ↔ Domain WorkspaceEntity.
- * Firebase SDK only exists in this file.
- */
-
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api";
-import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
-import type { WorkspaceCapabilityRepository } from "../../domain/ports/output/WorkspaceCapabilityRepository";
-import type { WorkspaceAccessRepository } from "../../domain/ports/output/WorkspaceAccessRepository";
-import type { WorkspaceLocationRepository } from "../../domain/ports/output/WorkspaceLocationRepository";
-import type {
-  WorkspaceEntity,
-  Capability,
-  WorkspaceGrant,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceLocation,
-} from "../../domain/aggregates/Workspace";
-import { createAddress } from "../../domain/value-objects/Address";
-import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
-import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";
-import { createWorkspaceVisibility } from "../../domain/value-objects/WorkspaceVisibility";
-
-// ─── Mapper ───────────────────────────────────────────────────────────────────
-
-const VALID_ACCOUNT_TYPES = new Set<WorkspaceEntity["accountType"]>(["user", "organization"]);
-
-export function toWorkspaceEntity(id: string, data: Record<string, unknown>): WorkspaceEntity {
-  const accountType = VALID_ACCOUNT_TYPES.has(data.accountType as WorkspaceEntity["accountType"])
-    ? (data.accountType as WorkspaceEntity["accountType"])
-    : "user";
-
-  return {
-    id,
-    name: createWorkspaceName(typeof data.name === "string" ? data.name : "Untitled workspace"),
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    accountType,
-    lifecycleState: createWorkspaceLifecycleState(
-      data.lifecycleState === "active" ||
-        data.lifecycleState === "stopped" ||
-        data.lifecycleState === "preparatory"
-        ? data.lifecycleState
-        : "preparatory",
-    ),
-    visibility: createWorkspaceVisibility(
-      data.visibility === "hidden" || data.visibility === "visible"
-        ? data.visibility
-        : "visible",
-    ),
-    capabilities: Array.isArray(data.capabilities) ? (data.capabilities as Capability[]) : [],
-    grants: Array.isArray(data.grants) ? (data.grants as WorkspaceGrant[]) : [],
-    teamIds: Array.isArray(data.teamIds) ? (data.teamIds as string[]) : [],
-    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
-    address: data.address != null ? createAddress(data.address as NonNullable<UpdateWorkspaceSettingsCommand["address"]>) : undefined,
-    locations: Array.isArray(data.locations) ? (data.locations as WorkspaceLocation[]) : undefined,
-    personnel: data.personnel != null ? (data.personnel as WorkspaceEntity["personnel"]) : undefined,
-    createdAt: data.createdAt as WorkspaceEntity["createdAt"],
-  };
-}
-
-// ─── Repository ───────────────────────────────────────────────────────────────
-
-export class FirebaseWorkspaceRepository
-  implements
-    WorkspaceRepository,
-    WorkspaceCapabilityRepository,
-    WorkspaceAccessRepository,
-    WorkspaceLocationRepository {
-  private workspacePath(workspaceId: string): string {
-    return `workspaces/${workspaceId}`;
-  }
-
-  async findById(id: string): Promise<WorkspaceEntity | null> {
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.workspacePath(id));
-    if (!data) return null;
-    return toWorkspaceEntity(id, data);
-  }
-
-  async findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      "workspaces",
-      [{ field: "accountId", op: "==", value: accountId }],
-    );
-    const target = docs.find((doc) => doc.id === workspaceId);
-    if (!target) return null;
-    return toWorkspaceEntity(target.id, target.data);
-  }
-
-  async findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      "workspaces",
-      [{ field: "accountId", op: "==", value: accountId }],
-    );
-    return docs.map((doc) => toWorkspaceEntity(doc.id, doc.data));
-  }
-
-  async save(workspace: WorkspaceEntity): Promise<string> {
-    const payload: Record<string, unknown> = {
-      name: workspace.name,
-      accountId: workspace.accountId,
-      accountType: workspace.accountType,
-      lifecycleState: workspace.lifecycleState,
-      visibility: workspace.visibility,
-      capabilities: workspace.capabilities,
-      grants: workspace.grants,
-      teamIds: workspace.teamIds,
-      createdAtISO: new Date().toISOString(),
-    };
-
-    if (workspace.photoURL !== undefined) payload.photoURL = workspace.photoURL;
-    if (workspace.address !== undefined) payload.address = workspace.address;
-    if (workspace.locations !== undefined) payload.locations = workspace.locations;
-    if (workspace.personnel !== undefined) payload.personnel = workspace.personnel;
-
-    await firestoreInfrastructureApi.set(this.workspacePath(workspace.id), payload);
-    return workspace.id;
-  }
-
-  async updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void> {
-    const updates: Record<string, unknown> = { updatedAtISO: new Date().toISOString() };
-    if (command.name !== undefined) updates.name = command.name;
-    if (command.visibility !== undefined) updates.visibility = command.visibility;
-    if (command.lifecycleState !== undefined) updates.lifecycleState = command.lifecycleState;
-    if (command.address !== undefined) updates.address = command.address;
-    if (command.personnel !== undefined) updates.personnel = command.personnel;
-    await firestoreInfrastructureApi.update(this.workspacePath(command.workspaceId), updates);
-  }
-
-  async delete(id: string): Promise<void> {
-    await firestoreInfrastructureApi.delete(this.workspacePath(id));
-  }
-
-  async mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void> {
-    const path = this.workspacePath(workspaceId);
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!data) return;
-    const existing = Array.isArray(data.capabilities) ? (data.capabilities as Capability[]) : [];
-    const merged = [...existing];
-    capabilities.forEach((capability) => {
-      if (!merged.some((item) => item.id === capability.id)) {
-        merged.push(capability);
-      }
-    });
-
-    await firestoreInfrastructureApi.update(path, {
-      capabilities: merged,
-      updatedAtISO: new Date().toISOString(),
-    });
-  }
-
-  async unmountCapability(workspaceId: string, capabilityId: string): Promise<void> {
-    const path = this.workspacePath(workspaceId);
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!data) return;
-    const caps = ((data.capabilities as Capability[]) ?? []).filter((c) => c.id !== capabilityId);
-    await firestoreInfrastructureApi.update(path, {
-      capabilities: caps,
-      updatedAtISO: new Date().toISOString(),
-    });
-  }
-
-  async grantTeamAccess(workspaceId: string, teamId: string): Promise<void> {
-    const path = this.workspacePath(workspaceId);
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!data) return;
-    const teamIds = Array.isArray(data.teamIds) ? [...(data.teamIds as string[])] : [];
-    if (!teamIds.includes(teamId)) {
-      teamIds.push(teamId);
-    }
-    await firestoreInfrastructureApi.update(path, {
-      teamIds,
-      updatedAtISO: new Date().toISOString(),
-    });
-  }
-
-  async revokeTeamAccess(workspaceId: string, teamId: string): Promise<void> {
-    const path = this.workspacePath(workspaceId);
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!data) return;
-    const teamIds = (Array.isArray(data.teamIds) ? (data.teamIds as string[]) : []).filter((item) => item !== teamId);
-    await firestoreInfrastructureApi.update(path, {
-      teamIds,
-      updatedAtISO: new Date().toISOString(),
-    });
-  }
-
-  async grantIndividualAccess(workspaceId: string, grant: WorkspaceGrant): Promise<void> {
-    const path = this.workspacePath(workspaceId);
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!data) return;
-    const grants = Array.isArray(data.grants) ? [...(data.grants as WorkspaceGrant[])] : [];
-    const exists = grants.some((item) => item.userId === grant.userId && item.teamId === grant.teamId);
-    if (!exists) {
-      grants.push(grant);
-    }
-    await firestoreInfrastructureApi.update(path, {
-      grants,
-      updatedAtISO: new Date().toISOString(),
-    });
-  }
-
-  async revokeIndividualAccess(workspaceId: string, userId: string): Promise<void> {
-    const path = this.workspacePath(workspaceId);
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!data) return;
-    const grants = ((data.grants as WorkspaceGrant[]) ?? []).filter((g) => g.userId !== userId);
-    await firestoreInfrastructureApi.update(path, {
-      grants,
-      updatedAtISO: new Date().toISOString(),
-    });
-  }
-
-  async createLocation(
-    workspaceId: string,
-    location: Omit<WorkspaceLocation, "locationId">,
-  ): Promise<string> {
-    const locationId = crypto.randomUUID();
-    const path = this.workspacePath(workspaceId);
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!data) return locationId;
-    const locations = Array.isArray(data.locations) ? [...(data.locations as WorkspaceLocation[])] : [];
-    locations.push({ ...location, locationId });
-    await firestoreInfrastructureApi.update(path, {
-      locations,
-      updatedAtISO: new Date().toISOString(),
-    });
-    return locationId;
-  }
-
-  async updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void> {
-    const path = this.workspacePath(workspaceId);
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!data) return;
-    const locations = ((data.locations as WorkspaceLocation[]) ?? []).map((l) =>
-      l.locationId === location.locationId ? location : l,
-    );
-    await firestoreInfrastructureApi.update(path, {
-      locations,
-      updatedAtISO: new Date().toISOString(),
-    });
-  }
-
-  async deleteLocation(workspaceId: string, locationId: string): Promise<void> {
-    const path = this.workspacePath(workspaceId);
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!data) return;
-    const locations = ((data.locations as WorkspaceLocation[]) ?? []).filter(
-      (l) => l.locationId !== locationId,
-    );
-    await firestoreInfrastructureApi.update(path, {
-      locations,
-      updatedAtISO: new Date().toISOString(),
-    });
-  }
-}
-````
-
 ## File: modules/workspace/infrastructure/infrastructure.instructions.md
 ````markdown
 ---
@@ -17090,92 +18071,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
-## File: modules/workspace/subdomains/audit/infrastructure/firebase/FirebaseAuditRepository.ts
-````typescript
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api";
-import type { AuditEntry } from "../../domain/aggregates/AuditEntry";
-import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
-import type { AuditRepository } from "../../domain/repositories/AuditRepository";
-
-const VALID_AUDIT_LOG_SOURCES = new Set<AuditLogSource>([
-  "workspace",
-  "finance",
-  "notification",
-  "system",
-]);
-
-function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEntity {
-  const source = VALID_AUDIT_LOG_SOURCES.has(data.source as AuditLogSource)
-    ? (data.source as AuditLogSource)
-    : "workspace";
-
-  return {
-    id,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    actorId: typeof data.actorId === "string" ? data.actorId : "system",
-    action: typeof data.action === "string" ? data.action : "unknown",
-    detail: typeof data.detail === "string" ? data.detail : "",
-    source,
-    occurredAtISO:
-      typeof data.occurredAtISO === "string"
-        ? data.occurredAtISO
-        : "",
-  };
-}
-
-export class FirebaseAuditRepository implements AuditRepository {
-  async save(entry: AuditEntry): Promise<void> {
-    const id = crypto.randomUUID();
-    await firestoreInfrastructureApi.set(`auditLogs/${id}`, entry.getSnapshot());
-  }
-
-  async findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      "auditLogs",
-      [{ field: "workspaceId", op: "==", value: workspaceId }],
-    );
-
-    return docs
-      .map((doc) => toAuditLogEntity(doc.id, doc.data))
-      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO));
-  }
-
-  async findByWorkspaceIds(
-    workspaceIds: string[],
-    maxCount = 200,
-  ): Promise<AuditLogEntity[]> {
-    if (workspaceIds.length === 0) {
-      return [];
-    }
-
-    const chunks: string[][] = [];
-    for (let index = 0; index < workspaceIds.length; index += 10) {
-      chunks.push(workspaceIds.slice(index, index + 10));
-    }
-
-    const perChunkLimit = Math.max(1, Math.ceil(maxCount / chunks.length));
-
-    const documents = await Promise.all(
-      chunks.map((chunk) =>
-        firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-          "auditLogs",
-          [{ field: "workspaceId", op: "in", value: chunk }],
-          { limit: perChunkLimit },
-        ),
-      ),
-    );
-
-    return documents
-      .flatMap((document) => document)
-      .map((doc) => toAuditLogEntity(doc.id, doc.data))
-      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO))
-      .slice(0, maxCount);
-  }
-}
-````
-
 ## File: modules/workspace/subdomains/audit/README.md
 ````markdown
 # Audit
@@ -17208,290 +18103,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/workspace/subdomains/feed/infrastructure/firebase/FirebaseWorkspaceFeedInteractionRepository.ts
-````typescript
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api";
-import { v7 as generateId } from "@lib-uuid";
-
-import type { WorkspaceFeedInteractionRepository } from "../../domain/repositories/workspace-feed.repositories";
-
-function postPath(accountId: string, postId: string): string {
-  return `accounts/${accountId}/workspaceFeedPosts/${postId}`;
-}
-
-function likesPath(accountId: string, postId: string, actorAccountId: string): string {
-  return `${postPath(accountId, postId)}/likes/${actorAccountId}`;
-}
-
-function bookmarksPath(accountId: string, postId: string, actorAccountId: string): string {
-  return `${postPath(accountId, postId)}/bookmarks/${actorAccountId}`;
-}
-
-function viewsPath(accountId: string, postId: string): string {
-  return `${postPath(accountId, postId)}/views`;
-}
-
-function sharesPath(accountId: string, postId: string): string {
-  return `${postPath(accountId, postId)}/shares`;
-}
-
-export class FirebaseWorkspaceFeedInteractionRepository implements WorkspaceFeedInteractionRepository {
-  async like(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
-    const path = likesPath(accountId, postId, actorAccountId);
-    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (snap) return false;
-
-    await firestoreInfrastructureApi.set(path, {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-    });
-    return true;
-  }
-
-  async bookmark(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
-    const path = bookmarksPath(accountId, postId, actorAccountId);
-    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (snap) return false;
-
-    await firestoreInfrastructureApi.set(path, {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-    });
-    return true;
-  }
-
-  async view(accountId: string, postId: string, actorAccountId: string): Promise<void> {
-    await firestoreInfrastructureApi.set(`${viewsPath(accountId, postId)}/${generateId()}`, {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-    });
-  }
-
-  async share(accountId: string, postId: string, actorAccountId: string): Promise<void> {
-    await firestoreInfrastructureApi.set(`${sharesPath(accountId, postId)}/${generateId()}`, {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-    });
-  }
-}
-````
-
-## File: modules/workspace/subdomains/feed/infrastructure/firebase/FirebaseWorkspaceFeedPostRepository.ts
-````typescript
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api";
-import { v7 as generateId } from "@lib-uuid";
-
-import type {
-  CreateWorkspaceFeedPostInput,
-  CreateWorkspaceFeedReplyInput,
-  CreateWorkspaceFeedRepostInput,
-  WorkspaceFeedCounterPatch,
-  WorkspaceFeedPost,
-} from "../../domain/entities/workspace-feed-post.entity";
-import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
-
-function postsPath(accountId: string): string {
-  return `accounts/${accountId}/workspaceFeedPosts`;
-}
-
-function postPath(accountId: string, postId: string): string {
-  return `accounts/${accountId}/workspaceFeedPosts/${postId}`;
-}
-
-function repostMapPath(accountId: string, actorAccountId: string, sourcePostId: string): string {
-  return `accounts/${accountId}/workspaceFeedReposts/${actorAccountId}__${sourcePostId}`;
-}
-
-function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-function asNumber(value: unknown): number {
-  return typeof value === "number" ? value : 0;
-}
-
-function toWorkspaceFeedPost(id: string, data: Record<string, unknown>): WorkspaceFeedPost {
-  const type = asString(data.type, "post");
-  return {
-    id,
-    accountId: asString(data.accountId),
-    workspaceId: asString(data.workspaceId),
-    authorAccountId: asString(data.authorAccountId),
-    type: type === "reply" || type === "repost" ? type : "post",
-    content: asString(data.content),
-    replyToPostId: typeof data.replyToPostId === "string" ? data.replyToPostId : null,
-    repostOfPostId: typeof data.repostOfPostId === "string" ? data.repostOfPostId : null,
-    likeCount: asNumber(data.likeCount),
-    replyCount: asNumber(data.replyCount),
-    repostCount: asNumber(data.repostCount),
-    viewCount: asNumber(data.viewCount),
-    bookmarkCount: asNumber(data.bookmarkCount),
-    shareCount: asNumber(data.shareCount),
-    createdAtISO: asString(data.createdAtISO),
-    updatedAtISO: asString(data.updatedAtISO),
-  };
-}
-
-function createBasePostData(
-  accountId: string,
-  workspaceId: string,
-  authorAccountId: string,
-  content: string,
-  type: "post" | "reply" | "repost",
-): Record<string, unknown> {
-  const nowISO = new Date().toISOString();
-  return {
-    accountId,
-    workspaceId,
-    authorAccountId,
-    type,
-    content,
-    likeCount: 0,
-    replyCount: 0,
-    repostCount: 0,
-    viewCount: 0,
-    bookmarkCount: 0,
-    shareCount: 0,
-    createdAtISO: nowISO,
-    updatedAtISO: nowISO,
-  };
-}
-
-export class FirebaseWorkspaceFeedPostRepository implements WorkspaceFeedPostRepository {
-  async createPost(input: CreateWorkspaceFeedPostInput): Promise<WorkspaceFeedPost> {
-    const id = generateId();
-    const data = createBasePostData(
-      input.accountId,
-      input.workspaceId,
-      input.authorAccountId,
-      input.content,
-      "post",
-    );
-    await firestoreInfrastructureApi.set(postPath(input.accountId, id), data);
-    return toWorkspaceFeedPost(id, data);
-  }
-
-  async createReply(input: CreateWorkspaceFeedReplyInput): Promise<WorkspaceFeedPost> {
-    const id = generateId();
-    const data: Record<string, unknown> = {
-      ...createBasePostData(
-        input.accountId,
-        input.workspaceId,
-        input.authorAccountId,
-        input.content,
-        "reply",
-      ),
-      replyToPostId: input.parentPostId,
-      repostOfPostId: null,
-    };
-
-    await firestoreInfrastructureApi.set(postPath(input.accountId, id), data);
-    await this.patchCounters(input.accountId, input.parentPostId, { replyDelta: 1 });
-    return toWorkspaceFeedPost(id, data);
-  }
-
-  async createRepost(input: CreateWorkspaceFeedRepostInput): Promise<WorkspaceFeedPost | null> {
-    const mapPath = repostMapPath(input.accountId, input.actorAccountId, input.sourcePostId);
-    const existingMap = await firestoreInfrastructureApi.get<Record<string, unknown>>(mapPath);
-    if (existingMap) {
-      const repostPostId = asString(existingMap.repostPostId);
-      if (!repostPostId) return null;
-      return this.findById(input.accountId, repostPostId);
-    }
-
-    const source = await this.findById(input.accountId, input.sourcePostId);
-    if (!source) return null;
-
-    const id = generateId();
-    const content = input.comment?.trim() || source.content;
-    const data: Record<string, unknown> = {
-      ...createBasePostData(
-        input.accountId,
-        input.workspaceId,
-        input.actorAccountId,
-        content,
-        "repost",
-      ),
-      replyToPostId: null,
-      repostOfPostId: input.sourcePostId,
-    };
-
-    await firestoreInfrastructureApi.set(postPath(input.accountId, id), data);
-    await firestoreInfrastructureApi.set(mapPath, {
-      accountId: input.accountId,
-      workspaceId: input.workspaceId,
-      sourcePostId: input.sourcePostId,
-      actorAccountId: input.actorAccountId,
-      repostPostId: id,
-      createdAtISO: new Date().toISOString(),
-    });
-    await this.patchCounters(input.accountId, input.sourcePostId, { repostDelta: 1 });
-    return toWorkspaceFeedPost(id, data);
-  }
-
-  async patchCounters(accountId: string, postId: string, patch: WorkspaceFeedCounterPatch): Promise<void> {
-    const path = postPath(accountId, postId);
-    const current = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!current) return;
-
-    const updates: Record<string, unknown> = {
-      updatedAtISO: new Date().toISOString(),
-    };
-
-    const applyDelta = (field: string, delta: number | undefined) => {
-      if (!delta) return;
-      const base = asNumber(current[field]);
-      updates[field] = base + delta;
-    };
-
-    applyDelta("likeCount", patch.likeDelta);
-    applyDelta("replyCount", patch.replyDelta);
-    applyDelta("repostCount", patch.repostDelta);
-    applyDelta("viewCount", patch.viewDelta);
-    applyDelta("bookmarkCount", patch.bookmarkDelta);
-    applyDelta("shareCount", patch.shareDelta);
-
-    await firestoreInfrastructureApi.update(path, updates);
-  }
-
-  async findById(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(postPath(accountId, postId));
-    if (!data) return null;
-    return toWorkspaceFeedPost(postId, data);
-  }
-
-  async listByWorkspaceId(accountId: string, workspaceId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      postsPath(accountId),
-      [{ field: "workspaceId", op: "==", value: workspaceId }],
-      { orderBy: [{ field: "createdAtISO", direction: "desc" }], limit: maxRows },
-    );
-    return docs.map((row) => toWorkspaceFeedPost(row.id, row.data));
-  }
-
-  async listByAccountId(accountId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      postsPath(accountId),
-      [],
-      { orderBy: [{ field: "createdAtISO", direction: "desc" }], limit: maxRows },
-    );
-    return docs.map((row) => toWorkspaceFeedPost(row.id, row.data));
-  }
-}
-````
-
 ## File: modules/workspace/subdomains/feed/README.md
 ````markdown
 # Feed
@@ -17522,111 +18133,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/workspace/subdomains/scheduling/infrastructure/firebase/FirebaseDemandRepository.ts
-````typescript
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api";
-
-import type { WorkDemand } from "../../domain/types";
-import type { IDemandRepository } from "../../domain/repository";
-
-const DEMANDS_COLLECTION = "workspacePlannerDemands";
-
-function toWorkDemand(id: string, data: Record<string, unknown>): WorkDemand {
-  const status = data.status;
-  const priority = data.priority;
-
-  return {
-    id,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    requesterId: typeof data.requesterId === "string" ? data.requesterId : "",
-    title: typeof data.title === "string" ? data.title : "",
-    description: typeof data.description === "string" ? data.description : "",
-    status:
-      status === "draft" || status === "open" || status === "in_progress" || status === "completed"
-        ? status
-        : "draft",
-    priority: priority === "low" || priority === "medium" || priority === "high" ? priority : "medium",
-    scheduledAt: typeof data.scheduledAt === "string" ? data.scheduledAt : "",
-    assignedUserId: typeof data.assignedUserId === "string" ? data.assignedUserId : undefined,
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-export class FirebaseDemandRepository implements IDemandRepository {
-  private demandPath(id: string): string {
-    return `${DEMANDS_COLLECTION}/${id}`;
-  }
-
-  async listByWorkspace(workspaceId: string): Promise<WorkDemand[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      DEMANDS_COLLECTION,
-      [{ field: "workspaceId", op: "==", value: workspaceId }],
-    );
-    return docs
-      .map((item) => toWorkDemand(item.id, item.data))
-      .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
-  }
-
-  async listByAccount(accountId: string): Promise<WorkDemand[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      DEMANDS_COLLECTION,
-      [{ field: "accountId", op: "==", value: accountId }],
-    );
-    return docs
-      .map((item) => toWorkDemand(item.id, item.data))
-      .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
-  }
-
-  async save(demand: WorkDemand): Promise<void> {
-    const path = this.demandPath(demand.id);
-    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (existing) {
-      await this.update(demand);
-      return;
-    }
-
-    await firestoreInfrastructureApi.set(path, {
-      workspaceId: demand.workspaceId,
-      accountId: demand.accountId,
-      requesterId: demand.requesterId,
-      title: demand.title,
-      description: demand.description,
-      status: demand.status,
-      priority: demand.priority,
-      scheduledAt: demand.scheduledAt,
-      assignedUserId: demand.assignedUserId ?? null,
-      createdAtISO: demand.createdAtISO,
-      updatedAtISO: demand.updatedAtISO,
-    });
-  }
-
-  async update(demand: WorkDemand): Promise<void> {
-    await firestoreInfrastructureApi.update(this.demandPath(demand.id), {
-      workspaceId: demand.workspaceId,
-      accountId: demand.accountId,
-      requesterId: demand.requesterId,
-      title: demand.title,
-      description: demand.description,
-      status: demand.status,
-      priority: demand.priority,
-      scheduledAt: demand.scheduledAt,
-      assignedUserId: demand.assignedUserId ?? null,
-      updatedAtISO: demand.updatedAtISO,
-    });
-  }
-
-  async findById(id: string): Promise<WorkDemand | null> {
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.demandPath(id));
-    if (!data) return null;
-    return toWorkDemand(id, data);
-  }
-}
 ````
 
 ## File: modules/workspace/subdomains/scheduling/interfaces/components/CreateDemandForm.tsx
@@ -17869,512 +18375,6 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseInvoiceItemRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseInvoiceItemRepository.ts
- * @description Firebase Firestore repository for InvoiceItem CRUD operations.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add query pagination support
- */
-
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api";
-import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
-import { toInvoiceItem } from "../firebase/invoice-item.converter";
-import { WF_INVOICE_ITEMS_COLLECTION } from "../firebase/workspace-flow.collections";
-
-export class FirebaseInvoiceItemRepository {
-  private itemPath(itemId: string): string {
-    return `${WF_INVOICE_ITEMS_COLLECTION}/${itemId}`;
-  }
-
-  async findById(itemId: string): Promise<InvoiceItem | null> {
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.itemPath(itemId));
-    if (!data) return null;
-    return toInvoiceItem(itemId, data);
-  }
-
-  async findByInvoiceId(invoiceId: string): Promise<InvoiceItem[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      WF_INVOICE_ITEMS_COLLECTION,
-      [{ field: "invoiceId", op: "==", value: invoiceId }],
-    );
-    return docs.map((d) => toInvoiceItem(d.id, d.data));
-  }
-
-  async delete(itemId: string): Promise<void> {
-    await firestoreInfrastructureApi.delete(this.itemPath(itemId));
-  }
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseInvoiceRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseInvoiceRepository.ts
- * @description Firebase Firestore implementation of InvoiceRepository for workspace-flow.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add query pagination support and composite indexes
- */
-
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api";
-import { v7 as generateId } from "@lib-uuid";
-import type { Invoice, CreateInvoiceInput } from "../../domain/entities/Invoice";
-import type { InvoiceItem, AddInvoiceItemInput } from "../../domain/entities/InvoiceItem";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-import { toInvoice } from "../firebase/invoice.converter";
-import { toInvoiceItem } from "../firebase/invoice-item.converter";
-import {
-  WF_INVOICES_COLLECTION,
-  WF_INVOICE_ITEMS_COLLECTION,
-} from "../firebase/workspace-flow.collections";
-
-const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
-const DEFAULT_STATUS: InvoiceStatus = "draft";
-
-export class FirebaseInvoiceRepository implements InvoiceRepository {
-  private invoicePath(invoiceId: string): string {
-    return `${WF_INVOICES_COLLECTION}/${invoiceId}`;
-  }
-
-  private itemPath(itemId: string): string {
-    return `${WF_INVOICE_ITEMS_COLLECTION}/${itemId}`;
-  }
-
-  async create(input: CreateInvoiceInput): Promise<Invoice> {
-    const nowISO = new Date().toISOString();
-    const docData: Record<string, unknown> = {
-      workspaceId: input.workspaceId,
-      status: DEFAULT_STATUS,
-      totalAmount: 0,
-      submittedAtISO: null,
-      approvedAtISO: null,
-      paidAtISO: null,
-      closedAtISO: null,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-    if (input.sourceReference) {
-      docData.sourceReference = { ...input.sourceReference };
-    }
-
-    const id = generateId();
-    await firestoreInfrastructureApi.set(this.invoicePath(id), docData);
-
-    return {
-      id,
-      workspaceId: input.workspaceId,
-      status: DEFAULT_STATUS,
-      totalAmount: 0,
-      sourceReference: input.sourceReference,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async delete(invoiceId: string): Promise<void> {
-    await firestoreInfrastructureApi.delete(this.invoicePath(invoiceId));
-  }
-
-  async findById(invoiceId: string): Promise<Invoice | null> {
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.invoicePath(invoiceId));
-    if (!data) return null;
-    return toInvoice(invoiceId, data);
-  }
-
-  async findByWorkspaceId(workspaceId: string): Promise<Invoice[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      WF_INVOICES_COLLECTION,
-      [{ field: "workspaceId", op: "==", value: workspaceId }],
-    );
-    const invoices = docs.map((d) => toInvoice(d.id, d.data));
-    return invoices.sort((a, b) => b.createdAtISO.localeCompare(a.createdAtISO));
-  }
-
-  async transitionStatus(
-    invoiceId: string,
-    to: InvoiceStatus,
-    nowISO: string,
-  ): Promise<Invoice | null> {
-    const path = this.invoicePath(invoiceId);
-    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!snap) return null;
-
-    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
-    const patch: Record<string, unknown> = {
-      status: validTo,
-      updatedAtISO: nowISO,
-    };
-    if (validTo === "submitted") patch.submittedAtISO = nowISO;
-    if (validTo === "approved") patch.approvedAtISO = nowISO;
-    if (validTo === "paid") patch.paidAtISO = nowISO;
-    if (validTo === "closed") patch.closedAtISO = nowISO;
-
-    await firestoreInfrastructureApi.update(path, patch);
-    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!updated) return null;
-    return toInvoice(invoiceId, updated);
-  }
-
-  async addItem(input: AddInvoiceItemInput): Promise<InvoiceItem> {
-    const nowISO = new Date().toISOString();
-    const itemId = generateId();
-    await firestoreInfrastructureApi.set(this.itemPath(itemId), {
-      invoiceId: input.invoiceId,
-      taskId: input.taskId,
-      amount: input.amount,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    });
-
-    // Update invoice totalAmount
-    const invoicePath = this.invoicePath(input.invoiceId);
-    const invoice = await firestoreInfrastructureApi.get<Record<string, unknown>>(invoicePath);
-    if (invoice) {
-      const totalAmount = typeof invoice.totalAmount === "number" ? invoice.totalAmount : 0;
-      await firestoreInfrastructureApi.update(invoicePath, {
-        totalAmount: totalAmount + input.amount,
-        updatedAtISO: nowISO,
-      });
-    }
-
-    return {
-      id: itemId,
-      invoiceId: input.invoiceId,
-      taskId: input.taskId,
-      amount: input.amount,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async findItemById(invoiceItemId: string): Promise<InvoiceItem | null> {
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.itemPath(invoiceItemId));
-    if (!data) return null;
-    return toInvoiceItem(invoiceItemId, data);
-  }
-
-  async updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null> {
-    const itemPath = this.itemPath(invoiceItemId);
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(itemPath);
-    if (!data) return null;
-
-    const oldAmount = typeof data.amount === "number" ? data.amount : 0;
-    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
-    const nowISO = new Date().toISOString();
-
-    await firestoreInfrastructureApi.update(itemPath, { amount, updatedAtISO: nowISO });
-
-    if (invoiceId) {
-      const invoicePath = this.invoicePath(invoiceId);
-      const invoice = await firestoreInfrastructureApi.get<Record<string, unknown>>(invoicePath);
-      if (invoice) {
-        const totalAmount = typeof invoice.totalAmount === "number" ? invoice.totalAmount : 0;
-        await firestoreInfrastructureApi.update(invoicePath, {
-          totalAmount: totalAmount + (amount - oldAmount),
-          updatedAtISO: nowISO,
-        });
-      }
-    }
-
-    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(itemPath);
-    if (!updated) return null;
-    return toInvoiceItem(invoiceItemId, updated);
-  }
-
-  async removeItem(invoiceItemId: string): Promise<void> {
-    const itemPath = this.itemPath(invoiceItemId);
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(itemPath);
-    if (!data) return;
-
-    const amount = typeof data.amount === "number" ? data.amount : 0;
-    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
-
-    await firestoreInfrastructureApi.delete(itemPath);
-
-    if (invoiceId) {
-      const invoicePath = this.invoicePath(invoiceId);
-      const invoice = await firestoreInfrastructureApi.get<Record<string, unknown>>(invoicePath);
-      if (invoice) {
-        const totalAmount = typeof invoice.totalAmount === "number" ? invoice.totalAmount : 0;
-        await firestoreInfrastructureApi.update(invoicePath, {
-          totalAmount: totalAmount - amount,
-          updatedAtISO: new Date().toISOString(),
-        });
-      }
-    }
-  }
-
-  async listItems(invoiceId: string): Promise<InvoiceItem[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      WF_INVOICE_ITEMS_COLLECTION,
-      [{ field: "invoiceId", op: "==", value: invoiceId }],
-    );
-    return docs.map((d) => toInvoiceItem(d.id, d.data));
-  }
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseIssueRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseIssueRepository.ts
- * @description Firebase Firestore implementation of IssueRepository for workspace-flow.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add query pagination support and composite indexes
- */
-
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api";
-import { v7 as generateId } from "@lib-uuid";
-import type { Issue, OpenIssueInput, UpdateIssueInput } from "../../domain/entities/Issue";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { ISSUE_STATUSES, type IssueStatus } from "../../domain/value-objects/IssueStatus";
-import { toIssue } from "../firebase/issue.converter";
-import { WF_ISSUES_COLLECTION } from "../firebase/workspace-flow.collections";
-
-const VALID_STATUSES = new Set<IssueStatus>(ISSUE_STATUSES);
-const DEFAULT_STATUS: IssueStatus = "open";
-const OPEN_STATUSES: IssueStatus[] = ["open", "investigating", "fixing", "retest"];
-
-export class FirebaseIssueRepository implements IssueRepository {
-  private issuePath(issueId: string): string {
-    return `${WF_ISSUES_COLLECTION}/${issueId}`;
-  }
-
-  async create(input: OpenIssueInput): Promise<Issue> {
-    const nowISO = new Date().toISOString();
-    const issueId = generateId();
-    await firestoreInfrastructureApi.set(this.issuePath(issueId), {
-      taskId: input.taskId,
-      stage: input.stage,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      createdBy: input.createdBy,
-      assignedTo: input.assignedTo ?? null,
-      resolvedAtISO: null,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    });
-
-    return {
-      id: issueId,
-      taskId: input.taskId,
-      stage: input.stage,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      createdBy: input.createdBy,
-      assignedTo: input.assignedTo,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async update(issueId: string, input: UpdateIssueInput): Promise<Issue | null> {
-    const path = this.issuePath(issueId);
-    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!snap) return null;
-
-    const patch: Record<string, unknown> = {
-      updatedAtISO: new Date().toISOString(),
-    };
-    if (typeof input.title === "string") patch.title = input.title;
-    if (typeof input.description === "string") patch.description = input.description;
-    if (typeof input.assignedTo === "string") patch.assignedTo = input.assignedTo;
-
-    await firestoreInfrastructureApi.update(path, patch);
-    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!updated) return null;
-    return toIssue(issueId, updated);
-  }
-
-  async delete(issueId: string): Promise<void> {
-    await firestoreInfrastructureApi.delete(this.issuePath(issueId));
-  }
-
-  async findById(issueId: string): Promise<Issue | null> {
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.issuePath(issueId));
-    if (!data) return null;
-    return toIssue(issueId, data);
-  }
-
-  async findByTaskId(taskId: string): Promise<Issue[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      WF_ISSUES_COLLECTION,
-      [{ field: "taskId", op: "==", value: taskId }],
-      { orderBy: [{ field: "createdAtISO", direction: "desc" }] },
-    );
-    return docs.map((d) => toIssue(d.id, d.data));
-  }
-
-  async countOpenByTaskId(taskId: string): Promise<number> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      WF_ISSUES_COLLECTION,
-      [
-        { field: "taskId", op: "==", value: taskId },
-        { field: "status", op: "in", value: OPEN_STATUSES },
-      ],
-    );
-    return docs.length;
-  }
-
-  async transitionStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<Issue | null> {
-    const path = this.issuePath(issueId);
-    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!snap) return null;
-
-    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
-    const patch: Record<string, unknown> = {
-      status: validTo,
-      updatedAtISO: nowISO,
-    };
-    if (validTo === "resolved") patch.resolvedAtISO = nowISO;
-
-    await firestoreInfrastructureApi.update(path, patch);
-    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!updated) return null;
-    return toIssue(issueId, updated);
-  }
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseTaskRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseTaskRepository.ts
- * @description Firebase Firestore implementation of TaskRepository for workspace-flow.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add query pagination support and composite indexes
- */
-
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api";
-import { v7 as generateId } from "@lib-uuid";
-import type { Task, CreateTaskInput, UpdateTaskInput } from "../../domain/entities/Task";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
-import { toTask } from "../firebase/task.converter";
-import { WF_TASKS_COLLECTION } from "../firebase/workspace-flow.collections";
-
-const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
-const DEFAULT_STATUS: TaskStatus = "draft";
-
-export class FirebaseTaskRepository implements TaskRepository {
-  private taskPath(taskId: string): string {
-    return `${WF_TASKS_COLLECTION}/${taskId}`;
-  }
-
-  async create(input: CreateTaskInput): Promise<Task> {
-    const nowISO = new Date().toISOString();
-    const docData: Record<string, unknown> = {
-      workspaceId: input.workspaceId,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      assigneeId: input.assigneeId ?? null,
-      dueDateISO: input.dueDateISO ?? null,
-      acceptedAtISO: null,
-      archivedAtISO: null,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-    if (input.sourceReference) {
-      docData.sourceReference = { ...input.sourceReference };
-    }
-
-    const taskId = generateId();
-    await firestoreInfrastructureApi.set(this.taskPath(taskId), docData);
-
-    return {
-      id: taskId,
-      workspaceId: input.workspaceId,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      assigneeId: input.assigneeId,
-      dueDateISO: input.dueDateISO,
-      sourceReference: input.sourceReference,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async update(taskId: string, input: UpdateTaskInput): Promise<Task | null> {
-    const path = this.taskPath(taskId);
-    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!snap) return null;
-
-    const patch: Record<string, unknown> = {
-      updatedAtISO: new Date().toISOString(),
-    };
-    if (typeof input.title === "string") patch.title = input.title;
-    if (typeof input.description === "string") patch.description = input.description;
-    if (typeof input.assigneeId === "string") patch.assigneeId = input.assigneeId;
-    if (typeof input.dueDateISO === "string") patch.dueDateISO = input.dueDateISO;
-
-    await firestoreInfrastructureApi.update(path, patch);
-    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!updated) return null;
-    return toTask(taskId, updated);
-  }
-
-  async delete(taskId: string): Promise<void> {
-    await firestoreInfrastructureApi.delete(this.taskPath(taskId));
-  }
-
-  async findById(taskId: string): Promise<Task | null> {
-    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.taskPath(taskId));
-    if (!data) return null;
-    return toTask(taskId, data);
-  }
-
-  async findByWorkspaceId(workspaceId: string): Promise<Task[]> {
-    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
-      WF_TASKS_COLLECTION,
-      [{ field: "workspaceId", op: "==", value: workspaceId }],
-    );
-    const tasks = docs.map((d) => toTask(d.id, d.data));
-    return tasks.sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
-  }
-
-  async transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null> {
-    const path = this.taskPath(taskId);
-    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!snap) return null;
-
-    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
-    const patch: Record<string, unknown> = {
-      status: validTo,
-      updatedAtISO: nowISO,
-    };
-    if (validTo === "accepted") patch.acceptedAtISO = nowISO;
-    if (validTo === "archived") patch.archivedAtISO = nowISO;
-
-    await firestoreInfrastructureApi.update(path, patch);
-    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
-    if (!updated) return null;
-    return toTask(taskId, updated);
-  }
-}
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/README.md

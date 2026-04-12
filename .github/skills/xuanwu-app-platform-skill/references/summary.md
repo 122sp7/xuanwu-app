@@ -38,13 +38,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-598 files | 18,280 lines
+597 files | 18,174 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 538 | 15,282 |
+| TypeScript | 537 | 15,191 |
 | Markdown | 40 | 796 |
-| TypeScript (TSX) | 20 | 2,202 |
+| TypeScript (TSX) | 20 | 2,187 |
 
 **Largest files:**
 - `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)

@@ -1,5 +1,15 @@
 # Files
 
+## File: modules/notion/application/dtos/index.ts
+````typescript
+export * as authoringDtos from '../../subdomains/authoring/application/dto';
+export * as collaborationDtos from '../../subdomains/collaboration/application/dto';
+export * as databaseDtos from '../../subdomains/database/application/dto';
+export * as knowledgeDtos from '../../subdomains/knowledge/application/dto';
+
+// relations and taxonomy currently expose no DTO barrel.
+````
+
 ## File: modules/notion/application/services/.gitkeep
 ````
 
@@ -5021,14 +5031,14 @@ export * from "../subdomains/taxonomy/api";
 export * from "../subdomains/relations/api";
 ````
 
-## File: modules/notion/application/dtos/index.ts
+## File: modules/notion/application/use-cases/index.ts
 ````typescript
-export * as authoringDtos from '../../subdomains/authoring/application/dto';
-export * as collaborationDtos from '../../subdomains/collaboration/application/dto';
-export * as databaseDtos from '../../subdomains/database/application/dto';
-export * as knowledgeDtos from '../../subdomains/knowledge/application/dto';
+export * as authoringUseCases from '../../subdomains/authoring/application/use-cases';
+export * as collaborationUseCases from '../../subdomains/collaboration/application/use-cases';
+export * as databaseUseCases from '../../subdomains/database/application/use-cases';
+export * as knowledgeUseCases from '../../subdomains/knowledge/application/use-cases';
 
-// relations and taxonomy currently expose no DTO barrel.
+// relations/taxonomy are still placeholder-only at the application layer.
 ````
 
 ## File: modules/notion/infrastructure/authoring/firebase/FirebaseArticleRepository.ts
@@ -9819,16 +9829,6 @@ export class ListTaxonomyChildrenUseCase {
     return this.taxonomyRepo.listChildren(parentNodeId);
   }
 }
-````
-
-## File: modules/notion/application/use-cases/index.ts
-````typescript
-export * as authoringUseCases from '../../subdomains/authoring/application/use-cases';
-export * as collaborationUseCases from '../../subdomains/collaboration/application/use-cases';
-export * as databaseUseCases from '../../subdomains/database/application/use-cases';
-export * as knowledgeUseCases from '../../subdomains/knowledge/application/use-cases';
-
-// relations/taxonomy are still placeholder-only at the application layer.
 ````
 
 ## File: modules/notion/interfaces/authoring/_actions/article.actions.ts

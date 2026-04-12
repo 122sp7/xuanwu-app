@@ -1,11 +1,11 @@
 ---
-name: xuanwu-markdown-skill
+name: xuanwu-app-workspace-workflows-skill
 description: Reference codebase for Xuanwu App. Use this skill when you need to understand the structure, implementation patterns, or code details of the Xuanwu App project.
 ---
 
 # Xuanwu App Codebase Reference
 
-354 files | 15442 lines | 174804 tokens
+102 files | 5443 lines | 47758 tokens
 
 ## Overview
 
