@@ -5,72 +5,110 @@ description: Reference codebase for Xuanwu App. Use this skill when you need to 
 
 # Xuanwu App Codebase Reference
 
-1469 files | 69902 lines | 591877 tokens
+1385 files | 29879 lines | 270336 tokens (Tree-sitter compressed)
 
-## Overview
+## When to Use
 
-Use this skill when you need to:
-- Understand project structure and file organization
+- Understand bounded-context ownership and module boundaries
 - Find where specific functionality is implemented
-- Read source code for any file
-- Search for code patterns or keywords
+- Trace API contracts and dependency direction
+- Read compressed source signatures for any file
+- Search for code patterns, types, or domain events
 
-## Files
+## Bounded Context Layout
+
+| Main Domain | Strategic Role | Module Path |
+|---|---|---|
+| **platform** | Governance, identity, infrastructure gateway | `modules/platform/` |
+| **workspace** | Collaboration container and scope | `modules/workspace/` |
+| **notion** | Canonical knowledge content | `modules/notion/` |
+| **notebooklm** | Conversation, retrieval, synthesis | `modules/notebooklm/` |
+
+Each module follows **Hexagonal Architecture**:
+
+```
+modules/<context>/
+  api/              → Cross-module entry surface (search: modules/<context>/api/)
+  domain/           → Entities, value objects, aggregates, events, ports
+  application/      → Use cases, DTOs, command/query contracts
+  infrastructure/   → Repository and adapter implementations
+  interfaces/       → UI, route/action wiring, hooks, components
+  subdomains/       → Sub-domain groupings (same hexagonal shape inside)
+```
+
+**Dependency direction**: `interfaces/ → application/ → domain/ ← infrastructure/`
+
+## Reference Files
 
 | File | Contents |
 |------|----------|
-| `references/summary.md` | **Start here** - Purpose, format explanation, and statistics |
+| `references/summary.md` | Purpose, format, statistics, and exclusion rules |
 | `references/project-structure.md` | Directory tree with line counts per file |
-| `references/files.md` | All file contents (search with `## File: <path>`) |
+| `references/files.md` | All file contents — Tree-sitter compressed (signatures, types, imports preserved; bodies elided with `⋮----`) |
 
-## How to Use
+## How to Search
 
-### 1. Find file locations
+### Find a file by path
 
-Check `project-structure.md` for the directory tree:
-
-```
-src/
-  index.ts (42 lines)
-  utils/
-    helpers.ts (128 lines)
-```
-
-### 2. Read file contents
-
-Grep in `files.md` for the file path:
+Grep `project-structure.md` for file or directory names:
 
 ```
-## File: src/utils/helpers.ts
+modules/workspace/domain/aggregates/
 ```
 
-### 3. Search for code
+### Read a file's compressed signature
 
-Grep in `files.md` for keywords:
+Grep `files.md` for the file heading:
 
 ```
-function calculateTotal
+## File: modules/workspace/domain/aggregates/Workspace.ts
 ```
 
-## Common Use Cases
+### Search for types, interfaces, or domain events
 
-**Understand a feature:**
-1. Search `project-structure.md` for related file names
-2. Read the main implementation file in `files.md`
-3. Search for imports/references to trace dependencies
+Grep `files.md` for the symbol:
 
-**Debug an error:**
-1. Grep the error message or class name in `files.md`
-2. Check line counts in `project-structure.md` to find large files
+```
+export interface AuthUser
+```
 
-**Find all usages:**
-1. Grep function or variable name in `files.md`
+### Trace API boundaries
 
-## Tips
+Grep `files.md` for module API exports:
 
-- Use line counts in `project-structure.md` to estimate file complexity
-- Search `## File:` pattern to jump between files
-- Check `summary.md` for excluded files, format details, and file statistics
+```
+## File: modules/platform/api/
+```
+
+## Common Workflows
+
+**Understand a bounded context:**
+1. Search `project-structure.md` for `modules/<context>/` to see the full tree
+2. Read `modules/<context>/api/index.ts` in `files.md` for the public contract
+3. Read `modules/<context>/domain/` files for business rules and aggregates
+
+**Trace cross-module dependency:**
+1. Search `files.md` for `@/modules/<target>/api` to find all import sites
+2. Check the API contract types at `modules/<target>/api/contracts.ts`
+
+**Understand a use case:**
+1. Search `files.md` for `.use-case.ts` to find use-case implementations
+2. Read the matching domain aggregate and repository port
+
+**Find UI component ownership:**
+1. Search `project-structure.md` for `interfaces/components/`
+2. Map the component back to its owning bounded context
+
+## What's Excluded
+
+- `.gitkeep` placeholders, test files (`*.test.ts`, `*.spec.ts`)
+- shadcn UI primitives (`packages/ui-shadcn/ui/**`) — use shadcn MCP skill instead
+- Library re-export wrappers (`packages/lib-*/**`) — single-line re-exports
+- Binary assets, logs, environment files, lock files
+
+## Compression Note
+
+Content uses Tree-sitter compression: function/method bodies are elided with `⋮----` delimiters. Signatures, types, imports, exports, and documentation comments are preserved. For full implementation details, read the original source files directly.
 
 ---
 

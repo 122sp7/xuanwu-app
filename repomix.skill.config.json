@@ -1,0 +1,142 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "input": {
+    "maxFileSize": 52428800
+  },
+  "output": {
+    "filePath": "repomix-output.json",
+    "style": "json",
+    "parsableStyle": true,
+
+    "fileSummary": true,
+    "directoryStructure": true,
+    "files": true,
+
+    "removeComments": false,
+    "removeEmptyLines": false,
+
+    "compress": true,
+
+    "topFilesLength": 10,
+
+    "showLineNumbers": false,
+    "truncateBase64": false,
+    "copyToClipboard": false,
+
+    "includeFullDirectoryStructure": false,
+    "tokenCountTree": true,
+
+    "git": {
+      "sortByChanges": true,
+      "sortByChangesMaxCommits": 200,
+      "includeDiffs": false,
+      "includeLogs": false,
+      "includeLogsCount": 50
+    }
+  },
+  "include": [
+    "app/**",
+    "modules/**",
+    "packages/**"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "node_modules/**",
+      ".next/**",
+      "out/**",
+      "build/**",
+      "dist/**",
+      "coverage/**",
+      ".turbo/**",
+      ".vercel/**",
+      ".firebase/**",
+      ".output/**",
+      ".parcel-cache/**",
+
+      ".cursor/**",
+      ".vscode/**",
+      ".serena/**",
+      ".claude/**",
+      ".opencode/**",
+      ".idea/**",
+      ".history/**",
+
+      ".cache/**",
+      ".temp/**",
+      ".tmp/**",
+      "tmp/**",
+      "temp/**",
+
+      "*.log",
+      "logs/**",
+      "firebase-debug.log",
+
+      ".env*",
+      "*.pem",
+      "*.key",
+      "*.crt",
+
+      ".DS_Store",
+      "Thumbs.db",
+
+      "*.lock",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      "skills-lock.json",
+
+      "*.tsbuildinfo",
+      ".eslintcache",
+      ".stylelintcache",
+
+      ".git/**",
+
+      "docs/architecture/**",
+      "diagrams/**",
+
+      "*.png",
+      "*.jpg",
+      "*.jpeg",
+      "*.gif",
+      "*.webp",
+      "*.mp4",
+      "*.zip",
+      "*.tar",
+      "*.gz",
+
+      "*.sqlite",
+      "*.db",
+
+      "**/.gitkeep",
+      "*.test.ts",
+      "*.test.tsx",
+      "*.spec.ts",
+      "*.spec.tsx",
+      "**/__tests__/**",
+      "**/__mocks__/**",
+
+      "packages/ui-shadcn/ui/**",
+      "packages/lib-date-fns/**",
+      "packages/lib-dragdrop/**",
+      "packages/lib-react-markdown/**",
+      "packages/lib-remark-gfm/**",
+      "packages/lib-superjson/**",
+      "packages/lib-tanstack/**",
+      "packages/lib-uuid/**",
+      "packages/lib-xstate/**",
+      "packages/lib-zod/**",
+      "packages/lib-zustand/**",
+      "packages/lib-vis/**",
+      "packages/ui-vis/**"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}
