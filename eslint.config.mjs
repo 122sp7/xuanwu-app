@@ -112,6 +112,22 @@ const restrictedDownstreamInfrastructureFirebase = {
     "Downstream infrastructure layers must not import Firebase directly. Delegate through @/modules/platform/api infrastructure APIs.",
 };
 
+const restrictedWorkspaceContextInternalImports = {
+  group: [
+    "@/modules/workspace/interfaces/**",
+    "@/modules/workspace/subdomains/*/interfaces/**",
+  ],
+  message:
+    "notion/notebooklm interface layers must receive workspace scope via props from workspace composition; do not import workspace context directly.",
+};
+
+const restrictedWorkspaceContextApiPath = {
+  name: "@/modules/workspace/api",
+  importNames: ["useWorkspaceContext", "WorkspaceContextProvider"],
+  message:
+    "notion/notebooklm interface layers must not consume workspace context APIs directly. Receive scope via props from workspace composition.",
+};
+
 const legacyAliases = [
   { group: ["@/shared/*"],        message: "Use @shared-types / @shared-utils / … instead." },
   { group: ["@/infrastructure/*"],message: "Use @integration-firebase / @integration-upstash / … instead." },
@@ -269,6 +285,28 @@ export default defineConfig([
     ],
     rules: {
       "no-restricted-imports": [WARN, { patterns: [restrictedDownstreamInfrastructureFirebase] }],
+    },
+  },
+
+  // notion/notebooklm interface layers must not read workspace context directly.
+  {
+    files: [
+      "modules/notebooklm/**/interfaces/**/*.{ts,tsx,js,jsx}",
+      "modules/notion/**/interfaces/**/*.{ts,tsx,js,jsx}",
+    ],
+    rules: {
+      "no-restricted-imports": [WARN, {
+        patterns: [
+          explicitIndex,
+          moduleRootBarrel,
+          subdomainRootBarrel,
+          nonApiModuleSubpath,
+          internalLayer,
+          restrictedDownstreamInterfaceFirebase,
+          restrictedWorkspaceContextInternalImports,
+        ],
+        paths: [restrictedWorkspaceContextApiPath],
+      }],
     },
   },
 
