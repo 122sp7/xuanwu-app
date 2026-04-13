@@ -26,7 +26,7 @@ handoffs:
 ## Required Skills
 
 - `context7`
-- `shadcn-mcp`（alias keyword: `cshadcn`）
+- `shadcn`（alias keyword: `cshadcn`）
 - `next-devtools-mcp`（alias: `cnext-devtools-mcp`）
 - `serena-mcp`
 - `hexagonal-ddd`
@@ -86,6 +86,6 @@ handoffs:
 - `tech_debt_removed`（per fix item）
 - `residual_risk`（if any）
 
-Tags: #use skill context7 #use skill shadcn-mcp #use skill next-devtools-mcp
+Tags: #use skill context7 #use skill shadcn #use skill next-devtools-mcp
 #use skill serena-mcp #use skill hexagonal-ddd #use skill occams-razor #use skill xuanwu-app-skill
 #use skill repomix

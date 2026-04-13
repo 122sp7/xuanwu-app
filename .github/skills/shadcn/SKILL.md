@@ -1,15 +1,15 @@
 ---
-
-name: shadcn-mcp
+name: shadcn
 description: >
 UI/UX 開發強制技能。凡涉及任何介面元件、視覺設計、互動模式、排版佈局、
 響應式設計或行動裝置體驗時自動觸發。
 使用 shadcn/ui 作為唯一 UI 系統，強制 Mobile First、最少代碼原則、
 現代直覺操作設計。適用於 Dashboard、AI Console、表單、資料顯示等場景。
-user-invocable: false
+user-invocable: true
 disable-model-invocation: false
+---
 
-🔥 shadcn MCP（工程規範完整版）
+# shadcn MCP（工程規範完整版）
 
 ---
 
