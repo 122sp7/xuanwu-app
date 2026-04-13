@@ -3,7 +3,7 @@
  * Cross-module consumers must import through this entry point.
  */
 export * from "../application";
-export { entitlementService } from "../infrastructure";
+export { entitlementService } from "../interfaces/composition/entitlement-service";
 export type {
   EntitlementGrantSnapshot,
   CreateEntitlementGrantInput,

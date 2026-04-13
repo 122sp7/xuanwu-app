@@ -2,7 +2,7 @@
  * Public API boundary for the subscription subdomain.
  */
 export * from "../application";
-export { subscriptionService } from "../infrastructure";
+export { subscriptionService } from "../interfaces/composition/subscription-service";
 export type { SubscriptionSnapshot, CreateSubscriptionInput } from "../domain/aggregates/Subscription";
 export type { SubscriptionDomainEventType } from "../domain/events/SubscriptionDomainEvent";
 export type { SubscriptionRepository } from "../domain/repositories/SubscriptionRepository";

@@ -1,3 +1,5 @@
-export { createIdentityRepository, createTokenRefreshRepository } from "./identity-service";
-export type { EmitTokenRefreshSignalInput } from "./identity-service";
-export { createClientAuthUseCases, identityApi } from "./identity-service";
+/**
+ * Identity infrastructure barrel — adapter exports only.
+ *
+ * Composition logic lives in interfaces/composition/identity-service.ts.
+ */
