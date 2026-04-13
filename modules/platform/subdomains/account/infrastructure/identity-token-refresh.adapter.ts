@@ -27,7 +27,7 @@ function getEmitFn(): EmitTokenRefreshSignal {
       identityApi?: { emitTokenRefreshSignal?: EmitTokenRefreshSignal };
     };
     if (typeof mod.identityApi?.emitTokenRefreshSignal !== "function") {
-      throw new Error("identity/api missing identityApi.emitTokenRefreshSignal export");
+      throw new Error("platform/subdomains/identity/api missing identityApi.emitTokenRefreshSignal export");
     }
     _emitTokenRefreshSignal = mod.identityApi.emitTokenRefreshSignal;
   }

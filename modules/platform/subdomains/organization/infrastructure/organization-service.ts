@@ -80,7 +80,7 @@ function getTeamPort(): OrganizationTeamPort {
         createTeamRepository?: () => OrganizationTeamPort;
       };
       if (typeof mod.createTeamRepository !== "function") {
-        throw new Error("team/infrastructure/team-composition missing createTeamRepository export");
+        throw new Error("platform/subdomains/team/infrastructure/team-composition missing createTeamRepository export");
       }
       _teamPortFactory = mod.createTeamRepository;
     }
