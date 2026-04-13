@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: .github/copilot-instructions.md, .github/agents/**, .github/instructions/**/*.md, .github/prompts/**, docs/**, app/**, modules/**, packages/**, py_fn/**, AGENTS.md, CLAUDE.md, apphosting.yaml, components.json, eslint.config.mjs, firebase.apphosting.json, firebase.json, firestore.indexes.json, firestore.rules, llms.txt, next.config.ts, package.json, postcss.config.mjs, storage.rules, tailwind.config.ts, tsconfig.json, vitest.config.ts, repomix*.config.json
+- Only files matching these patterns are included: docs/**/*.md, app/**/*.md, modules/**/*.md, packages/**/*.md, py_fn/**/*.md
 - Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -42,30 +42,20 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1668 files | 46,094 lines
+149 files | 9,909 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1145 | 24,282 |
-| Markdown | 244 | 14,782 |
-| TypeScript (TSX) | 172 | 4,466 |
-| Python | 61 | 1,404 |
-| No Extension | 30 | 35 |
-| JSON | 7 | 837 |
-| Text | 3 | 107 |
-| RULES | 2 | 18 |
-| JavaScript (ESM) | 2 | 52 |
-| CSS | 1 | 47 |
-| Other | 1 | 64 |
+| Markdown | 149 | 9,909 |
 
 **Largest files:**
 - `docs/hard-rules-consolidated.md` (453 lines)
-- `firestore.indexes.json` (437 lines)
-- `AGENTS.md` (305 lines)
 - `py_fn/README.md` (265 lines)
-- `modules/platform/api/contracts.ts` (224 lines)
-- `.github/prompts/serena-hexagonal-ddd-refactor.prompt.md` (215 lines)
-- `.github/prompts/enforce-hexagonal-ddd-convergence.prompt.md` (215 lines)
-- `.github/instructions/architecture.instructions.md` (211 lines)
 - `docs/bounded-context-subdomain-template.md` (206 lines)
-- `modules/platform/domain/ports/output/index.ts` (204 lines)
+- `docs/bounded-contexts.md` (190 lines)
+- `docs/subdomains.md` (189 lines)
+- `modules/notion/AGENT.md` (156 lines)
+- `docs/decisions/README.md` (151 lines)
+- `docs/contexts/_template.md` (144 lines)
+- `docs/contexts/platform/README.md` (131 lines)
+- `docs/decisions/0011-use-case-bundling.md` (129 lines)
