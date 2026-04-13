@@ -42,13 +42,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1675 files | 46,093 lines
+1685 files | 46,231 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1141 | 24,159 |
+| TypeScript | 1151 | 24,298 |
 | Markdown | 246 | 14,928 |
-| TypeScript (TSX) | 183 | 4,568 |
+| TypeScript (TSX) | 183 | 4,567 |
 | Python | 61 | 1,404 |
 | No Extension | 30 | 35 |
 | JSON | 9 | 325 |
@@ -65,5 +65,5 @@ This skill contains the following reference files:
 - `.github/skills/deploy-to-vercel/resources/deploy.sh` (301 lines)
 - `.github/skills/shadcn/SKILL.md` (296 lines)
 - `py_fn/README.md` (265 lines)
-- `modules/platform/api/contracts.ts` (219 lines)
+- `modules/platform/api/contracts.ts` (224 lines)
 - `.github/prompts/serena-hexagonal-ddd-refactor.prompt.md` (215 lines)
