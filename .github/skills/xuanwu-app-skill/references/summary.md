@@ -42,12 +42,12 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1665 files | 45,299 lines
+1674 files | 45,500 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 1145 | 24,282 |
-| Markdown | 235 | 13,955 |
+| Markdown | 244 | 14,156 |
 | TypeScript (TSX) | 178 | 4,499 |
 | Python | 61 | 1,404 |
 | No Extension | 30 | 35 |
@@ -68,4 +68,4 @@ This skill contains the following reference files:
 - `.github/prompts/enforce-hexagonal-ddd-convergence.prompt.md` (215 lines)
 - `docs/bounded-context-subdomain-template.md` (206 lines)
 - `modules/platform/domain/ports/output/index.ts` (204 lines)
-- `docs/bounded-contexts.md` (190 lines)
+- `.github/instructions/architecture.instructions.md` (193 lines)

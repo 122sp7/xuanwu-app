@@ -54,77 +54,77 @@ const WORKSPACE_QUICK_ACCESS_CARDS: readonly QuickAccessCard[] = [
     label: "知識頁面",
     description: "管理知識頁面內容",
     icon: <FileText className="size-5 text-blue-500" />,
-    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Overview&panel=knowledge-pages`,
+    buildHref: (a, w) => `/${enc(a)}/workspace/${enc(w)}?tab=Overview&panel=knowledge-pages`,
   },
   {
     key: "articles",
     label: "文章",
     description: "知識庫文章管理",
     icon: <BookOpen className="size-5 text-emerald-500" />,
-    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Overview&panel=knowledge-base-articles`,
+    buildHref: (a, w) => `/${enc(a)}/workspace/${enc(w)}?tab=Overview&panel=knowledge-base-articles`,
   },
   {
     key: "files",
     label: "檔案",
     description: "工作區檔案管理",
     icon: <FolderOpen className="size-5 text-amber-500" />,
-    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Files`,
+    buildHref: (a, w) => `/${enc(a)}/workspace/${enc(w)}?tab=Files`,
   },
   {
     key: "members",
     label: "成員",
     description: "工作區成員與角色",
     icon: <Users className="size-5 text-violet-500" />,
-    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Members`,
+    buildHref: (a, w) => `/${enc(a)}/workspace/${enc(w)}?tab=Members`,
   },
   {
     key: "knowledge-base",
     label: "知識庫",
     description: "結構化知識管理",
     icon: <Notebook className="size-5 text-cyan-500" />,
-    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Knowledge`,
+    buildHref: (a, w) => `/${enc(a)}/workspace/${enc(w)}?tab=Knowledge`,
   },
   {
     key: "rag-query",
     label: "RAG 查詢",
     description: "問答與引用檢索",
     icon: <Brain className="size-5 text-pink-500" />,
-    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Notebook`,
+    buildHref: (a, w) => `/${enc(a)}/workspace/${enc(w)}?tab=Notebook`,
   },
   {
     key: "ai-chat",
     label: "AI 對話",
     description: "AI 助手對話介面",
     icon: <MessageSquare className="size-5 text-orange-500" />,
-    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=AiChat`,
+    buildHref: (a, w) => `/${enc(a)}/workspace/${enc(w)}?tab=AiChat`,
   },
   {
     key: "databases",
     label: "資料庫",
     description: "結構化資料表管理",
     icon: <Database className="size-5 text-indigo-500" />,
-    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Overview&panel=knowledge-databases`,
+    buildHref: (a, w) => `/${enc(a)}/workspace/${enc(w)}?tab=Overview&panel=knowledge-databases`,
   },
   {
     key: "source-libraries",
     label: "來源庫",
     description: "文件來源管理",
     icon: <Library className="size-5 text-teal-500" />,
-    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Overview&panel=source-libraries`,
+    buildHref: (a, w) => `/${enc(a)}/workspace/${enc(w)}?tab=Overview&panel=source-libraries`,
   },
   {
     key: "governance",
     label: "治理",
     description: "存取與權限治理",
     icon: <Shield className="size-5 text-red-500" />,
-    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Overview&panel=governance`,
+    buildHref: (a, w) => `/${enc(a)}/workspace/${enc(w)}?tab=Overview&panel=governance`,
   },
   {
     key: "profile",
     label: "工作區資料",
     description: "工作區基本設定",
     icon: <User className="size-5 text-slate-500" />,
-    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Overview&panel=profile`,
+    buildHref: (a, w) => `/${enc(a)}/workspace/${enc(w)}?tab=Overview&panel=profile`,
   },
 ];
 
@@ -230,7 +230,7 @@ export function AccountDashboardScreen({
               return (
                 <Link
                   key={workspace.id}
-                  href={`/${enc(accountId)}/${enc(workspace.id)}`}
+                  href={`/${enc(accountId)}/workspace/${enc(workspace.id)}`}
                   className="group"
                 >
                   <Card

@@ -54,7 +54,7 @@ export function DatabaseDetailPanel({
   const [isPending, startTransition] = useTransition();
   const workspaceBasePath =
     accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
+      ? `/${encodeURIComponent(accountId)}/workspace/${encodeURIComponent(workspaceId)}`
       : accountId
         ? `/${encodeURIComponent(accountId)}`
         : "/";

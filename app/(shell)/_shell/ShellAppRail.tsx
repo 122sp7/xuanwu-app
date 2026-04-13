@@ -144,7 +144,7 @@ export function AppRail({
 
   function buildWorkspaceDetailHref(workspaceId: string): string {
     if (activeAccount?.id) {
-      return `/${encodeURIComponent(activeAccount.id)}/${encodeURIComponent(workspaceId)}`;
+      return `/${encodeURIComponent(activeAccount.id)}/workspace/${encodeURIComponent(workspaceId)}`;
     }
     return "/";
   }

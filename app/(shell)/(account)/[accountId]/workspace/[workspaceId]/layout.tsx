@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 
 interface AccountWorkspaceDetailLayoutProps {
-	readonly children: ReactNode;
+  readonly children: ReactNode;
 }
 
 export default function AccountWorkspaceDetailLayout({
-	children,
+  children,
 }: AccountWorkspaceDetailLayoutProps) {
-	return children;
+  return children;
 }

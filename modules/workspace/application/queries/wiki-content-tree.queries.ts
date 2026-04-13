@@ -65,8 +65,8 @@ export async function buildWikiContentTree(
         accountName: seed.accountName,
         accountType: seed.accountType,
         isActive: seed.isActive,
-        membersHref: seed.accountType === "organization" ? "/organization/members" : undefined,
-        teamsHref: seed.accountType === "organization" ? "/organization/teams" : undefined,
+        membersHref: seed.accountType === "organization" ? "/members" : undefined,
+        teamsHref: seed.accountType === "organization" ? "/teams" : undefined,
         workspaces: workspaces.map((workspace) => buildWorkspaceNode(workspace.id, workspace.name)),
       } satisfies WikiAccountContentNode;
     }),

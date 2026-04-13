@@ -40,7 +40,7 @@ export function DatabaseFormsPanel({
   const [activeTab, setActiveTab] = useState<"preview" | "share">("preview");
   const databaseDetailHref =
     accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-database/databases/${encodeURIComponent(databaseId)}`
+      ? `/${encodeURIComponent(accountId)}/workspace/${encodeURIComponent(workspaceId)}/knowledge-database/databases/${encodeURIComponent(databaseId)}`
       : `/knowledge-database/databases/${encodeURIComponent(databaseId)}`;
 
   const load = useCallback(async () => {

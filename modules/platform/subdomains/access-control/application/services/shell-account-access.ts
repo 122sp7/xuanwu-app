@@ -3,6 +3,16 @@ export interface ShellAccountActor {
   readonly accountType?: string;
 }
 
+const ORGANIZATION_ONLY_ROUTE_SEGMENTS = new Set([
+  "members",
+  "teams",
+  "permissions",
+  "workspaces",
+  "schedule",
+  "daily",
+  "audit",
+]);
+
 export function isOrganizationActor(
   account: ShellAccountActor | null | undefined,
 ): account is ShellAccountActor & { accountType: "organization" } {
@@ -33,10 +43,15 @@ export function resolveOrganizationRouteFallback(
 
   const segments = pathname.split("/").filter(Boolean);
   const isLegacyOrganizationPath = segments[0] === "organization";
-  const isAccountScopedOrganizationPath =
+  const isAccountScopedLegacyOrganizationPath =
     segments.length >= 2 && segments[1] === "organization";
+  const isFlattenedOrganizationPath =
+    segments.length >= 2 && ORGANIZATION_ONLY_ROUTE_SEGMENTS.has(segments[1]);
 
-  if ((isLegacyOrganizationPath || isAccountScopedOrganizationPath) && !isOrganizationActor(account)) {
+  if (
+    (isLegacyOrganizationPath || isAccountScopedLegacyOrganizationPath || isFlattenedOrganizationPath) &&
+    !isOrganizationActor(account)
+  ) {
     return `/${encodeURIComponent(account.id)}`;
   }
 

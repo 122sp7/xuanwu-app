@@ -35,6 +35,13 @@ const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
   "settings",
   "dashboard",
   "dev-tools",
+  "members",
+  "teams",
+  "permissions",
+  "workspaces",
+  "schedule",
+  "daily",
+  "audit",
 ]);
 
 export function ShellGlobalSearchDialog({ open, onOpenChange }: ShellGlobalSearchDialogProps) {
@@ -49,8 +56,8 @@ export function ShellGlobalSearchDialog({ open, onOpenChange }: ShellGlobalSearc
       : null;
 
   const pathWorkspaceId =
-    pathSegments.length > 1 && pathAccountId && !["organization", "settings", "dev-tools"].includes(pathSegments[1])
-      ? decodeURIComponent(pathSegments[1])
+    pathSegments.length > 2 && pathAccountId && pathSegments[1] === "workspace"
+      ? decodeURIComponent(pathSegments[2])
       : null;
 
   const queryWorkspaceId = searchParams.get("workspaceId")?.trim() || null;

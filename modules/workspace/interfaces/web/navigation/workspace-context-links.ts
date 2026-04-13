@@ -9,6 +9,13 @@ const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
   "settings",
   "dashboard",
   "dev-tools",
+  "members",
+  "teams",
+  "permissions",
+  "workspaces",
+  "schedule",
+  "daily",
+  "audit",
 ]);
 
 export const WORKSPACE_OVERVIEW_PANELS = [
@@ -35,7 +42,7 @@ function tryGetAccountIdFromPath(pathname: string): string | null {
 function buildWorkspaceBaseHref(workspaceId: string, accountId?: string | null): string {
   const encodedWorkspaceId = encodeURIComponent(workspaceId);
   if (accountId) {
-    return `/${encodeURIComponent(accountId)}/${encodedWorkspaceId}`;
+    return `/${encodeURIComponent(accountId)}/workspace/${encodedWorkspaceId}`;
   }
   return "/";
 }

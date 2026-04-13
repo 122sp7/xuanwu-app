@@ -68,7 +68,7 @@ export function OrganizationOverviewRouteScreen() {
           </Button>
           {activeOrganizationId && (
             <Button asChild size="sm" variant="outline">
-              <Link href={buildAccountHref(activeOrganizationId, "/organization/members")}>組織治理模組</Link>
+              <Link href={buildAccountHref(activeOrganizationId, "/members")}>組織治理模組</Link>
             </Button>
           )}
         </div>
@@ -79,13 +79,13 @@ export function OrganizationOverviewRouteScreen() {
           <h2 className="text-base font-semibold">組織功能</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {[
-              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/members") : "", title: "成員管理", desc: "邀請與管理組織成員" },
-              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/teams") : "", title: "團隊管理", desc: "建立與編輯團隊" },
-              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/permissions") : "", title: "權限政策", desc: "設定存取規則" },
-              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/workspaces") : "", title: "工作區", desc: "組織下的工作區清單" },
-              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/schedule") : "", title: "工作需求排程", desc: "排程與容量總覽" },
-              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/audit") : "", title: "稽核記錄", desc: "操作歷史追蹤" },
-              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/daily") : "", title: "動態牆", desc: "組織工作區動態" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/members") : "", title: "成員管理", desc: "邀請與管理組織成員" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/teams") : "", title: "團隊管理", desc: "建立與編輯團隊" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/permissions") : "", title: "權限政策", desc: "設定存取規則" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/workspaces") : "", title: "工作區", desc: "組織下的工作區清單" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/schedule") : "", title: "工作需求排程", desc: "排程與容量總覽" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/audit") : "", title: "稽核記錄", desc: "操作歷史追蹤" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/daily") : "", title: "動態牆", desc: "組織工作區動態" },
             ].map((item) => (
               <Link key={item.href} href={item.href} className="group">
                 <Card className="h-full transition-colors group-hover:border-primary/50 group-hover:bg-accent/40">
