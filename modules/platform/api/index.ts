@@ -101,6 +101,7 @@ export {
   // UI components
   AccountSwitcher,
   CreateOrganizationDialog,
+  OrganizationOverviewRouteScreen,
   MembersPage,
   OrganizationMembersRouteScreen,
   TeamsPage,

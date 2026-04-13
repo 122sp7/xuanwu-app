@@ -2,6 +2,6 @@
 
 import { SettingsNotificationsRouteScreen } from "@/modules/platform/api";
 
-export default function NotificationCenterPage() {
+export default function AccountNotificationsEntryPage() {
   return <SettingsNotificationsRouteScreen />;
 }

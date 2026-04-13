@@ -1,5 +1,6 @@
 export { AccountSwitcher } from "./components/AccountSwitcher";
 export { CreateOrganizationDialog } from "./components/CreateOrganizationDialog";
+export { OrganizationOverviewRouteScreen } from "./components/screens/OrganizationOverviewRouteScreen";
 export { MembersPage } from "./components/MembersPage";
 export type { MembersPageProps } from "./components/MembersPage";
 export { OrganizationMembersRouteScreen } from "./components/screens/OrganizationMembersRouteScreen";

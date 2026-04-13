@@ -2,6 +2,6 @@
 
 import { AccountDashboardRouteScreen } from "@/modules/workspace/api";
 
-export default function AccountDashboardPage() {
+export default function AccountDashboardEntryPage() {
   return <AccountDashboardRouteScreen />;
 }

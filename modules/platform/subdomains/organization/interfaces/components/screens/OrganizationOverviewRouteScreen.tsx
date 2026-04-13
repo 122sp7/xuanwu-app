@@ -1,22 +1,16 @@
 "use client";
 
-/**
- * Organization Overview Page — /organization
- * Lists organizations visible to the current user and allows switching
- * to an organization account context.
- * Section pages live under /organization/[section].
- */
-
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
-import { useApp, useAuth } from "@/modules/platform/api"
-import type { AccountEntity } from "@/modules/platform/api";
-import { isActiveOrganizationAccount } from "@/modules/platform/api";
+import { isActiveOrganizationAccount } from "../../../../access-control/api";
+import type { AccountEntity } from "../../../../account/api";
+import { useAuth } from "../../../../identity/api";
+import { useApp } from "../../../../../interfaces/web/providers/ShellAppContext";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 
-export default function OrganizationPage() {
+export function OrganizationOverviewRouteScreen() {
   const router = useRouter();
   const params = useParams<{ accountId: string }>();
   const { state: appState, dispatch } = useApp();
@@ -80,7 +74,6 @@ export default function OrganizationPage() {
         </div>
       </section>
 
-      {/* Quick-access dashboard — visible only when an org context is active */}
       {activeOrganizationId && (
         <section className="space-y-3">
           <h2 className="text-base font-semibold">組織功能</h2>
@@ -115,7 +108,6 @@ export default function OrganizationPage() {
         </div>
       )}
 
-      {/* Personal account */}
       <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
         <h2 className="mb-4 text-base font-semibold">Personal Account</h2>
         <div className="flex items-center justify-between">
@@ -140,7 +132,6 @@ export default function OrganizationPage() {
         </div>
       </section>
 
-      {/* Organizations */}
       <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
         <h2 className="mb-4 text-base font-semibold">
           Organizations
