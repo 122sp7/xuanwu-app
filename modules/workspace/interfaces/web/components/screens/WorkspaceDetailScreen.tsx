@@ -12,10 +12,10 @@ import { useApp, useAuth } from "@/modules/platform/api";
 import {
   WorkspaceAuditTab,
   WorkspaceFeedWorkspaceView,
-  WorkspaceFilesTab,
   WorkspaceFlowTab,
   WorkspaceSchedulingTab,
 } from "@/modules/workspace/api";
+import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
 import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
 
 import {

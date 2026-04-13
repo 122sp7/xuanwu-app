@@ -13,7 +13,7 @@ import {
 } from "../_actions/knowledge-page.actions";
 import type { KnowledgePageSnapshot as KnowledgePage } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
 import { PageEditorPanel } from "./PageEditorPanel";
-import { CommentPanel } from "@/modules/notion/api";
+import { CommentPanel } from "../../collaboration/components/CommentPanel";
 import { Button } from "@ui-shadcn/ui/button";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";

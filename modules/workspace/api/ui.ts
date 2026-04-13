@@ -167,11 +167,3 @@ export { DatabaseFormsPanel } from "@/modules/notion/api";
 export { KnowledgeDatabasesPanel } from "@/modules/notion/api";
 export { KnowledgeDetailPanel } from "@/modules/notion/api";
 export { KnowledgePagesPanel } from "@/modules/notion/api";
-
-// ── Orchestrated notebooklm UI (workspace as composition owner) ──────────────
-
-export { RagQueryPanel } from "@/modules/notebooklm/api";
-export { ConversationPanel } from "@/modules/notebooklm/api";
-export type { ConversationPanelProps } from "@/modules/notebooklm/api";
-export { SourceDocumentsPanel } from "@/modules/notebooklm/api";
-export { WorkspaceFilesTab } from "@/modules/notebooklm/api";
