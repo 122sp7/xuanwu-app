@@ -81,7 +81,7 @@ export async function buildWikiContentTree(
 
   return accountNodes.sort((a, b) => {
     if (a.accountType !== b.accountType) {
-      return a.accountType === "personal" ? -1 : 1;
+      return a.accountType === "user" ? -1 : 1;
     }
     return a.accountName.localeCompare(b.accountName, "zh-Hant");
   });

@@ -2,7 +2,7 @@
  * Workspace wiki/content tree read models owned by workspace language.
  */
 
-export type WikiAccountType = "personal" | "organization";
+export type WikiAccountType = "user" | "organization";
 
 export interface WikiWorkspaceRef {
   id: string;
