@@ -67,6 +67,14 @@ Skill declarations are centralized in:
 - `violation_type`
 - `severity` (`low|medium|high|critical`)
 
+### 1.2) Mandatory Semantic Audit
+
+- 若第一階段結論為 `violations_before=0` 與 `smells_before=0`，不可直接結束。
+- 必須執行語意審計第二階段，最少覆蓋：`platform`、`workspace`、`notion`、`notebooklm`。
+- 每個主域至少一條鏈路抽查：`domain -> application -> infrastructure -> interfaces`。
+- 每個主域至少一個 `api/` 邊界與一個跨模組依賴點檢查。
+- 若工具不足，必須走 fallback（read/search/grep）完成等價證據。
+
 ### 1.5) Smell Detection
 
 在 violation index 之外，必須同時建立 `smell_list`：
@@ -172,6 +180,17 @@ Skill declarations are centralized in:
 - `repomix_source_used`（`xuanwu-app-skill|fresh-generated`）
 - `complexity_delta`（files / call-chain / cognitive-load）
 
+必填覆蓋證據：
+- `scan_coverage_report`
+   - `domain`
+   - `subdomain`
+   - `sampled_chain`
+   - `api_boundary_checked`
+   - `evidence_file`
+
+必填審計狀態：
+- `semantic_audit_status`（`completed|blocked`）
+
 並列出收斂證據：
 - `removed_abstractions`
 - `merged_workflows`
@@ -190,5 +209,7 @@ Skill declarations are centralized in:
 - `blocked_by`
 - `remaining_risks`
 - `next_reduction_step`
+
+禁止使用「若你要我可以再掃」作為結案語句；必須直接完成或明確 blocked。
 
 Tags: #use agent hexagonal-convergence-enforcer

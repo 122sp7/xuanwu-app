@@ -66,6 +66,25 @@ handoffs:
 8. Add anti-regression guardrails (type constraints, lint/custom rules, template/codegen, boundary tests).
 9. Sync Serena memory and index.
 
+## Execution Depth Gate
+
+- 不可只做結構式規則掃描即結束。
+- 若 `violations_before=0` 且 `smells_before=0`，必須進入第二階段語意審計後才能結案。
+- 第二階段至少覆蓋四大主域：`platform`、`workspace`、`notion`、`notebooklm`。
+- 每個主域至少抽查一條完整鏈路：`domain -> application -> infrastructure -> interfaces`。
+- 每個主域至少抽查一個 `api/` 邊界與一個跨模組依賴點。
+
+## No Early Exit Rule
+
+- 禁止以「若你要我可以再掃」作為結尾。
+- 在無違規時也必須提交完整覆蓋證據與剩餘風險分級。
+- 僅在「工具不可用且無可替代流程」時可標記 blocked。
+
+## Fallback Policy
+
+- 若 `serena-mcp` 技能或流程不可用，改以可用的 code search/read tools 完成同等覆蓋。
+- 若 `shadcn` 或 `next-devtools-mcp` 不可用，不得中止；改以現有 repo 規則與程式碼證據完成掃描。
+
 ## Smell Baseline
 
 - God object/service/use case
@@ -85,6 +104,8 @@ handoffs:
 - `complexity_delta`（`file_count`, `call_chain_depth`, `cognitive_surface`）
 - `tech_debt_removed`（per fix item）
 - `residual_risk`（if any）
+- `scan_coverage_report`（domain, subdomain, sampled_chain, api_boundary, evidence_file）
+- `semantic_audit_status`（`completed|blocked`）
 
 Tags: #use skill context7 #use skill shadcn #use skill next-devtools-mcp
 #use skill serena-mcp #use skill hexagonal-ddd #use skill occams-razor #use skill xuanwu-app-skill
