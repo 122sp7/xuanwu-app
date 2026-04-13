@@ -47,5 +47,5 @@ export { getProfile, subscribeToProfile, updateProfile } from "../interfaces";
 
 export * from "../application";
 
-export { SettingsProfileRouteScreen } from "../interfaces";
+export { SettingsProfileRouteScreen, SettingsProfileAccountRouteScreen } from "../interfaces";
 export type { LegacyAccountProfileDataSource } from "../infrastructure/create-legacy-account-profile-application.adapter";

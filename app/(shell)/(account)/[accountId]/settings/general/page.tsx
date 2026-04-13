@@ -1,7 +1,9 @@
+"use client";
+
 /**
  * /settings/general — redirect to workspace (removed from MVP nav, Occam's Razor)
  */
-import { redirect } from "next/navigation";
+import { AccountSettingsGeneralRedirectScreen } from "@/modules/workspace/api";
 
 interface SettingsGeneralPageProps {
   params: {
@@ -10,5 +12,5 @@ interface SettingsGeneralPageProps {
 }
 
 export default function SettingsGeneralPage({ params }: SettingsGeneralPageProps) {
-  redirect(`/${encodeURIComponent(params.accountId)}?tab=Overview&panel=settings`);
+  return <AccountSettingsGeneralRedirectScreen accountId={params.accountId} />;
 }

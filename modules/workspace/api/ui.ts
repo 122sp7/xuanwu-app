@@ -16,6 +16,8 @@ export { WorkspaceHubScreen } from "../interfaces/web/components/screens/Workspa
 export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
 export { OrganizationWorkspacesRouteScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesRouteScreen";
 export { AccountDashboardScreen } from "../interfaces/web/components/screens/AccountDashboardScreen";
+export { AccountDashboardRouteScreen } from "../interfaces/web/components/screens/AccountDashboardRouteScreen";
+export { AccountSettingsGeneralRedirectScreen } from "../interfaces/web/components/screens/AccountSettingsGeneralRedirectScreen";
 
 // ── Card components ──────────────────────────────────────────────────────────
 
