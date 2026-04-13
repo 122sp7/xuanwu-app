@@ -2,7 +2,7 @@
  * Public API boundary for the access-control subdomain.
  */
 export * from "../application";
-export { accessControlService } from "../infrastructure";
+export { accessControlService } from "../interfaces/composition/access-control-service";
 export type { AccessPolicySnapshot, CreateAccessPolicyInput } from "../domain/aggregates/AccessPolicy";
 export type { AccessPolicyDomainEventType } from "../domain/events/AccessPolicyDomainEvent";
 export type { AccessPolicyRepository } from "../domain/repositories/AccessPolicyRepository";

@@ -35,16 +35,34 @@
     }
   },
   "include": [
+    ".github/copilot-instructions.md",
     ".github/agents/**",
+    ".github/instructions/**/*.md",
     ".github/prompts/**",
-    ".github/skills/**",
+    ".github/skills/*/SKILL.md",
+    ".github/skills/*/AGENTS.md",
     "docs/**",
     "app/**",
     "modules/**",
     "packages/**",
     "py_fn/**",
     "AGENTS.md",
+    "CLAUDE.md",
+    "apphosting.yaml",
+    "components.json",
+    "eslint.config.mjs",
+    "firebase.apphosting.json",
+    "firebase.json",
+    "firestore.indexes.json",
+    "firestore.rules",
+    "llms.txt",
+    "next.config.ts",
     "package.json",
+    "postcss.config.mjs",
+    "storage.rules",
+    "tailwind.config.ts",
+    "tsconfig.json",
+    "vitest.config.ts",
     "repomix*.config.json"
   ],
   "ignore": {
@@ -52,12 +70,7 @@
     "useDotIgnore": true,
     "useDefaultPatterns": true,
     "customPatterns": [
-      "node_modules/**",
       ".next/**",
-      "out/**",
-      "build/**",
-      "dist/**",
-      "coverage/**",
       ".turbo/**",
       ".vercel/**",
       ".firebase/**",
@@ -78,29 +91,16 @@
       "tmp/**",
       "temp/**",
 
-      "*.log",
       "logs/**",
       "firebase-debug.log",
+      "repomix-output.*",
 
       ".env*",
       "*.pem",
       "*.key",
       "*.crt",
 
-      ".DS_Store",
-      "Thumbs.db",
-
-      "*.lock",
-      "package-lock.json",
-      "pnpm-lock.yaml",
-      "yarn.lock",
       "skills-lock.json",
-
-      "*.tsbuildinfo",
-      ".eslintcache",
-      ".stylelintcache",
-
-      ".git/**",
 
       "docs/architecture/**",
       "diagrams/**",
@@ -117,8 +117,10 @@
 
       "*.sqlite",
       "*.db",
-
-      ".github/skills/**/references/**"
+      ".github/skills/**/references/**",
+      ".github/skills/**/resources/**",
+      ".github/skills/**/rules/**",
+      ".github/skills/xuanwu-*-skill/**"
     ]
   },
   "security": {

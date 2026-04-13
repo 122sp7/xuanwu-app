@@ -1,37 +1,42 @@
 /**
  * OrganizationService — Composition root for organization use cases.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
+ * This file is a composition root: it wires infrastructure adapters to
+ * application use cases and exposes a service facade.
  */
 
-import { FirebaseOrganizationRepository } from "./firebase/FirebaseOrganizationRepository";
-import { FirebaseOrgPolicyRepository } from "./firebase/FirebaseOrgPolicyRepository";
+import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
+import { FirebaseOrgPolicyRepository } from "../../infrastructure/firebase/FirebaseOrgPolicyRepository";
 import {
   CreateOrganizationUseCase,
   CreateOrganizationWithTeamUseCase,
   UpdateOrganizationSettingsUseCase,
   DeleteOrganizationUseCase,
-} from "../application/use-cases/organization-lifecycle.use-cases";
+} from "../../application/use-cases/organization-lifecycle.use-cases";
 import {
   InviteMemberUseCase,
   RecruitMemberUseCase,
   RemoveMemberUseCase,
   UpdateMemberRoleUseCase,
-} from "../application/use-cases/organization-member.use-cases";
+} from "../../application/use-cases/organization-member.use-cases";
 import {
   CreateTeamUseCase,
   DeleteTeamUseCase,
   UpdateTeamMembersUseCase,
-} from "../application/use-cases/organization-team.use-cases";
-import type { OrganizationTeamPort } from "../domain/ports/OrganizationTeamPort";
+} from "../../application/use-cases/organization-team.use-cases";
+import type { OrganizationTeamPort } from "../../domain/ports/OrganizationTeamPort";
 import {
   CreatePartnerGroupUseCase,
   SendPartnerInviteUseCase,
   DismissPartnerMemberUseCase,
-} from "../application/use-cases/organization-partner.use-cases";
+} from "../../application/use-cases/organization-partner.use-cases";
 import {
   CreateOrgPolicyUseCase,
   UpdateOrgPolicyUseCase,
   DeleteOrgPolicyUseCase,
-} from "../application/use-cases/organization-policy.use-cases";
+} from "../../application/use-cases/organization-policy.use-cases";
 import type {
   CreateOrganizationCommand,
   UpdateOrganizationSettingsCommand,
@@ -39,8 +44,8 @@ import type {
   UpdateMemberRoleInput,
   CreateOrgPolicyInput,
   UpdateOrgPolicyInput,
-} from "../domain/entities/Organization";
-import type { CreateTeamInput } from "../domain/entities/Organization";
+} from "../../domain/entities/Organization";
+import type { CreateTeamInput } from "../../domain/entities/Organization";
 import type { CommandResult } from "@shared-types";
 
 let _orgRepo: FirebaseOrganizationRepository | undefined;
@@ -76,7 +81,7 @@ function getTeamPort(): OrganizationTeamPort {
       // (platform/team/infrastructure/team-composition.ts) to avoid
       // import-time side effects in the organization api boundary.
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const mod = require("../../team/infrastructure/team-composition") as {
+      const mod = require("../../../team/infrastructure/team-composition") as {
         createTeamRepository?: () => OrganizationTeamPort;
       };
       if (typeof mod.createTeamRepository !== "function") {

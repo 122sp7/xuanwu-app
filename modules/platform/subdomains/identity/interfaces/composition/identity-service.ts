@@ -1,23 +1,23 @@
 /**
- * identity-service.ts — Adapter-layer composition root.
+ * identity-service — Composition root for identity use cases.
  *
- * Wires Firebase-backed repositories into identity use cases.
- * Lives in adapters/ because it instantiates infrastructure adapters.
- * Dependency direction: adapters/ -> application/ -> domain/ (correct, no violation).
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
+ * This file wires Firebase-backed repositories into identity use cases.
  */
 
-import type { TokenRefreshReason } from "../domain";
-import type { IdentityRepository } from "../domain/repositories/IdentityRepository";
-import type { TokenRefreshRepository } from "../domain/repositories/TokenRefreshRepository";
-import { EmitTokenRefreshSignalUseCase } from "../application/use-cases/token-refresh.use-cases";
+import type { TokenRefreshReason } from "../../domain";
+import type { IdentityRepository } from "../../domain/repositories/IdentityRepository";
+import type { TokenRefreshRepository } from "../../domain/repositories/TokenRefreshRepository";
+import { EmitTokenRefreshSignalUseCase } from "../../application/use-cases/token-refresh.use-cases";
 import {
 	RegisterUseCase,
 	SendPasswordResetEmailUseCase,
 	SignInAnonymouslyUseCase,
 	SignInUseCase,
-} from "../application/use-cases/identity.use-cases";
-import { FirebaseIdentityRepository } from "./firebase/FirebaseIdentityRepository";
-import { FirebaseTokenRefreshRepository } from "./firebase/FirebaseTokenRefreshRepository";
+} from "../../application/use-cases/identity.use-cases";
+import { FirebaseIdentityRepository } from "../../infrastructure/firebase/FirebaseIdentityRepository";
+import { FirebaseTokenRefreshRepository } from "../../infrastructure/firebase/FirebaseTokenRefreshRepository";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

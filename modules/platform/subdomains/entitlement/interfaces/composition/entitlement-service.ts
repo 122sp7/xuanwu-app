@@ -1,5 +1,8 @@
 /**
  * EntitlementService — Composition root for entitlement use cases.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
  * Wires repositories; provides a unified service interface.
  */
 import {
@@ -8,8 +11,8 @@ import {
   RevokeEntitlementUseCase,
   ResolveEntitlementsUseCase,
   CheckFeatureEntitlementUseCase,
-} from "../application/use-cases/entitlement.use-cases";
-import { FirebaseEntitlementGrantRepository } from "./firebase/FirebaseEntitlementGrantRepository";
+} from "../../application/use-cases/entitlement.use-cases";
+import { FirebaseEntitlementGrantRepository } from "../../infrastructure/firebase/FirebaseEntitlementGrantRepository";
 import type { CommandResult } from "@shared-types";
 
 let _repo: FirebaseEntitlementGrantRepository | undefined;

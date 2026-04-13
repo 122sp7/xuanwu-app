@@ -1,16 +1,19 @@
 /**
  * NotificationService — Composition root for notification use cases.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
  */
 
-import { FirebaseNotificationRepository } from "./firebase/FirebaseNotificationRepository";
+import { FirebaseNotificationRepository } from "../../infrastructure/firebase/FirebaseNotificationRepository";
 import {
   DispatchNotificationUseCase,
   GetNotificationsForRecipientUseCase,
   GetUnreadCountUseCase,
   MarkNotificationReadUseCase,
   MarkAllNotificationsReadUseCase,
-} from "../application/use-cases/notification.use-cases";
-import type { DispatchNotificationInput, NotificationEntity } from "../domain/entities/Notification";
+} from "../../application/use-cases/notification.use-cases";
+import type { DispatchNotificationInput, NotificationEntity } from "../../domain/entities/Notification";
 import type { CommandResult } from "@shared-types";
 
 let _notificationRepo: FirebaseNotificationRepository | undefined;

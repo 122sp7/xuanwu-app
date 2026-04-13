@@ -1,23 +1,25 @@
 /**
  * AccountProfileService — Composition root for account-profile subdomain.
  *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
+ *
  * Wires the legacy account data-source (from the account subdomain bridge)
- * into domain-port-conforming adapters and use cases. This keeps infrastructure
- * wiring inside the infrastructure layer, off the api boundary.
+ * into domain-port-conforming adapters and use cases.
  */
 
 import {
 	GetAccountProfileUseCase,
 	SubscribeAccountProfileUseCase,
 	UpdateAccountProfileUseCase,
-} from "../application";
+} from "../../application";
 import {
 	createLegacyAccountProfileCommandRepository,
 	createLegacyAccountProfileQueryRepository,
 	type LegacyAccountProfileDataSource,
-} from "./create-legacy-account-profile-application.adapter";
-import type { AccountProfile, Unsubscribe } from "../domain";
-import type { UpdateAccountProfileInput } from "../application";
+} from "../../infrastructure/create-legacy-account-profile-application.adapter";
+import type { AccountProfile, Unsubscribe } from "../../domain";
+import type { UpdateAccountProfileInput } from "../../application";
 import type { CommandResult } from "@shared-types";
 
 // ── Lazy singletons ──────────────────────────────────────────────────────
@@ -41,7 +43,7 @@ function getLegacyDataSource(): LegacyAccountProfileDataSource {
 		// Auto-configure: lazy-require from sibling subdomain bridge to avoid
 		// import-time side effects in the account-profile api boundary.
 		// eslint-disable-next-line @typescript-eslint/no-require-imports
-		const bridge = require("../../account/api/legacy-account-profile.bridge") as {
+		const bridge = require("../../../account/api/legacy-account-profile.bridge") as {
 			getLegacyUserProfile?: LegacyAccountProfileDataSource["getUserProfile"];
 			subscribeToLegacyUserProfile?: LegacyAccountProfileDataSource["subscribeToUserProfile"];
 			updateLegacyUserProfile?: LegacyAccountProfileDataSource["updateUserProfile"];

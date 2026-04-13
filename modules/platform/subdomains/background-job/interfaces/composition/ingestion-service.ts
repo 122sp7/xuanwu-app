@@ -1,5 +1,8 @@
 /**
- * ingestionService — composition root for knowledge ingestion use cases.
+ * ingestionService — Composition root for knowledge ingestion use cases.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
  *
  * Wires use cases to the default InMemoryIngestionJobRepository.
  * Swap the repository assignment here once a Firebase adapter is in place.
@@ -8,8 +11,8 @@
  * (Server Actions, route handlers) must not reach into use cases directly.
  */
 
-import type { IngestionJob } from "../domain/entities/IngestionJob";
-import type { IngestionStatus } from "../domain/entities/IngestionJob";
+import type { IngestionJob } from "../../domain/entities/IngestionJob";
+import type { IngestionStatus } from "../../domain/entities/IngestionJob";
 import {
   RegisterIngestionDocumentUseCase,
   AdvanceIngestionStageUseCase,
@@ -17,8 +20,8 @@ import {
   type IngestionResult,
   type RegisterIngestionDocumentInput,
   type AdvanceIngestionStageInput,
-} from "../application/use-cases/ingestion.use-cases";
-import { InMemoryIngestionJobRepository } from "./InMemoryIngestionJobRepository";
+} from "../../application/use-cases/ingestion.use-cases";
+import { InMemoryIngestionJobRepository } from "../../infrastructure/InMemoryIngestionJobRepository";
 
 // Single shared repository instance for the lifetime of the module.
 const defaultRepo = new InMemoryIngestionJobRepository();

@@ -1154,6 +1154,887 @@ handoffs:
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
+## File: .github/instructions/architecture-runtime.instructions.md
+````markdown
+---
+description: 'Consolidated runtime architecture rules across app/modules/packages/providers/debug/py_fn with explicit Next.js and worker boundaries.'
+applyTo: '{app,modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py,md}'
+---
+
+# Architecture Runtime
+
+## Boundary Model
+
+- `app/` composes module APIs and package aliases.
+- `modules/` own business capabilities by bounded context.
+- `packages/` provide stable shared implementations through aliases.
+- `py_fn/` owns ingestion and heavy worker jobs.
+
+## Runtime Ownership
+
+- Next.js owns browser-facing interactions, auth/session, server actions, and route orchestration.
+- `py_fn/` owns heavy, retryable, and asynchronous ingestion/embedding jobs.
+
+## Responsibility Split
+
+- Next.js handles upload UX, browser-facing APIs, and response orchestration.
+- `py_fn/` handles parse, clean, taxonomy, chunk, embed, and persistence pipelines.
+
+## Data Boundary
+
+- Keep Firestore contracts explicit and version-aware.
+- Avoid implicit schema drift across contexts.
+- Preserve source/chunk metadata traceability for audit and citation needs.
+
+## Import and Source Rules
+
+- Use configured aliases; avoid legacy import families.
+- Avoid cross-layer relative imports across contexts.
+- Use external documentation only when local sources are insufficient or behavior is version-sensitive.
+- Prefer local authority first: `AGENTS.md`, `.github/copilot-instructions.md`, module docs, local code.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+#use skill next-devtools-mcp
+````
+
+## File: .github/instructions/ci-cd.instructions.md
+````markdown
+---
+description: 'CI/CD execution rules for lint, build, tests, and release evidence.'
+applyTo: '{.github/workflows/**/*.{yml,yaml},package.json,py_fn/requirements.txt,firebase.json,apphosting.yaml}'
+---
+
+# CI CD
+
+## Required Checks
+
+- `npm run lint`
+- `npm run build`
+- `cd py_fn && python -m compileall -q .`
+- `cd py_fn && python -m pytest tests/ -v`
+
+## Rules
+
+- Do not skip failing mandatory checks.
+- Report unrelated baseline failures separately.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/instructions/cloud-functions.instructions.md
+````markdown
+---
+description: 'Rules for Python Cloud Functions worker responsibilities and boundaries.'
+applyTo: 'py_fn/**/*.py'
+---
+
+# Cloud Functions
+
+## Ownership
+
+- `py_fn/` handles parsing, cleaning, taxonomy, chunking, embedding, and background jobs.
+- Do not add browser-facing chat/auth/session logic in `py_fn/`.
+
+## Runtime Decision Rule
+
+- If called directly from page or browser flow, keep it in Next.js.
+- If heavy, retryable, admin/internal, or long-running, keep it in `py_fn/`.
+
+## Guardrails
+
+- Preserve worker layer boundaries.
+- Keep ingest job flow deterministic and retry-safe.
+
+## Boundary Change Validation
+
+- Before changing worker ownership, review `py_fn/docs/decision-architecture/adr/README.md` and accepted ADRs.
+- Update `py_fn/README.md` when responsibilities or runtime contracts change.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-rag-runtime-boundary
+````
+
+## File: .github/instructions/docs-authority-and-language.instructions.md
+````markdown
+---
+description: 'Consolidated documentation authority and ubiquitous language rules for docs governance and naming discipline.'
+applyTo: '{docs,modules,packages}/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Docs Authority And Language
+
+## Authority Rules
+
+- `docs/**/*` is the strategic authority for bounded-context ownership, terminology, and context map.
+- Before adding or editing docs, start from `docs/README.md` and update the owning authority document.
+- `.github/instructions/*` defines behavior rules only; do not duplicate architecture inventory or glossary content.
+- `modules/<context>/docs/*` may describe implementation detail only and must not override root docs decisions.
+
+## Ubiquitous Language Rules
+
+1. Before naming classes, interfaces, types, variables, or domain events, check `docs/ubiquitous-language.md` and context-local glossary docs.
+2. Do not replace canonical terms with synonyms once defined.
+3. Domain events must use past-tense naming.
+4. Bounded-context names must align with `modules/<context>/` folder names.
+5. If a necessary term is missing, update glossary docs first, then implement.
+
+## Naming Rules
+
+- Aggregate roots: `PascalCase` nouns.
+- Value objects: `PascalCase` nouns with meaning-focused names.
+- Domain events: `PascalCase` past tense.
+- Event discriminant: `kebab-case` `<module>.<action>`.
+- Use-case file: `verb-noun.use-case.ts`.
+- Repository interface: `PascalCaseRepository`.
+- Repository implementation: `TechnologyPascalCaseRepository`.
+
+## Documentation Checks
+
+- Verify content belongs to the owner document instead of creating parallel files.
+- Verify behavioral rules are not restating full strategic docs content.
+- If docs changes affect `.github/skills/` repomix references, regenerate with existing scripts.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
+## File: .github/instructions/domain-modeling.instructions.md
+````markdown
+---
+description: '聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範，遵循 Hexagonal Architecture with Domain-Driven Design 戰術設計原則。'
+applyTo: 'modules/**/domain/**/*.{ts,tsx}'
+---
+
+# 領域模型設計規範 (Domain Modeling)
+
+> 完整邊界參考：**先查 `docs/contexts/<context>/README.md`、`bounded-contexts.md`、`subdomains.md`、`ubiquitous-language.md`**
+> 此文件只包含**行為約束與程式碼範例**，不複製領域知識。
+
+## 聚合根 (Aggregate Root)
+
+- 每個聚合必須有**唯一識別碼**（使用 Zod 品牌型別 `z.string().uuid().brand('...')`）。
+- 使用**私有建構函式**加靜態工廠方法 `create()` 與 `reconstitute()`。
+- 所有狀態修改必須透過**封裝的命令方法**，不允許直接修改屬性。
+- **業務規則（不變數）**只在聚合內部執行，違規時拋出帶有描述的 `Error`。
+- 每次狀態修改必須產生對應的**領域事件**並存入 `_domainEvents` 私有陣列。
+- 使用 `pullDomainEvents()` 方法提取並清空待發布事件。
+- `getSnapshot()` 回傳 `Readonly<State>`，防止外部直接修改狀態。
+
+```typescript
+// 聚合根標準結構
+export class MyAggregate {
+  private readonly _id: MyId;
+  private _state: MyState;
+  private _domainEvents: DomainEvent[] = [];
+
+  private constructor(id: MyId, state: MyState) {
+    this._id = id;
+    this._state = state;
+  }
+
+  // 工廠方法：新建
+  public static create(id: MyId, /* ...inputs */): MyAggregate {
+    const aggregate = new MyAggregate(id, { /* 初始狀態 */ });
+    aggregate._domainEvents.push({ /* MyAggregateCreated 事件 */ });
+    return aggregate;
+  }
+
+  // 工廠方法：從持久化資料重建
+  public static reconstitute(snapshot: MySnapshot): MyAggregate {
+    return new MyAggregate(snapshot.id as MyId, snapshot);
+  }
+
+  // 業務方法
+  public doSomething(input: string): void {
+    // 1. 驗證不變數
+    if (this._state.status === 'archived') {
+      throw new Error('Cannot modify an archived aggregate.');
+    }
+    // 2. 更新狀態
+    this._state = { ...this._state, field: input };
+    // 3. 記錄領域事件
+    this._domainEvents.push({ type: 'my-context.something-done', /* ... */ });
+  }
+
+  public get id(): MyId { return this._id; }
+
+  public getSnapshot(): Readonly<MyState> {
+    return Object.freeze({ ...this._state });
+  }
+
+  public pullDomainEvents(): DomainEvent[] {
+    const events = [...this._domainEvents];
+    this._domainEvents = [];
+    return events;
+  }
+}
+```
+
+## 值對象 (Value Object)
+
+- 使用 **Zod Schema** 定義並驗證，並使用 `z.brand()` 確保型別安全。
+- 值對象必須是**不可變的**（Immutable）。
+- 相等性以**值內容**判斷，不以物件參考判斷。
+- 不應包含識別碼欄位。
+
+```typescript
+// 值對象：品牌型別模式
+import { z } from 'zod';
+
+export const WorkspaceIdSchema = z.string().uuid().brand('WorkspaceId');
+export type WorkspaceId = z.infer<typeof WorkspaceIdSchema>;
+
+export const WorkspaceNameSchema = z.string().min(1).max(100).trim().brand('WorkspaceName');
+export type WorkspaceName = z.infer<typeof WorkspaceNameSchema>;
+```
+
+## 實體 (Entity)
+
+- 具有唯一識別碼，以識別碼判斷相等性。
+- 狀態可變，但修改應透過方法封裝。
+- 不要設計成只有 Getter/Setter 的**貧血模型**（Anemic Domain Model）。
+- 識別碼使用品牌型別值對象保護型別安全。
+
+## Zod 驗證規範
+
+- 所有 Domain 物件的 Schema 定義必須放在 `domain/` 層（不依賴外部框架）。
+- 使用 `z.infer<typeof Schema>` 產生 TypeScript 型別，避免型別重複定義。
+- 在聚合的工廠方法或命令方法中執行輸入驗證。
+- `CommandResult` 使用 `@shared-types` 的共用型別。
+
+## 禁止模式 (Anti-Patterns)
+
+- ❌ **貧血領域模型**：只有資料屬性（`id`, `name`, `status`），無業務邏輯。
+- ❌ **直接暴露可變狀態**：`public state: MyState`。
+- ❌ **在 `domain/` 層匯入外部框架**：Firebase、HTTP 客戶端、React。
+- ❌ **跨聚合直接操作**：在聚合 A 中直接修改聚合 B 的狀態。
+- ❌ **過大聚合**：聚合包含過多子實體，應重新評估邊界。
+
+## 目錄結構
+
+```
+modules/<context>/domain/
+├── aggregates/        # 聚合根類別
+├── entities/          # 子實體類別與型別定義
+├── value-objects/     # 值對象（品牌型別）
+├── events/            # 領域事件定義（Zod Schema）
+├── repositories/      # 儲存庫介面（只有介面，無實作）
+└── services/          # 領域服務（無狀態業務邏輯）
+```
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
+## File: .github/instructions/embedding-pipeline.instructions.md
+````markdown
+---
+description: 'Ingestion and embedding pipeline contract for worker-side RAG preparation.'
+applyTo: '{py_fn/**/*.py,docs/**/*.md}'
+---
+
+# Embedding Pipeline
+
+## Contract Order
+
+Parse -> Clean -> Taxonomy -> Chunk -> Chunk metadata -> Embedding -> Firestore writes -> Mark ready
+
+## Rules
+
+- Do not reorder stages without contract/doc update.
+- Normalize source documents to markdown (for example via MarkItDown) before chunking when required by source format.
+- Keep metadata traceable for retrieval citations.
+- Validate converted markdown quality before chunking.
+- Record notable format-loss risk when conversion fidelity may affect downstream retrieval.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-rag-runtime-boundary
+#use skill llamaparse
+#use skill liteparse
+````
+
+## File: .github/instructions/event-driven-state.instructions.md
+````markdown
+---
+description: 'XState 狀態機與領域事件互動規範，包含 SuperJSON 序列化處理，遵循 Hexagonal Architecture with Domain-Driven Design 的事件驅動原則。'
+applyTo: 'modules/**/*.{ts,tsx}'
+---
+
+# 事件驅動狀態規範 (Event-Driven State)
+
+> 完整邊界參考：**先查 `docs/contexts/<context>/context-map.md`、`bounded-contexts.md`、`subdomains.md`、`ubiquitous-language.md`**
+> 此文件只包含**行為約束與程式碼範例**，不複製領域知識。
+
+## 領域事件 (Domain Events)
+
+- 所有**狀態變更**都必須產生一個對應的領域事件，捕捉業務因果關係。
+- 領域事件命名必須是**過去式**，格式為 `<Entity><Action>`，例如 `WorkspaceCreated`、`KnowledgeIngested`。
+- 事件 `type` 的 discriminant 格式為 `<module-name>.<action>`，例如 `workspace.created`。
+- 使用 **Zod Schema** 嚴格定義事件 Payload。
+- 事件必須包含 `eventId`（UUID）與 `occurredAt`（**ISO string**）欄位，遵循 `modules/shared/domain/events.ts` 的 `DomainEvent` 基礎介面。
+
+```typescript
+// 領域事件定義範例
+import { z } from 'zod';
+
+export const WorkspaceCreatedEventSchema = z.object({
+  type: z.literal('workspace.created'),
+  eventId: z.string().uuid(),
+  occurredAt: z.string().datetime(),   // ISO 8601 字串，非 Date 物件
+  payload: z.object({
+    workspaceId: z.string().uuid(),
+    organizationId: z.string().uuid(),
+    name: z.string(),
+    ownerId: z.string(),
+  }),
+});
+export type WorkspaceCreatedEvent = z.infer<typeof WorkspaceCreatedEventSchema>;
+```
+
+## SuperJSON 序列化
+
+- 跨越 Server/Client 邊界傳遞事件或包含 `Date`、`Map`、`Set` 等型別時，使用 **SuperJSON** 進行序列化。
+- 確保 Server Action 或 API 回應中的複雜型別能正確序列化與還原。
+- 在 Next.js Server Action 的輸出端序列化，在 Client 端使用 SuperJSON 還原。
+
+## XState 狀態機整合
+
+- 前端複雜的多步驟狀態流轉（如表單精靈、多階段審批）使用 **XState** 管理。
+- Machine 定義放在 `modules/<context>/application/machines/` 目錄。
+- XState Machine 的 `actions` 應觸發對應的 Server Action，並將結果映射回 Machine 的事件。
+- Machine 的事件型別應與對應的領域事件保持語意一致。
+
+```typescript
+// XState Machine 與 Server Action 整合範例
+import { createMachine, assign } from 'xstate';
+
+export const workspaceMachine = createMachine({
+  id: 'workspace',
+  initial: 'idle',
+  context: { workspaceId: null as string | null, error: null as string | null },
+  states: {
+    idle: {
+      on: { CREATE: 'creating' },
+    },
+    creating: {
+      invoke: {
+        src: 'createWorkspaceAction',  // 對應 Server Action
+        onDone: {
+          target: 'ready',
+          actions: assign({ workspaceId: ({ event }) => event.output.aggregateId }),
+        },
+        onError: {
+          target: 'failed',
+          actions: assign({ error: ({ event }) => String(event.error) }),
+        },
+      },
+    },
+    ready: {},
+    failed: { on: { RETRY: 'idle' } },
+  },
+});
+```
+
+## 事件發布流程
+
+1. 聚合根透過業務方法產生領域事件，存入 `_domainEvents` 陣列。
+2. Use Case（Application Service）在聚合**持久化成功後**，呼叫 `pullDomainEvents()` 提取事件。
+3. Use Case 負責將事件發布到 QStash 或事件匯流排（At-Least-Once 語意）。
+4. 不可在聚合持久化**之前**發布事件（確保一致性）。
+
+```typescript
+// Use Case 中的事件發布流程
+export class CreateWorkspaceUseCase {
+  async execute(input: CreateWorkspaceInput): Promise<CommandResult> {
+    const workspace = Workspace.create(generateId(), input);
+    await this.workspaceRepository.save(workspace);  // 1. 先持久化
+    const events = workspace.pullDomainEvents();      // 2. 提取事件
+    await this.eventPublisher.publishAll(events);     // 3. 再發布
+    return { success: true, aggregateId: workspace.id };
+  }
+}
+```
+
+## 驗證
+
+- `occurredAt` 必須使用 ISO string，不得使用 `Date` 物件（與 `shared/domain/events.ts` 一致）。
+- 事件 Schema 使用 Zod 驗證，確保 Payload 型別安全。
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
+## File: .github/instructions/firestore-schema.instructions.md
+````markdown
+---
+description: 'Firestore schema and index design rules aligned to bounded context ownership.'
+applyTo: '{modules/**/infrastructure/**/*.{ts,tsx,js,jsx},firestore.indexes.json,firestore.rules}'
+---
+
+# Firestore Schema
+
+## Rules
+
+- Keep collection ownership explicit per module.
+- Version breaking schema transitions with migration steps.
+- Update indexes with query-shape changes.
+
+## Validation
+
+- Verify read/write paths remain compatible.
+- Confirm index coverage for new query patterns.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-development-contracts
+````
+
+## File: .github/instructions/genkit-flow.instructions.md
+````markdown
+---
+description: 'Genkit flow design and runtime-boundary rules for AI orchestration.'
+applyTo: '{modules/platform/**/*.{ts,tsx,js,jsx},modules/notebooklm/**/*.{ts,tsx,js,jsx},app/**/*.{ts,tsx}}'
+---
+
+# Genkit Flow
+
+## Rules
+
+- Keep flow inputs/outputs explicit and typed.
+- Keep shared provider, quota, and safety policy orchestration in `platform.ai`.
+- Keep `notebooklm`-specific reasoning, retrieval, grounding, synthesis, and evaluation semantics outside generic platform governance.
+- Keep user-facing orchestration in Next.js.
+- Delegate heavy ingestion/embedding to worker-side pipelines.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-rag-runtime-boundary
+#use skill next-devtools-mcp
+````
+
+## File: .github/instructions/hosting-deploy.instructions.md
+````markdown
+---
+description: 'Hosting deploy guardrails for Firebase App Hosting and release safety.'
+applyTo: '{apphosting.yaml,firebase.json,.github/workflows/**/*.{yml,yaml}}'
+---
+
+# Hosting Deploy
+
+## Rules
+
+- Validate build and config before deployment.
+- Keep deploy scope explicit (hosting, rules, indexes, functions).
+- Record rollback path for production-impacting changes.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/instructions/lint-format.instructions.md
+````markdown
+---
+description: 'Lint and formatting expectations for TypeScript and Python changes.'
+applyTo: '{app,modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py}'
+---
+
+# Lint Format
+
+## Required Commands
+
+- `npm run lint`
+- `npm run build` when types or exports changed
+- `cd py_fn && python -m compileall -q .`
+
+## Rules
+
+- Fix new lint errors introduced by your change.
+- Do not hide violations by broad rule disables.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill vscode-typescript-workbench
+````
+
+## File: .github/instructions/nextjs-app-router.instructions.md
+````markdown
+---
+description: 'Next.js App Router composition rules for route slices and ownership boundaries.'
+applyTo: 'app/**/*.{ts,tsx}'
+---
+
+# Nextjs App Router
+
+## Rules
+
+- Keep route files focused on composition and rendering.
+- Prefer Server Components unless client interactivity is required.
+- Keep business logic in modules and consume via module APIs.
+- Use package aliases and avoid legacy import families.
+- Keep `app/` as composition ownership, not domain-rule ownership.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill next-devtools-mcp
+#use skill vercel-react-best-practices
+#use skill vercel-composition-patterns
+````
+
+## File: .github/instructions/nextjs-parallel-routes.instructions.md
+````markdown
+---
+description: 'Parallel-route UI block composition rules with isolated local state and API-only module access.'
+applyTo: 'app/**/*.{ts,tsx}'
+---
+
+# Nextjs Parallel Routes
+
+## Rules
+
+- Keep slot-level state isolated.
+- Avoid hidden coupling between unrelated slots.
+- Consume cross-domain behavior through module APIs only.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill app-router-parallel-routes
+#use skill next-devtools-mcp
+#use skill vercel-react-best-practices
+````
+
+## File: .github/instructions/nextjs-server-actions.instructions.md
+````markdown
+---
+description: 'Server Action rules for thin orchestration, validation at boundaries, and stable result contracts.'
+applyTo: '{app,modules}/**/*.{ts,tsx}'
+---
+
+# Nextjs Server Actions
+
+## Rules
+
+- Use `use server` explicitly.
+- Keep actions thin and delegate business logic to use cases.
+- Return consistent command result shapes.
+- Validate inputs at action boundaries using shared validators where applicable.
+- Keep infrastructure access out of route files and action wrappers.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill next-devtools-mcp
+#use skill vercel-react-best-practices
+````
+
+## File: .github/instructions/playwright-mcp-testing.instructions.md
+````markdown
+---
+description: >
+  Playwright MCP 瀏覽器測試執行規則。凡涉及用戶流程驗證、UI 功能測試、
+  截圖存證、表單操作自動化、Console 錯誤偵測時適用。
+applyTo: '{app,modules,debug}/**/*.{ts,tsx}'
+---
+
+# Playwright MCP Testing Rules
+
+## 工具優先順序
+
+1. **主要**：`mcp_playwright-mc_*` 工具鏈（snapshot → ref → action）
+2. **備援**：`mcp_io_github_ver_browser_eval`（playwright-mcp 失效時）
+3. **永遠不用**：在備援模式下呼叫 playwright-mcp（會得到 closed 錯誤）
+
+## Snapshot-First 原則
+
+**禁止** 在未取得 snapshot ref 的情況下直接 click 或 fill。
+
+```
+✅ 正確：snapshot → 找 ref → click(ref: "...")
+❌ 錯誤：直接 click(selector: "button.create")
+```
+
+## evaluate 限制（備援模式）
+
+以下表達式在 `mcp_io_github_ver_browser_eval evaluate` 中會失敗：
+
+- 包含 `new Event()`、`new PointerEvent()` 的鏈式表達式
+- 包含 `Array.from()` + 方法鏈的複合表達式
+- 包含 for loop 的表達式
+
+解法：拆分為多個單一表達式呼叫。
+
+## SPA 導航規則
+
+**全頁重載導致 React 狀態重置**（activeAccount 被清空）。
+
+```
+✅ 允許：點擊 Link 的 ref（SPA 路由）
+✅ 允許：點擊麵包屑 a[href="/target"] 的 ref
+❌ 禁止：瀏覽器導航到新 URL（重置 activeAccount）
+❌ 禁止：evaluate window.location.href = '...'
+```
+
+## Radix UI Dropdown 開啟規則
+
+Radix DropdownMenu 需要 `PointerEvent` 才能觸發。使用 snapshot 找到 trigger 的 ref，然後 click 它（playwright-mcp 的 click 自動發送正確事件）。
+
+## 帳號情境一致性
+
+- 每次全頁重載後，必須重新確認 `localStorage['xuanwu_last_active_account']`
+- 組織功能測試：在 SPA 已載入狀態下切換，勿重載
+
+## workspaceId 前提
+
+以下頁面的 CTA 需要 `activeWorkspaceId` 非空：
+- `/knowledge-base/articles`（新增文章）
+- `/knowledge-base/articles/[id]`（編輯文章）
+
+測試前先在 `/workspace` 選擇工作區。
+
+## Console 錯誤義務
+
+每次測試結束前，必須呼叫：
+```
+mcp_playwright-mc_browser_console_messages
+```
+並在報告中記錄錯誤（即使為零也要寫「無錯誤」）。
+
+## 截圖義務
+
+每個主要測試步驟（初始狀態、操作後、最終狀態）必須截圖：
+```
+mcp_playwright-mc_browser_take_screenshot → 儲存至 scratchpad/
+```
+
+## 測試報告格式
+
+輸出遵循 SKILL.md「測試報告格式」區塊的模板，包含：
+- URL + 帳號情境 + 日期 + 狀態
+- 截圖證據清單
+- 操作步驟記錄
+- 發現問題（含優先級）
+- Console 錯誤
+- 建議修復
+
+## 工具搭配規則
+
+| 情境 | 必用工具 |
+|------|---------|
+| 確認元件 API | `mcp_shadcn_view_items_in_registries` |
+| 不確定 Playwright API | `mcp_context7_resolve-library-id "playwright"` |
+| 找 Server Action | `mcp_io_github_ver_nextjs_call get_server_action_by_id` |
+| 找元件 props | `mcp_oraios_serena_find_symbol` |
+| 輸出測試報告 | `mcp_markitdown_convert_to_markdown` |
+
+Tags: #use skill playwright-mcp-testing
+````
+
+## File: .github/instructions/process-framework.instructions.md
+````markdown
+---
+description: 'Consolidated process framework for branch scope, commit quality, Cockburn delivery loop, and Occam parsimony decisions.'
+applyTo: '**/*'
+---
+
+# Process Framework
+
+## Branch and PR Scope
+
+- Keep one concern per branch and PR.
+- Name branches by intent and scope.
+- Do not mix architecture refactor with unrelated feature work.
+
+## Commit Quality
+
+- Keep commit subject concise and action-oriented.
+- Reference scope (module/runtime) in commit body when relevant.
+- Include validation evidence for non-trivial changes.
+- Avoid vague subjects and mixed unrelated changes.
+
+## Cockburn Delivery Loop
+
+1. Collaborate: align vocabulary, ownership, and expected behavior.
+2. Deliver: ship a small increment with observable value.
+3. Reflect: inspect implementation and handoff learnings.
+4. Improve: adjust code, process, or docs based on evidence.
+
+## Method Weight Rules
+
+- Use the lightest process that still controls risk.
+- Remove ceremony that does not improve communication, feedback, or quality.
+
+## Occam Decision Rules
+
+- Prefer options with fewer assumptions when outcomes are comparable.
+- Remove assumptions before removing evidence.
+- Add abstraction/layers/docs only when they protect real boundaries or repeated change pressure.
+- Reintroduce complexity only after new evidence appears.
+
+## PR Checkpoints
+
+- State what changed and why.
+- State what assumption was removed.
+- State what complexity remains and why.
+- State validation proving the chosen path still works.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill alistair-cockburn
+#use skill occams-razor
+````
+
+## File: .github/instructions/prompt-engineering.instructions.md
+````markdown
+---
+description: 'Prompt authoring rules for deterministic, low-noise, reusable workflow prompts.'
+applyTo: '.github/prompts/**/*.prompt.md'
+---
+
+# Prompt Engineering
+
+## Frontmatter
+
+- Use clear `description` and `agent` fields.
+- Declare `tools` with least privilege when tool usage is required.
+- Keep `argument-hint` explicit when the prompt expects user inputs.
+
+## Structure
+
+1. Mission
+2. Inputs
+3. Workflow
+4. Output contract
+5. Validation
+
+## Rules
+
+- Keep prompts specific and executable.
+- Declare required inputs and fallbacks.
+- Keep tools least-privilege when defined.
+- Avoid copying repository-global policy into each prompt.
+- Prefer short executable steps over long background text.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/instructions/rag-architecture.instructions.md
+````markdown
+---
+description: 'RAG architecture boundaries for conversion, chunking, embedding, and retrieval workflows.'
+applyTo: '{modules/notebooklm/**/*.{ts,tsx,js,jsx},modules/notion/**/*.{ts,tsx,js,jsx},py_fn/**/*.py,docs/**/*.md}'
+---
+
+# RAG Architecture
+
+## Rules
+
+- Normalize source docs before chunking when needed, including MarkItDown-based conversion for non-markdown sources.
+- Keep retrieval metadata auditable and source-traceable.
+- Keep runtime split: Next.js orchestration, `py_fn` ingestion pipeline.
+- Treat `notion` as the canonical content source and `notebooklm` as the owner of ingestion / retrieval / grounding / evaluation semantics.
+- Consume shared model and provider capability from `platform.ai`; do not reintroduce a generic `ai` owner inside downstream RAG flows.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-rag-runtime-boundary
+#use skill llamaparse
+#use skill liteparse
+````
+
+## File: .github/instructions/security-rules.instructions.md
+````markdown
+---
+description: 'Security rules guardrails for Firestore and Storage with least-privilege access.'
+applyTo: '{firestore.rules,storage.rules,modules/**/infrastructure/**/*.{ts,tsx,js,jsx},py_fn/**/*.py}'
+---
+
+# Security Rules
+
+## Rules
+
+- Enforce organization and workspace isolation.
+- Keep allow conditions explicit and auditable.
+- Pair rule changes with scenario-based validation.
+
+## Avoid
+
+- Broad wildcard allows without actor checks.
+- Hidden coupling to UI-side assumptions.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-development-contracts
+````
+
+## File: .github/instructions/shadcn-ui.instructions.md
+````markdown
+---
+description: 'shadcn/ui usage rules for consistent component composition and accessibility.'
+applyTo: '{app,modules,packages}/**/*.{ts,tsx}'
+---
+
+# Shadcn UI
+
+## Rules
+
+- Prefer existing primitives before creating new components.
+- Keep semantic markup and keyboard accessibility intact.
+- Keep component concerns separate from business rules.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill shadcn
+#use skill web-design-guidelines
+````
+
+## File: .github/instructions/tailwind-design-system.instructions.md
+````markdown
+---
+description: 'Tailwind design-system consistency rules for tokens, spacing, and responsive behavior.'
+applyTo: '{app,modules,packages}/**/*.{ts,tsx,css}'
+---
+
+# Tailwind Design System
+
+## Rules
+
+- Reuse established tokens and utility conventions.
+- Keep spacing and typography scales consistent.
+- Avoid ad-hoc one-off style patterns without rationale.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill web-design-guidelines
+#use skill shadcn
+````
+
+## File: .github/instructions/testing-e2e.instructions.md
+````markdown
+---
+description: 'End-to-end testing rules for browser flows, evidence capture, and release confidence.'
+applyTo: '{app,modules,debug}/**/*.{ts,tsx}'
+---
+
+# Testing E2E
+
+## Rules
+
+- Validate user-critical flows and failure paths.
+- Capture reproducible evidence for failures.
+- Separate confirmed defects from enhancement suggestions.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill vscode-testing-debugging-browser
+#use skill next-devtools-mcp
+````
+
+## File: .github/instructions/testing-unit.instructions.md
+````markdown
+---
+description: 'Unit testing rules for deterministic, isolated, and behavior-focused coverage.'
+applyTo: '{modules,packages,py_fn}/**/*.{ts,tsx,js,jsx,py}'
+---
+
+# Testing Unit
+
+## Rules
+
+- Keep tests deterministic and isolated.
+- Test behavior and invariants, not implementation trivia.
+- Cover happy, boundary, and negative paths for core domain logic.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill vscode-testing-debugging-browser
+#use skill vscode-typescript-workbench
+````
+
 ## File: .github/prompts/analyze-repo.prompt.md
 ````markdown
 ---
@@ -2595,616 +3476,6 @@ disable-model-invocation: false
 ```
 ````
 
-## File: .github/skills/deploy-to-vercel/resources/deploy-codex.sh
-````bash
-#!/bin/bash
-
-# Vercel Deployment Script for Codex (via claimable deploy endpoint)
-# Usage: ./deploy-codex.sh [project-path]
-# Returns: JSON with previewUrl, claimUrl, deploymentId, projectId
-
-set -euo pipefail
-
-DEPLOY_ENDPOINT="https://codex-deploy-skills.vercel.sh/api/deploy"
-
-# Detect framework from package.json
-detect_framework() {
-    local pkg_json="$1"
-
-    if [ ! -f "$pkg_json" ]; then
-        echo "null"
-        return
-    fi
-
-    local content=$(cat "$pkg_json")
-
-    # Helper to check if a package exists in dependencies or devDependencies.
-    # Use exact matching by default, with a separate prefix matcher for scoped
-    # package families like "@remix-run/".
-    has_dep_exact() {
-        echo "$content" | grep -q "\"$1\""
-    }
-
-    has_dep_prefix() {
-        echo "$content" | grep -q "\"$1"
-    }
-
-    # Order matters - check more specific frameworks first
-
-    # Blitz
-    if has_dep_exact "blitz"; then echo "blitzjs"; return; fi
-
-    # Next.js
-    if has_dep_exact "next"; then echo "nextjs"; return; fi
-
-    # Gatsby
-    if has_dep_exact "gatsby"; then echo "gatsby"; return; fi
-
-    # Remix
-    if has_dep_prefix "@remix-run/"; then echo "remix"; return; fi
-
-    # React Router (v7 framework mode)
-    if has_dep_prefix "@react-router/"; then echo "react-router"; return; fi
-
-    # TanStack Start
-    if has_dep_exact "@tanstack/start"; then echo "tanstack-start"; return; fi
-
-    # Astro
-    if has_dep_exact "astro"; then echo "astro"; return; fi
-
-    # Hydrogen (Shopify)
-    if has_dep_exact "@shopify/hydrogen"; then echo "hydrogen"; return; fi
-
-    # SvelteKit
-    if has_dep_exact "@sveltejs/kit"; then echo "sveltekit-1"; return; fi
-
-    # Svelte (standalone)
-    if has_dep_exact "svelte"; then echo "svelte"; return; fi
-
-    # Nuxt
-    if has_dep_exact "nuxt"; then echo "nuxtjs"; return; fi
-
-    # Vue with Vitepress
-    if has_dep_exact "vitepress"; then echo "vitepress"; return; fi
-
-    # Vue with Vuepress
-    if has_dep_exact "vuepress"; then echo "vuepress"; return; fi
-
-    # Gridsome
-    if has_dep_exact "gridsome"; then echo "gridsome"; return; fi
-
-    # SolidStart
-    if has_dep_exact "@solidjs/start"; then echo "solidstart-1"; return; fi
-
-    # Docusaurus
-    if has_dep_exact "@docusaurus/core"; then echo "docusaurus-2"; return; fi
-
-    # RedwoodJS
-    if has_dep_prefix "@redwoodjs/"; then echo "redwoodjs"; return; fi
-
-    # Hexo
-    if has_dep_exact "hexo"; then echo "hexo"; return; fi
-
-    # Eleventy
-    if has_dep_exact "@11ty/eleventy"; then echo "eleventy"; return; fi
-
-    # Angular / Ionic Angular
-    if has_dep_exact "@ionic/angular"; then echo "ionic-angular"; return; fi
-    if has_dep_exact "@angular/core"; then echo "angular"; return; fi
-
-    # Ionic React
-    if has_dep_exact "@ionic/react"; then echo "ionic-react"; return; fi
-
-    # Create React App
-    if has_dep_exact "react-scripts"; then echo "create-react-app"; return; fi
-
-    # Ember
-    if has_dep_exact "ember-cli" || has_dep_exact "ember-source"; then echo "ember"; return; fi
-
-    # Dojo
-    if has_dep_exact "@dojo/framework"; then echo "dojo"; return; fi
-
-    # Polymer
-    if has_dep_prefix "@polymer/"; then echo "polymer"; return; fi
-
-    # Preact
-    if has_dep_exact "preact"; then echo "preact"; return; fi
-
-    # Stencil
-    if has_dep_exact "@stencil/core"; then echo "stencil"; return; fi
-
-    # UmiJS
-    if has_dep_exact "umi"; then echo "umijs"; return; fi
-
-    # Sapper (legacy Svelte)
-    if has_dep_exact "sapper"; then echo "sapper"; return; fi
-
-    # Saber
-    if has_dep_exact "saber"; then echo "saber"; return; fi
-
-    # Sanity
-    if has_dep_exact "sanity"; then echo "sanity-v3"; return; fi
-    if has_dep_prefix "@sanity/"; then echo "sanity"; return; fi
-
-    # Storybook
-    if has_dep_prefix "@storybook/"; then echo "storybook"; return; fi
-
-    # NestJS
-    if has_dep_exact "@nestjs/core"; then echo "nestjs"; return; fi
-
-    # Elysia
-    if has_dep_exact "elysia"; then echo "elysia"; return; fi
-
-    # Hono
-    if has_dep_exact "hono"; then echo "hono"; return; fi
-
-    # Fastify
-    if has_dep_exact "fastify"; then echo "fastify"; return; fi
-
-    # h3
-    if has_dep_exact "h3"; then echo "h3"; return; fi
-
-    # Nitro
-    if has_dep_exact "nitropack"; then echo "nitro"; return; fi
-
-    # Express
-    if has_dep_exact "express"; then echo "express"; return; fi
-
-    # Vite (generic - check last among JS frameworks)
-    if has_dep_exact "vite"; then echo "vite"; return; fi
-
-    # Parcel
-    if has_dep_exact "parcel"; then echo "parcel"; return; fi
-
-    # No framework detected
-    echo "null"
-}
-
-# Parse arguments
-INPUT_PATH="${1:-.}"
-
-# Create temp directory for packaging
-TEMP_DIR=$(mktemp -d)
-TARBALL="$TEMP_DIR/project.tgz"
-STAGING_DIR="$TEMP_DIR/staging"
-CLEANUP_TEMP=true
-
-cleanup() {
-    if [ "$CLEANUP_TEMP" = true ]; then
-        rm -rf "$TEMP_DIR"
-    fi
-}
-trap cleanup EXIT
-
-echo "Preparing deployment..." >&2
-
-# Check if input is a .tgz file or a directory
-FRAMEWORK="null"
-
-if [ -f "$INPUT_PATH" ] && [[ "$INPUT_PATH" == *.tgz ]]; then
-    # Input is already a tarball, use it directly
-    echo "Using provided tarball..." >&2
-    TARBALL="$INPUT_PATH"
-    CLEANUP_TEMP=false
-    # Can't detect framework from tarball, leave as null
-elif [ -d "$INPUT_PATH" ]; then
-    # Input is a directory, need to tar it
-    PROJECT_PATH=$(cd "$INPUT_PATH" && pwd)
-
-    # Detect framework from package.json
-    FRAMEWORK=$(detect_framework "$PROJECT_PATH/package.json")
-
-    # Stage files into a temporary directory to avoid mutating the source tree.
-    mkdir -p "$STAGING_DIR"
-    echo "Staging project files..." >&2
-    tar -C "$PROJECT_PATH" \
-        --exclude='node_modules' \
-        --exclude='.git' \
-        --exclude='.env' \
-        --exclude='.env.*' \
-        -cf - . | tar -C "$STAGING_DIR" -xf -
-
-    # Check if this is a static HTML project (no package.json)
-    if [ ! -f "$PROJECT_PATH/package.json" ]; then
-        # Find HTML files in root
-        HTML_FILES=$(find "$STAGING_DIR" -maxdepth 1 -name "*.html" -type f)
-        HTML_COUNT=$(printf '%s\n' "$HTML_FILES" | sed '/^$/d' | wc -l | tr -d '[:space:]')
-
-        # If there's exactly one HTML file and it's not index.html, rename it
-        if [ "$HTML_COUNT" -eq 1 ]; then
-            HTML_FILE=$(echo "$HTML_FILES" | head -1)
-            BASENAME=$(basename "$HTML_FILE")
-            if [ "$BASENAME" != "index.html" ]; then
-                echo "Renaming $BASENAME to index.html..." >&2
-                mv "$HTML_FILE" "$STAGING_DIR/index.html"
-            fi
-        fi
-    fi
-
-    # Create tarball from the staging directory
-    echo "Creating deployment package..." >&2
-    tar -czf "$TARBALL" -C "$STAGING_DIR" .
-else
-    echo "Error: Input must be a directory or a .tgz file" >&2
-    exit 1
-fi
-
-if [ "$FRAMEWORK" != "null" ]; then
-    echo "Detected framework: $FRAMEWORK" >&2
-fi
-
-# Deploy
-echo "Deploying..." >&2
-RESPONSE=$(curl -s -X POST "$DEPLOY_ENDPOINT" -F "file=@$TARBALL" -F "framework=$FRAMEWORK")
-
-# Check for error in response
-if echo "$RESPONSE" | grep -q '"error"'; then
-    ERROR_MSG=$(echo "$RESPONSE" | grep -o '"error":"[^"]*"' | cut -d'"' -f4)
-    echo "Error: $ERROR_MSG" >&2
-    exit 1
-fi
-
-# Extract URLs from response
-PREVIEW_URL=$(echo "$RESPONSE" | grep -o '"previewUrl":"[^"]*"' | cut -d'"' -f4)
-CLAIM_URL=$(echo "$RESPONSE" | grep -o '"claimUrl":"[^"]*"' | cut -d'"' -f4)
-
-if [ -z "$PREVIEW_URL" ]; then
-    echo "Error: Could not extract preview URL from response" >&2
-    echo "$RESPONSE" >&2
-    exit 1
-fi
-
-echo "Deployment started. Waiting for build to complete..." >&2
-echo "Preview URL: $PREVIEW_URL" >&2
-
-# Poll the preview URL until it returns a non-5xx response (5xx = still building)
-MAX_ATTEMPTS=60  # 5 minutes max (60 * 5 seconds)
-ATTEMPT=0
-
-while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PREVIEW_URL")
-
-    if [ "$HTTP_STATUS" -eq 200 ]; then
-        echo "" >&2
-        echo "Deployment ready!" >&2
-        break
-    elif [ "$HTTP_STATUS" -ge 500 ]; then
-        # 5xx means still building/deploying
-        echo "Building... (attempt $((ATTEMPT + 1))/$MAX_ATTEMPTS)" >&2
-        sleep 5
-        ATTEMPT=$((ATTEMPT + 1))
-    elif [ "$HTTP_STATUS" -ge 400 ] && [ "$HTTP_STATUS" -lt 500 ]; then
-        # 4xx might be an error or the app itself returns 4xx - it's responding
-        echo "" >&2
-        echo "Deployment ready (returned $HTTP_STATUS)!" >&2
-        break
-    else
-        # Any other status, assume it's ready
-        echo "" >&2
-        echo "Deployment ready!" >&2
-        break
-    fi
-done
-
-if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
-    echo "" >&2
-    echo "Warning: Timed out waiting for deployment, but it may still be building." >&2
-fi
-
-echo "" >&2
-echo "Preview URL: $PREVIEW_URL" >&2
-echo "Claim URL:   $CLAIM_URL" >&2
-echo "" >&2
-
-# Output JSON for programmatic use
-echo "$RESPONSE"
-````
-
-## File: .github/skills/deploy-to-vercel/resources/deploy.sh
-````bash
-#!/bin/bash
-
-# Vercel Deployment Script (via claimable deploy endpoint)
-# Usage: ./deploy.sh [project-path]
-# Returns: JSON with previewUrl, claimUrl, deploymentId, projectId
-
-set -euo pipefail
-
-DEPLOY_ENDPOINT="https://claude-skills-deploy.vercel.com/api/deploy"
-
-# Detect framework from package.json
-detect_framework() {
-    local pkg_json="$1"
-
-    if [ ! -f "$pkg_json" ]; then
-        echo "null"
-        return
-    fi
-
-    local content=$(cat "$pkg_json")
-
-    # Helper to check if a package exists in dependencies or devDependencies.
-    # Use exact matching by default, with a separate prefix matcher for scoped
-    # package families like "@remix-run/".
-    has_dep_exact() {
-        echo "$content" | grep -q "\"$1\""
-    }
-
-    has_dep_prefix() {
-        echo "$content" | grep -q "\"$1"
-    }
-
-    # Order matters - check more specific frameworks first
-
-    # Blitz
-    if has_dep_exact "blitz"; then echo "blitzjs"; return; fi
-
-    # Next.js
-    if has_dep_exact "next"; then echo "nextjs"; return; fi
-
-    # Gatsby
-    if has_dep_exact "gatsby"; then echo "gatsby"; return; fi
-
-    # Remix
-    if has_dep_prefix "@remix-run/"; then echo "remix"; return; fi
-
-    # React Router (v7 framework mode)
-    if has_dep_prefix "@react-router/"; then echo "react-router"; return; fi
-
-    # TanStack Start
-    if has_dep_exact "@tanstack/start"; then echo "tanstack-start"; return; fi
-
-    # Astro
-    if has_dep_exact "astro"; then echo "astro"; return; fi
-
-    # Hydrogen (Shopify)
-    if has_dep_exact "@shopify/hydrogen"; then echo "hydrogen"; return; fi
-
-    # SvelteKit
-    if has_dep_exact "@sveltejs/kit"; then echo "sveltekit-1"; return; fi
-
-    # Svelte (standalone)
-    if has_dep_exact "svelte"; then echo "svelte"; return; fi
-
-    # Nuxt
-    if has_dep_exact "nuxt"; then echo "nuxtjs"; return; fi
-
-    # Vue with Vitepress
-    if has_dep_exact "vitepress"; then echo "vitepress"; return; fi
-
-    # Vue with Vuepress
-    if has_dep_exact "vuepress"; then echo "vuepress"; return; fi
-
-    # Gridsome
-    if has_dep_exact "gridsome"; then echo "gridsome"; return; fi
-
-    # SolidStart
-    if has_dep_exact "@solidjs/start"; then echo "solidstart-1"; return; fi
-
-    # Docusaurus
-    if has_dep_exact "@docusaurus/core"; then echo "docusaurus-2"; return; fi
-
-    # RedwoodJS
-    if has_dep_prefix "@redwoodjs/"; then echo "redwoodjs"; return; fi
-
-    # Hexo
-    if has_dep_exact "hexo"; then echo "hexo"; return; fi
-
-    # Eleventy
-    if has_dep_exact "@11ty/eleventy"; then echo "eleventy"; return; fi
-
-    # Angular / Ionic Angular
-    if has_dep_exact "@ionic/angular"; then echo "ionic-angular"; return; fi
-    if has_dep_exact "@angular/core"; then echo "angular"; return; fi
-
-    # Ionic React
-    if has_dep_exact "@ionic/react"; then echo "ionic-react"; return; fi
-
-    # Create React App
-    if has_dep_exact "react-scripts"; then echo "create-react-app"; return; fi
-
-    # Ember
-    if has_dep_exact "ember-cli" || has_dep_exact "ember-source"; then echo "ember"; return; fi
-
-    # Dojo
-    if has_dep_exact "@dojo/framework"; then echo "dojo"; return; fi
-
-    # Polymer
-    if has_dep_prefix "@polymer/"; then echo "polymer"; return; fi
-
-    # Preact
-    if has_dep_exact "preact"; then echo "preact"; return; fi
-
-    # Stencil
-    if has_dep_exact "@stencil/core"; then echo "stencil"; return; fi
-
-    # UmiJS
-    if has_dep_exact "umi"; then echo "umijs"; return; fi
-
-    # Sapper (legacy Svelte)
-    if has_dep_exact "sapper"; then echo "sapper"; return; fi
-
-    # Saber
-    if has_dep_exact "saber"; then echo "saber"; return; fi
-
-    # Sanity
-    if has_dep_exact "sanity"; then echo "sanity-v3"; return; fi
-    if has_dep_prefix "@sanity/"; then echo "sanity"; return; fi
-
-    # Storybook
-    if has_dep_prefix "@storybook/"; then echo "storybook"; return; fi
-
-    # NestJS
-    if has_dep_exact "@nestjs/core"; then echo "nestjs"; return; fi
-
-    # Elysia
-    if has_dep_exact "elysia"; then echo "elysia"; return; fi
-
-    # Hono
-    if has_dep_exact "hono"; then echo "hono"; return; fi
-
-    # Fastify
-    if has_dep_exact "fastify"; then echo "fastify"; return; fi
-
-    # h3
-    if has_dep_exact "h3"; then echo "h3"; return; fi
-
-    # Nitro
-    if has_dep_exact "nitropack"; then echo "nitro"; return; fi
-
-    # Express
-    if has_dep_exact "express"; then echo "express"; return; fi
-
-    # Vite (generic - check last among JS frameworks)
-    if has_dep_exact "vite"; then echo "vite"; return; fi
-
-    # Parcel
-    if has_dep_exact "parcel"; then echo "parcel"; return; fi
-
-    # No framework detected
-    echo "null"
-}
-
-# Parse arguments
-INPUT_PATH="${1:-.}"
-
-# Create temp directory for packaging
-TEMP_DIR=$(mktemp -d)
-TARBALL="$TEMP_DIR/project.tgz"
-STAGING_DIR="$TEMP_DIR/staging"
-CLEANUP_TEMP=true
-
-cleanup() {
-    if [ "$CLEANUP_TEMP" = true ]; then
-        rm -rf "$TEMP_DIR"
-    fi
-}
-trap cleanup EXIT
-
-echo "Preparing deployment..." >&2
-
-# Check if input is a .tgz file or a directory
-FRAMEWORK="null"
-
-if [ -f "$INPUT_PATH" ] && [[ "$INPUT_PATH" == *.tgz ]]; then
-    # Input is already a tarball, use it directly
-    echo "Using provided tarball..." >&2
-    TARBALL="$INPUT_PATH"
-    CLEANUP_TEMP=false
-    # Can't detect framework from tarball, leave as null
-elif [ -d "$INPUT_PATH" ]; then
-    # Input is a directory, need to tar it
-    PROJECT_PATH=$(cd "$INPUT_PATH" && pwd)
-
-    # Detect framework from package.json
-    FRAMEWORK=$(detect_framework "$PROJECT_PATH/package.json")
-
-    # Stage files into a temporary directory to avoid mutating the source tree.
-    mkdir -p "$STAGING_DIR"
-    echo "Staging project files..." >&2
-    tar -C "$PROJECT_PATH" \
-        --exclude='node_modules' \
-        --exclude='.git' \
-        --exclude='.env' \
-        --exclude='.env.*' \
-        -cf - . | tar -C "$STAGING_DIR" -xf -
-
-    # Check if this is a static HTML project (no package.json)
-    if [ ! -f "$PROJECT_PATH/package.json" ]; then
-        # Find HTML files in root
-        HTML_FILES=$(find "$STAGING_DIR" -maxdepth 1 -name "*.html" -type f)
-        HTML_COUNT=$(printf '%s\n' "$HTML_FILES" | sed '/^$/d' | wc -l | tr -d '[:space:]')
-
-        # If there's exactly one HTML file and it's not index.html, rename it
-        if [ "$HTML_COUNT" -eq 1 ]; then
-            HTML_FILE=$(echo "$HTML_FILES" | head -1)
-            BASENAME=$(basename "$HTML_FILE")
-            if [ "$BASENAME" != "index.html" ]; then
-                echo "Renaming $BASENAME to index.html..." >&2
-                mv "$HTML_FILE" "$STAGING_DIR/index.html"
-            fi
-        fi
-    fi
-
-    # Create tarball from the staging directory
-    echo "Creating deployment package..." >&2
-    tar -czf "$TARBALL" -C "$STAGING_DIR" .
-else
-    echo "Error: Input must be a directory or a .tgz file" >&2
-    exit 1
-fi
-
-if [ "$FRAMEWORK" != "null" ]; then
-    echo "Detected framework: $FRAMEWORK" >&2
-fi
-
-# Deploy
-echo "Deploying..." >&2
-RESPONSE=$(curl -s -X POST "$DEPLOY_ENDPOINT" -F "file=@$TARBALL" -F "framework=$FRAMEWORK")
-
-# Check for error in response
-if echo "$RESPONSE" | grep -q '"error"'; then
-    ERROR_MSG=$(echo "$RESPONSE" | grep -o '"error":"[^"]*"' | cut -d'"' -f4)
-    echo "Error: $ERROR_MSG" >&2
-    exit 1
-fi
-
-# Extract URLs from response
-PREVIEW_URL=$(echo "$RESPONSE" | grep -o '"previewUrl":"[^"]*"' | cut -d'"' -f4)
-CLAIM_URL=$(echo "$RESPONSE" | grep -o '"claimUrl":"[^"]*"' | cut -d'"' -f4)
-
-if [ -z "$PREVIEW_URL" ]; then
-    echo "Error: Could not extract preview URL from response" >&2
-    echo "$RESPONSE" >&2
-    exit 1
-fi
-
-echo "Deployment started. Waiting for build to complete..." >&2
-echo "Preview URL: $PREVIEW_URL" >&2
-
-# Poll the preview URL until it returns a non-5xx response (5xx = still building)
-MAX_ATTEMPTS=60  # 5 minutes max (60 * 5 seconds)
-ATTEMPT=0
-
-while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PREVIEW_URL")
-
-    if [ "$HTTP_STATUS" -eq 200 ]; then
-        echo "" >&2
-        echo "Deployment ready!" >&2
-        break
-    elif [ "$HTTP_STATUS" -ge 500 ]; then
-        # 5xx means still building/deploying
-        echo "Building... (attempt $((ATTEMPT + 1))/$MAX_ATTEMPTS)" >&2
-        sleep 5
-        ATTEMPT=$((ATTEMPT + 1))
-    elif [ "$HTTP_STATUS" -ge 400 ] && [ "$HTTP_STATUS" -lt 500 ]; then
-        # 4xx might be an error or the app itself returns 4xx - it's responding
-        echo "" >&2
-        echo "Deployment ready (returned $HTTP_STATUS)!" >&2
-        break
-    else
-        # Any other status, assume it's ready
-        echo "" >&2
-        echo "Deployment ready!" >&2
-        break
-    fi
-done
-
-if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
-    echo "" >&2
-    echo "Warning: Timed out waiting for deployment, but it may still be building." >&2
-fi
-
-echo "" >&2
-echo "Preview URL: $PREVIEW_URL" >&2
-echo "Claim URL:   $CLAIM_URL" >&2
-echo "" >&2
-
-# Output JSON for programmatic use
-echo "$RESPONSE"
-````
-
 ## File: .github/skills/deploy-to-vercel/SKILL.md
 ````markdown
 ---
@@ -4241,1033 +4512,6 @@ Use for component architecture and state-composition refactors in React codebase
 - Run `npm run build`
 ````
 
-## File: .github/skills/vercel-composition-patterns/README.md
-````markdown
-# React Composition Patterns
-
-A structured repository for React composition patterns that scale. These
-patterns help avoid boolean prop proliferation by using compound components,
-lifting state, and composing internals.
-
-## Structure
-
-- `rules/` - Individual rule files (one per rule)
-  - `_sections.md` - Section metadata (titles, impacts, descriptions)
-  - `_template.md` - Template for creating new rules
-  - `area-description.md` - Individual rule files
-- `metadata.json` - Document metadata (version, organization, abstract)
-- **`AGENTS.md`** - Compiled output (generated)
-
-## Rules
-
-### Component Architecture (CRITICAL)
-
-- `architecture-avoid-boolean-props.md` - Don't add boolean props to customize
-  behavior
-- `architecture-compound-components.md` - Structure as compound components with
-  shared context
-
-### State Management (HIGH)
-
-- `state-lift-state.md` - Lift state into provider components
-- `state-context-interface.md` - Define clear context interfaces
-  (state/actions/meta)
-- `state-decouple-implementation.md` - Decouple state management from UI
-
-### Implementation Patterns (MEDIUM)
-
-- `patterns-children-over-render-props.md` - Prefer children over renderX props
-- `patterns-explicit-variants.md` - Create explicit component variants
-
-## Core Principles
-
-1. **Composition over configuration** — Instead of adding props, let consumers
-   compose
-2. **Lift your state** — State in providers, not trapped in components
-3. **Compose your internals** — Subcomponents access context, not props
-4. **Explicit variants** — Create ThreadComposer, EditComposer, not Composer
-   with isThread
-
-## Creating a New Rule
-
-1. Copy `rules/_template.md` to `rules/area-description.md`
-2. Choose the appropriate area prefix:
-   - `architecture-` for Component Architecture
-   - `state-` for State Management
-   - `patterns-` for Implementation Patterns
-3. Fill in the frontmatter and content
-4. Ensure you have clear examples with explanations
-
-## Impact Levels
-
-- `CRITICAL` - Foundational patterns, prevents unmaintainable code
-- `HIGH` - Significant maintainability improvements
-- `MEDIUM` - Good practices for cleaner code
-````
-
-## File: .github/skills/vercel-composition-patterns/rules/_sections.md
-````markdown
-# Sections
-
-This file defines all sections, their ordering, impact levels, and descriptions.
-The section ID (in parentheses) is the filename prefix used to group rules.
-
----
-
-## 1. Component Architecture (architecture)
-
-**Impact:** HIGH  
-**Description:** Fundamental patterns for structuring components to avoid prop
-proliferation and enable flexible composition.
-
-## 2. State Management (state)
-
-**Impact:** MEDIUM  
-**Description:** Patterns for lifting state and managing shared context across
-composed components.
-
-## 3. Implementation Patterns (patterns)
-
-**Impact:** MEDIUM  
-**Description:** Specific techniques for implementing compound components and
-context providers.
-
-## 4. React 19 APIs (react19)
-
-**Impact:** MEDIUM  
-**Description:** React 19+ only. Don't use `forwardRef`; use `use()` instead of `useContext()`.
-````
-
-## File: .github/skills/vercel-composition-patterns/rules/_template.md
-````markdown
----
-title: Rule Title Here
-impact: MEDIUM
-impactDescription: brief description of impact
-tags: composition, components
----
-
-## Rule Title Here
-
-Brief explanation of the rule and why it matters.
-
-**Incorrect:**
-
-```tsx
-// Bad code example
-```
-
-**Correct:**
-
-```tsx
-// Good code example
-```
-
-Reference: [Link](https://example.com)
-````
-
-## File: .github/skills/vercel-composition-patterns/rules/architecture-avoid-boolean-props.md
-````markdown
----
-title: Avoid Boolean Prop Proliferation
-impact: CRITICAL
-impactDescription: prevents unmaintainable component variants
-tags: composition, props, architecture
----
-
-## Avoid Boolean Prop Proliferation
-
-Don't add boolean props like `isThread`, `isEditing`, `isDMThread` to customize
-component behavior. Each boolean doubles possible states and creates
-unmaintainable conditional logic. Use composition instead.
-
-**Incorrect (boolean props create exponential complexity):**
-
-```tsx
-function Composer({
-  onSubmit,
-  isThread,
-  channelId,
-  isDMThread,
-  dmId,
-  isEditing,
-  isForwarding,
-}: Props) {
-  return (
-    <form>
-      <Header />
-      <Input />
-      {isDMThread ? (
-        <AlsoSendToDMField id={dmId} />
-      ) : isThread ? (
-        <AlsoSendToChannelField id={channelId} />
-      ) : null}
-      {isEditing ? (
-        <EditActions />
-      ) : isForwarding ? (
-        <ForwardActions />
-      ) : (
-        <DefaultActions />
-      )}
-      <Footer onSubmit={onSubmit} />
-    </form>
-  )
-}
-```
-
-**Correct (composition eliminates conditionals):**
-
-```tsx
-// Channel composer
-function ChannelComposer() {
-  return (
-    <Composer.Frame>
-      <Composer.Header />
-      <Composer.Input />
-      <Composer.Footer>
-        <Composer.Attachments />
-        <Composer.Formatting />
-        <Composer.Emojis />
-        <Composer.Submit />
-      </Composer.Footer>
-    </Composer.Frame>
-  )
-}
-
-// Thread composer - adds "also send to channel" field
-function ThreadComposer({ channelId }: { channelId: string }) {
-  return (
-    <Composer.Frame>
-      <Composer.Header />
-      <Composer.Input />
-      <AlsoSendToChannelField id={channelId} />
-      <Composer.Footer>
-        <Composer.Formatting />
-        <Composer.Emojis />
-        <Composer.Submit />
-      </Composer.Footer>
-    </Composer.Frame>
-  )
-}
-
-// Edit composer - different footer actions
-function EditComposer() {
-  return (
-    <Composer.Frame>
-      <Composer.Input />
-      <Composer.Footer>
-        <Composer.Formatting />
-        <Composer.Emojis />
-        <Composer.CancelEdit />
-        <Composer.SaveEdit />
-      </Composer.Footer>
-    </Composer.Frame>
-  )
-}
-```
-
-Each variant is explicit about what it renders. We can share internals without
-sharing a single monolithic parent.
-````
-
-## File: .github/skills/vercel-composition-patterns/rules/architecture-compound-components.md
-````markdown
----
-title: Use Compound Components
-impact: HIGH
-impactDescription: enables flexible composition without prop drilling
-tags: composition, compound-components, architecture
----
-
-## Use Compound Components
-
-Structure complex components as compound components with a shared context. Each
-subcomponent accesses shared state via context, not props. Consumers compose the
-pieces they need.
-
-**Incorrect (monolithic component with render props):**
-
-```tsx
-function Composer({
-  renderHeader,
-  renderFooter,
-  renderActions,
-  showAttachments,
-  showFormatting,
-  showEmojis,
-}: Props) {
-  return (
-    <form>
-      {renderHeader?.()}
-      <Input />
-      {showAttachments && <Attachments />}
-      {renderFooter ? (
-        renderFooter()
-      ) : (
-        <Footer>
-          {showFormatting && <Formatting />}
-          {showEmojis && <Emojis />}
-          {renderActions?.()}
-        </Footer>
-      )}
-    </form>
-  )
-}
-```
-
-**Correct (compound components with shared context):**
-
-```tsx
-const ComposerContext = createContext<ComposerContextValue | null>(null)
-
-function ComposerProvider({ children, state, actions, meta }: ProviderProps) {
-  return (
-    <ComposerContext value={{ state, actions, meta }}>
-      {children}
-    </ComposerContext>
-  )
-}
-
-function ComposerFrame({ children }: { children: React.ReactNode }) {
-  return <form>{children}</form>
-}
-
-function ComposerInput() {
-  const {
-    state,
-    actions: { update },
-    meta: { inputRef },
-  } = use(ComposerContext)
-  return (
-    <TextInput
-      ref={inputRef}
-      value={state.input}
-      onChangeText={(text) => update((s) => ({ ...s, input: text }))}
-    />
-  )
-}
-
-function ComposerSubmit() {
-  const {
-    actions: { submit },
-  } = use(ComposerContext)
-  return <Button onPress={submit}>Send</Button>
-}
-
-// Export as compound component
-const Composer = {
-  Provider: ComposerProvider,
-  Frame: ComposerFrame,
-  Input: ComposerInput,
-  Submit: ComposerSubmit,
-  Header: ComposerHeader,
-  Footer: ComposerFooter,
-  Attachments: ComposerAttachments,
-  Formatting: ComposerFormatting,
-  Emojis: ComposerEmojis,
-}
-```
-
-**Usage:**
-
-```tsx
-<Composer.Provider state={state} actions={actions} meta={meta}>
-  <Composer.Frame>
-    <Composer.Header />
-    <Composer.Input />
-    <Composer.Footer>
-      <Composer.Formatting />
-      <Composer.Submit />
-    </Composer.Footer>
-  </Composer.Frame>
-</Composer.Provider>
-```
-
-Consumers explicitly compose exactly what they need. No hidden conditionals. And the state, actions and meta are dependency-injected by a parent provider, allowing multiple usages of the same component structure.
-````
-
-## File: .github/skills/vercel-composition-patterns/rules/patterns-children-over-render-props.md
-````markdown
----
-title: Prefer Composing Children Over Render Props
-impact: MEDIUM
-impactDescription: cleaner composition, better readability
-tags: composition, children, render-props
----
-
-## Prefer Children Over Render Props
-
-Use `children` for composition instead of `renderX` props. Children are more
-readable, compose naturally, and don't require understanding callback
-signatures.
-
-**Incorrect (render props):**
-
-```tsx
-function Composer({
-  renderHeader,
-  renderFooter,
-  renderActions,
-}: {
-  renderHeader?: () => React.ReactNode
-  renderFooter?: () => React.ReactNode
-  renderActions?: () => React.ReactNode
-}) {
-  return (
-    <form>
-      {renderHeader?.()}
-      <Input />
-      {renderFooter ? renderFooter() : <DefaultFooter />}
-      {renderActions?.()}
-    </form>
-  )
-}
-
-// Usage is awkward and inflexible
-return (
-  <Composer
-    renderHeader={() => <CustomHeader />}
-    renderFooter={() => (
-      <>
-        <Formatting />
-        <Emojis />
-      </>
-    )}
-    renderActions={() => <SubmitButton />}
-  />
-)
-```
-
-**Correct (compound components with children):**
-
-```tsx
-function ComposerFrame({ children }: { children: React.ReactNode }) {
-  return <form>{children}</form>
-}
-
-function ComposerFooter({ children }: { children: React.ReactNode }) {
-  return <footer className='flex'>{children}</footer>
-}
-
-// Usage is flexible
-return (
-  <Composer.Frame>
-    <CustomHeader />
-    <Composer.Input />
-    <Composer.Footer>
-      <Composer.Formatting />
-      <Composer.Emojis />
-      <SubmitButton />
-    </Composer.Footer>
-  </Composer.Frame>
-)
-```
-
-**When render props are appropriate:**
-
-```tsx
-// Render props work well when you need to pass data back
-<List
-  data={items}
-  renderItem={({ item, index }) => <Item item={item} index={index} />}
-/>
-```
-
-Use render props when the parent needs to provide data or state to the child.
-Use children when composing static structure.
-````
-
-## File: .github/skills/vercel-composition-patterns/rules/patterns-explicit-variants.md
-````markdown
----
-title: Create Explicit Component Variants
-impact: MEDIUM
-impactDescription: self-documenting code, no hidden conditionals
-tags: composition, variants, architecture
----
-
-## Create Explicit Component Variants
-
-Instead of one component with many boolean props, create explicit variant
-components. Each variant composes the pieces it needs. The code documents
-itself.
-
-**Incorrect (one component, many modes):**
-
-```tsx
-// What does this component actually render?
-<Composer
-  isThread
-  isEditing={false}
-  channelId='abc'
-  showAttachments
-  showFormatting={false}
-/>
-```
-
-**Correct (explicit variants):**
-
-```tsx
-// Immediately clear what this renders
-<ThreadComposer channelId="abc" />
-
-// Or
-<EditMessageComposer messageId="xyz" />
-
-// Or
-<ForwardMessageComposer messageId="123" />
-```
-
-Each implementation is unique, explicit and self-contained. Yet they can each
-use shared parts.
-
-**Implementation:**
-
-```tsx
-function ThreadComposer({ channelId }: { channelId: string }) {
-  return (
-    <ThreadProvider channelId={channelId}>
-      <Composer.Frame>
-        <Composer.Input />
-        <AlsoSendToChannelField channelId={channelId} />
-        <Composer.Footer>
-          <Composer.Formatting />
-          <Composer.Emojis />
-          <Composer.Submit />
-        </Composer.Footer>
-      </Composer.Frame>
-    </ThreadProvider>
-  )
-}
-
-function EditMessageComposer({ messageId }: { messageId: string }) {
-  return (
-    <EditMessageProvider messageId={messageId}>
-      <Composer.Frame>
-        <Composer.Input />
-        <Composer.Footer>
-          <Composer.Formatting />
-          <Composer.Emojis />
-          <Composer.CancelEdit />
-          <Composer.SaveEdit />
-        </Composer.Footer>
-      </Composer.Frame>
-    </EditMessageProvider>
-  )
-}
-
-function ForwardMessageComposer({ messageId }: { messageId: string }) {
-  return (
-    <ForwardMessageProvider messageId={messageId}>
-      <Composer.Frame>
-        <Composer.Input placeholder="Add a message, if you'd like." />
-        <Composer.Footer>
-          <Composer.Formatting />
-          <Composer.Emojis />
-          <Composer.Mentions />
-        </Composer.Footer>
-      </Composer.Frame>
-    </ForwardMessageProvider>
-  )
-}
-```
-
-Each variant is explicit about:
-
-- What provider/state it uses
-- What UI elements it includes
-- What actions are available
-
-No boolean prop combinations to reason about. No impossible states.
-````
-
-## File: .github/skills/vercel-composition-patterns/rules/react19-no-forwardref.md
-````markdown
----
-title: React 19 API Changes
-impact: MEDIUM
-impactDescription: cleaner component definitions and context usage
-tags: react19, refs, context, hooks
----
-
-## React 19 API Changes
-
-> **⚠️ React 19+ only.** Skip this if you're on React 18 or earlier.
-
-In React 19, `ref` is now a regular prop (no `forwardRef` wrapper needed), and `use()` replaces `useContext()`.
-
-**Incorrect (forwardRef in React 19):**
-
-```tsx
-const ComposerInput = forwardRef<TextInput, Props>((props, ref) => {
-  return <TextInput ref={ref} {...props} />
-})
-```
-
-**Correct (ref as a regular prop):**
-
-```tsx
-function ComposerInput({ ref, ...props }: Props & { ref?: React.Ref<TextInput> }) {
-  return <TextInput ref={ref} {...props} />
-}
-```
-
-**Incorrect (useContext in React 19):**
-
-```tsx
-const value = useContext(MyContext)
-```
-
-**Correct (use instead of useContext):**
-
-```tsx
-const value = use(MyContext)
-```
-
-`use()` can also be called conditionally, unlike `useContext()`.
-````
-
-## File: .github/skills/vercel-composition-patterns/rules/state-context-interface.md
-````markdown
----
-title: Define Generic Context Interfaces for Dependency Injection
-impact: HIGH
-impactDescription: enables dependency-injectable state across use-cases
-tags: composition, context, state, typescript, dependency-injection
----
-
-## Define Generic Context Interfaces for Dependency Injection
-
-Define a **generic interface** for your component context with three parts:
-`state`, `actions`, and `meta`. This interface is a contract that any provider
-can implement—enabling the same UI components to work with completely different
-state implementations.
-
-**Core principle:** Lift state, compose internals, make state
-dependency-injectable.
-
-**Incorrect (UI coupled to specific state implementation):**
-
-```tsx
-function ComposerInput() {
-  // Tightly coupled to a specific hook
-  const { input, setInput } = useChannelComposerState()
-  return <TextInput value={input} onChangeText={setInput} />
-}
-```
-
-**Correct (generic interface enables dependency injection):**
-
-```tsx
-// Define a GENERIC interface that any provider can implement
-interface ComposerState {
-  input: string
-  attachments: Attachment[]
-  isSubmitting: boolean
-}
-
-interface ComposerActions {
-  update: (updater: (state: ComposerState) => ComposerState) => void
-  submit: () => void
-}
-
-interface ComposerMeta {
-  inputRef: React.RefObject<TextInput>
-}
-
-interface ComposerContextValue {
-  state: ComposerState
-  actions: ComposerActions
-  meta: ComposerMeta
-}
-
-const ComposerContext = createContext<ComposerContextValue | null>(null)
-```
-
-**UI components consume the interface, not the implementation:**
-
-```tsx
-function ComposerInput() {
-  const {
-    state,
-    actions: { update },
-    meta,
-  } = use(ComposerContext)
-
-  // This component works with ANY provider that implements the interface
-  return (
-    <TextInput
-      ref={meta.inputRef}
-      value={state.input}
-      onChangeText={(text) => update((s) => ({ ...s, input: text }))}
-    />
-  )
-}
-```
-
-**Different providers implement the same interface:**
-
-```tsx
-// Provider A: Local state for ephemeral forms
-function ForwardMessageProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState(initialState)
-  const inputRef = useRef(null)
-  const submit = useForwardMessage()
-
-  return (
-    <ComposerContext
-      value={{
-        state,
-        actions: { update: setState, submit },
-        meta: { inputRef },
-      }}
-    >
-      {children}
-    </ComposerContext>
-  )
-}
-
-// Provider B: Global synced state for channels
-function ChannelProvider({ channelId, children }: Props) {
-  const { state, update, submit } = useGlobalChannel(channelId)
-  const inputRef = useRef(null)
-
-  return (
-    <ComposerContext
-      value={{
-        state,
-        actions: { update, submit },
-        meta: { inputRef },
-      }}
-    >
-      {children}
-    </ComposerContext>
-  )
-}
-```
-
-**The same composed UI works with both:**
-
-```tsx
-// Works with ForwardMessageProvider (local state)
-<ForwardMessageProvider>
-  <Composer.Frame>
-    <Composer.Input />
-    <Composer.Submit />
-  </Composer.Frame>
-</ForwardMessageProvider>
-
-// Works with ChannelProvider (global synced state)
-<ChannelProvider channelId="abc">
-  <Composer.Frame>
-    <Composer.Input />
-    <Composer.Submit />
-  </Composer.Frame>
-</ChannelProvider>
-```
-
-**Custom UI outside the component can access state and actions:**
-
-The provider boundary is what matters—not the visual nesting. Components that
-need shared state don't have to be inside the `Composer.Frame`. They just need
-to be within the provider.
-
-```tsx
-function ForwardMessageDialog() {
-  return (
-    <ForwardMessageProvider>
-      <Dialog>
-        {/* The composer UI */}
-        <Composer.Frame>
-          <Composer.Input placeholder="Add a message, if you'd like." />
-          <Composer.Footer>
-            <Composer.Formatting />
-            <Composer.Emojis />
-          </Composer.Footer>
-        </Composer.Frame>
-
-        {/* Custom UI OUTSIDE the composer, but INSIDE the provider */}
-        <MessagePreview />
-
-        {/* Actions at the bottom of the dialog */}
-        <DialogActions>
-          <CancelButton />
-          <ForwardButton />
-        </DialogActions>
-      </Dialog>
-    </ForwardMessageProvider>
-  )
-}
-
-// This button lives OUTSIDE Composer.Frame but can still submit based on its context!
-function ForwardButton() {
-  const {
-    actions: { submit },
-  } = use(ComposerContext)
-  return <Button onPress={submit}>Forward</Button>
-}
-
-// This preview lives OUTSIDE Composer.Frame but can read composer's state!
-function MessagePreview() {
-  const { state } = use(ComposerContext)
-  return <Preview message={state.input} attachments={state.attachments} />
-}
-```
-
-The `ForwardButton` and `MessagePreview` are not visually inside the composer
-box, but they can still access its state and actions. This is the power of
-lifting state into providers.
-
-The UI is reusable bits you compose together. The state is dependency-injected
-by the provider. Swap the provider, keep the UI.
-````
-
-## File: .github/skills/vercel-composition-patterns/rules/state-decouple-implementation.md
-````markdown
----
-title: Decouple State Management from UI
-impact: MEDIUM
-impactDescription: enables swapping state implementations without changing UI
-tags: composition, state, architecture
----
-
-## Decouple State Management from UI
-
-The provider component should be the only place that knows how state is managed.
-UI components consume the context interface—they don't know if state comes from
-useState, Zustand, or a server sync.
-
-**Incorrect (UI coupled to state implementation):**
-
-```tsx
-function ChannelComposer({ channelId }: { channelId: string }) {
-  // UI component knows about global state implementation
-  const state = useGlobalChannelState(channelId)
-  const { submit, updateInput } = useChannelSync(channelId)
-
-  return (
-    <Composer.Frame>
-      <Composer.Input
-        value={state.input}
-        onChange={(text) => sync.updateInput(text)}
-      />
-      <Composer.Submit onPress={() => sync.submit()} />
-    </Composer.Frame>
-  )
-}
-```
-
-**Correct (state management isolated in provider):**
-
-```tsx
-// Provider handles all state management details
-function ChannelProvider({
-  channelId,
-  children,
-}: {
-  channelId: string
-  children: React.ReactNode
-}) {
-  const { state, update, submit } = useGlobalChannel(channelId)
-  const inputRef = useRef(null)
-
-  return (
-    <Composer.Provider
-      state={state}
-      actions={{ update, submit }}
-      meta={{ inputRef }}
-    >
-      {children}
-    </Composer.Provider>
-  )
-}
-
-// UI component only knows about the context interface
-function ChannelComposer() {
-  return (
-    <Composer.Frame>
-      <Composer.Header />
-      <Composer.Input />
-      <Composer.Footer>
-        <Composer.Submit />
-      </Composer.Footer>
-    </Composer.Frame>
-  )
-}
-
-// Usage
-function Channel({ channelId }: { channelId: string }) {
-  return (
-    <ChannelProvider channelId={channelId}>
-      <ChannelComposer />
-    </ChannelProvider>
-  )
-}
-```
-
-**Different providers, same UI:**
-
-```tsx
-// Local state for ephemeral forms
-function ForwardMessageProvider({ children }) {
-  const [state, setState] = useState(initialState)
-  const forwardMessage = useForwardMessage()
-
-  return (
-    <Composer.Provider
-      state={state}
-      actions={{ update: setState, submit: forwardMessage }}
-    >
-      {children}
-    </Composer.Provider>
-  )
-}
-
-// Global synced state for channels
-function ChannelProvider({ channelId, children }) {
-  const { state, update, submit } = useGlobalChannel(channelId)
-
-  return (
-    <Composer.Provider state={state} actions={{ update, submit }}>
-      {children}
-    </Composer.Provider>
-  )
-}
-```
-
-The same `Composer.Input` component works with both providers because it only
-depends on the context interface, not the implementation.
-````
-
-## File: .github/skills/vercel-composition-patterns/rules/state-lift-state.md
-````markdown
----
-title: Lift State into Provider Components
-impact: HIGH
-impactDescription: enables state sharing outside component boundaries
-tags: composition, state, context, providers
----
-
-## Lift State into Provider Components
-
-Move state management into dedicated provider components. This allows sibling
-components outside the main UI to access and modify state without prop drilling
-or awkward refs.
-
-**Incorrect (state trapped inside component):**
-
-```tsx
-function ForwardMessageComposer() {
-  const [state, setState] = useState(initialState)
-  const forwardMessage = useForwardMessage()
-
-  return (
-    <Composer.Frame>
-      <Composer.Input />
-      <Composer.Footer />
-    </Composer.Frame>
-  )
-}
-
-// Problem: How does this button access composer state?
-function ForwardMessageDialog() {
-  return (
-    <Dialog>
-      <ForwardMessageComposer />
-      <MessagePreview /> {/* Needs composer state */}
-      <DialogActions>
-        <CancelButton />
-        <ForwardButton /> {/* Needs to call submit */}
-      </DialogActions>
-    </Dialog>
-  )
-}
-```
-
-**Incorrect (useEffect to sync state up):**
-
-```tsx
-function ForwardMessageDialog() {
-  const [input, setInput] = useState('')
-  return (
-    <Dialog>
-      <ForwardMessageComposer onInputChange={setInput} />
-      <MessagePreview input={input} />
-    </Dialog>
-  )
-}
-
-function ForwardMessageComposer({ onInputChange }) {
-  const [state, setState] = useState(initialState)
-  useEffect(() => {
-    onInputChange(state.input) // Sync on every change 😬
-  }, [state.input])
-}
-```
-
-**Incorrect (reading state from ref on submit):**
-
-```tsx
-function ForwardMessageDialog() {
-  const stateRef = useRef(null)
-  return (
-    <Dialog>
-      <ForwardMessageComposer stateRef={stateRef} />
-      <ForwardButton onPress={() => submit(stateRef.current)} />
-    </Dialog>
-  )
-}
-```
-
-**Correct (state lifted to provider):**
-
-```tsx
-function ForwardMessageProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState(initialState)
-  const forwardMessage = useForwardMessage()
-  const inputRef = useRef(null)
-
-  return (
-    <Composer.Provider
-      state={state}
-      actions={{ update: setState, submit: forwardMessage }}
-      meta={{ inputRef }}
-    >
-      {children}
-    </Composer.Provider>
-  )
-}
-
-function ForwardMessageDialog() {
-  return (
-    <ForwardMessageProvider>
-      <Dialog>
-        <ForwardMessageComposer />
-        <MessagePreview /> {/* Custom components can access state and actions */}
-        <DialogActions>
-          <CancelButton />
-          <ForwardButton /> {/* Custom components can access state and actions */}
-        </DialogActions>
-      </Dialog>
-    </ForwardMessageProvider>
-  )
-}
-
-function ForwardButton() {
-  const { actions } = use(Composer.Context)
-  return <Button onPress={actions.submit}>Forward</Button>
-}
-```
-
-The ForwardButton lives outside the Composer.Frame but still has access to the
-submit action because it's within the provider. Even though it's a one-off
-component, it can still access the composer's state and actions from outside the
-UI itself.
-
-**Key insight:** Components that need shared state don't have to be visually
-nested inside each other—they just need to be within the same provider.
-````
-
 ## File: .github/skills/vercel-composition-patterns/SKILL.md
 ````markdown
 ---
@@ -5356,2454 +4600,6 @@ Use this guidance when working on React or Next.js implementation, review, or re
 ## Note
 
 If this file grows large again, move examples to `rules/` and keep this file as a routing index only.
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/advanced-event-handler-refs.md
-````markdown
----
-title: Store Event Handlers in Refs
-impact: LOW
-impactDescription: stable subscriptions
-tags: advanced, hooks, refs, event-handlers, optimization
----
-
-## Store Event Handlers in Refs
-
-Store callbacks in refs when used in effects that shouldn't re-subscribe on callback changes.
-
-**Incorrect (re-subscribes on every render):**
-
-```tsx
-function useWindowEvent(event: string, handler: () => void) {
-  useEffect(() => {
-    window.addEventListener(event, handler)
-    return () => window.removeEventListener(event, handler)
-  }, [event, handler])
-}
-```
-
-**Correct (stable subscription):**
-
-```tsx
-function useWindowEvent(event: string, handler: () => void) {
-  const handlerRef = useRef(handler)
-  useEffect(() => {
-    handlerRef.current = handler
-  }, [handler])
-
-  useEffect(() => {
-    const listener = () => handlerRef.current()
-    window.addEventListener(event, listener)
-    return () => window.removeEventListener(event, listener)
-  }, [event])
-}
-```
-
-**Alternative: use `useEffectEvent` if you're on latest React:**
-
-```tsx
-import { useEffectEvent } from 'react'
-
-function useWindowEvent(event: string, handler: () => void) {
-  const onEvent = useEffectEvent(handler)
-
-  useEffect(() => {
-    window.addEventListener(event, onEvent)
-    return () => window.removeEventListener(event, onEvent)
-  }, [event])
-}
-```
-
-`useEffectEvent` provides a cleaner API for the same pattern: it creates a stable function reference that always calls the latest version of the handler.
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/advanced-use-latest.md
-````markdown
----
-title: useLatest for Stable Callback Refs
-impact: LOW
-impactDescription: prevents effect re-runs
-tags: advanced, hooks, useLatest, refs, optimization
----
-
-## useLatest for Stable Callback Refs
-
-Access latest values in callbacks without adding them to dependency arrays. Prevents effect re-runs while avoiding stale closures.
-
-**Implementation:**
-
-```typescript
-function useLatest<T>(value: T) {
-  const ref = useRef(value)
-  useEffect(() => {
-    ref.current = value
-  }, [value])
-  return ref
-}
-```
-
-**Incorrect (effect re-runs on every callback change):**
-
-```tsx
-function SearchInput({ onSearch }: { onSearch: (q: string) => void }) {
-  const [query, setQuery] = useState('')
-
-  useEffect(() => {
-    const timeout = setTimeout(() => onSearch(query), 300)
-    return () => clearTimeout(timeout)
-  }, [query, onSearch])
-}
-```
-
-**Correct (stable effect, fresh callback):**
-
-```tsx
-function SearchInput({ onSearch }: { onSearch: (q: string) => void }) {
-  const [query, setQuery] = useState('')
-  const onSearchRef = useLatest(onSearch)
-
-  useEffect(() => {
-    const timeout = setTimeout(() => onSearchRef.current(query), 300)
-    return () => clearTimeout(timeout)
-  }, [query])
-}
-```
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/async-api-routes.md
-````markdown
----
-title: Prevent Waterfall Chains in API Routes
-impact: CRITICAL
-impactDescription: 2-10× improvement
-tags: api-routes, server-actions, waterfalls, parallelization
----
-
-## Prevent Waterfall Chains in API Routes
-
-In API routes and Server Actions, start independent operations immediately, even if you don't await them yet.
-
-**Incorrect (config waits for auth, data waits for both):**
-
-```typescript
-export async function GET(request: Request) {
-  const session = await auth()
-  const config = await fetchConfig()
-  const data = await fetchData(session.user.id)
-  return Response.json({ data, config })
-}
-```
-
-**Correct (auth and config start immediately):**
-
-```typescript
-export async function GET(request: Request) {
-  const sessionPromise = auth()
-  const configPromise = fetchConfig()
-  const session = await sessionPromise
-  const [config, data] = await Promise.all([
-    configPromise,
-    fetchData(session.user.id)
-  ])
-  return Response.json({ data, config })
-}
-```
-
-For operations with more complex dependency chains, use `better-all` to automatically maximize parallelism (see Dependency-Based Parallelization).
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/async-defer-await.md
-````markdown
----
-title: Defer Await Until Needed
-impact: HIGH
-impactDescription: avoids blocking unused code paths
-tags: async, await, conditional, optimization
----
-
-## Defer Await Until Needed
-
-Move `await` operations into the branches where they're actually used to avoid blocking code paths that don't need them.
-
-**Incorrect (blocks both branches):**
-
-```typescript
-async function handleRequest(userId: string, skipProcessing: boolean) {
-  const userData = await fetchUserData(userId)
-  
-  if (skipProcessing) {
-    // Returns immediately but still waited for userData
-    return { skipped: true }
-  }
-  
-  // Only this branch uses userData
-  return processUserData(userData)
-}
-```
-
-**Correct (only blocks when needed):**
-
-```typescript
-async function handleRequest(userId: string, skipProcessing: boolean) {
-  if (skipProcessing) {
-    // Returns immediately without waiting
-    return { skipped: true }
-  }
-  
-  // Fetch only when needed
-  const userData = await fetchUserData(userId)
-  return processUserData(userData)
-}
-```
-
-**Another example (early return optimization):**
-
-```typescript
-// Incorrect: always fetches permissions
-async function updateResource(resourceId: string, userId: string) {
-  const permissions = await fetchPermissions(userId)
-  const resource = await getResource(resourceId)
-  
-  if (!resource) {
-    return { error: 'Not found' }
-  }
-  
-  if (!permissions.canEdit) {
-    return { error: 'Forbidden' }
-  }
-  
-  return await updateResourceData(resource, permissions)
-}
-
-// Correct: fetches only when needed
-async function updateResource(resourceId: string, userId: string) {
-  const resource = await getResource(resourceId)
-  
-  if (!resource) {
-    return { error: 'Not found' }
-  }
-  
-  const permissions = await fetchPermissions(userId)
-  
-  if (!permissions.canEdit) {
-    return { error: 'Forbidden' }
-  }
-  
-  return await updateResourceData(resource, permissions)
-}
-```
-
-This optimization is especially valuable when the skipped branch is frequently taken, or when the deferred operation is expensive.
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/async-dependencies.md
-````markdown
----
-title: Dependency-Based Parallelization
-impact: CRITICAL
-impactDescription: 2-10× improvement
-tags: async, parallelization, dependencies, better-all
----
-
-## Dependency-Based Parallelization
-
-For operations with partial dependencies, use `better-all` to maximize parallelism. It automatically starts each task at the earliest possible moment.
-
-**Incorrect (profile waits for config unnecessarily):**
-
-```typescript
-const [user, config] = await Promise.all([
-  fetchUser(),
-  fetchConfig()
-])
-const profile = await fetchProfile(user.id)
-```
-
-**Correct (config and profile run in parallel):**
-
-```typescript
-import { all } from 'better-all'
-
-const { user, config, profile } = await all({
-  async user() { return fetchUser() },
-  async config() { return fetchConfig() },
-  async profile() {
-    return fetchProfile((await this.$.user).id)
-  }
-})
-```
-
-Reference: [https://github.com/shuding/better-all](https://github.com/shuding/better-all)
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/async-parallel.md
-````markdown
----
-title: Promise.all() for Independent Operations
-impact: CRITICAL
-impactDescription: 2-10× improvement
-tags: async, parallelization, promises, waterfalls
----
-
-## Promise.all() for Independent Operations
-
-When async operations have no interdependencies, execute them concurrently using `Promise.all()`.
-
-**Incorrect (sequential execution, 3 round trips):**
-
-```typescript
-const user = await fetchUser()
-const posts = await fetchPosts()
-const comments = await fetchComments()
-```
-
-**Correct (parallel execution, 1 round trip):**
-
-```typescript
-const [user, posts, comments] = await Promise.all([
-  fetchUser(),
-  fetchPosts(),
-  fetchComments()
-])
-```
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/async-suspense-boundaries.md
-````markdown
----
-title: Strategic Suspense Boundaries
-impact: HIGH
-impactDescription: faster initial paint
-tags: async, suspense, streaming, layout-shift
----
-
-## Strategic Suspense Boundaries
-
-Instead of awaiting data in async components before returning JSX, use Suspense boundaries to show the wrapper UI faster while data loads.
-
-**Incorrect (wrapper blocked by data fetching):**
-
-```tsx
-async function Page() {
-  const data = await fetchData() // Blocks entire page
-  
-  return (
-    <div>
-      <div>Sidebar</div>
-      <div>Header</div>
-      <div>
-        <DataDisplay data={data} />
-      </div>
-      <div>Footer</div>
-    </div>
-  )
-}
-```
-
-The entire layout waits for data even though only the middle section needs it.
-
-**Correct (wrapper shows immediately, data streams in):**
-
-```tsx
-function Page() {
-  return (
-    <div>
-      <div>Sidebar</div>
-      <div>Header</div>
-      <div>
-        <Suspense fallback={<Skeleton />}>
-          <DataDisplay />
-        </Suspense>
-      </div>
-      <div>Footer</div>
-    </div>
-  )
-}
-
-async function DataDisplay() {
-  const data = await fetchData() // Only blocks this component
-  return <div>{data.content}</div>
-}
-```
-
-Sidebar, Header, and Footer render immediately. Only DataDisplay waits for data.
-
-**Alternative (share promise across components):**
-
-```tsx
-function Page() {
-  // Start fetch immediately, but don't await
-  const dataPromise = fetchData()
-  
-  return (
-    <div>
-      <div>Sidebar</div>
-      <div>Header</div>
-      <Suspense fallback={<Skeleton />}>
-        <DataDisplay dataPromise={dataPromise} />
-        <DataSummary dataPromise={dataPromise} />
-      </Suspense>
-      <div>Footer</div>
-    </div>
-  )
-}
-
-function DataDisplay({ dataPromise }: { dataPromise: Promise<Data> }) {
-  const data = use(dataPromise) // Unwraps the promise
-  return <div>{data.content}</div>
-}
-
-function DataSummary({ dataPromise }: { dataPromise: Promise<Data> }) {
-  const data = use(dataPromise) // Reuses the same promise
-  return <div>{data.summary}</div>
-}
-```
-
-Both components share the same promise, so only one fetch occurs. Layout renders immediately while both components wait together.
-
-**When NOT to use this pattern:**
-
-- Critical data needed for layout decisions (affects positioning)
-- SEO-critical content above the fold
-- Small, fast queries where suspense overhead isn't worth it
-- When you want to avoid layout shift (loading → content jump)
-
-**Trade-off:** Faster initial paint vs potential layout shift. Choose based on your UX priorities.
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/bundle-barrel-imports.md
-````markdown
----
-title: Avoid Barrel File Imports
-impact: CRITICAL
-impactDescription: 200-800ms import cost, slow builds
-tags: bundle, imports, tree-shaking, barrel-files, performance
----
-
-## Avoid Barrel File Imports
-
-Import directly from source files instead of barrel files to avoid loading thousands of unused modules. **Barrel files** are entry points that re-export multiple modules (e.g., `index.js` that does `export * from './module'`).
-
-Popular icon and component libraries can have **up to 10,000 re-exports** in their entry file. For many React packages, **it takes 200-800ms just to import them**, affecting both development speed and production cold starts.
-
-**Why tree-shaking doesn't help:** When a library is marked as external (not bundled), the bundler can't optimize it. If you bundle it to enable tree-shaking, builds become substantially slower analyzing the entire module graph.
-
-**Incorrect (imports entire library):**
-
-```tsx
-import { Check, X, Menu } from 'lucide-react'
-// Loads 1,583 modules, takes ~2.8s extra in dev
-// Runtime cost: 200-800ms on every cold start
-
-import { Button, TextField } from '@mui/material'
-// Loads 2,225 modules, takes ~4.2s extra in dev
-```
-
-**Correct (imports only what you need):**
-
-```tsx
-import Check from 'lucide-react/dist/esm/icons/check'
-import X from 'lucide-react/dist/esm/icons/x'
-import Menu from 'lucide-react/dist/esm/icons/menu'
-// Loads only 3 modules (~2KB vs ~1MB)
-
-import Button from '@mui/material/Button'
-import TextField from '@mui/material/TextField'
-// Loads only what you use
-```
-
-**Alternative (Next.js 13.5+):**
-
-```js
-// next.config.js - use optimizePackageImports
-module.exports = {
-  experimental: {
-    optimizePackageImports: ['lucide-react', '@mui/material']
-  }
-}
-
-// Then you can keep the ergonomic barrel imports:
-import { Check, X, Menu } from 'lucide-react'
-// Automatically transformed to direct imports at build time
-```
-
-Direct imports provide 15-70% faster dev boot, 28% faster builds, 40% faster cold starts, and significantly faster HMR.
-
-Libraries commonly affected: `lucide-react`, `@mui/material`, `@mui/icons-material`, `@tabler/icons-react`, `react-icons`, `@headlessui/react`, `@radix-ui/react-*`, `lodash`, `ramda`, `date-fns`, `rxjs`, `react-use`.
-
-Reference: [How we optimized package imports in Next.js](https://vercel.com/blog/how-we-optimized-package-imports-in-next-js)
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/bundle-conditional.md
-````markdown
----
-title: Conditional Module Loading
-impact: HIGH
-impactDescription: loads large data only when needed
-tags: bundle, conditional-loading, lazy-loading
----
-
-## Conditional Module Loading
-
-Load large data or modules only when a feature is activated.
-
-**Example (lazy-load animation frames):**
-
-```tsx
-function AnimationPlayer({ enabled }: { enabled: boolean }) {
-  const [frames, setFrames] = useState<Frame[] | null>(null)
-
-  useEffect(() => {
-    if (enabled && !frames && typeof window !== 'undefined') {
-      import('./animation-frames.js')
-        .then(mod => setFrames(mod.frames))
-        .catch(() => setEnabled(false))
-    }
-  }, [enabled, frames])
-
-  if (!frames) return <Skeleton />
-  return <Canvas frames={frames} />
-}
-```
-
-The `typeof window !== 'undefined'` check prevents bundling this module for SSR, optimizing server bundle size and build speed.
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/bundle-defer-third-party.md
-````markdown
----
-title: Defer Non-Critical Third-Party Libraries
-impact: MEDIUM
-impactDescription: loads after hydration
-tags: bundle, third-party, analytics, defer
----
-
-## Defer Non-Critical Third-Party Libraries
-
-Analytics, logging, and error tracking don't block user interaction. Load them after hydration.
-
-**Incorrect (blocks initial bundle):**
-
-```tsx
-import { Analytics } from '@vercel/analytics/react'
-
-export default function RootLayout({ children }) {
-  return (
-    <html>
-      <body>
-        {children}
-        <Analytics />
-      </body>
-    </html>
-  )
-}
-```
-
-**Correct (loads after hydration):**
-
-```tsx
-import dynamic from 'next/dynamic'
-
-const Analytics = dynamic(
-  () => import('@vercel/analytics/react').then(m => m.Analytics),
-  { ssr: false }
-)
-
-export default function RootLayout({ children }) {
-  return (
-    <html>
-      <body>
-        {children}
-        <Analytics />
-      </body>
-    </html>
-  )
-}
-```
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/bundle-dynamic-imports.md
-````markdown
----
-title: Dynamic Imports for Heavy Components
-impact: CRITICAL
-impactDescription: directly affects TTI and LCP
-tags: bundle, dynamic-import, code-splitting, next-dynamic
----
-
-## Dynamic Imports for Heavy Components
-
-Use `next/dynamic` to lazy-load large components not needed on initial render.
-
-**Incorrect (Monaco bundles with main chunk ~300KB):**
-
-```tsx
-import { MonacoEditor } from './monaco-editor'
-
-function CodePanel({ code }: { code: string }) {
-  return <MonacoEditor value={code} />
-}
-```
-
-**Correct (Monaco loads on demand):**
-
-```tsx
-import dynamic from 'next/dynamic'
-
-const MonacoEditor = dynamic(
-  () => import('./monaco-editor').then(m => m.MonacoEditor),
-  { ssr: false }
-)
-
-function CodePanel({ code }: { code: string }) {
-  return <MonacoEditor value={code} />
-}
-```
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/bundle-preload.md
-````markdown
----
-title: Preload Based on User Intent
-impact: MEDIUM
-impactDescription: reduces perceived latency
-tags: bundle, preload, user-intent, hover
----
-
-## Preload Based on User Intent
-
-Preload heavy bundles before they're needed to reduce perceived latency.
-
-**Example (preload on hover/focus):**
-
-```tsx
-function EditorButton({ onClick }: { onClick: () => void }) {
-  const preload = () => {
-    if (typeof window !== 'undefined') {
-      void import('./monaco-editor')
-    }
-  }
-
-  return (
-    <button
-      onMouseEnter={preload}
-      onFocus={preload}
-      onClick={onClick}
-    >
-      Open Editor
-    </button>
-  )
-}
-```
-
-**Example (preload when feature flag is enabled):**
-
-```tsx
-function FlagsProvider({ children, flags }: Props) {
-  useEffect(() => {
-    if (flags.editorEnabled && typeof window !== 'undefined') {
-      void import('./monaco-editor').then(mod => mod.init())
-    }
-  }, [flags.editorEnabled])
-
-  return <FlagsContext.Provider value={flags}>
-    {children}
-  </FlagsContext.Provider>
-}
-```
-
-The `typeof window !== 'undefined'` check prevents bundling preloaded modules for SSR, optimizing server bundle size and build speed.
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/client-event-listeners.md
-````markdown
----
-title: Deduplicate Global Event Listeners
-impact: LOW
-impactDescription: single listener for N components
-tags: client, swr, event-listeners, subscription
----
-
-## Deduplicate Global Event Listeners
-
-Use `useSWRSubscription()` to share global event listeners across component instances.
-
-**Incorrect (N instances = N listeners):**
-
-```tsx
-function useKeyboardShortcut(key: string, callback: () => void) {
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.metaKey && e.key === key) {
-        callback()
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [key, callback])
-}
-```
-
-When using the `useKeyboardShortcut` hook multiple times, each instance will register a new listener.
-
-**Correct (N instances = 1 listener):**
-
-```tsx
-import useSWRSubscription from 'swr/subscription'
-
-// Module-level Map to track callbacks per key
-const keyCallbacks = new Map<string, Set<() => void>>()
-
-function useKeyboardShortcut(key: string, callback: () => void) {
-  // Register this callback in the Map
-  useEffect(() => {
-    if (!keyCallbacks.has(key)) {
-      keyCallbacks.set(key, new Set())
-    }
-    keyCallbacks.get(key)!.add(callback)
-
-    return () => {
-      const set = keyCallbacks.get(key)
-      if (set) {
-        set.delete(callback)
-        if (set.size === 0) {
-          keyCallbacks.delete(key)
-        }
-      }
-    }
-  }, [key, callback])
-
-  useSWRSubscription('global-keydown', () => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.metaKey && keyCallbacks.has(e.key)) {
-        keyCallbacks.get(e.key)!.forEach(cb => cb())
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  })
-}
-
-function Profile() {
-  // Multiple shortcuts will share the same listener
-  useKeyboardShortcut('p', () => { /* ... */ }) 
-  useKeyboardShortcut('k', () => { /* ... */ })
-  // ...
-}
-```
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/client-swr-dedup.md
-````markdown
----
-title: Use SWR for Automatic Deduplication
-impact: MEDIUM-HIGH
-impactDescription: automatic deduplication
-tags: client, swr, deduplication, data-fetching
----
-
-## Use SWR for Automatic Deduplication
-
-SWR enables request deduplication, caching, and revalidation across component instances.
-
-**Incorrect (no deduplication, each instance fetches):**
-
-```tsx
-function UserList() {
-  const [users, setUsers] = useState([])
-  useEffect(() => {
-    fetch('/api/users')
-      .then(r => r.json())
-      .then(setUsers)
-  }, [])
-}
-```
-
-**Correct (multiple instances share one request):**
-
-```tsx
-import useSWR from 'swr'
-
-function UserList() {
-  const { data: users } = useSWR('/api/users', fetcher)
-}
-```
-
-**For immutable data:**
-
-```tsx
-import { useImmutableSWR } from '@/lib/swr'
-
-function StaticContent() {
-  const { data } = useImmutableSWR('/api/config', fetcher)
-}
-```
-
-**For mutations:**
-
-```tsx
-import { useSWRMutation } from 'swr/mutation'
-
-function UpdateButton() {
-  const { trigger } = useSWRMutation('/api/user', updateUser)
-  return <button onClick={() => trigger()}>Update</button>
-}
-```
-
-Reference: [https://swr.vercel.app](https://swr.vercel.app)
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/js-batch-dom-css.md
-````markdown
----
-title: Batch DOM CSS Changes
-impact: MEDIUM
-impactDescription: reduces reflows/repaints
-tags: javascript, dom, css, performance, reflow
----
-
-## Batch DOM CSS Changes
-
-Avoid changing styles one property at a time. Group multiple CSS changes together via classes or `cssText` to minimize browser reflows.
-
-**Incorrect (multiple reflows):**
-
-```typescript
-function updateElementStyles(element: HTMLElement) {
-  // Each line triggers a reflow
-  element.style.width = '100px'
-  element.style.height = '200px'
-  element.style.backgroundColor = 'blue'
-  element.style.border = '1px solid black'
-}
-```
-
-**Correct (add class - single reflow):**
-
-```typescript
-// CSS file
-.highlighted-box {
-  width: 100px;
-  height: 200px;
-  background-color: blue;
-  border: 1px solid black;
-}
-
-// JavaScript
-function updateElementStyles(element: HTMLElement) {
-  element.classList.add('highlighted-box')
-}
-```
-
-**Correct (change cssText - single reflow):**
-
-```typescript
-function updateElementStyles(element: HTMLElement) {
-  element.style.cssText = `
-    width: 100px;
-    height: 200px;
-    background-color: blue;
-    border: 1px solid black;
-  `
-}
-```
-
-**React example:**
-
-```tsx
-// Incorrect: changing styles one by one
-function Box({ isHighlighted }: { isHighlighted: boolean }) {
-  const ref = useRef<HTMLDivElement>(null)
-  
-  useEffect(() => {
-    if (ref.current && isHighlighted) {
-      ref.current.style.width = '100px'
-      ref.current.style.height = '200px'
-      ref.current.style.backgroundColor = 'blue'
-    }
-  }, [isHighlighted])
-  
-  return <div ref={ref}>Content</div>
-}
-
-// Correct: toggle class
-function Box({ isHighlighted }: { isHighlighted: boolean }) {
-  return (
-    <div className={isHighlighted ? 'highlighted-box' : ''}>
-      Content
-    </div>
-  )
-}
-```
-
-Prefer CSS classes over inline styles when possible. Classes are cached by the browser and provide better separation of concerns.
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/js-cache-function-results.md
-````markdown
----
-title: Cache Repeated Function Calls
-impact: MEDIUM
-impactDescription: avoid redundant computation
-tags: javascript, cache, memoization, performance
----
-
-## Cache Repeated Function Calls
-
-Use a module-level Map to cache function results when the same function is called repeatedly with the same inputs during render.
-
-**Incorrect (redundant computation):**
-
-```typescript
-function ProjectList({ projects }: { projects: Project[] }) {
-  return (
-    <div>
-      {projects.map(project => {
-        // slugify() called 100+ times for same project names
-        const slug = slugify(project.name)
-        
-        return <ProjectCard key={project.id} slug={slug} />
-      })}
-    </div>
-  )
-}
-```
-
-**Correct (cached results):**
-
-```typescript
-// Module-level cache
-const slugifyCache = new Map<string, string>()
-
-function cachedSlugify(text: string): string {
-  if (slugifyCache.has(text)) {
-    return slugifyCache.get(text)!
-  }
-  const result = slugify(text)
-  slugifyCache.set(text, result)
-  return result
-}
-
-function ProjectList({ projects }: { projects: Project[] }) {
-  return (
-    <div>
-      {projects.map(project => {
-        // Computed only once per unique project name
-        const slug = cachedSlugify(project.name)
-        
-        return <ProjectCard key={project.id} slug={slug} />
-      })}
-    </div>
-  )
-}
-```
-
-**Simpler pattern for single-value functions:**
-
-```typescript
-let isLoggedInCache: boolean | null = null
-
-function isLoggedIn(): boolean {
-  if (isLoggedInCache !== null) {
-    return isLoggedInCache
-  }
-  
-  isLoggedInCache = document.cookie.includes('auth=')
-  return isLoggedInCache
-}
-
-// Clear cache when auth changes
-function onAuthChange() {
-  isLoggedInCache = null
-}
-```
-
-Use a Map (not a hook) so it works everywhere: utilities, event handlers, not just React components.
-
-Reference: [How we made the Vercel Dashboard twice as fast](https://vercel.com/blog/how-we-made-the-vercel-dashboard-twice-as-fast)
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/js-cache-property-access.md
-````markdown
----
-title: Cache Property Access in Loops
-impact: LOW-MEDIUM
-impactDescription: reduces lookups
-tags: javascript, loops, optimization, caching
----
-
-## Cache Property Access in Loops
-
-Cache object property lookups in hot paths.
-
-**Incorrect (3 lookups × N iterations):**
-
-```typescript
-for (let i = 0; i < arr.length; i++) {
-  process(obj.config.settings.value)
-}
-```
-
-**Correct (1 lookup total):**
-
-```typescript
-const value = obj.config.settings.value
-const len = arr.length
-for (let i = 0; i < len; i++) {
-  process(value)
-}
-```
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/js-cache-storage.md
-````markdown
----
-title: Cache Storage API Calls
-impact: LOW-MEDIUM
-impactDescription: reduces expensive I/O
-tags: javascript, localStorage, storage, caching, performance
----
-
-## Cache Storage API Calls
-
-`localStorage`, `sessionStorage`, and `document.cookie` are synchronous and expensive. Cache reads in memory.
-
-**Incorrect (reads storage on every call):**
-
-```typescript
-function getTheme() {
-  return localStorage.getItem('theme') ?? 'light'
-}
-// Called 10 times = 10 storage reads
-```
-
-**Correct (Map cache):**
-
-```typescript
-const storageCache = new Map<string, string | null>()
-
-function getLocalStorage(key: string) {
-  if (!storageCache.has(key)) {
-    storageCache.set(key, localStorage.getItem(key))
-  }
-  return storageCache.get(key)
-}
-
-function setLocalStorage(key: string, value: string) {
-  localStorage.setItem(key, value)
-  storageCache.set(key, value)  // keep cache in sync
-}
-```
-
-Use a Map (not a hook) so it works everywhere: utilities, event handlers, not just React components.
-
-**Cookie caching:**
-
-```typescript
-let cookieCache: Record<string, string> | null = null
-
-function getCookie(name: string) {
-  if (!cookieCache) {
-    cookieCache = Object.fromEntries(
-      document.cookie.split('; ').map(c => c.split('='))
-    )
-  }
-  return cookieCache[name]
-}
-```
-
-**Important (invalidate on external changes):**
-
-If storage can change externally (another tab, server-set cookies), invalidate cache:
-
-```typescript
-window.addEventListener('storage', (e) => {
-  if (e.key) storageCache.delete(e.key)
-})
-
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') {
-    storageCache.clear()
-  }
-})
-```
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/js-combine-iterations.md
-````markdown
----
-title: Combine Multiple Array Iterations
-impact: LOW-MEDIUM
-impactDescription: reduces iterations
-tags: javascript, arrays, loops, performance
----
-
-## Combine Multiple Array Iterations
-
-Multiple `.filter()` or `.map()` calls iterate the array multiple times. Combine into one loop.
-
-**Incorrect (3 iterations):**
-
-```typescript
-const admins = users.filter(u => u.isAdmin)
-const testers = users.filter(u => u.isTester)
-const inactive = users.filter(u => !u.isActive)
-```
-
-**Correct (1 iteration):**
-
-```typescript
-const admins: User[] = []
-const testers: User[] = []
-const inactive: User[] = []
-
-for (const user of users) {
-  if (user.isAdmin) admins.push(user)
-  if (user.isTester) testers.push(user)
-  if (!user.isActive) inactive.push(user)
-}
-```
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/js-early-exit.md
-````markdown
----
-title: Early Return from Functions
-impact: LOW-MEDIUM
-impactDescription: avoids unnecessary computation
-tags: javascript, functions, optimization, early-return
----
-
-## Early Return from Functions
-
-Return early when result is determined to skip unnecessary processing.
-
-**Incorrect (processes all items even after finding answer):**
-
-```typescript
-function validateUsers(users: User[]) {
-  let hasError = false
-  let errorMessage = ''
-  
-  for (const user of users) {
-    if (!user.email) {
-      hasError = true
-      errorMessage = 'Email required'
-    }
-    if (!user.name) {
-      hasError = true
-      errorMessage = 'Name required'
-    }
-    // Continues checking all users even after error found
-  }
-  
-  return hasError ? { valid: false, error: errorMessage } : { valid: true }
-}
-```
-
-**Correct (returns immediately on first error):**
-
-```typescript
-function validateUsers(users: User[]) {
-  for (const user of users) {
-    if (!user.email) {
-      return { valid: false, error: 'Email required' }
-    }
-    if (!user.name) {
-      return { valid: false, error: 'Name required' }
-    }
-  }
-
-  return { valid: true }
-}
-```
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/js-hoist-regexp.md
-````markdown
----
-title: Hoist RegExp Creation
-impact: LOW-MEDIUM
-impactDescription: avoids recreation
-tags: javascript, regexp, optimization, memoization
----
-
-## Hoist RegExp Creation
-
-Don't create RegExp inside render. Hoist to module scope or memoize with `useMemo()`.
-
-**Incorrect (new RegExp every render):**
-
-```tsx
-function Highlighter({ text, query }: Props) {
-  const regex = new RegExp(`(${query})`, 'gi')
-  const parts = text.split(regex)
-  return <>{parts.map((part, i) => ...)}</>
-}
-```
-
-**Correct (memoize or hoist):**
-
-```tsx
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-function Highlighter({ text, query }: Props) {
-  const regex = useMemo(
-    () => new RegExp(`(${escapeRegex(query)})`, 'gi'),
-    [query]
-  )
-  const parts = text.split(regex)
-  return <>{parts.map((part, i) => ...)}</>
-}
-```
-
-**Warning (global regex has mutable state):**
-
-Global regex (`/g`) has mutable `lastIndex` state:
-
-```typescript
-const regex = /foo/g
-regex.test('foo')  // true, lastIndex = 3
-regex.test('foo')  // false, lastIndex = 0
-```
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/js-index-maps.md
-````markdown
----
-title: Build Index Maps for Repeated Lookups
-impact: LOW-MEDIUM
-impactDescription: 1M ops to 2K ops
-tags: javascript, map, indexing, optimization, performance
----
-
-## Build Index Maps for Repeated Lookups
-
-Multiple `.find()` calls by the same key should use a Map.
-
-**Incorrect (O(n) per lookup):**
-
-```typescript
-function processOrders(orders: Order[], users: User[]) {
-  return orders.map(order => ({
-    ...order,
-    user: users.find(u => u.id === order.userId)
-  }))
-}
-```
-
-**Correct (O(1) per lookup):**
-
-```typescript
-function processOrders(orders: Order[], users: User[]) {
-  const userById = new Map(users.map(u => [u.id, u]))
-
-  return orders.map(order => ({
-    ...order,
-    user: userById.get(order.userId)
-  }))
-}
-```
-
-Build map once (O(n)), then all lookups are O(1).
-For 1000 orders × 1000 users: 1M ops → 2K ops.
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/js-length-check-first.md
-````markdown
----
-title: Early Length Check for Array Comparisons
-impact: MEDIUM-HIGH
-impactDescription: avoids expensive operations when lengths differ
-tags: javascript, arrays, performance, optimization, comparison
----
-
-## Early Length Check for Array Comparisons
-
-When comparing arrays with expensive operations (sorting, deep equality, serialization), check lengths first. If lengths differ, the arrays cannot be equal.
-
-In real-world applications, this optimization is especially valuable when the comparison runs in hot paths (event handlers, render loops).
-
-**Incorrect (always runs expensive comparison):**
-
-```typescript
-function hasChanges(current: string[], original: string[]) {
-  // Always sorts and joins, even when lengths differ
-  return current.sort().join() !== original.sort().join()
-}
-```
-
-Two O(n log n) sorts run even when `current.length` is 5 and `original.length` is 100. There is also overhead of joining the arrays and comparing the strings.
-
-**Correct (O(1) length check first):**
-
-```typescript
-function hasChanges(current: string[], original: string[]) {
-  // Early return if lengths differ
-  if (current.length !== original.length) {
-    return true
-  }
-  // Only sort/join when lengths match
-  const currentSorted = current.toSorted()
-  const originalSorted = original.toSorted()
-  for (let i = 0; i < currentSorted.length; i++) {
-    if (currentSorted[i] !== originalSorted[i]) {
-      return true
-    }
-  }
-  return false
-}
-```
-
-This new approach is more efficient because:
-- It avoids the overhead of sorting and joining the arrays when lengths differ
-- It avoids consuming memory for the joined strings (especially important for large arrays)
-- It avoids mutating the original arrays
-- It returns early when a difference is found
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/js-min-max-loop.md
-````markdown
----
-title: Use Loop for Min/Max Instead of Sort
-impact: LOW
-impactDescription: O(n) instead of O(n log n)
-tags: javascript, arrays, performance, sorting, algorithms
----
-
-## Use Loop for Min/Max Instead of Sort
-
-Finding the smallest or largest element only requires a single pass through the array. Sorting is wasteful and slower.
-
-**Incorrect (O(n log n) - sort to find latest):**
-
-```typescript
-interface Project {
-  id: string
-  name: string
-  updatedAt: number
-}
-
-function getLatestProject(projects: Project[]) {
-  const sorted = [...projects].sort((a, b) => b.updatedAt - a.updatedAt)
-  return sorted[0]
-}
-```
-
-Sorts the entire array just to find the maximum value.
-
-**Incorrect (O(n log n) - sort for oldest and newest):**
-
-```typescript
-function getOldestAndNewest(projects: Project[]) {
-  const sorted = [...projects].sort((a, b) => a.updatedAt - b.updatedAt)
-  return { oldest: sorted[0], newest: sorted[sorted.length - 1] }
-}
-```
-
-Still sorts unnecessarily when only min/max are needed.
-
-**Correct (O(n) - single loop):**
-
-```typescript
-function getLatestProject(projects: Project[]) {
-  if (projects.length === 0) return null
-  
-  let latest = projects[0]
-  
-  for (let i = 1; i < projects.length; i++) {
-    if (projects[i].updatedAt > latest.updatedAt) {
-      latest = projects[i]
-    }
-  }
-  
-  return latest
-}
-
-function getOldestAndNewest(projects: Project[]) {
-  if (projects.length === 0) return { oldest: null, newest: null }
-  
-  let oldest = projects[0]
-  let newest = projects[0]
-  
-  for (let i = 1; i < projects.length; i++) {
-    if (projects[i].updatedAt < oldest.updatedAt) oldest = projects[i]
-    if (projects[i].updatedAt > newest.updatedAt) newest = projects[i]
-  }
-  
-  return { oldest, newest }
-}
-```
-
-Single pass through the array, no copying, no sorting.
-
-**Alternative (Math.min/Math.max for small arrays):**
-
-```typescript
-const numbers = [5, 2, 8, 1, 9]
-const min = Math.min(...numbers)
-const max = Math.max(...numbers)
-```
-
-This works for small arrays but can be slower for very large arrays due to spread operator limitations. Use the loop approach for reliability.
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/js-set-map-lookups.md
-````markdown
----
-title: Use Set/Map for O(1) Lookups
-impact: LOW-MEDIUM
-impactDescription: O(n) to O(1)
-tags: javascript, set, map, data-structures, performance
----
-
-## Use Set/Map for O(1) Lookups
-
-Convert arrays to Set/Map for repeated membership checks.
-
-**Incorrect (O(n) per check):**
-
-```typescript
-const allowedIds = ['a', 'b', 'c', ...]
-items.filter(item => allowedIds.includes(item.id))
-```
-
-**Correct (O(1) per check):**
-
-```typescript
-const allowedIds = new Set(['a', 'b', 'c', ...])
-items.filter(item => allowedIds.has(item.id))
-```
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/js-tosorted-immutable.md
-````markdown
----
-title: Use toSorted() Instead of sort() for Immutability
-impact: MEDIUM-HIGH
-impactDescription: prevents mutation bugs in React state
-tags: javascript, arrays, immutability, react, state, mutation
----
-
-## Use toSorted() Instead of sort() for Immutability
-
-`.sort()` mutates the array in place, which can cause bugs with React state and props. Use `.toSorted()` to create a new sorted array without mutation.
-
-**Incorrect (mutates original array):**
-
-```typescript
-function UserList({ users }: { users: User[] }) {
-  // Mutates the users prop array!
-  const sorted = useMemo(
-    () => users.sort((a, b) => a.name.localeCompare(b.name)),
-    [users]
-  )
-  return <div>{sorted.map(renderUser)}</div>
-}
-```
-
-**Correct (creates new array):**
-
-```typescript
-function UserList({ users }: { users: User[] }) {
-  // Creates new sorted array, original unchanged
-  const sorted = useMemo(
-    () => users.toSorted((a, b) => a.name.localeCompare(b.name)),
-    [users]
-  )
-  return <div>{sorted.map(renderUser)}</div>
-}
-```
-
-**Why this matters in React:**
-
-1. Props/state mutations break React's immutability model - React expects props and state to be treated as read-only
-2. Causes stale closure bugs - Mutating arrays inside closures (callbacks, effects) can lead to unexpected behavior
-
-**Browser support (fallback for older browsers):**
-
-`.toSorted()` is available in all modern browsers (Chrome 110+, Safari 16+, Firefox 115+, Node.js 20+). For older environments, use spread operator:
-
-```typescript
-// Fallback for older browsers
-const sorted = [...items].sort((a, b) => a.value - b.value)
-```
-
-**Other immutable array methods:**
-
-- `.toSorted()` - immutable sort
-- `.toReversed()` - immutable reverse
-- `.toSpliced()` - immutable splice
-- `.with()` - immutable element replacement
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/rendering-activity.md
-````markdown
----
-title: Use Activity Component for Show/Hide
-impact: MEDIUM
-impactDescription: preserves state/DOM
-tags: rendering, activity, visibility, state-preservation
----
-
-## Use Activity Component for Show/Hide
-
-Use React's `<Activity>` to preserve state/DOM for expensive components that frequently toggle visibility.
-
-**Usage:**
-
-```tsx
-import { Activity } from 'react'
-
-function Dropdown({ isOpen }: Props) {
-  return (
-    <Activity mode={isOpen ? 'visible' : 'hidden'}>
-      <ExpensiveMenu />
-    </Activity>
-  )
-}
-```
-
-Avoids expensive re-renders and state loss.
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/rendering-animate-svg-wrapper.md
-````markdown
----
-title: Animate SVG Wrapper Instead of SVG Element
-impact: LOW
-impactDescription: enables hardware acceleration
-tags: rendering, svg, css, animation, performance
----
-
-## Animate SVG Wrapper Instead of SVG Element
-
-Many browsers don't have hardware acceleration for CSS3 animations on SVG elements. Wrap SVG in a `<div>` and animate the wrapper instead.
-
-**Incorrect (animating SVG directly - no hardware acceleration):**
-
-```tsx
-function LoadingSpinner() {
-  return (
-    <svg 
-      className="animate-spin"
-      width="24" 
-      height="24" 
-      viewBox="0 0 24 24"
-    >
-      <circle cx="12" cy="12" r="10" stroke="currentColor" />
-    </svg>
-  )
-}
-```
-
-**Correct (animating wrapper div - hardware accelerated):**
-
-```tsx
-function LoadingSpinner() {
-  return (
-    <div className="animate-spin">
-      <svg 
-        width="24" 
-        height="24" 
-        viewBox="0 0 24 24"
-      >
-        <circle cx="12" cy="12" r="10" stroke="currentColor" />
-      </svg>
-    </div>
-  )
-}
-```
-
-This applies to all CSS transforms and transitions (`transform`, `opacity`, `translate`, `scale`, `rotate`). The wrapper div allows browsers to use GPU acceleration for smoother animations.
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/rendering-conditional-render.md
-````markdown
----
-title: Use Explicit Conditional Rendering
-impact: LOW
-impactDescription: prevents rendering 0 or NaN
-tags: rendering, conditional, jsx, falsy-values
----
-
-## Use Explicit Conditional Rendering
-
-Use explicit ternary operators (`? :`) instead of `&&` for conditional rendering when the condition can be `0`, `NaN`, or other falsy values that render.
-
-**Incorrect (renders "0" when count is 0):**
-
-```tsx
-function Badge({ count }: { count: number }) {
-  return (
-    <div>
-      {count && <span className="badge">{count}</span>}
-    </div>
-  )
-}
-
-// When count = 0, renders: <div>0</div>
-// When count = 5, renders: <div><span class="badge">5</span></div>
-```
-
-**Correct (renders nothing when count is 0):**
-
-```tsx
-function Badge({ count }: { count: number }) {
-  return (
-    <div>
-      {count > 0 ? <span className="badge">{count}</span> : null}
-    </div>
-  )
-}
-
-// When count = 0, renders: <div></div>
-// When count = 5, renders: <div><span class="badge">5</span></div>
-```
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/rendering-content-visibility.md
-````markdown
----
-title: CSS content-visibility for Long Lists
-impact: HIGH
-impactDescription: faster initial render
-tags: rendering, css, content-visibility, long-lists
----
-
-## CSS content-visibility for Long Lists
-
-Apply `content-visibility: auto` to defer off-screen rendering.
-
-**CSS:**
-
-```css
-.message-item {
-  content-visibility: auto;
-  contain-intrinsic-size: 0 80px;
-}
-```
-
-**Example:**
-
-```tsx
-function MessageList({ messages }: { messages: Message[] }) {
-  return (
-    <div className="overflow-y-auto h-screen">
-      {messages.map(msg => (
-        <div key={msg.id} className="message-item">
-          <Avatar user={msg.author} />
-          <div>{msg.content}</div>
-        </div>
-      ))}
-    </div>
-  )
-}
-```
-
-For 1000 messages, browser skips layout/paint for ~990 off-screen items (10× faster initial render).
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/rendering-hoist-jsx.md
-````markdown
----
-title: Hoist Static JSX Elements
-impact: LOW
-impactDescription: avoids re-creation
-tags: rendering, jsx, static, optimization
----
-
-## Hoist Static JSX Elements
-
-Extract static JSX outside components to avoid re-creation.
-
-**Incorrect (recreates element every render):**
-
-```tsx
-function LoadingSkeleton() {
-  return <div className="animate-pulse h-20 bg-gray-200" />
-}
-
-function Container() {
-  return (
-    <div>
-      {loading && <LoadingSkeleton />}
-    </div>
-  )
-}
-```
-
-**Correct (reuses same element):**
-
-```tsx
-const loadingSkeleton = (
-  <div className="animate-pulse h-20 bg-gray-200" />
-)
-
-function Container() {
-  return (
-    <div>
-      {loading && loadingSkeleton}
-    </div>
-  )
-}
-```
-
-This is especially helpful for large and static SVG nodes, which can be expensive to recreate on every render.
-
-**Note:** If your project has [React Compiler](https://react.dev/learn/react-compiler) enabled, the compiler automatically hoists static JSX elements and optimizes component re-renders, making manual hoisting unnecessary.
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/rendering-hydration-no-flicker.md
-````markdown
----
-title: Prevent Hydration Mismatch Without Flickering
-impact: MEDIUM
-impactDescription: avoids visual flicker and hydration errors
-tags: rendering, ssr, hydration, localStorage, flicker
----
-
-## Prevent Hydration Mismatch Without Flickering
-
-When rendering content that depends on client-side storage (localStorage, cookies), avoid both SSR breakage and post-hydration flickering by injecting a synchronous script that updates the DOM before React hydrates.
-
-**Incorrect (breaks SSR):**
-
-```tsx
-function ThemeWrapper({ children }: { children: ReactNode }) {
-  // localStorage is not available on server - throws error
-  const theme = localStorage.getItem('theme') || 'light'
-  
-  return (
-    <div className={theme}>
-      {children}
-    </div>
-  )
-}
-```
-
-Server-side rendering will fail because `localStorage` is undefined.
-
-**Incorrect (visual flickering):**
-
-```tsx
-function ThemeWrapper({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState('light')
-  
-  useEffect(() => {
-    // Runs after hydration - causes visible flash
-    const stored = localStorage.getItem('theme')
-    if (stored) {
-      setTheme(stored)
-    }
-  }, [])
-  
-  return (
-    <div className={theme}>
-      {children}
-    </div>
-  )
-}
-```
-
-Component first renders with default value (`light`), then updates after hydration, causing a visible flash of incorrect content.
-
-**Correct (no flicker, no hydration mismatch):**
-
-```tsx
-function ThemeWrapper({ children }: { children: ReactNode }) {
-  return (
-    <>
-      <div id="theme-wrapper">
-        {children}
-      </div>
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-            (function() {
-              try {
-                var theme = localStorage.getItem('theme') || 'light';
-                var el = document.getElementById('theme-wrapper');
-                if (el) el.className = theme;
-              } catch (e) {}
-            })();
-          `,
-        }}
-      />
-    </>
-  )
-}
-```
-
-The inline script executes synchronously before showing the element, ensuring the DOM already has the correct value. No flickering, no hydration mismatch.
-
-This pattern is especially useful for theme toggles, user preferences, authentication states, and any client-only data that should render immediately without flashing default values.
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/rendering-svg-precision.md
-````markdown
----
-title: Optimize SVG Precision
-impact: LOW
-impactDescription: reduces file size
-tags: rendering, svg, optimization, svgo
----
-
-## Optimize SVG Precision
-
-Reduce SVG coordinate precision to decrease file size. The optimal precision depends on the viewBox size, but in general reducing precision should be considered.
-
-**Incorrect (excessive precision):**
-
-```svg
-<path d="M 10.293847 20.847362 L 30.938472 40.192837" />
-```
-
-**Correct (1 decimal place):**
-
-```svg
-<path d="M 10.3 20.8 L 30.9 40.2" />
-```
-
-**Automate with SVGO:**
-
-```bash
-npx svgo --precision=1 --multipass icon.svg
-```
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/rerender-defer-reads.md
-````markdown
----
-title: Defer State Reads to Usage Point
-impact: MEDIUM
-impactDescription: avoids unnecessary subscriptions
-tags: rerender, searchParams, localStorage, optimization
----
-
-## Defer State Reads to Usage Point
-
-Don't subscribe to dynamic state (searchParams, localStorage) if you only read it inside callbacks.
-
-**Incorrect (subscribes to all searchParams changes):**
-
-```tsx
-function ShareButton({ chatId }: { chatId: string }) {
-  const searchParams = useSearchParams()
-
-  const handleShare = () => {
-    const ref = searchParams.get('ref')
-    shareChat(chatId, { ref })
-  }
-
-  return <button onClick={handleShare}>Share</button>
-}
-```
-
-**Correct (reads on demand, no subscription):**
-
-```tsx
-function ShareButton({ chatId }: { chatId: string }) {
-  const handleShare = () => {
-    const params = new URLSearchParams(window.location.search)
-    const ref = params.get('ref')
-    shareChat(chatId, { ref })
-  }
-
-  return <button onClick={handleShare}>Share</button>
-}
-```
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/rerender-dependencies.md
-````markdown
----
-title: Narrow Effect Dependencies
-impact: LOW
-impactDescription: minimizes effect re-runs
-tags: rerender, useEffect, dependencies, optimization
----
-
-## Narrow Effect Dependencies
-
-Specify primitive dependencies instead of objects to minimize effect re-runs.
-
-**Incorrect (re-runs on any user field change):**
-
-```tsx
-useEffect(() => {
-  console.log(user.id)
-}, [user])
-```
-
-**Correct (re-runs only when id changes):**
-
-```tsx
-useEffect(() => {
-  console.log(user.id)
-}, [user.id])
-```
-
-**For derived state, compute outside effect:**
-
-```tsx
-// Incorrect: runs on width=767, 766, 765...
-useEffect(() => {
-  if (width < 768) {
-    enableMobileMode()
-  }
-}, [width])
-
-// Correct: runs only on boolean transition
-const isMobile = width < 768
-useEffect(() => {
-  if (isMobile) {
-    enableMobileMode()
-  }
-}, [isMobile])
-```
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/rerender-derived-state.md
-````markdown
----
-title: Subscribe to Derived State
-impact: MEDIUM
-impactDescription: reduces re-render frequency
-tags: rerender, derived-state, media-query, optimization
----
-
-## Subscribe to Derived State
-
-Subscribe to derived boolean state instead of continuous values to reduce re-render frequency.
-
-**Incorrect (re-renders on every pixel change):**
-
-```tsx
-function Sidebar() {
-  const width = useWindowWidth()  // updates continuously
-  const isMobile = width < 768
-  return <nav className={isMobile ? 'mobile' : 'desktop'}>
-}
-```
-
-**Correct (re-renders only when boolean changes):**
-
-```tsx
-function Sidebar() {
-  const isMobile = useMediaQuery('(max-width: 767px)')
-  return <nav className={isMobile ? 'mobile' : 'desktop'}>
-}
-```
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/rerender-functional-setstate.md
-````markdown
----
-title: Use Functional setState Updates
-impact: MEDIUM
-impactDescription: prevents stale closures and unnecessary callback recreations
-tags: react, hooks, useState, useCallback, callbacks, closures
----
-
-## Use Functional setState Updates
-
-When updating state based on the current state value, use the functional update form of setState instead of directly referencing the state variable. This prevents stale closures, eliminates unnecessary dependencies, and creates stable callback references.
-
-**Incorrect (requires state as dependency):**
-
-```tsx
-function TodoList() {
-  const [items, setItems] = useState(initialItems)
-  
-  // Callback must depend on items, recreated on every items change
-  const addItems = useCallback((newItems: Item[]) => {
-    setItems([...items, ...newItems])
-  }, [items])  // ❌ items dependency causes recreations
-  
-  // Risk of stale closure if dependency is forgotten
-  const removeItem = useCallback((id: string) => {
-    setItems(items.filter(item => item.id !== id))
-  }, [])  // ❌ Missing items dependency - will use stale items!
-  
-  return <ItemsEditor items={items} onAdd={addItems} onRemove={removeItem} />
-}
-```
-
-The first callback is recreated every time `items` changes, which can cause child components to re-render unnecessarily. The second callback has a stale closure bug—it will always reference the initial `items` value.
-
-**Correct (stable callbacks, no stale closures):**
-
-```tsx
-function TodoList() {
-  const [items, setItems] = useState(initialItems)
-  
-  // Stable callback, never recreated
-  const addItems = useCallback((newItems: Item[]) => {
-    setItems(curr => [...curr, ...newItems])
-  }, [])  // ✅ No dependencies needed
-  
-  // Always uses latest state, no stale closure risk
-  const removeItem = useCallback((id: string) => {
-    setItems(curr => curr.filter(item => item.id !== id))
-  }, [])  // ✅ Safe and stable
-  
-  return <ItemsEditor items={items} onAdd={addItems} onRemove={removeItem} />
-}
-```
-
-**Benefits:**
-
-1. **Stable callback references** - Callbacks don't need to be recreated when state changes
-2. **No stale closures** - Always operates on the latest state value
-3. **Fewer dependencies** - Simplifies dependency arrays and reduces memory leaks
-4. **Prevents bugs** - Eliminates the most common source of React closure bugs
-
-**When to use functional updates:**
-
-- Any setState that depends on the current state value
-- Inside useCallback/useMemo when state is needed
-- Event handlers that reference state
-- Async operations that update state
-
-**When direct updates are fine:**
-
-- Setting state to a static value: `setCount(0)`
-- Setting state from props/arguments only: `setName(newName)`
-- State doesn't depend on previous value
-
-**Note:** If your project has [React Compiler](https://react.dev/learn/react-compiler) enabled, the compiler can automatically optimize some cases, but functional updates are still recommended for correctness and to prevent stale closure bugs.
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/rerender-lazy-state-init.md
-````markdown
----
-title: Use Lazy State Initialization
-impact: MEDIUM
-impactDescription: wasted computation on every render
-tags: react, hooks, useState, performance, initialization
----
-
-## Use Lazy State Initialization
-
-Pass a function to `useState` for expensive initial values. Without the function form, the initializer runs on every render even though the value is only used once.
-
-**Incorrect (runs on every render):**
-
-```tsx
-function FilteredList({ items }: { items: Item[] }) {
-  // buildSearchIndex() runs on EVERY render, even after initialization
-  const [searchIndex, setSearchIndex] = useState(buildSearchIndex(items))
-  const [query, setQuery] = useState('')
-  
-  // When query changes, buildSearchIndex runs again unnecessarily
-  return <SearchResults index={searchIndex} query={query} />
-}
-
-function UserProfile() {
-  // JSON.parse runs on every render
-  const [settings, setSettings] = useState(
-    JSON.parse(localStorage.getItem('settings') || '{}')
-  )
-  
-  return <SettingsForm settings={settings} onChange={setSettings} />
-}
-```
-
-**Correct (runs only once):**
-
-```tsx
-function FilteredList({ items }: { items: Item[] }) {
-  // buildSearchIndex() runs ONLY on initial render
-  const [searchIndex, setSearchIndex] = useState(() => buildSearchIndex(items))
-  const [query, setQuery] = useState('')
-  
-  return <SearchResults index={searchIndex} query={query} />
-}
-
-function UserProfile() {
-  // JSON.parse runs only on initial render
-  const [settings, setSettings] = useState(() => {
-    const stored = localStorage.getItem('settings')
-    return stored ? JSON.parse(stored) : {}
-  })
-  
-  return <SettingsForm settings={settings} onChange={setSettings} />
-}
-```
-
-Use lazy initialization when computing initial values from localStorage/sessionStorage, building data structures (indexes, maps), reading from the DOM, or performing heavy transformations.
-
-For simple primitives (`useState(0)`), direct references (`useState(props.value)`), or cheap literals (`useState({})`), the function form is unnecessary.
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/rerender-memo.md
-````markdown
----
-title: Extract to Memoized Components
-impact: MEDIUM
-impactDescription: enables early returns
-tags: rerender, memo, useMemo, optimization
----
-
-## Extract to Memoized Components
-
-Extract expensive work into memoized components to enable early returns before computation.
-
-**Incorrect (computes avatar even when loading):**
-
-```tsx
-function Profile({ user, loading }: Props) {
-  const avatar = useMemo(() => {
-    const id = computeAvatarId(user)
-    return <Avatar id={id} />
-  }, [user])
-
-  if (loading) return <Skeleton />
-  return <div>{avatar}</div>
-}
-```
-
-**Correct (skips computation when loading):**
-
-```tsx
-const UserAvatar = memo(function UserAvatar({ user }: { user: User }) {
-  const id = useMemo(() => computeAvatarId(user), [user])
-  return <Avatar id={id} />
-})
-
-function Profile({ user, loading }: Props) {
-  if (loading) return <Skeleton />
-  return (
-    <div>
-      <UserAvatar user={user} />
-    </div>
-  )
-}
-```
-
-**Note:** If your project has [React Compiler](https://react.dev/learn/react-compiler) enabled, manual memoization with `memo()` and `useMemo()` is not necessary. The compiler automatically optimizes re-renders.
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/rerender-transitions.md
-````markdown
----
-title: Use Transitions for Non-Urgent Updates
-impact: MEDIUM
-impactDescription: maintains UI responsiveness
-tags: rerender, transitions, startTransition, performance
----
-
-## Use Transitions for Non-Urgent Updates
-
-Mark frequent, non-urgent state updates as transitions to maintain UI responsiveness.
-
-**Incorrect (blocks UI on every scroll):**
-
-```tsx
-function ScrollTracker() {
-  const [scrollY, setScrollY] = useState(0)
-  useEffect(() => {
-    const handler = () => setScrollY(window.scrollY)
-    window.addEventListener('scroll', handler, { passive: true })
-    return () => window.removeEventListener('scroll', handler)
-  }, [])
-}
-```
-
-**Correct (non-blocking updates):**
-
-```tsx
-import { startTransition } from 'react'
-
-function ScrollTracker() {
-  const [scrollY, setScrollY] = useState(0)
-  useEffect(() => {
-    const handler = () => {
-      startTransition(() => setScrollY(window.scrollY))
-    }
-    window.addEventListener('scroll', handler, { passive: true })
-    return () => window.removeEventListener('scroll', handler)
-  }, [])
-}
-```
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/server-after-nonblocking.md
-````markdown
----
-title: Use after() for Non-Blocking Operations
-impact: MEDIUM
-impactDescription: faster response times
-tags: server, async, logging, analytics, side-effects
----
-
-## Use after() for Non-Blocking Operations
-
-Use Next.js's `after()` to schedule work that should execute after a response is sent. This prevents logging, analytics, and other side effects from blocking the response.
-
-**Incorrect (blocks response):**
-
-```tsx
-import { logUserAction } from '@/app/utils'
-
-export async function POST(request: Request) {
-  // Perform mutation
-  await updateDatabase(request)
-  
-  // Logging blocks the response
-  const userAgent = request.headers.get('user-agent') || 'unknown'
-  await logUserAction({ userAgent })
-  
-  return new Response(JSON.stringify({ status: 'success' }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' }
-  })
-}
-```
-
-**Correct (non-blocking):**
-
-```tsx
-import { after } from 'next/server'
-import { headers, cookies } from 'next/headers'
-import { logUserAction } from '@/app/utils'
-
-export async function POST(request: Request) {
-  // Perform mutation
-  await updateDatabase(request)
-  
-  // Log after response is sent
-  after(async () => {
-    const userAgent = (await headers()).get('user-agent') || 'unknown'
-    const sessionCookie = (await cookies()).get('session-id')?.value || 'anonymous'
-    
-    logUserAction({ sessionCookie, userAgent })
-  })
-  
-  return new Response(JSON.stringify({ status: 'success' }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' }
-  })
-}
-```
-
-The response is sent immediately while logging happens in the background.
-
-**Common use cases:**
-
-- Analytics tracking
-- Audit logging
-- Sending notifications
-- Cache invalidation
-- Cleanup tasks
-
-**Important notes:**
-
-- `after()` runs even if the response fails or redirects
-- Works in Server Actions, Route Handlers, and Server Components
-
-Reference: [https://nextjs.org/docs/app/api-reference/functions/after](https://nextjs.org/docs/app/api-reference/functions/after)
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/server-cache-lru.md
-````markdown
----
-title: Cross-Request LRU Caching
-impact: HIGH
-impactDescription: caches across requests
-tags: server, cache, lru, cross-request
----
-
-## Cross-Request LRU Caching
-
-`React.cache()` only works within one request. For data shared across sequential requests (user clicks button A then button B), use an LRU cache.
-
-**Implementation:**
-
-```typescript
-import { LRUCache } from 'lru-cache'
-
-const cache = new LRUCache<string, any>({
-  max: 1000,
-  ttl: 5 * 60 * 1000  // 5 minutes
-})
-
-export async function getUser(id: string) {
-  const cached = cache.get(id)
-  if (cached) return cached
-
-  const user = await db.user.findUnique({ where: { id } })
-  cache.set(id, user)
-  return user
-}
-
-// Request 1: DB query, result cached
-// Request 2: cache hit, no DB query
-```
-
-Use when sequential user actions hit multiple endpoints needing the same data within seconds.
-
-**With Vercel's [Fluid Compute](https://vercel.com/docs/fluid-compute):** LRU caching is especially effective because multiple concurrent requests can share the same function instance and cache. This means the cache persists across requests without needing external storage like Redis.
-
-**In traditional serverless:** Each invocation runs in isolation, so consider Redis for cross-process caching.
-
-Reference: [https://github.com/isaacs/node-lru-cache](https://github.com/isaacs/node-lru-cache)
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/server-cache-react.md
-````markdown
----
-title: Per-Request Deduplication with React.cache()
-impact: MEDIUM
-impactDescription: deduplicates within request
-tags: server, cache, react-cache, deduplication
----
-
-## Per-Request Deduplication with React.cache()
-
-Use `React.cache()` for server-side request deduplication. Authentication and database queries benefit most.
-
-**Usage:**
-
-```typescript
-import { cache } from 'react'
-
-export const getCurrentUser = cache(async () => {
-  const session = await auth()
-  if (!session?.user?.id) return null
-  return await db.user.findUnique({
-    where: { id: session.user.id }
-  })
-})
-```
-
-Within a single request, multiple calls to `getCurrentUser()` execute the query only once.
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/server-parallel-fetching.md
-````markdown
----
-title: Parallel Data Fetching with Component Composition
-impact: CRITICAL
-impactDescription: eliminates server-side waterfalls
-tags: server, rsc, parallel-fetching, composition
----
-
-## Parallel Data Fetching with Component Composition
-
-React Server Components execute sequentially within a tree. Restructure with composition to parallelize data fetching.
-
-**Incorrect (Sidebar waits for Page's fetch to complete):**
-
-```tsx
-export default async function Page() {
-  const header = await fetchHeader()
-  return (
-    <div>
-      <div>{header}</div>
-      <Sidebar />
-    </div>
-  )
-}
-
-async function Sidebar() {
-  const items = await fetchSidebarItems()
-  return <nav>{items.map(renderItem)}</nav>
-}
-```
-
-**Correct (both fetch simultaneously):**
-
-```tsx
-async function Header() {
-  const data = await fetchHeader()
-  return <div>{data}</div>
-}
-
-async function Sidebar() {
-  const items = await fetchSidebarItems()
-  return <nav>{items.map(renderItem)}</nav>
-}
-
-export default function Page() {
-  return (
-    <div>
-      <Header />
-      <Sidebar />
-    </div>
-  )
-}
-```
-
-**Alternative with children prop:**
-
-```tsx
-async function Layout({ children }: { children: ReactNode }) {
-  const header = await fetchHeader()
-  return (
-    <div>
-      <div>{header}</div>
-      {children}
-    </div>
-  )
-}
-
-async function Sidebar() {
-  const items = await fetchSidebarItems()
-  return <nav>{items.map(renderItem)}</nav>
-}
-
-export default function Page() {
-  return (
-    <Layout>
-      <Sidebar />
-    </Layout>
-  )
-}
-```
-````
-
-## File: .github/skills/vercel-react-best-practices/rules/server-serialization.md
-````markdown
----
-title: Minimize Serialization at RSC Boundaries
-impact: HIGH
-impactDescription: reduces data transfer size
-tags: server, rsc, serialization, props
----
-
-## Minimize Serialization at RSC Boundaries
-
-The React Server/Client boundary serializes all object properties into strings and embeds them in the HTML response and subsequent RSC requests. This serialized data directly impacts page weight and load time, so **size matters a lot**. Only pass fields that the client actually uses.
-
-**Incorrect (serializes all 50 fields):**
-
-```tsx
-async function Page() {
-  const user = await fetchUser()  // 50 fields
-  return <Profile user={user} />
-}
-
-'use client'
-function Profile({ user }: { user: User }) {
-  return <div>{user.name}</div>  // uses 1 field
-}
-```
-
-**Correct (serializes only 1 field):**
-
-```tsx
-async function Page() {
-  const user = await fetchUser()
-  return <Profile name={user.name} />
-}
-
-'use client'
-function Profile({ name }: { name: string }) {
-  return <div>{name}</div>
-}
-```
 ````
 
 ## File: .github/skills/vercel-react-best-practices/SKILL.md
@@ -7936,6 +4732,259 @@ html {
 /* ── Table of Contents block ─────────────────────────────────────────────────── */
 .tiptap-editor .ProseMirror .toc-block {
 .tiptap-editor .ProseMirror .toc-block::before {
+````
+
+## File: apphosting.yaml
+````yaml
+# Settings for Backend (on Cloud Run).
+# See https://firebase.google.com/docs/app-hosting/configure#cloud-run
+runConfig:
+  minInstances: 0
+  # maxInstances: 100
+  # concurrency: 80
+  # cpu: 1
+  # memoryMiB: 512
+
+# Environment variables and secrets.
+env:
+  # --- Firebase Web configuration ---
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: "AIzaSyBkniZGal_Lls4CR3eFuZvSVMZBe73STNs"
+
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "xuanwu-i-00708880-4e2d8.firebaseapp.com"
+
+  - variable: NEXT_PUBLIC_FIREBASE_DATABASE_URL
+    value: "https://xuanwu-i-00708880-4e2d8-default-rtdb.asia-southeast1.firebasedatabase.app"
+
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: "xuanwu-i-00708880-4e2d8"
+
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "xuanwu-i-00708880-4e2d8.firebasestorage.app"
+
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "65970295651"
+
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:65970295651:web:e97e482f1444afbdc93956"
+
+  # --- Web Push (VAPID) ---
+  - variable: NEXT_PUBLIC_VAPID_PUBLIC_KEY
+    value: "BGnZm6Y1hqYG-N-hMnwWuJiEEM9LDO85L69kLqggG9IimGXGjrQpfxhmU9f0DCU_S4G2Ujb9_etDZHWzSpGk0co"
+
+  - variable: VAPID_PRIVATE_KEY
+    secret: VAPID_PRIVATE_KEY
+
+  # --- App Check ---
+  # 注意：Site Key 是公開的，直接放 value 即可；只有 Secret Key 才需要放 secret
+  - variable: NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY
+    value: "6LfSHGgsAAAAAAjTO77dmeQ7rZntLtaB6kOv4qPT"
+
+  # --- Google API ---
+  - variable: GOOGLE_API_KEY
+    secret: GOOGLE_API_KEY
+
+  # --- Document AI Runtime (non-secret) ---
+  - variable: DOCAI_PROJECT_NUMBER
+    value: "65970295651"
+
+  - variable: DOCAI_LOCATION
+    value: "asia-southeast1"
+
+  - variable: DOCAI_CLASSIFIER_PROCESSOR_ID
+    value: "94f84cf3b653b085"
+
+  - variable: DOCAI_EXTRACTOR_PROCESSOR_ID
+    value: "86a3e4af9c5bba38"
+
+  - variable: DOCAI_HTTP_TIMEOUT_MS
+    value: "45000"
+````
+
+## File: CLAUDE.md
+````markdown
+# Xuanwu App — Claude Instructions
+
+Knowledge-management and AI-assisted workspace platform built with Next.js 16 + React 19.
+
+## Essential Reading Order
+
+Before writing any code, read these documents in order:
+
+1. `docs/README.md` — 架構文件索引
+2. `docs/architecture-overview.md` — 全域架構與主域關係
+3. `docs/bounded-contexts.md` — 主域與子域所有權
+4. `docs/ubiquitous-language.md` — 戰略術語權威
+5. `docs/decisions/README.md` — ADR 決策日誌
+6. `modules/<context>/AGENT.md` — 目標主域的任務定義
+
+## Project Structure
+
+```
+app/                  Next.js App Router (UI entry points)
+modules/
+  platform/           治理、身份、權益、AI capability
+  workspace/          協作容器、工作區範疇
+  notion/             正典知識內容
+  notebooklm/         對話、來源、推理輸出
+docs/                 架構文件（DDD、Context Map、ADR）
+py_fn/                Python Cloud Functions（ingestion、embedding）
+packages/             Shared packages
+```
+
+Each module follows Hexagonal Architecture:
+
+```
+modules/<context>/
+  api/                Cross-module entry surface only
+  domain/             Entities, value objects, aggregates, domain events, ports
+  application/        Use cases, command/query contracts, application services
+  infrastructure/     Repository and adapter implementations
+  interfaces/         UI, route/action wiring, input-output translation
+  subdomains/         Sub-domain groupings
+  index.ts            Aggregate export only
+```
+
+## Commands
+
+```bash
+npm run dev              # Start dev server (port 3000)
+npm run build            # Production build + TypeScript check
+npm run lint             # ESLint
+npm run test             # Vitest unit tests
+```
+
+Firebase deployment:
+
+```bash
+npm run deploy:firebase               # Deploy everything
+npm run deploy:firestore:rules        # Firestore rules only
+npm run deploy:functions:py-fn        # Python functions only
+```
+
+## Architecture Rules
+
+### Dependency Direction (immutable)
+
+```
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `domain/` must be framework-free and runtime-agnostic.
+- Never import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
+- Cross-module collaboration must go through `modules/<target>/api/` only.
+
+### Main Domain Relationships (upstream → downstream)
+
+```
+platform → workspace → notion → notebooklm
+platform → notion
+platform → notebooklm
+workspace → notebooklm
+```
+
+platform is governance upstream. Do not invert this.
+
+### Layer Ownership
+
+| Layer | Owns |
+|---|---|
+| `domain/` | Business rules, entities, value objects, aggregates, domain events, repository interfaces |
+| `application/` | Use-case orchestration, command/query contracts |
+| `infrastructure/` | Repository and adapter implementations |
+| `interfaces/` | UI, route/action wiring, input-output translation |
+| `api/` | Cross-module entry surface only |
+
+### Development Order for New Features
+
+1. Define domain (entities, value objects, aggregates, events)
+2. Define application (use cases, DTOs)
+3. Define ports (only if boundary isolation is needed)
+4. Implement infrastructure (adapters, persistence)
+5. Implement interfaces (UI, actions, hooks)
+
+Do not build UI first and backfill domain later.
+
+## Naming Conventions
+
+| Element | Pattern |
+|---|---|
+| Use case file | `verb-noun.use-case.ts` |
+| Repository interface | `PascalCaseRepository` |
+| Repository implementation | `TechnologyPascalCaseRepository` |
+| Domain event discriminant | `module-name.action` |
+
+## Ubiquitous Language — Do Not Mix
+
+| Use | Not |
+|---|---|
+| `Actor` | `User` (when referring to identity) |
+| `Membership` | `User` (when referring to workspace participant) |
+| `KnowledgeArtifact` | `Wiki`, `Doc` |
+| `Conversation` | `Chat` |
+| `Entitlement` | `Plan` (when referring to capability signal) |
+| `Subscription` | `Plan` (when referring to billing plan) |
+
+Cross-domain tokens use published language: `actor reference`, `workspaceId`, `entitlement signal`, `knowledge artifact reference`. Never pass upstream aggregates directly to downstream.
+
+## Tech Stack
+
+- **Framework**: Next.js 16, React 19, TypeScript
+- **Backend**: Firebase (Firestore, Storage, App Hosting), Python Cloud Functions
+- **API**: tRPC
+- **State**: Zustand, XState
+- **Data fetching**: TanStack Query
+- **UI**: Tailwind CSS 4, shadcn/ui, TipTap (rich text)
+- **Validation**: Zod
+- **Testing**: Vitest
+- **Node.js**: v24 required
+
+## Anti-Patterns to Avoid
+
+- Putting framework, transport, storage, or SDK details into `domain/` core
+- Sharing internal models across module boundaries instead of using published language
+- Adding `GetXxxUseCase` — pure reads without business logic belong in query handlers
+- Calling repositories directly from `interfaces/`
+- Creating a new top-level main domain (system has exactly 4: platform, workspace, notion, notebooklm)
+- Using `Shared Kernel` or `Partnership` patterns at main-domain level
+- Mixing ACL and Conformist in the same integration
+
+## Cross-Module Integration Checklist
+
+1. Identify upstream / downstream direction
+2. Define published language tokens
+3. Decide: semantics compatible → Conformist; semantics would pollute local language → Anti-Corruption Layer
+4. Never pass upstream entity or aggregate as downstream canonical model
+````
+
+## File: components.json
+````json
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "radix-nova",
+  "rsc": true,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "app/globals.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "rtl": false,
+  "aliases": {
+    "components": "@ui-shadcn/components",
+    "utils": "@ui-shadcn/utils",
+    "ui": "@ui-shadcn/ui",
+    "lib": "@ui-shadcn/lib",
+    "hooks": "@ui-shadcn/hooks"
+  },
+  "menuColor": "default",
+  "menuAccent": "subtle",
+  "registries": {}
+}
 ````
 
 ## File: docs/architecture-overview.md
@@ -10625,6 +7674,430 @@ flowchart LR
 - 本目錄不是對既有 repo 內容做過語意比對後的歷史還原。
 ````
 
+## File: docs/hard-rules-consolidated.md
+````markdown
+# 50 Hard Rules — Consolidated Architecture Guardrails
+
+**Status**: Consolidated from user request (2026-04-12)  
+**Authority**: AGENTS.md (strategic) + module AGENT.md (tactical)  
+**Purpose**: Prevent late-stage architectural breakage; enforce non-negotiable boundaries
+
+---
+
+## 🗂️ Document Placement Strategy
+
+| Rule Category | Count | Primary Location | Secondary Location |
+|---|---|---|---|
+| **Strategic Ownership** (1, 5-10, 28) | 9 | `AGENTS.md` § Module Ownership | — |
+| **Dependency Direction** (2, 6-7, 49) | 4 | `AGENTS.md` § Anti-Patterns | `eslint.config.mjs` |
+| **Layer Responsibility** (11-13, 21-23) | 7 | `.github/instructions/architecture-core.instructions.md` | Module AGENT.md |
+| **Data Flow & Events** (4, 9, 34-36) | 5 | `.github/instructions/event-driven-state.instructions.md` | RAG docs |
+| **File / Storage / IO** (3, 29-32, 39) | 6 | `.github/instructions/security-rules.instructions.md` | Firestore schema docs |
+| **Permission / Security** (37-38, 40) | 3 | `.github/instructions/security-rules.instructions.md` | Platform docs |
+| **Cross-Module Contracts** (24-27) | 4 | `docs/context-map.md` | Module AGENT.md |
+| **Feature Toggles / Independence** (17) | 1 | Platform feature-flag docs | — |
+| **Anti-Patterns** (46-50) | 5 | `AGENTS.md` § Anti-Patterns | Module AGENT.md |
+
+**Total**: 50 rules consolidated into 8 homes
+
+---
+
+## 📍 LOCATION 1: `AGENTS.md` (Strategic Rules)
+
+### Add to § "Module Ownership Guardrails"
+
+```markdown
+## Strategic Ownership Rules (Hard Constraints)
+
+### Rule 1: Platform is Unique Infrastructure Gateway
+- ✅ platform owns Firebase, Genkit, external AI routing, cross-domain auth
+- ❌ notion, notebooklm NEVER own infra (except local read-only access)
+- ✅ workspace NEVER touches Firebase/Storage/Genkit directly
+
+### Rule 5: Workspace is Orchestration Only
+- ✅ workspace composes module APIs and next.js routing
+- ❌ workspace NEVER contains domain business logic
+- ❌ workspace NEVER makes direct DB/permission decisions
+
+### Rule 6: Cross-Module Access Prohibition
+- ✅ module A imports module B only via `@/modules/b/api`
+- ❌ NO direct imports of domain/, application/, infrastructure/, interfaces/
+- ✅ ALL data sharing via events or published language tokens
+
+### Rule 7: Mandatory Single Entry Point (API Boundary)
+- ✅ Every module must export `api/index.ts` 
+- ✅ `api/` exposes only public surface; hides internals
+- ❌ NO imports from internal module paths outside module
+
+### Rule 8: Platform is Only Infrastructure Layer
+- ✅ Firebase, Genkit, Auth, File Storage, Queue: platform owns
+- ✅ Cross-domain coordination, routing, governance: platform owns
+- ❌ Notion NEVER owns persistence (uses platform.infrastructure APIs)
+- ❌ Notebooklm NEVER owns embedding infra (uses platform.infrastructure APIs)
+
+### Rule 9: Cross-Module Data Flow MUST Use Events or API
+- ✅ When module A needs data from module B: A calls B.api or subscribes to B.event
+- ❌ NO shared in-memory state
+- ❌ NO direct repository access across module boundaries
+- ✅ All state mutations via transaction-protected API calls
+
+### Rule 10: Domain Layer is Externally Independent
+- ✅ domain/ contains entities, value objects, rules; NO framework deps
+- ❌ domain/ NEVER imports: React, Firebase SDK, HTTP client, ORM
+- ❌ domain/ NEVER depends on other modules (even platform)
+- ✅ All external deps injected via ports/adapters
+
+### Rule 28: Platform Cannot Depend on Downstream
+- ✅ platform → workspace | notion | notebooklm (one direction only)
+- ❌ platform NEVER imports from workspace, notion, notebooklm
+- ✅ If platform needs semantic data from notion/notebooklm: notion/notebooklm emit event to platform
+```
+
+### Add to § "Anti-Patterns"
+
+```markdown
+### Hard Anti-Patterns (Will Cause Refactors)
+
+- ❌ **Rule 46**: workspace directly calls Firestore (`firestore.collection().get()`)
+  - Fix: Use `@/modules/platform/api` (FileAPI, PermissionAPI, etc.)
+
+- ❌ **Rule 47**: notebooklm implements its own permission logic
+  - Fix: Call `@/modules/platform/api → PermissionAPI.can()`
+
+- ❌ **Rule 48**: notion directly invokes AI/Genkit
+  - Fix: Notion emits event; platform routes to notebooklm via AI API
+
+- ❌ **Rule 49**: Module imports another module's internal (domain/application/infrastructure)
+  - Fix: Use `@/modules/<target>/api` only
+
+- ❌ **Rule 50**: Business logic written in React component (workspace UI)
+  - Fix: Move to application/ use-case; UI only composes and calls
+```
+
+---
+
+## 📍 LOCATION 2: `.github/instructions/architecture-core.instructions.md`
+
+### Add Section: "Layer Responsibility Rules"
+
+```markdown
+## Layer Responsibility Rules (Hard Constraints)
+
+### Rule 11: Application Layer = Transaction Boundary + Use Case Orchestration
+- ✅ application/ coordinates domain behavior + transaction boundaries
+- ✅ application/ handles command/query DTO translation
+- ✅ application/ publishes domain events
+- ❌ application/ NEVER contains business rules (write in domain/)
+- ❌ application/ NEVER directly calls UI frameworks
+- ✅ Use cases orchestrate only; rules stay in domain
+
+### Rule 12: Repositories Hidden Behind Module Boundary
+- ✅ Repository interface defined in domain/repositories/
+- ✅ Repository implementation hidden in infrastructure/
+- ❌ NO other module calls a module's repository directly
+- ✅ If another module needs aggregate data: call module.api or use events
+
+### Rule 13: DTO ≠ Domain Model
+- ✅ DTO lives in application/dtos/ (structural change contract)
+- ✅ Domain model lives in domain/entities/, domain/aggregates/ (business rules)
+- ❌ NEVER return domain model directly in API response
+- ✅ Map domain → DTO before crossing module boundary
+
+### Rule 16: Firestore Schema Driven by Domain, Not UI
+- ✅ domain/entities define what data exists (invariants, validation)
+- ✅ infrastructure/persistence maps domain → Firestore
+- ❌ UI changes NEVER drive schema changes directly
+- ✅ If UI needs new data: propose to domain; domain approves; schema follows
+
+### Rule 21: UI Layer (workspace + interfaces/) = Zero Business Logic
+- ✅ interfaces/ composes routes, actions, UI components
+- ✅ interfaces/ calls application/ use-cases or services
+- ❌ NO if (business rule) in UI
+- ❌ NO NO permission judgment in UI
+- ❌ NO NO transaction logic in UI
+- ✅ All decisions made server-side; UI only displays result
+
+### Rule 22: Application Layer = Use-Case Driven, Testable
+- ✅ Every use-case has: actor, goal, main scenario, extensions
+- ✅ Use-case can be tested without UI/framework
+- ✅ Use-case has no database import (uses injected repository)
+- ❌ NO generic utility classes masquerading as use-cases
+
+### Rule 23: Domain Layer = Pure, Side-Effect Free
+- ✅ domain/ contains rules, validation, state transitions
+- ✅ domain/ can be tested in isolation with no async
+- ❌ domain/ NEVER makes I/O calls
+- ❌ domain/ NEVER calls external services
+- ✅ domain events emitted; orchestration in application/
+```
+
+---
+
+## 📍 LOCATION 3: `.github/instructions/event-driven-state.instructions.md`
+
+### Add Section: "Event Bus Requirement & Data Flow"
+
+```markdown
+## Event Bus Requirement & Async Data Flow (Hard Constraints)
+
+### Rule 4: Event Bus is Mandatory (Not Optional)
+- ✅ Platform.event-bus/ subdomain must exist and be fully implemented
+- ✅ All cross-module async flows go through event bus
+- ✅ All domain events emitted with: id, timestamp, source, payload schema
+- ❌ NEVER use Queue/RabbitMQ without event schema registry
+
+### Rule 34: Ingestion & Embedding Must Be Async
+- ✅ File upload triggers event; worker processes async
+- ✅ Embedding generation async; client polls or subscribes
+- ❌ NEVER block request until embedding complete
+- ✅ Store job ID; allow client to check status later
+
+### Rule 35: Long Tasks Must Use Queue/Event
+- ✅ AI orchestration, embedding, chunking: async with queue
+- ✅ Non-blocking request → store task ID → return immediately
+- ❌ NEVER setTimeout/promise without proper queue
+- ✅ Task must be retryable and idempotent
+
+### Rule 36: Event Schema is Non-Negotiable
+- ✅ Every event has: id (UUID), timestamp (ISO), source (module), payload
+- ✅ Event schema registered before emission
+- ✅ Event can be replayed from audit log
+- ❌ NO unstructured event payload (use discriminant + payload schema)
+
+### Rule 9: Cross-Module Data Flow = Events or API
+- ✅ When B needs to know about A's change: A emits event; B subscribes
+- ✅ When B needs data from A: B calls A.api (synchronous)
+- ❌ NO B reading A's Firestore collection directly
+- ✅ Events enable loose coupling; API enables strongcontract
+```
+
+---
+
+## 📍 LOCATION 4: `.github/instructions/security-rules.instructions.md`
+
+### Add Section: "File Lifecycle, Metadata, Ownership"
+
+```markdown
+## File & Data Ownership Rules (Hard Constraints)
+
+### Rule 3: File Metadata is Non-Negotiable
+- ✅ EVERY file in Storage has metadata in Firestore
+- ✅ Metadata includes: ownerId, workspaceId, createdAt, lifecycle (active/archived/deleted)
+- ❌ NEVER store-only URL without DB entry
+- ✅ Firestore entry is source of truth for permissions & lifecycle
+
+### Rule 29: File Lifecycle is Explicit
+- ✅ File states: upload → used → archived → deleted
+- ✅ Transitions logged; each state has timestamp
+- ✅ Archived files not deleted immediately (async cleanup after retention)
+- ❌ NO orphaned files (every file must be referenced)
+
+### Rule 30: File Metadata in Database, Not Storage Headers Only
+- ✅ Firestore/Storage both contain metadata; DB is canonical
+- ✅ If Storage Object's custom metadata lost, DB entry remains
+- ❌ NEVER rely on Storage object metadata alone
+- ✅ Schema: collections/files/{fileId} → {ownerId, workspaceId, path, size, ...}
+
+### Rule 31: AI Input Traceability
+- ✅ Every AI request logged: [timestamp, source, input, model, params]
+- ✅ Logging in application/ service before sending to platform.ai
+- ❌ NEVER lose context (prompt + source + groundings)
+- ✅ Can replay prompts; deterministic when possible
+
+### Rule 32: AI Output Reconstructibility
+- ✅ AI output + input + timestamp + model version all stored
+- ✅ Deterministic flow: same input + params → same output (for embedding)
+- ✅ Snapshot stored so rerank/re-retrieval uses same data
+- ❌ NEVER lose ability to rewind/re-generate
+
+### Rule 33: Embedding & Index Reconstructibility
+- ✅ Embeddings stored with source chunk ID + hash
+- ✅ Vector index can be rebuilt from source + embedding service
+- ❌ Vector index is NOT source of truth
+- ✅ Source of truth: Firestore (chunks) + embedding service (vectors)
+
+### Rule 37: Every Resource Has an Owner
+- ✅ Every knowledge artifact, conversation, notebook: {ownerId, workspaceId}
+- ✅ Permission check before access: does request.user == resource.owner | member
+- ❌ NEVER expose resource without owner scope
+- ✅ Cross-workspace access: explicit ACL check
+
+### Rule 38: Permission NEVER Hard-Coded in UI
+- ✅ All permission checks happen server-side
+- ✅ UI conditionally rendered based on server permission response
+- ❌ NEVER hide UI element expecting client-side security
+- ✅ always fallback: permission denied → error message
+
+### Rule 39: Storage Path Contains Scope (Leak Prevention)
+- ✅ Storage paths: `{tenantId}/{workspaceId}/{ownerId}/{fileId}`
+- ✅ Firestore rules prevent cross-tenant access
+- ❌ NEVER path like `storage/uploads/{random}.pdf` (breaks isolation)
+- ✅ Scope visible in path; admins can audit
+
+### Rule 40: All Queries Must Include Scope
+- ✅ Firestore query: `collection.where('workspaceId', '==', workspace).get()`
+- ✅ Database query: `select * from resources where workspace_id = ?`
+- ❌ NEVER query without workspace/tenant filter
+- ✅ Scope enforced in both application and Firestore rules
+```
+
+---
+
+## 📍 LOCATION 5: `docs/context-map.md`
+
+### Add or Extend Section: "Cross-Module Data Contracts"
+
+```markdown
+## Cross-Module Data Flow Rules (Hard Constraints)
+
+### Rule 24: Notebooklm Cannot Direct-Read Firestore
+- ✅ notebooklm reads knowledge artifacts via `@/modules/notion/api`
+- ❌ NEVER: `firestore.collection('notion_pages').get()`
+- ✅ Decouples notebooklm from notion's persistence model
+
+### Rule 25: Notebooklm Data Requests = Via Notion API
+- ✅ If notebooklm.retrieval needs knowledge: calls `notion.api.getKnowledgeArtifacts()`
+- ✅ Notion controls schema; notebooklm consumes contract only
+- ❌ NEVER notebooklm queries notion's Firestore directly
+
+### Rule 26: Notion is Completely Unaware of AI
+- ✅ notion/ has zero imports from notebooklm/
+- ✅ notion/ does not know AI exists
+- ✅ If AI needs notion data: calls notion.api
+- ❌ NO coupling from notion to AI/notebooklm
+
+### Rule 27: Workspace Cannot Direct-Call AI
+- ✅ workspace orchestrates; notebooklm synthesizes
+- ✅ workspace calls notebooklm.api; notebooklm handles AI routing
+- ❌ NEVER workspace imports platform.ai or genkit directly
+- ✅ Decouples UI from AI complexity
+```
+
+---
+
+## 📍 LOCATION 6: Module-Level `AGENT.md` Files
+
+Each module should have its own constraints section, such as:
+
+### **`modules/platform/AGENT.md`** (Add Section)
+
+```markdown
+## Platform-Specific Hard Rules
+
+1. **Rule 1**: Platform infra (Firebase, Genkit, Auth) never directly exposed; wrapped in semantic APIs
+2. **Rule 2**: All consumers access platform via Service API layer only (FileAPI, AIAPI, PermissionAPI, AuthAPI)
+3. **Rule 8**: Platform is only module allowed to import Firebase SDK, Genkit SDK, external AI APIs
+4. **Rule 28**: Platform.api can emit events to downstream; platform.domain never imports downstream modules
+```
+
+### **`modules/workspace/AGENT.md`** (Add Section)
+
+```markdown
+## Workspace-Specific Hard Rules
+
+1. **Rule 5**: Workspace is pure orchestration (routes, actions); zero domain business logic
+2. **Rule 21**: UI components in workspace.interfaces/ NEVER contain business decision logic
+3. **Rule 27**: Workspace never directly calls AI; always goes through notebooklm or platform
+4. **Rule 17**: Workspace feature toggles ensure modules can be disabled; no hard dependencies
+```
+
+### **`modules/notion/AGENT.md`** (Add Section)
+
+```markdown
+## Notion-Specific Hard Rules
+
+1. **Rule 26**: Notion is agnostic of AI systems; zero imports from notebooklm or platform.ai
+2. **Rule 24-25**: Notion owns knowledge artifact authoring; others access via notion.api only
+3. **Rule 24**: Notion controls persistence schema; downstream modules don't query Firestore
+```
+
+### **`modules/notebooklm/AGENT.md`** (Add Section)
+
+```markdown
+## NotebookLM-Specific Hard Rules
+
+1. **Rule 24-25**: All knowledge data requests via notion.api; never direct Firestore
+2. **Rule 27**: Workspace calls notebooklm.api; notebooklm routes to platform.ai internally
+3. **Rule 31-32**: All AI prompts/outputs logged with full traceability metadata
+4. **Rule 34**: Retrieval + synthesis always async; non-blocking to request
+```
+
+---
+
+## 📍 LOCATION 7: ESLint Config (`eslint.config.mjs`)
+
+### Add Custom Rule Enforcement
+
+```javascript
+// Enforce hard rule 2, 6, 49: No cross-module internal imports
+{
+  rules: {
+    "@custom/no-cross-module-internal-import": {
+      enabled: true,
+      allowedPaths: ["api/", "index.ts"],  // Only api/ and root exports allowed
+      blockedPaths: ["domain/", "application/", "infrastructure/", "interfaces/"]
+    },
+    
+    // Enforce hard rule 1, 8: No direct Firebase/Genkit imports outside platform
+    "@custom/no-direct-firebase-outside-platform": {
+      enabled: true,
+      allowedModules: ["platform"],
+      blockedImports: ["firebase", "@google-cloud/genkit"]
+    }
+  }
+}
+```
+
+---
+
+## 🎯 Summary: Where Each Rule Lives
+
+| Rules | Location | File |
+|---|---|---|
+| 1, 5-10, 28 | AGENTS.md | Strategic ownership |
+| 2, 6-7, 49 | AGENTS.md + eslint | Dependency direction |
+| 11-13, 21-23 | architecture-core.instructions.md | Layer responsibility |
+| 4, 9, 34-36 | event-driven-state.instructions.md | Event bus & async |
+| 3, 29-32, 37-40 | security-rules.instructions.md | File/data/permission |
+| 24-27 | context-map.md | Cross-module contracts |
+| 17 | Platform feature-flag docs | Feature independence |
+| 46-50 | AGENTS.md | Anti-patterns |
+| All | Module AGENT.md | Tactical enforcement |
+
+---
+
+## ✅ Enforcement Checklist
+
+### Before Each Merge:
+- [ ] No cross-module imports outside `api/`
+- [ ] No Firebase/Genkit outside platform
+- [ ] All async flows use event bus with schema
+- [ ] File metadata in Firestore
+- [ ] Permission checks server-side only
+- [ ] Domain layer has zero external deps
+- [ ] Application layer orchestrates, not rules
+
+### Before Each Release:
+- [ ] All rules reviewed in relevant AGENT.md
+- [ ] ESLint boundary checks passing
+- [ ] Zero anti-pattern violations (46-50)
+- [ ] Event schemas registered & consistent
+
+---
+
+## 📚 Document Network
+
+- [AGENTS.md](../AGENTS.md) — Strategic ownership & anti-patterns
+- [.github/instructions/architecture-core.instructions.md](../.github/instructions/architecture-core.instructions.md) — Layer responsibility
+- [.github/instructions/event-driven-state.instructions.md](../.github/instructions/event-driven-state.instructions.md) — Event bus & async
+- [.github/instructions/security-rules.instructions.md](../.github/instructions/security-rules.instructions.md) — File/data/permission
+- [docs/context-map.md](./context-map.md) — Cross-module contracts
+- [modules/platform/AGENT.md](../modules/platform/AGENT.md) — Platform constraints
+- [modules/workspace/AGENT.md](../modules/workspace/AGENT.md) — Workspace constraints
+- [modules/notion/AGENT.md](../modules/notion/AGENT.md) — Notion constraints
+- [modules/notebooklm/AGENT.md](../modules/notebooklm/AGENT.md) — NotebookLM constraints
+````
+
 ## File: docs/integration-guidelines.md
 ````markdown
 # Integration Guidelines
@@ -11325,6 +8798,627 @@ flowchart LR
 - 若同一個詞在多主域都想擁有，優先看它服務的是治理、協作範疇、正典內容還是推理輸出。
 ````
 
+## File: firebase.apphosting.json
+````json
+{
+  "apphosting": {
+    "backendId": "xuanwu",
+    "rootDir": "/",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log"
+    ],
+    "alwaysDeployFromSource": true
+  }
+}
+````
+
+## File: firebase.json
+````json
+{
+  "firestore": {
+    "database": "(default)",
+    "location": "asia-east1",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules",
+    "bucket": "xuanwu-i-00708880-4e2d8.firebasestorage.app"
+  },
+  "functions": [
+    {
+      "codebase": "py-fn",
+      "runtime": "python312",
+      "ignore": [
+        "venv",
+        ".venv",
+        "__pycache__",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "source": "py_fn"
+    }
+  ],
+  "apphosting": {
+    "backendId": "xuanwu",
+    "rootDir": "/",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      "functions"
+    ]
+  },
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "i18n": {
+      "root": "/localized-files"
+    }
+  },
+  "emulators": {
+    "dataconnect": {
+      "dataDir": "dataconnect/.dataconnect/pgliteData"
+    }
+  },
+  "dataconnect": {
+    "source": "dataconnect"
+  }
+}
+````
+
+## File: firestore.indexes.json
+````json
+{
+  "indexes": [
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "recipientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "recipientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "read",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "recipientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "read",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceTasks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceQualityChecks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceIssues",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "documents",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "taxonomy",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "documents",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "taxonomy",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "chunks",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "taxonomy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "embedding",
+          "vectorConfig": {
+            "dimension": 4,
+            "flat": {}
+          }
+        }
+      ]
+    },
+    {
+      "collectionGroup": "chunks",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "taxonomy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "embedding",
+          "vectorConfig": {
+            "dimension": 4,
+            "flat": {}
+          }
+        }
+      ]
+    },
+    {
+      "collectionGroup": "dailyEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "publishedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "dailyEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "publishedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "dailyPosts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "accountId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "dailyPosts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceFeedPosts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceFlowTasks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceFlowInvoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceFlowIssues",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "taskId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceFlowIssues",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "taskId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "wikiLibraries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAtISO",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "knowledgeDatabases",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "archived",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAtISO",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "knowledgeDatabases",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "archived",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAtISO",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "databaseRecords",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "databaseId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "order",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "kbArticles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "kbCategories",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "depth",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "contentBlocks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "pageId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "order",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "contentPages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "order",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
+````
+
+## File: firestore.rules
+````
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
+````
+
+## File: llms.txt
+````
+# Xuanwu App
+
+Xuanwu App is a Next.js 16 and React 19 knowledge-management and AI-assisted workspace platform.
+
+This file is the AI-first documentation router for the repository. Read this before opening detailed docs.
+
+## Primary repository truths
+
+- `.github/copilot-instructions.md` — Copilot workspace guidance (always-on baseline)
+- `.github/agents/knowledge-base.md` — Hexagonal DDD architecture, module boundaries, package aliases
+- `.github/agents/commands.md` — Build, lint, test, and deployment workflows
+- `.github/instructions/` — Behavioral constraints (branching, commit, ubiquitous language, bounded contexts)
+- `docs/ubiquitous-language.md` — Strategic DDD terminology authority
+- `docs/bounded-contexts.md` — Bounded context map and responsibilities
+- `docs/subdomains.md` — Subdomain classification (Core, Supporting, Generic)
+- `modules/<context>/context-map.md` — Per-context relationships and anti-corruption patterns
+
+## Documentation reading order
+
+Read from high level to detail:
+
+1. This file (`llms.txt`)
+2. `.github/copilot-instructions.md` (Copilot session contract)
+3. `.github/agents/knowledge-base.md` (Hexagonal DDD foundation)
+4. `.github/agents/commands.md` (Validation and deployment)
+5. `.github/instructions/docs-authority-and-language.instructions.md` (Terminology and docs authority rules)
+6. `.github/instructions/architecture-core.instructions.md` (Module isolation and dependency rules)
+7. `docs/ubiquitous-language.md` (Canonical terminology)
+8. `docs/bounded-contexts.md` (Context ownership matrix)
+9. `docs/subdomains.md` (Strategic classification)
+10. `modules/<context>/` documentation (context-specific detail)
+
+## Topic routing
+
+| Topic | Location |
+|-------|----------|
+| Copilot customization & session contract | `.github/copilot-instructions.md` |
+| Module boundaries & dependency rules | `.github/instructions/architecture-core.instructions.md` |
+| Terminology and naming conventions | `.github/instructions/docs-authority-and-language.instructions.md` |
+| Commit and branching strategy | `.github/instructions/` |
+| Architecture overview & MDDD patterns | `.github/agents/knowledge-base.md` |
+| Build, lint, test commands | `.github/agents/commands.md` |
+| Skill and MCP workflows | `.github/skills/` (serena-mcp, context7, xuanwu-app-skill, hexagonal-ddd) |
+| Strategic DDD routing (subdomains) | `docs/subdomains.md` |
+| Bounded context boundaries | `docs/bounded-contexts.md` |
+| Ubiquitous language & glossary | `docs/ubiquitous-language.md` |
+| Per-context model details | `modules/<context>/ubiquitous-language.md` |
+| Cross-context collaboration | `modules/<context>/context-map.md` |
+
+## Document layers
+
+- **Always-on layer:**
+  - `.github/copilot-instructions.md`
+  - `.github/instructions/` (behavioral constraints)
+- **Foundation layer:**
+  - `.github/agents/knowledge-base.md`
+  - `.github/agents/commands.md`
+  - `docs/ubiquitous-language.md`
+  - `docs/bounded-contexts.md`
+  - `docs/subdomains.md`
+- **Context layer:**
+  - `modules/<context>/ubiquitous-language.md`
+  - `modules/<context>/context-map.md`
+  - `modules/<context>/aggregates.md`
+  - `modules/<context>/repositories.md`
+
+Use the smallest useful layer matching your current task.
+
+## Documentation organization rule
+
+When adding or changing docs:
+
+1. Keep one canonical file per topic.
+2. Add a short summary near the top.
+3. Use clear headings for section-based chunking.
+4. Link to authoritative sources instead of duplicating.
+5. Update this file (`llms.txt`) if routing fundamentally changes.
+6. Use Serena memory tools to record documentation changes.
+
+## AI working rule
+
+Start every session with Serena MCP. If a question spans modules or architecture, consult the DDD reference authority (ubiquitous-language, bounded-contexts, context-map) before implementation.
+````
+
 ## File: modules/notebooklm/docs/README.md
 ````markdown
 # NotebookLM Documentation
@@ -11720,14 +9814,6 @@ export function mapToSourceLiveDocument(
 const n = (v: unknown)
 ````
 
-## File: modules/notebooklm/subdomains/source/application/dto/source.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the source subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-````
-
 ## File: modules/notebooklm/subdomains/source/application/use-cases/wiki-library.helpers.ts
 ````typescript
 /**
@@ -12006,6 +10092,296 @@ export function resolveSourceOrganizationId(
 ): string
 ````
 
+## File: modules/notebooklm/subdomains/synthesis/application/index.ts
+````typescript
+/**
+ * Application layer for notebooklm subdomain 'synthesis'.
+ * Contains RAG pipeline use cases for answer generation and feedback.
+ */
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/entities/generation.entities.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/entities
+ * Purpose: Generation result types for the synthesis layer.
+ *
+ * Design notes:
+ * - These types bridge grounding chunks → natural-language answer.
+ * - RagRetrievedChunk is re-exported from retrieval entities for convenience;
+ *   callers should use these types when working with generation output.
+ */
+⋮----
+import type { DomainError } from "@shared-types";
+⋮----
+import type { RagRetrievedChunk } from "./retrieval.entities";
+⋮----
+/** Attribution claim within a generated answer */
+export interface GenerationCitation {
+  readonly docId: string;
+  readonly chunkIndex: number;
+  readonly page?: number;
+  readonly reason: string;
+}
+⋮----
+/** Input to the generation port */
+export interface GenerateRagAnswerInput {
+  readonly traceId: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly userQuery: string;
+  readonly chunks: readonly RagRetrievedChunk[];
+  /** Optional model override (e.g. "googleai/gemini-2.5-pro"). Fall back to env default. */
+  readonly model?: string;
+}
+⋮----
+/** Optional model override (e.g. "googleai/gemini-2.5-pro"). Fall back to env default. */
+⋮----
+/** Successful generation output */
+export interface GenerateRagAnswerOutput {
+  readonly answer: string;
+  readonly citations: readonly GenerationCitation[];
+  readonly model: string;
+}
+⋮----
+/** Discriminated union result (compatible with CommandResult pattern) */
+export type GenerateRagAnswerResult =
+  | { ok: true; data: GenerateRagAnswerOutput }
+  | { ok: false; error: DomainError };
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/entities/GroundingEvidence.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/grounding
+ * Layer: domain/entities
+ * Purpose: GroundingEvidence — attribution record tying an answer claim to its source.
+ *
+ * Migration source: ai/domain/entities/retrieval.entities.ts → RagCitation
+ * Migration source: ai/domain/services/RagCitationBuilder.ts
+ */
+⋮----
+/** Attribution record that ties an answer claim to its source chunk */
+export interface Citation {
+  readonly docId: string;
+  readonly chunkIndex: number;
+  readonly page?: number;
+  readonly reason: string;
+}
+⋮----
+/** Grounding evidence aggregating citations with source metadata */
+export interface GroundingEvidence {
+  readonly traceId: string;
+  readonly citations: readonly Citation[];
+  readonly totalChunksConsidered: number;
+  readonly groundedAt: string;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/entities/QualityFeedback.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/evaluation
+ * Layer: domain/entities
+ * Purpose: QualityFeedback — user-quality signal on generated answers.
+ *
+ * Migration source: ai/domain/entities/rag-feedback.entities.ts
+ */
+⋮----
+export type FeedbackRating = "helpful" | "not_helpful" | "partially_helpful";
+⋮----
+export interface QualityFeedback {
+  readonly id: string;
+  readonly traceId: string;
+  readonly userQuery: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly rating: FeedbackRating;
+  readonly comment?: string;
+  readonly submittedByUserId: string;
+  readonly submittedAtISO: string;
+}
+⋮----
+export interface SubmitFeedbackInput {
+  readonly traceId: string;
+  readonly userQuery: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly rating: FeedbackRating;
+  readonly comment?: string;
+  readonly submittedByUserId: string;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/entities/rag-feedback.entities.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/entities
+ * Purpose: RagQueryFeedback — captures user-quality signal on generated answers.
+ */
+⋮----
+export type RagFeedbackRating = "helpful" | "not_helpful" | "partially_helpful";
+⋮----
+export interface RagQueryFeedback {
+  readonly id: string;
+  readonly traceId: string;
+  readonly userQuery: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly rating: RagFeedbackRating;
+  readonly comment?: string;
+  readonly submittedByUserId: string;
+  readonly submittedAtISO: string;
+}
+⋮----
+export interface SubmitRagQueryFeedbackInput {
+  readonly traceId: string;
+  readonly userQuery: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly rating: RagFeedbackRating;
+  readonly comment?: string;
+  readonly submittedByUserId: string;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/entities/rag-query.entities.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/entities
+ * Purpose: RAG Q&A domain types — inputs, outputs, streaming events.
+ *
+ * Design notes:
+ * - AnswerRagQueryInput / Output represent the public contract for the Q&A use case.
+ * - RagStreamEvent models the streaming surface (for future streaming support).
+ * - RagCitation re-exported from grounding for Q&A consumer convenience.
+ */
+⋮----
+import type { DomainError } from "@shared-types";
+⋮----
+import type { RagCitation, RagRetrievalSummary } from "./retrieval.entities";
+⋮----
+export interface AnswerRagQueryInput {
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly userQuery: string;
+  readonly taxonomy?: string;
+  readonly topK?: number;
+  readonly model?: string;
+}
+⋮----
+export interface AnswerRagQueryOutput {
+  readonly answer: string;
+  readonly citations: readonly RagCitation[];
+  readonly retrievalSummary: RagRetrievalSummary;
+  readonly model: string;
+  readonly traceId: string;
+  readonly events: readonly RagStreamEvent[];
+}
+⋮----
+export type AnswerRagQueryResult =
+  | { ok: true; data: AnswerRagQueryOutput }
+  | { ok: false; error: DomainError };
+⋮----
+/** Streaming event for progressive answer delivery (extensibility hook) */
+export interface RagStreamEvent {
+  readonly type: "token" | "citation" | "done" | "error";
+  readonly traceId: string;
+  readonly payload: string | RagCitation | RagRetrievalSummary | DomainError;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/entities/retrieval.entities.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/entities
+ * Purpose: Core retrieval result types — the factual anchors used to ground
+ *          AI-generated answers. These types flow from retrieval → synthesis.
+ *
+ * Design notes:
+ * - RagRetrievedChunk is the atomic unit of grounding evidence.
+ * - RagCitation links an answer claim back to its source chunk.
+ * - RagRetrievalSummary reports the bibliographic scope of the retrieval pass.
+ * - All fields are readonly; entities are value objects (compared by identity in the flow).
+ */
+⋮----
+/** A single text chunk fetched from the vector + sparse retrieval pass */
+export interface RagRetrievedChunk {
+  readonly chunkId: string;
+  readonly docId: string;
+  readonly chunkIndex: number;
+  readonly page?: number;
+  /** Semantic / organisational taxonomy label (e.g. "規章制度") */
+  readonly taxonomy: string;
+  readonly text: string;
+  /** Similarity score in [0, 1]; higher is more relevant */
+  readonly score: number;
+}
+⋮----
+/** Semantic / organisational taxonomy label (e.g. "規章制度") */
+⋮----
+/** Similarity score in [0, 1]; higher is more relevant */
+⋮----
+/** Attribution record that ties an answer claim to its source chunk */
+export interface RagCitation {
+  readonly docId: string;
+  readonly chunkIndex: number;
+  readonly page?: number;
+  readonly reason: string;
+}
+⋮----
+/** Summary of the retrieval execution scope for observability / UX */
+export interface RagRetrievalSummary {
+  readonly mode: "skeleton-metadata-filter";
+  readonly scope: "organization" | "workspace";
+  readonly retrievedChunkCount: number;
+  readonly topK: number;
+  readonly taxonomy?: string;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/entities/RetrievedChunk.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/retrieval
+ * Layer: domain/entities
+ * Purpose: RetrievedChunk — atomic unit of grounding evidence from vector/sparse retrieval.
+ *
+ * Migration source: ai/domain/entities/retrieval.entities.ts → RagRetrievedChunk
+ * This is the target canonical location after Strangler Pattern convergence.
+ */
+⋮----
+/** A single text chunk fetched from the vector + sparse retrieval pass */
+export interface RetrievedChunk {
+  readonly chunkId: string;
+  readonly docId: string;
+  readonly chunkIndex: number;
+  readonly page?: number;
+  /** Semantic / organisational taxonomy label */
+  readonly taxonomy: string;
+  readonly text: string;
+  /** Similarity score in [0, 1]; higher is more relevant */
+  readonly score: number;
+}
+⋮----
+/** Semantic / organisational taxonomy label */
+⋮----
+/** Similarity score in [0, 1]; higher is more relevant */
+⋮----
+/** Summary of the retrieval execution scope for observability / UX */
+export interface RetrievalSummary {
+  readonly mode: string;
+  readonly scope: "organization" | "workspace";
+  readonly retrievedChunkCount: number;
+  readonly topK: number;
+  readonly taxonomy?: string;
+}
+````
+
 ## File: modules/notebooklm/subdomains/synthesis/domain/entities/SynthesisResult.ts
 ````typescript
 /**
@@ -12055,6 +10431,78 @@ export type GenerateAnswerResult =
   | { ok: false; error: DomainError };
 ````
 
+## File: modules/notebooklm/subdomains/synthesis/domain/events/EvaluationEvents.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/evaluation
+ * Layer: domain/events
+ * Purpose: Domain events for evaluation/feedback operations.
+ */
+⋮----
+import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
+import type { FeedbackRating } from "../entities/QualityFeedback";
+⋮----
+export interface FeedbackSubmittedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.evaluation.feedback_submitted";
+  readonly payload: {
+    readonly feedbackId: string;
+    readonly traceId: string;
+    readonly rating: FeedbackRating;
+    readonly organizationId: string;
+  };
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/events/GroundingEvents.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/grounding
+ * Layer: domain/events
+ * Purpose: Domain events for grounding operations.
+ */
+⋮----
+import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
+⋮----
+export interface GroundingCompletedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.grounding.completed";
+  readonly payload: {
+    readonly traceId: string;
+    readonly citationCount: number;
+    readonly chunksConsidered: number;
+  };
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/events/RetrievalEvents.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/retrieval
+ * Layer: domain/events
+ * Purpose: Domain events for retrieval operations.
+ */
+⋮----
+import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
+⋮----
+export interface RetrievalCompletedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.retrieval.completed";
+  readonly payload: {
+    readonly traceId: string;
+    readonly chunkCount: number;
+    readonly scope: "organization" | "workspace";
+    readonly topK: number;
+  };
+}
+⋮----
+export interface RetrievalFailedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.retrieval.failed";
+  readonly payload: {
+    readonly traceId: string;
+    readonly errorCode: string;
+    readonly errorMessage: string;
+  };
+}
+````
+
 ## File: modules/notebooklm/subdomains/synthesis/domain/events/SynthesisEvents.ts
 ````typescript
 /**
@@ -12083,6 +10531,175 @@ export interface SynthesisFailedEvent extends NotebookLmDomainEvent {
     readonly errorMessage: string;
   };
 }
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/events/SynthesisPipelineDomainEvent.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/events
+ * Purpose: Pipeline-level domain events for the synthesis subdomain.
+ *
+ * Migrated from ai/domain/events/AiDomainEvent.ts.
+ * Event discriminants updated: notebooklm.ai.* → notebooklm.synthesis.*
+ */
+⋮----
+import type { RagFeedbackRating } from "../entities/rag-feedback.entities";
+import type { OrganizationScope } from "../value-objects/OrganizationScope";
+import type { TopK } from "../value-objects/TopK";
+⋮----
+export interface SynthesisPipelineDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
+}
+⋮----
+export interface RagQuerySubmittedEvent extends SynthesisPipelineDomainEvent {
+  readonly type: "notebooklm.synthesis.query_submitted";
+  readonly payload: {
+    readonly traceId: string;
+    readonly organizationId: string;
+    readonly workspaceId?: string;
+    readonly userQuery: string;
+    readonly topK: TopK;
+  };
+}
+⋮----
+export interface RagRetrievalCompletedEvent extends SynthesisPipelineDomainEvent {
+  readonly type: "notebooklm.synthesis.retrieval_completed";
+  readonly payload: {
+    readonly traceId: string;
+    readonly chunkCount: number;
+    readonly scope: OrganizationScope;
+  };
+}
+⋮----
+export interface RagAnswerGeneratedEvent extends SynthesisPipelineDomainEvent {
+  readonly type: "notebooklm.synthesis.answer_generated";
+  readonly payload: {
+    readonly traceId: string;
+    readonly model: string;
+    readonly citationCount: number;
+  };
+}
+⋮----
+export interface RagFeedbackSubmittedEvent extends SynthesisPipelineDomainEvent {
+  readonly type: "notebooklm.synthesis.feedback_submitted";
+  readonly payload: {
+    readonly traceId: string;
+    readonly rating: RagFeedbackRating;
+    readonly organizationId: string;
+  };
+}
+⋮----
+export type SynthesisPipelineDomainEventType =
+  | RagQuerySubmittedEvent
+  | RagRetrievalCompletedEvent
+  | RagAnswerGeneratedEvent
+  | RagFeedbackSubmittedEvent;
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/services/RagCitationBuilder.ts
+````typescript
+import type { GenerationCitation } from "../entities/generation.entities";
+import type { RagRetrievedChunk } from "../entities/retrieval.entities";
+⋮----
+export class RagCitationBuilder {
+⋮----
+/**
+   * Derive citations from the chunks used for generation.
+   * Citations are taken directly from input chunks to avoid model hallucination.
+   */
+buildCitations(chunks: readonly RagRetrievedChunk[]): GenerationCitation[]
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/services/RagPromptBuilder.ts
+````typescript
+import type { RagRetrievedChunk } from "../entities/retrieval.entities";
+import type { RagPrompt } from "../value-objects/RagPrompt";
+⋮----
+export class RagPromptBuilder {
+⋮----
+/**
+   * Format a single chunk for inclusion in the generation prompt.
+   */
+formatChunkForPrompt(chunk: RagRetrievedChunk): string
+⋮----
+/**
+   * Build the complete RAG generation prompt from retrieved chunks.
+   */
+buildGenerationPrompt(userQuery: string, chunks: readonly RagRetrievedChunk[]): RagPrompt
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/services/RagScoringService.ts
+````typescript
+import type { RagRetrievedChunk } from "../entities/retrieval.entities";
+⋮----
+export class RagScoringService {
+⋮----
+/**
+   * Tokenize text into searchable tokens (CJK-aware).
+   * CJK characters are treated as individual tokens; Latin words split by whitespace/punctuation.
+   */
+tokenize(text: string): readonly string[]
+⋮----
+/**
+   * Compute token-overlap score between query tokens and chunk text.
+   * Returns score in [0, 1] = matchedTokens / queryTokens.length
+   */
+computeTokenOverlapScore(queryTokens: readonly string[], chunkText: string): number
+⋮----
+/**
+   * Rank chunks by relevance score, returning top-K.
+   */
+rankChunks(
+    chunks: readonly RagRetrievedChunk[],
+    queryTokens: readonly string[],
+    topK: number,
+): RagRetrievedChunk[]
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/value-objects/index.ts
+````typescript
+
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/value-objects/OrganizationScope.ts
+````typescript
+export interface OrganizationScope {
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+}
+⋮----
+export function isWorkspaceScoped(scope: OrganizationScope): boolean
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/value-objects/RagPrompt.ts
+````typescript
+export interface RagPrompt {
+  readonly systemInstruction: string;
+  readonly formattedContext: string;
+  readonly userQuery: string;
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/value-objects/RelevanceScore.ts
+````typescript
+import { z } from "@lib-zod";
+⋮----
+export type RelevanceScore = z.infer<typeof RelevanceScoreSchema>;
+⋮----
+export function createRelevanceScore(raw: number): RelevanceScore
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/value-objects/TopK.ts
+````typescript
+import { z } from "@lib-zod";
+⋮----
+export type TopK = z.infer<typeof TopKSchema>;
+⋮----
+export function createTopK(raw: number): TopK
 ````
 
 ## File: modules/notion/docs/README.md
@@ -12824,14 +11441,6 @@ export type UnnestKnowledgeBlockDto = z.infer<typeof UnnestKnowledgeBlockSchema>
 ## File: modules/notion/subdomains/knowledge/application/dto/index.ts
 ````typescript
 
-````
-
-## File: modules/notion/subdomains/knowledge/application/dto/knowledge.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the knowledge subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
 ````
 
 ## File: modules/notion/subdomains/knowledge/application/dto/KnowledgeCollectionDto.ts
@@ -14816,6 +13425,43 @@ export function buildCorrelationId(): string
  * Application Services handle flow coordination, transaction boundaries and
  * cross-aggregate orchestration.  They do not carry core business invariants.
  */
+````
+
+## File: modules/platform/application/services/shell-quick-create.ts
+````typescript
+/**
+ * Shell quick-create orchestrator.
+ *
+ * Context-wide application service that coordinates cross-bounded-context
+ * creation actions triggered from the platform shell UI.
+ * Delegates to the target module's public API boundary only.
+ */
+⋮----
+// ── Input / output contracts ──────────────────────────────────────────────────
+⋮----
+export interface QuickCreatePageInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly createdByUserId: string;
+}
+⋮----
+export interface QuickCreatePageResult {
+  readonly success: boolean;
+  readonly error?: { message: string };
+}
+⋮----
+// ── Orchestration ─────────────────────────────────────────────────────────────
+⋮----
+export async function quickCreateKnowledgePage(
+  input: QuickCreatePageInput,
+  createPage: (input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    parentPageId: null;
+    createdByUserId: string;
+  }) => Promise<QuickCreatePageResult>,
+): Promise<QuickCreatePageResult>
 ````
 
 ## File: modules/platform/application/use-cases/activate-subscription-agreement.use-cases.ts
@@ -19542,26 +18188,6 @@ export type SubjectRef = z.infer<typeof SubjectRefSchema>;
 export function createSubjectRef(subjectId: string, subjectType: SubjectRef["subjectType"]): SubjectRef
 ````
 
-## File: modules/platform/subdomains/access-control/infrastructure/access-control-service.ts
-````typescript
-/**
- * AccessControlService — Composition root for access-control use cases.
- */
-import {
-  EvaluatePermissionUseCase,
-  CreateAccessPolicyUseCase,
-  UpdateAccessPolicyUseCase,
-  DeactivateAccessPolicyUseCase,
-} from "../application/use-cases/access-control.use-cases";
-import { FirebaseAccessPolicyRepository } from "./firebase/FirebaseAccessPolicyRepository";
-import type { SubjectRef } from "../domain/value-objects/SubjectRef";
-import type { ResourceRef } from "../domain/value-objects/ResourceRef";
-import type { PolicyEffect } from "../domain/value-objects/PolicyEffect";
-import type { CommandResult } from "@shared-types";
-⋮----
-function getRepo(): FirebaseAccessPolicyRepository
-````
-
 ## File: modules/platform/subdomains/access-control/infrastructure/firebase/FirebaseAccessPolicyRepository.ts
 ````typescript
 /**
@@ -19603,11 +18229,6 @@ async findActiveBySubjectAndResource(
 async save(snapshot: AccessPolicySnapshot): Promise<void>
 ⋮----
 async update(snapshot: AccessPolicySnapshot): Promise<void>
-````
-
-## File: modules/platform/subdomains/access-control/infrastructure/index.ts
-````typescript
-
 ````
 
 ## File: modules/platform/subdomains/access-control/README.md
@@ -20040,24 +18661,6 @@ User profile preferences and settings.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/account/api/legacy-account-profile.bridge.ts
-````typescript
-import { type UpdateProfileInput } from "../application/dtos/account.dto";
-import { accountService, createAccountQueryRepository } from "../infrastructure/account-service";
-import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
-⋮----
-function getAccountQueryRepo(): AccountQueryRepository
-⋮----
-export async function getLegacyUserProfile(userId: string)
-⋮----
-export function subscribeToLegacyUserProfile(
-  userId: string,
-  onUpdate: (profile: Awaited<ReturnType<typeof getLegacyUserProfile>>) => void,
-)
-⋮----
-export async function updateLegacyUserProfile(userId: string, input: UpdateProfileInput): Promise<void>
 ````
 
 ## File: modules/platform/subdomains/account/application/dtos/account.dto.ts
@@ -20672,51 +19275,6 @@ export type WalletAmount = z.infer<typeof WalletAmountSchema>;
 export function createWalletAmount(raw: number): WalletAmount
 ````
 
-## File: modules/platform/subdomains/account/infrastructure/account-service.ts
-````typescript
-/**
- * AccountService — Composition root for account use cases.
- * Wires repositories and ports; provides a unified service interface.
- */
-⋮----
-import {
-  CreateUserAccountUseCase,
-  UpdateUserProfileUseCase,
-  CreditWalletUseCase,
-  DebitWalletUseCase,
-  AssignAccountRoleUseCase,
-  RevokeAccountRoleUseCase,
-} from "../application/use-cases/account.use-cases";
-import {
-  CreateAccountPolicyUseCase,
-  UpdateAccountPolicyUseCase,
-  DeleteAccountPolicyUseCase,
-} from "../application/use-cases/account-policy.use-cases";
-import { FirebaseAccountRepository } from "./firebase/FirebaseAccountRepository";
-import { FirebaseAccountQueryRepository } from "./firebase/FirebaseAccountQueryRepository";
-import { FirebaseAccountPolicyRepository } from "./firebase/FirebaseAccountPolicyRepository";
-import { tokenRefreshAdapter } from "./identity-token-refresh.adapter";
-import type { UpdateProfileInput, OrganizationRole } from "../domain/entities/Account";
-import type { CreatePolicyInput, UpdatePolicyInput } from "../domain/entities/AccountPolicy";
-import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
-import type { CommandResult } from "@shared-types";
-⋮----
-function getAccountRepo(): FirebaseAccountRepository
-⋮----
-function getAcctPolicyRepo(): FirebaseAccountPolicyRepository
-⋮----
-/**
- * Creates a wired set of client-side account use cases.
- * Keeps infrastructure wiring in the module boundary rather than in UI files.
- */
-export function createClientAccountUseCases()
-⋮----
-// Internal re-export for the legacy bridge within this subdomain only.
-⋮----
-/** Factory that returns a wired AccountQueryRepository without leaking the concrete class. */
-export function createAccountQueryRepository(): AccountQueryRepository
-````
-
 ## File: modules/platform/subdomains/account/infrastructure/firebase/FirebaseAccountPolicyRepository.ts
 ````typescript
 /**
@@ -20864,11 +19422,6 @@ async assignRole(accountId: string, role: OrganizationRole, grantedBy: string): 
 async revokeRole(accountId: string): Promise<void>
 ⋮----
 async getRole(accountId: string): Promise<AccountRoleRecord | null>
-````
-
-## File: modules/platform/subdomains/account/infrastructure/index.ts
-````typescript
-
 ````
 
 ## File: modules/platform/subdomains/account/interfaces/_actions/account-policy.actions.ts
@@ -21054,14 +19607,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/background-job/api/index.ts
-````typescript
-/**
- * Public API boundary for the background-job subdomain.
- * Cross-module consumers must import through this entry point.
- */
-````
-
 ## File: modules/platform/subdomains/background-job/application/index.ts
 ````typescript
 
@@ -21237,64 +19782,6 @@ export type IngestionJobDomainEventType =
   | IngestionJobFailedEvent;
 ````
 
-## File: modules/platform/subdomains/background-job/infrastructure/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/background-job/infrastructure/ingestion-service.ts
-````typescript
-/**
- * ingestionService — composition root for knowledge ingestion use cases.
- *
- * Wires use cases to the default InMemoryIngestionJobRepository.
- * Swap the repository assignment here once a Firebase adapter is in place.
- *
- * This module is the single entry point for ingestion side-effects; adapters
- * (Server Actions, route handlers) must not reach into use cases directly.
- */
-⋮----
-import type { IngestionJob } from "../domain/entities/IngestionJob";
-import type { IngestionStatus } from "../domain/entities/IngestionJob";
-import {
-  RegisterIngestionDocumentUseCase,
-  AdvanceIngestionStageUseCase,
-  ListWorkspaceIngestionJobsUseCase,
-  type IngestionResult,
-  type RegisterIngestionDocumentInput,
-  type AdvanceIngestionStageInput,
-} from "../application/use-cases/ingestion.use-cases";
-import { InMemoryIngestionJobRepository } from "./InMemoryIngestionJobRepository";
-⋮----
-// Single shared repository instance for the lifetime of the module.
-⋮----
-/**
-   * Register a newly uploaded document and create an IngestionJob in
-   * `uploaded` status, ready for the Python worker handoff.
-   */
-registerDocument(input: RegisterIngestionDocumentInput): Promise<IngestionResult<IngestionJob>>
-⋮----
-/**
-   * Advance the ingestion pipeline to the given status.
-   * Rejects invalid transitions with `INGESTION_INVALID_STATUS_TRANSITION`.
-   */
-advanceStage(input: AdvanceIngestionStageInput): Promise<IngestionResult<IngestionJob>>
-⋮----
-/**
-   * Return all ingestion jobs belonging to a workspace.
-   */
-listWorkspaceJobs(input: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-}): Promise<readonly IngestionJob[]>
-⋮----
-registerDocument(input: RegisterIngestionDocumentInput): Promise<IngestionResult<IngestionJob>>;
-advanceStage(input: AdvanceIngestionStageInput): Promise<IngestionResult<IngestionJob>>;
-⋮----
-// Re-export status type for convenience (callers using `ingestionService` should not
-// need to reach into the domain layer directly).
-````
-
 ## File: modules/platform/subdomains/background-job/README.md
 ````markdown
 # Background Job
@@ -21411,14 +19898,6 @@ Platform content management.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/entitlement/api/index.ts
-````typescript
-/**
- * Public API boundary for the entitlement subdomain.
- * Cross-module consumers must import through this entry point.
- */
 ````
 
 ## File: modules/platform/subdomains/entitlement/application/dtos/entitlement.dto.ts
@@ -21680,25 +20159,6 @@ export function createFeatureKey(raw: string): FeatureKey
 
 ````
 
-## File: modules/platform/subdomains/entitlement/infrastructure/entitlement-service.ts
-````typescript
-/**
- * EntitlementService — Composition root for entitlement use cases.
- * Wires repositories; provides a unified service interface.
- */
-import {
-  GrantEntitlementUseCase,
-  SuspendEntitlementUseCase,
-  RevokeEntitlementUseCase,
-  ResolveEntitlementsUseCase,
-  CheckFeatureEntitlementUseCase,
-} from "../application/use-cases/entitlement.use-cases";
-import { FirebaseEntitlementGrantRepository } from "./firebase/FirebaseEntitlementGrantRepository";
-import type { CommandResult } from "@shared-types";
-⋮----
-function getRepo(): FirebaseEntitlementGrantRepository
-````
-
 ## File: modules/platform/subdomains/entitlement/infrastructure/firebase/FirebaseEntitlementGrantRepository.ts
 ````typescript
 /**
@@ -21739,11 +20199,6 @@ async findActiveByContextAndFeature(
 async save(snapshot: EntitlementGrantSnapshot): Promise<void>
 ⋮----
 async update(snapshot: EntitlementGrantSnapshot): Promise<void>
-````
-
-## File: modules/platform/subdomains/entitlement/infrastructure/index.ts
-````typescript
-
 ````
 
 ## File: modules/platform/subdomains/entitlement/README.md
@@ -22248,14 +20703,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/notification/api/index.ts
-````typescript
-/**
- * Public API boundary for the notification subdomain.
- * Cross-module consumers must import through this entry point.
- */
-````
-
 ## File: modules/platform/subdomains/notification/application/dtos/notification.dto.ts
 ````typescript
 /**
@@ -22521,31 +20968,6 @@ async markAllAsRead(recipientId: string): Promise<void>
 async findByRecipient(recipientId: string, maxCount = 50): Promise<NotificationEntity[]>
 ⋮----
 async getUnreadCount(recipientId: string): Promise<number>
-````
-
-## File: modules/platform/subdomains/notification/infrastructure/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/notification/infrastructure/notification-service.ts
-````typescript
-/**
- * NotificationService — Composition root for notification use cases.
- */
-⋮----
-import { FirebaseNotificationRepository } from "./firebase/FirebaseNotificationRepository";
-import {
-  DispatchNotificationUseCase,
-  GetNotificationsForRecipientUseCase,
-  GetUnreadCountUseCase,
-  MarkNotificationReadUseCase,
-  MarkAllNotificationsReadUseCase,
-} from "../application/use-cases/notification.use-cases";
-import type { DispatchNotificationInput, NotificationEntity } from "../domain/entities/Notification";
-import type { CommandResult } from "@shared-types";
-⋮----
-function getNotifRepo(): FirebaseNotificationRepository
 ````
 
 ## File: modules/platform/subdomains/notification/interfaces/_actions/notification.actions.ts
@@ -23442,11 +21864,6 @@ export function toPartnerInvite(id: string, data: Record<string, unknown>): Part
 export function toOrgPolicy(id: string, data: Record<string, unknown>): OrgPolicy
 ````
 
-## File: modules/platform/subdomains/organization/infrastructure/index.ts
-````typescript
-
-````
-
 ## File: modules/platform/subdomains/organization/interfaces/_actions/organization-policy.actions.ts
 ````typescript
 /**
@@ -23826,13 +22243,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/subscription/api/index.ts
-````typescript
-/**
- * Public API boundary for the subscription subdomain.
- */
-````
-
 ## File: modules/platform/subdomains/subscription/application/dtos/index.ts
 ````typescript
 
@@ -24090,30 +22500,6 @@ async save(snapshot: SubscriptionSnapshot): Promise<void>
 async update(snapshot: SubscriptionSnapshot): Promise<void>
 ````
 
-## File: modules/platform/subdomains/subscription/infrastructure/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/subscription/infrastructure/subscription-service.ts
-````typescript
-/**
- * SubscriptionService — Composition root for subscription use cases.
- */
-import {
-  ActivateSubscriptionUseCase,
-  CancelSubscriptionUseCase,
-  RenewSubscriptionUseCase,
-  GetActiveSubscriptionUseCase,
-  MarkSubscriptionPastDueUseCase,
-} from "../application/use-cases/subscription.use-cases";
-import { FirebaseSubscriptionRepository } from "./firebase/FirebaseSubscriptionRepository";
-import type { BillingCycle } from "../domain/value-objects/BillingCycle";
-import type { CommandResult } from "@shared-types";
-⋮----
-function getRepo(): FirebaseSubscriptionRepository
-````
-
 ## File: modules/platform/subdomains/subscription/README.md
 ````markdown
 # Subscription
@@ -24193,87 +22579,6 @@ async execute(
 
 ````
 
-## File: modules/platform/subdomains/team/domain/aggregates/OrganizationTeam.ts
-````typescript
-/**
- * OrganizationTeam — Aggregate Root
- *
- * Represents a named grouping of members within an Organization boundary.
- * OrganizationTeam is a subdomain concept of platform/team; it is NOT an
- * independent Tenant. Teams may be internal (org-only members) or external
- * (partner/guest actors included).
- *
- * Invariants:
- *   - A team must belong to exactly one Organization (organizationId is immutable)
- *   - A member may appear in a team's memberIds at most once
- *   - teamType cannot change after creation (replace-and-recreate pattern)
- *   - addMember and removeMember are idempotent: duplicate/absent memberId is a no-op (no event)
- */
-⋮----
-import { randomUUID } from "crypto";
-import type { TeamId } from "../value-objects/TeamId";
-import type { TeamType } from "../value-objects/TeamType";
-import type { OrganizationTeamDomainEvent } from "../events/OrganizationTeamDomainEvent";
-⋮----
-export interface OrganizationTeamSnapshot {
-  readonly id: string;
-  readonly organizationId: string;
-  readonly name: string;
-  readonly description: string;
-  readonly teamType: TeamType;
-  readonly memberIds: readonly string[];
-}
-⋮----
-export interface CreateOrganizationTeamProps {
-  readonly organizationId: string;
-  readonly name: string;
-  readonly description?: string;
-  readonly teamType: TeamType;
-}
-⋮----
-export class OrganizationTeam {
-⋮----
-private constructor(private _props: OrganizationTeamSnapshot)
-⋮----
-// ── Factory — new team ────────────────────────────────────────────────────
-⋮----
-static create(id: TeamId, props: CreateOrganizationTeamProps): OrganizationTeam
-⋮----
-// ── Factory — reconstitute from persistence ───────────────────────────────
-⋮----
-static reconstitute(snapshot: OrganizationTeamSnapshot): OrganizationTeam
-⋮----
-// ── Commands ──────────────────────────────────────────────────────────────
-⋮----
-/**
-   * Add a member to the team.
-   * Idempotent: if memberId is already in the team the call is a no-op and
-   * no domain event is emitted, so callers may safely call this multiple times.
-   */
-addMember(memberId: string): void
-⋮----
-if (this._props.memberIds.includes(memberId)) return; // idempotent, no event emitted
-⋮----
-/**
-   * Remove a member from the team.
-   * Idempotent: if memberId is not in the team the call is a no-op and
-   * no domain event is emitted, supporting at-least-once removal semantics.
-   */
-removeMember(memberId: string): void
-⋮----
-if (!this._props.memberIds.includes(memberId)) return; // idempotent, no event emitted
-⋮----
-delete(): void
-⋮----
-// ── Read ──────────────────────────────────────────────────────────────────
-⋮----
-get id(): TeamId
-⋮----
-getSnapshot(): Readonly<OrganizationTeamSnapshot>
-⋮----
-pullDomainEvents(): OrganizationTeamDomainEvent[]
-````
-
 ## File: modules/platform/subdomains/team/domain/entities/Team.ts
 ````typescript
 /**
@@ -24301,43 +22606,6 @@ export interface CreateTeamInput {
 ## File: modules/platform/subdomains/team/domain/events/index.ts
 ````typescript
 
-````
-
-## File: modules/platform/subdomains/team/domain/events/OrganizationTeamDomainEvent.ts
-````typescript
-/**
- * OrganizationTeamDomainEvent — domain events produced by the OrganizationTeam aggregate.
- *
- * Naming: past-tense, format `<module>.<action>`.
- * occurredAt: ISO 8601 string (not Date) per platform event convention.
- */
-import { z } from "zod";
-⋮----
-// ── OrganizationTeamCreated ──────────────────────────────────────────────────
-⋮----
-export type OrganizationTeamCreatedEvent = z.infer<typeof OrganizationTeamCreatedEventSchema>;
-⋮----
-// ── OrganizationTeamDeleted ──────────────────────────────────────────────────
-⋮----
-export type OrganizationTeamDeletedEvent = z.infer<typeof OrganizationTeamDeletedEventSchema>;
-⋮----
-// ── OrganizationTeamMemberAdded ──────────────────────────────────────────────
-⋮----
-export type OrganizationTeamMemberAddedEvent = z.infer<typeof OrganizationTeamMemberAddedEventSchema>;
-⋮----
-// ── OrganizationTeamMemberRemoved ────────────────────────────────────────────
-⋮----
-export type OrganizationTeamMemberRemovedEvent = z.infer<
-  typeof OrganizationTeamMemberRemovedEventSchema
->;
-⋮----
-// ── Union ────────────────────────────────────────────────────────────────────
-⋮----
-export type OrganizationTeamDomainEvent =
-  | OrganizationTeamCreatedEvent
-  | OrganizationTeamDeletedEvent
-  | OrganizationTeamMemberAddedEvent
-  | OrganizationTeamMemberRemovedEvent;
 ````
 
 ## File: modules/platform/subdomains/team/domain/repositories/TeamRepository.ts
@@ -24369,31 +22637,6 @@ getTeams(organizationId: string): Promise<Team[]>;
 ## File: modules/platform/subdomains/team/domain/value-objects/index.ts
 ````typescript
 
-````
-
-## File: modules/platform/subdomains/team/domain/value-objects/TeamId.ts
-````typescript
-/**
- * TeamId — branded value object for OrganizationTeam identity.
- */
-import { z } from "zod";
-⋮----
-export type TeamId = z.infer<typeof TeamIdSchema>;
-⋮----
-export function createTeamId(raw: string): TeamId
-````
-
-## File: modules/platform/subdomains/team/domain/value-objects/TeamType.ts
-````typescript
-/**
- * TeamType — value object representing the membership scope of an OrganizationTeam.
- *
- * - internal: members belong to the same Organization
- * - external: members include partner/guest actors outside the Organization
- */
-import { z } from "zod";
-⋮----
-export type TeamType = z.infer<typeof TeamTypeSchema>;
 ````
 
 ## File: modules/platform/subdomains/team/infrastructure/firebase/FirebaseTeamRepository.ts
@@ -27169,59 +25412,6 @@ export interface WorkspaceFeedCounterPatch {
 }
 ````
 
-## File: modules/workspace/subdomains/feed/domain/events/workspace-feed.events.ts
-````typescript
-export type WorkspaceFeedEventType = (typeof WORKSPACE_FEED_EVENT_TYPES)[number];
-⋮----
-interface WorkspaceFeedBaseEvent {
-  type: WorkspaceFeedEventType;
-  accountId: string;
-  workspaceId: string;
-  postId: string;
-  actorAccountId: string;
-  occurredAtISO: string;
-}
-⋮----
-export interface WorkspaceFeedPostCreatedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostCreated";
-}
-⋮----
-export interface WorkspaceFeedReplyCreatedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedReplyCreated";
-  parentPostId: string;
-}
-⋮----
-export interface WorkspaceFeedRepostCreatedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedRepostCreated";
-  sourcePostId: string;
-}
-⋮----
-export interface WorkspaceFeedPostLikedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostLiked";
-}
-⋮----
-export interface WorkspaceFeedPostViewedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostViewed";
-}
-⋮----
-export interface WorkspaceFeedPostBookmarkedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostBookmarked";
-}
-⋮----
-export interface WorkspaceFeedPostSharedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostShared";
-}
-⋮----
-export type WorkspaceFeedDomainEvent =
-  | WorkspaceFeedPostCreatedEvent
-  | WorkspaceFeedReplyCreatedEvent
-  | WorkspaceFeedRepostCreatedEvent
-  | WorkspaceFeedPostLikedEvent
-  | WorkspaceFeedPostViewedEvent
-  | WorkspaceFeedPostBookmarkedEvent
-  | WorkspaceFeedPostSharedEvent;
-````
-
 ## File: modules/workspace/subdomains/feed/domain/repositories/workspace-feed.repositories.ts
 ````typescript
 import type {
@@ -27823,94 +26013,6 @@ import { z } from "@lib-zod";
 export type CreateDemandInput = z.infer<typeof CreateDemandSchema>;
 ⋮----
 export type AssignMemberInput = z.infer<typeof AssignMemberSchema>;
-````
-
-## File: modules/workspace/subdomains/scheduling/application/dto/work-demand.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the scheduling subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-⋮----
-import type { DemandPriority } from "../../domain/types";
-⋮----
-export interface CreateDemandInput {
-  workspaceId: string;
-  accountId: string;
-  requesterId: string;
-  title: string;
-  description?: string;
-  priority: DemandPriority;
-  scheduledAt: string;
-}
-⋮----
-export interface AssignMemberInput {
-  demandId: string;
-  userId: string;
-  assignedBy: string;
-}
-````
-
-## File: modules/workspace/subdomains/scheduling/domain/types.ts
-````typescript
-/**
- * Module: workspace/subdomains/scheduling
- * Layer: domain
- * Purpose: Core WorkDemand entity and value types.
- */
-⋮----
-export type DemandStatus = "draft" | "open" | "in_progress" | "completed";
-⋮----
-export type DemandPriority = "low" | "medium" | "high";
-⋮----
-export interface WorkDemand {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly requesterId: string;
-  readonly title: string;
-  readonly description: string;
-  readonly status: DemandStatus;
-  readonly priority: DemandPriority;
-  readonly scheduledAt: string;
-  readonly assignedUserId?: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateWorkDemandCommand {
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly requesterId: string;
-  readonly title: string;
-  readonly description: string;
-  readonly priority: DemandPriority;
-  readonly scheduledAt: string;
-}
-⋮----
-export interface AssignWorkDemandCommand {
-  readonly demandId: string;
-  readonly assignedUserId: string;
-  readonly assignedBy: string;
-}
-⋮----
-export type WorkDemandCreatedEvent = {
-  readonly type: "WORK_DEMAND_CREATED";
-  readonly payload: { readonly demandId: string; readonly workspaceId: string };
-};
-⋮----
-export type WorkDemandAssignedEvent = {
-  readonly type: "WORK_DEMAND_ASSIGNED";
-  readonly payload: {
-    readonly demandId: string;
-    readonly assignedUserId: string;
-    readonly assignedBy: string;
-  };
-};
-⋮----
-export type WorkDemandDomainEvent =
-  | WorkDemandCreatedEvent
-  | WorkDemandAssignedEvent;
 ````
 
 ## File: modules/workspace/subdomains/scheduling/interfaces/_actions/work-demand.actions.ts
@@ -33373,6 +31475,11 @@ const handleSelect = (event:
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ````
 
+## File: postcss.config.mjs
+````javascript
+
+````
+
 ## File: py_fn/.gitignore
 ````
 # Python bytecode
@@ -35478,20 +33585,6 @@ response = handle_parse_document(
 def test_handleParseDocument_WithoutDocId_KeepsDefaultRagBehavior(monkeypatch) -> None
 ````
 
-## File: repomix.app.config.json
-````json
-{
-  "$schema": "https://repomix.com/schemas/latest/schema.json",
-  "include": [
-    "app/**"
-  ],
-  "ignore": {
-    "useGitignore": true,
-    "useDefaultPatterns": true
-  }
-}
-````
-
 ## File: repomix.notebooklm.config.json
 ````json
 {
@@ -35546,6 +33639,230 @@ def test_handleParseDocument_WithoutDocId_KeepsDefaultRagBehavior(monkeypatch) -
     "useDefaultPatterns": true
   }
 }
+````
+
+## File: storage.rules
+````
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}
+````
+
+## File: tailwind.config.ts
+````typescript
+import type {Config} from 'tailwindcss';
+import tailwindcssAnimate from 'tailwindcss-animate';
+````
+
+## File: tsconfig.json
+````json
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"],
+      "@shared-types": ["./packages/shared-types/index.ts"],
+      "@shared-events": ["./packages/shared-events/index.ts"],
+      "@shared-utils": ["./packages/shared-utils/index.ts"],
+      "@shared-validators": ["./packages/shared-validators/index.ts"],
+      "@shared-constants": ["./packages/shared-constants/index.ts"],
+      "@shared-hooks": ["./packages/shared-hooks/index.ts"],
+      "@integration-firebase": ["./packages/integration-firebase/index.ts"],
+      "@integration-firebase/*": ["./packages/integration-firebase/*"],
+      "@integration-http": ["./packages/integration-http/index.ts"],
+      "@api-contracts": ["./packages/api-contracts/index.ts"],
+      "@ui-shadcn": ["./packages/ui-shadcn/index.ts"],
+      "@ui-shadcn/*": ["./packages/ui-shadcn/*"],
+      "@ui-vis": ["./packages/ui-vis/index.ts"],
+      "@lib-date-fns": ["./packages/lib-date-fns/index.ts"],
+      "@lib-zod": ["./packages/lib-zod/index.ts"],
+      "@lib-uuid": ["./packages/lib-uuid/index.ts"],
+      "@lib-zustand": ["./packages/lib-zustand/index.ts"],
+      "@lib-xstate": ["./packages/lib-xstate/index.ts"],
+      "@lib-tanstack": ["./packages/lib-tanstack/index.ts"],
+      "@lib-superjson": ["./packages/lib-superjson/index.ts"],
+      "@lib-dragdrop": ["./packages/lib-dragdrop/index.ts"],
+      "@lib-react-markdown": ["./packages/lib-react-markdown/index.ts"],
+      "@lib-remark-gfm": ["./packages/lib-remark-gfm/index.ts"],
+      "@lib-vis": ["./packages/lib-vis/index.ts"],
+      "@lib-vis/*": ["./packages/lib-vis/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": [
+    "node_modules",
+    "functions"
+  ]
+}
+````
+
+## File: vitest.config.ts
+````typescript
+import { resolve } from "node:path";
+⋮----
+import { defineConfig } from "vitest/config";
+````
+
+## File: .github/instructions/bounded-context-rules.instructions.md
+````markdown
+---
+description: 'Bounded Context（界限上下文）戰略設計規則：語意一致性邊界、模型隔離、顯式轉換、獨立演化。'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Bounded Context（界限上下文）設計規則
+
+> 完整邊界參考：**先查 `docs/bounded-contexts.md`、`docs/ubiquitous-language.md`、`docs/contexts/<context>/README.md`**
+> 此文件只包含 Bounded Context 層級的**戰略設計約束**，不複製領域知識或程式碼範例。
+
+## 戰略設計規則
+
+1. Bounded Context 是「語意一致性邊界」，不是資料夾。
+2. 每個 Bounded Context 內的語言必須一致（Ubiquitous Language）。
+3. 同一概念在不同 Context 可以有不同模型，但不能混用。
+4. Context 之間的模型轉換必須顯式（Translator / Mapper / ACL）。
+5. Domain Model 只能存在於 Bounded Context 內，不可跨 Context reuse。
+6. Context 是演化單位，不是模組拆分單位。
+7. 一個 Context 必須能獨立測試與部署（至少邏輯層面）。
+
+## 與子域的關係
+
+- 一個子域可以包含多個 Bounded Context。
+- Bounded Context 名稱必須與 `modules/<context>/` 資料夾名稱一致。
+- 跨 Context 的模型引用必須使用 Published Language token，不得直接傳遞 upstream aggregate。
+
+## 驗證
+
+- 確認每個 Context 有獨立的 Ubiquitous Language 定義。
+- 確認跨 Context 通訊使用 API boundary 或 event contract。
+- 確認不存在跨 Context 的 Domain Model 重用。
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
+## File: .github/instructions/domain-layer-rules.instructions.md
+````markdown
+---
+description: 'Domain Layer（領域層）戰略設計規則：業務純度、行為封裝、不變數保護、技術無關性。'
+applyTo: 'modules/**/domain/**/*.{ts,tsx}'
+---
+
+# Domain Layer（領域層）設計規則
+
+> 完整邊界參考：**先查 `docs/ubiquitous-language.md`、`docs/contexts/<context>/README.md`**
+> 戰術設計範例（聚合根、值對象、Zod 驗證）請參考 `domain-modeling.instructions.md`。
+> 此文件只包含 Domain Layer 層級的**戰略設計約束**。
+
+## 戰略設計規則
+
+1. Domain 層只表達業務規則，不包含技術實作（DB / API / Framework）。
+2. Entity 必須封裝狀態與行為，禁止裸 set state。
+3. Aggregate Root 是唯一外部進入 Domain 的入口。
+4. Domain 不依賴 Application / Infrastructure / Interface。
+5. Domain 變更只能透過行為方法（method），不能直接修改屬性。
+6. Domain event 用於表達「業務事實」，不是技術事件。
+7. Invariant（不變條件）必須在 Aggregate 內強制保護。
+8. Domain 必須能在沒有 DB / HTTP 的情況下完整運作（pure logic）。
+
+## 與其他層的關係
+
+- `domain/` 是依賴方向的最內層，所有其他層指向它。
+- `application/` 依賴 `domain/` 的 abstraction，不依賴 implementation。
+- `infrastructure/` 實作 `domain/` 定義的 Port/Repository 介面。
+- `interfaces/` 不得直接呼叫 `domain/` 內部，必須經由 `application/` 或 `api/`。
+
+## 禁止模式
+
+- ❌ 在 `domain/` 層匯入 Firebase、HTTP client、React、ORM。
+- ❌ 貧血模型：只有 data properties，無 business logic。
+- ❌ 跨聚合直接操作：在 Aggregate A 中修改 Aggregate B 的狀態。
+- ❌ Domain event 命名使用現在式或技術術語。
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
+## File: .github/instructions/hexagonal-rules.instructions.md
+````markdown
+---
+description: 'Hexagonal Architecture（端口與適配器）戰略設計規則：Core 獨立性、Port 需求導向、Adapter 邊界、子域交叉約束。'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Hexagonal Architecture（端口與適配器）設計規則
+
+> 完整邊界參考：**先查 `architecture-core.instructions.md`（實作層級規則）**
+> 此文件只包含 Hexagonal Architecture 層級的**戰略設計原則**。
+
+## Core（Domain + Application）
+
+1. Core 不依賴任何外部世界（DB / API / UI / SDK）。
+2. Application Layer 只負責 orchestration，不包含 business rule。
+3. Use Case 是系統對外的唯一操作入口。
+4. Application 只能依賴 Domain abstraction，不依賴 infrastructure implementation。
+
+## Ports（介面層）
+
+5. Port 必須是「需求導向」，不是技術導向（例如 UserRepository，而不是 FirestoreUserClient）。
+6. Port 定義在 Core，實作在 Infrastructure。
+7. 每個 Port 必須可 mock，可替換，可測試。
+
+## Adapters（基礎設施）
+
+8. Infrastructure 只能實作 Port，禁止反向依賴 Domain 實作細節。
+9. Adapter 不可包含 business rule，只能做轉換與 I/O。
+10. 外部 SDK 永遠只存在 Adapter 層。
+
+## 子域 × Hexagonal 切分核心規則
+
+1. 子域是「業務邊界」，Hexagonal 是「技術邊界」。
+2. 一個子域可以包含多個 Hexagonal 模型，但不允許跨子域共享 core。
+3. Domain Model 永遠比 API / DB 更穩定。
+4. 技術可以重構，但子域不能因此改變。
+5. 所有依賴方向必須指向內部（Dependency Inversion）。
+6. 外部世界永遠被 Adapter 包住，不能滲透進 Domain。
+
+## 一句話總結
+
+子域定義「業務邊界」，Bounded Context 定義「語意邊界」，Hexagonal 定義「依賴方向」，Domain 則是唯一不能被任何外部污染的純業務核心。
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: .github/skills/repomix/SKILL.md
@@ -36726,430 +35043,6 @@ flowchart LR
 - [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
 ````
 
-## File: docs/hard-rules-consolidated.md
-````markdown
-# 50 Hard Rules — Consolidated Architecture Guardrails
-
-**Status**: Consolidated from user request (2026-04-12)  
-**Authority**: AGENTS.md (strategic) + module AGENT.md (tactical)  
-**Purpose**: Prevent late-stage architectural breakage; enforce non-negotiable boundaries
-
----
-
-## 🗂️ Document Placement Strategy
-
-| Rule Category | Count | Primary Location | Secondary Location |
-|---|---|---|---|
-| **Strategic Ownership** (1, 5-10, 28) | 9 | `AGENTS.md` § Module Ownership | — |
-| **Dependency Direction** (2, 6-7, 49) | 4 | `AGENTS.md` § Anti-Patterns | `eslint.config.mjs` |
-| **Layer Responsibility** (11-13, 21-23) | 7 | `.github/instructions/architecture-core.instructions.md` | Module AGENT.md |
-| **Data Flow & Events** (4, 9, 34-36) | 5 | `.github/instructions/event-driven-state.instructions.md` | RAG docs |
-| **File / Storage / IO** (3, 29-32, 39) | 6 | `.github/instructions/security-rules.instructions.md` | Firestore schema docs |
-| **Permission / Security** (37-38, 40) | 3 | `.github/instructions/security-rules.instructions.md` | Platform docs |
-| **Cross-Module Contracts** (24-27) | 4 | `docs/context-map.md` | Module AGENT.md |
-| **Feature Toggles / Independence** (17) | 1 | Platform feature-flag docs | — |
-| **Anti-Patterns** (46-50) | 5 | `AGENTS.md` § Anti-Patterns | Module AGENT.md |
-
-**Total**: 50 rules consolidated into 8 homes
-
----
-
-## 📍 LOCATION 1: `AGENTS.md` (Strategic Rules)
-
-### Add to § "Module Ownership Guardrails"
-
-```markdown
-## Strategic Ownership Rules (Hard Constraints)
-
-### Rule 1: Platform is Unique Infrastructure Gateway
-- ✅ platform owns Firebase, Genkit, external AI routing, cross-domain auth
-- ❌ notion, notebooklm NEVER own infra (except local read-only access)
-- ✅ workspace NEVER touches Firebase/Storage/Genkit directly
-
-### Rule 5: Workspace is Orchestration Only
-- ✅ workspace composes module APIs and next.js routing
-- ❌ workspace NEVER contains domain business logic
-- ❌ workspace NEVER makes direct DB/permission decisions
-
-### Rule 6: Cross-Module Access Prohibition
-- ✅ module A imports module B only via `@/modules/b/api`
-- ❌ NO direct imports of domain/, application/, infrastructure/, interfaces/
-- ✅ ALL data sharing via events or published language tokens
-
-### Rule 7: Mandatory Single Entry Point (API Boundary)
-- ✅ Every module must export `api/index.ts` 
-- ✅ `api/` exposes only public surface; hides internals
-- ❌ NO imports from internal module paths outside module
-
-### Rule 8: Platform is Only Infrastructure Layer
-- ✅ Firebase, Genkit, Auth, File Storage, Queue: platform owns
-- ✅ Cross-domain coordination, routing, governance: platform owns
-- ❌ Notion NEVER owns persistence (uses platform.infrastructure APIs)
-- ❌ Notebooklm NEVER owns embedding infra (uses platform.infrastructure APIs)
-
-### Rule 9: Cross-Module Data Flow MUST Use Events or API
-- ✅ When module A needs data from module B: A calls B.api or subscribes to B.event
-- ❌ NO shared in-memory state
-- ❌ NO direct repository access across module boundaries
-- ✅ All state mutations via transaction-protected API calls
-
-### Rule 10: Domain Layer is Externally Independent
-- ✅ domain/ contains entities, value objects, rules; NO framework deps
-- ❌ domain/ NEVER imports: React, Firebase SDK, HTTP client, ORM
-- ❌ domain/ NEVER depends on other modules (even platform)
-- ✅ All external deps injected via ports/adapters
-
-### Rule 28: Platform Cannot Depend on Downstream
-- ✅ platform → workspace | notion | notebooklm (one direction only)
-- ❌ platform NEVER imports from workspace, notion, notebooklm
-- ✅ If platform needs semantic data from notion/notebooklm: notion/notebooklm emit event to platform
-```
-
-### Add to § "Anti-Patterns"
-
-```markdown
-### Hard Anti-Patterns (Will Cause Refactors)
-
-- ❌ **Rule 46**: workspace directly calls Firestore (`firestore.collection().get()`)
-  - Fix: Use `@/modules/platform/api` (FileAPI, PermissionAPI, etc.)
-
-- ❌ **Rule 47**: notebooklm implements its own permission logic
-  - Fix: Call `@/modules/platform/api → PermissionAPI.can()`
-
-- ❌ **Rule 48**: notion directly invokes AI/Genkit
-  - Fix: Notion emits event; platform routes to notebooklm via AI API
-
-- ❌ **Rule 49**: Module imports another module's internal (domain/application/infrastructure)
-  - Fix: Use `@/modules/<target>/api` only
-
-- ❌ **Rule 50**: Business logic written in React component (workspace UI)
-  - Fix: Move to application/ use-case; UI only composes and calls
-```
-
----
-
-## 📍 LOCATION 2: `.github/instructions/architecture-core.instructions.md`
-
-### Add Section: "Layer Responsibility Rules"
-
-```markdown
-## Layer Responsibility Rules (Hard Constraints)
-
-### Rule 11: Application Layer = Transaction Boundary + Use Case Orchestration
-- ✅ application/ coordinates domain behavior + transaction boundaries
-- ✅ application/ handles command/query DTO translation
-- ✅ application/ publishes domain events
-- ❌ application/ NEVER contains business rules (write in domain/)
-- ❌ application/ NEVER directly calls UI frameworks
-- ✅ Use cases orchestrate only; rules stay in domain
-
-### Rule 12: Repositories Hidden Behind Module Boundary
-- ✅ Repository interface defined in domain/repositories/
-- ✅ Repository implementation hidden in infrastructure/
-- ❌ NO other module calls a module's repository directly
-- ✅ If another module needs aggregate data: call module.api or use events
-
-### Rule 13: DTO ≠ Domain Model
-- ✅ DTO lives in application/dtos/ (structural change contract)
-- ✅ Domain model lives in domain/entities/, domain/aggregates/ (business rules)
-- ❌ NEVER return domain model directly in API response
-- ✅ Map domain → DTO before crossing module boundary
-
-### Rule 16: Firestore Schema Driven by Domain, Not UI
-- ✅ domain/entities define what data exists (invariants, validation)
-- ✅ infrastructure/persistence maps domain → Firestore
-- ❌ UI changes NEVER drive schema changes directly
-- ✅ If UI needs new data: propose to domain; domain approves; schema follows
-
-### Rule 21: UI Layer (workspace + interfaces/) = Zero Business Logic
-- ✅ interfaces/ composes routes, actions, UI components
-- ✅ interfaces/ calls application/ use-cases or services
-- ❌ NO if (business rule) in UI
-- ❌ NO NO permission judgment in UI
-- ❌ NO NO transaction logic in UI
-- ✅ All decisions made server-side; UI only displays result
-
-### Rule 22: Application Layer = Use-Case Driven, Testable
-- ✅ Every use-case has: actor, goal, main scenario, extensions
-- ✅ Use-case can be tested without UI/framework
-- ✅ Use-case has no database import (uses injected repository)
-- ❌ NO generic utility classes masquerading as use-cases
-
-### Rule 23: Domain Layer = Pure, Side-Effect Free
-- ✅ domain/ contains rules, validation, state transitions
-- ✅ domain/ can be tested in isolation with no async
-- ❌ domain/ NEVER makes I/O calls
-- ❌ domain/ NEVER calls external services
-- ✅ domain events emitted; orchestration in application/
-```
-
----
-
-## 📍 LOCATION 3: `.github/instructions/event-driven-state.instructions.md`
-
-### Add Section: "Event Bus Requirement & Data Flow"
-
-```markdown
-## Event Bus Requirement & Async Data Flow (Hard Constraints)
-
-### Rule 4: Event Bus is Mandatory (Not Optional)
-- ✅ Platform.event-bus/ subdomain must exist and be fully implemented
-- ✅ All cross-module async flows go through event bus
-- ✅ All domain events emitted with: id, timestamp, source, payload schema
-- ❌ NEVER use Queue/RabbitMQ without event schema registry
-
-### Rule 34: Ingestion & Embedding Must Be Async
-- ✅ File upload triggers event; worker processes async
-- ✅ Embedding generation async; client polls or subscribes
-- ❌ NEVER block request until embedding complete
-- ✅ Store job ID; allow client to check status later
-
-### Rule 35: Long Tasks Must Use Queue/Event
-- ✅ AI orchestration, embedding, chunking: async with queue
-- ✅ Non-blocking request → store task ID → return immediately
-- ❌ NEVER setTimeout/promise without proper queue
-- ✅ Task must be retryable and idempotent
-
-### Rule 36: Event Schema is Non-Negotiable
-- ✅ Every event has: id (UUID), timestamp (ISO), source (module), payload
-- ✅ Event schema registered before emission
-- ✅ Event can be replayed from audit log
-- ❌ NO unstructured event payload (use discriminant + payload schema)
-
-### Rule 9: Cross-Module Data Flow = Events or API
-- ✅ When B needs to know about A's change: A emits event; B subscribes
-- ✅ When B needs data from A: B calls A.api (synchronous)
-- ❌ NO B reading A's Firestore collection directly
-- ✅ Events enable loose coupling; API enables strongcontract
-```
-
----
-
-## 📍 LOCATION 4: `.github/instructions/security-rules.instructions.md`
-
-### Add Section: "File Lifecycle, Metadata, Ownership"
-
-```markdown
-## File & Data Ownership Rules (Hard Constraints)
-
-### Rule 3: File Metadata is Non-Negotiable
-- ✅ EVERY file in Storage has metadata in Firestore
-- ✅ Metadata includes: ownerId, workspaceId, createdAt, lifecycle (active/archived/deleted)
-- ❌ NEVER store-only URL without DB entry
-- ✅ Firestore entry is source of truth for permissions & lifecycle
-
-### Rule 29: File Lifecycle is Explicit
-- ✅ File states: upload → used → archived → deleted
-- ✅ Transitions logged; each state has timestamp
-- ✅ Archived files not deleted immediately (async cleanup after retention)
-- ❌ NO orphaned files (every file must be referenced)
-
-### Rule 30: File Metadata in Database, Not Storage Headers Only
-- ✅ Firestore/Storage both contain metadata; DB is canonical
-- ✅ If Storage Object's custom metadata lost, DB entry remains
-- ❌ NEVER rely on Storage object metadata alone
-- ✅ Schema: collections/files/{fileId} → {ownerId, workspaceId, path, size, ...}
-
-### Rule 31: AI Input Traceability
-- ✅ Every AI request logged: [timestamp, source, input, model, params]
-- ✅ Logging in application/ service before sending to platform.ai
-- ❌ NEVER lose context (prompt + source + groundings)
-- ✅ Can replay prompts; deterministic when possible
-
-### Rule 32: AI Output Reconstructibility
-- ✅ AI output + input + timestamp + model version all stored
-- ✅ Deterministic flow: same input + params → same output (for embedding)
-- ✅ Snapshot stored so rerank/re-retrieval uses same data
-- ❌ NEVER lose ability to rewind/re-generate
-
-### Rule 33: Embedding & Index Reconstructibility
-- ✅ Embeddings stored with source chunk ID + hash
-- ✅ Vector index can be rebuilt from source + embedding service
-- ❌ Vector index is NOT source of truth
-- ✅ Source of truth: Firestore (chunks) + embedding service (vectors)
-
-### Rule 37: Every Resource Has an Owner
-- ✅ Every knowledge artifact, conversation, notebook: {ownerId, workspaceId}
-- ✅ Permission check before access: does request.user == resource.owner | member
-- ❌ NEVER expose resource without owner scope
-- ✅ Cross-workspace access: explicit ACL check
-
-### Rule 38: Permission NEVER Hard-Coded in UI
-- ✅ All permission checks happen server-side
-- ✅ UI conditionally rendered based on server permission response
-- ❌ NEVER hide UI element expecting client-side security
-- ✅ always fallback: permission denied → error message
-
-### Rule 39: Storage Path Contains Scope (Leak Prevention)
-- ✅ Storage paths: `{tenantId}/{workspaceId}/{ownerId}/{fileId}`
-- ✅ Firestore rules prevent cross-tenant access
-- ❌ NEVER path like `storage/uploads/{random}.pdf` (breaks isolation)
-- ✅ Scope visible in path; admins can audit
-
-### Rule 40: All Queries Must Include Scope
-- ✅ Firestore query: `collection.where('workspaceId', '==', workspace).get()`
-- ✅ Database query: `select * from resources where workspace_id = ?`
-- ❌ NEVER query without workspace/tenant filter
-- ✅ Scope enforced in both application and Firestore rules
-```
-
----
-
-## 📍 LOCATION 5: `docs/context-map.md`
-
-### Add or Extend Section: "Cross-Module Data Contracts"
-
-```markdown
-## Cross-Module Data Flow Rules (Hard Constraints)
-
-### Rule 24: Notebooklm Cannot Direct-Read Firestore
-- ✅ notebooklm reads knowledge artifacts via `@/modules/notion/api`
-- ❌ NEVER: `firestore.collection('notion_pages').get()`
-- ✅ Decouples notebooklm from notion's persistence model
-
-### Rule 25: Notebooklm Data Requests = Via Notion API
-- ✅ If notebooklm.retrieval needs knowledge: calls `notion.api.getKnowledgeArtifacts()`
-- ✅ Notion controls schema; notebooklm consumes contract only
-- ❌ NEVER notebooklm queries notion's Firestore directly
-
-### Rule 26: Notion is Completely Unaware of AI
-- ✅ notion/ has zero imports from notebooklm/
-- ✅ notion/ does not know AI exists
-- ✅ If AI needs notion data: calls notion.api
-- ❌ NO coupling from notion to AI/notebooklm
-
-### Rule 27: Workspace Cannot Direct-Call AI
-- ✅ workspace orchestrates; notebooklm synthesizes
-- ✅ workspace calls notebooklm.api; notebooklm handles AI routing
-- ❌ NEVER workspace imports platform.ai or genkit directly
-- ✅ Decouples UI from AI complexity
-```
-
----
-
-## 📍 LOCATION 6: Module-Level `AGENT.md` Files
-
-Each module should have its own constraints section, such as:
-
-### **`modules/platform/AGENT.md`** (Add Section)
-
-```markdown
-## Platform-Specific Hard Rules
-
-1. **Rule 1**: Platform infra (Firebase, Genkit, Auth) never directly exposed; wrapped in semantic APIs
-2. **Rule 2**: All consumers access platform via Service API layer only (FileAPI, AIAPI, PermissionAPI, AuthAPI)
-3. **Rule 8**: Platform is only module allowed to import Firebase SDK, Genkit SDK, external AI APIs
-4. **Rule 28**: Platform.api can emit events to downstream; platform.domain never imports downstream modules
-```
-
-### **`modules/workspace/AGENT.md`** (Add Section)
-
-```markdown
-## Workspace-Specific Hard Rules
-
-1. **Rule 5**: Workspace is pure orchestration (routes, actions); zero domain business logic
-2. **Rule 21**: UI components in workspace.interfaces/ NEVER contain business decision logic
-3. **Rule 27**: Workspace never directly calls AI; always goes through notebooklm or platform
-4. **Rule 17**: Workspace feature toggles ensure modules can be disabled; no hard dependencies
-```
-
-### **`modules/notion/AGENT.md`** (Add Section)
-
-```markdown
-## Notion-Specific Hard Rules
-
-1. **Rule 26**: Notion is agnostic of AI systems; zero imports from notebooklm or platform.ai
-2. **Rule 24-25**: Notion owns knowledge artifact authoring; others access via notion.api only
-3. **Rule 24**: Notion controls persistence schema; downstream modules don't query Firestore
-```
-
-### **`modules/notebooklm/AGENT.md`** (Add Section)
-
-```markdown
-## NotebookLM-Specific Hard Rules
-
-1. **Rule 24-25**: All knowledge data requests via notion.api; never direct Firestore
-2. **Rule 27**: Workspace calls notebooklm.api; notebooklm routes to platform.ai internally
-3. **Rule 31-32**: All AI prompts/outputs logged with full traceability metadata
-4. **Rule 34**: Retrieval + synthesis always async; non-blocking to request
-```
-
----
-
-## 📍 LOCATION 7: ESLint Config (`eslint.config.mjs`)
-
-### Add Custom Rule Enforcement
-
-```javascript
-// Enforce hard rule 2, 6, 49: No cross-module internal imports
-{
-  rules: {
-    "@custom/no-cross-module-internal-import": {
-      enabled: true,
-      allowedPaths: ["api/", "index.ts"],  // Only api/ and root exports allowed
-      blockedPaths: ["domain/", "application/", "infrastructure/", "interfaces/"]
-    },
-    
-    // Enforce hard rule 1, 8: No direct Firebase/Genkit imports outside platform
-    "@custom/no-direct-firebase-outside-platform": {
-      enabled: true,
-      allowedModules: ["platform"],
-      blockedImports: ["firebase", "@google-cloud/genkit"]
-    }
-  }
-}
-```
-
----
-
-## 🎯 Summary: Where Each Rule Lives
-
-| Rules | Location | File |
-|---|---|---|
-| 1, 5-10, 28 | AGENTS.md | Strategic ownership |
-| 2, 6-7, 49 | AGENTS.md + eslint | Dependency direction |
-| 11-13, 21-23 | architecture-core.instructions.md | Layer responsibility |
-| 4, 9, 34-36 | event-driven-state.instructions.md | Event bus & async |
-| 3, 29-32, 37-40 | security-rules.instructions.md | File/data/permission |
-| 24-27 | context-map.md | Cross-module contracts |
-| 17 | Platform feature-flag docs | Feature independence |
-| 46-50 | AGENTS.md | Anti-patterns |
-| All | Module AGENT.md | Tactical enforcement |
-
----
-
-## ✅ Enforcement Checklist
-
-### Before Each Merge:
-- [ ] No cross-module imports outside `api/`
-- [ ] No Firebase/Genkit outside platform
-- [ ] All async flows use event bus with schema
-- [ ] File metadata in Firestore
-- [ ] Permission checks server-side only
-- [ ] Domain layer has zero external deps
-- [ ] Application layer orchestrates, not rules
-
-### Before Each Release:
-- [ ] All rules reviewed in relevant AGENT.md
-- [ ] ESLint boundary checks passing
-- [ ] Zero anti-pattern violations (46-50)
-- [ ] Event schemas registered & consistent
-
----
-
-## 📚 Document Network
-
-- [AGENTS.md](../AGENTS.md) — Strategic ownership & anti-patterns
-- [.github/instructions/architecture-core.instructions.md](../.github/instructions/architecture-core.instructions.md) — Layer responsibility
-- [.github/instructions/event-driven-state.instructions.md](../.github/instructions/event-driven-state.instructions.md) — Event bus & async
-- [.github/instructions/security-rules.instructions.md](../.github/instructions/security-rules.instructions.md) — File/data/permission
-- [docs/context-map.md](./context-map.md) — Cross-module contracts
-- [modules/platform/AGENT.md](../modules/platform/AGENT.md) — Platform constraints
-- [modules/workspace/AGENT.md](../modules/workspace/AGENT.md) — Workspace constraints
-- [modules/notion/AGENT.md](../modules/notion/AGENT.md) — Notion constraints
-- [modules/notebooklm/AGENT.md](../modules/notebooklm/AGENT.md) — NotebookLM constraints
-````
-
 ## File: modules/notebooklm/application/dtos/index.ts
 ````typescript
 
@@ -37178,74 +35071,6 @@ import type { NotebookRepository } from "../../../subdomains/notebook/domain/rep
 export class PlatformTextGenerationAdapter implements NotebookRepository {
 ⋮----
 async generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>
-````
-
-## File: modules/notebooklm/infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/adapters
- * Adapter: NotionKnowledgePageGatewayAdapter — delegates to notion bounded context API.
- *
- * Implements the KnowledgePageGateway port defined in the application layer,
- * bridging the source subdomain to the notion bounded context through its
- * top-level public API and published-language tokens.
- */
-⋮----
-import type { CommandResult } from "@shared-types";
-⋮----
-import type { KnowledgePageGateway } from "../../../subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case";
-⋮----
-interface KnowledgeArtifactReferenceToken {
-  readonly artifactId: string;
-  readonly artifactType: "page" | "article";
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly title: string;
-  readonly slug: string;
-}
-⋮----
-function slugifyTitle(title: string): string
-⋮----
-function toKnowledgeArtifactReference(input: {
-  accountId: string;
-  workspaceId: string;
-  title: string;
-  artifactId: string;
-}): KnowledgeArtifactReferenceToken
-⋮----
-export class NotionKnowledgePageGatewayAdapter implements KnowledgePageGateway {
-⋮----
-constructor(
-    private readonly deps: {
-      createKnowledgePage: (input: {
-        accountId: string;
-        workspaceId: string;
-        title: string;
-        parentPageId: null;
-        createdByUserId: string;
-})
-⋮----
-async createPage(input: {
-    accountId: string;
-    workspaceId: string;
-    title: string;
-    parentPageId: null;
-    createdByUserId: string;
-}): Promise<CommandResult>
-⋮----
-// Normalize cross-context return as notion published-language token.
-⋮----
-async addBlock(input: {
-    accountId: string;
-    pageId: string;
-    index: number;
-    content: {
-      type: "text";
-      richText: readonly { type: string; plainText: string }[];
-      properties: Record<string, unknown>;
-    };
-}): Promise<CommandResult>
 ````
 
 ## File: modules/notebooklm/infrastructure/source/firebase/FirebaseDocumentStatusAdapter.ts
@@ -37825,6 +35650,28 @@ export interface SourceProcessingExecutionSummary {
 export function createIdleExecutionSummary(): SourceProcessingExecutionSummary
 ````
 
+## File: modules/notebooklm/subdomains/source/application/dto/source.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the source subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+⋮----
+/**
+ * resolveSourceOrganizationId — maps an account to its organization scope.
+ *
+ * Wraps the domain service to provide a clean application-layer contract.
+ * Personal accounts get a synthetic org ID prefixed with "personal:" so they
+ * can participate in the same org-scoped permission checks as org accounts.
+ */
+export function resolveSourceOrganizationId(
+  accountType: "user" | "organization",
+  accountId: string,
+): string
+⋮----
+// ── Wiki library entity types (used by composition facades) ──────────────
+````
+
 ## File: modules/notebooklm/subdomains/source/application/index.ts
 ````typescript
 
@@ -37847,81 +35694,6 @@ export class ListSourceFilesUseCase {
 constructor(private readonly fileRepository: SourceFileRepository)
 ⋮----
 async execute(scope: ListSourceFilesScope): Promise<WorkspaceFileListItemDto[]>
-````
-
-## File: modules/notebooklm/subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: application/use-cases
- * Use Case: CreateKnowledgeDraftFromSourceUseCase — creates a knowledge page draft from a parsed source document.
- *
- * Actor: logged-in user
- * Goal: read parsed text from storage, create a knowledge page with a text block.
- * Main success: page created, returns aggregateId.
- * Failure: missing input, storage retrieval failure, or page creation failure.
- */
-⋮----
-import type { CommandResult } from "@shared-types";
-import { commandFailureFrom, commandSuccess } from "@shared-types";
-⋮----
-import type { ParsedDocumentPort } from "../../domain/ports/ParsedDocumentPort";
-⋮----
-export interface CreateKnowledgeDraftInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly createdByUserId: string;
-  readonly filename: string;
-  readonly sourceGcsUri: string;
-  readonly jsonGcsUri: string;
-  readonly pageCount: number;
-}
-⋮----
-export interface KnowledgePageGateway {
-  createPage(input: {
-    accountId: string;
-    workspaceId: string;
-    title: string;
-    parentPageId: null;
-    createdByUserId: string;
-  }): Promise<CommandResult>;
-  addBlock(input: {
-    accountId: string;
-    pageId: string;
-    index: number;
-    content: {
-      type: "text";
-      richText: readonly { type: string; plainText: string }[];
-      properties: Record<string, unknown>;
-    };
-  }): Promise<CommandResult>;
-}
-⋮----
-createPage(input: {
-    accountId: string;
-    workspaceId: string;
-    title: string;
-    parentPageId: null;
-    createdByUserId: string;
-  }): Promise<CommandResult>;
-addBlock(input: {
-    accountId: string;
-    pageId: string;
-    index: number;
-    content: {
-      type: "text";
-      richText: readonly { type: string; plainText: string }[];
-      properties: Record<string, unknown>;
-    };
-  }): Promise<CommandResult>;
-⋮----
-function trimFileExtension(filename: string): string
-⋮----
-export class CreateKnowledgeDraftFromSourceUseCase {
-⋮----
-constructor(
-⋮----
-async execute(input: CreateKnowledgeDraftInput): Promise<CommandResult>
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/use-cases/delete-source-document.use-case.ts
@@ -38240,6 +36012,59 @@ export interface SourceDocumentRenamedEvent extends NotebookLmDomainEvent {
 }
 ````
 
+## File: modules/notebooklm/subdomains/source/domain/ports/KnowledgePageGatewayPort.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: domain/ports
+ * Port: KnowledgePageGateway — anti-corruption layer for creating knowledge pages
+ *       in the notion bounded context.
+ *
+ * This port isolates cross-context collaboration. Infrastructure provides
+ * the adapter that delegates to notion/api; application consumes via use cases.
+ */
+⋮----
+import type { CommandResult } from "@shared-types";
+⋮----
+export interface KnowledgePageGateway {
+  createPage(input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    parentPageId: null;
+    createdByUserId: string;
+  }): Promise<CommandResult>;
+  addBlock(input: {
+    accountId: string;
+    pageId: string;
+    index: number;
+    content: {
+      type: "text";
+      richText: readonly { type: string; plainText: string }[];
+      properties: Record<string, unknown>;
+    };
+  }): Promise<CommandResult>;
+}
+⋮----
+createPage(input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    parentPageId: null;
+    createdByUserId: string;
+  }): Promise<CommandResult>;
+addBlock(input: {
+    accountId: string;
+    pageId: string;
+    index: number;
+    content: {
+      type: "text";
+      richText: readonly { type: string; plainText: string }[];
+      properties: Record<string, unknown>;
+    };
+  }): Promise<CommandResult>;
+````
+
 ## File: modules/notebooklm/subdomains/source/domain/ports/ParsedDocumentPort.ts
 ````typescript
 /**
@@ -38488,433 +36313,63 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/application/index.ts
-````typescript
-/**
- * Application layer for notebooklm subdomain 'synthesis'.
- * Contains RAG pipeline use cases for answer generation and feedback.
- */
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/entities/generation.entities.ts
+## File: modules/notebooklm/subdomains/synthesis/application/use-cases/answer-rag-query.use-case.ts
 ````typescript
 /**
  * Module: notebooklm/subdomains/synthesis
- * Layer: domain/entities
- * Purpose: Generation result types for the synthesis layer.
+ * Layer: application/use-cases
+ * Purpose: AnswerRagQueryUseCase — orchestrates grounding + synthesis to
+ *          produce a cited answer for a user question.
  *
- * Design notes:
- * - These types bridge grounding chunks → natural-language answer.
- * - RagRetrievedChunk is re-exported from retrieval entities for convenience;
- *   callers should use these types when working with generation output.
+ * Design improvements over legacy answer-rag-query.use-case.ts:
+ * - TopK limit is configurable via constructor injection (no hard-coded MAX_TOP_K=10).
+ * - Error codes are prefixed with QA_ for namespace clarity.
+ * - Dependencies typed against interfaces, not concrete classes.
  */
 ⋮----
-import type { DomainError } from "@shared-types";
+import { randomUUID } from "node:crypto";
 ⋮----
-import type { RagRetrievedChunk } from "./retrieval.entities";
+import type { RagRetrievalRepository } from "../../domain/repositories/RagRetrievalRepository";
+import type {
+  AnswerRagQueryInput,
+  AnswerRagQueryOutput,
+  AnswerRagQueryResult,
+  RagRetrievalSummary,
+} from "../../domain/entities/rag-query.entities";
+import type { RagGenerationRepository } from "../../domain/repositories/RagGenerationRepository";
 ⋮----
-/** Attribution claim within a generated answer */
-export interface GenerationCitation {
-  readonly docId: string;
-  readonly chunkIndex: number;
-  readonly page?: number;
-  readonly reason: string;
-}
+const DEFAULT_MAX_TOP_K = 20; // Raise from the legacy hard-coded 10
 ⋮----
-/** Input to the generation port */
-export interface GenerateRagAnswerInput {
-  readonly traceId: string;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly userQuery: string;
-  readonly chunks: readonly RagRetrievedChunk[];
-  /** Optional model override (e.g. "googleai/gemini-2.5-pro"). Fall back to env default. */
-  readonly model?: string;
-}
+function clampTopK(value: number | undefined, maxTopK: number): number
 ⋮----
-/** Optional model override (e.g. "googleai/gemini-2.5-pro"). Fall back to env default. */
+export class AnswerRagQueryUseCase {
 ⋮----
-/** Successful generation output */
-export interface GenerateRagAnswerOutput {
-  readonly answer: string;
-  readonly citations: readonly GenerationCitation[];
-  readonly model: string;
-}
+constructor(
 ⋮----
-/** Discriminated union result (compatible with CommandResult pattern) */
-export type GenerateRagAnswerResult =
-  | { ok: true; data: GenerateRagAnswerOutput }
-  | { ok: false; error: DomainError };
+/** Maximum topK accepted from callers. Override at composition root for environment-specific limits. */
+⋮----
+async execute(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult>
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/domain/entities/GroundingEvidence.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/grounding
- * Layer: domain/entities
- * Purpose: GroundingEvidence — attribution record tying an answer claim to its source.
- *
- * Migration source: ai/domain/entities/retrieval.entities.ts → RagCitation
- * Migration source: ai/domain/services/RagCitationBuilder.ts
- */
-⋮----
-/** Attribution record that ties an answer claim to its source chunk */
-export interface Citation {
-  readonly docId: string;
-  readonly chunkIndex: number;
-  readonly page?: number;
-  readonly reason: string;
-}
-⋮----
-/** Grounding evidence aggregating citations with source metadata */
-export interface GroundingEvidence {
-  readonly traceId: string;
-  readonly citations: readonly Citation[];
-  readonly totalChunksConsidered: number;
-  readonly groundedAt: string;
-}
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/entities/QualityFeedback.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/evaluation
- * Layer: domain/entities
- * Purpose: QualityFeedback — user-quality signal on generated answers.
- *
- * Migration source: ai/domain/entities/rag-feedback.entities.ts
- */
-⋮----
-export type FeedbackRating = "helpful" | "not_helpful" | "partially_helpful";
-⋮----
-export interface QualityFeedback {
-  readonly id: string;
-  readonly traceId: string;
-  readonly userQuery: string;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly rating: FeedbackRating;
-  readonly comment?: string;
-  readonly submittedByUserId: string;
-  readonly submittedAtISO: string;
-}
-⋮----
-export interface SubmitFeedbackInput {
-  readonly traceId: string;
-  readonly userQuery: string;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly rating: FeedbackRating;
-  readonly comment?: string;
-  readonly submittedByUserId: string;
-}
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/entities/rag-feedback.entities.ts
+## File: modules/notebooklm/subdomains/synthesis/application/use-cases/submit-rag-feedback.use-case.ts
 ````typescript
 /**
  * Module: notebooklm/subdomains/synthesis
- * Layer: domain/entities
- * Purpose: RagQueryFeedback — captures user-quality signal on generated answers.
+ * Layer: application/use-cases
+ * Purpose: SubmitRagQueryFeedbackUseCase — persists user quality signal on
+ *          a RAG answer and returns a CommandResult.
  */
 ⋮----
-export type RagFeedbackRating = "helpful" | "not_helpful" | "partially_helpful";
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 ⋮----
-export interface RagQueryFeedback {
-  readonly id: string;
-  readonly traceId: string;
-  readonly userQuery: string;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly rating: RagFeedbackRating;
-  readonly comment?: string;
-  readonly submittedByUserId: string;
-  readonly submittedAtISO: string;
-}
+import type { RagQueryFeedbackRepository } from "../../domain/repositories/RagQueryFeedbackRepository";
+import type { RagFeedbackRating, SubmitRagQueryFeedbackInput } from "../../domain/entities/rag-feedback.entities";
 ⋮----
-export interface SubmitRagQueryFeedbackInput {
-  readonly traceId: string;
-  readonly userQuery: string;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly rating: RagFeedbackRating;
-  readonly comment?: string;
-  readonly submittedByUserId: string;
-}
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/entities/rag-query.entities.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: domain/entities
- * Purpose: RAG Q&A domain types — inputs, outputs, streaming events.
- *
- * Design notes:
- * - AnswerRagQueryInput / Output represent the public contract for the Q&A use case.
- * - RagStreamEvent models the streaming surface (for future streaming support).
- * - RagCitation re-exported from grounding for Q&A consumer convenience.
- */
+export class SubmitRagQueryFeedbackUseCase {
 ⋮----
-import type { DomainError } from "@shared-types";
+constructor(private readonly feedbackRepository: RagQueryFeedbackRepository)
 ⋮----
-import type { RagCitation, RagRetrievalSummary } from "./retrieval.entities";
-⋮----
-export interface AnswerRagQueryInput {
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly userQuery: string;
-  readonly taxonomy?: string;
-  readonly topK?: number;
-  readonly model?: string;
-}
-⋮----
-export interface AnswerRagQueryOutput {
-  readonly answer: string;
-  readonly citations: readonly RagCitation[];
-  readonly retrievalSummary: RagRetrievalSummary;
-  readonly model: string;
-  readonly traceId: string;
-  readonly events: readonly RagStreamEvent[];
-}
-⋮----
-export type AnswerRagQueryResult =
-  | { ok: true; data: AnswerRagQueryOutput }
-  | { ok: false; error: DomainError };
-⋮----
-/** Streaming event for progressive answer delivery (extensibility hook) */
-export interface RagStreamEvent {
-  readonly type: "token" | "citation" | "done" | "error";
-  readonly traceId: string;
-  readonly payload: string | RagCitation | RagRetrievalSummary | DomainError;
-}
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/entities/retrieval.entities.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: domain/entities
- * Purpose: Core retrieval result types — the factual anchors used to ground
- *          AI-generated answers. These types flow from retrieval → synthesis.
- *
- * Design notes:
- * - RagRetrievedChunk is the atomic unit of grounding evidence.
- * - RagCitation links an answer claim back to its source chunk.
- * - RagRetrievalSummary reports the bibliographic scope of the retrieval pass.
- * - All fields are readonly; entities are value objects (compared by identity in the flow).
- */
-⋮----
-/** A single text chunk fetched from the vector + sparse retrieval pass */
-export interface RagRetrievedChunk {
-  readonly chunkId: string;
-  readonly docId: string;
-  readonly chunkIndex: number;
-  readonly page?: number;
-  /** Semantic / organisational taxonomy label (e.g. "規章制度") */
-  readonly taxonomy: string;
-  readonly text: string;
-  /** Similarity score in [0, 1]; higher is more relevant */
-  readonly score: number;
-}
-⋮----
-/** Semantic / organisational taxonomy label (e.g. "規章制度") */
-⋮----
-/** Similarity score in [0, 1]; higher is more relevant */
-⋮----
-/** Attribution record that ties an answer claim to its source chunk */
-export interface RagCitation {
-  readonly docId: string;
-  readonly chunkIndex: number;
-  readonly page?: number;
-  readonly reason: string;
-}
-⋮----
-/** Summary of the retrieval execution scope for observability / UX */
-export interface RagRetrievalSummary {
-  readonly mode: "skeleton-metadata-filter";
-  readonly scope: "organization" | "workspace";
-  readonly retrievedChunkCount: number;
-  readonly topK: number;
-  readonly taxonomy?: string;
-}
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/entities/RetrievedChunk.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/retrieval
- * Layer: domain/entities
- * Purpose: RetrievedChunk — atomic unit of grounding evidence from vector/sparse retrieval.
- *
- * Migration source: ai/domain/entities/retrieval.entities.ts → RagRetrievedChunk
- * This is the target canonical location after Strangler Pattern convergence.
- */
-⋮----
-/** A single text chunk fetched from the vector + sparse retrieval pass */
-export interface RetrievedChunk {
-  readonly chunkId: string;
-  readonly docId: string;
-  readonly chunkIndex: number;
-  readonly page?: number;
-  /** Semantic / organisational taxonomy label */
-  readonly taxonomy: string;
-  readonly text: string;
-  /** Similarity score in [0, 1]; higher is more relevant */
-  readonly score: number;
-}
-⋮----
-/** Semantic / organisational taxonomy label */
-⋮----
-/** Similarity score in [0, 1]; higher is more relevant */
-⋮----
-/** Summary of the retrieval execution scope for observability / UX */
-export interface RetrievalSummary {
-  readonly mode: string;
-  readonly scope: "organization" | "workspace";
-  readonly retrievedChunkCount: number;
-  readonly topK: number;
-  readonly taxonomy?: string;
-}
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/events/EvaluationEvents.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/evaluation
- * Layer: domain/events
- * Purpose: Domain events for evaluation/feedback operations.
- */
-⋮----
-import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
-import type { FeedbackRating } from "../entities/QualityFeedback";
-⋮----
-export interface FeedbackSubmittedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.evaluation.feedback_submitted";
-  readonly payload: {
-    readonly feedbackId: string;
-    readonly traceId: string;
-    readonly rating: FeedbackRating;
-    readonly organizationId: string;
-  };
-}
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/events/GroundingEvents.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/grounding
- * Layer: domain/events
- * Purpose: Domain events for grounding operations.
- */
-⋮----
-import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
-⋮----
-export interface GroundingCompletedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.grounding.completed";
-  readonly payload: {
-    readonly traceId: string;
-    readonly citationCount: number;
-    readonly chunksConsidered: number;
-  };
-}
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/events/RetrievalEvents.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/retrieval
- * Layer: domain/events
- * Purpose: Domain events for retrieval operations.
- */
-⋮----
-import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
-⋮----
-export interface RetrievalCompletedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.retrieval.completed";
-  readonly payload: {
-    readonly traceId: string;
-    readonly chunkCount: number;
-    readonly scope: "organization" | "workspace";
-    readonly topK: number;
-  };
-}
-⋮----
-export interface RetrievalFailedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.retrieval.failed";
-  readonly payload: {
-    readonly traceId: string;
-    readonly errorCode: string;
-    readonly errorMessage: string;
-  };
-}
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/events/SynthesisPipelineDomainEvent.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: domain/events
- * Purpose: Pipeline-level domain events for the synthesis subdomain.
- *
- * Migrated from ai/domain/events/AiDomainEvent.ts.
- * Event discriminants updated: notebooklm.ai.* → notebooklm.synthesis.*
- */
-⋮----
-import type { RagFeedbackRating } from "../entities/rag-feedback.entities";
-import type { OrganizationScope } from "../value-objects/OrganizationScope";
-import type { TopK } from "../value-objects/TopK";
-⋮----
-export interface SynthesisPipelineDomainEvent {
-  readonly eventId: string;
-  readonly occurredAt: string;
-  readonly type: string;
-  readonly payload: object;
-}
-⋮----
-export interface RagQuerySubmittedEvent extends SynthesisPipelineDomainEvent {
-  readonly type: "notebooklm.synthesis.query_submitted";
-  readonly payload: {
-    readonly traceId: string;
-    readonly organizationId: string;
-    readonly workspaceId?: string;
-    readonly userQuery: string;
-    readonly topK: TopK;
-  };
-}
-⋮----
-export interface RagRetrievalCompletedEvent extends SynthesisPipelineDomainEvent {
-  readonly type: "notebooklm.synthesis.retrieval_completed";
-  readonly payload: {
-    readonly traceId: string;
-    readonly chunkCount: number;
-    readonly scope: OrganizationScope;
-  };
-}
-⋮----
-export interface RagAnswerGeneratedEvent extends SynthesisPipelineDomainEvent {
-  readonly type: "notebooklm.synthesis.answer_generated";
-  readonly payload: {
-    readonly traceId: string;
-    readonly model: string;
-    readonly citationCount: number;
-  };
-}
-⋮----
-export interface RagFeedbackSubmittedEvent extends SynthesisPipelineDomainEvent {
-  readonly type: "notebooklm.synthesis.feedback_submitted";
-  readonly payload: {
-    readonly traceId: string;
-    readonly rating: RagFeedbackRating;
-    readonly organizationId: string;
-  };
-}
-⋮----
-export type SynthesisPipelineDomainEventType =
-  | RagQuerySubmittedEvent
-  | RagRetrievalCompletedEvent
-  | RagAnswerGeneratedEvent
-  | RagFeedbackSubmittedEvent;
+async execute(input: SubmitRagQueryFeedbackInput): Promise<CommandResult>
 ````
 
 ## File: modules/notebooklm/subdomains/synthesis/domain/ports/ChunkRetrievalPort.ts
@@ -39250,108 +36705,6 @@ export interface CitationBuilder {
 build(input: CitationBuilderInput): readonly Citation[];
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/domain/services/RagCitationBuilder.ts
-````typescript
-import type { GenerationCitation } from "../entities/generation.entities";
-import type { RagRetrievedChunk } from "../entities/retrieval.entities";
-⋮----
-export class RagCitationBuilder {
-⋮----
-/**
-   * Derive citations from the chunks used for generation.
-   * Citations are taken directly from input chunks to avoid model hallucination.
-   */
-buildCitations(chunks: readonly RagRetrievedChunk[]): GenerationCitation[]
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/services/RagPromptBuilder.ts
-````typescript
-import type { RagRetrievedChunk } from "../entities/retrieval.entities";
-import type { RagPrompt } from "../value-objects/RagPrompt";
-⋮----
-export class RagPromptBuilder {
-⋮----
-/**
-   * Format a single chunk for inclusion in the generation prompt.
-   */
-formatChunkForPrompt(chunk: RagRetrievedChunk): string
-⋮----
-/**
-   * Build the complete RAG generation prompt from retrieved chunks.
-   */
-buildGenerationPrompt(userQuery: string, chunks: readonly RagRetrievedChunk[]): RagPrompt
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/services/RagScoringService.ts
-````typescript
-import type { RagRetrievedChunk } from "../entities/retrieval.entities";
-⋮----
-export class RagScoringService {
-⋮----
-/**
-   * Tokenize text into searchable tokens (CJK-aware).
-   * CJK characters are treated as individual tokens; Latin words split by whitespace/punctuation.
-   */
-tokenize(text: string): readonly string[]
-⋮----
-/**
-   * Compute token-overlap score between query tokens and chunk text.
-   * Returns score in [0, 1] = matchedTokens / queryTokens.length
-   */
-computeTokenOverlapScore(queryTokens: readonly string[], chunkText: string): number
-⋮----
-/**
-   * Rank chunks by relevance score, returning top-K.
-   */
-rankChunks(
-    chunks: readonly RagRetrievedChunk[],
-    queryTokens: readonly string[],
-    topK: number,
-): RagRetrievedChunk[]
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/value-objects/index.ts
-````typescript
-
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/value-objects/OrganizationScope.ts
-````typescript
-export interface OrganizationScope {
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-}
-⋮----
-export function isWorkspaceScoped(scope: OrganizationScope): boolean
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/value-objects/RagPrompt.ts
-````typescript
-export interface RagPrompt {
-  readonly systemInstruction: string;
-  readonly formattedContext: string;
-  readonly userQuery: string;
-}
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/value-objects/RelevanceScore.ts
-````typescript
-import { z } from "@lib-zod";
-⋮----
-export type RelevanceScore = z.infer<typeof RelevanceScoreSchema>;
-⋮----
-export function createRelevanceScore(raw: number): RelevanceScore
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/value-objects/TopK.ts
-````typescript
-import { z } from "@lib-zod";
-⋮----
-export type TopK = z.infer<typeof TopKSchema>;
-⋮----
-export function createTopK(raw: number): TopK
-````
-
 ## File: modules/notebooklm/subdomains/synthesis/README.md
 ````markdown
 # Synthesis
@@ -39551,6 +36904,45 @@ Legacy migration (Strangler Pattern):
 3. Converge Application layer
 4. Isolate legacy via Ports
 5. Replace Infrastructure adapter; remove old path when stable
+````
+
+## File: modules/notion/api/index.ts
+````typescript
+/**
+ * Module: notion
+ * Layer: api (top-level public boundary)
+ * Purpose: Unified public boundary for notion subdomains.
+ *          External consumers (workspace, other modules) must only import from here.
+ *          Browser-facing route composition should prefer workspace/api when
+ *          workspace is the orchestration owner.
+ *
+ * Notes:
+ * - This file exposes only stable cross-module semantic capabilities.
+ * - Internal factory wiring remains private to notion subdomains/interfaces
+ *   until a context-wide server-only contract is explicitly justified.
+ */
+⋮----
+// ── Context-wide published language ───────────────────────────────────────────
+⋮----
+// ── knowledge subdomain ───────────────────────────────────────────────────────
+⋮----
+// ── authoring subdomain ───────────────────────────────────────────────────────
+// Migration state: subdomain-owned composition remains private; root api only
+// aggregates stable public capabilities during the knowledge-base convergence.
+⋮----
+// ── collaboration subdomain ───────────────────────────────────────────────────
+// Migration state: subdomain-owned composition remains private; root api only
+// aggregates stable public capabilities during the collaboration convergence.
+⋮----
+// ── database subdomain ────────────────────────────────────────────────────────
+// Migration state: subdomain-owned composition remains private; root api only
+// aggregates stable public capabilities during the database convergence.
+⋮----
+// ── taxonomy subdomain ────────────────────────────────────────────────────────
+// Tier 2 — classification hierarchy and semantic organization
+⋮----
+// ── relations subdomain ───────────────────────────────────────────────────────
+// Tier 2 — backlinks, forward links, and reference graphs
 ````
 
 ## File: modules/notion/application/dtos/index.ts
@@ -41389,6 +38781,24 @@ interfaces/ → application/ → domain/ ← infrastructure/
  */
 ````
 
+## File: modules/notion/subdomains/knowledge/application/dto/knowledge.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the knowledge subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+⋮----
+import type { RichTextSpan } from "../../domain/value-objects/BlockContent";
+⋮----
+/**
+ * richTextToPlainText — converts rich-text spans to a plain string.
+ *
+ * Application-layer utility that mirrors the domain value-object helper.
+ * Defined here so interfaces/ do not depend directly on domain/.
+ */
+export function richTextToPlainText(spans: ReadonlyArray<RichTextSpan>): string
+````
+
 ## File: modules/notion/subdomains/knowledge/application/queries/backlink.queries.ts
 ````typescript
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
@@ -42101,41 +39511,9 @@ async uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>
 async deleteFile(fileId: string): Promise<void>
 ````
 
-## File: modules/platform/application/services/shell-quick-create.ts
+## File: modules/platform/interfaces/web/index.ts
 ````typescript
-/**
- * Shell quick-create orchestrator.
- *
- * Context-wide application service that coordinates cross-bounded-context
- * creation actions triggered from the platform shell UI.
- * Delegates to the target module's public API boundary only.
- */
-⋮----
-// ── Input / output contracts ──────────────────────────────────────────────────
-⋮----
-export interface QuickCreatePageInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly createdByUserId: string;
-}
-⋮----
-export interface QuickCreatePageResult {
-  readonly success: boolean;
-  readonly error?: { message: string };
-}
-⋮----
-// ── Orchestration ─────────────────────────────────────────────────────────────
-⋮----
-export async function quickCreateKnowledgePage(
-  input: QuickCreatePageInput,
-  createPage: (input: {
-    accountId: string;
-    workspaceId: string;
-    title: string;
-    parentPageId: null;
-    createdByUserId: string;
-  }) => Promise<QuickCreatePageResult>,
-): Promise<QuickCreatePageResult>
+// providers — context and useApp from platform-only ShellAppContext
 ````
 
 ## File: modules/platform/interfaces/web/providers/ShellAppContext.ts
@@ -42209,11 +39587,36 @@ export interface AppContextValue {
 export function useApp()
 ````
 
-## File: modules/platform/subdomains/access-control/api/index.ts
+## File: modules/platform/subdomains/access-control/infrastructure/index.ts
 ````typescript
 /**
- * Public API boundary for the access-control subdomain.
+ * Access-control infrastructure barrel — adapter exports only.
+ *
+ * Composition logic lives in interfaces/composition/access-control-service.ts.
  */
+````
+
+## File: modules/platform/subdomains/access-control/interfaces/composition/access-control-service.ts
+````typescript
+/**
+ * AccessControlService — Composition root for access-control use cases.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
+ */
+import {
+  EvaluatePermissionUseCase,
+  CreateAccessPolicyUseCase,
+  UpdateAccessPolicyUseCase,
+  DeactivateAccessPolicyUseCase,
+} from "../../application/use-cases/access-control.use-cases";
+import { FirebaseAccessPolicyRepository } from "../../infrastructure/firebase/FirebaseAccessPolicyRepository";
+import type { SubjectRef } from "../../domain/value-objects/SubjectRef";
+import type { ResourceRef } from "../../domain/value-objects/ResourceRef";
+import type { PolicyEffect } from "../../domain/value-objects/PolicyEffect";
+import type { CommandResult } from "@shared-types";
+⋮----
+function getRepo(): FirebaseAccessPolicyRepository
 ````
 
 ## File: modules/platform/subdomains/account-profile/domain/index.ts
@@ -42231,9 +39634,81 @@ export function useApp()
  */
 ````
 
-## File: modules/platform/subdomains/account-profile/infrastructure/index.ts
+## File: modules/platform/subdomains/account-profile/interfaces/composition/account-profile-service.ts
 ````typescript
+/**
+ * AccountProfileService — Composition root for account-profile subdomain.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
+ *
+ * Wires the legacy account data-source (from the account subdomain bridge)
+ * into domain-port-conforming adapters and use cases.
+ */
+⋮----
+import {
+	GetAccountProfileUseCase,
+	SubscribeAccountProfileUseCase,
+	UpdateAccountProfileUseCase,
+} from "../../application";
+import {
+	createLegacyAccountProfileCommandRepository,
+	createLegacyAccountProfileQueryRepository,
+	type LegacyAccountProfileDataSource,
+} from "../../infrastructure/create-legacy-account-profile-application.adapter";
+import type { AccountProfile, Unsubscribe } from "../../domain";
+import type { UpdateAccountProfileInput } from "../../application";
+import type { CommandResult } from "@shared-types";
+⋮----
+// ── Lazy singletons ──────────────────────────────────────────────────────
+⋮----
+export function configureLegacyAccountProfileDataSource(
+	legacyDataSource: LegacyAccountProfileDataSource,
+): void
+⋮----
+function getLegacyDataSource(): LegacyAccountProfileDataSource
+⋮----
+// Auto-configure: lazy-require from sibling subdomain bridge to avoid
+// import-time side effects in the account-profile api boundary.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+⋮----
+function getGetAccountProfileUseCase(): GetAccountProfileUseCase
+⋮----
+function getSubscribeAccountProfileUseCase(): SubscribeAccountProfileUseCase
+⋮----
+function getUpdateAccountProfileUseCase(): UpdateAccountProfileUseCase
+⋮----
+// ── Public service API ───────────────────────────────────────────────────
+⋮----
+export async function getAccountProfile(actorId: string): Promise<AccountProfile | null>
+⋮----
+export function subscribeToAccountProfile(
+	actorId: string,
+	onUpdate: (profile: AccountProfile | null) => void,
+): Unsubscribe
+⋮----
+export async function updateAccountProfile(
+	actorId: string,
+	input: UpdateAccountProfileInput,
+): Promise<CommandResult>
+````
 
+## File: modules/platform/subdomains/account/api/legacy-account-profile.bridge.ts
+````typescript
+import { type UpdateProfileInput } from "../application/dtos/account.dto";
+import { accountService, createAccountQueryRepository } from "../interfaces/composition/account-service";
+import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
+⋮----
+function getAccountQueryRepo(): AccountQueryRepository
+⋮----
+export async function getLegacyUserProfile(userId: string)
+⋮----
+export function subscribeToLegacyUserProfile(
+  userId: string,
+  onUpdate: (profile: Awaited<ReturnType<typeof getLegacyUserProfile>>) => void,
+)
+⋮----
+export async function updateLegacyUserProfile(userId: string, input: UpdateProfileInput): Promise<void>
 ````
 
 ## File: modules/platform/subdomains/account/domain/index.ts
@@ -42251,56 +39726,59 @@ export function useApp()
  */
 ````
 
-## File: modules/platform/subdomains/account/interfaces/queries/account.queries.ts
+## File: modules/platform/subdomains/account/infrastructure/index.ts
 ````typescript
 /**
- * Account Read Queries — thin wrappers over the AccountQueryRepository port.
- * NOT Server Actions — callable from React components/hooks directly.
+ * Account infrastructure barrel — adapter exports only.
+ *
+ * Composition logic lives in interfaces/composition/account-service.ts.
+ */
+````
+
+## File: modules/platform/subdomains/account/interfaces/composition/account-service.ts
+````typescript
+/**
+ * AccountService — Composition root for account use cases.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
+ * Wires repositories and ports; provides a unified service interface.
  */
 ⋮----
-import { createAccountQueryRepository } from "../../infrastructure/account-service";
+import {
+  CreateUserAccountUseCase,
+  UpdateUserProfileUseCase,
+  CreditWalletUseCase,
+  DebitWalletUseCase,
+  AssignAccountRoleUseCase,
+  RevokeAccountRoleUseCase,
+} from "../../application/use-cases/account.use-cases";
+import {
+  CreateAccountPolicyUseCase,
+  UpdateAccountPolicyUseCase,
+  DeleteAccountPolicyUseCase,
+} from "../../application/use-cases/account-policy.use-cases";
+import { FirebaseAccountRepository } from "../../infrastructure/firebase/FirebaseAccountRepository";
+import { FirebaseAccountQueryRepository } from "../../infrastructure/firebase/FirebaseAccountQueryRepository";
+import { FirebaseAccountPolicyRepository } from "../../infrastructure/firebase/FirebaseAccountPolicyRepository";
+import { tokenRefreshAdapter } from "../../infrastructure/identity-token-refresh.adapter";
+import type { UpdateProfileInput, OrganizationRole } from "../../domain/entities/Account";
+import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
 import type { AccountQueryRepository } from "../../domain/repositories/AccountQueryRepository";
-import type { AccountEntity, WalletTransaction, AccountRoleRecord, WalletBalanceSnapshot, Unsubscribe, AccountPolicy } from "../../application/dtos/account.dto";
+import type { CommandResult } from "@shared-types";
 ⋮----
-function getAccountQueryRepo(): AccountQueryRepository
+function getAccountRepo(): FirebaseAccountRepository
 ⋮----
-export async function getUserProfile(userId: string): Promise<AccountEntity | null>
+function getAcctPolicyRepo(): FirebaseAccountPolicyRepository
 ⋮----
-export function subscribeToUserProfile(
-  userId: string,
-  onUpdate: (profile: AccountEntity | null) => void,
-): Unsubscribe
+/**
+ * Creates a wired set of client-side account use cases.
+ * Keeps infrastructure wiring in the module boundary rather than in UI files.
+ */
+export function createClientAccountUseCases()
 ⋮----
-export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot>
-⋮----
-export function subscribeToWalletBalance(
-  accountId: string,
-  onUpdate: (snapshot: WalletBalanceSnapshot) => void,
-): Unsubscribe
-⋮----
-export function subscribeToWalletTransactions(
-  accountId: string,
-  maxCount: number,
-  onUpdate: (txs: WalletTransaction[]) => void,
-): Unsubscribe
-⋮----
-export async function getAccountRole(accountId: string): Promise<AccountRoleRecord | null>
-⋮----
-export function subscribeToAccountRoles(
-  accountId: string,
-  onUpdate: (record: AccountRoleRecord | null) => void,
-): Unsubscribe
-⋮----
-export function subscribeToAccountsForUser(
-  userId: string,
-  onUpdate: (accounts: Record<string, AccountEntity>) => void,
-): Unsubscribe
-⋮----
-export async function getAccountPolicies(_accountId: string): Promise<AccountPolicy[]>
-⋮----
-// Policy reads are server-side only; keep client bundles free of policy repo deps.
-⋮----
-export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]>
+/** Factory that returns a wired AccountQueryRepository without leaking the concrete class. */
+export function createAccountQueryRepository(): AccountQueryRepository
 ````
 
 ## File: modules/platform/subdomains/account/README.md
@@ -42421,6 +39899,14 @@ async generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>
 ## File: modules/platform/subdomains/ai/infrastructure/index.ts
 ````typescript
 
+````
+
+## File: modules/platform/subdomains/background-job/api/index.ts
+````typescript
+/**
+ * Public API boundary for the background-job subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
 ````
 
 ## File: modules/platform/subdomains/background-job/application/use-cases/ingestion.use-cases.ts
@@ -42548,6 +40034,15 @@ updateStatus(input: {
   }): Promise<IngestionJob | null>;
 ````
 
+## File: modules/platform/subdomains/background-job/infrastructure/index.ts
+````typescript
+/**
+ * Background-job infrastructure barrel — adapter exports only.
+ *
+ * Composition logic lives in interfaces/composition/ingestion-service.ts.
+ */
+````
+
 ## File: modules/platform/subdomains/background-job/infrastructure/InMemoryIngestionJobRepository.ts
 ````typescript
 /**
@@ -42583,6 +40078,101 @@ async updateStatus(input: {
 }): Promise<IngestionJob | null>
 ````
 
+## File: modules/platform/subdomains/background-job/interfaces/composition/ingestion-service.ts
+````typescript
+/**
+ * ingestionService — Composition root for knowledge ingestion use cases.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
+ *
+ * Wires use cases to the default InMemoryIngestionJobRepository.
+ * Swap the repository assignment here once a Firebase adapter is in place.
+ *
+ * This module is the single entry point for ingestion side-effects; adapters
+ * (Server Actions, route handlers) must not reach into use cases directly.
+ */
+⋮----
+import type { IngestionJob } from "../../domain/entities/IngestionJob";
+import type { IngestionStatus } from "../../domain/entities/IngestionJob";
+import {
+  RegisterIngestionDocumentUseCase,
+  AdvanceIngestionStageUseCase,
+  ListWorkspaceIngestionJobsUseCase,
+  type IngestionResult,
+  type RegisterIngestionDocumentInput,
+  type AdvanceIngestionStageInput,
+} from "../../application/use-cases/ingestion.use-cases";
+import { InMemoryIngestionJobRepository } from "../../infrastructure/InMemoryIngestionJobRepository";
+⋮----
+// Single shared repository instance for the lifetime of the module.
+⋮----
+/**
+   * Register a newly uploaded document and create an IngestionJob in
+   * `uploaded` status, ready for the Python worker handoff.
+   */
+registerDocument(input: RegisterIngestionDocumentInput): Promise<IngestionResult<IngestionJob>>
+⋮----
+/**
+   * Advance the ingestion pipeline to the given status.
+   * Rejects invalid transitions with `INGESTION_INVALID_STATUS_TRANSITION`.
+   */
+advanceStage(input: AdvanceIngestionStageInput): Promise<IngestionResult<IngestionJob>>
+⋮----
+/**
+   * Return all ingestion jobs belonging to a workspace.
+   */
+listWorkspaceJobs(input: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+}): Promise<readonly IngestionJob[]>
+⋮----
+registerDocument(input: RegisterIngestionDocumentInput): Promise<IngestionResult<IngestionJob>>;
+advanceStage(input: AdvanceIngestionStageInput): Promise<IngestionResult<IngestionJob>>;
+⋮----
+// Re-export status type for convenience (callers using `ingestionService` should not
+// need to reach into the domain layer directly).
+````
+
+## File: modules/platform/subdomains/entitlement/api/index.ts
+````typescript
+/**
+ * Public API boundary for the entitlement subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+````
+
+## File: modules/platform/subdomains/entitlement/infrastructure/index.ts
+````typescript
+/**
+ * Entitlement infrastructure barrel — adapter exports only.
+ *
+ * Composition logic lives in interfaces/composition/entitlement-service.ts.
+ */
+````
+
+## File: modules/platform/subdomains/entitlement/interfaces/composition/entitlement-service.ts
+````typescript
+/**
+ * EntitlementService — Composition root for entitlement use cases.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
+ * Wires repositories; provides a unified service interface.
+ */
+import {
+  GrantEntitlementUseCase,
+  SuspendEntitlementUseCase,
+  RevokeEntitlementUseCase,
+  ResolveEntitlementsUseCase,
+  CheckFeatureEntitlementUseCase,
+} from "../../application/use-cases/entitlement.use-cases";
+import { FirebaseEntitlementGrantRepository } from "../../infrastructure/firebase/FirebaseEntitlementGrantRepository";
+import type { CommandResult } from "@shared-types";
+⋮----
+function getRepo(): FirebaseEntitlementGrantRepository
+````
+
 ## File: modules/platform/subdomains/identity/domain/index.ts
 ````typescript
 
@@ -42598,28 +40188,28 @@ async updateStatus(input: {
  */
 ````
 
-## File: modules/platform/subdomains/identity/infrastructure/identity-service.ts
+## File: modules/platform/subdomains/identity/interfaces/composition/identity-service.ts
 ````typescript
 /**
- * identity-service.ts — Adapter-layer composition root.
+ * identity-service — Composition root for identity use cases.
  *
- * Wires Firebase-backed repositories into identity use cases.
- * Lives in adapters/ because it instantiates infrastructure adapters.
- * Dependency direction: adapters/ -> application/ -> domain/ (correct, no violation).
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
+ * This file wires Firebase-backed repositories into identity use cases.
  */
 ⋮----
-import type { TokenRefreshReason } from "../domain";
-import type { IdentityRepository } from "../domain/repositories/IdentityRepository";
-import type { TokenRefreshRepository } from "../domain/repositories/TokenRefreshRepository";
-import { EmitTokenRefreshSignalUseCase } from "../application/use-cases/token-refresh.use-cases";
+import type { TokenRefreshReason } from "../../domain";
+import type { IdentityRepository } from "../../domain/repositories/IdentityRepository";
+import type { TokenRefreshRepository } from "../../domain/repositories/TokenRefreshRepository";
+import { EmitTokenRefreshSignalUseCase } from "../../application/use-cases/token-refresh.use-cases";
 import {
 	RegisterUseCase,
 	SendPasswordResetEmailUseCase,
 	SignInAnonymouslyUseCase,
 	SignInUseCase,
-} from "../application/use-cases/identity.use-cases";
-import { FirebaseIdentityRepository } from "./firebase/FirebaseIdentityRepository";
-import { FirebaseTokenRefreshRepository } from "./firebase/FirebaseTokenRefreshRepository";
+} from "../../application/use-cases/identity.use-cases";
+import { FirebaseIdentityRepository } from "../../infrastructure/firebase/FirebaseIdentityRepository";
+import { FirebaseTokenRefreshRepository } from "../../infrastructure/firebase/FirebaseTokenRefreshRepository";
 ⋮----
 // ─── Types ────────────────────────────────────────────────────────────────────
 ⋮----
@@ -42656,11 +40246,6 @@ export function createTokenRefreshRepository(): TokenRefreshRepository
  * Use only in "use client" components or client-side hooks.
  */
 export function createClientAuthUseCases()
-````
-
-## File: modules/platform/subdomains/identity/infrastructure/index.ts
-````typescript
-
 ````
 
 ## File: modules/platform/subdomains/identity/interfaces/index.ts
@@ -42749,6 +40334,14 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/platform/subdomains/notification/api/index.ts
+````typescript
+/**
+ * Public API boundary for the notification subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+````
+
 ## File: modules/platform/subdomains/notification/domain/index.ts
 ````typescript
 
@@ -42761,6 +40354,15 @@ interfaces/ → application/ → domain/ ← infrastructure/
  *
  * Re-exports repository contracts from domain/repositories/, making the Ports layer
  * explicitly visible in the directory structure.
+ */
+````
+
+## File: modules/platform/subdomains/notification/infrastructure/index.ts
+````typescript
+/**
+ * Notification infrastructure barrel — adapter exports only.
+ *
+ * Composition logic lives in interfaces/composition/notification-service.ts.
  */
 ````
 
@@ -42801,6 +40403,29 @@ async function handleMarkOneRead(notificationId: string)
 ⋮----
 async function handleMarkAllRead()
 ⋮----
+````
+
+## File: modules/platform/subdomains/notification/interfaces/composition/notification-service.ts
+````typescript
+/**
+ * NotificationService — Composition root for notification use cases.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
+ */
+⋮----
+import { FirebaseNotificationRepository } from "../../infrastructure/firebase/FirebaseNotificationRepository";
+import {
+  DispatchNotificationUseCase,
+  GetNotificationsForRecipientUseCase,
+  GetUnreadCountUseCase,
+  MarkNotificationReadUseCase,
+  MarkAllNotificationsReadUseCase,
+} from "../../application/use-cases/notification.use-cases";
+import type { DispatchNotificationInput, NotificationEntity } from "../../domain/entities/Notification";
+import type { CommandResult } from "@shared-types";
+⋮----
+function getNotifRepo(): FirebaseNotificationRepository
 ````
 
 ## File: modules/platform/subdomains/notification/README.md
@@ -42994,6 +40619,84 @@ reset();
 onOpenChange(false);
 ````
 
+## File: modules/platform/subdomains/organization/interfaces/composition/organization-service.ts
+````typescript
+/**
+ * OrganizationService — Composition root for organization use cases.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
+ * This file is a composition root: it wires infrastructure adapters to
+ * application use cases and exposes a service facade.
+ */
+⋮----
+import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
+import { FirebaseOrgPolicyRepository } from "../../infrastructure/firebase/FirebaseOrgPolicyRepository";
+import {
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+} from "../../application/use-cases/organization-lifecycle.use-cases";
+import {
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+} from "../../application/use-cases/organization-member.use-cases";
+import {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "../../application/use-cases/organization-team.use-cases";
+import type { OrganizationTeamPort } from "../../domain/ports/OrganizationTeamPort";
+import {
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "../../application/use-cases/organization-partner.use-cases";
+import {
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+} from "../../application/use-cases/organization-policy.use-cases";
+import type {
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "../../domain/entities/Organization";
+import type { CreateTeamInput } from "../../domain/entities/Organization";
+import type { CommandResult } from "@shared-types";
+⋮----
+/**
+ * Override the default team port factory. Call before first use of
+ * team-related use cases if a custom factory is needed.
+ */
+export function configureOrganizationTeamPortFactory(
+  factory: () => OrganizationTeamPort,
+): void
+⋮----
+function getOrgRepo(): FirebaseOrganizationRepository
+⋮----
+function getPolicyRepo(): FirebaseOrgPolicyRepository
+⋮----
+function getTeamPort(): OrganizationTeamPort
+⋮----
+// Auto-configure: lazy-require team factory from sibling subdomain
+// (platform/team/infrastructure/team-composition.ts) to avoid
+// import-time side effects in the organization api boundary.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+⋮----
+/**
+ * OrganizationQueryService — read-model queries for client-side data.
+ * Composition root: wires Firebase repos for queries; interfaces/ must use this
+ * via the subdomain api/ boundary instead of importing infrastructure directly.
+ */
+````
+
 ## File: modules/platform/subdomains/organization/interfaces/index.ts
 ````typescript
 
@@ -43062,6 +40765,13 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
+## File: modules/platform/subdomains/subscription/api/index.ts
+````typescript
+/**
+ * Public API boundary for the subscription subdomain.
+ */
+````
+
 ## File: modules/platform/subdomains/subscription/domain/aggregates/Subscription.ts
 ````typescript
 import type { SubscriptionDomainEventType } from "../events/SubscriptionDomainEvent";
@@ -43120,6 +40830,155 @@ getSnapshot(): Readonly<SubscriptionSnapshot>
 pullDomainEvents(): SubscriptionDomainEventType[]
 ````
 
+## File: modules/platform/subdomains/subscription/infrastructure/index.ts
+````typescript
+/**
+ * Subscription infrastructure barrel — adapter exports only.
+ *
+ * Composition logic lives in interfaces/composition/subscription-service.ts.
+ */
+````
+
+## File: modules/platform/subdomains/subscription/interfaces/composition/subscription-service.ts
+````typescript
+/**
+ * SubscriptionService — Composition root for subscription use cases.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
+ */
+import {
+  ActivateSubscriptionUseCase,
+  CancelSubscriptionUseCase,
+  RenewSubscriptionUseCase,
+  GetActiveSubscriptionUseCase,
+  MarkSubscriptionPastDueUseCase,
+} from "../../application/use-cases/subscription.use-cases";
+import { FirebaseSubscriptionRepository } from "../../infrastructure/firebase/FirebaseSubscriptionRepository";
+import type { BillingCycle } from "../../domain/value-objects/BillingCycle";
+import type { CommandResult } from "@shared-types";
+⋮----
+function getRepo(): FirebaseSubscriptionRepository
+````
+
+## File: modules/platform/subdomains/team/domain/aggregates/OrganizationTeam.ts
+````typescript
+/**
+ * OrganizationTeam — Aggregate Root
+ *
+ * Represents a named grouping of members within an Organization boundary.
+ * OrganizationTeam is a subdomain concept of platform/team; it is NOT an
+ * independent Tenant. Teams may be internal (org-only members) or external
+ * (partner/guest actors included).
+ *
+ * Invariants:
+ *   - A team must belong to exactly one Organization (organizationId is immutable)
+ *   - A member may appear in a team's memberIds at most once
+ *   - teamType cannot change after creation (replace-and-recreate pattern)
+ *   - addMember and removeMember are idempotent: duplicate/absent memberId is a no-op (no event)
+ */
+⋮----
+import { v4 as randomUUID } from "@lib-uuid";
+import type { TeamId } from "../value-objects/TeamId";
+import type { TeamType } from "../value-objects/TeamType";
+import type { OrganizationTeamDomainEvent } from "../events/OrganizationTeamDomainEvent";
+⋮----
+export interface OrganizationTeamSnapshot {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly name: string;
+  readonly description: string;
+  readonly teamType: TeamType;
+  readonly memberIds: readonly string[];
+}
+⋮----
+export interface CreateOrganizationTeamProps {
+  readonly organizationId: string;
+  readonly name: string;
+  readonly description?: string;
+  readonly teamType: TeamType;
+}
+⋮----
+export class OrganizationTeam {
+⋮----
+private constructor(private _props: OrganizationTeamSnapshot)
+⋮----
+// ── Factory — new team ────────────────────────────────────────────────────
+⋮----
+static create(id: TeamId, props: CreateOrganizationTeamProps): OrganizationTeam
+⋮----
+// ── Factory — reconstitute from persistence ───────────────────────────────
+⋮----
+static reconstitute(snapshot: OrganizationTeamSnapshot): OrganizationTeam
+⋮----
+// ── Commands ──────────────────────────────────────────────────────────────
+⋮----
+/**
+   * Add a member to the team.
+   * Idempotent: if memberId is already in the team the call is a no-op and
+   * no domain event is emitted, so callers may safely call this multiple times.
+   */
+addMember(memberId: string): void
+⋮----
+if (this._props.memberIds.includes(memberId)) return; // idempotent, no event emitted
+⋮----
+/**
+   * Remove a member from the team.
+   * Idempotent: if memberId is not in the team the call is a no-op and
+   * no domain event is emitted, supporting at-least-once removal semantics.
+   */
+removeMember(memberId: string): void
+⋮----
+if (!this._props.memberIds.includes(memberId)) return; // idempotent, no event emitted
+⋮----
+delete(): void
+⋮----
+// ── Read ──────────────────────────────────────────────────────────────────
+⋮----
+get id(): TeamId
+⋮----
+getSnapshot(): Readonly<OrganizationTeamSnapshot>
+⋮----
+pullDomainEvents(): OrganizationTeamDomainEvent[]
+````
+
+## File: modules/platform/subdomains/team/domain/events/OrganizationTeamDomainEvent.ts
+````typescript
+/**
+ * OrganizationTeamDomainEvent — domain events produced by the OrganizationTeam aggregate.
+ *
+ * Naming: past-tense, format `<module>.<action>`.
+ * occurredAt: ISO 8601 string (not Date) per platform event convention.
+ */
+import { z } from "@lib-zod";
+⋮----
+// ── OrganizationTeamCreated ──────────────────────────────────────────────────
+⋮----
+export type OrganizationTeamCreatedEvent = z.infer<typeof OrganizationTeamCreatedEventSchema>;
+⋮----
+// ── OrganizationTeamDeleted ──────────────────────────────────────────────────
+⋮----
+export type OrganizationTeamDeletedEvent = z.infer<typeof OrganizationTeamDeletedEventSchema>;
+⋮----
+// ── OrganizationTeamMemberAdded ──────────────────────────────────────────────
+⋮----
+export type OrganizationTeamMemberAddedEvent = z.infer<typeof OrganizationTeamMemberAddedEventSchema>;
+⋮----
+// ── OrganizationTeamMemberRemoved ────────────────────────────────────────────
+⋮----
+export type OrganizationTeamMemberRemovedEvent = z.infer<
+  typeof OrganizationTeamMemberRemovedEventSchema
+>;
+⋮----
+// ── Union ────────────────────────────────────────────────────────────────────
+⋮----
+export type OrganizationTeamDomainEvent =
+  | OrganizationTeamCreatedEvent
+  | OrganizationTeamDeletedEvent
+  | OrganizationTeamMemberAddedEvent
+  | OrganizationTeamMemberRemovedEvent;
+````
+
 ## File: modules/platform/subdomains/team/domain/index.ts
 ````typescript
 /**
@@ -43135,6 +40994,31 @@ pullDomainEvents(): SubscriptionDomainEventType[]
  * Re-exports repository contracts from domain/repositories/, making the Ports layer
  * explicitly visible in the directory structure.
  */
+````
+
+## File: modules/platform/subdomains/team/domain/value-objects/TeamId.ts
+````typescript
+/**
+ * TeamId — branded value object for OrganizationTeam identity.
+ */
+import { z } from "@lib-zod";
+⋮----
+export type TeamId = z.infer<typeof TeamIdSchema>;
+⋮----
+export function createTeamId(raw: string): TeamId
+````
+
+## File: modules/platform/subdomains/team/domain/value-objects/TeamType.ts
+````typescript
+/**
+ * TeamType — value object representing the membership scope of an OrganizationTeam.
+ *
+ * - internal: members belong to the same Organization
+ * - external: members include partner/guest actors outside the Organization
+ */
+import { z } from "@lib-zod";
+⋮----
+export type TeamType = z.infer<typeof TeamTypeSchema>;
 ````
 
 ## File: modules/platform/subdomains/team/infrastructure/team-composition.ts
@@ -43901,6 +41785,59 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/workspace/subdomains/feed/domain/events/workspace-feed.events.ts
+````typescript
+export type WorkspaceFeedEventType = (typeof WORKSPACE_FEED_EVENT_TYPES)[number];
+⋮----
+interface WorkspaceFeedBaseEvent {
+  type: WorkspaceFeedEventType;
+  accountId: string;
+  workspaceId: string;
+  postId: string;
+  actorAccountId: string;
+  occurredAtISO: string;
+}
+⋮----
+export interface WorkspaceFeedPostCreatedEvent extends WorkspaceFeedBaseEvent {
+  type: "workspace.feed.post-created";
+}
+⋮----
+export interface WorkspaceFeedReplyCreatedEvent extends WorkspaceFeedBaseEvent {
+  type: "workspace.feed.reply-created";
+  parentPostId: string;
+}
+⋮----
+export interface WorkspaceFeedRepostCreatedEvent extends WorkspaceFeedBaseEvent {
+  type: "workspace.feed.repost-created";
+  sourcePostId: string;
+}
+⋮----
+export interface WorkspaceFeedPostLikedEvent extends WorkspaceFeedBaseEvent {
+  type: "workspace.feed.post-liked";
+}
+⋮----
+export interface WorkspaceFeedPostViewedEvent extends WorkspaceFeedBaseEvent {
+  type: "workspace.feed.post-viewed";
+}
+⋮----
+export interface WorkspaceFeedPostBookmarkedEvent extends WorkspaceFeedBaseEvent {
+  type: "workspace.feed.post-bookmarked";
+}
+⋮----
+export interface WorkspaceFeedPostSharedEvent extends WorkspaceFeedBaseEvent {
+  type: "workspace.feed.post-shared";
+}
+⋮----
+export type WorkspaceFeedDomainEvent =
+  | WorkspaceFeedPostCreatedEvent
+  | WorkspaceFeedReplyCreatedEvent
+  | WorkspaceFeedRepostCreatedEvent
+  | WorkspaceFeedPostLikedEvent
+  | WorkspaceFeedPostViewedEvent
+  | WorkspaceFeedPostBookmarkedEvent
+  | WorkspaceFeedPostSharedEvent;
+````
+
 ## File: modules/workspace/subdomains/feed/domain/index.ts
 ````typescript
 
@@ -44033,6 +41970,38 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/workspace/subdomains/scheduling/application/dto/work-demand.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the scheduling subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+⋮----
+import type { DemandStatus, DemandPriority } from "../../domain/types";
+⋮----
+/**
+ * UI presentation label mappings.
+ * Defined at the application layer (not domain) because they are
+ * locale-specific display concerns, not business invariants.
+ */
+⋮----
+export interface CreateDemandInput {
+  workspaceId: string;
+  accountId: string;
+  requesterId: string;
+  title: string;
+  description?: string;
+  priority: DemandPriority;
+  scheduledAt: string;
+}
+⋮----
+export interface AssignMemberInput {
+  demandId: string;
+  userId: string;
+  assignedBy: string;
+}
+````
+
 ## File: modules/workspace/subdomains/scheduling/application/work-demand.use-cases.ts
 ````typescript
 /**
@@ -44090,6 +42059,68 @@ listByAccount(accountId: string): Promise<WorkDemand[]>;
 save(demand: WorkDemand): Promise<void>;
 update(demand: WorkDemand): Promise<void>;
 findById(id: string): Promise<WorkDemand | null>;
+````
+
+## File: modules/workspace/subdomains/scheduling/domain/types.ts
+````typescript
+/**
+ * Module: workspace/subdomains/scheduling
+ * Layer: domain
+ * Purpose: Core WorkDemand entity and value types.
+ */
+⋮----
+export type DemandStatus = "draft" | "open" | "in_progress" | "completed";
+⋮----
+export type DemandPriority = "low" | "medium" | "high";
+⋮----
+export interface WorkDemand {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly requesterId: string;
+  readonly title: string;
+  readonly description: string;
+  readonly status: DemandStatus;
+  readonly priority: DemandPriority;
+  readonly scheduledAt: string;
+  readonly assignedUserId?: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateWorkDemandCommand {
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly requesterId: string;
+  readonly title: string;
+  readonly description: string;
+  readonly priority: DemandPriority;
+  readonly scheduledAt: string;
+}
+⋮----
+export interface AssignWorkDemandCommand {
+  readonly demandId: string;
+  readonly assignedUserId: string;
+  readonly assignedBy: string;
+}
+⋮----
+export type WorkDemandCreatedEvent = {
+  readonly type: "workspace.scheduling.demand-created";
+  readonly payload: { readonly demandId: string; readonly workspaceId: string };
+};
+⋮----
+export type WorkDemandAssignedEvent = {
+  readonly type: "workspace.scheduling.demand-assigned";
+  readonly payload: {
+    readonly demandId: string;
+    readonly assignedUserId: string;
+    readonly assignedBy: string;
+  };
+};
+⋮----
+export type WorkDemandDomainEvent =
+  | WorkDemandCreatedEvent
+  | WorkDemandAssignedEvent;
 ````
 
 ## File: modules/workspace/subdomains/scheduling/interfaces/components/CreateDemandForm.tsx
@@ -44917,138 +42948,9 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: repomix.config.json
-````json
-{
-  "$schema": "https://repomix.com/schemas/latest/schema.json",
-  "input": {
-    "maxFileSize": 52428800
-  },
-  "output": {
-    "filePath": "repomix-output.json",
-    "style": "json",
-    "parsableStyle": true,
-
-    "fileSummary": true,
-    "directoryStructure": true,
-    "files": true,
-
-    "removeComments": false,
-    "removeEmptyLines": false,
-
-    "compress": true,
-
-    "topFilesLength": 10,
-
-    "showLineNumbers": false,
-    "truncateBase64": false,
-    "copyToClipboard": false,
-
-    "includeFullDirectoryStructure": false,
-    "tokenCountTree": true,
-
-    "git": {
-      "sortByChanges": true,
-      "sortByChangesMaxCommits": 200,
-      "includeDiffs": false,
-      "includeLogs": false,
-      "includeLogsCount": 50
-    }
-  },
-  "include": [
-    ".github/agents/**",
-    ".github/prompts/**",
-    ".github/skills/**",
-    "docs/**",
-    "app/**",
-    "modules/**",
-    "packages/**",
-    "py_fn/**",
-    "AGENTS.md",
-    "package.json",
-    "repomix*.config.json"
-  ],
-  "ignore": {
-    "useGitignore": true,
-    "useDotIgnore": true,
-    "useDefaultPatterns": true,
-    "customPatterns": [
-      "node_modules/**",
-      ".next/**",
-      "out/**",
-      "build/**",
-      "dist/**",
-      "coverage/**",
-      ".turbo/**",
-      ".vercel/**",
-      ".firebase/**",
-      ".output/**",
-      ".parcel-cache/**",
-
-      ".cursor/**",
-      ".vscode/**",
-      ".serena/**",
-      ".claude/**",
-      ".opencode/**",
-      ".idea/**",
-      ".history/**",
-
-      ".cache/**",
-      ".temp/**",
-      ".tmp/**",
-      "tmp/**",
-      "temp/**",
-
-      "*.log",
-      "logs/**",
-      "firebase-debug.log",
-
-      ".env*",
-      "*.pem",
-      "*.key",
-      "*.crt",
-
-      ".DS_Store",
-      "Thumbs.db",
-
-      "*.lock",
-      "package-lock.json",
-      "pnpm-lock.yaml",
-      "yarn.lock",
-      "skills-lock.json",
-
-      "*.tsbuildinfo",
-      ".eslintcache",
-      ".stylelintcache",
-
-      ".git/**",
-
-      "docs/architecture/**",
-      "diagrams/**",
-
-      "*.png",
-      "*.jpg",
-      "*.jpeg",
-      "*.gif",
-      "*.webp",
-      "*.mp4",
-      "*.zip",
-      "*.tar",
-      "*.gz",
-
-      "*.sqlite",
-      "*.db",
-
-      ".github/skills/**/references/**"
-    ]
-  },
-  "security": {
-    "enableSecurityCheck": true
-  },
-  "tokenCount": {
-    "encoding": "o200k_base"
-  }
-}
+## File: next.config.ts
+````typescript
+import type { NextConfig } from "next";
 ````
 
 ## File: repomix.workspace-workflows.config.json
@@ -45063,6 +42965,80 @@ interfaces/ → application/ → domain/ ← infrastructure/
     "useDefaultPatterns": true
   }
 }
+````
+
+## File: .github/copilot-instructions.md
+````markdown
+---
+applyTo: **
+description: Xuanwu Copilot Workspace Instructions
+name: Xuanwu Copilot Workspace Instructions
+---
+
+#use skill serena-mcp
+#use skill alistair-cockburn
+#use skill hexagonal-ddd
+#use skill occams-razor
+#use skill context7
+#use skill xuanwu-app-skill
+
+# Xuanwu Copilot Workspace Instructions
+
+Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put detailed architecture truth in [docs/README.md](../docs/README.md), scoped behavior in [.github/instructions](./instructions), reusable workflows in prompts, and tool-specific procedure in skills.
+
+## Session Contract
+
+- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it first, activate `xuanwu-app`, and use Serena for project memory/index work.
+- If confidence in any library API, framework, or config schema detail is below 99.99%, verify it through Context7 before writing or suggesting code.
+- Treat `docs/**/*` as the authority for DDD routing, bounded-context ownership, terminology, and strategic duplicate-name resolution. `.github/*` defines Copilot behavior and must not compete with docs.
+- Run the matching validation from [agents/commands.md](./agents/commands.md) before closing non-trivial changes.
+
+## Read Order
+
+1. Start with [docs/README.md](../docs/README.md).
+2. Use [docs/ubiquitous-language.md](../docs/ubiquitous-language.md) for terminology and duplicate-name guardrails.
+3. Use [docs/subdomains.md](../docs/subdomains.md) and [docs/bounded-contexts.md](../docs/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
+4. Use `docs/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
+5. Use [docs/bounded-context-subdomain-template.md](../docs/bounded-context-subdomain-template.md) and [docs/project-delivery-milestones.md](../docs/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
+6. Use [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment validation.
+
+## Instruction Series (Phase 1)
+
+- Use [instructions/architecture-core.instructions.md](./instructions/architecture-core.instructions.md) as the consolidated module architecture rule set.
+- Use [instructions/architecture-runtime.instructions.md](./instructions/architecture-runtime.instructions.md) as the consolidated runtime split rule set.
+- Use [instructions/process-framework.instructions.md](./instructions/process-framework.instructions.md) as the consolidated delivery/decision framework.
+- Use [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) as the consolidated docs authority and terminology rule set.
+- Legacy instruction files marked DEPRECATED remain transition-only and should not be expanded.
+
+## Operating Rules
+
+- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
+- Cross-module collaboration goes through the target module `api/` boundary only.
+- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
+- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
+- If a team adds `core/`, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.
+- Keep business logic in `domain/` and `application`; keep UI, transport, and composition in `interfaces/` and `app/`.
+- Preserve the runtime split: Next.js owns browser-facing UX and orchestration; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
+- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy alias patterns.
+
+## Governance Rules
+
+- Keep this file thin. Put detailed, file-scoped behavior in `.github/instructions/` and reuse docs instead of copying architecture content into customization files.
+- Use [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for Serena workflow details, [skills/context7/SKILL.md](skills/context7/SKILL.md) for documentation verification, and [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) for boundary-safe module design.
+- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) and [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill.md) for implementation lookup only; they are not strategic authority.
+- `.claude/` may exist as a compatibility surface, but `.github/*` remains the primary Copilot governance surface.
+
+## Terminology
+
+- Follow [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) and the docs it routes to.
+- Normalize to canonical glossary terms before naming code, prompts, instructions, agents, skills, or documentation.
+
+## DDD Strategic Rules (Phase 1)
+
+- Use [instructions/subdomain-rules.instructions.md](./instructions/subdomain-rules.instructions.md) for subdomain design rules.
+- Use [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for Bounded Context design rules.
+- Use [instructions/domain-layer-rules.instructions.md](./instructions/domain-layer-rules.instructions.md) for Domain Layer design rules.
+- Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
 ````
 
 ## File: .github/skills/shadcn/SKILL.md
@@ -45363,6 +43339,315 @@ AI| genkit
 
 «shadcn = UI Lego
 不是 UI framework»
+````
+
+## File: AGENTS.md
+````markdown
+# API Architecture Rules
+
+## NotionAPI & NotebookLMAPI
+
+platform 是跨域能力中樞，must expose two API layers:
+
+### 1. Infrastructure API (低階 / 模組內用)
+
+**所有權**: platform  
+**消費者**: notion、notebooklm (only)  
+**用途**: Runtime capability contracts（不含業務決策）  
+
+```typescript
+// Firestore access contract
+export interface FirestoreAPI {
+  get<T>(path: string): Promise<T | null>;
+  set<T>(path: string, data: T): Promise<void>;
+  query<T>(collection: string, where: Query[]): Promise<T[]>;
+}
+
+// Cloud Storage access contract
+export interface StorageAPI {
+  upload(file: File, path: string): Promise<string>;
+  getUrl(path: string): Promise<string>;
+  delete(path: string): Promise<void>;
+}
+
+// Genkit AI flow orchestration contract
+export interface GenkitAPI {
+  runFlow<TInput, TOutput>(
+    flow: string,
+    input: TInput
+  ): Promise<TOutput>;
+}
+```
+
+**Rule**: notion、notebooklm use these for **data persistence and external tool invocation only**. No business logic should hide inside adapter calls.
+
+---
+
+### 2. Platform Service API (高階 / 系統級用)
+
+**所有權**: platform  
+**消費者**: workspace、notion、notebooklm (all)  
+**用途**: Cross-domain capability contracts（含governance、auth、entitlement）  
+
+```typescript
+// Authentication & Session
+export interface AuthAPI {
+  getSession(): Promise<AuthSession>;
+  requireAuth(): Promise<User>;
+}
+
+// Access Control & Entitlement
+export interface PermissionAPI {
+  can(userId: string, action: string, resource: string): Promise<boolean>;
+}
+
+// Semantic File Lifecycle (not raw storage)
+export interface FileAPI {
+  uploadUserFile(input: {
+    file: File;
+    ownerId: string;
+  }): Promise<{ url: string; fileId: string }>;
+  deleteFile(fileId: string): Promise<void>;
+}
+
+// AI capability coordination (routing & safety)
+export interface AIAPI {
+  summarize(text: string): Promise<string>;
+  // More methods as capabilities expand
+}
+```
+
+**Rule**: All modules (including notion、notebooklm) must go through Service APIs for cross-domain operations.
+
+---
+
+## API Call Rules
+
+| Caller | Firestore | Storage | Genkit | Auth | Permission | File | AI |
+|--------|-----------|---------|--------|------|------------|------|-----|
+| workspace | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| notion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅* | ✅ |
+| notebooklm | ✅ | ✅ | ✅ | ✅ | ✅ | ✅* | ✅ |
+
+**\* File API**: notion、notebooklm must use `FileAPI` (not raw `StorageAPI`) when files involve ownership, entitlement, or multi-tenant isolation.
+
+---
+
+## Example Flow: File Upload with Entitlement Check
+
+```text
+workspace (UI)
+  → FileAPI.uploadUserFile({ file, ownerId })
+  ↓
+platform (FileAPI)
+  → PermissionAPI.can(ownerId, "create:file", context)
+  ↓
+notion.createDocument(with fileId)
+  → Storage.upload(...) via Infrastructure API
+  ↓
+Firebase Storage
+```
+
+**Key**: uploadUserFile ≠ Storage.upload
+- `uploadUserFile`: semantic contract (ownership, entitlement, audit)
+- `Storage.upload`: mechanism contract (how bytes move)
+
+---
+
+## Governance Rules
+
+1. **platform is the unique infra gateway** — all Firebase, Genkit, external AI routing flows through platform adapters.
+2. **notion、notebooklm use Infrastructure APIs for local concerns only** — persistence, embedding, synthesis.
+3. **workspace never touches Infrastructure APIs** — always goes through Platform Service APIs.
+4. **All cross-domain behavior routes through Platform Service APIs** — auth, permission, entitlement, file ownership, AI safety.
+5. **Published Language is upstream boundary** — concepts like `Actor`, `Tenant`, `Entitlement`, `fileId` are defined in platform ubiquitous language; downstream contexts translate as needed.
+
+---
+
+# Four Main Domains
+
+## Strategic Overview
+
+| Main Domain | Strategic Role | Baseline Subdomains | Recommended Gap | Active Status |
+|---|---|---|---|---|
+| **platform** | 治理與營運支撐 | identity, account, account-profile, organization, access-control, security-policy, platform-config, feature-flag, onboarding, compliance, billing, subscription, referral, ai, integration, workflow, notification, background-job, content, search, audit-log, observability, analytics, support (23) | tenant, entitlement, secret-management, consent (4) | ✅ 23 baseline + 4 gap |
+| **workspace** | 協作容器與 scope | audit, feed, scheduling, workspace-workflow (4) | lifecycle, membership, sharing, presence (4) | ✅ 4 baseline + 4 gap |
+| **notion** | 正典知識內容 | knowledge, authoring, collaboration, database, attachments, knowledge-versioning (6) | taxonomy, relations, publishing (3) | ✅ 6 baseline + 3 gap |
+| **notebooklm** | 對話與推理 | conversation, note, notebook, source, synthesis (5) | ingestion, retrieval, grounding, evaluation (4) | ✅ 5 baseline + 4 gap |
+
+---
+
+## Ubiquitous Language
+
+### Domain Key Terms
+
+| Domain | Cardinal Terms | Published Language |
+|---|---|---|
+| **platform** | Actor, Tenant, Entitlement, Consent, Secret | Defines all upstream concepts; all downstream must translate through these |
+| **workspace** | Workspace, Membership, ShareScope, ActivityFeed, AuditTrail | Consumes: actor reference, organization scope, access decision, entitlement signal |
+| **notion** | KnowledgeArtifact, Taxonomy, Relation, Publication | Consumes: actor reference, organization scope, entitlement signal, ai capability signal |
+| **notebooklm** | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation | Consumes: actor reference, organization scope, entitlement signal, ai capability signal |
+
+### Context Map (Upstream → Downstream)
+
+```text
+platform
+  ├→ workspace        (actor, organization scope, access decision, entitlement signal)
+  ├→ notion           (actor, organization scope, entitlement signal, ai capability signal)
+  └→ notebooklm       (actor, organization scope, entitlement signal, ai capability signal)
+
+workspace
+  ├→ notion           (workspaceId, membership scope, share scope)
+  └→ notebooklm       (workspaceId, membership scope, share scope)
+
+notion
+  └→ notebooklm       (knowledge artifact reference, attachment reference, taxonomy hint)
+
+notebooklm
+  └→ (none)            (terminal context in current strategic map)
+```
+
+### Published Language Token Glossary
+
+| Token | Canonical Domain | Constraint |
+|---|---|---|
+| actor reference | platform.Actor | Never mix with Membership |
+| organization scope | platform.Tenant / organization boundary | Never equals Workspace scope |
+| access decision | platform.access-control result | Pass decision only, not internal policy model |
+| entitlement signal | platform.entitlement / subscription capability | Never mix with feature-flag payload |
+| ai capability signal | platform.ai shared capability (only) | notion & notebooklm CONSUME only, never OWN `ai` subdomain |
+| workspaceId | workspace.Workspace identifier | Never replaces local knowledge/notebook primary key |
+| membership scope | workspace.Membership constraint | Never mixes with actor identity language |
+| share scope | workspace.ShareScope constraint | Never mixes with general permission fields |
+| knowledge artifact reference | notion.KnowledgeArtifact reference | Reference only, no ownership transfer |
+| attachment reference | notion / notebooklm attachment ref | Traceable reference, never leaked storage impl |
+| taxonomy hint | notebooklm retrieval hint (only) | Never overrides notion's canonical taxonomy |
+
+---
+
+## Dependency Direction Rules
+
+### Fixed Upstream → Downstream Flow
+
+```
+platform
+  ↓
+workspace, notion, notebooklm (all consume platform governance APIs)
+  ↓
+workspace ↓ notion ↓ notebooklm
+(sequential consumption allowed; never reverse upstream)
+```
+
+### Anti-Patterns
+
+- ❌ workspace calling notion.api directly (must go through published language)
+- ❌ notion calling platform.domain internal models (must use Service API boundary)
+- ❌ notebooklm defining its own `ai` subdomain (belongs exclusively to platform)
+- ❌ Mixing Actor + Membership terminology (Actor = identity, Membership = workspace participation)
+- ❌ Treating notion's KnowledgeArtifact as writable by other domains (reference only)
+
+---
+
+## Module Ownership Guardrails
+
+| Concern | Owner | Never Owned By |
+|---|---|---|
+| Identity, authentication, session | platform | workspace, notion, notebooklm |
+| Permission, entitlement, access control | platform | workspace, notion, notebooklm |
+| Tenant isolation, organization scope | platform | workspace, notion, notebooklm |
+| AI capability routing, model policy, safety | platform | notion, notebooklm (consumers only) |
+| Workspace creation, archival, lifecycle | workspace | notion, notebooklm, platform |
+| Knowledge artifact authoring, versioning | notion | platform, workspace, notebooklm |
+| Conversation, retrieval, synthesis | notebooklm | platform, workspace, notion (notion→notebooklm: reference only) |
+| Cross-module security rules, audit | platform | all others apply, never contradict |
+
+---
+
+# 🚫 Hard Rules (Will Cause Refactors If Violated)
+
+## Strategic Ownership Rules (Non-Negotiable)
+
+### Rule 1: Platform is Unique Infrastructure Gateway
+- ✅ platform owns Firebase, Genkit, external AI routing, cross-domain auth
+- ❌ notion, notebooklm NEVER own infra (except local read-only access)
+- ❌ workspace NEVER touches Firebase/Storage/Genkit directly
+
+### Rule 5: Workspace is Orchestration Only
+- ✅ workspace composes module APIs and next.js routing
+- ❌ workspace NEVER contains domain business logic
+- ❌ workspace NEVER makes direct DB/permission decisions
+
+### Rule 6: Cross-Module Access Prohibition
+- ✅ module A imports module B only via `@/modules/b/api`
+- ❌ NO direct imports of domain/, application/, infrastructure/, interfaces/
+- ✅ ALL data sharing via events or published language tokens
+
+### Rule 7: Mandatory Single Entry Point (API Boundary)
+- ✅ Every module must export `api/index.ts`
+- ✅ `api/` exposes only public surface; hides internals
+- ❌ NO imports from internal module paths outside module
+
+### Rule 8: Platform is Only Infrastructure Layer
+- ✅ Firebase, Genkit, Auth, File Storage, Queue: platform owns
+- ✅ Cross-domain coordination, routing, governance: platform owns
+- ❌ Notion NEVER owns persistence (uses platform.infrastructure APIs)
+- ❌ Notebooklm NEVER owns embedding infra (uses platform.infrastructure APIs)
+
+### Rule 9: Cross-Module Data Flow MUST Use Events or API
+- ✅ When module A needs data from module B: A calls B.api or subscribes to B.event
+- ❌ NO shared in-memory state
+- ❌ NO direct repository access across module boundaries
+- ✅ All state mutations via transaction-protected API calls
+
+### Rule 10: Domain Layer is Externally Independent
+- ✅ domain/ contains entities, value objects, rules; NO framework deps
+- ❌ domain/ NEVER imports: React, Firebase SDK, HTTP client, ORM
+- ❌ domain/ NEVER depends on other modules (even platform)
+- ✅ All external deps injected via ports/adapters
+
+### Rule 28: Platform Cannot Depend on Downstream
+- ✅ platform → workspace | notion | notebooklm (one direction only)
+- ❌ platform NEVER imports from workspace, notion, notebooklm
+- ✅ If platform needs semantic data from notion/notebooklm: notion/notebooklm emit event to platform
+
+## Anti-Patterns (Will Require Refactors)
+
+### Rule 46: ❌ workspace directly calls Firestore
+- **Wrong**: `firestore.collection('documents').get()`
+- **Correct**: Use `@/modules/platform/api` (FileAPI, PermissionAPI, etc.)
+
+### Rule 47: ❌ notebooklm implements its own permission logic
+- **Wrong**: notebooklm checking `user.role === 'admin'`
+- **Correct**: Call `@/modules/platform/api → PermissionAPI.can()`
+
+### Rule 48: ❌ notion directly invokes AI/Genkit
+- **Wrong**: `notion/application/ imports Genkit`
+- **Correct**: Notion emits event; platform routes to notebooklm via AI API
+
+### Rule 49: ❌ Module imports another module's internal
+- **Wrong**: `import { SomeEntity } from '@/modules/notion/domain/entities'`
+- **Correct**: Use `import { api } from '@/modules/notion/api'` only
+
+### Rule 50: ❌ Business logic written in React component (workspace UI)
+- **Wrong**: `if (user.role === 'admin') { ... }` in .tsx
+- **Correct**: Move to application/ use-case; UI only composes and calls
+
+### Rule 51: ❌ Cross-module route components read foreign context providers
+- **Wrong**: notion/notebooklm route components call workspace providers directly (e.g. `useWorkspaceContext()`)
+- **Correct**: workspace is the composition owner and must pass explicit scope props (`accountId`, `workspaceId`, optional `currentUserId`) through module `api/` boundaries
+
+---
+
+## Full Enforcement & Reference
+
+See `docs/hard-rules-consolidated.md` for:
+- All 51 rules with detailed explanations
+- Document placement strategy (7 homes)
+- Enforcement checklist
+- Layer responsibility rules (11-13, 21-23)
+- Event bus & async rules (4, 34-36)
+- File/data/permission rules (3, 29-32, 37-40)
+- Cross-module contract rules (24-27)
 ````
 
 ## File: app/(shell)/_providers/AppProvider.tsx
@@ -45938,6 +44223,21 @@ api/ ← 唯一跨模組入口
 5. Implement Interfaces (UI, actions, hooks)
 ````
 
+## File: modules/notebooklm/api/server.ts
+````typescript
+/**
+ * modules/notebooklm — server-only API barrel.
+ *
+ * Exports concrete notebook implementations that depend on server-only
+ * packages or infrastructure wiring. Must only be imported in Server Actions,
+ * route handlers, or server-side infrastructure.
+ * This surface exists for server-side orchestrators; browser-facing
+ * composition still goes through workspace/api when workspace owns the flow.
+ */
+⋮----
+// Q&A subdomain — AnswerRagQueryUseCase factory (now in synthesis subdomain)
+````
+
 ## File: modules/notebooklm/application/use-cases/index.ts
 ````typescript
 
@@ -45969,6 +44269,74 @@ export class FirebaseThreadRepository implements ThreadRepository {
 async save(accountId: string, thread: Thread): Promise<void>
 ⋮----
 async getById(accountId: string, threadId: string): Promise<Thread | null>
+````
+
+## File: modules/notebooklm/infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/adapters
+ * Adapter: NotionKnowledgePageGatewayAdapter — delegates to notion bounded context API.
+ *
+ * Implements the KnowledgePageGateway port defined in the domain layer,
+ * bridging the source subdomain to the notion bounded context through its
+ * top-level public API and published-language tokens.
+ */
+⋮----
+import type { CommandResult } from "@shared-types";
+⋮----
+import type { KnowledgePageGateway } from "../../../subdomains/source/domain/ports/KnowledgePageGatewayPort";
+⋮----
+interface KnowledgeArtifactReferenceToken {
+  readonly artifactId: string;
+  readonly artifactType: "page" | "article";
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly slug: string;
+}
+⋮----
+function slugifyTitle(title: string): string
+⋮----
+function toKnowledgeArtifactReference(input: {
+  accountId: string;
+  workspaceId: string;
+  title: string;
+  artifactId: string;
+}): KnowledgeArtifactReferenceToken
+⋮----
+export class NotionKnowledgePageGatewayAdapter implements KnowledgePageGateway {
+⋮----
+constructor(
+    private readonly deps: {
+      createKnowledgePage: (input: {
+        accountId: string;
+        workspaceId: string;
+        title: string;
+        parentPageId: null;
+        createdByUserId: string;
+})
+⋮----
+async createPage(input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    parentPageId: null;
+    createdByUserId: string;
+}): Promise<CommandResult>
+⋮----
+// Normalize cross-context return as notion published-language token.
+⋮----
+async addBlock(input: {
+    accountId: string;
+    pageId: string;
+    index: number;
+    content: {
+      type: "text";
+      richText: readonly { type: string; plainText: string }[];
+      properties: Record<string, unknown>;
+    };
+}): Promise<CommandResult>
 ````
 
 ## File: modules/notebooklm/infrastructure/source/firebase/FirebaseParsedDocumentAdapter.ts
@@ -46756,53 +45124,6 @@ async function handleUploadFile(file: File)
 onClose=
 ````
 
-## File: modules/notebooklm/interfaces/source/composition/wiki-library-facade.ts
-````typescript
-/**
- * Composition: wiki-library-facade
- *
- * Pre-wired facade functions for wiki library use cases.
- * Encapsulates the lazy singleton repository pattern so the subdomain
- * api/index.ts can re-export clean function signatures without importing
- * infrastructure directly.
- */
-⋮----
-import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
-import {
-  listWikiLibraries as _listWikiLibraries,
-  createWikiLibrary as _createWikiLibrary,
-  addWikiLibraryField as _addWikiLibraryField,
-  createWikiLibraryRow as _createWikiLibraryRow,
-  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
-} from "../../../subdomains/source/application/use-cases/wiki-library.use-cases";
-import type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../../../subdomains/source/domain/entities/WikiLibrary";
-import { makeWikiLibraryAdapter } from "./adapters";
-⋮----
-// Lazy singleton — no module-scope side effects.
-⋮----
-function getLibraryRepo(): WikiLibraryRepository
-⋮----
-export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]>
-⋮----
-export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary>
-⋮----
-export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField>
-⋮----
-export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow>
-⋮----
-export function getWikiLibrarySnapshot(
-  accountId: string,
-  libraryId: string,
-): ReturnType<typeof _getWikiLibrarySnapshot>
-````
-
 ## File: modules/notebooklm/interfaces/source/hooks/useSourceDocumentsSnapshot.ts
 ````typescript
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -46858,27 +45179,6 @@ export async function getWorkspaceFiles(
 export async function getWorkspaceRagDocuments(
   workspace: WorkspaceEntity,
 ): Promise<readonly RagDocumentRecord[]>
-````
-
-## File: modules/notebooklm/interfaces/synthesis/_actions/rag-query.actions.ts
-````typescript
-import { runKnowledgeRagQuery } from "../../../subdomains/synthesis/api/server";
-import type { KnowledgeRagQueryResult } from "../../../subdomains/synthesis/domain/repositories/KnowledgeContentRepository";
-⋮----
-function isBlank(value: string): boolean
-⋮----
-export interface RunKnowledgeRagQueryInput {
-  query: string;
-  accountId: string;
-  workspaceId: string;
-  topK?: number;
-  requireReady?: boolean;
-  maxAgeDays?: number;
-}
-⋮----
-export async function runKnowledgeRagQueryAction(
-  input: RunKnowledgeRagQueryInput,
-): Promise<KnowledgeRagQueryResult>
 ````
 
 ## File: modules/notebooklm/interfaces/synthesis/components/RagQueryPanel.tsx
@@ -47106,6 +45406,44 @@ export type ReindexSourceDocumentInputDto = ReindexSourceDocumentInput;
 export type ReindexSourceDocumentOutputDto = ReindexSourceDocumentOutput;
 ````
 
+## File: modules/notebooklm/subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/use-cases
+ * Use Case: CreateKnowledgeDraftFromSourceUseCase — creates a knowledge page draft from a parsed source document.
+ *
+ * Actor: logged-in user
+ * Goal: read parsed text from storage, create a knowledge page with a text block.
+ * Main success: page created, returns aggregateId.
+ * Failure: missing input, storage retrieval failure, or page creation failure.
+ */
+⋮----
+import type { CommandResult } from "@shared-types";
+import { commandFailureFrom, commandSuccess } from "@shared-types";
+⋮----
+import type { ParsedDocumentPort } from "../../domain/ports/ParsedDocumentPort";
+import type { KnowledgePageGateway } from "../../domain/ports/KnowledgePageGatewayPort";
+⋮----
+export interface CreateKnowledgeDraftInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly createdByUserId: string;
+  readonly filename: string;
+  readonly sourceGcsUri: string;
+  readonly jsonGcsUri: string;
+  readonly pageCount: number;
+}
+⋮----
+function trimFileExtension(filename: string): string
+⋮----
+export class CreateKnowledgeDraftFromSourceUseCase {
+⋮----
+constructor(
+⋮----
+async execute(input: CreateKnowledgeDraftInput): Promise<CommandResult>
+````
+
 ## File: modules/notebooklm/subdomains/source/application/use-cases/process-source-document-workflow.use-case.ts
 ````typescript
 import {
@@ -47205,104 +45543,6 @@ export interface SourceDocumentCommandPort {
 ⋮----
 deleteDocument(accountId: string, documentId: string): Promise<void>;
 renameDocument(accountId: string, documentId: string, newName: string): Promise<void>;
-````
-
-## File: modules/notebooklm/subdomains/synthesis/application/use-cases/answer-rag-query.use-case.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: application/use-cases
- * Purpose: AnswerRagQueryUseCase — orchestrates grounding + synthesis to
- *          produce a cited answer for a user question.
- *
- * Design improvements over legacy answer-rag-query.use-case.ts:
- * - TopK limit is configurable via constructor injection (no hard-coded MAX_TOP_K=10).
- * - Error codes are prefixed with QA_ for namespace clarity.
- * - Dependencies typed against interfaces, not concrete classes.
- */
-⋮----
-import { randomUUID } from "node:crypto";
-⋮----
-import type { RagRetrievalRepository } from "../../domain/repositories/RagRetrievalRepository";
-import type {
-  AnswerRagQueryInput,
-  AnswerRagQueryOutput,
-  AnswerRagQueryResult,
-  RagRetrievalSummary,
-} from "../../domain/entities/rag-query.entities";
-import type { RagGenerationRepository } from "../../domain/repositories/RagGenerationRepository";
-⋮----
-const DEFAULT_MAX_TOP_K = 20; // Raise from the legacy hard-coded 10
-⋮----
-function clampTopK(value: number | undefined, maxTopK: number): number
-⋮----
-export class AnswerRagQueryUseCase {
-⋮----
-constructor(
-⋮----
-/** Maximum topK accepted from callers. Override at composition root for environment-specific limits. */
-⋮----
-async execute(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult>
-````
-
-## File: modules/notebooklm/subdomains/synthesis/application/use-cases/submit-rag-feedback.use-case.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: application/use-cases
- * Purpose: SubmitRagQueryFeedbackUseCase — persists user quality signal on
- *          a RAG answer and returns a CommandResult.
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-⋮----
-import type { RagQueryFeedbackRepository } from "../../domain/repositories/RagQueryFeedbackRepository";
-import type { RagFeedbackRating, SubmitRagQueryFeedbackInput } from "../../domain/entities/rag-feedback.entities";
-⋮----
-export class SubmitRagQueryFeedbackUseCase {
-⋮----
-constructor(private readonly feedbackRepository: RagQueryFeedbackRepository)
-⋮----
-async execute(input: SubmitRagQueryFeedbackInput): Promise<CommandResult>
-````
-
-## File: modules/notion/api/index.ts
-````typescript
-/**
- * Module: notion
- * Layer: api (top-level public boundary)
- * Purpose: Unified public boundary for notion subdomains.
- *          External consumers (workspace, other modules) must only import from here.
- *          Browser-facing route composition should prefer workspace/api when
- *          workspace is the orchestration owner.
- *
- * Notes:
- * - This file exposes only stable cross-module semantic capabilities.
- * - Internal factory wiring remains private to notion subdomains/interfaces
- *   until a context-wide server-only contract is explicitly justified.
- */
-⋮----
-// ── Context-wide published language ───────────────────────────────────────────
-⋮----
-// ── knowledge subdomain ───────────────────────────────────────────────────────
-⋮----
-// ── authoring subdomain ───────────────────────────────────────────────────────
-// Migration state: subdomain-owned composition remains private; root api only
-// aggregates stable public capabilities during the knowledge-base convergence.
-⋮----
-// ── collaboration subdomain ───────────────────────────────────────────────────
-// Migration state: subdomain-owned composition remains private; root api only
-// aggregates stable public capabilities during the collaboration convergence.
-⋮----
-// ── database subdomain ────────────────────────────────────────────────────────
-// Migration state: subdomain-owned composition remains private; root api only
-// aggregates stable public capabilities during the database convergence.
-⋮----
-// ── taxonomy subdomain ────────────────────────────────────────────────────────
-// Tier 2 — classification hierarchy and semantic organization
-⋮----
-// ── relations subdomain ───────────────────────────────────────────────────────
-// Tier 2 — backlinks, forward links, and reference graphs
 ````
 
 ## File: modules/notion/application/use-cases/index.ts
@@ -48572,11 +46812,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/interfaces/web/index.ts
-````typescript
-// providers — context and useApp from platform-only ShellAppContext
-````
-
 ## File: modules/platform/interfaces/web/shell/search/ShellGlobalSearchDialog.tsx
 ````typescript
 import { useEffect, useState } from "react";
@@ -48607,99 +46842,72 @@ function handleSelect(href: string)
 function onKeyDown(event: KeyboardEvent)
 ````
 
-## File: modules/platform/subdomains/account-profile/api/index.ts
+## File: modules/platform/subdomains/access-control/api/index.ts
 ````typescript
 /**
- * Public API boundary for the account-profile subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Composition root lives in infrastructure/account-profile-service.ts;
- * this boundary is intentionally thin — it only re-exports public contracts.
+ * Public API boundary for the access-control subdomain.
  */
-⋮----
-import {
-	getAccountProfileFromService,
-	subscribeToAccountProfileFromService,
-	updateAccountProfileFromService,
-	configureLegacyAccountProfileDataSource,
-} from "../infrastructure";
-import {
-	getLegacyUserProfile,
-	subscribeToLegacyUserProfile,
-	updateLegacyUserProfile,
-} from "../../account/api/legacy-account-profile.bridge";
-import type { AccountProfile, Unsubscribe } from "../domain";
-import type { UpdateAccountProfileInput } from "../application";
-import type { CommandResult } from "@shared-types";
-⋮----
-// ── Use-case delegators ──────────────────────────────────────────────────
-⋮----
-export async function getAccountProfile(actorId: string): Promise<AccountProfile | null>
-⋮----
-export function subscribeToAccountProfile(
-	actorId: string,
-	onUpdate: (profile: AccountProfile | null) => void,
-): Unsubscribe
-⋮----
-export async function updateAccountProfile(
-	actorId: string,
-	input: UpdateAccountProfileInput,
-): Promise<CommandResult>
-⋮----
-// Legacy compatibility exports for migration window.
 ````
 
-## File: modules/platform/subdomains/account-profile/infrastructure/account-profile-service.ts
+## File: modules/platform/subdomains/account-profile/infrastructure/index.ts
 ````typescript
 /**
- * AccountProfileService — Composition root for account-profile subdomain.
+ * Account-profile infrastructure barrel — adapter exports only.
  *
- * Wires the legacy account data-source (from the account subdomain bridge)
- * into domain-port-conforming adapters and use cases. This keeps infrastructure
- * wiring inside the infrastructure layer, off the api boundary.
+ * Composition logic lives in interfaces/composition/account-profile-service.ts.
+ */
+````
+
+## File: modules/platform/subdomains/account/interfaces/queries/account.queries.ts
+````typescript
+/**
+ * Account Read Queries — thin wrappers over the AccountQueryRepository port.
+ * NOT Server Actions — callable from React components/hooks directly.
  */
 ⋮----
-import {
-	GetAccountProfileUseCase,
-	SubscribeAccountProfileUseCase,
-	UpdateAccountProfileUseCase,
-} from "../application";
-import {
-	createLegacyAccountProfileCommandRepository,
-	createLegacyAccountProfileQueryRepository,
-	type LegacyAccountProfileDataSource,
-} from "./create-legacy-account-profile-application.adapter";
-import type { AccountProfile, Unsubscribe } from "../domain";
-import type { UpdateAccountProfileInput } from "../application";
-import type { CommandResult } from "@shared-types";
+import { createAccountQueryRepository } from "../composition/account-service";
+import type { AccountQueryRepository } from "../../domain/repositories/AccountQueryRepository";
+import type { AccountEntity, WalletTransaction, AccountRoleRecord, WalletBalanceSnapshot, Unsubscribe, AccountPolicy } from "../../application/dtos/account.dto";
 ⋮----
-// ── Lazy singletons ──────────────────────────────────────────────────────
+function getAccountQueryRepo(): AccountQueryRepository
 ⋮----
-export function configureLegacyAccountProfileDataSource(
-	legacyDataSource: LegacyAccountProfileDataSource,
-): void
+export async function getUserProfile(userId: string): Promise<AccountEntity | null>
 ⋮----
-function getLegacyDataSource(): LegacyAccountProfileDataSource
-⋮----
-function getGetAccountProfileUseCase(): GetAccountProfileUseCase
-⋮----
-function getSubscribeAccountProfileUseCase(): SubscribeAccountProfileUseCase
-⋮----
-function getUpdateAccountProfileUseCase(): UpdateAccountProfileUseCase
-⋮----
-// ── Public service API ───────────────────────────────────────────────────
-⋮----
-export async function getAccountProfile(actorId: string): Promise<AccountProfile | null>
-⋮----
-export function subscribeToAccountProfile(
-	actorId: string,
-	onUpdate: (profile: AccountProfile | null) => void,
+export function subscribeToUserProfile(
+  userId: string,
+  onUpdate: (profile: AccountEntity | null) => void,
 ): Unsubscribe
 ⋮----
-export async function updateAccountProfile(
-	actorId: string,
-	input: UpdateAccountProfileInput,
-): Promise<CommandResult>
+export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot>
+⋮----
+export function subscribeToWalletBalance(
+  accountId: string,
+  onUpdate: (snapshot: WalletBalanceSnapshot) => void,
+): Unsubscribe
+⋮----
+export function subscribeToWalletTransactions(
+  accountId: string,
+  maxCount: number,
+  onUpdate: (txs: WalletTransaction[]) => void,
+): Unsubscribe
+⋮----
+export async function getAccountRole(accountId: string): Promise<AccountRoleRecord | null>
+⋮----
+export function subscribeToAccountRoles(
+  accountId: string,
+  onUpdate: (record: AccountRoleRecord | null) => void,
+): Unsubscribe
+⋮----
+export function subscribeToAccountsForUser(
+  userId: string,
+  onUpdate: (accounts: Record<string, AccountEntity>) => void,
+): Unsubscribe
+⋮----
+export async function getAccountPolicies(_accountId: string): Promise<AccountPolicy[]>
+⋮----
+// Policy reads are server-side only; keep client bundles free of policy repo deps.
+⋮----
+export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]>
 ````
 
 ## File: modules/platform/subdomains/background-job/domain/index.ts
@@ -48717,59 +46925,22 @@ export async function updateAccountProfile(
  */
 ````
 
-## File: modules/platform/subdomains/identity/api/index.ts
+## File: modules/platform/subdomains/identity/infrastructure/index.ts
 ````typescript
 /**
- * identity subdomain public API boundary.
- * Consumers (e.g. infrastructure in sibling subdomains) must import through this barrel.
+ * Identity infrastructure barrel — adapter exports only.
+ *
+ * Composition logic lives in interfaces/composition/identity-service.ts.
  */
-⋮----
-// Domain types — explicit exports (no wildcard to avoid leaking repos/ports/aggregates)
-⋮----
-// Value objects
-⋮----
-// Interfaces (UI components, hooks, providers, actions)
 ````
 
-## File: modules/platform/subdomains/identity/interfaces/_actions/identity.actions.ts
+## File: modules/platform/subdomains/organization/infrastructure/index.ts
 ````typescript
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { toIdentityErrorMessage } from "../../application/identity-error-message";
-import {
-	RegisterUseCase,
-	SendPasswordResetEmailUseCase,
-	SignInAnonymouslyUseCase,
-	SignInUseCase,
-	SignOutUseCase,
-} from "../../application/use-cases/identity.use-cases";
-import { createIdentityRepository } from "../../api";
-import type { IdentityRepository } from "../../domain/repositories/IdentityRepository";
-⋮----
-function getRepo(): IdentityRepository
-⋮----
-export async function signIn(email: string, password: string): Promise<CommandResult>
-⋮----
-export async function signInAnonymously(): Promise<CommandResult>
-⋮----
-export async function register(email: string, password: string, name: string): Promise<CommandResult>
-⋮----
-export async function sendPasswordResetEmail(email: string): Promise<CommandResult>
-⋮----
-export async function signOut(): Promise<CommandResult>
-````
-
-## File: modules/platform/subdomains/identity/interfaces/hooks/useTokenRefreshListener.tsx
-````typescript
-import { getFirebaseAuth } from "@integration-firebase";
-import { useEffect } from "react";
-import { createTokenRefreshRepository } from "../../api";
-import type { TokenRefreshRepository } from "../../domain/repositories/TokenRefreshRepository";
-⋮----
-function getTokenRefreshRepo(): TokenRefreshRepository
-⋮----
-export function useTokenRefreshListener(accountId: string | null | undefined): void
-⋮----
-// Non-fatal: token refreshes naturally on next expiry cycle.
+/**
+ * Organization infrastructure barrel — adapter exports only.
+ *
+ * Composition logic lives in interfaces/composition/organization-service.ts.
+ */
 ````
 
 ## File: modules/platform/subdomains/search/application/services/shell-command-catalog.ts
@@ -49189,43 +47360,6 @@ async extractTaskCandidates(
 ): Promise<ExtractTaskCandidatesFromKnowledgeResult>
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow-task-batch-job.actions.ts
-````typescript
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow-task-batch-job.actions.ts
- * @description Server Actions for task materialization batch job operations.
- */
-⋮----
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { WorkspaceFlowTaskBatchJobFacade } from "../../api/workspace-flow-task-batch-job.facade";
-import { makeTaskMaterializationBatchJobRepo } from "../../api/factories";
-import type {
-  ExtractTaskCandidatesFromKnowledgeDto,
-  ExtractTaskCandidatesFromKnowledgeResult,
-} from "../../application/dto/extract-task-candidates-from-knowledge.dto";
-import type { SubmitTaskMaterializationBatchJobDto } from "../../application/dto/submit-task-materialization-batch-job.dto";
-import type { TaskMaterializationBatchJob } from "../../domain/entities/TaskMaterializationBatchJob";
-⋮----
-function makeFacade(): WorkspaceFlowTaskBatchJobFacade
-⋮----
-export async function wfSubmitTaskMaterializationBatchJob(
-  dto: SubmitTaskMaterializationBatchJobDto,
-): Promise<CommandResult>
-⋮----
-export async function wfGetTaskMaterializationBatchJob(
-  jobId: string,
-): Promise<TaskMaterializationBatchJob | null>
-⋮----
-export async function wfListTaskMaterializationBatchJobs(
-  workspaceId: string,
-): Promise<TaskMaterializationBatchJob[]>
-⋮----
-export async function wfExtractTaskCandidatesFromKnowledge(
-  dto: ExtractTaskCandidatesFromKnowledgeDto,
-): Promise<ExtractTaskCandidatesFromKnowledgeResult>
-````
-
 ## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow.actions.ts
 ````typescript
 /**
@@ -49239,6 +47373,84 @@ export async function wfExtractTaskCandidatesFromKnowledge(
  *  - workspace-flow-issue.actions.ts   (open, start, fix, retest, resolve, close)
  *  - workspace-flow-invoice.actions.ts (create, add/update/remove item, submit, review, approve, reject, pay, close)
  */
+````
+
+## File: .github/instructions/architecture-core.instructions.md
+````markdown
+---
+description: 'Consolidated Hexagonal DDD architecture rules: layer ownership, API-only boundaries, module shape, and bounded-context dependency direction.'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Architecture Core
+
+## Core Boundary Rules
+
+- Determine owning bounded context and subdomain from `docs/**/*` before choosing file placement.
+- Cross-module collaboration must go through `modules/<target>/api` or explicit events.
+- Cross-module route components must be props-scoped (`accountId`, `workspaceId`, optional `currentUserId`) from the composition owner; do not consume another module's context provider directly.
+- Do not import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
+- Replace any boundary bypass in the same change with API contracts or events.
+
+## Layer Direction
+
+- Dependency direction is fixed: `interfaces -> application -> domain <- infrastructure`.
+- Keep `domain/` framework-free and runtime-agnostic.
+- `infrastructure/` and `interfaces/` are outer layers; do not place them inside generic `core/`.
+
+## Layer Ownership
+
+- `domain/`: business rules, invariants, aggregates, entities, value objects, domain events, repository/port interfaces.
+- `application/`: use-case orchestration, transaction boundaries, command/query contracts, application services.
+- `infrastructure/`: repository and adapter implementations only.
+- `interfaces/`: input/output translation, route/action/UI wiring.
+- `api/`: only cross-module entry surface with stable semantic capability contracts.
+- `api/` must not expose repository factories, container wiring, or other internal composition helpers as public contracts.
+- Internal composition helpers belong under module-local `interfaces/` or `infrastructure/` paths unless a real cross-module semantic boundary requires promotion.
+
+## Use Case Decision Rules
+
+- Use a use case only for business behavior.
+- Pure reads without business logic go to query handlers.
+- Keep UI state and interaction logic in `interfaces/`.
+- Use cases orchestrate flow; complex business rules stay in `domain/`.
+- `GetXxxUseCase` is usually a query smell.
+
+## Development Order
+
+- Use-case contract first: actor, goal, main success scenario, failure branches.
+- Recommended order: `Use Case -> Domain -> (Application <-> Ports iterate as needed) -> Infrastructure -> Interface`.
+- Do not build UI first and backfill domain later.
+- Do not call repositories directly from `interfaces/`.
+- Do not force domain design from storage schema first.
+
+## Module Shape and Naming
+
+- Bounded-context root required shape: `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`, `index.ts`.
+- Subdomain default shape follows core-first (`api/`, `domain/`, `application/`, optional `ports/`); subdomain `infrastructure/` and `interfaces/` are gate-based, not always required.
+- Public boundary is `api/`; `index.ts` is aggregate export only.
+- Use case file: `verb-noun.use-case.ts`.
+- Repository interface: `PascalCaseRepository`.
+- Repository implementation: `TechnologyPascalCaseRepository`.
+- Domain event discriminant: `module-name.action`.
+
+## Refactor and Lifecycle Rules
+
+1. Confirm ownership first.
+2. Map API consumers.
+3. Create or update the target use-case contract before adapter/UI edits.
+4. Preserve boundaries during split/merge/delete.
+5. Update docs and imports in the same change.
+6. Migrate public API and event contracts before removing old paths.
+
+## Validation
+
+- Use `eslint.config.mjs` restricted-import and boundary rules as enforcement source.
+- Re-check changed imports under `@/modules/` for API-only access.
+- Keep dependency flow acyclic unless an explicit event contract documents an exception.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: .github/prompts/enforce-hexagonal-ddd-convergence.prompt.md
@@ -49458,315 +47670,6 @@ Skill declarations are centralized in:
 禁止使用「若你要我可以再掃」作為結案語句；必須直接完成或明確 blocked。
 
 Tags: #use agent hexagonal-convergence-enforcer
-````
-
-## File: AGENTS.md
-````markdown
-# API Architecture Rules
-
-## NotionAPI & NotebookLMAPI
-
-platform 是跨域能力中樞，must expose two API layers:
-
-### 1. Infrastructure API (低階 / 模組內用)
-
-**所有權**: platform  
-**消費者**: notion、notebooklm (only)  
-**用途**: Runtime capability contracts（不含業務決策）  
-
-```typescript
-// Firestore access contract
-export interface FirestoreAPI {
-  get<T>(path: string): Promise<T | null>;
-  set<T>(path: string, data: T): Promise<void>;
-  query<T>(collection: string, where: Query[]): Promise<T[]>;
-}
-
-// Cloud Storage access contract
-export interface StorageAPI {
-  upload(file: File, path: string): Promise<string>;
-  getUrl(path: string): Promise<string>;
-  delete(path: string): Promise<void>;
-}
-
-// Genkit AI flow orchestration contract
-export interface GenkitAPI {
-  runFlow<TInput, TOutput>(
-    flow: string,
-    input: TInput
-  ): Promise<TOutput>;
-}
-```
-
-**Rule**: notion、notebooklm use these for **data persistence and external tool invocation only**. No business logic should hide inside adapter calls.
-
----
-
-### 2. Platform Service API (高階 / 系統級用)
-
-**所有權**: platform  
-**消費者**: workspace、notion、notebooklm (all)  
-**用途**: Cross-domain capability contracts（含governance、auth、entitlement）  
-
-```typescript
-// Authentication & Session
-export interface AuthAPI {
-  getSession(): Promise<AuthSession>;
-  requireAuth(): Promise<User>;
-}
-
-// Access Control & Entitlement
-export interface PermissionAPI {
-  can(userId: string, action: string, resource: string): Promise<boolean>;
-}
-
-// Semantic File Lifecycle (not raw storage)
-export interface FileAPI {
-  uploadUserFile(input: {
-    file: File;
-    ownerId: string;
-  }): Promise<{ url: string; fileId: string }>;
-  deleteFile(fileId: string): Promise<void>;
-}
-
-// AI capability coordination (routing & safety)
-export interface AIAPI {
-  summarize(text: string): Promise<string>;
-  // More methods as capabilities expand
-}
-```
-
-**Rule**: All modules (including notion、notebooklm) must go through Service APIs for cross-domain operations.
-
----
-
-## API Call Rules
-
-| Caller | Firestore | Storage | Genkit | Auth | Permission | File | AI |
-|--------|-----------|---------|--------|------|------------|------|-----|
-| workspace | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| notion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅* | ✅ |
-| notebooklm | ✅ | ✅ | ✅ | ✅ | ✅ | ✅* | ✅ |
-
-**\* File API**: notion、notebooklm must use `FileAPI` (not raw `StorageAPI`) when files involve ownership, entitlement, or multi-tenant isolation.
-
----
-
-## Example Flow: File Upload with Entitlement Check
-
-```text
-workspace (UI)
-  → FileAPI.uploadUserFile({ file, ownerId })
-  ↓
-platform (FileAPI)
-  → PermissionAPI.can(ownerId, "create:file", context)
-  ↓
-notion.createDocument(with fileId)
-  → Storage.upload(...) via Infrastructure API
-  ↓
-Firebase Storage
-```
-
-**Key**: uploadUserFile ≠ Storage.upload
-- `uploadUserFile`: semantic contract (ownership, entitlement, audit)
-- `Storage.upload`: mechanism contract (how bytes move)
-
----
-
-## Governance Rules
-
-1. **platform is the unique infra gateway** — all Firebase, Genkit, external AI routing flows through platform adapters.
-2. **notion、notebooklm use Infrastructure APIs for local concerns only** — persistence, embedding, synthesis.
-3. **workspace never touches Infrastructure APIs** — always goes through Platform Service APIs.
-4. **All cross-domain behavior routes through Platform Service APIs** — auth, permission, entitlement, file ownership, AI safety.
-5. **Published Language is upstream boundary** — concepts like `Actor`, `Tenant`, `Entitlement`, `fileId` are defined in platform ubiquitous language; downstream contexts translate as needed.
-
----
-
-# Four Main Domains
-
-## Strategic Overview
-
-| Main Domain | Strategic Role | Baseline Subdomains | Recommended Gap | Active Status |
-|---|---|---|---|---|
-| **platform** | 治理與營運支撐 | identity, account, account-profile, organization, access-control, security-policy, platform-config, feature-flag, onboarding, compliance, billing, subscription, referral, ai, integration, workflow, notification, background-job, content, search, audit-log, observability, analytics, support (23) | tenant, entitlement, secret-management, consent (4) | ✅ 23 baseline + 4 gap |
-| **workspace** | 協作容器與 scope | audit, feed, scheduling, workspace-workflow (4) | lifecycle, membership, sharing, presence (4) | ✅ 4 baseline + 4 gap |
-| **notion** | 正典知識內容 | knowledge, authoring, collaboration, database, attachments, knowledge-versioning (6) | taxonomy, relations, publishing (3) | ✅ 6 baseline + 3 gap |
-| **notebooklm** | 對話與推理 | conversation, note, notebook, source, synthesis (5) | ingestion, retrieval, grounding, evaluation (4) | ✅ 5 baseline + 4 gap |
-
----
-
-## Ubiquitous Language
-
-### Domain Key Terms
-
-| Domain | Cardinal Terms | Published Language |
-|---|---|---|
-| **platform** | Actor, Tenant, Entitlement, Consent, Secret | Defines all upstream concepts; all downstream must translate through these |
-| **workspace** | Workspace, Membership, ShareScope, ActivityFeed, AuditTrail | Consumes: actor reference, organization scope, access decision, entitlement signal |
-| **notion** | KnowledgeArtifact, Taxonomy, Relation, Publication | Consumes: actor reference, organization scope, entitlement signal, ai capability signal |
-| **notebooklm** | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation | Consumes: actor reference, organization scope, entitlement signal, ai capability signal |
-
-### Context Map (Upstream → Downstream)
-
-```text
-platform
-  ├→ workspace        (actor, organization scope, access decision, entitlement signal)
-  ├→ notion           (actor, organization scope, entitlement signal, ai capability signal)
-  └→ notebooklm       (actor, organization scope, entitlement signal, ai capability signal)
-
-workspace
-  ├→ notion           (workspaceId, membership scope, share scope)
-  └→ notebooklm       (workspaceId, membership scope, share scope)
-
-notion
-  └→ notebooklm       (knowledge artifact reference, attachment reference, taxonomy hint)
-
-notebooklm
-  └→ (none)            (terminal context in current strategic map)
-```
-
-### Published Language Token Glossary
-
-| Token | Canonical Domain | Constraint |
-|---|---|---|
-| actor reference | platform.Actor | Never mix with Membership |
-| organization scope | platform.Tenant / organization boundary | Never equals Workspace scope |
-| access decision | platform.access-control result | Pass decision only, not internal policy model |
-| entitlement signal | platform.entitlement / subscription capability | Never mix with feature-flag payload |
-| ai capability signal | platform.ai shared capability (only) | notion & notebooklm CONSUME only, never OWN `ai` subdomain |
-| workspaceId | workspace.Workspace identifier | Never replaces local knowledge/notebook primary key |
-| membership scope | workspace.Membership constraint | Never mixes with actor identity language |
-| share scope | workspace.ShareScope constraint | Never mixes with general permission fields |
-| knowledge artifact reference | notion.KnowledgeArtifact reference | Reference only, no ownership transfer |
-| attachment reference | notion / notebooklm attachment ref | Traceable reference, never leaked storage impl |
-| taxonomy hint | notebooklm retrieval hint (only) | Never overrides notion's canonical taxonomy |
-
----
-
-## Dependency Direction Rules
-
-### Fixed Upstream → Downstream Flow
-
-```
-platform
-  ↓
-workspace, notion, notebooklm (all consume platform governance APIs)
-  ↓
-workspace ↓ notion ↓ notebooklm
-(sequential consumption allowed; never reverse upstream)
-```
-
-### Anti-Patterns
-
-- ❌ workspace calling notion.api directly (must go through published language)
-- ❌ notion calling platform.domain internal models (must use Service API boundary)
-- ❌ notebooklm defining its own `ai` subdomain (belongs exclusively to platform)
-- ❌ Mixing Actor + Membership terminology (Actor = identity, Membership = workspace participation)
-- ❌ Treating notion's KnowledgeArtifact as writable by other domains (reference only)
-
----
-
-## Module Ownership Guardrails
-
-| Concern | Owner | Never Owned By |
-|---|---|---|
-| Identity, authentication, session | platform | workspace, notion, notebooklm |
-| Permission, entitlement, access control | platform | workspace, notion, notebooklm |
-| Tenant isolation, organization scope | platform | workspace, notion, notebooklm |
-| AI capability routing, model policy, safety | platform | notion, notebooklm (consumers only) |
-| Workspace creation, archival, lifecycle | workspace | notion, notebooklm, platform |
-| Knowledge artifact authoring, versioning | notion | platform, workspace, notebooklm |
-| Conversation, retrieval, synthesis | notebooklm | platform, workspace, notion (notion→notebooklm: reference only) |
-| Cross-module security rules, audit | platform | all others apply, never contradict |
-
----
-
-# 🚫 Hard Rules (Will Cause Refactors If Violated)
-
-## Strategic Ownership Rules (Non-Negotiable)
-
-### Rule 1: Platform is Unique Infrastructure Gateway
-- ✅ platform owns Firebase, Genkit, external AI routing, cross-domain auth
-- ❌ notion, notebooklm NEVER own infra (except local read-only access)
-- ❌ workspace NEVER touches Firebase/Storage/Genkit directly
-
-### Rule 5: Workspace is Orchestration Only
-- ✅ workspace composes module APIs and next.js routing
-- ❌ workspace NEVER contains domain business logic
-- ❌ workspace NEVER makes direct DB/permission decisions
-
-### Rule 6: Cross-Module Access Prohibition
-- ✅ module A imports module B only via `@/modules/b/api`
-- ❌ NO direct imports of domain/, application/, infrastructure/, interfaces/
-- ✅ ALL data sharing via events or published language tokens
-
-### Rule 7: Mandatory Single Entry Point (API Boundary)
-- ✅ Every module must export `api/index.ts`
-- ✅ `api/` exposes only public surface; hides internals
-- ❌ NO imports from internal module paths outside module
-
-### Rule 8: Platform is Only Infrastructure Layer
-- ✅ Firebase, Genkit, Auth, File Storage, Queue: platform owns
-- ✅ Cross-domain coordination, routing, governance: platform owns
-- ❌ Notion NEVER owns persistence (uses platform.infrastructure APIs)
-- ❌ Notebooklm NEVER owns embedding infra (uses platform.infrastructure APIs)
-
-### Rule 9: Cross-Module Data Flow MUST Use Events or API
-- ✅ When module A needs data from module B: A calls B.api or subscribes to B.event
-- ❌ NO shared in-memory state
-- ❌ NO direct repository access across module boundaries
-- ✅ All state mutations via transaction-protected API calls
-
-### Rule 10: Domain Layer is Externally Independent
-- ✅ domain/ contains entities, value objects, rules; NO framework deps
-- ❌ domain/ NEVER imports: React, Firebase SDK, HTTP client, ORM
-- ❌ domain/ NEVER depends on other modules (even platform)
-- ✅ All external deps injected via ports/adapters
-
-### Rule 28: Platform Cannot Depend on Downstream
-- ✅ platform → workspace | notion | notebooklm (one direction only)
-- ❌ platform NEVER imports from workspace, notion, notebooklm
-- ✅ If platform needs semantic data from notion/notebooklm: notion/notebooklm emit event to platform
-
-## Anti-Patterns (Will Require Refactors)
-
-### Rule 46: ❌ workspace directly calls Firestore
-- **Wrong**: `firestore.collection('documents').get()`
-- **Correct**: Use `@/modules/platform/api` (FileAPI, PermissionAPI, etc.)
-
-### Rule 47: ❌ notebooklm implements its own permission logic
-- **Wrong**: notebooklm checking `user.role === 'admin'`
-- **Correct**: Call `@/modules/platform/api → PermissionAPI.can()`
-
-### Rule 48: ❌ notion directly invokes AI/Genkit
-- **Wrong**: `notion/application/ imports Genkit`
-- **Correct**: Notion emits event; platform routes to notebooklm via AI API
-
-### Rule 49: ❌ Module imports another module's internal
-- **Wrong**: `import { SomeEntity } from '@/modules/notion/domain/entities'`
-- **Correct**: Use `import { api } from '@/modules/notion/api'` only
-
-### Rule 50: ❌ Business logic written in React component (workspace UI)
-- **Wrong**: `if (user.role === 'admin') { ... }` in .tsx
-- **Correct**: Move to application/ use-case; UI only composes and calls
-
-### Rule 51: ❌ Cross-module route components read foreign context providers
-- **Wrong**: notion/notebooklm route components call workspace providers directly (e.g. `useWorkspaceContext()`)
-- **Correct**: workspace is the composition owner and must pass explicit scope props (`accountId`, `workspaceId`, optional `currentUserId`) through module `api/` boundaries
-
----
-
-## Full Enforcement & Reference
-
-See `docs/hard-rules-consolidated.md` for:
-- All 51 rules with detailed explanations
-- Document placement strategy (7 homes)
-- Enforcement checklist
-- Layer responsibility rules (11-13, 21-23)
-- Event bus & async rules (4, 34-36)
-- File/data/permission rules (3, 29-32, 37-40)
-- Cross-module contract rules (24-27)
 ````
 
 ## File: app/(public)/page.tsx
@@ -50061,21 +47964,6 @@ flowchart LR
 - 若某 subdomain 很小，允許比本模板更精簡；若更精簡仍能守住邊界，應優先採用更精簡版本。
 ````
 
-## File: modules/notebooklm/api/server.ts
-````typescript
-/**
- * modules/notebooklm — server-only API barrel.
- *
- * Exports concrete notebook implementations that depend on server-only
- * packages or infrastructure wiring. Must only be imported in Server Actions,
- * route handlers, or server-side infrastructure.
- * This surface exists for server-side orchestrators; browser-facing
- * composition still goes through workspace/api when workspace owns the flow.
- */
-⋮----
-// Q&A subdomain — AnswerRagQueryUseCase factory (now in synthesis subdomain)
-````
-
 ## File: modules/notebooklm/interfaces/conversation/_actions/thread.actions.ts
 ````typescript
 import type { Thread } from "../../../subdomains/conversation/application/dto/conversation.dto";
@@ -50147,6 +48035,74 @@ export function makeSourceUseCases(
 ): SourceUseCases
 ````
 
+## File: modules/notebooklm/interfaces/source/composition/wiki-library-facade.ts
+````typescript
+/**
+ * Composition: wiki-library-facade
+ *
+ * Pre-wired facade functions for wiki library use cases.
+ * Encapsulates the lazy singleton repository pattern so the subdomain
+ * api/index.ts can re-export clean function signatures without importing
+ * infrastructure directly.
+ */
+⋮----
+import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
+import {
+  listWikiLibraries as _listWikiLibraries,
+  createWikiLibrary as _createWikiLibrary,
+  addWikiLibraryField as _addWikiLibraryField,
+  createWikiLibraryRow as _createWikiLibraryRow,
+  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
+} from "../../../subdomains/source/application/use-cases/wiki-library.use-cases";
+import type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../../../subdomains/source/application/dto/source.dto";
+import { makeWikiLibraryAdapter } from "./adapters";
+⋮----
+// Lazy singleton — no module-scope side effects.
+⋮----
+function getLibraryRepo(): WikiLibraryRepository
+⋮----
+export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]>
+⋮----
+export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary>
+⋮----
+export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField>
+⋮----
+export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow>
+⋮----
+export function getWikiLibrarySnapshot(
+  accountId: string,
+  libraryId: string,
+): ReturnType<typeof _getWikiLibrarySnapshot>
+````
+
+## File: modules/notebooklm/interfaces/synthesis/_actions/rag-query.actions.ts
+````typescript
+import { runKnowledgeRagQuery } from "../../../subdomains/synthesis/api/server";
+import type { KnowledgeRagQueryResult } from "../../../subdomains/synthesis/api";
+⋮----
+function isBlank(value: string): boolean
+⋮----
+export interface RunKnowledgeRagQueryInput {
+  query: string;
+  accountId: string;
+  workspaceId: string;
+  topK?: number;
+  requireReady?: boolean;
+  maxAgeDays?: number;
+}
+⋮----
+export async function runKnowledgeRagQueryAction(
+  input: RunKnowledgeRagQueryInput,
+): Promise<KnowledgeRagQueryResult>
+````
+
 ## File: modules/notebooklm/subdomains/notebook/api/server.ts
 ````typescript
 /**
@@ -50155,6 +48111,23 @@ export function makeSourceUseCases(
  * Exports infrastructure implementations that depend on server-only packages.
  * Must only be imported in Server Actions, route handlers, or server-side infrastructure.
  */
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/index.ts
+````typescript
+// ── Canonical domain types ────────────────────────────────────────────────────
+⋮----
+// ── Active pipeline types (legacy naming, used by use cases & adapters) ──────
+⋮----
+// ── Events ───────────────────────────────────────────────────────────────────
+⋮----
+// ── Ports ────────────────────────────────────────────────────────────────────
+⋮----
+// ── Repositories (output port interfaces) ────────────────────────────────────
+⋮----
+// ── Domain services ──────────────────────────────────────────────────────────
+⋮----
+// ── Value objects ────────────────────────────────────────────────────────────
 ````
 
 ## File: modules/notion/interfaces/authoring/_actions/article.actions.ts
@@ -50617,6 +48590,46 @@ export function resolveOrganizationRouteFallback(
 ): string | null
 ````
 
+## File: modules/platform/subdomains/account-profile/api/index.ts
+````typescript
+/**
+ * Public API boundary for the account-profile subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Composition root lives in interfaces/composition/account-profile-service.ts;
+ * this boundary is intentionally thin — it only re-exports public contracts.
+ *
+ * Legacy data-source wiring is deferred: the account-profile-service
+ * auto-configures its legacy data source on first use via lazy require,
+ * eliminating the previous import-time side effect.
+ */
+⋮----
+import {
+	getAccountProfile as getAccountProfileFromService,
+	subscribeToAccountProfile as subscribeToAccountProfileFromService,
+	updateAccountProfile as updateAccountProfileFromService,
+} from "../interfaces/composition/account-profile-service";
+import type { AccountProfile, Unsubscribe } from "../domain";
+import type { UpdateAccountProfileInput } from "../application";
+import type { CommandResult } from "@shared-types";
+⋮----
+// ── Use-case delegators ──────────────────────────────────────────────────
+⋮----
+export async function getAccountProfile(actorId: string): Promise<AccountProfile | null>
+⋮----
+export function subscribeToAccountProfile(
+	actorId: string,
+	onUpdate: (profile: AccountProfile | null) => void,
+): Unsubscribe
+⋮----
+export async function updateAccountProfile(
+	actorId: string,
+	input: UpdateAccountProfileInput,
+): Promise<CommandResult>
+⋮----
+// Legacy compatibility exports for migration window.
+````
+
 ## File: modules/platform/subdomains/account/api/index.ts
 ````typescript
 /**
@@ -50681,6 +48694,59 @@ summarize(text: string, model?: string): Promise<string>;
 generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
 ````
 
+## File: modules/platform/subdomains/identity/api/index.ts
+````typescript
+/**
+ * identity subdomain public API boundary.
+ * Consumers (e.g. infrastructure in sibling subdomains) must import through this barrel.
+ */
+⋮----
+// Domain types — explicit exports (no wildcard to avoid leaking repos/ports/aggregates)
+⋮----
+// Value objects
+⋮----
+// Interfaces (UI components, hooks, providers, actions)
+````
+
+## File: modules/platform/subdomains/identity/interfaces/_actions/identity.actions.ts
+````typescript
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { toIdentityErrorMessage } from "../../application/identity-error-message";
+import {
+	RegisterUseCase,
+	SendPasswordResetEmailUseCase,
+	SignInAnonymouslyUseCase,
+	SignInUseCase,
+	SignOutUseCase,
+} from "../../application/use-cases/identity.use-cases";
+import { createIdentityRepository } from "../../api";
+⋮----
+function getRepo(): ReturnType<typeof createIdentityRepository>
+⋮----
+export async function signIn(email: string, password: string): Promise<CommandResult>
+⋮----
+export async function signInAnonymously(): Promise<CommandResult>
+⋮----
+export async function register(email: string, password: string, name: string): Promise<CommandResult>
+⋮----
+export async function sendPasswordResetEmail(email: string): Promise<CommandResult>
+⋮----
+export async function signOut(): Promise<CommandResult>
+````
+
+## File: modules/platform/subdomains/identity/interfaces/hooks/useTokenRefreshListener.tsx
+````typescript
+import { getFirebaseAuth } from "@integration-firebase";
+import { useEffect } from "react";
+import { createTokenRefreshRepository } from "../../api";
+⋮----
+function getTokenRefreshRepo(): ReturnType<typeof createTokenRefreshRepository>
+⋮----
+export function useTokenRefreshListener(accountId: string | null | undefined): void
+⋮----
+// Non-fatal: token refreshes naturally on next expiry cycle.
+````
+
 ## File: modules/platform/subdomains/team/api/index.ts
 ````typescript
 /**
@@ -50692,6 +48758,179 @@ generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
  * organization subdomain needs it for cross-subdomain team port wiring.
  * It returns the TeamRepository interface, not a concrete implementation.
  */
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow-task-batch-job.actions.ts
+````typescript
+/**
+ * @module workspace-flow/interfaces/_actions
+ * @file workspace-flow-task-batch-job.actions.ts
+ * @description Server Actions for task materialization batch job operations.
+ */
+⋮----
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { WorkspaceFlowTaskBatchJobFacade } from "../../api/workspace-flow-task-batch-job.facade";
+import { makeTaskMaterializationBatchJobRepo } from "../../api/factories";
+import type {
+  ExtractTaskCandidatesFromKnowledgeDto,
+  ExtractTaskCandidatesFromKnowledgeResult,
+} from "../../application/dto/extract-task-candidates-from-knowledge.dto";
+import type { SubmitTaskMaterializationBatchJobDto } from "../../application/dto/submit-task-materialization-batch-job.dto";
+import type { TaskMaterializationBatchJob } from "../../application/dto/workflow.dto";
+⋮----
+function makeFacade(): WorkspaceFlowTaskBatchJobFacade
+⋮----
+export async function wfSubmitTaskMaterializationBatchJob(
+  dto: SubmitTaskMaterializationBatchJobDto,
+): Promise<CommandResult>
+⋮----
+export async function wfGetTaskMaterializationBatchJob(
+  jobId: string,
+): Promise<TaskMaterializationBatchJob | null>
+⋮----
+export async function wfListTaskMaterializationBatchJobs(
+  workspaceId: string,
+): Promise<TaskMaterializationBatchJob[]>
+⋮----
+export async function wfExtractTaskCandidatesFromKnowledge(
+  dto: ExtractTaskCandidatesFromKnowledgeDto,
+): Promise<ExtractTaskCandidatesFromKnowledgeResult>
+````
+
+## File: repomix.config.json
+````json
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "input": {
+    "maxFileSize": 52428800
+  },
+  "output": {
+    "filePath": "repomix-output.json",
+    "style": "json",
+    "parsableStyle": true,
+
+    "fileSummary": true,
+    "directoryStructure": true,
+    "files": true,
+
+    "removeComments": false,
+    "removeEmptyLines": false,
+
+    "compress": true,
+
+    "topFilesLength": 10,
+
+    "showLineNumbers": false,
+    "truncateBase64": false,
+    "copyToClipboard": false,
+
+    "includeFullDirectoryStructure": false,
+    "tokenCountTree": true,
+
+    "git": {
+      "sortByChanges": true,
+      "sortByChangesMaxCommits": 200,
+      "includeDiffs": false,
+      "includeLogs": false,
+      "includeLogsCount": 50
+    }
+  },
+  "include": [
+    ".github/copilot-instructions.md",
+    ".github/agents/**",
+    ".github/instructions/**/*.md",
+    ".github/prompts/**",
+    ".github/skills/*/SKILL.md",
+    ".github/skills/*/AGENTS.md",
+    "docs/**",
+    "app/**",
+    "modules/**",
+    "packages/**",
+    "py_fn/**",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "apphosting.yaml",
+    "components.json",
+    "eslint.config.mjs",
+    "firebase.apphosting.json",
+    "firebase.json",
+    "firestore.indexes.json",
+    "firestore.rules",
+    "llms.txt",
+    "next.config.ts",
+    "package.json",
+    "postcss.config.mjs",
+    "storage.rules",
+    "tailwind.config.ts",
+    "tsconfig.json",
+    "vitest.config.ts",
+    "repomix*.config.json"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      ".next/**",
+      ".turbo/**",
+      ".vercel/**",
+      ".firebase/**",
+      ".output/**",
+      ".parcel-cache/**",
+
+      ".cursor/**",
+      ".vscode/**",
+      ".serena/**",
+      ".claude/**",
+      ".opencode/**",
+      ".idea/**",
+      ".history/**",
+
+      ".cache/**",
+      ".temp/**",
+      ".tmp/**",
+      "tmp/**",
+      "temp/**",
+
+      "logs/**",
+      "firebase-debug.log",
+      "repomix-output.*",
+
+      ".env*",
+      "*.pem",
+      "*.key",
+      "*.crt",
+
+      "skills-lock.json",
+
+      "docs/architecture/**",
+      "diagrams/**",
+
+      "*.png",
+      "*.jpg",
+      "*.jpeg",
+      "*.gif",
+      "*.webp",
+      "*.mp4",
+      "*.zip",
+      "*.tar",
+      "*.gz",
+
+      "*.sqlite",
+      "*.db",
+      ".github/skills/**/references/**",
+      ".github/skills/**/resources/**",
+      ".github/skills/**/rules/**",
+      ".github/skills/xuanwu-*-skill/**"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}
 ````
 
 ## File: .github/agents/hexagonal-convergence-enforcer.agent.md
@@ -50867,21 +49106,41 @@ export function waitForParsedDocument(
 // Thread persistence actions
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/domain/index.ts
+## File: modules/notebooklm/subdomains/synthesis/api/server.ts
 ````typescript
-// ── Canonical domain types ────────────────────────────────────────────────────
+/**
+ * synthesis subdomain — server-only API.
+ *
+ * Factory functions and infrastructure adapters that depend on server-only
+ * packages. Must only be imported in Server Actions, route handlers, or
+ * server-side infrastructure.
+ */
 ⋮----
-// ── Active pipeline types (legacy naming, used by use cases & adapters) ──────
+import { FirebaseRagRetrievalAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseRagRetrievalAdapter";
+import { FirebaseKnowledgeContentAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter";
+import { PlatformRagGenerationAdapter } from "../../../infrastructure/synthesis/platform/PlatformRagGenerationAdapter";
+import { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
+import type {
+  KnowledgeParsedDocument,
+  KnowledgeRagQueryResult,
+  KnowledgeReindexInput,
+} from "../domain/repositories/KnowledgeContentRepository";
 ⋮----
-// ── Events ───────────────────────────────────────────────────────────────────
+function getKnowledgeContentRepository(): FirebaseKnowledgeContentAdapter
 ⋮----
-// ── Ports ────────────────────────────────────────────────────────────────────
+export function createAnswerRagQueryUseCase(): AnswerRagQueryUseCase
 ⋮----
-// ── Repositories (output port interfaces) ────────────────────────────────────
+export function runKnowledgeRagQuery(
+  query: string,
+  accountId: string,
+  workspaceId: string,
+  topK = 4,
+  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
+): Promise<KnowledgeRagQueryResult>
 ⋮----
-// ── Domain services ──────────────────────────────────────────────────────────
+export function reindexKnowledgeDocument(input: KnowledgeReindexInput): Promise<void>
 ⋮----
-// ── Value objects ────────────────────────────────────────────────────────────
+export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20): Promise<KnowledgeParsedDocument[]>
 ````
 
 ## File: modules/notion/interfaces/database/components/DatabaseFormPanel.tsx
@@ -50970,12 +49229,6 @@ function handleDelete(recordId: string)
  * Public API boundary for the organization subdomain.
  * Cross-module consumers must import through this entry point.
  *
- * NOTE: We avoid `export * from "../infrastructure"` here because the
- * infrastructure barrel pulls in Firebase repository constructors during
- * module evaluation, which causes failures during Next.js static
- * prerendering. Infrastructure exports are available in the server barrel
- * (./server.ts) or via direct import from action / service files.
- *
  * Team port wiring is deferred: the organization-service auto-configures its
  * team port factory on first use via lazy require, eliminating the previous
  * import-time side effect (configureOrganizationTeamPortFactory call).
@@ -50985,7 +49238,7 @@ function handleDelete(recordId: string)
 ⋮----
 // --- Application use cases ---
 ⋮----
-// --- Infrastructure (lazy, safe for SSR) ---
+// --- Composition (lazy, safe for SSR) ---
 ⋮----
 // --- Interfaces (UI, queries, actions) ---
 ````
@@ -51339,53 +49592,6 @@ export function isActiveRoute(pathname: string, href: string)
 // ---------------------------------------------------------------------------
 ````
 
-## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
-````typescript
-/**
- * notebooklm/source domain/ports — driven port interfaces for the source subdomain.
- *
- * SourceDocumentCommandPort and ParsedDocumentPort are the primary driven ports.
- * Repository contracts are re-exported from domain/repositories/.
- */
-````
-
-## File: modules/notebooklm/subdomains/synthesis/api/server.ts
-````typescript
-/**
- * synthesis subdomain — server-only API.
- *
- * Factory functions and infrastructure adapters that depend on server-only
- * packages. Must only be imported in Server Actions, route handlers, or
- * server-side infrastructure.
- */
-⋮----
-import { FirebaseRagRetrievalAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseRagRetrievalAdapter";
-import { FirebaseKnowledgeContentAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter";
-import { PlatformRagGenerationAdapter } from "../../../infrastructure/synthesis/platform/PlatformRagGenerationAdapter";
-import { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
-import type {
-  KnowledgeParsedDocument,
-  KnowledgeRagQueryResult,
-  KnowledgeReindexInput,
-} from "../domain/repositories/KnowledgeContentRepository";
-⋮----
-function getKnowledgeContentRepository(): FirebaseKnowledgeContentAdapter
-⋮----
-export function createAnswerRagQueryUseCase(): AnswerRagQueryUseCase
-⋮----
-export function runKnowledgeRagQuery(
-  query: string,
-  accountId: string,
-  workspaceId: string,
-  topK = 4,
-  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
-): Promise<KnowledgeRagQueryResult>
-⋮----
-export function reindexKnowledgeDocument(input: KnowledgeReindexInput): Promise<void>
-⋮----
-export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20): Promise<KnowledgeParsedDocument[]>
-````
-
 ## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesPanel.tsx
 ````typescript
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -51472,6 +49678,469 @@ export type CategoryId = string;
 // ??? UI Components ????????????????????????????????????????????????????????????
 ````
 
+## File: modules/platform/api/infrastructure-api.ts
+````typescript
+import {
+	functionsApi,
+	firestoreApi,
+	getFirebaseFirestore,
+	getFirebaseFunctions,
+	getFirebaseStorage,
+	storageApi,
+} from "@integration-firebase";
+import { collectionGroup } from "firebase/firestore";
+⋮----
+import type {
+	FirestoreAPI,
+	FunctionsAPI,
+	FunctionsCallOptions,
+	FirestoreQueryOptions,
+	FirestoreWhereClause,
+	GenkitAPI,
+	StorageAPI,
+	StorageUploadOptions,
+} from "./contracts";
+⋮----
+function splitPath(path: string): string[]
+⋮----
+function resolveDocumentPath(path: string): string[]
+⋮----
+function resolveCollectionPath(path: string): string[]
+⋮----
+function resolveStorageBucket(): string
+⋮----
+function resolveStoragePath(path: string): string
+⋮----
+function toUploadMetadata(options?: StorageUploadOptions)
+⋮----
+function applyQueryConstraints(
+	baseQuery: ReturnType<typeof firestoreApi.query>,
+	where: readonly FirestoreWhereClause[],
+	options?: FirestoreQueryOptions,
+)
+⋮----
+async get<T>(path: string): Promise<T | null>
+⋮----
+async set<T>(path: string, data: T): Promise<void>
+⋮----
+async setMany<T>(inputs: readonly
+⋮----
+async update(path: string, data: Record<string, unknown>): Promise<void>
+⋮----
+async delete(path: string): Promise<void>
+⋮----
+async query<T>(
+		collectionPath: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+): Promise<T[]>
+⋮----
+async queryDocuments<T>(
+		collectionPath: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+): Promise<readonly
+⋮----
+async queryCollectionGroup<T>(
+		collectionId: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+): Promise<readonly
+⋮----
+watchCollection<T>(
+		collectionPath: string,
+		handlers: {
+onNext: (documents: readonly
+⋮----
+watchDocument<T>(
+		path: string,
+		handlers: {
+onNext: (document:
+⋮----
+async upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string>
+⋮----
+async getUrl(path: string): Promise<string>
+⋮----
+toGsUri(path: string): string
+⋮----
+async runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput>
+⋮----
+async call<TInput, TOutput>(
+		functionName: string,
+		input: TInput,
+		options?: FunctionsCallOptions,
+): Promise<TOutput>
+````
+
+## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
+````typescript
+// ── Types ──────────────────────────────────────────────────────────────────────
+⋮----
+export type ShellNavSection =
+  | "workspace"
+  | "dashboard"
+  | "account"
+  | "organization"
+  | "other";
+⋮----
+export interface ShellNavItem {
+  readonly id: string;
+  readonly label: string;
+  readonly href: string;
+}
+⋮----
+export interface ShellRailCatalogItem {
+  readonly id: string;
+  readonly href: string;
+  readonly label: string;
+  /** If true, this item is only visible to organization accounts. */
+  readonly requiresOrganization: boolean;
+  /** Route prefix for active-state matching. When absent, defaults to href. */
+  readonly activeRoutePrefix?: string;
+}
+⋮----
+/** If true, this item is only visible to organization accounts. */
+⋮----
+/** Route prefix for active-state matching. When absent, defaults to href. */
+⋮----
+export interface ShellContextSectionConfig {
+  readonly title: string;
+  readonly items: readonly { href: string; label: string }[];
+}
+⋮----
+export interface ShellRouteContext {
+  readonly accountId?: string | null;
+  readonly workspaceId?: string | null;
+}
+⋮----
+function parseHref(href: string):
+⋮----
+function joinHref(path: string, query: string): string
+⋮----
+function isAccountScopedWorkspacePath(pathname: string): boolean
+⋮----
+export function normalizeShellRoutePath(pathname: string): string
+⋮----
+export function buildShellContextualHref(
+  href: string,
+  context: ShellRouteContext,
+): string
+⋮----
+// ── Route-matching utility ────────────────────────────────────────────────────
+⋮----
+export function isExactOrChildPath(targetPath: string, pathname: string): boolean
+⋮----
+// ── Account section matchers ──────────────────────────────────────────────────
+⋮----
+// ── Route titles & breadcrumb labels ──────────────────────────────────────────
+⋮----
+// ── Organization management items ─────────────────────────────────────────────
+⋮----
+// ── Account nav items ─────────────────────────────────────────────────────────
+⋮----
+// ── Section labels ────────────────────────────────────────────────────────────
+⋮----
+// ── Rail catalog ──────────────────────────────────────────────────────────────
+⋮----
+export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[]
+⋮----
+// ── Context section config ────────────────────────────────────────────────────
+⋮----
+// ── Mobile & organization nav items ───────────────────────────────────────────
+⋮----
+// ── Section resolvers ─────────────────────────────────────────────────────────
+⋮----
+export function resolveShellNavSection(pathname: string): ShellNavSection
+⋮----
+export function resolveShellPageTitle(pathname: string): string
+⋮----
+export function resolveShellBreadcrumbLabel(segment: string): string
+````
+
+## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
+````typescript
+export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
+⋮----
+export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
+⋮----
+export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
+⋮----
+interface WorkspaceTabMeta {
+  readonly label: string;
+  readonly prefId: string;
+  readonly group: WorkspaceTabGroup;
+  readonly status: WorkspaceTabDevStatus;
+}
+⋮----
+export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue
+⋮----
+export function getWorkspaceTabMeta(tab: WorkspaceTabValue)
+⋮----
+export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus
+⋮----
+export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string
+⋮----
+export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string
+⋮----
+export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[]
+⋮----
+export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[]
+````
+
+## File: repomix.markdown.config.json
+````json
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "include": [
+    ".github/**/*.md",
+    ".serena/**/*.md",
+    "app/**/*.md",
+    "docs/**/*.md",
+    "features/**/*.md",
+    "modules/**/*.md",
+    "packages/**/*.md",
+    "py_fn/**/*.md"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      ".github/skills/**"
+    ]
+  }
+}
+````
+
+## File: .github/instructions/subdomain-rules.instructions.md
+````markdown
+---
+description: '子域（Subdomain）戰略設計規則：業務能力切分、邊界穩定性、契約溝通、可替換性。'
+applyTo: 'modules/**/subdomains/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# 子域（Subdomain）設計規則
+
+> 完整邊界參考：**先查 `docs/subdomains.md`、`docs/bounded-contexts.md`、`docs/ubiquitous-language.md`**
+> 此文件只包含子域層級的**戰略設計約束**，不複製領域知識或程式碼範例。
+
+## 核心定義
+
+子域 = 業務能力邊界（Business Capability Boundary）
+
+每個子域代表一個獨立、明確定義的業務能力，不得混合多重職責。
+
+## 戰略設計規則
+
+1. 子域必須以「業務能力」切分，而不是技術功能或 UI 功能。
+2. 每個子域必須能獨立描述一個完整業務問題空間（Problem Space）。
+3. 子域之間禁止共享內部模型，只能透過明確契約（ACL / API / Event）。
+4. 子域邊界必須穩定，不能因 UI 或技術重構而頻繁變動。
+5. 子域劃分優先於技術架構（database / service / module）。
+6. 一個子域內可以包含多個 bounded context，但不能跨子域共享 domain model。
+7. 子域必須可被替換（replaceable），不依賴其他子域內部實作。
+8. 子域之間只能透過「輸入/輸出契約」溝通，不允許直接依賴 domain logic。
+
+## 層級約束（Hard Rules）
+
+子域預設形狀（default）採 core-first：
+- `api/`
+- `domain/`
+- `application/`
+- `ports/`（optional）
+
+子域內 `infrastructure/` 與 `interfaces/` 不是預設必建，僅在符合 mini-module gate 時允許建立：
+1. 該子域存在明確且持續的外部整合壓力（runtime / process / provider boundary）。
+2. 需要由子域本身承接本地 I/O 或 transport 組裝，而非 bounded context 根層共享能力。
+3. 仍維持 `interfaces -> application -> domain <- infrastructure`，且 business rule 不外溢到 adapter/UI。
+4. 跨子域與跨 bounded context 協作仍只能經由 `api/` 或事件契約，不得直接依賴他域內部。
+
+若不符合上述 gate，`infrastructure/` 與 `interfaces/` 應維持在 bounded context 根層，由 context-wide adapter/composition 承接。
+
+## 單一職責
+
+每個子域只負責一個業務能力。
+
+正確：authoring、collaboration、publishing
+
+錯誤：article + comment + permission 混在一起
+
+## 跨子域依賴禁止
+
+子域不得直接匯入其他子域。溝通必須經由：
+- 上層 application layer
+- module API boundary
+
+## 領域純度
+
+domain 層必須：
+- 零框架依賴
+- 不依賴 Firebase、DB 或 API
+- 不包含 UI logic
+
+允許：Entities、Value Objects、Domain Services、Business invariants
+
+## 命名規則
+
+使用業務語言命名子域。
+
+正確：authoring、taxonomy、workspace
+
+錯誤：utils、common、shared
+
+## 獨立演化
+
+每個子域應：
+- 可獨立測試
+- 可獨立重構
+- 為未來微服務拆分做準備
+
+## 一句話總結
+
+Subdomain = Business capability first; default core-first, add infra/interfaces only when real boundary pressure exists
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
+## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
+````typescript
+/**
+ * notebooklm/source domain/ports — driven port interfaces for the source subdomain.
+ *
+ * SourceDocumentCommandPort and ParsedDocumentPort are the primary driven ports.
+ * Repository contracts are re-exported from domain/repositories/.
+ */
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseFormsPanel.tsx
+````typescript
+/**
+ * Route: /knowledge-database/databases/[databaseId]/forms
+ * Purpose: Manage database forms ??create and embed form links for a specific database.
+ */
+⋮----
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
+⋮----
+import { getDatabase } from "../queries";
+import { DatabaseFormPanel } from "./DatabaseFormPanel";
+import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
+⋮----
+// ?? Props ?????????????????????????????????????????????????????????????????????
+⋮----
+export interface DatabaseFormsPanelProps {
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+⋮----
+// ?? Component ?????????????????????????????????????????????????????????????????
+⋮----
+<Button variant="ghost" size="sm" onClick=
+⋮----
+{/* Top bar */}
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseListPanel.tsx
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseListPanel ??flat record list with fields as readable rows.
+ */
+⋮----
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
+⋮----
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+⋮----
+import { getRecords } from "../queries";
+import { createRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+⋮----
+interface DatabaseListPanelProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+⋮----
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown
+⋮----
+function displayValue(val: unknown, type: string): string
+⋮----
+function toggleExpand(id: string)
+⋮----
+function handleAdd()
+⋮----
+function handleDelete(recordId: string)
+````
+
+## File: modules/notion/subdomains/database/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ *
+ * Open Host Service contracts:
+ *   - getDatabaseById  ??consumed by knowledge subdomain (opaque reference resolution)
+ */
+⋮----
+// Domain types
+⋮----
+// Repository input types
+⋮----
+// Application DTOs
+⋮----
+// Server actions
+⋮----
+// Queries
+⋮----
+// UI components
+````
+
+## File: modules/notion/subdomains/knowledge/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ */
+⋮----
+// ?? Types (read-only snapshots ??no aggregate class refs) ?????????????????????
+⋮----
+/** @alias KnowledgePageSnapshot ??provided for backward-compatibility */
+⋮----
+// ?? Server action DTOs ????????????????????????????????????????????????????????
+⋮----
+// ?? Query functions (server-side reads) ???????????????????????????????????????
+⋮----
+// ?? Server actions (drives: app router, Server Components) ????????????????????
+⋮----
+// ?? UI Components ?????????????????????????????????????????????????????????????
+⋮----
+// ?? Store ?????????????????????????????????????????????????????????????????????
+⋮----
+// ?? Tree node type (needed by app/ pages) ?????????????????????????????????????
+⋮----
+// ?? Domain events (published language ??for cross-module event subscriptions) ?
+⋮----
+// ?? Sidebar component ?????????????????????????????????????????????????????????
+⋮----
+// ?? Page header widgets ???????????????????????????????????????????????????????
+⋮----
+// ?? Route screen components ???????????????????????????????????????????????????
+````
+
 ## File: modules/platform/api/contracts.ts
 ````typescript
 /**
@@ -51479,6 +50148,11 @@ export type CategoryId = string;
  *
  * Keep the source of truth in application/domain and re-export here for API consumers.
  */
+⋮----
+// ── Platform domain event published language ─────────────────────────────────
+// Explicit re-exports of the event interface and catalogue types.
+// Event type constants are intentionally NOT re-exported; downstream contexts
+// should subscribe to events by string discriminant, not import constant values.
 ⋮----
 // ── Identity session types ────────────────────────────────────────────────────
 // AuthUser is the canonical projection of an authenticated identity subject.
@@ -51695,441 +50369,6 @@ import type { AccountEntity } from "../subdomains/account/api";
 export type ActiveAccount = AccountEntity | AuthUser;
 ````
 
-## File: modules/platform/api/infrastructure-api.ts
-````typescript
-import {
-	functionsApi,
-	firestoreApi,
-	getFirebaseFirestore,
-	getFirebaseFunctions,
-	getFirebaseStorage,
-	storageApi,
-} from "@integration-firebase";
-import { collectionGroup } from "firebase/firestore";
-⋮----
-import type {
-	FirestoreAPI,
-	FunctionsAPI,
-	FunctionsCallOptions,
-	FirestoreQueryOptions,
-	FirestoreWhereClause,
-	GenkitAPI,
-	StorageAPI,
-	StorageUploadOptions,
-} from "./contracts";
-⋮----
-function splitPath(path: string): string[]
-⋮----
-function resolveDocumentPath(path: string): string[]
-⋮----
-function resolveCollectionPath(path: string): string[]
-⋮----
-function resolveStorageBucket(): string
-⋮----
-function resolveStoragePath(path: string): string
-⋮----
-function toUploadMetadata(options?: StorageUploadOptions)
-⋮----
-function applyQueryConstraints(
-	baseQuery: ReturnType<typeof firestoreApi.query>,
-	where: readonly FirestoreWhereClause[],
-	options?: FirestoreQueryOptions,
-)
-⋮----
-async get<T>(path: string): Promise<T | null>
-⋮----
-async set<T>(path: string, data: T): Promise<void>
-⋮----
-async setMany<T>(inputs: readonly
-⋮----
-async update(path: string, data: Record<string, unknown>): Promise<void>
-⋮----
-async delete(path: string): Promise<void>
-⋮----
-async query<T>(
-		collectionPath: string,
-		where: readonly FirestoreWhereClause[] = [],
-		options?: FirestoreQueryOptions,
-): Promise<T[]>
-⋮----
-async queryDocuments<T>(
-		collectionPath: string,
-		where: readonly FirestoreWhereClause[] = [],
-		options?: FirestoreQueryOptions,
-): Promise<readonly
-⋮----
-async queryCollectionGroup<T>(
-		collectionId: string,
-		where: readonly FirestoreWhereClause[] = [],
-		options?: FirestoreQueryOptions,
-): Promise<readonly
-⋮----
-watchCollection<T>(
-		collectionPath: string,
-		handlers: {
-onNext: (documents: readonly
-⋮----
-watchDocument<T>(
-		path: string,
-		handlers: {
-onNext: (document:
-⋮----
-async upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string>
-⋮----
-async getUrl(path: string): Promise<string>
-⋮----
-toGsUri(path: string): string
-⋮----
-async runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput>
-⋮----
-async call<TInput, TOutput>(
-		functionName: string,
-		input: TInput,
-		options?: FunctionsCallOptions,
-): Promise<TOutput>
-````
-
-## File: modules/platform/subdomains/organization/infrastructure/organization-service.ts
-````typescript
-/**
- * OrganizationService — Composition root for organization use cases.
- */
-⋮----
-import { FirebaseOrganizationRepository } from "./firebase/FirebaseOrganizationRepository";
-import { FirebaseOrgPolicyRepository } from "./firebase/FirebaseOrgPolicyRepository";
-import {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-} from "../application/use-cases/organization-lifecycle.use-cases";
-import {
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-} from "../application/use-cases/organization-member.use-cases";
-import {
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "../application/use-cases/organization-team.use-cases";
-import type { OrganizationTeamPort } from "../domain/ports/OrganizationTeamPort";
-import {
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "../application/use-cases/organization-partner.use-cases";
-import {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "../application/use-cases/organization-policy.use-cases";
-import type {
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "../domain/entities/Organization";
-import type { CreateTeamInput } from "../domain/entities/Organization";
-import type { CommandResult } from "@shared-types";
-⋮----
-/**
- * Override the default team port factory. Call before first use of
- * team-related use cases if a custom factory is needed.
- */
-export function configureOrganizationTeamPortFactory(
-  factory: () => OrganizationTeamPort,
-): void
-⋮----
-function getOrgRepo(): FirebaseOrganizationRepository
-⋮----
-function getPolicyRepo(): FirebaseOrgPolicyRepository
-⋮----
-function getTeamPort(): OrganizationTeamPort
-⋮----
-// Auto-configure: lazy-require team factory from sibling subdomain
-// (platform/team/infrastructure/team-composition.ts) to avoid
-// import-time side effects in the organization api boundary.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-⋮----
-/**
- * OrganizationQueryService — read-model queries for client-side data.
- * Composition root: wires Firebase repos for queries; interfaces/ must use this
- * via the subdomain api/ boundary instead of importing infrastructure directly.
- */
-````
-
-## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
-````typescript
-// ── Types ──────────────────────────────────────────────────────────────────────
-⋮----
-export type ShellNavSection =
-  | "workspace"
-  | "dashboard"
-  | "account"
-  | "organization"
-  | "other";
-⋮----
-export interface ShellNavItem {
-  readonly id: string;
-  readonly label: string;
-  readonly href: string;
-}
-⋮----
-export interface ShellRailCatalogItem {
-  readonly id: string;
-  readonly href: string;
-  readonly label: string;
-  /** If true, this item is only visible to organization accounts. */
-  readonly requiresOrganization: boolean;
-  /** Route prefix for active-state matching. When absent, defaults to href. */
-  readonly activeRoutePrefix?: string;
-}
-⋮----
-/** If true, this item is only visible to organization accounts. */
-⋮----
-/** Route prefix for active-state matching. When absent, defaults to href. */
-⋮----
-export interface ShellContextSectionConfig {
-  readonly title: string;
-  readonly items: readonly { href: string; label: string }[];
-}
-⋮----
-export interface ShellRouteContext {
-  readonly accountId?: string | null;
-  readonly workspaceId?: string | null;
-}
-⋮----
-function parseHref(href: string):
-⋮----
-function joinHref(path: string, query: string): string
-⋮----
-function isAccountScopedWorkspacePath(pathname: string): boolean
-⋮----
-export function normalizeShellRoutePath(pathname: string): string
-⋮----
-export function buildShellContextualHref(
-  href: string,
-  context: ShellRouteContext,
-): string
-⋮----
-// ── Route-matching utility ────────────────────────────────────────────────────
-⋮----
-export function isExactOrChildPath(targetPath: string, pathname: string): boolean
-⋮----
-// ── Account section matchers ──────────────────────────────────────────────────
-⋮----
-// ── Route titles & breadcrumb labels ──────────────────────────────────────────
-⋮----
-// ── Organization management items ─────────────────────────────────────────────
-⋮----
-// ── Account nav items ─────────────────────────────────────────────────────────
-⋮----
-// ── Section labels ────────────────────────────────────────────────────────────
-⋮----
-// ── Rail catalog ──────────────────────────────────────────────────────────────
-⋮----
-export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[]
-⋮----
-// ── Context section config ────────────────────────────────────────────────────
-⋮----
-// ── Mobile & organization nav items ───────────────────────────────────────────
-⋮----
-// ── Section resolvers ─────────────────────────────────────────────────────────
-⋮----
-export function resolveShellNavSection(pathname: string): ShellNavSection
-⋮----
-export function resolveShellPageTitle(pathname: string): string
-⋮----
-export function resolveShellBreadcrumbLabel(segment: string): string
-````
-
-## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
-````typescript
-export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
-⋮----
-export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
-⋮----
-export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
-⋮----
-interface WorkspaceTabMeta {
-  readonly label: string;
-  readonly prefId: string;
-  readonly group: WorkspaceTabGroup;
-  readonly status: WorkspaceTabDevStatus;
-}
-⋮----
-export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue
-⋮----
-export function getWorkspaceTabMeta(tab: WorkspaceTabValue)
-⋮----
-export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus
-⋮----
-export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string
-⋮----
-export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string
-⋮----
-export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[]
-⋮----
-export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[]
-````
-
-## File: repomix.markdown.config.json
-````json
-{
-  "$schema": "https://repomix.com/schemas/latest/schema.json",
-  "include": [
-    ".github/**/*.md",
-    ".serena/**/*.md",
-    "app/**/*.md",
-    "docs/**/*.md",
-    "features/**/*.md",
-    "modules/**/*.md",
-    "packages/**/*.md",
-    "py_fn/**/*.md"
-  ],
-  "ignore": {
-    "useGitignore": true,
-    "useDefaultPatterns": true,
-    "customPatterns": [
-      ".github/skills/**"
-    ]
-  }
-}
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseFormsPanel.tsx
-````typescript
-/**
- * Route: /knowledge-database/databases/[databaseId]/forms
- * Purpose: Manage database forms ??create and embed form links for a specific database.
- */
-⋮----
-import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
-⋮----
-import { getDatabase } from "../queries";
-import { DatabaseFormPanel } from "./DatabaseFormPanel";
-import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-⋮----
-// ?? Props ?????????????????????????????????????????????????????????????????????
-⋮----
-export interface DatabaseFormsPanelProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-⋮----
-// ?? Component ?????????????????????????????????????????????????????????????????
-⋮----
-<Button variant="ghost" size="sm" onClick=
-⋮----
-{/* Top bar */}
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseListPanel.tsx
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseListPanel ??flat record list with fields as readable rows.
- */
-⋮----
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
-⋮----
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-⋮----
-import { getRecords } from "../queries";
-import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
-⋮----
-interface DatabaseListPanelProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-⋮----
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown
-⋮----
-function displayValue(val: unknown, type: string): string
-⋮----
-function toggleExpand(id: string)
-⋮----
-function handleAdd()
-⋮----
-function handleDelete(recordId: string)
-````
-
-## File: modules/notion/subdomains/database/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- *
- * Open Host Service contracts:
- *   - getDatabaseById  ??consumed by knowledge subdomain (opaque reference resolution)
- */
-⋮----
-// Domain types
-⋮----
-// Repository input types
-⋮----
-// Application DTOs
-⋮----
-// Server actions
-⋮----
-// Queries
-⋮----
-// UI components
-````
-
-## File: modules/notion/subdomains/knowledge/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- */
-⋮----
-// ?? Types (read-only snapshots ??no aggregate class refs) ?????????????????????
-⋮----
-/** @alias KnowledgePageSnapshot ??provided for backward-compatibility */
-⋮----
-// ?? Server action DTOs ????????????????????????????????????????????????????????
-⋮----
-// ?? Query functions (server-side reads) ???????????????????????????????????????
-⋮----
-// ?? Server actions (drives: app router, Server Components) ????????????????????
-⋮----
-// ?? UI Components ?????????????????????????????????????????????????????????????
-⋮----
-// ?? Store ?????????????????????????????????????????????????????????????????????
-⋮----
-// ?? Tree node type (needed by app/ pages) ?????????????????????????????????????
-⋮----
-// ?? Domain events (published language ??for cross-module event subscriptions) ?
-⋮----
-// ?? Sidebar component ?????????????????????????????????????????????????????????
-⋮----
-// ?? Page header widgets ???????????????????????????????????????????????????????
-⋮----
-// ?? Route screen components ???????????????????????????????????????????????????
-````
-
 ## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
 ````typescript
 import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Library, MessageSquare, Notebook, Shield, User, Users } from "lucide-react";
@@ -52196,125 +50435,6 @@ export function appendWorkspaceContextQuery(
   href: string,
   context: WorkspaceNavigationContext,
 ): string
-````
-
-## File: package.json
-````json
-{
-  "name": "xuanwu-app",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "deploy:firestore:indexes": "npx firebase deploy --only firestore:indexes",
-    "deploy:firestore:rules": "npx firebase deploy --only firestore:rules",
-    "deploy:storage:rules": "npx firebase deploy --only storage",
-    "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
-    "deploy:apphosting": "npx firebase deploy --only apphosting",
-    "deploy:functions": "npx firebase deploy --only functions:py_fn",
-    "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
-    "deploy:functions:all": "npx firebase deploy --only functions",
-    "deploy:firebase": "npx firebase deploy",
-    "repomix:skill": "npx repomix --config repomix.config.json --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
-    "repomix:explore": "npx repomix --config repomix.config.json",
-    "repomix:app": "npx repomix --config repomix.app.config.json",
-    "repomix:remote": "npx repomix --remote",
-    "repomix:local": "npx repomix",
-    "repomix:notebooklm": "npx repomix --config repomix.notebooklm.config.json --skill-generate xuanwu-notebooklm-skill --skill-output .github/skills/xuanwu-notebooklm-skill --force",
-    "repomix:notion": "npx repomix --config repomix.notion.config.json --skill-generate xuanwu-notion-skill --skill-output .github/skills/xuanwu-notion-skill --force",
-    "repomix:platform": "npx repomix --config repomix.platform.config.json --skill-generate xuanwu-app-platform-skill --skill-output .github/skills/xuanwu-app-platform-skill --force",
-    "repomix:workspace": "npx repomix --config repomix.workspace.config.json --skill-generate xuanwu-app-workspace-skill --skill-output .github/skills/xuanwu-app-workspace-skill --force",
-    "repomix:workspace-workflows": "npx repomix --config repomix.workspace-workflows.config.json --skill-generate xuanwu-app-workspace-workflows-skill --skill-output .github/skills/xuanwu-app-workspace-workflows-skill --force",
-    "repomix:markdown": "npx repomix --config repomix.markdown.config.json --skill-generate xuanwu-markdown-skill --skill-output .github/skills/xuanwu-markdown-skill --force"
-  },
-  "engines": {
-    "node": "24"
-  },
-  "dependencies": {
-    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
-    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
-    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
-    "@genkit-ai/google-genai": "^1.30.1",
-    "@tanstack/react-form": "^1.28.5",
-    "@tanstack/react-query": "^5.90.21",
-    "@tanstack/react-table": "^8.21.3",
-    "@tanstack/react-virtual": "^3.13.23",
-    "@tiptap/extension-color": "^3.22.2",
-    "@tiptap/extension-link": "^3.22.2",
-    "@tiptap/extension-placeholder": "^3.22.2",
-    "@tiptap/extension-text-style": "^3.22.2",
-    "@tiptap/extension-typography": "^3.22.2",
-    "@tiptap/extension-underline": "^3.22.2",
-    "@tiptap/react": "^3.22.2",
-    "@tiptap/starter-kit": "^3.22.2",
-    "@trpc/client": "^11.13.4",
-    "@trpc/next": "^11.13.4",
-    "@trpc/react-query": "^11.13.4",
-    "@trpc/server": "^11.13.4",
-    "@xstate/react": "^6.1.0",
-    "axios": "^1.13.6",
-    "cmdk": "^1.1.1",
-    "date-fns": "^4.1.0",
-    "embla-carousel-react": "^8.6.0",
-    "firebase": "^12.9.0",
-    "genkit": "^1.30.1",
-    "input-otp": "^1.4.2",
-    "lucide-react": "^0.577.0",
-    "next": "16.1.7",
-    "next-themes": "^0.4.6",
-    "radix-ui": "^1.4.3",
-    "react": "19.2.3",
-    "react-day-picker": "^9.14.0",
-    "react-dom": "19.2.3",
-    "react-graph-vis": "^1.0.7",
-    "react-markdown": "^10.1.0",
-    "recharts": "^2.15.4",
-    "remark-gfm": "^4.0.1",
-    "sonner": "^2.0.7",
-    "superjson": "^2.2.6",
-    "uuid": "^13.0.0",
-    "vaul": "^1.1.2",
-    "vis-data": "^8.0.3",
-    "vis-graph3d": "^7.0.2",
-    "vis-network": "^10.0.2",
-    "vis-timeline": "^8.5.0",
-    "xstate": "^5.28.0",
-    "zod": "^4.3.6",
-    "zustand": "^5.0.12"
-  },
-  "devDependencies": {
-    "@next/eslint-plugin-next": "^16.2.2",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20.19.37",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@typescript-eslint/eslint-plugin": "^8.57.1",
-    "@typescript-eslint/parser": "^8.57.1",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "eslint": "^9.39.4",
-    "eslint-config-next": "^16.1.7",
-    "eslint-plugin-boundaries": "^6.0.1",
-    "eslint-plugin-jsdoc": "^62.8.0",
-    "eslint-plugin-jsx-a11y": "^6.10.2",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "repomix": "^1.12.0",
-    "shadcn": "^4.1.0",
-    "tailwind-merge": "^3.5.0",
-    "tailwindcss": "^4",
-    "tailwindcss-animate": "^1.0.7",
-    "tw-animate-css": "^1.4.0",
-    "typescript": "^5",
-    "typescript-eslint": "^8.58.0",
-    "vitest": "^4.1.2"
-  }
-}
 ````
 
 ## File: app/(shell)/_shell/ShellAppRail.tsx
@@ -52405,6 +50525,67 @@ onClick=
 onSelectWorkspace(workspace.id);
 ⋮----
 accountType=
+````
+
+## File: modules/notebooklm/api/index.ts
+````typescript
+/**
+ * modules/notebooklm — public API barrel.
+ *
+ * Stable cross-module semantic surface for notebooklm.
+ * Browser-facing route composition should prefer workspace/api when workspace
+ * is the orchestration owner.
+ */
+⋮----
+// ---------------------------------------------------------------------------
+// NotebookLM downstream UI surface
+// Consumed by workspace as the composition owner for browser-facing flows.
+// ---------------------------------------------------------------------------
+⋮----
+// ---------------------------------------------------------------------------
+// Source subdomain — semantic downstream capability surface
+// ---------------------------------------------------------------------------
+⋮----
+// ---------------------------------------------------------------------------
+// conversation subdomain — AI chat UI and helpers
+// ---------------------------------------------------------------------------
+⋮----
+// ---------------------------------------------------------------------------
+// Context-wide published language (cross-module reference types)
+// ---------------------------------------------------------------------------
+⋮----
+// ---------------------------------------------------------------------------
+// Synthesis subdomain — complete RAG pipeline
+// (retrieval → grounding → synthesis → evaluation)
+// ---------------------------------------------------------------------------
+````
+
+## File: modules/notebooklm/subdomains/synthesis/api/index.ts
+````typescript
+/**
+ * Public API boundary for the synthesis subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * This subdomain owns the complete RAG pipeline:
+ *   retrieval → grounding → synthesis → evaluation
+ *
+ * Migrated from: ai subdomain (AGENTS.md violation fix)
+ * Absorbed from: retrieval, grounding, evaluation stubs (Occam consolidation)
+ */
+⋮----
+// ── Canonical domain types (retrieval facet) ─────────────────────────────────
+⋮----
+// ── Canonical domain types (grounding facet) ─────────────────────────────────
+⋮----
+// ── Canonical domain types (synthesis facet) ─────────────────────────────────
+⋮----
+// ── Canonical domain types (evaluation facet) ────────────────────────────────
+⋮----
+// ── Active pipeline types (used by use cases & infrastructure) ───────────────
+⋮----
+// ── Use-case classes (for DI composition within synthesis subdomain) ──────────
+⋮----
+// ── UI components (downstream surface for workspace composition) ─────────────
 ````
 
 ## File: modules/notion/interfaces/database/components/DatabaseDetailPanel.tsx
@@ -52517,32 +50698,122 @@ onClick=
 // ── Orchestrated notebooklm UI (workspace as composition owner) ──────────────
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/api/index.ts
-````typescript
-/**
- * Public API boundary for the synthesis subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * This subdomain owns the complete RAG pipeline:
- *   retrieval → grounding → synthesis → evaluation
- *
- * Migrated from: ai subdomain (AGENTS.md violation fix)
- * Absorbed from: retrieval, grounding, evaluation stubs (Occam consolidation)
- */
-⋮----
-// ── Canonical domain types (retrieval facet) ─────────────────────────────────
-⋮----
-// ── Canonical domain types (grounding facet) ─────────────────────────────────
-⋮----
-// ── Canonical domain types (synthesis facet) ─────────────────────────────────
-⋮----
-// ── Canonical domain types (evaluation facet) ────────────────────────────────
-⋮----
-// ── Active pipeline types (used by use cases & infrastructure) ───────────────
-⋮----
-// ── Use-case classes (for DI composition within synthesis subdomain) ──────────
-⋮----
-// ── UI components (downstream surface for workspace composition) ─────────────
+## File: package.json
+````json
+{
+  "name": "xuanwu-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "deploy:firestore:indexes": "npx firebase deploy --only firestore:indexes",
+    "deploy:firestore:rules": "npx firebase deploy --only firestore:rules",
+    "deploy:storage:rules": "npx firebase deploy --only storage",
+    "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
+    "deploy:apphosting": "npx firebase deploy --only apphosting",
+    "deploy:functions": "npx firebase deploy --only functions:py_fn",
+    "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
+    "deploy:functions:all": "npx firebase deploy --only functions",
+    "deploy:firebase": "npx firebase deploy",
+    "repomix:skill": "npx repomix --config repomix.config.json --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
+    "repomix:explore": "npx repomix --config repomix.config.json",
+    "repomix:remote": "npx repomix --remote",
+    "repomix:local": "npx repomix",
+    "repomix:notebooklm": "npx repomix --config repomix.notebooklm.config.json --skill-generate xuanwu-notebooklm-skill --skill-output .github/skills/xuanwu-notebooklm-skill --force",
+    "repomix:notion": "npx repomix --config repomix.notion.config.json --skill-generate xuanwu-notion-skill --skill-output .github/skills/xuanwu-notion-skill --force",
+    "repomix:platform": "npx repomix --config repomix.platform.config.json --skill-generate xuanwu-app-platform-skill --skill-output .github/skills/xuanwu-app-platform-skill --force",
+    "repomix:workspace": "npx repomix --config repomix.workspace.config.json --skill-generate xuanwu-app-workspace-skill --skill-output .github/skills/xuanwu-app-workspace-skill --force",
+    "repomix:workspace-workflows": "npx repomix --config repomix.workspace-workflows.config.json --skill-generate xuanwu-app-workspace-workflows-skill --skill-output .github/skills/xuanwu-app-workspace-workflows-skill --force",
+    "repomix:markdown": "npx repomix --config repomix.markdown.config.json --skill-generate xuanwu-markdown-skill --skill-output .github/skills/xuanwu-markdown-skill --force"
+  },
+  "engines": {
+    "node": "24"
+  },
+  "dependencies": {
+    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
+    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
+    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
+    "@genkit-ai/google-genai": "^1.30.1",
+    "@tanstack/react-form": "^1.28.5",
+    "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.13.23",
+    "@tiptap/extension-color": "^3.22.2",
+    "@tiptap/extension-link": "^3.22.2",
+    "@tiptap/extension-placeholder": "^3.22.2",
+    "@tiptap/extension-text-style": "^3.22.2",
+    "@tiptap/extension-typography": "^3.22.2",
+    "@tiptap/extension-underline": "^3.22.2",
+    "@tiptap/react": "^3.22.2",
+    "@tiptap/starter-kit": "^3.22.2",
+    "@trpc/client": "^11.13.4",
+    "@trpc/next": "^11.13.4",
+    "@trpc/react-query": "^11.13.4",
+    "@trpc/server": "^11.13.4",
+    "@xstate/react": "^6.1.0",
+    "axios": "^1.13.6",
+    "cmdk": "^1.1.1",
+    "date-fns": "^4.1.0",
+    "embla-carousel-react": "^8.6.0",
+    "firebase": "^12.9.0",
+    "genkit": "^1.30.1",
+    "input-otp": "^1.4.2",
+    "lucide-react": "^0.577.0",
+    "next": "16.1.7",
+    "next-themes": "^0.4.6",
+    "radix-ui": "^1.4.3",
+    "react": "19.2.3",
+    "react-day-picker": "^9.14.0",
+    "react-dom": "19.2.3",
+    "react-graph-vis": "^1.0.7",
+    "react-markdown": "^10.1.0",
+    "recharts": "^2.15.4",
+    "remark-gfm": "^4.0.1",
+    "sonner": "^2.0.7",
+    "superjson": "^2.2.6",
+    "uuid": "^13.0.0",
+    "vaul": "^1.1.2",
+    "vis-data": "^8.0.3",
+    "vis-graph3d": "^7.0.2",
+    "vis-network": "^10.0.2",
+    "vis-timeline": "^8.5.0",
+    "xstate": "^5.28.0",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^16.2.2",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20.19.37",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@typescript-eslint/eslint-plugin": "^8.57.1",
+    "@typescript-eslint/parser": "^8.57.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.1.7",
+    "eslint-plugin-boundaries": "^6.0.1",
+    "eslint-plugin-jsdoc": "^62.8.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "repomix": "^1.12.0",
+    "shadcn": "^4.1.0",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4",
+    "tailwindcss-animate": "^1.0.7",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "^5",
+    "typescript-eslint": "^8.58.0",
+    "vitest": "^4.1.2"
+  }
+}
 ````
 
 ## File: modules/notion/interfaces/knowledge/components/KnowledgeDetailPanel.tsx
@@ -52667,39 +50938,6 @@ interface ShellSidebarBodyProps {
 className=
 ````
 
-## File: modules/notebooklm/api/index.ts
-````typescript
-/**
- * modules/notebooklm — public API barrel.
- *
- * Stable cross-module semantic surface for notebooklm.
- * Browser-facing route composition should prefer workspace/api when workspace
- * is the orchestration owner.
- */
-⋮----
-// ---------------------------------------------------------------------------
-// NotebookLM downstream UI surface
-// Consumed by workspace as the composition owner for browser-facing flows.
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Source subdomain — semantic downstream capability surface
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// conversation subdomain — AI chat UI and helpers
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Context-wide published language (cross-module reference types)
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Synthesis subdomain — complete RAG pipeline
-// (retrieval → grounding → synthesis → evaluation)
-// ---------------------------------------------------------------------------
-````
-
 ## File: modules/platform/api/index.ts
 ````typescript
 /**
@@ -52791,4 +51029,54 @@ onSetActiveWorkspace=
 <Badge variant="outline">
 ⋮----
 setIsEditWorkspaceOpen(open);
+````
+
+## File: eslint.config.mjs
+````javascript
+// ─── Globs ───────────────────────────────────────────────────────────────────
+⋮----
+// ─── Module boundary helpers ─────────────────────────────────────────────────
+⋮----
+const normalizeWarnSeverity = (ruleConfig) =>
+⋮----
+const mapRulesToWarn = (rules =
+⋮----
+const maxLinesRule = (max) => [WARN,
+const restrictedImportsRule = (patterns, extraOptions =
+⋮----
+const sameDomain = (type) => (
+⋮----
+const sameSubdomain = (type) => (
+⋮----
+const anyDomain = (type) => (
+⋮----
+// ─── Restricted import patterns ───────────────────────────────────────────────
+⋮----
+// ─── Config ───────────────────────────────────────────────────────────────────
+⋮----
+// JSDoc
+⋮----
+// TypeScript naming + type imports + unused vars
+⋮----
+// React + a11y
+⋮----
+// Module boundaries (eslint-plugin-boundaries)
+⋮----
+// File-size guardrails per Hexagonal DDD layer
+⋮----
+// Legacy alias migration
+⋮----
+// app / providers / debug → only module api entrypoints
+⋮----
+// modules → strict entrypoint + internal layer enforcement
+⋮----
+// packages must not depend on application modules
+⋮----
+// Genkit must be centralized in platform AI infrastructure adapter.
+⋮----
+// Downstream interfaces must consume platform APIs, not Firebase SDK wrappers directly.
+⋮----
+// Downstream infrastructure must delegate Firebase access via platform infrastructure APIs.
+⋮----
+// notion/notebooklm interface layers must not read workspace context directly.
 ````

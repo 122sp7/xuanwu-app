@@ -1,5 +1,8 @@
 /**
  * AccountService — Composition root for account use cases.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
  * Wires repositories and ports; provides a unified service interface.
  */
 
@@ -10,19 +13,19 @@ import {
   DebitWalletUseCase,
   AssignAccountRoleUseCase,
   RevokeAccountRoleUseCase,
-} from "../application/use-cases/account.use-cases";
+} from "../../application/use-cases/account.use-cases";
 import {
   CreateAccountPolicyUseCase,
   UpdateAccountPolicyUseCase,
   DeleteAccountPolicyUseCase,
-} from "../application/use-cases/account-policy.use-cases";
-import { FirebaseAccountRepository } from "./firebase/FirebaseAccountRepository";
-import { FirebaseAccountQueryRepository } from "./firebase/FirebaseAccountQueryRepository";
-import { FirebaseAccountPolicyRepository } from "./firebase/FirebaseAccountPolicyRepository";
-import { tokenRefreshAdapter } from "./identity-token-refresh.adapter";
-import type { UpdateProfileInput, OrganizationRole } from "../domain/entities/Account";
-import type { CreatePolicyInput, UpdatePolicyInput } from "../domain/entities/AccountPolicy";
-import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
+} from "../../application/use-cases/account-policy.use-cases";
+import { FirebaseAccountRepository } from "../../infrastructure/firebase/FirebaseAccountRepository";
+import { FirebaseAccountQueryRepository } from "../../infrastructure/firebase/FirebaseAccountQueryRepository";
+import { FirebaseAccountPolicyRepository } from "../../infrastructure/firebase/FirebaseAccountPolicyRepository";
+import { tokenRefreshAdapter } from "../../infrastructure/identity-token-refresh.adapter";
+import type { UpdateProfileInput, OrganizationRole } from "../../domain/entities/Account";
+import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
+import type { AccountQueryRepository } from "../../domain/repositories/AccountQueryRepository";
 import type { CommandResult } from "@shared-types";
 
 let _accountRepo: FirebaseAccountRepository | undefined;
@@ -77,9 +80,6 @@ export function createClientAccountUseCases() {
     createUserAccountUseCase: new CreateUserAccountUseCase(repo),
   };
 }
-
-// Internal re-export for the legacy bridge within this subdomain only.
-export { FirebaseAccountQueryRepository };
 
 /** Factory that returns a wired AccountQueryRepository without leaking the concrete class. */
 export function createAccountQueryRepository(): AccountQueryRepository {

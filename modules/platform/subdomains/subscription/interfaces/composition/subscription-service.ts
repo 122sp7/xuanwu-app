@@ -1,5 +1,8 @@
 /**
  * SubscriptionService — Composition root for subscription use cases.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
  */
 import {
   ActivateSubscriptionUseCase,
@@ -7,9 +10,9 @@ import {
   RenewSubscriptionUseCase,
   GetActiveSubscriptionUseCase,
   MarkSubscriptionPastDueUseCase,
-} from "../application/use-cases/subscription.use-cases";
-import { FirebaseSubscriptionRepository } from "./firebase/FirebaseSubscriptionRepository";
-import type { BillingCycle } from "../domain/value-objects/BillingCycle";
+} from "../../application/use-cases/subscription.use-cases";
+import { FirebaseSubscriptionRepository } from "../../infrastructure/firebase/FirebaseSubscriptionRepository";
+import type { BillingCycle } from "../../domain/value-objects/BillingCycle";
 import type { CommandResult } from "@shared-types";
 
 let _repo: FirebaseSubscriptionRepository | undefined;

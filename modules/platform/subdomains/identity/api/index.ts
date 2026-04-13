@@ -8,8 +8,8 @@ export {
   createTokenRefreshRepository,
   createClientAuthUseCases,
   identityApi,
-} from "../infrastructure";
-export type { EmitTokenRefreshSignalInput } from "../infrastructure";
+} from "../interfaces/composition/identity-service";
+export type { EmitTokenRefreshSignalInput } from "../interfaces/composition/identity-service";
 
 // Domain types — explicit exports (no wildcard to avoid leaking repos/ports/aggregates)
 export type { IdentityEntity, RegistrationInput, SignInCredentials } from "../domain/entities/Identity";

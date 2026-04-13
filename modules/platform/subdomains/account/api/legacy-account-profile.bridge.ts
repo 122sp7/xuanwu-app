@@ -1,5 +1,5 @@
 import { type UpdateProfileInput } from "../application/dtos/account.dto";
-import { accountService, createAccountQueryRepository } from "../infrastructure/account-service";
+import { accountService, createAccountQueryRepository } from "../interfaces/composition/account-service";
 import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
 
 let _accountQueryRepo: AccountQueryRepository | undefined;
