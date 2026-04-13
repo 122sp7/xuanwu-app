@@ -1,6 +1,6 @@
 # 4302 Semantic Drift — Notion & NotebookLM Event Discriminant Format (snake_case → kebab-case)
 
-- Status: Accepted
+- Status: Resolved
 - Date: 2026-04-13
 - Category: Maintainability Smells > Semantic Drift
 - Extends: ADR 3201 (Duplication — Domain Event Discriminant Format)

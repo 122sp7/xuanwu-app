@@ -5,7 +5,7 @@
  * Purpose:  Applies a configuration profile and updates capability toggles.
  */
 
-import type { PlatformCommandResult, ApplyConfigurationProfileInput } from "../dtos";
+import type { PlatformCommandResult, ApplyConfigurationProfileInput } from "../dto";
 import type { PlatformContextRepository, ConfigurationProfileStore, DomainEventPublisher } from "../../domain/ports/output";
 import { CONFIG_PROFILE_APPLIED_EVENT_TYPE } from "../../domain/events";
 import { buildCorrelationId } from "../services";

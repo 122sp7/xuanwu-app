@@ -5,7 +5,7 @@
  * Purpose: Returns the workflow policy corresponding to a trigger key.
  */
 
-import type { GetWorkflowPolicyViewInput } from "../dtos";
+import type { GetWorkflowPolicyViewInput } from "../dto";
 import type { WorkflowPolicyRepository, WorkflowPolicyView } from "../../domain/ports/output";
 
 export class GetWorkflowPolicyViewUseCase {

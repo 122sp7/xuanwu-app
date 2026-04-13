@@ -5,7 +5,7 @@
  * Purpose: Returns the active policy version and rule summary.
  */
 
-import type { GetPolicyCatalogViewInput } from "../dtos";
+import type { GetPolicyCatalogViewInput } from "../dto";
 import type { PolicyCatalogViewRepository, PolicyCatalogView } from "../../domain/ports/output";
 
 export class GetPolicyCatalogViewUseCase {

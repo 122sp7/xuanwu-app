@@ -5,4 +5,4 @@ export type {
   WikiContentItemNode,
   WikiWorkspaceContentNode,
   WikiWorkspaceRef,
-} from "../../../application/dtos/wiki-content-tree.dto";
+} from "../../../application/dto/wiki-content-tree.dto";

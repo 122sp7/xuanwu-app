@@ -5,7 +5,7 @@
  * Purpose:  Creates or updates an external integration contract.
  */
 
-import type { PlatformCommandResult, RegisterIntegrationContractInput } from "../dtos";
+import type { PlatformCommandResult, RegisterIntegrationContractInput } from "../dto";
 import type { IntegrationContractRepository, SecretReferenceResolver, DomainEventPublisher } from "../../domain/ports/output";
 import { INTEGRATION_CONTRACT_REGISTERED_EVENT_TYPE } from "../../domain/events";
 import { buildCorrelationId } from "../services";

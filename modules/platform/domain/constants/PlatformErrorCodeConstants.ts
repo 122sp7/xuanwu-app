@@ -13,7 +13,7 @@
  *   INVARIANT_VIOLATION    — aggregate invariant was violated
  *   UNKNOWN_ERROR          — unexpected error (fallback)
  *
- * @see application/dtos/PlatformCommandResult.dto.ts
+ * @see application/dto/PlatformCommandResult.dto.ts
  * @see adapters/web/mapPlatformResultToHttpResponse.ts
  */
 

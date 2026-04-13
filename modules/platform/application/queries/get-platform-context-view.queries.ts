@@ -5,7 +5,7 @@
  * Purpose: Returns a read-only summary of a platform scope.
  */
 
-import type { GetPlatformContextViewInput } from "../dtos";
+import type { GetPlatformContextViewInput } from "../dto";
 import type { PlatformContextViewRepository, PlatformContextView } from "../../domain/ports/output";
 
 export class GetPlatformContextViewUseCase {

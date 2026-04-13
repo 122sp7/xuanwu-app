@@ -1,6 +1,6 @@
 # 3202 Duplication — Source DTO Re-implements Domain Service Logic
 
-- Status: Accepted
+- Status: Resolved
 - Date: 2026-04-13
 - Category: Modularity Smells > Duplication
 

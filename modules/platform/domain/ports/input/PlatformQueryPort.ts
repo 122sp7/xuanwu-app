@@ -10,7 +10,7 @@
  *
  * Invariants:
  *   - Query handlers never mutate state
- *   - Return types are read-model DTOs from application/dtos/
+ *   - Return types are read-model DTOs from application/dto/
  *   - The port has no knowledge of HTTP status codes or pagination strategies
  *
  * @see ports/input/index.ts — re-exports this interface

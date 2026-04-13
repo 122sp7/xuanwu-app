@@ -12,7 +12,7 @@
  *   unknown              → HTTP 500
  *
  * @see adapters/web/handlePlatformCommandHttp.ts
- * @see application/dtos/PlatformCommandResult.dto.ts
+ * @see application/dto/PlatformCommandResult.dto.ts
  * @see shared/constants/PlatformErrorCodeConstants.ts
  */
 

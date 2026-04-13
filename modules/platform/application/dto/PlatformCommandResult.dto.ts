@@ -15,9 +15,9 @@
  *   - Errors are expressed as ok=false + code, never as thrown exceptions at the port boundary
  *   - code should map to a value in shared/constants/PlatformErrorCodeConstants.ts
  *
- * @see application/dtos/index.ts
+ * @see application/dto/index.ts
  * @see shared/constants/PlatformErrorCodeConstants.ts
  * @see docs/application-services.md — Command Result
  */
 
-// TODO: implement PlatformCommandResult DTO interface (re-export or extend from application/dtos/index.ts)
+// TODO: implement PlatformCommandResult DTO interface (re-export or extend from application/dto/index.ts)

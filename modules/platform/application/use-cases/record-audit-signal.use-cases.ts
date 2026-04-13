@@ -5,7 +5,7 @@
  * Purpose:  Writes a decision or behavior as an immutable audit signal.
  */
 
-import type { PlatformCommandResult, RecordAuditSignalInput } from "../dtos";
+import type { PlatformCommandResult, RecordAuditSignalInput } from "../dto";
 import type { AuditSignalStore, DomainEventPublisher } from "../../domain/ports/output";
 import { AUDIT_SIGNAL_RECORDED_EVENT_TYPE } from "../../domain/events";
 import { buildCorrelationId } from "../services";

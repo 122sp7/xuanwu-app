@@ -5,7 +5,7 @@
  * Purpose:  Creates a notification dispatch request.
  */
 
-import type { PlatformCommandResult, RequestNotificationDispatchInput } from "../dtos";
+import type { PlatformCommandResult, RequestNotificationDispatchInput } from "../dto";
 import type { NotificationGateway, PolicyCatalogViewRepository, AuditSignalStore, DomainEventPublisher } from "../../domain/ports/output";
 import { NOTIFICATION_DISPATCH_REQUESTED_EVENT_TYPE } from "../../domain/events";
 import { buildCorrelationId } from "../services";

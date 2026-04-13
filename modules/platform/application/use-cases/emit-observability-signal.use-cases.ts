@@ -5,7 +5,7 @@
  * Purpose:  Emits metrics / trace / alert signals.
  */
 
-import type { PlatformCommandResult, EmitObservabilitySignalInput } from "../dtos";
+import type { PlatformCommandResult, EmitObservabilitySignalInput } from "../dto";
 import type { ObservabilitySink, AuditSignalStore, DomainEventPublisher } from "../../domain/ports/output";
 import { OBSERVABILITY_SIGNAL_EMITTED_EVENT_TYPE } from "../../domain/events";
 import { buildCorrelationId } from "../services";
