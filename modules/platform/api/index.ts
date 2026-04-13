@@ -28,8 +28,6 @@ export {
   getProfile,
   subscribeToProfile,
   updateProfile,
-  SettingsProfileRouteScreen,
-  SettingsProfileAccountRouteScreen,
   getAccountProfile,
   subscribeToAccountProfile,
   updateAccountProfile,
