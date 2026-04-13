@@ -13,7 +13,7 @@
  *   - addMember and removeMember are idempotent: duplicate/absent memberId is a no-op (no event)
  */
 
-import { randomUUID } from "crypto";
+import { v4 as randomUUID } from "@lib-uuid";
 import type { TeamId } from "../value-objects/TeamId";
 import type { TeamType } from "../value-objects/TeamType";
 import type { OrganizationTeamDomainEvent } from "../events/OrganizationTeamDomainEvent";

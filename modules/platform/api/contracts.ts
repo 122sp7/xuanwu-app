@@ -11,7 +11,14 @@ export type {
 	SubscriptionEntitlementsView,
 	WorkflowPolicyView,
 } from "../domain/ports/output";
-export * from "../domain/events";
+// ── Platform domain event published language ─────────────────────────────────
+// Explicit re-exports of the event interface and catalogue types.
+// Event type constants are intentionally NOT re-exported; downstream contexts
+// should subscribe to events by string discriminant, not import constant values.
+export type {
+	PlatformDomainEvent,
+	PlatformDomainEventType,
+} from "../domain/events";
 
 // ── Identity session types ────────────────────────────────────────────────────
 // AuthUser is the canonical projection of an authenticated identity subject.

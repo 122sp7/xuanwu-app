@@ -4,7 +4,7 @@
  * Naming: past-tense, format `<module>.<action>`.
  * occurredAt: ISO 8601 string (not Date) per platform event convention.
  */
-import { z } from "zod";
+import { z } from "@lib-zod";
 
 // ── OrganizationTeamCreated ──────────────────────────────────────────────────
 

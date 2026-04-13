@@ -18,3 +18,4 @@ export type { SourceFileRepository } from "../repositories/SourceFileRepository"
 export type { WikiLibraryRepository } from "../repositories/WikiLibraryRepository";
 export type { SourceStoragePort, SourceStorageUploadOptions } from "./SourceStoragePort";
 export type { SourceDocumentWatchPort, WatchedDocument } from "./SourceDocumentWatchPort";
+export type { KnowledgePageGateway } from "./KnowledgePageGatewayPort";
