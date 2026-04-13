@@ -38,7 +38,7 @@ export function WorkspaceContextCard({ workspace }: WorkspaceContextCardProps) {
             </div>
             <div className="flex flex-wrap gap-2">
               <Button asChild size="sm" variant="outline">
-                <Link href={`/workspace/${workspace.id}`}>Workspace</Link>
+                <Link href={`/${encodeURIComponent(workspace.accountId)}/${encodeURIComponent(workspace.id)}`}>Workspace</Link>
               </Button>
               <Button asChild size="sm" variant="outline">
                 <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.id)}`}>知識頁面</Link>

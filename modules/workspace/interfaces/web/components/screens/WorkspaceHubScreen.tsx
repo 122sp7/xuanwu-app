@@ -88,7 +88,7 @@ export function WorkspaceHubScreen({
     setIsCreateWorkspaceOpen(false);
     if (result.aggregateId) {
       if (accountId) {
-        router.push(`/${encodeURIComponent(accountId)}/workspace/${encodeURIComponent(result.aggregateId)}`);
+        router.push(`/${encodeURIComponent(accountId)}/${encodeURIComponent(result.aggregateId)}`);
       } else {
         router.push("/");
       }

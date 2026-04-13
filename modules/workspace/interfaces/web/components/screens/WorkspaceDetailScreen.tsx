@@ -241,7 +241,7 @@ export function WorkspaceDetailScreen({
                     <Link
                       key={tab}
                       href={accountId
-                        ? `/${encodeURIComponent(accountId)}/workspace/${encodeURIComponent(workspaceId)}?tab=${encodeURIComponent(tab)}`
+                        ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}?tab=${encodeURIComponent(tab)}`
                         : "/"}
                       aria-current={isActive ? "page" : undefined}
                       className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${

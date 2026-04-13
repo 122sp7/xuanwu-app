@@ -51,7 +51,7 @@ export function KnowledgeDetailPanel({
   const [isPending, startTransition] = useTransition();
   const workspaceBasePath =
     accountId && resolvedWorkspaceId
-      ? `/${encodeURIComponent(accountId)}/workspace/${encodeURIComponent(resolvedWorkspaceId)}`
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
       : accountId
         ? `/${encodeURIComponent(accountId)}`
         : "/";

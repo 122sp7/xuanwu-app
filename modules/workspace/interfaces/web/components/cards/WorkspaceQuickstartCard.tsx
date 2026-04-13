@@ -28,7 +28,7 @@ export function WorkspaceQuickstartCard({ workspaceId }: WorkspaceQuickstartCard
             先把原始文件上傳到 Files 分頁，作為知識基底。
           </p>
           <Button asChild size="sm" variant="outline" className="mt-3">
-            <Link href={`/workspace/${workspaceId}?tab=Files`}>前往 Files</Link>
+            <Link href={`?tab=Files`}>前往 Files</Link>
           </Button>
         </div>
         <div className="rounded-xl border border-border/40 px-4 py-4">

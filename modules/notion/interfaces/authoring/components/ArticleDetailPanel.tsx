@@ -59,7 +59,7 @@ export function ArticleDetailPanel({
   const [isPending, startTransition] = useTransition();
   const articleDetailBasePath =
     accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/workspace/${encodeURIComponent(workspaceId)}/knowledge-base/articles`
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-base/articles`
       : "/knowledge-base/articles";
   const articleListHref =
     accountId && workspaceId

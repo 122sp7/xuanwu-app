@@ -53,7 +53,7 @@ export function KnowledgeBaseArticlesPanel({
   const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
   const workspaceBasePath =
     resolvedAccountId && resolvedWorkspaceId
-      ? `/${encodeURIComponent(resolvedAccountId)}/workspace/${encodeURIComponent(resolvedWorkspaceId)}`
+      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
       : resolvedAccountId
         ? `/${encodeURIComponent(resolvedAccountId)}`
         : "/";

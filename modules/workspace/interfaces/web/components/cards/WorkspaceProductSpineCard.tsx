@@ -71,7 +71,7 @@ export function WorkspaceProductSpineCard({ workspace }: WorkspaceProductSpineCa
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline">
-              <Link href={`/workspace/${workspace.id}?tab=Files`}>Files 分頁</Link>
+              <Link href={`/${encodeURIComponent(workspace.accountId)}/${encodeURIComponent(workspace.id)}?tab=Files`}>Files 分頁</Link>
             </Button>
           </div>
         </div>
