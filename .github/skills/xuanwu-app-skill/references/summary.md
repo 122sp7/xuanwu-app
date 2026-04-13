@@ -42,13 +42,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1674 files | 45,500 lines
+1669 files | 46,098 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 1145 | 24,282 |
-| Markdown | 244 | 14,156 |
-| TypeScript (TSX) | 178 | 4,499 |
+| Markdown | 244 | 14,782 |
+| TypeScript (TSX) | 173 | 4,471 |
 | Python | 61 | 1,404 |
 | No Extension | 30 | 35 |
 | JSON | 7 | 836 |
@@ -66,6 +66,6 @@ This skill contains the following reference files:
 - `modules/platform/api/contracts.ts` (224 lines)
 - `.github/prompts/serena-hexagonal-ddd-refactor.prompt.md` (215 lines)
 - `.github/prompts/enforce-hexagonal-ddd-convergence.prompt.md` (215 lines)
+- `.github/instructions/architecture.instructions.md` (211 lines)
 - `docs/bounded-context-subdomain-template.md` (206 lines)
 - `modules/platform/domain/ports/output/index.ts` (204 lines)
-- `.github/instructions/architecture.instructions.md` (193 lines)
