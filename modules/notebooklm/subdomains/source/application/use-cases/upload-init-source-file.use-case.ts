@@ -8,7 +8,8 @@
  *   2. complete → marks the version as active, registers a RagDocumentRecord
  */
 
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomBytes } from "node:crypto";
+import { v4 as randomUUID } from "@lib-uuid";
 
 import type { SourceFile } from "../../domain/entities/SourceFile";
 import type { SourceFileVersion } from "../../domain/entities/SourceFileVersion";

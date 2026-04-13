@@ -1,3 +1,4 @@
+import { v4 as uuid } from "@lib-uuid";
 import type {
 	MemberAddedEvent,
 	MemberRemovedEvent,
@@ -77,7 +78,7 @@ export class Organization {
 		aggregate._memberRoles.set(aggregate._props.ownerId, "Owner");
 		aggregate.recordEvent<OrganizationCreatedEvent>({
 			type: "platform.organization.created",
-			eventId: crypto.randomUUID(),
+			eventId: uuid(),
 			occurredAt: now,
 			payload: {
 				organizationId: aggregate._props.id,
@@ -120,7 +121,7 @@ export class Organization {
 		};
 		this.recordEvent<SettingsUpdatedEvent>({
 			type: "platform.organization.settings_updated",
-			eventId: crypto.randomUUID(),
+			eventId: uuid(),
 			occurredAt: now,
 			payload: {
 				organizationId: this._props.id,
@@ -150,7 +151,7 @@ export class Organization {
 		};
 		this.recordEvent<MemberAddedEvent>({
 			type: "platform.organization.member_added",
-			eventId: crypto.randomUUID(),
+			eventId: uuid(),
 			occurredAt: now,
 			payload: {
 				organizationId: this._props.id,
@@ -181,7 +182,7 @@ export class Organization {
 		};
 		this.recordEvent<MemberRemovedEvent>({
 			type: "platform.organization.member_removed",
-			eventId: crypto.randomUUID(),
+			eventId: uuid(),
 			occurredAt: now,
 			payload: {
 				organizationId: this._props.id,
@@ -207,7 +208,7 @@ export class Organization {
 		this._props = { ...this._props, updatedAtISO: now };
 		this.recordEvent<MemberRoleUpdatedEvent>({
 			type: "platform.organization.member_role_updated",
-			eventId: crypto.randomUUID(),
+			eventId: uuid(),
 			occurredAt: now,
 			payload: {
 				organizationId: this._props.id,
@@ -310,7 +311,7 @@ export class Organization {
 		if (eventType === "platform.organization.suspended") {
 			this.recordEvent<OrganizationSuspendedEvent>({
 				type: eventType,
-				eventId: crypto.randomUUID(),
+				eventId: uuid(),
 				occurredAt: now,
 				payload: { organizationId: this._props.id, status },
 			});
@@ -319,7 +320,7 @@ export class Organization {
 		if (eventType === "platform.organization.dissolved") {
 			this.recordEvent<OrganizationDissolvedEvent>({
 				type: eventType,
-				eventId: crypto.randomUUID(),
+				eventId: uuid(),
 				occurredAt: now,
 				payload: { organizationId: this._props.id, status },
 			});
@@ -327,7 +328,7 @@ export class Organization {
 		}
 		this.recordEvent<OrganizationReactivatedEvent>({
 			type: eventType,
-			eventId: crypto.randomUUID(),
+			eventId: uuid(),
 			occurredAt: now,
 			payload: { organizationId: this._props.id, status },
 		});

@@ -2,6 +2,7 @@
  * Workspace Domain Entities — pure TypeScript, zero framework dependencies.
  */
 
+import { v4 as uuid } from "@lib-uuid";
 import type { Timestamp } from "@shared-types";
 import type { WorkspaceAccessPolicy, WorkspaceGrant } from "../entities/WorkspaceAccess";
 import type {
@@ -179,7 +180,7 @@ export class Workspace implements WorkspaceEntity {
         : [];
 
     return new Workspace({
-      id: crypto.randomUUID(),
+      id: uuid(),
       name: createWorkspaceName(command.name),
       accountId: normalizeAccountId(command.accountId),
       accountType: command.accountType,

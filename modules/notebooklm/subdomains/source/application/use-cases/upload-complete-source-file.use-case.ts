@@ -11,7 +11,7 @@
  * RagDocument without creating a duplicate.
  */
 
-import { randomUUID } from "node:crypto";
+import { v4 as randomUUID } from "@lib-uuid";
 
 import type { SourceFileRepository } from "../../domain/repositories/SourceFileRepository";
 import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";

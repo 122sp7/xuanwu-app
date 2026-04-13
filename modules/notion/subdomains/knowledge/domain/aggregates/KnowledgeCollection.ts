@@ -4,6 +4,7 @@
  * Purpose: KnowledgeCollection aggregate root — named grouping / database-view of pages.
  */
 
+import { v4 as uuid } from "@lib-uuid";
 import type { NotionDomainEvent } from "../events/NotionDomainEvent";
 
 export type CollectionColumnType =
@@ -59,7 +60,7 @@ export class KnowledgeCollection {
   static create(id: string, columnIds: readonly string[], input: CreateKnowledgeCollectionInput): KnowledgeCollection {
     const now = new Date().toISOString();
     const columns: CollectionColumn[] = (input.columns ?? []).map((c, i) => ({
-      id: columnIds[i] ?? crypto.randomUUID(),
+      id: columnIds[i] ?? uuid(),
       name: c.name,
       type: c.type,
       options: c.options,
@@ -80,7 +81,7 @@ export class KnowledgeCollection {
     });
     collection._domainEvents.push({
       type: "notion.knowledge.collection_created",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: {
         collectionId: id,
@@ -106,7 +107,7 @@ export class KnowledgeCollection {
     this._props = { ...this._props, name: newName, updatedAtISO: now };
     this._domainEvents.push({
       type: "notion.knowledge.collection_renamed",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: {
         collectionId: this._props.id,
@@ -153,7 +154,7 @@ export class KnowledgeCollection {
     this._props = { ...this._props, status: "archived", updatedAtISO: now };
     this._domainEvents.push({
       type: "notion.knowledge.collection_archived",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { collectionId: this._props.id, accountId: this._props.accountId },
     });

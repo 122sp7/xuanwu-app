@@ -1,3 +1,4 @@
+import { v4 as uuid } from "@lib-uuid";
 import type { AccessPolicyDomainEventType } from "../events/AccessPolicyDomainEvent";
 import type { SubjectRef } from "../value-objects/SubjectRef";
 import type { ResourceRef } from "../value-objects/ResourceRef";
@@ -45,7 +46,7 @@ export class AccessPolicy {
     });
     policy._domainEvents.push({
       type: "platform.access_policy.created",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: {
         policyId: id,
@@ -74,7 +75,7 @@ export class AccessPolicy {
     };
     this._domainEvents.push({
       type: "platform.access_policy.updated",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { policyId: this._props.id },
     });
@@ -86,7 +87,7 @@ export class AccessPolicy {
     this._props = { ...this._props, isActive: false, updatedAtISO: now };
     this._domainEvents.push({
       type: "platform.access_policy.deactivated",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { policyId: this._props.id },
     });

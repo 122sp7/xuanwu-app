@@ -1,3 +1,4 @@
+import { v4 as uuid } from "@lib-uuid";
 import type { WorkspaceEntity } from "../../api/contracts";
 
 export interface WorkspaceCustomRoleDraft {
@@ -24,7 +25,7 @@ export interface WorkspaceSettingsDraft {
 
 export function createWorkspaceCustomRoleDraft(): WorkspaceCustomRoleDraft {
   return {
-    roleId: crypto.randomUUID(),
+    roleId: uuid(),
     roleName: "",
     role: "",
   };

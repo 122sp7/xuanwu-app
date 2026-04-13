@@ -1,3 +1,4 @@
+import { v4 as uuid } from "@lib-uuid";
 /**
  * Access-Control Use Cases — pure application logic.
  */
@@ -68,7 +69,7 @@ export class CreateAccessPolicyUseCase {
     conditions?: string[];
   }): Promise<CommandResult> {
     try {
-      const id = crypto.randomUUID();
+      const id = uuid();
       const policy = AccessPolicy.create(id, input);
       await this.repo.save(policy.getSnapshot());
       return commandSuccess(id, Date.now());

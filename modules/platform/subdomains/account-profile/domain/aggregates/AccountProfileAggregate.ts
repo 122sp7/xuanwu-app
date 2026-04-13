@@ -1,3 +1,4 @@
+import { v4 as uuid } from "@lib-uuid";
 import type {
   AccountProfileDomainEventType,
   AccountProfileUpdatedEvent,
@@ -64,7 +65,7 @@ export class AccountProfileAggregate {
     };
     this.recordEvent<AccountProfileUpdatedEvent>({
       type: "platform.account-profile.updated",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { profileId: this._props.id, fields: changedFields },
     });

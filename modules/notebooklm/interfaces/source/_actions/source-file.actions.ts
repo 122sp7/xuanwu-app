@@ -1,5 +1,6 @@
 "use server";
 
+import { v4 as uuid } from "@lib-uuid";
 import type {
   UploadCompleteFileInputDto,
   UploadCompleteFileOutputDto,
@@ -20,7 +21,7 @@ import type { SourceFileCommandResult } from "../contracts/source-command-result
 
 function createCommandId(idempotencyKey?: string): string {
   const normalized = idempotencyKey?.trim();
-  return normalized || `source-file-${crypto.randomUUID()}`;
+  return normalized || `source-file-${uuid()}`;
 }
 
 export async function uploadInitFile(
@@ -55,7 +56,7 @@ export async function deleteSourceDocument(
   accountId: string,
   documentId: string,
 ): Promise<SourceFileCommandResult<{ documentId: string }>> {
-  const commandId = `source-delete-${crypto.randomUUID()}`;
+  const commandId = `source-delete-${uuid()}`;
   const useCase = new DeleteSourceDocumentUseCase(makeSourceDocumentCommandAdapter());
   const result = await useCase.execute({ accountId, documentId });
   return { ...result, commandId };
@@ -66,7 +67,7 @@ export async function renameSourceDocument(
   documentId: string,
   newName: string,
 ): Promise<SourceFileCommandResult<{ documentId: string }>> {
-  const commandId = `source-rename-${crypto.randomUUID()}`;
+  const commandId = `source-rename-${uuid()}`;
   const useCase = new RenameSourceDocumentUseCase(makeSourceDocumentCommandAdapter());
   const result = await useCase.execute({ accountId, documentId, newName });
   return { ...result, commandId };

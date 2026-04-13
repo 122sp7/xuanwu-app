@@ -6,6 +6,7 @@
  */
 "use client";
 
+import { v4 as uuid } from "@lib-uuid";
 import { create } from "zustand";
 import type { BlockContent } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
 
@@ -33,7 +34,7 @@ interface BlockEditorState {
 }
 
 function makeId() {
-  return crypto.randomUUID();
+  return uuid();
 }
 
 export const useBlockEditorStore = create<BlockEditorState>((set, get) => ({

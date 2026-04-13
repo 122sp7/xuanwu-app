@@ -1,3 +1,4 @@
+import { v4 as uuid } from "@lib-uuid";
 import type { AuditLogSource } from "../entities/AuditLog";
 import type { AuditDomainEventType } from "../events";
 import type { AuditAction } from "../schema";
@@ -65,7 +66,7 @@ export class AuditEntry {
 		});
 		entry._domainEvents.push({
 			type: "workspace.audit.entry_recorded",
-			eventId: crypto.randomUUID(),
+			eventId: uuid(),
 			occurredAt: now,
 			payload: {
 				auditId: id,
@@ -82,7 +83,7 @@ export class AuditEntry {
 		if (entry.isCritical()) {
 			entry._domainEvents.push({
 				type: "workspace.audit.critical_detected",
-				eventId: crypto.randomUUID(),
+				eventId: uuid(),
 				occurredAt: now,
 				payload: {
 					auditId: id,

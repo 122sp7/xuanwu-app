@@ -1,3 +1,4 @@
+import { v4 as uuid } from "@lib-uuid";
 import { getFirebaseAuth } from "@integration-firebase";
 
 import { accessControlService } from "../subdomains/access-control/api";
@@ -144,7 +145,7 @@ export const fileApi: FileAPI = {
 			throw new Error("Permission denied: create:file");
 		}
 
-		const fileId = crypto.randomUUID();
+		const fileId = uuid();
 		const fileName = normalizeFileName(input);
 		const normalizedFileName = sanitizeFileName(fileName);
 		const storagePath =
