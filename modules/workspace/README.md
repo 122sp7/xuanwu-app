@@ -77,6 +77,13 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - workspace is the composition owner for notion/notebooklm panels, commands, and navigation flows rendered in the shell.
 - notion and notebooklm root `api/` surfaces provide downstream semantic capabilities for orchestrators; they are not the preferred browser-facing import path for app routes when workspace owns the flow.
 
+## Current Contract Alignment
+
+- Shell composition remains account-scoped: the canonical workspace detail route is `/{accountId}/{workspaceId}` and `/{accountId}/workspace/{workspaceId}` is redirect-only legacy surface.
+- Workspace read models, DTOs, events, and validators use the code-level account scope contract `"user" | "organization"`; UI copy may say 個人帳號 / 組織帳號, but local type literals must not drift back to `"personal"`.
+- The wiki content tree projection is a read-model concern owned by root query handlers and must emit canonical account-scoped workspace hrefs instead of legacy `/workspace/*` links.
+- This bounded context follows the repo baseline: Hexagonal Architecture + DDD, Firebase serverless adapters outside the core, Genkit capability consumed through upstream platform boundaries, Zustand/XState only in interface workflows, and Zod at runtime validation boundaries.
+
 ## Strategic Documentation
 
 - [Context README](../../docs/contexts/workspace/README.md)

@@ -24,6 +24,12 @@
 interfaces/ → application/ → domain/ ← infrastructure/
 ```
 
+## Route And Account Contract
+
+- Treat `accountId` as the shell account scope and `workspaceId` as the workspace scope anchor; do not collapse them into one identifier.
+- Canonical workspace detail route is `/{accountId}/{workspaceId}`. `/{accountId}/workspace/{workspaceId}` remains legacy redirect-only surface.
+- Workspace code-level account type stays `"user" | "organization"`; presentation may say 個人帳號 / 組織帳號, but domain, application, DTO, and query contracts must not drift to `"personal"`.
+
 ## Development Order (Strangler Pattern)
 
 New features:
