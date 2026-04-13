@@ -6,7 +6,7 @@
 
 import type { CategorySnapshot } from "../aggregates/Category";
 
-export interface ICategoryRepository {
+export interface CategoryRepository {
   getById(accountId: string, categoryId: string): Promise<CategorySnapshot | null>;
   listByWorkspace(accountId: string, workspaceId: string): Promise<CategorySnapshot[]>;
   save(snapshot: CategorySnapshot): Promise<void>;

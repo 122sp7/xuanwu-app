@@ -6,7 +6,7 @@
 
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import type { CommentSnapshot } from "../../domain/aggregates/Comment";
-import type { ICommentRepository } from "../../domain/repositories/ICommentRepository";
+import type { CommentRepository } from "../../domain/repositories/CommentRepository";
 import {
   CreateCommentSchema, type CreateCommentDto,
   UpdateCommentSchema, type UpdateCommentDto,
@@ -15,7 +15,7 @@ import {
 } from "../dto/CollaborationDto";
 
 export class CreateCommentUseCase {
-  constructor(private readonly repo: ICommentRepository) {}
+  constructor(private readonly repo: CommentRepository) {}
 
   async execute(input: CreateCommentDto): Promise<CommandResult> {
     const parsed = CreateCommentSchema.safeParse(input);
@@ -32,7 +32,7 @@ export class CreateCommentUseCase {
 }
 
 export class UpdateCommentUseCase {
-  constructor(private readonly repo: ICommentRepository) {}
+  constructor(private readonly repo: CommentRepository) {}
 
   async execute(input: UpdateCommentDto): Promise<CommandResult> {
     const parsed = UpdateCommentSchema.safeParse(input);
@@ -44,7 +44,7 @@ export class UpdateCommentUseCase {
 }
 
 export class ResolveCommentUseCase {
-  constructor(private readonly repo: ICommentRepository) {}
+  constructor(private readonly repo: CommentRepository) {}
 
   async execute(input: ResolveCommentDto): Promise<CommandResult> {
     const parsed = ResolveCommentSchema.safeParse(input);
@@ -56,7 +56,7 @@ export class ResolveCommentUseCase {
 }
 
 export class DeleteCommentUseCase {
-  constructor(private readonly repo: ICommentRepository) {}
+  constructor(private readonly repo: CommentRepository) {}
 
   async execute(input: DeleteCommentDto): Promise<CommandResult> {
     const parsed = DeleteCommentSchema.safeParse(input);
@@ -67,7 +67,7 @@ export class DeleteCommentUseCase {
 }
 
 export class ListCommentsUseCase {
-  constructor(private readonly repo: ICommentRepository) {}
+  constructor(private readonly repo: CommentRepository) {}
 
   async execute(accountId: string, contentId: string): Promise<CommentSnapshot[]> {
     if (!accountId.trim() || !contentId.trim()) return [];

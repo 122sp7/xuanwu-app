@@ -1,7 +1,7 @@
 /**
  * Module: notebooklm/subdomains/synthesis
  * Layer: domain/repositories
- * Purpose: IKnowledgeContentRepository — output port for knowledge corpus RAG
+ * Purpose: KnowledgeContentRepository — output port for knowledge corpus RAG
  *          operations (run query, reindex, list parsed documents).
  *
  * Design notes:
@@ -59,7 +59,7 @@ export interface KnowledgeReindexInput {
   readonly pageCount: number;
 }
 
-export interface IKnowledgeContentRepository {
+export interface KnowledgeContentRepository {
   runRagQuery(
     query: string,
     accountId: string,

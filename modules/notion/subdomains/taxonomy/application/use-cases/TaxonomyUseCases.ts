@@ -4,11 +4,11 @@
  * Purpose: Use case orchestration for taxonomy node operations.
  */
 
-import type { ITaxonomyRepository } from "../../domain/repositories/ITaxonomyRepository";
+import type { TaxonomyRepository } from "../../domain/repositories/TaxonomyRepository";
 import type { TaxonomyNode, CreateTaxonomyNodeInput } from "../../domain/entities/TaxonomyNode";
 
 export class CreateTaxonomyNodeUseCase {
-  constructor(private readonly taxonomyRepo: ITaxonomyRepository) {}
+  constructor(private readonly taxonomyRepo: TaxonomyRepository) {}
 
   async execute(input: CreateTaxonomyNodeInput): Promise<TaxonomyNode> {
     let parentPath: readonly string[] = [];
@@ -42,7 +42,7 @@ export class CreateTaxonomyNodeUseCase {
 }
 
 export class RemoveTaxonomyNodeUseCase {
-  constructor(private readonly taxonomyRepo: ITaxonomyRepository) {}
+  constructor(private readonly taxonomyRepo: TaxonomyRepository) {}
 
   async execute(nodeId: string): Promise<void> {
     const children = await this.taxonomyRepo.listChildren(nodeId);
@@ -54,7 +54,7 @@ export class RemoveTaxonomyNodeUseCase {
 }
 
 export class ListTaxonomyRootsUseCase {
-  constructor(private readonly taxonomyRepo: ITaxonomyRepository) {}
+  constructor(private readonly taxonomyRepo: TaxonomyRepository) {}
 
   async execute(organizationId: string): Promise<readonly TaxonomyNode[]> {
     return this.taxonomyRepo.listRoots(organizationId);
@@ -62,7 +62,7 @@ export class ListTaxonomyRootsUseCase {
 }
 
 export class ListTaxonomyChildrenUseCase {
-  constructor(private readonly taxonomyRepo: ITaxonomyRepository) {}
+  constructor(private readonly taxonomyRepo: TaxonomyRepository) {}
 
   async execute(parentNodeId: string): Promise<readonly TaxonomyNode[]> {
     return this.taxonomyRepo.listChildren(parentNodeId);

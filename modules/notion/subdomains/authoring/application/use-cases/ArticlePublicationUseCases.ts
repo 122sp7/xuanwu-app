@@ -7,11 +7,11 @@
 import type { z } from "@lib-zod";
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import { Article } from "../../domain/aggregates/Article";
-import type { IArticleRepository } from "../../domain/repositories/IArticleRepository";
+import type { ArticleRepository } from "../../domain/repositories/ArticleRepository";
 import { PublishArticleSchema } from "../dto/ArticleDto";
 
 export class PublishArticleUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
+  constructor(private readonly repo: ArticleRepository) {}
 
   async execute(input: z.infer<typeof PublishArticleSchema>): Promise<CommandResult> {
     const parsed = PublishArticleSchema.safeParse(input);

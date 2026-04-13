@@ -2,7 +2,7 @@ import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-
 import { v7 as generateId } from "@lib-uuid";
 import { ContentBlock } from "../../domain/aggregates/ContentBlock";
 import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
-import type { IContentBlockRepository } from "../../domain/repositories/IContentBlockRepository";
+import type { ContentBlockRepository } from "../../domain/repositories/ContentBlockRepository";
 import type { BlockContent } from "../../domain/value-objects/BlockContent";
 import {
   AddKnowledgeBlockSchema, type AddKnowledgeBlockDto,
@@ -13,7 +13,7 @@ import {
 } from "../dto/ContentBlockDto";
 
 export class AddContentBlockUseCase {
-  constructor(private readonly repo: IContentBlockRepository) {}
+  constructor(private readonly repo: ContentBlockRepository) {}
   async execute(input: AddKnowledgeBlockDto): Promise<CommandResult> {
     const parsed = AddKnowledgeBlockSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
@@ -28,7 +28,7 @@ export class AddContentBlockUseCase {
 }
 
 export class UpdateContentBlockUseCase {
-  constructor(private readonly repo: IContentBlockRepository) {}
+  constructor(private readonly repo: ContentBlockRepository) {}
   async execute(input: UpdateKnowledgeBlockDto): Promise<CommandResult> {
     const parsed = UpdateKnowledgeBlockSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
@@ -42,7 +42,7 @@ export class UpdateContentBlockUseCase {
 }
 
 export class DeleteContentBlockUseCase {
-  constructor(private readonly repo: IContentBlockRepository) {}
+  constructor(private readonly repo: ContentBlockRepository) {}
   async execute(input: DeleteKnowledgeBlockDto): Promise<CommandResult> {
     const parsed = DeleteKnowledgeBlockSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
@@ -52,7 +52,7 @@ export class DeleteContentBlockUseCase {
 }
 
 export class NestContentBlockUseCase {
-  constructor(private readonly repo: IContentBlockRepository) {}
+  constructor(private readonly repo: ContentBlockRepository) {}
   async execute(input: NestKnowledgeBlockDto): Promise<CommandResult> {
     const parsed = NestKnowledgeBlockSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
@@ -67,7 +67,7 @@ export class NestContentBlockUseCase {
 }
 
 export class UnnestContentBlockUseCase {
-  constructor(private readonly repo: IContentBlockRepository) {}
+  constructor(private readonly repo: ContentBlockRepository) {}
   async execute(input: UnnestKnowledgeBlockDto): Promise<CommandResult> {
     const parsed = UnnestKnowledgeBlockSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
@@ -86,7 +86,7 @@ export class UnnestContentBlockUseCase {
 }
 
 export class ListContentBlocksUseCase {
-  constructor(private readonly repo: IContentBlockRepository) {}
+  constructor(private readonly repo: ContentBlockRepository) {}
   async execute(accountId: string, pageId: string): Promise<ContentBlockSnapshot[]> {
     if (!accountId || !pageId) return [];
     const blocks = await this.repo.listByPageId(accountId, pageId);

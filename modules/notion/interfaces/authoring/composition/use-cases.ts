@@ -11,8 +11,8 @@ import {
   MoveCategoryUseCase,
   DeleteCategoryUseCase,
 } from "../../../subdomains/authoring/application/use-cases";
-import type { IArticleRepository } from "../../../subdomains/authoring/domain/repositories/IArticleRepository";
-import type { ICategoryRepository } from "../../../subdomains/authoring/domain/repositories/ICategoryRepository";
+import type { ArticleRepository } from "../../../subdomains/authoring/domain/repositories/ArticleRepository";
+import type { CategoryRepository } from "../../../subdomains/authoring/domain/repositories/CategoryRepository";
 import { makeArticleRepo, makeCategoryRepo } from "./repositories";
 
 export interface AuthoringUseCases {
@@ -30,8 +30,8 @@ export interface AuthoringUseCases {
 }
 
 export function makeAuthoringUseCases(
-  articleRepo: IArticleRepository = makeArticleRepo(),
-  categoryRepo: ICategoryRepository = makeCategoryRepo(),
+  articleRepo: ArticleRepository = makeArticleRepo(),
+  categoryRepo: CategoryRepository = makeCategoryRepo(),
 ): AuthoringUseCases {
   return {
     createArticle: new CreateArticleUseCase(articleRepo),

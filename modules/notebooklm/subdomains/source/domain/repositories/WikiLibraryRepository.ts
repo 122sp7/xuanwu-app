@@ -1,12 +1,12 @@
 /**
  * Module: notebooklm/subdomains/source
  * Layer: domain/repositories
- * Port: IWikiLibraryRepository — persistence contract for WikiLibrary aggregates.
+ * Port: WikiLibraryRepository — persistence contract for WikiLibrary aggregates.
  */
 
 import type { WikiLibrary, WikiLibraryField, WikiLibraryRow } from "../entities/WikiLibrary";
 
-export interface IWikiLibraryRepository {
+export interface WikiLibraryRepository {
   listByAccountId(accountId: string): Promise<WikiLibrary[]>;
   findById(accountId: string, libraryId: string): Promise<WikiLibrary | null>;
   create(library: WikiLibrary): Promise<void>;

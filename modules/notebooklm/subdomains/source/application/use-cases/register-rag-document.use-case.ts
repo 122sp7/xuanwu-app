@@ -9,7 +9,7 @@
 
 import { randomUUID } from "node:crypto";
 
-import type { IRagDocumentRepository } from "../../domain/repositories/IRagDocumentRepository";
+import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
 import type {
   RegisterUploadedRagDocumentInputDto,
   RegisterUploadedRagDocumentOutputDto,
@@ -21,7 +21,7 @@ type RegisterUploadedRagDocumentResult =
   | { ok: false; error: { code: RegisterUploadedRagDocumentErrorCode; message: string } };
 
 export class RegisterUploadedRagDocumentUseCase {
-  constructor(private readonly ragDocumentRepository: IRagDocumentRepository) {}
+  constructor(private readonly ragDocumentRepository: RagDocumentRepository) {}
 
   async execute(
     input: RegisterUploadedRagDocumentInputDto,

@@ -13,8 +13,8 @@ export type {
 
 // ── Repository contracts ───────────────────────────────────────────────────────
 export type {
-  ITaxonomyRepository,
-} from "../domain/repositories/ITaxonomyRepository";
+  TaxonomyRepository,
+} from "../domain/repositories/TaxonomyRepository";
 
 // ── Domain events ─────────────────────────────────────────────────────────────
 export type {

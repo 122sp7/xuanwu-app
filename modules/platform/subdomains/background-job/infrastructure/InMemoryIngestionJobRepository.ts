@@ -1,5 +1,5 @@
 /**
- * InMemoryIngestionJobRepository — default in-process adapter implementing IIngestionJobRepository.
+ * InMemoryIngestionJobRepository — default in-process adapter implementing IngestionJobRepository.
  *
  * Suitable for development environments and unit tests. Scoped to a single
  * process lifetime (data is lost on restart).
@@ -8,9 +8,9 @@
  */
 
 import type { IngestionJob, IngestionStatus } from "../domain/entities/IngestionJob";
-import type { IIngestionJobRepository } from "../domain/repositories/IIngestionJobRepository";
+import type { IngestionJobRepository } from "../domain/repositories/IngestionJobRepository";
 
-export class InMemoryIngestionJobRepository implements IIngestionJobRepository {
+export class InMemoryIngestionJobRepository implements IngestionJobRepository {
   /** Keyed by document.id for O(1) lookups. */
   private readonly store = new Map<string, IngestionJob>();
 

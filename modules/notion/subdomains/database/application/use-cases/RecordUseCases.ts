@@ -5,12 +5,12 @@
  */
 
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { IDatabaseRecordRepository } from "../../domain/repositories/IDatabaseRecordRepository";
+import type { DatabaseRecordRepository } from "../../domain/repositories/DatabaseRecordRepository";
 import { CreateRecordSchema, UpdateRecordSchema, DeleteRecordSchema } from "../dto/DatabaseDto";
 import type { CreateRecordDto, UpdateRecordDto, DeleteRecordDto } from "../dto/DatabaseDto";
 
 export class CreateRecordUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
+  constructor(private readonly repo: DatabaseRecordRepository) {}
   async execute(input: CreateRecordDto): Promise<CommandResult> {
     const parsed = CreateRecordSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
@@ -20,7 +20,7 @@ export class CreateRecordUseCase {
 }
 
 export class UpdateRecordUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
+  constructor(private readonly repo: DatabaseRecordRepository) {}
   async execute(input: UpdateRecordDto): Promise<CommandResult> {
     const parsed = UpdateRecordSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
@@ -30,7 +30,7 @@ export class UpdateRecordUseCase {
 }
 
 export class DeleteRecordUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
+  constructor(private readonly repo: DatabaseRecordRepository) {}
   async execute(input: DeleteRecordDto): Promise<CommandResult> {
     const parsed = DeleteRecordSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);

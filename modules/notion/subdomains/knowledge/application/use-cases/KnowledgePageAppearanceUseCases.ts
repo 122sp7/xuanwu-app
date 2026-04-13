@@ -6,7 +6,7 @@
 
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 
-import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+import type { KnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
 import {
   UpdatePageIconSchema,
   type UpdatePageIconDto,
@@ -15,7 +15,7 @@ import {
 } from "../dto/KnowledgePageLifecycleDto";
 
 export class UpdatePageIconUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
   async execute(input: UpdatePageIconDto): Promise<CommandResult> {
     const parsed = UpdatePageIconSchema.safeParse(input);
@@ -31,7 +31,7 @@ export class UpdatePageIconUseCase {
 }
 
 export class UpdatePageCoverUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
   async execute(input: UpdatePageCoverDto): Promise<CommandResult> {
     const parsed = UpdatePageCoverSchema.safeParse(input);

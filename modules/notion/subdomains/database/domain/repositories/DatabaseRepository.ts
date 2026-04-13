@@ -1,7 +1,7 @@
 /**
  * Module: notion/subdomains/database
  * Layer: domain/repositories
- * Purpose: IDatabaseRepository — persistence contract for the Database aggregate.
+ * Purpose: DatabaseRepository — persistence contract for the Database aggregate.
  */
 
 import type { DatabaseSnapshot, Field, FieldType } from "../aggregates/Database";
@@ -32,7 +32,7 @@ export interface AddFieldInput {
   required?: boolean;
 }
 
-export interface IDatabaseRepository {
+export interface DatabaseRepository {
   create(input: CreateDatabaseInput): Promise<DatabaseSnapshot>;
   update(input: UpdateDatabaseInput): Promise<DatabaseSnapshot>;
   addField(input: AddFieldInput): Promise<Field>;

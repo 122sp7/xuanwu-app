@@ -1,7 +1,7 @@
 /**
  * Module: notion/subdomains/database
  * Layer: infrastructure/firebase
- * Purpose: Firestore implementation of IDatabaseRecordRepository.
+ * Purpose: Firestore implementation of DatabaseRecordRepository.
  *          Firestore path: accounts/{accountId}/knowledgeDatabases/{databaseId}/records/{recordId}
  */
 
@@ -9,7 +9,7 @@ import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api";
 import { v7 as generateId } from "@lib-uuid";
-import type { IDatabaseRecordRepository, CreateRecordInput, UpdateRecordInput } from "../../../subdomains/database/domain/repositories/IDatabaseRecordRepository";
+import type { DatabaseRecordRepository, CreateRecordInput, UpdateRecordInput } from "../../../subdomains/database/domain/repositories/DatabaseRecordRepository";
 import type { DatabaseRecordSnapshot } from "../../../subdomains/database/domain/aggregates/DatabaseRecord";
 
 function recordsPath(accountId: string, databaseId: string): string {
@@ -44,7 +44,7 @@ function toSnapshot(id: string, data: Record<string, any>): DatabaseRecordSnapsh
   };
 }
 
-export class FirebaseDatabaseRecordRepository implements IDatabaseRecordRepository {
+export class FirebaseDatabaseRecordRepository implements DatabaseRecordRepository {
   async create(input: CreateRecordInput): Promise<DatabaseRecordSnapshot> {
     const id = generateId();
     const countDocs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(

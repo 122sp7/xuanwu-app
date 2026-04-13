@@ -7,7 +7,7 @@
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import { v7 as generateId } from "@lib-uuid";
 
-import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+import type { KnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
 import {
   PublishDomainEventUseCase,
   type IEventStoreRepository,
@@ -28,7 +28,7 @@ import {
 
 export class ApproveKnowledgePageUseCase {
   constructor(
-    private readonly repo: IKnowledgePageRepository,
+    private readonly repo: KnowledgePageRepository,
     private readonly eventStore: IEventStoreRepository,
     private readonly eventBus: IEventBusRepository,
   ) {}
@@ -82,7 +82,7 @@ export class ApproveKnowledgePageUseCase {
 }
 
 export class VerifyKnowledgePageUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
   async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
     const parsed = VerifyKnowledgePageSchema.safeParse(input);
@@ -98,7 +98,7 @@ export class VerifyKnowledgePageUseCase {
 }
 
 export class RequestPageReviewUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
   async execute(input: RequestPageReviewDto): Promise<CommandResult> {
     const parsed = RequestPageReviewSchema.safeParse(input);
@@ -114,7 +114,7 @@ export class RequestPageReviewUseCase {
 }
 
 export class AssignPageOwnerUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
   async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
     const parsed = AssignPageOwnerSchema.safeParse(input);

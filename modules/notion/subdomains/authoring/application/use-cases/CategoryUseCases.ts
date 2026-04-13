@@ -8,7 +8,7 @@ import type { z } from "@lib-zod";
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import { v7 as generateId } from "@lib-uuid";
 import { Category } from "../../domain/aggregates/Category";
-import type { ICategoryRepository } from "../../domain/repositories/ICategoryRepository";
+import type { CategoryRepository } from "../../domain/repositories/CategoryRepository";
 import {
   CreateCategorySchema,
   RenameCategorySchema,
@@ -17,7 +17,7 @@ import {
 } from "../dto/CategoryDto";
 
 export class CreateCategoryUseCase {
-  constructor(private readonly repo: ICategoryRepository) {}
+  constructor(private readonly repo: CategoryRepository) {}
 
   async execute(input: z.infer<typeof CreateCategorySchema>): Promise<CommandResult> {
     const parsed = CreateCategorySchema.safeParse(input);
@@ -39,7 +39,7 @@ export class CreateCategoryUseCase {
 }
 
 export class RenameCategoryUseCase {
-  constructor(private readonly repo: ICategoryRepository) {}
+  constructor(private readonly repo: CategoryRepository) {}
 
   async execute(input: z.infer<typeof RenameCategorySchema>): Promise<CommandResult> {
     const parsed = RenameCategorySchema.safeParse(input);
@@ -56,7 +56,7 @@ export class RenameCategoryUseCase {
 }
 
 export class MoveCategoryUseCase {
-  constructor(private readonly repo: ICategoryRepository) {}
+  constructor(private readonly repo: CategoryRepository) {}
 
   async execute(input: z.infer<typeof MoveCategorySchema>): Promise<CommandResult> {
     const parsed = MoveCategorySchema.safeParse(input);
@@ -73,7 +73,7 @@ export class MoveCategoryUseCase {
 }
 
 export class DeleteCategoryUseCase {
-  constructor(private readonly repo: ICategoryRepository) {}
+  constructor(private readonly repo: CategoryRepository) {}
 
   async execute(input: z.infer<typeof DeleteCategorySchema>): Promise<CommandResult> {
     const parsed = DeleteCategorySchema.safeParse(input);

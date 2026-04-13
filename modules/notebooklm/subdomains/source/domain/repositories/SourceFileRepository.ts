@@ -1,7 +1,7 @@
 /**
  * Module: notebooklm/subdomains/source
  * Layer: domain/repositories
- * Port: ISourceFileRepository — persistence contract for SourceFile aggregates.
+ * Port: SourceFileRepository — persistence contract for SourceFile aggregates.
  */
 
 import type { SourceFile } from "../entities/SourceFile";
@@ -13,7 +13,7 @@ export interface ListSourceFilesScope {
   readonly actorAccountId: string;
 }
 
-export interface ISourceFileRepository {
+export interface SourceFileRepository {
   findById(fileId: string): Promise<SourceFile | null>;
   findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null>;
   listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>;

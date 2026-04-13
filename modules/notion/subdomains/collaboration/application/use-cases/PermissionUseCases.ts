@@ -5,14 +5,14 @@
  */
 
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IPermissionRepository } from "../../domain/repositories/IPermissionRepository";
+import type { PermissionRepository } from "../../domain/repositories/PermissionRepository";
 import {
   GrantPermissionSchema, type GrantPermissionDto,
   RevokePermissionSchema, type RevokePermissionDto,
 } from "../dto/CollaborationDto";
 
 export class GrantPermissionUseCase {
-  constructor(private readonly repo: IPermissionRepository) {}
+  constructor(private readonly repo: PermissionRepository) {}
 
   async execute(input: GrantPermissionDto): Promise<CommandResult> {
     const parsed = GrantPermissionSchema.safeParse(input);
@@ -29,7 +29,7 @@ export class GrantPermissionUseCase {
 }
 
 export class RevokePermissionUseCase {
-  constructor(private readonly repo: IPermissionRepository) {}
+  constructor(private readonly repo: PermissionRepository) {}
 
   async execute(input: RevokePermissionDto): Promise<CommandResult> {
     const parsed = RevokePermissionSchema.safeParse(input);

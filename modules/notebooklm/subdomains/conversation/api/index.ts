@@ -18,7 +18,7 @@ export {
 // Domain types
 export type { Message, MessageRole } from "../domain/entities/message";
 export type { Thread } from "../domain/entities/thread";
-export type { IThreadRepository } from "../domain/repositories/IThreadRepository";
+export type { ThreadRepository } from "../domain/repositories/ThreadRepository";
 
 // Thread persistence actions
 export { saveThread, loadThread } from "../../../interfaces/conversation/_actions/thread.actions";

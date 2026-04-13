@@ -6,7 +6,7 @@
 
 import type { KnowledgePage, KnowledgePageSnapshot } from "../aggregates/KnowledgePage";
 
-export interface IKnowledgePageRepository {
+export interface KnowledgePageRepository {
   save(page: KnowledgePage): Promise<void>;
   findById(accountId: string, pageId: string): Promise<KnowledgePage | null>;
   listByAccountId(accountId: string): Promise<KnowledgePage[]>;

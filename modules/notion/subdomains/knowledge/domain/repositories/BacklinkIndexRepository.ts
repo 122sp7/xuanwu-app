@@ -18,7 +18,7 @@ export interface RemoveBacklinksFromSourceInput {
   readonly sourcePageId: string;
 }
 
-export interface IBacklinkIndexRepository {
+export interface BacklinkIndexRepository {
   upsertFromSource(input: UpsertBacklinkEntriesInput): Promise<void>;
   removeFromSource(input: RemoveBacklinksFromSourceInput): Promise<void>;
   findByTargetPage(accountId: string, targetPageId: string): Promise<BacklinkIndex | null>;

@@ -1,9 +1,9 @@
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import type { BacklinkIndexSnapshot } from "../../domain/aggregates/BacklinkIndex";
-import type { IBacklinkIndexRepository } from "../../domain/repositories/IBacklinkIndexRepository";
+import type { BacklinkIndexRepository } from "../../domain/repositories/BacklinkIndexRepository";
 
 export class UpdatePageBacklinksUseCase {
-  constructor(private readonly repo: IBacklinkIndexRepository) {}
+  constructor(private readonly repo: BacklinkIndexRepository) {}
   async execute(input: {
     readonly accountId: string;
     readonly sourcePageId: string;
@@ -25,7 +25,7 @@ export class UpdatePageBacklinksUseCase {
 }
 
 export class RemovePageBacklinksUseCase {
-  constructor(private readonly repo: IBacklinkIndexRepository) {}
+  constructor(private readonly repo: BacklinkIndexRepository) {}
   async execute(accountId: string, sourcePageId: string): Promise<CommandResult> {
     await this.repo.removeFromSource({ accountId, sourcePageId });
     return commandSuccess(sourcePageId, Date.now());
@@ -33,7 +33,7 @@ export class RemovePageBacklinksUseCase {
 }
 
 export class GetPageBacklinksUseCase {
-  constructor(private readonly repo: IBacklinkIndexRepository) {}
+  constructor(private readonly repo: BacklinkIndexRepository) {}
   async execute(accountId: string, targetPageId: string): Promise<BacklinkIndexSnapshot | null> {
     const idx = await this.repo.findByTargetPage(accountId, targetPageId);
     return idx ? idx.getSnapshot() : null;

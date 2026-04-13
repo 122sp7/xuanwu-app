@@ -24,10 +24,10 @@ export type { IFeedbackPort } from "./ports/IFeedbackPort";
 export type { IVectorStore, VectorDocument, VectorSearchResult } from "./ports/IVectorStore";
 
 // ── Repositories (output port interfaces) ────────────────────────────────────
-export * from "./repositories/IRagGenerationRepository";
-export * from "./repositories/IRagQueryFeedbackRepository";
-export * from "./repositories/IRagRetrievalRepository";
-export * from "./repositories/IKnowledgeContentRepository";
+export * from "./repositories/RagGenerationRepository";
+export * from "./repositories/RagQueryFeedbackRepository";
+export * from "./repositories/RagRetrievalRepository";
+export * from "./repositories/KnowledgeContentRepository";
 
 // ── Domain services ──────────────────────────────────────────────────────────
 export * from "./services/RagCitationBuilder";

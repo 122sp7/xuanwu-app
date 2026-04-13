@@ -6,7 +6,7 @@
  * is the orchestration owner.
  */
 
-export type { Message, MessageRole, Thread, IThreadRepository } from "../subdomains/conversation/api";
+export type { Message, MessageRole, Thread, ThreadRepository } from "../subdomains/conversation/api";
 
 export type {
   NotebookResponse,

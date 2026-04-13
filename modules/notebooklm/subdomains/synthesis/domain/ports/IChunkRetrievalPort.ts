@@ -3,7 +3,7 @@
  * Layer: domain/ports
  * Purpose: IChunkRetrievalPort — output port for chunk retrieval operations.
  *
- * Migration source: ai/domain/repositories/IRagRetrievalRepository.ts
+ * Migration source: ai/domain/repositories/RagRetrievalRepository.ts
  * Infrastructure adapters (Firebase, Upstash, etc.) implement this port.
  */
 

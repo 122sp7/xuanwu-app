@@ -8,7 +8,7 @@ import type { z } from "@lib-zod";
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import { v7 as generateId } from "@lib-uuid";
 import { Article } from "../../domain/aggregates/Article";
-import type { IArticleRepository } from "../../domain/repositories/IArticleRepository";
+import type { ArticleRepository } from "../../domain/repositories/ArticleRepository";
 import {
   CreateArticleSchema,
   UpdateArticleSchema,
@@ -17,7 +17,7 @@ import {
 } from "../dto/ArticleDto";
 
 export class CreateArticleUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
+  constructor(private readonly repo: ArticleRepository) {}
 
   async execute(input: z.infer<typeof CreateArticleSchema>): Promise<CommandResult> {
     const parsed = CreateArticleSchema.safeParse(input);
@@ -39,7 +39,7 @@ export class CreateArticleUseCase {
 }
 
 export class UpdateArticleUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
+  constructor(private readonly repo: ArticleRepository) {}
 
   async execute(input: z.infer<typeof UpdateArticleSchema>): Promise<CommandResult> {
     const parsed = UpdateArticleSchema.safeParse(input);
@@ -61,7 +61,7 @@ export class UpdateArticleUseCase {
 }
 
 export class ArchiveArticleUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
+  constructor(private readonly repo: ArticleRepository) {}
 
   async execute(input: z.infer<typeof ArchiveArticleSchema>): Promise<CommandResult> {
     const parsed = ArchiveArticleSchema.safeParse(input);
@@ -78,7 +78,7 @@ export class ArchiveArticleUseCase {
 }
 
 export class DeleteArticleUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
+  constructor(private readonly repo: ArticleRepository) {}
 
   async execute(input: z.infer<typeof DeleteArticleSchema>): Promise<CommandResult> {
     const parsed = DeleteArticleSchema.safeParse(input);

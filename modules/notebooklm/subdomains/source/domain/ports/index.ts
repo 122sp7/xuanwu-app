@@ -14,8 +14,8 @@ export type {
 	ReindexSourceDocumentInput,
 	ReindexSourceDocumentOutput,
 } from "./ISourcePipelinePort";
-export type { IRagDocumentRepository as IRagDocumentPort } from "../repositories/IRagDocumentRepository";
-export type { ISourceFileRepository as ISourceFilePort } from "../repositories/ISourceFileRepository";
-export type { IWikiLibraryRepository as IWikiLibraryPort } from "../repositories/IWikiLibraryRepository";
+export type { RagDocumentRepository as IRagDocumentPort } from "../repositories/RagDocumentRepository";
+export type { SourceFileRepository as ISourceFilePort } from "../repositories/SourceFileRepository";
+export type { WikiLibraryRepository as IWikiLibraryPort } from "../repositories/WikiLibraryRepository";
 export type { ISourceStoragePort, SourceStorageUploadOptions } from "./ISourceStoragePort";
 export type { ISourceDocumentWatchPort, WatchedDocument } from "./ISourceDocumentWatchPort";

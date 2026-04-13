@@ -12,7 +12,7 @@ import {
   addKnowledgeBlock,
   createKnowledgePage,
 } from "@/modules/notion/api";
-import type { IWikiLibraryRepository } from "../../../subdomains/source/domain/repositories/IWikiLibraryRepository";
+import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
 import type { ISourceStoragePort } from "../../../subdomains/source/domain/ports/ISourceStoragePort";
 import type { ISourceDocumentWatchPort } from "../../../subdomains/source/domain/ports/ISourceDocumentWatchPort";
 
@@ -43,7 +43,7 @@ export function makeKnowledgePageGateway() {
   });
 }
 
-export function makeWikiLibraryAdapter(): IWikiLibraryRepository {
+export function makeWikiLibraryAdapter(): WikiLibraryRepository {
   return new FirebaseWikiLibraryAdapter();
 }
 

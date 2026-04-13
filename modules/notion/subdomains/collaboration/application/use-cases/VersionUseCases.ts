@@ -5,14 +5,14 @@
  */
 
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IVersionRepository } from "../../domain/repositories/IVersionRepository";
+import type { VersionRepository } from "../../domain/repositories/VersionRepository";
 import {
   CreateVersionSchema, type CreateVersionDto,
   DeleteVersionSchema, type DeleteVersionDto,
 } from "../dto/CollaborationDto";
 
 export class CreateVersionUseCase {
-  constructor(private readonly repo: IVersionRepository) {}
+  constructor(private readonly repo: VersionRepository) {}
 
   async execute(input: CreateVersionDto): Promise<CommandResult> {
     const parsed = CreateVersionSchema.safeParse(input);
@@ -29,7 +29,7 @@ export class CreateVersionUseCase {
 }
 
 export class DeleteVersionUseCase {
-  constructor(private readonly repo: IVersionRepository) {}
+  constructor(private readonly repo: VersionRepository) {}
 
   async execute(input: DeleteVersionDto): Promise<CommandResult> {
     const parsed = DeleteVersionSchema.safeParse(input);

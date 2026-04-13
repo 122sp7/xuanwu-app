@@ -1,7 +1,7 @@
 /**
  * Module: notion/subdomains/database
  * Layer: domain/repositories
- * Purpose: IViewRepository — persistence contract for View aggregate.
+ * Purpose: ViewRepository — persistence contract for View aggregate.
  */
 
 import type { ViewSnapshot, ViewType, FilterRule, SortRule } from "../aggregates/View";
@@ -25,7 +25,7 @@ export interface UpdateViewInput {
   hiddenFieldIds?: string[];
 }
 
-export interface IViewRepository {
+export interface ViewRepository {
   create(input: CreateViewInput): Promise<ViewSnapshot>;
   update(input: UpdateViewInput): Promise<ViewSnapshot>;
   delete(id: string, accountId: string): Promise<void>;

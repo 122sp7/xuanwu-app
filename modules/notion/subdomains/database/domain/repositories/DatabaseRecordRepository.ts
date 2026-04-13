@@ -1,7 +1,7 @@
 /**
  * Module: notion/subdomains/database
  * Layer: domain/repositories
- * Purpose: IDatabaseRecordRepository — persistence contract for DatabaseRecord aggregate.
+ * Purpose: DatabaseRecordRepository — persistence contract for DatabaseRecord aggregate.
  */
 
 import type { DatabaseRecordSnapshot } from "../aggregates/DatabaseRecord";
@@ -21,7 +21,7 @@ export interface UpdateRecordInput {
   properties: Record<string, unknown>;
 }
 
-export interface IDatabaseRecordRepository {
+export interface DatabaseRecordRepository {
   create(input: CreateRecordInput): Promise<DatabaseRecordSnapshot>;
   update(input: UpdateRecordInput): Promise<DatabaseRecordSnapshot>;
   delete(id: string, accountId: string): Promise<void>;

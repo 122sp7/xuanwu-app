@@ -1,7 +1,7 @@
 /**
  * Module: notion/subdomains/knowledge
  * Layer: infrastructure/firebase
- * Purpose: Firebase adapter implementing IKnowledgePageRepository.
+ * Purpose: Firebase adapter implementing KnowledgePageRepository.
  * Firestore path: accounts/{accountId}/contentPages/{pageId}
  */
 
@@ -11,7 +11,7 @@ import {
 import { v7 as _generateId } from "@lib-uuid";
 import { KnowledgePage } from "../../../subdomains/knowledge/domain/aggregates/KnowledgePage";
 import type { KnowledgePageSnapshot } from "../../../subdomains/knowledge/domain/aggregates/KnowledgePage";
-import type { IKnowledgePageRepository } from "../../../subdomains/knowledge/domain/repositories/IKnowledgePageRepository";
+import type { KnowledgePageRepository } from "../../../subdomains/knowledge/domain/repositories/KnowledgePageRepository";
 
 function pagesPath(accountId: string): string {
   return `accounts/${accountId}/contentPages`;
@@ -48,7 +48,7 @@ function toSnapshot(id: string, d: Record<string, unknown>): KnowledgePageSnapsh
   };
 }
 
-export class FirebaseKnowledgePageRepository implements IKnowledgePageRepository {
+export class FirebaseKnowledgePageRepository implements KnowledgePageRepository {
   async save(page: KnowledgePage): Promise<void> {
     const snap = page.getSnapshot();
     const path = pagePath(snap.accountId, snap.id);

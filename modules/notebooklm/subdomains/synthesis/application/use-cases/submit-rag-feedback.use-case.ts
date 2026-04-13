@@ -7,13 +7,13 @@
 
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 
-import type { IRagQueryFeedbackRepository } from "../../domain/repositories/IRagQueryFeedbackRepository";
+import type { RagQueryFeedbackRepository } from "../../domain/repositories/RagQueryFeedbackRepository";
 import type { RagFeedbackRating, SubmitRagQueryFeedbackInput } from "../../domain/entities/rag-feedback.entities";
 
 const VALID_RATINGS: RagFeedbackRating[] = ["helpful", "not_helpful", "partially_helpful"];
 
 export class SubmitRagQueryFeedbackUseCase {
-  constructor(private readonly feedbackRepository: IRagQueryFeedbackRepository) {}
+  constructor(private readonly feedbackRepository: RagQueryFeedbackRepository) {}
 
   async execute(input: SubmitRagQueryFeedbackInput): Promise<CommandResult> {
     if (!input.traceId?.trim()) {

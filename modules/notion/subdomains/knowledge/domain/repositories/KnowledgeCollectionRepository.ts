@@ -6,7 +6,7 @@
 
 import type { KnowledgeCollection } from "../aggregates/KnowledgeCollection";
 
-export interface IKnowledgeCollectionRepository {
+export interface KnowledgeCollectionRepository {
   save(collection: KnowledgeCollection): Promise<void>;
   findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null>;
   listByAccountId(accountId: string): Promise<KnowledgeCollection[]>;

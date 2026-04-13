@@ -1,3 +1,3 @@
-export type { ICommentRepository, CreateCommentInput, UpdateCommentInput, ResolveCommentInput, CommentUnsubscribe } from "./ICommentRepository";
-export type { IVersionRepository, CreateVersionInput } from "./IVersionRepository";
-export type { IPermissionRepository, GrantPermissionInput } from "./IPermissionRepository";
+export type { CommentRepository, CreateCommentInput, UpdateCommentInput, ResolveCommentInput, CommentUnsubscribe } from "./CommentRepository";
+export type { VersionRepository, CreateVersionInput } from "./VersionRepository";
+export type { PermissionRepository, GrantPermissionInput } from "./PermissionRepository";

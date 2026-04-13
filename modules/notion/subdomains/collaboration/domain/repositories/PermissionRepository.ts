@@ -1,7 +1,7 @@
 /**
  * Module: notion/subdomains/collaboration
  * Layer: domain/repositories
- * Contract: IPermissionRepository
+ * Contract: PermissionRepository
  */
 
 import type { PermissionSnapshot, PermissionLevel, PrincipalType } from "../aggregates/Permission";
@@ -19,7 +19,7 @@ export interface GrantPermissionInput {
   readonly linkToken?: string | null;
 }
 
-export interface IPermissionRepository {
+export interface PermissionRepository {
   grant(input: GrantPermissionInput): Promise<PermissionSnapshot>;
   revoke(accountId: string, permissionId: string): Promise<void>;
   findById(accountId: string, permissionId: string): Promise<PermissionSnapshot | null>;

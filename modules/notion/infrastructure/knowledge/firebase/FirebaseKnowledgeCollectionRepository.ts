@@ -1,7 +1,7 @@
 /**
  * Module: notion/subdomains/knowledge
  * Layer: infrastructure/firebase
- * Purpose: Firebase adapter implementing IKnowledgeCollectionRepository.
+ * Purpose: Firebase adapter implementing KnowledgeCollectionRepository.
  * Firestore path: accounts/{accountId}/knowledgeCollections/{collectionId}
  */
 
@@ -10,7 +10,7 @@ import {
 } from "@/modules/platform/api";
 import { KnowledgeCollection } from "../../../subdomains/knowledge/domain/aggregates/KnowledgeCollection";
 import type { KnowledgeCollectionSnapshot } from "../../../subdomains/knowledge/domain/aggregates/KnowledgeCollection";
-import type { IKnowledgeCollectionRepository } from "../../../subdomains/knowledge/domain/repositories/IKnowledgeCollectionRepository";
+import type { KnowledgeCollectionRepository } from "../../../subdomains/knowledge/domain/repositories/KnowledgeCollectionRepository";
 
 function collectionsPath(accountId: string): string {
   return `accounts/${accountId}/knowledgeCollections`;
@@ -37,7 +37,7 @@ function toSnapshot(id: string, d: Record<string, unknown>): KnowledgeCollection
   };
 }
 
-export class FirebaseKnowledgeCollectionRepository implements IKnowledgeCollectionRepository {
+export class FirebaseKnowledgeCollectionRepository implements KnowledgeCollectionRepository {
   async save(coll: KnowledgeCollection): Promise<void> {
     const snap = coll.getSnapshot();
     const path = collectionPath(snap.accountId, snap.id);

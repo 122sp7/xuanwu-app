@@ -43,7 +43,7 @@ export type {
 export type {
   CreateAutomationInput,
   UpdateAutomationInput,
-} from "../domain/repositories/IAutomationRepository";
+} from "../domain/repositories/AutomationRepository";
 
 // Application DTOs
 export type {

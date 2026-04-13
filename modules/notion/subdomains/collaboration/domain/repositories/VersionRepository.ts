@@ -1,7 +1,7 @@
 /**
  * Module: notion/subdomains/collaboration
  * Layer: domain/repositories
- * Contract: IVersionRepository
+ * Contract: VersionRepository
  */
 
 import type { VersionSnapshot } from "../aggregates/Version";
@@ -17,7 +17,7 @@ export interface CreateVersionInput {
   readonly createdByUserId: string;
 }
 
-export interface IVersionRepository {
+export interface VersionRepository {
   create(input: CreateVersionInput): Promise<VersionSnapshot>;
   delete(accountId: string, versionId: string): Promise<void>;
   findById(accountId: string, versionId: string): Promise<VersionSnapshot | null>;

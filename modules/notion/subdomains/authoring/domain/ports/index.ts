@@ -4,5 +4,5 @@
  * Re-exports repository contracts from domain/repositories/, making the Ports layer
  * explicitly visible in the directory structure.
  */
-export type { IArticleRepository as IArticlePort } from "../repositories/IArticleRepository";
-export type { ICategoryRepository as ICategoryPort } from "../repositories/ICategoryRepository";
+export type { ArticleRepository as IArticlePort } from "../repositories/ArticleRepository";
+export type { CategoryRepository as ICategoryPort } from "../repositories/CategoryRepository";

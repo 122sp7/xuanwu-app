@@ -7,7 +7,7 @@
 import { firestoreInfrastructureApi } from "@/modules/platform/api";
 import { v7 as generateId } from "@lib-uuid";
 import type { PermissionSnapshot, PermissionLevel, PrincipalType } from "../../../subdomains/collaboration/domain/aggregates/Permission";
-import type { IPermissionRepository, GrantPermissionInput } from "../../../subdomains/collaboration/domain/repositories/IPermissionRepository";
+import type { PermissionRepository, GrantPermissionInput } from "../../../subdomains/collaboration/domain/repositories/PermissionRepository";
 
 function permissionsPath(accountId: string): string {
   return `accounts/${accountId}/collaborationPermissions`;
@@ -34,7 +34,7 @@ function toPermission(id: string, data: Record<string, unknown>): PermissionSnap
   };
 }
 
-export class FirebasePermissionRepository implements IPermissionRepository {
+export class FirebasePermissionRepository implements PermissionRepository {
   async grant(input: GrantPermissionInput): Promise<PermissionSnapshot> {
     const id = generateId();
     const now = new Date().toISOString();

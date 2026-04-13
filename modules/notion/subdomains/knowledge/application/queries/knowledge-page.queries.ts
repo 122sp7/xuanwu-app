@@ -1,5 +1,5 @@
 import type { KnowledgePageSnapshot, KnowledgePageTreeNode } from "../../domain/aggregates/KnowledgePage";
-import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+import type { KnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
 
 export function buildKnowledgePageTree(pages: KnowledgePageSnapshot[]): KnowledgePageTreeNode[] {
   const map = new Map<string, KnowledgePageTreeNode>();
@@ -24,7 +24,7 @@ export function buildKnowledgePageTree(pages: KnowledgePageSnapshot[]): Knowledg
 }
 
 export class GetKnowledgePageUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
   async execute(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {
     if (!accountId.trim() || !pageId.trim()) return null;
@@ -33,7 +33,7 @@ export class GetKnowledgePageUseCase {
 }
 
 export class ListKnowledgePagesUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
   async execute(accountId: string): Promise<KnowledgePageSnapshot[]> {
     if (!accountId.trim()) return [];
@@ -42,7 +42,7 @@ export class ListKnowledgePagesUseCase {
 }
 
 export class ListKnowledgePagesByWorkspaceUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
   async execute(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]> {
     if (!accountId.trim() || !workspaceId.trim()) return [];
@@ -51,7 +51,7 @@ export class ListKnowledgePagesByWorkspaceUseCase {
 }
 
 export class GetKnowledgePageTreeUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
   async execute(accountId: string): Promise<KnowledgePageTreeNode[]> {
     if (!accountId.trim()) return [];
@@ -61,7 +61,7 @@ export class GetKnowledgePageTreeUseCase {
 }
 
 export class GetKnowledgePageTreeByWorkspaceUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
   async execute(accountId: string, workspaceId: string): Promise<KnowledgePageTreeNode[]> {
     if (!accountId.trim() || !workspaceId.trim()) return [];

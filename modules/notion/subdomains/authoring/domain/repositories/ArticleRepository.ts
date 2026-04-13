@@ -6,7 +6,7 @@
 
 import type { ArticleSnapshot, ArticleStatus } from "../aggregates/Article";
 
-export interface IArticleRepository {
+export interface ArticleRepository {
   getById(accountId: string, articleId: string): Promise<ArticleSnapshot | null>;
   list(params: {
     accountId: string;

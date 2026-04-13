@@ -8,7 +8,7 @@ import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-
 import { v7 as generateId } from "@lib-uuid";
 
 import { KnowledgePage } from "../../domain/aggregates/KnowledgePage";
-import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+import type { KnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
 import {
   CreateKnowledgePageSchema,
   type CreateKnowledgePageDto,
@@ -33,7 +33,7 @@ export {
 } from "../queries/knowledge-page.queries";
 
 export class CreateKnowledgePageUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
   async execute(input: CreateKnowledgePageDto): Promise<CommandResult> {
     const parsed = CreateKnowledgePageSchema.safeParse(input);
@@ -56,7 +56,7 @@ export class CreateKnowledgePageUseCase {
 }
 
 export class RenameKnowledgePageUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
   async execute(input: RenameKnowledgePageDto): Promise<CommandResult> {
     const parsed = RenameKnowledgePageSchema.safeParse(input);
@@ -72,7 +72,7 @@ export class RenameKnowledgePageUseCase {
 }
 
 export class MoveKnowledgePageUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
   async execute(input: MoveKnowledgePageDto): Promise<CommandResult> {
     const parsed = MoveKnowledgePageSchema.safeParse(input);
@@ -91,7 +91,7 @@ export class MoveKnowledgePageUseCase {
 }
 
 export class ArchiveKnowledgePageUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
   async execute(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
     const parsed = ArchiveKnowledgePageSchema.safeParse(input);
@@ -107,7 +107,7 @@ export class ArchiveKnowledgePageUseCase {
 }
 
 export class ReorderKnowledgePageBlocksUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
   async execute(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
     const parsed = ReorderKnowledgePageBlocksSchema.safeParse(input);

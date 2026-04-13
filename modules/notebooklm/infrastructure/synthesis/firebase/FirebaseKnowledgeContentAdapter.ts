@@ -1,7 +1,7 @@
 /**
  * Module: notebooklm/subdomains/synthesis
  * Layer: infrastructure/firebase
- * Purpose: FirebaseKnowledgeContentAdapter — implements IKnowledgeContentRepository via
+ * Purpose: FirebaseKnowledgeContentAdapter — implements KnowledgeContentRepository via
  *          Firebase Functions calls (RAG query, reindex) and Firestore reads
  *          (list parsed documents).
  *
@@ -16,12 +16,12 @@ import {
 } from "@/modules/platform/api";
 
 import type {
-  IKnowledgeContentRepository,
+  KnowledgeContentRepository,
   KnowledgeCitation,
   KnowledgeParsedDocument,
   KnowledgeRagQueryResult,
   KnowledgeReindexInput,
-} from "../../../subdomains/synthesis/domain/repositories/IKnowledgeContentRepository";
+} from "../../../subdomains/synthesis/domain/repositories/KnowledgeContentRepository";
 
 const FUNCTIONS_REGION = "asia-southeast1";
 
@@ -113,7 +113,7 @@ function mapToParsedDocument(id: string, data: Record<string, unknown>): Knowled
 
 // --- Adapter ------------------------------------------------------------------
 
-export class FirebaseKnowledgeContentAdapter implements IKnowledgeContentRepository {
+export class FirebaseKnowledgeContentAdapter implements KnowledgeContentRepository {
   async runRagQuery(
     query: string,
     accountId: string,

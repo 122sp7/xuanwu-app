@@ -2,7 +2,7 @@ import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-
 import { v7 as generateId } from "@lib-uuid";
 import { KnowledgeCollection } from "../../domain/aggregates/KnowledgeCollection";
 import type { CollectionColumn } from "../../domain/aggregates/KnowledgeCollection";
-import type { IKnowledgeCollectionRepository } from "../../domain/repositories/IKnowledgeCollectionRepository";
+import type { KnowledgeCollectionRepository } from "../../domain/repositories/KnowledgeCollectionRepository";
 import {
   CreateKnowledgeCollectionSchema, type CreateKnowledgeCollectionDto,
   RenameKnowledgeCollectionSchema, type RenameKnowledgeCollectionDto,
@@ -20,7 +20,7 @@ export {
 } from "../queries/knowledge-collection.queries";
 
 export class CreateKnowledgeCollectionUseCase {
-  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
   async execute(input: CreateKnowledgeCollectionDto): Promise<CommandResult> {
     const parsed = CreateKnowledgeCollectionSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
@@ -38,7 +38,7 @@ export class CreateKnowledgeCollectionUseCase {
 }
 
 export class RenameKnowledgeCollectionUseCase {
-  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
   async execute(input: RenameKnowledgeCollectionDto): Promise<CommandResult> {
     const parsed = RenameKnowledgeCollectionSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
@@ -52,7 +52,7 @@ export class RenameKnowledgeCollectionUseCase {
 }
 
 export class AddPageToCollectionUseCase {
-  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
   async execute(input: AddPageToCollectionDto): Promise<CommandResult> {
     const parsed = AddPageToCollectionSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
@@ -66,7 +66,7 @@ export class AddPageToCollectionUseCase {
 }
 
 export class RemovePageFromCollectionUseCase {
-  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
   async execute(input: RemovePageFromCollectionDto): Promise<CommandResult> {
     const parsed = RemovePageFromCollectionSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
@@ -80,7 +80,7 @@ export class RemovePageFromCollectionUseCase {
 }
 
 export class AddCollectionColumnUseCase {
-  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
   async execute(input: AddCollectionColumnDto): Promise<CommandResult> {
     const parsed = AddCollectionColumnSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
@@ -94,7 +94,7 @@ export class AddCollectionColumnUseCase {
 }
 
 export class ArchiveKnowledgeCollectionUseCase {
-  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
   async execute(input: ArchiveKnowledgeCollectionDto): Promise<CommandResult> {
     const parsed = ArchiveKnowledgeCollectionSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);

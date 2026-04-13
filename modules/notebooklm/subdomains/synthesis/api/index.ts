@@ -76,18 +76,18 @@ export type {
 
 export type { RagRetrievedChunk, RagCitation, RagRetrievalSummary } from "../domain/entities/retrieval.entities";
 export type { IVectorStore, VectorDocument, VectorSearchResult } from "../domain/ports/IVectorStore";
-export type { IRagRetrievalRepository, RetrieveChunksInput as LegacyRetrieveChunksInput } from "../domain/repositories/IRagRetrievalRepository";
+export type { RagRetrievalRepository, RetrieveChunksInput as LegacyRetrieveChunksInput } from "../domain/repositories/RagRetrievalRepository";
 export type {
-  IKnowledgeContentRepository,
+  KnowledgeContentRepository,
   KnowledgeCitation,
   KnowledgeParsedDocument,
   KnowledgeRagQueryResult,
   KnowledgeReindexInput,
-} from "../domain/repositories/IKnowledgeContentRepository";
+} from "../domain/repositories/KnowledgeContentRepository";
 
 export type { AnswerRagQueryInput, AnswerRagQueryOutput, AnswerRagQueryResult, RagStreamEvent } from "../domain/entities/rag-query.entities";
 export type { RagQueryFeedback, RagFeedbackRating, SubmitRagQueryFeedbackInput } from "../domain/entities/rag-feedback.entities";
-export type { IRagQueryFeedbackRepository } from "../domain/repositories/IRagQueryFeedbackRepository";
+export type { RagQueryFeedbackRepository } from "../domain/repositories/RagQueryFeedbackRepository";
 
 export type {
   GenerateRagAnswerInput,
@@ -95,7 +95,7 @@ export type {
   GenerateRagAnswerResult,
   GenerationCitation as LegacyGenerationCitation,
 } from "../domain/entities/generation.entities";
-export type { IRagGenerationRepository } from "../domain/repositories/IRagGenerationRepository";
+export type { RagGenerationRepository } from "../domain/repositories/RagGenerationRepository";
 
 // ── Use-case classes (for DI composition) ────────────────────────────────────
 
@@ -105,7 +105,7 @@ export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-r
 // ── Wiki convenience wrappers with default repository ────────────────────────
 
 import { FirebaseKnowledgeContentAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter";
-import type { KnowledgeParsedDocument, KnowledgeRagQueryResult, KnowledgeReindexInput } from "../domain/repositories/IKnowledgeContentRepository";
+import type { KnowledgeParsedDocument, KnowledgeRagQueryResult, KnowledgeReindexInput } from "../domain/repositories/KnowledgeContentRepository";
 
 let _knowledgeContentRepository: FirebaseKnowledgeContentAdapter | undefined;
 

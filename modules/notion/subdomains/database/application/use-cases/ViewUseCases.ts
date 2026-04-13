@@ -5,12 +5,12 @@
  */
 
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { IViewRepository } from "../../domain/repositories/IViewRepository";
+import type { ViewRepository } from "../../domain/repositories/ViewRepository";
 import { CreateViewSchema, UpdateViewSchema, DeleteViewSchema } from "../dto/DatabaseDto";
 import type { CreateViewDto, UpdateViewDto, DeleteViewDto } from "../dto/DatabaseDto";
 
 export class CreateViewUseCase {
-  constructor(private readonly repo: IViewRepository) {}
+  constructor(private readonly repo: ViewRepository) {}
   async execute(input: CreateViewDto): Promise<CommandResult> {
     const parsed = CreateViewSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
@@ -20,7 +20,7 @@ export class CreateViewUseCase {
 }
 
 export class UpdateViewUseCase {
-  constructor(private readonly repo: IViewRepository) {}
+  constructor(private readonly repo: ViewRepository) {}
   async execute(input: UpdateViewDto): Promise<CommandResult> {
     const parsed = UpdateViewSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
@@ -30,7 +30,7 @@ export class UpdateViewUseCase {
 }
 
 export class DeleteViewUseCase {
-  constructor(private readonly repo: IViewRepository) {}
+  constructor(private readonly repo: ViewRepository) {}
   async execute(input: DeleteViewDto): Promise<CommandResult> {
     const parsed = DeleteViewSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);

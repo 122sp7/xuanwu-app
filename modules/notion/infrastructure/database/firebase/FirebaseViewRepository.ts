@@ -1,7 +1,7 @@
 /**
  * Module: notion/subdomains/database
  * Layer: infrastructure/firebase
- * Purpose: Firestore implementation of IViewRepository.
+ * Purpose: Firestore implementation of ViewRepository.
  *          Firestore path: accounts/{accountId}/knowledgeDatabases/{databaseId}/views/{viewId}
  */
 
@@ -9,7 +9,7 @@ import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api";
 import { v7 as generateId } from "@lib-uuid";
-import type { IViewRepository, CreateViewInput, UpdateViewInput } from "../../../subdomains/database/domain/repositories/IViewRepository";
+import type { ViewRepository, CreateViewInput, UpdateViewInput } from "../../../subdomains/database/domain/repositories/ViewRepository";
 import type { ViewSnapshot } from "../../../subdomains/database/domain/aggregates/View";
 
 function viewsPath(accountId: string, databaseId: string): string {
@@ -52,7 +52,7 @@ function toSnapshot(id: string, data: Record<string, any>): ViewSnapshot {
   };
 }
 
-export class FirebaseViewRepository implements IViewRepository {
+export class FirebaseViewRepository implements ViewRepository {
   async create(input: CreateViewInput): Promise<ViewSnapshot> {
     const id = generateId();
     const now = new Date().toISOString();

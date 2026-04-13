@@ -1,14 +1,14 @@
 /**
  * Module: notion/subdomains/knowledge
  * Layer: infrastructure/firebase
- * Purpose: Firebase adapter implementing IBacklinkIndexRepository.
+ * Purpose: Firebase adapter implementing BacklinkIndexRepository.
  * Firestore paths:
  *   accounts/{accountId}/backlinkIndex/{targetPageId}
  *   accounts/{accountId}/backlinkOutbound/{sourcePageId}
  */
 
 import { firestoreInfrastructureApi } from "@/modules/platform/api";
-import type { IBacklinkIndexRepository, UpsertBacklinkEntriesInput, RemoveBacklinksFromSourceInput } from "../../../subdomains/knowledge/domain/repositories/IBacklinkIndexRepository";
+import type { BacklinkIndexRepository, UpsertBacklinkEntriesInput, RemoveBacklinksFromSourceInput } from "../../../subdomains/knowledge/domain/repositories/BacklinkIndexRepository";
 import { BacklinkIndex } from "../../../subdomains/knowledge/domain/aggregates/BacklinkIndex";
 import type { BacklinkEntry, BacklinkIndexSnapshot } from "../../../subdomains/knowledge/domain/aggregates/BacklinkIndex";
 
@@ -32,7 +32,7 @@ function toEntries(raw: unknown): BacklinkEntry[] {
     }));
 }
 
-export class FirebaseBacklinkIndexRepository implements IBacklinkIndexRepository {
+export class FirebaseBacklinkIndexRepository implements BacklinkIndexRepository {
   async upsertFromSource(input: UpsertBacklinkEntriesInput): Promise<void> {
     const { accountId, targetPageId, sourcePageId, entries } = input;
     const existingIndex = await firestoreInfrastructureApi.get<Record<string, unknown>>(

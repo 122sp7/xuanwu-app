@@ -6,7 +6,7 @@
 
 import type { ContentBlock } from "../aggregates/ContentBlock";
 
-export interface IContentBlockRepository {
+export interface ContentBlockRepository {
   save(block: ContentBlock): Promise<void>;
   findById(accountId: string, blockId: string): Promise<ContentBlock | null>;
   listByPageId(accountId: string, pageId: string): Promise<ContentBlock[]>;

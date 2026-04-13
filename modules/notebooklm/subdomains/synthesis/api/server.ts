@@ -14,7 +14,7 @@ import type {
   KnowledgeParsedDocument,
   KnowledgeRagQueryResult,
   KnowledgeReindexInput,
-} from "../domain/repositories/IKnowledgeContentRepository";
+} from "../domain/repositories/KnowledgeContentRepository";
 
 export { PlatformRagGenerationAdapter } from "../../../infrastructure/synthesis/platform/PlatformRagGenerationAdapter";
 

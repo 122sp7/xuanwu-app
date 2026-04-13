@@ -1,7 +1,7 @@
 /**
  * Module: notebooklm/subdomains/synthesis
  * Layer: infrastructure/firebase
- * Purpose: FirebaseRagRetrievalAdapter — implements IRagRetrievalRepository
+ * Purpose: FirebaseRagRetrievalAdapter — implements RagRetrievalRepository
  *          using Firestore collectionGroup queries for document-scoped chunks.
  *
  * Retrieval strategy:
@@ -15,7 +15,7 @@
 import { firestoreInfrastructureApi } from "@/modules/platform/api";
 
 import type { RagRetrievedChunk } from "../../../subdomains/synthesis/domain/entities/retrieval.entities";
-import type { IRagRetrievalRepository, RetrieveChunksInput } from "../../../subdomains/synthesis/domain/repositories/IRagRetrievalRepository";
+import type { RagRetrievalRepository, RetrieveChunksInput } from "../../../subdomains/synthesis/domain/repositories/RagRetrievalRepository";
 
 // --- Firestore document shapes -----------------------------------------------
 
@@ -68,7 +68,7 @@ function computeTokenOverlapScore(queryTokens: readonly string[], chunkText: str
 
 // --- Adapter ------------------------------------------------------------------
 
-export class FirebaseRagRetrievalAdapter implements IRagRetrievalRepository {
+export class FirebaseRagRetrievalAdapter implements RagRetrievalRepository {
   async retrieve(input: RetrieveChunksInput): Promise<readonly RagRetrievedChunk[]> {
     // Step 1 — resolve ready document IDs in scope
     const documentSnapshots = await firestoreInfrastructureApi.queryCollectionGroup<FirestoreRagDocument>(

@@ -3,7 +3,7 @@
  * Layer: domain/ports
  * Purpose: IFeedbackPort — output port for persisting quality feedback.
  *
- * Migration source: ai/domain/repositories/IRagQueryFeedbackRepository.ts
+ * Migration source: ai/domain/repositories/RagQueryFeedbackRepository.ts
  */
 
 import type { QualityFeedback, SubmitFeedbackInput } from "../entities/QualityFeedback";

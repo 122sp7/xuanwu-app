@@ -1,7 +1,7 @@
 /**
  * Module: notion/subdomains/collaboration
  * Layer: domain/repositories
- * Contract: ICommentRepository
+ * Contract: CommentRepository
  *
  * Owned by the domain layer. Implemented in infrastructure/firebase/.
  */
@@ -34,7 +34,7 @@ export interface ResolveCommentInput {
   readonly resolvedByUserId: string;
 }
 
-export interface ICommentRepository {
+export interface CommentRepository {
   create(input: CreateCommentInput): Promise<CommentSnapshot>;
   update(input: UpdateCommentInput): Promise<CommentSnapshot | null>;
   resolve(input: ResolveCommentInput): Promise<CommentSnapshot | null>;

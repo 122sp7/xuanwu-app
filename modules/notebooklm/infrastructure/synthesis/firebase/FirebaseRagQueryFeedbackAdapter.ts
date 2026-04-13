@@ -1,7 +1,7 @@
 /**
  * Module: notebooklm/subdomains/synthesis
  * Layer: infrastructure/firebase
- * Purpose: FirebaseRagQueryFeedbackAdapter — implements IRagQueryFeedbackRepository
+ * Purpose: FirebaseRagQueryFeedbackAdapter — implements RagQueryFeedbackRepository
  *          using Firestore (client SDK) for feedback persistence.
  *
  * Firestore collection: ragQueryFeedback/{autoId}
@@ -10,7 +10,7 @@
 import { v7 as generateId } from "@lib-uuid";
 import { firestoreInfrastructureApi } from "@/modules/platform/api";
 
-import type { IRagQueryFeedbackRepository } from "../../../subdomains/synthesis/domain/repositories/IRagQueryFeedbackRepository";
+import type { RagQueryFeedbackRepository } from "../../../subdomains/synthesis/domain/repositories/RagQueryFeedbackRepository";
 import type {
   RagQueryFeedback,
   SubmitRagQueryFeedbackInput,
@@ -30,7 +30,7 @@ interface FirestoreFeedbackDoc {
   readonly submittedAtISO: string;
 }
 
-export class FirebaseRagQueryFeedbackAdapter implements IRagQueryFeedbackRepository {
+export class FirebaseRagQueryFeedbackAdapter implements RagQueryFeedbackRepository {
   async save(input: SubmitRagQueryFeedbackInput): Promise<RagQueryFeedback> {
     const id = generateId();
     const submittedAtISO = new Date().toISOString();

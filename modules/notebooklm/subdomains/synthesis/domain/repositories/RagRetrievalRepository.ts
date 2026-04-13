@@ -1,7 +1,7 @@
 /**
  * Module: notebooklm/subdomains/synthesis
  * Layer: domain/repositories
- * Purpose: IRagRetrievalRepository — output port for chunk retrieval.
+ * Purpose: RagRetrievalRepository — output port for chunk retrieval.
  *
  * Design notes:
  * - The domain defines the contract; Firebase / Upstash / etc. implement it.
@@ -18,6 +18,6 @@ export interface RetrieveChunksInput {
   readonly topK: number;
 }
 
-export interface IRagRetrievalRepository {
+export interface RagRetrievalRepository {
   retrieve(input: RetrieveChunksInput): Promise<readonly RagRetrievedChunk[]>;
 }

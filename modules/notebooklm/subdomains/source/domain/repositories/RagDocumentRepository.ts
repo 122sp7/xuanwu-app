@@ -1,12 +1,12 @@
 /**
  * Module: notebooklm/subdomains/source
  * Layer: domain/repositories
- * Port: IRagDocumentRepository — persistence contract for RagDocumentRecord.
+ * Port: RagDocumentRepository — persistence contract for RagDocumentRecord.
  */
 
 import type { RagDocumentRecord } from "../entities/RagDocument";
 
-export interface IRagDocumentRepository {
+export interface RagDocumentRepository {
   findByStoragePath(scope: {
     readonly organizationId: string;
     readonly workspaceId: string;

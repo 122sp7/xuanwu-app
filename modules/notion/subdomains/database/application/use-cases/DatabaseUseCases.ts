@@ -5,12 +5,12 @@
  */
 
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { IDatabaseRepository } from "../../domain/repositories/IDatabaseRepository";
+import type { DatabaseRepository } from "../../domain/repositories/DatabaseRepository";
 import { CreateDatabaseSchema, UpdateDatabaseSchema, AddFieldSchema, ArchiveDatabaseSchema } from "../dto/DatabaseDto";
 import type { CreateDatabaseDto, UpdateDatabaseDto, AddFieldDto, ArchiveDatabaseDto } from "../dto/DatabaseDto";
 
 export class CreateDatabaseUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
+  constructor(private readonly repo: DatabaseRepository) {}
   async execute(input: CreateDatabaseDto): Promise<CommandResult> {
     const parsed = CreateDatabaseSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
@@ -20,7 +20,7 @@ export class CreateDatabaseUseCase {
 }
 
 export class UpdateDatabaseUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
+  constructor(private readonly repo: DatabaseRepository) {}
   async execute(input: UpdateDatabaseDto): Promise<CommandResult> {
     const parsed = UpdateDatabaseSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
@@ -30,7 +30,7 @@ export class UpdateDatabaseUseCase {
 }
 
 export class AddFieldUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
+  constructor(private readonly repo: DatabaseRepository) {}
   async execute(input: AddFieldDto): Promise<CommandResult> {
     const parsed = AddFieldSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
@@ -40,7 +40,7 @@ export class AddFieldUseCase {
 }
 
 export class ArchiveDatabaseUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
+  constructor(private readonly repo: DatabaseRepository) {}
   async execute(input: ArchiveDatabaseDto): Promise<CommandResult> {
     const parsed = ArchiveDatabaseSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);

@@ -1,5 +1,5 @@
 /**
- * IIngestionJobRepository — output port (driven port) for ingestion job persistence.
+ * IngestionJobRepository — output port (driven port) for ingestion job persistence.
  *
  * Implementations live in the adapters layer (InMemoryIngestionJobRepository,
  * FirebaseIngestionJobRepository, …). The domain core depends only on this interface.
@@ -7,7 +7,7 @@
 
 import type { IngestionJob, IngestionStatus } from "../entities/IngestionJob";
 
-export interface IIngestionJobRepository {
+export interface IngestionJobRepository {
   /** Retrieve a job by its associated document id. Returns null if not found. */
   findByDocumentId(documentId: string): Promise<IngestionJob | null>;
 

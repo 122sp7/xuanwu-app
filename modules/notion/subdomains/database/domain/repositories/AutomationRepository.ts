@@ -34,7 +34,7 @@ export interface UpdateAutomationInput {
   actions?: AutomationAction[];
 }
 
-export interface IAutomationRepository {
+export interface AutomationRepository {
   create(input: CreateAutomationInput): Promise<DatabaseAutomationSnapshot>;
   update(input: UpdateAutomationInput): Promise<DatabaseAutomationSnapshot | null>;
   delete(id: string, accountId: string, databaseId: string): Promise<void>;

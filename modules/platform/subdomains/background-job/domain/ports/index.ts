@@ -5,4 +5,4 @@
  * the Ports layer explicitly visible in the directory structure.
  * New code should import port interfaces from this directory.
  */
-export type { IIngestionJobRepository as IIngestionJobPort } from "../repositories/IIngestionJobRepository";
+export type { IngestionJobRepository as IIngestionJobPort } from "../repositories/IngestionJobRepository";

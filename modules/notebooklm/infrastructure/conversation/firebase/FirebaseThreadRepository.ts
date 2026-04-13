@@ -9,7 +9,7 @@
 import { firestoreInfrastructureApi } from "@/modules/platform/api";
 import type { Thread } from "../../../subdomains/conversation/domain/entities/thread";
 import type { Message } from "../../../subdomains/conversation/domain/entities/message";
-import type { IThreadRepository } from "../../../subdomains/conversation/domain/repositories/IThreadRepository";
+import type { ThreadRepository } from "../../../subdomains/conversation/domain/repositories/ThreadRepository";
 
 function threadPath(accountId: string, threadId: string): string {
   return `accounts/${accountId}/threads/${threadId}`;
@@ -36,7 +36,7 @@ function toThread(id: string, data: Record<string, unknown>): Thread {
   };
 }
 
-export class FirebaseThreadRepository implements IThreadRepository {
+export class FirebaseThreadRepository implements ThreadRepository {
   async save(accountId: string, thread: Thread): Promise<void> {
     await firestoreInfrastructureApi.set(threadPath(accountId, thread.id), {
       id: thread.id,

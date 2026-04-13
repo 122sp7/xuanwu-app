@@ -7,7 +7,7 @@
 
 // Aggregate snapshot types
 export type { CommentSnapshot, SelectionRange, ContentType, CommentId } from "../domain/aggregates/Comment";
-export type { CommentUnsubscribe } from "../domain/repositories/ICommentRepository";
+export type { CommentUnsubscribe } from "../domain/repositories/CommentRepository";
 export type { VersionSnapshot, VersionId } from "../domain/aggregates/Version";
 export type { PermissionSnapshot, PermissionLevel, PrincipalType, PermissionId } from "../domain/aggregates/Permission";
 

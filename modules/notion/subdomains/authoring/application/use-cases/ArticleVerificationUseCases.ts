@@ -7,11 +7,11 @@
 import type { z } from "@lib-zod";
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import { Article } from "../../domain/aggregates/Article";
-import type { IArticleRepository } from "../../domain/repositories/IArticleRepository";
+import type { ArticleRepository } from "../../domain/repositories/ArticleRepository";
 import { VerifyArticleSchema, RequestArticleReviewSchema } from "../dto/ArticleDto";
 
 export class VerifyArticleUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
+  constructor(private readonly repo: ArticleRepository) {}
 
   async execute(input: z.infer<typeof VerifyArticleSchema>): Promise<CommandResult> {
     const parsed = VerifyArticleSchema.safeParse(input);
@@ -28,7 +28,7 @@ export class VerifyArticleUseCase {
 }
 
 export class RequestArticleReviewUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
+  constructor(private readonly repo: ArticleRepository) {}
 
   async execute(input: z.infer<typeof RequestArticleReviewSchema>): Promise<CommandResult> {
     const parsed = RequestArticleReviewSchema.safeParse(input);

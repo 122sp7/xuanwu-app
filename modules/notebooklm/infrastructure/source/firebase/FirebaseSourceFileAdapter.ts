@@ -1,7 +1,7 @@
 /**
  * Module: notebooklm/subdomains/source
  * Layer: infrastructure/firebase
- * Adapter: FirebaseSourceFileAdapter — Firestore implementation of ISourceFileRepository.
+ * Adapter: FirebaseSourceFileAdapter — Firestore implementation of SourceFileRepository.
  *
  * Collections:
  *   workspaceFiles/{fileId}
@@ -12,7 +12,7 @@ import { firestoreInfrastructureApi } from "@/modules/platform/api";
 
 import type { SourceFile } from "../../../subdomains/source/domain/entities/SourceFile";
 import type { SourceFileVersion } from "../../../subdomains/source/domain/entities/SourceFileVersion";
-import type { ISourceFileRepository, ListSourceFilesScope } from "../../../subdomains/source/domain/repositories/ISourceFileRepository";
+import type { SourceFileRepository, ListSourceFilesScope } from "../../../subdomains/source/domain/repositories/SourceFileRepository";
 
 const FILE_COLLECTION = "workspaceFiles";
 const VERSION_SUBCOLLECTION = "versions";
@@ -69,7 +69,7 @@ function toSourceFileVersionEntity(versionId: string, data: Record<string, unkno
   };
 }
 
-export class FirebaseSourceFileAdapter implements ISourceFileRepository {
+export class FirebaseSourceFileAdapter implements SourceFileRepository {
   async findById(fileId: string): Promise<SourceFile | null> {
     const normalizedId = fileId.trim();
     if (!normalizedId) return null;

@@ -5,10 +5,10 @@
  */
 
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IAutomationRepository, CreateAutomationInput, UpdateAutomationInput } from "../../domain/repositories/IAutomationRepository";
+import type { AutomationRepository, CreateAutomationInput, UpdateAutomationInput } from "../../domain/repositories/AutomationRepository";
 
 export class CreateAutomationUseCase {
-  constructor(private readonly repo: IAutomationRepository) {}
+  constructor(private readonly repo: AutomationRepository) {}
 
   async execute(input: CreateAutomationInput): Promise<CommandResult> {
     if (!input.name.trim()) {
@@ -20,7 +20,7 @@ export class CreateAutomationUseCase {
 }
 
 export class UpdateAutomationUseCase {
-  constructor(private readonly repo: IAutomationRepository) {}
+  constructor(private readonly repo: AutomationRepository) {}
 
   async execute(input: UpdateAutomationInput): Promise<CommandResult> {
     const result = await this.repo.update(input);
@@ -30,7 +30,7 @@ export class UpdateAutomationUseCase {
 }
 
 export class DeleteAutomationUseCase {
-  constructor(private readonly repo: IAutomationRepository) {}
+  constructor(private readonly repo: AutomationRepository) {}
 
   async execute(id: string, accountId: string, databaseId: string): Promise<CommandResult> {
     await this.repo.delete(id, accountId, databaseId);
