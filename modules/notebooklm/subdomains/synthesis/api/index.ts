@@ -97,49 +97,11 @@ export type {
 } from "../domain/entities/generation.entities";
 export type { RagGenerationRepository } from "../domain/repositories/RagGenerationRepository";
 
-// ── Use-case classes (for DI composition) ────────────────────────────────────
+// ── Use-case classes (for DI composition within synthesis subdomain) ──────────
 
 export { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
 export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-rag-feedback.use-case";
 
-// ── Wiki convenience wrappers with default repository ────────────────────────
-
-import { FirebaseKnowledgeContentAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter";
-import type { KnowledgeParsedDocument, KnowledgeRagQueryResult, KnowledgeReindexInput } from "../domain/repositories/KnowledgeContentRepository";
-
-let _knowledgeContentRepository: FirebaseKnowledgeContentAdapter | undefined;
-
-function getKnowledgeContentRepository(): FirebaseKnowledgeContentAdapter {
-  if (!_knowledgeContentRepository) {
-    _knowledgeContentRepository = new FirebaseKnowledgeContentAdapter();
-  }
-  return _knowledgeContentRepository;
-}
-
-export function runKnowledgeRagQuery(
-  query: string,
-  accountId: string,
-  workspaceId: string,
-  topK = 4,
-  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
-): Promise<KnowledgeRagQueryResult> {
-  return getKnowledgeContentRepository().runRagQuery(query, accountId, workspaceId, topK, options);
-}
-
-export function reindexKnowledgeDocument(input: KnowledgeReindexInput): Promise<void> {
-  return getKnowledgeContentRepository().reindexDocument(input);
-}
-
-export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20): Promise<KnowledgeParsedDocument[]> {
-  return getKnowledgeContentRepository().listParsedDocuments(accountId, limitCount);
-}
-
-// ── Infrastructure adapters (client-safe, for composition roots) ─────────────
-
-export { FirebaseRagRetrievalAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseRagRetrievalAdapter";
-export { FirebaseKnowledgeContentAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter";
-export { FirebaseRagQueryFeedbackAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseRagQueryFeedbackAdapter";
-
-// ── UI components ────────────────────────────────────────────────────────────
+// ── UI components (downstream surface for workspace composition) ─────────────
 
 export { RagQueryPanel } from "../../../interfaces/synthesis/components/RagQueryPanel";

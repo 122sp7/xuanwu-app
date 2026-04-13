@@ -3,7 +3,7 @@ import {
 } from "@/modules/platform/api";
 
 import type { WorkDemand } from "../../domain/types";
-import type { IDemandRepository } from "../../domain/repository";
+import type { DemandRepository } from "../../domain/repository";
 
 const DEMANDS_COLLECTION = "workspacePlannerDemands";
 
@@ -30,7 +30,7 @@ function toWorkDemand(id: string, data: Record<string, unknown>): WorkDemand {
   };
 }
 
-export class FirebaseDemandRepository implements IDemandRepository {
+export class FirebaseDemandRepository implements DemandRepository {
   private demandPath(id: string): string {
     return `${DEMANDS_COLLECTION}/${id}`;
   }
