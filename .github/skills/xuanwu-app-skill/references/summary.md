@@ -32,8 +32,8 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: app/**, modules/**, packages/**
-- Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, **/.gitkeep, *.test.ts, *.test.tsx, *.spec.ts, *.spec.tsx, **/__tests__/**, **/__mocks__/**, packages/ui-shadcn/ui/**, packages/lib-date-fns/**, packages/lib-dragdrop/**, packages/lib-react-markdown/**, packages/lib-remark-gfm/**, packages/lib-superjson/**, packages/lib-tanstack/**, packages/lib-uuid/**, packages/lib-xstate/**, packages/lib-zod/**, packages/lib-zustand/**, packages/lib-vis/**, packages/ui-vis/**
+- Only files matching these patterns are included: .github/agents/**, .github/prompts/**, .github/skills/**, docs/**, app/**, modules/**, packages/**, py_fn/**, AGENTS.md, package.json, repomix*.config.json
+- Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Content has been formatted for parsing in markdown style
@@ -42,23 +42,28 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1334 files | 29,847 lines
+1676 files | 46,106 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1125 | 23,842 |
-| TypeScript (TSX) | 134 | 3,788 |
-| Markdown | 74 | 2,170 |
+| TypeScript | 1142 | 24,172 |
+| Markdown | 246 | 14,928 |
+| TypeScript (TSX) | 183 | 4,568 |
+| Python | 61 | 1,404 |
+| No Extension | 30 | 35 |
+| JSON | 9 | 325 |
+| Shell | 2 | 602 |
+| Text | 2 | 25 |
 | CSS | 1 | 47 |
 
 **Largest files:**
+- `docs/hard-rules-consolidated.md` (420 lines)
+- `.github/skills/hexagonal-ddd/SKILL.md` (415 lines)
+- `.github/skills/playwright-mcp-testing/SKILL.md` (358 lines)
+- `AGENTS.md` (305 lines)
+- `.github/skills/deploy-to-vercel/resources/deploy-codex.sh` (301 lines)
+- `.github/skills/deploy-to-vercel/resources/deploy.sh` (301 lines)
+- `.github/skills/shadcn/SKILL.md` (296 lines)
+- `py_fn/README.md` (265 lines)
 - `modules/platform/api/contracts.ts` (219 lines)
-- `modules/platform/domain/ports/output/index.ts` (204 lines)
-- `modules/notion/AGENT.md` (156 lines)
-- `modules/notion/subdomains/knowledge/domain/events/KnowledgePageEvents.ts` (150 lines)
-- `modules/platform/subdomains/organization/domain/entities/Organization.ts` (132 lines)
-- `modules/notion/README.md` (128 lines)
-- `packages/shared-events/index.ts` (123 lines)
-- `modules/workspace/domain/aggregates/Workspace.ts` (115 lines)
-- `modules/notebooklm/AGENT.md` (115 lines)
-- `modules/platform/application/dtos/index.ts` (113 lines)
+- `.github/prompts/serena-hexagonal-ddd-refactor.prompt.md` (215 lines)
