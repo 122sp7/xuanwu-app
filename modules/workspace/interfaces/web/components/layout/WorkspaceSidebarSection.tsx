@@ -47,7 +47,7 @@ const WORKSPACE_LINK_ITEMS_BY_GROUP: Record<WorkspaceTabGroup, readonly TabLinkI
 };
 
 function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue): string {
-  return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
+  return `?tab=${encodeURIComponent(tab)}`;
 }
 
 function tTab(

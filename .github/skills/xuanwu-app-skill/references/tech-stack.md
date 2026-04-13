@@ -95,5 +95,5 @@
 
 - tsconfig.json
 - vitest.config.ts
-- package.json
 - eslint.config.mjs
+- package.json

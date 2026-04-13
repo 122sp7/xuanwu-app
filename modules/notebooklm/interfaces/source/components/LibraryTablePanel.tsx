@@ -12,7 +12,8 @@ import {
 } from "@lib-tanstack";
 import { draggable, dropTargetForElements, monitorForElements } from "@lib-dragdrop";
 
-import { getWikiLibrarySnapshot, listWikiLibraries, type WikiLibraryRow } from "../../../subdomains/source/api";
+import { getWikiLibrarySnapshot, listWikiLibraries } from "../composition/wiki-library-facade";
+import type { WikiLibraryRow } from "../../../subdomains/source/domain/entities/WikiLibrary";
 
 interface LibraryTablePanelProps {
   readonly accountId: string;

@@ -64,6 +64,12 @@ export function WorkspaceHubScreen({
     creatorUserId: currentUserId,
   });
 
+  const accountContextHref = accountId
+    ? accountType === "organization"
+      ? `/${encodeURIComponent(accountId)}`
+      : `/${encodeURIComponent(accountId)}/dashboard`
+    : "/";
+
   function resetCreateWorkspaceDialog() {
     setWorkspaceName("");
     clearCreateError();
@@ -214,7 +220,7 @@ export function WorkspaceHubScreen({
             <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
               目前這個帳號尚未建立任何工作區。你可以先完成{" "}
               <Link
-                href={accountId ? `/${encodeURIComponent(accountId)}/organization` : "/"}
+                href={accountContextHref}
                 className="font-medium text-primary hover:underline"
               >
                 組織情境

@@ -42,30 +42,30 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1638 files | 42,389 lines
+1669 files | 46,314 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1145 | 24,266 |
-| Markdown | 203 | 10,998 |
-| TypeScript (TSX) | 183 | 4,567 |
+| TypeScript | 1145 | 24,284 |
+| Markdown | 244 | 14,894 |
+| TypeScript (TSX) | 172 | 4,466 |
 | Python | 61 | 1,404 |
 | No Extension | 30 | 35 |
-| JSON | 7 | 836 |
+| JSON | 8 | 943 |
 | Text | 3 | 107 |
 | RULES | 2 | 18 |
-| JavaScript (ESM) | 2 | 47 |
+| JavaScript (ESM) | 2 | 52 |
 | CSS | 1 | 47 |
 | Other | 1 | 64 |
 
 **Largest files:**
+- `docs/hard-rules-consolidated.md` (453 lines)
 - `firestore.indexes.json` (437 lines)
-- `docs/hard-rules-consolidated.md` (420 lines)
 - `AGENTS.md` (305 lines)
 - `py_fn/README.md` (265 lines)
 - `modules/platform/api/contracts.ts` (224 lines)
 - `.github/prompts/serena-hexagonal-ddd-refactor.prompt.md` (215 lines)
 - `.github/prompts/enforce-hexagonal-ddd-convergence.prompt.md` (215 lines)
+- `.github/instructions/architecture.instructions.md` (211 lines)
 - `docs/bounded-context-subdomain-template.md` (206 lines)
 - `modules/platform/domain/ports/output/index.ts` (204 lines)
-- `docs/bounded-contexts.md` (190 lines)

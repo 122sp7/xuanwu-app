@@ -10,6 +10,8 @@ import tseslint from "typescript-eslint";
 const srcGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
 const tsGlobs = ["**/*.{ts,tsx}"];
 const moduleCodeGlobs = ["modules/**/*.{js,jsx,ts,tsx}"];
+const moduleApiGlobs = ["modules/*/api/**/*.{js,jsx,ts,tsx}", "modules/*/subdomains/*/api/**/*.{js,jsx,ts,tsx}"];
+const interfaceScreenGlobs = ["modules/*/**/interfaces/**/components/screens/**/*.{ts,tsx}"];
 const outerAdapterGlobs = ["app/**/*.{ts,tsx,js,jsx}", "providers/**/*.{ts,tsx,js,jsx}", "debug/**/*.{ts,tsx,js,jsx}"];
 const packageGlobs = ["packages/**/*.{ts,tsx,js,jsx}"];
 const downstreamInterfaceGlobs = [
@@ -52,6 +54,7 @@ const mapRulesToWarn = (rules = {}) =>
 
 const maxLinesRule = (max) => [WARN, { max, ...LINT_GUARDRAIL_OPTIONS }];
 const restrictedImportsRule = (patterns, extraOptions = {}) => [WARN, { patterns, ...extraOptions }];
+const restrictedSyntaxRule = (selectors) => [WARN, ...selectors];
 
 const mainDomainElements = [
   { type: "main-domain-api", pattern: "modules/*/api/**/*", mode: "file", capture: ["domain"] },
@@ -166,6 +169,24 @@ const internalLayerPatterns = [explicitIndex, ...moduleBoundaryPatterns, interna
 const downstreamInterfacePatterns = [...internalLayerPatterns, restrictedDownstreamInterfaceFirebase];
 const workspaceConsumerPatterns = [...downstreamInterfacePatterns, restrictedWorkspaceContextInternalImports];
 
+const restrictedRequireSyntax = [
+  {
+    selector: "CallExpression[callee.name='require']",
+    message: "require() in modules is a cyclic-dependency smell signal. Prefer ports, factories, or explicit dependency injection; keep lazy require only as a documented temporary workaround.",
+  },
+];
+
+const restrictedApiWildcardSyntax = [
+  {
+    selector: "ExportAllDeclaration[source.value=/^\\.\\.\\/application$/]",
+    message: "api/index.ts must not wildcard re-export application. Export explicit public contracts instead.",
+  },
+  {
+    selector: "ExportAllDeclaration[source.value=/^\\.\\.\\/interfaces$/]",
+    message: "api/index.ts must not wildcard re-export interfaces. Publish only focused UI or hook contracts explicitly.",
+  },
+];
+
 const legacyAliases = [
   { group: ["@/shared/*"], message: "Use @shared-types / @shared-utils / … instead." },
   { group: ["@/infrastructure/*"], message: "Use @integration-firebase / @integration-upstash / … instead." },
@@ -246,6 +267,8 @@ export default defineConfig([
   { files: ["modules/*/interfaces/**/*.{ts,tsx}"], rules: { "max-lines": maxLinesRule(300) } },
   { files: ["modules/*/application/**/*.{ts,tsx}"], rules: { "max-lines": maxLinesRule(300) } },
   { files: ["modules/*/infrastructure/**/*.{ts,tsx}"], rules: { "max-lines": maxLinesRule(400) } },
+  { files: moduleApiGlobs, rules: { "max-lines": maxLinesRule(140) } },
+  { files: interfaceScreenGlobs, rules: { "max-lines": maxLinesRule(240) } },
 
   // Legacy alias migration
   { rules: { "no-restricted-imports": restrictedImportsRule(legacyAliases) } },
@@ -260,6 +283,22 @@ export default defineConfig([
   {
     files: moduleCodeGlobs,
     rules: { "no-restricted-imports": restrictedImportsRule(internalLayerPatterns) },
+  },
+
+  // Cyclic-dependency smell signal: lazy require should remain exceptional, not normal composition.
+  {
+    files: moduleCodeGlobs,
+    rules: {
+      "no-restricted-syntax": restrictedSyntaxRule(restrictedRequireSyntax),
+    },
+  },
+
+  // Dependency-leakage smell signal: api boundaries must not wildcard re-export inner layers.
+  {
+    files: moduleApiGlobs,
+    rules: {
+      "no-restricted-syntax": restrictedSyntaxRule(restrictedApiWildcardSyntax),
+    },
   },
 
   // packages must not depend on application modules

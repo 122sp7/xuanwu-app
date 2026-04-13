@@ -11,11 +11,12 @@ import type { WorkspaceFeedPost } from "../../application/dto/workspace-feed.dto
 
 interface WorkspaceFeedAccountViewProps {
   readonly accountId: string;
+  readonly actorAccountId?: string | null;
 }
 
-export function WorkspaceFeedAccountView({ accountId }: WorkspaceFeedAccountViewProps) {
+export function WorkspaceFeedAccountView({ accountId, actorAccountId }: WorkspaceFeedAccountViewProps) {
   const { state: appState } = useApp();
-  const actorId = appState.activeAccount?.id ?? accountId;
+  const actorId = actorAccountId ?? appState.activeAccount?.id ?? accountId;
 
   const [posts, setPosts] = useState<WorkspaceFeedPost[]>([]);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});

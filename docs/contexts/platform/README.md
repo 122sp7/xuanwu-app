@@ -80,6 +80,15 @@ platform 是治理與營運支撐主域。它的責任是提供 actor、identity
 - 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
 - platform 對外只輸出治理結果與 published language，不輸出內部治理模型細節。
 
+## Account Surface Contract
+
+- platform 提供 account scope 的治理語意；shell 的 `accountId` 由這個主域的 account / organization 能力支撐，而不是由 workspace 自行定義。
+- account shell surface 採單一 account catch-all：`/{accountId}/[[...slug]]`；這是 account-scoped composition contract，不是 platform domain model 的直接外露。
+- `AccountType = "user" | "organization"` 是目前 platform account domain、workspace domain、Zod validators 與 route composition 共用的字串契約；`"user"` 表示 personal account scope，`"organization"` 表示 organization account scope。
+- business language 仍使用 personal account / organization account；只有 code-level string contract 才使用 `"user" | "organization"`，避免把 `user` 誤用成平台通用語言名詞。
+- organization governance route 在 shell 內應 flatten 到 account scope，例如 `/{accountId}/members`、`/{accountId}/teams`、`/{accountId}/permissions`；`/{accountId}/organization/*` 只應視為 legacy redirect surface。
+- platform 擁有 account 與 organization 的治理語意，但不擁有 workspace detail route；workspace detail 仍由 workspace module route screen 承接，只是經過 account-scoped shell composition 進入。
+
 ## Anti-Pattern Rules
 
 - 不把 platform 寫成內容主域或對話主域。

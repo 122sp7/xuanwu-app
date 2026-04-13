@@ -28,7 +28,6 @@ export {
   getProfile,
   subscribeToProfile,
   updateProfile,
-  SettingsProfileRouteScreen,
   getAccountProfile,
   subscribeToAccountProfile,
   updateAccountProfile,
@@ -102,9 +101,13 @@ export {
   // UI components
   AccountSwitcher,
   CreateOrganizationDialog,
+  OrganizationOverviewRouteScreen,
   MembersPage,
+  OrganizationMembersRouteScreen,
   TeamsPage,
+  OrganizationTeamsRouteScreen,
   PermissionsPage,
+  OrganizationPermissionsRouteScreen,
 } from "../subdomains/organization/api";
 export type { MembersPageProps, TeamsPageProps, PermissionsPageProps } from "../subdomains/organization/api";
 
@@ -139,6 +142,7 @@ export {
   ShellAppBreadcrumbs,
   ShellGlobalSearchDialog,
   useShellGlobalSearch,
+  useAccountRouteContext,
 } from "../interfaces";
 
 // access-control — account type guards and route fallback

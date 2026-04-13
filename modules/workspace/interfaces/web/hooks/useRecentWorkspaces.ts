@@ -17,6 +17,13 @@ const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
   "settings",
   "dashboard",
   "dev-tools",
+  "members",
+  "teams",
+  "permissions",
+  "workspaces",
+  "schedule",
+  "daily",
+  "audit",
 ]);
 
 function getStorageKey(accountId: string) {
@@ -60,17 +67,16 @@ function getWorkspaceIdFromPath(pathname: string): string | null {
     return null;
   }
 
-  const [firstSegment, secondSegment] = segments;
+  const [firstSegment, secondSegment, thirdSegment] = segments;
   if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
     return null;
   }
 
-  if (["organization", "settings", "dashboard", "dev-tools"].includes(secondSegment)) {
-    return null;
-  }
-
-  if (!secondSegment) {
-    return null;
+  if (secondSegment === "workspace") {
+    if (!thirdSegment) {
+      return null;
+    }
+    return decodeURIComponent(thirdSegment);
   }
 
   return decodeURIComponent(secondSegment);
@@ -108,7 +114,7 @@ export function useRecentWorkspaces(
         if (!ws) return null;
         const href = accountId
           ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(ws.id)}`
-          : `/workspace/${encodeURIComponent(ws.id)}`;
+          : "/";
         return { id: ws.id, name: ws.name, href };
       })
       .filter((item): item is RecentWorkspaceLink => item !== null);

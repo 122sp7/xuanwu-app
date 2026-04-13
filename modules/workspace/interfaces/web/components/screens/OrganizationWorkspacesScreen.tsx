@@ -114,7 +114,7 @@ export function OrganizationWorkspacesScreen({ accountId }: OrganizationWorkspac
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <Button asChild variant="link" className="h-auto p-0 text-sm font-medium">
-                      <Link href={`/workspace/${workspace.id}`}>{workspace.name}</Link>
+                      <Link href={`/${encodeURIComponent(accountId)}/${encodeURIComponent(workspace.id)}`}>{workspace.name}</Link>
                     </Button>
                     <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
                       {workspace.lifecycleState}
@@ -123,10 +123,10 @@ export function OrganizationWorkspacesScreen({ accountId }: OrganizationWorkspac
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Button asChild variant="outline" size="sm" className="h-6 text-xs">
-                      <Link href={`/workspace/${workspace.id}?tab=Files`}>檔案</Link>
+                      <Link href={`/${encodeURIComponent(accountId)}/${encodeURIComponent(workspace.id)}?tab=Files`}>檔案</Link>
                     </Button>
                     <Button asChild variant="outline" size="sm" className="h-6 text-xs">
-                      <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.id)}`}>
+                      <Link href={`/${encodeURIComponent(accountId)}/${encodeURIComponent(workspace.id)}?tab=Overview&panel=knowledge-pages`}>
                         知識頁面
                       </Link>
                     </Button>

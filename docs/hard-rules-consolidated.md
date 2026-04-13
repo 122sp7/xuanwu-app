@@ -205,6 +205,7 @@
 ### Rule 3: File Metadata is Non-Negotiable
 - ✅ EVERY file in Storage has metadata in Firestore
 - ✅ Metadata includes: ownerId, workspaceId, createdAt, lifecycle (active/archived/deleted)
+- ✅ `ownerId` = resource owner identifier；`workspaceId` = collaboration scope identifier；兩者都不等於 shell route 的 `accountId`
 - ❌ NEVER store-only URL without DB entry
 - ✅ Firestore entry is source of truth for permissions & lifecycle
 
@@ -252,6 +253,7 @@
 
 ### Rule 39: Storage Path Contains Scope (Leak Prevention)
 - ✅ Storage paths: `{tenantId}/{workspaceId}/{ownerId}/{fileId}`
+- ✅ `tenantId` = tenant isolation key；不是 `workspaceId`、`accountId` 或 `ownerId` 的別名
 - ✅ Firestore rules prevent cross-tenant access
 - ❌ NEVER path like `storage/uploads/{random}.pdf` (breaks isolation)
 - ✅ Scope visible in path; admins can audit
@@ -369,6 +371,39 @@ Each module should have its own constraints section, such as:
   }
 }
 ```
+
+### Design Smell Guardrails
+
+以下 guardrails 用來把 design smell 變成持續可見的 warning signal，而不是等到大型 convergence 才發現。
+
+#### 1300 Cyclic Dependency
+
+- 禁止把 `require()` 當成正常的 composition 模式。
+- 若真的因既有循環鏈暫時保留 lazy require，必須把它侷限在單點並標明循環來源。
+- lint signal: `no-restricted-syntax` on `CallExpression[callee.name='require']`。
+
+#### 1400 Dependency Leakage
+
+- `api/index.ts` 不得用 `export * from "../application"` 或 `export * from "../interfaces"` 洩漏內層。
+- API boundary 應只精確 export 穩定 capability、service facade 與必要 DTO / type contract。
+- lint signal: `no-restricted-syntax` on `ExportAllDeclaration` selectors。
+
+#### 3100 Low Cohesion
+
+- `api/` 檔案若同時混入 infrastructure、service、subdomain business API、UI hooks/components，視為低內聚風險。
+- 優先拆分為 capability boundary，而不是繼續把 root barrel 做大。
+- lint signal: `max-lines` on module `api/` files as early warning.
+
+#### 5200 Cognitive Load
+
+- fat screen 不是單純行數問題，而是單一畫面同時承接 cross-module orchestration、panel wiring 與流程判斷。
+- 超過閾值時先檢查是否可以抽出 focused composition、helper 或 facade。
+- lint signal: `max-lines` on `interfaces/**/components/screens/**`.
+
+#### Enforcement Posture
+
+- lint 使用 warning 等級，目的是持續暴露 smell 壓力，不是把既有技術債一次性升級成 build blocker。
+- smell 是否成立，以對應 ADR 的 context、decision、conflict resolution 為準；lint 只是入口訊號。
 
 ---
 

@@ -33,6 +33,7 @@ export {
 export type { AccountMember } from "../interfaces/AccountSchedulingView";
 export { WorkspaceSchedulingTab } from "../interfaces/WorkspaceSchedulingTab";
 export { AccountSchedulingView } from "../interfaces/AccountSchedulingView";
+export { OrganizationScheduleRouteScreen } from "../interfaces/screens/OrganizationScheduleRouteScreen";
 
 export { submitWorkDemand, assignWorkDemand } from "../interfaces/_actions/work-demand.actions";
 export { getWorkspaceDemands, getAccountDemands } from "../interfaces/queries/work-demand.queries";

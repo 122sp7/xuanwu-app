@@ -14,7 +14,9 @@ export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/Work
 export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
 export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
 export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
+export { OrganizationWorkspacesRouteScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesRouteScreen";
 export { AccountDashboardScreen } from "../interfaces/web/components/screens/AccountDashboardScreen";
+export { AccountDashboardRouteScreen } from "../interfaces/web/components/screens/AccountDashboardRouteScreen";
 
 // ── Card components ──────────────────────────────────────────────────────────
 
@@ -138,10 +140,12 @@ export { CheckRow, WorkspaceCheckRow } from "../interfaces/web/components/dialog
 
 export {
   AuditStream,
+  OrganizationAuditRouteScreen,
   WorkspaceAuditTab,
 } from "../subdomains/audit/api";
 
 export {
+  OrganizationDailyRouteScreen,
   WorkspaceFeedAccountView,
   WorkspaceFeedWorkspaceView,
 } from "../subdomains/feed/api";
@@ -149,6 +153,7 @@ export {
 export type { AccountMember } from "../subdomains/scheduling/api";
 export {
   AccountSchedulingView,
+  OrganizationScheduleRouteScreen,
   WorkspaceSchedulingTab,
 } from "../subdomains/scheduling/api";
 
@@ -163,11 +168,3 @@ export { DatabaseFormsPanel } from "@/modules/notion/api";
 export { KnowledgeDatabasesPanel } from "@/modules/notion/api";
 export { KnowledgeDetailPanel } from "@/modules/notion/api";
 export { KnowledgePagesPanel } from "@/modules/notion/api";
-
-// ── Orchestrated notebooklm UI (workspace as composition owner) ──────────────
-
-export { RagQueryPanel } from "@/modules/notebooklm/api";
-export { ConversationPanel } from "@/modules/notebooklm/api";
-export type { ConversationPanelProps } from "@/modules/notebooklm/api";
-export { SourceDocumentsPanel } from "@/modules/notebooklm/api";
-export { WorkspaceFilesTab } from "@/modules/notebooklm/api";

@@ -20,5 +20,6 @@ export {
 
 export { WorkspaceAuditTab } from "../interfaces/components/WorkspaceAuditTab";
 export { AuditStream } from "../interfaces/components/AuditStream";
+export { OrganizationAuditRouteScreen } from "../interfaces/components/screens/OrganizationAuditRouteScreen";
 export { RecordAuditEntryUseCase } from "../application/use-cases/record-audit-entry.use-case";
 export type { RecordAuditEntryInput } from "../domain/aggregates/AuditEntry";

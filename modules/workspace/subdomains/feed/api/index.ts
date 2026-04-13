@@ -32,3 +32,4 @@ export {
 
 export { WorkspaceFeedWorkspaceView } from "../interfaces/components/WorkspaceFeedWorkspaceView";
 export { WorkspaceFeedAccountView } from "../interfaces/components/WorkspaceFeedAccountView";
+export { OrganizationDailyRouteScreen } from "../interfaces/components/screens/OrganizationDailyRouteScreen";

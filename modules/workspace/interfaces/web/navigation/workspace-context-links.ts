@@ -9,6 +9,13 @@ const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
   "settings",
   "dashboard",
   "dev-tools",
+  "members",
+  "teams",
+  "permissions",
+  "workspaces",
+  "schedule",
+  "daily",
+  "audit",
 ]);
 
 export const WORKSPACE_OVERVIEW_PANELS = [
