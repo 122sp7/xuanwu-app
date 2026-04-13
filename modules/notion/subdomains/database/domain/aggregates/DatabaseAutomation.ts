@@ -5,20 +5,20 @@
  */
 
 export type AutomationTrigger =
-  | "record_created"
+  | "record-created"
   | "record-updated"
   | "record-deleted"
-  | "property_changed";
+  | "property-changed";
 
 export type AutomationActionType =
-  | "send_notification"
-  | "update_property"
-  | "create_record"
+  | "send-notification"
+  | "update-property"
+  | "create-record"
   | "webhook";
 
 export interface AutomationCondition {
   fieldId: string;
-  operator: "equals" | "not_equals" | "is_empty" | "is_not_empty" | "contains";
+  operator: "equals" | "not-equals" | "is-empty" | "is-not-empty" | "contains";
   value?: unknown;
 }
 
