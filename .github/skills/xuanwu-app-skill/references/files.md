@@ -35858,306 +35858,6 @@ uvx --from git+https://github.com/oraios/serena serena start-mcp-server
 如果你要，我可以幫你畫一個 **最簡化 MCP 工作流圖**，一眼看出 session start → task → phase-end 的流程。你想要我畫嗎？
 ````
 
-## File: .github/skills/shadcn/SKILL.md
-````markdown
----
-name: shadcn
-description: >
-  UI/UX 開發強制技能。凡涉及任何介面元件、視覺設計、互動模式、排版佈局、
-  響應式設計或行動裝置體驗時自動觸發。
-  使用 shadcn/ui 作為唯一 UI 系統，強制 Mobile First、最少代碼原則、
-  現代直覺操作設計。適用於 Dashboard、AI Console、表單、資料顯示等場景。
-user-invocable: true
-disable-model-invocation: false
----
-
-# shadcn MCP（工程規範完整版）
-
----
-
-🎯 技能定位
-
-此技能為 UI/UX 強制規範層（UI Governance Layer）
-
-目標：
-
-- UI 一致性
-- 最少代碼
-- 行動優先
-- 可直接接 AI / Firebase / Server Actions
-
----
-
-⚡ 核心設計原則（不可妥協）
-
-📱 1. Mobile First（強制）
-
-規則
-
-- MUST：先設計 Mobile（≤ 640px）
-- MUST：逐步擴展至 Desktop
-- MUST NOT：先設計 Desktop 再縮小
-
-Breakpoints
-
-尺寸| 用途
-sm 640px| 行動
-md 768px| 平板
-lg 1024px| 小筆電
-xl 1280px| 桌機
-2xl 1536px| 大螢幕
-
----
-
-✨ 2. Modern Intuitive UX
-
-優先順序
-
-1. 無學習成本
-2. 即時反饋（loading / error）
-3. 視覺層次清晰
-4. 觸控 ≥ 44px
-5. 不依賴 hover
-
----
-
-🧠 3. 最少代碼原則（關鍵🔥）
-
-規則
-
-- MUST NOT：建立 UI abstraction
-- MUST NOT：包裝 shadcn component
-- MUST NOT：自建 UI library
-- SHOULD：直接使用 component
-- SHOULD：使用 Tailwind utility
-
-判斷準則
-
-如果你想：
-「要不要抽 component？」
-
-→ 90% 不需要
-
----
-
-🚫 4. UI 套件限制
-
-允許
-
-- shadcn/ui
-- Tailwind CSS
-- Radix UI
-
-禁止
-
-- MUI / Ant Design / Chakra / Mantine
-- CSS Modules
-- inline style（除 CSS 變數）
-
----
-
-🧩 UI 架構分層（強制）
-
-UI Layer (shadcn)
-    ↓
-Action Layer (Server Actions / Genkit)
-    ↓
-Data Layer (Firebase)
-
-限制
-
-行為| 是否允許
-fetch| ❌
-business logic| ❌
-state 管理（非表單）| ❌
-
----
-
-🔄 工作流程（標準化）
-
-Step 1：辨識 UI 類型
-
-類型| 元件
-表單| Form / Input / Select
-導航| Tabs / Sidebar
-回饋| Dialog / Sheet / Toast
-資料| Table / Card
-AI UI| Card + Textarea
-
----
-
-Step 2：查詢 MCP
-
-shadcn:get-component({ name: "component" })
-
-規則：
-
-- MUST：每次使用前查詢
-- MUST NOT：憑記憶寫 API
-
----
-
-Step 3：最少代碼實作
-
-- 不抽象
-- 不封裝
-- 不重寫
-
----
-
-Step 4：行動裝置檢查
-
-□ 375px 正常
-□ 觸控 ≥ 44px
-□ 無 hover 依賴
-□ 不被鍵盤遮擋
-□ Dialog → Sheet（mobile）
-□ Dark mode 正常
-
----
-
-📦 元件使用規範
-
----
-
-🔄 Dialog vs Sheet
-
-const isMobile = useMediaQuery("(max-width: 768px)")
-
-return isMobile ? (
-  <Sheet>
-    <SheetContent side="bottom">...</SheetContent>
-  </Sheet>
-) : (
-  <Dialog>
-    <DialogContent>...</DialogContent>
-  </Dialog>
-)
-
----
-
-🧾 表單（強制）
-
-<Form {...form}>
-  <form action={action}>
-    <FormField
-      control={form.control}
-      name="email"
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>Email</FormLabel>
-          <FormControl>
-            <Input {...field} />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )}
-    />
-    <Button type="submit">Submit</Button>
-  </form>
-</Form>
-
----
-
-⚡ Server Actions（強制推薦）
-
-<form action={createPost}>
-  <Input name="title" />
-  <Button type="submit">Save</Button>
-</form>
-
----
-
-🤖 AI Console Pattern（新增🔥）
-
-<div className="flex flex-col gap-4 md:flex-row">
-  <Card className="flex-1 p-4 space-y-2">
-    <Textarea name="prompt" />
-    <Button type="submit">Run</Button>
-  </Card>
-
-  <Card className="flex-1 p-4">
-    Output
-  </Card>
-</div>
-
----
-
-📊 Data（RWD）
-
-<div className="hidden md:block">
-  <Table />
-</div>
-
-<div className="md:hidden space-y-2">
-  {items.map(item => (
-    <Card key={item.id}>{item.name}</Card>
-  ))}
-</div>
-
----
-
-🔔 Toast（強制）
-
-toast({ title: "成功" })
-
-toast({
-  variant: "destructive",
-  title: "錯誤",
-  description: error.message,
-})
-
----
-
-🎨 Design Token（強制）
-
-bg-background
-bg-card
-text-foreground
-text-muted-foreground
-border-border
-ring-ring
-bg-primary
-bg-destructive
-bg-secondary
-bg-accent
-
----
-
-🚫 常見錯誤（禁止）
-
-❌ 錯誤| ✅ 正確
-grid-cols-4| grid-cols-1 sm:grid-cols-2
-Dialog mobile| Sheet bottom
-硬編碼顏色| Design Token
-小按鈕| ≥44px
-
----
-
-🔗 技能協作
-
-情境| 技能
-UI API| context7
-Next.js| next-devtools
-記憶| serena
-AI| genkit
-
----
-
-💣 強制限制
-
-- UI 檔案 ≤ 150 行
-- 禁止過度抽象
-- 禁止 UI 邏輯耦合
-
----
-
-🧠 最終原則
-
-«shadcn = UI Lego
-不是 UI framework»
-````
-
 ## File: app/_providers/index.tsx
 ````typescript
 /**
@@ -45486,6 +45186,306 @@ interfaces/ → application/ → domain/ ← infrastructure/
 }
 ````
 
+## File: .github/skills/shadcn/SKILL.md
+````markdown
+---
+name: shadcn
+description: >
+  UI/UX 開發強制技能。凡涉及任何介面元件、視覺設計、互動模式、排版佈局、
+  響應式設計或行動裝置體驗時自動觸發。
+  使用 shadcn/ui 作為唯一 UI 系統，強制 Mobile First、最少代碼原則、
+  現代直覺操作設計。適用於 Dashboard、AI Console、表單、資料顯示等場景。
+user-invocable: true
+disable-model-invocation: false
+---
+
+# shadcn MCP（工程規範完整版）
+
+---
+
+🎯 技能定位
+
+此技能為 UI/UX 強制規範層（UI Governance Layer）
+
+目標：
+
+- UI 一致性
+- 最少代碼
+- 行動優先
+- 可直接接 AI / Firebase / Server Actions
+
+---
+
+⚡ 核心設計原則（不可妥協）
+
+📱 1. Mobile First（強制）
+
+規則
+
+- MUST：先設計 Mobile（≤ 640px）
+- MUST：逐步擴展至 Desktop
+- MUST NOT：先設計 Desktop 再縮小
+
+Breakpoints
+
+尺寸| 用途
+sm 640px| 行動
+md 768px| 平板
+lg 1024px| 小筆電
+xl 1280px| 桌機
+2xl 1536px| 大螢幕
+
+---
+
+✨ 2. Modern Intuitive UX
+
+優先順序
+
+1. 無學習成本
+2. 即時反饋（loading / error）
+3. 視覺層次清晰
+4. 觸控 ≥ 44px
+5. 不依賴 hover
+
+---
+
+🧠 3. 最少代碼原則（關鍵🔥）
+
+規則
+
+- MUST NOT：建立 UI abstraction
+- MUST NOT：包裝 shadcn component
+- MUST NOT：自建 UI library
+- SHOULD：直接使用 component
+- SHOULD：使用 Tailwind utility
+
+判斷準則
+
+如果你想：
+「要不要抽 component？」
+
+→ 90% 不需要
+
+---
+
+🚫 4. UI 套件限制
+
+允許
+
+- shadcn/ui
+- Tailwind CSS
+- Radix UI
+
+禁止
+
+- MUI / Ant Design / Chakra / Mantine
+- CSS Modules
+- inline style（除 CSS 變數）
+
+---
+
+🧩 UI 架構分層（強制）
+
+UI Layer (shadcn)
+    ↓
+Action Layer (Server Actions / Genkit)
+    ↓
+Data Layer (Firebase)
+
+限制
+
+行為| 是否允許
+fetch| ❌
+business logic| ❌
+state 管理（非表單）| ❌
+
+---
+
+🔄 工作流程（標準化）
+
+Step 1：辨識 UI 類型
+
+類型| 元件
+表單| Form / Input / Select
+導航| Tabs / Sidebar
+回饋| Dialog / Sheet / Toast
+資料| Table / Card
+AI UI| Card + Textarea
+
+---
+
+Step 2：查詢 MCP
+
+shadcn:get-component({ name: "component" })
+
+規則：
+
+- MUST：每次使用前查詢
+- MUST NOT：憑記憶寫 API
+
+---
+
+Step 3：最少代碼實作
+
+- 不抽象
+- 不封裝
+- 不重寫
+
+---
+
+Step 4：行動裝置檢查
+
+□ 375px 正常
+□ 觸控 ≥ 44px
+□ 無 hover 依賴
+□ 不被鍵盤遮擋
+□ Dialog → Sheet（mobile）
+□ Dark mode 正常
+
+---
+
+📦 元件使用規範
+
+---
+
+🔄 Dialog vs Sheet
+
+const isMobile = useMediaQuery("(max-width: 768px)")
+
+return isMobile ? (
+  <Sheet>
+    <SheetContent side="bottom">...</SheetContent>
+  </Sheet>
+) : (
+  <Dialog>
+    <DialogContent>...</DialogContent>
+  </Dialog>
+)
+
+---
+
+🧾 表單（強制）
+
+<Form {...form}>
+  <form action={action}>
+    <FormField
+      control={form.control}
+      name="email"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Email</FormLabel>
+          <FormControl>
+            <Input {...field} />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+    <Button type="submit">Submit</Button>
+  </form>
+</Form>
+
+---
+
+⚡ Server Actions（強制推薦）
+
+<form action={createPost}>
+  <Input name="title" />
+  <Button type="submit">Save</Button>
+</form>
+
+---
+
+🤖 AI Console Pattern（新增🔥）
+
+<div className="flex flex-col gap-4 md:flex-row">
+  <Card className="flex-1 p-4 space-y-2">
+    <Textarea name="prompt" />
+    <Button type="submit">Run</Button>
+  </Card>
+
+  <Card className="flex-1 p-4">
+    Output
+  </Card>
+</div>
+
+---
+
+📊 Data（RWD）
+
+<div className="hidden md:block">
+  <Table />
+</div>
+
+<div className="md:hidden space-y-2">
+  {items.map(item => (
+    <Card key={item.id}>{item.name}</Card>
+  ))}
+</div>
+
+---
+
+🔔 Toast（強制）
+
+toast({ title: "成功" })
+
+toast({
+  variant: "destructive",
+  title: "錯誤",
+  description: error.message,
+})
+
+---
+
+🎨 Design Token（強制）
+
+bg-background
+bg-card
+text-foreground
+text-muted-foreground
+border-border
+ring-ring
+bg-primary
+bg-destructive
+bg-secondary
+bg-accent
+
+---
+
+🚫 常見錯誤（禁止）
+
+❌ 錯誤| ✅ 正確
+grid-cols-4| grid-cols-1 sm:grid-cols-2
+Dialog mobile| Sheet bottom
+硬編碼顏色| Design Token
+小按鈕| ≥44px
+
+---
+
+🔗 技能協作
+
+情境| 技能
+UI API| context7
+Next.js| next-devtools
+記憶| serena
+AI| genkit
+
+---
+
+💣 強制限制
+
+- UI 檔案 ≤ 150 行
+- 禁止過度抽象
+- 禁止 UI 邏輯耦合
+
+---
+
+🧠 最終原則
+
+«shadcn = UI Lego
+不是 UI framework»
+````
+
 ## File: app/(shell)/_providers/AppProvider.tsx
 ````typescript
 /**
@@ -50596,297 +50596,6 @@ Tags: #use skill context7 #use skill shadcn #use skill next-devtools-mcp
 #use skill repomix
 ````
 
-## File: modules/notebooklm/interfaces/source/composition/adapters.ts
-````typescript
-import { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
-import { FirebaseRagDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseRagDocumentAdapter";
-import { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter";
-import { FirebaseSourceFileAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceFileAdapter";
-import { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
-import { NotionKnowledgePageGatewayAdapter } from "../../../infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter";
-import { waitForParsedDocument as _waitForParsedDocument } from "../../../infrastructure/source/firebase/FirebaseDocumentStatusAdapter";
-import { PlatformSourcePipelineAdapter } from "../../../infrastructure/source/platform/PlatformSourcePipelineAdapter";
-import { PlatformSourceStorageAdapter } from "../../../infrastructure/source/platform/PlatformSourceStorageAdapter";
-import { PlatformSourceDocumentWatchAdapter } from "../../../infrastructure/source/platform/PlatformSourceDocumentWatchAdapter";
-import {
-  addKnowledgeBlock,
-  createKnowledgePage,
-} from "@/modules/notion/api";
-import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
-import type { SourceStoragePort } from "../../../subdomains/source/domain/ports/SourceStoragePort";
-import type { SourceDocumentWatchPort } from "../../../subdomains/source/domain/ports/SourceDocumentWatchPort";
-⋮----
-export function makeSourceFileAdapter()
-⋮----
-export function makeRagDocumentAdapter()
-⋮----
-export function makeSourceDocumentCommandAdapter()
-⋮----
-export function makeParsedDocumentAdapter()
-⋮----
-export function makeSourcePipelineAdapter()
-⋮----
-export function makeKnowledgePageGateway()
-⋮----
-export function makeWikiLibraryAdapter(): WikiLibraryRepository
-⋮----
-export function makeSourceStorageAdapter(): SourceStoragePort
-⋮----
-export function makeSourceDocumentWatchAdapter(): SourceDocumentWatchPort
-⋮----
-export function waitForParsedDocument(
-  accountId: string,
-  docId: string,
-): Promise<
-````
-
-## File: modules/notebooklm/subdomains/conversation/api/index.ts
-````typescript
-/**
- * Public API boundary for the conversation subdomain.
- *
- * Cross-module consumers MUST import through this entry point.
- */
-⋮----
-// Domain types
-⋮----
-// Thread persistence actions
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/index.ts
-````typescript
-// ── Canonical domain types ────────────────────────────────────────────────────
-⋮----
-// ── Active pipeline types (legacy naming, used by use cases & adapters) ──────
-⋮----
-// ── Events ───────────────────────────────────────────────────────────────────
-⋮----
-// ── Ports ────────────────────────────────────────────────────────────────────
-⋮----
-// ── Repositories (output port interfaces) ────────────────────────────────────
-⋮----
-// ── Domain services ──────────────────────────────────────────────────────────
-⋮----
-// ── Value objects ────────────────────────────────────────────────────────────
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseFormPanel.tsx
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseFormPanel ??public-facing form to collect one Record into a Database.
- */
-⋮----
-import { useState, useTransition } from "react";
-import { CheckCircle2 } from "lucide-react";
-⋮----
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-⋮----
-import { createRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, Field } from "../../../subdomains/database/application/dto/database.dto";
-⋮----
-interface DatabaseFormPanelProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  /** The user submitting the form. Pass anonymous ID or guest token for public forms. */
-  submitterId: string;
-  /** Optional: restrict to a subset of fields. */
-  fieldIds?: string[];
-  title?: string;
-  description?: string;
-}
-⋮----
-/** The user submitting the form. Pass anonymous ID or guest token for public forms. */
-⋮----
-/** Optional: restrict to a subset of fields. */
-⋮----
-checked=
-⋮----
-onChange=
-⋮----
-function handleChange(fieldId: string, value: unknown)
-⋮----
-function handleSubmit(e: React.FormEvent)
-⋮----
-<Button variant="outline" size="sm" onClick=
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseGalleryPanel.tsx
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseGalleryPanel ??card grid for database records.
- */
-⋮----
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { Plus, Trash2 } from "lucide-react";
-⋮----
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-⋮----
-import { getRecords } from "../queries";
-import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
-⋮----
-interface DatabaseGalleryPanelProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-⋮----
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown
-⋮----
-function handleAdd()
-⋮----
-function handleDelete(recordId: string)
-⋮----
-````
-
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx
-````typescript
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Separator } from "@ui-shadcn/ui/separator";
-import { describeGrant } from "../../view-models/workspace-grants";
-import { WorkspaceOverviewSettingsTab } from "./WorkspaceOverviewSettingsTab";
-import { WorkspaceOverviewSummaryCard } from "../cards/WorkspaceOverviewSummaryCard";
-import { WorkspaceProductSpineCard } from "../cards/WorkspaceProductSpineCard";
-import { WorkspaceQuickstartCard } from "../cards/WorkspaceQuickstartCard";
-import { WorkspaceOverviewKnowledgePanels } from "./WorkspaceOverviewKnowledgePanels";
-⋮----
-interface WorkspaceOverviewTabProps {
-  readonly workspace: WorkspaceEntity;
-  readonly activeWorkspaceId: string | null | undefined;
-  readonly currentUserId?: string | null;
-  readonly personnelEntries: Array<{ label: string; value: string | undefined }>;
-  readonly addressLines: string[];
-  readonly initialPanel?: string;
-  readonly onEditClick: () => void;
-  readonly onSetActiveWorkspace: () => void;
-}
-⋮----
-type WorkspaceOverviewSurface =
-  | "home"
-  | "knowledge-pages"
-  | "knowledge-base-articles"
-  | "knowledge-databases"
-  | "source-libraries"
-  | "governance"
-  | "profile";
-⋮----
-function resolveWorkspaceOverviewSurface(panel?: string): WorkspaceOverviewSurface
-````
-
-## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
-````typescript
-import { useEffect, useMemo, useState } from "react";
-⋮----
-import type { WorkspaceEntity } from "../../api/contracts";
-⋮----
-interface RecentWorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-⋮----
-function getStorageKey(accountId: string)
-⋮----
-function readRecentWorkspaceIds(accountId: string): string[]
-⋮----
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[])
-⋮----
-function trackWorkspaceFromPath(pathname: string, accountId: string)
-⋮----
-function getWorkspaceIdFromPath(pathname: string): string | null
-⋮----
-export function useRecentWorkspaces(
-  accountId: string | undefined,
-  pathname: string,
-  workspaces: WorkspaceEntity[],
-)
-````
-
-## File: modules/workspace/interfaces/web/navigation/nav-preferences-data.ts
-````typescript
-/**
- * nav-preferences-data.ts  (workspace BC – interfaces/web/navigation)
- * Owns: NavPreferences type, nav-item catalogs, default values,
- *   validation helpers, and localStorage read/write utilities.
- * Constraints: No React imports. No UI imports. Pure data / serialization.
- */
-⋮----
-import {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "./workspace-nav-items";
-⋮----
-// Re-export for consumers that import from this file directly.
-⋮----
-// ── Types ──────────────────────────────────────────────────────────────────
-⋮----
-export interface NavPreferences {
-  pinnedPersonal: string[];
-  pinnedWorkspace: string[];
-  showLimitedWorkspaces: boolean;
-  maxWorkspaces: number;
-  workspaceOrder: string[];
-}
-⋮----
-export interface SidebarLocaleBundle {
-  workspace?: {
-    groups?: Record<string, string>;
-    tabLabels?: Record<string, string>;
-  };
-}
-⋮----
-// ── Personal nav items ─────────────────────────────────────────────────────
-⋮----
-// ── Organization management items ─────────────────────────────────────────
-⋮----
-// ── Defaults + validation ──────────────────────────────────────────────────
-⋮----
-/**
- * Legacy default order before workspace tab UX reorder.
- * Only exact legacy defaults are migrated; custom user orders are preserved.
- */
-⋮----
-/**
- * Notion / NotebookLM orchestration tabs added via workspace orchestration layer.
- * Existing users whose localStorage pre-dates these tabs need auto-migration.
- */
-⋮----
-function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[]
-⋮----
-function migrateWorkflowPins(ids: string[]): string[]
-⋮----
-function migrateNotionNotebooklmPins(ids: string[]): string[]
-⋮----
-function isExactOrderMatch(source: string[], target: readonly string[]): boolean
-⋮----
-function migrateWorkspaceOrder(order: string[]): string[]
-⋮----
-// ── localStorage helpers ───────────────────────────────────────────────────
-⋮----
-export function readNavPreferences(): NavPreferences
-⋮----
-export function writeNavPreferences(prefs: NavPreferences): void
-````
-
 ## File: AGENTS.md
 ````markdown
 # API Architecture Rules
@@ -51194,6 +50903,297 @@ See `docs/hard-rules-consolidated.md` for:
 - Event bus & async rules (4, 34-36)
 - File/data/permission rules (3, 29-32, 37-40)
 - Cross-module contract rules (24-27)
+````
+
+## File: modules/notebooklm/interfaces/source/composition/adapters.ts
+````typescript
+import { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
+import { FirebaseRagDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseRagDocumentAdapter";
+import { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter";
+import { FirebaseSourceFileAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceFileAdapter";
+import { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
+import { NotionKnowledgePageGatewayAdapter } from "../../../infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter";
+import { waitForParsedDocument as _waitForParsedDocument } from "../../../infrastructure/source/firebase/FirebaseDocumentStatusAdapter";
+import { PlatformSourcePipelineAdapter } from "../../../infrastructure/source/platform/PlatformSourcePipelineAdapter";
+import { PlatformSourceStorageAdapter } from "../../../infrastructure/source/platform/PlatformSourceStorageAdapter";
+import { PlatformSourceDocumentWatchAdapter } from "../../../infrastructure/source/platform/PlatformSourceDocumentWatchAdapter";
+import {
+  addKnowledgeBlock,
+  createKnowledgePage,
+} from "@/modules/notion/api";
+import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
+import type { SourceStoragePort } from "../../../subdomains/source/domain/ports/SourceStoragePort";
+import type { SourceDocumentWatchPort } from "../../../subdomains/source/domain/ports/SourceDocumentWatchPort";
+⋮----
+export function makeSourceFileAdapter()
+⋮----
+export function makeRagDocumentAdapter()
+⋮----
+export function makeSourceDocumentCommandAdapter()
+⋮----
+export function makeParsedDocumentAdapter()
+⋮----
+export function makeSourcePipelineAdapter()
+⋮----
+export function makeKnowledgePageGateway()
+⋮----
+export function makeWikiLibraryAdapter(): WikiLibraryRepository
+⋮----
+export function makeSourceStorageAdapter(): SourceStoragePort
+⋮----
+export function makeSourceDocumentWatchAdapter(): SourceDocumentWatchPort
+⋮----
+export function waitForParsedDocument(
+  accountId: string,
+  docId: string,
+): Promise<
+````
+
+## File: modules/notebooklm/subdomains/conversation/api/index.ts
+````typescript
+/**
+ * Public API boundary for the conversation subdomain.
+ *
+ * Cross-module consumers MUST import through this entry point.
+ */
+⋮----
+// Domain types
+⋮----
+// Thread persistence actions
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/index.ts
+````typescript
+// ── Canonical domain types ────────────────────────────────────────────────────
+⋮----
+// ── Active pipeline types (legacy naming, used by use cases & adapters) ──────
+⋮----
+// ── Events ───────────────────────────────────────────────────────────────────
+⋮----
+// ── Ports ────────────────────────────────────────────────────────────────────
+⋮----
+// ── Repositories (output port interfaces) ────────────────────────────────────
+⋮----
+// ── Domain services ──────────────────────────────────────────────────────────
+⋮----
+// ── Value objects ────────────────────────────────────────────────────────────
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseFormPanel.tsx
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseFormPanel ??public-facing form to collect one Record into a Database.
+ */
+⋮----
+import { useState, useTransition } from "react";
+import { CheckCircle2 } from "lucide-react";
+⋮----
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+⋮----
+import { createRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, Field } from "../../../subdomains/database/application/dto/database.dto";
+⋮----
+interface DatabaseFormPanelProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  /** The user submitting the form. Pass anonymous ID or guest token for public forms. */
+  submitterId: string;
+  /** Optional: restrict to a subset of fields. */
+  fieldIds?: string[];
+  title?: string;
+  description?: string;
+}
+⋮----
+/** The user submitting the form. Pass anonymous ID or guest token for public forms. */
+⋮----
+/** Optional: restrict to a subset of fields. */
+⋮----
+checked=
+⋮----
+onChange=
+⋮----
+function handleChange(fieldId: string, value: unknown)
+⋮----
+function handleSubmit(e: React.FormEvent)
+⋮----
+<Button variant="outline" size="sm" onClick=
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseGalleryPanel.tsx
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseGalleryPanel ??card grid for database records.
+ */
+⋮----
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { Plus, Trash2 } from "lucide-react";
+⋮----
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+⋮----
+import { getRecords } from "../queries";
+import { createRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+⋮----
+interface DatabaseGalleryPanelProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+⋮----
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown
+⋮----
+function handleAdd()
+⋮----
+function handleDelete(recordId: string)
+⋮----
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx
+````typescript
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { Badge } from "@ui-shadcn/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Separator } from "@ui-shadcn/ui/separator";
+import { describeGrant } from "../../view-models/workspace-grants";
+import { WorkspaceOverviewSettingsTab } from "./WorkspaceOverviewSettingsTab";
+import { WorkspaceOverviewSummaryCard } from "../cards/WorkspaceOverviewSummaryCard";
+import { WorkspaceProductSpineCard } from "../cards/WorkspaceProductSpineCard";
+import { WorkspaceQuickstartCard } from "../cards/WorkspaceQuickstartCard";
+import { WorkspaceOverviewKnowledgePanels } from "./WorkspaceOverviewKnowledgePanels";
+⋮----
+interface WorkspaceOverviewTabProps {
+  readonly workspace: WorkspaceEntity;
+  readonly activeWorkspaceId: string | null | undefined;
+  readonly currentUserId?: string | null;
+  readonly personnelEntries: Array<{ label: string; value: string | undefined }>;
+  readonly addressLines: string[];
+  readonly initialPanel?: string;
+  readonly onEditClick: () => void;
+  readonly onSetActiveWorkspace: () => void;
+}
+⋮----
+type WorkspaceOverviewSurface =
+  | "home"
+  | "knowledge-pages"
+  | "knowledge-base-articles"
+  | "knowledge-databases"
+  | "source-libraries"
+  | "governance"
+  | "profile";
+⋮----
+function resolveWorkspaceOverviewSurface(panel?: string): WorkspaceOverviewSurface
+````
+
+## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
+````typescript
+import { useEffect, useMemo, useState } from "react";
+⋮----
+import type { WorkspaceEntity } from "../../api/contracts";
+⋮----
+interface RecentWorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+⋮----
+function getStorageKey(accountId: string)
+⋮----
+function readRecentWorkspaceIds(accountId: string): string[]
+⋮----
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[])
+⋮----
+function trackWorkspaceFromPath(pathname: string, accountId: string)
+⋮----
+function getWorkspaceIdFromPath(pathname: string): string | null
+⋮----
+export function useRecentWorkspaces(
+  accountId: string | undefined,
+  pathname: string,
+  workspaces: WorkspaceEntity[],
+)
+````
+
+## File: modules/workspace/interfaces/web/navigation/nav-preferences-data.ts
+````typescript
+/**
+ * nav-preferences-data.ts  (workspace BC – interfaces/web/navigation)
+ * Owns: NavPreferences type, nav-item catalogs, default values,
+ *   validation helpers, and localStorage read/write utilities.
+ * Constraints: No React imports. No UI imports. Pure data / serialization.
+ */
+⋮----
+import {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "./workspace-nav-items";
+⋮----
+// Re-export for consumers that import from this file directly.
+⋮----
+// ── Types ──────────────────────────────────────────────────────────────────
+⋮----
+export interface NavPreferences {
+  pinnedPersonal: string[];
+  pinnedWorkspace: string[];
+  showLimitedWorkspaces: boolean;
+  maxWorkspaces: number;
+  workspaceOrder: string[];
+}
+⋮----
+export interface SidebarLocaleBundle {
+  workspace?: {
+    groups?: Record<string, string>;
+    tabLabels?: Record<string, string>;
+  };
+}
+⋮----
+// ── Personal nav items ─────────────────────────────────────────────────────
+⋮----
+// ── Organization management items ─────────────────────────────────────────
+⋮----
+// ── Defaults + validation ──────────────────────────────────────────────────
+⋮----
+/**
+ * Legacy default order before workspace tab UX reorder.
+ * Only exact legacy defaults are migrated; custom user orders are preserved.
+ */
+⋮----
+/**
+ * Notion / NotebookLM orchestration tabs added via workspace orchestration layer.
+ * Existing users whose localStorage pre-dates these tabs need auto-migration.
+ */
+⋮----
+function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[]
+⋮----
+function migrateWorkflowPins(ids: string[]): string[]
+⋮----
+function migrateNotionNotebooklmPins(ids: string[]): string[]
+⋮----
+function isExactOrderMatch(source: string[], target: readonly string[]): boolean
+⋮----
+function migrateWorkspaceOrder(order: string[]): string[]
+⋮----
+// ── localStorage helpers ───────────────────────────────────────────────────
+⋮----
+export function readNavPreferences(): NavPreferences
+⋮----
+export function writeNavPreferences(prefs: NavPreferences): void
 ````
 
 ## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
