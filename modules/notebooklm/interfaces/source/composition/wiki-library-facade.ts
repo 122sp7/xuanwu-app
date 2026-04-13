@@ -22,7 +22,7 @@ import type {
   CreateWikiLibraryInput,
   AddWikiLibraryFieldInput,
   CreateWikiLibraryRowInput,
-} from "../../../subdomains/source/domain/entities/WikiLibrary";
+} from "../../../subdomains/source/application/dto/source.dto";
 import { makeWikiLibraryAdapter } from "./adapters";
 
 // Lazy singleton — no module-scope side effects.
