@@ -3219,1470 +3219,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vscode-typescript-workbench
 ````
 
-## File: .github/skills/alistair-cockburn/SKILL.md
-````markdown
----
-name: alistair-cockburn
-description: >-
-  Alistair Cockburn style skillbook. Use when choosing process weight, writing use cases,
-  simplifying collaboration, or reviewing whether architecture and workflow stay human-centered and fit for purpose.
-user-invocable: true
-disable-model-invocation: false
----
-
-# Alistair Cockburn
-
-Use this skill when the problem is not only technical structure but also collaboration, method weight, requirements framing, or delivery rhythm.
-
-## Research Basis
-
-Context7 availability note:
-
-1. No strong Context7 library entry exists for Cockburn as a person or for the Heart of Agile as a concept, so the skill is grounded primarily in web sources.
-
-Web-verified:
-
-1. Alistair Cockburn is an Agile Manifesto co-author, major use-case author, Crystal methodology creator, and the originator of Hexagonal Architecture.
-2. Heart of Agile reduces practice to four imperatives: Collaborate, Deliver, Reflect, Improve.
-3. Heart of Agile is explicitly presented as a simplification and a community of ideas, not a heavyweight method.
-
-## Core Stance
-
-Software development is a cooperative game of invention and communication.
-
-That implies two simultaneous goals:
-
-1. deliver working software now,
-2. leave the codebase and the team in shape for the next round of work.
-
-If a decision helps the current change but makes the next change harder to understand, negotiate, or test, it is suspect.
-
-## Four Moves
-
-Use Cockburn's four moves as the default operating loop:
-
-1. Collaborate: align vocabulary, boundaries, and expected behavior with the right people.
-2. Deliver: ship a small but real increment that can be evaluated.
-3. Reflect: inspect what was learned from the increment and from the handoffs.
-4. Improve: adjust code, process, or communication based on that evidence.
-
-## Use-Case Guidance
-
-Prefer user-goal use cases over technical step lists.
-
-Write use cases as behavior contracts between stakeholders and the system:
-
-1. identify the primary actor,
-2. state the goal in business language,
-3. write the main success scenario,
-4. add only meaningful extensions and failure branches,
-5. keep storage, framework, and transport details out of the use case itself.
-
-If a use case reads like controller code or database choreography, it is at the wrong level.
-
-## Crystal Guidance
-
-Use the lightest method that is sufficient for the team, risk, and domain.
-
-Favor these Crystal-style properties:
-
-1. frequent delivery,
-2. reflective improvement,
-3. focus,
-4. personal safety,
-5. direct communication,
-6. a technical environment that supports rapid feedback.
-
-Method is a means, not the product. Process that becomes theater should be cut.
-
-## Architectural Consequence
-
-Cockburn's architecture contribution is practical, not decorative:
-
-1. keep the application core insulated from UI, persistence, and external systems,
-2. let ports define the conversation the core expects,
-3. let adapters deal with technology and integration detail,
-4. preserve replaceability only where that replaceability matters.
-
-Use architecture to support conversation and delivery, not to win purity contests.
-
-## Xuanwu Translation
-
-In this repo, applying Cockburn means:
-
-1. start with docs authority and shared language before coding,
-2. keep one concern per branch or PR,
-3. keep `app/` and `interfaces/` thin where possible,
-4. prefer explicit ownership and readable handoffs over clever indirection,
-5. choose the lightest structure that still protects the next change.
-
-## Anti-Patterns
-
-- Heavier process than the team or task needs.
-- Architecture work detached from delivery pressure.
-- Use cases written in transport or persistence language.
-- PRs that mix unrelated goals and destroy focus.
-- Naming that forces humans to decode intent from implementation.
-- Review behavior that punishes questions instead of reducing ambiguity.
-
-## Review Questions
-
-1. Does this change improve both current delivery and the next round of work?
-2. Is the language understandable to the real stakeholders of the feature?
-3. Is the chosen process or structure the lightest thing that will work?
-4. Are we documenting behavior and decisions, or just recording technical noise?
-5. Did we add ceremony where better conversation would have solved the problem?
-
-## Output Contract
-
-When this skill is used, provide:
-
-1. the delivery goal,
-2. the collaboration or communication bottleneck,
-3. the lightest sufficient process or structure,
-4. any use-case or boundary rewrite needed,
-5. the next feedback loop to run.
-````
-
-## File: .github/skills/app-router-parallel-routes/SKILL.md
-````markdown
----
-name: app-router-parallel-routes
-description: Build and refactor Next.js app route slices and parallel-route UI blocks that keep data flow one-way, isolate local state, and consume Xuanwu modules only through public api boundaries. Use for dashboard areas, side tools, modals, chat consoles, and route composition work in app/.
----
-
-# App Router Parallel Routes
-
-Use this skill when work is centered on `app/` composition, especially when a route slice or parallel-route block must coordinate one UI feature area without leaking module internals into the route layer.
-
-## When to use
-
-- Creating or refactoring dashboard slices
-- Adding a sidebar tool, modal slot, or chat console block
-- Rewiring route composition to use module APIs only
-- Separating local UI state between neighboring route blocks
-
-## Workflow
-
-1. Identify the route segment and its single UI responsibility.
-2. List the module APIs the slice may consume.
-3. Keep route files thin: composition, loading states, and rendering only.
-4. Move interactive state into local components or hooks when needed.
-5. Validate imports so no module internals are pulled into `app/`.
-
-## Guardrails
-
-- Do not import `domain/`, `application/`, or `infrastructure/` from `modules/`.
-- Do not move business rules into route files.
-- Do not create hidden state coupling between route blocks.
-
-## Output expectations
-
-- State the route slice responsibility
-- State the consumed module APIs
-- Note whether the slice is server or client
-- Report validation performed
-````
-
-## File: .github/skills/context7/SKILL.md
-````markdown
----
-name: context7
-description: >
-  Auto-load verification skill for library/framework API accuracy. Use when confidence is below 99.99% on API signatures,
-  version behavior, or config schema details. Resolve library ID and fetch official docs before answering.
-user-invocable: false
-disable-model-invocation: false
----
-
-# Context7 MCP
-
-## 目的
-
-把 Context7 當成**官方文件驗證層**。只要對 library API、版本行為、設定 schema、參數名稱或回傳型別有任何不確定，就先查 Context7，再回答、規劃或寫碼。
-
-## 何時必用
-
-- 不確定 API signature、options、return type
-- 不確定版本差異或 breaking change
-- 不確定設定檔 schema（例如 Next.js、Firebase、Zod、XState）
-- 使用者要求「查官方文件」「確認最新版行為」
-- 需要最新文件而不是依賴模型記憶
-
-## 對應 MCP Tools
-
-| 目的 | 工具 | 說明 |
-|---|---|---|
-| 解析 library ID | `upstash-context7-resolve-library-id` | 先把套件/框架名稱解析成 Context7 相容 ID |
-| 讀官方文件 | `upstash-context7-get-library-docs` | 用解析出的 ID 讀文件；支援 `mode`、`topic`、`page` |
-
-> 若使用者已直接提供 Context7 ID（例如 `/vercel/next.js` 或 `/mongodb/docs/v8.0`），可直接呼叫 `upstash-context7-get-library-docs`，否則**一定要先 resolve**。
-
-## 強制工作流
-
-1. 把問題縮成**單一 library + 單一主題**。
-2. 呼叫 `upstash-context7-resolve-library-id` 取得正確 ID。
-3. 呼叫 `upstash-context7-get-library-docs`：
-   - `mode: "code"`：查 API、簽名、範例、設定欄位
-   - `mode: "info"`：查概念、架構、遷移說明
-   - `topic`: 聚焦單一主題，例如 `routing`、`server actions`、`hooks`
-4. 若第一頁資訊不足，再用同一組 `topic` 翻下一頁（`page: 2, 3...`）。
-5. 以取回文件為權威，再決定回答、規劃、修改或驗證。
-
-## 自洽使用規則
-
-- **先 resolve，後 docs**；不要猜 library ID。
-- 一次只查一個 library；不要把多個框架混在同一次 docs 查詢裡。
-- `topic` 要窄，不要用「all」「everything」這種寬查詢。
-- 查 API 與程式碼範例時優先用 `mode: "code"`。
-- 查概念、限制、遷移與設計原因時用 `mode: "info"`。
-- 文件不足時先翻頁，再決定是否需要第二個 topic。
-- 回答時要明確表示結論是根據 Context7 文件，而不是模型記憶。
-
-## 最小決策表
-
-| 情境 | 動作 |
-|---|---|
-| 使用者只說 library 名稱 | 先 `resolve-library-id` |
-| 使用者已給 `/org/project` | 直接 `get-library-docs` |
-| 要確認 API 怎麼呼叫 | `mode: "code"` |
-| 要確認某功能怎麼運作/限制是什麼 | `mode: "info"` |
-| 內容不夠 | 同 topic 換 `page` |
-| resolve 結果有多個接近候選 | 先選最相關者；若仍歧義再請使用者澄清 |
-
-## 推薦輸出格式
-
-1. 這次驗證的 library 與 topic
-2. Context7 查到的關鍵結論
-3. 對目前任務的影響（可做 / 不可做 / 要改哪裡）
-4. 剩餘不確定點（若有）
-
-## 反模式
-
-- ❌ 憑印象直接回答最新版 API
-- ❌ 未 resolve 就手填 library ID
-- ❌ 一次抓整套文件，不加 topic
-- ❌ 拿別的框架文件套到目前 library
-- ❌ 查到文件後仍用記憶覆蓋文件內容
-
-## 短流程模板
-
-```text
-目標：確認 <library> 的 <topic>
-1. resolve library id
-2. get docs(mode=code|info, topic=<topic>)
-3. 如不足則翻 page
-4. 依文件做回答/規劃/修改
-```
-````
-
-## File: .github/skills/deploy-to-vercel/SKILL.md
-````markdown
----
-name: deploy-to-vercel
-description: Deploy projects to Vercel. Use for preview/production deployments, project linking, team scope selection, and deployment URL retrieval.
-metadata:
-  author: vercel
-  version: "3.0.0"
-disable-model-invocation: true
----
-
-# deploy-to-vercel (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-````
-
-## File: .github/skills/hexagonal-ddd/SKILL.md
-````markdown
----
-name: hexagonal-ddd
-description: >-
-  Hexagonal Architecture with Domain-Driven Design skillbook. Use when designing or reviewing bounded-context ownership,
-  domain/application separation, ports/adapters, aggregates, and API-only cross-module collaboration in Xuanwu.
-user-invocable: true
-disable-model-invocation: false
----
-
-# Hexagonal Architecture with Domain-Driven Design
-
-Use this skill when the task involves module boundaries, application flow, tactical domain design, or refactoring code back behind stable ports and public APIs.
-
-## Research Basis
-
-Context7-verified:
-
-1. `/sairyss/domain-driven-hexagon`
-   - Dependencies point inward; application core does not depend on frameworks or external resources directly.
-   - Ports are contracts owned by the core; adapters implement them outside the core.
-   - Ports may live in application by default, but domain-owned ports are appropriate when a domain rule itself depends on an external capability.
-   - Adapters should not be called directly; they are reached through ports.
-   - Feature-oriented structure is preferable to broad technical buckets when files change together.
-
-Web-verified:
-
-1. Martin Fowler, Domain-Driven Design
-   - DDD centers software around a rich domain model, ubiquitous language in code, aggregates, and strategic bounded contexts.
-2. Hexagonal architecture overview
-   - The core is isolated from UI, database, test scripts, and external systems through ports and adapters.
-   - A port can have multiple adapters, and the shape is about replaceable boundaries, not a literal six-part layout.
-
-## Working Synthesis
-
-Hexagonal DDD in this repo means:
-
-1. Start from owning bounded context and ubiquitous language, not from folders.
-2. Keep business rules in domain objects and domain services, not in routes, UI, or persistence code.
-3. Use application for orchestration, transactions, command/query flow, and DTO translation.
-4. Place infrastructure and interfaces outside the core, depending inward.
-5. Expose cross-module collaboration only through the target module `api/` boundary or published events.
-6. Add abstractions only when they protect a real boundary.
-
-## DDD Use Case Decision Rules (Compact)
-
-### Core Rules
-
-1. Use a use case only when there is business behavior.
-2. If there is flow logic (validation, orchestration, events), use a use case.
-3. If multiple aggregates or services must collaborate, use a use case.
-4. If transaction or consistency control is required, use a use case.
-
-### Exclusion Rules
-
-5. Pure reads without business logic should be queries, not use cases.
-6. UI state and frontend interaction logic stay in interfaces.
-7. A single data operation with no rule can go directly to repository or domain service.
-
-### Design Rules
-
-8. One use case equals one business intent, named with a verb-first action.
-9. Use cases should not do data-shape conversion; delegate mapping to mappers.
-10. Use cases must not depend directly on UI or framework concerns.
-11. Use cases orchestrate flow only; complex business rules belong to domain.
-
-### Structure Rules
-
-12. Commands belong in `use-cases/`.
-13. Reads belong in `queries/`.
-14. DTO and mapping logic belong in `mappers/`.
-15. Cross-flow helper logic belongs in `services/`.
-
-### Anti-Pattern Checks
-
-16. `GetXxxUseCase` is usually a smell and should likely be a query.
-17. A use case above about 200 lines should be split or pushed down into domain.
-18. A use case that only wraps a single call is usually over-design.
-
-### One-Line Summary
-
-Use case is the entry point for business behavior, not the entry point for every function.
-
-## Layer Decision Rules (Compact)
-
-### Domain Layer
-
-#### Core Rules
-
-1. Business rules always belong in domain, not in use cases.
-2. Invariants must be enforced by the aggregate boundary.
-3. State changes must happen through behavior methods, not direct setters.
-4. Domain must not depend on DB, API, framework, or transport concerns.
-
-#### Design Rules
-
-5. An aggregate is a consistency boundary, not a data container.
-6. Entities have identity; value objects do not.
-7. Value objects should be immutable.
-8. Domain services should handle cross-aggregate business rules only.
-
-#### Exclusion Rules
-
-9. Do not place CRUD workflow in domain services.
-10. Do not place orchestration in domain; that belongs to application.
-
-#### Anti-Pattern Checks
-
-11. Getter/setter-only entities are an anemic model smell.
-12. If business logic sits in use cases, domain is being hollowed out.
-
-### Repository Layer
-
-#### Core Rules
-
-1. Repository models aggregate collections.
-2. Repository works on aggregate roots, not internal entities directly.
-
-#### Design Rules
-
-3. Repository interfaces belong in domain; implementations belong in infrastructure.
-4. Use semantic method names such as `findByEmail` over generic names.
-
-#### Exclusion Rules
-
-5. Repositories must not contain business logic.
-6. Repositories should not own mapping concerns.
-
-#### Anti-Pattern Checks
-
-7. Treating repository as an unrestricted DAO breaks aggregate boundaries.
-8. Returning ORM entities leaks technical details into the core.
-
-### Query (Read Model)
-
-#### Core Rules
-
-1. Separate read and write concerns (CQRS).
-2. Queries may bypass domain when controlled and explicit.
-
-#### Design Rules
-
-3. Return DTO or view model directly from query handlers.
-4. Query models may be optimized for UI read performance.
-
-#### Exclusion Rules
-
-5. Queries must be side-effect free.
-6. Queries must not trigger domain behavior.
-
-#### Anti-Pattern Checks
-
-7. Business logic in query handlers is responsibility drift.
-
-### Application Service (Beyond Use Cases)
-
-#### Core Rules
-
-1. Extract services only for flow fragments shared across use cases.
-2. Application service is orchestration support, not business core.
-
-#### Design Rules
-
-3. Keep application services stateless.
-4. Reuse across multiple use cases when duplication pressure is real.
-
-#### Anti-Pattern Checks
-
-5. Domain logic moved into application services is a layer violation.
-
-### Infrastructure Layer
-
-#### Core Rules
-
-1. Implement external dependencies (DB, API, Firebase, queues, etc.).
-2. Implement contracts; do not define business rules here.
-
-#### Design Rules
-
-3. Use adapters aligned to declared ports.
-4. Keep implementations replaceable for tests and environment swaps.
-
-#### Exclusion Rules
-
-5. Infrastructure should not hold business decisions.
-
-#### Anti-Pattern Checks
-
-6. Business logic in infrastructure is architectural contamination.
-
-### Interface Layer (UI/API)
-
-#### Core Rules
-
-1. Interface handles input/output translation, not business decisions.
-2. Convert incoming requests to commands or queries.
-
-#### Design Rules
-
-3. Controllers and route handlers should remain thin.
-4. Validation split: format at interface, business invariants at domain.
-
-#### Exclusion Rules
-
-5. Interface should not directly operate repositories.
-6. Interface should not embed use case logic.
-
-#### Anti-Pattern Checks
-
-7. Fat controllers indicate boundary failure.
-
-### Mapper
-
-#### Core Rules
-
-1. Keep DTO, domain model, and persistence model separated.
-
-#### Design Rules
-
-2. Use explicit mapper verbs: `toDomain`, `toDTO`, `toPersistence`.
-
-#### Anti-Pattern Checks
-
-3. Hand-written mapping in every use case causes duplication and leakage.
-
-### Events (Domain and Integration)
-
-#### Core Rules
-
-1. State changes should emit domain events.
-2. Cross-system propagation should use integration events.
-
-#### Design Rules
-
-3. Use past-tense event names (for example `UserRegistered`).
-4. Events describe facts, not commands.
-
-#### Anti-Pattern Checks
-
-5. Using events as commands is misuse.
-
-### Transaction and Consistency
-
-#### Core Rules
-
-1. One use case should define one transaction boundary.
-2. Cross-aggregate flows should favor eventual consistency.
-
-#### Anti-Pattern Checks
-
-3. Demanding strict consistency across many aggregates is usually a design smell.
-
-### Ports (Hexagonal Core)
-
-#### Core Rules
-
-1. Domain or application defines ports as interfaces.
-2. Infrastructure implements adapters for those ports.
-
-#### Design Rules
-
-3. Keep dependency direction inverted toward the core.
-
-#### Anti-Pattern Checks
-
-4. If domain imports Firebase SDK directly, the boundary is broken.
-
-### Upgraded One-Line Summary
-
-Use case decides what to do, domain decides how rules work, repository decides how aggregates are retrieved and stored, infrastructure decides how external technology is executed, and interface decides how requests enter and responses leave.
-
-## Development Order Contract (Domain-First)
-
-### Standard Flow (Default)
-
-1. Define the use case intent first.
-2. Model domain rules and domain objects.
-3. Define ports for required dependencies.
-4. Complete application orchestration.
-5. Implement infrastructure adapters.
-6. Wire interfaces (UI/API) last.
-
-### Step Decision Rules
-
-#### 1) Use Case (Entry First)
-
-1. Name use cases with verb-first intent (`CreateXxx`, `SubmitXxx`, `InviteXxx`).
-2. Start with flow skeleton before implementation details.
-3. Make command input and result output explicit.
-
-Rule focus: decide what to do before deciding how to do it.
-
-#### 2) Domain (Core Modeling)
-
-4. Push business rules into domain.
-5. Define aggregates, entities, and value objects.
-6. Define invariants that cannot be violated.
-
-Rule focus: this step determines most correctness.
-
-#### 3) Ports (Dependency Isolation)
-
-7. Define repository and external-service interfaces in domain or application.
-8. Keep Firebase, ORM, or SDK types out of these definitions.
-
-Rule focus: abstract first, implement second.
-
-#### 4) Application (Use Case Completion)
-
-9. Orchestrate flow: load aggregate, invoke domain behavior, save, publish events.
-10. Keep business rules out of application flow.
-
-Rule focus: application composes the path, domain owns the rules.
-
-#### 5) Infrastructure (External Plug-In)
-
-11. Implement repositories and external adapters (Firestore, API, storage, email, AI, etc.).
-12. Implement each declared port explicitly.
-
-Rule focus: infrastructure is replaceable plug-in surface.
-
-#### 6) Interface (Latest Stage)
-
-13. Add API routes, actions, or UI wiring after core flow is stable.
-14. Convert requests into command/query contracts.
-15. Call use cases, do not inline business decisions.
-
-Rule focus: interface is the last-mile translation layer.
-
-### Forced Order Guardrails
-
-1. Do not build UI first and backfill domain later.
-2. Do not call repositories directly from interface.
-3. Do not design infrastructure schema first and force domain to match it.
-4. Do not start implementation before use-case intent is defined.
-
-### Legacy Exception: Outside-In Strangler
-
-1. Start from interface or API when delivery pressure requires it.
-2. Wrap legacy behavior behind a use-case boundary first.
-3. Incrementally move business logic into domain.
-4. Converge back to the standard flow.
-
-Rule focus: temporary mess is acceptable only if convergence is explicit and scheduled.
-
-### Firebase x Next.js Runtime Reinforcement
-
-1. Run use cases on server entry points (Server Actions, route handlers, or functions).
-2. Keep domain in pure TypeScript with no Firebase imports.
-3. Implement Firestore integration in infrastructure adapters.
-4. Keep Next.js routes and RSC in interface composition.
-5. Allow read-model realtime queries to consume Firestore snapshots directly when they are query-only.
-6. Keep realtime query paths side-effect free and outside command use-case flow.
-
-### Development-Order Essence
-
-Define behavior first, define rules second, connect the outside world last.
-
-## Xuanwu Mapping
-
-| Concern | Xuanwu location |
-|---|---|
-| Public cross-module boundary | `modules/<context>/api/` |
-| Driving adapters | `app/`, `modules/<context>/interfaces/` |
-| Application orchestration | `modules/<context>/application/` |
-| Domain rules and invariants | `modules/<context>/domain/` |
-| Driven adapters | `modules/<context>/infrastructure/` |
-| Context-wide concern | `<bounded-context>/application|domain|infrastructure|interfaces` |
-
-## Placement Rules
-
-1. Choose the owning bounded context before choosing the file path.
-2. Default to existing subdomains; create a new one only when ownership or language genuinely diverges.
-3. Keep `interfaces -> application -> domain <- infrastructure` as the dependency rule.
-4. Treat `index.ts` as exports only; do not treat it as the public module boundary.
-5. Use `api/` for cross-module calls; do not import peer `domain/`, `application/`, `interfaces/`, or `infrastructure/` directly.
-6. Bounded-context root layers are valid for context-wide policies or orchestration; do not force everything into a generic `core/` wrapper.
-
-## Port Decision Heuristics
-
-Create a port when at least one of these is true:
-
-1. The core must stay independent from a framework, SDK, database, queue, or remote service.
-2. The dependency crosses process, runtime, or bounded-context boundaries.
-3. Multiple adapters are plausible now, or swapping later is a realistic requirement.
-4. A domain rule depends on an external capability and that dependency must remain expressible in domain terms.
-
-Avoid a port when the abstraction only exists to look architectural.
-
-## Red Flags
-
-- Domain imports React, Firebase, HTTP clients, ORM models, or runtime transport types.
-- Application rewrites business invariants that belong in domain.
-- A route handler or Server Action becomes the real use-case implementation.
-- Another module imports peer internals instead of `@/modules/<target>/api`.
-- A repository implementation is referenced directly from the core.
-- A new layer or folder is introduced without a new boundary to protect.
-
-## Review Loop
-
-1. Identify the actor, use case, and owning bounded context.
-2. Name concepts with the repo glossary before naming types.
-3. Place rules in domain, orchestration in application, adapters outside.
-4. Verify every outward dependency is inverted or isolated behind the public boundary.
-5. Remove decorative abstractions that do not protect a real seam.
-6. Update docs and contracts together when ownership or language changes.
-
-## Output Contract
-
-When this skill is used, provide:
-
-1. the owning bounded context and subdomain,
-2. boundary or layer violations,
-3. the minimal structural correction,
-4. changed files and rationale,
-5. residual risks or migration notes.
-````
-
-## File: .github/skills/next-devtools-mcp/SKILL.md
-````markdown
----
-name: next-devtools-mcp
-description: >
-  Auto-load skill for Next.js route architecture and diagnostics. Use for App Router, parallel routes, server components,
-  server actions, streaming, hydration/performance checks, and Next.js config changes.
-user-invocable: false
-disable-model-invocation: false
----
-
-# next-devtools-mcp (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-````
-
-## File: .github/skills/occams-razor/SKILL.md
-````markdown
----
-name: occams-razor
-description: >-
-  Occam's Razor skillbook. Use when multiple designs compete, abstractions are proliferating,
-  docs or workflows are bloating, or you need the simplest adequate path without denying real complexity.
-user-invocable: true
-disable-model-invocation: false
----
-
-# Occam's Razor
-
-Use this skill when you must choose between plausible options and need to reduce unnecessary assumptions, indirection, or ceremony.
-
-## Research Basis
-
-Context7 availability note:
-
-1. No authoritative Context7 library entry exists for Occam's Razor as a philosophical and methodological principle, so this skill is grounded primarily in web sources.
-
-Web-verified:
-
-1. Occam's Razor is a parsimony heuristic: when competing explanations have comparable explanatory power, prefer the one with fewer assumptions.
-2. It is a heuristic, not a proof rule and not a guarantee that the simplest explanation is true.
-3. It is most useful for cutting ad hoc additions and prioritizing the option that is easier to test and falsify.
-4. It becomes misuse when used to erase real complexity, evidence, or domain distinctions.
-
-## Engineering Translation
-
-In software work, apply Occam's Razor as:
-
-1. remove assumptions before removing evidence,
-2. prefer the smallest structure that still protects the real boundary,
-3. do not create a second abstraction until the first concrete pressure appears,
-4. simplify by deleting duplication, not by collapsing distinct meanings,
-5. if two options both work, prefer the one that is easier to explain, test, and reverse.
-
-## What Counts As A Real Pressure
-
-An extra abstraction, document, layer, or module should usually exist only if it protects at least one of these:
-
-1. a runtime or process boundary,
-2. a bounded-context ownership boundary,
-3. a volatile external dependency,
-4. materially different behavior,
-5. repeated change pressure that is already visible.
-
-If none of those exist, the extra structure is probably speculative.
-
-## Xuanwu Translation
-
-In this repo, applying Occam's Razor usually means:
-
-1. prefer the owning existing bounded context before inventing a new one,
-2. keep `.github` thin and let `docs/` stay the authority,
-3. add ports only when they protect the core from a real external seam,
-4. avoid parallel glossaries, prompts, or instructions that restate existing authority,
-5. keep app shims thin and move real behavior into the owning module,
-6. keep one concern per branch or PR.
-
-## Decision Loop
-
-1. State the competing options and the invariant that must be preserved.
-2. List the extra assumptions, files, layers, or concepts each option introduces.
-3. Remove options that depend on hypothetical future needs only.
-4. Prefer the option with fewer assumptions that still satisfies current evidence and boundaries.
-5. If uncertain, choose the option that is easiest to validate and easiest to undo.
-6. Reintroduce complexity only after new evidence appears.
-
-## Red Flags
-
-- A new interface exists only because “architecturally it feels right”.
-- A new module or subdomain is created for naming symmetry rather than ownership.
-- A second document restates the first without new authority.
-- The solution becomes more generic while the use case remains singular.
-- “Simple” is being used to dismiss already confirmed edge cases.
-- Fewer files are treated as inherently better even when boundaries become less clear.
-
-## Review Questions
-
-1. What new assumption does this change add?
-2. Which existing owner or layer could absorb the behavior instead?
-3. Is the abstraction protecting a real seam or only aesthetics?
-4. Did we simplify the explanation, or only hide the complexity?
-5. What would break if we removed this extra layer today?
-
-## Output Contract
-
-When this skill is used, provide:
-
-1. the competing options,
-2. the unnecessary assumptions or layers,
-3. the simplest adequate recommendation,
-4. what complexity must remain because it is real,
-5. the validation step that proves the simpler path still works.
-````
-
-## File: .github/skills/playwright-mcp-testing/AGENTS.md
-````markdown
-# Playwright MCP Testing Skill
-
-## Purpose
-
-This skill enables browser-based test execution for Xuanwu App using the Playwright MCP toolchain combined with Next.js DevTools, shadcn, context7, Serena, and markitdown MCPs.
-
-## When to Use This Skill
-
-Load [SKILL.md](SKILL.md) when:
-
-- Running UI functional tests via simulate click / fill / navigate
-- Detecting missing features or anti-intuitive UX gaps
-- Validating form flows (create/edit/submit) with evidence
-- Taking and documenting screenshots for test reports
-- Checking Console errors and API response behaviour
-- Testing login, workspace switching, and account-context flows
-
-## Quick Start
-
-```bash
-# Ensure dev server is running
-npm run dev
-```
-
-Then use the [playwright-mcp-test prompt](../../.github/prompts/playwright-mcp-test.prompt.md) or [playwright-mcp-inspect prompt](../../.github/prompts/playwright-mcp-inspect.prompt.md).
-
-## Tools in This Skill
-
-| Tool | Role |
-|------|------|
-| `mcp_playwright-mc_*` | Primary browser automation |
-| `mcp_io_github_ver_browser_eval` | Fallback when playwright-mcp is closed |
-| `mcp_io_github_ver_nextjs_*` | Next.js runtime diagnostics |
-| `mcp_shadcn_*` | Component lookup |
-| `mcp_context7_*` | API documentation verification |
-| `mcp_oraios_serena_*` | Source code symbol search |
-| `mcp_markitdown_*` | Test evidence to Markdown |
-````
-
-## File: .github/skills/playwright-mcp-testing/SKILL.md
-````markdown
----
-name: playwright-mcp-testing
-description: >
-  瀏覽器自動化測試與 UI 缺陷偵測技能。凡涉及以下任何行為時自動觸發：
-  模擬用戶操作（點擊、填表、導航）、UI 功能缺口驗證、截圖比對、
-  元素狀態檢查、表單送出流程、歡迎／登入流程、Console 錯誤偵測、
-  API 返回值驗證。搭配 playwright-mcp、next-devtools-mcp、shadcn-mcp、
-  context7、serena-mcp、markitdown-mcp 完整生態系執行閉環。
-user-invocable: true
-argument-hint: "<url-or-route> <user-flow-description>"
----
-
-# Playwright MCP Testing (完整版)
-
-## 定位
-
-此技能是 Xuanwu App 的 **瀏覽器測試執行層**（Browser Test Execution Layer）。
-
-負責範圍：
-- 模擬真實用戶操作並觀察 UI 反應
-- 找出功能缺口（missing features）與反直覺設計（anti-intuitive UX）
-- 驗證表單送出、按鈕狀態、錯誤訊息、成功反饋
-- 截圖存證讓 AI 和人類雙方都能「看見」測試結果
-- 結合 Next.js 運行時診斷取得 Console 錯誤、路由資訊、Server Action 追蹤
-
----
-
-## MCP 工具生態系統與用途
-
-| MCP 工具 | 用途 | 何時調用 |
-|---------|------|---------|
-| `run_task` (VS Code) | 自主啟動 `npm run dev`（`shell: dev` task） | Dev server 未運行時，作為啟動前置步驟 |
-| `open_browser_page` (VS Code) | 在 VS Code 內建瀏覽器面板直接開啟 URL | 快速目視驗證，不需要外部視窗 |
-| `playwright-mcp` (`mcp_playwright-mc_*`) | 瀏覽器快照、點擊、填表、導航 | 主要執行层 — 凡涉及 UI 操作 |
-| `io.github.vercel/next-devtools-mcp` (`mcp_io_github_ver_*`) | Next.js 路由、Console 錯誤、Server Action ID、頁面元數據 | 診斷 Next.js 特定問題 |
-| `shadcn-mcp` (`mcp_shadcn_*`) | 查詢 shadcn/ui 元件用法、確認正確 import 路徑 | 需確認元件行為或找可用元件 |
-| `context7-mcp` (`mcp_context7_*`) | 查詢 Playwright API、React API、Next.js API 最新文件 | 任何 API 不確定時，99.99% 準確率要求 |
-| `oraios/serena-mcp` (`mcp_oraios_serena_*`) | 讀取 repo 記憶、符號搜尋、找 Server Actions | 需要查找 source code 或更新 memory |
-| `markitdown-mcp` (`mcp_markitdown_*`) | 將截圖或 HTML 轉換為 Markdown 測試報告 | 需要輸出測試報告或文件化證據 |
-| `mcp_io_github_ver_browser_eval` | 後備 browser eval（playwright-mcp 不可用時） | playwright-mcp 工具失效時的備援 |
-
----
-
-## 工具優先順序（Priority）
-
-```
-run_task（啟動 dev server）
-  ↓
-open_browser_page（VS Code 內建預覽）
-  ↓
-playwright-mcp（主要互動執行）
-  ↓
-mcp_io_github_ver_browser_eval（備援）
-```
-
-**關鍵原則**：`playwright-mcp` 工具永遠優先於互動操作。若返回 `"Target page, context or browser has been closed"` 需立即切換備援方案（見下方「備援流程」章節）。
-
----
-
-## VS Code 整合瀏覽器（open_browser_page）
-
-`open_browser_page` 會在 VS Code 的 **Simple Browser** 面板中直接開啟 URL，無需外部視窗。
-
-### 使用時機
-- 快速目視確認頁面是否正常渲染
-- dev server 剛啟動後驗證首頁可達
-- 搭配 playwright-mcp 做雙重視覺確認
-
-### 用法
-
-```
-# 在 VS Code 內建瀏覽器開啟目標頁面
-open_browser_page url="http://localhost:3000/workspace"
-
-# 組合範例：自動啟動 + 開啟預覽
-1. run_task id="shell: dev" → 等待 Ready
-2. open_browser_page url="http://localhost:3000"
-3. mcp_playwright-mc_browser_navigate url="http://localhost:3000/workspace"
-4. mcp_playwright-mc_browser_snapshot → 開始測試
-```
-
-### 限制
-- **不支援 playwright-mcp 互動**（click、fill、snapshot 仍需 playwright-mcp）
-- VS Code Simple Browser 是唯讀預覽層，複雜 SPA 互動請用 playwright-mcp
-- 可同時開啟兩個工具（一個預覽 + 一個互動）
-
----
-
-## 標準工作流程
-
-### 0. 自主啟動 Dev Server（若未運行）
-
-```
-# 檢查 localhost:3000 是否可達；若不可達，自動啟動：
-run_task:
-  workspaceFolder: "d:\\GitHub\\122sp7\\xuanwu-app"
-  id: "shell: dev"
-
-# 等待 Ready 訊號後再繼續（isBackground=true，透過 get_task_output 確認）
-```
-
-### 1. 啟動前確認
-
-```
-[ ] Dev server 運行中（localhost:3000）
-      → 若未啟動：run_task id="shell: dev" （自動，不需人工介入）
-[ ] playwright-mcp 工具可用（mcp_playwright-mc_browser_snapshot 測試）
-[ ] 確認測試目標 URL 與用戶流程
-[ ] 確認測試帳號（dev demo: test@demo.com）
-```
-
-### 2. 取得 Accessibility Snapshot
-
-**永遠先 snapshot，再行動**：
-
-```
-# 1. 取得頁面可訪問性快照（包含所有元素 ref）
-mcp_playwright-mc_browser_snapshot: {}
-
-# 2. 從 snapshot 找到目標元素的 ref（格式：e.g. "ref-123"）
-# 3. 用 ref 進行 click / fill / select_option
-
-# 正確示例：
-mcp_playwright-mc_browser_click: { ref: "ref-123", element: "新增文章按鈕" }
-mcp_playwright-mc_browser_fill: { ref: "ref-456", value: "文章標題內容" }
-```
-
-### 3. 表單操作流程
-
-```
-1. snapshot → 找到表單元素 refs
-2. fill 逐一填入欄位（title、content、tags 等）
-3. snapshot → 確認填入正確（欄位 value 反映即時狀態）
-4. click 提交按鈕
-5. wait_for → 等待成功/失敗狀態
-6. snapshot → 確認最終 UI 狀態
-7. screenshot → 截圖存證
-```
-
-### 4. 截圖存證流程
-
-```
-# 取得截圖 base64 內容
-mcp_playwright-mc_browser_take_screenshot: {}
-
-# PowerShell 儲存（Windows 環境）
-$json = Get-Content "<content.json path>" | ConvertFrom-Json
-$bytes = [Convert]::FromBase64String($json.result.content[0].data)
-[System.IO.File]::WriteAllBytes("C:\Temp\ss_<name>.png", $bytes)
-
-# 或自動儲存至 scratchpad
-```
-
-### 5. Console 錯誤收集
-
-```
-# 驗證是否有 Console 錯誤
-mcp_playwright-mc_browser_console_messages: {}
-
-# 或透過 next-devtools-mcp
-mcp_io_github_ver_nextjs_call: { port: 3000, toolName: "get_errors" }
-```
-
----
-
-## Xuanwu App 特定操作模式
-
-### A. 帳號切換（Personal → Organization）
-
-> **重要**：Radix UI DropdownMenu 需要 `PointerEvent('pointerdown')` 才能觸發開啟。
-
-```js
-// 1. 取得 snapshot，找到帳號切換按鈕 ref
-// 2. click 按鈕（觸發 PointerDown）
-// 3. snapshot → 確認 [role=menu] 出現
-// 4. click org 選項（[role=menuitem]）
-// 5. 驗證：localStorage['xuanwu_last_active_account'] = orgId
-```
-
-```
-// 備援：evaluate 方式（playwright-mcp 不可用時）
-mcp_io_github_ver_browser_eval evaluate:
-  document.querySelector('button[aria-label="切換帳號情境"]')
-    ?.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true,isPrimary:true}))
-// 點選 org([role=menuitem][1].click())
-```
-
-### B. 工作區選擇
-
-> 許多頁面需要 `activeWorkspaceId` 才能啟用 CTA（如「新增文章」）。
-
-```
-流程：
-1. 導航到 /workspace
-2. 點擊某個工作區（snapshot → 找 workspace 卡片 ref → click）
-3. 確認 appState.activeWorkspaceId 非空
-4. 再導航到目標頁面
-```
-
-### C. SPA 內頁導航（避免全頁重載）
-
-> 全頁重載（navigate/goto）會導致 React 重新初始化並重置 activeAccount。
-
-```
-✅ 正確方式：
-- 使用 snapshot 找到 Link 的 ref → click
-- 使用麵包屑連結（breadcrumb a[href="/target"]）的 ref → click
-
-❌ 避免：
-- mcp_playwright-mc_browser_navigate 到新頁面（會重置狀態）
-- evaluate window.location.href = '...'
-```
-
----
-
-## 備援流程（playwright-mcp 失效時）
-
-若 `mcp_playwright-mc_browser_snapshot` 返回 `"Target page, context or browser has been closed"`：
-
-```
-1. 使用 mcp_io_github_ver_browser_eval action:"navigate" 導航到目標 URL
-2. 使用 mcp_io_github_ver_browser_eval action:"evaluate" 執行 JavaScript
-3. 使用 mcp_io_github_ver_browser_eval action:"screenshot" 截圖
-4. 使用 mcp_io_github_ver_browser_eval action:"fill_form" 填表（需 name 和 type）
-```
-
-### evaluate 限制（重要）
-
-```
-❌ 不可序列化的 evaluate（會失敗）：
-- 包含 new Event()、new PointerEvent() 的表達式
-- 包含 for loop 的表達式
-- 包含 Array.from() + map 的複雜鏈
-
-✅ 可序列化的 evaluate（單一表達式）：
-- document.querySelector('...').getAttribute('href')
-- document.querySelectorAll('button')[3].textContent
-- localStorage.getItem('key')
-- el.click()（單一 DOM 操作）
-```
-
----
-
-## 缺口偵測檢查清單（UI Gap Detective）
-
-執行每個頁面時，逐一確認：
-
-| 項目 | 檢查方式 | 缺口徵兆 |
-|------|---------|---------|
-| 主要 CTA 明顯可見 | 截圖 + 視覺判斷 | 無「新增/建立」按鈕 |
-| CTA 是否 enabled | snapshot `disabled` 屬性 | 按鈕存在但 disabled，缺少說明 |
-| 空狀態有引導 | snapshot empty state | 畫面空白無任何指引 |
-| 表單有 validation feedback | 故意送空表單 | 無錯誤提示 |
-| 成功操作有反饋 | 執行 CRUD 後 snapshot | 無 toast / 無列表更新 |
-| 如何「離開」此頁有出口 | 找 back/breadcrumb | 頁面死胡同（dead end） |
-| 載入中有 skeleton/spinner | 慢速觀察 | 白屏 loading |
-| Console 無錯誤 | console_messages | 紅字錯誤 |
-
----
-
-## 測試報告格式（Evidence Block）
-
-每次測試結束輸出以下格式：
-
-```markdown
-## 測試結果：<頁面/功能名稱>
-
-**URL**: /target-path  
-**狀態**: ✅ 通過 / ❌ 失敗 / ⚠️ 部分通過
-
-### 操作記錄
-1. [截圖 ss_N.png] 描述操作
-2. [快照] 確認 ref 位置
-3. 填入欄位 → 提交
-4. 驗證結果
-
-### 發現的缺口
-- ❌ <缺口描述>：<影響說明>（建議修復優先級：高/中/低）
-
-### Console 錯誤
-- 無 / <錯誤列表>
-
-### 建議修復
-- [ ] <修復建議>
-```
-
----
-
-## 搭配工具調用時機
-
-### 需要查 shadcn 元件
-
-```
-1. mcp_shadcn_list_items_in_registries → 確認元件名稱
-2. mcp_shadcn_view_items_in_registries → 取得使用示例
-3. 如有疑義，mcp_context7_resolve-library-id "shadcn/ui" → get-library-docs
-```
-
-### 需要查 Playwright API
-
-```
-1. mcp_context7_resolve-library-id "playwright"
-2. mcp_context7_get-library-docs id=<resolved> topic="browser actions"
-```
-
-### 需要找 Server Action
-
-```
-1. mcp_io_github_ver_nextjs_call port:3000 toolName:"get_server_action_by_id"
-2. 或 mcp_oraios_serena_find_symbol name_path_pattern="*Action*" include_body=true
-```
-
-### 需要找元件源碼
-
-```
-1. mcp_oraios_serena_find_symbol name_path_pattern="ArticleDialog" include_body=false
-2. 確認 props 後 include_body=true 讀取細節
-```
-
-### 需要寫測試報告
-
-```
-1. 截圖後用 mcp_markitdown_convert_to_markdown 轉換
-2. 整合到 scratchpad/<task>-test-report-YYYY-MM-DD.md
-```
-
----
-
-## 反模式（Anti-Patterns）
-
-```
-❌ 不驗證就假設功能可用
-❌ 先 fill 再找 ref（應先 snapshot 找 ref）
-❌ 全頁重載導航（破壞 React 狀態）
-❌ 只截圖不檢查 Console 錯誤
-❌ 對複雜表達式使用 evaluate（應拆分）
-❌ 跳過 wait_for 直接 snapshot（競態條件）
-❌ 無 workspaceId 就嘗試建立資源（必定 disabled）
-```
-
----
-
-## Xuanwu App 關鍵 localStorage 對照
-
-| Key | 說明 |
-|-----|------|
-| `xuanwu_dev_demo_session_v1` | Dev demo 用戶 session（`{id, name, email}`） |
-| `xuanwu_last_active_account` | 當前活躍帳號 ID（Personal: `dev-demo-user`，Org: Firebase ID） |
-
----
-
-## 技能觸發標籤
-
-Tags: #use skill playwright-mcp-testing
-#use skill context7
-#use skill next-devtools-mcp
-#use skill shadcn
-#use skill serena-mcp
-````
-
-## File: .github/skills/vercel-composition-patterns/AGENTS.md
-````markdown
-# React Composition Patterns (Condensed)
-
-This AGENTS file is intentionally compact to reduce repeated context load.
-
-## Source of Truth
-
-- Primary workflow: `./SKILL.md`
-
-## When to Apply
-
-Use for component architecture and state-composition refactors in React codebases.
-
-## Core Rules
-
-1. Avoid boolean-prop proliferation for variants.
-2. Prefer compound components for complex composition.
-3. Lift state into provider boundaries when shared behavior is required.
-4. Keep UI composition explicit and variant-specific.
-
-## Minimal Execution Flow
-
-1. Detect branching complexity and variant explosion.
-2. Refactor to explicit variants and composition.
-3. Move shared state and actions into context/provider only when needed.
-4. Validate behavior parity and readability.
-
-## Guardrails
-
-- Do not turn simple components into over-engineered abstractions.
-- Avoid copying large tutorial examples into this file.
-- Keep this file as a high-signal checklist; place deep examples in `SKILL.md`.
-
-## Validation
-
-- Run `npm run lint`
-- Run `npm run build`
-````
-
-## File: .github/skills/vercel-composition-patterns/SKILL.md
-````markdown
----
-name: vercel-composition-patterns
-description:
-  React composition patterns that scale. Use when refactoring components with
-  boolean prop proliferation, building flexible component libraries, or
-  designing reusable APIs. Triggers on tasks involving compound components,
-  render props, context providers, or component architecture. Includes React 19
-  API changes.
-license: MIT
-metadata:
-  author: vercel
-  version: '1.0.0'
-disable-model-invocation: true
----
-
-# vercel-composition-patterns (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-````
-
-## File: .github/skills/vercel-react-best-practices/AGENTS.md
-````markdown
-# React Best Practices (Condensed)
-
-This AGENTS file is intentionally compact to reduce repeated context load.
-
-## Source of Truth
-
-- Primary workflow: `./SKILL.md`
-- Detailed rules: `./rules/`
-
-## When to Apply
-
-Use this guidance when working on React or Next.js implementation, review, or refactor tasks.
-
-## Priority Order
-
-1. Eliminate async waterfalls (`async-*`)
-2. Reduce bundle size (`bundle-*`)
-3. Improve server-side performance (`server-*`)
-4. Optimize client fetching and rerenders (`client-*`, `rerender-*`)
-5. Apply rendering and JS micro-optimizations (`rendering-*`, `js-*`, `advanced-*`)
-
-## Minimal Execution Flow
-
-1. Identify the slow path and classify by rule prefix.
-2. Apply the highest-impact rule first.
-3. Keep changes scoped and measurable.
-4. Validate with project commands.
-
-## Guardrails
-
-- Prefer server-first data strategies in Next.js.
-- Avoid speculative micro-optimizations before waterfall and bundle fixes.
-- Do not duplicate long rule text here; keep details in `rules/*`.
-
-## Validation
-
-- Run `npm run lint`
-- Run `npm run build`
-
-## Note
-
-If this file grows large again, move examples to `rules/` and keep this file as a routing index only.
-````
-
-## File: .github/skills/vercel-react-best-practices/SKILL.md
-````markdown
----
-name: vercel-react-best-practices
-description: React and Next.js performance optimization guidelines from Vercel Engineering. This skill should be used when writing, reviewing, or refactoring React/Next.js code to ensure optimal performance patterns. Triggers on tasks involving React components, Next.js pages, data fetching, bundle optimization, or performance improvements.
-license: MIT
-metadata:
-  author: vercel
-  version: "1.0.0"
----
-
-# vercel-react-best-practices (Condensed)
-
-## Scope
-Use this skill only when the request clearly matches its description/frontmatter.
-
-## Workflow
-1. Define the concrete outcome and success criteria in one short block.
-2. Collect only the minimum files/docs needed for that outcome.
-3. Implement the smallest safe change that satisfies the request.
-4. Validate with project-required commands and report evidence.
-
-## Output Contract
-- State owner/boundary impact (module, runtime, or integration).
-- List changed files and why each changed.
-- Report validation results and residual risk.
-
-## Guardrails
-- Do not duplicate repository-global policy text from AGENTS or copilot instructions.
-- Do not copy long handbooks into responses; reference canonical docs instead.
-- Keep examples short and directly executable.
-
-## Anti-Noise
-- Prefer checklist-style guidance over long prose.
-- Keep this file focused on skill-specific execution intent.
-- Remove repeated conceptual background that exists elsewhere.
-````
-
-## File: .github/skills/web-design-guidelines/SKILL.md
-````markdown
----
-name: web-design-guidelines
-description: Review UI code for Web Interface Guidelines compliance. Use when asked to "review my UI", "check accessibility", "audit design", "review UX", or "check my site against best practices".
-argument-hint: <file-or-pattern>
-metadata:
-  author: vercel
-  version: "1.0.0"
----
-
-# Web Interface Guidelines
-
-Review files for compliance with Web Interface Guidelines.
-
-## How It Works
-
-1. Fetch the latest guidelines from the source URL below
-2. Read the specified files (or prompt user for files/pattern)
-3. Check against all rules in the fetched guidelines
-4. Output findings in the terse `file:line` format
-
-## Guidelines Source
-
-Fetch fresh guidelines before each review:
-
-```
-https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md
-```
-
-Use WebFetch to retrieve the latest rules. The fetched content contains all the rules and output format instructions.
-
-## Usage
-
-When a user provides a file or pattern argument:
-1. Fetch guidelines from the source URL above
-2. Read the specified files
-3. Apply all rules from the fetched guidelines
-4. Output findings using the format specified in the guidelines
-
-If no files specified, ask the user which files to review.
-````
-
 ## File: app/globals.css
 ````css
 @theme inline {
@@ -5400,6 +3936,102 @@ flowchart LR
 - [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
 ````
 
+## File: docs/contexts/notebooklm/AGENT.md
+````markdown
+# NotebookLM Agent
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Mission
+
+保護 notebooklm 主域作為對話、來源處理、檢索、grounding 與 synthesis 邊界。任何變更都應維持 notebooklm 擁有衍生推理流程與可追溯輸出，而不是直接擁有正典知識內容。
+
+## Canonical Ownership
+
+- source
+- notebook
+- conversation
+- synthesis (owns retrieval, grounding, generation, evaluation as internal facets)
+
+## Route Here When
+
+- 問題核心是 notebook、conversation、source ingestion、synthesis（retrieval、grounding、generation、evaluation）。
+- 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
+- 問題要把知識來源轉成可對話與可綜合的推理材料。
+
+## Route Elsewhere When
+
+- 正典知識頁面、內容分類、正式發布屬於 notion。
+- 身份、授權、權益、憑證治理屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
+- 工作區生命週期、共享與存在感屬於 workspace。
+
+## Guardrails
+
+- notebooklm 的輸出是衍生產物，不直接等於正典知識內容。
+- synthesis 將 retrieval、grounding、generation、evaluation 作為內部 facets；只有當語言分歧或演化速率不同時才拆分為獨立子域。
+- evaluation 應作為品質與回歸語言，而不只是分析儀表板指標。
+- 跨主域互動只經過 published language、API 邊界或事件。
+
+## Dependency Direction
+
+- notebooklm 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
+- application 只能透過 ports 協調 synthesis 所需的外部能力。
+- infrastructure 只實作 ports 與邊界轉譯，不反向定義 domain 語言。
+
+## Hard Prohibitions
+
+- 不得把 notion 的 KnowledgeArtifact 直接當成 notebooklm 的本地主域模型。
+- 不得讓 domain 或 application 直接依賴模型 SDK、向量儲存或外部檔案處理框架。
+- 不得讓 notebooklm 直接改寫 workspace 或 notion 的內部狀態，而繞過其 API 邊界。
+- 不得建立獨立的 `ai` 子域與 platform.ai 語義重疊。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先維持 notebooklm 作為 downstream 推理主域，不回推治理或正典內容所有權。
+- 共享模型能力若已由 platform.ai 提供，就不要在 notebooklm 再建立第二個 generic `ai` 子域。
+- 奧卡姆剃刀：若較少的抽象已能保護邊界，就不要額外新增 port、ACL、DTO、subdomain 或 process manager。
+- 只有碰到外部依賴、語義污染或跨主域轉譯時，才建立 port、ACL 或 local DTO。
+- 任何跨主域互動都先走 API boundary / published language，再轉成本地主域語言。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
+	A --> D["NotebookLM Domain / Invariants"]
+	P["Ports / Domain-fit Contracts"] -. used by .-> A
+	X["Infrastructure / Driven Adapters"] -. implements .-> P
+	X --> D
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform upstream"] -->|Published Language| Boundary["notebooklm API boundary"]
+	Workspace["workspace upstream"] -->|Published Language| Boundary
+	Notion["notion upstream"] -->|Published Language| Boundary
+	Boundary --> Translation["Local DTO / ACL when needed"]
+	Translation --> App["Application orchestration"]
+	App --> Domain["Conversation / Source / Synthesis pipeline"]
+	Domain --> Output["Grounded output / evaluation"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+````
+
 ## File: docs/contexts/notebooklm/context-map.md
 ````markdown
 # NotebookLM
@@ -5592,6 +4224,76 @@ flowchart LR
 - 本文件是 architecture-first 版本。
 - 本文件依 Context7 的 bounded context 與 context map 原則編寫。
 - 本文件不代表對既有 repo 內容做過語意校準。
+````
+
+## File: docs/contexts/notebooklm/subdomains.md
+````markdown
+# NotebookLM
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| conversation | 對話 Thread 與 Message 生命週期 |
+| notebook | Notebook 組合與管理 |
+| source | 來源文件追蹤、引用與 ingestion 編排 |
+| synthesis | 完整 RAG pipeline：retrieval、grounding、answer generation、evaluation/feedback |
+
+## Future Split Triggers
+
+`synthesis` 子域將 retrieval、grounding、generation、evaluation 作為內部 facets。只有當以下觸發條件成立時，才拆分為獨立子域：
+
+| Facet | Split Trigger |
+|---|---|
+| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
+| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
+| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
+| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
+
+## Anti-Patterns
+
+- 不把 retrieval 與 grounding 併回 source 或 platform.ai 接入層，否則推理鏈條失去清楚邊界。
+- 不把 evaluation 只當成 dashboard 指標，否則品質語言無法成為可演化的關注點。
+- 不把 notebook、conversation 混成單一 UI 容器語意，否則無法維持聚合邊界。
+- 不把 platform.ai 的共享能力誤寫成 notebooklm 自己擁有的 `ai` 子域。
+- 不過早拆分子域：只有當語言分歧或演化速率不同時才拆分。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先問新需求落在哪個既有子域；只有既有子域無法容納時才建立新子域。
+- 模型 provider、配額與安全護欄優先歸 platform.ai；notebooklm 在 synthesis 保留 pipeline 本地語義。
+- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新增第二個平行子域。
+- 子域命名應反映責任與語義，不應只是頁面名稱或工具名稱。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case"]
+	UseCase --> Subdomain["Owning subdomain domain"]
+	Infra["Infra adapter"] --> Subdomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Source["Source ingestion"] --> Retrieval["Retrieval"]
+	Retrieval --> Grounding["Grounding"]
+	Grounding --> Generation["Generation"]
+	Generation --> Evaluation["Evaluation"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
 ````
 
 ## File: docs/contexts/notebooklm/ubiquitous-language.md
@@ -10700,6 +9402,47 @@ import { z } from "@lib-zod";
 export type TopK = z.infer<typeof TopKSchema>;
 ⋮----
 export function createTopK(raw: number): TopK
+````
+
+## File: modules/notebooklm/subdomains/synthesis/README.md
+````markdown
+# Synthesis
+
+完整 RAG pipeline：retrieval → grounding → answer generation → evaluation/feedback。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Subdomain**: synthesis (Active)
+- **Status**: Consolidated — all RAG pipeline responsibilities
+
+## Internal Facets
+
+The RAG pipeline is organized as internal domain facets within this single subdomain:
+
+| Facet | Responsibility | Key Types |
+|-------|---------------|-----------|
+| retrieval | 查詢召回與排序策略、向量搜尋 | RetrievedChunk, IChunkRetrievalPort, RagScoringService |
+| grounding | 引用對齊與可追溯證據 | Citation, GroundingEvidence, ICitationBuilder, RagCitationBuilder |
+| generation | RAG 合成、摘要與洞察生成 | GenerateAnswerInput/Output, IGenerationPort, RagPromptBuilder |
+| evaluation | 品質評估、feedback 收集 | QualityFeedback, IFeedbackPort, SubmitRagQueryFeedbackUseCase |
+
+## Key Components
+
+| Component | Layer | Purpose |
+|-----------|-------|---------|
+| AnswerRagQueryUseCase | application | 完整 RAG Q&A 流程 orchestration |
+| SubmitRagQueryFeedbackUseCase | application | 用戶品質 feedback 收集 |
+| FirebaseRagRetrievalAdapter | infrastructure | Firestore 向量/稀疏檢索 |
+| GenkitRagGenerationAdapter | infrastructure | Genkit AI answer generation |
+| FirebaseRagQueryFeedbackAdapter | infrastructure | Firestore feedback 持久化 |
+| FirebaseKnowledgeContentAdapter | infrastructure | Knowledge 文件查詢與 reindex |
+| RagQueryView | interfaces | 最小化 RAG 查詢 UI |
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notion/docs/README.md
@@ -33585,62 +32328,6 @@ response = handle_parse_document(
 def test_handleParseDocument_WithoutDocId_KeepsDefaultRagBehavior(monkeypatch) -> None
 ````
 
-## File: repomix.notebooklm.config.json
-````json
-{
-  "$schema": "https://repomix.com/schemas/latest/schema.json",
-  "include": [
-    "modules/notebooklm/**"
-  ],
-  "ignore": {
-    "useGitignore": true,
-    "useDefaultPatterns": true
-  }
-}
-````
-
-## File: repomix.notion.config.json
-````json
-{
-  "$schema": "https://repomix.com/schemas/latest/schema.json",
-  "include": [
-    "modules/notion/**"
-  ],
-  "ignore": {
-    "useGitignore": true,
-    "useDefaultPatterns": true
-  }
-}
-````
-
-## File: repomix.platform.config.json
-````json
-{
-  "$schema": "https://repomix.com/schemas/latest/schema.json",
-  "include": [
-    "modules/platform/**"
-  ],
-  "ignore": {
-    "useGitignore": true,
-    "useDefaultPatterns": true
-  }
-}
-````
-
-## File: repomix.workspace.config.json
-````json
-{
-  "$schema": "https://repomix.com/schemas/latest/schema.json",
-  "include": [
-    "modules/workspace/**"
-  ],
-  "ignore": {
-    "useGitignore": true,
-    "useDefaultPatterns": true
-  }
-}
-````
-
 ## File: storage.rules
 ````
 rules_version = '2';
@@ -33863,277 +32550,6 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
-````
-
-## File: .github/skills/repomix/SKILL.md
-````markdown
----
-name: repomix
-description: >-
-  Repomix Explorer workflow skill. Use when AI needs to analyze repositories
-  through Repomix outputs and especially when it should use xuanwu-app-skill
-  references to understand this codebase.
-user-invocable: true
-disable-model-invocation: false
----
-
-# Repomix
-
-Use this skill when the task is repository exploration, pattern search, architecture understanding, or refreshing Repomix-generated skill references.
-
-## Primary Goal
-
-Make AI reliably know how to use `xuanwu-app-skill` as the first exploration path for this repository.
-
-## Context7 Certainty Gate
-
-- If confidence is below 99.99% for Repomix CLI flags, behavior, or config schema, verify with Context7 first.
-- Required sequence: resolve library id -> get docs.
-- Do not proceed with guessed CLI syntax.
-
-## Explorer Workflow (Aligned with Repomix Explorer Skill)
-
-1. Detect user intent:
-  - understand repo structure
-  - find specific patterns
-  - reference prior implementations
-2. Prepare analysis source:
-  - if `.github/skills/xuanwu-app-skill/` exists, use it first
-  - otherwise run `npm run repomix:skill` to generate/refresh
-3. Analyze outputs in this order:
-  - `references/summary.md` for scope and exclusions
-  - `references/project-structure.md` for file map
-  - `references/files.md` for symbol/pattern search
-4. Use search-first strategy:
-  - grep/search patterns first
-  - read full file content only when necessary
-5. Return insights:
-  - structure summary
-  - file-level evidence
-  - actionable next steps
-
-## Agent Skills Generation Rules
-
-- `--skill-generate` 會產生結構化目錄（不是單一打包檔）：
-  - `SKILL.md`
-  - `references/summary.md`
-  - `references/project-structure.md`
-  - `references/files.md`
-  - `references/tech-stacks.md`（若版本與設定可用）
-- 自動化流程優先採非互動：`--skill-output <path> --force`。
-- `--skill-generate` 不可與 `--stdout` 或 `--copy` 併用。
-- skills 名稱需維持穩定 kebab-case，避免頻繁改名造成引用漂移。
-
-## How AI Should Use xuanwu-app-skill
-
-When user asks architecture/pattern/where-is-X questions in this repo:
-
-1. Start with `.github/skills/xuanwu-app-skill/SKILL.md`.
-2. Go to `references/project-structure.md` to locate candidate files.
-3. Use `references/files.md` to search symbols/imports/events.
-4. If details are still insufficient, read original source files directly.
-5. In answers, include concrete file evidence rather than generic summaries.
-
-Recommended user intents:
-
-- "What is the structure of this repo?"
-- "Find all authentication-related code."
-- "Where is this use case implemented?"
-- "I want to implement a similar feature from another module."
-
-## Generation Script Map
-
-- `npm run repomix:skill` -> `.github/skills/xuanwu-app-skill`
-- `npm run repomix:notebooklm` -> `.github/skills/xuanwu-notebooklm-skill`
-- `npm run repomix:notion` -> `.github/skills/xuanwu-notion-skill`
-- `npm run repomix:platform` -> `.github/skills/xuanwu-app-platform-skill`
-- `npm run repomix:workspace` -> `.github/skills/xuanwu-app-workspace-skill`
-- `npm run repomix:workspace-workflows` -> `.github/skills/xuanwu-app-workspace-workflows-skill`
-- `npm run repomix:markdown` -> `.github/skills/xuanwu-markdown-skill`
-- `npm run repomix:explore` -> `repomix.config.json`（即時探索輸出）
-- `npm run repomix:app` -> `repomix.app.config.json`（App Router scope）
-- `npm run repomix:remote -- <repo-url-or-owner/repo>` -> 遠端倉庫探索
-- `npm run repomix:local -- <path>` -> 本地目錄探索
-
-## Guardrails
-
-- Keep one scope per run to avoid mixed ownership.
-- Treat repomix config files as source of truth for generation scope.
-- Do not claim semantic correctness from generation success alone; spot-check high-risk files.
-- Prefer search-first analysis before reading large content blocks.
-- If output is noisy, reduce assumptions before adding abstraction.
-- 對高風險結論，需附來源檔證據（至少一個 `references/*` 路徑）。
-
-## Output Contract
-
-- intent_type
-- source_used (`xuanwu-app-skill` or fresh repomix output)
-- target_script (if generated)
-- generated_path (if generated)
-- evidence_files
-- findings_summary
-- residual_risk
-
-Tags: #use skill context7 #use skill xuanwu-app-skill #use skill occams-razor
-````
-
-## File: .github/skills/serena-mcp/SKILL.md
-````markdown
----
-name: serena-mcp
-description: >-
-  Use when working with Serena MCP, .serena memories, Serena project indexing,
-  onboarding, health-checks, or Serena bootstrap/repair tasks. Governs
-  project memory operations, .serena scoped work, and Serena MCP startup.
-user-invocable: true
-disable-model-invocation: false
----
-
-# Serena MCP
-
-## 核心目標
-
-將 Serena 作為**會話編排與專案記憶的唯一權威**。所有 `.serena/` 相關操作、project memories、onboarding、symbol / file / project query，皆應透過 Serena MCP 工具完成，而非一般檔案或 IDE 操作。
-
-## 必須使用時機
-
-* 會話啟動，需要 Serena 接手 orchestration
-* 操作 `.serena/` 或專案記憶
-* 專案 onboarding、health-check、bootstrap
-* 查找或修改 symbol / file / project
-* phase-end memory update 或 index refresh
-
-## 啟動順序
-
-1. 確認 Serena tools 是否可用
-2. 若不可用，先 bootstrap MCP server：
-
-```bash
-uvx --from git+https://github.com/oraios/serena serena start-mcp-server
-```
-
-3. 啟用專案：`activate_project`
-4. 檢查 onboarding：`check_onboarding_performed`
-5. 列出 / 讀取相關記憶：`list_memories` → `read_memory`
-6. 開始規劃、實作、檢查或收尾
-
-## MCP Tool 群組
-
-### 1) config / workflow
-
-| 目的            | 工具                           |
-| ------------- | ---------------------------- |
-| 啟用專案          | `activate_project`           |
-| 檢查 onboarding | `check_onboarding_performed` |
-| 執行 onboarding | `onboarding`                 |
-| 收尾摘要          | `summarize_changes`          |
-
-### 2) memory
-
-| 目的      | 工具                                |
-| ------- | --------------------------------- |
-| 列出記憶    | `list_memories`                   |
-| 讀記憶     | `read_memory`                     |
-| 寫記憶     | `write_memory`                    |
-| 編輯記憶    | `edit_memory`                     |
-| 改名 / 刪除 | `rename_memory` / `delete_memory` |
-
-### 3) symbols / code
-
-| 目的                 | 工具                                                                                                          |
-| ------------------ | ----------------------------------------------------------------------------------------------------------- |
-| 找 symbol / 概覽      | `find_symbol`, `get_symbols_overview`                                                                       |
-| 找引用                | `find_referencing_symbols`                                                                                  |
-| 安全修改 symbol        | `insert_before_symbol`, `insert_after_symbol`, `replace_symbol_body`, `rename_symbol`, `safe_delete_symbol` |
-| 重啟 language server | `restart_language_server`                                                                                   |
-
-### 4) file / filesystem
-
-| 目的         | 工具                 |
-| ---------- | ------------------ |
-| 找檔案        | `find_file`        |
-| 列目錄        | `list_dir`         |
-| 讀檔案        | `read_file`        |
-| 寫檔案 / 取代內容 | `replace_content`  |
-| 新增文字檔案     | `create_text_file` |
-| 插入特定行      | `insert_at_line`   |
-| 刪除行        | `delete_lines`     |
-
-### 5) project query / shell
-
-| 目的       | 工具                                         |
-| -------- | ------------------------------------------ |
-| 專案查詢     | `list_queryable_projects`, `query_project` |
-| 補充 shell | `execute_shell_command`                    |
-
-> 工具可用性依實際環境為準，不確定時請以 Serena 當前工具清單為準。
-
-## 工作流建議
-
-### Session start
-
-1. Bootstrap（如需要）
-2. `activate_project`
-3. `check_onboarding_performed`
-4. `list_memories` → `read_memory`
-
-### During task
-
-* 用 Serena symbol/file/query tools 收集上下文
-* 記錄決策時，用 Serena memory tools
-* 檔案結構變更時安排 index refresh / summarize
-
-### Phase end
-
-1. phase-end write_memory
-2. 結構變更 → refresh index / summarize_changes
-
-## Memory 命名與內容
-
-* 命名：`workflow/<phase>-<task-id>`
-* 內容至少包含：
-
-  * Scope
-  * Decisions / Findings
-  * Validation / Evidence
-  * Deviations / Risks
-  * Open Questions
-
-## `.serena/` 安全邊界
-
-* 永遠不要用一般檔案工具直接操作 `.serena/`
-* 若 memory write tools 不可用，回報 blocked，不可繞過
-
-## 最小決策表
-
-| 情境                 | 正確動作                            |
-| ------------------ | ------------------------------- |
-| Serena tools 不存在   | 先 bootstrap                     |
-| 開始本 repo 工作        | `activate_project`              |
-| 不確定是否做過 onboarding | `check_onboarding_performed`    |
-| 找既有上下文             | `list_memories` → `read_memory` |
-| 記錄本階段決策            | `write_memory` / `edit_memory`  |
-| 改 symbol           | 優先用 Serena symbol tools         |
-| 手改 `.serena/`      | ❌ 停止，改走 Serena 工具               |
-
-## 短流程模板
-
-```text
-目標：用 Serena 接手 <task>
-1. 確認 tools；無則 bootstrap
-2. activate_project
-3. check_onboarding_performed
-4. list/read relevant memories
-5. 用 Serena tools完成探索或修改
-6. phase-end write_memory
-7. 結構變更時 refresh index / summarize_changes
-```
-
----
-
-我已經把 **不存在的 JetBrains 導向工具**、`switch_modes`、`prepare_for_new_conversation`、`open_dashboard`、`initial_instructions`、`think_*` 等刪掉，保證只保留官方文件可用的 MCP tools。
-
-如果你要，我可以幫你畫一個 **最簡化 MCP 工作流圖**，一眼看出 session start → task → phase-end 的流程。你想要我畫嗎？
 ````
 
 ## File: app/_providers/index.tsx
@@ -34527,102 +32943,6 @@ flowchart LR
 - [../decisions/README.md](../decisions/README.md)
 ````
 
-## File: docs/contexts/notebooklm/AGENT.md
-````markdown
-# NotebookLM Agent
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Mission
-
-保護 notebooklm 主域作為對話、來源處理、檢索、grounding 與 synthesis 邊界。任何變更都應維持 notebooklm 擁有衍生推理流程與可追溯輸出，而不是直接擁有正典知識內容。
-
-## Canonical Ownership
-
-- source
-- notebook
-- conversation
-- synthesis (owns retrieval, grounding, generation, evaluation as internal facets)
-
-## Route Here When
-
-- 問題核心是 notebook、conversation、source ingestion、synthesis（retrieval、grounding、generation、evaluation）。
-- 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
-- 問題要把知識來源轉成可對話與可綜合的推理材料。
-
-## Route Elsewhere When
-
-- 正典知識頁面、內容分類、正式發布屬於 notion。
-- 身份、授權、權益、憑證治理屬於 platform。
-- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
-- 工作區生命週期、共享與存在感屬於 workspace。
-
-## Guardrails
-
-- notebooklm 的輸出是衍生產物，不直接等於正典知識內容。
-- synthesis 將 retrieval、grounding、generation、evaluation 作為內部 facets；只有當語言分歧或演化速率不同時才拆分為獨立子域。
-- evaluation 應作為品質與回歸語言，而不只是分析儀表板指標。
-- 跨主域互動只經過 published language、API 邊界或事件。
-
-## Dependency Direction
-
-- notebooklm 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
-- application 只能透過 ports 協調 synthesis 所需的外部能力。
-- infrastructure 只實作 ports 與邊界轉譯，不反向定義 domain 語言。
-
-## Hard Prohibitions
-
-- 不得把 notion 的 KnowledgeArtifact 直接當成 notebooklm 的本地主域模型。
-- 不得讓 domain 或 application 直接依賴模型 SDK、向量儲存或外部檔案處理框架。
-- 不得讓 notebooklm 直接改寫 workspace 或 notion 的內部狀態，而繞過其 API 邊界。
-- 不得建立獨立的 `ai` 子域與 platform.ai 語義重疊。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先維持 notebooklm 作為 downstream 推理主域，不回推治理或正典內容所有權。
-- 共享模型能力若已由 platform.ai 提供，就不要在 notebooklm 再建立第二個 generic `ai` 子域。
-- 奧卡姆剃刀：若較少的抽象已能保護邊界，就不要額外新增 port、ACL、DTO、subdomain 或 process manager。
-- 只有碰到外部依賴、語義污染或跨主域轉譯時，才建立 port、ACL 或 local DTO。
-- 任何跨主域互動都先走 API boundary / published language，再轉成本地主域語言。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
-	A --> D["NotebookLM Domain / Invariants"]
-	P["Ports / Domain-fit Contracts"] -. used by .-> A
-	X["Infrastructure / Driven Adapters"] -. implements .-> P
-	X --> D
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform upstream"] -->|Published Language| Boundary["notebooklm API boundary"]
-	Workspace["workspace upstream"] -->|Published Language| Boundary
-	Notion["notion upstream"] -->|Published Language| Boundary
-	Boundary --> Translation["Local DTO / ACL when needed"]
-	Translation --> App["Application orchestration"]
-	App --> Domain["Conversation / Source / Synthesis pipeline"]
-	Domain --> Output["Grounded output / evaluation"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
 ## File: docs/contexts/notebooklm/bounded-contexts.md
 ````markdown
 # NotebookLM
@@ -34708,76 +33028,6 @@ flowchart LR
 - [../../subdomains.md](../../subdomains.md)
 - [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
 - [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
-````
-
-## File: docs/contexts/notebooklm/subdomains.md
-````markdown
-# NotebookLM
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| conversation | 對話 Thread 與 Message 生命週期 |
-| notebook | Notebook 組合與管理 |
-| source | 來源文件追蹤、引用與 ingestion 編排 |
-| synthesis | 完整 RAG pipeline：retrieval、grounding、answer generation、evaluation/feedback |
-
-## Future Split Triggers
-
-`synthesis` 子域將 retrieval、grounding、generation、evaluation 作為內部 facets。只有當以下觸發條件成立時，才拆分為獨立子域：
-
-| Facet | Split Trigger |
-|---|---|
-| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
-| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
-| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
-| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
-
-## Anti-Patterns
-
-- 不把 retrieval 與 grounding 併回 source 或 platform.ai 接入層，否則推理鏈條失去清楚邊界。
-- 不把 evaluation 只當成 dashboard 指標，否則品質語言無法成為可演化的關注點。
-- 不把 notebook、conversation 混成單一 UI 容器語意，否則無法維持聚合邊界。
-- 不把 platform.ai 的共享能力誤寫成 notebooklm 自己擁有的 `ai` 子域。
-- 不過早拆分子域：只有當語言分歧或演化速率不同時才拆分。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先問新需求落在哪個既有子域；只有既有子域無法容納時才建立新子域。
-- 模型 provider、配額與安全護欄優先歸 platform.ai；notebooklm 在 synthesis 保留 pipeline 本地語義。
-- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新增第二個平行子域。
-- 子域命名應反映責任與語義，不應只是頁面名稱或工具名稱。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case"]
-	UseCase --> Subdomain["Owning subdomain domain"]
-	Infra["Infra adapter"] --> Subdomain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Source["Source ingestion"] --> Retrieval["Retrieval"]
-	Retrieval --> Grounding["Grounding"]
-	Grounding --> Generation["Generation"]
-	Generation --> Evaluation["Evaluation"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
 ````
 
 ## File: docs/contexts/notion/bounded-contexts.md
@@ -35041,6 +33291,125 @@ flowchart LR
 - [../../subdomains.md](../../subdomains.md)
 - [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
 - [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
+````
+
+## File: modules/notebooklm/AGENT.md
+````markdown
+# NotebookLM Agent
+
+> Strategic agent documentation: [docs/contexts/notebooklm/AGENT.md](../../docs/contexts/notebooklm/AGENT.md)
+
+## Mission
+
+保護 notebooklm 主域作為對話、來源處理與推理輸出的邊界。notebooklm 擁有衍生推理流程，不擁有正典知識內容。任何變更都應維持 notebooklm 擁有對話生命週期、來源管理與 RAG pipeline 語言，而不是吸收平台治理或正典知識語言。
+
+## Bounded Context Summary
+
+| Aspect | Description |
+|--------|-------------|
+| Primary role | 對話、來源處理與推理輸出 |
+| Upstream | platform（治理、AI capability）、workspace（scope）、notion（knowledge artifact reference） |
+| Downstream | 無固定主域級下游；輸出可被其他主域吸收 |
+| Core invariant | notebooklm 只能持有衍生推理輸出，不得直接修改 notion 的正典內容 |
+| Published language | Notebook reference、Conversation reference、SourceReference、GroundedAnswer |
+
+## Bounded Contexts
+
+| Cluster | Subdomains | Responsibility |
+|---------|------------|----------------|
+| Interaction Core | notebook, conversation | 對話容器與互動生命週期 |
+| Source & RAG Pipeline | source, synthesis | 來源管理與完整 RAG pipeline（retrieval → grounding → synthesis → evaluation） |
+
+## Route Here When
+
+- 問題核心是 notebook、conversation、source、synthesis（RAG pipeline）。
+- 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
+- 問題要把知識來源（notion artifact、uploaded file）轉成可對話與可綜合的推理材料。
+- 問題涉及 RAG 問答、向量檢索、chunks 召回、generation 品質。
+- 問題涉及 evaluation、品質評估、回歸比較或 grounding 可信度。
+
+## Route Elsewhere When
+
+- 正典知識頁面、文章、分類、正式發布屬於 notion。
+- 身份、授權、權益、憑證治理屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
+- 工作區生命週期、成員管理、共享範圍屬於 workspace。
+- browser-facing shell composition、tab orchestration、panel assembly 屬於 workspace；notebooklm 提供下游能力，不擁有外層 UI orchestration。
+
+## Subdomains
+
+| Subdomain | Purpose | Key Aggregates / Entities |
+|-----------|---------|---------------------------|
+| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
+| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration, NotebookRepository |
+| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary, SourceRetentionPolicy |
+| synthesis | 完整 RAG pipeline：retrieval、grounding、synthesis、evaluation | AnswerRagQueryUseCase, RagScoringService, RagCitationBuilder, RagPromptBuilder |
+
+### Future Split Triggers
+
+`synthesis` 子域將四個 RAG 關注點作為內部 facets 持有。只有當以下觸發條件成立時，才拆分為獨立子域：
+
+| Facet | Split Trigger |
+|-------|---------------|
+| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
+| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
+| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
+| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
+
+### Domain Invariants
+
+- notebooklm 只擁有衍生推理流程，不擁有正典知識內容。
+- shared AI capability 由 platform.ai 提供；notebooklm 在 synthesis 擁有 retrieval、grounding、generation、evaluation 的本地語義。
+- grounding 應能把輸出對齊到來源證據。
+- retrieval 是 generation 的上游能力。
+- evaluation 應描述品質，而不是單純使用量。
+- 任何要成為正式知識內容的輸出，都必須交由 notion 吸收。
+
+## Ubiquitous Language
+
+| Term | Meaning | Owning Subdomain | Do Not Use |
+|------|---------|------------------|------------|
+| Notebook | 聚合對話、來源與衍生筆記的工作單位 | notebook | Project, Workspace |
+| AgentGeneration | GenKit 代理回應生成 | notebook | - |
+| Conversation | Notebook 內的對話執行邊界 | conversation | Chat, Session |
+| Thread | 一段對話的容器 | conversation | - |
+| Message | 一則輸入或輸出對話項 | conversation | Turn, Exchange |
+| Source | 被引用與推理的來源材料 | source | File, Document (generic) |
+| SourceFile | 使用者上傳的原始檔案 | source | - |
+| RagDocument | 來源文件在 RAG pipeline 中的表示 | source | - |
+| WikiLibrary | 結構化知識來源庫 | source | - |
+| Ingestion | 來源匯入、正規化與前處理流程 | source | File Import, Upload |
+| Retrieval | 從來源中召回候選片段的查詢能力 | synthesis | Search, Lookup |
+| Grounding | 把輸出對齊到來源證據的能力 | synthesis | Verification, Factcheck |
+| Citation | 輸出指回來源證據的引用關係 | synthesis | Reference, Link |
+| Synthesis | 綜合多來源後生成的衍生輸出 | synthesis | Answer, Response (generic) |
+| Evaluation | 對輸出品質、回歸結果與效果的評估 | synthesis | Analytics, Metrics (generic) |
+| RelevanceScore | 檢索結果的相關性分數 | synthesis | - |
+
+### Avoid
+
+| Avoid | Use Instead |
+|-------|-------------|
+| Chat | Conversation |
+| File Import | Ingestion |
+| Search Step | Retrieval |
+| Verified Answer | Grounded Synthesis |
+| Knowledge / Wiki | Synthesis output（正典知識屬 notion） |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+api/ ← 唯一跨模組入口
+```
+
+## Development Order (Domain-First)
+
+1. Define Domain (entities, value objects, aggregates, events)
+2. Define Application (use cases, DTOs)
+3. Define Ports (only if boundary isolation needed)
+4. Implement Infrastructure (adapters, persistence)
+5. Implement Interfaces (UI, actions, hooks)
 ````
 
 ## File: modules/notebooklm/application/dtos/index.ts
@@ -35458,6 +33827,94 @@ export type SourceFileCommandResult<TData> =
       };
       readonly commandId: string;
     };
+````
+
+## File: modules/notebooklm/README.md
+````markdown
+# NotebookLM
+
+對話、來源處理與推理主域
+
+## Bounded Context
+
+| Aspect | Description |
+|--------|-------------|
+| Primary role | 對話、來源處理、檢索與推理輸出 |
+| Upstream | platform（治理、AI capability）、workspace（scope）、notion（knowledge artifact, attachment reference） |
+| Downstream | 無固定主域級下游；GroundedAnswer 可被其他主域消費 |
+| Core principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容 |
+| Cross-module boundary | `api/` only — no direct import of notion/platform/workspace internals |
+
+## Ubiquitous Language
+
+| Term | Meaning |
+|------|---------|
+| Notebook | 聚合對話、來源與衍生筆記的工作單位 |
+| Conversation | Notebook 內的對話執行邊界（Thread + Messages） |
+| Message | 一則輸入或輸出對話項 |
+| Source | 被引用與推理的來源材料 |
+| Ingestion | 來源匯入、正規化與前處理流程（TypeScript 側協調 py_fn） |
+| Retrieval | 從來源中召回候選 Chunk 的查詢能力（向量搜尋） |
+| Grounding | 把輸出對齊到來源證據、建立 Citation 的能力 |
+| Citation | 輸出指回來源證據的引用關係 |
+| Synthesis | 綜合多來源後生成的衍生輸出（RAG generation） |
+| Evaluation | 對輸出品質、feedback 與回歸結果的評估 |
+
+## Implementation Structure
+
+```text
+modules/notebooklm/
+├── api/              # Public API boundary — cross-module entry point only
+├── application/      # Context-wide orchestration
+├── domain/           # Context-wide domain concepts (events, published-language)
+├── infrastructure/   # Context-wide driven adapters, grouped by subdomain when needed
+├── interfaces/       # Context-wide driving adapters, grouped by subdomain when needed
+├── docs/             # Links to strategic documentation
+└── subdomains/
+    ├── conversation/  # Tier 1 — 對話 Thread 與 Message
+    ├── notebook/      # Tier 1 — Notebook 容器與 GenKit 生成
+    ├── source/        # Tier 1 — 來源文件與 ingestion 編排
+    └── synthesis/     # Tier 1 — 完整 RAG pipeline（retrieval → grounding → synthesis → evaluation）
+```
+
+## Subdomains
+
+| Subdomain | Purpose | Key Aggregates / Entities |
+|-----------|---------|--------------------------|
+| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
+| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration |
+| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary |
+| synthesis | 完整 RAG pipeline：retrieval、grounding、answer generation、evaluation/feedback | AnswerRagQueryUseCase, SubmitRagQueryFeedbackUseCase, RagScoringService, RagCitationBuilder, RagPromptBuilder |
+
+### Future Split Triggers
+
+`synthesis` 子域將四個 RAG 關注點作為內部 facets 持有。只有當以下觸發條件成立時，才拆分為獨立子域：
+
+| Facet | Split Trigger |
+|-------|---------------|
+| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
+| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
+| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
+| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `api/` is the only cross-module public boundary.
+- `domain/` must not import infrastructure, interfaces, React, Firebase SDK, or any runtime framework.
+- Cross-module collaboration goes through `api/` only.
+
+## Strategic Documentation
+
+- [Context README](../../docs/contexts/notebooklm/README.md)
+- [Subdomains](../../docs/contexts/notebooklm/subdomains.md)
+- [Bounded Context](../../docs/contexts/notebooklm/bounded-contexts.md)
+- [Context Map](../../docs/contexts/notebooklm/context-map.md)
+- [Ubiquitous Language](../../docs/contexts/notebooklm/ubiquitous-language.md)
+- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
 ## File: modules/notebooklm/subdomains/conversation/api/server.ts
@@ -36703,47 +35160,6 @@ export interface CitationBuilder {
 }
 ⋮----
 build(input: CitationBuilderInput): readonly Citation[];
-````
-
-## File: modules/notebooklm/subdomains/synthesis/README.md
-````markdown
-# Synthesis
-
-完整 RAG pipeline：retrieval → grounding → answer generation → evaluation/feedback。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain**: synthesis (Active)
-- **Status**: Consolidated — all RAG pipeline responsibilities
-
-## Internal Facets
-
-The RAG pipeline is organized as internal domain facets within this single subdomain:
-
-| Facet | Responsibility | Key Types |
-|-------|---------------|-----------|
-| retrieval | 查詢召回與排序策略、向量搜尋 | RetrievedChunk, IChunkRetrievalPort, RagScoringService |
-| grounding | 引用對齊與可追溯證據 | Citation, GroundingEvidence, ICitationBuilder, RagCitationBuilder |
-| generation | RAG 合成、摘要與洞察生成 | GenerateAnswerInput/Output, IGenerationPort, RagPromptBuilder |
-| evaluation | 品質評估、feedback 收集 | QualityFeedback, IFeedbackPort, SubmitRagQueryFeedbackUseCase |
-
-## Key Components
-
-| Component | Layer | Purpose |
-|-----------|-------|---------|
-| AnswerRagQueryUseCase | application | 完整 RAG Q&A 流程 orchestration |
-| SubmitRagQueryFeedbackUseCase | application | 用戶品質 feedback 收集 |
-| FirebaseRagRetrievalAdapter | infrastructure | Firestore 向量/稀疏檢索 |
-| GenkitRagGenerationAdapter | infrastructure | Genkit AI answer generation |
-| FirebaseRagQueryFeedbackAdapter | infrastructure | Firestore feedback 持久化 |
-| FirebaseKnowledgeContentAdapter | infrastructure | Knowledge 文件查詢與 reindex |
-| RagQueryView | interfaces | 最小化 RAG 查詢 UI |
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notion/AGENT.md
@@ -42953,20 +41369,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 import type { NextConfig } from "next";
 ````
 
-## File: repomix.workspace-workflows.config.json
-````json
-{
-  "$schema": "https://repomix.com/schemas/latest/schema.json",
-  "include": [
-    "modules/workspace/subdomains/workspace-workflow/**"
-  ],
-  "ignore": {
-    "useGitignore": true,
-    "useDefaultPatterns": true
-  }
-}
-````
-
 ## File: .github/copilot-instructions.md
 ````markdown
 ---
@@ -43039,306 +41441,6 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 - Use [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for Bounded Context design rules.
 - Use [instructions/domain-layer-rules.instructions.md](./instructions/domain-layer-rules.instructions.md) for Domain Layer design rules.
 - Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
-````
-
-## File: .github/skills/shadcn/SKILL.md
-````markdown
----
-name: shadcn
-description: >
-  UI/UX 開發強制技能。凡涉及任何介面元件、視覺設計、互動模式、排版佈局、
-  響應式設計或行動裝置體驗時自動觸發。
-  使用 shadcn/ui 作為唯一 UI 系統，強制 Mobile First、最少代碼原則、
-  現代直覺操作設計。適用於 Dashboard、AI Console、表單、資料顯示等場景。
-user-invocable: true
-disable-model-invocation: false
----
-
-# shadcn MCP（工程規範完整版）
-
----
-
-🎯 技能定位
-
-此技能為 UI/UX 強制規範層（UI Governance Layer）
-
-目標：
-
-- UI 一致性
-- 最少代碼
-- 行動優先
-- 可直接接 AI / Firebase / Server Actions
-
----
-
-⚡ 核心設計原則（不可妥協）
-
-📱 1. Mobile First（強制）
-
-規則
-
-- MUST：先設計 Mobile（≤ 640px）
-- MUST：逐步擴展至 Desktop
-- MUST NOT：先設計 Desktop 再縮小
-
-Breakpoints
-
-尺寸| 用途
-sm 640px| 行動
-md 768px| 平板
-lg 1024px| 小筆電
-xl 1280px| 桌機
-2xl 1536px| 大螢幕
-
----
-
-✨ 2. Modern Intuitive UX
-
-優先順序
-
-1. 無學習成本
-2. 即時反饋（loading / error）
-3. 視覺層次清晰
-4. 觸控 ≥ 44px
-5. 不依賴 hover
-
----
-
-🧠 3. 最少代碼原則（關鍵🔥）
-
-規則
-
-- MUST NOT：建立 UI abstraction
-- MUST NOT：包裝 shadcn component
-- MUST NOT：自建 UI library
-- SHOULD：直接使用 component
-- SHOULD：使用 Tailwind utility
-
-判斷準則
-
-如果你想：
-「要不要抽 component？」
-
-→ 90% 不需要
-
----
-
-🚫 4. UI 套件限制
-
-允許
-
-- shadcn/ui
-- Tailwind CSS
-- Radix UI
-
-禁止
-
-- MUI / Ant Design / Chakra / Mantine
-- CSS Modules
-- inline style（除 CSS 變數）
-
----
-
-🧩 UI 架構分層（強制）
-
-UI Layer (shadcn)
-    ↓
-Action Layer (Server Actions / Genkit)
-    ↓
-Data Layer (Firebase)
-
-限制
-
-行為| 是否允許
-fetch| ❌
-business logic| ❌
-state 管理（非表單）| ❌
-
----
-
-🔄 工作流程（標準化）
-
-Step 1：辨識 UI 類型
-
-類型| 元件
-表單| Form / Input / Select
-導航| Tabs / Sidebar
-回饋| Dialog / Sheet / Toast
-資料| Table / Card
-AI UI| Card + Textarea
-
----
-
-Step 2：查詢 MCP
-
-shadcn:get-component({ name: "component" })
-
-規則：
-
-- MUST：每次使用前查詢
-- MUST NOT：憑記憶寫 API
-
----
-
-Step 3：最少代碼實作
-
-- 不抽象
-- 不封裝
-- 不重寫
-
----
-
-Step 4：行動裝置檢查
-
-□ 375px 正常
-□ 觸控 ≥ 44px
-□ 無 hover 依賴
-□ 不被鍵盤遮擋
-□ Dialog → Sheet（mobile）
-□ Dark mode 正常
-
----
-
-📦 元件使用規範
-
----
-
-🔄 Dialog vs Sheet
-
-const isMobile = useMediaQuery("(max-width: 768px)")
-
-return isMobile ? (
-  <Sheet>
-    <SheetContent side="bottom">...</SheetContent>
-  </Sheet>
-) : (
-  <Dialog>
-    <DialogContent>...</DialogContent>
-  </Dialog>
-)
-
----
-
-🧾 表單（強制）
-
-<Form {...form}>
-  <form action={action}>
-    <FormField
-      control={form.control}
-      name="email"
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>Email</FormLabel>
-          <FormControl>
-            <Input {...field} />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )}
-    />
-    <Button type="submit">Submit</Button>
-  </form>
-</Form>
-
----
-
-⚡ Server Actions（強制推薦）
-
-<form action={createPost}>
-  <Input name="title" />
-  <Button type="submit">Save</Button>
-</form>
-
----
-
-🤖 AI Console Pattern（新增🔥）
-
-<div className="flex flex-col gap-4 md:flex-row">
-  <Card className="flex-1 p-4 space-y-2">
-    <Textarea name="prompt" />
-    <Button type="submit">Run</Button>
-  </Card>
-
-  <Card className="flex-1 p-4">
-    Output
-  </Card>
-</div>
-
----
-
-📊 Data（RWD）
-
-<div className="hidden md:block">
-  <Table />
-</div>
-
-<div className="md:hidden space-y-2">
-  {items.map(item => (
-    <Card key={item.id}>{item.name}</Card>
-  ))}
-</div>
-
----
-
-🔔 Toast（強制）
-
-toast({ title: "成功" })
-
-toast({
-  variant: "destructive",
-  title: "錯誤",
-  description: error.message,
-})
-
----
-
-🎨 Design Token（強制）
-
-bg-background
-bg-card
-text-foreground
-text-muted-foreground
-border-border
-ring-ring
-bg-primary
-bg-destructive
-bg-secondary
-bg-accent
-
----
-
-🚫 常見錯誤（禁止）
-
-❌ 錯誤| ✅ 正確
-grid-cols-4| grid-cols-1 sm:grid-cols-2
-Dialog mobile| Sheet bottom
-硬編碼顏色| Design Token
-小按鈕| ≥44px
-
----
-
-🔗 技能協作
-
-情境| 技能
-UI API| context7
-Next.js| next-devtools
-記憶| serena
-AI| genkit
-
----
-
-💣 強制限制
-
-- UI 檔案 ≤ 150 行
-- 禁止過度抽象
-- 禁止 UI 邏輯耦合
-
----
-
-🧠 最終原則
-
-«shadcn = UI Lego
-不是 UI framework»
 ````
 
 ## File: AGENTS.md
@@ -44102,125 +42204,6 @@ interface SettingsPageProps {
 }
 ⋮----
 export default function SettingsPage(
-````
-
-## File: modules/notebooklm/AGENT.md
-````markdown
-# NotebookLM Agent
-
-> Strategic agent documentation: [docs/contexts/notebooklm/AGENT.md](../../docs/contexts/notebooklm/AGENT.md)
-
-## Mission
-
-保護 notebooklm 主域作為對話、來源處理與推理輸出的邊界。notebooklm 擁有衍生推理流程，不擁有正典知識內容。任何變更都應維持 notebooklm 擁有對話生命週期、來源管理與 RAG pipeline 語言，而不是吸收平台治理或正典知識語言。
-
-## Bounded Context Summary
-
-| Aspect | Description |
-|--------|-------------|
-| Primary role | 對話、來源處理與推理輸出 |
-| Upstream | platform（治理、AI capability）、workspace（scope）、notion（knowledge artifact reference） |
-| Downstream | 無固定主域級下游；輸出可被其他主域吸收 |
-| Core invariant | notebooklm 只能持有衍生推理輸出，不得直接修改 notion 的正典內容 |
-| Published language | Notebook reference、Conversation reference、SourceReference、GroundedAnswer |
-
-## Bounded Contexts
-
-| Cluster | Subdomains | Responsibility |
-|---------|------------|----------------|
-| Interaction Core | notebook, conversation | 對話容器與互動生命週期 |
-| Source & RAG Pipeline | source, synthesis | 來源管理與完整 RAG pipeline（retrieval → grounding → synthesis → evaluation） |
-
-## Route Here When
-
-- 問題核心是 notebook、conversation、source、synthesis（RAG pipeline）。
-- 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
-- 問題要把知識來源（notion artifact、uploaded file）轉成可對話與可綜合的推理材料。
-- 問題涉及 RAG 問答、向量檢索、chunks 召回、generation 品質。
-- 問題涉及 evaluation、品質評估、回歸比較或 grounding 可信度。
-
-## Route Elsewhere When
-
-- 正典知識頁面、文章、分類、正式發布屬於 notion。
-- 身份、授權、權益、憑證治理屬於 platform。
-- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
-- 工作區生命週期、成員管理、共享範圍屬於 workspace。
-- browser-facing shell composition、tab orchestration、panel assembly 屬於 workspace；notebooklm 提供下游能力，不擁有外層 UI orchestration。
-
-## Subdomains
-
-| Subdomain | Purpose | Key Aggregates / Entities |
-|-----------|---------|---------------------------|
-| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
-| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration, NotebookRepository |
-| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary, SourceRetentionPolicy |
-| synthesis | 完整 RAG pipeline：retrieval、grounding、synthesis、evaluation | AnswerRagQueryUseCase, RagScoringService, RagCitationBuilder, RagPromptBuilder |
-
-### Future Split Triggers
-
-`synthesis` 子域將四個 RAG 關注點作為內部 facets 持有。只有當以下觸發條件成立時，才拆分為獨立子域：
-
-| Facet | Split Trigger |
-|-------|---------------|
-| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
-| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
-| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
-| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
-
-### Domain Invariants
-
-- notebooklm 只擁有衍生推理流程，不擁有正典知識內容。
-- shared AI capability 由 platform.ai 提供；notebooklm 在 synthesis 擁有 retrieval、grounding、generation、evaluation 的本地語義。
-- grounding 應能把輸出對齊到來源證據。
-- retrieval 是 generation 的上游能力。
-- evaluation 應描述品質，而不是單純使用量。
-- 任何要成為正式知識內容的輸出，都必須交由 notion 吸收。
-
-## Ubiquitous Language
-
-| Term | Meaning | Owning Subdomain | Do Not Use |
-|------|---------|------------------|------------|
-| Notebook | 聚合對話、來源與衍生筆記的工作單位 | notebook | Project, Workspace |
-| AgentGeneration | GenKit 代理回應生成 | notebook | - |
-| Conversation | Notebook 內的對話執行邊界 | conversation | Chat, Session |
-| Thread | 一段對話的容器 | conversation | - |
-| Message | 一則輸入或輸出對話項 | conversation | Turn, Exchange |
-| Source | 被引用與推理的來源材料 | source | File, Document (generic) |
-| SourceFile | 使用者上傳的原始檔案 | source | - |
-| RagDocument | 來源文件在 RAG pipeline 中的表示 | source | - |
-| WikiLibrary | 結構化知識來源庫 | source | - |
-| Ingestion | 來源匯入、正規化與前處理流程 | source | File Import, Upload |
-| Retrieval | 從來源中召回候選片段的查詢能力 | synthesis | Search, Lookup |
-| Grounding | 把輸出對齊到來源證據的能力 | synthesis | Verification, Factcheck |
-| Citation | 輸出指回來源證據的引用關係 | synthesis | Reference, Link |
-| Synthesis | 綜合多來源後生成的衍生輸出 | synthesis | Answer, Response (generic) |
-| Evaluation | 對輸出品質、回歸結果與效果的評估 | synthesis | Analytics, Metrics (generic) |
-| RelevanceScore | 檢索結果的相關性分數 | synthesis | - |
-
-### Avoid
-
-| Avoid | Use Instead |
-|-------|-------------|
-| Chat | Conversation |
-| File Import | Ingestion |
-| Search Step | Retrieval |
-| Verified Answer | Grounded Synthesis |
-| Knowledge / Wiki | Synthesis output（正典知識屬 notion） |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-api/ ← 唯一跨模組入口
-```
-
-## Development Order (Domain-First)
-
-1. Define Domain (entities, value objects, aggregates, events)
-2. Define Application (use cases, DTOs)
-3. Define Ports (only if boundary isolation needed)
-4. Implement Infrastructure (adapters, persistence)
-5. Implement Interfaces (UI, actions, hooks)
 ````
 
 ## File: modules/notebooklm/api/server.ts
@@ -45224,94 +43207,6 @@ async function handleSubmit()
 {/* Query input */}
 ⋮----
 onClick=
-````
-
-## File: modules/notebooklm/README.md
-````markdown
-# NotebookLM
-
-對話、來源處理與推理主域
-
-## Bounded Context
-
-| Aspect | Description |
-|--------|-------------|
-| Primary role | 對話、來源處理、檢索與推理輸出 |
-| Upstream | platform（治理、AI capability）、workspace（scope）、notion（knowledge artifact, attachment reference） |
-| Downstream | 無固定主域級下游；GroundedAnswer 可被其他主域消費 |
-| Core principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容 |
-| Cross-module boundary | `api/` only — no direct import of notion/platform/workspace internals |
-
-## Ubiquitous Language
-
-| Term | Meaning |
-|------|---------|
-| Notebook | 聚合對話、來源與衍生筆記的工作單位 |
-| Conversation | Notebook 內的對話執行邊界（Thread + Messages） |
-| Message | 一則輸入或輸出對話項 |
-| Source | 被引用與推理的來源材料 |
-| Ingestion | 來源匯入、正規化與前處理流程（TypeScript 側協調 py_fn） |
-| Retrieval | 從來源中召回候選 Chunk 的查詢能力（向量搜尋） |
-| Grounding | 把輸出對齊到來源證據、建立 Citation 的能力 |
-| Citation | 輸出指回來源證據的引用關係 |
-| Synthesis | 綜合多來源後生成的衍生輸出（RAG generation） |
-| Evaluation | 對輸出品質、feedback 與回歸結果的評估 |
-
-## Implementation Structure
-
-```text
-modules/notebooklm/
-├── api/              # Public API boundary — cross-module entry point only
-├── application/      # Context-wide orchestration
-├── domain/           # Context-wide domain concepts (events, published-language)
-├── infrastructure/   # Context-wide driven adapters, grouped by subdomain when needed
-├── interfaces/       # Context-wide driving adapters, grouped by subdomain when needed
-├── docs/             # Links to strategic documentation
-└── subdomains/
-    ├── conversation/  # Tier 1 — 對話 Thread 與 Message
-    ├── notebook/      # Tier 1 — Notebook 容器與 GenKit 生成
-    ├── source/        # Tier 1 — 來源文件與 ingestion 編排
-    └── synthesis/     # Tier 1 — 完整 RAG pipeline（retrieval → grounding → synthesis → evaluation）
-```
-
-## Subdomains
-
-| Subdomain | Purpose | Key Aggregates / Entities |
-|-----------|---------|--------------------------|
-| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
-| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration |
-| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary |
-| synthesis | 完整 RAG pipeline：retrieval、grounding、answer generation、evaluation/feedback | AnswerRagQueryUseCase, SubmitRagQueryFeedbackUseCase, RagScoringService, RagCitationBuilder, RagPromptBuilder |
-
-### Future Split Triggers
-
-`synthesis` 子域將四個 RAG 關注點作為內部 facets 持有。只有當以下觸發條件成立時，才拆分為獨立子域：
-
-| Facet | Split Trigger |
-|-------|---------------|
-| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
-| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
-| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
-| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `api/` is the only cross-module public boundary.
-- `domain/` must not import infrastructure, interfaces, React, Firebase SDK, or any runtime framework.
-- Cross-module collaboration goes through `api/` only.
-
-## Strategic Documentation
-
-- [Context README](../../docs/contexts/notebooklm/README.md)
-- [Subdomains](../../docs/contexts/notebooklm/subdomains.md)
-- [Bounded Context](../../docs/contexts/notebooklm/bounded-contexts.md)
-- [Context Map](../../docs/contexts/notebooklm/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/notebooklm/ubiquitous-language.md)
-- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
 ## File: modules/notebooklm/subdomains/conversation/application/use-cases/load-thread.use-case.ts
@@ -48797,142 +46692,6 @@ export async function wfExtractTaskCandidatesFromKnowledge(
 ): Promise<ExtractTaskCandidatesFromKnowledgeResult>
 ````
 
-## File: repomix.config.json
-````json
-{
-  "$schema": "https://repomix.com/schemas/latest/schema.json",
-  "input": {
-    "maxFileSize": 52428800
-  },
-  "output": {
-    "filePath": "repomix-output.json",
-    "style": "json",
-    "parsableStyle": true,
-
-    "fileSummary": true,
-    "directoryStructure": true,
-    "files": true,
-
-    "removeComments": false,
-    "removeEmptyLines": false,
-
-    "compress": true,
-
-    "topFilesLength": 10,
-
-    "showLineNumbers": false,
-    "truncateBase64": false,
-    "copyToClipboard": false,
-
-    "includeFullDirectoryStructure": false,
-    "tokenCountTree": true,
-
-    "git": {
-      "sortByChanges": true,
-      "sortByChangesMaxCommits": 200,
-      "includeDiffs": false,
-      "includeLogs": false,
-      "includeLogsCount": 50
-    }
-  },
-  "include": [
-    ".github/copilot-instructions.md",
-    ".github/agents/**",
-    ".github/instructions/**/*.md",
-    ".github/prompts/**",
-    ".github/skills/*/SKILL.md",
-    ".github/skills/*/AGENTS.md",
-    "docs/**",
-    "app/**",
-    "modules/**",
-    "packages/**",
-    "py_fn/**",
-    "AGENTS.md",
-    "CLAUDE.md",
-    "apphosting.yaml",
-    "components.json",
-    "eslint.config.mjs",
-    "firebase.apphosting.json",
-    "firebase.json",
-    "firestore.indexes.json",
-    "firestore.rules",
-    "llms.txt",
-    "next.config.ts",
-    "package.json",
-    "postcss.config.mjs",
-    "storage.rules",
-    "tailwind.config.ts",
-    "tsconfig.json",
-    "vitest.config.ts",
-    "repomix*.config.json"
-  ],
-  "ignore": {
-    "useGitignore": true,
-    "useDotIgnore": true,
-    "useDefaultPatterns": true,
-    "customPatterns": [
-      ".next/**",
-      ".turbo/**",
-      ".vercel/**",
-      ".firebase/**",
-      ".output/**",
-      ".parcel-cache/**",
-
-      ".cursor/**",
-      ".vscode/**",
-      ".serena/**",
-      ".claude/**",
-      ".opencode/**",
-      ".idea/**",
-      ".history/**",
-
-      ".cache/**",
-      ".temp/**",
-      ".tmp/**",
-      "tmp/**",
-      "temp/**",
-
-      "logs/**",
-      "firebase-debug.log",
-      "repomix-output.*",
-
-      ".env*",
-      "*.pem",
-      "*.key",
-      "*.crt",
-
-      "skills-lock.json",
-
-      "docs/architecture/**",
-      "diagrams/**",
-
-      "*.png",
-      "*.jpg",
-      "*.jpeg",
-      "*.gif",
-      "*.webp",
-      "*.mp4",
-      "*.zip",
-      "*.tar",
-      "*.gz",
-
-      "*.sqlite",
-      "*.db",
-      ".github/skills/**/references/**",
-      ".github/skills/**/resources/**",
-      ".github/skills/**/rules/**",
-      ".github/skills/xuanwu-*-skill/**"
-    ]
-  },
-  "security": {
-    "enableSecurityCheck": true
-  },
-  "tokenCount": {
-    "encoding": "o200k_base"
-  }
-}
-````
-
 ## File: .github/agents/hexagonal-convergence-enforcer.agent.md
 ````markdown
 ---
@@ -49378,6 +47137,137 @@ function migrateWorkspaceOrder(order: string[]): string[]
 export function readNavPreferences(): NavPreferences
 ⋮----
 export function writeNavPreferences(prefs: NavPreferences): void
+````
+
+## File: repomix.config.json
+````json
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "input": {
+    "maxFileSize": 52428800
+  },
+  "output": {
+    "filePath": "repomix-output.json",
+    "style": "json",
+    "parsableStyle": true,
+
+    "fileSummary": true,
+    "directoryStructure": true,
+    "files": true,
+
+    "removeComments": false,
+    "removeEmptyLines": false,
+
+    "compress": true,
+
+    "topFilesLength": 10,
+
+    "showLineNumbers": false,
+    "truncateBase64": false,
+    "copyToClipboard": false,
+
+    "includeFullDirectoryStructure": false,
+    "tokenCountTree": true,
+
+    "git": {
+      "sortByChanges": true,
+      "sortByChangesMaxCommits": 200,
+      "includeDiffs": false,
+      "includeLogs": false,
+      "includeLogsCount": 50
+    }
+  },
+  "include": [
+    ".github/copilot-instructions.md",
+    ".github/agents/**",
+    ".github/instructions/**/*.md",
+    ".github/prompts/**",
+    "docs/**",
+    "app/**",
+    "modules/**",
+    "packages/**",
+    "py_fn/**",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "apphosting.yaml",
+    "components.json",
+    "eslint.config.mjs",
+    "firebase.apphosting.json",
+    "firebase.json",
+    "firestore.indexes.json",
+    "firestore.rules",
+    "llms.txt",
+    "next.config.ts",
+    "package.json",
+    "postcss.config.mjs",
+    "storage.rules",
+    "tailwind.config.ts",
+    "tsconfig.json",
+    "vitest.config.ts",
+    "repomix*.config.json"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      ".next/**",
+      ".turbo/**",
+      ".vercel/**",
+      ".firebase/**",
+      ".output/**",
+      ".parcel-cache/**",
+
+      ".cursor/**",
+      ".vscode/**",
+      ".serena/**",
+      ".claude/**",
+      ".opencode/**",
+      ".idea/**",
+      ".history/**",
+
+      ".cache/**",
+      ".temp/**",
+      ".tmp/**",
+      "tmp/**",
+      "temp/**",
+
+      "logs/**",
+      "firebase-debug.log",
+      "repomix-output.*",
+
+      ".env*",
+      "*.pem",
+      "*.key",
+      "*.crt",
+
+      "skills-lock.json",
+
+      "docs/architecture/**",
+      "diagrams/**",
+
+      "*.png",
+      "*.jpg",
+      "*.jpeg",
+      "*.gif",
+      "*.webp",
+      "*.mp4",
+      "*.zip",
+      "*.tar",
+      "*.gz",
+
+      "*.sqlite",
+      "*.db",
+      ".github/skills/**/references/**"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}
 ````
 
 ## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
@@ -49885,30 +47775,6 @@ export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string
 export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[]
 ⋮----
 export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[]
-````
-
-## File: repomix.markdown.config.json
-````json
-{
-  "$schema": "https://repomix.com/schemas/latest/schema.json",
-  "include": [
-    ".github/**/*.md",
-    ".serena/**/*.md",
-    "app/**/*.md",
-    "docs/**/*.md",
-    "features/**/*.md",
-    "modules/**/*.md",
-    "packages/**/*.md",
-    "py_fn/**/*.md"
-  ],
-  "ignore": {
-    "useGitignore": true,
-    "useDefaultPatterns": true,
-    "customPatterns": [
-      ".github/skills/**"
-    ]
-  }
-}
 ````
 
 ## File: .github/instructions/subdomain-rules.instructions.md
@@ -50698,6 +48564,70 @@ onClick=
 // ── Orchestrated notebooklm UI (workspace as composition owner) ──────────────
 ````
 
+## File: modules/notion/interfaces/knowledge/components/KnowledgeDetailPanel.tsx
+````typescript
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
+⋮----
+import { getKnowledgePage } from "../queries";
+import {
+  renameKnowledgePage,
+  archiveKnowledgePage,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+} from "../_actions/knowledge-page.actions";
+import type { KnowledgePageSnapshot as KnowledgePage } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+import { PageEditorPanel } from "./PageEditorPanel";
+import { CommentPanel } from "@/modules/notion/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
+⋮----
+// ?? Props ?????????????????????????????????????????????????????????????????????
+⋮----
+export interface KnowledgeDetailPanelProps {
+  accountId: string;
+  activeWorkspaceId: string | null;
+  currentUserId: string;
+}
+⋮----
+// ?? Component ?????????????????????????????????????????????????????????????????
+⋮----
+function handleRename(title: string)
+⋮----
+function handleIconChange(iconUrl: string)
+⋮----
+function handleCoverChange(coverUrl: string)
+⋮----
+function handleArchive()
+⋮----
+// ?? Loading skeleton ????????????????????????????????????????????????????????
+⋮----
+// ?? Not found ???????????????????????????????????????????????????????????????
+⋮----
+<Button variant="ghost" size="sm" onClick=
+⋮----
+// ?? Page view ???????????????????????????????????????????????????????????????
+⋮----
+{/* Cover image */}
+⋮----
+{/* Top bar */}
+⋮----
+onClick=
+⋮----
+{/* Page header */}
+⋮----
+{/* Icon row */}
+⋮----
+{/* Main content + optional comment side panel */}
+⋮----
+{/* Block editor ??connected to Firebase */}
+⋮----
+{/* Comment panel ??slides in from right */}
+````
+
 ## File: package.json
 ````json
 {
@@ -50723,13 +48653,7 @@ onClick=
     "repomix:skill": "npx repomix --config repomix.config.json --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
     "repomix:explore": "npx repomix --config repomix.config.json",
     "repomix:remote": "npx repomix --remote",
-    "repomix:local": "npx repomix",
-    "repomix:notebooklm": "npx repomix --config repomix.notebooklm.config.json --skill-generate xuanwu-notebooklm-skill --skill-output .github/skills/xuanwu-notebooklm-skill --force",
-    "repomix:notion": "npx repomix --config repomix.notion.config.json --skill-generate xuanwu-notion-skill --skill-output .github/skills/xuanwu-notion-skill --force",
-    "repomix:platform": "npx repomix --config repomix.platform.config.json --skill-generate xuanwu-app-platform-skill --skill-output .github/skills/xuanwu-app-platform-skill --force",
-    "repomix:workspace": "npx repomix --config repomix.workspace.config.json --skill-generate xuanwu-app-workspace-skill --skill-output .github/skills/xuanwu-app-workspace-skill --force",
-    "repomix:workspace-workflows": "npx repomix --config repomix.workspace-workflows.config.json --skill-generate xuanwu-app-workspace-workflows-skill --skill-output .github/skills/xuanwu-app-workspace-workflows-skill --force",
-    "repomix:markdown": "npx repomix --config repomix.markdown.config.json --skill-generate xuanwu-markdown-skill --skill-output .github/skills/xuanwu-markdown-skill --force"
+    "repomix:local": "npx repomix"
   },
   "engines": {
     "node": "24"
@@ -50814,70 +48738,6 @@ onClick=
     "vitest": "^4.1.2"
   }
 }
-````
-
-## File: modules/notion/interfaces/knowledge/components/KnowledgeDetailPanel.tsx
-````typescript
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
-⋮----
-import { getKnowledgePage } from "../queries";
-import {
-  renameKnowledgePage,
-  archiveKnowledgePage,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-} from "../_actions/knowledge-page.actions";
-import type { KnowledgePageSnapshot as KnowledgePage } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
-import { PageEditorPanel } from "./PageEditorPanel";
-import { CommentPanel } from "@/modules/notion/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
-⋮----
-// ?? Props ?????????????????????????????????????????????????????????????????????
-⋮----
-export interface KnowledgeDetailPanelProps {
-  accountId: string;
-  activeWorkspaceId: string | null;
-  currentUserId: string;
-}
-⋮----
-// ?? Component ?????????????????????????????????????????????????????????????????
-⋮----
-function handleRename(title: string)
-⋮----
-function handleIconChange(iconUrl: string)
-⋮----
-function handleCoverChange(coverUrl: string)
-⋮----
-function handleArchive()
-⋮----
-// ?? Loading skeleton ????????????????????????????????????????????????????????
-⋮----
-// ?? Not found ???????????????????????????????????????????????????????????????
-⋮----
-<Button variant="ghost" size="sm" onClick=
-⋮----
-// ?? Page view ???????????????????????????????????????????????????????????????
-⋮----
-{/* Cover image */}
-⋮----
-{/* Top bar */}
-⋮----
-onClick=
-⋮----
-{/* Page header */}
-⋮----
-{/* Icon row */}
-⋮----
-{/* Main content + optional comment side panel */}
-⋮----
-{/* Block editor ??connected to Firebase */}
-⋮----
-{/* Comment panel ??slides in from right */}
 ````
 
 ## File: app/(shell)/_shell/ShellSidebarBody.tsx

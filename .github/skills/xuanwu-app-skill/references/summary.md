@@ -32,8 +32,8 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: .github/copilot-instructions.md, .github/agents/**, .github/instructions/**/*.md, .github/prompts/**, .github/skills/*/SKILL.md, .github/skills/*/AGENTS.md, docs/**, app/**, modules/**, packages/**, py_fn/**, AGENTS.md, CLAUDE.md, apphosting.yaml, components.json, eslint.config.mjs, firebase.apphosting.json, firebase.json, firestore.indexes.json, firestore.rules, llms.txt, next.config.ts, package.json, postcss.config.mjs, storage.rules, tailwind.config.ts, tsconfig.json, vitest.config.ts, repomix*.config.json
-- Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**, .github/skills/**/resources/**, .github/skills/**/rules/**, .github/skills/xuanwu-*-skill/**
+- Only files matching these patterns are included: .github/copilot-instructions.md, .github/agents/**, .github/instructions/**/*.md, .github/prompts/**, docs/**, app/**, modules/**, packages/**, py_fn/**, AGENTS.md, CLAUDE.md, apphosting.yaml, components.json, eslint.config.mjs, firebase.apphosting.json, firebase.json, firestore.indexes.json, firestore.rules, llms.txt, next.config.ts, package.json, postcss.config.mjs, storage.rules, tailwind.config.ts, tsconfig.json, vitest.config.ts, repomix*.config.json
+- Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Content has been formatted for parsing in markdown style
@@ -42,16 +42,16 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1661 files | 44,437 lines
+1638 files | 42,389 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 1145 | 24,266 |
-| Markdown | 220 | 12,965 |
+| Markdown | 203 | 10,998 |
 | TypeScript (TSX) | 183 | 4,567 |
 | Python | 61 | 1,404 |
 | No Extension | 30 | 35 |
-| JSON | 13 | 917 |
+| JSON | 7 | 836 |
 | Text | 3 | 107 |
 | RULES | 2 | 18 |
 | JavaScript (ESM) | 2 | 47 |
@@ -61,11 +61,11 @@ This skill contains the following reference files:
 **Largest files:**
 - `firestore.indexes.json` (437 lines)
 - `docs/hard-rules-consolidated.md` (420 lines)
-- `.github/skills/hexagonal-ddd/SKILL.md` (415 lines)
-- `.github/skills/playwright-mcp-testing/SKILL.md` (358 lines)
 - `AGENTS.md` (305 lines)
-- `.github/skills/shadcn/SKILL.md` (296 lines)
 - `py_fn/README.md` (265 lines)
 - `modules/platform/api/contracts.ts` (224 lines)
 - `.github/prompts/serena-hexagonal-ddd-refactor.prompt.md` (215 lines)
 - `.github/prompts/enforce-hexagonal-ddd-convergence.prompt.md` (215 lines)
+- `docs/bounded-context-subdomain-template.md` (206 lines)
+- `modules/platform/domain/ports/output/index.ts` (204 lines)
+- `docs/bounded-contexts.md` (190 lines)
