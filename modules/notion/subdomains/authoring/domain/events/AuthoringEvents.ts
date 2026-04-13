@@ -5,7 +5,7 @@
  */
 
 export interface AuthoringArticleCreatedEvent {
-  readonly type: "notion.authoring.article_created";
+  readonly type: "notion.authoring.article-created";
   readonly eventId: string;
   readonly occurredAt: string;
   readonly payload: {
@@ -17,7 +17,7 @@ export interface AuthoringArticleCreatedEvent {
 }
 
 export interface AuthoringArticlePublishedEvent {
-  readonly type: "notion.authoring.article_published";
+  readonly type: "notion.authoring.article-published";
   readonly eventId: string;
   readonly occurredAt: string;
   readonly payload: {
@@ -28,7 +28,7 @@ export interface AuthoringArticlePublishedEvent {
 }
 
 export interface AuthoringArticleArchivedEvent {
-  readonly type: "notion.authoring.article_archived";
+  readonly type: "notion.authoring.article-archived";
   readonly eventId: string;
   readonly occurredAt: string;
   readonly payload: {

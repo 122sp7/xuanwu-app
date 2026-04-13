@@ -126,7 +126,7 @@ export async function addWikiLibraryField(
   await libraryRepository.createField(input.accountId, field);
   await getEventPublisher().execute({
     id: generateSourceId(),
-    eventName: "source.library_field_added",
+    eventName: "notebooklm.source.library-field-added",
     aggregateType: "wiki-library",
     aggregateId: input.libraryId,
     payload: { accountId: input.accountId, fieldKey: field.key, fieldType: field.type },

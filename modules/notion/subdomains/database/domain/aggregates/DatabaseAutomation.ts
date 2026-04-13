@@ -6,8 +6,8 @@
 
 export type AutomationTrigger =
   | "record_created"
-  | "record_updated"
-  | "record_deleted"
+  | "record-updated"
+  | "record-deleted"
   | "property_changed";
 
 export type AutomationActionType =

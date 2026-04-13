@@ -2,7 +2,7 @@
  * @module workspace-flow/application/use-cases
  * @file materialize-tasks-from-knowledge.use-case.ts
  * @description Use case: Batch-create Tasks (and optionally Invoices) from a
- * `knowledge.page_approved` event payload.
+ * `notion.knowledge.page-approved` event payload.
  *
  * Idempotency: callers must ensure the same `sourceReference.causationId` is
  * not processed twice. This use case does NOT check for duplicates itself;

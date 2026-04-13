@@ -7,7 +7,7 @@
 import type { NotionDomainEvent } from "../../../../domain/events/NotionDomainEvent";
 
 export interface CommentCreatedEvent extends NotionDomainEvent {
-  readonly type: "notion.collaboration.comment_created";
+  readonly type: "notion.collaboration.comment-created";
   readonly payload: {
     readonly commentId: string;
     readonly pageId: string;
@@ -17,7 +17,7 @@ export interface CommentCreatedEvent extends NotionDomainEvent {
 }
 
 export interface CommentResolvedEvent extends NotionDomainEvent {
-  readonly type: "notion.collaboration.comment_resolved";
+  readonly type: "notion.collaboration.comment-resolved";
   readonly payload: {
     readonly commentId: string;
     readonly resolvedById: string;
@@ -26,7 +26,7 @@ export interface CommentResolvedEvent extends NotionDomainEvent {
 }
 
 export interface PermissionGrantedEvent extends NotionDomainEvent {
-  readonly type: "notion.collaboration.permission_granted";
+  readonly type: "notion.collaboration.permission-granted";
   readonly payload: {
     readonly permissionId: string;
     readonly resourceId: string;
@@ -37,7 +37,7 @@ export interface PermissionGrantedEvent extends NotionDomainEvent {
 }
 
 export interface PermissionRevokedEvent extends NotionDomainEvent {
-  readonly type: "notion.collaboration.permission_revoked";
+  readonly type: "notion.collaboration.permission-revoked";
   readonly payload: {
     readonly permissionId: string;
     readonly resourceId: string;
@@ -47,7 +47,7 @@ export interface PermissionRevokedEvent extends NotionDomainEvent {
 }
 
 export interface VersionCreatedEvent extends NotionDomainEvent {
-  readonly type: "notion.collaboration.version_created";
+  readonly type: "notion.collaboration.version-created";
   readonly payload: {
     readonly versionId: string;
     readonly pageId: string;
@@ -58,7 +58,7 @@ export interface VersionCreatedEvent extends NotionDomainEvent {
 }
 
 export interface VersionRestoredEvent extends NotionDomainEvent {
-  readonly type: "notion.collaboration.version_restored";
+  readonly type: "notion.collaboration.version-restored";
   readonly payload: {
     readonly versionId: string;
     readonly pageId: string;

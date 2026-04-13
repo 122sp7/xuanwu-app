@@ -7,7 +7,7 @@
 import type { NotionDomainEvent } from "../../../../domain/events/NotionDomainEvent";
 
 export interface TaxonomyNodeCreatedEvent extends NotionDomainEvent {
-  readonly type: "notion.taxonomy.node_created";
+  readonly type: "notion.taxonomy.node-created";
   readonly payload: {
     readonly nodeId: string;
     readonly label: string;
@@ -17,7 +17,7 @@ export interface TaxonomyNodeCreatedEvent extends NotionDomainEvent {
 }
 
 export interface TaxonomyNodeRemovedEvent extends NotionDomainEvent {
-  readonly type: "notion.taxonomy.node_removed";
+  readonly type: "notion.taxonomy.node-removed";
   readonly payload: {
     readonly nodeId: string;
     readonly organizationId: string;

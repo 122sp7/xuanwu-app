@@ -80,7 +80,7 @@ export class KnowledgeCollection {
       updatedAtISO: now,
     });
     collection._domainEvents.push({
-      type: "notion.knowledge.collection_created",
+      type: "notion.knowledge.collection-created",
       eventId: uuid(),
       occurredAt: now,
       payload: {
@@ -106,7 +106,7 @@ export class KnowledgeCollection {
     const now = new Date().toISOString();
     this._props = { ...this._props, name: newName, updatedAtISO: now };
     this._domainEvents.push({
-      type: "notion.knowledge.collection_renamed",
+      type: "notion.knowledge.collection-renamed",
       eventId: uuid(),
       occurredAt: now,
       payload: {
@@ -153,7 +153,7 @@ export class KnowledgeCollection {
     const now = new Date().toISOString();
     this._props = { ...this._props, status: "archived", updatedAtISO: now };
     this._domainEvents.push({
-      type: "notion.knowledge.collection_archived",
+      type: "notion.knowledge.collection-archived",
       eventId: uuid(),
       occurredAt: now,
       payload: { collectionId: this._props.id, accountId: this._props.accountId },

@@ -15,7 +15,7 @@ export interface CollectionCreatedPayload {
 }
 
 export interface CollectionCreatedEvent extends NotionDomainEvent {
-  readonly type: "notion.knowledge.collection_created";
+  readonly type: "notion.knowledge.collection-created";
   readonly payload: CollectionCreatedPayload;
 }
 
@@ -27,7 +27,7 @@ export interface CollectionRenamedPayload {
 }
 
 export interface CollectionRenamedEvent extends NotionDomainEvent {
-  readonly type: "notion.knowledge.collection_renamed";
+  readonly type: "notion.knowledge.collection-renamed";
   readonly payload: CollectionRenamedPayload;
 }
 
@@ -37,7 +37,7 @@ export interface CollectionArchivedPayload {
 }
 
 export interface CollectionArchivedEvent extends NotionDomainEvent {
-  readonly type: "notion.knowledge.collection_archived";
+  readonly type: "notion.knowledge.collection-archived";
   readonly payload: CollectionArchivedPayload;
 }
 
