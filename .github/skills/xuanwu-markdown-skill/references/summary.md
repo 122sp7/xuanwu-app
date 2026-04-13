@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: docs/**/*.md, app/**/*.md, modules/**/*.md, packages/**/*.md, py_fn/**/*.md
+- Only files matching these patterns are included: .github/**/*.md, docs/**/*.md, app/**/*.md, modules/**/*.md, packages/**/*.md, py_fn/**/*.md
 - Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -42,20 +42,20 @@ This skill contains the following reference files:
 
 ## Statistics
 
-149 files | 9,909 lines
+316 files | 19,622 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 149 | 9,909 |
+| Markdown | 316 | 19,622 |
 
 **Largest files:**
 - `docs/hard-rules-consolidated.md` (453 lines)
+- `.github/skills/hexagonal-ddd/SKILL.md` (415 lines)
+- `.github/skills/playwright-mcp-testing/SKILL.md` (358 lines)
+- `.github/skills/shadcn/SKILL.md` (296 lines)
 - `py_fn/README.md` (265 lines)
+- `.github/prompts/serena-hexagonal-ddd-refactor.prompt.md` (215 lines)
+- `.github/prompts/enforce-hexagonal-ddd-convergence.prompt.md` (215 lines)
+- `.github/instructions/architecture.instructions.md` (211 lines)
 - `docs/bounded-context-subdomain-template.md` (206 lines)
-- `docs/bounded-contexts.md` (190 lines)
-- `docs/subdomains.md` (189 lines)
-- `modules/notion/AGENT.md` (156 lines)
-- `docs/decisions/README.md` (151 lines)
-- `docs/contexts/_template.md` (144 lines)
-- `docs/contexts/platform/README.md` (131 lines)
-- `docs/decisions/0011-use-case-bundling.md` (129 lines)
+- `.github/skills/vercel-composition-patterns/rules/state-context-interface.md` (191 lines)
