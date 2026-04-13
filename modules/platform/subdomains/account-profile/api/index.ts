@@ -4,28 +4,20 @@
  *
  * Composition root lives in infrastructure/account-profile-service.ts;
  * this boundary is intentionally thin — it only re-exports public contracts.
+ *
+ * Legacy data-source wiring is deferred: the account-profile-service
+ * auto-configures its legacy data source on first use via lazy require,
+ * eliminating the previous import-time side effect.
  */
 
 import {
 	getAccountProfileFromService,
 	subscribeToAccountProfileFromService,
 	updateAccountProfileFromService,
-	configureLegacyAccountProfileDataSource,
 } from "../infrastructure";
-import {
-	getLegacyUserProfile,
-	subscribeToLegacyUserProfile,
-	updateLegacyUserProfile,
-} from "../../account/api/legacy-account-profile.bridge";
 import type { AccountProfile, Unsubscribe } from "../domain";
 import type { UpdateAccountProfileInput } from "../application";
 import type { CommandResult } from "@shared-types";
-
-configureLegacyAccountProfileDataSource({
-	getUserProfile: getLegacyUserProfile,
-	subscribeToUserProfile: subscribeToLegacyUserProfile,
-	updateUserProfile: updateLegacyUserProfile,
-});
 
 // ── Use-case delegators ──────────────────────────────────────────────────
 
