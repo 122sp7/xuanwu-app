@@ -14,6 +14,9 @@
 | [0006-domain-event-discriminant-format.md](./0006-domain-event-discriminant-format.md) | Domain Event Discriminant Format | Accepted | 83 snake_case + 4 missing prefix + 25 wrong module prefix violations |
 | [0007-infrastructure-in-api-layer.md](./0007-infrastructure-in-api-layer.md) | Infrastructure Wiring in api/ Layer | Accepted | workspace & platform api/ 層直接實例化 Firebase 適配器（10 檔、28 處）|
 | [0008-repository-interface-placement.md](./0008-repository-interface-placement.md) | Repository Interface Placement | Accepted | domain/repositories/ vs domain/ports/ 混用（23+24 個子域）|
+| [0009-anemic-aggregates.md](./0009-anemic-aggregates.md) | Anemic Aggregates | Accepted | 11 個 domain/aggregates/ 文件只含 interface/type，無 class 與業務行為 |
+| [0010-aggregate-domain-event-emission.md](./0010-aggregate-domain-event-emission.md) | Aggregate Domain Event Emission | Accepted | 2 個 class 聚合根缺少 pullDomainEvents；Workspace 事件在 use-case 中手動組裝 |
+| [0011-use-case-bundling.md](./0011-use-case-bundling.md) | Use Case Bundling and Query-Command Mixing | Accepted | 30 個多類別 use-case 捆綁文件；8 處命令文件 re-export 查詢類別 |
 
 ## How To Use This Directory
 
@@ -31,6 +34,9 @@
 - 0006 禁止 domain event discriminant 使用 snake_case、缺少主域前綴、或使用縮寫模組名稱。
 - 0007 禁止在 api/ 層持有 infrastructure singleton 或 Firebase 適配器實例化。
 - 0008 禁止在 api/ 或 application/ 定義 inline port interface；repository 與 non-repository port 應分別放入 domain/repositories/ 與 domain/ports/。
+- 0009 禁止在 domain/aggregates/ 放只含 interface/type 的文件；aggregates/ 只放 class，純資料快照移至 entities/ 或與 class 共置。
+- 0010 禁止在 use-case 中手動組裝 aggregate 領域事件；聚合根必須實作 _domainEvents 陣列與 pullDomainEvents()，use-case 只在持久化後提取。
+- 0011 禁止在一個 use-case 文件中捆綁多個 class；禁止命令 use-case 文件 re-export 查詢類別（GetXxx/ListXxx 屬 application/queries/）。
 
 ## Copilot Generation Rules
 
@@ -67,6 +73,9 @@ flowchart LR
 - [0006-domain-event-discriminant-format.md](./0006-domain-event-discriminant-format.md)
 - [0007-infrastructure-in-api-layer.md](./0007-infrastructure-in-api-layer.md)
 - [0008-repository-interface-placement.md](./0008-repository-interface-placement.md)
+- [0009-anemic-aggregates.md](./0009-anemic-aggregates.md)
+- [0010-aggregate-domain-event-emission.md](./0010-aggregate-domain-event-emission.md)
+- [0011-use-case-bundling.md](./0011-use-case-bundling.md)
 - [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
 - [../project-delivery-milestones.md](../project-delivery-milestones.md)
 - [../README.md](../README.md)
