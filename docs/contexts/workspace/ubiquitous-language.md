@@ -27,6 +27,8 @@
 |---|---|
 | AccountScope | workspace route 所依附的 account scope；由 shell 上的 `accountId` 表示 |
 | AccountTypeStringContract | workspace aggregate / use case / validator 所消費的 code-level enum `"user" | "organization"`；`"user"` 對應 personal account context |
+| CreatorUserId | 建立 workspace 或發起 workspace-scoped command 的具體 user identifier |
+| CurrentUserId | 目前正在操作 workspace UI / workflow 的具體 user identifier |
 | CanonicalWorkspaceRoute | `/{accountId}/{workspaceId}` |
 | LegacyWorkspaceRedirectSurface | `/{accountId}/workspace/{workspaceId}` |
 
@@ -39,6 +41,8 @@
 - 使用 PresenceSession 表示即時存在感，不把它隱藏在 UI 概念裡。
 - 使用 `workspaceId` 表示 workspace scope，不用 `accountId` 混稱。
 - 使用 `AccountType = "user" | "organization"` 作為 workspace 跨邊界字串契約；顯示語言可寫個人帳號 / 組織帳號，但不把 `"personal"` 當成 canonical accountType literal。
+- 使用 `creatorUserId` / `currentUserId` 表示具體使用者操作，不把它寫成 `accountId` 或 `workspaceId`。
+- organization-scoped event metadata 需要時，可由 `accountType = "organization"` 下的 `accountId` 映射出 `organizationId`；但 workspace route surface 本身仍以 `accountId` + `workspaceId` 為主。
 - 使用 `/{accountId}/{workspaceId}` 表示 canonical workspace detail route。
 - `/{accountId}/workspace/{workspaceId}` 只視為 legacy redirect surface，不作為新的文件、設計稿或 UI href。
 
@@ -51,6 +55,8 @@
 | Share Permission | ShareScope |
 | Workspace Log | ActivityFeed 或 AuditTrail |
 | `AccountType = "personal"` | `AccountType = "user"`，顯示語言再另寫個人帳號 |
+| `organizationId`（as workspace route param） | `accountId` |
+| `accountId`（as concrete acting user id） | `creatorUserId` / `currentUserId` |
 | Legacy workspace path `/{accountId}/workspace/{workspaceId}` | Canonical workspace path `/{accountId}/{workspaceId}` |
 
 ## Naming Anti-Patterns
@@ -60,6 +66,7 @@
 - 不用 Permission 混指 ShareScope。
 - 不用 Log 混指 ActivityFeed 與 AuditTrail。
 - 不把 personal account 顯示語言誤當成 workspace 的 code-level `AccountType` literal。
+- 不把 `accountId`、`workspaceId`、`creatorUserId`、`organizationId` 混成同一個 identifier 概念。
 - 不把 account-scoped shell route 語意誤當成 workspace 自己的 top-level route ownership。
 
 ## Copilot Generation Rules

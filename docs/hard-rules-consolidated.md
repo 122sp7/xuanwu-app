@@ -205,6 +205,7 @@
 ### Rule 3: File Metadata is Non-Negotiable
 - ✅ EVERY file in Storage has metadata in Firestore
 - ✅ Metadata includes: ownerId, workspaceId, createdAt, lifecycle (active/archived/deleted)
+- ✅ `ownerId` = resource owner identifier；`workspaceId` = collaboration scope identifier；兩者都不等於 shell route 的 `accountId`
 - ❌ NEVER store-only URL without DB entry
 - ✅ Firestore entry is source of truth for permissions & lifecycle
 
@@ -252,6 +253,7 @@
 
 ### Rule 39: Storage Path Contains Scope (Leak Prevention)
 - ✅ Storage paths: `{tenantId}/{workspaceId}/{ownerId}/{fileId}`
+- ✅ `tenantId` = tenant isolation key；不是 `workspaceId`、`accountId` 或 `ownerId` 的別名
 - ✅ Firestore rules prevent cross-tenant access
 - ❌ NEVER path like `storage/uploads/{random}.pdf` (breaks isolation)
 - ✅ Scope visible in path; admins can audit
