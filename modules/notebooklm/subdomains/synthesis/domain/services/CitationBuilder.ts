@@ -1,7 +1,7 @@
 /**
  * Module: notebooklm/subdomains/grounding
  * Layer: domain/services
- * Purpose: ICitationBuilder — domain service interface for constructing citations
+ * Purpose: CitationBuilder — domain service interface for constructing citations
  *          from retrieved chunks and generated answers.
  *
  * Migration source: ai/domain/services/RagCitationBuilder.ts
@@ -20,6 +20,6 @@ export interface CitationBuilderInput {
   }[];
 }
 
-export interface ICitationBuilder {
+export interface CitationBuilder {
   build(input: CitationBuilderInput): readonly Citation[];
 }

@@ -106,7 +106,7 @@ export type {
   Citation,
   GroundingEvidence,
   CitationBuilderInput,
-  ICitationBuilder,
+  CitationBuilder,
   GroundingCompletedEvent,
 } from "../subdomains/synthesis/api";
 

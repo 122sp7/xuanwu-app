@@ -33,8 +33,8 @@ export type {
 
 export type {
   CitationBuilderInput,
-  ICitationBuilder,
-} from "../domain/services/ICitationBuilder";
+  CitationBuilder,
+} from "../domain/services/CitationBuilder";
 
 export type {
   GroundingCompletedEvent,

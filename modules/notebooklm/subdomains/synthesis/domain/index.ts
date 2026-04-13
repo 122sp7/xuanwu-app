@@ -33,7 +33,7 @@ export * from "./repositories/KnowledgeContentRepository";
 export * from "./services/RagCitationBuilder";
 export * from "./services/RagPromptBuilder";
 export * from "./services/RagScoringService";
-export type { CitationBuilderInput, ICitationBuilder } from "./services/ICitationBuilder";
+export type { CitationBuilderInput, CitationBuilder } from "./services/CitationBuilder";
 
 // ── Value objects ────────────────────────────────────────────────────────────
 export * from "./value-objects";
