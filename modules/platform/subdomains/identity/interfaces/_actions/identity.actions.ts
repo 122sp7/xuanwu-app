@@ -9,7 +9,7 @@ import {
 	SignInUseCase,
 	SignOutUseCase,
 } from "../../application/use-cases/identity.use-cases";
-import { createIdentityRepository } from "../../api";
+import { createIdentityRepository } from "../composition/identity-service";
 
 let _identityRepo: ReturnType<typeof createIdentityRepository> | undefined;
 
