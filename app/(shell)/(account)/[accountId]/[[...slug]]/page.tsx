@@ -62,6 +62,8 @@ export default function AccountRouteDispatcherPage({
   const { state: authState } = useAuth();
 
   const slug = resolvedParams.slug ?? [];
+  const routeAccountIdFromParams = resolvedParams.accountId;
+  const effectiveAccountId = resolvedAccountId || routeAccountIdFromParams || routeAccountId;
   const query = searchParams.toString();
   const querySuffix = query.length > 0 ? `?${query}` : "";
   const isLegacyWorkspaceAlias = routeAccountId === "workspace";
@@ -86,8 +88,8 @@ export default function AccountRouteDispatcherPage({
   if (slug[0] === "organization") {
     const nextSegments = slug.slice(1);
     const targetPath = nextSegments.length > 0
-      ? `/${encodeURIComponent(resolvedAccountId)}/${nextSegments.map(encodeURIComponent).join("/")}`
-      : `/${encodeURIComponent(resolvedAccountId)}`;
+      ? `/${encodeURIComponent(effectiveAccountId)}/${nextSegments.map(encodeURIComponent).join("/")}`
+      : `/${encodeURIComponent(effectiveAccountId)}`;
 
     return (
       <RedirectingRoute
@@ -113,7 +115,7 @@ export default function AccountRouteDispatcherPage({
         )}
 
         <WorkspaceHubScreen
-          accountId={resolvedAccountId || null}
+          accountId={effectiveAccountId || null}
           accountName={accountName}
           accountType={accountType}
           accountsHydrated={accountsHydrated}
@@ -145,14 +147,14 @@ export default function AccountRouteDispatcherPage({
       case "settings":
         return (
           <RedirectingRoute
-            href={`/${encodeURIComponent(resolvedAccountId)}/settings/notifications${querySuffix}`}
+            href={`/${encodeURIComponent(effectiveAccountId)}/settings/notifications${querySuffix}`}
             message="正在導向帳號設定…"
           />
         );
       default:
         return (
           <RedirectingRoute
-            href={`/${encodeURIComponent(resolvedAccountId)}/workspace/${encodeURIComponent(slug[0])}${querySuffix}`}
+            href={`/${encodeURIComponent(effectiveAccountId)}/workspace/${encodeURIComponent(slug[0])}${querySuffix}`}
             message="正在導向工作區路由…"
           />
         );
@@ -166,7 +168,7 @@ export default function AccountRouteDispatcherPage({
   if (slug.length === 2 && slug[0] === "schedule" && slug[1] === "dispatcher") {
     return (
       <RedirectingRoute
-        href={`/${encodeURIComponent(resolvedAccountId)}/schedule${querySuffix}`}
+        href={`/${encodeURIComponent(effectiveAccountId)}/schedule${querySuffix}`}
         message="正在導向排程…"
       />
     );
@@ -176,7 +178,7 @@ export default function AccountRouteDispatcherPage({
     ? <OrganizationOverviewRouteScreen />
     : (
       <WorkspaceHubScreen
-        accountId={resolvedAccountId || null}
+        accountId={effectiveAccountId || null}
         accountName={accountName}
         accountType={accountType}
         accountsHydrated={accountsHydrated}
