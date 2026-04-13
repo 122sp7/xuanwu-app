@@ -7243,6 +7243,223 @@ export interface ConversationReference {
 }
 ````
 
+## File: modules/notebooklm/infrastructure/notebook/platform/PlatformTextGenerationAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/notebook
+ * Layer: infrastructure/platform
+ * Purpose: Delegates text generation to platform AI API.
+ *
+ * The notebook subdomain owns its NotebookRepository port; this adapter
+ * satisfies it by calling the platform AI capability instead of importing
+ * Genkit directly. All Genkit wiring lives exclusively in
+ * modules/platform/subdomains/ai/infrastructure.
+ */
+⋮----
+import { generateAiText } from "@/modules/platform/api/server";
+import type {
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "../../../subdomains/notebook/domain/entities/AgentGeneration";
+import type { NotebookRepository } from "../../../subdomains/notebook/domain/repositories/NotebookRepository";
+⋮----
+export class PlatformTextGenerationAdapter implements NotebookRepository {
+⋮----
+async generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>
+````
+
+## File: modules/notebooklm/infrastructure/source/firebase/FirebaseDocumentStatusAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/firebase
+ * Adapter: FirebaseDocumentStatusAdapter — watches Firestore document status via onSnapshot.
+ *
+ * Extracted from interfaces/components to keep Firestore access in infrastructure layer.
+ */
+⋮----
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+⋮----
+function asRecord(value: unknown): Record<string, unknown>
+⋮----
+function asString(value: unknown, fallback = ""): string
+⋮----
+function asNumber(value: unknown, fallback = 0): number
+⋮----
+export async function waitForParsedDocument(
+  accountId: string,
+  docId: string,
+): Promise<
+````
+
+## File: modules/notebooklm/infrastructure/synthesis/index.ts
+````typescript
+/**
+ * Infrastructure layer for notebooklm subdomain 'synthesis'.
+ * Contains Firebase adapters and platform-delegating adapters for the RAG pipeline.
+ */
+````
+
+## File: modules/notebooklm/interfaces/source/components/file-processing-dialog.body.tsx
+````typescript
+import { ScanSearch, Sparkles } from "lucide-react";
+⋮----
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Checkbox } from "@ui-shadcn/ui/checkbox";
+import { Label } from "@ui-shadcn/ui/label";
+⋮----
+import type { ExecutionSummary } from "./file-processing-dialog.utils";
+import { FileProcessingPathValue, FileProcessingResultRow, FileProcessingSourceCard } from "./file-processing-dialog.parts";
+⋮----
+interface FileProcessingDialogBodyProps {
+  readonly step: "decide" | "select" | "executing" | "done";
+  readonly filename: string;
+  readonly mimeType: string;
+  readonly gcsUri: string;
+  readonly sizeBytes: number;
+  readonly shouldRunRag: boolean;
+  readonly shouldCreatePage: boolean;
+  readonly onShouldRunRagChange: (checked: boolean) => void;
+  readonly onShouldCreatePageChange: (checked: boolean) => void;
+  readonly summary: ExecutionSummary;
+}
+````
+
+## File: modules/notebooklm/interfaces/source/components/file-processing-dialog.parts.tsx
+````typescript
+import { CheckCircle2, FileText, Loader2, XCircle } from "lucide-react";
+⋮----
+import { cn } from "@ui-shadcn";
+import { Badge } from "@ui-shadcn/ui/badge";
+⋮----
+import type { TaskResult } from "./file-processing-dialog.utils";
+⋮----
+function formatFileSize(sizeBytes: number): string | null
+⋮----
+export function FileProcessingPathValue(
+⋮----
+export function FileProcessingSourceCard({
+  filename,
+  mimeType,
+  gcsUri,
+  sizeBytes,
+}: {
+  readonly filename: string;
+  readonly mimeType: string;
+  readonly gcsUri: string;
+  readonly sizeBytes: number;
+})
+⋮----
+export function FileProcessingResultRow({
+  label,
+  result,
+}: {
+  readonly label: string;
+  readonly result: TaskResult;
+})
+⋮----
+<div className=
+````
+
+## File: modules/notebooklm/interfaces/source/components/file-processing-dialog.surface.tsx
+````typescript
+import type { ReactNode } from "react";
+⋮----
+import { useIsMobile } from "@ui-shadcn";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@ui-shadcn/ui/sheet";
+⋮----
+interface FileProcessingDialogSurfaceProps {
+  readonly open: boolean;
+  readonly canDismiss: boolean;
+  readonly onOpenChange: (nextOpen: boolean) => void;
+  readonly footer: ReactNode;
+  readonly children: ReactNode;
+}
+````
+
+## File: modules/notebooklm/interfaces/source/components/file-processing-dialog.utils.ts
+````typescript
+import {
+  createIdleExecutionSummary,
+  type SourceProcessingExecutionSummary,
+  type SourceProcessingTaskResult,
+  type SourceProcessingTaskStatus,
+} from "../../../subdomains/source/application/dto/source-processing.dto";
+⋮----
+export type TaskStatus = SourceProcessingTaskStatus;
+⋮----
+export type TaskResult = SourceProcessingTaskResult;
+⋮----
+export type ExecutionSummary = SourceProcessingExecutionSummary;
+⋮----
+export function createIdleSummary(): ExecutionSummary
+⋮----
+export function readCallableData(value: unknown): Record<string, unknown>
+⋮----
+export function readString(value: unknown, fallback = ""): string
+⋮----
+export function readNumber(value: unknown, fallback = 0): number
+````
+
+## File: modules/notebooklm/interfaces/source/components/FileProcessingDialog.tsx
+````typescript
+import { useState } from "react";
+import Link from "next/link";
+⋮----
+import { useAuth } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
+⋮----
+import { processSourceDocumentWorkflow } from "../_actions/source-processing.actions";
+import { FileProcessingDialogBody } from "./file-processing-dialog.body";
+import { FileProcessingDialogSurface } from "./file-processing-dialog.surface";
+import {
+  createIdleSummary,
+  type ExecutionSummary,
+} from "./file-processing-dialog.utils";
+⋮----
+interface FileProcessingDialogProps {
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+}
+⋮----
+type DialogStep = "decide" | "select" | "executing" | "done";
+⋮----
+function handleOpenChange(nextOpen: boolean)
+⋮----
+async function handleExecute()
+⋮----
+<Button onClick=
+````
+
+## File: modules/notebooklm/interfaces/source/contracts/source-command-result.ts
+````typescript
+import type { SourceFileCommandErrorCode } from "../../../subdomains/source/application/dto/source-file.dto";
+⋮----
+export type SourceFileCommandResult<TData> =
+  | {
+      readonly ok: true;
+      readonly data: TData;
+      readonly commandId: string;
+    }
+  | {
+      readonly ok: false;
+      readonly error: {
+        readonly code: SourceFileCommandErrorCode;
+        readonly message: string;
+      };
+      readonly commandId: string;
+    };
+````
+
 ## File: modules/notebooklm/subdomains/conversation/application/dto/conversation.dto.ts
 ````typescript
 /**
@@ -7284,6 +7501,11 @@ export interface Thread {
   readonly createdAt: string;
   readonly updatedAt: string;
 }
+````
+
+## File: modules/notebooklm/subdomains/notebook/api/index.ts
+````typescript
+
 ````
 
 ## File: modules/notebooklm/subdomains/notebook/application/dto/notebook.dto.ts
@@ -32951,42 +33173,376 @@ Strategic architecture documentation lives in `docs/contexts/notebooklm/`:
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
-## File: modules/notebooklm/infrastructure/notebook/platform/PlatformTextGenerationAdapter.ts
+## File: modules/notebooklm/infrastructure/conversation/firebase/FirebaseThreadRepository.ts
 ````typescript
 /**
- * Module: notebooklm/subdomains/notebook
- * Layer: infrastructure/platform
- * Purpose: Delegates text generation to platform AI API.
+ * Module: notebooklm/conversation
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/threads/{threadId}
  *
- * The notebook subdomain owns its NotebookRepository port; this adapter
- * satisfies it by calling the platform AI capability instead of importing
- * Genkit directly. All Genkit wiring lives exclusively in
- * modules/platform/subdomains/ai/infrastructure.
+ * Persists Thread (messages array) to Firestore so conversations survive page reload.
  */
 ⋮----
-import { generateAiText } from "@/modules/platform/api/server";
-import type {
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-} from "../../../subdomains/notebook/domain/entities/AgentGeneration";
-import type { NotebookRepository } from "../../../subdomains/notebook/domain/repositories/NotebookRepository";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import type { Thread } from "../../../subdomains/conversation/domain/entities/thread";
+import type { Message } from "../../../subdomains/conversation/domain/entities/message";
+import type { ThreadRepository } from "../../../subdomains/conversation/domain/repositories/ThreadRepository";
 ⋮----
-export class PlatformTextGenerationAdapter implements NotebookRepository {
+function threadPath(accountId: string, threadId: string): string
 ⋮----
-async generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>
+function toMessage(m: Record<string, unknown>): Message
+⋮----
+function toThread(id: string, data: Record<string, unknown>): Thread
+⋮----
+export class FirebaseThreadRepository implements ThreadRepository {
+⋮----
+async save(accountId: string, thread: Thread): Promise<void>
+⋮----
+async getById(accountId: string, threadId: string): Promise<Thread | null>
 ````
 
-## File: modules/notebooklm/infrastructure/source/firebase/FirebaseDocumentStatusAdapter.ts
+## File: modules/notebooklm/infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/adapters
+ * Adapter: NotionKnowledgePageGatewayAdapter — delegates to notion bounded context API.
+ *
+ * Implements the KnowledgePageGateway port defined in the domain layer,
+ * bridging the source subdomain to the notion bounded context through its
+ * top-level public API and published-language tokens.
+ */
+⋮----
+import type { CommandResult } from "@shared-types";
+⋮----
+import type { KnowledgePageGateway } from "../../../subdomains/source/domain/ports/KnowledgePageGatewayPort";
+⋮----
+interface KnowledgeArtifactReferenceToken {
+  readonly artifactId: string;
+  readonly artifactType: "page" | "article";
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly slug: string;
+}
+⋮----
+function slugifyTitle(title: string): string
+⋮----
+function toKnowledgeArtifactReference(input: {
+  accountId: string;
+  workspaceId: string;
+  title: string;
+  artifactId: string;
+}): KnowledgeArtifactReferenceToken
+⋮----
+export class NotionKnowledgePageGatewayAdapter implements KnowledgePageGateway {
+⋮----
+constructor(
+    private readonly deps: {
+      createKnowledgePage: (input: {
+        accountId: string;
+        workspaceId: string;
+        title: string;
+        parentPageId: null;
+        createdByUserId: string;
+})
+⋮----
+async createPage(input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    parentPageId: null;
+    createdByUserId: string;
+}): Promise<CommandResult>
+⋮----
+// Normalize cross-context return as notion published-language token.
+⋮----
+async addBlock(input: {
+    accountId: string;
+    pageId: string;
+    index: number;
+    content: {
+      type: "text";
+      richText: readonly { type: string; plainText: string }[];
+      properties: Record<string, unknown>;
+    };
+}): Promise<CommandResult>
+````
+
+## File: modules/notebooklm/infrastructure/source/firebase/FirebaseParsedDocumentAdapter.ts
 ````typescript
 /**
  * Module: notebooklm/subdomains/source
  * Layer: infrastructure/firebase
- * Adapter: FirebaseDocumentStatusAdapter — watches Firestore document status via onSnapshot.
+ * Adapter: FirebaseParsedDocumentAdapter — Firebase Storage implementation of ParsedDocumentPort.
  *
- * Extracted from interfaces/components to keep Firestore access in infrastructure layer.
+ * Reads parsed JSON from a GCS URI and extracts the text content.
+ */
+⋮----
+import { storageInfrastructureApi } from "@/modules/platform/api";
+⋮----
+import type { ParsedDocumentPort } from "../../../subdomains/source/domain/ports/ParsedDocumentPort";
+⋮----
+function asRecord(value: unknown): Record<string, unknown>
+⋮----
+function asString(value: unknown, fallback = ""): string
+⋮----
+function resolveStoragePathFromGsUri(input: string): string
+⋮----
+export class FirebaseParsedDocumentAdapter implements ParsedDocumentPort {
+⋮----
+async loadParsedDocumentText(jsonGcsUri: string): Promise<string>
+````
+
+## File: modules/notebooklm/infrastructure/source/firebase/FirebaseRagDocumentAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/firebase
+ * Adapter: FirebaseRagDocumentAdapter — Firestore implementation of RagDocumentRepository.
+ *
+ * Collection path:
+ *   knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}
  */
 ⋮----
 import { firestoreInfrastructureApi } from "@/modules/platform/api";
+⋮----
+import type { RagDocumentRecord, RagDocumentStatus } from "../../../subdomains/source/domain/entities/RagDocument";
+import type { RagDocumentRepository } from "../../../subdomains/source/domain/repositories/RagDocumentRepository";
+⋮----
+function buildDocPath(input: {
+  readonly organizationId: string;
+  readonly workspaceId: string;
+  readonly documentId: string;
+}): string
+⋮----
+function buildDocCollectionPath(input:
+⋮----
+function toStringArray(value: unknown): readonly string[]
+⋮----
+function isRagDocumentStatus(value: unknown): value is RagDocumentStatus
+⋮----
+function toRagDocumentRecord(
+  documentId: string,
+  data: Record<string, unknown>,
+  fallback: { organizationId: string; workspaceId: string },
+): RagDocumentRecord
+⋮----
+export class FirebaseRagDocumentAdapter implements RagDocumentRepository {
+⋮----
+async findByStoragePath(scope: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+    readonly storagePath: string;
+}): Promise<RagDocumentRecord | null>
+⋮----
+async findByWorkspace(scope: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+}): Promise<readonly RagDocumentRecord[]>
+⋮----
+async saveUploaded(record: RagDocumentRecord): Promise<void>
+````
+
+## File: modules/notebooklm/infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/firebase
+ * Adapter: FirebaseSourceDocumentCommandAdapter — Firestore implementation of SourceDocumentCommandPort.
+ *
+ * Collection path: accounts/{accountId}/documents/{documentId}
+ * This is a legacy collection; new data should use the workspaceFiles collection.
+ */
+⋮----
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+⋮----
+import type { SourceDocumentCommandPort } from "../../../subdomains/source/domain/ports/SourceDocumentPort";
+⋮----
+export class FirebaseSourceDocumentCommandAdapter implements SourceDocumentCommandPort {
+⋮----
+async deleteDocument(accountId: string, documentId: string): Promise<void>
+⋮----
+async renameDocument(accountId: string, documentId: string, newName: string): Promise<void>
+````
+
+## File: modules/notebooklm/infrastructure/source/firebase/FirebaseSourceFileAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/firebase
+ * Adapter: FirebaseSourceFileAdapter — Firestore implementation of SourceFileRepository.
+ *
+ * Collections:
+ *   workspaceFiles/{fileId}
+ *   workspaceFiles/{fileId}/versions/{versionId}
+ */
+⋮----
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+⋮----
+import type { SourceFile } from "../../../subdomains/source/domain/entities/SourceFile";
+import type { SourceFileVersion } from "../../../subdomains/source/domain/entities/SourceFileVersion";
+import type { SourceFileRepository, ListSourceFilesScope } from "../../../subdomains/source/domain/repositories/SourceFileRepository";
+⋮----
+function isSourceFileStatus(value: unknown): value is SourceFile["status"]
+⋮----
+function isSourceFileClassification(value: unknown): value is SourceFile["classification"]
+⋮----
+function toStringArray(value: unknown): readonly string[]
+⋮----
+function toSourceFileEntity(fileId: string, data: Record<string, unknown>): SourceFile
+⋮----
+function isVersionStatus(value: unknown): value is SourceFileVersion["status"]
+⋮----
+function toSourceFileVersionEntity(versionId: string, data: Record<string, unknown>): SourceFileVersion
+⋮----
+export class FirebaseSourceFileAdapter implements SourceFileRepository {
+⋮----
+async findById(fileId: string): Promise<SourceFile | null>
+⋮----
+async findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null>
+⋮----
+async listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>
+⋮----
+async save(file: SourceFile, versions: readonly SourceFileVersion[] = []): Promise<void>
+````
+
+## File: modules/notebooklm/infrastructure/source/firebase/FirebaseWikiLibraryAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/firebase
+ * Adapter: FirebaseWikiLibraryAdapter — Firestore implementation of WikiLibraryRepository.
+ *
+ * Paths:
+ *   accounts/{accountId}/wikiLibraries/{libraryId}
+ *   accounts/{accountId}/wikiLibraries/{libraryId}/fields/{fieldId}
+ *   accounts/{accountId}/wikiLibraries/{libraryId}/rows/{rowId}
+ */
+⋮----
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+⋮----
+import type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+} from "../../../subdomains/source/domain/entities/WikiLibrary";
+import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
+⋮----
+// ── Firestore shapes (ISO strings; no Timestamp to avoid serialisation issues)
+⋮----
+interface FsLibrary {
+  accountId: string;
+  workspaceId?: string;
+  name: string;
+  slug: string;
+  status: WikiLibraryStatus;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+⋮----
+interface FsField {
+  libraryId: string;
+  key: string;
+  label: string;
+  type: WikiLibraryFieldType;
+  required: boolean;
+  options?: string[];
+  createdAtISO: string;
+}
+⋮----
+interface FsRow {
+  libraryId: string;
+  values: Record<string, unknown>;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+⋮----
+function libraryCollectionPath(accountId: string): string
+⋮----
+function libraryDocumentPath(accountId: string, libraryId: string): string
+⋮----
+function fieldCollectionPath(accountId: string, libraryId: string): string
+⋮----
+function fieldDocumentPath(accountId: string, libraryId: string, fieldId: string): string
+⋮----
+function rowCollectionPath(accountId: string, libraryId: string): string
+⋮----
+function rowDocumentPath(accountId: string, libraryId: string, rowId: string): string
+⋮----
+// ── Mappers ───────────────────────────────────────────────────────────────────
+⋮----
+function toLibrary(id: string, data: FsLibrary): WikiLibrary
+⋮----
+function toField(id: string, data: FsField): WikiLibraryField
+⋮----
+function toRow(id: string, data: FsRow): WikiLibraryRow
+⋮----
+// ── Implementation ────────────────────────────────────────────────────────────
+⋮----
+export class FirebaseWikiLibraryAdapter implements WikiLibraryRepository {
+⋮----
+async listByAccountId(accountId: string): Promise<WikiLibrary[]>
+⋮----
+async findById(accountId: string, libraryId: string): Promise<WikiLibrary | null>
+⋮----
+async create(library: WikiLibrary): Promise<void>
+⋮----
+async createField(accountId: string, field: WikiLibraryField): Promise<void>
+⋮----
+async listFields(accountId: string, libraryId: string): Promise<WikiLibraryField[]>
+⋮----
+async createRow(accountId: string, row: WikiLibraryRow): Promise<void>
+⋮----
+async listRows(accountId: string, libraryId: string): Promise<WikiLibraryRow[]>
+````
+
+## File: modules/notebooklm/infrastructure/source/memory/InMemoryWikiLibraryAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/memory
+ * Adapter: InMemoryWikiLibraryAdapter — in-memory implementation of WikiLibraryRepository.
+ * Use case: local dev, tests, and no-firebase environments.
+ */
+⋮----
+import type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+} from "../../../subdomains/source/domain/entities/WikiLibrary";
+import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
+⋮----
+export class InMemoryWikiLibraryAdapter implements WikiLibraryRepository {
+⋮----
+async listByAccountId(accountId: string): Promise<WikiLibrary[]>
+⋮----
+async findById(accountId: string, libraryId: string): Promise<WikiLibrary | null>
+⋮----
+async create(library: WikiLibrary): Promise<void>
+⋮----
+async createField(accountId: string, field: WikiLibraryField): Promise<void>
+⋮----
+async listFields(accountId: string, libraryId: string): Promise<WikiLibraryField[]>
+⋮----
+async createRow(accountId: string, row: WikiLibraryRow): Promise<void>
+⋮----
+async listRows(accountId: string, libraryId: string): Promise<WikiLibraryRow[]>
+````
+
+## File: modules/notebooklm/infrastructure/source/platform/PlatformSourcePipelineAdapter.ts
+````typescript
+import { functionsInfrastructureApi } from "@/modules/platform/api";
+⋮----
+import type {
+  SourcePipelinePort,
+  ParseSourceDocumentInput,
+  ParseSourceDocumentOutput,
+  ReindexSourceDocumentInput,
+  ReindexSourceDocumentOutput,
+} from "../../../subdomains/source/domain/ports/SourcePipelinePort";
 ⋮----
 function asRecord(value: unknown): Record<string, unknown>
 ⋮----
@@ -32994,18 +33550,217 @@ function asString(value: unknown, fallback = ""): string
 ⋮----
 function asNumber(value: unknown, fallback = 0): number
 ⋮----
-export async function waitForParsedDocument(
-  accountId: string,
-  docId: string,
-): Promise<
+export class PlatformSourcePipelineAdapter implements SourcePipelinePort {
+⋮----
+async parseDocument(input: ParseSourceDocumentInput): Promise<ParseSourceDocumentOutput>
+⋮----
+async reindexDocument(input: ReindexSourceDocumentInput): Promise<ReindexSourceDocumentOutput>
 ````
 
-## File: modules/notebooklm/infrastructure/synthesis/index.ts
+## File: modules/notebooklm/infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter.ts
 ````typescript
 /**
- * Infrastructure layer for notebooklm subdomain 'synthesis'.
- * Contains Firebase adapters and platform-delegating adapters for the RAG pipeline.
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: infrastructure/firebase
+ * Purpose: FirebaseKnowledgeContentAdapter — implements KnowledgeContentRepository via
+ *          Firebase Functions calls (RAG query, reindex) and Firestore reads
+ *          (list parsed documents).
+ *
+ * Design notes:
+ * - All external shape normalisation happens here; domain types stay clean.
+ * - Functions region is configured as a constant; change here only if region changes.
  */
+⋮----
+import {
+  firestoreInfrastructureApi,
+  functionsInfrastructureApi,
+} from "@/modules/platform/api";
+⋮----
+import type {
+  KnowledgeContentRepository,
+  KnowledgeCitation,
+  KnowledgeParsedDocument,
+  KnowledgeRagQueryResult,
+  KnowledgeReindexInput,
+} from "../../../subdomains/synthesis/domain/repositories/KnowledgeContentRepository";
+⋮----
+// --- Firestore / Functions response normalisation helpers ---------------------
+⋮----
+function isRecord(value: unknown): value is Record<string, unknown>
+⋮----
+function objectOrEmpty(value: unknown): Record<string, unknown>
+⋮----
+function toNumberOrDefault(value: unknown, fallback = 0): number
+⋮----
+function toDateOrNull(value: unknown): Date | null
+⋮----
+function normaliseCitations(raw: unknown): KnowledgeCitation[]
+⋮----
+function resolveFilename(data: Record<string, unknown>): string
+⋮----
+function mapToParsedDocument(id: string, data: Record<string, unknown>): KnowledgeParsedDocument
+⋮----
+// --- Adapter ------------------------------------------------------------------
+⋮----
+export class FirebaseKnowledgeContentAdapter implements KnowledgeContentRepository {
+⋮----
+async runRagQuery(
+    query: string,
+    accountId: string,
+    workspaceId: string,
+    topK: number,
+    options: {
+      taxonomyFilters?: string[];
+      maxAgeDays?: number;
+      requireReady?: boolean;
+    } = {},
+): Promise<KnowledgeRagQueryResult>
+⋮----
+async reindexDocument(input: KnowledgeReindexInput): Promise<void>
+⋮----
+async listParsedDocuments(accountId: string, limitCount: number): Promise<KnowledgeParsedDocument[]>
+````
+
+## File: modules/notebooklm/infrastructure/synthesis/firebase/FirebaseRagQueryFeedbackAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: infrastructure/firebase
+ * Purpose: FirebaseRagQueryFeedbackAdapter — implements RagQueryFeedbackRepository
+ *          using Firestore (client SDK) for feedback persistence.
+ *
+ * Firestore collection: ragQueryFeedback/{autoId}
+ */
+⋮----
+import { v7 as generateId } from "@lib-uuid";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+⋮----
+import type { RagQueryFeedbackRepository } from "../../../subdomains/synthesis/domain/repositories/RagQueryFeedbackRepository";
+import type {
+  RagQueryFeedback,
+  SubmitRagQueryFeedbackInput,
+} from "../../../subdomains/synthesis/domain/entities/rag-feedback.entities";
+⋮----
+interface FirestoreFeedbackDoc {
+  readonly id: string;
+  readonly traceId: string;
+  readonly userQuery: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly rating: string;
+  readonly comment?: string;
+  readonly submittedByUserId: string;
+  readonly submittedAtISO: string;
+}
+⋮----
+export class FirebaseRagQueryFeedbackAdapter implements RagQueryFeedbackRepository {
+⋮----
+async save(input: SubmitRagQueryFeedbackInput): Promise<RagQueryFeedback>
+⋮----
+async listByOrganization(organizationId: string, limitCount: number): Promise<RagQueryFeedback[]>
+````
+
+## File: modules/notebooklm/infrastructure/synthesis/firebase/FirebaseRagRetrievalAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: infrastructure/firebase
+ * Purpose: FirebaseRagRetrievalAdapter — implements RagRetrievalRepository
+ *          using Firestore collectionGroup queries for document-scoped chunks.
+ *
+ * Retrieval strategy:
+ *  1. Over-fetch candidate documents (filtered by org / workspace / taxonomy / status=ready).
+ *  2. Over-fetch candidate chunks in the same scope.
+ *  3. Compute a token-overlap relevance score (CJK-aware tokeniser).
+ *  4. Filter to chunks whose parent doc is in the ready-document set.
+ *  5. Sort descending by score, return top-K.
+ */
+⋮----
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+⋮----
+import type { RagRetrievedChunk } from "../../../subdomains/synthesis/domain/entities/retrieval.entities";
+import type { RagRetrievalRepository, RetrieveChunksInput } from "../../../subdomains/synthesis/domain/repositories/RagRetrievalRepository";
+⋮----
+// --- Firestore document shapes -----------------------------------------------
+⋮----
+interface FirestoreRagDocument {
+  readonly organizationId?: string;
+  readonly workspaceId?: string;
+  readonly status?: string;
+  readonly taxonomy?: string;
+}
+⋮----
+interface FirestoreRagChunk {
+  readonly organizationId?: string;
+  readonly workspaceId?: string;
+  readonly docId?: string;
+  readonly text?: string;
+  readonly taxonomy?: string;
+  readonly page?: number;
+  readonly chunkIndex?: number;
+}
+⋮----
+// --- Retrieval tuning constants -----------------------------------------------
+⋮----
+// --- Scoring helpers (pure functions, no state) --------------------------------
+⋮----
+/** CJK-aware whitespace / punctuation tokeniser */
+function tokenize(value: string): readonly string[]
+⋮----
+/**
+ * Token-overlap score between query and chunk text.
+ * Returns a value in [0, 1] — fraction of query tokens found in the chunk.
+ */
+function computeTokenOverlapScore(queryTokens: readonly string[], chunkText: string): number
+⋮----
+// --- Adapter ------------------------------------------------------------------
+⋮----
+export class FirebaseRagRetrievalAdapter implements RagRetrievalRepository {
+⋮----
+async retrieve(input: RetrieveChunksInput): Promise<readonly RagRetrievedChunk[]>
+⋮----
+// Step 1 — resolve ready document IDs in scope
+⋮----
+// Step 2 — over-fetch candidate chunks
+⋮----
+// Step 3 — score, filter, sort, slice
+````
+
+## File: modules/notebooklm/infrastructure/synthesis/platform/PlatformRagGenerationAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: infrastructure/platform
+ * Purpose: Implements RagGenerationRepository by delegating model invocation
+ *          to platform AI API. Prompt construction and citation building stay
+ *          in this adapter (domain-specific to synthesis).
+ *
+ * All Genkit wiring lives exclusively in
+ * modules/platform/subdomains/ai/infrastructure.
+ */
+⋮----
+import { generateAiText } from "@/modules/platform/api/server";
+import type { RagGenerationRepository } from "../../../subdomains/synthesis/domain/repositories/RagGenerationRepository";
+import type {
+  GenerateRagAnswerInput,
+  GenerateRagAnswerResult,
+  GenerateRagAnswerOutput,
+  GenerationCitation,
+} from "../../../subdomains/synthesis/domain/entities/generation.entities";
+⋮----
+// --- Prompt construction helpers (pure, testable) ----------------------------
+⋮----
+function formatChunkForPrompt(chunk: GenerateRagAnswerInput["chunks"][number]): string
+⋮----
+function buildGenerationPrompt(input: GenerateRagAnswerInput): string
+⋮----
+function buildCitations(input: GenerateRagAnswerInput): readonly GenerationCitation[]
+⋮----
+// --- Adapter ------------------------------------------------------------------
+⋮----
+export class PlatformRagGenerationAdapter implements RagGenerationRepository {
+⋮----
+async generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult>
 ````
 
 ## File: modules/notebooklm/interfaces/conversation/components/ConversationPanel.tsx
@@ -33052,6 +33807,31 @@ onChange=
 import { FirebaseThreadRepository } from "../../../infrastructure/conversation/firebase/FirebaseThreadRepository";
 ⋮----
 export function makeThreadRepo()
+````
+
+## File: modules/notebooklm/interfaces/conversation/helpers.ts
+````typescript
+import type { Thread } from "../../subdomains/conversation/domain/entities/thread";
+⋮----
+// ── Domain types ──────────────────────────────────────────────────────────────
+⋮----
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+⋮----
+// ── Storage key ───────────────────────────────────────────────────────────────
+⋮----
+export const STORAGE_KEY = (accountId: string, workspaceId: string)
+⋮----
+// ── Pure helpers ──────────────────────────────────────────────────────────────
+⋮----
+export function buildContextPrompt(history: ChatMessage[]): string
+⋮----
+export function generateMsgId()
+⋮----
+export function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: string): Thread
 ````
 
 ## File: modules/notebooklm/interfaces/conversation/hooks/useAiChatThread.ts
@@ -33101,6 +33881,20 @@ function handleNewThread(): void
 function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>): void
 ````
 
+## File: modules/notebooklm/interfaces/notebook/_actions/generate-notebook-response.actions.ts
+````typescript
+import type {
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "../../../subdomains/notebook/application/dto/notebook.dto";
+import { GenerateNotebookResponseUseCase } from "../../../subdomains/notebook/application/use-cases/generate-notebook-response.use-case";
+import { makeNotebookRepo } from "../composition/adapters";
+⋮----
+export async function generateNotebookResponse(
+  input: GenerateNotebookResponseInput,
+): Promise<GenerateNotebookResponseResult>
+````
+
 ## File: modules/notebooklm/interfaces/notebook/composition/adapters.ts
 ````typescript
 import { PlatformTextGenerationAdapter } from "../../../infrastructure/notebook/platform/PlatformTextGenerationAdapter";
@@ -33108,128 +33902,59 @@ import { PlatformTextGenerationAdapter } from "../../../infrastructure/notebook/
 export function makeNotebookRepo()
 ````
 
-## File: modules/notebooklm/interfaces/source/components/file-processing-dialog.body.tsx
+## File: modules/notebooklm/interfaces/source/_actions/source-pipeline.actions.ts
 ````typescript
-import { ScanSearch, Sparkles } from "lucide-react";
-⋮----
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Checkbox } from "@ui-shadcn/ui/checkbox";
-import { Label } from "@ui-shadcn/ui/label";
-⋮----
-import type { ExecutionSummary } from "./file-processing-dialog.utils";
-import { FileProcessingPathValue, FileProcessingResultRow, FileProcessingSourceCard } from "./file-processing-dialog.parts";
-⋮----
-interface FileProcessingDialogBodyProps {
-  readonly step: "decide" | "select" | "executing" | "done";
-  readonly filename: string;
-  readonly mimeType: string;
-  readonly gcsUri: string;
-  readonly sizeBytes: number;
-  readonly shouldRunRag: boolean;
-  readonly shouldCreatePage: boolean;
-  readonly onShouldRunRagChange: (checked: boolean) => void;
-  readonly onShouldCreatePageChange: (checked: boolean) => void;
-  readonly summary: ExecutionSummary;
-}
-````
-
-## File: modules/notebooklm/interfaces/source/components/file-processing-dialog.parts.tsx
-````typescript
-import { CheckCircle2, FileText, Loader2, XCircle } from "lucide-react";
-⋮----
-import { cn } from "@ui-shadcn";
-import { Badge } from "@ui-shadcn/ui/badge";
-⋮----
-import type { TaskResult } from "./file-processing-dialog.utils";
-⋮----
-function formatFileSize(sizeBytes: number): string | null
-⋮----
-export function FileProcessingPathValue(
-⋮----
-export function FileProcessingSourceCard({
-  filename,
-  mimeType,
-  gcsUri,
-  sizeBytes,
-}: {
-  readonly filename: string;
-  readonly mimeType: string;
-  readonly gcsUri: string;
-  readonly sizeBytes: number;
-})
-⋮----
-export function FileProcessingResultRow({
-  label,
-  result,
-}: {
-  readonly label: string;
-  readonly result: TaskResult;
-})
-⋮----
-<div className=
-````
-
-## File: modules/notebooklm/interfaces/source/components/file-processing-dialog.surface.tsx
-````typescript
-import type { ReactNode } from "react";
-⋮----
-import { useIsMobile } from "@ui-shadcn";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@ui-shadcn/ui/sheet";
-⋮----
-interface FileProcessingDialogSurfaceProps {
-  readonly open: boolean;
-  readonly canDismiss: boolean;
-  readonly onOpenChange: (nextOpen: boolean) => void;
-  readonly footer: ReactNode;
-  readonly children: ReactNode;
-}
-````
-
-## File: modules/notebooklm/interfaces/source/components/file-processing-dialog.utils.ts
-````typescript
+import { makeSourcePipelineAdapter } from "../composition/adapters";
+import type {
+  ParseSourceDocumentInputDto,
+  ParseSourceDocumentOutputDto,
+  ReindexSourceDocumentInputDto,
+  ReindexSourceDocumentOutputDto,
+  SourcePipelineResult,
+} from "../../../subdomains/source/application/dto/source-pipeline.dto";
 import {
-  createIdleExecutionSummary,
-  type SourceProcessingExecutionSummary,
-  type SourceProcessingTaskResult,
-  type SourceProcessingTaskStatus,
-} from "../../../subdomains/source/application/dto/source-processing.dto";
+  ParseSourceDocumentUseCase,
+  ReindexSourceDocumentUseCase,
+} from "../../../subdomains/source/application/use-cases/source-pipeline.use-cases";
 ⋮----
-export type TaskStatus = SourceProcessingTaskStatus;
+export async function parseSourceDocument(
+  input: ParseSourceDocumentInputDto,
+): Promise<SourcePipelineResult<ParseSourceDocumentOutputDto>>
 ⋮----
-export type TaskResult = SourceProcessingTaskResult;
-⋮----
-export type ExecutionSummary = SourceProcessingExecutionSummary;
-⋮----
-export function createIdleSummary(): ExecutionSummary
-⋮----
-export function readCallableData(value: unknown): Record<string, unknown>
-⋮----
-export function readString(value: unknown, fallback = ""): string
-⋮----
-export function readNumber(value: unknown, fallback = 0): number
+export async function reindexSourceDocument(
+  input: ReindexSourceDocumentInputDto,
+): Promise<SourcePipelineResult<ReindexSourceDocumentOutputDto>>
 ````
 
-## File: modules/notebooklm/interfaces/source/components/FileProcessingDialog.tsx
+## File: modules/notebooklm/interfaces/source/_actions/source-processing.actions.ts
 ````typescript
-import { useState } from "react";
-import Link from "next/link";
+import type { CommandResult } from "@shared-types";
 ⋮----
-import { useAuth } from "@/modules/platform/api";
-import { Button } from "@ui-shadcn/ui/button";
-⋮----
-import { processSourceDocumentWorkflow } from "../_actions/source-processing.actions";
-import { FileProcessingDialogBody } from "./file-processing-dialog.body";
-import { FileProcessingDialogSurface } from "./file-processing-dialog.surface";
 import {
-  createIdleSummary,
-  type ExecutionSummary,
-} from "./file-processing-dialog.utils";
+  makeKnowledgePageGateway,
+  makeParsedDocumentAdapter,
+  makeSourcePipelineAdapter,
+  waitForParsedDocument,
+} from "../composition/adapters";
+import type { SourceProcessingExecutionSummary } from "../../../subdomains/source/application/dto/source-processing.dto";
+import { CreateKnowledgeDraftFromSourceUseCase } from "../../../subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case";
+import { ProcessSourceDocumentWorkflowUseCase } from "../../../subdomains/source/application/use-cases/process-source-document-workflow.use-case";
+import {
+  ParseSourceDocumentUseCase,
+  ReindexSourceDocumentUseCase,
+} from "../../../subdomains/source/application/use-cases/source-pipeline.use-cases";
 ⋮----
-interface FileProcessingDialogProps {
-  readonly open: boolean;
-  readonly onClose: () => void;
+interface CreateKnowledgeDraftFromSourceDocumentInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly createdByUserId: string;
+  readonly filename: string;
+  readonly sourceGcsUri: string;
+  readonly jsonGcsUri: string;
+  readonly pageCount: number;
+}
+⋮----
+interface ProcessSourceDocumentWorkflowActionInput {
   readonly accountId: string;
   readonly workspaceId: string;
   readonly sourceFileId: string;
@@ -33237,15 +33962,18 @@ interface FileProcessingDialogProps {
   readonly gcsUri: string;
   readonly mimeType: string;
   readonly sizeBytes: number;
+  readonly shouldRunRag: boolean;
+  readonly shouldCreatePage: boolean;
+  readonly createdByUserId?: string | null;
 }
 ⋮----
-type DialogStep = "decide" | "select" | "executing" | "done";
+export async function createKnowledgeDraftFromSourceDocument(
+  input: CreateKnowledgeDraftFromSourceDocumentInput,
+): Promise<CommandResult>
 ⋮----
-function handleOpenChange(nextOpen: boolean)
-⋮----
-async function handleExecute()
-⋮----
-<Button onClick=
+export async function processSourceDocumentWorkflow(
+  input: ProcessSourceDocumentWorkflowActionInput,
+): Promise<SourceProcessingExecutionSummary>
 ````
 
 ## File: modules/notebooklm/interfaces/source/components/LibrariesPanel.tsx
@@ -33278,24 +34006,96 @@ onChange=
 <input type="text" value=
 ````
 
-## File: modules/notebooklm/interfaces/source/contracts/source-command-result.ts
+## File: modules/notebooklm/interfaces/source/components/WorkspaceFilesTab.tsx
 ````typescript
-import type { SourceFileCommandErrorCode } from "../../../subdomains/source/application/dto/source-file.dto";
+import { useCallback, useEffect, useMemo, useState } from "react";
 ⋮----
-export type SourceFileCommandResult<TData> =
-  | {
-      readonly ok: true;
-      readonly data: TData;
-      readonly commandId: string;
-    }
-  | {
-      readonly ok: false;
-      readonly error: {
-        readonly code: SourceFileCommandErrorCode;
-        readonly message: string;
-      };
-      readonly commandId: string;
-    };
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+⋮----
+import type { WorkspaceFileListItemDto } from "../../../subdomains/source/application/dto/source-file.dto";
+import { resolveSourceOrganizationId } from "../../../subdomains/source/application/dto/source.dto";
+import { getWorkspaceFiles } from "../queries/source-file.queries";
+import { uploadCompleteFile, uploadInitFile } from "../_actions/source-file.actions";
+import { makeSourceStorageAdapter } from "../composition/adapters";
+import { FileProcessingDialog } from "./FileProcessingDialog";
+⋮----
+interface WorkspaceFilesTabProps {
+  readonly workspace: WorkspaceEntity;
+}
+⋮----
+interface PendingUploadProcessing {
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+}
+⋮----
+async function handleUploadFile(file: File)
+⋮----
+onClose=
+````
+
+## File: modules/notebooklm/interfaces/source/hooks/useSourceDocumentsSnapshot.ts
+````typescript
+import { useCallback, useEffect, useRef, useState } from "react";
+⋮----
+import { makeSourceDocumentWatchAdapter } from "../composition/adapters";
+⋮----
+import type {
+  SourceLiveDocument,
+} from "../../../subdomains/source/application/dto/source-live-document.dto";
+import {
+  mapToSourceLiveDocument,
+} from "../../../subdomains/source/application/dto/source-live-document.dto";
+⋮----
+// Re-export types for backward compatibility
+⋮----
+// ── Helpers ───────────────────────────────────────────────────────────────────
+⋮----
+function isRecord(value: unknown): value is Record<string, unknown>
+⋮----
+function objectOrEmpty(value: unknown): Record<string, unknown>
+⋮----
+// ── Hook ──────────────────────────────────────────────────────────────────────
+⋮----
+export interface UseSourceDocumentsSnapshotResult {
+  readonly docs: SourceLiveDocument[];
+  readonly loading: boolean;
+  readonly pendingDocs: SourceLiveDocument[];
+  readonly addPending: (doc: SourceLiveDocument) => void;
+  readonly removePending: (id: string) => void;
+}
+⋮----
+/** Subscribes to Firestore `accounts/{accountId}/documents` in real time via onSnapshot. */
+export function useSourceDocumentsSnapshot(
+  accountId: string,
+  workspaceId?: string,
+): UseSourceDocumentsSnapshotResult
+````
+
+## File: modules/notebooklm/interfaces/source/queries/source-file.queries.ts
+````typescript
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+⋮----
+import type { WorkspaceFileListItemDto } from "../../../subdomains/source/application/dto/source-file.dto";
+import { resolveSourceOrganizationId } from "../../../subdomains/source/application/dto/source.dto";
+import type { RagDocumentRecord } from "../../../subdomains/source/application/dto/source.dto";
+import { makeRagDocumentAdapter, makeSourceFileAdapter } from "../composition/adapters";
+import { ListSourceFilesUseCase } from "../../../subdomains/source/application/queries/source-file.queries";
+⋮----
+export async function getWorkspaceFiles(
+  workspace: WorkspaceEntity,
+): Promise<WorkspaceFileListItemDto[]>
+⋮----
+export async function getWorkspaceRagDocuments(
+  workspace: WorkspaceEntity,
+): Promise<readonly RagDocumentRecord[]>
 ````
 
 ## File: modules/notebooklm/subdomains/conversation/api/server.ts
@@ -33396,9 +34196,14 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notebooklm/subdomains/notebook/api/index.ts
+## File: modules/notebooklm/subdomains/notebook/api/server.ts
 ````typescript
-
+/**
+ * notebook subdomain — server-only API.
+ *
+ * Exports infrastructure implementations that depend on server-only packages.
+ * Must only be imported in Server Actions, route handlers, or server-side infrastructure.
+ */
 ````
 
 ## File: modules/notebooklm/subdomains/notebook/application/index.ts
@@ -44952,365 +45757,6 @@ api/ ← 唯一跨模組入口
 5. Implement Interfaces (UI, actions, hooks)
 ````
 
-## File: modules/notebooklm/infrastructure/conversation/firebase/FirebaseThreadRepository.ts
-````typescript
-/**
- * Module: notebooklm/conversation
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/threads/{threadId}
- *
- * Persists Thread (messages array) to Firestore so conversations survive page reload.
- */
-⋮----
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
-import type { Thread } from "../../../subdomains/conversation/domain/entities/thread";
-import type { Message } from "../../../subdomains/conversation/domain/entities/message";
-import type { ThreadRepository } from "../../../subdomains/conversation/domain/repositories/ThreadRepository";
-⋮----
-function threadPath(accountId: string, threadId: string): string
-⋮----
-function toMessage(m: Record<string, unknown>): Message
-⋮----
-function toThread(id: string, data: Record<string, unknown>): Thread
-⋮----
-export class FirebaseThreadRepository implements ThreadRepository {
-⋮----
-async save(accountId: string, thread: Thread): Promise<void>
-⋮----
-async getById(accountId: string, threadId: string): Promise<Thread | null>
-````
-
-## File: modules/notebooklm/infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/adapters
- * Adapter: NotionKnowledgePageGatewayAdapter — delegates to notion bounded context API.
- *
- * Implements the KnowledgePageGateway port defined in the domain layer,
- * bridging the source subdomain to the notion bounded context through its
- * top-level public API and published-language tokens.
- */
-⋮----
-import type { CommandResult } from "@shared-types";
-⋮----
-import type { KnowledgePageGateway } from "../../../subdomains/source/domain/ports/KnowledgePageGatewayPort";
-⋮----
-interface KnowledgeArtifactReferenceToken {
-  readonly artifactId: string;
-  readonly artifactType: "page" | "article";
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly title: string;
-  readonly slug: string;
-}
-⋮----
-function slugifyTitle(title: string): string
-⋮----
-function toKnowledgeArtifactReference(input: {
-  accountId: string;
-  workspaceId: string;
-  title: string;
-  artifactId: string;
-}): KnowledgeArtifactReferenceToken
-⋮----
-export class NotionKnowledgePageGatewayAdapter implements KnowledgePageGateway {
-⋮----
-constructor(
-    private readonly deps: {
-      createKnowledgePage: (input: {
-        accountId: string;
-        workspaceId: string;
-        title: string;
-        parentPageId: null;
-        createdByUserId: string;
-})
-⋮----
-async createPage(input: {
-    accountId: string;
-    workspaceId: string;
-    title: string;
-    parentPageId: null;
-    createdByUserId: string;
-}): Promise<CommandResult>
-⋮----
-// Normalize cross-context return as notion published-language token.
-⋮----
-async addBlock(input: {
-    accountId: string;
-    pageId: string;
-    index: number;
-    content: {
-      type: "text";
-      richText: readonly { type: string; plainText: string }[];
-      properties: Record<string, unknown>;
-    };
-}): Promise<CommandResult>
-````
-
-## File: modules/notebooklm/infrastructure/source/firebase/FirebaseParsedDocumentAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/firebase
- * Adapter: FirebaseParsedDocumentAdapter — Firebase Storage implementation of ParsedDocumentPort.
- *
- * Reads parsed JSON from a GCS URI and extracts the text content.
- */
-⋮----
-import { storageInfrastructureApi } from "@/modules/platform/api";
-⋮----
-import type { ParsedDocumentPort } from "../../../subdomains/source/domain/ports/ParsedDocumentPort";
-⋮----
-function asRecord(value: unknown): Record<string, unknown>
-⋮----
-function asString(value: unknown, fallback = ""): string
-⋮----
-function resolveStoragePathFromGsUri(input: string): string
-⋮----
-export class FirebaseParsedDocumentAdapter implements ParsedDocumentPort {
-⋮----
-async loadParsedDocumentText(jsonGcsUri: string): Promise<string>
-````
-
-## File: modules/notebooklm/infrastructure/source/firebase/FirebaseRagDocumentAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/firebase
- * Adapter: FirebaseRagDocumentAdapter — Firestore implementation of RagDocumentRepository.
- *
- * Collection path:
- *   knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}
- */
-⋮----
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
-⋮----
-import type { RagDocumentRecord, RagDocumentStatus } from "../../../subdomains/source/domain/entities/RagDocument";
-import type { RagDocumentRepository } from "../../../subdomains/source/domain/repositories/RagDocumentRepository";
-⋮----
-function buildDocPath(input: {
-  readonly organizationId: string;
-  readonly workspaceId: string;
-  readonly documentId: string;
-}): string
-⋮----
-function buildDocCollectionPath(input:
-⋮----
-function toStringArray(value: unknown): readonly string[]
-⋮----
-function isRagDocumentStatus(value: unknown): value is RagDocumentStatus
-⋮----
-function toRagDocumentRecord(
-  documentId: string,
-  data: Record<string, unknown>,
-  fallback: { organizationId: string; workspaceId: string },
-): RagDocumentRecord
-⋮----
-export class FirebaseRagDocumentAdapter implements RagDocumentRepository {
-⋮----
-async findByStoragePath(scope: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-    readonly storagePath: string;
-}): Promise<RagDocumentRecord | null>
-⋮----
-async findByWorkspace(scope: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-}): Promise<readonly RagDocumentRecord[]>
-⋮----
-async saveUploaded(record: RagDocumentRecord): Promise<void>
-````
-
-## File: modules/notebooklm/infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/firebase
- * Adapter: FirebaseSourceDocumentCommandAdapter — Firestore implementation of SourceDocumentCommandPort.
- *
- * Collection path: accounts/{accountId}/documents/{documentId}
- * This is a legacy collection; new data should use the workspaceFiles collection.
- */
-⋮----
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
-⋮----
-import type { SourceDocumentCommandPort } from "../../../subdomains/source/domain/ports/SourceDocumentPort";
-⋮----
-export class FirebaseSourceDocumentCommandAdapter implements SourceDocumentCommandPort {
-⋮----
-async deleteDocument(accountId: string, documentId: string): Promise<void>
-⋮----
-async renameDocument(accountId: string, documentId: string, newName: string): Promise<void>
-````
-
-## File: modules/notebooklm/infrastructure/source/firebase/FirebaseSourceFileAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/firebase
- * Adapter: FirebaseSourceFileAdapter — Firestore implementation of SourceFileRepository.
- *
- * Collections:
- *   workspaceFiles/{fileId}
- *   workspaceFiles/{fileId}/versions/{versionId}
- */
-⋮----
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
-⋮----
-import type { SourceFile } from "../../../subdomains/source/domain/entities/SourceFile";
-import type { SourceFileVersion } from "../../../subdomains/source/domain/entities/SourceFileVersion";
-import type { SourceFileRepository, ListSourceFilesScope } from "../../../subdomains/source/domain/repositories/SourceFileRepository";
-⋮----
-function isSourceFileStatus(value: unknown): value is SourceFile["status"]
-⋮----
-function isSourceFileClassification(value: unknown): value is SourceFile["classification"]
-⋮----
-function toStringArray(value: unknown): readonly string[]
-⋮----
-function toSourceFileEntity(fileId: string, data: Record<string, unknown>): SourceFile
-⋮----
-function isVersionStatus(value: unknown): value is SourceFileVersion["status"]
-⋮----
-function toSourceFileVersionEntity(versionId: string, data: Record<string, unknown>): SourceFileVersion
-⋮----
-export class FirebaseSourceFileAdapter implements SourceFileRepository {
-⋮----
-async findById(fileId: string): Promise<SourceFile | null>
-⋮----
-async findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null>
-⋮----
-async listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>
-⋮----
-async save(file: SourceFile, versions: readonly SourceFileVersion[] = []): Promise<void>
-````
-
-## File: modules/notebooklm/infrastructure/source/firebase/FirebaseWikiLibraryAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/firebase
- * Adapter: FirebaseWikiLibraryAdapter — Firestore implementation of WikiLibraryRepository.
- *
- * Paths:
- *   accounts/{accountId}/wikiLibraries/{libraryId}
- *   accounts/{accountId}/wikiLibraries/{libraryId}/fields/{fieldId}
- *   accounts/{accountId}/wikiLibraries/{libraryId}/rows/{rowId}
- */
-⋮----
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
-⋮----
-import type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryFieldType,
-  WikiLibraryRow,
-  WikiLibraryStatus,
-} from "../../../subdomains/source/domain/entities/WikiLibrary";
-import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
-⋮----
-// ── Firestore shapes (ISO strings; no Timestamp to avoid serialisation issues)
-⋮----
-interface FsLibrary {
-  accountId: string;
-  workspaceId?: string;
-  name: string;
-  slug: string;
-  status: WikiLibraryStatus;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-⋮----
-interface FsField {
-  libraryId: string;
-  key: string;
-  label: string;
-  type: WikiLibraryFieldType;
-  required: boolean;
-  options?: string[];
-  createdAtISO: string;
-}
-⋮----
-interface FsRow {
-  libraryId: string;
-  values: Record<string, unknown>;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-⋮----
-function libraryCollectionPath(accountId: string): string
-⋮----
-function libraryDocumentPath(accountId: string, libraryId: string): string
-⋮----
-function fieldCollectionPath(accountId: string, libraryId: string): string
-⋮----
-function fieldDocumentPath(accountId: string, libraryId: string, fieldId: string): string
-⋮----
-function rowCollectionPath(accountId: string, libraryId: string): string
-⋮----
-function rowDocumentPath(accountId: string, libraryId: string, rowId: string): string
-⋮----
-// ── Mappers ───────────────────────────────────────────────────────────────────
-⋮----
-function toLibrary(id: string, data: FsLibrary): WikiLibrary
-⋮----
-function toField(id: string, data: FsField): WikiLibraryField
-⋮----
-function toRow(id: string, data: FsRow): WikiLibraryRow
-⋮----
-// ── Implementation ────────────────────────────────────────────────────────────
-⋮----
-export class FirebaseWikiLibraryAdapter implements WikiLibraryRepository {
-⋮----
-async listByAccountId(accountId: string): Promise<WikiLibrary[]>
-⋮----
-async findById(accountId: string, libraryId: string): Promise<WikiLibrary | null>
-⋮----
-async create(library: WikiLibrary): Promise<void>
-⋮----
-async createField(accountId: string, field: WikiLibraryField): Promise<void>
-⋮----
-async listFields(accountId: string, libraryId: string): Promise<WikiLibraryField[]>
-⋮----
-async createRow(accountId: string, row: WikiLibraryRow): Promise<void>
-⋮----
-async listRows(accountId: string, libraryId: string): Promise<WikiLibraryRow[]>
-````
-
-## File: modules/notebooklm/infrastructure/source/memory/InMemoryWikiLibraryAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/memory
- * Adapter: InMemoryWikiLibraryAdapter — in-memory implementation of WikiLibraryRepository.
- * Use case: local dev, tests, and no-firebase environments.
- */
-⋮----
-import type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-} from "../../../subdomains/source/domain/entities/WikiLibrary";
-import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
-⋮----
-export class InMemoryWikiLibraryAdapter implements WikiLibraryRepository {
-⋮----
-async listByAccountId(accountId: string): Promise<WikiLibrary[]>
-⋮----
-async findById(accountId: string, libraryId: string): Promise<WikiLibrary | null>
-⋮----
-async create(library: WikiLibrary): Promise<void>
-⋮----
-async createField(accountId: string, field: WikiLibraryField): Promise<void>
-⋮----
-async listFields(accountId: string, libraryId: string): Promise<WikiLibraryField[]>
-⋮----
-async createRow(accountId: string, row: WikiLibraryRow): Promise<void>
-⋮----
-async listRows(accountId: string, libraryId: string): Promise<WikiLibraryRow[]>
-````
-
 ## File: modules/notebooklm/infrastructure/source/platform/PlatformSourceDocumentWatchAdapter.ts
 ````typescript
 /**
@@ -45332,31 +45778,6 @@ watchCollection<T>(
     collectionPath: string,
     handlers: {
 onNext: (documents: readonly WatchedDocument<T>[])
-````
-
-## File: modules/notebooklm/infrastructure/source/platform/PlatformSourcePipelineAdapter.ts
-````typescript
-import { functionsInfrastructureApi } from "@/modules/platform/api";
-⋮----
-import type {
-  SourcePipelinePort,
-  ParseSourceDocumentInput,
-  ParseSourceDocumentOutput,
-  ReindexSourceDocumentInput,
-  ReindexSourceDocumentOutput,
-} from "../../../subdomains/source/domain/ports/SourcePipelinePort";
-⋮----
-function asRecord(value: unknown): Record<string, unknown>
-⋮----
-function asString(value: unknown, fallback = ""): string
-⋮----
-function asNumber(value: unknown, fallback = 0): number
-⋮----
-export class PlatformSourcePipelineAdapter implements SourcePipelinePort {
-⋮----
-async parseDocument(input: ParseSourceDocumentInput): Promise<ParseSourceDocumentOutput>
-⋮----
-async reindexDocument(input: ReindexSourceDocumentInput): Promise<ReindexSourceDocumentOutput>
 ````
 
 ## File: modules/notebooklm/infrastructure/source/platform/PlatformSourceStorageAdapter.ts
@@ -45385,210 +45806,31 @@ async upload(
 toGsUri(path: string): string
 ````
 
-## File: modules/notebooklm/infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter.ts
+## File: modules/notebooklm/interfaces/conversation/_actions/chat.actions.ts
 ````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: infrastructure/firebase
- * Purpose: FirebaseKnowledgeContentAdapter — implements KnowledgeContentRepository via
- *          Firebase Functions calls (RAG query, reindex) and Firestore reads
- *          (list parsed documents).
- *
- * Design notes:
- * - All external shape normalisation happens here; domain types stay clean.
- * - Functions region is configured as a constant; change here only if region changes.
- */
-⋮----
+import type {
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "../../../subdomains/notebook/api";
 import {
-  firestoreInfrastructureApi,
-  functionsInfrastructureApi,
-} from "@/modules/platform/api";
+  GenerateNotebookResponseUseCase,
+  PlatformTextGenerationAdapter,
+} from "../../../subdomains/notebook/api/server";
+import { saveThread, loadThread } from "./thread.actions";
 ⋮----
-import type {
-  KnowledgeContentRepository,
-  KnowledgeCitation,
-  KnowledgeParsedDocument,
-  KnowledgeRagQueryResult,
-  KnowledgeReindexInput,
-} from "../../../subdomains/synthesis/domain/repositories/KnowledgeContentRepository";
-⋮----
-// --- Firestore / Functions response normalisation helpers ---------------------
-⋮----
-function isRecord(value: unknown): value is Record<string, unknown>
-⋮----
-function objectOrEmpty(value: unknown): Record<string, unknown>
-⋮----
-function toNumberOrDefault(value: unknown, fallback = 0): number
-⋮----
-function toDateOrNull(value: unknown): Date | null
-⋮----
-function normaliseCitations(raw: unknown): KnowledgeCitation[]
-⋮----
-function resolveFilename(data: Record<string, unknown>): string
-⋮----
-function mapToParsedDocument(id: string, data: Record<string, unknown>): KnowledgeParsedDocument
-⋮----
-// --- Adapter ------------------------------------------------------------------
-⋮----
-export class FirebaseKnowledgeContentAdapter implements KnowledgeContentRepository {
-⋮----
-async runRagQuery(
-    query: string,
-    accountId: string,
-    workspaceId: string,
-    topK: number,
-    options: {
-      taxonomyFilters?: string[];
-      maxAgeDays?: number;
-      requireReady?: boolean;
-    } = {},
-): Promise<KnowledgeRagQueryResult>
-⋮----
-async reindexDocument(input: KnowledgeReindexInput): Promise<void>
-⋮----
-async listParsedDocuments(accountId: string, limitCount: number): Promise<KnowledgeParsedDocument[]>
+export async function sendChatMessage(
+  input: GenerateNotebookResponseInput,
+): Promise<GenerateNotebookResponseResult>
 ````
 
-## File: modules/notebooklm/infrastructure/synthesis/firebase/FirebaseRagQueryFeedbackAdapter.ts
+## File: modules/notebooklm/interfaces/conversation/_actions/thread.actions.ts
 ````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: infrastructure/firebase
- * Purpose: FirebaseRagQueryFeedbackAdapter — implements RagQueryFeedbackRepository
- *          using Firestore (client SDK) for feedback persistence.
- *
- * Firestore collection: ragQueryFeedback/{autoId}
- */
+import type { Thread } from "../../../subdomains/conversation/application/dto/conversation.dto";
+import { makeConversationUseCases } from "../composition/use-cases";
 ⋮----
-import { v7 as generateId } from "@lib-uuid";
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
+export async function saveThread(accountId: string, thread: Thread): Promise<void>
 ⋮----
-import type { RagQueryFeedbackRepository } from "../../../subdomains/synthesis/domain/repositories/RagQueryFeedbackRepository";
-import type {
-  RagQueryFeedback,
-  SubmitRagQueryFeedbackInput,
-} from "../../../subdomains/synthesis/domain/entities/rag-feedback.entities";
-⋮----
-interface FirestoreFeedbackDoc {
-  readonly id: string;
-  readonly traceId: string;
-  readonly userQuery: string;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly rating: string;
-  readonly comment?: string;
-  readonly submittedByUserId: string;
-  readonly submittedAtISO: string;
-}
-⋮----
-export class FirebaseRagQueryFeedbackAdapter implements RagQueryFeedbackRepository {
-⋮----
-async save(input: SubmitRagQueryFeedbackInput): Promise<RagQueryFeedback>
-⋮----
-async listByOrganization(organizationId: string, limitCount: number): Promise<RagQueryFeedback[]>
-````
-
-## File: modules/notebooklm/infrastructure/synthesis/firebase/FirebaseRagRetrievalAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: infrastructure/firebase
- * Purpose: FirebaseRagRetrievalAdapter — implements RagRetrievalRepository
- *          using Firestore collectionGroup queries for document-scoped chunks.
- *
- * Retrieval strategy:
- *  1. Over-fetch candidate documents (filtered by org / workspace / taxonomy / status=ready).
- *  2. Over-fetch candidate chunks in the same scope.
- *  3. Compute a token-overlap relevance score (CJK-aware tokeniser).
- *  4. Filter to chunks whose parent doc is in the ready-document set.
- *  5. Sort descending by score, return top-K.
- */
-⋮----
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
-⋮----
-import type { RagRetrievedChunk } from "../../../subdomains/synthesis/domain/entities/retrieval.entities";
-import type { RagRetrievalRepository, RetrieveChunksInput } from "../../../subdomains/synthesis/domain/repositories/RagRetrievalRepository";
-⋮----
-// --- Firestore document shapes -----------------------------------------------
-⋮----
-interface FirestoreRagDocument {
-  readonly organizationId?: string;
-  readonly workspaceId?: string;
-  readonly status?: string;
-  readonly taxonomy?: string;
-}
-⋮----
-interface FirestoreRagChunk {
-  readonly organizationId?: string;
-  readonly workspaceId?: string;
-  readonly docId?: string;
-  readonly text?: string;
-  readonly taxonomy?: string;
-  readonly page?: number;
-  readonly chunkIndex?: number;
-}
-⋮----
-// --- Retrieval tuning constants -----------------------------------------------
-⋮----
-// --- Scoring helpers (pure functions, no state) --------------------------------
-⋮----
-/** CJK-aware whitespace / punctuation tokeniser */
-function tokenize(value: string): readonly string[]
-⋮----
-/**
- * Token-overlap score between query and chunk text.
- * Returns a value in [0, 1] — fraction of query tokens found in the chunk.
- */
-function computeTokenOverlapScore(queryTokens: readonly string[], chunkText: string): number
-⋮----
-// --- Adapter ------------------------------------------------------------------
-⋮----
-export class FirebaseRagRetrievalAdapter implements RagRetrievalRepository {
-⋮----
-async retrieve(input: RetrieveChunksInput): Promise<readonly RagRetrievedChunk[]>
-⋮----
-// Step 1 — resolve ready document IDs in scope
-⋮----
-// Step 2 — over-fetch candidate chunks
-⋮----
-// Step 3 — score, filter, sort, slice
-````
-
-## File: modules/notebooklm/infrastructure/synthesis/platform/PlatformRagGenerationAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: infrastructure/platform
- * Purpose: Implements RagGenerationRepository by delegating model invocation
- *          to platform AI API. Prompt construction and citation building stay
- *          in this adapter (domain-specific to synthesis).
- *
- * All Genkit wiring lives exclusively in
- * modules/platform/subdomains/ai/infrastructure.
- */
-⋮----
-import { generateAiText } from "@/modules/platform/api/server";
-import type { RagGenerationRepository } from "../../../subdomains/synthesis/domain/repositories/RagGenerationRepository";
-import type {
-  GenerateRagAnswerInput,
-  GenerateRagAnswerResult,
-  GenerateRagAnswerOutput,
-  GenerationCitation,
-} from "../../../subdomains/synthesis/domain/entities/generation.entities";
-⋮----
-// --- Prompt construction helpers (pure, testable) ----------------------------
-⋮----
-function formatChunkForPrompt(chunk: GenerateRagAnswerInput["chunks"][number]): string
-⋮----
-function buildGenerationPrompt(input: GenerateRagAnswerInput): string
-⋮----
-function buildCitations(input: GenerateRagAnswerInput): readonly GenerationCitation[]
-⋮----
-// --- Adapter ------------------------------------------------------------------
-⋮----
-export class PlatformRagGenerationAdapter implements RagGenerationRepository {
-⋮----
-async generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult>
+export async function loadThread(accountId: string, threadId: string): Promise<Thread | null>
 ````
 
 ## File: modules/notebooklm/interfaces/conversation/composition/use-cases.ts
@@ -45617,117 +45859,51 @@ export function makeConversationUseCases(
 ): ConversationUseCases
 ````
 
-## File: modules/notebooklm/interfaces/conversation/helpers.ts
+## File: modules/notebooklm/interfaces/source/_actions/source-file.actions.ts
 ````typescript
-import type { Thread } from "../../subdomains/conversation/domain/entities/thread";
-⋮----
-// ── Domain types ──────────────────────────────────────────────────────────────
-⋮----
-export interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
-⋮----
-// ── Storage key ───────────────────────────────────────────────────────────────
-⋮----
-export const STORAGE_KEY = (accountId: string, workspaceId: string)
-⋮----
-// ── Pure helpers ──────────────────────────────────────────────────────────────
-⋮----
-export function buildContextPrompt(history: ChatMessage[]): string
-⋮----
-export function generateMsgId()
-⋮----
-export function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: string): Thread
-````
-
-## File: modules/notebooklm/interfaces/notebook/_actions/generate-notebook-response.actions.ts
-````typescript
+import { v4 as uuid } from "@lib-uuid";
 import type {
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-} from "../../../subdomains/notebook/application/dto/notebook.dto";
-import { GenerateNotebookResponseUseCase } from "../../../subdomains/notebook/application/use-cases/generate-notebook-response.use-case";
-import { makeNotebookRepo } from "../composition/adapters";
-⋮----
-export async function generateNotebookResponse(
-  input: GenerateNotebookResponseInput,
-): Promise<GenerateNotebookResponseResult>
-````
-
-## File: modules/notebooklm/interfaces/source/_actions/source-pipeline.actions.ts
-````typescript
-import { makeSourcePipelineAdapter } from "../composition/adapters";
+  UploadCompleteFileInputDto,
+  UploadCompleteFileOutputDto,
+  UploadInitFileInputDto,
+  UploadInitFileOutputDto,
+} from "../../../subdomains/source/application/dto/source-file.dto";
 import type {
-  ParseSourceDocumentInputDto,
-  ParseSourceDocumentOutputDto,
-  ReindexSourceDocumentInputDto,
-  ReindexSourceDocumentOutputDto,
-  SourcePipelineResult,
-} from "../../../subdomains/source/application/dto/source-pipeline.dto";
-import {
-  ParseSourceDocumentUseCase,
-  ReindexSourceDocumentUseCase,
-} from "../../../subdomains/source/application/use-cases/source-pipeline.use-cases";
+  RegisterUploadedRagDocumentInputDto,
+  RegisterUploadedRagDocumentResult,
+} from "../../../subdomains/source/application/dto/rag-document.dto";
+import { makeRagDocumentAdapter, makeSourceDocumentCommandAdapter, makeSourceFileAdapter } from "../composition/adapters";
+import { UploadInitSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-init-source-file.use-case";
+import { UploadCompleteSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-complete-source-file.use-case";
+import { RegisterUploadedRagDocumentUseCase } from "../../../subdomains/source/application/use-cases/register-rag-document.use-case";
+import { DeleteSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/delete-source-document.use-case";
+import { RenameSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/rename-source-document.use-case";
+import type { SourceFileCommandResult } from "../contracts/source-command-result";
 ⋮----
-export async function parseSourceDocument(
-  input: ParseSourceDocumentInputDto,
-): Promise<SourcePipelineResult<ParseSourceDocumentOutputDto>>
+function createCommandId(idempotencyKey?: string): string
 ⋮----
-export async function reindexSourceDocument(
-  input: ReindexSourceDocumentInputDto,
-): Promise<SourcePipelineResult<ReindexSourceDocumentOutputDto>>
-````
-
-## File: modules/notebooklm/interfaces/source/_actions/source-processing.actions.ts
-````typescript
-import type { CommandResult } from "@shared-types";
+export async function uploadInitFile(
+  input: UploadInitFileInputDto,
+): Promise<SourceFileCommandResult<UploadInitFileOutputDto>>
 ⋮----
-import {
-  makeKnowledgePageGateway,
-  makeParsedDocumentAdapter,
-  makeSourcePipelineAdapter,
-  waitForParsedDocument,
-} from "../composition/adapters";
-import type { SourceProcessingExecutionSummary } from "../../../subdomains/source/application/dto/source-processing.dto";
-import { CreateKnowledgeDraftFromSourceUseCase } from "../../../subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case";
-import { ProcessSourceDocumentWorkflowUseCase } from "../../../subdomains/source/application/use-cases/process-source-document-workflow.use-case";
-import {
-  ParseSourceDocumentUseCase,
-  ReindexSourceDocumentUseCase,
-} from "../../../subdomains/source/application/use-cases/source-pipeline.use-cases";
+export async function uploadCompleteFile(
+  input: UploadCompleteFileInputDto,
+): Promise<SourceFileCommandResult<UploadCompleteFileOutputDto>>
 ⋮----
-interface CreateKnowledgeDraftFromSourceDocumentInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly createdByUserId: string;
-  readonly filename: string;
-  readonly sourceGcsUri: string;
-  readonly jsonGcsUri: string;
-  readonly pageCount: number;
-}
+export async function registerUploadedRagDocument(
+  input: RegisterUploadedRagDocumentInputDto,
+): Promise<RegisterUploadedRagDocumentResult>
 ⋮----
-interface ProcessSourceDocumentWorkflowActionInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly sourceFileId: string;
-  readonly filename: string;
-  readonly gcsUri: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-  readonly shouldRunRag: boolean;
-  readonly shouldCreatePage: boolean;
-  readonly createdByUserId?: string | null;
-}
+export async function deleteSourceDocument(
+  accountId: string,
+  documentId: string,
+): Promise<SourceFileCommandResult<
 ⋮----
-export async function createKnowledgeDraftFromSourceDocument(
-  input: CreateKnowledgeDraftFromSourceDocumentInput,
-): Promise<CommandResult>
-⋮----
-export async function processSourceDocumentWorkflow(
-  input: ProcessSourceDocumentWorkflowActionInput,
-): Promise<SourceProcessingExecutionSummary>
+export async function renameSourceDocument(
+  accountId: string,
+  documentId: string,
+  newName: string,
+): Promise<SourceFileCommandResult<
 ````
 
 ## File: modules/notebooklm/interfaces/source/components/LibraryTablePanel.tsx
@@ -45769,98 +45945,6 @@ type RowData = WikiLibraryRow & { _values: Record<string, unknown> };
 // DnD row reorder
 ⋮----
 onDrop(
-````
-
-## File: modules/notebooklm/interfaces/source/components/WorkspaceFilesTab.tsx
-````typescript
-import { useCallback, useEffect, useMemo, useState } from "react";
-⋮----
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-⋮----
-import type { WorkspaceFileListItemDto } from "../../../subdomains/source/application/dto/source-file.dto";
-import { resolveSourceOrganizationId } from "../../../subdomains/source/application/dto/source.dto";
-import { getWorkspaceFiles } from "../queries/source-file.queries";
-import { uploadCompleteFile, uploadInitFile } from "../_actions/source-file.actions";
-import { makeSourceStorageAdapter } from "../composition/adapters";
-import { FileProcessingDialog } from "./FileProcessingDialog";
-⋮----
-interface WorkspaceFilesTabProps {
-  readonly workspace: WorkspaceEntity;
-}
-⋮----
-interface PendingUploadProcessing {
-  readonly sourceFileId: string;
-  readonly filename: string;
-  readonly gcsUri: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-}
-⋮----
-async function handleUploadFile(file: File)
-⋮----
-onClose=
-````
-
-## File: modules/notebooklm/interfaces/source/hooks/useSourceDocumentsSnapshot.ts
-````typescript
-import { useCallback, useEffect, useRef, useState } from "react";
-⋮----
-import { makeSourceDocumentWatchAdapter } from "../composition/adapters";
-⋮----
-import type {
-  SourceLiveDocument,
-} from "../../../subdomains/source/application/dto/source-live-document.dto";
-import {
-  mapToSourceLiveDocument,
-} from "../../../subdomains/source/application/dto/source-live-document.dto";
-⋮----
-// Re-export types for backward compatibility
-⋮----
-// ── Helpers ───────────────────────────────────────────────────────────────────
-⋮----
-function isRecord(value: unknown): value is Record<string, unknown>
-⋮----
-function objectOrEmpty(value: unknown): Record<string, unknown>
-⋮----
-// ── Hook ──────────────────────────────────────────────────────────────────────
-⋮----
-export interface UseSourceDocumentsSnapshotResult {
-  readonly docs: SourceLiveDocument[];
-  readonly loading: boolean;
-  readonly pendingDocs: SourceLiveDocument[];
-  readonly addPending: (doc: SourceLiveDocument) => void;
-  readonly removePending: (id: string) => void;
-}
-⋮----
-/** Subscribes to Firestore `accounts/{accountId}/documents` in real time via onSnapshot. */
-export function useSourceDocumentsSnapshot(
-  accountId: string,
-  workspaceId?: string,
-): UseSourceDocumentsSnapshotResult
-````
-
-## File: modules/notebooklm/interfaces/source/queries/source-file.queries.ts
-````typescript
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-⋮----
-import type { WorkspaceFileListItemDto } from "../../../subdomains/source/application/dto/source-file.dto";
-import { resolveSourceOrganizationId } from "../../../subdomains/source/application/dto/source.dto";
-import type { RagDocumentRecord } from "../../../subdomains/source/application/dto/source.dto";
-import { makeRagDocumentAdapter, makeSourceFileAdapter } from "../composition/adapters";
-import { ListSourceFilesUseCase } from "../../../subdomains/source/application/queries/source-file.queries";
-⋮----
-export async function getWorkspaceFiles(
-  workspace: WorkspaceEntity,
-): Promise<WorkspaceFileListItemDto[]>
-⋮----
-export async function getWorkspaceRagDocuments(
-  workspace: WorkspaceEntity,
-): Promise<readonly RagDocumentRecord[]>
 ````
 
 ## File: modules/notebooklm/interfaces/synthesis/components/RagQueryPanel.tsx
@@ -46072,16 +46156,6 @@ async execute(accountId: string, thread: Thread): Promise<void>
  *
  * Re-exports repository contracts from domain/repositories/, making the Ports layer
  * explicitly visible in the directory structure.
- */
-````
-
-## File: modules/notebooklm/subdomains/notebook/api/server.ts
-````typescript
-/**
- * notebook subdomain — server-only API.
- *
- * Exports infrastructure implementations that depend on server-only packages.
- * Must only be imported in Server Actions, route handlers, or server-side infrastructure.
  */
 ````
 
@@ -46323,6 +46397,43 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - This subdomain derives an internal `organizationId` for organization-scoped storage and retrieval after boundary translation; it must not be documented or consumed as a shell route param.
 - Personal-account scope currently maps to a synthetic internal organization token prefixed with `personal:` so source storage can remain organization-scoped without sharing namespaces with organization accounts.
 - `actorAccountId` tracks the calling account scope for source workflows and remains distinct from concrete user identifiers such as `createdByUserId`.
+````
+
+## File: modules/notebooklm/subdomains/synthesis/api/server.ts
+````typescript
+/**
+ * synthesis subdomain — server-only API.
+ *
+ * Factory functions and infrastructure adapters that depend on server-only
+ * packages. Must only be imported in Server Actions, route handlers, or
+ * server-side infrastructure.
+ */
+⋮----
+import { FirebaseRagRetrievalAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseRagRetrievalAdapter";
+import { FirebaseKnowledgeContentAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter";
+import { PlatformRagGenerationAdapter } from "../../../infrastructure/synthesis/platform/PlatformRagGenerationAdapter";
+import { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
+import type {
+  KnowledgeParsedDocument,
+  KnowledgeRagQueryResult,
+  KnowledgeReindexInput,
+} from "../domain/repositories/KnowledgeContentRepository";
+⋮----
+function getKnowledgeContentRepository(): FirebaseKnowledgeContentAdapter
+⋮----
+export function createAnswerRagQueryUseCase(): AnswerRagQueryUseCase
+⋮----
+export function runKnowledgeRagQuery(
+  query: string,
+  accountId: string,
+  workspaceId: string,
+  topK = 4,
+  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
+): Promise<KnowledgeRagQueryResult>
+⋮----
+export function reindexKnowledgeDocument(input: KnowledgeReindexInput): Promise<void>
+⋮----
+export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20): Promise<KnowledgeParsedDocument[]>
 ````
 
 ## File: modules/notebooklm/subdomains/synthesis/application/use-cases/answer-rag-query.use-case.ts
@@ -49921,80 +50032,6 @@ flowchart LR
 - 若同一個詞在多主域都想擁有，優先看它服務的是治理、協作範疇、正典內容還是推理輸出。
 ````
 
-## File: modules/notebooklm/interfaces/conversation/_actions/chat.actions.ts
-````typescript
-import type {
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-} from "../../../subdomains/notebook/api";
-import {
-  GenerateNotebookResponseUseCase,
-  PlatformTextGenerationAdapter,
-} from "../../../subdomains/notebook/api/server";
-import { saveThread, loadThread } from "./thread.actions";
-⋮----
-export async function sendChatMessage(
-  input: GenerateNotebookResponseInput,
-): Promise<GenerateNotebookResponseResult>
-````
-
-## File: modules/notebooklm/interfaces/conversation/_actions/thread.actions.ts
-````typescript
-import type { Thread } from "../../../subdomains/conversation/application/dto/conversation.dto";
-import { makeConversationUseCases } from "../composition/use-cases";
-⋮----
-export async function saveThread(accountId: string, thread: Thread): Promise<void>
-⋮----
-export async function loadThread(accountId: string, threadId: string): Promise<Thread | null>
-````
-
-## File: modules/notebooklm/interfaces/source/_actions/source-file.actions.ts
-````typescript
-import { v4 as uuid } from "@lib-uuid";
-import type {
-  UploadCompleteFileInputDto,
-  UploadCompleteFileOutputDto,
-  UploadInitFileInputDto,
-  UploadInitFileOutputDto,
-} from "../../../subdomains/source/application/dto/source-file.dto";
-import type {
-  RegisterUploadedRagDocumentInputDto,
-  RegisterUploadedRagDocumentResult,
-} from "../../../subdomains/source/application/dto/rag-document.dto";
-import { makeRagDocumentAdapter, makeSourceDocumentCommandAdapter, makeSourceFileAdapter } from "../composition/adapters";
-import { UploadInitSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-init-source-file.use-case";
-import { UploadCompleteSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-complete-source-file.use-case";
-import { RegisterUploadedRagDocumentUseCase } from "../../../subdomains/source/application/use-cases/register-rag-document.use-case";
-import { DeleteSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/delete-source-document.use-case";
-import { RenameSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/rename-source-document.use-case";
-import type { SourceFileCommandResult } from "../contracts/source-command-result";
-⋮----
-function createCommandId(idempotencyKey?: string): string
-⋮----
-export async function uploadInitFile(
-  input: UploadInitFileInputDto,
-): Promise<SourceFileCommandResult<UploadInitFileOutputDto>>
-⋮----
-export async function uploadCompleteFile(
-  input: UploadCompleteFileInputDto,
-): Promise<SourceFileCommandResult<UploadCompleteFileOutputDto>>
-⋮----
-export async function registerUploadedRagDocument(
-  input: RegisterUploadedRagDocumentInputDto,
-): Promise<RegisterUploadedRagDocumentResult>
-⋮----
-export async function deleteSourceDocument(
-  accountId: string,
-  documentId: string,
-): Promise<SourceFileCommandResult<
-⋮----
-export async function renameSourceDocument(
-  accountId: string,
-  documentId: string,
-  newName: string,
-): Promise<SourceFileCommandResult<
-````
-
 ## File: modules/notebooklm/interfaces/source/components/SourceDocumentsPanel.tsx
 ````typescript
 import { v4 as uuid } from "@lib-uuid";
@@ -50134,41 +50171,42 @@ export function getWikiLibrarySnapshot(
 ): ReturnType<typeof _getWikiLibrarySnapshot>
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/api/server.ts
+## File: modules/notebooklm/subdomains/source/api/index.ts
 ````typescript
 /**
- * synthesis subdomain — server-only API.
+ * Public API boundary for the source subdomain.
  *
- * Factory functions and infrastructure adapters that depend on server-only
- * packages. Must only be imported in Server Actions, route handlers, or
- * server-side infrastructure.
+ * Cross-module consumers MUST import through this entry point.
+ * Internal consumers within the subdomain import from their own layer.
  */
 ⋮----
-import { FirebaseRagRetrievalAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseRagRetrievalAdapter";
-import { FirebaseKnowledgeContentAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter";
-import { PlatformRagGenerationAdapter } from "../../../infrastructure/synthesis/platform/PlatformRagGenerationAdapter";
-import { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
-import type {
-  KnowledgeParsedDocument,
-  KnowledgeRagQueryResult,
-  KnowledgeReindexInput,
-} from "../domain/repositories/KnowledgeContentRepository";
+// ---------------------------------------------------------------------------
+// Domain entity types
+// ---------------------------------------------------------------------------
 ⋮----
-function getKnowledgeContentRepository(): FirebaseKnowledgeContentAdapter
+// ---------------------------------------------------------------------------
+// Wiki library use cases (pre-wired facade from composition layer)
+// ---------------------------------------------------------------------------
 ⋮----
-export function createAnswerRagQueryUseCase(): AnswerRagQueryUseCase
+// ---------------------------------------------------------------------------
+// Live document DTOs
+// ---------------------------------------------------------------------------
 ⋮----
-export function runKnowledgeRagQuery(
-  query: string,
-  accountId: string,
-  workspaceId: string,
-  topK = 4,
-  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
-): Promise<KnowledgeRagQueryResult>
+// ---------------------------------------------------------------------------
+// Hooks
+// ---------------------------------------------------------------------------
 ⋮----
-export function reindexKnowledgeDocument(input: KnowledgeReindexInput): Promise<void>
+// ---------------------------------------------------------------------------
+// Queries
+// ---------------------------------------------------------------------------
 ⋮----
-export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20): Promise<KnowledgeParsedDocument[]>
+// ---------------------------------------------------------------------------
+// Server actions
+// ---------------------------------------------------------------------------
+⋮----
+// ---------------------------------------------------------------------------
+// UI components
+// ---------------------------------------------------------------------------
 ````
 
 ## File: modules/notebooklm/subdomains/synthesis/domain/index.ts
@@ -51418,42 +51456,23 @@ export async function runKnowledgeRagQueryAction(
 ): Promise<KnowledgeRagQueryResult>
 ````
 
-## File: modules/notebooklm/subdomains/source/api/index.ts
+## File: modules/notebooklm/subdomains/conversation/api/index.ts
 ````typescript
 /**
- * Public API boundary for the source subdomain.
+ * Public API boundary for the conversation subdomain.
  *
- * Cross-module consumers MUST import through this entry point.
- * Internal consumers within the subdomain import from their own layer.
+ * Cross-module consumers MUST import through this entry point for
+ * data, types, and helpers.
+ *
+ * UI components (ConversationPanel) are in a separate `./ui` entry
+ * to avoid synchronous module-evaluation cycles with workspace/api.
+ * Import ConversationPanel from `conversation/api/ui` or use
+ * `next/dynamic` for lazy loading.
  */
 ⋮----
-// ---------------------------------------------------------------------------
-// Domain entity types
-// ---------------------------------------------------------------------------
+// Domain types
 ⋮----
-// ---------------------------------------------------------------------------
-// Wiki library use cases (pre-wired facade from composition layer)
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Live document DTOs
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Hooks
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Queries
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Server actions
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// UI components
-// ---------------------------------------------------------------------------
+// Thread persistence actions
 ````
 
 ## File: modules/notion/interfaces/database/components/DatabaseFormPanel.tsx
@@ -51679,44 +51698,6 @@ export async function buildWikiContentTree(
 ): Promise<WikiAccountContentNode[]>
 ````
 
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceCrossModuleTabSurface.tsx
-````typescript
-import dynamic from "next/dynamic";
-import type { ReactNode } from "react";
-⋮----
-import type { WorkspaceEntity } from "../../../api/contracts";
-import type { WorkspaceTabValue } from "../../navigation/workspace-tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import {
-  KnowledgeBaseArticlesPanel,
-  KnowledgeDatabasesPanel,
-  KnowledgePagesPanel,
-} from "@/modules/notion/api";
-import {
-  RagQueryPanel,
-  SourceDocumentsPanel,
-} from "@/modules/notebooklm/api";
-⋮----
-// Dynamic import to break synchronous module-evaluation cycle between
-// workspace/api → workspace/interfaces → notebooklm/api → ConversationPanel → workspace/api.
-// SSR disabled because ConversationPanel is a "use client" component that
-// relies on browser-only hooks (useState, useEffect) and workspace context providers.
-⋮----
-interface WorkspaceCrossModuleTabSurfaceOptions {
-  readonly tab: WorkspaceTabValue;
-  readonly workspace: WorkspaceEntity;
-  readonly accountId: string;
-  readonly currentUserId?: string | null;
-  readonly workspaces: Record<string, WorkspaceEntity>;
-}
-⋮----
-function renderWorkspacePlaceholder(title: string, description: string): ReactNode
-⋮----
-export function renderWorkspaceCrossModuleTabSurface(
-  options: WorkspaceCrossModuleTabSurfaceOptions,
-): ReactNode | null
-````
-
 ## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
 ````typescript
 import { useEffect, useMemo, useState } from "react";
@@ -51930,25 +51911,6 @@ const anyDomain = (type) => (
 // Downstream infrastructure must delegate Firebase access via platform infrastructure APIs.
 ⋮----
 // notion/notebooklm interface layers must not read workspace context directly.
-````
-
-## File: modules/notebooklm/subdomains/conversation/api/index.ts
-````typescript
-/**
- * Public API boundary for the conversation subdomain.
- *
- * Cross-module consumers MUST import through this entry point for
- * data, types, and helpers.
- *
- * UI components (ConversationPanel) are in a separate `./ui` entry
- * to avoid synchronous module-evaluation cycles with workspace/api.
- * Import ConversationPanel from `conversation/api/ui` or use
- * `next/dynamic` for lazy loading.
- */
-⋮----
-// Domain types
-⋮----
-// Thread persistence actions
 ````
 
 ## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
@@ -52236,6 +52198,43 @@ export function resolveShellPageTitle(pathname: string): string
 export function resolveShellBreadcrumbLabel(segment: string): string
 ````
 
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceCrossModuleTabSurface.tsx
+````typescript
+import dynamic from "next/dynamic";
+import type { ReactNode } from "react";
+⋮----
+import type { WorkspaceEntity } from "../../../api/contracts";
+import type { WorkspaceTabValue } from "../../navigation/workspace-tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import {
+  KnowledgeBaseArticlesPanel,
+  KnowledgeDatabasesPanel,
+} from "@/modules/notion/api";
+import {
+  RagQueryPanel,
+  SourceDocumentsPanel,
+} from "@/modules/notebooklm/api";
+⋮----
+// Dynamic import to break synchronous module-evaluation cycle between
+// workspace/api → workspace/interfaces → notebooklm/api → ConversationPanel → workspace/api.
+// SSR disabled because ConversationPanel is a "use client" component that
+// relies on browser-only hooks (useState, useEffect) and workspace context providers.
+⋮----
+interface WorkspaceCrossModuleTabSurfaceOptions {
+  readonly tab: WorkspaceTabValue;
+  readonly workspace: WorkspaceEntity;
+  readonly accountId: string;
+  readonly currentUserId?: string | null;
+  readonly workspaces: Record<string, WorkspaceEntity>;
+}
+⋮----
+function renderWorkspacePlaceholder(title: string, description: string): ReactNode
+⋮----
+export function renderWorkspaceCrossModuleTabSurface(
+  options: WorkspaceCrossModuleTabSurfaceOptions,
+): ReactNode | null
+````
+
 ## File: modules/workspace/interfaces/web/navigation/nav-preferences-data.ts
 ````typescript
 /**
@@ -52361,6 +52360,34 @@ interface ShellSidebarBodyProps {
 className=
 ````
 
+## File: modules/notebooklm/subdomains/synthesis/api/index.ts
+````typescript
+/**
+ * Public API boundary for the synthesis subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * This subdomain owns the complete RAG pipeline:
+ *   retrieval → grounding → synthesis → evaluation
+ *
+ * Migrated from: ai subdomain (AGENTS.md violation fix)
+ * Absorbed from: retrieval, grounding, evaluation stubs (Occam consolidation)
+ */
+⋮----
+// ── Canonical domain types (retrieval facet) ─────────────────────────────────
+⋮----
+// ── Canonical domain types (grounding facet) ─────────────────────────────────
+⋮----
+// ── Canonical domain types (synthesis facet) ─────────────────────────────────
+⋮----
+// ── Canonical domain types (evaluation facet) ────────────────────────────────
+⋮----
+// ── Active pipeline types (used by use cases & infrastructure) ───────────────
+⋮----
+// ── Use-case classes (for DI composition within synthesis subdomain) ──────────
+⋮----
+// ── UI components (downstream surface for workspace composition) ─────────────
+````
+
 ## File: modules/notion/interfaces/database/components/DatabaseListPanel.tsx
 ````typescript
 /**
@@ -52432,32 +52459,43 @@ export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly Work
 export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[]
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/api/index.ts
+## File: modules/notebooklm/api/index.ts
 ````typescript
 /**
- * Public API boundary for the synthesis subdomain.
- * Cross-module consumers must import through this entry point.
+ * modules/notebooklm — public API barrel.
  *
- * This subdomain owns the complete RAG pipeline:
- *   retrieval → grounding → synthesis → evaluation
- *
- * Migrated from: ai subdomain (AGENTS.md violation fix)
- * Absorbed from: retrieval, grounding, evaluation stubs (Occam consolidation)
+ * Stable cross-module semantic surface for notebooklm.
+ * Browser-facing route composition should prefer workspace/api when workspace
+ * is the orchestration owner.
  */
 ⋮----
-// ── Canonical domain types (retrieval facet) ─────────────────────────────────
+// ---------------------------------------------------------------------------
+// NotebookLM downstream UI surface
+// Consumed by workspace as the composition owner for browser-facing flows.
+// ---------------------------------------------------------------------------
 ⋮----
-// ── Canonical domain types (grounding facet) ─────────────────────────────────
+// ---------------------------------------------------------------------------
+// Source subdomain — semantic downstream capability surface
+// ---------------------------------------------------------------------------
 ⋮----
-// ── Canonical domain types (synthesis facet) ─────────────────────────────────
+// ---------------------------------------------------------------------------
+// conversation subdomain — AI chat helpers and types
+//
+// NOTE: ConversationPanel is NOT re-exported here to avoid a synchronous
+// module-evaluation cycle: workspace/api → workspace interfaces →
+// notebooklm/api → ConversationPanel → workspace/api.
+// Import ConversationPanel from "@/modules/notebooklm/subdomains/conversation/api/ui"
+// or use next/dynamic for lazy loading.
+// ---------------------------------------------------------------------------
 ⋮----
-// ── Canonical domain types (evaluation facet) ────────────────────────────────
+// ---------------------------------------------------------------------------
+// Context-wide published language (cross-module reference types)
+// ---------------------------------------------------------------------------
 ⋮----
-// ── Active pipeline types (used by use cases & infrastructure) ───────────────
-⋮----
-// ── Use-case classes (for DI composition within synthesis subdomain) ──────────
-⋮----
-// ── UI components (downstream surface for workspace composition) ─────────────
+// ---------------------------------------------------------------------------
+// Synthesis subdomain — complete RAG pipeline
+// (retrieval → grounding → synthesis → evaluation)
+// ---------------------------------------------------------------------------
 ````
 
 ## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesPanel.tsx
@@ -52662,45 +52700,6 @@ export function buildWorkspaceQuickAccessItems(
     "vitest": "^4.1.2"
   }
 }
-````
-
-## File: modules/notebooklm/api/index.ts
-````typescript
-/**
- * modules/notebooklm — public API barrel.
- *
- * Stable cross-module semantic surface for notebooklm.
- * Browser-facing route composition should prefer workspace/api when workspace
- * is the orchestration owner.
- */
-⋮----
-// ---------------------------------------------------------------------------
-// NotebookLM downstream UI surface
-// Consumed by workspace as the composition owner for browser-facing flows.
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Source subdomain — semantic downstream capability surface
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// conversation subdomain — AI chat helpers and types
-//
-// NOTE: ConversationPanel is NOT re-exported here to avoid a synchronous
-// module-evaluation cycle: workspace/api → workspace interfaces →
-// notebooklm/api → ConversationPanel → workspace/api.
-// Import ConversationPanel from "@/modules/notebooklm/subdomains/conversation/api/ui"
-// or use next/dynamic for lazy loading.
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Context-wide published language (cross-module reference types)
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Synthesis subdomain — complete RAG pipeline
-// (retrieval → grounding → synthesis → evaluation)
-// ---------------------------------------------------------------------------
 ````
 
 ## File: modules/notion/interfaces/database/components/DatabaseFormsPanel.tsx

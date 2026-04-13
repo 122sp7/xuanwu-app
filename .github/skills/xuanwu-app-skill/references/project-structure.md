@@ -1221,7 +1221,7 @@ modules/workspace/interfaces/web/components/screens/OrganizationWorkspacesScreen
 modules/workspace/interfaces/web/components/screens/WorkspaceDetailRouteScreen.tsx (20 lines)
 modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx (62 lines)
 modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx (45 lines)
-modules/workspace/interfaces/web/components/tabs/WorkspaceCrossModuleTabSurface.tsx (34 lines)
+modules/workspace/interfaces/web/components/tabs/WorkspaceCrossModuleTabSurface.tsx (33 lines)
 modules/workspace/interfaces/web/components/tabs/WorkspaceDailyTab.tsx (8 lines)
 modules/workspace/interfaces/web/components/tabs/WorkspaceMembersTab.tsx (25 lines)
 modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewKnowledgePanels.tsx (10 lines)
