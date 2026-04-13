@@ -117,7 +117,8 @@
 
       "*.sqlite",
       "*.db",
-
+      ".serena/**",
+      ".github/**",
       ".github/skills/**/references/**"
     ]
   },

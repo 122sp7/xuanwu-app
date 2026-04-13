@@ -20,7 +20,6 @@
     "deploy:firebase": "npx firebase deploy",
     "repomix:skill": "npx repomix --config repomix.config.json --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
     "repomix:explore": "npx repomix --config repomix.config.json",
-    "repomix:app": "npx repomix --config repomix.app.config.json",
     "repomix:remote": "npx repomix --remote",
     "repomix:local": "npx repomix",
     "repomix:notebooklm": "npx repomix --config repomix.notebooklm.config.json --skill-generate xuanwu-notebooklm-skill --skill-output .github/skills/xuanwu-notebooklm-skill --force",
