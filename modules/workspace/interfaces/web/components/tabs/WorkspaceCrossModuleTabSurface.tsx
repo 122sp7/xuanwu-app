@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import type { ReactNode } from "react";
 
 import type { WorkspaceEntity } from "../../../api/contracts";
@@ -11,10 +12,19 @@ import {
   KnowledgePagesPanel,
 } from "@/modules/notion/api";
 import {
-  ConversationPanel,
   RagQueryPanel,
   SourceDocumentsPanel,
 } from "@/modules/notebooklm/api";
+
+// Dynamic import to break synchronous module-evaluation cycle between
+// workspace/api → workspace/interfaces → notebooklm/api → ConversationPanel → workspace/api.
+const ConversationPanel = dynamic(
+  () =>
+    import("@/modules/notebooklm/subdomains/conversation/api/ui").then(
+      (m) => m.ConversationPanel,
+    ),
+  { ssr: false },
+);
 
 interface WorkspaceCrossModuleTabSurfaceOptions {
   readonly tab: WorkspaceTabValue;

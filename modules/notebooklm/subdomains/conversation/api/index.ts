@@ -1,11 +1,14 @@
 /**
  * Public API boundary for the conversation subdomain.
  *
- * Cross-module consumers MUST import through this entry point.
+ * Cross-module consumers MUST import through this entry point for
+ * data, types, and helpers.
+ *
+ * UI components (ConversationPanel) are in a separate `./ui` entry
+ * to avoid synchronous module-evaluation cycles with workspace/api.
+ * Import ConversationPanel from `conversation/api/ui` or use
+ * `next/dynamic` for lazy loading.
  */
-
-export { ConversationPanel } from "../../../interfaces/conversation/components/ConversationPanel";
-export type { ConversationPanelProps } from "../../../interfaces/conversation/components/ConversationPanel";
 
 export type { ChatMessage } from "../../../interfaces/conversation/helpers";
 export {
