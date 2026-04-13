@@ -63,7 +63,7 @@ function getWorkspaceIdFromPath(pathname: string): string | null {
   }
 
   const segments = pathname.split("/").filter(Boolean);
-  if (segments.length < 3) {
+  if (segments.length < 2) {
     return null;
   }
 
@@ -72,15 +72,14 @@ function getWorkspaceIdFromPath(pathname: string): string | null {
     return null;
   }
 
-  if (secondSegment !== "workspace") {
-    return null;
+  if (secondSegment === "workspace") {
+    if (!thirdSegment) {
+      return null;
+    }
+    return decodeURIComponent(thirdSegment);
   }
 
-  if (!thirdSegment) {
-    return null;
-  }
-
-  return decodeURIComponent(thirdSegment);
+  return decodeURIComponent(secondSegment);
 }
 
 export function useRecentWorkspaces(
@@ -114,8 +113,8 @@ export function useRecentWorkspaces(
         const ws = workspacesById[workspaceId];
         if (!ws) return null;
         const href = accountId
-          ? `/${encodeURIComponent(accountId)}/workspace/${encodeURIComponent(ws.id)}`
-          : `/workspace/${encodeURIComponent(ws.id)}`;
+          ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(ws.id)}`
+          : "/";
         return { id: ws.id, name: ws.name, href };
       })
       .filter((item): item is RecentWorkspaceLink => item !== null);

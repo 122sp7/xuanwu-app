@@ -106,7 +106,7 @@ export function ShellDashboardSidebar({
   const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
   const workspaceSettingsHref = workspaceQuickAccessId
     ? activeAccount?.id
-      ? `/${encodeURIComponent(activeAccount.id)}/workspace/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
+      ? `/${encodeURIComponent(activeAccount.id)}/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
       : "/"
     : "";
   const workspaceQuickAccessItems = useMemo(

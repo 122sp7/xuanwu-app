@@ -137,10 +137,12 @@ export function buildShellContextualHref(
 
   if (path === "/workspace" || path.startsWith("/workspace/")) {
     const workspacePathSegments = path.split("/").filter(Boolean).slice(1);
-    const nextPath = encodedWorkspaceId
-      ? workspacePathSegments.length > 0
-        ? `/${encodedAccountId}/workspace/${encodedWorkspaceId}/${workspacePathSegments.join("/")}`
-        : `/${encodedAccountId}/workspace/${encodedWorkspaceId}`
+    const [explicitWorkspaceId, ...remainingWorkspacePathSegments] = workspacePathSegments;
+    const targetWorkspaceId = explicitWorkspaceId || encodedWorkspaceId;
+    const nextPath = targetWorkspaceId
+      ? remainingWorkspacePathSegments.length > 0
+        ? `/${encodedAccountId}/${targetWorkspaceId}/${remainingWorkspacePathSegments.join("/")}`
+        : `/${encodedAccountId}/${targetWorkspaceId}`
       : `/${encodedAccountId}`;
     return joinHref(nextPath, query);
   }

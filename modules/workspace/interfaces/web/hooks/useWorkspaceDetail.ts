@@ -58,7 +58,7 @@ export function useWorkspaceDetail(
             fallbackAccountId !== accountId
           ) {
             const query = typeof window === "undefined" ? "" : window.location.search;
-            const targetPath = `/${encodeURIComponent(fallbackAccountId)}/workspace/${encodeURIComponent(workspaceId)}`;
+            const targetPath = `/${encodeURIComponent(fallbackAccountId)}/${encodeURIComponent(workspaceId)}`;
             router.replace(query ? `${targetPath}${query}` : targetPath);
             return;
           }

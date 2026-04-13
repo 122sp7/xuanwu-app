@@ -19,6 +19,7 @@ import {
   OrganizationDailyRouteScreen,
   OrganizationScheduleRouteScreen,
   OrganizationWorkspacesRouteScreen,
+  WorkspaceDetailRouteScreen,
   WorkspaceHubScreen,
 } from "@/modules/workspace/api";
 
@@ -99,6 +100,20 @@ export default function AccountRouteDispatcherPage({
     );
   }
 
+  if (slug[0] === "workspace") {
+    const nextSegments = slug.slice(1);
+    const targetPath = nextSegments.length > 0
+      ? `/${encodeURIComponent(effectiveAccountId)}/${nextSegments.map(encodeURIComponent).join("/")}`
+      : `/${encodeURIComponent(effectiveAccountId)}`;
+
+    return (
+      <RedirectingRoute
+        href={`${targetPath}${querySuffix}`}
+        message="正在導向新的工作區路由…"
+      />
+    );
+  }
+
   if (slug.length === 0) {
     if (accountType === "organization") {
       return <OrganizationOverviewRouteScreen />;
@@ -153,9 +168,12 @@ export default function AccountRouteDispatcherPage({
         );
       default:
         return (
-          <RedirectingRoute
-            href={`/${encodeURIComponent(effectiveAccountId)}/workspace/${encodeURIComponent(slug[0])}${querySuffix}`}
-            message="正在導向工作區路由…"
+          <WorkspaceDetailRouteScreen
+            workspaceId={slug[0]}
+            accountId={effectiveAccountId}
+            accountsHydrated={accountsHydrated}
+            initialTab={searchParams.get("tab") ?? undefined}
+            initialOverviewPanel={searchParams.get("panel") ?? undefined}
           />
         );
     }

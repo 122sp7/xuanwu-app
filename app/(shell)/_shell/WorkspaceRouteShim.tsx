@@ -37,8 +37,8 @@ export function WorkspaceRouteShim({
   const targetHref = targetWorkspaceId
     ? activeAccountId
       ? tab === "Files"
-        ? `/${encodeURIComponent(activeAccountId)}/workspace/${encodeURIComponent(targetWorkspaceId)}?tab=Files`
-        : `/${encodeURIComponent(activeAccountId)}/workspace/${encodeURIComponent(targetWorkspaceId)}?tab=Overview${
+        ? `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(targetWorkspaceId)}?tab=Files`
+        : `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(targetWorkspaceId)}?tab=Overview${
             panel ? `&panel=${encodeURIComponent(panel)}` : ""
           }`
       : tab === "Files"

@@ -42,7 +42,7 @@ function tryGetAccountIdFromPath(pathname: string): string | null {
 function buildWorkspaceBaseHref(workspaceId: string, accountId?: string | null): string {
   const encodedWorkspaceId = encodeURIComponent(workspaceId);
   if (accountId) {
-    return `/${encodeURIComponent(accountId)}/workspace/${encodedWorkspaceId}`;
+    return `/${encodeURIComponent(accountId)}/${encodedWorkspaceId}`;
   }
   return "/";
 }
