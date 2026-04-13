@@ -6,6 +6,19 @@
 
 這份文件集提供四個主域的 architecture-first 戰略藍圖，並用單一決策日誌與主域文件消除術語、邊界與關係上的衝突。
 
+## Architecture Baseline
+
+本文件網的架構權威基線是：
+
+- Hexagonal Architecture（Ports and Adapters）+ Domain-Driven Design（DDD）
+- semantic-first 的 business-language-aligned domain modeling
+- Firebase Serverless Backend Architecture：Authentication、Firestore、Cloud Functions、Hosting
+- Genkit AI Orchestration Layer：AI Flows、Tool Calling、Prompt Pipelines
+- Frontend State Management Layer：Zustand for client state、XState for finite-state workflows
+- Schema Validation Layer：Zod for runtime type safety and domain validation
+
+若任務涉及模組分層、runtime 邊界、AI orchestration、frontend state、validation 或 shell route contract，先以 [architecture-overview.md](./architecture-overview.md) 為全域敘事權威，再落到對應 context 文件。
+
 ## Single Source Of Truth Map
 
 | Document | Role |
@@ -30,6 +43,13 @@
 - [contexts/platform/README.md](./contexts/platform/README.md)
 - [contexts/notion/README.md](./contexts/notion/README.md)
 - [contexts/notebooklm/README.md](./contexts/notebooklm/README.md)
+
+## Route Contract Authority
+
+- shell composition 與 canonical account / workspace URL 以 [architecture-overview.md](./architecture-overview.md) 為全域權威。
+- account scope 的語意與 flattened governance route 以 [contexts/platform/README.md](./contexts/platform/README.md) 與 [contexts/platform/ubiquitous-language.md](./contexts/platform/ubiquitous-language.md) 為權威。
+- workspace scope 與 canonical workspace detail route 以 [contexts/workspace/README.md](./contexts/workspace/README.md) 與 [contexts/workspace/ubiquitous-language.md](./contexts/workspace/ubiquitous-language.md) 為權威。
+- `/{accountId}/workspace/{workspaceId}` 與 `/{accountId}/organization/*` 只作為 legacy redirect surface，不是新文件或新 UI 應引用的 canonical contract。
 
 ## Document Network
 

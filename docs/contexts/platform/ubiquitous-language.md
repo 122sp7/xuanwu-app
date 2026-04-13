@@ -23,6 +23,17 @@
 | Secret | 受控憑證、token 或 integration credential |
 | NotificationRoute | 訊息投遞路由與偏好結果 |
 | AuditLog | 平台級永久稽核證據 |
+| AccountScope | shell 上由 `accountId` 表示的帳號範疇，供 personal account / organization account 共享 |
+| PersonalAccount | 由單一 Actor 擁有的 account scope |
+| OrganizationAccount | 由 Organization 語意支撐的 account scope |
+
+## Shell Surface Terms
+
+| Term | Meaning |
+|---|---|
+| Account Catch-All Surface | `/{accountId}/[[...slug]]`，account-scoped shell composition contract |
+| Flattened Governance Route | `/{accountId}/members`、`/{accountId}/teams`、`/{accountId}/permissions` 等 account-scoped governance URL |
+| Legacy Organization Redirect Surface | `/{accountId}/organization/*` |
 
 ## Language Rules
 
@@ -33,6 +44,8 @@
 - 使用 Consent 表示授權與同意，不用 Preference 混稱法律或治理語意。
 - 使用 Secret 表示受控憑證，不放入一般 Integration payload 語言。
 - Organization member 的移除操作使用 `removeMember`（通用）。`dismissPartnerMember` 僅限 external partner 場景，對應 DismissPartnerMember 使用案例。
+- shell route 上的 `accountId` 表示 AccountScope，不等於 workspaceId。
+- account-scoped governance URL 採 flattened route，不再把 `/{accountId}/organization/*` 當成 canonical surface。
 
 ## Avoid
 
@@ -43,6 +56,9 @@
 | Team（as internal grouping） | OrganizationTeam（可縮寫 Team） |
 | Plan Access | Entitlement |
 | API Key Store | SecretManagement |
+| `/{accountId}/organization/members` | `/{accountId}/members` |
+| `/{accountId}/organization/teams` | `/{accountId}/teams` |
+| `/{accountId}/organization/permissions` | `/{accountId}/permissions` |
 
 ## Naming Anti-Patterns
 
@@ -50,6 +66,7 @@
 - 不用 Team 混稱 Organization 或 Tenant（分組含義的 Team = OrganizationTeam 可接受）。
 - 不用 Plan 混稱 Entitlement。
 - 不用 Preference 混稱 Consent。
+- 不把 legacy organization route surface 當成 canonical account governance surface。
 
 ## AccountType String Values
 

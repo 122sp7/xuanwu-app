@@ -18,6 +18,16 @@
 | AuditTrail | 不可否認的工作區操作追蹤 |
 | Schedule | 工作區內的時間安排與提醒意圖 |
 | WorkflowExecution | 某個工作區流程的一次執行實例 |
+| WorkspaceTab | 同一條 workspace detail route 上的 query-state 分頁語意 |
+| OverviewPanel | `Overview` tab 內的 panel 細分語意 |
+
+## Shell Route Terms
+
+| Term | Meaning |
+|---|---|
+| AccountScope | workspace route 所依附的 account scope；由 shell 上的 `accountId` 表示 |
+| CanonicalWorkspaceRoute | `/{accountId}/{workspaceId}` |
+| LegacyWorkspaceRedirectSurface | `/{accountId}/workspace/{workspaceId}` |
 
 ## Language Rules
 
@@ -26,6 +36,9 @@
 - 使用 ActivityFeed 與 AuditTrail 區分投影與證據。
 - 使用 ShareScope 表示共享邊界，不用 Permission 泛指共享。
 - 使用 PresenceSession 表示即時存在感，不把它隱藏在 UI 概念裡。
+- 使用 `workspaceId` 表示 workspace scope，不用 `accountId` 混稱。
+- 使用 `/{accountId}/{workspaceId}` 表示 canonical workspace detail route。
+- `/{accountId}/workspace/{workspaceId}` 只視為 legacy redirect surface，不作為新的文件、設計稿或 UI href。
 
 ## Avoid
 
@@ -35,6 +48,7 @@
 | Timeline | ActivityFeed 或 Schedule |
 | Share Permission | ShareScope |
 | Workspace Log | ActivityFeed 或 AuditTrail |
+| Legacy workspace path `/{accountId}/workspace/{workspaceId}` | Canonical workspace path `/{accountId}/{workspaceId}` |
 
 ## Naming Anti-Patterns
 
@@ -42,6 +56,7 @@
 - 不用 Timeline 混指 ActivityFeed 與 Schedule。
 - 不用 Permission 混指 ShareScope。
 - 不用 Log 混指 ActivityFeed 與 AuditTrail。
+- 不把 account-scoped shell route 語意誤當成 workspace 自己的 top-level route ownership。
 
 ## Copilot Generation Rules
 
