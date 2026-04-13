@@ -1,7 +1,7 @@
 /**
  * PlatformCapabilityEnabledEvent
  *
- * Event type: "platform.capability_enabled"
+ * Event type: "platform.capability-enabled"
  * Owner:      PlatformContext
  *
  * When emitted:

@@ -1,7 +1,7 @@
 /**
  * IntegrationContractRegisteredEvent
  *
- * Event type: "integration.contract_registered"
+ * Event type: "integration.contract-registered"
  * Owner:      IntegrationContract
  *
  * When emitted:

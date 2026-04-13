@@ -76,3 +76,21 @@ const bridge = require("../../../account/api/legacy-account-profile.bridge") as 
 代價：
 - 修復 workspace ↔ platform 循環需要重新設計 `WorkspaceQueryApplicationService` 的 organization 資料注入方式（constructor DI 而非直接 import）。
 - account ↔ identity 的 TokenRefresh adapter 需要改為 Port + 事件方式解耦，涉及 authentication 關鍵路徑。
+
+## Partial Resolution
+
+**部分解決（2026-04-13）**
+
+以下 **barrel-chain 循環**已在先前 commit 中修復：
+
+- **HX-1-002/003**：platform account/identity `api ↔ interfaces` barrel 循環 → 改為 _actions 直接從 composition root 導入
+- **HX-1-004/005**：notebooklm conversation / notion collaboration `api ↔ interfaces` barrel 循環 → 同上
+- **HX-1-001**：workspace ↔ notebooklm 跨模組循環 → ConversationPanel 從 notebooklm/api barrel 移除，workspace 使用 `next/dynamic` 直接載入
+- **platform notification/organization/account-profile** barrel 循環 → _actions 改從 composition root 導入
+
+**仍存在的 `require()` 延遲載入**（4 條，等待 Port + DI 解法）：
+
+1. `workspace/interfaces/api/runtime/workspace-runtime.ts:22` — workspace ↔ platform 主域循環
+2. `platform/subdomains/account/infrastructure/identity-token-refresh.adapter.ts:26` — account ↔ identity
+3. `platform/subdomains/organization/interfaces/composition/organization-service.ts:84` — organization ↔ team
+4. `platform/subdomains/account-profile/interfaces/composition/account-profile-service.ts:46` — account-profile ↔ account

@@ -1,7 +1,7 @@
 /**
  * IntegrationDeliveryFailedEvent
  *
- * Event type: "integration.delivery_failed"
+ * Event type: "integration.delivery-failed"
  * Owner:      IntegrationContract
  *
  * When emitted:

@@ -1,7 +1,7 @@
 /**
  * ReferralRewardRecordedEvent
  *
- * Event type: "referral.reward_recorded"
+ * Event type: "referral.reward-recorded"
  * Owner:      application layer (referral)
  *
  * When emitted:

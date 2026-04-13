@@ -1,7 +1,7 @@
 /**
  * NotificationDispatchRequestedEvent
  *
- * Event type: "notification.dispatch_requested"
+ * Event type: "notification.dispatch-requested"
  * Owner:      application layer (notification)
  *
  * When emitted:

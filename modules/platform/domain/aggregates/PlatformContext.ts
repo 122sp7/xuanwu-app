@@ -27,10 +27,10 @@
  *   5. Application service pulls and publishes domain events after successful persistence
  *
  * Emits:
- *   platform.context_registered
- *   platform.capability_enabled
- *   platform.capability_disabled
- *   config.profile_applied
+ *   platform.context-registered
+ *   platform.capability-enabled
+ *   platform.capability-disabled
+ *   config.profile-applied
  *
  * @see docs/aggregates.md — 聚合根：PlatformContext
  * @see docs/domain-events.md — 發出事件

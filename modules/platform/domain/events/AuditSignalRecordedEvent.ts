@@ -1,7 +1,7 @@
 /**
  * AuditSignalRecordedEvent
  *
- * Event type: "audit.signal_recorded"
+ * Event type: "audit.signal-recorded"
  * Owner:      application layer (audit-log)
  *
  * When emitted:

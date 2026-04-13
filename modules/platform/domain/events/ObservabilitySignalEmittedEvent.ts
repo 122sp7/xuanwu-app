@@ -1,7 +1,7 @@
 /**
  * ObservabilitySignalEmittedEvent
  *
- * Event type: "observability.signal_emitted"
+ * Event type: "observability.signal-emitted"
  * Owner:      application layer (observability)
  *
  * When emitted:

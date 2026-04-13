@@ -1,7 +1,7 @@
 /**
  * ContentAssetPublishedEvent
  *
- * Event type: "content.asset_published"
+ * Event type: "content.asset-published"
  * Owner:      application layer (content)
  *
  * When emitted:

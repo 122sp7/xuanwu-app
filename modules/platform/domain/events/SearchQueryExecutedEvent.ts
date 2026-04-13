@@ -1,7 +1,7 @@
 /**
  * SearchQueryExecutedEvent
  *
- * Event type: "search.query_executed"
+ * Event type: "search.query-executed"
  * Owner:      application layer (search)
  *
  * When emitted:

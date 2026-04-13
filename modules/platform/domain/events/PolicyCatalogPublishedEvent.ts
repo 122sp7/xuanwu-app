@@ -1,7 +1,7 @@
 /**
  * PolicyCatalogPublishedEvent
  *
- * Event type: "policy.catalog_published"
+ * Event type: "policy.catalog-published"
  * Owner:      PolicyCatalog
  *
  * When emitted:

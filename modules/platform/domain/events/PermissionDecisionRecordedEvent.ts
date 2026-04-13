@@ -1,7 +1,7 @@
 /**
  * PermissionDecisionRecordedEvent
  *
- * Event type: "permission.decision_recorded"
+ * Event type: "permission.decision-recorded"
  * Owner:      application layer (permission service)
  *
  * When emitted:

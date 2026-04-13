@@ -1,7 +1,7 @@
 /**
  * WorkflowTriggerFiredEvent
  *
- * Event type: "workflow.trigger_fired"
+ * Event type: "workflow.trigger-fired"
  * Owner:      application layer (workflow)
  *
  * When emitted:

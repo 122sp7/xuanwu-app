@@ -21,7 +21,7 @@
  *     not silently fail
  *
  * Emits:
- *   subscription.agreement_activated
+ *   subscription.agreement-activated
  *
  * @see docs/aggregates.md — 聚合根：SubscriptionAgreement
  * @see docs/domain-events.md

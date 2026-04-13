@@ -1,7 +1,7 @@
 /**
  * ConfigProfileAppliedEvent
  *
- * Event type: "config.profile_applied"
+ * Event type: "config.profile-applied"
  * Owner:      PlatformContext (orchestration)
  *
  * When emitted:

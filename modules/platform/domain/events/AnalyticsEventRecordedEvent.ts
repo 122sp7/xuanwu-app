@@ -1,7 +1,7 @@
 /**
  * AnalyticsEventRecordedEvent
  *
- * Event type: "analytics.event_recorded"
+ * Event type: "analytics.event-recorded"
  * Owner:      application layer (analytics)
  *
  * When emitted:

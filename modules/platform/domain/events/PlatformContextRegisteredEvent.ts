@@ -1,7 +1,7 @@
 /**
  * PlatformContextRegisteredEvent
  *
- * Event type: "platform.context_registered"
+ * Event type: "platform.context-registered"
  * Owner:      PlatformContext
  *
  * When emitted:

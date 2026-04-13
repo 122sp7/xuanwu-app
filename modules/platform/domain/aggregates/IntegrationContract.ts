@@ -21,8 +21,8 @@
  *   - Subscribed signals must correspond to events in the platform published language
  *
  * Emits:
- *   integration.contract_registered
- *   integration.delivery_failed
+ *   integration.contract-registered
+ *   integration.delivery-failed
  *
  * @see docs/aggregates.md — 聚合根：IntegrationContract
  * @see docs/domain-events.md

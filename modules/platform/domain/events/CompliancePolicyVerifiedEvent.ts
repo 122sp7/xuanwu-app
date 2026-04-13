@@ -1,7 +1,7 @@
 /**
  * CompliancePolicyVerifiedEvent
  *
- * Event type: "compliance.policy_verified"
+ * Event type: "compliance.policy-verified"
  * Owner:      application layer (compliance)
  *
  * When emitted:

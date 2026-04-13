@@ -1,7 +1,7 @@
 /**
  * SubscriptionAgreementActivatedEvent
  *
- * Event type: "subscription.agreement_activated"
+ * Event type: "subscription.agreement-activated"
  * Owner:      SubscriptionAgreement
  *
  * When emitted:

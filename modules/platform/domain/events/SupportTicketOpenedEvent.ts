@@ -1,7 +1,7 @@
 /**
  * SupportTicketOpenedEvent
  *
- * Event type: "support.ticket_opened"
+ * Event type: "support.ticket-opened"
  * Owner:      application layer (support)
  *
  * When emitted:

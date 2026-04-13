@@ -1,7 +1,7 @@
 /**
  * OnboardingFlowCompletedEvent
  *
- * Event type: "onboarding.flow_completed"
+ * Event type: "onboarding.flow-completed"
  * Owner:      application layer (onboarding)
  *
  * When emitted:
