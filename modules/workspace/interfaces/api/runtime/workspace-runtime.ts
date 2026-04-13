@@ -6,8 +6,8 @@ import {
   makeWorkspaceQueryRepo,
   makeWorkspaceRepo,
 } from "../../../api/runtime/factories";
-import type { WorkspaceCommandPort } from "../../../application/dtos/workspace-interfaces.dto";
-import type { WorkspaceQueryPort } from "../../../application/dtos/workspace-interfaces.dto";
+import type { WorkspaceCommandPort } from "../../../application/dto/workspace-interfaces.dto";
+import type { WorkspaceQueryPort } from "../../../application/dto/workspace-interfaces.dto";
 import { createWorkspaceSessionContext } from "./workspace-session-context";
 
 let _sessionContext: ReturnType<typeof createWorkspaceSessionContext> | undefined;

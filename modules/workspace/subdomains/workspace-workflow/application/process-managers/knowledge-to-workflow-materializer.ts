@@ -1,7 +1,7 @@
 /**
  * @module workspace-flow/application/process-managers
  * @file knowledge-to-workflow-materializer.ts
- * @description Process Manager (Saga) that listens for `knowledge.page_approved`
+ * @description Process Manager (Saga) that listens for `notion.knowledge.page-approved`
  * events and orchestrates the creation of Tasks and Invoices in workspace-flow.
  *
  * ## Responsibility
@@ -53,7 +53,7 @@ export class KnowledgeToWorkflowMaterializer {
   ) {}
 
   /**
-   * Handle a `knowledge.page_approved` event.
+   * Handle a `notion.knowledge.page-approved` event.
    *
    * @param event - The full event payload from the knowledge module's public API.
    * @param workspaceId - Target workspace where Tasks/Invoices will be created.

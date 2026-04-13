@@ -69,7 +69,7 @@ export class Article {
       updatedAtISO: now,
     });
     article._domainEvents.push({
-      type: "notion.authoring.article_created",
+      type: "notion.authoring.article-created",
       eventId: uuid(),
       occurredAt: now,
       payload: { articleId: id, accountId: input.accountId, workspaceId: input.workspaceId, title: input.title },
@@ -99,7 +99,7 @@ export class Article {
     const now = new Date().toISOString();
     this._props = { ...this._props, status: "published", version: this._props.version + 1, updatedAtISO: now };
     this._domainEvents.push({
-      type: "notion.authoring.article_published",
+      type: "notion.authoring.article-published",
       eventId: uuid(),
       occurredAt: now,
       payload: { articleId: this._props.id, accountId: this._props.accountId, version: this._props.version },
@@ -111,7 +111,7 @@ export class Article {
     const now = new Date().toISOString();
     this._props = { ...this._props, status: "archived", updatedAtISO: now };
     this._domainEvents.push({
-      type: "notion.authoring.article_archived",
+      type: "notion.authoring.article-archived",
       eventId: uuid(),
       occurredAt: now,
       payload: { articleId: this._props.id, accountId: this._props.accountId },

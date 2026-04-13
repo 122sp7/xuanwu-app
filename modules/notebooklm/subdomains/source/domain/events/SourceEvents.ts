@@ -7,7 +7,7 @@
 import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
 
 export interface SourceFileUploadedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.source.file_uploaded";
+  readonly type: "notebooklm.source.file-uploaded";
   readonly payload: {
     readonly fileId: string;
     readonly organizationId: string;
@@ -19,7 +19,7 @@ export interface SourceFileUploadedEvent extends NotebookLmDomainEvent {
 }
 
 export interface SourceDocumentProcessedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.source.document_processed";
+  readonly type: "notebooklm.source.document-processed";
   readonly payload: {
     readonly fileId: string;
     readonly organizationId: string;
@@ -28,7 +28,7 @@ export interface SourceDocumentProcessedEvent extends NotebookLmDomainEvent {
 }
 
 export interface SourceDocumentDeletedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.source.document_deleted";
+  readonly type: "notebooklm.source.document-deleted";
   readonly payload: {
     readonly fileId: string;
     readonly organizationId: string;
@@ -37,7 +37,7 @@ export interface SourceDocumentDeletedEvent extends NotebookLmDomainEvent {
 }
 
 export interface SourceDocumentRenamedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.source.document_renamed";
+  readonly type: "notebooklm.source.document-renamed";
   readonly payload: {
     readonly fileId: string;
     readonly organizationId: string;

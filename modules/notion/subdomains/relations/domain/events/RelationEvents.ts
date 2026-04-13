@@ -7,7 +7,7 @@
 import type { NotionDomainEvent } from "../../../../domain/events/NotionDomainEvent";
 
 export interface RelationCreatedEvent extends NotionDomainEvent {
-  readonly type: "notion.relations.relation_created";
+  readonly type: "notion.relations.relation-created";
   readonly payload: {
     readonly relationId: string;
     readonly sourceArtifactId: string;
@@ -18,7 +18,7 @@ export interface RelationCreatedEvent extends NotionDomainEvent {
 }
 
 export interface RelationRemovedEvent extends NotionDomainEvent {
-  readonly type: "notion.relations.relation_removed";
+  readonly type: "notion.relations.relation-removed";
   readonly payload: {
     readonly relationId: string;
     readonly organizationId: string;

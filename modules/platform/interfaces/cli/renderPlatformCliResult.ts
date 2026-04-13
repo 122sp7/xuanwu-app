@@ -10,7 +10,7 @@
  *   - Must not contain business logic; purely presentation
  *
  * @see adapters/cli/runPlatformCliCommand.ts
- * @see application/dtos/ — view model types
+ * @see application/dto/ — view model types
  */
 
 // TODO: implement renderPlatformCliResult formatter

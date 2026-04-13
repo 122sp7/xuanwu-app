@@ -49,7 +49,7 @@ export class ContentBlock {
     });
     const contentText = richTextToPlainText(input.content.richText);
     block._domainEvents.push({
-      type: "notion.knowledge.block_added",
+      type: "notion.knowledge.block-added",
       eventId: uuid(),
       occurredAt: now,
       payload: { blockId: id, pageId: input.pageId, accountId: input.accountId, contentText },
@@ -66,7 +66,7 @@ export class ContentBlock {
     const contentText = richTextToPlainText(newContent.richText);
     this._props = { ...this._props, content: newContent, updatedAtISO: now };
     this._domainEvents.push({
-      type: "notion.knowledge.block_updated",
+      type: "notion.knowledge.block-updated",
       eventId: uuid(),
       occurredAt: now,
       payload: {
@@ -81,7 +81,7 @@ export class ContentBlock {
   delete(): void {
     const now = new Date().toISOString();
     this._domainEvents.push({
-      type: "notion.knowledge.block_deleted",
+      type: "notion.knowledge.block-deleted",
       eventId: uuid(),
       occurredAt: now,
       payload: {

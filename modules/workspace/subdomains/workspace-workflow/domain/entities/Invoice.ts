@@ -23,7 +23,7 @@ export interface Invoice {
   readonly closedAtISO?: string;
   /**
    * Present when this Invoice was materialized from a KnowledgePage via the
-   * `knowledge.page_approved` event. Provides full provenance traceability.
+   * `notion.knowledge.page-approved` event. Provides full provenance traceability.
    */
   readonly sourceReference?: SourceReference;
   readonly createdAtISO: string;

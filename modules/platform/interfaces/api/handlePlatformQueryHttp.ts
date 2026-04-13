@@ -13,7 +13,7 @@
  *
  * @see ports/input/index.ts — PlatformQueryPort
  * @see api/facade.ts — PlatformFacade
- * @see application/dtos/ — read model DTOs
+ * @see application/dto/ — read model DTOs
  */
 
 // TODO: implement handlePlatformQueryHttp server action / route handler

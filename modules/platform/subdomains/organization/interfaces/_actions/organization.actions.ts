@@ -12,7 +12,7 @@ import type {
   InviteMemberInput,
   UpdateMemberRoleInput,
   CreateTeamInput,
-} from "../../application/dtos/organization.dto";
+} from "../../application/dto/organization.dto";
 
 export async function createOrganization(cmd: CreateOrganizationCommand): Promise<CommandResult> {
   try { return await organizationService.createOrganization(cmd); }

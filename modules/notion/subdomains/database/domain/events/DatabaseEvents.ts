@@ -7,7 +7,7 @@
 import type { NotionDomainEvent } from "../../../../domain/events/NotionDomainEvent";
 
 export interface DatabaseCreatedEvent extends NotionDomainEvent {
-  readonly type: "notion.database.database_created";
+  readonly type: "notion.database.database-created";
   readonly payload: {
     readonly databaseId: string;
     readonly accountId: string;
@@ -17,7 +17,7 @@ export interface DatabaseCreatedEvent extends NotionDomainEvent {
 }
 
 export interface DatabaseRenamedEvent extends NotionDomainEvent {
-  readonly type: "notion.database.database_renamed";
+  readonly type: "notion.database.database-renamed";
   readonly payload: {
     readonly databaseId: string;
     readonly previousTitle: string;
@@ -27,7 +27,7 @@ export interface DatabaseRenamedEvent extends NotionDomainEvent {
 }
 
 export interface FieldAddedEvent extends NotionDomainEvent {
-  readonly type: "notion.database.field_added";
+  readonly type: "notion.database.field-added";
   readonly payload: {
     readonly databaseId: string;
     readonly fieldId: string;
@@ -38,7 +38,7 @@ export interface FieldAddedEvent extends NotionDomainEvent {
 }
 
 export interface FieldDeletedEvent extends NotionDomainEvent {
-  readonly type: "notion.database.field_deleted";
+  readonly type: "notion.database.field-deleted";
   readonly payload: {
     readonly databaseId: string;
     readonly fieldId: string;
@@ -47,7 +47,7 @@ export interface FieldDeletedEvent extends NotionDomainEvent {
 }
 
 export interface RecordAddedEvent extends NotionDomainEvent {
-  readonly type: "notion.database.record_added";
+  readonly type: "notion.database.record-added";
   readonly payload: {
     readonly databaseId: string;
     readonly recordId: string;
@@ -56,7 +56,7 @@ export interface RecordAddedEvent extends NotionDomainEvent {
 }
 
 export interface RecordUpdatedEvent extends NotionDomainEvent {
-  readonly type: "notion.database.record_updated";
+  readonly type: "notion.database.record-updated";
   readonly payload: {
     readonly databaseId: string;
     readonly recordId: string;
@@ -65,7 +65,7 @@ export interface RecordUpdatedEvent extends NotionDomainEvent {
 }
 
 export interface RecordDeletedEvent extends NotionDomainEvent {
-  readonly type: "notion.database.record_deleted";
+  readonly type: "notion.database.record-deleted";
   readonly payload: {
     readonly databaseId: string;
     readonly recordId: string;
@@ -74,7 +74,7 @@ export interface RecordDeletedEvent extends NotionDomainEvent {
 }
 
 export interface ViewCreatedEvent extends NotionDomainEvent {
-  readonly type: "notion.database.view_created";
+  readonly type: "notion.database.view-created";
   readonly payload: {
     readonly databaseId: string;
     readonly viewId: string;
@@ -84,7 +84,7 @@ export interface ViewCreatedEvent extends NotionDomainEvent {
 }
 
 export interface ViewUpdatedEvent extends NotionDomainEvent {
-  readonly type: "notion.database.view_updated";
+  readonly type: "notion.database.view-updated";
   readonly payload: {
     readonly databaseId: string;
     readonly viewId: string;

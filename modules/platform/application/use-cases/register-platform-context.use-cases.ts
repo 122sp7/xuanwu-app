@@ -5,7 +5,7 @@
  * Purpose:  Creates a PlatformContext or re-activates a platform scope.
  */
 
-import type { PlatformCommandResult, RegisterPlatformContextInput } from "../dtos";
+import type { PlatformCommandResult, RegisterPlatformContextInput } from "../dto";
 import type { PlatformContextRepository, DomainEventPublisher } from "../../domain/ports/output";
 import { PLATFORM_CONTEXT_REGISTERED_EVENT_TYPE } from "../../domain/events";
 import { buildCorrelationId } from "../services";

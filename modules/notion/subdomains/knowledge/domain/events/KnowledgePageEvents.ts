@@ -15,7 +15,7 @@ export interface PageCreatedPayload {
 }
 
 export interface PageCreatedEvent extends NotionDomainEvent {
-  readonly type: "notion.knowledge.page_created";
+  readonly type: "notion.knowledge.page-created";
   readonly payload: PageCreatedPayload;
 }
 
@@ -27,7 +27,7 @@ export interface PageRenamedPayload {
 }
 
 export interface PageRenamedEvent extends NotionDomainEvent {
-  readonly type: "notion.knowledge.page_renamed";
+  readonly type: "notion.knowledge.page-renamed";
   readonly payload: PageRenamedPayload;
 }
 
@@ -39,7 +39,7 @@ export interface PageMovedPayload {
 }
 
 export interface PageMovedEvent extends NotionDomainEvent {
-  readonly type: "notion.knowledge.page_moved";
+  readonly type: "notion.knowledge.page-moved";
   readonly payload: PageMovedPayload;
 }
 
@@ -49,7 +49,7 @@ export interface PageArchivedPayload {
 }
 
 export interface PageArchivedEvent extends NotionDomainEvent {
-  readonly type: "notion.knowledge.page_archived";
+  readonly type: "notion.knowledge.page-archived";
   readonly payload: PageArchivedPayload;
 }
 
@@ -77,7 +77,7 @@ export interface PageApprovedPayload {
 }
 
 export interface PageApprovedEvent extends NotionDomainEvent {
-  readonly type: "notion.knowledge.page_approved";
+  readonly type: "notion.knowledge.page-approved";
   readonly payload: PageApprovedPayload;
 }
 
@@ -89,7 +89,7 @@ export interface PageVerifiedPayload {
 }
 
 export interface PageVerifiedEvent extends NotionDomainEvent {
-  readonly type: "notion.knowledge.page_verified";
+  readonly type: "notion.knowledge.page-verified";
   readonly payload: PageVerifiedPayload;
 }
 
@@ -100,7 +100,7 @@ export interface PageReviewRequestedPayload {
 }
 
 export interface PageReviewRequestedEvent extends NotionDomainEvent {
-  readonly type: "notion.knowledge.page_review_requested";
+  readonly type: "notion.knowledge.page-review-requested";
   readonly payload: PageReviewRequestedPayload;
 }
 
@@ -111,7 +111,7 @@ export interface PageOwnerAssignedPayload {
 }
 
 export interface PageOwnerAssignedEvent extends NotionDomainEvent {
-  readonly type: "notion.knowledge.page_owner_assigned";
+  readonly type: "notion.knowledge.page-owner-assigned";
   readonly payload: PageOwnerAssignedPayload;
 }
 
@@ -122,7 +122,7 @@ export interface PageIconUpdatedPayload {
 }
 
 export interface PageIconUpdatedEvent extends NotionDomainEvent {
-  readonly type: "notion.knowledge.page_icon_updated";
+  readonly type: "notion.knowledge.page-icon-updated";
   readonly payload: PageIconUpdatedPayload;
 }
 
@@ -133,7 +133,7 @@ export interface PageCoverUpdatedPayload {
 }
 
 export interface PageCoverUpdatedEvent extends NotionDomainEvent {
-  readonly type: "notion.knowledge.page_cover_updated";
+  readonly type: "notion.knowledge.page-cover-updated";
   readonly payload: PageCoverUpdatedPayload;
 }
 

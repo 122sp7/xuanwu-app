@@ -1,4 +1,4 @@
-import { type UpdateProfileInput } from "../application/dtos/account.dto";
+import { type UpdateProfileInput } from "../application/dto/account.dto";
 import { accountService, createAccountQueryRepository } from "../interfaces/composition/account-service";
 import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
 

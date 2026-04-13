@@ -5,7 +5,7 @@
  * Purpose:  Activates, renews, or suspends a subscription agreement.
  */
 
-import type { PlatformCommandResult, ActivateSubscriptionAgreementInput } from "../dtos";
+import type { PlatformCommandResult, ActivateSubscriptionAgreementInput } from "../dto";
 import type { SubscriptionAgreementRepository, PlatformContextRepository, DomainEventPublisher } from "../../domain/ports/output";
 import { SUBSCRIPTION_AGREEMENT_ACTIVATED_EVENT_TYPE } from "../../domain/events";
 import { buildCorrelationId } from "../services";

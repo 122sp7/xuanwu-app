@@ -12,7 +12,7 @@
  * import { createKnowledgeToWorkflowListener } from "@/modules/workspace/api";
  *
  * const listener = createKnowledgeToWorkflowListener();
- * eventBus.subscribe("knowledge.page_approved", (event) => listener.handle(event));
+ * eventBus.subscribe("notion.knowledge.page-approved", (event) => listener.handle(event));
  * ```
  *
  * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
@@ -38,7 +38,7 @@ export function createKnowledgeToWorkflowListener(): KnowledgeToWorkflowMaterial
 
 // ── Listener type contracts ───────────────────────────────────────────────────
 
-/** Shape of any handler that can process a `notion.knowledge.page_approved` event. */
+/** Shape of any handler that can process a `notion.notion.knowledge.page-approved` event. */
 export interface KnowledgePageApprovedHandler {
   handle(event: PageApprovedEvent, workspaceId: string): Promise<boolean>;
 }

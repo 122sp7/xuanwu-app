@@ -1,6 +1,6 @@
 # 4201 Inconsistency — `dto` vs `dtos` 目錄命名不一致
 
-- Status: Accepted
+- Status: Resolved
 - Date: 2026-04-13
 - Category: Maintainability Smells > Inconsistency
 

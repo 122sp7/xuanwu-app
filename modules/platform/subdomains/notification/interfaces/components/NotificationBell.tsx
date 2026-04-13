@@ -14,7 +14,7 @@ import {
   markAllNotificationsRead,
 } from "../_actions/notification.actions";
 import { getNotificationsForRecipient } from "../queries/notification.queries";
-import type { NotificationEntity } from "../../application/dtos/notification.dto";
+import type { NotificationEntity } from "../../application/dto/notification.dto";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   DropdownMenu,

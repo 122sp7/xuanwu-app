@@ -5,7 +5,7 @@
  *
  * A SourceReference is attached to Task and Invoice entities that were created
  * by the KnowledgeToWorkflowMaterializer Process Manager in response to a
- * `knowledge.page_approved` event. It provides full audit traceability:
+ * `notion.knowledge.page-approved` event. It provides full audit traceability:
  *
  *   Task → sourceReference → KnowledgePage → IngestionJob → source PDF
  */
@@ -18,7 +18,7 @@ export interface SourceReference {
   /** The ID of the source aggregate (e.g. KnowledgePage.id). */
   readonly id: string;
   /**
-   * causationId from the `knowledge.page_approved` event that triggered
+   * causationId from the `notion.knowledge.page-approved` event that triggered
    * materialization.  Stored for idempotency checks and audit trails.
    */
   readonly causationId: string;

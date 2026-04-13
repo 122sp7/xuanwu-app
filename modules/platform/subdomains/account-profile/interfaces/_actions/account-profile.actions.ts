@@ -2,7 +2,7 @@
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import { updateAccountProfile } from "../composition/account-profile-service";
-import type { UpdateAccountProfileInput } from "../../application/dtos/account-profile.dto";
+import type { UpdateAccountProfileInput } from "../../application/dto/account-profile.dto";
 
 export async function updateProfile(
 	actorId: string,

@@ -5,7 +5,7 @@
  * Purpose: Lists all currently active capabilities for a platform scope.
  */
 
-import type { ListEnabledCapabilitiesInput } from "../dtos";
+import type { ListEnabledCapabilitiesInput } from "../dto";
 import type { PlatformContextViewRepository } from "../../domain/ports/output";
 
 export class ListEnabledCapabilitiesUseCase {

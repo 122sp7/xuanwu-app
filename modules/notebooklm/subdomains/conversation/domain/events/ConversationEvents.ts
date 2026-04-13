@@ -7,7 +7,7 @@
 import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
 
 export interface ThreadCreatedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.conversation.thread_created";
+  readonly type: "notebooklm.conversation.thread-created";
   readonly payload: {
     readonly threadId: string;
     readonly accountId: string;
@@ -15,7 +15,7 @@ export interface ThreadCreatedEvent extends NotebookLmDomainEvent {
 }
 
 export interface MessageAddedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.conversation.message_added";
+  readonly type: "notebooklm.conversation.message-added";
   readonly payload: {
     readonly threadId: string;
     readonly messageId: string;
@@ -25,7 +25,7 @@ export interface MessageAddedEvent extends NotebookLmDomainEvent {
 }
 
 export interface ThreadArchivedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.conversation.thread_archived";
+  readonly type: "notebooklm.conversation.thread-archived";
   readonly payload: {
     readonly threadId: string;
     readonly accountId: string;

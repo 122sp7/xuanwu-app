@@ -61,7 +61,7 @@ export class ApproveKnowledgePageUseCase {
     const correlationId = inputCorrelationId ?? generateId();
     await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
       id: generateId(),
-      eventName: "knowledge.page_approved",
+      eventName: "notion.knowledge.page-approved",
       aggregateType: "KnowledgePage",
       aggregateId: pageId,
       payload: {

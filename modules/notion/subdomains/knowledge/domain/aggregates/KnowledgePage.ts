@@ -65,7 +65,7 @@ export class KnowledgePage {
       updatedAtISO: now,
     });
     page._domainEvents.push({
-      type: "notion.knowledge.page_created",
+      type: "notion.knowledge.page-created",
       eventId: uuid(),
       occurredAt: now,
       payload: {
@@ -96,7 +96,7 @@ export class KnowledgePage {
       updatedAtISO: now,
     };
     this._domainEvents.push({
-      type: "notion.knowledge.page_renamed",
+      type: "notion.knowledge.page-renamed",
       eventId: uuid(),
       occurredAt: now,
       payload: { pageId: this._props.id, accountId: this._props.accountId, previousTitle, newTitle },
@@ -114,7 +114,7 @@ export class KnowledgePage {
     const now = new Date().toISOString();
     this._props = { ...this._props, parentPageId: targetParentId, updatedAtISO: now };
     this._domainEvents.push({
-      type: "notion.knowledge.page_moved",
+      type: "notion.knowledge.page-moved",
       eventId: uuid(),
       occurredAt: now,
       payload: {
@@ -133,7 +133,7 @@ export class KnowledgePage {
     const now = new Date().toISOString();
     this._props = { ...this._props, status: "archived", updatedAtISO: now };
     this._domainEvents.push({
-      type: "notion.knowledge.page_archived",
+      type: "notion.knowledge.page-archived",
       eventId: uuid(),
       occurredAt: now,
       payload: { pageId: this._props.id, accountId: this._props.accountId },
@@ -156,7 +156,7 @@ export class KnowledgePage {
       updatedAtISO: now,
     };
     this._domainEvents.push({
-      type: "notion.knowledge.page_approved",
+      type: "notion.knowledge.page-approved",
       eventId: uuid(),
       occurredAt: now,
       payload: {
@@ -183,7 +183,7 @@ export class KnowledgePage {
       updatedAtISO: now,
     };
     this._domainEvents.push({
-      type: "notion.knowledge.page_verified",
+      type: "notion.knowledge.page-verified",
       eventId: uuid(),
       occurredAt: now,
       payload: {
@@ -199,7 +199,7 @@ export class KnowledgePage {
     const now = new Date().toISOString();
     this._props = { ...this._props, verificationState: "needs_review", updatedAtISO: now };
     this._domainEvents.push({
-      type: "notion.knowledge.page_review_requested",
+      type: "notion.knowledge.page-review-requested",
       eventId: uuid(),
       occurredAt: now,
       payload: { pageId: this._props.id, accountId: this._props.accountId, requestedByUserId: byUserId },
@@ -210,7 +210,7 @@ export class KnowledgePage {
     const now = new Date().toISOString();
     this._props = { ...this._props, ownerId, updatedAtISO: now };
     this._domainEvents.push({
-      type: "notion.knowledge.page_owner_assigned",
+      type: "notion.knowledge.page-owner-assigned",
       eventId: uuid(),
       occurredAt: now,
       payload: { pageId: this._props.id, accountId: this._props.accountId, ownerId },
@@ -225,7 +225,7 @@ export class KnowledgePage {
       updatedAtISO: now,
     };
     this._domainEvents.push({
-      type: "notion.knowledge.page_icon_updated",
+      type: "notion.knowledge.page-icon-updated",
       eventId: uuid(),
       occurredAt: now,
       payload: { pageId: this._props.id, accountId: this._props.accountId, iconUrl },
@@ -240,7 +240,7 @@ export class KnowledgePage {
       updatedAtISO: now,
     };
     this._domainEvents.push({
-      type: "notion.knowledge.page_cover_updated",
+      type: "notion.knowledge.page-cover-updated",
       eventId: uuid(),
       occurredAt: now,
       payload: { pageId: this._props.id, accountId: this._props.accountId, coverUrl },

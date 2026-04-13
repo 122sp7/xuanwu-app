@@ -14,7 +14,7 @@ export interface BlockAddedPayload {
 }
 
 export interface BlockAddedEvent extends NotionDomainEvent {
-  readonly type: "notion.knowledge.block_added";
+  readonly type: "notion.knowledge.block-added";
   readonly payload: BlockAddedPayload;
 }
 
@@ -26,7 +26,7 @@ export interface BlockUpdatedPayload {
 }
 
 export interface BlockUpdatedEvent extends NotionDomainEvent {
-  readonly type: "notion.knowledge.block_updated";
+  readonly type: "notion.knowledge.block-updated";
   readonly payload: BlockUpdatedPayload;
 }
 
@@ -37,7 +37,7 @@ export interface BlockDeletedPayload {
 }
 
 export interface BlockDeletedEvent extends NotionDomainEvent {
-  readonly type: "notion.knowledge.block_deleted";
+  readonly type: "notion.knowledge.block-deleted";
   readonly payload: BlockDeletedPayload;
 }
 

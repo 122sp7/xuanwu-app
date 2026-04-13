@@ -32,7 +32,7 @@ function toCondition(c: Record<string, unknown>): AutomationCondition {
 
 function toAction(a: Record<string, unknown>): AutomationAction {
   return {
-    type: (a.type as AutomationAction["type"]) ?? "send_notification",
+    type: (a.type as AutomationAction["type"]) ?? "send-notification",
     config: typeof a.config === "object" && a.config !== null ? (a.config as Record<string, string>) : {},
   };
 }
@@ -44,7 +44,7 @@ function toAutomation(id: string, data: Record<string, unknown>): DatabaseAutoma
     accountId: typeof data.accountId === "string" ? data.accountId : "",
     name: typeof data.name === "string" ? data.name : "",
     enabled: data.enabled !== false,
-    trigger: (data.trigger as DatabaseAutomationSnapshot["trigger"]) ?? "record_created",
+    trigger: (data.trigger as DatabaseAutomationSnapshot["trigger"]) ?? "record-created",
     triggerFieldId: typeof data.triggerFieldId === "string" ? data.triggerFieldId : undefined,
     conditions: Array.isArray(data.conditions) ? (data.conditions as Record<string, unknown>[]).map(toCondition) : [],
     actions: Array.isArray(data.actions) ? (data.actions as Record<string, unknown>[]).map(toAction) : [],

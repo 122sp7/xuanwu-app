@@ -5,7 +5,7 @@
  * Purpose:  Publishes a new PolicyCatalog revision.
  */
 
-import type { PlatformCommandResult, PublishPolicyCatalogInput } from "../dtos";
+import type { PlatformCommandResult, PublishPolicyCatalogInput } from "../dto";
 import type { PolicyCatalogRepository, DomainEventPublisher } from "../../domain/ports/output";
 import { POLICY_CATALOG_PUBLISHED_EVENT_TYPE } from "../../domain/events";
 import { buildCorrelationId } from "../services";

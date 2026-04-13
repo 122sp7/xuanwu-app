@@ -2,7 +2,7 @@
  * @module workspace-flow/application/dto
  * @file materialize-from-knowledge.dto.ts
  * @description Command DTO for materializing Tasks and Invoices from a
- * `knowledge.page_approved` event payload.
+ * `notion.knowledge.page-approved` event payload.
  *
  * This DTO is used by both:
  *  - MaterializeTasksFromKnowledgeUseCase

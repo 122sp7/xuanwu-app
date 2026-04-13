@@ -19,7 +19,7 @@ export interface SynthesisPipelineDomainEvent {
 }
 
 export interface RagQuerySubmittedEvent extends SynthesisPipelineDomainEvent {
-  readonly type: "notebooklm.synthesis.query_submitted";
+  readonly type: "notebooklm.synthesis.query-submitted";
   readonly payload: {
     readonly traceId: string;
     readonly organizationId: string;
@@ -30,7 +30,7 @@ export interface RagQuerySubmittedEvent extends SynthesisPipelineDomainEvent {
 }
 
 export interface RagRetrievalCompletedEvent extends SynthesisPipelineDomainEvent {
-  readonly type: "notebooklm.synthesis.retrieval_completed";
+  readonly type: "notebooklm.synthesis.retrieval-completed";
   readonly payload: {
     readonly traceId: string;
     readonly chunkCount: number;
@@ -39,7 +39,7 @@ export interface RagRetrievalCompletedEvent extends SynthesisPipelineDomainEvent
 }
 
 export interface RagAnswerGeneratedEvent extends SynthesisPipelineDomainEvent {
-  readonly type: "notebooklm.synthesis.answer_generated";
+  readonly type: "notebooklm.synthesis.answer-generated";
   readonly payload: {
     readonly traceId: string;
     readonly model: string;
@@ -48,7 +48,7 @@ export interface RagAnswerGeneratedEvent extends SynthesisPipelineDomainEvent {
 }
 
 export interface RagFeedbackSubmittedEvent extends SynthesisPipelineDomainEvent {
-  readonly type: "notebooklm.synthesis.feedback_submitted";
+  readonly type: "notebooklm.synthesis.feedback-submitted";
   readonly payload: {
     readonly traceId: string;
     readonly rating: RagFeedbackRating;

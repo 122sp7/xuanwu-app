@@ -18,16 +18,16 @@ interface Props {
 }
 
 const TRIGGER_OPTIONS: { value: AutomationTrigger; label: string }[] = [
-  { value: "record_created", label: "Record created" },
-  { value: "record_updated", label: "Record updated" },
-  { value: "record_deleted", label: "Record deleted" },
-  { value: "property_changed", label: "Property changed" },
+  { value: "record-created", label: "Record created" },
+  { value: "record-updated", label: "Record updated" },
+  { value: "record-deleted", label: "Record deleted" },
+  { value: "property-changed", label: "Property changed" },
 ];
 
 const ACTION_OPTIONS: { value: AutomationActionType; label: string }[] = [
-  { value: "send_notification", label: "Send notification" },
-  { value: "update_property", label: "Update property" },
-  { value: "create_record", label: "Create record" },
+  { value: "send-notification", label: "Send notification" },
+  { value: "update-property", label: "Update property" },
+  { value: "create-record", label: "Create record" },
   { value: "webhook", label: "Call webhook" },
 ];
 
@@ -36,8 +36,8 @@ export function DatabaseAutomationPanel({ databaseId, accountId, currentUserId }
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
-  const [trigger, setTrigger] = useState<AutomationTrigger>("record_created");
-  const [actionType, setActionType] = useState<AutomationActionType>("send_notification");
+  const [trigger, setTrigger] = useState<AutomationTrigger>("record-created");
+  const [actionType, setActionType] = useState<AutomationActionType>("send-notification");
   const [, startTransition] = useTransition();
 
   useEffect(() => {

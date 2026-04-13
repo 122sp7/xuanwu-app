@@ -5,7 +5,7 @@
  * Purpose:  Emits a workflow trigger and delegates execution to downstream adapter.
  */
 
-import type { PlatformCommandResult, FireWorkflowTriggerInput } from "../dtos";
+import type { PlatformCommandResult, FireWorkflowTriggerInput } from "../dto";
 import type { WorkflowPolicyRepository, WorkflowDispatcherPort, DomainEventPublisher } from "../../domain/ports/output";
 import { WORKFLOW_TRIGGER_FIRED_EVENT_TYPE } from "../../domain/events";
 import { buildCorrelationId } from "../services";

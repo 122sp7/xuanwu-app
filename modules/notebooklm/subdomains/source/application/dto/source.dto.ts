@@ -6,16 +6,11 @@
 /**
  * resolveSourceOrganizationId — maps an account to its organization scope.
  *
- * Wraps the domain service to provide a clean application-layer contract.
- * Personal accounts get a synthetic org ID prefixed with "personal:" so they
- * can participate in the same org-scoped permission checks as org accounts.
+ * Delegates to the domain service. Personal accounts get a synthetic org ID
+ * prefixed with "personal:" so they can participate in the same org-scoped
+ * permission checks as org accounts.
  */
-export function resolveSourceOrganizationId(
-  accountType: "user" | "organization",
-  accountId: string,
-): string {
-  return accountType === "organization" ? accountId : `personal:${accountId}`;
-}
+export { resolveSourceOrganizationId } from "../../domain/services/resolve-source-organization-id.service";
 
 export type { RagDocumentRecord } from "../../domain/entities/RagDocument";
 

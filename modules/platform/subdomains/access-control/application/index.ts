@@ -1,3 +1,3 @@
-export * from "./dtos";
+export * from "./dto";
 export * from "./use-cases";
 export * from "./services/shell-account-access";

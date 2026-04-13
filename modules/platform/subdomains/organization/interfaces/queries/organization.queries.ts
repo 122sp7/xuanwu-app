@@ -3,7 +3,7 @@
  */
 
 import { organizationQueryService } from "../composition/organization-service";
-import type { MemberReference, Team, OrgPolicy } from "../../application/dtos/organization.dto";
+import type { MemberReference, Team, OrgPolicy } from "../../application/dto/organization.dto";
 
 export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
   return organizationQueryService.getMembers(organizationId);

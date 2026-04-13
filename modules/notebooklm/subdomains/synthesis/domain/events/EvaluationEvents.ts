@@ -8,7 +8,7 @@ import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLm
 import type { FeedbackRating } from "../entities/QualityFeedback";
 
 export interface FeedbackSubmittedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.evaluation.feedback_submitted";
+  readonly type: "notebooklm.evaluation.feedback-submitted";
   readonly payload: {
     readonly feedbackId: string;
     readonly traceId: string;

@@ -5,7 +5,7 @@
  * Purpose: Returns plan entitlements and usage limits.
  */
 
-import type { GetSubscriptionEntitlementsInput } from "../dtos";
+import type { GetSubscriptionEntitlementsInput } from "../dto";
 import type { UsageMeterRepository, SubscriptionEntitlementsView } from "../../domain/ports/output";
 
 export class GetSubscriptionEntitlementsUseCase {
