@@ -3239,6 +3239,39 @@ import { AppProvider } from "../(shell)/_providers/AppProvider";
 export function Providers(
 ````
 
+## File: app/(shell)/_providers/AppProvider.tsx
+````typescript
+/**
+ * AppProvider — app/(shell)/ composition layer
+ *
+ * Manages the platform-owned account lifecycle (auth → accounts → activeAccount).
+ * Lives in app/ because the cross-module composition root is the correct owner
+ * of account-state wiring that reads from platform subdomain queries.
+ *
+ * Workspace state is managed by WorkspaceContextProvider from workspace module.
+ */
+⋮----
+import { useReducer, useEffect, type ReactNode } from "react";
+⋮----
+import {
+  AppContext,
+  APP_INITIAL_STATE,
+  type AppState,
+  type AppAction,
+} from "@/modules/platform/api";
+import {
+  resolveActiveAccount,
+  subscribeToAccountsForUser,
+} from "@/modules/platform/api";
+import { useAuth } from "@/modules/platform/api";
+⋮----
+function appReducer(state: AppState, action: AppAction): AppState
+⋮----
+export function AppProvider(
+⋮----
+// eslint-disable-next-line react-hooks/exhaustive-deps
+````
+
 ## File: app/(shell)/_shell/index.ts
 ````typescript
 /**
@@ -6385,78 +6418,6 @@ flowchart LR
 - [../integration-guidelines.md](../integration-guidelines.md)
 - [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
 - [../project-delivery-milestones.md](../project-delivery-milestones.md)
-````
-
-## File: docs/decisions/README.md
-````markdown
-# Decisions
-
-本目錄是 architecture-first 的決策日誌。依 ADR 參考模式，每份 ADR 至少說明 context、decision、consequences 與 conflict resolution，讓後續戰略文件可以引用相同決策來源。
-
-## Decision Log
-
-| ADR | Title | Status | Scope |
-|---|---|---|---|
-| [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md) | Hexagonal Architecture | Accepted | 全域架構與邊界分層 |
-| [0002-bounded-contexts.md](./0002-bounded-contexts.md) | Bounded Contexts | Accepted | 四主域與子域切分 |
-| [0003-context-map.md](./0003-context-map.md) | Context Map | Accepted | 主域間依賴方向 |
-| [0004-ubiquitous-language.md](./0004-ubiquitous-language.md) | Ubiquitous Language | Accepted | 戰略術語治理 |
-| [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md) | Anti-Corruption Layer | Accepted | 邊界整合保護規則 |
-
-## How To Use This Directory
-
-- 先讀標題以取得整體脈絡。
-- 若某份戰略文件與 ADR 衝突，以 ADR 的 decision 與 conflict resolution 為準。
-- 若未來新增新的架構決策，應沿用同一結構補充，而不是覆寫舊決策歷史。
-
-## Anti-Pattern Coverage
-
-- 0001 禁止把 framework / infrastructure 滲入核心。
-- 0002 禁止主域與子域所有權漂移。
-- 0003 禁止上下游方向與對稱關係混寫。
-- 0004 禁止語言污染與同詞多義。
-- 0005 禁止錯置 ACL / Conformist 的責任位置。
-
-## Copilot Generation Rules
-
-- 生成程式碼前，先由 ADR 決定邊界、語言與整合責任，再下手實作。
-- 奧卡姆剃刀：若既有 ADR 已能解決當前判斷，就不要再堆疊新的臨時規則文件。
-- 新規則若會改變邊界，先補 ADR，再補戰略文件與 context docs。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	ADR["ADR"] --> Strategy["Strategic docs"]
-	Strategy --> Context["Context docs"]
-	Context --> Code["Generated code"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Question["Architecture question"] --> ADR["Check ADR"]
-	ADR --> Strategy["Align strategic docs"]
-	Strategy --> Context["Align context docs"]
-	Context --> Code["Generate boundary-safe code"]
-```
-
-## Document Network
-
-- [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md)
-- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
-- [0003-context-map.md](./0003-context-map.md)
-- [0004-ubiquitous-language.md](./0004-ubiquitous-language.md)
-- [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md)
-- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
-- [../project-delivery-milestones.md](../project-delivery-milestones.md)
-- [../README.md](../README.md)
-
-## Constraints
-
-- 本目錄在本次任務限制下，只依 Context7 架構參考重建。
-- 本目錄不是對既有 repo 內容做過語意比對後的歷史還原。
 ````
 
 ## File: docs/hard-rules-consolidated.md
@@ -23506,6 +23467,87 @@ export interface WorkspaceNavItem {
 export function normalizeWorkspaceOrder(order: unknown): string[]
 ````
 
+## File: modules/workspace/interfaces/web/providers/WorkspaceContextProvider.tsx
+````typescript
+/**
+ * WorkspaceContextProvider — workspace/interfaces/web layer
+ *
+ * Owns workspace-scoped state for the authenticated shell:
+ *   - workspaces visible under the active account
+ *   - active workspace selection and localStorage persistence
+ *
+ * Reads `activeAccount` from platform's useApp(); subscribes to workspaces
+ * via workspace-owned query functions. This keeps workspace state ownership
+ * inside the workspace bounded context instead of leaking into platform.
+ */
+⋮----
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useReducer,
+  type Dispatch,
+  type ReactNode,
+} from "react";
+⋮----
+import { useApp } from "@/modules/platform/api";
+import type { WorkspaceEntity } from "../../api/contracts";
+import { subscribeToWorkspacesForAccount } from "../../api/facades/workspace.facade";
+import { toWorkspaceMap } from "../utils/workspace-map";
+import { getWorkspaceStorageKey } from "../state/workspace-session";
+⋮----
+// ── State ────────────────────────────────────────────────────────────────────
+⋮----
+export interface WorkspaceContextState {
+  /** Workspaces visible under the active account. */
+  workspaces: Record<string, WorkspaceEntity>;
+  /** True once the first active-account workspace snapshot has been received. */
+  workspacesHydrated: boolean;
+  /** Currently selected workspace context under the active account. */
+  activeWorkspaceId: string | null;
+}
+⋮----
+/** Workspaces visible under the active account. */
+⋮----
+/** True once the first active-account workspace snapshot has been received. */
+⋮----
+/** Currently selected workspace context under the active account. */
+⋮----
+export type WorkspaceContextAction =
+  | {
+      type: "SET_WORKSPACES";
+      payload: { workspaces: Record<string, WorkspaceEntity>; hydrated: boolean };
+    }
+  | { type: "SET_ACTIVE_WORKSPACE"; payload: string | null }
+  | { type: "RESET" };
+⋮----
+export interface WorkspaceContextValue {
+  state: WorkspaceContextState;
+  dispatch: Dispatch<WorkspaceContextAction>;
+}
+⋮----
+function workspaceReducer(
+  state: WorkspaceContextState,
+  action: WorkspaceContextAction,
+): WorkspaceContextState
+⋮----
+// ── Provider ─────────────────────────────────────────────────────────────────
+⋮----
+export function WorkspaceContextProvider(
+⋮----
+// Reset workspace state when account changes
+⋮----
+// Restore active workspace from localStorage
+⋮----
+// Persist active workspace to localStorage
+⋮----
+// Subscribe to workspaces for the active account
+⋮----
+// ── Hook ─────────────────────────────────────────────────────────────────────
+⋮----
+export function useWorkspaceContext()
+````
+
 ## File: modules/workspace/interfaces/web/state/workspace-session.ts
 ````typescript
 export function getWorkspaceStorageKey(accountId: string): string
@@ -32938,39 +32980,6 @@ See `docs/hard-rules-consolidated.md` for:
 - Cross-module contract rules (24-27)
 ````
 
-## File: app/(shell)/_providers/AppProvider.tsx
-````typescript
-/**
- * AppProvider — app/(shell)/ composition layer
- *
- * Manages the platform-owned account lifecycle (auth → accounts → activeAccount).
- * Lives in app/ because the cross-module composition root is the correct owner
- * of account-state wiring that reads from platform subdomain queries.
- *
- * Workspace state is managed by WorkspaceContextProvider from workspace module.
- */
-⋮----
-import { useReducer, useEffect, type ReactNode } from "react";
-⋮----
-import {
-  AppContext,
-  APP_INITIAL_STATE,
-  type AppState,
-  type AppAction,
-} from "@/modules/platform/api";
-import {
-  resolveActiveAccount,
-  subscribeToAccountsForUser,
-} from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-⋮----
-function appReducer(state: AppState, action: AppAction): AppState
-⋮----
-export function AppProvider(
-⋮----
-// eslint-disable-next-line react-hooks/exhaustive-deps
-````
-
 ## File: app/(shell)/_shell/shell-quick-create.ts
 ````typescript
 /**
@@ -33020,6 +33029,52 @@ interface ShellContextNavSectionProps {
   activeAccountId: string | null;
   activeWorkspaceId: string | null;
 }
+````
+
+## File: app/(shell)/(account)/[accountId]/(account-root)/dashboard/page.tsx
+````typescript
+import { AccountDashboardRouteScreen } from "@/modules/workspace/api";
+⋮----
+export default function AccountDashboardEntryPage()
+````
+
+## File: app/(shell)/(account)/[accountId]/(account-root)/organization/[[...slug]]/page.tsx
+````typescript
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+⋮----
+import {
+  OrganizationMembersRouteScreen,
+  OrganizationOverviewRouteScreen,
+  OrganizationPermissionsRouteScreen,
+  OrganizationTeamsRouteScreen,
+} from "@/modules/platform/api";
+import {
+  OrganizationAuditRouteScreen,
+  OrganizationDailyRouteScreen,
+  OrganizationScheduleRouteScreen,
+  OrganizationWorkspacesRouteScreen,
+} from "@/modules/workspace/api";
+⋮----
+interface OrganizationRouteDispatcherPageProps {
+  params: {
+    accountId: string;
+    slug?: string[];
+  };
+}
+⋮----
+function OrganizationScheduleDispatcherRedirect(
+⋮----
+export default function OrganizationRouteDispatcherPage({
+  params,
+}: OrganizationRouteDispatcherPageProps)
+````
+
+## File: app/(shell)/(account)/[accountId]/(account-root)/settings/notifications/page.tsx
+````typescript
+import { SettingsNotificationsRouteScreen } from "@/modules/platform/api";
+⋮----
+export default function AccountNotificationsEntryPage()
 ````
 
 ## File: app/(shell)/(account)/[accountId]/dev-tools/dev-tools-badges.tsx
@@ -33552,6 +33607,371 @@ flowchart LR
 - [../../subdomains.md](../../subdomains.md)
 - [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
 - [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
+````
+
+## File: docs/decisions/0006-domain-event-discriminant-format.md
+````markdown
+# 0006 Domain Event Discriminant Format
+
+- Status: Accepted
+- Date: 2026-04-13
+
+## Context
+
+架構指引要求 domain event discriminant 遵守格式 `<module-name>.<subdomain>.<action>`，其中 action 部分必須使用 **kebab-case**（例如 `platform.identity.signed-in`）。但掃描後發現三類格式偏差，影響全庫共 112 處 domain event 類型宣告：
+
+### 偏差一：action 部分使用 snake_case（83 處）
+
+`snake_case` 出現在以下 24 個事件文件中，覆蓋所有四個主域：
+
+| 主域 | 受影響文件 |
+|------|-----------|
+| platform | `access-control/domain/events/AccessPolicyDomainEvent.ts` |
+| platform | `account/domain/events/AccountDomainEvent.ts` |
+| platform | `background-job/domain/events/IngestionJobDomainEvent.ts` |
+| platform | `identity/domain/events/IdentityDomainEvent.ts` |
+| platform | `notification/domain/events/NotificationDomainEvent.ts` |
+| platform | `organization/domain/events/OrganizationDomainEvent.ts` |
+| platform | `subscription/domain/events/SubscriptionDomainEvent.ts` |
+| workspace | `audit/domain/events/AuditDomainEvent.ts` |
+| workspace | `workspace-workflow/domain/events/InvoiceEvent.ts` |
+| workspace | `workspace-workflow/domain/events/IssueEvent.ts` |
+| workspace | `workspace-workflow/domain/events/TaskEvent.ts` |
+| notion | `authoring/domain/events/AuthoringEvents.ts` |
+| notion | `collaboration/domain/events/CollaborationEvents.ts` |
+| notion | `database/domain/events/DatabaseEvents.ts` |
+| notion | `knowledge/domain/events/KnowledgeBlockEvents.ts` |
+| notion | `knowledge/domain/events/KnowledgeCollectionEvents.ts` |
+| notion | `knowledge/domain/events/KnowledgePageEvents.ts` |
+| notion | `relations/domain/events/RelationEvents.ts` |
+| notion | `taxonomy/domain/events/TaxonomyEvents.ts` |
+| notebooklm | `conversation/domain/events/ConversationEvents.ts` |
+| notebooklm | `notebook/domain/events/NotebookEvents.ts` |
+| notebooklm | `source/domain/events/SourceEvents.ts` |
+| notebooklm | `synthesis/domain/events/EvaluationEvents.ts` |
+| notebooklm | `synthesis/domain/events/SynthesisPipelineDomainEvent.ts` |
+
+範例（snake_case 違規 → 應改為 kebab-case）：
+
+```
+"platform.identity.signed_in"         → "platform.identity.signed-in"
+"platform.account.profile_updated"    → "platform.account.profile-updated"
+"platform.access_policy.created"      → "platform.access-control.created"
+"notion.knowledge.page_created"       → "notion.knowledge.page-created"
+"notebooklm.synthesis.query_submitted" → "notebooklm.synthesis.query-submitted"
+"workspace.audit.entry_recorded"      → "workspace.audit.entry-recorded"
+```
+
+### 偏差二：team 子域事件缺少主域前綴（4 處）
+
+`modules/platform/subdomains/team/domain/events/OrganizationTeamDomainEvent.ts` 中四個事件使用 `team.*` 而非 `platform.team.*`：
+
+```
+"team.created"        → "platform.team.created"
+"team.deleted"        → "platform.team.deleted"
+"team.member-added"   → "platform.team.member-added"
+"team.member-removed" → "platform.team.member-removed"
+```
+
+### 偏差三：workspace-workflow 事件使用 workspace-flow 縮寫前綴（25 處）
+
+`modules/workspace/subdomains/workspace-workflow/domain/events/` 中所有事件使用 `workspace-flow.*` 前綴，與主域路徑 `workspace.workspace-workflow.*` 不一致：
+
+```
+"workspace-flow.task.created"     → "workspace.workspace-workflow.task-created"
+"workspace-flow.invoice.approved" → "workspace.workspace-workflow.invoice-approved"
+"workspace-flow.issue.opened"     → "workspace.workspace-workflow.issue-opened"
+```
+
+## Decision
+
+確立以下全庫 domain event discriminant 格式規則，作為後續修復的唯一基準：
+
+```
+<main-domain>.<subdomain>.<action>
+```
+
+格式約束：
+
+1. **主域前綴**：必須是四個主域之一（`platform`、`workspace`、`notion`、`notebooklm`）。
+2. **子域段**：與 `modules/<main-domain>/subdomains/<subdomain>/` 路徑一致，使用 **kebab-case**。
+3. **action 段**：使用 **kebab-case**，不允許 `snake_case` 或 `PascalCase`。
+4. **三段結構**：格式固定為三段，不允許省略主域前綴或子域段。
+
+正確範例：
+
+```
+platform.identity.signed-in
+platform.team.member-added
+platform.access-control.policy-created
+workspace.workspace-workflow.task-created
+workspace.audit.entry-recorded
+notion.knowledge.page-created
+notebooklm.synthesis.query-submitted
+```
+
+## Consequences
+
+正面影響：
+
+- 所有 domain event 可以透過主域前綴在 event bus 做一致的路由與訂閱過濾。
+- 不再需要用不同命名規則判斷事件來源。
+- 工具自動化（訂閱規則、QStash routing）可以依賴一致格式。
+
+代價與限制：
+
+- 需要同步修改 112 個 discriminant 值，並更新所有消費方的 switch/case 與型別衛語句。
+- `workspace-flow.*` 的修改會觸及 listeners、facades 與測試合約，需要版本協議窗口。
+- 建議以 subdomain 為單位分批遷移，每批修改後執行 `npm run build && npm run lint` 驗證。
+
+## Conflict Resolution
+
+- 若現有消費方（py_fn 訂閱器、QStash 路由）使用 `snake_case` 鍵，遷移期間需同時保留舊值為 alias，在新版確認無消費後才移除。
+- `workspace-flow` 縮寫前綴遷移至 `workspace.workspace-workflow` 為破壞性變更，需事先對齊 py_fn 與任何外部訂閱合約。
+````
+
+## File: docs/decisions/0007-infrastructure-in-api-layer.md
+````markdown
+# 0007 Infrastructure Wiring in api/ Layer
+
+- Status: Accepted
+- Date: 2026-04-13
+
+## Context
+
+架構指引要求 `api/` 只暴露**語意契約**（類型、DTO、服務介面），不得包含任何基礎設施配線（Firebase 適配器實例化、資料庫工廠函式）。infrastructure adapter 的組裝應在 `interfaces/composition/` 內完成，這樣才能保持 api/ 邊界的語意穩定性、讓測試可以替換實現。
+
+platform 子域已正確遵守此規則：每個子域的 composition root 位於 `interfaces/composition/*-service.ts`，api/ 僅重新匯出服務合約。
+
+掃描後發現以下 10 個文件直接在 `api/` 層實例化 Firebase 適配器，共 28 個 `new Firebase*()` 呼叫：
+
+### 違規文件清單
+
+| 文件 | 說明 |
+|------|------|
+| `modules/workspace/api/runtime/factories.ts` | 在 workspace 主域 api/ 內直接實例化 `FirebaseWorkspaceRepository`、`FirebaseWorkspaceQueryRepository`、`FirebaseWikiWorkspaceRepository` |
+| `modules/workspace/subdomains/audit/api/factories.ts` | 實例化 `FirebaseAuditRepository` |
+| `modules/workspace/subdomains/feed/api/factories.ts` | 實例化 `FirebaseWorkspaceFeedPostRepository`、`FirebaseWorkspaceFeedInteractionRepository` |
+| `modules/workspace/subdomains/feed/api/workspace-feed.facade.ts` | facade 建構子預設參數直接使用 `new FirebaseWorkspaceFeedPostRepository()` |
+| `modules/workspace/subdomains/scheduling/api/factories.ts` | 實例化 `FirebaseDemandRepository` |
+| `modules/workspace/subdomains/workspace-workflow/api/factories.ts` | 實例化 4 個 Firebase 倉儲 |
+| `modules/workspace/subdomains/workspace-workflow/api/listeners.ts` | 在 listener 初始化時直接 `new FirebaseTaskRepository()`、`new FirebaseInvoiceRepository()` |
+| `modules/workspace/subdomains/workspace-workflow/api/workspace-flow.facade.ts` | facade 依賴直接構建的 Firebase 倉儲 |
+| `modules/platform/api/platform-service.ts` | 頂層 api/ 有 singleton 管理與 9 個 Firebase 適配器實例化 |
+| `modules/notebooklm/subdomains/synthesis/api/server.ts` | 實例化 `FirebaseKnowledgeContentAdapter`、`FirebaseRagRetrievalAdapter` |
+
+### 違規影響分析
+
+- `api/runtime/factories.ts` 暴露 `OrganizationDirectoryGateway` inline interface，這個 port 應定義在 `domain/ports/`。
+- workspace 子域（feed、scheduling、workspace-workflow、audit）完全沒有 `interfaces/composition/` 目錄，導致 DI 組裝散落在 `api/factories.ts`。
+- `workspace-feed.facade.ts` 的預設參數注入 Firebase 倉儲，讓 facade 在任何 import 時都可能觸發 Firebase 初始化副作用。
+
+## Decision
+
+確立以下規則作為全庫基礎設施配線的唯一位置準則：
+
+1. **`api/` 層禁止**持有 `let _singleton` 狀態、`new Firebase*()` 呼叫、或任何 infrastructure import。
+2. **composition root 唯一位置**：`modules/<context>/(subdomains/<sub>/)interfaces/composition/*-service.ts`。
+3. **api/ 允許的內容**：類型匯出、DTO、服務 facade 的型別簽名、`api/server.ts` 為 server-only 薄殼（可 import composition root，不可直接 import Firebase SDK）。
+4. **factory function 位置**：若子域需要工廠，應在 `interfaces/composition/` 而非 `api/factories.ts`。
+5. **inline port interface**：如 `OrganizationDirectoryGateway`，應移入 `domain/ports/`。
+
+### 修復路徑（優先順序）
+
+| 優先 | 文件 | 行動 |
+|------|------|------|
+| 高 | `workspace/api/runtime/factories.ts` | 移至 `workspace/interfaces/composition/workspace-service.ts` |
+| 高 | `workspace/subdomains/*/api/factories.ts` (4 個) | 各別移至同子域 `interfaces/composition/` |
+| 高 | `workspace-workflow/api/listeners.ts` | 從 api/ 分離 Firebase 初始化，移至 composition root |
+| 中 | `platform/api/platform-service.ts` | 遵循 platform 子域 composition root 模式重構 |
+| 中 | `notebooklm/synthesis/api/server.ts` | 保留 server.ts 薄殼，但 Firebase 組裝移至 `interfaces/composition/synthesis-service.ts` |
+
+## Consequences
+
+正面影響：
+
+- `api/` 邊界真正成為語意穩定的合約層，測試可以注入 mock 而無需觸碰 Firebase。
+- Import 時不再觸發 Firebase 初始化副作用。
+- 遵循 platform 子域已建立的 composition root 模式，全庫一致。
+
+代價與限制：
+
+- workspace 子域需新建 `interfaces/composition/` 目錄並遷移所有工廠邏輯。
+- 遷移期間需確保所有消費端（interfaces/_actions、queries）從 composition root 而非 api/factories.ts import。
+- `workspace-feed.facade.ts` 的預設參數模式需重寫為顯式 DI。
+
+## Conflict Resolution
+
+- 若有消費端因移除 `api/factories.ts` 而 import 失敗，統一改為從 `api/index.ts` re-export composition root 的服務函式（不是工廠）。
+- `platform/api/platform-service.ts` 的修改需確保現有 `api/index.ts` 匯出合約不變，只移動內部實作。
+````
+
+## File: docs/decisions/0008-repository-interface-placement.md
+````markdown
+# 0008 Repository Interface Placement
+
+- Status: Accepted
+- Date: 2026-04-13
+
+## Context
+
+DDD Hexagonal Architecture 要求 domain layer 只定義**端口（port）介面**，由 infrastructure layer 實作。端口可以是 repository interface、gateway interface 或任何驅動端 / 被驅動端抽象。
+
+掃描後發現 domain 層存在兩套並行的端口放置慣例：
+
+### 慣例 A：`domain/repositories/` 目錄（23 個子域）
+
+沿用 DDD 傳統命名，將 repository interface 放在 `domain/repositories/`：
+
+```
+platform/subdomains/account/domain/repositories/AccountRepository.ts
+platform/subdomains/entitlement/domain/repositories/EntitlementGrantRepository.ts
+platform/subdomains/access-control/domain/repositories/AccessPolicyRepository.ts
+platform/subdomains/subscription/domain/repositories/SubscriptionRepository.ts
+workspace/subdomains/workspace-workflow/domain/repositories/...
+notion/subdomains/knowledge/domain/repositories/...
+```
+
+### 慣例 B：`domain/ports/` 目錄（24 個子域）
+
+較新的子域使用 Hexagonal Architecture 的 port 術語，將所有端口（包括 repository、gateway、event publisher）放在 `domain/ports/`：
+
+```
+platform/subdomains/team/domain/ports/TeamRepository.ts
+platform/subdomains/organization/domain/ports/OrganizationTeamPort.ts
+notebooklm/subdomains/source/domain/ports/KnowledgePageGatewayPort.ts
+workspace/subdomains/workspace-workflow/domain/ports/...
+```
+
+### 混用問題
+
+部分子域（如 `workspace/subdomains/workspace-workflow/`）同時存在 `domain/repositories/` 與 `domain/ports/`，造成：
+
+- 開發者不清楚新的端口應放哪個目錄。
+- ESLint 邊界規則難以同時覆蓋兩個路徑。
+- `api/index.ts` re-export 時有時從 `domain/repositories`、有時從 `domain/ports` import，增加合約不穩定性。
+
+### 補充發現：inline port interface
+
+`modules/workspace/api/runtime/factories.ts` 中定義了 `OrganizationDirectoryGateway` 作為 inline interface，這個 port 沒有放在任何 `domain/ports/` 或 `domain/repositories/` 目錄，違反了端口定義必須在 domain 層的規則（見 ADR 0007）。
+
+## Decision
+
+採用以下規則，統一全庫端口放置位置：
+
+1. **Repository interface** → 放在 `domain/repositories/`，命名 `PascalCaseRepository`（無 I 前綴）。
+2. **Non-repository port**（Gateway、Publisher、Adapter port）→ 放在 `domain/ports/`，命名 `PascalCasePort` 或 `PascalCaseGateway`。
+3. **禁止 inline port**：所有端口 interface 必須在 domain 層獨立文件中定義，不允許在 api/ 或 application/ 內定義 inline interface。
+4. **`domain/ports/` 與 `domain/repositories/` 可以共存**：若子域同時有 repository 與 gateway port，兩個目錄都允許存在。
+5. **禁止在 `domain/ports/` 放 repository interface**，反之亦然（不混用）。
+
+### 現有文件遷移規則
+
+| 現況 | 行動 |
+|------|------|
+| `domain/repositories/*.ts` 中只有標準 CRUD repository interface | 維持不動，符合規則 |
+| `domain/ports/*.ts` 中有 repository interface（如 `TeamRepository.ts`）| 可保留，無需移動（符合 ports 廣義定義） |
+| `api/runtime/factories.ts` 中的 `OrganizationDirectoryGateway` | 移入 `workspace/domain/ports/OrganizationDirectoryGateway.ts` |
+| 同一子域同時有 `domain/repositories/` 和 `domain/ports/` | 確認放置規則：repo → repositories/，non-repo gateway → ports/ |
+
+## Consequences
+
+正面影響：
+
+- 開發者只需看路徑就能判斷端口類型（資料存取 vs. 跨域閘道）。
+- ESLint 邊界規則可以精確覆蓋 `domain/repositories/` 和 `domain/ports/` 兩個路徑。
+- 減少 api/ 層 inline interface 造成的「端口洩漏」。
+
+代價與限制：
+
+- 需要確認 23 個 `domain/repositories/` 的子域是否混入了 non-repository port，若有則需移至 `domain/ports/`。
+- `OrganizationDirectoryGateway` 遷移需同步更新 `workspace/api/runtime/factories.ts` 的 import（見 ADR 0007）。
+
+## Conflict Resolution
+
+- 若舊端口已在 api/index.ts 匯出（例如 `export type { TeamRepository } from "./domain/ports"`），遷移後 re-export 路徑不變；只改動目錄下的物理文件位置，外部合約不受影響。
+- 若有消費端直接 import `domain/repositories/` 或 `domain/ports/`（違反 API 邊界），應優先修正消費端改從 `api/` import，再考慮目錄整合。
+````
+
+## File: docs/decisions/README.md
+````markdown
+# Decisions
+
+本目錄是 architecture-first 的決策日誌。依 ADR 參考模式，每份 ADR 至少說明 context、decision、consequences 與 conflict resolution，讓後續戰略文件可以引用相同決策來源。
+
+## Decision Log
+
+| ADR | Title | Status | Scope |
+|---|---|---|---|
+| [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md) | Hexagonal Architecture | Accepted | 全域架構與邊界分層 |
+| [0002-bounded-contexts.md](./0002-bounded-contexts.md) | Bounded Contexts | Accepted | 四主域與子域切分 |
+| [0003-context-map.md](./0003-context-map.md) | Context Map | Accepted | 主域間依賴方向 |
+| [0004-ubiquitous-language.md](./0004-ubiquitous-language.md) | Ubiquitous Language | Accepted | 戰略術語治理 |
+| [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md) | Anti-Corruption Layer | Accepted | 邊界整合保護規則 |
+| [0006-domain-event-discriminant-format.md](./0006-domain-event-discriminant-format.md) | Domain Event Discriminant Format | Accepted | 83 snake_case + 4 missing prefix + 25 wrong module prefix violations |
+| [0007-infrastructure-in-api-layer.md](./0007-infrastructure-in-api-layer.md) | Infrastructure Wiring in api/ Layer | Accepted | workspace & platform api/ 層直接實例化 Firebase 適配器（10 檔、28 處）|
+| [0008-repository-interface-placement.md](./0008-repository-interface-placement.md) | Repository Interface Placement | Accepted | domain/repositories/ vs domain/ports/ 混用（23+24 個子域）|
+
+## How To Use This Directory
+
+- 先讀標題以取得整體脈絡。
+- 若某份戰略文件與 ADR 衝突，以 ADR 的 decision 與 conflict resolution 為準。
+- 若未來新增新的架構決策，應沿用同一結構補充，而不是覆寫舊決策歷史。
+
+## Anti-Pattern Coverage
+
+- 0001 禁止把 framework / infrastructure 滲入核心。
+- 0002 禁止主域與子域所有權漂移。
+- 0003 禁止上下游方向與對稱關係混寫。
+- 0004 禁止語言污染與同詞多義。
+- 0005 禁止錯置 ACL / Conformist 的責任位置。
+- 0006 禁止 domain event discriminant 使用 snake_case、缺少主域前綴、或使用縮寫模組名稱。
+- 0007 禁止在 api/ 層持有 infrastructure singleton 或 Firebase 適配器實例化。
+- 0008 禁止在 api/ 或 application/ 定義 inline port interface；repository 與 non-repository port 應分別放入 domain/repositories/ 與 domain/ports/。
+
+## Copilot Generation Rules
+
+- 生成程式碼前，先由 ADR 決定邊界、語言與整合責任，再下手實作。
+- 奧卡姆剃刀：若既有 ADR 已能解決當前判斷，就不要再堆疊新的臨時規則文件。
+- 新規則若會改變邊界，先補 ADR，再補戰略文件與 context docs。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	ADR["ADR"] --> Strategy["Strategic docs"]
+	Strategy --> Context["Context docs"]
+	Context --> Code["Generated code"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Question["Architecture question"] --> ADR["Check ADR"]
+	ADR --> Strategy["Align strategic docs"]
+	Strategy --> Context["Align context docs"]
+	Context --> Code["Generate boundary-safe code"]
+```
+
+## Document Network
+
+- [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md)
+- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
+- [0003-context-map.md](./0003-context-map.md)
+- [0004-ubiquitous-language.md](./0004-ubiquitous-language.md)
+- [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md)
+- [0006-domain-event-discriminant-format.md](./0006-domain-event-discriminant-format.md)
+- [0007-infrastructure-in-api-layer.md](./0007-infrastructure-in-api-layer.md)
+- [0008-repository-interface-placement.md](./0008-repository-interface-placement.md)
+- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
+- [../project-delivery-milestones.md](../project-delivery-milestones.md)
+- [../README.md](../README.md)
+
+## Constraints
+
+- 本目錄在本次任務限制下，只依 Context7 架構參考重建。
+- 本目錄不是對既有 repo 內容做過語意比對後的歷史還原。
 ````
 
 ## File: modules/notebooklm/AGENT.md
@@ -39171,6 +39591,31 @@ import { MembersPage } from "../MembersPage";
 export function OrganizationMembersRouteScreen()
 ````
 
+## File: modules/platform/subdomains/organization/interfaces/components/screens/OrganizationOverviewRouteScreen.tsx
+````typescript
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+⋮----
+import { isActiveOrganizationAccount } from "../../../../access-control/api";
+import type { AccountEntity } from "../../../../account/api";
+import { useAuth } from "../../../../identity/api";
+import { useApp } from "../../../../../interfaces/web/providers/ShellAppContext";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+⋮----
+export function OrganizationOverviewRouteScreen()
+⋮----
+function buildAccountHref(targetAccountId: string, suffix = "")
+⋮----
+function handleSwitch(account: AccountEntity)
+⋮----
+function handleSwitchToPersonal()
+⋮----
+<Link href=
+⋮----
+onClick=
+````
+
 ## File: modules/platform/subdomains/organization/interfaces/components/screens/OrganizationPermissionsRouteScreen.tsx
 ````typescript
 import { useAccountRouteContext } from "../../../../../interfaces/web/hooks/useAccountRouteContext";
@@ -40237,87 +40682,6 @@ async function handleSave(
     event: FormEvent<HTMLFormElement>,
     settingsDraft: WorkspaceSettingsDraft | null,
 )
-````
-
-## File: modules/workspace/interfaces/web/providers/WorkspaceContextProvider.tsx
-````typescript
-/**
- * WorkspaceContextProvider — workspace/interfaces/web layer
- *
- * Owns workspace-scoped state for the authenticated shell:
- *   - workspaces visible under the active account
- *   - active workspace selection and localStorage persistence
- *
- * Reads `activeAccount` from platform's useApp(); subscribes to workspaces
- * via workspace-owned query functions. This keeps workspace state ownership
- * inside the workspace bounded context instead of leaking into platform.
- */
-⋮----
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useReducer,
-  type Dispatch,
-  type ReactNode,
-} from "react";
-⋮----
-import { useApp } from "@/modules/platform/api";
-import type { WorkspaceEntity } from "../../api/contracts";
-import { subscribeToWorkspacesForAccount } from "../../api/facades/workspace.facade";
-import { toWorkspaceMap } from "../utils/workspace-map";
-import { getWorkspaceStorageKey } from "../state/workspace-session";
-⋮----
-// ── State ────────────────────────────────────────────────────────────────────
-⋮----
-export interface WorkspaceContextState {
-  /** Workspaces visible under the active account. */
-  workspaces: Record<string, WorkspaceEntity>;
-  /** True once the first active-account workspace snapshot has been received. */
-  workspacesHydrated: boolean;
-  /** Currently selected workspace context under the active account. */
-  activeWorkspaceId: string | null;
-}
-⋮----
-/** Workspaces visible under the active account. */
-⋮----
-/** True once the first active-account workspace snapshot has been received. */
-⋮----
-/** Currently selected workspace context under the active account. */
-⋮----
-export type WorkspaceContextAction =
-  | {
-      type: "SET_WORKSPACES";
-      payload: { workspaces: Record<string, WorkspaceEntity>; hydrated: boolean };
-    }
-  | { type: "SET_ACTIVE_WORKSPACE"; payload: string | null }
-  | { type: "RESET" };
-⋮----
-export interface WorkspaceContextValue {
-  state: WorkspaceContextState;
-  dispatch: Dispatch<WorkspaceContextAction>;
-}
-⋮----
-function workspaceReducer(
-  state: WorkspaceContextState,
-  action: WorkspaceContextAction,
-): WorkspaceContextState
-⋮----
-// ── Provider ─────────────────────────────────────────────────────────────────
-⋮----
-export function WorkspaceContextProvider(
-⋮----
-// Reset workspace state when account changes
-⋮----
-// Restore active workspace from localStorage
-⋮----
-// Persist active workspace to localStorage
-⋮----
-// Subscribe to workspaces for the active account
-⋮----
-// ── Hook ─────────────────────────────────────────────────────────────────────
-⋮----
-export function useWorkspaceContext()
 ````
 
 ## File: modules/workspace/README.md
@@ -41802,11 +42166,61 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 - Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
 ````
 
-## File: app/(shell)/(account)/[accountId]/dashboard/page.tsx
+## File: app/(shell)/_shell/ShellRootLayout.tsx
 ````typescript
-import { AccountDashboardRouteScreen } from "@/modules/workspace/api";
+/**
+ * ShellRootLayout — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it composes downstream modules.
+ *
+ * Uses useApp() from platform (accounts/auth) and useWorkspaceContext()
+ * from workspace (workspaces/activeWorkspaceId).
+ */
 ⋮----
-export default function AccountDashboardPage()
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { PanelLeftOpen, Search } from "lucide-react";
+⋮----
+import {
+  useApp,
+  useAuth,
+  ShellGuard,
+  type AccountEntity,
+  subscribeToProfile,
+  type AccountProfile,
+  isOrganizationActor,
+  resolveOrganizationRouteFallback,
+  AccountSwitcher,
+  ShellAppBreadcrumbs,
+  ShellGlobalSearchDialog,
+  useShellGlobalSearch,
+  ShellHeaderControls,
+  ShellUserAvatar,
+  resolveShellPageTitle,
+  isExactOrChildPath,
+  buildShellContextualHref,
+  SHELL_MOBILE_NAV_ITEMS,
+  SHELL_ORG_PRIMARY_NAV_ITEMS,
+  SHELL_ORG_SECONDARY_NAV_ITEMS,
+} from "@/modules/platform/api";
+import { useWorkspaceContext, type WorkspaceEntity } from "@/modules/workspace/api";
+⋮----
+import { AppRail } from "./ShellAppRail";
+import { ShellDashboardSidebar } from "./ShellDashboardSidebar";
+⋮----
+function toggleSidebar()
+⋮----
+function handleSelectOrganization(account: AccountEntity)
+⋮----
+function handleSelectPersonal()
+⋮----
+function handleOrganizationCreated(account: AccountEntity)
+⋮----
+function handleSelectWorkspace(workspaceId: string | null)
+⋮----
+async function handleLogout()
+⋮----
+void handleLogout();
 ````
 
 ## File: app/(shell)/(account)/[accountId]/dev-tools/dev-tools-helpers.ts
@@ -42048,60 +42462,6 @@ interface AccountRouteLayoutProps {
 export default function AccountRouteLayout(
 ````
 
-## File: app/(shell)/(account)/[accountId]/organization/page.tsx
-````typescript
-/**
- * Organization Overview Page — /organization
- * Lists organizations visible to the current user and allows switching
- * to an organization account context.
- * Section pages live under /organization/[section].
- */
-⋮----
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-⋮----
-import { useApp, useAuth } from "@/modules/platform/api"
-import type { AccountEntity } from "@/modules/platform/api";
-import { isActiveOrganizationAccount } from "@/modules/platform/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-⋮----
-export default function OrganizationPage()
-⋮----
-function buildAccountHref(targetAccountId: string, suffix = "")
-⋮----
-function handleSwitch(account: AccountEntity)
-⋮----
-function handleSwitchToPersonal()
-⋮----
-<Link href=
-⋮----
-{/* Quick-access dashboard — visible only when an org context is active */}
-⋮----
-{/* Personal account */}
-⋮----
-{/* Organizations */}
-⋮----
-onClick=
-````
-
-## File: app/(shell)/(account)/[accountId]/organization/schedule/dispatcher/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-⋮----
-/**
- * Dispatcher page — redirects to the organization schedule view.
- * Route: /organization/schedule/dispatcher
- */
-interface DispatcherPageProps {
-  params: {
-    accountId: string;
-  };
-}
-⋮----
-export default function DispatcherPage(
-````
-
 ## File: app/(shell)/(account)/[accountId]/page.tsx
 ````typescript
 import { useEffect } from "react";
@@ -42121,13 +42481,6 @@ function getAccountTypeFromRoute(accountId: string, authUserId: string | null): 
 function getFallbackAccountType(activeAccount: ActiveAccount | null): "user" | "organization"
 ⋮----
 export default function AccountWorkspaceHubPage()
-````
-
-## File: app/(shell)/(account)/[accountId]/settings/notifications/page.tsx
-````typescript
-import { SettingsNotificationsRouteScreen } from "@/modules/platform/api";
-⋮----
-export default function NotificationCenterPage()
 ````
 
 ## File: modules/notebooklm/api/server.ts
@@ -45578,6 +45931,61 @@ setResetSent(false);
 setIsAuthPanelOpen((prev)
 ````
 
+## File: app/(shell)/_shell/ShellSidebarNavData.tsx
+````typescript
+import {
+  Building2,
+  LayoutDashboard,
+  UserRound,
+  Users,
+} from "lucide-react";
+import Link from "next/link";
+⋮----
+import {
+  type ActiveAccount,
+  isOrganizationActor,
+  isActiveOrganizationAccount,
+  SHELL_ACCOUNT_SECTION_MATCHERS,
+  SHELL_ACCOUNT_NAV_ITEMS,
+  SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
+  SHELL_SECTION_LABELS,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  type ShellNavSection,
+} from "@/modules/platform/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+⋮----
+// ── Types ─────────────────────────────────────────────────────────────────────
+⋮----
+export interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly userId: string | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+}
+⋮----
+export type NavSection = ShellNavSection;
+⋮----
+// ── Static nav constants ──────────────────────────────────────────────────────
+⋮----
+// ── CSS class helpers ─────────────────────────────────────────────────────────
+⋮----
+export function sidebarItemClass(active: boolean)
+⋮----
+// ── Pure section helpers ──────────────────────────────────────────────────────
+⋮----
+export function resolveNavSection(pathname: string): NavSection
+⋮----
+export function isActiveRoute(pathname: string, href: string)
+⋮----
+// ── Simple section nav component ──────────────────────────────────────────────
+````
+
 ## File: app/(shell)/_shell/WorkspaceRouteShim.tsx
 ````typescript
 import { useEffect } from "react";
@@ -45626,55 +46034,6 @@ import { useApp } from "@/modules/platform/api";
 import { WorkspaceDetailRouteScreen } from "@/modules/workspace/api";
 ⋮----
 export default function AccountWorkspaceDetailPage()
-````
-
-## File: app/(shell)/(account)/[accountId]/organization/audit/page.tsx
-````typescript
-import { OrganizationAuditRouteScreen } from "@/modules/workspace/api";
-⋮----
-export default function OrganizationAuditPageRoute()
-````
-
-## File: app/(shell)/(account)/[accountId]/organization/daily/page.tsx
-````typescript
-import { OrganizationDailyRouteScreen } from "@/modules/workspace/api";
-⋮----
-export default function OrganizationDailyPage()
-````
-
-## File: app/(shell)/(account)/[accountId]/organization/members/page.tsx
-````typescript
-import { OrganizationMembersRouteScreen } from "@/modules/platform/api";
-⋮----
-export default function OrganizationMembersPage()
-````
-
-## File: app/(shell)/(account)/[accountId]/organization/permissions/page.tsx
-````typescript
-import { OrganizationPermissionsRouteScreen } from "@/modules/platform/api";
-⋮----
-export default function OrganizationPermissionsPage()
-````
-
-## File: app/(shell)/(account)/[accountId]/organization/schedule/page.tsx
-````typescript
-import { OrganizationScheduleRouteScreen } from "@/modules/workspace/api";
-⋮----
-export default function OrganizationSchedulePage()
-````
-
-## File: app/(shell)/(account)/[accountId]/organization/teams/page.tsx
-````typescript
-import { OrganizationTeamsRouteScreen } from "@/modules/platform/api";
-⋮----
-export default function OrganizationTeamsPage()
-````
-
-## File: app/(shell)/(account)/[accountId]/organization/workspaces/page.tsx
-````typescript
-import { OrganizationWorkspacesRouteScreen } from "@/modules/workspace/api";
-⋮----
-export default function OrganizationWorkspacesPage()
 ````
 
 ## File: docs/bounded-context-subdomain-template.md
@@ -46770,118 +47129,6 @@ isActiveRoute={(href) => isActiveRoute(pathname, href)}
           activeWorkspaceId={activeWorkspaceId}
           onSelectWorkspace={onSelectWorkspace}
 onToggleExpanded=
-````
-
-## File: app/(shell)/_shell/ShellRootLayout.tsx
-````typescript
-/**
- * ShellRootLayout — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it composes downstream modules.
- *
- * Uses useApp() from platform (accounts/auth) and useWorkspaceContext()
- * from workspace (workspaces/activeWorkspaceId).
- */
-⋮----
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { PanelLeftOpen, Search } from "lucide-react";
-⋮----
-import {
-  useApp,
-  useAuth,
-  ShellGuard,
-  type AccountEntity,
-  subscribeToProfile,
-  type AccountProfile,
-  isOrganizationActor,
-  resolveOrganizationRouteFallback,
-  AccountSwitcher,
-  ShellAppBreadcrumbs,
-  ShellGlobalSearchDialog,
-  useShellGlobalSearch,
-  ShellHeaderControls,
-  ShellUserAvatar,
-  resolveShellPageTitle,
-  isExactOrChildPath,
-  buildShellContextualHref,
-  SHELL_MOBILE_NAV_ITEMS,
-  SHELL_ORG_PRIMARY_NAV_ITEMS,
-  SHELL_ORG_SECONDARY_NAV_ITEMS,
-} from "@/modules/platform/api";
-import { useWorkspaceContext, type WorkspaceEntity } from "@/modules/workspace/api";
-⋮----
-import { AppRail } from "./ShellAppRail";
-import { ShellDashboardSidebar } from "./ShellDashboardSidebar";
-⋮----
-function toggleSidebar()
-⋮----
-function handleSelectOrganization(account: AccountEntity)
-⋮----
-function handleSelectPersonal()
-⋮----
-function handleOrganizationCreated(account: AccountEntity)
-⋮----
-function handleSelectWorkspace(workspaceId: string | null)
-⋮----
-async function handleLogout()
-⋮----
-void handleLogout();
-````
-
-## File: app/(shell)/_shell/ShellSidebarNavData.tsx
-````typescript
-import {
-  Building2,
-  LayoutDashboard,
-  UserRound,
-  Users,
-} from "lucide-react";
-import Link from "next/link";
-⋮----
-import {
-  type ActiveAccount,
-  isOrganizationActor,
-  isActiveOrganizationAccount,
-  SHELL_ACCOUNT_SECTION_MATCHERS,
-  SHELL_ACCOUNT_NAV_ITEMS,
-  SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
-  SHELL_SECTION_LABELS,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  type ShellNavSection,
-} from "@/modules/platform/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-⋮----
-// ── Types ─────────────────────────────────────────────────────────────────────
-⋮----
-export interface DashboardSidebarProps {
-  readonly pathname: string;
-  readonly userId: string | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-}
-⋮----
-export type NavSection = ShellNavSection;
-⋮----
-// ── Static nav constants ──────────────────────────────────────────────────────
-⋮----
-// ── CSS class helpers ─────────────────────────────────────────────────────────
-⋮----
-export function sidebarItemClass(active: boolean)
-⋮----
-// ── Pure section helpers ──────────────────────────────────────────────────────
-⋮----
-export function resolveNavSection(pathname: string): NavSection
-⋮----
-export function isActiveRoute(pathname: string, href: string)
-⋮----
-// ── Simple section nav component ──────────────────────────────────────────────
 ````
 
 ## File: modules/notebooklm/interfaces/source/composition/adapters.ts
@@ -48553,6 +48800,72 @@ interface ShellSidebarBodyProps {
 className=
 ````
 
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
+````typescript
+import Link from "next/link";
+import { useMemo, useState } from "react";
+⋮----
+import {
+  Card,
+  CardContent,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { useApp, useAuth } from "@/modules/platform/api";
+import {
+  WorkspaceAuditTab,
+  WorkspaceFeedWorkspaceView,
+  WorkspaceFlowTab,
+  WorkspaceSchedulingTab,
+} from "@/modules/workspace/api";
+import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
+import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
+⋮----
+import {
+  createSettingsDraft,
+  type WorkspaceSettingsDraft,
+} from "../../state/workspace-settings";
+import {
+  getWorkspaceAddressLines,
+  getWorkspacePersonnelEntries,
+} from "../../view-models/workspace-supporting-records";
+import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
+import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabValue,
+} from "../../navigation/workspace-tabs";
+import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
+import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
+import { renderWorkspaceCrossModuleTabSurface } from "../tabs/WorkspaceCrossModuleTabSurface";
+import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
+import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
+import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
+⋮----
+interface WorkspaceDetailScreenProps {
+  readonly workspaceId: string;
+  readonly accountId: string | null | undefined;
+  readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
+  readonly initialOverviewPanel?: string;
+}
+⋮----
+/** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+⋮----
+function renderTabContent(tab: WorkspaceTabValue)
+⋮----
+onSetActiveWorkspace=
+⋮----
+{/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+⋮----
+<Badge variant="outline">
+⋮----
+setIsEditWorkspaceOpen(open);
+````
+
 ## File: package.json
 ````json
 {
@@ -48777,72 +49090,6 @@ const anyDomain = (type) => (
 // Downstream infrastructure must delegate Firebase access via platform infrastructure APIs.
 ⋮----
 // notion/notebooklm interface layers must not read workspace context directly.
-````
-
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
-````typescript
-import Link from "next/link";
-import { useMemo, useState } from "react";
-⋮----
-import {
-  Card,
-  CardContent,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { useApp, useAuth } from "@/modules/platform/api";
-import {
-  WorkspaceAuditTab,
-  WorkspaceFeedWorkspaceView,
-  WorkspaceFlowTab,
-  WorkspaceSchedulingTab,
-} from "@/modules/workspace/api";
-import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
-import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
-⋮----
-import {
-  createSettingsDraft,
-  type WorkspaceSettingsDraft,
-} from "../../state/workspace-settings";
-import {
-  getWorkspaceAddressLines,
-  getWorkspacePersonnelEntries,
-} from "../../view-models/workspace-supporting-records";
-import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabValue,
-} from "../../navigation/workspace-tabs";
-import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
-import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
-import { renderWorkspaceCrossModuleTabSurface } from "../tabs/WorkspaceCrossModuleTabSurface";
-import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
-import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
-import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
-⋮----
-interface WorkspaceDetailScreenProps {
-  readonly workspaceId: string;
-  readonly accountId: string | null | undefined;
-  readonly accountsHydrated: boolean;
-  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-  readonly initialTab?: string;
-  readonly initialOverviewPanel?: string;
-}
-⋮----
-/** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-⋮----
-function renderTabContent(tab: WorkspaceTabValue)
-⋮----
-onSetActiveWorkspace=
-⋮----
-{/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
-⋮----
-<Badge variant="outline">
-⋮----
-setIsEditWorkspaceOpen(open);
 ````
 
 ## File: modules/platform/api/index.ts
