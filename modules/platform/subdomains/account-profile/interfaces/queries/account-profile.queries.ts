@@ -3,7 +3,7 @@
  * NOT Server Actions — callable from React components/hooks directly.
  */
 
-import { getAccountProfile, subscribeToAccountProfile } from "../../api";
+import { getAccountProfile, subscribeToAccountProfile } from "../composition/account-profile-service";
 import type {
   AccountProfile,
   Unsubscribe,

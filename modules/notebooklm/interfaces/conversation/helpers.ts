@@ -1,4 +1,4 @@
-import type { Thread } from "@/modules/notebooklm/api";
+import type { Thread } from "../../subdomains/conversation/domain/entities/thread";
 
 // ── Domain types ──────────────────────────────────────────────────────────────
 
