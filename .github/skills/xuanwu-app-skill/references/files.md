@@ -1154,6 +1154,80 @@ handoffs:
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
+## File: .github/copilot-instructions.md
+````markdown
+---
+applyTo: **
+description: Xuanwu Copilot Workspace Instructions
+name: Xuanwu Copilot Workspace Instructions
+---
+
+#use skill serena-mcp
+#use skill alistair-cockburn
+#use skill hexagonal-ddd
+#use skill occams-razor
+#use skill context7
+#use skill xuanwu-app-skill
+
+# Xuanwu Copilot Workspace Instructions
+
+Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put detailed architecture truth in [docs/README.md](../docs/README.md), scoped behavior in [.github/instructions](./instructions), reusable workflows in prompts, and tool-specific procedure in skills.
+
+## Session Contract
+
+- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it first, activate `xuanwu-app`, and use Serena for project memory/index work.
+- If confidence in any library API, framework, or config schema detail is below 99.99%, verify it through Context7 before writing or suggesting code.
+- Treat `docs/**/*` as the authority for DDD routing, bounded-context ownership, terminology, and strategic duplicate-name resolution. `.github/*` defines Copilot behavior and must not compete with docs.
+- Run the matching validation from [agents/commands.md](./agents/commands.md) before closing non-trivial changes.
+
+## Read Order
+
+1. Start with [docs/README.md](../docs/README.md).
+2. Use [docs/ubiquitous-language.md](../docs/ubiquitous-language.md) for terminology and duplicate-name guardrails.
+3. Use [docs/subdomains.md](../docs/subdomains.md) and [docs/bounded-contexts.md](../docs/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
+4. Use `docs/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
+5. Use [docs/bounded-context-subdomain-template.md](../docs/bounded-context-subdomain-template.md) and [docs/project-delivery-milestones.md](../docs/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
+6. Use [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment validation.
+
+## Instruction Series (Phase 1)
+
+- Use [instructions/architecture-core.instructions.md](./instructions/architecture-core.instructions.md) as the consolidated module architecture rule set.
+- Use [instructions/architecture-runtime.instructions.md](./instructions/architecture-runtime.instructions.md) as the consolidated runtime split rule set.
+- Use [instructions/process-framework.instructions.md](./instructions/process-framework.instructions.md) as the consolidated delivery/decision framework.
+- Use [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) as the consolidated docs authority and terminology rule set.
+- Legacy instruction files marked DEPRECATED remain transition-only and should not be expanded.
+
+## Operating Rules
+
+- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
+- Cross-module collaboration goes through the target module `api/` boundary only.
+- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
+- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
+- If a team adds `core/`, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.
+- Keep business logic in `domain/` and `application`; keep UI, transport, and composition in `interfaces/` and `app/`.
+- Preserve the runtime split: Next.js owns browser-facing UX and orchestration; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
+- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy alias patterns.
+
+## Governance Rules
+
+- Keep this file thin. Put detailed, file-scoped behavior in `.github/instructions/` and reuse docs instead of copying architecture content into customization files.
+- Use [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for Serena workflow details, [skills/context7/SKILL.md](skills/context7/SKILL.md) for documentation verification, and [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) for boundary-safe module design.
+- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) and [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill.md) for implementation lookup only; they are not strategic authority.
+- `.claude/` may exist as a compatibility surface, but `.github/*` remains the primary Copilot governance surface.
+
+## Terminology
+
+- Follow [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) and the docs it routes to.
+- Normalize to canonical glossary terms before naming code, prompts, instructions, agents, skills, or documentation.
+
+## DDD Strategic Rules (Phase 1)
+
+- Use [instructions/subdomain-rules.instructions.md](./instructions/subdomain-rules.instructions.md) for subdomain design rules.
+- Use [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for Bounded Context design rules.
+- Use [instructions/domain-layer-rules.instructions.md](./instructions/domain-layer-rules.instructions.md) for Domain Layer design rules.
+- Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
+````
+
 ## File: .github/instructions/architecture-runtime.instructions.md
 ````markdown
 ---
@@ -1196,6 +1270,44 @@ applyTo: '{app,modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py,md
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill next-devtools-mcp
+````
+
+## File: .github/instructions/bounded-context-rules.instructions.md
+````markdown
+---
+description: 'Bounded Context（界限上下文）戰略設計規則：語意一致性邊界、模型隔離、顯式轉換、獨立演化。'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Bounded Context（界限上下文）設計規則
+
+> 完整邊界參考：**先查 `docs/bounded-contexts.md`、`docs/ubiquitous-language.md`、`docs/contexts/<context>/README.md`**
+> 此文件只包含 Bounded Context 層級的**戰略設計約束**，不複製領域知識或程式碼範例。
+
+## 戰略設計規則
+
+1. Bounded Context 是「語意一致性邊界」，不是資料夾。
+2. 每個 Bounded Context 內的語言必須一致（Ubiquitous Language）。
+3. 同一概念在不同 Context 可以有不同模型，但不能混用。
+4. Context 之間的模型轉換必須顯式（Translator / Mapper / ACL）。
+5. Domain Model 只能存在於 Bounded Context 內，不可跨 Context reuse。
+6. Context 是演化單位，不是模組拆分單位。
+7. 一個 Context 必須能獨立測試與部署（至少邏輯層面）。
+
+## 與子域的關係
+
+- 一個子域可以包含多個 Bounded Context。
+- Bounded Context 名稱必須與 `modules/<context>/` 資料夾名稱一致。
+- 跨 Context 的模型引用必須使用 Published Language token，不得直接傳遞 upstream aggregate。
+
+## 驗證
+
+- 確認每個 Context 有獨立的 Ubiquitous Language 定義。
+- 確認跨 Context 通訊使用 API boundary 或 event contract。
+- 確認不存在跨 Context 的 Domain Model 重用。
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: .github/instructions/ci-cd.instructions.md
@@ -1294,6 +1406,48 @@ applyTo: '{docs,modules,packages}/**/*.{ts,tsx,js,jsx,md}'
 - Verify content belongs to the owner document instead of creating parallel files.
 - Verify behavioral rules are not restating full strategic docs content.
 - If docs changes affect `.github/skills/` repomix references, regenerate with existing scripts.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
+## File: .github/instructions/domain-layer-rules.instructions.md
+````markdown
+---
+description: 'Domain Layer（領域層）戰略設計規則：業務純度、行為封裝、不變數保護、技術無關性。'
+applyTo: 'modules/**/domain/**/*.{ts,tsx}'
+---
+
+# Domain Layer（領域層）設計規則
+
+> 完整邊界參考：**先查 `docs/ubiquitous-language.md`、`docs/contexts/<context>/README.md`**
+> 戰術設計範例（聚合根、值對象、Zod 驗證）請參考 `domain-modeling.instructions.md`。
+> 此文件只包含 Domain Layer 層級的**戰略設計約束**。
+
+## 戰略設計規則
+
+1. Domain 層只表達業務規則，不包含技術實作（DB / API / Framework）。
+2. Entity 必須封裝狀態與行為，禁止裸 set state。
+3. Aggregate Root 是唯一外部進入 Domain 的入口。
+4. Domain 不依賴 Application / Infrastructure / Interface。
+5. Domain 變更只能透過行為方法（method），不能直接修改屬性。
+6. Domain event 用於表達「業務事實」，不是技術事件。
+7. Invariant（不變條件）必須在 Aggregate 內強制保護。
+8. Domain 必須能在沒有 DB / HTTP 的情況下完整運作（pure logic）。
+
+## 與其他層的關係
+
+- `domain/` 是依賴方向的最內層，所有其他層指向它。
+- `application/` 依賴 `domain/` 的 abstraction，不依賴 implementation。
+- `infrastructure/` 實作 `domain/` 定義的 Port/Repository 介面。
+- `interfaces/` 不得直接呼叫 `domain/` 內部，必須經由 `application/` 或 `api/`。
+
+## 禁止模式
+
+- ❌ 在 `domain/` 層匯入 Firebase、HTTP client、React、ORM。
+- ❌ 貧血模型：只有 data properties，無 business logic。
+- ❌ 跨聚合直接操作：在 Aggregate A 中修改 Aggregate B 的狀態。
+- ❌ Domain event 命名使用現在式或技術術語。
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
@@ -1609,6 +1763,54 @@ applyTo: '{modules/platform/**/*.{ts,tsx,js,jsx},modules/notebooklm/**/*.{ts,tsx
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-rag-runtime-boundary
 #use skill next-devtools-mcp
+````
+
+## File: .github/instructions/hexagonal-rules.instructions.md
+````markdown
+---
+description: 'Hexagonal Architecture（端口與適配器）戰略設計規則：Core 獨立性、Port 需求導向、Adapter 邊界、子域交叉約束。'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Hexagonal Architecture（端口與適配器）設計規則
+
+> 完整邊界參考：**先查 `architecture-core.instructions.md`（實作層級規則）**
+> 此文件只包含 Hexagonal Architecture 層級的**戰略設計原則**。
+
+## Core（Domain + Application）
+
+1. Core 不依賴任何外部世界（DB / API / UI / SDK）。
+2. Application Layer 只負責 orchestration，不包含 business rule。
+3. Use Case 是系統對外的唯一操作入口。
+4. Application 只能依賴 Domain abstraction，不依賴 infrastructure implementation。
+
+## Ports（介面層）
+
+5. Port 必須是「需求導向」，不是技術導向（例如 UserRepository，而不是 FirestoreUserClient）。
+6. Port 定義在 Core，實作在 Infrastructure。
+7. 每個 Port 必須可 mock，可替換，可測試。
+
+## Adapters（基礎設施）
+
+8. Infrastructure 只能實作 Port，禁止反向依賴 Domain 實作細節。
+9. Adapter 不可包含 business rule，只能做轉換與 I/O。
+10. 外部 SDK 永遠只存在 Adapter 層。
+
+## 子域 × Hexagonal 切分核心規則
+
+1. 子域是「業務邊界」，Hexagonal 是「技術邊界」。
+2. 一個子域可以包含多個 Hexagonal 模型，但不允許跨子域共享 core。
+3. Domain Model 永遠比 API / DB 更穩定。
+4. 技術可以重構，但子域不能因此改變。
+5. 所有依賴方向必須指向內部（Dependency Inversion）。
+6. 外部世界永遠被 Adapter 包住，不能滲透進 Domain。
+
+## 一句話總結
+
+子域定義「業務邊界」，Bounded Context 定義「語意邊界」，Hexagonal 定義「依賴方向」，Domain 則是唯一不能被任何外部污染的純業務核心。
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: .github/instructions/hosting-deploy.instructions.md
@@ -8458,77 +8660,6 @@ import { z } from "@lib-zod";
 
 ````
 
-## File: modules/notion/subdomains/authoring/domain/aggregates/Article.ts
-````typescript
-/**
- * Module: notion/subdomains/authoring
- * Layer: domain/aggregates
- * Purpose: Article aggregate root — lifecycle, publication, and verification of KB articles.
- */
-⋮----
-import type { NotionDomainEvent } from "../events/NotionDomainEvent";
-⋮----
-export type ArticleStatus = "draft" | "published" | "archived";
-export type ArticleVerificationState = "verified" | "needs_review" | "unverified";
-⋮----
-export interface ArticleSnapshot {
-  readonly id: string;
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly categoryId: string | null;
-  readonly title: string;
-  readonly content: string;
-  readonly tags: readonly string[];
-  readonly status: ArticleStatus;
-  readonly version: number;
-  readonly verificationState: ArticleVerificationState;
-  readonly ownerId: string | null;
-  readonly verifiedByUserId: string | null;
-  readonly verifiedAtISO: string | null;
-  readonly verificationExpiresAtISO: string | null;
-  readonly linkedArticleIds: readonly string[];
-  readonly createdByUserId: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateArticleInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly categoryId: string | null;
-  readonly title: string;
-  readonly content: string;
-  readonly tags: string[];
-  readonly createdByUserId: string;
-}
-⋮----
-export class Article {
-⋮----
-private constructor(private _props: ArticleSnapshot)
-⋮----
-static create(id: string, input: CreateArticleInput): Article
-⋮----
-static reconstitute(snapshot: ArticleSnapshot): Article
-⋮----
-update(fields:
-⋮----
-publish(): void
-⋮----
-archive(): void
-⋮----
-verify(byUserId: string, expiresAtISO?: string): void
-⋮----
-requestReview(): void
-⋮----
-getSnapshot(): ArticleSnapshot
-⋮----
-pullDomainEvents(): NotionDomainEvent[]
-⋮----
-get id(): string
-get accountId(): string
-get status(): ArticleStatus
-````
-
 ## File: modules/notion/subdomains/authoring/domain/aggregates/Category.ts
 ````typescript
 /**
@@ -9185,281 +9316,9 @@ get updatedAtISO(): string
 getSnapshot(): Readonly<BacklinkIndexSnapshot>
 ````
 
-## File: modules/notion/subdomains/knowledge/domain/aggregates/ContentBlock.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: domain/aggregates
- * Purpose: ContentBlock aggregate root — atomic content unit inside a Page.
- */
-⋮----
-import type { BlockContent } from "../value-objects/BlockContent";
-import { richTextToPlainText } from "../value-objects/BlockContent";
-import type { NotionDomainEvent } from "../events/NotionDomainEvent";
-⋮----
-export interface ContentBlockSnapshot {
-  readonly id: string;
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly content: BlockContent;
-  readonly order: number;
-  readonly parentBlockId: string | null;
-  readonly childBlockIds: ReadonlyArray<string>;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateContentBlockInput {
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly content: BlockContent;
-  readonly order: number;
-  readonly parentBlockId?: string | null;
-}
-⋮----
-export class ContentBlock {
-⋮----
-private constructor(private _props: ContentBlockSnapshot)
-⋮----
-static create(id: string, input: CreateContentBlockInput): ContentBlock
-⋮----
-static reconstitute(snapshot: ContentBlockSnapshot): ContentBlock
-⋮----
-update(newContent: BlockContent): void
-⋮----
-delete(): void
-⋮----
-nest(parentId: string, index?: number): void
-⋮----
-unnest(index?: number): void
-⋮----
-addChild(childId: string, index?: number): void
-⋮----
-removeChild(childId: string): void
-⋮----
-// ── Getters ───────────────────────────────────────────────────────────────
-⋮----
-get id(): string
-get pageId(): string
-get accountId(): string
-get content(): BlockContent
-get order(): number
-get parentBlockId(): string | null
-get childBlockIds(): ReadonlyArray<string>
-get createdAtISO(): string
-get updatedAtISO(): string
-⋮----
-getSnapshot(): Readonly<ContentBlockSnapshot>
-⋮----
-pullDomainEvents(): NotionDomainEvent[]
-````
-
 ## File: modules/notion/subdomains/knowledge/domain/aggregates/index.ts
 ````typescript
 
-````
-
-## File: modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: domain/aggregates
- * Purpose: KnowledgeCollection aggregate root — named grouping / database-view of pages.
- */
-⋮----
-import type { NotionDomainEvent } from "../events/NotionDomainEvent";
-⋮----
-export type CollectionColumnType =
-  | "text"
-  | "number"
-  | "select"
-  | "multi-select"
-  | "date"
-  | "checkbox"
-  | "url"
-  | "relation";
-⋮----
-export interface CollectionColumn {
-  readonly id: string;
-  readonly name: string;
-  readonly type: CollectionColumnType;
-  readonly options?: readonly string[];
-}
-⋮----
-export type CollectionStatus = "active" | "archived";
-export type CollectionSpaceType = "database" | "wiki";
-⋮----
-export interface KnowledgeCollectionSnapshot {
-  readonly id: string;
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly name: string;
-  readonly description?: string;
-  readonly columns: readonly CollectionColumn[];
-  readonly pageIds: readonly string[];
-  readonly status: CollectionStatus;
-  readonly spaceType: CollectionSpaceType;
-  readonly createdByUserId: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateKnowledgeCollectionInput {
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly name: string;
-  readonly description?: string;
-  readonly columns?: readonly Omit<CollectionColumn, "id">[];
-  readonly createdByUserId: string;
-  readonly spaceType?: CollectionSpaceType;
-}
-⋮----
-export class KnowledgeCollection {
-⋮----
-private constructor(private _props: KnowledgeCollectionSnapshot)
-⋮----
-static create(id: string, columnIds: readonly string[], input: CreateKnowledgeCollectionInput): KnowledgeCollection
-⋮----
-static reconstitute(snapshot: KnowledgeCollectionSnapshot): KnowledgeCollection
-⋮----
-rename(newName: string): void
-⋮----
-addPage(pageId: string): void
-⋮----
-removePage(pageId: string): void
-⋮----
-addColumn(column: CollectionColumn): void
-⋮----
-archive(): void
-⋮----
-// ── Getters ───────────────────────────────────────────────────────────────
-⋮----
-get id(): string
-get accountId(): string
-get workspaceId(): string | undefined
-get name(): string
-get description(): string | undefined
-get columns(): readonly CollectionColumn[]
-get pageIds(): readonly string[]
-get status(): CollectionStatus
-get spaceType(): CollectionSpaceType
-get createdByUserId(): string
-get createdAtISO(): string
-get updatedAtISO(): string
-⋮----
-getSnapshot(): Readonly<KnowledgeCollectionSnapshot>
-⋮----
-pullDomainEvents(): NotionDomainEvent[]
-````
-
-## File: modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: domain/aggregates
- * Purpose: KnowledgePage aggregate root — proper DDD class with private constructor,
- *          static factory methods, business methods, and domain events.
- */
-⋮----
-import type { NotionDomainEvent } from "../events/NotionDomainEvent";
-⋮----
-export interface KnowledgePageSnapshot {
-  readonly id: string;
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly title: string;
-  readonly slug: string;
-  readonly parentPageId: string | null;
-  readonly order: number;
-  readonly blockIds: readonly string[];
-  readonly status: "active" | "archived";
-  readonly approvalState?: "pending" | "approved";
-  readonly approvedAtISO?: string;
-  readonly approvedByUserId?: string;
-  readonly verificationState?: "verified" | "needs_review";
-  readonly ownerId?: string;
-  readonly verifiedByUserId?: string;
-  readonly verifiedAtISO?: string;
-  readonly verificationExpiresAtISO?: string;
-  readonly iconUrl?: string;
-  readonly coverUrl?: string;
-  readonly createdByUserId: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateKnowledgePageInput {
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly title: string;
-  readonly parentPageId: string | null;
-  readonly createdByUserId: string;
-  readonly order: number;
-}
-⋮----
-export class KnowledgePage {
-⋮----
-private constructor(private _props: KnowledgePageSnapshot)
-⋮----
-static create(id: string, input: CreateKnowledgePageInput): KnowledgePage
-⋮----
-static reconstitute(snapshot: KnowledgePageSnapshot): KnowledgePage
-⋮----
-rename(newTitle: string): void
-⋮----
-move(targetParentId: string | null): void
-⋮----
-archive(): void
-⋮----
-approve(byUserId: string, atISO: string): void
-⋮----
-verify(byUserId: string, expiresAtISO?: string): void
-⋮----
-requestReview(byUserId: string): void
-⋮----
-assignOwner(ownerId: string): void
-⋮----
-updateIcon(iconUrl: string): void
-⋮----
-updateCover(coverUrl: string): void
-⋮----
-reorderBlocks(blockIds: ReadonlyArray<string>): void
-⋮----
-// ── Getters ───────────────────────────────────────────────────────────────
-⋮----
-get id(): string
-get accountId(): string
-get workspaceId(): string | undefined
-get title(): string
-get slug(): string
-get parentPageId(): string | null
-get order(): number
-get blockIds(): readonly string[]
-get status(): "active" | "archived"
-get approvalState(): "pending" | "approved" | undefined
-get approvedAtISO(): string | undefined
-get approvedByUserId(): string | undefined
-get verificationState(): "verified" | "needs_review" | undefined
-get ownerId(): string | undefined
-get verifiedByUserId(): string | undefined
-get verifiedAtISO(): string | undefined
-get verificationExpiresAtISO(): string | undefined
-get iconUrl(): string | undefined
-get coverUrl(): string | undefined
-get createdByUserId(): string
-get createdAtISO(): string
-get updatedAtISO(): string
-⋮----
-getSnapshot(): Readonly<KnowledgePageSnapshot>
-⋮----
-pullDomainEvents(): NotionDomainEvent[]
-⋮----
-private static slugify(title: string): string
-⋮----
-/** Tree node for hierarchical views */
-export interface KnowledgePageTreeNode extends KnowledgePageSnapshot {
-  readonly children: readonly KnowledgePageTreeNode[];
-}
 ````
 
 ## File: modules/notion/subdomains/knowledge/domain/events/index.ts
@@ -10285,57 +10144,6 @@ export function createPlatformService(): PlatformFacade
  */
 ````
 
-## File: modules/platform/api/service-api.ts
-````typescript
-import { getFirebaseAuth } from "@integration-firebase";
-⋮----
-import { accessControlService } from "../subdomains/access-control/api";
-import { isAllowed, type PermissionDecision } from "../domain/value-objects/PermissionDecision";
-import { firestoreInfrastructureApi, storageInfrastructureApi } from "./infrastructure-api";
-import type {
-	AuthAPI,
-	AuthSession,
-	FileAPI,
-	PermissionAPI,
-	UploadUserFileInput,
-	UploadUserFileOutput,
-} from "./contracts";
-⋮----
-interface PlatformFileRecord {
-	readonly fileId: string;
-	readonly ownerId: string;
-	readonly storagePath: string;
-	readonly filename: string;
-	readonly contentType: string;
-	readonly url: string;
-	readonly metadata: Record<string, string>;
-	readonly createdAtISO: string;
-	readonly deletedAtISO?: string;
-}
-⋮----
-function normalizeOwnerId(ownerId: string): string
-⋮----
-function normalizeFileName(input: UploadUserFileInput): string
-⋮----
-function sanitizeFileName(fileName: string): string
-⋮----
-function parseResource(resource: string):
-⋮----
-function parsePermissionDecision(raw: string): PermissionDecision | null
-⋮----
-function buildFileRecordPath(fileId: string): string
-⋮----
-async getSession(): Promise<AuthSession | null>
-⋮----
-async requireAuth(): Promise<AuthSession>
-⋮----
-async can(userId: string, action: string, resource: string): Promise<boolean>
-⋮----
-async uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>
-⋮----
-async deleteFile(fileId: string): Promise<void>
-````
-
 ## File: modules/platform/application/application.instructions.md
 ````markdown
 ---
@@ -11105,20 +10913,6 @@ async execute(input: ListEnabledCapabilitiesInput): Promise<readonly string[]>
  * @see shared/types/CorrelationContext.ts
  */
 export function buildCausationId(triggeringId: string): string
-````
-
-## File: modules/platform/application/services/build-correlation-id.ts
-````typescript
-/**
- * buildCorrelationId — generate a new UUID v4 correlation identifier.
- *
- * Application-level helper used when a new command arrives at the driving
- * adapter without an existing correlation chain, or when starting a new
- * batch of domain events not caused by an existing event.
- *
- * @see shared/types/CorrelationContext.ts
- */
-export function buildCorrelationId(): string
 ````
 
 ## File: modules/platform/application/services/index.ts
@@ -15549,120 +15343,9 @@ export interface PermissionEvaluationView {
 
 ````
 
-## File: modules/platform/subdomains/access-control/application/use-cases/access-control.use-cases.ts
-````typescript
-/**
- * Access-Control Use Cases — pure application logic.
- */
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import { AccessPolicy } from "../../domain/aggregates/AccessPolicy";
-import {
-  allowDecision,
-  denyDecision,
-} from "../../../../domain/value-objects/PermissionDecision";
-import type { AccessPolicyRepository } from "../../domain/repositories/AccessPolicyRepository";
-import type { SubjectRef } from "../../domain/value-objects/SubjectRef";
-import type { ResourceRef } from "../../domain/value-objects/ResourceRef";
-import type { PolicyEffect } from "../../domain/value-objects/PolicyEffect";
-⋮----
-// ─── Evaluate Permission ──────────────────────────────────────────────────────
-⋮----
-export class EvaluatePermissionUseCase {
-⋮----
-constructor(private readonly repo: AccessPolicyRepository)
-⋮----
-async execute(input: {
-    subjectId: string;
-    resourceType: string;
-    resourceId?: string;
-    action: string;
-}): Promise<CommandResult>
-⋮----
-// Explicit deny takes priority (deny-override semantics)
-⋮----
-// ─── Create Access Policy ─────────────────────────────────────────────────────
-⋮----
-export class CreateAccessPolicyUseCase {
-⋮----
-async execute(input: {
-    subjectRef: SubjectRef;
-    resourceRef: ResourceRef;
-    actions: string[];
-    effect: PolicyEffect;
-    conditions?: string[];
-}): Promise<CommandResult>
-⋮----
-// ─── Update Access Policy ─────────────────────────────────────────────────────
-⋮----
-export class UpdateAccessPolicyUseCase {
-⋮----
-async execute(
-    policyId: string,
-    input: { actions?: string[]; effect?: PolicyEffect; conditions?: string[] },
-): Promise<CommandResult>
-⋮----
-// ─── Delete (Deactivate) Access Policy ───────────────────────────────────────
-⋮----
-export class DeactivateAccessPolicyUseCase {
-⋮----
-async execute(policyId: string): Promise<CommandResult>
-````
-
 ## File: modules/platform/subdomains/access-control/application/use-cases/index.ts
 ````typescript
 
-````
-
-## File: modules/platform/subdomains/access-control/domain/aggregates/AccessPolicy.ts
-````typescript
-import type { AccessPolicyDomainEventType } from "../events/AccessPolicyDomainEvent";
-import type { SubjectRef } from "../value-objects/SubjectRef";
-import type { ResourceRef } from "../value-objects/ResourceRef";
-import type { PolicyEffect } from "../value-objects/PolicyEffect";
-⋮----
-export interface AccessPolicySnapshot {
-  readonly id: string;
-  readonly subjectRef: SubjectRef;
-  readonly resourceRef: ResourceRef;
-  readonly actions: readonly string[];
-  readonly effect: PolicyEffect;
-  readonly conditions: readonly string[];
-  readonly isActive: boolean;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateAccessPolicyInput {
-  readonly subjectRef: SubjectRef;
-  readonly resourceRef: ResourceRef;
-  readonly actions: string[];
-  readonly effect: PolicyEffect;
-  readonly conditions?: string[];
-}
-⋮----
-export class AccessPolicy {
-⋮----
-private constructor(private _props: AccessPolicySnapshot)
-⋮----
-static create(id: string, input: CreateAccessPolicyInput): AccessPolicy
-⋮----
-static reconstitute(snapshot: AccessPolicySnapshot): AccessPolicy
-⋮----
-update(input:
-⋮----
-deactivate(): void
-⋮----
-get id(): string
-get subjectRef(): SubjectRef
-get resourceRef(): ResourceRef
-get actions(): readonly string[]
-get effect(): PolicyEffect
-get conditions(): readonly string[]
-get isActive(): boolean
-⋮----
-getSnapshot(): Readonly<AccessPolicySnapshot>
-⋮----
-pullDomainEvents(): AccessPolicyDomainEventType[]
 ````
 
 ## File: modules/platform/subdomains/access-control/domain/aggregates/index.ts
@@ -15932,54 +15615,6 @@ export class UpdateAccountProfileUseCase {
 constructor(
 ⋮----
 async execute(actorId: string, input: UpdateAccountProfileInput): Promise<CommandResult>
-````
-
-## File: modules/platform/subdomains/account-profile/domain/aggregates/AccountProfileAggregate.ts
-````typescript
-import type {
-  AccountProfileDomainEventType,
-  AccountProfileUpdatedEvent,
-} from "../events/AccountProfileDomainEvent";
-import { createProfileId, createProfileDisplayName } from "../value-objects";
-import type { ProfileId } from "../value-objects";
-import type {
-  AccountProfile,
-  UpdateAccountProfileInput,
-} from "../entities/AccountProfile";
-⋮----
-export interface AccountProfileAggregateSnapshot {
-  readonly id: string;
-  readonly displayName: string;
-  readonly email: string | null;
-  readonly photoURL: string | null;
-  readonly bio: string | null;
-  readonly theme: AccountProfile["theme"] | null;
-  readonly updatedAtISO: string;
-}
-⋮----
-export class AccountProfileAggregate {
-⋮----
-private constructor(private _props: AccountProfileAggregateSnapshot)
-⋮----
-static create(id: string, profile: AccountProfile): AccountProfileAggregate
-⋮----
-static reconstitute(
-    snapshot: AccountProfileAggregateSnapshot,
-): AccountProfileAggregate
-⋮----
-update(input: UpdateAccountProfileInput): void
-⋮----
-get id(): ProfileId
-⋮----
-get displayName(): string
-⋮----
-getSnapshot(): Readonly<AccountProfileAggregateSnapshot>
-⋮----
-pullDomainEvents(): AccountProfileDomainEventType[]
-⋮----
-private recordEvent<TEvent extends AccountProfileDomainEventType>(
-    event: TEvent,
-): void
 ````
 
 ## File: modules/platform/subdomains/account-profile/domain/aggregates/index.ts
@@ -16331,84 +15966,6 @@ async execute(
 export class RevokeAccountRoleUseCase {
 ⋮----
 async execute(accountId: string): Promise<CommandResult>
-````
-
-## File: modules/platform/subdomains/account/domain/aggregates/Account.ts
-````typescript
-import type { AccountDomainEventType } from "../events";
-import { canClose, canReactivate, canSuspend } from "../value-objects";
-import { createAccountId, createAccountType, createWalletAmount } from "../value-objects";
-import type { AccountStatus } from "../value-objects";
-⋮----
-export interface AccountSnapshot {
-	readonly id: string;
-	readonly name: string;
-	readonly accountType: "user" | "organization";
-	readonly email: string | null;
-	readonly photoURL: string | null;
-	readonly bio: string | null;
-	readonly status: "active" | "suspended" | "closed";
-	readonly walletBalance: number;
-	readonly createdAtISO: string;
-	readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateAccountInput {
-	readonly name: string;
-	readonly accountType: "user" | "organization";
-	readonly email?: string | null;
-	readonly photoURL?: string | null;
-	readonly bio?: string | null;
-}
-⋮----
-export class Account {
-⋮----
-private constructor(private _props: AccountSnapshot)
-⋮----
-static create(id: string, input: CreateAccountInput): Account
-⋮----
-static reconstitute(snapshot: AccountSnapshot): Account
-⋮----
-updateProfile(input:
-⋮----
-creditWallet(amount: number, description: string): void
-⋮----
-debitWallet(amount: number, description: string): void
-⋮----
-suspend(): void
-⋮----
-close(): void
-⋮----
-reactivate(): void
-⋮----
-get id(): string
-⋮----
-get name(): string
-⋮----
-get accountType(): "user" | "organization"
-⋮----
-get email(): string | null
-⋮----
-get photoURL(): string | null
-⋮----
-get bio(): string | null
-⋮----
-get status(): AccountStatus
-⋮----
-get walletBalance(): number
-⋮----
-get createdAtISO(): string
-⋮----
-get updatedAtISO(): string
-⋮----
-getSnapshot(): Readonly<AccountSnapshot>
-⋮----
-pullDomainEvents(): AccountDomainEventType[]
-⋮----
-private changeStatus(
-		status: AccountStatus,
-		eventType: "platform.account.suspended" | "platform.account.closed" | "platform.account.reactivated",
-): void
 ````
 
 ## File: modules/platform/subdomains/account/domain/aggregates/index.ts
@@ -17500,107 +17057,9 @@ export interface EntitlementSignal {
 
 ````
 
-## File: modules/platform/subdomains/entitlement/application/use-cases/entitlement.use-cases.ts
-````typescript
-/**
- * Entitlement Use Cases — pure application logic.
- * All cross-domain dependencies are injected via ports.
- */
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import { EntitlementGrant } from "../../domain/aggregates/EntitlementGrant";
-import type { EntitlementGrantRepository } from "../../domain/repositories/EntitlementGrantRepository";
-⋮----
-// ─── Grant Entitlement ────────────────────────────────────────────────────────
-⋮----
-export class GrantEntitlementUseCase {
-⋮----
-constructor(private readonly repo: EntitlementGrantRepository)
-⋮----
-async execute(input: {
-    contextId: string;
-    featureKey: string;
-    quota?: number | null;
-    expiresAt?: string | null;
-}): Promise<CommandResult>
-⋮----
-// ─── Suspend Entitlement ──────────────────────────────────────────────────────
-⋮----
-export class SuspendEntitlementUseCase {
-⋮----
-async execute(entitlementId: string): Promise<CommandResult>
-⋮----
-// ─── Revoke Entitlement ───────────────────────────────────────────────────────
-⋮----
-export class RevokeEntitlementUseCase {
-⋮----
-// ─── Resolve Entitlements (query-style) ───────────────────────────────────────
-⋮----
-export class ResolveEntitlementsUseCase {
-⋮----
-async execute(contextId: string): Promise<CommandResult>
-⋮----
-// ─── Check Feature Entitlement ────────────────────────────────────────────────
-⋮----
-export class CheckFeatureEntitlementUseCase {
-⋮----
-async execute(contextId: string, featureKey: string): Promise<CommandResult>
-````
-
 ## File: modules/platform/subdomains/entitlement/application/use-cases/index.ts
 ````typescript
 
-````
-
-## File: modules/platform/subdomains/entitlement/domain/aggregates/EntitlementGrant.ts
-````typescript
-import type { EntitlementGrantDomainEventType } from "../events/EntitlementGrantDomainEvent";
-import { createEntitlementId, canSuspend, canRevoke } from "../value-objects";
-import type { EntitlementStatus } from "../value-objects";
-⋮----
-export interface EntitlementGrantSnapshot {
-  readonly id: string;
-  readonly contextId: string;
-  readonly featureKey: string;
-  readonly quota: number | null;
-  readonly status: EntitlementStatus;
-  readonly grantedAt: string;
-  readonly expiresAt: string | null;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateEntitlementGrantInput {
-  readonly contextId: string;
-  readonly featureKey: string;
-  readonly quota?: number | null;
-  readonly expiresAt?: string | null;
-}
-⋮----
-export class EntitlementGrant {
-⋮----
-private constructor(private _props: EntitlementGrantSnapshot)
-⋮----
-static create(id: string, input: CreateEntitlementGrantInput): EntitlementGrant
-⋮----
-static reconstitute(snapshot: EntitlementGrantSnapshot): EntitlementGrant
-⋮----
-suspend(): void
-⋮----
-revoke(): void
-⋮----
-expire(): void
-⋮----
-get id(): string
-get contextId(): string
-get featureKey(): string
-get quota(): number | null
-get status(): EntitlementStatus
-get grantedAt(): string
-get expiresAt(): string | null
-get isActive(): boolean
-⋮----
-getSnapshot(): Readonly<EntitlementGrantSnapshot>
-⋮----
-pullDomainEvents(): EntitlementGrantDomainEventType[]
 ````
 
 ## File: modules/platform/subdomains/entitlement/domain/aggregates/index.ts
@@ -17882,69 +17341,6 @@ async execute(accountId: string, reason: TokenRefreshReason, traceId?: string): 
 ## File: modules/platform/subdomains/identity/domain/aggregates/index.ts
 ````typescript
 
-````
-
-## File: modules/platform/subdomains/identity/domain/aggregates/UserIdentity.ts
-````typescript
-import type { IdentityDomainEventType } from "../events";
-import { canReactivate, canSuspend } from "../value-objects";
-import { createDisplayName, createEmail, createUserId } from "../value-objects";
-import type { IdentityStatus } from "../value-objects";
-⋮----
-export interface UserIdentitySnapshot {
-	readonly uid: string;
-	readonly email: string | null;
-	readonly displayName: string | null;
-	readonly photoURL: string | null;
-	readonly isAnonymous: boolean;
-	readonly emailVerified: boolean;
-	readonly status: IdentityStatus;
-	readonly lastSignInAtISO: string | null;
-	readonly createdAtISO: string;
-	readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateIdentityInput {
-	readonly email: string | null;
-	readonly displayName: string | null;
-	readonly photoURL: string | null;
-	readonly isAnonymous: boolean;
-	readonly emailVerified: boolean;
-}
-⋮----
-export class UserIdentity {
-⋮----
-private constructor(private _props: UserIdentitySnapshot)
-⋮----
-static create(uid: string, input: CreateIdentityInput): UserIdentity
-⋮----
-static reconstitute(snapshot: UserIdentitySnapshot): UserIdentity
-⋮----
-signIn(): void
-⋮----
-updateDisplayName(name: string): void
-⋮----
-verifyEmail(): void
-⋮----
-suspend(): void
-⋮----
-reactivate(): void
-⋮----
-get uid(): string
-⋮----
-get email(): string | null
-⋮----
-get displayName(): string | null
-⋮----
-get isActive(): boolean
-⋮----
-get isAnonymous(): boolean
-⋮----
-get emailVerified(): boolean
-⋮----
-getSnapshot(): Readonly<UserIdentitySnapshot>
-⋮----
-pullDomainEvents(): IdentityDomainEventType[]
 ````
 
 ## File: modules/platform/subdomains/identity/domain/entities/Identity.ts
@@ -18340,55 +17736,6 @@ async execute(recipientId: string): Promise<CommandResult>
 ## File: modules/platform/subdomains/notification/domain/aggregates/index.ts
 ````typescript
 
-````
-
-## File: modules/platform/subdomains/notification/domain/aggregates/NotificationAggregate.ts
-````typescript
-import type {
-  NotificationDomainEventType,
-  NotificationDispatchedEvent,
-  NotificationReadEvent,
-} from "../events/NotificationDomainEvent";
-import { createNotificationId } from "../value-objects";
-import type { NotificationId } from "../value-objects";
-import type {
-  NotificationEntity,
-  DispatchNotificationInput,
-} from "../entities/Notification";
-⋮----
-export interface NotificationAggregateSnapshot {
-  readonly id: string;
-  readonly recipientId: string;
-  readonly title: string;
-  readonly message: string;
-  readonly type: NotificationEntity["type"];
-  readonly read: boolean;
-  readonly timestamp: number;
-  readonly sourceEventType: string | undefined;
-  readonly metadata: Record<string, unknown> | undefined;
-}
-⋮----
-export class NotificationAggregate {
-⋮----
-private constructor(private _props: NotificationAggregateSnapshot)
-⋮----
-static create(id: string, input: DispatchNotificationInput): NotificationAggregate
-⋮----
-static reconstitute(snapshot: NotificationAggregateSnapshot): NotificationAggregate
-⋮----
-markRead(): void
-⋮----
-get id(): NotificationId
-⋮----
-get recipientId(): string
-⋮----
-get read(): boolean
-⋮----
-getSnapshot(): Readonly<NotificationAggregateSnapshot>
-⋮----
-pullDomainEvents(): NotificationDomainEventType[]
-⋮----
-private recordEvent<TEvent extends NotificationDomainEventType>(event: TEvent): void
 ````
 
 ## File: modules/platform/subdomains/notification/domain/entities/Notification.ts
@@ -18801,120 +18148,6 @@ async execute(policyId: string): Promise<CommandResult>
 ## File: modules/platform/subdomains/organization/domain/aggregates/index.ts
 ````typescript
 
-````
-
-## File: modules/platform/subdomains/organization/domain/aggregates/Organization.ts
-````typescript
-import type {
-	MemberAddedEvent,
-	MemberRemovedEvent,
-	MemberRoleUpdatedEvent,
-	OrganizationCreatedEvent,
-	OrganizationDissolvedEvent,
-	OrganizationDomainEventType,
-	OrganizationReactivatedEvent,
-	OrganizationSuspendedEvent,
-	SettingsUpdatedEvent,
-} from "../events";
-import type { ThemeConfig } from "../entities/Organization";
-import {
-	canDissolve,
-	canReactivate,
-	canSuspend,
-	createMemberRole,
-	createOrganizationId,
-	type MemberRole,
-	type OrganizationStatus,
-} from "../value-objects";
-⋮----
-export interface OrganizationSnapshot {
-	readonly id: string;
-	readonly name: string;
-	readonly ownerId: string;
-	readonly ownerName: string;
-	readonly ownerEmail: string;
-	readonly description: string | null;
-	readonly photoURL: string | null;
-	readonly theme: ThemeConfig | null;
-	readonly memberCount: number;
-	readonly teamCount: number;
-	readonly status: "active" | "suspended" | "dissolved";
-	readonly createdAtISO: string;
-	readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateOrganizationInput {
-	readonly name: string;
-	readonly ownerId: string;
-	readonly ownerName: string;
-	readonly ownerEmail: string;
-	readonly description?: string | null;
-	readonly photoURL?: string | null;
-	readonly theme?: ThemeConfig | null;
-}
-⋮----
-export class Organization {
-⋮----
-private constructor(private _props: OrganizationSnapshot)
-⋮----
-static create(id: string, input: CreateOrganizationInput): Organization
-⋮----
-static reconstitute(snapshot: OrganizationSnapshot): Organization
-⋮----
-updateSettings(input:
-⋮----
-addMember(memberId: string, name: string, email: string, role: MemberRole): void
-⋮----
-removeMember(memberId: string): void
-⋮----
-updateMemberRole(memberId: string, newRole: MemberRole): void
-⋮----
-suspend(): void
-⋮----
-dissolve(): void
-⋮----
-reactivate(): void
-⋮----
-get id(): string
-⋮----
-get name(): string
-⋮----
-get ownerId(): string
-⋮----
-get ownerName(): string
-⋮----
-get ownerEmail(): string
-⋮----
-get description(): string | null
-⋮----
-get photoURL(): string | null
-⋮----
-get theme(): ThemeConfig | null
-⋮----
-get memberCount(): number
-⋮----
-get teamCount(): number
-⋮----
-get status(): OrganizationStatus
-⋮----
-get createdAtISO(): string
-⋮----
-get updatedAtISO(): string
-⋮----
-getSnapshot(): Readonly<OrganizationSnapshot>
-⋮----
-pullDomainEvents(): OrganizationDomainEventType[]
-⋮----
-private changeStatus(
-		status: OrganizationStatus,
-		eventType: "platform.organization.suspended" | "platform.organization.dissolved" | "platform.organization.reactivated",
-): void
-⋮----
-private ensureActive(message: string): void
-⋮----
-private recordEvent<TEvent extends OrganizationDomainEventType>(event: TEvent): void
-⋮----
-private static assertRequired(value: string, message: string): void
 ````
 
 ## File: modules/platform/subdomains/organization/domain/entities/Organization.ts
@@ -19843,113 +19076,9 @@ export interface SubscriptionSummary {
 
 ````
 
-## File: modules/platform/subdomains/subscription/application/use-cases/subscription.use-cases.ts
-````typescript
-/**
- * Subscription Use Cases — pure application logic.
- */
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import { Subscription } from "../../domain/aggregates/Subscription";
-import type { SubscriptionRepository } from "../../domain/repositories/SubscriptionRepository";
-import type { BillingCycle } from "../../domain/value-objects/BillingCycle";
-⋮----
-// ─── Activate Subscription ────────────────────────────────────────────────────
-⋮----
-export class ActivateSubscriptionUseCase {
-⋮----
-constructor(private readonly repo: SubscriptionRepository)
-⋮----
-async execute(input: {
-    contextId: string;
-    planCode: string;
-    billingCycle: BillingCycle;
-    currentPeriodEnd?: string | null;
-}): Promise<CommandResult>
-⋮----
-// ─── Cancel Subscription ──────────────────────────────────────────────────────
-⋮----
-export class CancelSubscriptionUseCase {
-⋮----
-async execute(subscriptionId: string): Promise<CommandResult>
-⋮----
-// ─── Renew Subscription ───────────────────────────────────────────────────────
-⋮----
-export class RenewSubscriptionUseCase {
-⋮----
-async execute(subscriptionId: string, newPeriodEnd: string): Promise<CommandResult>
-⋮----
-// ─── Get Active Subscription (query-style) ───────────────────────────────────
-⋮----
-export class GetActiveSubscriptionUseCase {
-⋮----
-async execute(contextId: string): Promise<CommandResult>
-⋮----
-// ─── Mark Past Due ────────────────────────────────────────────────────────────
-⋮----
-export class MarkSubscriptionPastDueUseCase {
-````
-
 ## File: modules/platform/subdomains/subscription/domain/aggregates/index.ts
 ````typescript
 
-````
-
-## File: modules/platform/subdomains/subscription/domain/aggregates/Subscription.ts
-````typescript
-import type { SubscriptionDomainEventType } from "../events/SubscriptionDomainEvent";
-import { createSubscriptionId, canCancel, canRenew } from "../value-objects";
-import type { SubscriptionStatus } from "../value-objects";
-import type { BillingCycle } from "../value-objects/BillingCycle";
-⋮----
-export interface SubscriptionSnapshot {
-  readonly id: string;
-  readonly contextId: string;
-  readonly planCode: string;
-  readonly billingCycle: BillingCycle;
-  readonly status: SubscriptionStatus;
-  readonly currentPeriodStart: string;
-  readonly currentPeriodEnd: string | null;
-  readonly cancelledAt: string | null;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateSubscriptionInput {
-  readonly contextId: string;
-  readonly planCode: string;
-  readonly billingCycle: BillingCycle;
-  readonly currentPeriodStart?: string;
-  readonly currentPeriodEnd?: string | null;
-}
-⋮----
-export class Subscription {
-⋮----
-private constructor(private _props: SubscriptionSnapshot)
-⋮----
-static create(id: string, input: CreateSubscriptionInput): Subscription
-⋮----
-static reconstitute(snapshot: SubscriptionSnapshot): Subscription
-⋮----
-cancel(): void
-⋮----
-renew(newPeriodEnd: string): void
-⋮----
-markPastDue(): void
-⋮----
-expire(): void
-⋮----
-get id(): string
-get contextId(): string
-get planCode(): string
-get billingCycle(): BillingCycle
-get status(): SubscriptionStatus
-get currentPeriodEnd(): string | null
-get cancelledAt(): string | null
-get isActive(): boolean
-⋮----
-getSnapshot(): Readonly<SubscriptionSnapshot>
-⋮----
-pullDomainEvents(): SubscriptionDomainEventType[]
 ````
 
 ## File: modules/platform/subdomains/subscription/domain/events/index.ts
@@ -21391,78 +20520,6 @@ const mergeMember = (
 const mergeTeam = (team: OrganizationTeam, role?: string, protocol?: string) =>
 ````
 
-## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository.ts
-````typescript
-/**
- * FirebaseWorkspaceRepository — Infrastructure adapter for workspace persistence.
- * Translates Firestore documents ↔ Domain WorkspaceEntity.
- * Firebase SDK only exists in this file.
- */
-⋮----
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api";
-import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
-import type { WorkspaceCapabilityRepository } from "../../domain/ports/output/WorkspaceCapabilityRepository";
-import type { WorkspaceAccessRepository } from "../../domain/ports/output/WorkspaceAccessRepository";
-import type { WorkspaceLocationRepository } from "../../domain/ports/output/WorkspaceLocationRepository";
-import type {
-  WorkspaceEntity,
-  Capability,
-  WorkspaceGrant,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceLocation,
-} from "../../domain/aggregates/Workspace";
-import { createAddress } from "../../domain/value-objects/Address";
-import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
-import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";
-import { createWorkspaceVisibility } from "../../domain/value-objects/WorkspaceVisibility";
-⋮----
-// ─── Mapper ───────────────────────────────────────────────────────────────────
-⋮----
-export function toWorkspaceEntity(id: string, data: Record<string, unknown>): WorkspaceEntity
-⋮----
-// ─── Repository ───────────────────────────────────────────────────────────────
-⋮----
-export class FirebaseWorkspaceRepository
-implements
-⋮----
-private workspacePath(workspaceId: string): string
-⋮----
-async findById(id: string): Promise<WorkspaceEntity | null>
-⋮----
-async findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null>
-⋮----
-async findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]>
-⋮----
-async save(workspace: WorkspaceEntity): Promise<string>
-⋮----
-async updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void>
-⋮----
-async delete(id: string): Promise<void>
-⋮----
-async mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void>
-⋮----
-async unmountCapability(workspaceId: string, capabilityId: string): Promise<void>
-⋮----
-async grantTeamAccess(workspaceId: string, teamId: string): Promise<void>
-⋮----
-async revokeTeamAccess(workspaceId: string, teamId: string): Promise<void>
-⋮----
-async grantIndividualAccess(workspaceId: string, grant: WorkspaceGrant): Promise<void>
-⋮----
-async revokeIndividualAccess(workspaceId: string, userId: string): Promise<void>
-⋮----
-async createLocation(
-    workspaceId: string,
-    location: Omit<WorkspaceLocation, "locationId">,
-): Promise<string>
-⋮----
-async updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void>
-⋮----
-async deleteLocation(workspaceId: string, locationId: string): Promise<void>
-````
-
 ## File: modules/workspace/interfaces/api/contracts/index.ts
 ````typescript
 /**
@@ -22311,37 +21368,6 @@ export function useWorkspaceContext()
 export function getWorkspaceStorageKey(accountId: string): string
 ````
 
-## File: modules/workspace/interfaces/web/state/workspace-settings.ts
-````typescript
-import type { WorkspaceEntity } from "../../api/contracts";
-⋮----
-export interface WorkspaceCustomRoleDraft {
-  readonly roleId: string;
-  readonly roleName: string;
-  readonly role: string;
-}
-⋮----
-export interface WorkspaceSettingsDraft {
-  readonly name: string;
-  readonly visibility: WorkspaceEntity["visibility"];
-  readonly lifecycleState: WorkspaceEntity["lifecycleState"];
-  readonly street: string;
-  readonly city: string;
-  readonly state: string;
-  readonly postalCode: string;
-  readonly country: string;
-  readonly details: string;
-  readonly managerId: string;
-  readonly supervisorId: string;
-  readonly safetyOfficerId: string;
-  readonly customRoles: WorkspaceCustomRoleDraft[];
-}
-⋮----
-export function createWorkspaceCustomRoleDraft(): WorkspaceCustomRoleDraft
-⋮----
-export function createSettingsDraft(workspace: WorkspaceEntity): WorkspaceSettingsDraft
-````
-
 ## File: modules/workspace/interfaces/web/utils/workspace-map.ts
 ````typescript
 import type { WorkspaceEntity } from "../../api/contracts";
@@ -22429,114 +21455,6 @@ execute(workspaceId: string): Promise<AuditLogEntity[]>
 export class ListOrganizationAuditLogsUseCase {
 ⋮----
 execute(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]>
-````
-
-## File: modules/workspace/subdomains/audit/application/use-cases/record-audit-entry.use-case.ts
-````typescript
-import { AuditEntry, type RecordAuditEntryInput } from "../../domain/aggregates/AuditEntry";
-import type { AuditDomainEventType } from "../../domain/events";
-import type { AuditRepository } from "../../domain/repositories/AuditRepository";
-⋮----
-export class RecordAuditEntryUseCase {
-⋮----
-constructor(private readonly repo: AuditRepository)
-⋮----
-async execute(input: RecordAuditEntryInput): Promise<AuditDomainEventType[]>
-````
-
-## File: modules/workspace/subdomains/audit/domain/aggregates/AuditEntry.ts
-````typescript
-import type { AuditLogSource } from "../entities/AuditLog";
-import type { AuditDomainEventType } from "../events";
-import type { AuditAction } from "../schema";
-import type { AuditSeverity } from "../value-objects";
-import type { ChangeRecord } from "../schema";
-⋮----
-export interface AuditEntrySnapshot {
-	readonly id: string;
-	readonly workspaceId: string;
-	readonly actorId: string;
-	readonly action: AuditAction;
-	readonly resourceType: string;
-	readonly resourceId: string;
-	readonly severity: AuditSeverity;
-	readonly detail: string;
-	readonly source: AuditLogSource;
-	readonly changes: readonly ChangeRecord[];
-	readonly recordedAtISO: string;
-}
-⋮----
-export interface RecordAuditEntryInput {
-	readonly workspaceId: string;
-	readonly actorId: string;
-	readonly action: string;
-	readonly resourceType: string;
-	readonly resourceId: string;
-	readonly severity: string;
-	readonly detail: string;
-	readonly source: AuditLogSource;
-	readonly changes?: readonly ChangeRecord[];
-}
-⋮----
-/**
- * AuditEntry — Immutable aggregate root for audit records.
- *
- * Audit entries are write-once: once recorded they cannot be modified or deleted.
- * All mutation methods are intentionally absent.
- */
-export class AuditEntry {
-⋮----
-private constructor(private readonly _props: AuditEntrySnapshot)
-⋮----
-/**
-	 * Record a new audit entry. This is the only way to create an AuditEntry.
-	 * Validates action and severity via Zod branded types.
-	 */
-static record(id: string, input: RecordAuditEntryInput): AuditEntry
-⋮----
-// Import dynamically is not possible in domain — validate via type narrowing
-// The caller is responsible for passing valid action/severity strings;
-// Zod validation happens at the value-object layer boundary.
-⋮----
-// Auto-escalation: critical entries emit an additional alert event
-⋮----
-static reconstitute(snapshot: AuditEntrySnapshot): AuditEntry
-⋮----
-// ── Query methods (audit is immutable — no mutation) ─────────────────────
-⋮----
-/** Returns true when severity is "critical". */
-isCritical(): boolean
-⋮----
-/** Returns true when severity is "critical" or "high". */
-isHighSeverity(): boolean
-⋮----
-// ── Getters ──────────────────────────────────────────────────────────────
-⋮----
-get id(): string
-⋮----
-get workspaceId(): string
-⋮----
-get actorId(): string
-⋮----
-get action(): AuditAction
-⋮----
-get resourceType(): string
-⋮----
-get resourceId(): string
-⋮----
-get severity(): AuditSeverity
-⋮----
-get detail(): string
-⋮----
-get source(): AuditLogSource
-⋮----
-get changes(): readonly ChangeRecord[]
-⋮----
-get recordedAtISO(): string
-⋮----
-getSnapshot(): Readonly<AuditEntrySnapshot>
-⋮----
-pullDomainEvents(): AuditDomainEventType[]
 ````
 
 ## File: modules/workspace/subdomains/audit/domain/aggregates/index.ts
@@ -22730,29 +21648,6 @@ export function isAtLeast(severity: AuditSeverity, threshold: AuditSeverity): bo
 ## File: modules/workspace/subdomains/audit/domain/value-objects/index.ts
 ````typescript
 
-````
-
-## File: modules/workspace/subdomains/audit/infrastructure/firebase/FirebaseAuditRepository.ts
-````typescript
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api";
-import type { AuditEntry } from "../../domain/aggregates/AuditEntry";
-import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
-import type { AuditRepository } from "../../domain/repositories/AuditRepository";
-⋮----
-function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEntity
-⋮----
-export class FirebaseAuditRepository implements AuditRepository {
-⋮----
-async save(entry: AuditEntry): Promise<void>
-⋮----
-async findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]>
-⋮----
-async findByWorkspaceIds(
-    workspaceIds: string[],
-    maxCount = 200,
-): Promise<AuditLogEntity[]>
 ````
 
 ## File: modules/workspace/subdomains/audit/interfaces/components/AuditStream.tsx
@@ -31626,208 +30521,6 @@ import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 ````
 
-## File: .github/copilot-instructions.md
-````markdown
----
-applyTo: **
-description: Xuanwu Copilot Workspace Instructions
-name: Xuanwu Copilot Workspace Instructions
----
-
-#use skill serena-mcp
-#use skill alistair-cockburn
-#use skill hexagonal-ddd
-#use skill occams-razor
-#use skill context7
-#use skill xuanwu-app-skill
-
-# Xuanwu Copilot Workspace Instructions
-
-Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put detailed architecture truth in [docs/README.md](../docs/README.md), scoped behavior in [.github/instructions](./instructions), reusable workflows in prompts, and tool-specific procedure in skills.
-
-## Session Contract
-
-- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it first, activate `xuanwu-app`, and use Serena for project memory/index work.
-- If confidence in any library API, framework, or config schema detail is below 99.99%, verify it through Context7 before writing or suggesting code.
-- Treat `docs/**/*` as the authority for DDD routing, bounded-context ownership, terminology, and strategic duplicate-name resolution. `.github/*` defines Copilot behavior and must not compete with docs.
-- Run the matching validation from [agents/commands.md](./agents/commands.md) before closing non-trivial changes.
-
-## Read Order
-
-1. Start with [docs/README.md](../docs/README.md).
-2. Use [docs/ubiquitous-language.md](../docs/ubiquitous-language.md) for terminology and duplicate-name guardrails.
-3. Use [docs/subdomains.md](../docs/subdomains.md) and [docs/bounded-contexts.md](../docs/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
-4. Use `docs/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
-5. Use [docs/bounded-context-subdomain-template.md](../docs/bounded-context-subdomain-template.md) and [docs/project-delivery-milestones.md](../docs/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
-6. Use [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment validation.
-
-## Instruction Series (Phase 1)
-
-- Use [instructions/architecture-core.instructions.md](./instructions/architecture-core.instructions.md) as the consolidated module architecture rule set.
-- Use [instructions/architecture-runtime.instructions.md](./instructions/architecture-runtime.instructions.md) as the consolidated runtime split rule set.
-- Use [instructions/process-framework.instructions.md](./instructions/process-framework.instructions.md) as the consolidated delivery/decision framework.
-- Use [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) as the consolidated docs authority and terminology rule set.
-- Legacy instruction files marked DEPRECATED remain transition-only and should not be expanded.
-
-## Operating Rules
-
-- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
-- Cross-module collaboration goes through the target module `api/` boundary only.
-- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
-- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
-- If a team adds `core/`, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.
-- Keep business logic in `domain/` and `application`; keep UI, transport, and composition in `interfaces/` and `app/`.
-- Preserve the runtime split: Next.js owns browser-facing UX and orchestration; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
-- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy alias patterns.
-
-## Governance Rules
-
-- Keep this file thin. Put detailed, file-scoped behavior in `.github/instructions/` and reuse docs instead of copying architecture content into customization files.
-- Use [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for Serena workflow details, [skills/context7/SKILL.md](skills/context7/SKILL.md) for documentation verification, and [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) for boundary-safe module design.
-- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) and [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill.md) for implementation lookup only; they are not strategic authority.
-- `.claude/` may exist as a compatibility surface, but `.github/*` remains the primary Copilot governance surface.
-
-## Terminology
-
-- Follow [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) and the docs it routes to.
-- Normalize to canonical glossary terms before naming code, prompts, instructions, agents, skills, or documentation.
-
-## DDD Strategic Rules (Phase 1)
-
-- Use [instructions/subdomain-rules.instructions.md](./instructions/subdomain-rules.instructions.md) for subdomain design rules.
-- Use [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for Bounded Context design rules.
-- Use [instructions/domain-layer-rules.instructions.md](./instructions/domain-layer-rules.instructions.md) for Domain Layer design rules.
-- Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
-````
-
-## File: .github/instructions/bounded-context-rules.instructions.md
-````markdown
----
-description: 'Bounded Context（界限上下文）戰略設計規則：語意一致性邊界、模型隔離、顯式轉換、獨立演化。'
-applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
----
-
-# Bounded Context（界限上下文）設計規則
-
-> 完整邊界參考：**先查 `docs/bounded-contexts.md`、`docs/ubiquitous-language.md`、`docs/contexts/<context>/README.md`**
-> 此文件只包含 Bounded Context 層級的**戰略設計約束**，不複製領域知識或程式碼範例。
-
-## 戰略設計規則
-
-1. Bounded Context 是「語意一致性邊界」，不是資料夾。
-2. 每個 Bounded Context 內的語言必須一致（Ubiquitous Language）。
-3. 同一概念在不同 Context 可以有不同模型，但不能混用。
-4. Context 之間的模型轉換必須顯式（Translator / Mapper / ACL）。
-5. Domain Model 只能存在於 Bounded Context 內，不可跨 Context reuse。
-6. Context 是演化單位，不是模組拆分單位。
-7. 一個 Context 必須能獨立測試與部署（至少邏輯層面）。
-
-## 與子域的關係
-
-- 一個子域可以包含多個 Bounded Context。
-- Bounded Context 名稱必須與 `modules/<context>/` 資料夾名稱一致。
-- 跨 Context 的模型引用必須使用 Published Language token，不得直接傳遞 upstream aggregate。
-
-## 驗證
-
-- 確認每個 Context 有獨立的 Ubiquitous Language 定義。
-- 確認跨 Context 通訊使用 API boundary 或 event contract。
-- 確認不存在跨 Context 的 Domain Model 重用。
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
-## File: .github/instructions/domain-layer-rules.instructions.md
-````markdown
----
-description: 'Domain Layer（領域層）戰略設計規則：業務純度、行為封裝、不變數保護、技術無關性。'
-applyTo: 'modules/**/domain/**/*.{ts,tsx}'
----
-
-# Domain Layer（領域層）設計規則
-
-> 完整邊界參考：**先查 `docs/ubiquitous-language.md`、`docs/contexts/<context>/README.md`**
-> 戰術設計範例（聚合根、值對象、Zod 驗證）請參考 `domain-modeling.instructions.md`。
-> 此文件只包含 Domain Layer 層級的**戰略設計約束**。
-
-## 戰略設計規則
-
-1. Domain 層只表達業務規則，不包含技術實作（DB / API / Framework）。
-2. Entity 必須封裝狀態與行為，禁止裸 set state。
-3. Aggregate Root 是唯一外部進入 Domain 的入口。
-4. Domain 不依賴 Application / Infrastructure / Interface。
-5. Domain 變更只能透過行為方法（method），不能直接修改屬性。
-6. Domain event 用於表達「業務事實」，不是技術事件。
-7. Invariant（不變條件）必須在 Aggregate 內強制保護。
-8. Domain 必須能在沒有 DB / HTTP 的情況下完整運作（pure logic）。
-
-## 與其他層的關係
-
-- `domain/` 是依賴方向的最內層，所有其他層指向它。
-- `application/` 依賴 `domain/` 的 abstraction，不依賴 implementation。
-- `infrastructure/` 實作 `domain/` 定義的 Port/Repository 介面。
-- `interfaces/` 不得直接呼叫 `domain/` 內部，必須經由 `application/` 或 `api/`。
-
-## 禁止模式
-
-- ❌ 在 `domain/` 層匯入 Firebase、HTTP client、React、ORM。
-- ❌ 貧血模型：只有 data properties，無 business logic。
-- ❌ 跨聚合直接操作：在 Aggregate A 中修改 Aggregate B 的狀態。
-- ❌ Domain event 命名使用現在式或技術術語。
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
-## File: .github/instructions/hexagonal-rules.instructions.md
-````markdown
----
-description: 'Hexagonal Architecture（端口與適配器）戰略設計規則：Core 獨立性、Port 需求導向、Adapter 邊界、子域交叉約束。'
-applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
----
-
-# Hexagonal Architecture（端口與適配器）設計規則
-
-> 完整邊界參考：**先查 `architecture-core.instructions.md`（實作層級規則）**
-> 此文件只包含 Hexagonal Architecture 層級的**戰略設計原則**。
-
-## Core（Domain + Application）
-
-1. Core 不依賴任何外部世界（DB / API / UI / SDK）。
-2. Application Layer 只負責 orchestration，不包含 business rule。
-3. Use Case 是系統對外的唯一操作入口。
-4. Application 只能依賴 Domain abstraction，不依賴 infrastructure implementation。
-
-## Ports（介面層）
-
-5. Port 必須是「需求導向」，不是技術導向（例如 UserRepository，而不是 FirestoreUserClient）。
-6. Port 定義在 Core，實作在 Infrastructure。
-7. 每個 Port 必須可 mock，可替換，可測試。
-
-## Adapters（基礎設施）
-
-8. Infrastructure 只能實作 Port，禁止反向依賴 Domain 實作細節。
-9. Adapter 不可包含 business rule，只能做轉換與 I/O。
-10. 外部 SDK 永遠只存在 Adapter 層。
-
-## 子域 × Hexagonal 切分核心規則
-
-1. 子域是「業務邊界」，Hexagonal 是「技術邊界」。
-2. 一個子域可以包含多個 Hexagonal 模型，但不允許跨子域共享 core。
-3. Domain Model 永遠比 API / DB 更穩定。
-4. 技術可以重構，但子域不能因此改變。
-5. 所有依賴方向必須指向內部（Dependency Inversion）。
-6. 外部世界永遠被 Adapter 包住，不能滲透進 Domain。
-
-## 一句話總結
-
-子域定義「業務邊界」，Bounded Context 定義「語意邊界」，Hexagonal 定義「依賴方向」，Domain 則是唯一不能被任何外部污染的純業務核心。
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
 ## File: .github/prompts/playwright-mcp-inspect.prompt.md
 ````markdown
 ---
@@ -36403,39 +35096,6 @@ constructor(
 async execute(input: DeleteSourceDocumentInput): Promise<DeleteSourceDocumentResult>
 ````
 
-## File: modules/notebooklm/subdomains/source/application/use-cases/register-rag-document.use-case.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: application/use-cases
- * Use Case: RegisterUploadedRagDocumentUseCase — registers a RAG document record after upload.
- *
- * Called internally by UploadCompleteSourceFileUseCase;
- * also callable directly when a document is registered without the upload-init flow.
- */
-⋮----
-import { randomUUID } from "node:crypto";
-⋮----
-import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
-import type {
-  RegisterUploadedRagDocumentInputDto,
-  RegisterUploadedRagDocumentOutputDto,
-  RegisterUploadedRagDocumentErrorCode,
-} from "../dto/rag-document.dto";
-⋮----
-type RegisterUploadedRagDocumentResult =
-  | { ok: true; data: RegisterUploadedRagDocumentOutputDto }
-  | { ok: false; error: { code: RegisterUploadedRagDocumentErrorCode; message: string } };
-⋮----
-export class RegisterUploadedRagDocumentUseCase {
-⋮----
-constructor(private readonly ragDocumentRepository: RagDocumentRepository)
-⋮----
-async execute(
-    input: RegisterUploadedRagDocumentInputDto,
-): Promise<RegisterUploadedRagDocumentResult>
-````
-
 ## File: modules/notebooklm/subdomains/source/application/use-cases/rename-source-document.use-case.ts
 ````typescript
 /**
@@ -36495,97 +35155,6 @@ export class ReindexSourceDocumentUseCase {
 async execute(
     input: ReindexSourceDocumentInputDto,
 ): Promise<SourcePipelineResult<ReindexSourceDocumentOutputDto>>
-````
-
-## File: modules/notebooklm/subdomains/source/application/use-cases/upload-complete-source-file.use-case.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: application/use-cases
- * Use Case: UploadCompleteSourceFileUseCase — activates a file after binary upload completes.
- *
- * This is the second step of a two-step upload flow:
- *   1. init  → creates File + FileVersion records
- *   2. complete (this) → activates the version and registers a RagDocumentRecord
- *
- * Idempotent: calling complete on an already-completed file returns the existing
- * RagDocument without creating a duplicate.
- */
-⋮----
-import { randomUUID } from "node:crypto";
-⋮----
-import type { SourceFileRepository } from "../../domain/repositories/SourceFileRepository";
-import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
-import { completeUploadSourceFile } from "../../domain/services/complete-upload-source-file.service";
-import type {
-  SourceFileCommandErrorCode,
-  UploadCompleteFileInputDto,
-  UploadCompleteFileOutputDto,
-} from "../dto/source-file.dto";
-import type { SourceFile } from "../../domain/entities/SourceFile";
-⋮----
-type UploadCompleteSourceFileResult =
-  | { ok: true; data: UploadCompleteFileOutputDto }
-  | { ok: false; error: { code: SourceFileCommandErrorCode; message: string } };
-⋮----
-function isFileScopeMatch(params: {
-  file: SourceFile;
-  workspaceId: string;
-  organizationId: string;
-  actorAccountId: string;
-  versionId: string;
-}): boolean
-⋮----
-function isFileAlreadyCompleted(file: SourceFile): boolean
-⋮----
-export class UploadCompleteSourceFileUseCase {
-⋮----
-constructor(
-⋮----
-async execute(input: UploadCompleteFileInputDto): Promise<UploadCompleteSourceFileResult>
-````
-
-## File: modules/notebooklm/subdomains/source/application/use-cases/upload-init-source-file.use-case.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: application/use-cases
- * Use Case: UploadInitSourceFileUseCase — creates file metadata and returns an upload token.
- *
- * This is the first step of a two-step upload flow:
- *   1. init  → creates File + FileVersion records, returns an upload URL token
- *   2. complete → marks the version as active, registers a RagDocumentRecord
- */
-⋮----
-import { randomBytes, randomUUID } from "node:crypto";
-⋮----
-import type { SourceFile } from "../../domain/entities/SourceFile";
-import type { SourceFileVersion } from "../../domain/entities/SourceFileVersion";
-import type { SourceFileRepository } from "../../domain/repositories/SourceFileRepository";
-import type {
-  SourceFileCommandErrorCode,
-  UploadInitFileInputDto,
-  UploadInitFileOutputDto,
-} from "../dto/source-file.dto";
-⋮----
-type UploadInitSourceFileResult =
-  | { ok: true; data: UploadInitFileOutputDto }
-  | { ok: false; error: { code: SourceFileCommandErrorCode; message: string } };
-⋮----
-function inferClassification(mimeType: string): SourceFile["classification"]
-⋮----
-function buildUploadPath(
-  organizationId: string,
-  workspaceId: string,
-  fileId: string,
-  fileName: string,
-): string
-⋮----
-export class UploadInitSourceFileUseCase {
-⋮----
-constructor(private readonly fileRepository: SourceFileRepository)
-⋮----
-async execute(input: UploadInitFileInputDto): Promise<UploadInitSourceFileResult>
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/use-cases/wiki-library.use-cases.ts
@@ -36982,44 +35551,6 @@ createField(accountId: string, field: WikiLibraryField): Promise<void>;
 listFields(accountId: string, libraryId: string): Promise<WikiLibraryField[]>;
 createRow(accountId: string, row: WikiLibraryRow): Promise<void>;
 listRows(accountId: string, libraryId: string): Promise<WikiLibraryRow[]>;
-````
-
-## File: modules/notebooklm/subdomains/synthesis/application/use-cases/answer-rag-query.use-case.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: application/use-cases
- * Purpose: AnswerRagQueryUseCase — orchestrates grounding + synthesis to
- *          produce a cited answer for a user question.
- *
- * Design improvements over legacy answer-rag-query.use-case.ts:
- * - TopK limit is configurable via constructor injection (no hard-coded MAX_TOP_K=10).
- * - Error codes are prefixed with QA_ for namespace clarity.
- * - Dependencies typed against interfaces, not concrete classes.
- */
-⋮----
-import { randomUUID } from "node:crypto";
-⋮----
-import type { RagRetrievalRepository } from "../../domain/repositories/RagRetrievalRepository";
-import type {
-  AnswerRagQueryInput,
-  AnswerRagQueryOutput,
-  AnswerRagQueryResult,
-  RagRetrievalSummary,
-} from "../../domain/entities/rag-query.entities";
-import type { RagGenerationRepository } from "../../domain/repositories/RagGenerationRepository";
-⋮----
-const DEFAULT_MAX_TOP_K = 20; // Raise from the legacy hard-coded 10
-⋮----
-function clampTopK(value: number | undefined, maxTopK: number): number
-⋮----
-export class AnswerRagQueryUseCase {
-⋮----
-constructor(
-⋮----
-/** Maximum topK accepted from callers. Override at composition root for environment-specific limits. */
-⋮----
-async execute(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult>
 ````
 
 ## File: modules/notebooklm/subdomains/synthesis/application/use-cases/submit-rag-feedback.use-case.ts
@@ -37874,58 +36405,6 @@ export function makeBlockRepo()
 export function makeCollectionRepo()
 ````
 
-## File: modules/notion/interfaces/knowledge/store/block-editor.store.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: interfaces/store
- * Purpose: Zustand store for the block editor UI state.
- *          Manages optimistic block operations before persistence.
- */
-⋮----
-import { create } from "zustand";
-import type { BlockContent } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
-⋮----
-export interface EditorBlock {
-  id: string;
-  content: BlockContent;
-  order: number;
-  parentBlockId: string | null;
-  isFocused: boolean;
-}
-⋮----
-interface BlockEditorState {
-  pageId: string | null;
-  accountId: string | null;
-  blocks: EditorBlock[];
-  isDirty: boolean;
-
-  setPage: (accountId: string, pageId: string) => void;
-  setBlocks: (blocks: EditorBlock[]) => void;
-  addBlock: (after: string | null, content?: BlockContent) => EditorBlock;
-  updateBlock: (id: string, content: BlockContent) => void;
-  deleteBlock: (id: string) => void;
-  reorder: (ids: string[]) => void;
-  clearDirty: () => void;
-}
-⋮----
-function makeId()
-⋮----
-setPage(accountId, pageId)
-⋮----
-setBlocks(blocks)
-⋮----
-addBlock(afterId, content =
-⋮----
-updateBlock(id, content)
-⋮----
-deleteBlock(id)
-⋮----
-reorder(ids)
-⋮----
-clearDirty()
-````
-
 ## File: modules/notion/interfaces/relations/composition/repositories.ts
 ````typescript
 import { FirebaseRelationRepository } from "../../../infrastructure/relations/firebase/FirebaseRelationRepository";
@@ -38077,6 +36556,78 @@ async execute(input: z.infer<typeof VerifyArticleSchema>): Promise<CommandResult
 export class RequestArticleReviewUseCase {
 ⋮----
 async execute(input: z.infer<typeof RequestArticleReviewSchema>): Promise<CommandResult>
+````
+
+## File: modules/notion/subdomains/authoring/domain/aggregates/Article.ts
+````typescript
+/**
+ * Module: notion/subdomains/authoring
+ * Layer: domain/aggregates
+ * Purpose: Article aggregate root — lifecycle, publication, and verification of KB articles.
+ */
+⋮----
+import { v4 as uuid } from "@lib-uuid";
+import type { NotionDomainEvent } from "../events/NotionDomainEvent";
+⋮----
+export type ArticleStatus = "draft" | "published" | "archived";
+export type ArticleVerificationState = "verified" | "needs_review" | "unverified";
+⋮----
+export interface ArticleSnapshot {
+  readonly id: string;
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly categoryId: string | null;
+  readonly title: string;
+  readonly content: string;
+  readonly tags: readonly string[];
+  readonly status: ArticleStatus;
+  readonly version: number;
+  readonly verificationState: ArticleVerificationState;
+  readonly ownerId: string | null;
+  readonly verifiedByUserId: string | null;
+  readonly verifiedAtISO: string | null;
+  readonly verificationExpiresAtISO: string | null;
+  readonly linkedArticleIds: readonly string[];
+  readonly createdByUserId: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateArticleInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly categoryId: string | null;
+  readonly title: string;
+  readonly content: string;
+  readonly tags: string[];
+  readonly createdByUserId: string;
+}
+⋮----
+export class Article {
+⋮----
+private constructor(private _props: ArticleSnapshot)
+⋮----
+static create(id: string, input: CreateArticleInput): Article
+⋮----
+static reconstitute(snapshot: ArticleSnapshot): Article
+⋮----
+update(fields:
+⋮----
+publish(): void
+⋮----
+archive(): void
+⋮----
+verify(byUserId: string, expiresAtISO?: string): void
+⋮----
+requestReview(): void
+⋮----
+getSnapshot(): ArticleSnapshot
+⋮----
+pullDomainEvents(): NotionDomainEvent[]
+⋮----
+get id(): string
+get accountId(): string
+get status(): ArticleStatus
 ````
 
 ## File: modules/notion/subdomains/authoring/domain/index.ts
@@ -39436,6 +37987,281 @@ export class AssignPageOwnerUseCase {
 async execute(input: AssignPageOwnerDto): Promise<CommandResult>
 ````
 
+## File: modules/notion/subdomains/knowledge/domain/aggregates/ContentBlock.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: domain/aggregates
+ * Purpose: ContentBlock aggregate root — atomic content unit inside a Page.
+ */
+⋮----
+import { v4 as uuid } from "@lib-uuid";
+import type { BlockContent } from "../value-objects/BlockContent";
+import { richTextToPlainText } from "../value-objects/BlockContent";
+import type { NotionDomainEvent } from "../events/NotionDomainEvent";
+⋮----
+export interface ContentBlockSnapshot {
+  readonly id: string;
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly content: BlockContent;
+  readonly order: number;
+  readonly parentBlockId: string | null;
+  readonly childBlockIds: ReadonlyArray<string>;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateContentBlockInput {
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly content: BlockContent;
+  readonly order: number;
+  readonly parentBlockId?: string | null;
+}
+⋮----
+export class ContentBlock {
+⋮----
+private constructor(private _props: ContentBlockSnapshot)
+⋮----
+static create(id: string, input: CreateContentBlockInput): ContentBlock
+⋮----
+static reconstitute(snapshot: ContentBlockSnapshot): ContentBlock
+⋮----
+update(newContent: BlockContent): void
+⋮----
+delete(): void
+⋮----
+nest(parentId: string, index?: number): void
+⋮----
+unnest(index?: number): void
+⋮----
+addChild(childId: string, index?: number): void
+⋮----
+removeChild(childId: string): void
+⋮----
+// ── Getters ───────────────────────────────────────────────────────────────
+⋮----
+get id(): string
+get pageId(): string
+get accountId(): string
+get content(): BlockContent
+get order(): number
+get parentBlockId(): string | null
+get childBlockIds(): ReadonlyArray<string>
+get createdAtISO(): string
+get updatedAtISO(): string
+⋮----
+getSnapshot(): Readonly<ContentBlockSnapshot>
+⋮----
+pullDomainEvents(): NotionDomainEvent[]
+````
+
+## File: modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: domain/aggregates
+ * Purpose: KnowledgeCollection aggregate root — named grouping / database-view of pages.
+ */
+⋮----
+import { v4 as uuid } from "@lib-uuid";
+import type { NotionDomainEvent } from "../events/NotionDomainEvent";
+⋮----
+export type CollectionColumnType =
+  | "text"
+  | "number"
+  | "select"
+  | "multi-select"
+  | "date"
+  | "checkbox"
+  | "url"
+  | "relation";
+⋮----
+export interface CollectionColumn {
+  readonly id: string;
+  readonly name: string;
+  readonly type: CollectionColumnType;
+  readonly options?: readonly string[];
+}
+⋮----
+export type CollectionStatus = "active" | "archived";
+export type CollectionSpaceType = "database" | "wiki";
+⋮----
+export interface KnowledgeCollectionSnapshot {
+  readonly id: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly name: string;
+  readonly description?: string;
+  readonly columns: readonly CollectionColumn[];
+  readonly pageIds: readonly string[];
+  readonly status: CollectionStatus;
+  readonly spaceType: CollectionSpaceType;
+  readonly createdByUserId: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateKnowledgeCollectionInput {
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly name: string;
+  readonly description?: string;
+  readonly columns?: readonly Omit<CollectionColumn, "id">[];
+  readonly createdByUserId: string;
+  readonly spaceType?: CollectionSpaceType;
+}
+⋮----
+export class KnowledgeCollection {
+⋮----
+private constructor(private _props: KnowledgeCollectionSnapshot)
+⋮----
+static create(id: string, columnIds: readonly string[], input: CreateKnowledgeCollectionInput): KnowledgeCollection
+⋮----
+static reconstitute(snapshot: KnowledgeCollectionSnapshot): KnowledgeCollection
+⋮----
+rename(newName: string): void
+⋮----
+addPage(pageId: string): void
+⋮----
+removePage(pageId: string): void
+⋮----
+addColumn(column: CollectionColumn): void
+⋮----
+archive(): void
+⋮----
+// ── Getters ───────────────────────────────────────────────────────────────
+⋮----
+get id(): string
+get accountId(): string
+get workspaceId(): string | undefined
+get name(): string
+get description(): string | undefined
+get columns(): readonly CollectionColumn[]
+get pageIds(): readonly string[]
+get status(): CollectionStatus
+get spaceType(): CollectionSpaceType
+get createdByUserId(): string
+get createdAtISO(): string
+get updatedAtISO(): string
+⋮----
+getSnapshot(): Readonly<KnowledgeCollectionSnapshot>
+⋮----
+pullDomainEvents(): NotionDomainEvent[]
+````
+
+## File: modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: domain/aggregates
+ * Purpose: KnowledgePage aggregate root — proper DDD class with private constructor,
+ *          static factory methods, business methods, and domain events.
+ */
+⋮----
+import { v4 as uuid } from "@lib-uuid";
+import type { NotionDomainEvent } from "../events/NotionDomainEvent";
+⋮----
+export interface KnowledgePageSnapshot {
+  readonly id: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly slug: string;
+  readonly parentPageId: string | null;
+  readonly order: number;
+  readonly blockIds: readonly string[];
+  readonly status: "active" | "archived";
+  readonly approvalState?: "pending" | "approved";
+  readonly approvedAtISO?: string;
+  readonly approvedByUserId?: string;
+  readonly verificationState?: "verified" | "needs_review";
+  readonly ownerId?: string;
+  readonly verifiedByUserId?: string;
+  readonly verifiedAtISO?: string;
+  readonly verificationExpiresAtISO?: string;
+  readonly iconUrl?: string;
+  readonly coverUrl?: string;
+  readonly createdByUserId: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateKnowledgePageInput {
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly parentPageId: string | null;
+  readonly createdByUserId: string;
+  readonly order: number;
+}
+⋮----
+export class KnowledgePage {
+⋮----
+private constructor(private _props: KnowledgePageSnapshot)
+⋮----
+static create(id: string, input: CreateKnowledgePageInput): KnowledgePage
+⋮----
+static reconstitute(snapshot: KnowledgePageSnapshot): KnowledgePage
+⋮----
+rename(newTitle: string): void
+⋮----
+move(targetParentId: string | null): void
+⋮----
+archive(): void
+⋮----
+approve(byUserId: string, atISO: string): void
+⋮----
+verify(byUserId: string, expiresAtISO?: string): void
+⋮----
+requestReview(byUserId: string): void
+⋮----
+assignOwner(ownerId: string): void
+⋮----
+updateIcon(iconUrl: string): void
+⋮----
+updateCover(coverUrl: string): void
+⋮----
+reorderBlocks(blockIds: ReadonlyArray<string>): void
+⋮----
+// ── Getters ───────────────────────────────────────────────────────────────
+⋮----
+get id(): string
+get accountId(): string
+get workspaceId(): string | undefined
+get title(): string
+get slug(): string
+get parentPageId(): string | null
+get order(): number
+get blockIds(): readonly string[]
+get status(): "active" | "archived"
+get approvalState(): "pending" | "approved" | undefined
+get approvedAtISO(): string | undefined
+get approvedByUserId(): string | undefined
+get verificationState(): "verified" | "needs_review" | undefined
+get ownerId(): string | undefined
+get verifiedByUserId(): string | undefined
+get verifiedAtISO(): string | undefined
+get verificationExpiresAtISO(): string | undefined
+get iconUrl(): string | undefined
+get coverUrl(): string | undefined
+get createdByUserId(): string
+get createdAtISO(): string
+get updatedAtISO(): string
+⋮----
+getSnapshot(): Readonly<KnowledgePageSnapshot>
+⋮----
+pullDomainEvents(): NotionDomainEvent[]
+⋮----
+private static slugify(title: string): string
+⋮----
+/** Tree node for hierarchical views */
+export interface KnowledgePageTreeNode extends KnowledgePageSnapshot {
+  readonly children: readonly KnowledgePageTreeNode[];
+}
+````
+
 ## File: modules/notion/subdomains/knowledge/domain/index.ts
 ````typescript
 
@@ -39635,36 +38461,6 @@ export interface RelationDto {
 }
 ````
 
-## File: modules/notion/subdomains/relations/application/use-cases/manage-relation.use-cases.ts
-````typescript
-/**
- * Module: notion/subdomains/relations
- * Layer: application/use-cases
- * Purpose: Use case orchestration for relation operations.
- */
-⋮----
-import type { RelationRepository } from "../../domain/repositories/RelationRepository";
-import type { Relation, CreateRelationInput } from "../../domain/entities/Relation";
-⋮----
-export class CreateRelationUseCase {
-⋮----
-constructor(private readonly relationRepo: RelationRepository)
-⋮----
-async execute(input: CreateRelationInput): Promise<Relation>
-⋮----
-export class RemoveRelationUseCase {
-⋮----
-async execute(relationId: string): Promise<void>
-⋮----
-export class ListRelationsBySourceUseCase {
-⋮----
-async execute(sourceArtifactId: string): Promise<readonly Relation[]>
-⋮----
-export class ListRelationsByTargetUseCase {
-⋮----
-async execute(targetArtifactId: string): Promise<readonly Relation[]>
-````
-
 ## File: modules/notion/subdomains/relations/domain/index.ts
 ````typescript
 
@@ -39731,36 +38527,6 @@ export interface TaxonomyNodeDto {
   readonly createdAtISO: string;
   readonly updatedAtISO: string;
 }
-````
-
-## File: modules/notion/subdomains/taxonomy/application/use-cases/manage-taxonomy.use-cases.ts
-````typescript
-/**
- * Module: notion/subdomains/taxonomy
- * Layer: application/use-cases
- * Purpose: Use case orchestration for taxonomy node operations.
- */
-⋮----
-import type { TaxonomyRepository } from "../../domain/repositories/TaxonomyRepository";
-import type { TaxonomyNode, CreateTaxonomyNodeInput } from "../../domain/entities/TaxonomyNode";
-⋮----
-export class CreateTaxonomyNodeUseCase {
-⋮----
-constructor(private readonly taxonomyRepo: TaxonomyRepository)
-⋮----
-async execute(input: CreateTaxonomyNodeInput): Promise<TaxonomyNode>
-⋮----
-export class RemoveTaxonomyNodeUseCase {
-⋮----
-async execute(nodeId: string): Promise<void>
-⋮----
-export class ListTaxonomyRootsUseCase {
-⋮----
-async execute(organizationId: string): Promise<readonly TaxonomyNode[]>
-⋮----
-export class ListTaxonomyChildrenUseCase {
-⋮----
-async execute(parentNodeId: string): Promise<readonly TaxonomyNode[]>
 ````
 
 ## File: modules/notion/subdomains/taxonomy/domain/index.ts
@@ -40101,6 +38867,73 @@ import type { AccountEntity } from "../subdomains/account/api";
 export type ActiveAccount = AccountEntity | AuthUser;
 ````
 
+## File: modules/platform/api/service-api.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import { getFirebaseAuth } from "@integration-firebase";
+⋮----
+import { accessControlService } from "../subdomains/access-control/api";
+import { isAllowed, type PermissionDecision } from "../domain/value-objects/PermissionDecision";
+import { firestoreInfrastructureApi, storageInfrastructureApi } from "./infrastructure-api";
+import type {
+	AuthAPI,
+	AuthSession,
+	FileAPI,
+	PermissionAPI,
+	UploadUserFileInput,
+	UploadUserFileOutput,
+} from "./contracts";
+⋮----
+interface PlatformFileRecord {
+	readonly fileId: string;
+	readonly ownerId: string;
+	readonly storagePath: string;
+	readonly filename: string;
+	readonly contentType: string;
+	readonly url: string;
+	readonly metadata: Record<string, string>;
+	readonly createdAtISO: string;
+	readonly deletedAtISO?: string;
+}
+⋮----
+function normalizeOwnerId(ownerId: string): string
+⋮----
+function normalizeFileName(input: UploadUserFileInput): string
+⋮----
+function sanitizeFileName(fileName: string): string
+⋮----
+function parseResource(resource: string):
+⋮----
+function parsePermissionDecision(raw: string): PermissionDecision | null
+⋮----
+function buildFileRecordPath(fileId: string): string
+⋮----
+async getSession(): Promise<AuthSession | null>
+⋮----
+async requireAuth(): Promise<AuthSession>
+⋮----
+async can(userId: string, action: string, resource: string): Promise<boolean>
+⋮----
+async uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>
+⋮----
+async deleteFile(fileId: string): Promise<void>
+````
+
+## File: modules/platform/application/services/build-correlation-id.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+/**
+ * buildCorrelationId — generate a new UUID v4 correlation identifier.
+ *
+ * Application-level helper used when a new command arrives at the driving
+ * adapter without an existing correlation chain, or when starting a new
+ * batch of domain events not caused by an existing event.
+ *
+ * @see shared/types/CorrelationContext.ts
+ */
+export function buildCorrelationId(): string
+````
+
 ## File: modules/platform/docs/README.md
 ````markdown
 # Platform Documentation
@@ -40356,6 +39189,119 @@ export function resolveOrganizationRouteFallback(
 ): string | null
 ````
 
+## File: modules/platform/subdomains/access-control/application/use-cases/access-control.use-cases.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+/**
+ * Access-Control Use Cases — pure application logic.
+ */
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { AccessPolicy } from "../../domain/aggregates/AccessPolicy";
+import {
+  allowDecision,
+  denyDecision,
+} from "../../../../domain/value-objects/PermissionDecision";
+import type { AccessPolicyRepository } from "../../domain/repositories/AccessPolicyRepository";
+import type { SubjectRef } from "../../domain/value-objects/SubjectRef";
+import type { ResourceRef } from "../../domain/value-objects/ResourceRef";
+import type { PolicyEffect } from "../../domain/value-objects/PolicyEffect";
+⋮----
+// ─── Evaluate Permission ──────────────────────────────────────────────────────
+⋮----
+export class EvaluatePermissionUseCase {
+⋮----
+constructor(private readonly repo: AccessPolicyRepository)
+⋮----
+async execute(input: {
+    subjectId: string;
+    resourceType: string;
+    resourceId?: string;
+    action: string;
+}): Promise<CommandResult>
+⋮----
+// Explicit deny takes priority (deny-override semantics)
+⋮----
+// ─── Create Access Policy ─────────────────────────────────────────────────────
+⋮----
+export class CreateAccessPolicyUseCase {
+⋮----
+async execute(input: {
+    subjectRef: SubjectRef;
+    resourceRef: ResourceRef;
+    actions: string[];
+    effect: PolicyEffect;
+    conditions?: string[];
+}): Promise<CommandResult>
+⋮----
+// ─── Update Access Policy ─────────────────────────────────────────────────────
+⋮----
+export class UpdateAccessPolicyUseCase {
+⋮----
+async execute(
+    policyId: string,
+    input: { actions?: string[]; effect?: PolicyEffect; conditions?: string[] },
+): Promise<CommandResult>
+⋮----
+// ─── Delete (Deactivate) Access Policy ───────────────────────────────────────
+⋮----
+export class DeactivateAccessPolicyUseCase {
+⋮----
+async execute(policyId: string): Promise<CommandResult>
+````
+
+## File: modules/platform/subdomains/access-control/domain/aggregates/AccessPolicy.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import type { AccessPolicyDomainEventType } from "../events/AccessPolicyDomainEvent";
+import type { SubjectRef } from "../value-objects/SubjectRef";
+import type { ResourceRef } from "../value-objects/ResourceRef";
+import type { PolicyEffect } from "../value-objects/PolicyEffect";
+⋮----
+export interface AccessPolicySnapshot {
+  readonly id: string;
+  readonly subjectRef: SubjectRef;
+  readonly resourceRef: ResourceRef;
+  readonly actions: readonly string[];
+  readonly effect: PolicyEffect;
+  readonly conditions: readonly string[];
+  readonly isActive: boolean;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateAccessPolicyInput {
+  readonly subjectRef: SubjectRef;
+  readonly resourceRef: ResourceRef;
+  readonly actions: string[];
+  readonly effect: PolicyEffect;
+  readonly conditions?: string[];
+}
+⋮----
+export class AccessPolicy {
+⋮----
+private constructor(private _props: AccessPolicySnapshot)
+⋮----
+static create(id: string, input: CreateAccessPolicyInput): AccessPolicy
+⋮----
+static reconstitute(snapshot: AccessPolicySnapshot): AccessPolicy
+⋮----
+update(input:
+⋮----
+deactivate(): void
+⋮----
+get id(): string
+get subjectRef(): SubjectRef
+get resourceRef(): ResourceRef
+get actions(): readonly string[]
+get effect(): PolicyEffect
+get conditions(): readonly string[]
+get isActive(): boolean
+⋮----
+getSnapshot(): Readonly<AccessPolicySnapshot>
+⋮----
+pullDomainEvents(): AccessPolicyDomainEventType[]
+````
+
 ## File: modules/platform/subdomains/access-control/infrastructure/index.ts
 ````typescript
 /**
@@ -40386,6 +39332,55 @@ import type { PolicyEffect } from "../../domain/value-objects/PolicyEffect";
 import type { CommandResult } from "@shared-types";
 ⋮----
 function getRepo(): FirebaseAccessPolicyRepository
+````
+
+## File: modules/platform/subdomains/account-profile/domain/aggregates/AccountProfileAggregate.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import type {
+  AccountProfileDomainEventType,
+  AccountProfileUpdatedEvent,
+} from "../events/AccountProfileDomainEvent";
+import { createProfileId, createProfileDisplayName } from "../value-objects";
+import type { ProfileId } from "../value-objects";
+import type {
+  AccountProfile,
+  UpdateAccountProfileInput,
+} from "../entities/AccountProfile";
+⋮----
+export interface AccountProfileAggregateSnapshot {
+  readonly id: string;
+  readonly displayName: string;
+  readonly email: string | null;
+  readonly photoURL: string | null;
+  readonly bio: string | null;
+  readonly theme: AccountProfile["theme"] | null;
+  readonly updatedAtISO: string;
+}
+⋮----
+export class AccountProfileAggregate {
+⋮----
+private constructor(private _props: AccountProfileAggregateSnapshot)
+⋮----
+static create(id: string, profile: AccountProfile): AccountProfileAggregate
+⋮----
+static reconstitute(
+    snapshot: AccountProfileAggregateSnapshot,
+): AccountProfileAggregate
+⋮----
+update(input: UpdateAccountProfileInput): void
+⋮----
+get id(): ProfileId
+⋮----
+get displayName(): string
+⋮----
+getSnapshot(): Readonly<AccountProfileAggregateSnapshot>
+⋮----
+pullDomainEvents(): AccountProfileDomainEventType[]
+⋮----
+private recordEvent<TEvent extends AccountProfileDomainEventType>(
+    event: TEvent,
+): void
 ````
 
 ## File: modules/platform/subdomains/account-profile/domain/index.ts
@@ -40511,6 +39506,85 @@ export function subscribeToLegacyUserProfile(
 )
 ⋮----
 export async function updateLegacyUserProfile(userId: string, input: UpdateProfileInput): Promise<void>
+````
+
+## File: modules/platform/subdomains/account/domain/aggregates/Account.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import type { AccountDomainEventType } from "../events";
+import { canClose, canReactivate, canSuspend } from "../value-objects";
+import { createAccountId, createAccountType, createWalletAmount } from "../value-objects";
+import type { AccountStatus } from "../value-objects";
+⋮----
+export interface AccountSnapshot {
+	readonly id: string;
+	readonly name: string;
+	readonly accountType: "user" | "organization";
+	readonly email: string | null;
+	readonly photoURL: string | null;
+	readonly bio: string | null;
+	readonly status: "active" | "suspended" | "closed";
+	readonly walletBalance: number;
+	readonly createdAtISO: string;
+	readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateAccountInput {
+	readonly name: string;
+	readonly accountType: "user" | "organization";
+	readonly email?: string | null;
+	readonly photoURL?: string | null;
+	readonly bio?: string | null;
+}
+⋮----
+export class Account {
+⋮----
+private constructor(private _props: AccountSnapshot)
+⋮----
+static create(id: string, input: CreateAccountInput): Account
+⋮----
+static reconstitute(snapshot: AccountSnapshot): Account
+⋮----
+updateProfile(input:
+⋮----
+creditWallet(amount: number, description: string): void
+⋮----
+debitWallet(amount: number, description: string): void
+⋮----
+suspend(): void
+⋮----
+close(): void
+⋮----
+reactivate(): void
+⋮----
+get id(): string
+⋮----
+get name(): string
+⋮----
+get accountType(): "user" | "organization"
+⋮----
+get email(): string | null
+⋮----
+get photoURL(): string | null
+⋮----
+get bio(): string | null
+⋮----
+get status(): AccountStatus
+⋮----
+get walletBalance(): number
+⋮----
+get createdAtISO(): string
+⋮----
+get updatedAtISO(): string
+⋮----
+getSnapshot(): Readonly<AccountSnapshot>
+⋮----
+pullDomainEvents(): AccountDomainEventType[]
+⋮----
+private changeStatus(
+		status: AccountStatus,
+		eventType: "platform.account.suspended" | "platform.account.closed" | "platform.account.reactivated",
+): void
 ````
 
 ## File: modules/platform/subdomains/account/domain/index.ts
@@ -40691,77 +39765,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
  */
 ````
 
-## File: modules/platform/subdomains/background-job/application/use-cases/ingestion.use-cases.ts
-````typescript
-/**
- * Ingestion Use Cases — application-layer orchestration for IngestionJob domain operations.
- *
- * Each use case receives its repository dependency via constructor injection,
- * keeping it testable and decoupled from any specific adapter.
- *
- * Return type uses a locally-defined IngestionResult<T> rather than the
- * command-only CommandResult, because creation and advancement operations
- * need to surface the resulting IngestionJob entity to callers.
- */
-⋮----
-import { randomUUID } from "node:crypto";
-⋮----
-import type { DomainError } from "@shared-types";
-⋮----
-import type { IngestionDocument } from "../../domain/entities/IngestionDocument";
-import { canTransitionIngestionStatus, type IngestionJob, type IngestionStatus } from "../../domain/entities/IngestionJob";
-import type { IngestionJobRepository } from "../../domain/repositories/IngestionJobRepository";
-⋮----
-// ── Shared result type ────────────────────────────────────────────────────────
-⋮----
-export type IngestionResult<T> =
-  | { readonly ok: true; readonly data: T }
-  | { readonly ok: false; readonly error: DomainError };
-⋮----
-function ok<T>(data: T): IngestionResult<T>
-⋮----
-function fail(code: string, message: string): IngestionResult<never>
-⋮----
-// ── Register Ingestion Document ───────────────────────────────────────────────
-⋮----
-export interface RegisterIngestionDocumentInput {
-  readonly organizationId: string;
-  readonly workspaceId: string;
-  readonly sourceFileId: string;
-  readonly title: string;
-  readonly mimeType: string;
-}
-⋮----
-export class RegisterIngestionDocumentUseCase {
-⋮----
-constructor(private readonly repo: IngestionJobRepository)
-⋮----
-async execute(input: RegisterIngestionDocumentInput): Promise<IngestionResult<IngestionJob>>
-⋮----
-// ── Advance Ingestion Stage ───────────────────────────────────────────────────
-⋮----
-export interface AdvanceIngestionStageInput {
-  readonly documentId: string;
-  readonly nextStatus: IngestionStatus;
-  readonly statusMessage?: string;
-}
-⋮----
-export class AdvanceIngestionStageUseCase {
-⋮----
-async execute(input: AdvanceIngestionStageInput): Promise<IngestionResult<IngestionJob>>
-⋮----
-// ── List Workspace Ingestion Jobs ─────────────────────────────────────────────
-⋮----
-export interface ListWorkspaceIngestionJobsInput {
-  readonly organizationId: string;
-  readonly workspaceId: string;
-}
-⋮----
-export class ListWorkspaceIngestionJobsUseCase {
-⋮----
-async execute(input: ListWorkspaceIngestionJobsInput): Promise<readonly IngestionJob[]>
-````
-
 ## File: modules/platform/subdomains/background-job/domain/repositories/IngestionJobRepository.ts
 ````typescript
 /**
@@ -40924,6 +39927,106 @@ advanceStage(input: AdvanceIngestionStageInput): Promise<IngestionResult<Ingesti
  */
 ````
 
+## File: modules/platform/subdomains/entitlement/application/use-cases/entitlement.use-cases.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+/**
+ * Entitlement Use Cases — pure application logic.
+ * All cross-domain dependencies are injected via ports.
+ */
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { EntitlementGrant } from "../../domain/aggregates/EntitlementGrant";
+import type { EntitlementGrantRepository } from "../../domain/repositories/EntitlementGrantRepository";
+⋮----
+// ─── Grant Entitlement ────────────────────────────────────────────────────────
+⋮----
+export class GrantEntitlementUseCase {
+⋮----
+constructor(private readonly repo: EntitlementGrantRepository)
+⋮----
+async execute(input: {
+    contextId: string;
+    featureKey: string;
+    quota?: number | null;
+    expiresAt?: string | null;
+}): Promise<CommandResult>
+⋮----
+// ─── Suspend Entitlement ──────────────────────────────────────────────────────
+⋮----
+export class SuspendEntitlementUseCase {
+⋮----
+async execute(entitlementId: string): Promise<CommandResult>
+⋮----
+// ─── Revoke Entitlement ───────────────────────────────────────────────────────
+⋮----
+export class RevokeEntitlementUseCase {
+⋮----
+// ─── Resolve Entitlements (query-style) ───────────────────────────────────────
+⋮----
+export class ResolveEntitlementsUseCase {
+⋮----
+async execute(contextId: string): Promise<CommandResult>
+⋮----
+// ─── Check Feature Entitlement ────────────────────────────────────────────────
+⋮----
+export class CheckFeatureEntitlementUseCase {
+⋮----
+async execute(contextId: string, featureKey: string): Promise<CommandResult>
+````
+
+## File: modules/platform/subdomains/entitlement/domain/aggregates/EntitlementGrant.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import type { EntitlementGrantDomainEventType } from "../events/EntitlementGrantDomainEvent";
+import { createEntitlementId, canSuspend, canRevoke } from "../value-objects";
+import type { EntitlementStatus } from "../value-objects";
+⋮----
+export interface EntitlementGrantSnapshot {
+  readonly id: string;
+  readonly contextId: string;
+  readonly featureKey: string;
+  readonly quota: number | null;
+  readonly status: EntitlementStatus;
+  readonly grantedAt: string;
+  readonly expiresAt: string | null;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateEntitlementGrantInput {
+  readonly contextId: string;
+  readonly featureKey: string;
+  readonly quota?: number | null;
+  readonly expiresAt?: string | null;
+}
+⋮----
+export class EntitlementGrant {
+⋮----
+private constructor(private _props: EntitlementGrantSnapshot)
+⋮----
+static create(id: string, input: CreateEntitlementGrantInput): EntitlementGrant
+⋮----
+static reconstitute(snapshot: EntitlementGrantSnapshot): EntitlementGrant
+⋮----
+suspend(): void
+⋮----
+revoke(): void
+⋮----
+expire(): void
+⋮----
+get id(): string
+get contextId(): string
+get featureKey(): string
+get quota(): number | null
+get status(): EntitlementStatus
+get grantedAt(): string
+get expiresAt(): string | null
+get isActive(): boolean
+⋮----
+getSnapshot(): Readonly<EntitlementGrantSnapshot>
+⋮----
+pullDomainEvents(): EntitlementGrantDomainEventType[]
+````
+
 ## File: modules/platform/subdomains/entitlement/infrastructure/index.ts
 ````typescript
 /**
@@ -40953,6 +40056,70 @@ import { FirebaseEntitlementGrantRepository } from "../../infrastructure/firebas
 import type { CommandResult } from "@shared-types";
 ⋮----
 function getRepo(): FirebaseEntitlementGrantRepository
+````
+
+## File: modules/platform/subdomains/identity/domain/aggregates/UserIdentity.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import type { IdentityDomainEventType } from "../events";
+import { canReactivate, canSuspend } from "../value-objects";
+import { createDisplayName, createEmail, createUserId } from "../value-objects";
+import type { IdentityStatus } from "../value-objects";
+⋮----
+export interface UserIdentitySnapshot {
+	readonly uid: string;
+	readonly email: string | null;
+	readonly displayName: string | null;
+	readonly photoURL: string | null;
+	readonly isAnonymous: boolean;
+	readonly emailVerified: boolean;
+	readonly status: IdentityStatus;
+	readonly lastSignInAtISO: string | null;
+	readonly createdAtISO: string;
+	readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateIdentityInput {
+	readonly email: string | null;
+	readonly displayName: string | null;
+	readonly photoURL: string | null;
+	readonly isAnonymous: boolean;
+	readonly emailVerified: boolean;
+}
+⋮----
+export class UserIdentity {
+⋮----
+private constructor(private _props: UserIdentitySnapshot)
+⋮----
+static create(uid: string, input: CreateIdentityInput): UserIdentity
+⋮----
+static reconstitute(snapshot: UserIdentitySnapshot): UserIdentity
+⋮----
+signIn(): void
+⋮----
+updateDisplayName(name: string): void
+⋮----
+verifyEmail(): void
+⋮----
+suspend(): void
+⋮----
+reactivate(): void
+⋮----
+get uid(): string
+⋮----
+get email(): string | null
+⋮----
+get displayName(): string | null
+⋮----
+get isActive(): boolean
+⋮----
+get isAnonymous(): boolean
+⋮----
+get emailVerified(): boolean
+⋮----
+getSnapshot(): Readonly<UserIdentitySnapshot>
+⋮----
+pullDomainEvents(): IdentityDomainEventType[]
 ````
 
 ## File: modules/platform/subdomains/identity/domain/index.ts
@@ -41116,6 +40283,56 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/platform/subdomains/notification/domain/aggregates/NotificationAggregate.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import type {
+  NotificationDomainEventType,
+  NotificationDispatchedEvent,
+  NotificationReadEvent,
+} from "../events/NotificationDomainEvent";
+import { createNotificationId } from "../value-objects";
+import type { NotificationId } from "../value-objects";
+import type {
+  NotificationEntity,
+  DispatchNotificationInput,
+} from "../entities/Notification";
+⋮----
+export interface NotificationAggregateSnapshot {
+  readonly id: string;
+  readonly recipientId: string;
+  readonly title: string;
+  readonly message: string;
+  readonly type: NotificationEntity["type"];
+  readonly read: boolean;
+  readonly timestamp: number;
+  readonly sourceEventType: string | undefined;
+  readonly metadata: Record<string, unknown> | undefined;
+}
+⋮----
+export class NotificationAggregate {
+⋮----
+private constructor(private _props: NotificationAggregateSnapshot)
+⋮----
+static create(id: string, input: DispatchNotificationInput): NotificationAggregate
+⋮----
+static reconstitute(snapshot: NotificationAggregateSnapshot): NotificationAggregate
+⋮----
+markRead(): void
+⋮----
+get id(): NotificationId
+⋮----
+get recipientId(): string
+⋮----
+get read(): boolean
+⋮----
+getSnapshot(): Readonly<NotificationAggregateSnapshot>
+⋮----
+pullDomainEvents(): NotificationDomainEventType[]
+⋮----
+private recordEvent<TEvent extends NotificationDomainEventType>(event: TEvent): void
+````
+
 ## File: modules/platform/subdomains/notification/domain/index.ts
 ````typescript
 
@@ -41274,6 +40491,121 @@ async execute(
     memberId: string,
     action: "add" | "remove",
 ): Promise<CommandResult>
+````
+
+## File: modules/platform/subdomains/organization/domain/aggregates/Organization.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import type {
+	MemberAddedEvent,
+	MemberRemovedEvent,
+	MemberRoleUpdatedEvent,
+	OrganizationCreatedEvent,
+	OrganizationDissolvedEvent,
+	OrganizationDomainEventType,
+	OrganizationReactivatedEvent,
+	OrganizationSuspendedEvent,
+	SettingsUpdatedEvent,
+} from "../events";
+import type { ThemeConfig } from "../entities/Organization";
+import {
+	canDissolve,
+	canReactivate,
+	canSuspend,
+	createMemberRole,
+	createOrganizationId,
+	type MemberRole,
+	type OrganizationStatus,
+} from "../value-objects";
+⋮----
+export interface OrganizationSnapshot {
+	readonly id: string;
+	readonly name: string;
+	readonly ownerId: string;
+	readonly ownerName: string;
+	readonly ownerEmail: string;
+	readonly description: string | null;
+	readonly photoURL: string | null;
+	readonly theme: ThemeConfig | null;
+	readonly memberCount: number;
+	readonly teamCount: number;
+	readonly status: "active" | "suspended" | "dissolved";
+	readonly createdAtISO: string;
+	readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateOrganizationInput {
+	readonly name: string;
+	readonly ownerId: string;
+	readonly ownerName: string;
+	readonly ownerEmail: string;
+	readonly description?: string | null;
+	readonly photoURL?: string | null;
+	readonly theme?: ThemeConfig | null;
+}
+⋮----
+export class Organization {
+⋮----
+private constructor(private _props: OrganizationSnapshot)
+⋮----
+static create(id: string, input: CreateOrganizationInput): Organization
+⋮----
+static reconstitute(snapshot: OrganizationSnapshot): Organization
+⋮----
+updateSettings(input:
+⋮----
+addMember(memberId: string, name: string, email: string, role: MemberRole): void
+⋮----
+removeMember(memberId: string): void
+⋮----
+updateMemberRole(memberId: string, newRole: MemberRole): void
+⋮----
+suspend(): void
+⋮----
+dissolve(): void
+⋮----
+reactivate(): void
+⋮----
+get id(): string
+⋮----
+get name(): string
+⋮----
+get ownerId(): string
+⋮----
+get ownerName(): string
+⋮----
+get ownerEmail(): string
+⋮----
+get description(): string | null
+⋮----
+get photoURL(): string | null
+⋮----
+get theme(): ThemeConfig | null
+⋮----
+get memberCount(): number
+⋮----
+get teamCount(): number
+⋮----
+get status(): OrganizationStatus
+⋮----
+get createdAtISO(): string
+⋮----
+get updatedAtISO(): string
+⋮----
+getSnapshot(): Readonly<OrganizationSnapshot>
+⋮----
+pullDomainEvents(): OrganizationDomainEventType[]
+⋮----
+private changeStatus(
+		status: OrganizationStatus,
+		eventType: "platform.organization.suspended" | "platform.organization.dissolved" | "platform.organization.reactivated",
+): void
+⋮----
+private ensureActive(message: string): void
+⋮----
+private recordEvent<TEvent extends OrganizationDomainEventType>(event: TEvent): void
+⋮----
+private static assertRequired(value: string, message: string): void
 ````
 
 ## File: modules/platform/subdomains/organization/domain/index.ts
@@ -41593,6 +40925,112 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 /**
  * Public API boundary for the subscription subdomain.
  */
+````
+
+## File: modules/platform/subdomains/subscription/application/use-cases/subscription.use-cases.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+/**
+ * Subscription Use Cases — pure application logic.
+ */
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { Subscription } from "../../domain/aggregates/Subscription";
+import type { SubscriptionRepository } from "../../domain/repositories/SubscriptionRepository";
+import type { BillingCycle } from "../../domain/value-objects/BillingCycle";
+⋮----
+// ─── Activate Subscription ────────────────────────────────────────────────────
+⋮----
+export class ActivateSubscriptionUseCase {
+⋮----
+constructor(private readonly repo: SubscriptionRepository)
+⋮----
+async execute(input: {
+    contextId: string;
+    planCode: string;
+    billingCycle: BillingCycle;
+    currentPeriodEnd?: string | null;
+}): Promise<CommandResult>
+⋮----
+// ─── Cancel Subscription ──────────────────────────────────────────────────────
+⋮----
+export class CancelSubscriptionUseCase {
+⋮----
+async execute(subscriptionId: string): Promise<CommandResult>
+⋮----
+// ─── Renew Subscription ───────────────────────────────────────────────────────
+⋮----
+export class RenewSubscriptionUseCase {
+⋮----
+async execute(subscriptionId: string, newPeriodEnd: string): Promise<CommandResult>
+⋮----
+// ─── Get Active Subscription (query-style) ───────────────────────────────────
+⋮----
+export class GetActiveSubscriptionUseCase {
+⋮----
+async execute(contextId: string): Promise<CommandResult>
+⋮----
+// ─── Mark Past Due ────────────────────────────────────────────────────────────
+⋮----
+export class MarkSubscriptionPastDueUseCase {
+````
+
+## File: modules/platform/subdomains/subscription/domain/aggregates/Subscription.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import type { SubscriptionDomainEventType } from "../events/SubscriptionDomainEvent";
+import { createSubscriptionId, canCancel, canRenew } from "../value-objects";
+import type { SubscriptionStatus } from "../value-objects";
+import type { BillingCycle } from "../value-objects/BillingCycle";
+⋮----
+export interface SubscriptionSnapshot {
+  readonly id: string;
+  readonly contextId: string;
+  readonly planCode: string;
+  readonly billingCycle: BillingCycle;
+  readonly status: SubscriptionStatus;
+  readonly currentPeriodStart: string;
+  readonly currentPeriodEnd: string | null;
+  readonly cancelledAt: string | null;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateSubscriptionInput {
+  readonly contextId: string;
+  readonly planCode: string;
+  readonly billingCycle: BillingCycle;
+  readonly currentPeriodStart?: string;
+  readonly currentPeriodEnd?: string | null;
+}
+⋮----
+export class Subscription {
+⋮----
+private constructor(private _props: SubscriptionSnapshot)
+⋮----
+static create(id: string, input: CreateSubscriptionInput): Subscription
+⋮----
+static reconstitute(snapshot: SubscriptionSnapshot): Subscription
+⋮----
+cancel(): void
+⋮----
+renew(newPeriodEnd: string): void
+⋮----
+markPastDue(): void
+⋮----
+expire(): void
+⋮----
+get id(): string
+get contextId(): string
+get planCode(): string
+get billingCycle(): BillingCycle
+get status(): SubscriptionStatus
+get currentPeriodEnd(): string | null
+get cancelledAt(): string | null
+get isActive(): boolean
+⋮----
+getSnapshot(): Readonly<SubscriptionSnapshot>
+⋮----
+pullDomainEvents(): SubscriptionDomainEventType[]
 ````
 
 ## File: modules/platform/subdomains/subscription/infrastructure/index.ts
@@ -41916,125 +41354,6 @@ Strategic architecture documentation lives in `docs/contexts/workspace/`:
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
-## File: modules/workspace/domain/aggregates/Workspace.ts
-````typescript
-/**
- * Workspace Domain Entities — pure TypeScript, zero framework dependencies.
- */
-⋮----
-import type { Timestamp } from "@shared-types";
-import type { WorkspaceAccessPolicy, WorkspaceGrant } from "../entities/WorkspaceAccess";
-import type {
-  Capability,
-  WorkspaceCapabilityAssignments,
-} from "../entities/WorkspaceCapability";
-import type { WorkspaceLocation } from "../entities/WorkspaceLocation";
-import type {
-  Address,
-  WorkspaceOperationalProfile,
-  WorkspacePersonnel,
-} from "../entities/WorkspaceProfile";
-import { createAddress, type AddressInput } from "../value-objects/Address";
-import type {
-  WorkspaceLifecycleState,
-  WorkspaceLifecycleStateInput,
-} from "../value-objects/WorkspaceLifecycleState";
-import {
-  canTransitionWorkspaceLifecycleState,
-  createWorkspaceLifecycleState,
-} from "../value-objects/WorkspaceLifecycleState";
-import type {
-  WorkspaceName,
-  WorkspaceNameInput,
-} from "../value-objects/WorkspaceName";
-import { createWorkspaceName } from "../value-objects/WorkspaceName";
-import type {
-  WorkspaceVisibility,
-  WorkspaceVisibilityInput,
-} from "../value-objects/WorkspaceVisibility";
-import { createWorkspaceVisibility } from "../value-objects/WorkspaceVisibility";
-⋮----
-export interface WorkspaceEntity {
-  id: string;
-  name: WorkspaceName;
-  photoURL?: string;
-  lifecycleState: WorkspaceLifecycleState;
-  visibility: WorkspaceVisibility;
-  accountId: string;
-  accountType: "user" | "organization";
-  createdAt: Timestamp;
-}
-⋮----
-export interface WorkspaceEntity
-  extends WorkspaceCapabilityAssignments,
-    WorkspaceAccessPolicy,
-    WorkspaceOperationalProfile {}
-⋮----
-// ─── Commands ─────────────────────────────────────────────────────────────────
-⋮----
-export interface CreateWorkspaceCommand {
-  readonly name: WorkspaceNameInput;
-  readonly accountId: string;
-  readonly accountType: "user" | "organization";
-  readonly creatorUserId?: string;
-}
-⋮----
-export interface UpdateWorkspaceSettingsCommand {
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly name?: WorkspaceNameInput;
-  readonly visibility?: WorkspaceVisibilityInput;
-  readonly lifecycleState?: WorkspaceLifecycleStateInput;
-  readonly address?: AddressInput;
-  readonly personnel?: WorkspacePersonnel;
-}
-⋮----
-type WorkspaceSettingsPatch = Omit<
-  UpdateWorkspaceSettingsCommand,
-  "workspaceId" | "accountId"
->;
-⋮----
-function createWorkspaceTimestamp(date = new Date()): Timestamp
-⋮----
-function cloneCapabilities(capabilities: Capability[] = []): Capability[]
-⋮----
-function cloneGrants(grants: WorkspaceGrant[] = []): WorkspaceGrant[]
-⋮----
-function cloneLocations(locations?: WorkspaceLocation[]): WorkspaceLocation[] | undefined
-⋮----
-function clonePersonnel(
-  personnel?: WorkspacePersonnel,
-): WorkspacePersonnel | undefined
-⋮----
-function normalizeAccountId(accountId: string): string
-⋮----
-export class Workspace implements WorkspaceEntity {
-⋮----
-private constructor(snapshot: WorkspaceEntity)
-⋮----
-static create(command: CreateWorkspaceCommand): Workspace
-⋮----
-static reconstitute(snapshot: WorkspaceEntity): Workspace
-⋮----
-rename(nextName: WorkspaceNameInput): void
-⋮----
-changeVisibility(nextVisibility: WorkspaceVisibilityInput): void
-⋮----
-activate(): void
-⋮----
-stop(): void
-⋮----
-transitionLifecycle(nextState: WorkspaceLifecycleStateInput): void
-⋮----
-updateAddress(nextAddress: AddressInput): void
-⋮----
-updatePersonnel(nextPersonnel: WorkspacePersonnel): void
-⋮----
-applySettings(patch: WorkspaceSettingsPatch): void
-⋮----
-toSnapshot(): WorkspaceEntity
-````
-
 ## File: modules/workspace/domain/entities/WikiContentTree.ts
 ````typescript
 /**
@@ -42078,6 +41397,79 @@ export interface WikiAccountSeed {
   accountType: WikiAccountType;
   isActive: boolean;
 }
+````
+
+## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository.ts
+````typescript
+/**
+ * FirebaseWorkspaceRepository — Infrastructure adapter for workspace persistence.
+ * Translates Firestore documents ↔ Domain WorkspaceEntity.
+ * Firebase SDK only exists in this file.
+ */
+⋮----
+import { v4 as uuid } from "@lib-uuid";
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
+import type { WorkspaceCapabilityRepository } from "../../domain/ports/output/WorkspaceCapabilityRepository";
+import type { WorkspaceAccessRepository } from "../../domain/ports/output/WorkspaceAccessRepository";
+import type { WorkspaceLocationRepository } from "../../domain/ports/output/WorkspaceLocationRepository";
+import type {
+  WorkspaceEntity,
+  Capability,
+  WorkspaceGrant,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceLocation,
+} from "../../domain/aggregates/Workspace";
+import { createAddress } from "../../domain/value-objects/Address";
+import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
+import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";
+import { createWorkspaceVisibility } from "../../domain/value-objects/WorkspaceVisibility";
+⋮----
+// ─── Mapper ───────────────────────────────────────────────────────────────────
+⋮----
+export function toWorkspaceEntity(id: string, data: Record<string, unknown>): WorkspaceEntity
+⋮----
+// ─── Repository ───────────────────────────────────────────────────────────────
+⋮----
+export class FirebaseWorkspaceRepository
+implements
+⋮----
+private workspacePath(workspaceId: string): string
+⋮----
+async findById(id: string): Promise<WorkspaceEntity | null>
+⋮----
+async findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null>
+⋮----
+async findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]>
+⋮----
+async save(workspace: WorkspaceEntity): Promise<string>
+⋮----
+async updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void>
+⋮----
+async delete(id: string): Promise<void>
+⋮----
+async mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void>
+⋮----
+async unmountCapability(workspaceId: string, capabilityId: string): Promise<void>
+⋮----
+async grantTeamAccess(workspaceId: string, teamId: string): Promise<void>
+⋮----
+async revokeTeamAccess(workspaceId: string, teamId: string): Promise<void>
+⋮----
+async grantIndividualAccess(workspaceId: string, grant: WorkspaceGrant): Promise<void>
+⋮----
+async revokeIndividualAccess(workspaceId: string, userId: string): Promise<void>
+⋮----
+async createLocation(
+    workspaceId: string,
+    location: Omit<WorkspaceLocation, "locationId">,
+): Promise<string>
+⋮----
+async updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void>
+⋮----
+async deleteLocation(workspaceId: string, locationId: string): Promise<void>
 ````
 
 ## File: modules/workspace/infrastructure/infrastructure.instructions.md
@@ -42305,6 +41697,48 @@ export function WorkspaceDetailRouteScreen({
 }: WorkspaceDetailRouteScreenProps)
 ````
 
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx
+````typescript
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { Badge } from "@ui-shadcn/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Separator } from "@ui-shadcn/ui/separator";
+import { describeGrant } from "../../view-models/workspace-grants";
+import { WorkspaceOverviewSettingsTab } from "./WorkspaceOverviewSettingsTab";
+import { WorkspaceOverviewSummaryCard } from "../cards/WorkspaceOverviewSummaryCard";
+import { WorkspaceProductSpineCard } from "../cards/WorkspaceProductSpineCard";
+import { WorkspaceQuickstartCard } from "../cards/WorkspaceQuickstartCard";
+import { WorkspaceOverviewKnowledgePanels } from "./WorkspaceOverviewKnowledgePanels";
+⋮----
+interface WorkspaceOverviewTabProps {
+  readonly workspace: WorkspaceEntity;
+  readonly activeWorkspaceId: string | null | undefined;
+  readonly currentUserId?: string | null;
+  readonly personnelEntries: Array<{ label: string; value: string | undefined }>;
+  readonly addressLines: string[];
+  readonly initialPanel?: string;
+  readonly onEditClick: () => void;
+  readonly onSetActiveWorkspace: () => void;
+}
+⋮----
+type WorkspaceOverviewSurface =
+  | "home"
+  | "knowledge-pages"
+  | "knowledge-base-articles"
+  | "knowledge-databases"
+  | "source-libraries"
+  | "governance"
+  | "profile";
+⋮----
+function resolveWorkspaceOverviewSurface(panel?: string): WorkspaceOverviewSurface
+````
+
 ## File: modules/workspace/interfaces/web/hooks/useWorkspaceOrchestrationContext.ts
 ````typescript
 import { useParams } from "next/navigation";
@@ -42336,6 +41770,148 @@ export function useWorkspaceOrchestrationContext(
 ): WorkspaceOrchestrationContext
 ````
 
+## File: modules/workspace/interfaces/web/state/workspace-settings.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import type { WorkspaceEntity } from "../../api/contracts";
+⋮----
+export interface WorkspaceCustomRoleDraft {
+  readonly roleId: string;
+  readonly roleName: string;
+  readonly role: string;
+}
+⋮----
+export interface WorkspaceSettingsDraft {
+  readonly name: string;
+  readonly visibility: WorkspaceEntity["visibility"];
+  readonly lifecycleState: WorkspaceEntity["lifecycleState"];
+  readonly street: string;
+  readonly city: string;
+  readonly state: string;
+  readonly postalCode: string;
+  readonly country: string;
+  readonly details: string;
+  readonly managerId: string;
+  readonly supervisorId: string;
+  readonly safetyOfficerId: string;
+  readonly customRoles: WorkspaceCustomRoleDraft[];
+}
+⋮----
+export function createWorkspaceCustomRoleDraft(): WorkspaceCustomRoleDraft
+⋮----
+export function createSettingsDraft(workspace: WorkspaceEntity): WorkspaceSettingsDraft
+````
+
+## File: modules/workspace/subdomains/audit/application/use-cases/record-audit-entry.use-case.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import { AuditEntry, type RecordAuditEntryInput } from "../../domain/aggregates/AuditEntry";
+import type { AuditDomainEventType } from "../../domain/events";
+import type { AuditRepository } from "../../domain/repositories/AuditRepository";
+⋮----
+export class RecordAuditEntryUseCase {
+⋮----
+constructor(private readonly repo: AuditRepository)
+⋮----
+async execute(input: RecordAuditEntryInput): Promise<AuditDomainEventType[]>
+````
+
+## File: modules/workspace/subdomains/audit/domain/aggregates/AuditEntry.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import type { AuditLogSource } from "../entities/AuditLog";
+import type { AuditDomainEventType } from "../events";
+import type { AuditAction } from "../schema";
+import type { AuditSeverity } from "../value-objects";
+import type { ChangeRecord } from "../schema";
+⋮----
+export interface AuditEntrySnapshot {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly actorId: string;
+	readonly action: AuditAction;
+	readonly resourceType: string;
+	readonly resourceId: string;
+	readonly severity: AuditSeverity;
+	readonly detail: string;
+	readonly source: AuditLogSource;
+	readonly changes: readonly ChangeRecord[];
+	readonly recordedAtISO: string;
+}
+⋮----
+export interface RecordAuditEntryInput {
+	readonly workspaceId: string;
+	readonly actorId: string;
+	readonly action: string;
+	readonly resourceType: string;
+	readonly resourceId: string;
+	readonly severity: string;
+	readonly detail: string;
+	readonly source: AuditLogSource;
+	readonly changes?: readonly ChangeRecord[];
+}
+⋮----
+/**
+ * AuditEntry — Immutable aggregate root for audit records.
+ *
+ * Audit entries are write-once: once recorded they cannot be modified or deleted.
+ * All mutation methods are intentionally absent.
+ */
+export class AuditEntry {
+⋮----
+private constructor(private readonly _props: AuditEntrySnapshot)
+⋮----
+/**
+	 * Record a new audit entry. This is the only way to create an AuditEntry.
+	 * Validates action and severity via Zod branded types.
+	 */
+static record(id: string, input: RecordAuditEntryInput): AuditEntry
+⋮----
+// Import dynamically is not possible in domain — validate via type narrowing
+// The caller is responsible for passing valid action/severity strings;
+// Zod validation happens at the value-object layer boundary.
+⋮----
+// Auto-escalation: critical entries emit an additional alert event
+⋮----
+static reconstitute(snapshot: AuditEntrySnapshot): AuditEntry
+⋮----
+// ── Query methods (audit is immutable — no mutation) ─────────────────────
+⋮----
+/** Returns true when severity is "critical". */
+isCritical(): boolean
+⋮----
+/** Returns true when severity is "critical" or "high". */
+isHighSeverity(): boolean
+⋮----
+// ── Getters ──────────────────────────────────────────────────────────────
+⋮----
+get id(): string
+⋮----
+get workspaceId(): string
+⋮----
+get actorId(): string
+⋮----
+get action(): AuditAction
+⋮----
+get resourceType(): string
+⋮----
+get resourceId(): string
+⋮----
+get severity(): AuditSeverity
+⋮----
+get detail(): string
+⋮----
+get source(): AuditLogSource
+⋮----
+get changes(): readonly ChangeRecord[]
+⋮----
+get recordedAtISO(): string
+⋮----
+getSnapshot(): Readonly<AuditEntrySnapshot>
+⋮----
+pullDomainEvents(): AuditDomainEventType[]
+````
+
 ## File: modules/workspace/subdomains/audit/domain/index.ts
 ````typescript
 // ── Existing domain types ────────────────────────────────────────────────────
@@ -42351,6 +41927,30 @@ export function useWorkspaceOrchestrationContext(
  * Re-exports the repository contract from domain/repositories/, making the Ports layer
  * explicitly visible in the directory structure.
  */
+````
+
+## File: modules/workspace/subdomains/audit/infrastructure/firebase/FirebaseAuditRepository.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import type { AuditEntry } from "../../domain/aggregates/AuditEntry";
+import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
+import type { AuditRepository } from "../../domain/repositories/AuditRepository";
+⋮----
+function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEntity
+⋮----
+export class FirebaseAuditRepository implements AuditRepository {
+⋮----
+async save(entry: AuditEntry): Promise<void>
+⋮----
+async findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]>
+⋮----
+async findByWorkspaceIds(
+    workspaceIds: string[],
+    maxCount = 200,
+): Promise<AuditLogEntity[]>
 ````
 
 ## File: modules/workspace/subdomains/audit/interfaces/components/screens/OrganizationAuditRouteScreen.tsx
@@ -42584,40 +42184,6 @@ export interface AssignMemberInput {
   userId: string;
   assignedBy: string;
 }
-````
-
-## File: modules/workspace/subdomains/scheduling/application/work-demand.use-cases.ts
-````typescript
-/**
- * Module: workspace/subdomains/scheduling
- * Layer: application/use-cases
- * Purpose: Application services — orchestrate domain logic.
- */
-⋮----
-import type { CommandResult } from "@shared-types";
-import { commandFailureFrom, commandSuccess } from "@shared-types";
-⋮----
-import type { WorkDemand } from "../domain/types";
-import type { DemandRepository } from "../domain/repository";
-import type { AssignMemberInput, CreateDemandInput } from "./dto/work-demand.dto";
-⋮----
-export class SubmitWorkDemandUseCase {
-⋮----
-constructor(private readonly repo: DemandRepository)
-⋮----
-async execute(input: CreateDemandInput): Promise<CommandResult>
-⋮----
-export class AssignWorkDemandUseCase {
-⋮----
-async execute(input: AssignMemberInput): Promise<CommandResult>
-⋮----
-export class ListWorkspaceDemandsUseCase {
-⋮----
-async execute(workspaceId: string): Promise<WorkDemand[]>
-⋮----
-export class ListAccountDemandsUseCase {
-⋮----
-async execute(accountId: string): Promise<WorkDemand[]>
 ````
 
 ## File: modules/workspace/subdomains/scheduling/domain/repository.ts
@@ -43693,6 +43259,84 @@ handoffs:
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-rag-runtime-boundary
 #use skill next-devtools-mcp
+````
+
+## File: .github/instructions/architecture-core.instructions.md
+````markdown
+---
+description: 'Consolidated Hexagonal DDD architecture rules: layer ownership, API-only boundaries, module shape, and bounded-context dependency direction.'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Architecture Core
+
+## Core Boundary Rules
+
+- Determine owning bounded context and subdomain from `docs/**/*` before choosing file placement.
+- Cross-module collaboration must go through `modules/<target>/api` or explicit events.
+- Cross-module route components must be props-scoped (`accountId`, `workspaceId`, optional `currentUserId`) from the composition owner; do not consume another module's context provider directly.
+- Do not import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
+- Replace any boundary bypass in the same change with API contracts or events.
+
+## Layer Direction
+
+- Dependency direction is fixed: `interfaces -> application -> domain <- infrastructure`.
+- Keep `domain/` framework-free and runtime-agnostic.
+- `infrastructure/` and `interfaces/` are outer layers; do not place them inside generic `core/`.
+
+## Layer Ownership
+
+- `domain/`: business rules, invariants, aggregates, entities, value objects, domain events, repository/port interfaces.
+- `application/`: use-case orchestration, transaction boundaries, command/query contracts, application services.
+- `infrastructure/`: repository and adapter implementations only.
+- `interfaces/`: input/output translation, route/action/UI wiring.
+- `api/`: only cross-module entry surface with stable semantic capability contracts.
+- `api/` must not expose repository factories, container wiring, or other internal composition helpers as public contracts.
+- Internal composition helpers belong under module-local `interfaces/` or `infrastructure/` paths unless a real cross-module semantic boundary requires promotion.
+
+## Use Case Decision Rules
+
+- Use a use case only for business behavior.
+- Pure reads without business logic go to query handlers.
+- Keep UI state and interaction logic in `interfaces/`.
+- Use cases orchestrate flow; complex business rules stay in `domain/`.
+- `GetXxxUseCase` is usually a query smell.
+
+## Development Order
+
+- Use-case contract first: actor, goal, main success scenario, failure branches.
+- Recommended order: `Use Case -> Domain -> (Application <-> Ports iterate as needed) -> Infrastructure -> Interface`.
+- Do not build UI first and backfill domain later.
+- Do not call repositories directly from `interfaces/`.
+- Do not force domain design from storage schema first.
+
+## Module Shape and Naming
+
+- Bounded-context root required shape: `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`, `index.ts`.
+- Subdomain default shape follows core-first (`api/`, `domain/`, `application/`, optional `ports/`); subdomain `infrastructure/` and `interfaces/` are gate-based, not always required.
+- Public boundary is `api/`; `index.ts` is aggregate export only.
+- Use case file: `verb-noun.use-case.ts`.
+- Repository interface: `PascalCaseRepository`.
+- Repository implementation: `TechnologyPascalCaseRepository`.
+- Domain event discriminant: `module-name.action`.
+
+## Refactor and Lifecycle Rules
+
+1. Confirm ownership first.
+2. Map API consumers.
+3. Create or update the target use-case contract before adapter/UI edits.
+4. Preserve boundaries during split/merge/delete.
+5. Update docs and imports in the same change.
+6. Migrate public API and event contracts before removing old paths.
+
+## Validation
+
+- Use `eslint.config.mjs` restricted-import and boundary rules as enforcement source.
+- Re-check changed imports under `@/modules/` for API-only access.
+- Keep dependency flow acyclic unless an explicit event contract documents an exception.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: .github/instructions/architecture.instructions.md
@@ -46228,52 +45872,6 @@ export async function generateNotebookResponse(
 ): Promise<GenerateNotebookResponseResult>
 ````
 
-## File: modules/notebooklm/interfaces/source/_actions/source-file.actions.ts
-````typescript
-import type {
-  UploadCompleteFileInputDto,
-  UploadCompleteFileOutputDto,
-  UploadInitFileInputDto,
-  UploadInitFileOutputDto,
-} from "../../../subdomains/source/application/dto/source-file.dto";
-import type {
-  RegisterUploadedRagDocumentInputDto,
-  RegisterUploadedRagDocumentResult,
-} from "../../../subdomains/source/application/dto/rag-document.dto";
-import { makeRagDocumentAdapter, makeSourceDocumentCommandAdapter, makeSourceFileAdapter } from "../composition/adapters";
-import { UploadInitSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-init-source-file.use-case";
-import { UploadCompleteSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-complete-source-file.use-case";
-import { RegisterUploadedRagDocumentUseCase } from "../../../subdomains/source/application/use-cases/register-rag-document.use-case";
-import { DeleteSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/delete-source-document.use-case";
-import { RenameSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/rename-source-document.use-case";
-import type { SourceFileCommandResult } from "../contracts/source-command-result";
-⋮----
-function createCommandId(idempotencyKey?: string): string
-⋮----
-export async function uploadInitFile(
-  input: UploadInitFileInputDto,
-): Promise<SourceFileCommandResult<UploadInitFileOutputDto>>
-⋮----
-export async function uploadCompleteFile(
-  input: UploadCompleteFileInputDto,
-): Promise<SourceFileCommandResult<UploadCompleteFileOutputDto>>
-⋮----
-export async function registerUploadedRagDocument(
-  input: RegisterUploadedRagDocumentInputDto,
-): Promise<RegisterUploadedRagDocumentResult>
-⋮----
-export async function deleteSourceDocument(
-  accountId: string,
-  documentId: string,
-): Promise<SourceFileCommandResult<
-⋮----
-export async function renameSourceDocument(
-  accountId: string,
-  documentId: string,
-  newName: string,
-): Promise<SourceFileCommandResult<
-````
-
 ## File: modules/notebooklm/interfaces/source/_actions/source-pipeline.actions.ts
 ````typescript
 import { makeSourcePipelineAdapter } from "../composition/adapters";
@@ -46387,36 +45985,6 @@ type RowData = WikiLibraryRow & { _values: Record<string, unknown> };
 // DnD row reorder
 ⋮----
 onDrop(
-````
-
-## File: modules/notebooklm/interfaces/source/components/SourceDocumentsPanel.tsx
-````typescript
-import { useRef, useState } from "react";
-import { FileUp, Loader2 } from "lucide-react";
-import { toast } from "sonner";
-⋮----
-import { useApp } from "@/modules/platform/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-⋮----
-import type { SourceLiveDocument } from "../hooks/useSourceDocumentsSnapshot";
-import { useSourceDocumentsSnapshot } from "../hooks/useSourceDocumentsSnapshot";
-import { deleteSourceDocument, renameSourceDocument } from "../_actions/source-file.actions";
-import { makeSourceStorageAdapter } from "../composition/adapters";
-⋮----
-interface SourceDocumentsPanelProps {
-  readonly workspaceId?: string;
-}
-⋮----
-/** Upload dropzone + real-time document list backed by Firebase onSnapshot. */
-⋮----
-function handleFileChange(file: File | null)
-⋮----
-async function handleUpload()
-⋮----
-async function handleDelete(doc: SourceLiveDocument)
-⋮----
-async function handleRename(doc: SourceLiveDocument, newName: string)
 ````
 
 ## File: modules/notebooklm/interfaces/source/components/WorkspaceFilesTab.tsx
@@ -46782,6 +46350,131 @@ constructor(
 async execute(input: CreateKnowledgeDraftInput): Promise<CommandResult>
 ````
 
+## File: modules/notebooklm/subdomains/source/application/use-cases/register-rag-document.use-case.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/use-cases
+ * Use Case: RegisterUploadedRagDocumentUseCase — registers a RAG document record after upload.
+ *
+ * Called internally by UploadCompleteSourceFileUseCase;
+ * also callable directly when a document is registered without the upload-init flow.
+ */
+⋮----
+import { v4 as randomUUID } from "@lib-uuid";
+⋮----
+import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
+import type {
+  RegisterUploadedRagDocumentInputDto,
+  RegisterUploadedRagDocumentOutputDto,
+  RegisterUploadedRagDocumentErrorCode,
+} from "../dto/rag-document.dto";
+⋮----
+type RegisterUploadedRagDocumentResult =
+  | { ok: true; data: RegisterUploadedRagDocumentOutputDto }
+  | { ok: false; error: { code: RegisterUploadedRagDocumentErrorCode; message: string } };
+⋮----
+export class RegisterUploadedRagDocumentUseCase {
+⋮----
+constructor(private readonly ragDocumentRepository: RagDocumentRepository)
+⋮----
+async execute(
+    input: RegisterUploadedRagDocumentInputDto,
+): Promise<RegisterUploadedRagDocumentResult>
+````
+
+## File: modules/notebooklm/subdomains/source/application/use-cases/upload-complete-source-file.use-case.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/use-cases
+ * Use Case: UploadCompleteSourceFileUseCase — activates a file after binary upload completes.
+ *
+ * This is the second step of a two-step upload flow:
+ *   1. init  → creates File + FileVersion records
+ *   2. complete (this) → activates the version and registers a RagDocumentRecord
+ *
+ * Idempotent: calling complete on an already-completed file returns the existing
+ * RagDocument without creating a duplicate.
+ */
+⋮----
+import { v4 as randomUUID } from "@lib-uuid";
+⋮----
+import type { SourceFileRepository } from "../../domain/repositories/SourceFileRepository";
+import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
+import { completeUploadSourceFile } from "../../domain/services/complete-upload-source-file.service";
+import type {
+  SourceFileCommandErrorCode,
+  UploadCompleteFileInputDto,
+  UploadCompleteFileOutputDto,
+} from "../dto/source-file.dto";
+import type { SourceFile } from "../../domain/entities/SourceFile";
+⋮----
+type UploadCompleteSourceFileResult =
+  | { ok: true; data: UploadCompleteFileOutputDto }
+  | { ok: false; error: { code: SourceFileCommandErrorCode; message: string } };
+⋮----
+function isFileScopeMatch(params: {
+  file: SourceFile;
+  workspaceId: string;
+  organizationId: string;
+  actorAccountId: string;
+  versionId: string;
+}): boolean
+⋮----
+function isFileAlreadyCompleted(file: SourceFile): boolean
+⋮----
+export class UploadCompleteSourceFileUseCase {
+⋮----
+constructor(
+⋮----
+async execute(input: UploadCompleteFileInputDto): Promise<UploadCompleteSourceFileResult>
+````
+
+## File: modules/notebooklm/subdomains/source/application/use-cases/upload-init-source-file.use-case.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/use-cases
+ * Use Case: UploadInitSourceFileUseCase — creates file metadata and returns an upload token.
+ *
+ * This is the first step of a two-step upload flow:
+ *   1. init  → creates File + FileVersion records, returns an upload URL token
+ *   2. complete → marks the version as active, registers a RagDocumentRecord
+ */
+⋮----
+import { randomBytes } from "node:crypto";
+import { v4 as randomUUID } from "@lib-uuid";
+⋮----
+import type { SourceFile } from "../../domain/entities/SourceFile";
+import type { SourceFileVersion } from "../../domain/entities/SourceFileVersion";
+import type { SourceFileRepository } from "../../domain/repositories/SourceFileRepository";
+import type {
+  SourceFileCommandErrorCode,
+  UploadInitFileInputDto,
+  UploadInitFileOutputDto,
+} from "../dto/source-file.dto";
+⋮----
+type UploadInitSourceFileResult =
+  | { ok: true; data: UploadInitFileOutputDto }
+  | { ok: false; error: { code: SourceFileCommandErrorCode; message: string } };
+⋮----
+function inferClassification(mimeType: string): SourceFile["classification"]
+⋮----
+function buildUploadPath(
+  organizationId: string,
+  workspaceId: string,
+  fileId: string,
+  fileName: string,
+): string
+⋮----
+export class UploadInitSourceFileUseCase {
+⋮----
+constructor(private readonly fileRepository: SourceFileRepository)
+⋮----
+async execute(input: UploadInitFileInputDto): Promise<UploadInitSourceFileResult>
+````
+
 ## File: modules/notebooklm/subdomains/source/domain/index.ts
 ````typescript
 /**
@@ -46846,6 +46539,44 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - This subdomain derives an internal `organizationId` for organization-scoped storage and retrieval after boundary translation; it must not be documented or consumed as a shell route param.
 - Personal-account scope currently maps to a synthetic internal organization token prefixed with `personal:` so source storage can remain organization-scoped without sharing namespaces with organization accounts.
 - `actorAccountId` tracks the calling account scope for source workflows and remains distinct from concrete user identifiers such as `createdByUserId`.
+````
+
+## File: modules/notebooklm/subdomains/synthesis/application/use-cases/answer-rag-query.use-case.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: application/use-cases
+ * Purpose: AnswerRagQueryUseCase — orchestrates grounding + synthesis to
+ *          produce a cited answer for a user question.
+ *
+ * Design improvements over legacy answer-rag-query.use-case.ts:
+ * - TopK limit is configurable via constructor injection (no hard-coded MAX_TOP_K=10).
+ * - Error codes are prefixed with QA_ for namespace clarity.
+ * - Dependencies typed against interfaces, not concrete classes.
+ */
+⋮----
+import { v4 as randomUUID } from "@lib-uuid";
+⋮----
+import type { RagRetrievalRepository } from "../../domain/repositories/RagRetrievalRepository";
+import type {
+  AnswerRagQueryInput,
+  AnswerRagQueryOutput,
+  AnswerRagQueryResult,
+  RagRetrievalSummary,
+} from "../../domain/entities/rag-query.entities";
+import type { RagGenerationRepository } from "../../domain/repositories/RagGenerationRepository";
+⋮----
+const DEFAULT_MAX_TOP_K = 20; // Raise from the legacy hard-coded 10
+⋮----
+function clampTopK(value: number | undefined, maxTopK: number): number
+⋮----
+export class AnswerRagQueryUseCase {
+⋮----
+constructor(
+⋮----
+/** Maximum topK accepted from callers. Override at composition root for environment-specific limits. */
+⋮----
+async execute(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult>
 ````
 
 ## File: modules/notion/AGENT.md
@@ -48077,6 +47808,59 @@ export async function getKnowledgeCollection(accountId: string, collectionId: st
 export async function getKnowledgeCollections(accountId: string): Promise<KnowledgeCollectionSnapshot[]>
 ````
 
+## File: modules/notion/interfaces/knowledge/store/block-editor.store.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: interfaces/store
+ * Purpose: Zustand store for the block editor UI state.
+ *          Manages optimistic block operations before persistence.
+ */
+⋮----
+import { v4 as uuid } from "@lib-uuid";
+import { create } from "zustand";
+import type { BlockContent } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+⋮----
+export interface EditorBlock {
+  id: string;
+  content: BlockContent;
+  order: number;
+  parentBlockId: string | null;
+  isFocused: boolean;
+}
+⋮----
+interface BlockEditorState {
+  pageId: string | null;
+  accountId: string | null;
+  blocks: EditorBlock[];
+  isDirty: boolean;
+
+  setPage: (accountId: string, pageId: string) => void;
+  setBlocks: (blocks: EditorBlock[]) => void;
+  addBlock: (after: string | null, content?: BlockContent) => EditorBlock;
+  updateBlock: (id: string, content: BlockContent) => void;
+  deleteBlock: (id: string) => void;
+  reorder: (ids: string[]) => void;
+  clearDirty: () => void;
+}
+⋮----
+function makeId()
+⋮----
+setPage(accountId, pageId)
+⋮----
+setBlocks(blocks)
+⋮----
+addBlock(afterId, content =
+⋮----
+updateBlock(id, content)
+⋮----
+deleteBlock(id)
+⋮----
+reorder(ids)
+⋮----
+clearDirty()
+````
+
 ## File: modules/notion/README.md
 ````markdown
 # Notion
@@ -48281,6 +48065,37 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 ````
 
+## File: modules/notion/subdomains/relations/application/use-cases/manage-relation.use-cases.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+/**
+ * Module: notion/subdomains/relations
+ * Layer: application/use-cases
+ * Purpose: Use case orchestration for relation operations.
+ */
+⋮----
+import type { RelationRepository } from "../../domain/repositories/RelationRepository";
+import type { Relation, CreateRelationInput } from "../../domain/entities/Relation";
+⋮----
+export class CreateRelationUseCase {
+⋮----
+constructor(private readonly relationRepo: RelationRepository)
+⋮----
+async execute(input: CreateRelationInput): Promise<Relation>
+⋮----
+export class RemoveRelationUseCase {
+⋮----
+async execute(relationId: string): Promise<void>
+⋮----
+export class ListRelationsBySourceUseCase {
+⋮----
+async execute(sourceArtifactId: string): Promise<readonly Relation[]>
+⋮----
+export class ListRelationsByTargetUseCase {
+⋮----
+async execute(targetArtifactId: string): Promise<readonly Relation[]>
+````
+
 ## File: modules/notion/subdomains/relations/README.md
 ````markdown
 # Relations
@@ -48317,6 +48132,37 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## File: modules/notion/subdomains/taxonomy/application/index.ts
 ````typescript
 
+````
+
+## File: modules/notion/subdomains/taxonomy/application/use-cases/manage-taxonomy.use-cases.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+/**
+ * Module: notion/subdomains/taxonomy
+ * Layer: application/use-cases
+ * Purpose: Use case orchestration for taxonomy node operations.
+ */
+⋮----
+import type { TaxonomyRepository } from "../../domain/repositories/TaxonomyRepository";
+import type { TaxonomyNode, CreateTaxonomyNodeInput } from "../../domain/entities/TaxonomyNode";
+⋮----
+export class CreateTaxonomyNodeUseCase {
+⋮----
+constructor(private readonly taxonomyRepo: TaxonomyRepository)
+⋮----
+async execute(input: CreateTaxonomyNodeInput): Promise<TaxonomyNode>
+⋮----
+export class RemoveTaxonomyNodeUseCase {
+⋮----
+async execute(nodeId: string): Promise<void>
+⋮----
+export class ListTaxonomyRootsUseCase {
+⋮----
+async execute(organizationId: string): Promise<readonly TaxonomyNode[]>
+⋮----
+export class ListTaxonomyChildrenUseCase {
+⋮----
+async execute(parentNodeId: string): Promise<readonly TaxonomyNode[]>
 ````
 
 ## File: modules/notion/subdomains/taxonomy/README.md
@@ -48418,6 +48264,77 @@ export async function getAccountPolicies(_accountId: string): Promise<AccountPol
 export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]>
 ````
 
+## File: modules/platform/subdomains/background-job/application/use-cases/ingestion.use-cases.ts
+````typescript
+/**
+ * Ingestion Use Cases — application-layer orchestration for IngestionJob domain operations.
+ *
+ * Each use case receives its repository dependency via constructor injection,
+ * keeping it testable and decoupled from any specific adapter.
+ *
+ * Return type uses a locally-defined IngestionResult<T> rather than the
+ * command-only CommandResult, because creation and advancement operations
+ * need to surface the resulting IngestionJob entity to callers.
+ */
+⋮----
+import { v4 as randomUUID } from "@lib-uuid";
+⋮----
+import type { DomainError } from "@shared-types";
+⋮----
+import type { IngestionDocument } from "../../domain/entities/IngestionDocument";
+import { canTransitionIngestionStatus, type IngestionJob, type IngestionStatus } from "../../domain/entities/IngestionJob";
+import type { IngestionJobRepository } from "../../domain/repositories/IngestionJobRepository";
+⋮----
+// ── Shared result type ────────────────────────────────────────────────────────
+⋮----
+export type IngestionResult<T> =
+  | { readonly ok: true; readonly data: T }
+  | { readonly ok: false; readonly error: DomainError };
+⋮----
+function ok<T>(data: T): IngestionResult<T>
+⋮----
+function fail(code: string, message: string): IngestionResult<never>
+⋮----
+// ── Register Ingestion Document ───────────────────────────────────────────────
+⋮----
+export interface RegisterIngestionDocumentInput {
+  readonly organizationId: string;
+  readonly workspaceId: string;
+  readonly sourceFileId: string;
+  readonly title: string;
+  readonly mimeType: string;
+}
+⋮----
+export class RegisterIngestionDocumentUseCase {
+⋮----
+constructor(private readonly repo: IngestionJobRepository)
+⋮----
+async execute(input: RegisterIngestionDocumentInput): Promise<IngestionResult<IngestionJob>>
+⋮----
+// ── Advance Ingestion Stage ───────────────────────────────────────────────────
+⋮----
+export interface AdvanceIngestionStageInput {
+  readonly documentId: string;
+  readonly nextStatus: IngestionStatus;
+  readonly statusMessage?: string;
+}
+⋮----
+export class AdvanceIngestionStageUseCase {
+⋮----
+async execute(input: AdvanceIngestionStageInput): Promise<IngestionResult<IngestionJob>>
+⋮----
+// ── List Workspace Ingestion Jobs ─────────────────────────────────────────────
+⋮----
+export interface ListWorkspaceIngestionJobsInput {
+  readonly organizationId: string;
+  readonly workspaceId: string;
+}
+⋮----
+export class ListWorkspaceIngestionJobsUseCase {
+⋮----
+async execute(input: ListWorkspaceIngestionJobsInput): Promise<readonly IngestionJob[]>
+````
+
 ## File: modules/platform/subdomains/background-job/domain/index.ts
 ````typescript
 
@@ -48515,6 +48432,126 @@ export async function updateTeamMembersAction(
   memberId: string,
   action: "add" | "remove",
 ): Promise<CommandResult>
+````
+
+## File: modules/workspace/domain/aggregates/Workspace.ts
+````typescript
+/**
+ * Workspace Domain Entities — pure TypeScript, zero framework dependencies.
+ */
+⋮----
+import { v4 as uuid } from "@lib-uuid";
+import type { Timestamp } from "@shared-types";
+import type { WorkspaceAccessPolicy, WorkspaceGrant } from "../entities/WorkspaceAccess";
+import type {
+  Capability,
+  WorkspaceCapabilityAssignments,
+} from "../entities/WorkspaceCapability";
+import type { WorkspaceLocation } from "../entities/WorkspaceLocation";
+import type {
+  Address,
+  WorkspaceOperationalProfile,
+  WorkspacePersonnel,
+} from "../entities/WorkspaceProfile";
+import { createAddress, type AddressInput } from "../value-objects/Address";
+import type {
+  WorkspaceLifecycleState,
+  WorkspaceLifecycleStateInput,
+} from "../value-objects/WorkspaceLifecycleState";
+import {
+  canTransitionWorkspaceLifecycleState,
+  createWorkspaceLifecycleState,
+} from "../value-objects/WorkspaceLifecycleState";
+import type {
+  WorkspaceName,
+  WorkspaceNameInput,
+} from "../value-objects/WorkspaceName";
+import { createWorkspaceName } from "../value-objects/WorkspaceName";
+import type {
+  WorkspaceVisibility,
+  WorkspaceVisibilityInput,
+} from "../value-objects/WorkspaceVisibility";
+import { createWorkspaceVisibility } from "../value-objects/WorkspaceVisibility";
+⋮----
+export interface WorkspaceEntity {
+  id: string;
+  name: WorkspaceName;
+  photoURL?: string;
+  lifecycleState: WorkspaceLifecycleState;
+  visibility: WorkspaceVisibility;
+  accountId: string;
+  accountType: "user" | "organization";
+  createdAt: Timestamp;
+}
+⋮----
+export interface WorkspaceEntity
+  extends WorkspaceCapabilityAssignments,
+    WorkspaceAccessPolicy,
+    WorkspaceOperationalProfile {}
+⋮----
+// ─── Commands ─────────────────────────────────────────────────────────────────
+⋮----
+export interface CreateWorkspaceCommand {
+  readonly name: WorkspaceNameInput;
+  readonly accountId: string;
+  readonly accountType: "user" | "organization";
+  readonly creatorUserId?: string;
+}
+⋮----
+export interface UpdateWorkspaceSettingsCommand {
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly name?: WorkspaceNameInput;
+  readonly visibility?: WorkspaceVisibilityInput;
+  readonly lifecycleState?: WorkspaceLifecycleStateInput;
+  readonly address?: AddressInput;
+  readonly personnel?: WorkspacePersonnel;
+}
+⋮----
+type WorkspaceSettingsPatch = Omit<
+  UpdateWorkspaceSettingsCommand,
+  "workspaceId" | "accountId"
+>;
+⋮----
+function createWorkspaceTimestamp(date = new Date()): Timestamp
+⋮----
+function cloneCapabilities(capabilities: Capability[] = []): Capability[]
+⋮----
+function cloneGrants(grants: WorkspaceGrant[] = []): WorkspaceGrant[]
+⋮----
+function cloneLocations(locations?: WorkspaceLocation[]): WorkspaceLocation[] | undefined
+⋮----
+function clonePersonnel(
+  personnel?: WorkspacePersonnel,
+): WorkspacePersonnel | undefined
+⋮----
+function normalizeAccountId(accountId: string): string
+⋮----
+export class Workspace implements WorkspaceEntity {
+⋮----
+private constructor(snapshot: WorkspaceEntity)
+⋮----
+static create(command: CreateWorkspaceCommand): Workspace
+⋮----
+static reconstitute(snapshot: WorkspaceEntity): Workspace
+⋮----
+rename(nextName: WorkspaceNameInput): void
+⋮----
+changeVisibility(nextVisibility: WorkspaceVisibilityInput): void
+⋮----
+activate(): void
+⋮----
+stop(): void
+⋮----
+transitionLifecycle(nextState: WorkspaceLifecycleStateInput): void
+⋮----
+updateAddress(nextAddress: AddressInput): void
+⋮----
+updatePersonnel(nextPersonnel: WorkspacePersonnel): void
+⋮----
+applySettings(patch: WorkspaceSettingsPatch): void
+⋮----
+toSnapshot(): WorkspaceEntity
 ````
 
 ## File: modules/workspace/interfaces/api/actions/workspace.command.ts
@@ -48648,48 +48685,6 @@ onOpenChange=
 onWorkspaceNameChange=
 ````
 
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx
-````typescript
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Separator } from "@ui-shadcn/ui/separator";
-import { describeGrant } from "../../view-models/workspace-grants";
-import { WorkspaceOverviewSettingsTab } from "./WorkspaceOverviewSettingsTab";
-import { WorkspaceOverviewSummaryCard } from "../cards/WorkspaceOverviewSummaryCard";
-import { WorkspaceProductSpineCard } from "../cards/WorkspaceProductSpineCard";
-import { WorkspaceQuickstartCard } from "../cards/WorkspaceQuickstartCard";
-import { WorkspaceOverviewKnowledgePanels } from "./WorkspaceOverviewKnowledgePanels";
-⋮----
-interface WorkspaceOverviewTabProps {
-  readonly workspace: WorkspaceEntity;
-  readonly activeWorkspaceId: string | null | undefined;
-  readonly currentUserId?: string | null;
-  readonly personnelEntries: Array<{ label: string; value: string | undefined }>;
-  readonly addressLines: string[];
-  readonly initialPanel?: string;
-  readonly onEditClick: () => void;
-  readonly onSetActiveWorkspace: () => void;
-}
-⋮----
-type WorkspaceOverviewSurface =
-  | "home"
-  | "knowledge-pages"
-  | "knowledge-base-articles"
-  | "knowledge-databases"
-  | "source-libraries"
-  | "governance"
-  | "profile";
-⋮----
-function resolveWorkspaceOverviewSurface(panel?: string): WorkspaceOverviewSurface
-````
-
 ## File: modules/workspace/README.md
 ````markdown
 # Workspace
@@ -48792,6 +48787,41 @@ interfaces/ → application/ → domain/ ← infrastructure/
 /**
  * workspace/subdomains/audit API boundary.
  */
+````
+
+## File: modules/workspace/subdomains/scheduling/application/work-demand.use-cases.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+/**
+ * Module: workspace/subdomains/scheduling
+ * Layer: application/use-cases
+ * Purpose: Application services — orchestrate domain logic.
+ */
+⋮----
+import type { CommandResult } from "@shared-types";
+import { commandFailureFrom, commandSuccess } from "@shared-types";
+⋮----
+import type { WorkDemand } from "../domain/types";
+import type { DemandRepository } from "../domain/repository";
+import type { AssignMemberInput, CreateDemandInput } from "./dto/work-demand.dto";
+⋮----
+export class SubmitWorkDemandUseCase {
+⋮----
+constructor(private readonly repo: DemandRepository)
+⋮----
+async execute(input: CreateDemandInput): Promise<CommandResult>
+⋮----
+export class AssignWorkDemandUseCase {
+⋮----
+async execute(input: AssignMemberInput): Promise<CommandResult>
+⋮----
+export class ListWorkspaceDemandsUseCase {
+⋮----
+async execute(workspaceId: string): Promise<WorkDemand[]>
+⋮----
+export class ListAccountDemandsUseCase {
+⋮----
+async execute(accountId: string): Promise<WorkDemand[]>
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/api/contracts.ts
@@ -49028,84 +49058,6 @@ async extractTaskCandidates(
     "encoding": "o200k_base"
   }
 }
-````
-
-## File: .github/instructions/architecture-core.instructions.md
-````markdown
----
-description: 'Consolidated Hexagonal DDD architecture rules: layer ownership, API-only boundaries, module shape, and bounded-context dependency direction.'
-applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
----
-
-# Architecture Core
-
-## Core Boundary Rules
-
-- Determine owning bounded context and subdomain from `docs/**/*` before choosing file placement.
-- Cross-module collaboration must go through `modules/<target>/api` or explicit events.
-- Cross-module route components must be props-scoped (`accountId`, `workspaceId`, optional `currentUserId`) from the composition owner; do not consume another module's context provider directly.
-- Do not import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- Replace any boundary bypass in the same change with API contracts or events.
-
-## Layer Direction
-
-- Dependency direction is fixed: `interfaces -> application -> domain <- infrastructure`.
-- Keep `domain/` framework-free and runtime-agnostic.
-- `infrastructure/` and `interfaces/` are outer layers; do not place them inside generic `core/`.
-
-## Layer Ownership
-
-- `domain/`: business rules, invariants, aggregates, entities, value objects, domain events, repository/port interfaces.
-- `application/`: use-case orchestration, transaction boundaries, command/query contracts, application services.
-- `infrastructure/`: repository and adapter implementations only.
-- `interfaces/`: input/output translation, route/action/UI wiring.
-- `api/`: only cross-module entry surface with stable semantic capability contracts.
-- `api/` must not expose repository factories, container wiring, or other internal composition helpers as public contracts.
-- Internal composition helpers belong under module-local `interfaces/` or `infrastructure/` paths unless a real cross-module semantic boundary requires promotion.
-
-## Use Case Decision Rules
-
-- Use a use case only for business behavior.
-- Pure reads without business logic go to query handlers.
-- Keep UI state and interaction logic in `interfaces/`.
-- Use cases orchestrate flow; complex business rules stay in `domain/`.
-- `GetXxxUseCase` is usually a query smell.
-
-## Development Order
-
-- Use-case contract first: actor, goal, main success scenario, failure branches.
-- Recommended order: `Use Case -> Domain -> (Application <-> Ports iterate as needed) -> Infrastructure -> Interface`.
-- Do not build UI first and backfill domain later.
-- Do not call repositories directly from `interfaces/`.
-- Do not force domain design from storage schema first.
-
-## Module Shape and Naming
-
-- Bounded-context root required shape: `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`, `index.ts`.
-- Subdomain default shape follows core-first (`api/`, `domain/`, `application/`, optional `ports/`); subdomain `infrastructure/` and `interfaces/` are gate-based, not always required.
-- Public boundary is `api/`; `index.ts` is aggregate export only.
-- Use case file: `verb-noun.use-case.ts`.
-- Repository interface: `PascalCaseRepository`.
-- Repository implementation: `TechnologyPascalCaseRepository`.
-- Domain event discriminant: `module-name.action`.
-
-## Refactor and Lifecycle Rules
-
-1. Confirm ownership first.
-2. Map API consumers.
-3. Create or update the target use-case contract before adapter/UI edits.
-4. Preserve boundaries during split/merge/delete.
-5. Update docs and imports in the same change.
-6. Migrate public API and event contracts before removing old paths.
-
-## Validation
-
-- Use `eslint.config.mjs` restricted-import and boundary rules as enforcement source.
-- Re-check changed imports under `@/modules/` for API-only access.
-- Keep dependency flow acyclic unless an explicit event contract documents an exception.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
 ````
 
 ## File: .github/prompts/enforce-hexagonal-ddd-convergence.prompt.md
@@ -50159,6 +50111,84 @@ export async function saveThread(accountId: string, thread: Thread): Promise<voi
 export async function loadThread(accountId: string, threadId: string): Promise<Thread | null>
 ````
 
+## File: modules/notebooklm/interfaces/source/_actions/source-file.actions.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import type {
+  UploadCompleteFileInputDto,
+  UploadCompleteFileOutputDto,
+  UploadInitFileInputDto,
+  UploadInitFileOutputDto,
+} from "../../../subdomains/source/application/dto/source-file.dto";
+import type {
+  RegisterUploadedRagDocumentInputDto,
+  RegisterUploadedRagDocumentResult,
+} from "../../../subdomains/source/application/dto/rag-document.dto";
+import { makeRagDocumentAdapter, makeSourceDocumentCommandAdapter, makeSourceFileAdapter } from "../composition/adapters";
+import { UploadInitSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-init-source-file.use-case";
+import { UploadCompleteSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-complete-source-file.use-case";
+import { RegisterUploadedRagDocumentUseCase } from "../../../subdomains/source/application/use-cases/register-rag-document.use-case";
+import { DeleteSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/delete-source-document.use-case";
+import { RenameSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/rename-source-document.use-case";
+import type { SourceFileCommandResult } from "../contracts/source-command-result";
+⋮----
+function createCommandId(idempotencyKey?: string): string
+⋮----
+export async function uploadInitFile(
+  input: UploadInitFileInputDto,
+): Promise<SourceFileCommandResult<UploadInitFileOutputDto>>
+⋮----
+export async function uploadCompleteFile(
+  input: UploadCompleteFileInputDto,
+): Promise<SourceFileCommandResult<UploadCompleteFileOutputDto>>
+⋮----
+export async function registerUploadedRagDocument(
+  input: RegisterUploadedRagDocumentInputDto,
+): Promise<RegisterUploadedRagDocumentResult>
+⋮----
+export async function deleteSourceDocument(
+  accountId: string,
+  documentId: string,
+): Promise<SourceFileCommandResult<
+⋮----
+export async function renameSourceDocument(
+  accountId: string,
+  documentId: string,
+  newName: string,
+): Promise<SourceFileCommandResult<
+````
+
+## File: modules/notebooklm/interfaces/source/components/SourceDocumentsPanel.tsx
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import { useRef, useState } from "react";
+import { FileUp, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+⋮----
+import { useApp } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+⋮----
+import type { SourceLiveDocument } from "../hooks/useSourceDocumentsSnapshot";
+import { useSourceDocumentsSnapshot } from "../hooks/useSourceDocumentsSnapshot";
+import { deleteSourceDocument, renameSourceDocument } from "../_actions/source-file.actions";
+import { makeSourceStorageAdapter } from "../composition/adapters";
+⋮----
+interface SourceDocumentsPanelProps {
+  readonly workspaceId?: string;
+}
+⋮----
+/** Upload dropzone + real-time document list backed by Firebase onSnapshot. */
+⋮----
+function handleFileChange(file: File | null)
+⋮----
+async function handleUpload()
+⋮----
+async function handleDelete(doc: SourceLiveDocument)
+⋮----
+async function handleRename(doc: SourceLiveDocument, newName: string)
+````
+
 ## File: modules/notebooklm/interfaces/source/composition/use-cases.ts
 ````typescript
 import { UploadInitSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-init-source-file.use-case";
@@ -50961,6 +50991,20 @@ export function renderWorkspaceCrossModuleTabSurface(
 ): ReactNode | null
 ````
 
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewKnowledgePanels.tsx
+````typescript
+import { KnowledgeBaseArticlesPanel, KnowledgeDatabasesPanel, KnowledgePagesPanel } from "@/modules/notion/api";
+import { LibrariesPanel, LibraryTablePanel } from "@/modules/notebooklm/api";
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+⋮----
+interface WorkspaceOverviewKnowledgePanelsProps {
+  readonly workspace: WorkspaceEntity;
+  readonly currentUserId?: string | null;
+  readonly activeSurface: string;
+}
+````
+
 ## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
 ````typescript
 import { useEffect, useState } from "react";
@@ -51166,6 +51210,97 @@ handoffs:
 Tags: #use skill context7 #use skill shadcn #use skill next-devtools-mcp
 #use skill serena-mcp #use skill hexagonal-ddd #use skill occams-razor #use skill xuanwu-app-skill
 #use skill repomix
+````
+
+## File: .github/instructions/subdomain-rules.instructions.md
+````markdown
+---
+description: '子域（Subdomain）戰略設計規則：業務能力切分、邊界穩定性、契約溝通、可替換性。'
+applyTo: 'modules/**/subdomains/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# 子域（Subdomain）設計規則
+
+> 完整邊界參考：**先查 `docs/subdomains.md`、`docs/bounded-contexts.md`、`docs/ubiquitous-language.md`**
+> 此文件只包含子域層級的**戰略設計約束**，不複製領域知識或程式碼範例。
+
+## 核心定義
+
+子域 = 業務能力邊界（Business Capability Boundary）
+
+每個子域代表一個獨立、明確定義的業務能力，不得混合多重職責。
+
+## 戰略設計規則
+
+1. 子域必須以「業務能力」切分，而不是技術功能或 UI 功能。
+2. 每個子域必須能獨立描述一個完整業務問題空間（Problem Space）。
+3. 子域之間禁止共享內部模型，只能透過明確契約（ACL / API / Event）。
+4. 子域邊界必須穩定，不能因 UI 或技術重構而頻繁變動。
+5. 子域劃分優先於技術架構（database / service / module）。
+6. 一個子域內可以包含多個 bounded context，但不能跨子域共享 domain model。
+7. 子域必須可被替換（replaceable），不依賴其他子域內部實作。
+8. 子域之間只能透過「輸入/輸出契約」溝通，不允許直接依賴 domain logic。
+
+## 層級約束（Hard Rules）
+
+子域預設形狀（default）採 core-first：
+- `api/`
+- `domain/`
+- `application/`
+- `ports/`（optional）
+
+子域內 `infrastructure/` 與 `interfaces/` 不是預設必建，僅在符合 mini-module gate 時允許建立：
+1. 該子域存在明確且持續的外部整合壓力（runtime / process / provider boundary）。
+2. 需要由子域本身承接本地 I/O 或 transport 組裝，而非 bounded context 根層共享能力。
+3. 仍維持 `interfaces -> application -> domain <- infrastructure`，且 business rule 不外溢到 adapter/UI。
+4. 跨子域與跨 bounded context 協作仍只能經由 `api/` 或事件契約，不得直接依賴他域內部。
+
+若不符合上述 gate，`infrastructure/` 與 `interfaces/` 應維持在 bounded context 根層，由 context-wide adapter/composition 承接。
+
+## 單一職責
+
+每個子域只負責一個業務能力。
+
+正確：authoring、collaboration、publishing
+
+錯誤：article + comment + permission 混在一起
+
+## 跨子域依賴禁止
+
+子域不得直接匯入其他子域。溝通必須經由：
+- 上層 application layer
+- module API boundary
+
+## 領域純度
+
+domain 層必須：
+- 零框架依賴
+- 不依賴 Firebase、DB 或 API
+- 不包含 UI logic
+
+允許：Entities、Value Objects、Domain Services、Business invariants
+
+## 命名規則
+
+使用業務語言命名子域。
+
+正確：authoring、taxonomy、workspace
+
+錯誤：utils、common、shared
+
+## 獨立演化
+
+每個子域應：
+- 可獨立測試
+- 可獨立重構
+- 為未來微服務拆分做準備
+
+## 一句話總結
+
+Subdomain = Business capability first; default core-first, add infra/interfaces only when real boundary pressure exists
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: app/(shell)/_shell/ShellAppRail.tsx
@@ -51801,20 +51936,6 @@ export async function buildWikiContentTree(
 ): Promise<WikiAccountContentNode[]>
 ````
 
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewKnowledgePanels.tsx
-````typescript
-import { KnowledgeBaseArticlesPanel, KnowledgeDatabasesPanel, KnowledgePagesPanel } from "@/modules/notion/api";
-import { LibrariesPanel, LibraryTablePanel } from "@/modules/notebooklm/api";
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-⋮----
-interface WorkspaceOverviewKnowledgePanelsProps {
-  readonly workspace: WorkspaceEntity;
-  readonly currentUserId?: string | null;
-  readonly activeSurface: string;
-}
-````
-
 ## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
 ````typescript
 import { useEffect, useMemo, useState } from "react";
@@ -52039,97 +52160,6 @@ export function writeNavPreferences(prefs: NavPreferences): void
     "encoding": "o200k_base"
   }
 }
-````
-
-## File: .github/instructions/subdomain-rules.instructions.md
-````markdown
----
-description: '子域（Subdomain）戰略設計規則：業務能力切分、邊界穩定性、契約溝通、可替換性。'
-applyTo: 'modules/**/subdomains/**/*.{ts,tsx,js,jsx,md}'
----
-
-# 子域（Subdomain）設計規則
-
-> 完整邊界參考：**先查 `docs/subdomains.md`、`docs/bounded-contexts.md`、`docs/ubiquitous-language.md`**
-> 此文件只包含子域層級的**戰略設計約束**，不複製領域知識或程式碼範例。
-
-## 核心定義
-
-子域 = 業務能力邊界（Business Capability Boundary）
-
-每個子域代表一個獨立、明確定義的業務能力，不得混合多重職責。
-
-## 戰略設計規則
-
-1. 子域必須以「業務能力」切分，而不是技術功能或 UI 功能。
-2. 每個子域必須能獨立描述一個完整業務問題空間（Problem Space）。
-3. 子域之間禁止共享內部模型，只能透過明確契約（ACL / API / Event）。
-4. 子域邊界必須穩定，不能因 UI 或技術重構而頻繁變動。
-5. 子域劃分優先於技術架構（database / service / module）。
-6. 一個子域內可以包含多個 bounded context，但不能跨子域共享 domain model。
-7. 子域必須可被替換（replaceable），不依賴其他子域內部實作。
-8. 子域之間只能透過「輸入/輸出契約」溝通，不允許直接依賴 domain logic。
-
-## 層級約束（Hard Rules）
-
-子域預設形狀（default）採 core-first：
-- `api/`
-- `domain/`
-- `application/`
-- `ports/`（optional）
-
-子域內 `infrastructure/` 與 `interfaces/` 不是預設必建，僅在符合 mini-module gate 時允許建立：
-1. 該子域存在明確且持續的外部整合壓力（runtime / process / provider boundary）。
-2. 需要由子域本身承接本地 I/O 或 transport 組裝，而非 bounded context 根層共享能力。
-3. 仍維持 `interfaces -> application -> domain <- infrastructure`，且 business rule 不外溢到 adapter/UI。
-4. 跨子域與跨 bounded context 協作仍只能經由 `api/` 或事件契約，不得直接依賴他域內部。
-
-若不符合上述 gate，`infrastructure/` 與 `interfaces/` 應維持在 bounded context 根層，由 context-wide adapter/composition 承接。
-
-## 單一職責
-
-每個子域只負責一個業務能力。
-
-正確：authoring、collaboration、publishing
-
-錯誤：article + comment + permission 混在一起
-
-## 跨子域依賴禁止
-
-子域不得直接匯入其他子域。溝通必須經由：
-- 上層 application layer
-- module API boundary
-
-## 領域純度
-
-domain 層必須：
-- 零框架依賴
-- 不依賴 Firebase、DB 或 API
-- 不包含 UI logic
-
-允許：Entities、Value Objects、Domain Services、Business invariants
-
-## 命名規則
-
-使用業務語言命名子域。
-
-正確：authoring、taxonomy、workspace
-
-錯誤：utils、common、shared
-
-## 獨立演化
-
-每個子域應：
-- 可獨立測試
-- 可獨立重構
-- 為未來微服務拆分做準備
-
-## 一句話總結
-
-Subdomain = Business capability first; default core-first, add infra/interfaces only when real boundary pressure exists
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
 ````
 
 ## File: eslint.config.mjs
@@ -52733,6 +52763,72 @@ function buildPageDetailHref(pageId: string)
 onCreated=
 ````
 
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
+````typescript
+import Link from "next/link";
+import { useMemo, useState } from "react";
+⋮----
+import {
+  Card,
+  CardContent,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { useApp, useAuth } from "@/modules/platform/api";
+import {
+  WorkspaceAuditTab,
+  WorkspaceFeedWorkspaceView,
+  WorkspaceFlowTab,
+  WorkspaceSchedulingTab,
+} from "@/modules/workspace/api";
+import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
+import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
+⋮----
+import {
+  createSettingsDraft,
+  type WorkspaceSettingsDraft,
+} from "../../state/workspace-settings";
+import {
+  getWorkspaceAddressLines,
+  getWorkspacePersonnelEntries,
+} from "../../view-models/workspace-supporting-records";
+import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
+import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabValue,
+} from "../../navigation/workspace-tabs";
+import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
+import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
+import { renderWorkspaceCrossModuleTabSurface } from "../tabs/WorkspaceCrossModuleTabSurface";
+import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
+import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
+import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
+⋮----
+interface WorkspaceDetailScreenProps {
+  readonly workspaceId: string;
+  readonly accountId: string | null | undefined;
+  readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
+  readonly initialOverviewPanel?: string;
+}
+⋮----
+/** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+⋮----
+function renderTabContent(tab: WorkspaceTabValue)
+⋮----
+onSetActiveWorkspace=
+⋮----
+{/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+⋮----
+<Badge variant="outline">
+⋮----
+setIsEditWorkspaceOpen(open);
+````
+
 ## File: modules/notebooklm/api/index.ts
 ````typescript
 /**
@@ -52803,72 +52899,6 @@ export interface DatabaseFormsPanelProps {
 <Button variant="ghost" size="sm" onClick=
 ⋮----
 {/* Top bar */}
-````
-
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
-````typescript
-import Link from "next/link";
-import { useMemo, useState } from "react";
-⋮----
-import {
-  Card,
-  CardContent,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { useApp, useAuth } from "@/modules/platform/api";
-import {
-  WorkspaceAuditTab,
-  WorkspaceFeedWorkspaceView,
-  WorkspaceFlowTab,
-  WorkspaceSchedulingTab,
-} from "@/modules/workspace/api";
-import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
-import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
-⋮----
-import {
-  createSettingsDraft,
-  type WorkspaceSettingsDraft,
-} from "../../state/workspace-settings";
-import {
-  getWorkspaceAddressLines,
-  getWorkspacePersonnelEntries,
-} from "../../view-models/workspace-supporting-records";
-import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabValue,
-} from "../../navigation/workspace-tabs";
-import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
-import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
-import { renderWorkspaceCrossModuleTabSurface } from "../tabs/WorkspaceCrossModuleTabSurface";
-import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
-import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
-import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
-⋮----
-interface WorkspaceDetailScreenProps {
-  readonly workspaceId: string;
-  readonly accountId: string | null | undefined;
-  readonly accountsHydrated: boolean;
-  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-  readonly initialTab?: string;
-  readonly initialOverviewPanel?: string;
-}
-⋮----
-/** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-⋮----
-function renderTabContent(tab: WorkspaceTabValue)
-⋮----
-onSetActiveWorkspace=
-⋮----
-{/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
-⋮----
-<Badge variant="outline">
-⋮----
-setIsEditWorkspaceOpen(open);
 ````
 
 ## File: modules/notion/interfaces/database/components/DatabaseDetailPanel.tsx
