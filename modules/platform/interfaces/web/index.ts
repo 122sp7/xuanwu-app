@@ -5,6 +5,7 @@ export { ShellUserAvatar } from "./shell/header/components/ShellUserAvatar";
 export { ShellTranslationSwitcher } from "./shell/header/components/ShellTranslationSwitcher";
 export { ShellAppBreadcrumbs } from "./shell/breadcrumbs/ShellAppBreadcrumbs";
 export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./shell/search/ShellGlobalSearchDialog";
+export { useAccountRouteContext, type AccountRouteContext } from "./hooks/useAccountRouteContext";
 
 // providers — context and useApp from platform-only ShellAppContext
 export {

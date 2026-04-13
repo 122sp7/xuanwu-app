@@ -14,6 +14,7 @@ export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/Work
 export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
 export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
 export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
+export { OrganizationWorkspacesRouteScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesRouteScreen";
 export { AccountDashboardScreen } from "../interfaces/web/components/screens/AccountDashboardScreen";
 
 // ── Card components ──────────────────────────────────────────────────────────
@@ -138,10 +139,12 @@ export { CheckRow, WorkspaceCheckRow } from "../interfaces/web/components/dialog
 
 export {
   AuditStream,
+  OrganizationAuditRouteScreen,
   WorkspaceAuditTab,
 } from "../subdomains/audit/api";
 
 export {
+  OrganizationDailyRouteScreen,
   WorkspaceFeedAccountView,
   WorkspaceFeedWorkspaceView,
 } from "../subdomains/feed/api";
@@ -149,6 +152,7 @@ export {
 export type { AccountMember } from "../subdomains/scheduling/api";
 export {
   AccountSchedulingView,
+  OrganizationScheduleRouteScreen,
   WorkspaceSchedulingTab,
 } from "../subdomains/scheduling/api";
 
