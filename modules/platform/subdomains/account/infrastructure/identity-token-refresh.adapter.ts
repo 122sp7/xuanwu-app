@@ -19,13 +19,17 @@ export function configureTokenRefreshEmitter(emitFn: EmitTokenRefreshSignal): vo
 
 function getEmitFn(): EmitTokenRefreshSignal {
   if (!_emitTokenRefreshSignal) {
-    // Auto-configure: import identity api lazily to avoid import-time
-    // side effects in the account api boundary.
+    // Auto-configure: lazy-require identity api from sibling subdomain
+    // (platform/identity/api) to avoid import-time side effects in the
+    // account api boundary.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { identityApi } = require("../../identity/api") as {
-      identityApi: { emitTokenRefreshSignal: EmitTokenRefreshSignal };
+    const mod = require("../../identity/api") as {
+      identityApi?: { emitTokenRefreshSignal?: EmitTokenRefreshSignal };
     };
-    _emitTokenRefreshSignal = identityApi.emitTokenRefreshSignal;
+    if (typeof mod.identityApi?.emitTokenRefreshSignal !== "function") {
+      throw new Error("identity/api missing identityApi.emitTokenRefreshSignal export");
+    }
+    _emitTokenRefreshSignal = mod.identityApi.emitTokenRefreshSignal;
   }
   return _emitTokenRefreshSignal;
 }

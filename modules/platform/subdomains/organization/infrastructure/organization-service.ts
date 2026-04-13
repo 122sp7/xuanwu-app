@@ -72,13 +72,17 @@ function getPolicyRepo(): FirebaseOrgPolicyRepository {
 function getTeamPort(): OrganizationTeamPort {
   if (!_teamPort) {
     if (!_teamPortFactory) {
-      // Auto-configure: import team factory lazily to avoid import-time
-      // side effects in the organization api boundary.
+      // Auto-configure: lazy-require team factory from sibling subdomain
+      // (platform/team/infrastructure/team-composition.ts) to avoid
+      // import-time side effects in the organization api boundary.
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { createTeamRepository } = require("../../team/infrastructure/team-composition") as {
-        createTeamRepository: () => OrganizationTeamPort;
+      const mod = require("../../team/infrastructure/team-composition") as {
+        createTeamRepository?: () => OrganizationTeamPort;
       };
-      _teamPortFactory = createTeamRepository;
+      if (typeof mod.createTeamRepository !== "function") {
+        throw new Error("team/infrastructure/team-composition missing createTeamRepository export");
+      }
+      _teamPortFactory = mod.createTeamRepository;
     }
     _teamPort = _teamPortFactory();
   }
