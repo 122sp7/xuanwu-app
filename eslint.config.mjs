@@ -1,20 +1,57 @@
 import { defineConfig, globalIgnores } from "eslint/config";
-import tseslint from "@typescript-eslint/eslint-plugin";
 import boundaries from "eslint-plugin-boundaries";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import jsdoc from "eslint-plugin-jsdoc";
 import jsxA11y from "eslint-plugin-jsx-a11y";
+import tseslint from "typescript-eslint";
 
 // ─── Globs ───────────────────────────────────────────────────────────────────
 const srcGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
-const tsGlobs  = ["**/*.{ts,tsx}"];
+const tsGlobs = ["**/*.{ts,tsx}"];
 const moduleCodeGlobs = ["modules/**/*.{js,jsx,ts,tsx}"];
-const outerAdapterGlobs = ["app/**/*.{ts,tsx,js,jsx}","providers/**/*.{ts,tsx,js,jsx}","debug/**/*.{ts,tsx,js,jsx}"];
+const outerAdapterGlobs = ["app/**/*.{ts,tsx,js,jsx}", "providers/**/*.{ts,tsx,js,jsx}", "debug/**/*.{ts,tsx,js,jsx}"];
 const packageGlobs = ["packages/**/*.{ts,tsx,js,jsx}"];
+const downstreamInterfaceGlobs = [
+  "modules/notebooklm/**/interfaces/**/*.{ts,tsx,js,jsx}",
+  "modules/notion/**/interfaces/**/*.{ts,tsx,js,jsx}",
+  "modules/workspace/**/interfaces/**/*.{ts,tsx,js,jsx}",
+];
+const downstreamInfrastructureGlobs = [
+  "modules/notebooklm/**/infrastructure/**/*.{ts,tsx,js,jsx}",
+  "modules/notion/**/infrastructure/**/*.{ts,tsx,js,jsx}",
+  "modules/workspace/**/infrastructure/**/*.{ts,tsx,js,jsx}",
+];
+const workspaceConsumerInterfaceGlobs = [
+  "modules/notebooklm/**/interfaces/**/*.{ts,tsx,js,jsx}",
+  "modules/notion/**/interfaces/**/*.{ts,tsx,js,jsx}",
+];
 
 // ─── Module boundary helpers ─────────────────────────────────────────────────
 const WARN = "warn";
+const LINT_GUARDRAIL_OPTIONS = {
+  skipBlankLines: true,
+  skipComments: true,
+};
+
+const normalizeWarnSeverity = (ruleConfig) => {
+  if (Array.isArray(ruleConfig)) {
+    const [severity, ...rest] = ruleConfig;
+    const normalizedSeverity = severity === "error" || severity === 2 ? WARN : severity;
+
+    return rest.length ? [normalizedSeverity, ...rest] : normalizedSeverity;
+  }
+
+  return ruleConfig === "error" || ruleConfig === 2 ? WARN : ruleConfig;
+};
+
+const mapRulesToWarn = (rules = {}) =>
+  Object.fromEntries(
+    Object.entries(rules).map(([ruleName, ruleConfig]) => [ruleName, normalizeWarnSeverity(ruleConfig)]),
+  );
+
+const maxLinesRule = (max) => [WARN, { max, ...LINT_GUARDRAIL_OPTIONS }];
+const restrictedImportsRule = (patterns, extraOptions = {}) => [WARN, { patterns, ...extraOptions }];
 
 const mainDomainElements = [
   { type: "main-domain-api", pattern: "modules/*/api/**/*", mode: "file", capture: ["domain"] },
@@ -25,9 +62,9 @@ const mainDomainElements = [
 ];
 
 const subdomainElements = [
-  { type: "subdomain-api", pattern: "modules/*/subdomains/*/api/**/*", mode: "file", capture: ["domain","subdomain"] },
-  { type: "subdomain-domain", pattern: "modules/*/subdomains/*/domain/**/*", mode: "file", capture: ["domain","subdomain"] },
-  { type: "subdomain-application", pattern: "modules/*/subdomains/*/application/**/*", mode: "file", capture: ["domain","subdomain"] },
+  { type: "subdomain-api", pattern: "modules/*/subdomains/*/api/**/*", mode: "file", capture: ["domain", "subdomain"] },
+  { type: "subdomain-domain", pattern: "modules/*/subdomains/*/domain/**/*", mode: "file", capture: ["domain", "subdomain"] },
+  { type: "subdomain-application", pattern: "modules/*/subdomains/*/application/**/*", mode: "file", capture: ["domain", "subdomain"] },
 ];
 
 const moduleElements = [...subdomainElements, ...mainDomainElements];
@@ -124,16 +161,19 @@ const restrictedWorkspaceContextApiPath = {
     "notion/notebooklm interface layers must not consume workspace context APIs directly. Receive scope via props from workspace composition.",
 };
 
-const legacyAliases = [
-  { group: ["@/shared/*"],        message: "Use @shared-types / @shared-utils / … instead." },
-  { group: ["@/infrastructure/*"],message: "Use @integration-firebase / @integration-upstash / … instead." },
-  { group: ["@/libs/*"],          message: "Use the corresponding @lib-* or @integration-* alias." },
-  { group: ["@/ui/shadcn/*"],     message: "Use @ui-shadcn/* instead." },
-  { group: ["@/ui/vis","@/ui/vis/*"], message: "Use @ui-vis instead." },
-  { group: ["@/interfaces/*"],    message: "Use @api-contracts instead." },
-];
+const moduleBoundaryPatterns = [moduleRootBarrel, subdomainRootBarrel, nonApiModuleSubpath];
+const internalLayerPatterns = [explicitIndex, ...moduleBoundaryPatterns, internalLayer];
+const downstreamInterfacePatterns = [...internalLayerPatterns, restrictedDownstreamInterfaceFirebase];
+const workspaceConsumerPatterns = [...downstreamInterfacePatterns, restrictedWorkspaceContextInternalImports];
 
-const restrictedImports = (patterns) => ["no-restricted-imports", [WARN, { patterns }]];
+const legacyAliases = [
+  { group: ["@/shared/*"], message: "Use @shared-types / @shared-utils / … instead." },
+  { group: ["@/infrastructure/*"], message: "Use @integration-firebase / @integration-upstash / … instead." },
+  { group: ["@/libs/*"], message: "Use the corresponding @lib-* or @integration-* alias." },
+  { group: ["@/ui/shadcn/*"], message: "Use @ui-shadcn/* instead." },
+  { group: ["@/ui/vis", "@/ui/vis/*"], message: "Use @ui-vis instead." },
+  { group: ["@/interfaces/*"], message: "Use @api-contracts instead." },
+];
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 export default defineConfig([
@@ -156,20 +196,20 @@ export default defineConfig([
   // TypeScript naming + type imports + unused vars
   {
     files: tsGlobs,
-    plugins: { "@typescript-eslint": tseslint },
+    plugins: { "@typescript-eslint": tseslint.plugin },
     rules: {
       "@typescript-eslint/naming-convention": [WARN,
         { selector: "typeLike",     format: ["PascalCase"] },
-        { selector: "typeParameter",format: ["PascalCase"] },
-        { selector: "variable",     modifiers: ["destructured"], format: null },
-        { selector: "function",     format: ["camelCase","PascalCase"], leadingUnderscore: "allow" },
-        { selector: "variable",     format: ["camelCase","PascalCase","UPPER_CASE"], leadingUnderscore: "allow", trailingUnderscore: "allow" },
-        { selector: "parameter",    modifiers: ["destructured"], format: null },
-        { selector: "parameter",    format: ["camelCase"], leadingUnderscore: "allow" },
-        { selector: "enumMember",   format: ["PascalCase","UPPER_CASE"] },
+        { selector: "typeParameter", format: ["PascalCase"] },
+        { selector: "variable", modifiers: ["destructured"], format: null },
+        { selector: "function", format: ["camelCase", "PascalCase"], leadingUnderscore: "allow" },
+        { selector: "variable", format: ["camelCase", "PascalCase", "UPPER_CASE"], leadingUnderscore: "allow", trailingUnderscore: "allow" },
+        { selector: "parameter", modifiers: ["destructured"], format: null },
+        { selector: "parameter", format: ["camelCase"], leadingUnderscore: "allow" },
+        { selector: "enumMember", format: ["PascalCase", "UPPER_CASE"] },
       ],
       "@typescript-eslint/consistent-type-imports": [WARN, { prefer: "type-imports", fixStyle: "inline-type-imports" }],
-      "@typescript-eslint/no-unused-vars":          [WARN, { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": [WARN, { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" }],
     },
   },
 
@@ -183,16 +223,7 @@ export default defineConfig([
       "react/jsx-no-useless-fragment":  [WARN, { allowExpressions: true }],
       "react-hooks/rules-of-hooks":     "error",
       "react-hooks/exhaustive-deps":    WARN,
-      ...Object.fromEntries(
-        Object.entries(jsxA11y.flatConfigs.recommended.rules ?? {}).map(([rule, cfg]) => {
-          if (Array.isArray(cfg)) {
-            const [sev, ...rest] = cfg;
-            const w = sev === "error" || sev === 2 ? WARN : sev;
-            return [rule, rest.length ? [w, ...rest] : w];
-          }
-          return [rule, cfg === "error" || cfg === 2 ? WARN : cfg];
-        }),
-      ),
+      ...mapRulesToWarn(jsxA11y.flatConfigs.recommended.rules),
     },
   },
 
@@ -212,29 +243,29 @@ export default defineConfig([
   },
 
   // File-size guardrails per Hexagonal DDD layer
-  { files: ["modules/*/interfaces/**/*.{ts,tsx}"],    rules: { "max-lines": [WARN, { max: 300, skipBlankLines: true, skipComments: true }] } },
-  { files: ["modules/*/application/**/*.{ts,tsx}"],   rules: { "max-lines": [WARN, { max: 300, skipBlankLines: true, skipComments: true }] } },
-  { files: ["modules/*/infrastructure/**/*.{ts,tsx}"],rules: { "max-lines": [WARN, { max: 400, skipBlankLines: true, skipComments: true }] } },
+  { files: ["modules/*/interfaces/**/*.{ts,tsx}"], rules: { "max-lines": maxLinesRule(300) } },
+  { files: ["modules/*/application/**/*.{ts,tsx}"], rules: { "max-lines": maxLinesRule(300) } },
+  { files: ["modules/*/infrastructure/**/*.{ts,tsx}"], rules: { "max-lines": maxLinesRule(400) } },
 
   // Legacy alias migration
-  { rules: { [restrictedImports(legacyAliases)[0]]: restrictedImports(legacyAliases)[1] } },
+  { rules: { "no-restricted-imports": restrictedImportsRule(legacyAliases) } },
 
   // app / providers / debug → only module api entrypoints
   {
     files: outerAdapterGlobs,
-    rules: { [restrictedImports([moduleRootBarrel, subdomainRootBarrel, nonApiModuleSubpath])[0]]: restrictedImports([moduleRootBarrel, subdomainRootBarrel, nonApiModuleSubpath])[1] },
+    rules: { "no-restricted-imports": restrictedImportsRule(moduleBoundaryPatterns) },
   },
 
   // modules → strict entrypoint + internal layer enforcement
   {
     files: moduleCodeGlobs,
-    rules: { [restrictedImports([explicitIndex, moduleRootBarrel, subdomainRootBarrel, nonApiModuleSubpath, internalLayer])[0]]: restrictedImports([explicitIndex, moduleRootBarrel, subdomainRootBarrel, nonApiModuleSubpath, internalLayer])[1] },
+    rules: { "no-restricted-imports": restrictedImportsRule(internalLayerPatterns) },
   },
 
   // packages must not depend on application modules
   {
     files: packageGlobs,
-    rules: { [restrictedImports([packageToModules])[0]]: restrictedImports([packageToModules])[1] },
+    rules: { "no-restricted-imports": restrictedImportsRule([packageToModules]) },
   },
 
   // Genkit must be centralized in platform AI infrastructure adapter.
@@ -248,37 +279,15 @@ export default defineConfig([
 
   // Downstream interfaces must consume platform APIs, not Firebase SDK wrappers directly.
   {
-    files: [
-      "modules/notebooklm/**/interfaces/**/*.{ts,tsx,js,jsx}",
-      "modules/notion/**/interfaces/**/*.{ts,tsx,js,jsx}",
-      "modules/workspace/**/interfaces/**/*.{ts,tsx,js,jsx}",
-    ],
+    files: downstreamInterfaceGlobs,
     rules: {
-      [restrictedImports([
-        explicitIndex,
-        moduleRootBarrel,
-        subdomainRootBarrel,
-        nonApiModuleSubpath,
-        internalLayer,
-        restrictedDownstreamInterfaceFirebase,
-      ])[0]]: restrictedImports([
-        explicitIndex,
-        moduleRootBarrel,
-        subdomainRootBarrel,
-        nonApiModuleSubpath,
-        internalLayer,
-        restrictedDownstreamInterfaceFirebase,
-      ])[1],
+      "no-restricted-imports": restrictedImportsRule(downstreamInterfacePatterns),
     },
   },
 
   // Downstream infrastructure must delegate Firebase access via platform infrastructure APIs.
   {
-    files: [
-      "modules/notebooklm/**/infrastructure/**/*.{ts,tsx,js,jsx}",
-      "modules/notion/**/infrastructure/**/*.{ts,tsx,js,jsx}",
-      "modules/workspace/**/infrastructure/**/*.{ts,tsx,js,jsx}",
-    ],
+    files: downstreamInfrastructureGlobs,
     rules: {
       "no-restricted-imports": [WARN, { patterns: [restrictedDownstreamInfrastructureFirebase] }],
     },
@@ -286,25 +295,13 @@ export default defineConfig([
 
   // notion/notebooklm interface layers must not read workspace context directly.
   {
-    files: [
-      "modules/notebooklm/**/interfaces/**/*.{ts,tsx,js,jsx}",
-      "modules/notion/**/interfaces/**/*.{ts,tsx,js,jsx}",
-    ],
+    files: workspaceConsumerInterfaceGlobs,
     rules: {
-      "no-restricted-imports": [WARN, {
-        patterns: [
-          explicitIndex,
-          moduleRootBarrel,
-          subdomainRootBarrel,
-          nonApiModuleSubpath,
-          internalLayer,
-          restrictedDownstreamInterfaceFirebase,
-          restrictedWorkspaceContextInternalImports,
-        ],
+      "no-restricted-imports": restrictedImportsRule(workspaceConsumerPatterns, {
         paths: [restrictedWorkspaceContextApiPath],
-      }],
+      }),
     },
   },
 
-  globalIgnores([".agents/**",".next/**","out/**","build/**","next-env.d.ts"]),
+  globalIgnores([".agents/**", ".next/**", "out/**", "build/**", "next-env.d.ts"]),
 ]);

@@ -37,13 +37,31 @@ export function configureLegacyAccountProfileDataSource(
 }
 
 function getLegacyDataSource(): LegacyAccountProfileDataSource {
-	if (_legacyDataSource) {
-		return _legacyDataSource;
+	if (!_legacyDataSource) {
+		// Auto-configure: lazy-require from sibling subdomain bridge to avoid
+		// import-time side effects in the account-profile api boundary.
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		const bridge = require("../../account/api/legacy-account-profile.bridge") as {
+			getLegacyUserProfile?: LegacyAccountProfileDataSource["getUserProfile"];
+			subscribeToLegacyUserProfile?: LegacyAccountProfileDataSource["subscribeToUserProfile"];
+			updateLegacyUserProfile?: LegacyAccountProfileDataSource["updateUserProfile"];
+		};
+		if (
+			typeof bridge.getLegacyUserProfile !== "function" ||
+			typeof bridge.subscribeToLegacyUserProfile !== "function" ||
+			typeof bridge.updateLegacyUserProfile !== "function"
+		) {
+			throw new Error(
+				"account/api/legacy-account-profile.bridge missing required exports",
+			);
+		}
+		_legacyDataSource = {
+			getUserProfile: bridge.getLegacyUserProfile,
+			subscribeToUserProfile: bridge.subscribeToLegacyUserProfile,
+			updateUserProfile: bridge.updateLegacyUserProfile,
+		};
 	}
-
-	throw new Error(
-		"LegacyAccountProfileDataSource is not configured. Configure it in account-profile/api composition root.",
-	);
+	return _legacyDataSource;
 }
 
 function getGetAccountProfileUseCase(): GetAccountProfileUseCase {

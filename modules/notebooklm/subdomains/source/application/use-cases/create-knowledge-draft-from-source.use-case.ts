@@ -13,6 +13,9 @@ import type { CommandResult } from "@shared-types";
 import { commandFailureFrom, commandSuccess } from "@shared-types";
 
 import type { ParsedDocumentPort } from "../../domain/ports/ParsedDocumentPort";
+import type { KnowledgePageGateway } from "../../domain/ports/KnowledgePageGatewayPort";
+
+export type { KnowledgePageGateway } from "../../domain/ports/KnowledgePageGatewayPort";
 
 export interface CreateKnowledgeDraftInput {
   readonly accountId: string;
@@ -22,26 +25,6 @@ export interface CreateKnowledgeDraftInput {
   readonly sourceGcsUri: string;
   readonly jsonGcsUri: string;
   readonly pageCount: number;
-}
-
-export interface KnowledgePageGateway {
-  createPage(input: {
-    accountId: string;
-    workspaceId: string;
-    title: string;
-    parentPageId: null;
-    createdByUserId: string;
-  }): Promise<CommandResult>;
-  addBlock(input: {
-    accountId: string;
-    pageId: string;
-    index: number;
-    content: {
-      type: "text";
-      richText: readonly { type: string; plainText: string }[];
-      properties: Record<string, unknown>;
-    };
-  }): Promise<CommandResult>;
 }
 
 function trimFileExtension(filename: string): string {

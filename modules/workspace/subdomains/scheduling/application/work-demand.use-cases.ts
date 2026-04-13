@@ -8,11 +8,11 @@ import type { CommandResult } from "@shared-types";
 import { commandFailureFrom, commandSuccess } from "@shared-types";
 
 import type { WorkDemand } from "../domain/types";
-import type { IDemandRepository } from "../domain/repository";
+import type { DemandRepository } from "../domain/repository";
 import type { AssignMemberInput, CreateDemandInput } from "./dto/work-demand.dto";
 
 export class SubmitWorkDemandUseCase {
-  constructor(private readonly repo: IDemandRepository) {}
+  constructor(private readonly repo: DemandRepository) {}
 
   async execute(input: CreateDemandInput): Promise<CommandResult> {
     try {
@@ -43,7 +43,7 @@ export class SubmitWorkDemandUseCase {
 }
 
 export class AssignWorkDemandUseCase {
-  constructor(private readonly repo: IDemandRepository) {}
+  constructor(private readonly repo: DemandRepository) {}
 
   async execute(input: AssignMemberInput): Promise<CommandResult> {
     try {
@@ -69,7 +69,7 @@ export class AssignWorkDemandUseCase {
 }
 
 export class ListWorkspaceDemandsUseCase {
-  constructor(private readonly repo: IDemandRepository) {}
+  constructor(private readonly repo: DemandRepository) {}
 
   async execute(workspaceId: string): Promise<WorkDemand[]> {
     return this.repo.listByWorkspace(workspaceId);
@@ -77,7 +77,7 @@ export class ListWorkspaceDemandsUseCase {
 }
 
 export class ListAccountDemandsUseCase {
-  constructor(private readonly repo: IDemandRepository) {}
+  constructor(private readonly repo: DemandRepository) {}
 
   async execute(accountId: string): Promise<WorkDemand[]> {
     return this.repo.listByAccount(accountId);

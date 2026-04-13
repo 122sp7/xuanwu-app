@@ -3,14 +3,14 @@
  * Layer: infrastructure/adapters
  * Adapter: NotionKnowledgePageGatewayAdapter — delegates to notion bounded context API.
  *
- * Implements the KnowledgePageGateway port defined in the application layer,
+ * Implements the KnowledgePageGateway port defined in the domain layer,
  * bridging the source subdomain to the notion bounded context through its
  * top-level public API and published-language tokens.
  */
 
 import type { CommandResult } from "@shared-types";
 
-import type { KnowledgePageGateway } from "../../../subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case";
+import type { KnowledgePageGateway } from "../../../subdomains/source/domain/ports/KnowledgePageGatewayPort";
 
 interface KnowledgeArtifactReferenceToken {
   readonly artifactId: string;

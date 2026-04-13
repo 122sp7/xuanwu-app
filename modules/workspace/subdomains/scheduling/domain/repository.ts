@@ -1,12 +1,12 @@
 /**
  * Module: workspace/subdomains/scheduling
  * Layer: domain/repository
- * Purpose: IDemandRepository port — implemented by infrastructure adapters.
+ * Purpose: DemandRepository port — implemented by infrastructure adapters.
  */
 
 import type { WorkDemand } from "./types";
 
-export interface IDemandRepository {
+export interface DemandRepository {
   listByWorkspace(workspaceId: string): Promise<WorkDemand[]>;
   listByAccount(accountId: string): Promise<WorkDemand[]>;
   save(demand: WorkDemand): Promise<void>;

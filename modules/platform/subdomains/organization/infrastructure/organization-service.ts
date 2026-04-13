@@ -48,6 +48,10 @@ let _policyRepo: FirebaseOrgPolicyRepository | undefined;
 let _teamPort: OrganizationTeamPort | undefined;
 let _teamPortFactory: (() => OrganizationTeamPort) | undefined;
 
+/**
+ * Override the default team port factory. Call before first use of
+ * team-related use cases if a custom factory is needed.
+ */
 export function configureOrganizationTeamPortFactory(
   factory: () => OrganizationTeamPort,
 ): void {
@@ -66,10 +70,22 @@ function getPolicyRepo(): FirebaseOrgPolicyRepository {
 }
 
 function getTeamPort(): OrganizationTeamPort {
-  if (!_teamPortFactory) {
-    throw new Error("Organization team port factory is not configured.");
+  if (!_teamPort) {
+    if (!_teamPortFactory) {
+      // Auto-configure: lazy-require team factory from sibling subdomain
+      // (platform/team/infrastructure/team-composition.ts) to avoid
+      // import-time side effects in the organization api boundary.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const mod = require("../../team/infrastructure/team-composition") as {
+        createTeamRepository?: () => OrganizationTeamPort;
+      };
+      if (typeof mod.createTeamRepository !== "function") {
+        throw new Error("platform/subdomains/team/infrastructure/team-composition missing createTeamRepository export");
+      }
+      _teamPortFactory = mod.createTeamRepository;
+    }
+    _teamPort = _teamPortFactory();
   }
-  if (!_teamPort) _teamPort = _teamPortFactory();
   return _teamPort;
 }
 

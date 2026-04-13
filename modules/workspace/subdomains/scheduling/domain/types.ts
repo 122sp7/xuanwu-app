@@ -66,12 +66,12 @@ export interface AssignWorkDemandCommand {
 }
 
 export type WorkDemandCreatedEvent = {
-  readonly type: "WORK_DEMAND_CREATED";
+  readonly type: "workspace.scheduling.demand-created";
   readonly payload: { readonly demandId: string; readonly workspaceId: string };
 };
 
 export type WorkDemandAssignedEvent = {
-  readonly type: "WORK_DEMAND_ASSIGNED";
+  readonly type: "workspace.scheduling.demand-assigned";
   readonly payload: {
     readonly demandId: string;
     readonly assignedUserId: string;

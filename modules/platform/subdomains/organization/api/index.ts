@@ -7,12 +7,11 @@
  * module evaluation, which causes failures during Next.js static
  * prerendering. Infrastructure exports are available in the server barrel
  * (./server.ts) or via direct import from action / service files.
+ *
+ * Team port wiring is deferred: the organization-service auto-configures its
+ * team port factory on first use via lazy require, eliminating the previous
+ * import-time side effect (configureOrganizationTeamPortFactory call).
  */
-
-import { createTeamRepository } from "../../team/api";
-import { configureOrganizationTeamPortFactory } from "../infrastructure/organization-service";
-
-configureOrganizationTeamPortFactory(createTeamRepository);
 
 // --- Domain types ---
 export type {

@@ -9,16 +9,34 @@ type EmitTokenRefreshSignal = (input: TokenRefreshSignalInput) => Promise<void>;
 
 let _emitTokenRefreshSignal: EmitTokenRefreshSignal | undefined;
 
+/**
+ * Override the default token refresh emitter. Call before first use of
+ * token-refresh flows if a custom emitter is needed.
+ */
 export function configureTokenRefreshEmitter(emitFn: EmitTokenRefreshSignal): void {
   _emitTokenRefreshSignal = emitFn;
 }
 
+function getEmitFn(): EmitTokenRefreshSignal {
+  if (!_emitTokenRefreshSignal) {
+    // Auto-configure: lazy-require identity api from sibling subdomain
+    // (platform/identity/api) to avoid import-time side effects in the
+    // account api boundary.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require("../../identity/api") as {
+      identityApi?: { emitTokenRefreshSignal?: EmitTokenRefreshSignal };
+    };
+    if (typeof mod.identityApi?.emitTokenRefreshSignal !== "function") {
+      throw new Error("platform/subdomains/identity/api missing identityApi.emitTokenRefreshSignal export");
+    }
+    _emitTokenRefreshSignal = mod.identityApi.emitTokenRefreshSignal;
+  }
+  return _emitTokenRefreshSignal;
+}
+
 export class IdentityTokenRefreshAdapter implements TokenRefreshPort {
   async emitTokenRefreshSignal(input: TokenRefreshSignalInput): Promise<void> {
-    if (!_emitTokenRefreshSignal) {
-      throw new Error("Token refresh emitter is not configured.");
-    }
-    await _emitTokenRefreshSignal(input);
+    await getEmitFn()(input);
   }
 }
 

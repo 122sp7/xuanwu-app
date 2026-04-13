@@ -1,11 +1,11 @@
 export const WORKSPACE_FEED_EVENT_TYPES = [
-  "WorkspaceFeedPostCreated",
-  "WorkspaceFeedReplyCreated",
-  "WorkspaceFeedRepostCreated",
-  "WorkspaceFeedPostLiked",
-  "WorkspaceFeedPostViewed",
-  "WorkspaceFeedPostBookmarked",
-  "WorkspaceFeedPostShared",
+  "workspace.feed.post-created",
+  "workspace.feed.reply-created",
+  "workspace.feed.repost-created",
+  "workspace.feed.post-liked",
+  "workspace.feed.post-viewed",
+  "workspace.feed.post-bookmarked",
+  "workspace.feed.post-shared",
 ] as const;
 
 export type WorkspaceFeedEventType = (typeof WORKSPACE_FEED_EVENT_TYPES)[number];
@@ -20,33 +20,33 @@ interface WorkspaceFeedBaseEvent {
 }
 
 export interface WorkspaceFeedPostCreatedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostCreated";
+  type: "workspace.feed.post-created";
 }
 
 export interface WorkspaceFeedReplyCreatedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedReplyCreated";
+  type: "workspace.feed.reply-created";
   parentPostId: string;
 }
 
 export interface WorkspaceFeedRepostCreatedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedRepostCreated";
+  type: "workspace.feed.repost-created";
   sourcePostId: string;
 }
 
 export interface WorkspaceFeedPostLikedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostLiked";
+  type: "workspace.feed.post-liked";
 }
 
 export interface WorkspaceFeedPostViewedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostViewed";
+  type: "workspace.feed.post-viewed";
 }
 
 export interface WorkspaceFeedPostBookmarkedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostBookmarked";
+  type: "workspace.feed.post-bookmarked";
 }
 
 export interface WorkspaceFeedPostSharedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostShared";
+  type: "workspace.feed.post-shared";
 }
 
 export type WorkspaceFeedDomainEvent =
