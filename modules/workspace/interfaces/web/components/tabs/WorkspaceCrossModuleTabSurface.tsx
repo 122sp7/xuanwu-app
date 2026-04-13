@@ -53,22 +53,6 @@ export function renderWorkspaceCrossModuleTabSurface(
   const { tab, workspace, accountId, currentUserId, workspaces } = options;
 
   switch (tab) {
-    case "NotionKnowledge":
-      return (
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardTitle>Notion Knowledge</CardTitle>
-            <CardDescription>Workspace orchestration view for notion knowledge pages.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <KnowledgePagesPanel
-              accountId={workspace.accountId}
-              workspaceId={workspace.id}
-              currentUserId={currentUserId}
-            />
-          </CardContent>
-        </Card>
-      );
     case "NotionAuthoring":
       return (
         <Card className="border border-border/50">
@@ -129,9 +113,7 @@ export function renderWorkspaceCrossModuleTabSurface(
         </Card>
       );
     case "Notebook":
-    case "NotebookSynthesis":
       return <RagQueryPanel workspaceId={workspace.id} />;
-    case "NotebookConversation":
     case "AiChat":
       return (
         <ConversationPanel

@@ -9,7 +9,7 @@ import {
   getWorkspaceTabsByGroup,
   WORKSPACE_TAB_SIDEBAR_GROUP_ORDER,
   getWorkspaceTabStatus,
-  isWorkspaceTabValue,
+  resolveWorkspaceTabValue,
   type WorkspaceTabGroup,
   type WorkspaceTabValue,
 } from "../../navigation/workspace-tabs";
@@ -107,7 +107,7 @@ export function WorkspaceSidebarSection({
 }: WorkspaceSidebarSectionProps) {
   const searchParams = useSearchParams();
   const rawTab = searchParams.get("tab") ?? "Overview";
-  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawTab) ? rawTab : "Overview";
+  const activeWorkspaceTab: WorkspaceTabValue = resolveWorkspaceTabValue(rawTab) ?? "Overview";
 
   const groups: Array<{ key: WorkspaceTabGroup; items: readonly TabLinkItem[] }> =
     WORKSPACE_TAB_SIDEBAR_GROUP_ORDER.map((groupKey) => ({

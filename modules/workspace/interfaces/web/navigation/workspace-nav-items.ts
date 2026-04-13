@@ -9,6 +9,7 @@ import {
   getWorkspaceTabLabel,
   getWorkspaceTabPrefId,
   getWorkspaceTabsInSidebarOrder,
+  normalizeWorkspaceTabPrefId,
   type WorkspaceTabValue,
 } from "./workspace-tabs";
 
@@ -32,6 +33,7 @@ export function normalizeWorkspaceOrder(order: unknown): string[] {
   if (!Array.isArray(order)) return fallback;
   const validOrder = order
     .filter((id): id is string => typeof id === "string")
+    .map((id) => normalizeWorkspaceTabPrefId(id))
     .filter((id) => VALID_WORKSPACE_ORDER_IDS.has(id));
   const deduped = Array.from(new Set(validOrder));
   for (const id of fallback) {
