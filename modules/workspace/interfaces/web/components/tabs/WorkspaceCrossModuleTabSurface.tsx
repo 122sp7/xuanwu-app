@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import type { ReactNode } from "react";
 
 import type { WorkspaceEntity } from "../../../api/contracts";
@@ -8,13 +9,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-s
 import {
   KnowledgeBaseArticlesPanel,
   KnowledgeDatabasesPanel,
-  KnowledgePagesPanel,
 } from "@/modules/notion/api";
 import {
-  ConversationPanel,
   RagQueryPanel,
   SourceDocumentsPanel,
 } from "@/modules/notebooklm/api";
+
+// Dynamic import to break synchronous module-evaluation cycle between
+// workspace/api → workspace/interfaces → notebooklm/api → ConversationPanel → workspace/api.
+// SSR disabled because ConversationPanel is a "use client" component that
+// relies on browser-only hooks (useState, useEffect) and workspace context providers.
+const ConversationPanel = dynamic(
+  () =>
+    import("@/modules/notebooklm/subdomains/conversation/api/ui").then(
+      (m) => m.ConversationPanel,
+    ),
+  { ssr: false },
+);
 
 interface WorkspaceCrossModuleTabSurfaceOptions {
   readonly tab: WorkspaceTabValue;
@@ -41,22 +52,6 @@ export function renderWorkspaceCrossModuleTabSurface(
   const { tab, workspace, accountId, currentUserId, workspaces } = options;
 
   switch (tab) {
-    case "NotionKnowledge":
-      return (
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardTitle>Notion Knowledge</CardTitle>
-            <CardDescription>Workspace orchestration view for notion knowledge pages.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <KnowledgePagesPanel
-              accountId={workspace.accountId}
-              workspaceId={workspace.id}
-              currentUserId={currentUserId}
-            />
-          </CardContent>
-        </Card>
-      );
     case "NotionAuthoring":
       return (
         <Card className="border border-border/50">
@@ -117,9 +112,7 @@ export function renderWorkspaceCrossModuleTabSurface(
         </Card>
       );
     case "Notebook":
-    case "NotebookSynthesis":
       return <RagQueryPanel workspaceId={workspace.id} />;
-    case "NotebookConversation":
     case "AiChat":
       return (
         <ConversationPanel

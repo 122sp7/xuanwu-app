@@ -15,6 +15,9 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 - Route work to the correct subdomain first; do not place subdomain-specific logic in the context-wide `application/` or `domain/` layers.
 - New top-level main domains are forbidden — the system has exactly four: `platform`, `workspace`, `notion`, `notebooklm`.
 - Use ubiquitous language from `docs/contexts/platform/ubiquitous-language.md`: `Actor` not `User`, `Entitlement` not `Plan`, `Membership` not `User` for workspace participant.
+- Shell account scope uses `accountId`; `organizationId` remains an organization-scoped downstream identifier, not a shell route param.
+- Code-level account scope values remain `"user" | "organization"`; keep personal account / organization account as display language only.
+- Canonical governance URLs are flattened account-scoped routes, not legacy `/{accountId}/organization/*` paths.
 
 ## Route to Subdomain When
 

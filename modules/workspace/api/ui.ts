@@ -158,13 +158,3 @@ export {
 } from "../subdomains/scheduling/api";
 
 export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";
-
-// ── Orchestrated notion UI (workspace as composition owner) ──────────────────
-
-export { ArticleDetailPanel } from "@/modules/notion/api";
-export { KnowledgeBaseArticlesPanel } from "@/modules/notion/api";
-export { DatabaseDetailPanel } from "@/modules/notion/api";
-export { DatabaseFormsPanel } from "@/modules/notion/api";
-export { KnowledgeDatabasesPanel } from "@/modules/notion/api";
-export { KnowledgeDetailPanel } from "@/modules/notion/api";
-export { KnowledgePagesPanel } from "@/modules/notion/api";

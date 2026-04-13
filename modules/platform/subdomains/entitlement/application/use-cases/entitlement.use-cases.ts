@@ -1,3 +1,4 @@
+import { v4 as uuid } from "@lib-uuid";
 /**
  * Entitlement Use Cases — pure application logic.
  * All cross-domain dependencies are injected via ports.
@@ -18,7 +19,7 @@ export class GrantEntitlementUseCase {
     expiresAt?: string | null;
   }): Promise<CommandResult> {
     try {
-      const id = crypto.randomUUID();
+      const id = uuid();
       const grant = EntitlementGrant.create(id, input);
       await this.repo.save(grant.getSnapshot());
       return commandSuccess(id, Date.now());

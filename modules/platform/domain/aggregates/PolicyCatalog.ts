@@ -21,7 +21,7 @@
  *   - Permission, workflow, notification, and audit rules must not create indeterminate conflicts
  *
  * Emits:
- *   policy.catalog_published
+ *   policy.catalog-published
  *
  * @see docs/aggregates.md — 聚合根：PolicyCatalog
  * @see docs/domain-events.md

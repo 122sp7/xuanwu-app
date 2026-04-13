@@ -4,6 +4,7 @@
  * Firebase SDK only exists in this file.
  */
 
+import { v4 as uuid } from "@lib-uuid";
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api";
@@ -216,7 +217,7 @@ export class FirebaseWorkspaceRepository
     workspaceId: string,
     location: Omit<WorkspaceLocation, "locationId">,
   ): Promise<string> {
-    const locationId = crypto.randomUUID();
+    const locationId = uuid();
     const path = this.workspacePath(workspaceId);
     const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
     if (!data) return locationId;

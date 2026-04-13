@@ -32,7 +32,7 @@ import {
   getWorkspaceTabLabel,
   getWorkspaceTabStatus,
   getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
+  resolveWorkspaceTabValue,
   type WorkspaceTabValue,
 } from "../../navigation/workspace-tabs";
 import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
@@ -182,9 +182,7 @@ export function WorkspaceDetailScreen({
     }
   }
 
-  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
-    ? initialTab
-    : "Overview";
+  const resolvedTab: WorkspaceTabValue = resolveWorkspaceTabValue(initialTab) ?? "Overview";
 
   return (
     <div className="space-y-6">

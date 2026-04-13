@@ -13,6 +13,8 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 - `api/` is the **only** cross-module entry surface; never expose `domain/`, `application/`, or `infrastructure/` internals.
 - `contracts.ts` defines stable cross-module types; `facade.ts` exposes callable service methods; `ui.ts` exposes UI-safe view tokens only.
 - Published language tokens for cross-module use: `workspaceId`, `membershipRef`, `workspaceCapabilitySignal`, `wikiContentTreeRef`.
+- Cross-boundary account scope values remain `"user" | "organization"`; do not publish `"personal" | "organization"` through workspace contracts.
+- Any workspace href exposed through API-adjacent view contracts must prefer canonical `/{accountId}/{workspaceId}` output; the `/{accountId}/workspace/{workspaceId}` form is legacy redirect-only.
 - `runtime/factories.ts` wires workspace services for server-side consumption — keep wiring thin, delegate to application services.
 - Never expose `Workspace` aggregate or `WorkspaceMemberView` entity directly across the boundary; translate to contract types.
 - `notebooklm` and `notion` must receive `workspaceId` as a scope token, never as a full workspace object.

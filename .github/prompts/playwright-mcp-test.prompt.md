@@ -2,7 +2,7 @@
 name: playwright-mcp-test
 description: 執行 Playwright MCP 瀏覽器測試，驗證指定路由的用戶流程並輸出帶截圖的測試報告。
 agent: E2E QA Agent
-argument-hint: "<route-or-url> <user-flow-description> [--account org|personal]"
+argument-hint: "<route-or-url> <user-flow-description> [--account user|organization]"
 ---
 
 # Playwright MCP 瀏覽器測試
@@ -11,7 +11,7 @@ argument-hint: "<route-or-url> <user-flow-description> [--account org|personal]"
 
 - route: ${input:route:目標路由或完整 URL，例如 /organization/members}
 - flow: ${input:flow:要測試的用戶流程，例如「邀請成員」}
-- account: ${input:account:帳號情境 personal 或 org（預設 personal）}
+- account: ${input:account:帳號情境 user 或 organization（預設 user；user 代表個人帳號）}
 
 ## 前置條件確認
 
@@ -25,7 +25,7 @@ argument-hint: "<route-or-url> <user-flow-description> [--account org|personal]"
    - 成功 → 使用 playwright-mcp 工具鏈
    - 失敗（"closed"）→ 切換到 `mcp_io_github_ver_browser_eval` 備援模式
 
-3. **帳號情境切換（若需要 org 情境）**  
+3. **帳號情境切換（若需要 organization 情境）**  
    參照 SKILL.md 的「帳號切換」章節執行組織帳號切換。
 
 4. **工作區確認（若頁面需要 workspaceId）**  
@@ -98,7 +98,7 @@ mcp_io_github_ver_nextjs_call port:3000 toolName:"get_errors"
 ## 測試結果：{flow} @ {route}
 
 **URL**: {route}  
-**帳號情境**: personal / organization  
+**帳號情境**: user / organization  
 **測試日期**: YYYY-MM-DD  
 **狀態**: ✅ 通過 / ❌ 失敗 / ⚠️ 部分通過
 

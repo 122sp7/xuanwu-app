@@ -139,6 +139,12 @@ interfaces/ → application/ → domain/ ← infrastructure/
 api/ ← 唯一跨模組入口
 ```
 
+## Scope Contract
+
+- Treat `accountId` as account scope and `workspaceId` as workspace scope supplied by workspace-owned composition; notion does not own top-level shell routing.
+- Canonical shell navigation remains `/{accountId}/{workspaceId}` when notion panels or detail links are composed inside workspace flows.
+- Use concrete user identifiers such as `currentUserId` and `createdByUserId` for acting users; do not drift into using `accountId` as a user identifier.
+
 ## Development Order (Domain-First)
 
 New features:

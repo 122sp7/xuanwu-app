@@ -7,7 +7,7 @@
  * also callable directly when a document is registered without the upload-init flow.
  */
 
-import { randomUUID } from "node:crypto";
+import { v4 as randomUUID } from "@lib-uuid";
 
 import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
 import type {

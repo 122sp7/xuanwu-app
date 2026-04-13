@@ -74,6 +74,13 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - `domain/` must not import infrastructure, interfaces, React, Firebase SDK, or any runtime framework.
 - Cross-module collaboration goes through `api/` only.
 
+## Current Contract Alignment
+
+- NotebookLM consumes `accountId` and `workspaceId` from workspace-owned shell composition; it does not own top-level shell routes and any browser-facing links should remain anchored to canonical `/{accountId}/{workspaceId}` workspace navigation.
+- Source and synthesis internals may derive an `organizationId` for organization-scoped storage and retrieval, but that identifier is an internal domain/infrastructure scope token, not a shell route param.
+- For personal-account scope, source workflows currently derive a synthetic internal organization scope token from `accountId`; this is an implementation detail for org-scoped storage isolation, not an alternate accountType contract.
+- This bounded context follows the repo baseline: Hexagonal Architecture + DDD, Firebase adapters outside the core, Genkit capability consumed through upstream platform boundaries, Zustand/XState only in interface workflows, and Zod at runtime validation boundaries.
+
 ## Strategic Documentation
 
 - [Context README](../../docs/contexts/notebooklm/README.md)

@@ -42,14 +42,14 @@ This skill contains the following reference files:
 
 ## Statistics
 
-316 files | 19,734 lines
+316 files | 19,894 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 316 | 19,734 |
+| Markdown | 316 | 19,894 |
 
 **Largest files:**
-- `docs/hard-rules-consolidated.md` (453 lines)
+- `docs/hard-rules-consolidated.md` (455 lines)
 - `.github/skills/hexagonal-ddd/SKILL.md` (415 lines)
 - `.github/skills/playwright-mcp-testing/SKILL.md` (358 lines)
 - `.github/skills/shadcn/SKILL.md` (296 lines)

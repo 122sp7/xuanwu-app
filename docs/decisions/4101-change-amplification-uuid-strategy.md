@@ -1,7 +1,8 @@
 # 4101 Change Amplification — UUID 生成策略變更需觸及 43+ 個 Domain 文件
 
-- Status: Accepted
+- Status: Resolved
 - Date: 2026-04-13
+- Resolved: 2026-04-13
 - Category: Maintainability Smells > Change Amplification
 
 ## Context
@@ -73,10 +74,20 @@ packages/lib-uuid/     ← 唯一需要修改的地方
 - Domain aggregates 的變更集中在業務邏輯，不被基礎設施工具的版本升級汙染。
 
 代價：
-- 初始遷移需要 49 個文件的機械性 import 替換（無邏輯變更，可批量執行）。
+- 初始遷移需要 34 個文件的機械性 import 替換（無邏輯變更，可批量執行）。
+
+## Resolution
+
+**已解決（2026-04-13）**
+
+所有 34 個文件（14 domain + 13 application + 7 infra/interfaces/api）已遷移至 `@lib-uuid`。UUID 策略升級現在只需修改 `packages/lib-uuid/index.ts` 一處。
+
+### 原始證據修正
+
+原 ADR 記錄「49 個文件」，實際為 **34 個文件**。
 
 ## 關聯 ADR
 
-- **1101** (Layer Violation)：crypto 在 domain 是層次違規
-- **2101** (Tight Coupling)：crypto 是緊耦合
+- **1101** (Layer Violation)：crypto 在 domain 是層次違規（已解決）
+- **2101** (Tight Coupling)：crypto 是緊耦合（已解決）
 - **ADR 0001** (Hexagonal Architecture)：Change Amplification 是違反 DIP 的直接後果

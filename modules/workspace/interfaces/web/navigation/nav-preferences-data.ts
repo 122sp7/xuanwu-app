@@ -9,6 +9,7 @@ import {
   WORKSPACE_NAV_ITEMS,
   normalizeWorkspaceOrder,
 } from "./workspace-nav-items";
+import { normalizeWorkspaceTabPrefId } from "./workspace-tabs";
 
 // Re-export for consumers that import from this file directly.
 export { WORKSPACE_NAV_ITEMS, normalizeWorkspaceOrder };
@@ -92,7 +93,7 @@ export const DEFAULT_PREFS: NavPreferences = {
  * Legacy default order before workspace tab UX reorder.
  * Only exact legacy defaults are migrated; custom user orders are preserved.
  */
-const LEGACY_DEFAULT_WORKSPACE_ORDER = [
+const RAW_LEGACY_DEFAULT_WORKSPACE_ORDER = [
   "home",
   "daily",
   "schedule",
@@ -121,6 +122,10 @@ const LEGACY_DEFAULT_WORKSPACE_ORDER = [
   "members",
 ] as const;
 
+const LEGACY_DEFAULT_WORKSPACE_ORDER = Array.from(
+  new Set(RAW_LEGACY_DEFAULT_WORKSPACE_ORDER.map((id) => normalizeWorkspaceTabPrefId(id))),
+);
+
 const VALID_PERSONAL_ITEM_IDS = new Set(PERSONAL_ITEMS.map((item) => item.id));
 const VALID_WORKSPACE_ITEM_IDS = new Set([
   ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
@@ -141,17 +146,14 @@ const WORKFLOW_PIN_MIGRATION_IDS = [
 const NOTION_NOTEBOOKLM_PIN_MIGRATION_IDS = [
   "knowledge",
   "workspace-settings",
-  "notion-knowledge",
   "notion-authoring",
   "notion-database",
   "notion-collaboration",
   "notion-relations",
   "notion-taxonomy",
   "notebook",
-  "notebook-conversation",
   "notebook-notebook",
   "notebook-source",
-  "notebook-synthesis",
   "ai-chat",
 ] as const;
 
@@ -159,6 +161,7 @@ function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: strin
   if (!Array.isArray(ids)) return fallback;
   const normalized = ids
     .filter((id): id is string => typeof id === "string")
+    .map((id) => normalizeWorkspaceTabPrefId(id))
     .filter((id) => validSet.has(id));
   return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
 }

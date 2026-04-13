@@ -2,7 +2,7 @@
 name: playwright-mcp-inspect
 description: 以用戶視角巡覽目標路由，自動偵測 UI 功能缺口、反直覺設計、空狀態引導缺失與 Console 錯誤。
 agent: E2E QA Agent
-argument-hint: "<route-or-section> [--account org|personal] [--deep]"
+argument-hint: "<route-or-section> [--account user|organization] [--deep]"
 ---
 
 # Playwright MCP UI 缺口偵測
@@ -10,7 +10,7 @@ argument-hint: "<route-or-section> [--account org|personal] [--deep]"
 ## 輸入參數
 
 - target: ${input:target:要巡覽的路由或功能模組，例如 /organization 或 knowledge-base}
-- account: ${input:account:帳號情境 personal 或 org（組織功能用 org）}
+- account: ${input:account:帳號情境 user 或 organization（user 代表個人帳號）}
 - depth: ${input:depth:巡覽深度 shallow（主頁面）或 deep（進入子頁面）}
 
 ## 目標
@@ -26,15 +26,15 @@ argument-hint: "<route-or-section> [--account org|personal] [--deep]"
 
 ## 帳號情境設置
 
-**Personal 帳號**（預設）：
+**user 帳號（個人帳號，預設）**：
 - 直接導航到目標頁面
 - 確認 localStorage `xuanwu_last_active_account` = `dev-demo-user`
 
-**Organization 帳號**（需要 org 功能時）：
+**organization 帳號**（需要 organization 功能時）：
 1. 導航到 `/workspace`（確保 SPA 已載入）
 2. 點開帳號切換 dropdown（需 PointerDown 事件）
-3. 選擇 org 選項
-4. 確認 localStorage 更新為 org ID
+3. 選擇 organization 選項
+4. 確認 localStorage 更新為 organization account ID
 5. 點擊麵包屑或 Link（勿用全頁重載）導航到目標
 
 ## 巡覽執行流程
@@ -112,7 +112,7 @@ mcp_io_github_ver_nextjs_call port:3000 toolName:"get_errors" → Next.js 錯誤
 ## UI 缺口偵測報告：{target}
 
 **巡覽路徑**: {routes visited}
-**帳號情境**: personal / organization  
+**帳號情境**: user / organization  
 **巡覽日期**: YYYY-MM-DD  
 **巡覽深度**: shallow / deep
 

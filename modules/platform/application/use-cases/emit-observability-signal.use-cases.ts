@@ -31,7 +31,7 @@ export class EmitObservabilitySignalUseCase {
 			});
 			if (AUDIT_SIGNAL_LEVELS.has(input.signalLevel.toLowerCase())) {
 				await this.auditStore.write({
-					signalType: "observability.signal_emitted",
+					signalType: "observability.signal-emitted",
 					severity: input.signalLevel,
 					contextId: input.contextId,
 					signalName: input.signalName,

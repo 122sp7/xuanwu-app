@@ -32,7 +32,7 @@ export class RequestNotificationDispatchUseCase {
 			}
 			const now = new Date().toISOString();
 			await this.auditStore.write({
-				signalType: "notification.dispatch_requested",
+				signalType: "notification.dispatch-requested",
 				severity: "info",
 				contextId: input.contextId,
 				recipientRef: input.recipientRef,

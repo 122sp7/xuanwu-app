@@ -1,7 +1,8 @@
 # 2101 Tight Coupling — Domain Aggregates 直接綁定 Node.js `crypto` Runtime
 
-- Status: Accepted
+- Status: Resolved
 - Date: 2026-04-13
+- Resolved: 2026-04-13
 - Category: Coupling Smells > Tight Coupling
 
 ## Context
@@ -79,9 +80,19 @@ import { randomBytes, randomUUID } from "node:crypto";
 - 若未來升級 UUID 版本（v7 有時間排序優勢），只需修改 `@lib-uuid` 一處。
 
 代價：
-- 43 個 aggregates + 6 個 use-cases 需要機械性 import 替換（無邏輯變更）。
+- 14 個 domain aggregates + 13 個 application use-cases + 7 個 infra/interfaces 文件需要機械性 import 替換（無邏輯變更）。
+
+## Resolution
+
+**已解決（2026-04-13）**
+
+與 ADR 1101 同步解決。所有 `crypto.randomUUID()` 和 `import { randomUUID } from "node:crypto"` 已替換為 `import { v4 as uuid } from "@lib-uuid"`。Domain 層現在完全 runtime-agnostic，可在 Edge Runtime、browser、Node.js 任意環境下執行。
+
+### 原始證據修正
+
+原 ADR 記錄「43 個 aggregates + 6 個 use-cases」，實際為 **14 個 domain aggregate 文件 + 13 個 application 文件 + 7 個其他層文件**。
 
 ## 關聯 ADR
 
-- **1101**：這是層次違規的同一實例
-- **4101**：UUID 策略分散 = Change Amplification
+- **1101**：這是層次違規的同一實例（同步解決）
+- **4101**：UUID 策略分散 = Change Amplification（解決後策略集中於 `@lib-uuid`）

@@ -14,10 +14,17 @@
 ### 使用 `dtos`（複數）的模組
 
 ```
-modules/platform/application/dtos/             ← platform root application
-modules/workspace/application/dtos/            ← workspace root application
-modules/notebooklm/application/dtos/           ← notebooklm root application
-modules/notion/application/dtos/               ← notion root application（部分）
+modules/platform/application/dtos/                                    ← platform root application
+modules/platform/subdomains/access-control/application/dtos/          ← access-control
+modules/platform/subdomains/account/application/dtos/                 ← account
+modules/platform/subdomains/account-profile/application/dtos/         ← account-profile
+modules/platform/subdomains/entitlement/application/dtos/             ← entitlement
+modules/platform/subdomains/notification/application/dtos/            ← notification
+modules/platform/subdomains/organization/application/dtos/            ← organization
+modules/platform/subdomains/subscription/application/dtos/            ← subscription
+modules/workspace/application/dtos/                                   ← workspace root application
+modules/notion/application/dtos/                                      ← notion root application
+modules/notebooklm/application/dtos/                                  ← notebooklm root application
 ```
 
 ### 使用 `dto`（單數）的模組
@@ -38,7 +45,7 @@ modules/notebooklm/subdomains/source/application/dto/
 modules/notebooklm/subdomains/conversation/application/dto/
 ```
 
-**統計：** 4 個使用 `dtos`，13 個使用 `dto`（單數佔多數）。
+**統計：** 11 個使用 `dtos`（複數），13 個使用 `dto`（單數）。
 
 ### 命名模式對比
 
@@ -95,7 +102,7 @@ application/use-cases/ → 全部複數 ✅（僅 scheduling 例外，見 ADR 32
 
 代價：
 - 重命名需要更新所有 import 路徑（可用 IDE 重構工具批量處理）。
-- 4 個目錄（單數→複數決定）或 13 個目錄（複數→單數決定）的路徑更新。
+- 11 個目錄（複數→單數決定）或 13 個目錄（單數→複數決定）的路徑更新。
 
 ## 關聯 ADR
 

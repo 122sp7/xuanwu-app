@@ -1,3 +1,4 @@
+import { v4 as uuid } from "@lib-uuid";
 import type {
   NotificationDomainEventType,
   NotificationDispatchedEvent,
@@ -42,7 +43,7 @@ export class NotificationAggregate {
     });
     aggregate.recordEvent<NotificationDispatchedEvent>({
       type: "platform.notification.dispatched",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: new Date().toISOString(),
       payload: {
         notificationId: id,
@@ -63,7 +64,7 @@ export class NotificationAggregate {
     this._props = { ...this._props, read: true };
     this.recordEvent<NotificationReadEvent>({
       type: "platform.notification.read",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: {
         notificationId: this._props.id,

@@ -1,7 +1,8 @@
 # 5101 Accidental Complexity — `platform/domain/` 102 個 TODO Stub 文件
 
-- Status: Accepted
+- Status: Resolved
 - Date: 2026-04-13
+- Resolved: 2026-04-13
 - Category: Complexity Smells > Accidental Complexity
 
 ## Context
@@ -121,7 +122,19 @@ modules/platform/domain/events/published/
 - 需要決定哪些 event 立即實作、哪些以 DESIGN.md 記錄、哪些以 Issue 追蹤。
 - 21 個文件的處理決策（但每個決策很小）。
 
+## Resolution
+
+**已解決（2026-04-13）**
+
+- 21 個 TODO stub .ts 文件（event payload placeholders）已刪除
+- 3 個 published/ utility stub 文件已刪除
+- 設計意圖已集中記錄至 `modules/platform/domain/events/DESIGN.md`
+- `published/index.ts` 已簡化為 JSDoc 指向 DESIGN.md 的最小佔位
+
+刪除前：`platform/domain/events/` 包含 27 個 .ts 文件（20 個 TODO stub + 3 個 published stub + index.ts + published/index.ts + mapper + published events）
+刪除後：`platform/domain/events/` 包含 `index.ts`、`published/index.ts`、`DESIGN.md`，加上已實作的文件
+
 ## 關聯 ADR
 
-- **3201** (Duplication)：stub 文件中的 event type 常數已在 `domain/events/index.ts` 定義，存在文件層面的重複
-- **5201** (Cognitive Load)：大量 stub 文件增加了閱讀 platform domain 的認知負荷
+- **3201** (Duplication)：stub 文件中的 event type 常數已在 `domain/events/index.ts` 定義，存在文件層面的重複（已解決）
+- **5201** (Cognitive Load)：大量 stub 文件增加了閱讀 platform domain 的認知負荷（解決此 ADR 有助於降低認知負荷）

@@ -42,13 +42,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1669 files | 46,314 lines
+1647 files | 46,383 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1145 | 24,284 |
-| Markdown | 244 | 14,894 |
-| TypeScript (TSX) | 172 | 4,466 |
+| TypeScript | 1123 | 23,854 |
+| Markdown | 245 | 15,406 |
+| TypeScript (TSX) | 171 | 4,453 |
 | Python | 61 | 1,404 |
 | No Extension | 30 | 35 |
 | JSON | 8 | 943 |
@@ -59,13 +59,13 @@ This skill contains the following reference files:
 | Other | 1 | 64 |
 
 **Largest files:**
-- `docs/hard-rules-consolidated.md` (453 lines)
+- `docs/hard-rules-consolidated.md` (455 lines)
 - `firestore.indexes.json` (437 lines)
 - `AGENTS.md` (305 lines)
 - `py_fn/README.md` (265 lines)
+- `modules/platform/domain/events/DESIGN.md` (257 lines)
 - `modules/platform/api/contracts.ts` (224 lines)
 - `.github/prompts/serena-hexagonal-ddd-refactor.prompt.md` (215 lines)
 - `.github/prompts/enforce-hexagonal-ddd-convergence.prompt.md` (215 lines)
 - `.github/instructions/architecture.instructions.md` (211 lines)
 - `docs/bounded-context-subdomain-template.md` (206 lines)
-- `modules/platform/domain/ports/output/index.ts` (204 lines)

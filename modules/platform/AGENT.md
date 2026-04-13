@@ -25,6 +25,13 @@
 interfaces/ → application/ → domain/ ← infrastructure/
 ```
 
+## Route And Identifier Contract
+
+- Treat `accountId` as the shell account scope token; do not substitute `organizationId` into route or shell-composition contracts.
+- Canonical governance routes are flattened under `/{accountId}/...`; `/{accountId}/organization/*` remains legacy redirect-only surface.
+- Platform code-level account type remains `"user" | "organization"`; presentation may say personal account / organization account, but domain, application, DTO, validator, and API contracts must not drift to `"personal"`.
+- Keep `userId`, `actorId`, and `tenantId` distinct: concrete user, acting principal, and isolation key are different semantic roles.
+
 ## Development Order (Strangler Pattern)
 
 New features:

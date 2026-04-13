@@ -1,7 +1,8 @@
 # 1101 Layer Violation — `crypto.randomUUID()` in Domain Layer
 
-- Status: Accepted
+- Status: Resolved
 - Date: 2026-04-13
+- Resolved: 2026-04-13
 - Category: Architectural Smells > Layer Violation
 
 ## Context
@@ -71,9 +72,24 @@ modules/platform/subdomains/background-job/application/use-cases/ingestion.use-c
 - 測試不需要全域 crypto polyfill。
 
 代價：
-- 需在 43 個 domain 文件和 6 個 application 文件中進行 import 替換（機械性，無邏輯變更）。
+- 需在 14 個 domain 文件和 13 個 application 文件中進行 import 替換（機械性，無邏輯變更）。
+
+## Resolution
+
+**已解決（2026-04-13）**
+
+所有 domain 層和 application 層的 `crypto.randomUUID()` 已替換為 `import { v4 as uuid } from "@lib-uuid"`：
+
+- **14 個 domain aggregate 文件**：Account, UserIdentity, Organization, Subscription, EntitlementGrant, AccessPolicy, NotificationAggregate, AccountProfileAggregate, Workspace, AuditEntry, KnowledgePage, KnowledgeCollection, ContentBlock, Article
+- **13 個 application 文件**：use-case 和 service 文件中的 `crypto.randomUUID()` global 和 `import { randomUUID } from "node:crypto"` 均已替換
+- **7 個 infrastructure/interfaces/api 文件**：service-api, repositories, stores, actions 中的 `crypto.randomUUID()` 也已一併替換
+- **唯一保留**：`upload-init-source-file.use-case.ts` 中的 `import { randomBytes } from "node:crypto"` 保留，因為 `randomBytes` 用途為加密強度隨機（非 UUID），屬基礎設施關注點。
+
+### 原始證據修正
+
+原 ADR 記錄「43 個 domain aggregates」，實際掃描為 **14 個 domain aggregate 文件**。差異來自原始掃描包含了多行匹配（同一文件多次出現）被誤計為不同文件。
 
 ## 關聯 ADR
 
-- **2101**：crypto 直接使用是緊耦合的另一表現
-- **4101**：UUID 策略分散導致 Change Amplification
+- **2101**：crypto 直接使用是緊耦合的另一表現（同步解決）
+- **4101**：UUID 策略分散導致 Change Amplification（解決後策略集中於 `@lib-uuid`）

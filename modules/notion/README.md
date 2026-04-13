@@ -118,6 +118,13 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - `domain/` must not import infrastructure, interfaces, React, Firebase SDK, or any runtime framework.
 - Cross-module collaboration goes through `api/` only.
 
+## Current Contract Alignment
+
+- Notion consumes `accountId` and `workspaceId` as downstream scope tokens from workspace-owned shell composition; it does not own top-level shell routes.
+- Browser-facing notion links rendered inside shell flows must stay anchored to the canonical workspace route `/{accountId}/{workspaceId}` chosen by workspace composition, not reintroduce legacy `/workspace/*` URL shapes.
+- Use `currentUserId`, `createdByUserId`, and similar concrete user identifiers for acting users; do not collapse them into `accountId` or `workspaceId`.
+- This bounded context follows the repo baseline: Hexagonal Architecture + DDD, Firebase adapters outside the core, Genkit capability consumed through upstream platform boundaries, Zustand/XState only in interface workflows, and Zod at runtime validation boundaries.
+
 ## Strategic Documentation
 
 - [Context README](../../docs/contexts/notion/README.md)

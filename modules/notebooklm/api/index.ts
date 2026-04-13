@@ -70,11 +70,16 @@ export {
 } from "../subdomains/source/api";
 
 // ---------------------------------------------------------------------------
-// conversation subdomain — AI chat UI and helpers
+// conversation subdomain — AI chat helpers and types
+//
+// NOTE: ConversationPanel is NOT re-exported here to avoid a synchronous
+// module-evaluation cycle: workspace/api → workspace interfaces →
+// notebooklm/api → ConversationPanel → workspace/api.
+// Import ConversationPanel from "@/modules/notebooklm/subdomains/conversation/api/ui"
+// or use next/dynamic for lazy loading.
 // ---------------------------------------------------------------------------
 
-export { ConversationPanel } from "../subdomains/conversation/api";
-export type { ConversationPanelProps, ChatMessage } from "../subdomains/conversation/api";
+export type { ChatMessage } from "../subdomains/conversation/api";
 
 // ---------------------------------------------------------------------------
 // Context-wide published language (cross-module reference types)

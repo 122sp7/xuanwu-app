@@ -1,6 +1,8 @@
 import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Library, MessageSquare, Notebook, Shield, User, Users } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { resolveWorkspaceTabValue } from "../../navigation/workspace-tabs";
+
 const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
   "workspace",
   "organization",
@@ -79,21 +81,21 @@ const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
     label: "知識庫",
     icon: <Notebook className="size-3.5" />,
     isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Knowledge",
+      isWorkspaceScopedPath(pathname) && resolveWorkspaceTabValue(options?.tab) === "Knowledge",
   },
   {
     href: `${WORKSPACE_BASE_HREF_TOKEN}?tab=Notebook`,
     label: "RAG 查詢",
     icon: <Brain className="size-3.5" />,
     isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Notebook",
+      isWorkspaceScopedPath(pathname) && resolveWorkspaceTabValue(options?.tab) === "Notebook",
   },
   {
     href: `${WORKSPACE_BASE_HREF_TOKEN}?tab=AiChat`,
     label: "AI 對話",
     icon: <MessageSquare className="size-3.5" />,
     isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "AiChat",
+      isWorkspaceScopedPath(pathname) && resolveWorkspaceTabValue(options?.tab) === "AiChat",
   },
   {
     href: `${WORKSPACE_BASE_HREF_TOKEN}?tab=Overview&panel=knowledge-databases`,
