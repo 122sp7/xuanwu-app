@@ -15,7 +15,7 @@
 | Conformist | downstream 直接接受 upstream 語言的整合選擇 |
 | Shared Kernel | 對稱共用模型關係 |
 | Partnership | 對稱共同成功 / 共同失敗關係 |
-| Account Scope | shell 中由 `accountId` 表示的帳號範疇，可對應 personal account 或 organization account |
+| Account Scope | shell 中由 `accountId` 表示的帳號範疇；代碼中的 `AccountType = "user" | "organization"` 會把它映射成 personal account 或 organization account 語意 |
 | Workspace Scope | 由 `workspaceId` 表示的協作容器範疇，必須從屬於某個 account scope |
 | Canonical Route Contract | 只用來表達 composition surface 的正典 URL 形狀，不取代 published language |
 
@@ -34,8 +34,9 @@
 |---|---|
 | accountId | shell route 上的 account scope identifier，不等於 workspaceId，也不直接等於 Tenant 語言 |
 | workspaceId | workspace scope identifier；在 canonical shell URL 中作為 account scope 之下的第二段 |
-| Personal Account | `AccountType = "user"` 的 legacy 字串值所對應的 personal actor account 語意 |
-| Organization Account | `AccountType = "organization"` 的 legacy 字串值所對應的 organization account 語意 |
+| AccountType String Contract | code-level enum `"user" | "organization"`；`"user"` 對應 personal actor account，`"organization"` 對應 organization account |
+| Personal Account | `AccountType = "user"` 對應的 personal actor account 語意 |
+| Organization Account | `AccountType = "organization"` 對應的 organization account 語意 |
 | Canonical Workspace URL | `/{accountId}/{workspaceId}` |
 | Legacy Workspace Redirect Surface | `/{accountId}/workspace/{workspaceId}` |
 | Legacy Organization Redirect Surface | `/{accountId}/organization/*` |
@@ -80,6 +81,7 @@
 - 不用 Versioning 混指 notion 的 knowledge-versioning 與 notebooklm 的 conversation-versioning。
 - 不用 Workflow 混指 platform workflow 與 workspace-workflow。
 - 不用 accountId 混指 workspaceId。
+- 不用 `AccountType = "personal"` 取代 `AccountType = "user"`。
 - 不用 `/{accountId}/workspace/{workspaceId}` 當成新的 canonical workspace URL。
 - 不用 `/{accountId}/organization/*` 當成新的 canonical governance route。
 
@@ -90,6 +92,7 @@
 - 用 Search 混指 notebooklm 的 Retrieval 與一般搜尋能力。
 - 用同一個 generic 子域名跨主域重複宣稱所有權，再期望 Copilot 自行猜對上下文。
 - 把 route composition contract 誤寫成 cross-context published language。
+- 把 personal account 顯示語言誤當成 code-level `AccountType` literal。
 - 把 legacy redirect surface 誤寫成正典 URL 契約。
 
 ## Copilot Generation Rules

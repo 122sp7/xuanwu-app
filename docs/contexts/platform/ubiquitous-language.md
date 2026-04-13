@@ -23,9 +23,9 @@
 | Secret | 受控憑證、token 或 integration credential |
 | NotificationRoute | 訊息投遞路由與偏好結果 |
 | AuditLog | 平台級永久稽核證據 |
-| AccountScope | shell 上由 `accountId` 表示的帳號範疇，供 personal account / organization account 共享 |
-| PersonalAccount | 由單一 Actor 擁有的 account scope |
-| OrganizationAccount | 由 Organization 語意支撐的 account scope |
+| AccountScope | shell 上由 `accountId` 表示的帳號範疇，對應 `AccountType = "user" | "organization"` 所決定的 account context |
+| PersonalAccount | 由單一 Actor 擁有、對應 `AccountType = "user"` 的 account scope |
+| OrganizationAccount | 由 Organization 語意支撐、對應 `AccountType = "organization"` 的 account scope |
 
 ## Shell Surface Terms
 
@@ -37,7 +37,7 @@
 
 ## Language Rules
 
-- 使用 Actor，不使用 User 作為平台通用詞。代碼中 `AccountType = "user"` 是 legacy 字串值，代表「個人 Actor 帳號」，不等於 User 作為命名概念。
+- 使用 Actor，不使用 User 作為平台通用詞。`AccountType = "user"` 是 code-level string contract，代表「個人 Actor 帳號」，不等於 User 作為命名概念。
 - 使用 Tenant 區分租戶隔離，不以 Organization 代替。
 - 使用 OrganizationTeam 表示 Organization 邊界內的分組（縮寫為 Team 可接受）。Team 不代表獨立的 Tenant 或頂層治理邊界。
 - 使用 Entitlement 表示解算後權益，不用 Plan 或 Feature 混稱。
@@ -45,6 +45,7 @@
 - 使用 Secret 表示受控憑證，不放入一般 Integration payload 語言。
 - Organization member 的移除操作使用 `removeMember`（通用）。`dismissPartnerMember` 僅限 external partner 場景，對應 DismissPartnerMember 使用案例。
 - shell route 上的 `accountId` 表示 AccountScope，不等於 workspaceId。
+- `AccountType` 的 code-level literal 只使用 `"user" | "organization"`；顯示文字可寫個人帳號 / 組織帳號，但不把 `"personal"` 當成跨邊界字串值。
 - account-scoped governance URL 採 flattened route，不再把 `/{accountId}/organization/*` 當成 canonical surface。
 
 ## Avoid
@@ -52,6 +53,7 @@
 | Avoid | Use Instead |
 |---|---|
 | User | Actor |
+| `AccountType = "personal"` | `AccountType = "user"` |
 | Team（as top-level Tenant） | Organization 或 Tenant |
 | Team（as internal grouping） | OrganizationTeam（可縮寫 Team） |
 | Plan Access | Entitlement |
@@ -70,7 +72,7 @@
 
 ## AccountType String Values
 
-`AccountType = "user" | "organization"` 是代碼內部 legacy 字串枚舉：
+`AccountType = "user" | "organization"` 是目前代碼、驗證與跨邊界 DTO 共用的字串契約：
 - `"user"` → 代表個人 Actor 帳號（personal account），概念對應 Actor
 - `"organization"` → 代表組織帳號，概念對應 Organization
 

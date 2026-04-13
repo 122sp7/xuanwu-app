@@ -26,6 +26,7 @@
 | Term | Meaning |
 |---|---|
 | AccountScope | workspace route 所依附的 account scope；由 shell 上的 `accountId` 表示 |
+| AccountTypeStringContract | workspace aggregate / use case / validator 所消費的 code-level enum `"user" | "organization"`；`"user"` 對應 personal account context |
 | CanonicalWorkspaceRoute | `/{accountId}/{workspaceId}` |
 | LegacyWorkspaceRedirectSurface | `/{accountId}/workspace/{workspaceId}` |
 
@@ -37,6 +38,7 @@
 - 使用 ShareScope 表示共享邊界，不用 Permission 泛指共享。
 - 使用 PresenceSession 表示即時存在感，不把它隱藏在 UI 概念裡。
 - 使用 `workspaceId` 表示 workspace scope，不用 `accountId` 混稱。
+- 使用 `AccountType = "user" | "organization"` 作為 workspace 跨邊界字串契約；顯示語言可寫個人帳號 / 組織帳號，但不把 `"personal"` 當成 canonical accountType literal。
 - 使用 `/{accountId}/{workspaceId}` 表示 canonical workspace detail route。
 - `/{accountId}/workspace/{workspaceId}` 只視為 legacy redirect surface，不作為新的文件、設計稿或 UI href。
 
@@ -48,6 +50,7 @@
 | Timeline | ActivityFeed 或 Schedule |
 | Share Permission | ShareScope |
 | Workspace Log | ActivityFeed 或 AuditTrail |
+| `AccountType = "personal"` | `AccountType = "user"`，顯示語言再另寫個人帳號 |
 | Legacy workspace path `/{accountId}/workspace/{workspaceId}` | Canonical workspace path `/{accountId}/{workspaceId}` |
 
 ## Naming Anti-Patterns
@@ -56,6 +59,7 @@
 - 不用 Timeline 混指 ActivityFeed 與 Schedule。
 - 不用 Permission 混指 ShareScope。
 - 不用 Log 混指 ActivityFeed 與 AuditTrail。
+- 不把 personal account 顯示語言誤當成 workspace 的 code-level `AccountType` literal。
 - 不把 account-scoped shell route 語意誤當成 workspace 自己的 top-level route ownership。
 
 ## Copilot Generation Rules
