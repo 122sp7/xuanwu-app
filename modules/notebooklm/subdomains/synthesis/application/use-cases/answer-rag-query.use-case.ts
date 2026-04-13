@@ -10,7 +10,7 @@
  * - Dependencies typed against interfaces, not concrete classes.
  */
 
-import { randomUUID } from "node:crypto";
+import { v4 as randomUUID } from "@lib-uuid";
 
 import type { RagRetrievalRepository } from "../../domain/repositories/RagRetrievalRepository";
 import type {

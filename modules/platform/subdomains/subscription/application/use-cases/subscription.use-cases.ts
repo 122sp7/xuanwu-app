@@ -1,3 +1,4 @@
+import { v4 as uuid } from "@lib-uuid";
 /**
  * Subscription Use Cases — pure application logic.
  */
@@ -18,7 +19,7 @@ export class ActivateSubscriptionUseCase {
     currentPeriodEnd?: string | null;
   }): Promise<CommandResult> {
     try {
-      const id = crypto.randomUUID();
+      const id = uuid();
       const sub = Subscription.create(id, input);
       await this.repo.save(sub.getSnapshot());
       return commandSuccess(id, Date.now());

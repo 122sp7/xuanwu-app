@@ -1,3 +1,4 @@
+import { v4 as uuid } from "@lib-uuid";
 import type { AccountDomainEventType } from "../events";
 import { canClose, canReactivate, canSuspend } from "../value-objects";
 import { createAccountId, createAccountType, createWalletAmount } from "../value-objects";
@@ -47,7 +48,7 @@ export class Account {
 		});
 		account._domainEvents.push({
 			type: "platform.account.created",
-			eventId: crypto.randomUUID(),
+			eventId: uuid(),
 			occurredAt: now,
 			payload: {
 				accountId: id,
@@ -82,7 +83,7 @@ export class Account {
 		};
 		this._domainEvents.push({
 			type: "platform.account.profile_updated",
-			eventId: crypto.randomUUID(),
+			eventId: uuid(),
 			occurredAt: now,
 			payload: {
 				accountId: this._props.id,
@@ -103,7 +104,7 @@ export class Account {
 		};
 		this._domainEvents.push({
 			type: "platform.account.wallet_credited",
-			eventId: crypto.randomUUID(),
+			eventId: uuid(),
 			occurredAt: now,
 			payload: {
 				accountId: this._props.id,
@@ -127,7 +128,7 @@ export class Account {
 		};
 		this._domainEvents.push({
 			type: "platform.account.wallet_debited",
-			eventId: crypto.randomUUID(),
+			eventId: uuid(),
 			occurredAt: now,
 			payload: {
 				accountId: this._props.id,
@@ -217,7 +218,7 @@ export class Account {
 		this._props = { ...this._props, status, updatedAtISO: now };
 		this._domainEvents.push({
 			type: eventType,
-			eventId: crypto.randomUUID(),
+			eventId: uuid(),
 			occurredAt: now,
 			payload: { accountId: this._props.id },
 		});

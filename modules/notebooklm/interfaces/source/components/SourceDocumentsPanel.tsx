@@ -1,5 +1,6 @@
 "use client";
 
+import { v4 as uuid } from "@lib-uuid";
 import { useRef, useState } from "react";
 import { FileUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -69,7 +70,7 @@ export function SourceDocumentsPanel({ workspaceId }: SourceDocumentsPanelProps)
     const ext = selectedFile.name.includes(".")
       ? `.${selectedFile.name.split(".").pop() ?? ""}`
       : "";
-    const docId = crypto.randomUUID();
+    const docId = uuid();
     const uploadPath = `${WATCH_PATH}${activeAccountId}/${docId}${ext}`;
 
     setUploading(true);

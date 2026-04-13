@@ -1,3 +1,4 @@
+import { v4 as uuid } from "@lib-uuid";
 import type { SubscriptionDomainEventType } from "../events/SubscriptionDomainEvent";
 import { createSubscriptionId, canCancel, canRenew } from "../value-objects";
 import type { SubscriptionStatus } from "../value-objects";
@@ -46,7 +47,7 @@ export class Subscription {
     });
     sub._domainEvents.push({
       type: "platform.subscription.activated",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: {
         subscriptionId: id,
@@ -76,7 +77,7 @@ export class Subscription {
     };
     this._domainEvents.push({
       type: "platform.subscription.cancelled",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { subscriptionId: this._props.id, contextId: this._props.contextId },
     });
@@ -96,7 +97,7 @@ export class Subscription {
     };
     this._domainEvents.push({
       type: "platform.subscription.renewed",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: {
         subscriptionId: this._props.id,
@@ -114,7 +115,7 @@ export class Subscription {
     this._props = { ...this._props, status: "past_due", updatedAtISO: now };
     this._domainEvents.push({
       type: "platform.subscription.past_due",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { subscriptionId: this._props.id, contextId: this._props.contextId },
     });
@@ -125,7 +126,7 @@ export class Subscription {
     this._props = { ...this._props, status: "expired", updatedAtISO: now };
     this._domainEvents.push({
       type: "platform.subscription.expired",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { subscriptionId: this._props.id, contextId: this._props.contextId },
     });

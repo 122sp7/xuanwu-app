@@ -9,7 +9,7 @@
  * need to surface the resulting IngestionJob entity to callers.
  */
 
-import { randomUUID } from "node:crypto";
+import { v4 as randomUUID } from "@lib-uuid";
 
 import type { DomainError } from "@shared-types";
 

@@ -1,3 +1,4 @@
+import { v4 as uuid } from "@lib-uuid";
 /**
  * Module: workspace/subdomains/scheduling
  * Layer: application/use-cases
@@ -16,7 +17,7 @@ export class SubmitWorkDemandUseCase {
 
   async execute(input: CreateDemandInput): Promise<CommandResult> {
     try {
-      const id = crypto.randomUUID();
+      const id = uuid();
       const now = new Date().toISOString();
       const demand: WorkDemand = {
         id,

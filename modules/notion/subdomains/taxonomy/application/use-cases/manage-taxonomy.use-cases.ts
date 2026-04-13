@@ -1,3 +1,4 @@
+import { v4 as uuid } from "@lib-uuid";
 /**
  * Module: notion/subdomains/taxonomy
  * Layer: application/use-cases
@@ -24,7 +25,7 @@ export class CreateTaxonomyNodeUseCase {
     }
 
     const now = new Date().toISOString();
-    const nodeId = crypto.randomUUID();
+    const nodeId = uuid();
     const node: TaxonomyNode = {
       nodeId,
       label: input.label.trim(),

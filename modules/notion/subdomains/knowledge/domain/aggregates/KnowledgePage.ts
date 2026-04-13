@@ -5,6 +5,7 @@
  *          static factory methods, business methods, and domain events.
  */
 
+import { v4 as uuid } from "@lib-uuid";
 import type { NotionDomainEvent } from "../events/NotionDomainEvent";
 
 export interface KnowledgePageSnapshot {
@@ -65,7 +66,7 @@ export class KnowledgePage {
     });
     page._domainEvents.push({
       type: "notion.knowledge.page_created",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: {
         pageId: id,
@@ -96,7 +97,7 @@ export class KnowledgePage {
     };
     this._domainEvents.push({
       type: "notion.knowledge.page_renamed",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { pageId: this._props.id, accountId: this._props.accountId, previousTitle, newTitle },
     });
@@ -114,7 +115,7 @@ export class KnowledgePage {
     this._props = { ...this._props, parentPageId: targetParentId, updatedAtISO: now };
     this._domainEvents.push({
       type: "notion.knowledge.page_moved",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: {
         pageId: this._props.id,
@@ -133,7 +134,7 @@ export class KnowledgePage {
     this._props = { ...this._props, status: "archived", updatedAtISO: now };
     this._domainEvents.push({
       type: "notion.knowledge.page_archived",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { pageId: this._props.id, accountId: this._props.accountId },
     });
@@ -156,7 +157,7 @@ export class KnowledgePage {
     };
     this._domainEvents.push({
       type: "notion.knowledge.page_approved",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: {
         pageId: this._props.id,
@@ -165,8 +166,8 @@ export class KnowledgePage {
         actorId: byUserId,
         extractedTasks: [],
         extractedInvoices: [],
-        causationId: crypto.randomUUID(),
-        correlationId: crypto.randomUUID(),
+        causationId: uuid(),
+        correlationId: uuid(),
       },
     });
   }
@@ -183,7 +184,7 @@ export class KnowledgePage {
     };
     this._domainEvents.push({
       type: "notion.knowledge.page_verified",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: {
         pageId: this._props.id,
@@ -199,7 +200,7 @@ export class KnowledgePage {
     this._props = { ...this._props, verificationState: "needs_review", updatedAtISO: now };
     this._domainEvents.push({
       type: "notion.knowledge.page_review_requested",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { pageId: this._props.id, accountId: this._props.accountId, requestedByUserId: byUserId },
     });
@@ -210,7 +211,7 @@ export class KnowledgePage {
     this._props = { ...this._props, ownerId, updatedAtISO: now };
     this._domainEvents.push({
       type: "notion.knowledge.page_owner_assigned",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { pageId: this._props.id, accountId: this._props.accountId, ownerId },
     });
@@ -225,7 +226,7 @@ export class KnowledgePage {
     };
     this._domainEvents.push({
       type: "notion.knowledge.page_icon_updated",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { pageId: this._props.id, accountId: this._props.accountId, iconUrl },
     });
@@ -240,7 +241,7 @@ export class KnowledgePage {
     };
     this._domainEvents.push({
       type: "notion.knowledge.page_cover_updated",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { pageId: this._props.id, accountId: this._props.accountId, coverUrl },
     });

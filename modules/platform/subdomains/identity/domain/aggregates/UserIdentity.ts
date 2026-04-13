@@ -1,3 +1,4 @@
+import { v4 as uuid } from "@lib-uuid";
 import type { IdentityDomainEventType } from "../events";
 import { canReactivate, canSuspend } from "../value-objects";
 import { createDisplayName, createEmail, createUserId } from "../value-objects";
@@ -50,7 +51,7 @@ export class UserIdentity {
 		});
 		aggregate._domainEvents.push({
 			type: "platform.identity.created",
-			eventId: crypto.randomUUID(),
+			eventId: uuid(),
 			occurredAt: now,
 			payload: {
 				uid,
@@ -73,7 +74,7 @@ export class UserIdentity {
 		this._props = { ...this._props, lastSignInAtISO: now, updatedAtISO: now };
 		this._domainEvents.push({
 			type: "platform.identity.signed_in",
-			eventId: crypto.randomUUID(),
+			eventId: uuid(),
 			occurredAt: now,
 			payload: { uid: this._props.uid, signedInAtISO: now },
 		});
@@ -86,7 +87,7 @@ export class UserIdentity {
 		this._props = { ...this._props, displayName: normalizedName, updatedAtISO: now };
 		this._domainEvents.push({
 			type: "platform.identity.display_name_updated",
-			eventId: crypto.randomUUID(),
+			eventId: uuid(),
 			occurredAt: now,
 			payload: {
 				uid: this._props.uid,
@@ -104,7 +105,7 @@ export class UserIdentity {
 		this._props = { ...this._props, emailVerified: true, updatedAtISO: now };
 		this._domainEvents.push({
 			type: "platform.identity.email_verified",
-			eventId: crypto.randomUUID(),
+			eventId: uuid(),
 			occurredAt: now,
 			payload: { uid: this._props.uid, email: this._props.email },
 		});
@@ -118,7 +119,7 @@ export class UserIdentity {
 		this._props = { ...this._props, status: "suspended", updatedAtISO: now };
 		this._domainEvents.push({
 			type: "platform.identity.suspended",
-			eventId: crypto.randomUUID(),
+			eventId: uuid(),
 			occurredAt: now,
 			payload: { uid: this._props.uid },
 		});
@@ -132,7 +133,7 @@ export class UserIdentity {
 		this._props = { ...this._props, status: "active", updatedAtISO: now };
 		this._domainEvents.push({
 			type: "platform.identity.reactivated",
-			eventId: crypto.randomUUID(),
+			eventId: uuid(),
 			occurredAt: now,
 			payload: { uid: this._props.uid },
 		});

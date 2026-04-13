@@ -1,3 +1,4 @@
+import { v4 as uuid } from "@lib-uuid";
 /**
  * buildCorrelationId — generate a new UUID v4 correlation identifier.
  *
@@ -8,5 +9,5 @@
  * @see shared/types/CorrelationContext.ts
  */
 export function buildCorrelationId(): string {
-	return crypto.randomUUID();
+	return uuid();
 }

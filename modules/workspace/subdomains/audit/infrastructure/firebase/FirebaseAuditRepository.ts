@@ -1,3 +1,4 @@
+import { v4 as uuid } from "@lib-uuid";
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api";
@@ -33,7 +34,7 @@ function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEn
 
 export class FirebaseAuditRepository implements AuditRepository {
   async save(entry: AuditEntry): Promise<void> {
-    const id = crypto.randomUUID();
+    const id = uuid();
     await firestoreInfrastructureApi.set(`auditLogs/${id}`, entry.getSnapshot());
   }
 

@@ -1,3 +1,4 @@
+import { v4 as uuid } from "@lib-uuid";
 /**
  * Module: notion/subdomains/relations
  * Layer: application/use-cases
@@ -13,7 +14,7 @@ export class CreateRelationUseCase {
   async execute(input: CreateRelationInput): Promise<Relation> {
     const now = new Date().toISOString();
     const relation: Relation = {
-      relationId: crypto.randomUUID(),
+      relationId: uuid(),
       sourceArtifactId: input.sourceArtifactId,
       targetArtifactId: input.targetArtifactId,
       relationType: input.relationType,

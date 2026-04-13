@@ -1,3 +1,4 @@
+import { v4 as uuid } from "@lib-uuid";
 import type { EntitlementGrantDomainEventType } from "../events/EntitlementGrantDomainEvent";
 import { createEntitlementId, canSuspend, canRevoke } from "../value-objects";
 import type { EntitlementStatus } from "../value-objects";
@@ -40,7 +41,7 @@ export class EntitlementGrant {
     });
     grant._domainEvents.push({
       type: "platform.entitlement.granted",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: {
         entitlementId: id,
@@ -65,7 +66,7 @@ export class EntitlementGrant {
     this._props = { ...this._props, status: "suspended", updatedAtISO: now };
     this._domainEvents.push({
       type: "platform.entitlement.suspended",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { entitlementId: this._props.id, contextId: this._props.contextId },
     });
@@ -79,7 +80,7 @@ export class EntitlementGrant {
     this._props = { ...this._props, status: "revoked", updatedAtISO: now };
     this._domainEvents.push({
       type: "platform.entitlement.revoked",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { entitlementId: this._props.id, contextId: this._props.contextId },
     });
@@ -90,7 +91,7 @@ export class EntitlementGrant {
     this._props = { ...this._props, status: "expired", updatedAtISO: now };
     this._domainEvents.push({
       type: "platform.entitlement.expired",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { entitlementId: this._props.id, contextId: this._props.contextId },
     });

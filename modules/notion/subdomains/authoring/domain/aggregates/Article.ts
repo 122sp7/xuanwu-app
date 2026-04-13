@@ -4,6 +4,7 @@
  * Purpose: Article aggregate root — lifecycle, publication, and verification of KB articles.
  */
 
+import { v4 as uuid } from "@lib-uuid";
 import type { NotionDomainEvent } from "../events/NotionDomainEvent";
 
 export type ArticleStatus = "draft" | "published" | "archived";
@@ -69,7 +70,7 @@ export class Article {
     });
     article._domainEvents.push({
       type: "notion.authoring.article_created",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { articleId: id, accountId: input.accountId, workspaceId: input.workspaceId, title: input.title },
     });
@@ -99,7 +100,7 @@ export class Article {
     this._props = { ...this._props, status: "published", version: this._props.version + 1, updatedAtISO: now };
     this._domainEvents.push({
       type: "notion.authoring.article_published",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { articleId: this._props.id, accountId: this._props.accountId, version: this._props.version },
     });
@@ -111,7 +112,7 @@ export class Article {
     this._props = { ...this._props, status: "archived", updatedAtISO: now };
     this._domainEvents.push({
       type: "notion.authoring.article_archived",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { articleId: this._props.id, accountId: this._props.accountId },
     });

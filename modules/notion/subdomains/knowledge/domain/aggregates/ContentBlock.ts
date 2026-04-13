@@ -4,6 +4,7 @@
  * Purpose: ContentBlock aggregate root — atomic content unit inside a Page.
  */
 
+import { v4 as uuid } from "@lib-uuid";
 import type { BlockContent } from "../value-objects/BlockContent";
 import { richTextToPlainText } from "../value-objects/BlockContent";
 import type { NotionDomainEvent } from "../events/NotionDomainEvent";
@@ -49,7 +50,7 @@ export class ContentBlock {
     const contentText = richTextToPlainText(input.content.richText);
     block._domainEvents.push({
       type: "notion.knowledge.block_added",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: { blockId: id, pageId: input.pageId, accountId: input.accountId, contentText },
     });
@@ -66,7 +67,7 @@ export class ContentBlock {
     this._props = { ...this._props, content: newContent, updatedAtISO: now };
     this._domainEvents.push({
       type: "notion.knowledge.block_updated",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: {
         blockId: this._props.id,
@@ -81,7 +82,7 @@ export class ContentBlock {
     const now = new Date().toISOString();
     this._domainEvents.push({
       type: "notion.knowledge.block_deleted",
-      eventId: crypto.randomUUID(),
+      eventId: uuid(),
       occurredAt: now,
       payload: {
         blockId: this._props.id,
