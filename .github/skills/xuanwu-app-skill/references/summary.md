@@ -42,13 +42,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1669 files | 46,314 lines
+1670 files | 46,497 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1145 | 24,284 |
-| Markdown | 244 | 14,894 |
-| TypeScript (TSX) | 172 | 4,466 |
+| TypeScript | 1146 | 24,303 |
+| Markdown | 244 | 15,054 |
+| TypeScript (TSX) | 172 | 4,470 |
 | Python | 61 | 1,404 |
 | No Extension | 30 | 35 |
 | JSON | 8 | 943 |
@@ -59,7 +59,7 @@ This skill contains the following reference files:
 | Other | 1 | 64 |
 
 **Largest files:**
-- `docs/hard-rules-consolidated.md` (453 lines)
+- `docs/hard-rules-consolidated.md` (455 lines)
 - `firestore.indexes.json` (437 lines)
 - `AGENTS.md` (305 lines)
 - `py_fn/README.md` (265 lines)
