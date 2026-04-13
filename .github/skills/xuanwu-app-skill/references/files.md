@@ -3627,119 +3627,6 @@ Cross-domain tokens use published language: `actor reference`, `workspaceId`, `e
 }
 ````
 
-## File: docs/architecture-overview.md
-````markdown
-# Architecture Overview
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 參考重建，不主張反映現況實作。
-
-## System Shape
-
-系統以四個主域組成，每個主域都視為一個有自己語言與規則的 bounded context 族群：
-
-- workspace：協作容器與工作區範疇
-- platform：治理、身份、權益與營運支撐
-- notion：正典知識內容生命週期
-- notebooklm：對話、來源處理與推理輸出
-
-## Architectural Baseline
-
-- 主域內部採用 Hexagonal Architecture。
-- 主域之間只透過 published language、API 邊界或事件互動。
-- 領域核心不直接依賴 framework 與 infrastructure。
-- 主域級關係採用 directed upstream-downstream，不採用 Shared Kernel / Partnership。
-
-## Main Domains
-
-| Main Domain | Strategic Role | What It Owns |
-|---|---|---|
-| workspace | 協作範疇 | workspaceId、membership、sharing、presence、feed、audit、scheduling、workspace-workflow |
-| platform | 治理上游 | actor、tenant、access、policy、entitlement、billing、ai capability、notification、audit-log |
-| notion | 正典內容 | knowledge artifact、taxonomy、relations、publication、knowledge-versioning |
-| notebooklm | 推理輸出 | ingestion、retrieval、grounding、conversation、synthesis、evaluation、conversation-versioning |
-
-## Relationship Baseline
-
-| Upstream | Downstream | Reason |
-|---|---|---|
-| platform | workspace | 提供治理結果與權益判定 |
-| platform | notion | 提供治理結果與權益判定 |
-| platform | notebooklm | 提供治理結果與權益判定 |
-| workspace | notion | 提供 workspace scope 與 sharing scope |
-| workspace | notebooklm | 提供 workspace scope 與 sharing scope |
-| notion | notebooklm | 提供可引用的知識內容來源 |
-
-## Contradiction-Free Rules
-
-- 只有四個主域，不再引入其他平級主域。
-- 戰略文件若需要描述缺口，一律使用 recommended gap subdomains，而不是假裝它們已被實作驗證。
-- platform 是治理上游，不是內容或對話的正典擁有者。
-- platform 擁有 shared AI capability，但不擁有 notion 的正典內容語言或 notebooklm 的推理輸出語言。
-- notion 是正典內容擁有者，不是治理上游。
-- notebooklm 是衍生推理輸出擁有者，不是正典內容擁有者。
-
-## System-Wide Dependency Direction
-
-- 每個主域內部固定遵守 interfaces -> application -> domain <- infrastructure。
-- 跨主域依賴只能透過 published language、public API boundary、events。
-- 外部框架、SDK、傳輸與儲存細節只能停留在 adapter 邊界。
-
-## System-Wide Anti-Patterns
-
-- 把 domain 核心直接接上 framework、database、HTTP、queue 或 AI SDK。
-- 把主域內部模型直接共享給其他主域，取代 published language。
-- 把治理、內容、推理三種責任重新揉成單一平級主域。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先定位需求落在哪個主域，再定位到子域與層。
-- 奧卡姆剃刀：若既有主域、子域與 API boundary 已能承接需求，就不要再新增新的平級結構。
-- 優先維持單一清楚的 input -> boundary -> application -> domain -> output 路徑。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Interfaces["Interfaces"] --> Application["Application"]
-	Application --> Domain["Domain"]
-	Infrastructure["Infrastructure"] --> Domain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] --> Workspace["workspace"]
-	Platform --> Notion["notion"]
-	Platform --> NotebookLM["notebooklm"]
-	Workspace --> Notion
-	Workspace --> NotebookLM
-	Notion --> NotebookLM
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [integration-guidelines.md](./integration-guidelines.md)
-- [strategic-patterns.md](./strategic-patterns.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-
-## Reading Path
-
-1. [bounded-contexts.md](./bounded-contexts.md)
-2. [context-map.md](./context-map.md)
-3. [subdomains.md](./subdomains.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [integration-guidelines.md](./integration-guidelines.md)
-6. [strategic-patterns.md](./strategic-patterns.md)
-7. [decisions/README.md](./decisions/README.md)
-````
-
 ## File: docs/bounded-contexts.md
 ````markdown
 # Bounded Contexts
@@ -5178,141 +5065,6 @@ flowchart LR
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/platform/README.md
-````markdown
-# Platform Context
-
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
-
-## Purpose
-
-platform 是治理與營運支撐主域。它的責任是提供 actor、identity、organization、tenant、access、policy、entitlement、shared ai capability、billing、notification、search、audit 與 observability 等跨切面語言，供其他主域穩定消費。
-
-## Why This Context Exists
-
-- 把治理與營運支撐責任集中，避免滲入其他主域。
-- 讓其他主域只消費治理結果，而不是重建治理模型。
-- 以清楚的 published language 承接身份、權益、政策與營運能力。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 治理、身份、權益與營運支撐 |
-| Upstream Dependency | 無主域級上游；作為其他主域治理上游 |
-| Downstream Consumers | workspace、notion、notebooklm |
-| Core Principle | platform 輸出治理結果，不接管其他主域正典內容 |
-
-## Baseline Subdomains
-
-- identity
-- account
-- account-profile
-- organization
-- team
-- tenant
-- access-control
-- security-policy
-- platform-config
-- feature-flag
-- entitlement
-- onboarding
-- compliance
-- consent
-- billing
-- subscription
-- referral
-- ai
-- integration
-- secret-management
-- workflow
-- notification
-- background-job
-- content
-- search
-- audit-log
-- observability
-- analytics
-- support
-
-## Strategic Reinforcement Focus
-
-- tenant（租戶隔離模型收斂）
-- entitlement（權益解算一致性收斂）
-- secret-management（敏感憑證治理收斂）
-- consent（資料使用授權語義收斂）
-
-
-## Key Relationships
-
-- 對 workspace：提供 actor、organization、access、entitlement。
-- 對 notion：提供 actor、organization、access、entitlement、ai capability。
-- 對 notebooklm：提供 actor、organization、access、entitlement、ai capability。
-
-## Reading Order
-
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
-
-## Dependency Direction
-
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- platform 對外只輸出治理結果與 published language，不輸出內部治理模型細節。
-
-## Anti-Pattern Rules
-
-- 不把 platform 寫成內容主域或對話主域。
-- 不把 entitlement、consent、secret-management 混成同一個泛用設定區。
-- 不把其他主域對平台的依賴寫成可以直接存取其內部模型。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 platform 的治理定位，再安排 identity、access、entitlement、ai、secret-management 的交互。
-- 奧卡姆剃刀：不要預先建立多餘 facade；能直接由既有治理邊界承接就維持單一路徑。
-- 優先讓 request -> orchestration -> domain decision -> published language 保持單純可追溯。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain"]
-	X["Infrastructure"] --> D
-	X -. implements ports .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Request["Actor / admin request"] --> Boundary["platform boundary"]
-	Boundary --> App["Application use case"]
-	App --> Domain["Platform domain"]
-	Domain --> Published["Published governance language"]
-	Published --> Consumers["workspace / notion / notebooklm"]
-```
-
-## Document Network
-
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../README.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-
-## Constraints
-
-- 本文件是 architecture-first 版本。
-- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
-- 本文件不代表對既有 repo 內容做過語意校準。
-````
-
 ## File: docs/contexts/platform/subdomains.md
 ````markdown
 # Platform
@@ -5703,117 +5455,6 @@ flowchart LR
 - [../../strategic-patterns.md](../../strategic-patterns.md)
 - [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/contexts/workspace/README.md
-````markdown
-# Workspace Context
-
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
-
-## Purpose
-
-workspace 是協作容器與工作區範疇主域。它的責任是提供 workspaceId、工作區生命週期、參與關係、共享、存在感、活動投影、稽核、排程與工作流，讓其他主域可以在同一個協作範疇中運作。
-
-## Why This Context Exists
-
-- 把工作區容器語意與平台治理語意分離。
-- 把工作區 scope 作為其他主域可依賴的 published language。
-- 把活動流、稽核、排程與流程協調收斂為同一主域內的高凝聚能力。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 協作容器與 workspace scope |
-| Upstream Dependency | platform 的 actor、organization、access、entitlement |
-| Downstream Consumers | notion、notebooklm |
-| Core Principle | workspace 暴露 scope，不接管治理或內容正典 |
-
-## Baseline Subdomains
-
-- audit
-- feed
-- scheduling
-- workspace-workflow
-
-## Recommended Gap Subdomains
-
-- lifecycle
-- membership
-- sharing
-- presence
-
-## Key Relationships
-
-- 與 platform：workspace 是治理結果的 downstream consumer。
-- 與 notion：workspace 向 notion 提供 workspaceId、membership scope、share scope。
-- 與 notebooklm：workspace 向 notebooklm 提供 workspaceId、membership scope、share scope。
-
-## Reading Order
-
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
-
-## Dependency Direction
-
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- workspace 對外只暴露 scope、published language、API boundary、events，不暴露內部實作。
-
-## Anti-Pattern Rules
-
-- 不把 workspace scope 寫成平台治理結果本身。
-- 不把 feed、audit、workspace-workflow 互相取代為單一泛用流程層。
-- 不把 notion 或 notebooklm 的內容與推理責任吸回 workspace。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 workspace 的協作 scope 定位，再安排 lifecycle、membership、sharing、workspace-workflow 的交互。
-- 奧卡姆剃刀：不要預先建立第二條平行協作流程；只有既有 scope 邊界不夠時才補新抽象。
-- 優先讓 input -> translation -> application -> domain -> published scope 保持單純可追溯。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain"]
-	X["Infrastructure"] --> D
-	X -. implements ports .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] --> Boundary["workspace boundary"]
-	Boundary --> Translation["DTO / ACL"]
-	Translation --> App["Application use case"]
-	App --> Domain["Workspace domain"]
-	Domain --> Scope["workspace scope"]
-	Scope --> Notion["notion"]
-	Scope --> NotebookLM["notebooklm"]
-```
-
-## Document Network
-
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../README.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-
-## Constraints
-
-- 本文件是 architecture-first 版本。
-- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
-- 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
 ## File: docs/contexts/workspace/subdomains.md
@@ -6406,104 +6047,6 @@ flowchart LR
 - [../integration-guidelines.md](../integration-guidelines.md)
 - [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
 - [../project-delivery-milestones.md](../project-delivery-milestones.md)
-````
-
-## File: docs/integration-guidelines.md
-````markdown
-# Integration Guidelines
-
-本文件在本次任務限制下，僅依 Context7 驗證的 published language、ACL、Conformist 與 hexagonal boundary 原則重建，不主張反映現況實作。
-
-## Boundary Contract
-
-跨主域整合只能使用：
-
-- published language
-- public API boundary
-- domain / integration events
-- local DTO
-- downstream ACL 或 downstream Conformist
-
-## Pattern Selection Rules
-
-| Situation | Pattern |
-|---|---|
-| 下游與上游語義高度一致，且不會扭曲本地語言 | Conformist |
-| 上游語義會污染下游本地語言 | Anti-Corruption Layer |
-| 只是跨主域資料交換 | Published Language + Local DTO |
-
-## Hard Rules
-
-- ACL 與 Conformist 只能由 downstream 選擇。
-- ACL 與 Conformist 互斥。
-- 不可直接傳遞上游 entity / aggregate 作為下游正典模型。
-- 不可把 shared technical package 誤當成 strategic shared kernel。
-- 若需要共同語義，先定 published language，再定 DTO，再評估是否需要 ACL。
-
-## Domain-Specific Guidance
-
-- workspace 消費 platform 時，優先保護自己的 membership、sharing、presence 語言。
-- notion 消費 platform 或 workspace 時，優先保護自己的 knowledge artifact 與 taxonomy 語言。
-- notebooklm 消費 notion 時，優先保護自己的 retrieval、grounding、synthesis 語言。
-
-## Integration Checklist
-
-1. 先確認 upstream / downstream 方向。
-2. 先列出 published language。
-3. 判斷是否語義一致。
-4. 一致則考慮 conformist，不一致則建立 ACL。
-5. 避免把 DTO、entity、policy、UI 狀態混成同一層。
-
-## Integration Anti-Patterns
-
-- 直接傳遞上游 aggregate、entity、repository 給下游使用。
-- 讓 downstream 省略 published language 與 local DTO，直接貼靠上游內部模型。
-- 把 ACL 當成預設樣板卻不判斷是否真的有語義污染。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先決定 upstream、downstream、published language，再決定 DTO、ACL 或 Conformist。
-- 奧卡姆剃刀：若 published language 加 local DTO 已足夠，就不要額外建立雙重 mapper、雙重 ACL 或鏡像 aggregate。
-- 只有在上游語義真的會污染本地語言時，才建立 ACL。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Upstream["Upstream"] -->|Published Language| Boundary["Downstream boundary"]
-	Boundary --> Translation["Local DTO / ACL / Conformist"]
-	Translation --> Application["Application"]
-	Application --> Domain["Domain"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Need["Cross-context need"] --> Direction["Identify upstream/downstream"]
-	Direction --> PL["Define published language"]
-	PL --> Decision["Need protection?"]
-	Decision -->|Yes| ACL["ACL"]
-	Decision -->|No| DTO["Local DTO / Conformist"]
-	ACL --> Domain["Downstream domain"]
-	DTO --> Domain
-```
-
-## Document Network
-
-- [context-map.md](./context-map.md)
-- [strategic-patterns.md](./strategic-patterns.md)
-- [architecture-overview.md](./architecture-overview.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
-- [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
-
-## Conflict Resolution
-
-- 若某整合指南與 [context-map.md](./context-map.md) 的方向衝突，以 context map 為準。
-- 若某整合指南與 [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md) 衝突，以 ADR 為準。
 ````
 
 ## File: docs/project-delivery-milestones.md
@@ -7633,6 +7176,11 @@ When adding or changing docs:
 ## AI working rule
 
 Start every session with Serena MCP. If a question spans modules or architecture, consult the DDD reference authority (ubiquitous-language, bounded-contexts, context-map) before implementation.
+````
+
+## File: modules/notebooklm/application/dtos/index.ts
+````typescript
+
 ````
 
 ## File: modules/notebooklm/docs/README.md
@@ -8957,6 +8505,11 @@ The RAG pipeline is organized as internal domain facets within this single subdo
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/application/dtos/index.ts
+````typescript
+// relations and taxonomy currently expose no DTO barrel.
 ````
 
 ## File: modules/notion/docs/README.md
@@ -20831,6 +20384,64 @@ export class MarkSubscriptionPastDueUseCase {
 
 ````
 
+## File: modules/platform/subdomains/subscription/domain/aggregates/Subscription.ts
+````typescript
+import type { SubscriptionDomainEventType } from "../events/SubscriptionDomainEvent";
+import { createSubscriptionId, canCancel, canRenew } from "../value-objects";
+import type { SubscriptionStatus } from "../value-objects";
+import type { BillingCycle } from "../value-objects/BillingCycle";
+⋮----
+export interface SubscriptionSnapshot {
+  readonly id: string;
+  readonly contextId: string;
+  readonly planCode: string;
+  readonly billingCycle: BillingCycle;
+  readonly status: SubscriptionStatus;
+  readonly currentPeriodStart: string;
+  readonly currentPeriodEnd: string | null;
+  readonly cancelledAt: string | null;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateSubscriptionInput {
+  readonly contextId: string;
+  readonly planCode: string;
+  readonly billingCycle: BillingCycle;
+  readonly currentPeriodStart?: string;
+  readonly currentPeriodEnd?: string | null;
+}
+⋮----
+export class Subscription {
+⋮----
+private constructor(private _props: SubscriptionSnapshot)
+⋮----
+static create(id: string, input: CreateSubscriptionInput): Subscription
+⋮----
+static reconstitute(snapshot: SubscriptionSnapshot): Subscription
+⋮----
+cancel(): void
+⋮----
+renew(newPeriodEnd: string): void
+⋮----
+markPastDue(): void
+⋮----
+expire(): void
+⋮----
+get id(): string
+get contextId(): string
+get planCode(): string
+get billingCycle(): BillingCycle
+get status(): SubscriptionStatus
+get currentPeriodEnd(): string | null
+get cancelledAt(): string | null
+get isActive(): boolean
+⋮----
+getSnapshot(): Readonly<SubscriptionSnapshot>
+⋮----
+pullDomainEvents(): SubscriptionDomainEventType[]
+````
+
 ## File: modules/platform/subdomains/subscription/domain/events/index.ts
 ````typescript
 
@@ -22698,27 +22309,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vercel-react-best-practices
 ````
 
-## File: modules/workspace/interfaces/web/components/cards/WorkspaceContextCard.tsx
-````typescript
-/**
- * WorkspaceContextCard
- * Purpose: display the active workspace context in notebook/ai-chat sidebar.
- * Shows workspace name + navigation links when a workspace is active,
- * otherwise shows an empty-state hint.
- */
-⋮----
-import Link from "next/link";
-import { FolderKanban } from "lucide-react";
-⋮----
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import type { WorkspaceEntity } from "../../../api/contracts";
-⋮----
-interface WorkspaceContextCardProps {
-  readonly workspace: WorkspaceEntity | null;
-}
-````
-
 ## File: modules/workspace/interfaces/web/components/cards/WorkspaceInformationCard.tsx
 ````typescript
 import type { ReactNode } from "react";
@@ -22767,25 +22357,6 @@ interface WorkspaceOverviewSummaryCardProps {
   readonly onEditClick: () => void;
   readonly onSetActiveWorkspace: () => void;
 }
-````
-
-## File: modules/workspace/interfaces/web/components/cards/WorkspaceQuickstartCard.tsx
-````typescript
-import Link from "next/link";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-⋮----
-interface WorkspaceQuickstartCardProps {
-  readonly workspaceId: string;
-}
-⋮----
-export function WorkspaceQuickstartCard(
 ````
 
 ## File: modules/workspace/interfaces/web/components/dialogs/CreateWorkspaceDialog.tsx
@@ -23061,73 +22632,6 @@ interface WorkspaceSectionContentProps {
 }
 ⋮----
 onSelectWorkspace(workspace.id);
-````
-
-## File: modules/workspace/interfaces/web/components/layout/WorkspaceSidebarSection.tsx
-````typescript
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-⋮----
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabsByGroup,
-  WORKSPACE_TAB_SIDEBAR_GROUP_ORDER,
-  getWorkspaceTabStatus,
-  isWorkspaceTabValue,
-  type WorkspaceTabGroup,
-  type WorkspaceTabValue,
-} from "../../navigation/workspace-tabs";
-⋮----
-export interface WorkspaceSidebarLocaleBundle {
-  workspace?: {
-    tabLabels?: Record<string, string>;
-  };
-}
-⋮----
-export interface WorkspaceNavigationPreferences {
-  pinnedWorkspace: string[];
-  workspaceOrder: string[];
-}
-⋮----
-interface TabLinkItem {
-  value: WorkspaceTabValue;
-  label: string;
-}
-⋮----
-function createWorkspaceLinkItems(group: WorkspaceTabGroup): TabLinkItem[]
-⋮----
-function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue): string
-⋮----
-function tTab(
-  tab: WorkspaceTabValue,
-  fallback: string,
-  localeBundle: WorkspaceSidebarLocaleBundle | null,
-): string
-⋮----
-function tTabWithDevStatus(
-  tab: WorkspaceTabValue,
-  fallback: string,
-  localeBundle: WorkspaceSidebarLocaleBundle | null,
-): string
-⋮----
-function getPrefId(tabValue: string): string
-⋮----
-function isItemEnabled(prefId: string, navPrefs: WorkspaceNavigationPreferences): boolean
-⋮----
-function getItemOrder(prefId: string, navPrefs: WorkspaceNavigationPreferences): number
-⋮----
-function sortByPreferenceOrder<T extends { value: string }>(
-  items: readonly T[],
-  navPrefs: WorkspaceNavigationPreferences,
-): T[]
-⋮----
-interface WorkspaceSidebarSectionProps {
-  workspacePathId: string;
-  navPrefs: WorkspaceNavigationPreferences;
-  localeBundle: WorkspaceSidebarLocaleBundle | null;
-  getItemClassName: (isActive: boolean) => string;
-}
 ````
 
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceDailyTab.tsx
@@ -24880,6 +24384,57 @@ function getDayDemands(day: Date): WorkDemand[]
 key=
 ⋮----
 dayDemands=
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/components/CreateDemandForm.tsx
+````typescript
+import { useState } from "react";
+⋮----
+import { format } from "@lib-date-fns";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+⋮----
+import { DEMAND_PRIORITY_LABELS } from "../../application/dto/work-demand.dto";
+import type { DemandPriority } from "../../application/dto/work-demand.dto";
+⋮----
+export interface CreateDemandFormValues {
+  title: string;
+  description: string;
+  priority: DemandPriority;
+  scheduledAt: string;
+}
+⋮----
+interface CreateDemandFormProps {
+  open: boolean;
+  initialDate?: Date;
+  onClose: () => void;
+  onSubmit: (values: CreateDemandFormValues) => Promise<void>;
+}
+⋮----
+const handleOpen = (isOpen: boolean) =>
+⋮----
+function handleClose()
+⋮----
+async function handleSubmit(e: React.FormEvent)
+⋮----
+onChange=
 ````
 
 ## File: modules/workspace/subdomains/scheduling/interfaces/queries/work-demand.queries.ts
@@ -32621,6 +32176,80 @@ import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 ````
 
+## File: .github/copilot-instructions.md
+````markdown
+---
+applyTo: **
+description: Xuanwu Copilot Workspace Instructions
+name: Xuanwu Copilot Workspace Instructions
+---
+
+#use skill serena-mcp
+#use skill alistair-cockburn
+#use skill hexagonal-ddd
+#use skill occams-razor
+#use skill context7
+#use skill xuanwu-app-skill
+
+# Xuanwu Copilot Workspace Instructions
+
+Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put detailed architecture truth in [docs/README.md](../docs/README.md), scoped behavior in [.github/instructions](./instructions), reusable workflows in prompts, and tool-specific procedure in skills.
+
+## Session Contract
+
+- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it first, activate `xuanwu-app`, and use Serena for project memory/index work.
+- If confidence in any library API, framework, or config schema detail is below 99.99%, verify it through Context7 before writing or suggesting code.
+- Treat `docs/**/*` as the authority for DDD routing, bounded-context ownership, terminology, and strategic duplicate-name resolution. `.github/*` defines Copilot behavior and must not compete with docs.
+- Run the matching validation from [agents/commands.md](./agents/commands.md) before closing non-trivial changes.
+
+## Read Order
+
+1. Start with [docs/README.md](../docs/README.md).
+2. Use [docs/ubiquitous-language.md](../docs/ubiquitous-language.md) for terminology and duplicate-name guardrails.
+3. Use [docs/subdomains.md](../docs/subdomains.md) and [docs/bounded-contexts.md](../docs/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
+4. Use `docs/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
+5. Use [docs/bounded-context-subdomain-template.md](../docs/bounded-context-subdomain-template.md) and [docs/project-delivery-milestones.md](../docs/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
+6. Use [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment validation.
+
+## Instruction Series (Phase 1)
+
+- Use [instructions/architecture-core.instructions.md](./instructions/architecture-core.instructions.md) as the consolidated module architecture rule set.
+- Use [instructions/architecture-runtime.instructions.md](./instructions/architecture-runtime.instructions.md) as the consolidated runtime split rule set.
+- Use [instructions/process-framework.instructions.md](./instructions/process-framework.instructions.md) as the consolidated delivery/decision framework.
+- Use [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) as the consolidated docs authority and terminology rule set.
+- Legacy instruction files marked DEPRECATED remain transition-only and should not be expanded.
+
+## Operating Rules
+
+- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
+- Cross-module collaboration goes through the target module `api/` boundary only.
+- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
+- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
+- If a team adds `core/`, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.
+- Keep business logic in `domain/` and `application`; keep UI, transport, and composition in `interfaces/` and `app/`.
+- Preserve the runtime split: Next.js owns browser-facing UX and orchestration; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
+- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy alias patterns.
+
+## Governance Rules
+
+- Keep this file thin. Put detailed, file-scoped behavior in `.github/instructions/` and reuse docs instead of copying architecture content into customization files.
+- Use [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for Serena workflow details, [skills/context7/SKILL.md](skills/context7/SKILL.md) for documentation verification, and [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) for boundary-safe module design.
+- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) and [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill.md) for implementation lookup only; they are not strategic authority.
+- `.claude/` may exist as a compatibility surface, but `.github/*` remains the primary Copilot governance surface.
+
+## Terminology
+
+- Follow [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) and the docs it routes to.
+- Normalize to canonical glossary terms before naming code, prompts, instructions, agents, skills, or documentation.
+
+## DDD Strategic Rules (Phase 1)
+
+- Use [instructions/subdomain-rules.instructions.md](./instructions/subdomain-rules.instructions.md) for subdomain design rules.
+- Use [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for Bounded Context design rules.
+- Use [instructions/domain-layer-rules.instructions.md](./instructions/domain-layer-rules.instructions.md) for Domain Layer design rules.
+- Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
+````
+
 ## File: .github/instructions/bounded-context-rules.instructions.md
 ````markdown
 ---
@@ -33212,6 +32841,134 @@ import { ShellLayout } from "./_shell/ShellRootLayout";
 export default function Layout(
 ````
 
+## File: docs/architecture-overview.md
+````markdown
+# Architecture Overview
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 參考重建，不主張反映現況實作。
+
+## System Shape
+
+系統以四個主域組成，每個主域都視為一個有自己語言與規則的 bounded context 族群：
+
+- workspace：協作容器與工作區範疇
+- platform：治理、身份、權益與營運支撐
+- notion：正典知識內容生命週期
+- notebooklm：對話、來源處理與推理輸出
+
+## Architectural Baseline
+
+- 主域內部採用 Hexagonal Architecture（Ports and Adapters）+ Domain-Driven Design（DDD）。
+- 領域建模採 semantic-first，優先對齊 business language，再決定資料結構與 adapter 位置。
+- 後端 runtime 基線採 Firebase Serverless Backend Architecture：Authentication、Firestore、Cloud Functions、Hosting。
+- AI orchestration 基線採 Genkit：AI Flows、Tool Calling、Prompt Pipelines 皆視為外部能力，由 platform.ai 統一治理。
+- 前端 state 基線採 Zustand 與 XState：Zustand 承接輕量 client state，XState 承接有限狀態工作流。
+- runtime validation 基線採 Zod：所有外部輸入先經 Zod，再進入 application 與 domain。
+- 主域之間只透過 published language、API 邊界或事件互動。
+- 領域核心不直接依賴 framework 與 infrastructure。
+- 主域級關係採用 directed upstream-downstream，不採用 Shared Kernel / Partnership。
+
+## Main Domains
+
+| Main Domain | Strategic Role | What It Owns |
+|---|---|---|
+| workspace | 協作範疇 | workspaceId、membership、sharing、presence、feed、audit、scheduling、workspace-workflow |
+| platform | 治理上游 | actor、tenant、access、policy、entitlement、billing、ai capability、notification、audit-log |
+| notion | 正典內容 | knowledge artifact、taxonomy、relations、publication、knowledge-versioning |
+| notebooklm | 推理輸出 | ingestion、retrieval、grounding、conversation、synthesis、evaluation、conversation-versioning |
+
+## Relationship Baseline
+
+| Upstream | Downstream | Reason |
+|---|---|---|
+| platform | workspace | 提供治理結果與權益判定 |
+| platform | notion | 提供治理結果與權益判定 |
+| platform | notebooklm | 提供治理結果與權益判定 |
+| workspace | notion | 提供 workspace scope 與 sharing scope |
+| workspace | notebooklm | 提供 workspace scope 與 sharing scope |
+| notion | notebooklm | 提供可引用的知識內容來源 |
+
+## Contradiction-Free Rules
+
+- 只有四個主域，不再引入其他平級主域。
+- 戰略文件若需要描述缺口，一律使用 recommended gap subdomains，而不是假裝它們已被實作驗證。
+- platform 是治理上游，不是內容或對話的正典擁有者。
+- platform 擁有 shared AI capability，但不擁有 notion 的正典內容語言或 notebooklm 的推理輸出語言。
+- notion 是正典內容擁有者，不是治理上游。
+- notebooklm 是衍生推理輸出擁有者，不是正典內容擁有者。
+
+## System-Wide Dependency Direction
+
+- 每個主域內部固定遵守 interfaces -> application -> domain <- infrastructure。
+- 跨主域依賴只能透過 published language、public API boundary、events。
+- 外部框架、SDK、傳輸與儲存細節只能停留在 adapter 邊界。
+
+## App Route Composition Contract
+
+- `app/(shell)` 是 shell composition 邊界，不承載 business rule。
+- account 是 shell 內的唯一 account-scoped route surface，canonical 入口為 `app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx`。
+- `accountId` 代表 account scope；其語意可對應 personal actor account 或 organization account，不代表 workspace scope。
+- workspace detail 的 canonical URL 為 `/{accountId}/{workspaceId}`，由 account catch-all dispatcher 解析並轉交 workspace module route screen。
+- `/{accountId}/workspace/{workspaceId}` 僅作為 legacy redirect surface；文件、UI 與新程式碼不應再把它當成 canonical href。
+- account-scoped governance route 採 flattened account surface，例如 `/{accountId}/members`、`/{accountId}/teams`、`/{accountId}/permissions`，不再以 `/{accountId}/organization/*` 作為 canonical URL。
+- route files 只做 composition、redirect 與 query-state 轉譯；module collaboration 仍必須走 `modules/*/api` boundary。
+
+## System-Wide Anti-Patterns
+
+- 把 domain 核心直接接上 framework、database、HTTP、queue 或 AI SDK。
+- 把主域內部模型直接共享給其他主域，取代 published language。
+- 把治理、內容、推理三種責任重新揉成單一平級主域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先定位需求落在哪個主域，再定位到子域與層。
+- 奧卡姆剃刀：若既有主域、子域與 API boundary 已能承接需求，就不要再新增新的平級結構。
+- 優先維持單一清楚的 input -> boundary -> application -> domain -> output 路徑。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Interfaces["Interfaces"] --> Application["Application"]
+	Application --> Domain["Domain"]
+	Infrastructure["Infrastructure"] --> Domain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Workspace["workspace"]
+	Platform --> Notion["notion"]
+	Platform --> NotebookLM["notebooklm"]
+	Workspace --> Notion
+	Workspace --> NotebookLM
+	Notion --> NotebookLM
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [integration-guidelines.md](./integration-guidelines.md)
+- [strategic-patterns.md](./strategic-patterns.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
+
+## Reading Path
+
+1. [bounded-contexts.md](./bounded-contexts.md)
+2. [context-map.md](./context-map.md)
+3. [subdomains.md](./subdomains.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [integration-guidelines.md](./integration-guidelines.md)
+6. [strategic-patterns.md](./strategic-patterns.md)
+7. [decisions/README.md](./decisions/README.md)
+````
+
 ## File: docs/contexts/_template.md
 ````markdown
 # Context Template
@@ -33623,6 +33380,149 @@ flowchart LR
 - [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
 ````
 
+## File: docs/contexts/platform/README.md
+````markdown
+# Platform Context
+
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+
+## Purpose
+
+platform 是治理與營運支撐主域。它的責任是提供 actor、identity、organization、tenant、access、policy、entitlement、shared ai capability、billing、notification、search、audit 與 observability 等跨切面語言，供其他主域穩定消費。
+
+## Why This Context Exists
+
+- 把治理與營運支撐責任集中，避免滲入其他主域。
+- 讓其他主域只消費治理結果，而不是重建治理模型。
+- 以清楚的 published language 承接身份、權益、政策與營運能力。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 治理、身份、權益與營運支撐 |
+| Upstream Dependency | 無主域級上游；作為其他主域治理上游 |
+| Downstream Consumers | workspace、notion、notebooklm |
+| Core Principle | platform 輸出治理結果，不接管其他主域正典內容 |
+
+## Baseline Subdomains
+
+- identity
+- account
+- account-profile
+- organization
+- team
+- tenant
+- access-control
+- security-policy
+- platform-config
+- feature-flag
+- entitlement
+- onboarding
+- compliance
+- consent
+- billing
+- subscription
+- referral
+- ai
+- integration
+- secret-management
+- workflow
+- notification
+- background-job
+- content
+- search
+- audit-log
+- observability
+- analytics
+- support
+
+## Strategic Reinforcement Focus
+
+- tenant（租戶隔離模型收斂）
+- entitlement（權益解算一致性收斂）
+- secret-management（敏感憑證治理收斂）
+- consent（資料使用授權語義收斂）
+
+
+## Key Relationships
+
+- 對 workspace：提供 actor、organization、access、entitlement。
+- 對 notion：提供 actor、organization、access、entitlement、ai capability。
+- 對 notebooklm：提供 actor、organization、access、entitlement、ai capability。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENT.md](./AGENT.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- platform 對外只輸出治理結果與 published language，不輸出內部治理模型細節。
+
+## Account Surface Contract
+
+- platform 提供 account scope 的治理語意；shell 的 `accountId` 由這個主域的 account / organization 能力支撐，而不是由 workspace 自行定義。
+- account shell surface 採單一 account catch-all：`/{accountId}/[[...slug]]`；這是 account-scoped composition contract，不是 platform domain model 的直接外露。
+- `AccountType = "user" | "organization"` 仍是目前代碼中的 legacy 字串值；路由層應把它理解為 personal account 與 organization account，而不是把 `user` 當成通用語言名詞。
+- organization governance route 在 shell 內應 flatten 到 account scope，例如 `/{accountId}/members`、`/{accountId}/teams`、`/{accountId}/permissions`；`/{accountId}/organization/*` 只應視為 legacy redirect surface。
+- platform 擁有 account 與 organization 的治理語意，但不擁有 workspace detail route；workspace detail 仍由 workspace module route screen 承接，只是經過 account-scoped shell composition 進入。
+
+## Anti-Pattern Rules
+
+- 不把 platform 寫成內容主域或對話主域。
+- 不把 entitlement、consent、secret-management 混成同一個泛用設定區。
+- 不把其他主域對平台的依賴寫成可以直接存取其內部模型。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 platform 的治理定位，再安排 identity、access、entitlement、ai、secret-management 的交互。
+- 奧卡姆剃刀：不要預先建立多餘 facade；能直接由既有治理邊界承接就維持單一路徑。
+- 優先讓 request -> orchestration -> domain decision -> published language 保持單純可追溯。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Request["Actor / admin request"] --> Boundary["platform boundary"]
+	Boundary --> App["Application use case"]
+	App --> Domain["Platform domain"]
+	Domain --> Published["Published governance language"]
+	Published --> Consumers["workspace / notion / notebooklm"]
+```
+
+## Document Network
+
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../README.md](../../README.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
+````
+
 ## File: docs/contexts/workspace/bounded-contexts.md
 ````markdown
 # Workspace
@@ -33708,6 +33608,126 @@ flowchart LR
 - [../../subdomains.md](../../subdomains.md)
 - [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
 - [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
+````
+
+## File: docs/contexts/workspace/README.md
+````markdown
+# Workspace Context
+
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+
+## Purpose
+
+workspace 是協作容器與工作區範疇主域。它的責任是提供 workspaceId、工作區生命週期、參與關係、共享、存在感、活動投影、稽核、排程與工作流，讓其他主域可以在同一個協作範疇中運作。
+
+## Why This Context Exists
+
+- 把工作區容器語意與平台治理語意分離。
+- 把工作區 scope 作為其他主域可依賴的 published language。
+- 把活動流、稽核、排程與流程協調收斂為同一主域內的高凝聚能力。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 協作容器與 workspace scope |
+| Upstream Dependency | platform 的 actor、organization、access、entitlement |
+| Downstream Consumers | notion、notebooklm |
+| Core Principle | workspace 暴露 scope，不接管治理或內容正典 |
+
+## Baseline Subdomains
+
+- audit
+- feed
+- scheduling
+- workspace-workflow
+
+## Recommended Gap Subdomains
+
+- lifecycle
+- membership
+- sharing
+- presence
+
+## Key Relationships
+
+- 與 platform：workspace 是治理結果的 downstream consumer。
+- 與 notion：workspace 向 notion 提供 workspaceId、membership scope、share scope。
+- 與 notebooklm：workspace 向 notebooklm 提供 workspaceId、membership scope、share scope。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENT.md](./AGENT.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- workspace 對外只暴露 scope、published language、API boundary、events，不暴露內部實作。
+
+## Route Surface Contract
+
+- workspace 不擁有獨立的 top-level shell route；它被組裝在 account-scoped shell surface 之下。
+- workspace detail 的 canonical route 是 `/{accountId}/{workspaceId}`，表示「先選 account，再進入該 account 底下的 workspace」。
+- workspace tabs 與 overview panels 應維持在同一條 detail route 上，以 query state 表示，例如 `?tab=Overview&panel=knowledge-pages`。
+- `/{accountId}/workspace/{workspaceId}` 只保留為相容 redirect，不是新的文件或 UI 應輸出的 canonical href。
+- account dashboard、members、teams、permissions、schedule、audit 等 account-level concern 不屬於 workspace route surface。
+- workspace route 只負責協作容器與 workspace-scoped consumption，不承接 platform governance canonical navigation。
+
+## Anti-Pattern Rules
+
+- 不把 workspace scope 寫成平台治理結果本身。
+- 不把 feed、audit、workspace-workflow 互相取代為單一泛用流程層。
+- 不把 notion 或 notebooklm 的內容與推理責任吸回 workspace。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 workspace 的協作 scope 定位，再安排 lifecycle、membership、sharing、workspace-workflow 的交互。
+- 奧卡姆剃刀：不要預先建立第二條平行協作流程；只有既有 scope 邊界不夠時才補新抽象。
+- 優先讓 input -> translation -> application -> domain -> published scope 保持單純可追溯。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Boundary["workspace boundary"]
+	Boundary --> Translation["DTO / ACL"]
+	Translation --> App["Application use case"]
+	App --> Domain["Workspace domain"]
+	Domain --> Scope["workspace scope"]
+	Scope --> Notion["notion"]
+	Scope --> NotebookLM["notebooklm"]
+```
+
+## Document Network
+
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../README.md](../../README.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
 ## File: docs/decisions/0006-domain-event-discriminant-format.md
@@ -37033,6 +37053,112 @@ Each module should have its own constraints section, such as:
 - [modules/notebooklm/AGENT.md](../modules/notebooklm/AGENT.md) — NotebookLM constraints
 ````
 
+## File: docs/integration-guidelines.md
+````markdown
+# Integration Guidelines
+
+本文件在本次任務限制下，僅依 Context7 驗證的 published language、ACL、Conformist 與 hexagonal boundary 原則重建，不主張反映現況實作。
+
+## Boundary Contract
+
+跨主域整合只能使用：
+
+- published language
+- public API boundary
+- domain / integration events
+- local DTO
+- downstream ACL 或 downstream Conformist
+
+## Pattern Selection Rules
+
+| Situation | Pattern |
+|---|---|
+| 下游與上游語義高度一致，且不會扭曲本地語言 | Conformist |
+| 上游語義會污染下游本地語言 | Anti-Corruption Layer |
+| 只是跨主域資料交換 | Published Language + Local DTO |
+
+## Hard Rules
+
+- ACL 與 Conformist 只能由 downstream 選擇。
+- ACL 與 Conformist 互斥。
+- 不可直接傳遞上游 entity / aggregate 作為下游正典模型。
+- 不可把 shared technical package 誤當成 strategic shared kernel。
+- 若需要共同語義，先定 published language，再定 DTO，再評估是否需要 ACL。
+
+## Domain-Specific Guidance
+
+- workspace 消費 platform 時，優先保護自己的 membership、sharing、presence 語言。
+- notion 消費 platform 或 workspace 時，優先保護自己的 knowledge artifact 與 taxonomy 語言。
+- notebooklm 消費 notion 時，優先保護自己的 retrieval、grounding、synthesis 語言。
+
+## App Router Boundary Guidance
+
+- App Router path shape 是 composition contract，不是跨主域 published language 的替代品。
+- 即使 path 以 `/{accountId}/{workspaceId}` 呈現，platform 與 workspace 之間的語意交換仍必須走 API boundary、published language 或 events。
+- shell 內所有 workspace detail href 應優先輸出 canonical `/{accountId}/{workspaceId}`，而不是 `/{accountId}/workspace/{workspaceId}`。
+- legacy redirect path 可以短期保留作為 compatibility surface，但文件、設計稿與新程式碼不應再以 legacy path 當作正典契約。
+- route redirect、query-state 正規化與 URL composition 屬於 interfaces / app composition concern，不應回滲為 domain rule 或跨主域契約。
+
+## Integration Checklist
+
+1. 先確認 upstream / downstream 方向。
+2. 先列出 published language。
+3. 判斷是否語義一致。
+4. 一致則考慮 conformist，不一致則建立 ACL。
+5. 避免把 DTO、entity、policy、UI 狀態混成同一層。
+
+## Integration Anti-Patterns
+
+- 直接傳遞上游 aggregate、entity、repository 給下游使用。
+- 讓 downstream 省略 published language 與 local DTO，直接貼靠上游內部模型。
+- 把 ACL 當成預設樣板卻不判斷是否真的有語義污染。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先決定 upstream、downstream、published language，再決定 DTO、ACL 或 Conformist。
+- 奧卡姆剃刀：若 published language 加 local DTO 已足夠，就不要額外建立雙重 mapper、雙重 ACL 或鏡像 aggregate。
+- 只有在上游語義真的會污染本地語言時，才建立 ACL。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["Upstream"] -->|Published Language| Boundary["Downstream boundary"]
+	Boundary --> Translation["Local DTO / ACL / Conformist"]
+	Translation --> Application["Application"]
+	Application --> Domain["Domain"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Need["Cross-context need"] --> Direction["Identify upstream/downstream"]
+	Direction --> PL["Define published language"]
+	PL --> Decision["Need protection?"]
+	Decision -->|Yes| ACL["ACL"]
+	Decision -->|No| DTO["Local DTO / Conformist"]
+	ACL --> Domain["Downstream domain"]
+	DTO --> Domain
+```
+
+## Document Network
+
+- [context-map.md](./context-map.md)
+- [strategic-patterns.md](./strategic-patterns.md)
+- [architecture-overview.md](./architecture-overview.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
+- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
+- [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
+
+## Conflict Resolution
+
+- 若某整合指南與 [context-map.md](./context-map.md) 的方向衝突，以 context map 為準。
+- 若某整合指南與 [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md) 衝突，以 ADR 為準。
+````
+
 ## File: docs/README.md
 ````markdown
 # Docs
@@ -37266,7 +37392,7 @@ api/ ← 唯一跨模組入口
 // Q&A subdomain — AnswerRagQueryUseCase factory (now in synthesis subdomain)
 ````
 
-## File: modules/notebooklm/application/dtos/index.ts
+## File: modules/notebooklm/application/use-cases/index.ts
 ````typescript
 
 ````
@@ -39202,9 +39328,9 @@ Legacy migration (Strangler Pattern):
 // Tier 2 — backlinks, forward links, and reference graphs
 ````
 
-## File: modules/notion/application/dtos/index.ts
+## File: modules/notion/application/use-cases/index.ts
 ````typescript
-// relations and taxonomy currently expose no DTO barrel.
+// relations/taxonomy are still placeholder-only at the application layer.
 ````
 
 ## File: modules/notion/infrastructure/authoring/firebase/index.ts
@@ -43110,6 +43236,17 @@ interfaces/ → application/ → domain/ ← infrastructure/
 // Purpose: Application layer for platform-config subdomain.
 ````
 
+## File: modules/platform/subdomains/search/application/services/shell-command-catalog.ts
+````typescript
+export interface ShellCommandCatalogItem {
+  readonly href: string;
+  readonly label: string;
+  readonly group: "導覽" | "Knowledge" | "Source";
+}
+⋮----
+export function listShellCommandCatalogItems(): readonly ShellCommandCatalogItem[]
+````
+
 ## File: modules/platform/subdomains/subdomains.instructions.md
 ````markdown
 ---
@@ -43141,64 +43278,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 /**
  * Public API boundary for the subscription subdomain.
  */
-````
-
-## File: modules/platform/subdomains/subscription/domain/aggregates/Subscription.ts
-````typescript
-import type { SubscriptionDomainEventType } from "../events/SubscriptionDomainEvent";
-import { createSubscriptionId, canCancel, canRenew } from "../value-objects";
-import type { SubscriptionStatus } from "../value-objects";
-import type { BillingCycle } from "../value-objects/BillingCycle";
-⋮----
-export interface SubscriptionSnapshot {
-  readonly id: string;
-  readonly contextId: string;
-  readonly planCode: string;
-  readonly billingCycle: BillingCycle;
-  readonly status: SubscriptionStatus;
-  readonly currentPeriodStart: string;
-  readonly currentPeriodEnd: string | null;
-  readonly cancelledAt: string | null;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateSubscriptionInput {
-  readonly contextId: string;
-  readonly planCode: string;
-  readonly billingCycle: BillingCycle;
-  readonly currentPeriodStart?: string;
-  readonly currentPeriodEnd?: string | null;
-}
-⋮----
-export class Subscription {
-⋮----
-private constructor(private _props: SubscriptionSnapshot)
-⋮----
-static create(id: string, input: CreateSubscriptionInput): Subscription
-⋮----
-static reconstitute(snapshot: SubscriptionSnapshot): Subscription
-⋮----
-cancel(): void
-⋮----
-renew(newPeriodEnd: string): void
-⋮----
-markPastDue(): void
-⋮----
-expire(): void
-⋮----
-get id(): string
-get contextId(): string
-get planCode(): string
-get billingCycle(): BillingCycle
-get status(): SubscriptionStatus
-get currentPeriodEnd(): string | null
-get cancelledAt(): string | null
-get isActive(): boolean
-⋮----
-getSnapshot(): Readonly<SubscriptionSnapshot>
-⋮----
-pullDomainEvents(): SubscriptionDomainEventType[]
 ````
 
 ## File: modules/platform/subdomains/subscription/infrastructure/index.ts
@@ -43554,10 +43633,30 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-development-contracts
 ````
 
-## File: modules/workspace/interfaces/web/components/cards/WorkspaceProductSpineCard.tsx
+## File: modules/workspace/interfaces/web/components/cards/WorkspaceContextCard.tsx
+````typescript
+/**
+ * WorkspaceContextCard
+ * Purpose: display the active workspace context in notebook/ai-chat sidebar.
+ * Shows workspace name + navigation links when a workspace is active,
+ * otherwise shows an empty-state hint.
+ */
+⋮----
+import Link from "next/link";
+import { FolderKanban } from "lucide-react";
+⋮----
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import type { WorkspaceEntity } from "../../../api/contracts";
+⋮----
+interface WorkspaceContextCardProps {
+  readonly workspace: WorkspaceEntity | null;
+}
+````
+
+## File: modules/workspace/interfaces/web/components/cards/WorkspaceQuickstartCard.tsx
 ````typescript
 import Link from "next/link";
-import type { WorkspaceEntity } from "../../../api/contracts";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
@@ -43566,15 +43665,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@ui-shadcn/ui/card";
-import { WorkspaceInformationCard } from "./WorkspaceInformationCard";
-import {
-  getWorkspaceAddressLines,
-  getWorkspaceRoleAssignments,
-} from "../../view-models/workspace-supporting-records";
 ⋮----
-interface WorkspaceProductSpineCardProps {
-  readonly workspace: WorkspaceEntity;
+interface WorkspaceQuickstartCardProps {
+  readonly workspaceId: string;
 }
+⋮----
+export function WorkspaceQuickstartCard(
 ````
 
 ## File: modules/workspace/interfaces/web/components/layout/workspace-detail-helpers.ts
@@ -43590,6 +43686,73 @@ export function formatTimestamp(
 ): string
 ⋮----
 export function trimOrUndefined(value: string): string | undefined
+````
+
+## File: modules/workspace/interfaces/web/components/layout/WorkspaceSidebarSection.tsx
+````typescript
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+⋮----
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabsByGroup,
+  WORKSPACE_TAB_SIDEBAR_GROUP_ORDER,
+  getWorkspaceTabStatus,
+  isWorkspaceTabValue,
+  type WorkspaceTabGroup,
+  type WorkspaceTabValue,
+} from "../../navigation/workspace-tabs";
+⋮----
+export interface WorkspaceSidebarLocaleBundle {
+  workspace?: {
+    tabLabels?: Record<string, string>;
+  };
+}
+⋮----
+export interface WorkspaceNavigationPreferences {
+  pinnedWorkspace: string[];
+  workspaceOrder: string[];
+}
+⋮----
+interface TabLinkItem {
+  value: WorkspaceTabValue;
+  label: string;
+}
+⋮----
+function createWorkspaceLinkItems(group: WorkspaceTabGroup): TabLinkItem[]
+⋮----
+function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue): string
+⋮----
+function tTab(
+  tab: WorkspaceTabValue,
+  fallback: string,
+  localeBundle: WorkspaceSidebarLocaleBundle | null,
+): string
+⋮----
+function tTabWithDevStatus(
+  tab: WorkspaceTabValue,
+  fallback: string,
+  localeBundle: WorkspaceSidebarLocaleBundle | null,
+): string
+⋮----
+function getPrefId(tabValue: string): string
+⋮----
+function isItemEnabled(prefId: string, navPrefs: WorkspaceNavigationPreferences): boolean
+⋮----
+function getItemOrder(prefId: string, navPrefs: WorkspaceNavigationPreferences): number
+⋮----
+function sortByPreferenceOrder<T extends { value: string }>(
+  items: readonly T[],
+  navPrefs: WorkspaceNavigationPreferences,
+): T[]
+⋮----
+interface WorkspaceSidebarSectionProps {
+  workspacePathId: string;
+  navPrefs: WorkspaceNavigationPreferences;
+  localeBundle: WorkspaceSidebarLocaleBundle | null;
+  getItemClassName: (isActive: boolean) => string;
+}
 ````
 
 ## File: modules/workspace/interfaces/web/components/rails/CreateWorkspaceDialogRail.tsx
@@ -44301,57 +44464,6 @@ async save(demand: WorkDemand): Promise<void>
 async update(demand: WorkDemand): Promise<void>
 ⋮----
 async findById(id: string): Promise<WorkDemand | null>
-````
-
-## File: modules/workspace/subdomains/scheduling/interfaces/components/CreateDemandForm.tsx
-````typescript
-import { useState } from "react";
-⋮----
-import { format } from "@lib-date-fns";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-⋮----
-import { DEMAND_PRIORITY_LABELS } from "../../application/dto/work-demand.dto";
-import type { DemandPriority } from "../../application/dto/work-demand.dto";
-⋮----
-export interface CreateDemandFormValues {
-  title: string;
-  description: string;
-  priority: DemandPriority;
-  scheduledAt: string;
-}
-⋮----
-interface CreateDemandFormProps {
-  open: boolean;
-  initialDate?: Date;
-  onClose: () => void;
-  onSubmit: (values: CreateDemandFormValues) => Promise<void>;
-}
-⋮----
-const handleOpen = (isOpen: boolean) =>
-⋮----
-function handleClose()
-⋮----
-async function handleSubmit(e: React.FormEvent)
-⋮----
-onChange=
 ````
 
 ## File: modules/workspace/subdomains/scheduling/interfaces/screens/OrganizationScheduleRouteScreen.tsx
@@ -45316,80 +45428,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill next-devtools-mcp
 ````
 
-## File: .github/copilot-instructions.md
-````markdown
----
-applyTo: **
-description: Xuanwu Copilot Workspace Instructions
-name: Xuanwu Copilot Workspace Instructions
----
-
-#use skill serena-mcp
-#use skill alistair-cockburn
-#use skill hexagonal-ddd
-#use skill occams-razor
-#use skill context7
-#use skill xuanwu-app-skill
-
-# Xuanwu Copilot Workspace Instructions
-
-Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put detailed architecture truth in [docs/README.md](../docs/README.md), scoped behavior in [.github/instructions](./instructions), reusable workflows in prompts, and tool-specific procedure in skills.
-
-## Session Contract
-
-- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it first, activate `xuanwu-app`, and use Serena for project memory/index work.
-- If confidence in any library API, framework, or config schema detail is below 99.99%, verify it through Context7 before writing or suggesting code.
-- Treat `docs/**/*` as the authority for DDD routing, bounded-context ownership, terminology, and strategic duplicate-name resolution. `.github/*` defines Copilot behavior and must not compete with docs.
-- Run the matching validation from [agents/commands.md](./agents/commands.md) before closing non-trivial changes.
-
-## Read Order
-
-1. Start with [docs/README.md](../docs/README.md).
-2. Use [docs/ubiquitous-language.md](../docs/ubiquitous-language.md) for terminology and duplicate-name guardrails.
-3. Use [docs/subdomains.md](../docs/subdomains.md) and [docs/bounded-contexts.md](../docs/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
-4. Use `docs/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
-5. Use [docs/bounded-context-subdomain-template.md](../docs/bounded-context-subdomain-template.md) and [docs/project-delivery-milestones.md](../docs/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
-6. Use [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment validation.
-
-## Instruction Series (Phase 1)
-
-- Use [instructions/architecture-core.instructions.md](./instructions/architecture-core.instructions.md) as the consolidated module architecture rule set.
-- Use [instructions/architecture-runtime.instructions.md](./instructions/architecture-runtime.instructions.md) as the consolidated runtime split rule set.
-- Use [instructions/process-framework.instructions.md](./instructions/process-framework.instructions.md) as the consolidated delivery/decision framework.
-- Use [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) as the consolidated docs authority and terminology rule set.
-- Legacy instruction files marked DEPRECATED remain transition-only and should not be expanded.
-
-## Operating Rules
-
-- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
-- Cross-module collaboration goes through the target module `api/` boundary only.
-- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
-- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
-- If a team adds `core/`, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.
-- Keep business logic in `domain/` and `application`; keep UI, transport, and composition in `interfaces/` and `app/`.
-- Preserve the runtime split: Next.js owns browser-facing UX and orchestration; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
-- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy alias patterns.
-
-## Governance Rules
-
-- Keep this file thin. Put detailed, file-scoped behavior in `.github/instructions/` and reuse docs instead of copying architecture content into customization files.
-- Use [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for Serena workflow details, [skills/context7/SKILL.md](skills/context7/SKILL.md) for documentation verification, and [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) for boundary-safe module design.
-- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) and [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill.md) for implementation lookup only; they are not strategic authority.
-- `.claude/` may exist as a compatibility surface, but `.github/*` remains the primary Copilot governance surface.
-
-## Terminology
-
-- Follow [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) and the docs it routes to.
-- Normalize to canonical glossary terms before naming code, prompts, instructions, agents, skills, or documentation.
-
-## DDD Strategic Rules (Phase 1)
-
-- Use [instructions/subdomain-rules.instructions.md](./instructions/subdomain-rules.instructions.md) for subdomain design rules.
-- Use [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for Bounded Context design rules.
-- Use [instructions/domain-layer-rules.instructions.md](./instructions/domain-layer-rules.instructions.md) for Domain Layer design rules.
-- Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
-````
-
 ## File: .github/instructions/architecture.instructions.md
 ````markdown
 ---
@@ -45968,51 +46006,6 @@ export function isActiveRoute(pathname: string, href: string)
 // ── Simple section nav component ──────────────────────────────────────────────
 ````
 
-## File: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
-````typescript
-import { use, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-⋮----
-import {
-  OrganizationMembersRouteScreen,
-  OrganizationOverviewRouteScreen,
-  OrganizationPermissionsRouteScreen,
-  OrganizationTeamsRouteScreen,
-  SettingsNotificationsRouteScreen,
-  useAccountRouteContext,
-  useApp,
-  useAuth,
-} from "@/modules/platform/api";
-import {
-  AccountDashboardRouteScreen,
-  OrganizationAuditRouteScreen,
-  OrganizationDailyRouteScreen,
-  OrganizationScheduleRouteScreen,
-  OrganizationWorkspacesRouteScreen,
-  WorkspaceHubScreen,
-} from "@/modules/workspace/api";
-⋮----
-interface AccountRouteDispatcherPageProps {
-  params: Promise<{
-    accountId: string;
-    slug?: string[];
-  }>;
-}
-⋮----
-interface RedirectingRouteProps {
-  readonly href: string;
-  readonly message: string;
-}
-⋮----
-function RedirectingRoute(
-⋮----
-export default function AccountRouteDispatcherPage({
-  params,
-}: AccountRouteDispatcherPageProps)
-⋮----
-if (accountType === "organization")
-````
-
 ## File: app/(shell)/(account)/[accountId]/dev-tools/dev-tools-helpers.ts
 ````typescript
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -46241,16 +46234,6 @@ function formatNormalizationRatio(doc: DocRecord): string
 // Re-export for convenience in table components
 ````
 
-## File: app/(shell)/(account)/[accountId]/workspace/[workspaceId]/page.tsx
-````typescript
-import { useParams, useSearchParams } from "next/navigation";
-⋮----
-import { useApp } from "@/modules/platform/api";
-import { WorkspaceDetailRouteScreen } from "@/modules/workspace/api";
-⋮----
-export default function AccountWorkspaceDetailPage()
-````
-
 ## File: docs/decisions/SMELL-INDEX.md
 ````markdown
 # Design Smell Taxonomy Index
@@ -46347,11 +46330,6 @@ export default function AccountWorkspaceDetailPage()
 2. 查閱對應編號文件的 context + decision + consequences。
 3. 參照「對應 ADR」確認架構規範根源。
 4. 若 smell 尚未記錄，按此編號體系新增文件。
-````
-
-## File: modules/notebooklm/application/use-cases/index.ts
-````typescript
-
 ````
 
 ## File: modules/notebooklm/infrastructure/conversation/firebase/FirebaseThreadRepository.ts
@@ -47590,11 +47568,6 @@ export interface SourceDocumentCommandPort {
 ⋮----
 deleteDocument(accountId: string, documentId: string): Promise<void>;
 renameDocument(accountId: string, documentId: string, newName: string): Promise<void>;
-````
-
-## File: modules/notion/application/use-cases/index.ts
-````typescript
-// relations/taxonomy are still placeholder-only at the application layer.
 ````
 
 ## File: modules/notion/infrastructure/authoring/firebase/FirebaseArticleRepository.ts
@@ -48904,17 +48877,6 @@ onClick=
 
 ````
 
-## File: modules/platform/subdomains/search/application/services/shell-command-catalog.ts
-````typescript
-export interface ShellCommandCatalogItem {
-  readonly href: string;
-  readonly label: string;
-  readonly group: "導覽" | "Knowledge" | "Source";
-}
-⋮----
-export function listShellCommandCatalogItems(): readonly ShellCommandCatalogItem[]
-````
-
 ## File: modules/platform/subdomains/team/interfaces/_actions/team.actions.ts
 ````typescript
 import { commandFailureFrom, type CommandResult } from "@shared-types";
@@ -48955,6 +48917,37 @@ export async function updateTeamMembersAction(
  */
 ⋮----
 // ── Orchestrated notion commands (workspace as composition owner) ─────────────
+````
+
+## File: modules/workspace/application/queries/wiki-content-tree.queries.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/queries
+ * Purpose: Build the workspace content-tree from account/workspace seeds.
+ *          This is a query projection, not a use case — it aggregates
+ *          workspace-scoped content nodes for read-only display.
+ *
+ * DDD Rule 5:  Pure reads → Query, not Use Case.
+ * DDD Rule 13: Read → queries/
+ */
+⋮----
+import type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+  WikiContentItemNode,
+  WikiWorkspaceContentNode,
+} from "../../domain/entities/WikiContentTree";
+import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWorkspaceRepository";
+⋮----
+function buildContentBaseItems(workspaceId: string): WikiContentItemNode[]
+⋮----
+function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiWorkspaceContentNode
+⋮----
+export async function buildWikiContentTree(
+  seeds: WikiAccountSeed[],
+  workspaceRepository: WikiWorkspaceRepository,
+): Promise<WikiAccountContentNode[]>
 ````
 
 ## File: modules/workspace/interfaces/api/actions/workspace.command.ts
@@ -49016,75 +49009,10 @@ export async function createWorkspaceLocation(
 ): Promise<CommandResult>
 ````
 
-## File: modules/workspace/interfaces/web/components/screens/AccountDashboardScreen.tsx
+## File: modules/workspace/interfaces/web/components/cards/WorkspaceProductSpineCard.tsx
 ````typescript
 import Link from "next/link";
-import {
-  BookOpen,
-  Brain,
-  Database,
-  FileText,
-  FolderOpen,
-  Library,
-  MessageSquare,
-  Notebook,
-  Shield,
-  User,
-  Users,
-} from "lucide-react";
-⋮----
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-⋮----
 import type { WorkspaceEntity } from "../../../api/contracts";
-⋮----
-// ── Types ─────────────────────────────────────────────────────────────────────
-⋮----
-interface AccountDashboardScreenProps {
-  readonly accountId: string;
-  readonly accountName: string | null;
-  readonly accountType: "user" | "organization";
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly currentUserId: string | null;
-}
-⋮----
-// ── Quick-access card definitions ─────────────────────────────────────────────
-⋮----
-interface QuickAccessCard {
-  readonly key: string;
-  readonly label: string;
-  readonly description: string;
-  readonly icon: React.ReactNode;
-  readonly buildHref: (accountId: string, workspaceId: string) => string;
-}
-⋮----
-function enc(s: string): string
-⋮----
-// ── Component ─────────────────────────────────────────────────────────────────
-⋮----
-{/* ── Header ──────────────────────────────────────────────────────── */}
-⋮----
-{/* ── Active workspace quick-access ──────────────────────────────── */}
-⋮----
-{/* ── All workspaces list ─────────────────────────────────────────── */}
-````
-
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx
-````typescript
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
-⋮----
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
@@ -49093,37 +49021,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@ui-shadcn/ui/card";
+import { WorkspaceInformationCard } from "./WorkspaceInformationCard";
+import {
+  getWorkspaceAddressLines,
+  getWorkspaceRoleAssignments,
+} from "../../view-models/workspace-supporting-records";
 ⋮----
-import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";
-import { getWorkspaceGovernanceSummary } from "../../view-models/workspace-supporting-records";
-import { CreateWorkspaceDialog } from "../dialogs/CreateWorkspaceDialog";
-⋮----
-interface WorkspaceHubScreenProps {
-  readonly accountId: string | null | undefined;
-  readonly accountName: string | null | undefined;
-  readonly accountType: "user" | "organization";
-  readonly accountsHydrated: boolean;
-  readonly isBootstrapSeeded: boolean;
-  readonly currentUserId?: string | null;
+interface WorkspaceProductSpineCardProps {
+  readonly workspace: WorkspaceEntity;
 }
-⋮----
-export function WorkspaceHubScreen({
-  accountId,
-  accountName,
-  accountType,
-  accountsHydrated,
-  isBootstrapSeeded,
-  currentUserId,
-}: WorkspaceHubScreenProps)
-⋮----
-function resetCreateWorkspaceDialog()
-⋮----
-async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>)
-⋮----
-onClick=
-⋮----
-onOpenChange=
-onWorkspaceNameChange=
 ````
 
 ## File: modules/workspace/subdomains/audit/api/index.ts
@@ -49257,6 +49163,116 @@ async extractTaskCandidates(
  *  - workspace-flow-issue.actions.ts   (open, start, fix, retest, resolve, close)
  *  - workspace-flow-invoice.actions.ts (create, add/update/remove item, submit, review, approve, reject, pay, close)
  */
+````
+
+## File: repomix-markdown.config.json
+````json
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "input": {
+    "maxFileSize": 52428800
+  },
+  "output": {
+    "filePath": "repomix-output.json",
+    "style": "json",
+    "parsableStyle": true,
+
+    "fileSummary": true,
+    "directoryStructure": true,
+    "files": true,
+
+    "removeComments": false,
+    "removeEmptyLines": false,
+
+    "compress": true,
+
+    "topFilesLength": 10,
+
+    "showLineNumbers": false,
+    "truncateBase64": false,
+    "copyToClipboard": false,
+
+    "includeFullDirectoryStructure": false,
+    "tokenCountTree": true,
+
+    "git": {
+      "sortByChanges": true,
+      "sortByChangesMaxCommits": 200,
+      "includeDiffs": false,
+      "includeLogs": false,
+      "includeLogsCount": 50
+    }
+  },
+  "include": [
+    ".github/**/*.md",
+    "docs/**/*.md",
+    "app/**/*.md",
+    "modules/**/*.md",
+    "packages/**/*.md",
+    "py_fn/**/*.md"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      ".next/**",
+      ".turbo/**",
+      ".vercel/**",
+      ".firebase/**",
+      ".output/**",
+      ".parcel-cache/**",
+
+      ".cursor/**",
+      ".vscode/**",
+      ".serena/**",
+      ".claude/**",
+      ".opencode/**",
+      ".idea/**",
+      ".history/**",
+
+      ".cache/**",
+      ".temp/**",
+      ".tmp/**",
+      "tmp/**",
+      "temp/**",
+
+      "logs/**",
+      "firebase-debug.log",
+      "repomix-output.*",
+
+      ".env*",
+      "*.pem",
+      "*.key",
+      "*.crt",
+
+      "skills-lock.json",
+
+      "docs/architecture/**",
+      "diagrams/**",
+
+      "*.png",
+      "*.jpg",
+      "*.jpeg",
+      "*.gif",
+      "*.webp",
+      "*.mp4",
+      "*.zip",
+      "*.tar",
+      "*.gz",
+
+      "*.sqlite",
+      "*.db",
+      ".github/skills/**/references/**"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}
 ````
 
 ## File: .github/instructions/architecture-core.instructions.md
@@ -49586,6 +49602,52 @@ async function handlePasswordReset()
 setError(null);
 setResetSent(false);
 setIsAuthPanelOpen((prev)
+````
+
+## File: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
+````typescript
+import { use, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+⋮----
+import {
+  OrganizationMembersRouteScreen,
+  OrganizationOverviewRouteScreen,
+  OrganizationPermissionsRouteScreen,
+  OrganizationTeamsRouteScreen,
+  SettingsNotificationsRouteScreen,
+  useAccountRouteContext,
+  useApp,
+  useAuth,
+} from "@/modules/platform/api";
+import {
+  AccountDashboardRouteScreen,
+  OrganizationAuditRouteScreen,
+  OrganizationDailyRouteScreen,
+  OrganizationScheduleRouteScreen,
+  OrganizationWorkspacesRouteScreen,
+  WorkspaceDetailRouteScreen,
+  WorkspaceHubScreen,
+} from "@/modules/workspace/api";
+⋮----
+interface AccountRouteDispatcherPageProps {
+  params: Promise<{
+    accountId: string;
+    slug?: string[];
+  }>;
+}
+⋮----
+interface RedirectingRouteProps {
+  readonly href: string;
+  readonly message: string;
+}
+⋮----
+function RedirectingRoute(
+⋮----
+export default function AccountRouteDispatcherPage({
+  params,
+}: AccountRouteDispatcherPageProps)
+⋮----
+if (accountType === "organization")
 ````
 
 ## File: docs/bounded-context-subdomain-template.md
@@ -50052,69 +50114,6 @@ export async function moveCategory(input: z.infer<typeof MoveCategorySchema>): P
 export async function deleteCategory(input: z.infer<typeof DeleteCategorySchema>): Promise<CommandResult>
 ````
 
-## File: modules/notion/interfaces/authoring/components/ArticleDetailPanel.tsx
-````typescript
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import {
-  Archive,
-  ArrowLeft,
-  BadgeCheck,
-  Edit,
-  FileClock,
-  MessageSquare,
-  History,
-  Globe,
-  Link2,
-} from "lucide-react";
-⋮----
-import { getArticle, getCategories, getBacklinks } from "../queries";
-import {
-  publishArticle,
-  archiveArticle,
-  verifyArticle,
-  requestArticleReview,
-} from "../_actions/article.actions";
-import { ArticleDialog } from "./ArticleDialog";
-import type { ArticleSnapshot as Article } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import { CommentPanel, VersionHistoryPanel } from "@/modules/notion/api";
-import { ReactMarkdown } from "@lib-react-markdown";
-import { remarkGfm } from "@lib-remark-gfm";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-⋮----
-// ── Props ─────────────────────────────────────────────────────────────────────
-⋮----
-export interface ArticleDetailPanelProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-⋮----
-// ── Component ─────────────────────────────────────────────────────────────────
-⋮----
-function buildArticleDetailHref(targetArticleId: string): string
-⋮----
-function handlePublish()
-⋮----
-function handleArchive()
-⋮----
-function handleVerify()
-⋮----
-function handleRequestReview()
-⋮----
-<Button variant="ghost" size="sm" onClick=
-⋮----
-{/* Back + actions bar */}
-⋮----
-{/* Header */}
-⋮----
-{/* Body tabs */}
-````
-
 ## File: modules/notion/interfaces/collaboration/_actions/comment.actions.ts
 ````typescript
 /**
@@ -50272,35 +50271,6 @@ function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown
 ⋮----
 function prevMonth()
 function nextMonth()
-````
-
-## File: modules/notion/interfaces/database/components/KnowledgeDatabasesPanel.tsx
-````typescript
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Table2 } from "lucide-react";
-⋮----
-import { useAuth } from "@/modules/platform/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-⋮----
-import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
-import { getDatabases } from "../queries";
-import { DatabaseDialog } from "./DatabaseDialog";
-⋮----
-/**
- * KnowledgeDatabasesPanel
- * Route-level screen component for /knowledge-database/databases.
- * Encapsulates data-loading and layout so the Next.js route file stays thin.
- */
-export interface KnowledgeDatabasesPanelProps {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly currentUserId?: string | null;
-}
-⋮----
-function handleSuccess(databaseId?: string)
 ````
 
 ## File: modules/notion/interfaces/knowledge/_actions/knowledge-collection.actions.ts
@@ -50493,36 +50463,6 @@ export function makeTaxonomyUseCases(
 // ── Use cases ─────────────────────────────────────────────────────────────────
 ````
 
-## File: modules/platform/interfaces/web/shell/search/ShellGlobalSearchDialog.tsx
-````typescript
-import { useEffect, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { FileText, Layout } from "lucide-react";
-import { listShellCommandCatalogItems } from "../../../../subdomains/search/api";
-import { buildShellContextualHref } from "../../../../subdomains/platform-config/api";
-⋮----
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandShortcut,
-} from "@ui-shadcn/ui/command";
-⋮----
-interface ShellGlobalSearchDialogProps {
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-}
-⋮----
-function handleSelect(href: string)
-⋮----
-/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
-⋮----
-function onKeyDown(event: KeyboardEvent)
-````
-
 ## File: modules/platform/subdomains/access-control/application/services/shell-account-access.ts
 ````typescript
 export interface ShellAccountActor {
@@ -50646,60 +50586,156 @@ export async function signOut(): Promise<CommandResult>
  */
 ````
 
-## File: modules/workspace/application/queries/wiki-content-tree.queries.ts
+## File: modules/workspace/interfaces/web/components/screens/AccountDashboardScreen.tsx
 ````typescript
-/**
- * Module: workspace
- * Layer: application/queries
- * Purpose: Build the workspace content-tree from account/workspace seeds.
- *          This is a query projection, not a use case — it aggregates
- *          workspace-scoped content nodes for read-only display.
- *
- * DDD Rule 5:  Pure reads → Query, not Use Case.
- * DDD Rule 13: Read → queries/
- */
+import Link from "next/link";
+import {
+  BookOpen,
+  Brain,
+  Database,
+  FileText,
+  FolderOpen,
+  Library,
+  MessageSquare,
+  Notebook,
+  Shield,
+  User,
+  Users,
+} from "lucide-react";
 ⋮----
-import type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-  WikiContentItemNode,
-  WikiWorkspaceContentNode,
-} from "../../domain/entities/WikiContentTree";
-import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWorkspaceRepository";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
 ⋮----
-function buildContentBaseItems(workspaceId: string): WikiContentItemNode[]
+import type { WorkspaceEntity } from "../../../api/contracts";
 ⋮----
-function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiWorkspaceContentNode
+// ── Types ─────────────────────────────────────────────────────────────────────
 ⋮----
-export async function buildWikiContentTree(
-  seeds: WikiAccountSeed[],
-  workspaceRepository: WikiWorkspaceRepository,
-): Promise<WikiAccountContentNode[]>
-````
-
-## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
-````typescript
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { WorkspaceEntity } from "../../api/contracts";
-import { getWorkspaceById, getWorkspaceByIdForAccount } from "../../api/facades";
-⋮----
-export type WorkspaceLoadState = "loading" | "loaded" | "error";
-⋮----
-export interface UseWorkspaceDetailResult {
-  workspace: WorkspaceEntity | null;
-  loadState: WorkspaceLoadState;
-  setWorkspace: (ws: WorkspaceEntity) => void;
+interface AccountDashboardScreenProps {
+  readonly accountId: string;
+  readonly accountName: string | null;
+  readonly accountType: "user" | "organization";
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly currentUserId: string | null;
 }
 ⋮----
-export function useWorkspaceDetail(
-  workspaceId: string,
-  accountId: string | null | undefined,
-  accountsHydrated: boolean,
-  accessibleAccountIds: readonly string[] = [],
-): UseWorkspaceDetailResult
+// ── Quick-access card definitions ─────────────────────────────────────────────
 ⋮----
-async function loadWorkspace()
+interface QuickAccessCard {
+  readonly key: string;
+  readonly label: string;
+  readonly description: string;
+  readonly icon: React.ReactNode;
+  readonly buildHref: (accountId: string, workspaceId: string) => string;
+}
+⋮----
+function enc(s: string): string
+⋮----
+// ── Component ─────────────────────────────────────────────────────────────────
+⋮----
+{/* ── Header ──────────────────────────────────────────────────────── */}
+⋮----
+{/* ── Active workspace quick-access ──────────────────────────────── */}
+⋮----
+{/* ── All workspaces list ─────────────────────────────────────────── */}
+````
+
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx
+````typescript
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { type FormEvent, useState } from "react";
+⋮----
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+⋮----
+import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";
+import { getWorkspaceGovernanceSummary } from "../../view-models/workspace-supporting-records";
+import { CreateWorkspaceDialog } from "../dialogs/CreateWorkspaceDialog";
+⋮----
+interface WorkspaceHubScreenProps {
+  readonly accountId: string | null | undefined;
+  readonly accountName: string | null | undefined;
+  readonly accountType: "user" | "organization";
+  readonly accountsHydrated: boolean;
+  readonly isBootstrapSeeded: boolean;
+  readonly currentUserId?: string | null;
+}
+⋮----
+export function WorkspaceHubScreen({
+  accountId,
+  accountName,
+  accountType,
+  accountsHydrated,
+  isBootstrapSeeded,
+  currentUserId,
+}: WorkspaceHubScreenProps)
+⋮----
+function resetCreateWorkspaceDialog()
+⋮----
+async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>)
+⋮----
+onClick=
+⋮----
+onOpenChange=
+onWorkspaceNameChange=
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx
+````typescript
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { Badge } from "@ui-shadcn/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Separator } from "@ui-shadcn/ui/separator";
+import { describeGrant } from "../../view-models/workspace-grants";
+import { WorkspaceOverviewSettingsTab } from "./WorkspaceOverviewSettingsTab";
+import { WorkspaceOverviewSummaryCard } from "../cards/WorkspaceOverviewSummaryCard";
+import { WorkspaceProductSpineCard } from "../cards/WorkspaceProductSpineCard";
+import { WorkspaceQuickstartCard } from "../cards/WorkspaceQuickstartCard";
+import { WorkspaceOverviewKnowledgePanels } from "./WorkspaceOverviewKnowledgePanels";
+⋮----
+interface WorkspaceOverviewTabProps {
+  readonly workspace: WorkspaceEntity;
+  readonly activeWorkspaceId: string | null | undefined;
+  readonly currentUserId?: string | null;
+  readonly personnelEntries: Array<{ label: string; value: string | undefined }>;
+  readonly addressLines: string[];
+  readonly initialPanel?: string;
+  readonly onEditClick: () => void;
+  readonly onSetActiveWorkspace: () => void;
+}
+⋮----
+type WorkspaceOverviewSurface =
+  | "home"
+  | "knowledge-pages"
+  | "knowledge-base-articles"
+  | "knowledge-databases"
+  | "source-libraries"
+  | "governance"
+  | "profile";
+⋮----
+function resolveWorkspaceOverviewSurface(panel?: string): WorkspaceOverviewSurface
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow-task-batch-job.actions.ts
@@ -51113,6 +51149,69 @@ export async function runKnowledgeRagQueryAction(
 // Thread persistence actions
 ````
 
+## File: modules/notion/interfaces/authoring/components/ArticleDetailPanel.tsx
+````typescript
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  Archive,
+  ArrowLeft,
+  BadgeCheck,
+  Edit,
+  FileClock,
+  MessageSquare,
+  History,
+  Globe,
+  Link2,
+} from "lucide-react";
+⋮----
+import { getArticle, getCategories, getBacklinks } from "../queries";
+import {
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+} from "../_actions/article.actions";
+import { ArticleDialog } from "./ArticleDialog";
+import type { ArticleSnapshot as Article } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import { CommentPanel, VersionHistoryPanel } from "@/modules/notion/api";
+import { ReactMarkdown } from "@lib-react-markdown";
+import { remarkGfm } from "@lib-remark-gfm";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
+⋮----
+// ── Props ─────────────────────────────────────────────────────────────────────
+⋮----
+export interface ArticleDetailPanelProps {
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+⋮----
+// ── Component ─────────────────────────────────────────────────────────────────
+⋮----
+function buildArticleDetailHref(targetArticleId: string): string
+⋮----
+function handlePublish()
+⋮----
+function handleArchive()
+⋮----
+function handleVerify()
+⋮----
+function handleRequestReview()
+⋮----
+<Button variant="ghost" size="sm" onClick=
+⋮----
+{/* Back + actions bar */}
+⋮----
+{/* Header */}
+⋮----
+{/* Body tabs */}
+````
+
 ## File: modules/notion/interfaces/database/components/DatabaseFormPanel.tsx
 ````typescript
 /**
@@ -51193,6 +51292,65 @@ function handleDelete(recordId: string)
 ⋮----
 ````
 
+## File: modules/notion/interfaces/database/components/KnowledgeDatabasesPanel.tsx
+````typescript
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Table2 } from "lucide-react";
+⋮----
+import { useAuth } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+⋮----
+import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
+import { getDatabases } from "../queries";
+import { DatabaseDialog } from "./DatabaseDialog";
+⋮----
+/**
+ * KnowledgeDatabasesPanel
+ * Route-level screen component for /knowledge-database/databases.
+ * Encapsulates data-loading and layout so the Next.js route file stays thin.
+ */
+export interface KnowledgeDatabasesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly currentUserId?: string | null;
+}
+⋮----
+function handleSuccess(databaseId?: string)
+````
+
+## File: modules/platform/interfaces/web/shell/search/ShellGlobalSearchDialog.tsx
+````typescript
+import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { FileText, Layout } from "lucide-react";
+import { listShellCommandCatalogItems } from "../../../../subdomains/search/api";
+import { buildShellContextualHref } from "../../../../subdomains/platform-config/api";
+⋮----
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from "@ui-shadcn/ui/command";
+⋮----
+interface ShellGlobalSearchDialogProps {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+}
+⋮----
+function handleSelect(href: string)
+⋮----
+/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
+⋮----
+function onKeyDown(event: KeyboardEvent)
+````
+
 ## File: modules/platform/subdomains/identity/interfaces/hooks/useTokenRefreshListener.tsx
 ````typescript
 import { getFirebaseAuth } from "@integration-firebase";
@@ -51226,46 +51384,29 @@ export function useTokenRefreshListener(accountId: string | null | undefined): v
 // --- Interfaces (UI, queries, actions) ---
 ````
 
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx
+## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
 ````typescript
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Separator } from "@ui-shadcn/ui/separator";
-import { describeGrant } from "../../view-models/workspace-grants";
-import { WorkspaceOverviewSettingsTab } from "./WorkspaceOverviewSettingsTab";
-import { WorkspaceOverviewSummaryCard } from "../cards/WorkspaceOverviewSummaryCard";
-import { WorkspaceProductSpineCard } from "../cards/WorkspaceProductSpineCard";
-import { WorkspaceQuickstartCard } from "../cards/WorkspaceQuickstartCard";
-import { WorkspaceOverviewKnowledgePanels } from "./WorkspaceOverviewKnowledgePanels";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { WorkspaceEntity } from "../../api/contracts";
+import { getWorkspaceById, getWorkspaceByIdForAccount } from "../../api/facades";
 ⋮----
-interface WorkspaceOverviewTabProps {
-  readonly workspace: WorkspaceEntity;
-  readonly activeWorkspaceId: string | null | undefined;
-  readonly currentUserId?: string | null;
-  readonly personnelEntries: Array<{ label: string; value: string | undefined }>;
-  readonly addressLines: string[];
-  readonly initialPanel?: string;
-  readonly onEditClick: () => void;
-  readonly onSetActiveWorkspace: () => void;
+export type WorkspaceLoadState = "loading" | "loaded" | "error";
+⋮----
+export interface UseWorkspaceDetailResult {
+  workspace: WorkspaceEntity | null;
+  loadState: WorkspaceLoadState;
+  setWorkspace: (ws: WorkspaceEntity) => void;
 }
 ⋮----
-type WorkspaceOverviewSurface =
-  | "home"
-  | "knowledge-pages"
-  | "knowledge-base-articles"
-  | "knowledge-databases"
-  | "source-libraries"
-  | "governance"
-  | "profile";
+export function useWorkspaceDetail(
+  workspaceId: string,
+  accountId: string | null | undefined,
+  accountsHydrated: boolean,
+  accessibleAccountIds: readonly string[] = [],
+): UseWorkspaceDetailResult
 ⋮----
-function resolveWorkspaceOverviewSurface(panel?: string): WorkspaceOverviewSurface
+async function loadWorkspace()
 ````
 
 ## File: modules/workspace/interfaces/web/navigation/nav-preferences-data.ts
@@ -51465,68 +51606,6 @@ export function writeNavPreferences(prefs: NavPreferences): void
 }
 ````
 
-## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
-````typescript
-/**
- * ShellDashboardSidebar — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it composes workspace module components.
- */
-⋮----
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-⋮----
-import {
-  buildWorkspaceQuickAccessItems,
-  CustomizeNavigationDialog,
-  getWorkspaceIdFromPath,
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  readNavPreferences,
-  supportsWorkspaceSearchContext,
-  type NavPreferences,
-  useRecentWorkspaces,
-  useSidebarLocale,
-  WorkspaceQuickAccessRow,
-} from "@/modules/workspace/api";
-⋮----
-import {
-  type DashboardSidebarProps,
-  ORGANIZATION_MANAGEMENT_ITEMS,
-  ACCOUNT_NAV_ITEMS,
-  SECTION_TITLES,
-  resolveNavSection,
-  isActiveRoute,
-  isActiveOrganizationAccount,
-} from "./ShellSidebarNavData";
-import { ShellSidebarHeader } from "./ShellSidebarHeader";
-import { DashboardSidebarBody } from "./ShellSidebarBody";
-⋮----
-export function ShellDashboardSidebar({
-  pathname,
-  activeAccount,
-  workspaces,
-  activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
-  onSelectWorkspace,
-}: DashboardSidebarProps)
-⋮----
-isActiveRoute={(href) => isActiveRoute(pathname, href)}
-          activeAccountId={activeAccount?.id ?? null}
-          showAccountManagement={showAccountManagement}
-          visibleAccountItems={visibleAccountItems}
-          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
-          workspacePathId={workspacePathId}
-          navPrefs={navPrefs}
-          localeBundle={localeBundle}
-          showRecentWorkspaces={showRecentWorkspaces}
-          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
-          hasOverflow={hasOverflow}
-          isExpanded={isExpanded}
-          activeWorkspaceId={activeWorkspaceId}
-          onSelectWorkspace={onSelectWorkspace}
-onToggleExpanded=
-````
-
 ## File: modules/notebooklm/subdomains/source/api/index.ts
 ````typescript
 /**
@@ -51664,35 +51743,6 @@ export async function updateAccountProfile(
 // Legacy compatibility exports for migration window.
 ````
 
-## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
-````typescript
-import { useEffect, useMemo, useState } from "react";
-⋮----
-import type { WorkspaceEntity } from "../../api/contracts";
-⋮----
-interface RecentWorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-⋮----
-function getStorageKey(accountId: string)
-⋮----
-function readRecentWorkspaceIds(accountId: string): string[]
-⋮----
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[])
-⋮----
-function trackWorkspaceFromPath(pathname: string, accountId: string)
-⋮----
-function getWorkspaceIdFromPath(pathname: string): string | null
-⋮----
-export function useRecentWorkspaces(
-  accountId: string | undefined,
-  pathname: string,
-  workspaces: WorkspaceEntity[],
-)
-````
-
 ## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
 ````typescript
 export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
@@ -51814,6 +51864,291 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
+## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
+````typescript
+/**
+ * ShellDashboardSidebar — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it composes workspace module components.
+ */
+⋮----
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+⋮----
+import {
+  buildWorkspaceQuickAccessItems,
+  CustomizeNavigationDialog,
+  getWorkspaceIdFromPath,
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  readNavPreferences,
+  supportsWorkspaceSearchContext,
+  type NavPreferences,
+  useRecentWorkspaces,
+  useSidebarLocale,
+  WorkspaceQuickAccessRow,
+} from "@/modules/workspace/api";
+⋮----
+import {
+  type DashboardSidebarProps,
+  ORGANIZATION_MANAGEMENT_ITEMS,
+  ACCOUNT_NAV_ITEMS,
+  SECTION_TITLES,
+  resolveNavSection,
+  isActiveRoute,
+  isActiveOrganizationAccount,
+} from "./ShellSidebarNavData";
+import { ShellSidebarHeader } from "./ShellSidebarHeader";
+import { DashboardSidebarBody } from "./ShellSidebarBody";
+⋮----
+export function ShellDashboardSidebar({
+  pathname,
+  activeAccount,
+  workspaces,
+  activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
+  onSelectWorkspace,
+}: DashboardSidebarProps)
+⋮----
+isActiveRoute={(href) => isActiveRoute(pathname, href)}
+          activeAccountId={activeAccount?.id ?? null}
+          showAccountManagement={showAccountManagement}
+          visibleAccountItems={visibleAccountItems}
+          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
+          workspacePathId={workspacePathId}
+          navPrefs={navPrefs}
+          localeBundle={localeBundle}
+          showRecentWorkspaces={showRecentWorkspaces}
+          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+          hasOverflow={hasOverflow}
+          isExpanded={isExpanded}
+          activeWorkspaceId={activeWorkspaceId}
+          onSelectWorkspace={onSelectWorkspace}
+onToggleExpanded=
+````
+
+## File: eslint.config.mjs
+````javascript
+// ─── Globs ───────────────────────────────────────────────────────────────────
+⋮----
+// ─── Module boundary helpers ─────────────────────────────────────────────────
+⋮----
+const normalizeWarnSeverity = (ruleConfig) =>
+⋮----
+const mapRulesToWarn = (rules =
+⋮----
+const maxLinesRule = (max) => [WARN,
+const restrictedImportsRule = (patterns, extraOptions =
+const restrictedSyntaxRule = (selectors)
+⋮----
+const sameDomain = (type) => (
+⋮----
+const sameSubdomain = (type) => (
+⋮----
+const anyDomain = (type) => (
+⋮----
+// ─── Restricted import patterns ───────────────────────────────────────────────
+⋮----
+// ─── Config ───────────────────────────────────────────────────────────────────
+⋮----
+// JSDoc
+⋮----
+// TypeScript naming + type imports + unused vars
+⋮----
+// React + a11y
+⋮----
+// Module boundaries (eslint-plugin-boundaries)
+⋮----
+// File-size guardrails per Hexagonal DDD layer
+⋮----
+// Legacy alias migration
+⋮----
+// app / providers / debug → only module api entrypoints
+⋮----
+// modules → strict entrypoint + internal layer enforcement
+⋮----
+// Cyclic-dependency smell signal: lazy require should remain exceptional, not normal composition.
+⋮----
+// Dependency-leakage smell signal: api boundaries must not wildcard re-export inner layers.
+⋮----
+// packages must not depend on application modules
+⋮----
+// Genkit must be centralized in platform AI infrastructure adapter.
+⋮----
+// Downstream interfaces must consume platform APIs, not Firebase SDK wrappers directly.
+⋮----
+// Downstream infrastructure must delegate Firebase access via platform infrastructure APIs.
+⋮----
+// notion/notebooklm interface layers must not read workspace context directly.
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseListPanel.tsx
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseListPanel ??flat record list with fields as readable rows.
+ */
+⋮----
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
+⋮----
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+⋮----
+import { getRecords } from "../queries";
+import { createRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+⋮----
+interface DatabaseListPanelProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+⋮----
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown
+⋮----
+function displayValue(val: unknown, type: string): string
+⋮----
+function toggleExpand(id: string)
+⋮----
+function handleAdd()
+⋮----
+function handleDelete(recordId: string)
+````
+
+## File: modules/notion/subdomains/database/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ *
+ * Open Host Service contracts:
+ *   - getDatabaseById  ??consumed by knowledge subdomain (opaque reference resolution)
+ */
+⋮----
+// Domain types
+⋮----
+// Repository input types
+⋮----
+// Application DTOs
+⋮----
+// Server actions
+⋮----
+// Queries
+⋮----
+// UI components
+````
+
+## File: modules/notion/subdomains/knowledge/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ */
+⋮----
+// ?? Types (read-only snapshots ??no aggregate class refs) ?????????????????????
+⋮----
+/** @alias KnowledgePageSnapshot ??provided for backward-compatibility */
+⋮----
+// ?? Server action DTOs ????????????????????????????????????????????????????????
+⋮----
+// ?? Query functions (server-side reads) ???????????????????????????????????????
+⋮----
+// ?? Server actions (drives: app router, Server Components) ????????????????????
+⋮----
+// ?? UI Components ?????????????????????????????????????????????????????????????
+⋮----
+// ?? Store ?????????????????????????????????????????????????????????????????????
+⋮----
+// ?? Tree node type (needed by app/ pages) ?????????????????????????????????????
+⋮----
+// ?? Domain events (published language ??for cross-module event subscriptions) ?
+⋮----
+// ?? Sidebar component ?????????????????????????????????????????????????????????
+⋮----
+// ?? Page header widgets ???????????????????????????????????????????????????????
+⋮----
+// ?? Route screen components ???????????????????????????????????????????????????
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewKnowledgePanels.tsx
+````typescript
+import { KnowledgeBaseArticlesPanel, KnowledgeDatabasesPanel, KnowledgePagesPanel } from "@/modules/notion/api";
+import { LibrariesPanel, LibraryTablePanel } from "@/modules/notebooklm/api";
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+⋮----
+interface WorkspaceOverviewKnowledgePanelsProps {
+  readonly workspace: WorkspaceEntity;
+  readonly currentUserId?: string | null;
+  readonly activeSurface: string;
+}
+````
+
+## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
+````typescript
+import { useEffect, useMemo, useState } from "react";
+⋮----
+import type { WorkspaceEntity } from "../../api/contracts";
+⋮----
+interface RecentWorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+⋮----
+function getStorageKey(accountId: string)
+⋮----
+function readRecentWorkspaceIds(accountId: string): string[]
+⋮----
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[])
+⋮----
+function trackWorkspaceFromPath(pathname: string, accountId: string)
+⋮----
+function getWorkspaceIdFromPath(pathname: string): string | null
+⋮----
+export function useRecentWorkspaces(
+  accountId: string | undefined,
+  pathname: string,
+  workspaces: WorkspaceEntity[],
+)
+````
+
+## File: modules/workspace/interfaces/web/navigation/workspace-context-links.ts
+````typescript
+export interface WorkspaceNavigationContext {
+  readonly accountId: string | null;
+  readonly workspaceId: string | null;
+}
+⋮----
+export type WorkspaceOverviewPanel = (typeof WORKSPACE_OVERVIEW_PANELS)[number];
+⋮----
+function tryGetAccountIdFromPath(pathname: string): string | null
+⋮----
+function buildWorkspaceBaseHref(workspaceId: string, accountId?: string | null): string
+⋮----
+export function buildWorkspaceOverviewPanelHref(
+  workspaceId: string,
+  panel?: WorkspaceOverviewPanel,
+  accountId?: string | null,
+): string
+⋮----
+export function supportsWorkspaceSearchContext(_pathname: string): boolean
+⋮----
+export function buildWorkspaceContextHref(pathname: string, workspaceId: string): string
+⋮----
+export function appendWorkspaceContextQuery(
+  href: string,
+  context: WorkspaceNavigationContext,
+): string
+````
+
 ## File: app/(shell)/_shell/ShellAppRail.tsx
 ````typescript
 /**
@@ -51902,265 +52237,6 @@ onClick=
 onSelectWorkspace(workspace.id);
 ⋮----
 accountType=
-````
-
-## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesPanel.tsx
-````typescript
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
-⋮----
-import { useAuth } from "@/modules/platform/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-⋮----
-import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import { getArticles, getCategories } from "../queries";
-import { ArticleDialog } from "./ArticleDialog";
-import { CategoryTreePanel } from "./CategoryTreePanel";
-⋮----
-/**
- * KnowledgeBaseArticlesPanel
- * Route-level screen component for /knowledge-base/articles.
- * Encapsulates data-loading, filtering and layout so the Next.js route
- * file stays thin (params/context wiring only).
- */
-export interface KnowledgeBaseArticlesPanelProps {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly currentUserId?: string | null;
-}
-⋮----
-function handleSuccess(articleId?: string)
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseListPanel.tsx
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseListPanel ??flat record list with fields as readable rows.
- */
-⋮----
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
-⋮----
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-⋮----
-import { getRecords } from "../queries";
-import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
-⋮----
-interface DatabaseListPanelProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-⋮----
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown
-⋮----
-function displayValue(val: unknown, type: string): string
-⋮----
-function toggleExpand(id: string)
-⋮----
-function handleAdd()
-⋮----
-function handleDelete(recordId: string)
-````
-
-## File: modules/notion/interfaces/knowledge/components/KnowledgePagesPanel.tsx
-````typescript
-import { useCallback, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-⋮----
-import { useAuth } from "@/modules/platform/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-⋮----
-import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
-import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
-import { PageTreePanel } from "./PageTreePanel";
-⋮----
-/**
- * KnowledgePagesPanel
- * Route-level screen component for /knowledge/pages.
- * Encapsulates data-loading, scope resolution and layout so that the
- * Next.js route file stays thin (params/context wiring only).
- */
-export interface KnowledgePagesPanelProps {
-  readonly accountId: string;
-  readonly workspaceId?: string | null;
-  readonly currentUserId?: string | null;
-  readonly scope?: "workspace" | "account";
-}
-⋮----
-function buildPageDetailHref(pageId: string)
-⋮----
-onCreated=
-````
-
-## File: modules/notion/subdomains/database/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- *
- * Open Host Service contracts:
- *   - getDatabaseById  ??consumed by knowledge subdomain (opaque reference resolution)
- */
-⋮----
-// Domain types
-⋮----
-// Repository input types
-⋮----
-// Application DTOs
-⋮----
-// Server actions
-⋮----
-// Queries
-⋮----
-// UI components
-````
-
-## File: modules/notion/subdomains/knowledge/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- */
-⋮----
-// ?? Types (read-only snapshots ??no aggregate class refs) ?????????????????????
-⋮----
-/** @alias KnowledgePageSnapshot ??provided for backward-compatibility */
-⋮----
-// ?? Server action DTOs ????????????????????????????????????????????????????????
-⋮----
-// ?? Query functions (server-side reads) ???????????????????????????????????????
-⋮----
-// ?? Server actions (drives: app router, Server Components) ????????????????????
-⋮----
-// ?? UI Components ?????????????????????????????????????????????????????????????
-⋮----
-// ?? Store ?????????????????????????????????????????????????????????????????????
-⋮----
-// ?? Tree node type (needed by app/ pages) ?????????????????????????????????????
-⋮----
-// ?? Domain events (published language ??for cross-module event subscriptions) ?
-⋮----
-// ?? Sidebar component ?????????????????????????????????????????????????????????
-⋮----
-// ?? Page header widgets ???????????????????????????????????????????????????????
-⋮----
-// ?? Route screen components ???????????????????????????????????????????????????
-````
-
-## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
-````typescript
-// ── Types ──────────────────────────────────────────────────────────────────────
-⋮----
-export type ShellNavSection =
-  | "workspace"
-  | "dashboard"
-  | "account"
-  | "organization"
-  | "other";
-⋮----
-export interface ShellNavItem {
-  readonly id: string;
-  readonly label: string;
-  readonly href: string;
-}
-⋮----
-export interface ShellRailCatalogItem {
-  readonly id: string;
-  readonly href: string;
-  readonly label: string;
-  /** If true, this item is only visible to organization accounts. */
-  readonly requiresOrganization: boolean;
-  /** Route prefix for active-state matching. When absent, defaults to href. */
-  readonly activeRoutePrefix?: string;
-}
-⋮----
-/** If true, this item is only visible to organization accounts. */
-⋮----
-/** Route prefix for active-state matching. When absent, defaults to href. */
-⋮----
-export interface ShellContextSectionConfig {
-  readonly title: string;
-  readonly items: readonly { href: string; label: string }[];
-}
-⋮----
-export interface ShellRouteContext {
-  readonly accountId?: string | null;
-  readonly workspaceId?: string | null;
-}
-⋮----
-function parseHref(href: string):
-⋮----
-function joinHref(path: string, query: string): string
-⋮----
-function isAccountScopedWorkspacePath(pathname: string): boolean
-⋮----
-export function normalizeShellRoutePath(pathname: string): string
-⋮----
-export function buildShellContextualHref(
-  href: string,
-  context: ShellRouteContext,
-): string
-⋮----
-// ── Route-matching utility ────────────────────────────────────────────────────
-⋮----
-export function isExactOrChildPath(targetPath: string, pathname: string): boolean
-⋮----
-// ── Account section matchers ──────────────────────────────────────────────────
-⋮----
-// ── Route titles & breadcrumb labels ──────────────────────────────────────────
-⋮----
-// ── Organization management items ─────────────────────────────────────────────
-⋮----
-// ── Account nav items ─────────────────────────────────────────────────────────
-⋮----
-// ── Section labels ────────────────────────────────────────────────────────────
-⋮----
-// ── Rail catalog ──────────────────────────────────────────────────────────────
-⋮----
-export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[]
-⋮----
-// ── Context section config ────────────────────────────────────────────────────
-⋮----
-// ── Mobile & organization nav items ───────────────────────────────────────────
-⋮----
-// ── Section resolvers ─────────────────────────────────────────────────────────
-⋮----
-export function resolveShellNavSection(pathname: string): ShellNavSection
-⋮----
-export function resolveShellPageTitle(pathname: string): string
-⋮----
-export function resolveShellBreadcrumbLabel(segment: string): string
-````
-
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewKnowledgePanels.tsx
-````typescript
-import { KnowledgeBaseArticlesPanel, KnowledgeDatabasesPanel, KnowledgePagesPanel } from "@/modules/notion/api";
-import { LibrariesPanel, LibraryTablePanel } from "@/modules/notebooklm/api";
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-⋮----
-interface WorkspaceOverviewKnowledgePanelsProps {
-  readonly workspace: WorkspaceEntity;
-  readonly currentUserId?: string | null;
-  readonly activeSurface: string;
-}
 ````
 
 ## File: app/(shell)/_shell/ShellSidebarBody.tsx
@@ -52282,6 +52358,180 @@ className=
 // ── UI components (downstream surface for workspace composition) ─────────────
 ````
 
+## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesPanel.tsx
+````typescript
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
+⋮----
+import { useAuth } from "@/modules/platform/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+⋮----
+import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import { getArticles, getCategories } from "../queries";
+import { ArticleDialog } from "./ArticleDialog";
+import { CategoryTreePanel } from "./CategoryTreePanel";
+⋮----
+/**
+ * KnowledgeBaseArticlesPanel
+ * Route-level screen component for /knowledge-base/articles.
+ * Encapsulates data-loading, filtering and layout so the Next.js route
+ * file stays thin (params/context wiring only).
+ */
+export interface KnowledgeBaseArticlesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly currentUserId?: string | null;
+}
+⋮----
+function handleSuccess(articleId?: string)
+````
+
+## File: modules/notion/interfaces/knowledge/components/KnowledgePagesPanel.tsx
+````typescript
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+⋮----
+import { useAuth } from "@/modules/platform/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+⋮----
+import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
+import { PageTreePanel } from "./PageTreePanel";
+⋮----
+/**
+ * KnowledgePagesPanel
+ * Route-level screen component for /knowledge/pages.
+ * Encapsulates data-loading, scope resolution and layout so that the
+ * Next.js route file stays thin (params/context wiring only).
+ */
+export interface KnowledgePagesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId?: string | null;
+  readonly currentUserId?: string | null;
+  readonly scope?: "workspace" | "account";
+}
+⋮----
+function buildPageDetailHref(pageId: string)
+⋮----
+onCreated=
+````
+
+## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
+````typescript
+// ── Types ──────────────────────────────────────────────────────────────────────
+⋮----
+export type ShellNavSection =
+  | "workspace"
+  | "dashboard"
+  | "account"
+  | "organization"
+  | "other";
+⋮----
+export interface ShellNavItem {
+  readonly id: string;
+  readonly label: string;
+  readonly href: string;
+}
+⋮----
+export interface ShellRailCatalogItem {
+  readonly id: string;
+  readonly href: string;
+  readonly label: string;
+  /** If true, this item is only visible to organization accounts. */
+  readonly requiresOrganization: boolean;
+  /** Route prefix for active-state matching. When absent, defaults to href. */
+  readonly activeRoutePrefix?: string;
+}
+⋮----
+/** If true, this item is only visible to organization accounts. */
+⋮----
+/** Route prefix for active-state matching. When absent, defaults to href. */
+⋮----
+export interface ShellContextSectionConfig {
+  readonly title: string;
+  readonly items: readonly { href: string; label: string }[];
+}
+⋮----
+export interface ShellRouteContext {
+  readonly accountId?: string | null;
+  readonly workspaceId?: string | null;
+}
+⋮----
+function parseHref(href: string):
+⋮----
+function joinHref(path: string, query: string): string
+⋮----
+function isAccountScopedWorkspacePath(pathname: string): boolean
+⋮----
+export function normalizeShellRoutePath(pathname: string): string
+⋮----
+export function buildShellContextualHref(
+  href: string,
+  context: ShellRouteContext,
+): string
+⋮----
+// ── Route-matching utility ────────────────────────────────────────────────────
+⋮----
+export function isExactOrChildPath(targetPath: string, pathname: string): boolean
+⋮----
+// ── Account section matchers ──────────────────────────────────────────────────
+⋮----
+// ── Route titles & breadcrumb labels ──────────────────────────────────────────
+⋮----
+// ── Organization management items ─────────────────────────────────────────────
+⋮----
+// ── Account nav items ─────────────────────────────────────────────────────────
+⋮----
+// ── Section labels ────────────────────────────────────────────────────────────
+⋮----
+// ── Rail catalog ──────────────────────────────────────────────────────────────
+⋮----
+export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[]
+⋮----
+// ── Context section config ────────────────────────────────────────────────────
+⋮----
+// ── Mobile & organization nav items ───────────────────────────────────────────
+⋮----
+// ── Section resolvers ─────────────────────────────────────────────────────────
+⋮----
+export function resolveShellNavSection(pathname: string): ShellNavSection
+⋮----
+export function resolveShellPageTitle(pathname: string): string
+⋮----
+export function resolveShellBreadcrumbLabel(segment: string): string
+````
+
+## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
+````typescript
+import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Library, MessageSquare, Notebook, Shield, User, Users } from "lucide-react";
+import type { ReactNode } from "react";
+⋮----
+function isWorkspaceScopedPath(pathname: string)
+⋮----
+export interface WorkspaceQuickAccessMatcherOptions {
+  panel: string | null;
+  tab: string | null;
+}
+⋮----
+export interface WorkspaceQuickAccessItem {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
+}
+⋮----
+export function buildWorkspaceQuickAccessItems(
+  workspaceId: string,
+  accountId?: string | null,
+): WorkspaceQuickAccessItem[]
+````
+
 ## File: modules/notion/interfaces/database/components/DatabaseFormsPanel.tsx
 ````typescript
 /**
@@ -52315,58 +52565,178 @@ export interface DatabaseFormsPanelProps {
 {/* Top bar */}
 ````
 
-## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
+## File: modules/workspace/api/ui.ts
 ````typescript
-import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Library, MessageSquare, Notebook, Shield, User, Users } from "lucide-react";
-import type { ReactNode } from "react";
+/**
+ * workspace api/ui.ts
+ *
+ * Canonical public web UI surface for the workspace bounded context.
+ * App-layer consumers that need workspace UI components, hooks, and
+ * navigation utilities should import from here.
+ *
+ * Internal source: interfaces/web/
+ */
 ⋮----
-function isWorkspaceScopedPath(pathname: string)
+// ── Screen components ────────────────────────────────────────────────────────
 ⋮----
-export interface WorkspaceQuickAccessMatcherOptions {
-  panel: string | null;
-  tab: string | null;
-}
+// ── Card components ──────────────────────────────────────────────────────────
 ⋮----
-export interface WorkspaceQuickAccessItem {
-  href: string;
-  label: string;
-  icon: ReactNode;
-  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
-}
+// ── Tab components ───────────────────────────────────────────────────────────
 ⋮----
-export function buildWorkspaceQuickAccessItems(
-  workspaceId: string,
-  accountId?: string | null,
-): WorkspaceQuickAccessItem[]
+// ── Layout components ────────────────────────────────────────────────────────
+⋮----
+// ── Rail components ──────────────────────────────────────────────────────────
+⋮----
+// ── Navigation ────────────────────────────────────────────────────────────────
+⋮----
+// ── Quick-access navigation ───────────────────────────────────────────────────
+⋮----
+// ── State helpers ─────────────────────────────────────────────────────────────
+⋮----
+// ── Map utilities ─────────────────────────────────────────────────────────────
+⋮----
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+⋮----
+// ── Workspace context provider ────────────────────────────────────────────────
+⋮----
+// ── Navigation preferences ────────────────────────────────────────────────────
+⋮----
+// ── Sidebar locale ────────────────────────────────────────────────────────────
+⋮----
+// ── Navigation customize dialog ───────────────────────────────────────────────
+⋮----
+// ── Orchestrated notion UI (workspace as composition owner) ──────────────────
 ````
 
-## File: modules/workspace/interfaces/web/navigation/workspace-context-links.ts
+## File: modules/notion/interfaces/database/components/DatabaseDetailPanel.tsx
 ````typescript
-export interface WorkspaceNavigationContext {
-  readonly accountId: string | null;
-  readonly workspaceId: string | null;
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Archive,
+  FileText,
+  PlusCircle,
+  Table2,
+  Kanban,
+  List,
+  Calendar,
+  LayoutGrid,
+  Zap,
+} from "lucide-react";
+⋮----
+import { getDatabase } from "../queries";
+import { addDatabaseField, archiveDatabase } from "../_actions/database.actions";
+import { DatabaseTablePanel } from "./DatabaseTablePanel";
+import { DatabaseBoardPanel } from "./DatabaseBoardPanel";
+import { DatabaseListPanel } from "./DatabaseListPanel";
+import { DatabaseCalendarPanel } from "./DatabaseCalendarPanel";
+import { DatabaseGalleryPanel } from "./DatabaseGalleryPanel";
+import { DatabaseAutomationPanel } from "./DatabaseAutomationPanel";
+import { AddFieldDialog } from "./DatabaseAddFieldDialog";
+import type { DatabaseSnapshot as Database, FieldType } from "../../../subdomains/database/application/dto/database.dto";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+⋮----
+// ?? Props ?????????????????????????????????????????????????????????????????????
+⋮----
+export interface DatabaseDetailPanelProps {
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
 }
 ⋮----
-export type WorkspaceOverviewPanel = (typeof WORKSPACE_OVERVIEW_PANELS)[number];
+// ?? Component ?????????????????????????????????????????????????????????????????
 ⋮----
-function tryGetAccountIdFromPath(pathname: string): string | null
+export function DatabaseDetailPanel({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: DatabaseDetailPanelProps)
 ⋮----
-function buildWorkspaceBaseHref(workspaceId: string, accountId?: string | null): string
+function handleAddField(name: string, type: FieldType, required: boolean)
 ⋮----
-export function buildWorkspaceOverviewPanelHref(
-  workspaceId: string,
-  panel?: WorkspaceOverviewPanel,
-  accountId?: string | null,
-): string
+function handleArchive()
 ⋮----
-export function supportsWorkspaceSearchContext(_pathname: string): boolean
+<Button variant="ghost" size="sm" onClick=
 ⋮----
-export function buildWorkspaceContextHref(pathname: string, workspaceId: string): string
+{/* Top bar */}
 ⋮----
-export function appendWorkspaceContextQuery(
-  href: string,
-  context: WorkspaceNavigationContext,
-): string
+{/* Page header */}
+⋮----
+{/* View switcher + actions */}
+⋮----
+onClick=
+⋮----
+<Button size="sm" variant="outline" onClick=
+⋮----
+{/* View */}
+````
+
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
+````typescript
+import Link from "next/link";
+import { useMemo, useState } from "react";
+⋮----
+import {
+  Card,
+  CardContent,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { useApp, useAuth } from "@/modules/platform/api";
+import {
+  WorkspaceAuditTab,
+  WorkspaceFeedWorkspaceView,
+  WorkspaceFlowTab,
+  WorkspaceSchedulingTab,
+} from "@/modules/workspace/api";
+import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
+import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
+⋮----
+import {
+  createSettingsDraft,
+  type WorkspaceSettingsDraft,
+} from "../../state/workspace-settings";
+import {
+  getWorkspaceAddressLines,
+  getWorkspacePersonnelEntries,
+} from "../../view-models/workspace-supporting-records";
+import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
+import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabValue,
+} from "../../navigation/workspace-tabs";
+import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
+import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
+import { renderWorkspaceCrossModuleTabSurface } from "../tabs/WorkspaceCrossModuleTabSurface";
+import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
+import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
+import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
+⋮----
+interface WorkspaceDetailScreenProps {
+  readonly workspaceId: string;
+  readonly accountId: string | null | undefined;
+  readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
+  readonly initialOverviewPanel?: string;
+}
+⋮----
+/** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+⋮----
+function renderTabContent(tab: WorkspaceTabValue)
+⋮----
+onSetActiveWorkspace=
+⋮----
+{/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+⋮----
+<Badge variant="outline">
+⋮----
+setIsEditWorkspaceOpen(open);
 ````
 
 ## File: package.json
@@ -52392,6 +52762,7 @@ export function appendWorkspaceContextQuery(
     "deploy:functions:all": "npx firebase deploy --only functions",
     "deploy:firebase": "npx firebase deploy",
     "repomix:skill": "npx repomix --config repomix.config.json --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
+    "repomix:markdown": "npx repomix --config repomix-markdown.config.json --skill-generate xuanwu-markdown-skill --skill-output .github/skills/xuanwu-markdown-skill --force",
     "repomix:explore": "npx repomix --config repomix.config.json",
     "repomix:remote": "npx repomix --remote",
     "repomix:local": "npx repomix"
@@ -52479,235 +52850,6 @@ export function appendWorkspaceContextQuery(
     "vitest": "^4.1.2"
   }
 }
-````
-
-## File: eslint.config.mjs
-````javascript
-// ─── Globs ───────────────────────────────────────────────────────────────────
-⋮----
-// ─── Module boundary helpers ─────────────────────────────────────────────────
-⋮----
-const normalizeWarnSeverity = (ruleConfig) =>
-⋮----
-const mapRulesToWarn = (rules =
-⋮----
-const maxLinesRule = (max) => [WARN,
-const restrictedImportsRule = (patterns, extraOptions =
-const restrictedSyntaxRule = (selectors)
-⋮----
-const sameDomain = (type) => (
-⋮----
-const sameSubdomain = (type) => (
-⋮----
-const anyDomain = (type) => (
-⋮----
-// ─── Restricted import patterns ───────────────────────────────────────────────
-⋮----
-// ─── Config ───────────────────────────────────────────────────────────────────
-⋮----
-// JSDoc
-⋮----
-// TypeScript naming + type imports + unused vars
-⋮----
-// React + a11y
-⋮----
-// Module boundaries (eslint-plugin-boundaries)
-⋮----
-// File-size guardrails per Hexagonal DDD layer
-⋮----
-// Legacy alias migration
-⋮----
-// app / providers / debug → only module api entrypoints
-⋮----
-// modules → strict entrypoint + internal layer enforcement
-⋮----
-// Cyclic-dependency smell signal: lazy require should remain exceptional, not normal composition.
-⋮----
-// Dependency-leakage smell signal: api boundaries must not wildcard re-export inner layers.
-⋮----
-// packages must not depend on application modules
-⋮----
-// Genkit must be centralized in platform AI infrastructure adapter.
-⋮----
-// Downstream interfaces must consume platform APIs, not Firebase SDK wrappers directly.
-⋮----
-// Downstream infrastructure must delegate Firebase access via platform infrastructure APIs.
-⋮----
-// notion/notebooklm interface layers must not read workspace context directly.
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseDetailPanel.tsx
-````typescript
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  Archive,
-  FileText,
-  PlusCircle,
-  Table2,
-  Kanban,
-  List,
-  Calendar,
-  LayoutGrid,
-  Zap,
-} from "lucide-react";
-⋮----
-import { getDatabase } from "../queries";
-import { addDatabaseField, archiveDatabase } from "../_actions/database.actions";
-import { DatabaseTablePanel } from "./DatabaseTablePanel";
-import { DatabaseBoardPanel } from "./DatabaseBoardPanel";
-import { DatabaseListPanel } from "./DatabaseListPanel";
-import { DatabaseCalendarPanel } from "./DatabaseCalendarPanel";
-import { DatabaseGalleryPanel } from "./DatabaseGalleryPanel";
-import { DatabaseAutomationPanel } from "./DatabaseAutomationPanel";
-import { AddFieldDialog } from "./DatabaseAddFieldDialog";
-import type { DatabaseSnapshot as Database, FieldType } from "../../../subdomains/database/application/dto/database.dto";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-⋮----
-// ?? Props ?????????????????????????????????????????????????????????????????????
-⋮----
-export interface DatabaseDetailPanelProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-⋮----
-// ?? Component ?????????????????????????????????????????????????????????????????
-⋮----
-export function DatabaseDetailPanel({
-  accountId,
-  workspaceId,
-  currentUserId,
-}: DatabaseDetailPanelProps)
-⋮----
-function handleAddField(name: string, type: FieldType, required: boolean)
-⋮----
-function handleArchive()
-⋮----
-<Button variant="ghost" size="sm" onClick=
-⋮----
-{/* Top bar */}
-⋮----
-{/* Page header */}
-⋮----
-{/* View switcher + actions */}
-⋮----
-onClick=
-⋮----
-<Button size="sm" variant="outline" onClick=
-⋮----
-{/* View */}
-````
-
-## File: modules/workspace/api/ui.ts
-````typescript
-/**
- * workspace api/ui.ts
- *
- * Canonical public web UI surface for the workspace bounded context.
- * App-layer consumers that need workspace UI components, hooks, and
- * navigation utilities should import from here.
- *
- * Internal source: interfaces/web/
- */
-⋮----
-// ── Screen components ────────────────────────────────────────────────────────
-⋮----
-// ── Card components ──────────────────────────────────────────────────────────
-⋮----
-// ── Tab components ───────────────────────────────────────────────────────────
-⋮----
-// ── Layout components ────────────────────────────────────────────────────────
-⋮----
-// ── Rail components ──────────────────────────────────────────────────────────
-⋮----
-// ── Navigation ────────────────────────────────────────────────────────────────
-⋮----
-// ── Quick-access navigation ───────────────────────────────────────────────────
-⋮----
-// ── State helpers ─────────────────────────────────────────────────────────────
-⋮----
-// ── Map utilities ─────────────────────────────────────────────────────────────
-⋮----
-// ── Hooks ─────────────────────────────────────────────────────────────────────
-⋮----
-// ── Workspace context provider ────────────────────────────────────────────────
-⋮----
-// ── Navigation preferences ────────────────────────────────────────────────────
-⋮----
-// ── Sidebar locale ────────────────────────────────────────────────────────────
-⋮----
-// ── Navigation customize dialog ───────────────────────────────────────────────
-⋮----
-// ── Orchestrated notion UI (workspace as composition owner) ──────────────────
-````
-
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
-````typescript
-import Link from "next/link";
-import { useMemo, useState } from "react";
-⋮----
-import {
-  Card,
-  CardContent,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { useApp, useAuth } from "@/modules/platform/api";
-import {
-  WorkspaceAuditTab,
-  WorkspaceFeedWorkspaceView,
-  WorkspaceFlowTab,
-  WorkspaceSchedulingTab,
-} from "@/modules/workspace/api";
-import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
-import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
-⋮----
-import {
-  createSettingsDraft,
-  type WorkspaceSettingsDraft,
-} from "../../state/workspace-settings";
-import {
-  getWorkspaceAddressLines,
-  getWorkspacePersonnelEntries,
-} from "../../view-models/workspace-supporting-records";
-import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabValue,
-} from "../../navigation/workspace-tabs";
-import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
-import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
-import { renderWorkspaceCrossModuleTabSurface } from "../tabs/WorkspaceCrossModuleTabSurface";
-import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
-import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
-import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
-⋮----
-interface WorkspaceDetailScreenProps {
-  readonly workspaceId: string;
-  readonly accountId: string | null | undefined;
-  readonly accountsHydrated: boolean;
-  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-  readonly initialTab?: string;
-  readonly initialOverviewPanel?: string;
-}
-⋮----
-/** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-⋮----
-function renderTabContent(tab: WorkspaceTabValue)
-⋮----
-onSetActiveWorkspace=
-⋮----
-{/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
-⋮----
-<Badge variant="outline">
-⋮----
-setIsEditWorkspaceOpen(open);
 ````
 
 ## File: modules/notion/interfaces/knowledge/components/KnowledgeDetailPanel.tsx
