@@ -20030,11 +20030,6 @@ async save(snapshot: AccessPolicySnapshot): Promise<void>
 async update(snapshot: AccessPolicySnapshot): Promise<void>
 ````
 
-## File: modules/platform/subdomains/access-control/infrastructure/index.ts
-````typescript
-
-````
-
 ## File: modules/platform/subdomains/access-control/README.md
 ````markdown
 # Access Control
@@ -20465,24 +20460,6 @@ User profile preferences and settings.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/account/api/legacy-account-profile.bridge.ts
-````typescript
-import { type UpdateProfileInput } from "../application/dtos/account.dto";
-import { accountService, createAccountQueryRepository } from "../infrastructure/account-service";
-import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
-⋮----
-function getAccountQueryRepo(): AccountQueryRepository
-⋮----
-export async function getLegacyUserProfile(userId: string)
-⋮----
-export function subscribeToLegacyUserProfile(
-  userId: string,
-  onUpdate: (profile: Awaited<ReturnType<typeof getLegacyUserProfile>>) => void,
-)
-⋮----
-export async function updateLegacyUserProfile(userId: string, input: UpdateProfileInput): Promise<void>
 ````
 
 ## File: modules/platform/subdomains/account/application/dtos/account.dto.ts
@@ -21246,11 +21223,6 @@ async revokeRole(accountId: string): Promise<void>
 async getRole(accountId: string): Promise<AccountRoleRecord | null>
 ````
 
-## File: modules/platform/subdomains/account/infrastructure/index.ts
-````typescript
-
-````
-
 ## File: modules/platform/subdomains/account/interfaces/_actions/account-policy.actions.ts
 ````typescript
 /**
@@ -21434,14 +21406,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/background-job/api/index.ts
-````typescript
-/**
- * Public API boundary for the background-job subdomain.
- * Cross-module consumers must import through this entry point.
- */
-````
-
 ## File: modules/platform/subdomains/background-job/application/index.ts
 ````typescript
 
@@ -21617,11 +21581,6 @@ export type IngestionJobDomainEventType =
   | IngestionJobFailedEvent;
 ````
 
-## File: modules/platform/subdomains/background-job/infrastructure/index.ts
-````typescript
-
-````
-
 ## File: modules/platform/subdomains/background-job/README.md
 ````markdown
 # Background Job
@@ -21738,14 +21697,6 @@ Platform content management.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/entitlement/api/index.ts
-````typescript
-/**
- * Public API boundary for the entitlement subdomain.
- * Cross-module consumers must import through this entry point.
- */
 ````
 
 ## File: modules/platform/subdomains/entitlement/application/dtos/entitlement.dto.ts
@@ -22047,11 +21998,6 @@ async findActiveByContextAndFeature(
 async save(snapshot: EntitlementGrantSnapshot): Promise<void>
 ⋮----
 async update(snapshot: EntitlementGrantSnapshot): Promise<void>
-````
-
-## File: modules/platform/subdomains/entitlement/infrastructure/index.ts
-````typescript
-
 ````
 
 ## File: modules/platform/subdomains/entitlement/README.md
@@ -22556,14 +22502,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/notification/api/index.ts
-````typescript
-/**
- * Public API boundary for the notification subdomain.
- * Cross-module consumers must import through this entry point.
- */
-````
-
 ## File: modules/platform/subdomains/notification/application/dtos/notification.dto.ts
 ````typescript
 /**
@@ -22829,11 +22767,6 @@ async markAllAsRead(recipientId: string): Promise<void>
 async findByRecipient(recipientId: string, maxCount = 50): Promise<NotificationEntity[]>
 ⋮----
 async getUnreadCount(recipientId: string): Promise<number>
-````
-
-## File: modules/platform/subdomains/notification/infrastructure/index.ts
-````typescript
-
 ````
 
 ## File: modules/platform/subdomains/notification/interfaces/_actions/notification.actions.ts
@@ -24109,13 +24042,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/subscription/api/index.ts
-````typescript
-/**
- * Public API boundary for the subscription subdomain.
- */
-````
-
 ## File: modules/platform/subdomains/subscription/application/dtos/index.ts
 ````typescript
 
@@ -24371,11 +24297,6 @@ async findByContextId(contextId: string): Promise<SubscriptionSnapshot[]>
 async save(snapshot: SubscriptionSnapshot): Promise<void>
 ⋮----
 async update(snapshot: SubscriptionSnapshot): Promise<void>
-````
-
-## File: modules/platform/subdomains/subscription/infrastructure/index.ts
-````typescript
-
 ````
 
 ## File: modules/platform/subdomains/subscription/README.md
@@ -41683,21 +41604,12 @@ export interface AppContextValue {
 export function useApp()
 ````
 
-## File: modules/platform/subdomains/access-control/api/index.ts
+## File: modules/platform/subdomains/access-control/infrastructure/index.ts
 ````typescript
 /**
- * Public API boundary for the access-control subdomain.
- */
-````
-
-## File: modules/platform/subdomains/access-control/infrastructure/access-control-service.ts
-````typescript
-/**
- * AccessControlService — Backward-compatibility re-export shim.
+ * Access-control infrastructure barrel — adapter exports only.
  *
- * Composition logic has been relocated to
- * interfaces/composition/access-control-service.ts to fix the
- * infrastructure → application dependency direction violation.
+ * Composition logic lives in interfaces/composition/access-control-service.ts.
  */
 ````
 
@@ -41798,6 +41710,24 @@ export async function updateAccountProfile(
 ): Promise<CommandResult>
 ````
 
+## File: modules/platform/subdomains/account/api/legacy-account-profile.bridge.ts
+````typescript
+import { type UpdateProfileInput } from "../application/dtos/account.dto";
+import { accountService, createAccountQueryRepository } from "../interfaces/composition/account-service";
+import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
+⋮----
+function getAccountQueryRepo(): AccountQueryRepository
+⋮----
+export async function getLegacyUserProfile(userId: string)
+⋮----
+export function subscribeToLegacyUserProfile(
+  userId: string,
+  onUpdate: (profile: Awaited<ReturnType<typeof getLegacyUserProfile>>) => void,
+)
+⋮----
+export async function updateLegacyUserProfile(userId: string, input: UpdateProfileInput): Promise<void>
+````
+
 ## File: modules/platform/subdomains/account/domain/index.ts
 ````typescript
 
@@ -41813,17 +41743,13 @@ export async function updateAccountProfile(
  */
 ````
 
-## File: modules/platform/subdomains/account/infrastructure/account-service.ts
+## File: modules/platform/subdomains/account/infrastructure/index.ts
 ````typescript
 /**
- * AccountService — Backward-compatibility re-export shim.
+ * Account infrastructure barrel — adapter exports only.
  *
- * Composition logic (use-case wiring, service facade) has been relocated to
- * interfaces/composition/account-service.ts to fix the
- * infrastructure → application dependency direction violation.
+ * Composition logic lives in interfaces/composition/account-service.ts.
  */
-⋮----
-// Internal re-export for the legacy bridge within this subdomain only.
 ````
 
 ## File: modules/platform/subdomains/account/interfaces/composition/account-service.ts
@@ -41992,6 +41918,14 @@ async generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>
 
 ````
 
+## File: modules/platform/subdomains/background-job/api/index.ts
+````typescript
+/**
+ * Public API boundary for the background-job subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+````
+
 ## File: modules/platform/subdomains/background-job/application/use-cases/ingestion.use-cases.ts
 ````typescript
 /**
@@ -42117,14 +42051,12 @@ updateStatus(input: {
   }): Promise<IngestionJob | null>;
 ````
 
-## File: modules/platform/subdomains/background-job/infrastructure/ingestion-service.ts
+## File: modules/platform/subdomains/background-job/infrastructure/index.ts
 ````typescript
 /**
- * ingestionService — Backward-compatibility re-export shim.
+ * Background-job infrastructure barrel — adapter exports only.
  *
- * Composition logic has been relocated to
- * interfaces/composition/ingestion-service.ts to fix the
- * infrastructure → application dependency direction violation.
+ * Composition logic lives in interfaces/composition/ingestion-service.ts.
  */
 ````
 
@@ -42219,14 +42151,20 @@ advanceStage(input: AdvanceIngestionStageInput): Promise<IngestionResult<Ingesti
 // need to reach into the domain layer directly).
 ````
 
-## File: modules/platform/subdomains/entitlement/infrastructure/entitlement-service.ts
+## File: modules/platform/subdomains/entitlement/api/index.ts
 ````typescript
 /**
- * EntitlementService — Backward-compatibility re-export shim.
+ * Public API boundary for the entitlement subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+````
+
+## File: modules/platform/subdomains/entitlement/infrastructure/index.ts
+````typescript
+/**
+ * Entitlement infrastructure barrel — adapter exports only.
  *
- * Composition logic has been relocated to
- * interfaces/composition/entitlement-service.ts to fix the
- * infrastructure → application dependency direction violation.
+ * Composition logic lives in interfaces/composition/entitlement-service.ts.
  */
 ````
 
@@ -42265,11 +42203,6 @@ function getRepo(): FirebaseEntitlementGrantRepository
  * Re-exports repository contracts from domain/repositories/, making the Ports layer
  * explicitly visible in the directory structure.
  */
-````
-
-## File: modules/platform/subdomains/identity/infrastructure/index.ts
-````typescript
-
 ````
 
 ## File: modules/platform/subdomains/identity/interfaces/composition/identity-service.ts
@@ -42418,6 +42351,14 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/platform/subdomains/notification/api/index.ts
+````typescript
+/**
+ * Public API boundary for the notification subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+````
+
 ## File: modules/platform/subdomains/notification/domain/index.ts
 ````typescript
 
@@ -42433,14 +42374,12 @@ interfaces/ → application/ → domain/ ← infrastructure/
  */
 ````
 
-## File: modules/platform/subdomains/notification/infrastructure/notification-service.ts
+## File: modules/platform/subdomains/notification/infrastructure/index.ts
 ````typescript
 /**
- * NotificationService — Backward-compatibility re-export shim.
+ * Notification infrastructure barrel — adapter exports only.
  *
- * Composition logic has been relocated to
- * interfaces/composition/notification-service.ts to fix the
- * infrastructure → application dependency direction violation.
+ * Composition logic lives in interfaces/composition/notification-service.ts.
  */
 ````
 
@@ -42609,11 +42548,6 @@ deleteTeam(organizationId: string, teamId: string): Promise<void>;
 addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
 removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
 getTeams(organizationId: string): Promise<Team[]>;
-````
-
-## File: modules/platform/subdomains/organization/infrastructure/index.ts
-````typescript
-
 ````
 
 ## File: modules/platform/subdomains/organization/interfaces/components/AccountSwitcher.tsx
@@ -42848,6 +42782,13 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
+## File: modules/platform/subdomains/subscription/api/index.ts
+````typescript
+/**
+ * Public API boundary for the subscription subdomain.
+ */
+````
+
 ## File: modules/platform/subdomains/subscription/domain/aggregates/Subscription.ts
 ````typescript
 import type { SubscriptionDomainEventType } from "../events/SubscriptionDomainEvent";
@@ -42906,14 +42847,12 @@ getSnapshot(): Readonly<SubscriptionSnapshot>
 pullDomainEvents(): SubscriptionDomainEventType[]
 ````
 
-## File: modules/platform/subdomains/subscription/infrastructure/subscription-service.ts
+## File: modules/platform/subdomains/subscription/infrastructure/index.ts
 ````typescript
 /**
- * SubscriptionService — Backward-compatibility re-export shim.
+ * Subscription infrastructure barrel — adapter exports only.
  *
- * Composition logic has been relocated to
- * interfaces/composition/subscription-service.ts to fix the
- * infrastructure → application dependency direction violation.
+ * Composition logic lives in interfaces/composition/subscription-service.ts.
  */
 ````
 
@@ -49058,9 +48997,20 @@ function handleSelect(href: string)
 function onKeyDown(event: KeyboardEvent)
 ````
 
+## File: modules/platform/subdomains/access-control/api/index.ts
+````typescript
+/**
+ * Public API boundary for the access-control subdomain.
+ */
+````
+
 ## File: modules/platform/subdomains/account-profile/infrastructure/index.ts
 ````typescript
-
+/**
+ * Account-profile infrastructure barrel — adapter exports only.
+ *
+ * Composition logic lives in interfaces/composition/account-profile-service.ts.
+ */
 ````
 
 ## File: modules/platform/subdomains/account/interfaces/queries/account.queries.ts
@@ -49130,28 +49080,21 @@ export async function getActiveAccountPolicies(_accountId: string): Promise<Acco
  */
 ````
 
-## File: modules/platform/subdomains/identity/api/index.ts
+## File: modules/platform/subdomains/identity/infrastructure/index.ts
 ````typescript
 /**
- * identity subdomain public API boundary.
- * Consumers (e.g. infrastructure in sibling subdomains) must import through this barrel.
+ * Identity infrastructure barrel — adapter exports only.
+ *
+ * Composition logic lives in interfaces/composition/identity-service.ts.
  */
-⋮----
-// Domain types — explicit exports (no wildcard to avoid leaking repos/ports/aggregates)
-⋮----
-// Value objects
-⋮----
-// Interfaces (UI components, hooks, providers, actions)
 ````
 
-## File: modules/platform/subdomains/identity/infrastructure/identity-service.ts
+## File: modules/platform/subdomains/organization/infrastructure/index.ts
 ````typescript
 /**
- * identity-service.ts — Backward-compatibility re-export shim.
+ * Organization infrastructure barrel — adapter exports only.
  *
- * Composition logic (use-case wiring, service facade) has been relocated to
- * interfaces/composition/identity-service.ts to fix the
- * infrastructure → application dependency direction violation.
+ * Composition logic lives in interfaces/composition/organization-service.ts.
  */
 ````
 
@@ -50728,7 +50671,7 @@ export function resolveOrganizationRouteFallback(
  * Public API boundary for the account-profile subdomain.
  * Cross-module consumers must import through this entry point.
  *
- * Composition root lives in infrastructure/account-profile-service.ts;
+ * Composition root lives in interfaces/composition/account-profile-service.ts;
  * this boundary is intentionally thin — it only re-exports public contracts.
  *
  * Legacy data-source wiring is deferred: the account-profile-service
@@ -50737,10 +50680,10 @@ export function resolveOrganizationRouteFallback(
  */
 ⋮----
 import {
-	getAccountProfileFromService,
-	subscribeToAccountProfileFromService,
-	updateAccountProfileFromService,
-} from "../infrastructure";
+	getAccountProfile as getAccountProfileFromService,
+	subscribeToAccountProfile as subscribeToAccountProfileFromService,
+	updateAccountProfile as updateAccountProfileFromService,
+} from "../interfaces/composition/account-profile-service";
 import type { AccountProfile, Unsubscribe } from "../domain";
 import type { UpdateAccountProfileInput } from "../application";
 import type { CommandResult } from "@shared-types";
@@ -50762,17 +50705,6 @@ export async function updateAccountProfile(
 // Legacy compatibility exports for migration window.
 ````
 
-## File: modules/platform/subdomains/account-profile/infrastructure/account-profile-service.ts
-````typescript
-/**
- * AccountProfileService — Backward-compatibility re-export shim.
- *
- * Composition logic has been relocated to
- * interfaces/composition/account-profile-service.ts to fix the
- * infrastructure → application dependency direction violation.
- */
-````
-
 ## File: modules/platform/subdomains/account/api/index.ts
 ````typescript
 /**
@@ -50783,6 +50715,35 @@ export async function updateAccountProfile(
  * auto-configures its emitter on first use via lazy require, eliminating
  * the previous import-time side effect (configureTokenRefreshEmitter call).
  */
+````
+
+## File: modules/platform/subdomains/account/infrastructure/identity-token-refresh.adapter.ts
+````typescript
+/**
+ * IdentityTokenRefreshAdapter — Implements TokenRefreshPort using the platform identity subdomain.
+ * This adapter lives in the adapters layer so the application layer stays clean.
+ */
+⋮----
+import type { TokenRefreshPort, TokenRefreshSignalInput } from "../domain/ports/TokenRefreshPort";
+⋮----
+type EmitTokenRefreshSignal = (input: TokenRefreshSignalInput) => Promise<void>;
+⋮----
+/**
+ * Override the default token refresh emitter. Call before first use of
+ * token-refresh flows if a custom emitter is needed.
+ */
+export function configureTokenRefreshEmitter(emitFn: EmitTokenRefreshSignal): void
+⋮----
+function getEmitFn(): EmitTokenRefreshSignal
+⋮----
+// Auto-configure: lazy-require identity api from sibling subdomain
+// (platform/identity/api) to avoid import-time side effects in the
+// account api boundary.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+⋮----
+export class IdentityTokenRefreshAdapter implements TokenRefreshPort {
+⋮----
+async emitTokenRefreshSignal(input: TokenRefreshSignalInput): Promise<void>
 ````
 
 ## File: modules/platform/subdomains/ai/api/index.ts
@@ -50806,6 +50767,20 @@ export interface AIAPI {
 ⋮----
 summarize(text: string, model?: string): Promise<string>;
 generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
+````
+
+## File: modules/platform/subdomains/identity/api/index.ts
+````typescript
+/**
+ * identity subdomain public API boundary.
+ * Consumers (e.g. infrastructure in sibling subdomains) must import through this barrel.
+ */
+⋮----
+// Domain types — explicit exports (no wildcard to avoid leaking repos/ports/aggregates)
+⋮----
+// Value objects
+⋮----
+// Interfaces (UI components, hooks, providers, actions)
 ````
 
 ## File: modules/platform/subdomains/identity/interfaces/_actions/identity.actions.ts
@@ -51167,46 +51142,11 @@ function handleDelete(recordId: string)
 ⋮----
 ````
 
-## File: modules/platform/subdomains/account/infrastructure/identity-token-refresh.adapter.ts
-````typescript
-/**
- * IdentityTokenRefreshAdapter — Implements TokenRefreshPort using the platform identity subdomain.
- * This adapter lives in the adapters layer so the application layer stays clean.
- */
-⋮----
-import type { TokenRefreshPort, TokenRefreshSignalInput } from "../domain/ports/TokenRefreshPort";
-⋮----
-type EmitTokenRefreshSignal = (input: TokenRefreshSignalInput) => Promise<void>;
-⋮----
-/**
- * Override the default token refresh emitter. Call before first use of
- * token-refresh flows if a custom emitter is needed.
- */
-export function configureTokenRefreshEmitter(emitFn: EmitTokenRefreshSignal): void
-⋮----
-function getEmitFn(): EmitTokenRefreshSignal
-⋮----
-// Auto-configure: lazy-require identity api from sibling subdomain
-// (platform/identity/api) to avoid import-time side effects in the
-// account api boundary.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-⋮----
-export class IdentityTokenRefreshAdapter implements TokenRefreshPort {
-⋮----
-async emitTokenRefreshSignal(input: TokenRefreshSignalInput): Promise<void>
-````
-
 ## File: modules/platform/subdomains/organization/api/index.ts
 ````typescript
 /**
  * Public API boundary for the organization subdomain.
  * Cross-module consumers must import through this entry point.
- *
- * NOTE: We avoid `export * from "../infrastructure"` here because the
- * infrastructure barrel pulls in Firebase repository constructors during
- * module evaluation, which causes failures during Next.js static
- * prerendering. Infrastructure exports are available in the server barrel
- * (./server.ts) or via direct import from action / service files.
  *
  * Team port wiring is deferred: the organization-service auto-configures its
  * team port factory on first use via lazy require, eliminating the previous
@@ -51217,7 +51157,7 @@ async emitTokenRefreshSignal(input: TokenRefreshSignalInput): Promise<void>
 ⋮----
 // --- Application use cases ---
 ⋮----
-// --- Infrastructure (lazy, safe for SSR) ---
+// --- Composition (lazy, safe for SSR) ---
 ⋮----
 // --- Interfaces (UI, queries, actions) ---
 ````
@@ -52292,20 +52232,6 @@ deleteFile(fileId: string): Promise<void>;
 // AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
 import type { AccountEntity } from "../subdomains/account/api";
 export type ActiveAccount = AccountEntity | AuthUser;
-````
-
-## File: modules/platform/subdomains/organization/infrastructure/organization-service.ts
-````typescript
-/**
- * Organization infrastructure — adapter factories only.
- *
- * Composition logic (use-case wiring, service facade) has been relocated to
- * interfaces/composition/organization-service.ts to fix the
- * infrastructure → application dependency direction violation.
- *
- * This file is retained for backward compatibility; the composition root
- * is now re-exported through the infrastructure barrel from its new home.
- */
 ````
 
 ## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
