@@ -16,6 +16,7 @@ This skill contains the following reference files:
 |------|----------|
 | `project-structure.md` | Directory tree with line counts per file |
 | `files.md` | All file contents (search with `## File: <path>`) |
+| `tech-stack.md` | Languages, frameworks, and dependencies |
 | `summary.md` | This file - purpose and format explanation |
 
 ## Usage Guidelines
@@ -41,12 +42,12 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1385 files | 29,879 lines
+1334 files | 29,847 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1176 | 23,872 |
-| TypeScript (TSX) | 134 | 3,790 |
+| TypeScript | 1125 | 23,842 |
+| TypeScript (TSX) | 134 | 3,788 |
 | Markdown | 74 | 2,170 |
 | CSS | 1 | 47 |
 
@@ -58,6 +59,6 @@ This skill contains the following reference files:
 - `modules/platform/subdomains/organization/domain/entities/Organization.ts` (132 lines)
 - `modules/notion/README.md` (128 lines)
 - `packages/shared-events/index.ts` (123 lines)
-- `modules/notebooklm/AGENT.md` (115 lines)
 - `modules/workspace/domain/aggregates/Workspace.ts` (115 lines)
+- `modules/notebooklm/AGENT.md` (115 lines)
 - `modules/platform/application/dtos/index.ts` (113 lines)
