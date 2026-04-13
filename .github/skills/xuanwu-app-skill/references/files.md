@@ -3219,6 +3219,74 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vscode-typescript-workbench
 ````
 
+## File: app/_providers/index.tsx
+````typescript
+/**
+ * Root providers composition — app/_providers
+ *
+ * Assembles the full provider tree for the application:
+ *   AuthProvider (platform) → AppProvider (platform accounts) → WorkspaceContextProvider (workspace)
+ *
+ * Lives in app/ because it composes providers from multiple bounded contexts.
+ */
+⋮----
+import type { ReactNode } from "react";
+import { Toaster } from "@ui-shadcn/ui/sonner";
+import { AuthProvider } from "@/modules/platform/api";
+import { WorkspaceContextProvider } from "@/modules/workspace/api";
+import { AppProvider } from "../(shell)/_providers/AppProvider";
+⋮----
+export function Providers(
+````
+
+## File: app/(shell)/_shell/index.ts
+````typescript
+/**
+ * Shell composition barrel — app/(shell)/_shell
+ *
+ * Cross-module shell layout components that compose platform, workspace,
+ * and notion modules. Lives in app/ (the composition layer) instead of
+ * inside any single module to respect upstream/downstream boundaries.
+ */
+````
+
+## File: app/(shell)/_shell/ShellSidebarHeader.tsx
+````typescript
+/**
+ * ShellSidebarHeader — app/(shell)/_shell composition layer.
+ * Moved from modules/platform alongside sibling shell files.
+ * Pure UI component with no downstream imports.
+ */
+⋮----
+import { PanelLeftClose, SlidersHorizontal } from "lucide-react";
+⋮----
+interface ShellSidebarHeaderProps {
+  sectionLabel: string;
+  sectionIcon: React.ReactNode;
+  onOpenCustomize: () => void;
+  onToggleCollapsed: () => void;
+}
+⋮----
+export function ShellSidebarHeader({
+  sectionLabel,
+  sectionIcon,
+  onOpenCustomize,
+  onToggleCollapsed,
+}: ShellSidebarHeaderProps)
+````
+
+## File: app/(shell)/layout.tsx
+````typescript
+/**
+ * app/(shell)/layout.tsx — Next.js route layout shim.
+ * Canonical implementation: app/(shell)/_shell/ShellRootLayout.tsx
+ */
+⋮----
+import { ShellLayout } from "./_shell";
+⋮----
+export default function Layout(
+````
+
 ## File: app/globals.css
 ````css
 @theme inline {
@@ -3268,6 +3336,21 @@ html {
 /* ── Table of Contents block ─────────────────────────────────────────────────── */
 .tiptap-editor .ProseMirror .toc-block {
 .tiptap-editor .ProseMirror .toc-block::before {
+````
+
+## File: app/layout.tsx
+````typescript
+import type { Metadata } from "next";
+⋮----
+import { Geist } from "next/font/google";
+import { cn } from "@shared-utils";
+import { Providers } from "./_providers";
+⋮----
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>)
 ````
 
 ## File: apphosting.yaml
@@ -16427,6 +16510,77 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vercel-react-best-practices
 ````
 
+## File: modules/platform/interfaces/web/providers/ShellAppContext.ts
+````typescript
+/**
+ * ShellAppContext — platform/interfaces/web layer
+ *
+ * Context definition, types, and the useApp() hook.
+ * Owns NO workspace-module dependencies — workspace state is managed by
+ * WorkspaceContextProvider in the workspace bounded context.
+ *
+ * The AppProvider that creates this context lives in app/(shell)/ where
+ * cross-module composition is allowed.
+ */
+⋮----
+import {
+  createContext,
+  useContext,
+  type Dispatch,
+} from "react";
+⋮----
+import type { AccountEntity } from "../../../subdomains/account/api";
+import type { ActiveAccount } from "../../../api/contracts";
+⋮----
+// ── State ────────────────────────────────────────────────────────────────────
+⋮----
+export interface AppState {
+  /** All organization accounts visible to the signed-in user. */
+  accounts: Record<string, AccountEntity>;
+  /** True once the first Firestore snapshot has been received. */
+  accountsHydrated: boolean;
+  /** Bootstrap phase for optimistic seeding. */
+  bootstrapPhase: "idle" | "seeded" | "hydrated";
+  /** Currently selected account (personal user account or an organization). */
+  activeAccount: ActiveAccount | null;
+}
+⋮----
+/** All organization accounts visible to the signed-in user. */
+⋮----
+/** True once the first Firestore snapshot has been received. */
+⋮----
+/** Bootstrap phase for optimistic seeding. */
+⋮----
+/** Currently selected account (personal user account or an organization). */
+⋮----
+export type AppAction =
+  | {
+      type: "SEED_ACTIVE_ACCOUNT";
+      payload: { user: { id: string; name: string; email: string } };
+    }
+  | {
+      type: "SET_ACCOUNTS";
+      payload: {
+        accounts: Record<string, AccountEntity>;
+        user: { id: string; name: string; email: string };
+        preferredActiveAccountId?: string | null;
+      };
+    }
+  | { type: "SET_ACTIVE_ACCOUNT"; payload: ActiveAccount | null }
+  | { type: "RESET_STATE" };
+⋮----
+export interface AppContextValue {
+  state: AppState;
+  dispatch: Dispatch<AppAction>;
+}
+⋮----
+// ── Initial State ────────────────────────────────────────────────────────────
+⋮----
+// ── Hook ─────────────────────────────────────────────────────────────────────
+⋮----
+export function useApp()
+````
+
 ## File: modules/platform/interfaces/web/shell/breadcrumbs/ShellAppBreadcrumbs.tsx
 ````typescript
 import Link from "next/link";
@@ -17334,61 +17488,6 @@ export async function updateProfile(
 ): Promise<CommandResult>
 ````
 
-## File: modules/platform/subdomains/account-profile/interfaces/components/screens/SettingsProfileRouteScreen.tsx
-````typescript
-import { useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
-⋮----
-import { getProfile } from "../../queries/account-profile.queries";
-import { updateProfile } from "../../_actions/account-profile.actions";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-⋮----
-type FormState = {
-  displayName: string;
-  bio: string;
-  photoURL: string;
-};
-⋮----
-interface SettingsProfileRouteScreenProps {
-  actorId: string | null;
-  fallbackDisplayName?: string | null;
-}
-⋮----
-async function loadProfile()
-⋮----
-async function handleSubmit(event: FormEvent<HTMLFormElement>)
-````
-
-## File: modules/platform/subdomains/account-profile/interfaces/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/account-profile/interfaces/queries/account-profile.queries.ts
-````typescript
-/**
- * Account Profile Read Queries — thin wrappers over account-profile API use cases.
- * NOT Server Actions — callable from React components/hooks directly.
- */
-⋮----
-import { getAccountProfile, subscribeToAccountProfile } from "../../api";
-import type {
-  AccountProfile,
-  Unsubscribe,
-} from "../../application/dtos/account-profile.dto";
-⋮----
-export async function getProfile(actorId: string): Promise<AccountProfile | null>
-⋮----
-export function subscribeToProfile(
-  actorId: string,
-  onUpdate: (profile: AccountProfile | null) => void,
-): Unsubscribe
-````
-
 ## File: modules/platform/subdomains/account-profile/README.md
 ````markdown
 # Account Profile
@@ -18278,6 +18377,73 @@ export function NavUser(
 ````
 
 ## File: modules/platform/subdomains/account/interfaces/index.ts
+````typescript
+
+````
+
+## File: modules/platform/subdomains/ai/application/index.ts
+````typescript
+
+````
+
+## File: modules/platform/subdomains/ai/application/use-cases/generate-ai-text.use-case.ts
+````typescript
+import type {
+  AiTextGenerationPort,
+  GenerateAiTextInput,
+  GenerateAiTextOutput,
+} from "../../domain/ports/AiTextGenerationPort";
+⋮----
+export class GenerateAiTextUseCase {
+⋮----
+constructor(private readonly generationPort: AiTextGenerationPort)
+⋮----
+execute(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>
+````
+
+## File: modules/platform/subdomains/ai/domain/index.ts
+````typescript
+
+````
+
+## File: modules/platform/subdomains/ai/domain/ports/AiTextGenerationPort.ts
+````typescript
+export interface GenerateAiTextInput {
+  readonly prompt: string;
+  readonly system?: string;
+  readonly model?: string;
+}
+⋮----
+export interface GenerateAiTextOutput {
+  readonly text: string;
+  readonly model: string;
+  readonly finishReason?: string;
+}
+⋮----
+export interface AiTextGenerationPort {
+  generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
+}
+⋮----
+generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
+````
+
+## File: modules/platform/subdomains/ai/infrastructure/genkit/GenkitAiTextGenerationAdapter.ts
+````typescript
+import { genkit } from "genkit";
+import { googleAI } from "@genkit-ai/google-genai";
+⋮----
+import type {
+  AiTextGenerationPort,
+  GenerateAiTextInput,
+  GenerateAiTextOutput,
+} from "../../domain/ports/AiTextGenerationPort";
+⋮----
+export class GenkitAiTextGenerationAdapter implements AiTextGenerationPort {
+⋮----
+async generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>
+````
+
+## File: modules/platform/subdomains/ai/infrastructure/index.ts
 ````typescript
 
 ````
@@ -19771,23 +19937,6 @@ function handleMarkAll()
 {/* Body */}
 ````
 
-## File: modules/platform/subdomains/notification/interfaces/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/notification/interfaces/queries/notification.queries.ts
-````typescript
-/**
- * Notification Queries — delegates to notificationService via the subdomain api/ boundary.
- */
-⋮----
-import { notificationService } from "../../api";
-import type { NotificationEntity } from "../../application/dtos/notification.dto";
-⋮----
-export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]>
-````
-
 ## File: modules/platform/subdomains/observability/api/index.ts
 ````typescript
 /**
@@ -20837,22 +20986,6 @@ async function load()
 async function handleCreate()
 ⋮----
 <Button onClick=
-````
-
-## File: modules/platform/subdomains/organization/interfaces/queries/organization.queries.ts
-````typescript
-/**
- * Organization Queries — delegates to organizationQueryService via the subdomain api/ boundary.
- */
-⋮----
-import { organizationQueryService } from "../../api";
-import type { MemberReference, Team, OrgPolicy } from "../../application/dtos/organization.dto";
-⋮----
-export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]>
-⋮----
-export function getOrganizationTeams(organizationId: string): Promise<Team[]>
-⋮----
-export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]>
 ````
 
 ## File: modules/platform/subdomains/platform-config/api/index.ts
@@ -23232,37 +23365,6 @@ interface WorkspaceSidebarSectionProps {
 }
 ````
 
-## File: modules/workspace/interfaces/web/components/screens/OrganizationWorkspacesScreen.tsx
-````typescript
-import Link from "next/link";
-import { type FormEvent, useState } from "react";
-⋮----
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-⋮----
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";
-import { CreateWorkspaceDialog } from "../dialogs/CreateWorkspaceDialog";
-⋮----
-interface OrganizationWorkspacesScreenProps {
-  readonly accountId: string | null | undefined;
-}
-⋮----
-function resetDialog()
-⋮----
-async function handleSubmit(event: FormEvent<HTMLFormElement>)
-⋮----
-resetDialog();
-setIsCreateOpen(true);
-````
-
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceDailyTab.tsx
 ````typescript
 import type { WorkspaceEntity } from "../../../api/contracts";
@@ -23349,6 +23451,17 @@ function sortWorkspaces(items: WorkspaceEntity[])
 export function useWorkspaceHub(
 ⋮----
 async function loadWorkspaces()
+````
+
+## File: modules/workspace/interfaces/web/index.ts
+````typescript
+/**
+ * workspace interfaces/web public boundary.
+ *
+ * Web-layer components, hooks, navigation, state helpers and utilities.
+ * App-layer and cross-module consumers that need UI composition must import
+ * from this path instead of reaching into individual sub-directories.
+ */
 ````
 
 ## File: modules/workspace/interfaces/web/navigation/use-sidebar-locale.ts
@@ -23902,11 +24015,6 @@ export function makeWorkspaceFeedPostRepo()
 export function makeWorkspaceFeedInteractionRepo()
 ````
 
-## File: modules/workspace/subdomains/feed/api/index.ts
-````typescript
-
-````
-
 ## File: modules/workspace/subdomains/feed/api/workspace-feed.facade.ts
 ````typescript
 import type { WorkspaceFeedPost } from "../domain/entities/workspace-feed-post.entity";
@@ -24242,28 +24350,6 @@ export async function viewWorkspaceFeedPost(input: FeedInteractionDto): Promise<
 export async function bookmarkWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult>
 ⋮----
 export async function shareWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedAccountView.tsx
-````typescript
-import { useCallback, useEffect, useState } from "react";
-import { Eye, Heart, MessageCircle, Repeat2, Share2, Star } from "lucide-react";
-⋮----
-import { useApp } from "@/modules/platform/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import { workspaceFeedFacade } from "../../api/workspace-feed.facade";
-import type { WorkspaceFeedPost } from "../../application/dto/workspace-feed.dto";
-⋮----
-interface WorkspaceFeedAccountViewProps {
-  readonly accountId: string;
-}
-⋮----
-async function handleAction(post: WorkspaceFeedPost, action: "like" | "view" | "bookmark" | "share" | "repost")
-⋮----
-async function handleReply(post: WorkspaceFeedPost)
-⋮----
-onClick=
 ````
 
 ## File: modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedWorkspaceView.tsx
@@ -24732,15 +24818,6 @@ When implementing, follow inside-out:
 import { FirebaseDemandRepository } from "../infrastructure/firebase/FirebaseDemandRepository";
 ⋮----
 export function makeDemandRepo()
-````
-
-## File: modules/workspace/subdomains/scheduling/api/index.ts
-````typescript
-/**
- * Module: workspace/subdomains/scheduling
- * Layer: api/barrel
- * Purpose: Public anti-corruption layer for scheduling subdomain.
- */
 ````
 
 ## File: modules/workspace/subdomains/scheduling/api/schema.ts
@@ -32552,74 +32629,397 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: app/_providers/index.tsx
-````typescript
-/**
- * Root providers composition — app/_providers
- *
- * Assembles the full provider tree for the application:
- *   AuthProvider (platform) → AppProvider (platform accounts) → WorkspaceContextProvider (workspace)
- *
- * Lives in app/ because it composes providers from multiple bounded contexts.
- */
-⋮----
-import type { ReactNode } from "react";
-import { Toaster } from "@ui-shadcn/ui/sonner";
-import { AuthProvider } from "@/modules/platform/api";
-import { WorkspaceContextProvider } from "@/modules/workspace/api";
-import { AppProvider } from "../(shell)/_providers/AppProvider";
-⋮----
-export function Providers(
-````
+## File: AGENTS.md
+````markdown
+# API Architecture Rules
 
-## File: app/(shell)/_shell/index.ts
-````typescript
-/**
- * Shell composition barrel — app/(shell)/_shell
- *
- * Cross-module shell layout components that compose platform, workspace,
- * and notion modules. Lives in app/ (the composition layer) instead of
- * inside any single module to respect upstream/downstream boundaries.
- */
-````
+## NotionAPI & NotebookLMAPI
 
-## File: app/(shell)/_shell/ShellSidebarHeader.tsx
-````typescript
-/**
- * ShellSidebarHeader — app/(shell)/_shell composition layer.
- * Moved from modules/platform alongside sibling shell files.
- * Pure UI component with no downstream imports.
- */
-⋮----
-import { PanelLeftClose, SlidersHorizontal } from "lucide-react";
-⋮----
-interface ShellSidebarHeaderProps {
-  sectionLabel: string;
-  sectionIcon: React.ReactNode;
-  onOpenCustomize: () => void;
-  onToggleCollapsed: () => void;
+platform 是跨域能力中樞，must expose two API layers:
+
+### 1. Infrastructure API (低階 / 模組內用)
+
+**所有權**: platform  
+**消費者**: notion、notebooklm (only)  
+**用途**: Runtime capability contracts（不含業務決策）  
+
+```typescript
+// Firestore access contract
+export interface FirestoreAPI {
+  get<T>(path: string): Promise<T | null>;
+  set<T>(path: string, data: T): Promise<void>;
+  query<T>(collection: string, where: Query[]): Promise<T[]>;
 }
-⋮----
-export function ShellSidebarHeader({
-  sectionLabel,
-  sectionIcon,
-  onOpenCustomize,
-  onToggleCollapsed,
-}: ShellSidebarHeaderProps)
+
+// Cloud Storage access contract
+export interface StorageAPI {
+  upload(file: File, path: string): Promise<string>;
+  getUrl(path: string): Promise<string>;
+  delete(path: string): Promise<void>;
+}
+
+// Genkit AI flow orchestration contract
+export interface GenkitAPI {
+  runFlow<TInput, TOutput>(
+    flow: string,
+    input: TInput
+  ): Promise<TOutput>;
+}
+```
+
+**Rule**: notion、notebooklm use these for **data persistence and external tool invocation only**. No business logic should hide inside adapter calls.
+
+---
+
+### 2. Platform Service API (高階 / 系統級用)
+
+**所有權**: platform  
+**消費者**: workspace、notion、notebooklm (all)  
+**用途**: Cross-domain capability contracts（含governance、auth、entitlement）  
+
+```typescript
+// Authentication & Session
+export interface AuthAPI {
+  getSession(): Promise<AuthSession>;
+  requireAuth(): Promise<User>;
+}
+
+// Access Control & Entitlement
+export interface PermissionAPI {
+  can(userId: string, action: string, resource: string): Promise<boolean>;
+}
+
+// Semantic File Lifecycle (not raw storage)
+export interface FileAPI {
+  uploadUserFile(input: {
+    file: File;
+    ownerId: string;
+  }): Promise<{ url: string; fileId: string }>;
+  deleteFile(fileId: string): Promise<void>;
+}
+
+// AI capability coordination (routing & safety)
+export interface AIAPI {
+  summarize(text: string): Promise<string>;
+  // More methods as capabilities expand
+}
+```
+
+**Rule**: All modules (including notion、notebooklm) must go through Service APIs for cross-domain operations.
+
+---
+
+## API Call Rules
+
+| Caller | Firestore | Storage | Genkit | Auth | Permission | File | AI |
+|--------|-----------|---------|--------|------|------------|------|-----|
+| workspace | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| notion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅* | ✅ |
+| notebooklm | ✅ | ✅ | ✅ | ✅ | ✅ | ✅* | ✅ |
+
+**\* File API**: notion、notebooklm must use `FileAPI` (not raw `StorageAPI`) when files involve ownership, entitlement, or multi-tenant isolation.
+
+---
+
+## Example Flow: File Upload with Entitlement Check
+
+```text
+workspace (UI)
+  → FileAPI.uploadUserFile({ file, ownerId })
+  ↓
+platform (FileAPI)
+  → PermissionAPI.can(ownerId, "create:file", context)
+  ↓
+notion.createDocument(with fileId)
+  → Storage.upload(...) via Infrastructure API
+  ↓
+Firebase Storage
+```
+
+**Key**: uploadUserFile ≠ Storage.upload
+- `uploadUserFile`: semantic contract (ownership, entitlement, audit)
+- `Storage.upload`: mechanism contract (how bytes move)
+
+---
+
+## Governance Rules
+
+1. **platform is the unique infra gateway** — all Firebase, Genkit, external AI routing flows through platform adapters.
+2. **notion、notebooklm use Infrastructure APIs for local concerns only** — persistence, embedding, synthesis.
+3. **workspace never touches Infrastructure APIs** — always goes through Platform Service APIs.
+4. **All cross-domain behavior routes through Platform Service APIs** — auth, permission, entitlement, file ownership, AI safety.
+5. **Published Language is upstream boundary** — concepts like `Actor`, `Tenant`, `Entitlement`, `fileId` are defined in platform ubiquitous language; downstream contexts translate as needed.
+
+---
+
+# Four Main Domains
+
+## Strategic Overview
+
+| Main Domain | Strategic Role | Baseline Subdomains | Recommended Gap | Active Status |
+|---|---|---|---|---|
+| **platform** | 治理與營運支撐 | identity, account, account-profile, organization, access-control, security-policy, platform-config, feature-flag, onboarding, compliance, billing, subscription, referral, ai, integration, workflow, notification, background-job, content, search, audit-log, observability, analytics, support (23) | tenant, entitlement, secret-management, consent (4) | ✅ 23 baseline + 4 gap |
+| **workspace** | 協作容器與 scope | audit, feed, scheduling, workspace-workflow (4) | lifecycle, membership, sharing, presence (4) | ✅ 4 baseline + 4 gap |
+| **notion** | 正典知識內容 | knowledge, authoring, collaboration, database, attachments, knowledge-versioning (6) | taxonomy, relations, publishing (3) | ✅ 6 baseline + 3 gap |
+| **notebooklm** | 對話與推理 | conversation, note, notebook, source, synthesis (5) | ingestion, retrieval, grounding, evaluation (4) | ✅ 5 baseline + 4 gap |
+
+---
+
+## Ubiquitous Language
+
+### Domain Key Terms
+
+| Domain | Cardinal Terms | Published Language |
+|---|---|---|
+| **platform** | Actor, Tenant, Entitlement, Consent, Secret | Defines all upstream concepts; all downstream must translate through these |
+| **workspace** | Workspace, Membership, ShareScope, ActivityFeed, AuditTrail | Consumes: actor reference, organization scope, access decision, entitlement signal |
+| **notion** | KnowledgeArtifact, Taxonomy, Relation, Publication | Consumes: actor reference, organization scope, entitlement signal, ai capability signal |
+| **notebooklm** | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation | Consumes: actor reference, organization scope, entitlement signal, ai capability signal |
+
+### Context Map (Upstream → Downstream)
+
+```text
+platform
+  ├→ workspace        (actor, organization scope, access decision, entitlement signal)
+  ├→ notion           (actor, organization scope, entitlement signal, ai capability signal)
+  └→ notebooklm       (actor, organization scope, entitlement signal, ai capability signal)
+
+workspace
+  ├→ notion           (workspaceId, membership scope, share scope)
+  └→ notebooklm       (workspaceId, membership scope, share scope)
+
+notion
+  └→ notebooklm       (knowledge artifact reference, attachment reference, taxonomy hint)
+
+notebooklm
+  └→ (none)            (terminal context in current strategic map)
+```
+
+### Published Language Token Glossary
+
+| Token | Canonical Domain | Constraint |
+|---|---|---|
+| actor reference | platform.Actor | Never mix with Membership |
+| organization scope | platform.Tenant / organization boundary | Never equals Workspace scope |
+| access decision | platform.access-control result | Pass decision only, not internal policy model |
+| entitlement signal | platform.entitlement / subscription capability | Never mix with feature-flag payload |
+| ai capability signal | platform.ai shared capability (only) | notion & notebooklm CONSUME only, never OWN `ai` subdomain |
+| workspaceId | workspace.Workspace identifier | Never replaces local knowledge/notebook primary key |
+| membership scope | workspace.Membership constraint | Never mixes with actor identity language |
+| share scope | workspace.ShareScope constraint | Never mixes with general permission fields |
+| knowledge artifact reference | notion.KnowledgeArtifact reference | Reference only, no ownership transfer |
+| attachment reference | notion / notebooklm attachment ref | Traceable reference, never leaked storage impl |
+| taxonomy hint | notebooklm retrieval hint (only) | Never overrides notion's canonical taxonomy |
+
+---
+
+## Dependency Direction Rules
+
+### Fixed Upstream → Downstream Flow
+
+```
+platform
+  ↓
+workspace, notion, notebooklm (all consume platform governance APIs)
+  ↓
+workspace ↓ notion ↓ notebooklm
+(sequential consumption allowed; never reverse upstream)
+```
+
+### Anti-Patterns
+
+- ❌ workspace calling notion.api directly (must go through published language)
+- ❌ notion calling platform.domain internal models (must use Service API boundary)
+- ❌ notebooklm defining its own `ai` subdomain (belongs exclusively to platform)
+- ❌ Mixing Actor + Membership terminology (Actor = identity, Membership = workspace participation)
+- ❌ Treating notion's KnowledgeArtifact as writable by other domains (reference only)
+
+---
+
+## Module Ownership Guardrails
+
+| Concern | Owner | Never Owned By |
+|---|---|---|
+| Identity, authentication, session | platform | workspace, notion, notebooklm |
+| Permission, entitlement, access control | platform | workspace, notion, notebooklm |
+| Tenant isolation, organization scope | platform | workspace, notion, notebooklm |
+| AI capability routing, model policy, safety | platform | notion, notebooklm (consumers only) |
+| Workspace creation, archival, lifecycle | workspace | notion, notebooklm, platform |
+| Knowledge artifact authoring, versioning | notion | platform, workspace, notebooklm |
+| Conversation, retrieval, synthesis | notebooklm | platform, workspace, notion (notion→notebooklm: reference only) |
+| Cross-module security rules, audit | platform | all others apply, never contradict |
+
+---
+
+# 🚫 Hard Rules (Will Cause Refactors If Violated)
+
+## Strategic Ownership Rules (Non-Negotiable)
+
+### Rule 1: Platform is Unique Infrastructure Gateway
+- ✅ platform owns Firebase, Genkit, external AI routing, cross-domain auth
+- ❌ notion, notebooklm NEVER own infra (except local read-only access)
+- ❌ workspace NEVER touches Firebase/Storage/Genkit directly
+
+### Rule 5: Workspace is Orchestration Only
+- ✅ workspace composes module APIs and next.js routing
+- ❌ workspace NEVER contains domain business logic
+- ❌ workspace NEVER makes direct DB/permission decisions
+
+### Rule 6: Cross-Module Access Prohibition
+- ✅ module A imports module B only via `@/modules/b/api`
+- ❌ NO direct imports of domain/, application/, infrastructure/, interfaces/
+- ✅ ALL data sharing via events or published language tokens
+
+### Rule 7: Mandatory Single Entry Point (API Boundary)
+- ✅ Every module must export `api/index.ts`
+- ✅ `api/` exposes only public surface; hides internals
+- ❌ NO imports from internal module paths outside module
+
+### Rule 8: Platform is Only Infrastructure Layer
+- ✅ Firebase, Genkit, Auth, File Storage, Queue: platform owns
+- ✅ Cross-domain coordination, routing, governance: platform owns
+- ❌ Notion NEVER owns persistence (uses platform.infrastructure APIs)
+- ❌ Notebooklm NEVER owns embedding infra (uses platform.infrastructure APIs)
+
+### Rule 9: Cross-Module Data Flow MUST Use Events or API
+- ✅ When module A needs data from module B: A calls B.api or subscribes to B.event
+- ❌ NO shared in-memory state
+- ❌ NO direct repository access across module boundaries
+- ✅ All state mutations via transaction-protected API calls
+
+### Rule 10: Domain Layer is Externally Independent
+- ✅ domain/ contains entities, value objects, rules; NO framework deps
+- ❌ domain/ NEVER imports: React, Firebase SDK, HTTP client, ORM
+- ❌ domain/ NEVER depends on other modules (even platform)
+- ✅ All external deps injected via ports/adapters
+
+### Rule 28: Platform Cannot Depend on Downstream
+- ✅ platform → workspace | notion | notebooklm (one direction only)
+- ❌ platform NEVER imports from workspace, notion, notebooklm
+- ✅ If platform needs semantic data from notion/notebooklm: notion/notebooklm emit event to platform
+
+## Anti-Patterns (Will Require Refactors)
+
+### Rule 46: ❌ workspace directly calls Firestore
+- **Wrong**: `firestore.collection('documents').get()`
+- **Correct**: Use `@/modules/platform/api` (FileAPI, PermissionAPI, etc.)
+
+### Rule 47: ❌ notebooklm implements its own permission logic
+- **Wrong**: notebooklm checking `user.role === 'admin'`
+- **Correct**: Call `@/modules/platform/api → PermissionAPI.can()`
+
+### Rule 48: ❌ notion directly invokes AI/Genkit
+- **Wrong**: `notion/application/ imports Genkit`
+- **Correct**: Notion emits event; platform routes to notebooklm via AI API
+
+### Rule 49: ❌ Module imports another module's internal
+- **Wrong**: `import { SomeEntity } from '@/modules/notion/domain/entities'`
+- **Correct**: Use `import { api } from '@/modules/notion/api'` only
+
+### Rule 50: ❌ Business logic written in React component (workspace UI)
+- **Wrong**: `if (user.role === 'admin') { ... }` in .tsx
+- **Correct**: Move to application/ use-case; UI only composes and calls
+
+### Rule 51: ❌ Cross-module route components read foreign context providers
+- **Wrong**: notion/notebooklm route components call workspace providers directly (e.g. `useWorkspaceContext()`)
+- **Correct**: workspace is the composition owner and must pass explicit scope props (`accountId`, `workspaceId`, optional `currentUserId`) through module `api/` boundaries
+
+---
+
+## Full Enforcement & Reference
+
+See `docs/hard-rules-consolidated.md` for:
+- All 51 rules with detailed explanations
+- Document placement strategy (7 homes)
+- Enforcement checklist
+- Layer responsibility rules (11-13, 21-23)
+- Event bus & async rules (4, 34-36)
+- File/data/permission rules (3, 29-32, 37-40)
+- Cross-module contract rules (24-27)
 ````
 
-## File: app/(shell)/(account)/[accountId]/dashboard/page.tsx
+## File: app/(shell)/_providers/AppProvider.tsx
 ````typescript
-import { useParams } from "next/navigation";
+/**
+ * AppProvider — app/(shell)/ composition layer
+ *
+ * Manages the platform-owned account lifecycle (auth → accounts → activeAccount).
+ * Lives in app/ because the cross-module composition root is the correct owner
+ * of account-state wiring that reads from platform subdomain queries.
+ *
+ * Workspace state is managed by WorkspaceContextProvider from workspace module.
+ */
+⋮----
+import { useReducer, useEffect, type ReactNode } from "react";
 ⋮----
 import {
-  isActiveOrganizationAccount,
-  useApp,
-  useAuth,
+  AppContext,
+  APP_INITIAL_STATE,
+  type AppState,
+  type AppAction,
 } from "@/modules/platform/api";
-import { AccountDashboardScreen, useWorkspaceContext } from "@/modules/workspace/api";
+import {
+  resolveActiveAccount,
+  subscribeToAccountsForUser,
+} from "@/modules/platform/api";
+import { useAuth } from "@/modules/platform/api";
 ⋮----
-export default function AccountDashboardPage()
+function appReducer(state: AppState, action: AppAction): AppState
+⋮----
+export function AppProvider(
+⋮----
+// eslint-disable-next-line react-hooks/exhaustive-deps
+````
+
+## File: app/(shell)/_shell/shell-quick-create.ts
+````typescript
+/**
+ * shell-quick-create — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it imports notion's createKnowledgePage.
+ * Kept as a composition adapter at the app boundary.
+ */
+⋮----
+import { createKnowledgePage } from "@/modules/workspace/api";
+⋮----
+export interface QuickCreatePageInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly createdByUserId: string;
+}
+⋮----
+export interface QuickCreatePageResult {
+  readonly success: boolean;
+  readonly error?: { message: string };
+}
+⋮----
+export async function quickCreateKnowledgePage(
+  input: QuickCreatePageInput,
+): Promise<QuickCreatePageResult>
+````
+
+## File: app/(shell)/_shell/ShellContextNavSection.tsx
+````typescript
+/**
+ * ShellContextNavSection — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it imports from workspace module.
+ */
+⋮----
+import Link from "next/link";
+import { appendWorkspaceContextQuery } from "@/modules/workspace/api";
+import { buildShellContextualHref } from "@/modules/platform/api";
+⋮----
+interface ContextScopedNavItem {
+  href: string;
+  label: string;
+}
+⋮----
+interface ShellContextNavSectionProps {
+  title: string;
+  items: readonly ContextScopedNavItem[];
+  isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
+  activeWorkspaceId: string | null;
+}
 ````
 
 ## File: app/(shell)/(account)/[accountId]/dev-tools/dev-tools-badges.tsx
@@ -32654,145 +33054,6 @@ interface DevToolsParsedDocsSectionProps {
 }
 ⋮----
 onClick=
-````
-
-## File: app/(shell)/(account)/[accountId]/organization/_utils.ts
-````typescript
-export function formatDateTime(value: string | Date | null | undefined): string
-````
-
-## File: app/(shell)/(account)/[accountId]/organization/audit/_components/OrganizationAuditPage.tsx
-````typescript
-import { useEffect, useMemo, useState } from "react";
-⋮----
-import { AuditStream, getOrganizationAuditLogs } from "@/modules/workspace/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-⋮----
-// ── Props ─────────────────────────────────────────────────────────────────────
-⋮----
-export interface OrganizationAuditPageProps {
-  organizationId: string | null;
-  workspaces: Record<string, WorkspaceEntity>;
-  workspacesHydrated: boolean;
-}
-⋮----
-// ── Helpers ───────────────────────────────────────────────────────────────────
-⋮----
-function formatDateTime(value: string | Date | null | undefined): string
-⋮----
-// ── Component ─────────────────────────────────────────────────────────────────
-⋮----
-// workspaceNameById is derived from the workspaces prop — no extra fetch needed.
-⋮----
-async function load()
-⋮----
-{/* ── 稽核時間軸（新版 AuditStream）─────────────────────────────── */}
-````
-
-## File: app/(shell)/(account)/[accountId]/organization/audit/page.tsx
-````typescript
-import { useApp, isActiveOrganizationAccount } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
-import { OrganizationAuditPage } from "./_components/OrganizationAuditPage";
-⋮----
-export default function OrganizationAuditPageRoute()
-````
-
-## File: app/(shell)/(account)/[accountId]/organization/daily/page.tsx
-````typescript
-import { useApp } from "@/modules/platform/api";
-import { WorkspaceFeedAccountView } from "@/modules/workspace/api";
-import { isActiveOrganizationAccount } from "@/modules/platform/api";
-⋮----
-export default function OrganizationDailyPage()
-````
-
-## File: app/(shell)/(account)/[accountId]/organization/members/page.tsx
-````typescript
-import { useApp, isActiveOrganizationAccount, MembersPage } from "@/modules/platform/api"
-⋮----
-export default function OrganizationMembersPage()
-````
-
-## File: app/(shell)/(account)/[accountId]/organization/permissions/page.tsx
-````typescript
-import { useApp, isActiveOrganizationAccount, PermissionsPage } from "@/modules/platform/api"
-⋮----
-export default function OrganizationPermissionsPage()
-````
-
-## File: app/(shell)/(account)/[accountId]/organization/schedule/page.tsx
-````typescript
-import { useApp } from "@/modules/platform/api";
-import { AccountSchedulingView } from "@/modules/workspace/api";
-import { isActiveOrganizationAccount } from "@/modules/platform/api";
-⋮----
-export default function OrganizationSchedulePage()
-````
-
-## File: app/(shell)/(account)/[accountId]/organization/teams/page.tsx
-````typescript
-import { useApp, isActiveOrganizationAccount, TeamsPage } from "@/modules/platform/api"
-⋮----
-export default function OrganizationTeamsPage()
-````
-
-## File: app/(shell)/(account)/[accountId]/organization/workspaces/page.tsx
-````typescript
-import { useApp } from "@/modules/platform/api";
-import { OrganizationWorkspacesScreen } from "@/modules/workspace/api";
-import { isActiveOrganizationAccount } from "@/modules/platform/api";
-⋮----
-export default function OrganizationWorkspacesPage()
-````
-
-## File: app/(shell)/(account)/[accountId]/settings/notifications/page.tsx
-````typescript
-import { useAuth, NotificationsPage } from "@/modules/platform/api"
-⋮----
-export default function NotificationCenterPage()
-````
-
-## File: app/(shell)/(account)/[accountId]/settings/profile/page.tsx
-````typescript
-import { SettingsProfileRouteScreen, useAuth } from "@/modules/platform/api";
-⋮----
-export default function SettingsProfilePage()
-````
-
-## File: app/(shell)/layout.tsx
-````typescript
-/**
- * app/(shell)/layout.tsx — Next.js route layout shim.
- * Canonical implementation: app/(shell)/_shell/ShellRootLayout.tsx
- */
-⋮----
-import { ShellLayout } from "./_shell";
-⋮----
-export default function Layout(
-````
-
-## File: app/layout.tsx
-````typescript
-import type { Metadata } from "next";
-⋮----
-import { Geist } from "next/font/google";
-import { cn } from "@shared-utils";
-import { Providers } from "./_providers";
-⋮----
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>)
 ````
 
 ## File: docs/contexts/_template.md
@@ -33520,31 +33781,6 @@ import { FirebaseThreadRepository } from "../../../infrastructure/conversation/f
 export function makeThreadRepo()
 ````
 
-## File: modules/notebooklm/interfaces/conversation/helpers.ts
-````typescript
-import type { Thread } from "@/modules/notebooklm/api";
-⋮----
-// ── Domain types ──────────────────────────────────────────────────────────────
-⋮----
-export interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
-⋮----
-// ── Storage key ───────────────────────────────────────────────────────────────
-⋮----
-export const STORAGE_KEY = (accountId: string, workspaceId: string)
-⋮----
-// ── Pure helpers ──────────────────────────────────────────────────────────────
-⋮----
-export function buildContextPrompt(history: ChatMessage[]): string
-⋮----
-export function generateMsgId()
-⋮----
-export function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: string): Thread
-````
-
 ## File: modules/notebooklm/interfaces/conversation/hooks/useAiChatThread.ts
 ````typescript
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -33767,46 +34003,6 @@ function parseFieldType(value: string): WikiLibraryFieldType
 onChange=
 ⋮----
 <input type="text" value=
-````
-
-## File: modules/notebooklm/interfaces/source/components/LibraryTablePanel.tsx
-````typescript
-import { useEffect, useMemo, useRef, useState } from "react";
-import { GripVertical } from "lucide-react";
-⋮----
-import {
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  useReactTable,
-} from "@lib-tanstack";
-import { draggable, dropTargetForElements, monitorForElements } from "@lib-dragdrop";
-⋮----
-import { getWikiLibrarySnapshot, listWikiLibraries, type WikiLibraryRow } from "../../../subdomains/source/api";
-⋮----
-interface LibraryTablePanelProps {
-  readonly accountId: string;
-  readonly workspaceId?: string;
-}
-⋮----
-type RowData = WikiLibraryRow & { _values: Record<string, unknown> };
-⋮----
-/**
- * LibraryTablePanel
- *
- * TanStack Table rendering library rows with:
- * - Column-level text filter (global filter input)
- * - Drag-to-reorder rows via pragmatic-drag-and-drop
- */
-⋮----
-// Load library list
-⋮----
-// Load rows when selection changes
-⋮----
-// DnD row reorder
-⋮----
-onDrop(
 ````
 
 ## File: modules/notebooklm/interfaces/source/contracts/source-command-result.ts
@@ -37927,80 +38123,39 @@ async uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>
 async deleteFile(fileId: string): Promise<void>
 ````
 
+## File: modules/platform/interfaces/web/hooks/useAccountRouteContext.ts
+````typescript
+import { useParams } from "next/navigation";
+⋮----
+import { isActiveOrganizationAccount } from "../../../subdomains/access-control/api";
+import { useAuth } from "../../../subdomains/identity/api";
+import { useApp } from "../providers/ShellAppContext";
+⋮----
+export interface AccountRouteContext {
+  readonly routeAccountId: string;
+  readonly resolvedAccountId: string;
+  readonly currentUserId: string | null;
+  readonly organizationId: string | null;
+  readonly accountType: "user" | "organization";
+  readonly accountsHydrated: boolean;
+  readonly isResolvingOrganizationRoute: boolean;
+}
+⋮----
+function normalizeRouteParam(value: string | string[] | undefined): string
+⋮----
+export function useAccountRouteContext(): AccountRouteContext
+````
+
 ## File: modules/platform/interfaces/web/index.ts
 ````typescript
 // providers — context and useApp from platform-only ShellAppContext
 ````
 
-## File: modules/platform/interfaces/web/providers/ShellAppContext.ts
+## File: modules/platform/subdomains/access-control/api/index.ts
 ````typescript
 /**
- * ShellAppContext — platform/interfaces/web layer
- *
- * Context definition, types, and the useApp() hook.
- * Owns NO workspace-module dependencies — workspace state is managed by
- * WorkspaceContextProvider in the workspace bounded context.
- *
- * The AppProvider that creates this context lives in app/(shell)/ where
- * cross-module composition is allowed.
+ * Public API boundary for the access-control subdomain.
  */
-⋮----
-import {
-  createContext,
-  useContext,
-  type Dispatch,
-} from "react";
-⋮----
-import type { AccountEntity } from "../../../subdomains/account/api";
-import type { ActiveAccount } from "../../../api/contracts";
-⋮----
-// ── State ────────────────────────────────────────────────────────────────────
-⋮----
-export interface AppState {
-  /** All organization accounts visible to the signed-in user. */
-  accounts: Record<string, AccountEntity>;
-  /** True once the first Firestore snapshot has been received. */
-  accountsHydrated: boolean;
-  /** Bootstrap phase for optimistic seeding. */
-  bootstrapPhase: "idle" | "seeded" | "hydrated";
-  /** Currently selected account (personal user account or an organization). */
-  activeAccount: ActiveAccount | null;
-}
-⋮----
-/** All organization accounts visible to the signed-in user. */
-⋮----
-/** True once the first Firestore snapshot has been received. */
-⋮----
-/** Bootstrap phase for optimistic seeding. */
-⋮----
-/** Currently selected account (personal user account or an organization). */
-⋮----
-export type AppAction =
-  | {
-      type: "SEED_ACTIVE_ACCOUNT";
-      payload: { user: { id: string; name: string; email: string } };
-    }
-  | {
-      type: "SET_ACCOUNTS";
-      payload: {
-        accounts: Record<string, AccountEntity>;
-        user: { id: string; name: string; email: string };
-        preferredActiveAccountId?: string | null;
-      };
-    }
-  | { type: "SET_ACTIVE_ACCOUNT"; payload: ActiveAccount | null }
-  | { type: "RESET_STATE" };
-⋮----
-export interface AppContextValue {
-  state: AppState;
-  dispatch: Dispatch<AppAction>;
-}
-⋮----
-// ── Initial State ────────────────────────────────────────────────────────────
-⋮----
-// ── Hook ─────────────────────────────────────────────────────────────────────
-⋮----
-export function useApp()
 ````
 
 ## File: modules/platform/subdomains/access-control/infrastructure/index.ts
@@ -38107,6 +38262,27 @@ export async function updateAccountProfile(
 	actorId: string,
 	input: UpdateAccountProfileInput,
 ): Promise<CommandResult>
+````
+
+## File: modules/platform/subdomains/account-profile/interfaces/queries/account-profile.queries.ts
+````typescript
+/**
+ * Account Profile Read Queries — thin wrappers over account-profile API use cases.
+ * NOT Server Actions — callable from React components/hooks directly.
+ */
+⋮----
+import { getAccountProfile, subscribeToAccountProfile } from "../composition/account-profile-service";
+import type {
+  AccountProfile,
+  Unsubscribe,
+} from "../../application/dtos/account-profile.dto";
+⋮----
+export async function getProfile(actorId: string): Promise<AccountProfile | null>
+⋮----
+export function subscribeToProfile(
+  actorId: string,
+  onUpdate: (profile: AccountProfile | null) => void,
+): Unsubscribe
 ````
 
 ## File: modules/platform/subdomains/account/api/legacy-account-profile.bridge.ts
@@ -38248,73 +38424,6 @@ function getUseCase(): GenerateAiTextUseCase
 export async function generateAiText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>
 ⋮----
 export async function summarize(text: string, model?: string): Promise<string>
-````
-
-## File: modules/platform/subdomains/ai/application/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/ai/application/use-cases/generate-ai-text.use-case.ts
-````typescript
-import type {
-  AiTextGenerationPort,
-  GenerateAiTextInput,
-  GenerateAiTextOutput,
-} from "../../domain/ports/AiTextGenerationPort";
-⋮----
-export class GenerateAiTextUseCase {
-⋮----
-constructor(private readonly generationPort: AiTextGenerationPort)
-⋮----
-execute(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>
-````
-
-## File: modules/platform/subdomains/ai/domain/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/ai/domain/ports/AiTextGenerationPort.ts
-````typescript
-export interface GenerateAiTextInput {
-  readonly prompt: string;
-  readonly system?: string;
-  readonly model?: string;
-}
-⋮----
-export interface GenerateAiTextOutput {
-  readonly text: string;
-  readonly model: string;
-  readonly finishReason?: string;
-}
-⋮----
-export interface AiTextGenerationPort {
-  generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
-}
-⋮----
-generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
-````
-
-## File: modules/platform/subdomains/ai/infrastructure/genkit/GenkitAiTextGenerationAdapter.ts
-````typescript
-import { genkit } from "genkit";
-import { googleAI } from "@genkit-ai/google-genai";
-⋮----
-import type {
-  AiTextGenerationPort,
-  GenerateAiTextInput,
-  GenerateAiTextOutput,
-} from "../../domain/ports/AiTextGenerationPort";
-⋮----
-export class GenkitAiTextGenerationAdapter implements AiTextGenerationPort {
-⋮----
-async generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>
-````
-
-## File: modules/platform/subdomains/ai/infrastructure/index.ts
-````typescript
-
 ````
 
 ## File: modules/platform/subdomains/background-job/api/index.ts
@@ -38750,14 +38859,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/notification/api/index.ts
-````typescript
-/**
- * Public API boundary for the notification subdomain.
- * Cross-module consumers must import through this entry point.
- */
-````
-
 ## File: modules/platform/subdomains/notification/domain/index.ts
 ````typescript
 
@@ -38821,6 +38922,15 @@ async function handleMarkAllRead()
 ⋮----
 ````
 
+## File: modules/platform/subdomains/notification/interfaces/components/screens/SettingsNotificationsRouteScreen.tsx
+````typescript
+import { useAuth } from "../../../../identity/api";
+⋮----
+import { NotificationsPage } from "../NotificationsPage";
+⋮----
+export function SettingsNotificationsRouteScreen()
+````
+
 ## File: modules/platform/subdomains/notification/interfaces/composition/notification-service.ts
 ````typescript
 /**
@@ -38842,6 +38952,23 @@ import type { DispatchNotificationInput, NotificationEntity } from "../../domain
 import type { CommandResult } from "@shared-types";
 ⋮----
 function getNotifRepo(): FirebaseNotificationRepository
+````
+
+## File: modules/platform/subdomains/notification/interfaces/index.ts
+````typescript
+
+````
+
+## File: modules/platform/subdomains/notification/interfaces/queries/notification.queries.ts
+````typescript
+/**
+ * Notification Queries — delegates to notificationService via the subdomain api/ boundary.
+ */
+⋮----
+import { notificationService } from "../composition/notification-service";
+import type { NotificationEntity } from "../../application/dtos/notification.dto";
+⋮----
+export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]>
 ````
 
 ## File: modules/platform/subdomains/notification/README.md
@@ -39035,6 +39162,33 @@ reset();
 onOpenChange(false);
 ````
 
+## File: modules/platform/subdomains/organization/interfaces/components/screens/OrganizationMembersRouteScreen.tsx
+````typescript
+import { useAccountRouteContext } from "../../../../../interfaces/web/hooks/useAccountRouteContext";
+⋮----
+import { MembersPage } from "../MembersPage";
+⋮----
+export function OrganizationMembersRouteScreen()
+````
+
+## File: modules/platform/subdomains/organization/interfaces/components/screens/OrganizationPermissionsRouteScreen.tsx
+````typescript
+import { useAccountRouteContext } from "../../../../../interfaces/web/hooks/useAccountRouteContext";
+⋮----
+import { PermissionsPage } from "../PermissionsPage";
+⋮----
+export function OrganizationPermissionsRouteScreen()
+````
+
+## File: modules/platform/subdomains/organization/interfaces/components/screens/OrganizationTeamsRouteScreen.tsx
+````typescript
+import { useAccountRouteContext } from "../../../../../interfaces/web/hooks/useAccountRouteContext";
+⋮----
+import { TeamsPage } from "../TeamsPage";
+⋮----
+export function OrganizationTeamsRouteScreen()
+````
+
 ## File: modules/platform/subdomains/organization/interfaces/composition/organization-service.ts
 ````typescript
 /**
@@ -39113,9 +39267,20 @@ function getTeamPort(): OrganizationTeamPort
  */
 ````
 
-## File: modules/platform/subdomains/organization/interfaces/index.ts
+## File: modules/platform/subdomains/organization/interfaces/queries/organization.queries.ts
 ````typescript
-
+/**
+ * Organization Queries — delegates to organizationQueryService via the subdomain api/ boundary.
+ */
+⋮----
+import { organizationQueryService } from "../composition/organization-service";
+import type { MemberReference, Team, OrgPolicy } from "../../application/dtos/organization.dto";
+⋮----
+export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]>
+⋮----
+export function getOrganizationTeams(organizationId: string): Promise<Team[]>
+⋮----
+export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]>
 ````
 
 ## File: modules/platform/subdomains/organization/README.md
@@ -39817,6 +39982,19 @@ reset();
 onOpenChange(false);
 ````
 
+## File: modules/workspace/interfaces/web/components/screens/AccountDashboardRouteScreen.tsx
+````typescript
+import { useMemo } from "react";
+⋮----
+import { useAccountRouteContext, useApp, useAuth } from "@/modules/platform/api";
+⋮----
+import { getWorkspaceStorageKey } from "../../state/workspace-session";
+import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";
+import { AccountDashboardScreen } from "./AccountDashboardScreen";
+⋮----
+export function AccountDashboardRouteScreen()
+````
+
 ## File: modules/workspace/interfaces/web/components/screens/AccountDashboardScreen.tsx
 ````typescript
 import Link from "next/link";
@@ -39876,6 +40054,46 @@ function enc(s: string): string
 {/* ── Active workspace quick-access ──────────────────────────────── */}
 ⋮----
 {/* ── All workspaces list ─────────────────────────────────────────── */}
+````
+
+## File: modules/workspace/interfaces/web/components/screens/OrganizationWorkspacesRouteScreen.tsx
+````typescript
+import { useAccountRouteContext } from "@/modules/platform/api";
+⋮----
+import { OrganizationWorkspacesScreen } from "./OrganizationWorkspacesScreen";
+⋮----
+export function OrganizationWorkspacesRouteScreen()
+````
+
+## File: modules/workspace/interfaces/web/components/screens/OrganizationWorkspacesScreen.tsx
+````typescript
+import Link from "next/link";
+import { type FormEvent, useState } from "react";
+⋮----
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+⋮----
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";
+import { CreateWorkspaceDialog } from "../dialogs/CreateWorkspaceDialog";
+⋮----
+interface OrganizationWorkspacesScreenProps {
+  readonly accountId: string | null | undefined;
+}
+⋮----
+function resetDialog()
+⋮----
+async function handleSubmit(event: FormEvent<HTMLFormElement>)
+⋮----
+resetDialog();
+setIsCreateOpen(true);
 ````
 
 ## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailRouteScreen.tsx
@@ -40021,15 +40239,85 @@ async function handleSave(
 )
 ````
 
-## File: modules/workspace/interfaces/web/index.ts
+## File: modules/workspace/interfaces/web/providers/WorkspaceContextProvider.tsx
 ````typescript
 /**
- * workspace interfaces/web public boundary.
+ * WorkspaceContextProvider — workspace/interfaces/web layer
  *
- * Web-layer components, hooks, navigation, state helpers and utilities.
- * App-layer and cross-module consumers that need UI composition must import
- * from this path instead of reaching into individual sub-directories.
+ * Owns workspace-scoped state for the authenticated shell:
+ *   - workspaces visible under the active account
+ *   - active workspace selection and localStorage persistence
+ *
+ * Reads `activeAccount` from platform's useApp(); subscribes to workspaces
+ * via workspace-owned query functions. This keeps workspace state ownership
+ * inside the workspace bounded context instead of leaking into platform.
  */
+⋮----
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useReducer,
+  type Dispatch,
+  type ReactNode,
+} from "react";
+⋮----
+import { useApp } from "@/modules/platform/api";
+import type { WorkspaceEntity } from "../../api/contracts";
+import { subscribeToWorkspacesForAccount } from "../../api/facades/workspace.facade";
+import { toWorkspaceMap } from "../utils/workspace-map";
+import { getWorkspaceStorageKey } from "../state/workspace-session";
+⋮----
+// ── State ────────────────────────────────────────────────────────────────────
+⋮----
+export interface WorkspaceContextState {
+  /** Workspaces visible under the active account. */
+  workspaces: Record<string, WorkspaceEntity>;
+  /** True once the first active-account workspace snapshot has been received. */
+  workspacesHydrated: boolean;
+  /** Currently selected workspace context under the active account. */
+  activeWorkspaceId: string | null;
+}
+⋮----
+/** Workspaces visible under the active account. */
+⋮----
+/** True once the first active-account workspace snapshot has been received. */
+⋮----
+/** Currently selected workspace context under the active account. */
+⋮----
+export type WorkspaceContextAction =
+  | {
+      type: "SET_WORKSPACES";
+      payload: { workspaces: Record<string, WorkspaceEntity>; hydrated: boolean };
+    }
+  | { type: "SET_ACTIVE_WORKSPACE"; payload: string | null }
+  | { type: "RESET" };
+⋮----
+export interface WorkspaceContextValue {
+  state: WorkspaceContextState;
+  dispatch: Dispatch<WorkspaceContextAction>;
+}
+⋮----
+function workspaceReducer(
+  state: WorkspaceContextState,
+  action: WorkspaceContextAction,
+): WorkspaceContextState
+⋮----
+// ── Provider ─────────────────────────────────────────────────────────────────
+⋮----
+export function WorkspaceContextProvider(
+⋮----
+// Reset workspace state when account changes
+⋮----
+// Restore active workspace from localStorage
+⋮----
+// Persist active workspace to localStorage
+⋮----
+// Subscribe to workspaces for the active account
+⋮----
+// ── Hook ─────────────────────────────────────────────────────────────────────
+⋮----
+export function useWorkspaceContext()
 ````
 
 ## File: modules/workspace/README.md
@@ -40122,13 +40410,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
-## File: modules/workspace/subdomains/audit/api/index.ts
-````typescript
-/**
- * workspace/subdomains/audit API boundary.
- */
-````
-
 ## File: modules/workspace/subdomains/audit/domain/index.ts
 ````typescript
 // ── Existing domain types ────────────────────────────────────────────────────
@@ -40169,6 +40450,29 @@ async findByWorkspaceIds(
 ): Promise<AuditLogEntity[]>
 ````
 
+## File: modules/workspace/subdomains/audit/interfaces/components/screens/OrganizationAuditRouteScreen.tsx
+````typescript
+import { useEffect, useMemo, useState } from "react";
+⋮----
+import { useAccountRouteContext } from "@/modules/platform/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+⋮----
+import { useWorkspaceHub } from "../../../../../interfaces/web/hooks/useWorkspaceHub";
+import { AuditStream } from "../AuditStream";
+import { getOrganizationAuditLogs } from "../../queries/audit.queries";
+⋮----
+function formatDateTime(value: string | Date | null | undefined): string
+⋮----
+async function load()
+````
+
 ## File: modules/workspace/subdomains/audit/README.md
 ````markdown
 # Audit
@@ -40199,6 +40503,11 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/workspace/subdomains/feed/api/index.ts
+````typescript
+
 ````
 
 ## File: modules/workspace/subdomains/feed/domain/events/workspace-feed.events.ts
@@ -40354,6 +40663,38 @@ async listByWorkspaceId(accountId: string, workspaceId: string, maxRows: number)
 async listByAccountId(accountId: string, maxRows: number): Promise<WorkspaceFeedPost[]>
 ````
 
+## File: modules/workspace/subdomains/feed/interfaces/components/screens/OrganizationDailyRouteScreen.tsx
+````typescript
+import { useAccountRouteContext } from "@/modules/platform/api";
+⋮----
+import { WorkspaceFeedAccountView } from "../WorkspaceFeedAccountView";
+⋮----
+export function OrganizationDailyRouteScreen()
+````
+
+## File: modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedAccountView.tsx
+````typescript
+import { useCallback, useEffect, useState } from "react";
+import { Eye, Heart, MessageCircle, Repeat2, Share2, Star } from "lucide-react";
+⋮----
+import { useApp } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { workspaceFeedFacade } from "../../api/workspace-feed.facade";
+import type { WorkspaceFeedPost } from "../../application/dto/workspace-feed.dto";
+⋮----
+interface WorkspaceFeedAccountViewProps {
+  readonly accountId: string;
+  readonly actorAccountId?: string | null;
+}
+⋮----
+async function handleAction(post: WorkspaceFeedPost, action: "like" | "view" | "bookmark" | "share" | "repost")
+⋮----
+async function handleReply(post: WorkspaceFeedPost)
+⋮----
+onClick=
+````
+
 ## File: modules/workspace/subdomains/feed/README.md
 ````markdown
 # Feed
@@ -40384,6 +40725,15 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/workspace/subdomains/scheduling/api/index.ts
+````typescript
+/**
+ * Module: workspace/subdomains/scheduling
+ * Layer: api/barrel
+ * Purpose: Public anti-corruption layer for scheduling subdomain.
+ */
 ````
 
 ## File: modules/workspace/subdomains/scheduling/application/dto/work-demand.dto.ts
@@ -40588,6 +40938,15 @@ function handleClose()
 async function handleSubmit(e: React.FormEvent)
 ⋮----
 onChange=
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/screens/OrganizationScheduleRouteScreen.tsx
+````typescript
+import { useAccountRouteContext } from "@/modules/platform/api";
+⋮----
+import { AccountSchedulingView } from "../AccountSchedulingView";
+⋮----
+export function OrganizationScheduleRouteScreen()
 ````
 
 ## File: modules/workspace/subdomains/scheduling/README.md
@@ -41443,411 +41802,11 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 - Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
 ````
 
-## File: AGENTS.md
-````markdown
-# API Architecture Rules
-
-## NotionAPI & NotebookLMAPI
-
-platform 是跨域能力中樞，must expose two API layers:
-
-### 1. Infrastructure API (低階 / 模組內用)
-
-**所有權**: platform  
-**消費者**: notion、notebooklm (only)  
-**用途**: Runtime capability contracts（不含業務決策）  
-
-```typescript
-// Firestore access contract
-export interface FirestoreAPI {
-  get<T>(path: string): Promise<T | null>;
-  set<T>(path: string, data: T): Promise<void>;
-  query<T>(collection: string, where: Query[]): Promise<T[]>;
-}
-
-// Cloud Storage access contract
-export interface StorageAPI {
-  upload(file: File, path: string): Promise<string>;
-  getUrl(path: string): Promise<string>;
-  delete(path: string): Promise<void>;
-}
-
-// Genkit AI flow orchestration contract
-export interface GenkitAPI {
-  runFlow<TInput, TOutput>(
-    flow: string,
-    input: TInput
-  ): Promise<TOutput>;
-}
-```
-
-**Rule**: notion、notebooklm use these for **data persistence and external tool invocation only**. No business logic should hide inside adapter calls.
-
----
-
-### 2. Platform Service API (高階 / 系統級用)
-
-**所有權**: platform  
-**消費者**: workspace、notion、notebooklm (all)  
-**用途**: Cross-domain capability contracts（含governance、auth、entitlement）  
-
-```typescript
-// Authentication & Session
-export interface AuthAPI {
-  getSession(): Promise<AuthSession>;
-  requireAuth(): Promise<User>;
-}
-
-// Access Control & Entitlement
-export interface PermissionAPI {
-  can(userId: string, action: string, resource: string): Promise<boolean>;
-}
-
-// Semantic File Lifecycle (not raw storage)
-export interface FileAPI {
-  uploadUserFile(input: {
-    file: File;
-    ownerId: string;
-  }): Promise<{ url: string; fileId: string }>;
-  deleteFile(fileId: string): Promise<void>;
-}
-
-// AI capability coordination (routing & safety)
-export interface AIAPI {
-  summarize(text: string): Promise<string>;
-  // More methods as capabilities expand
-}
-```
-
-**Rule**: All modules (including notion、notebooklm) must go through Service APIs for cross-domain operations.
-
----
-
-## API Call Rules
-
-| Caller | Firestore | Storage | Genkit | Auth | Permission | File | AI |
-|--------|-----------|---------|--------|------|------------|------|-----|
-| workspace | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| notion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅* | ✅ |
-| notebooklm | ✅ | ✅ | ✅ | ✅ | ✅ | ✅* | ✅ |
-
-**\* File API**: notion、notebooklm must use `FileAPI` (not raw `StorageAPI`) when files involve ownership, entitlement, or multi-tenant isolation.
-
----
-
-## Example Flow: File Upload with Entitlement Check
-
-```text
-workspace (UI)
-  → FileAPI.uploadUserFile({ file, ownerId })
-  ↓
-platform (FileAPI)
-  → PermissionAPI.can(ownerId, "create:file", context)
-  ↓
-notion.createDocument(with fileId)
-  → Storage.upload(...) via Infrastructure API
-  ↓
-Firebase Storage
-```
-
-**Key**: uploadUserFile ≠ Storage.upload
-- `uploadUserFile`: semantic contract (ownership, entitlement, audit)
-- `Storage.upload`: mechanism contract (how bytes move)
-
----
-
-## Governance Rules
-
-1. **platform is the unique infra gateway** — all Firebase, Genkit, external AI routing flows through platform adapters.
-2. **notion、notebooklm use Infrastructure APIs for local concerns only** — persistence, embedding, synthesis.
-3. **workspace never touches Infrastructure APIs** — always goes through Platform Service APIs.
-4. **All cross-domain behavior routes through Platform Service APIs** — auth, permission, entitlement, file ownership, AI safety.
-5. **Published Language is upstream boundary** — concepts like `Actor`, `Tenant`, `Entitlement`, `fileId` are defined in platform ubiquitous language; downstream contexts translate as needed.
-
----
-
-# Four Main Domains
-
-## Strategic Overview
-
-| Main Domain | Strategic Role | Baseline Subdomains | Recommended Gap | Active Status |
-|---|---|---|---|---|
-| **platform** | 治理與營運支撐 | identity, account, account-profile, organization, access-control, security-policy, platform-config, feature-flag, onboarding, compliance, billing, subscription, referral, ai, integration, workflow, notification, background-job, content, search, audit-log, observability, analytics, support (23) | tenant, entitlement, secret-management, consent (4) | ✅ 23 baseline + 4 gap |
-| **workspace** | 協作容器與 scope | audit, feed, scheduling, workspace-workflow (4) | lifecycle, membership, sharing, presence (4) | ✅ 4 baseline + 4 gap |
-| **notion** | 正典知識內容 | knowledge, authoring, collaboration, database, attachments, knowledge-versioning (6) | taxonomy, relations, publishing (3) | ✅ 6 baseline + 3 gap |
-| **notebooklm** | 對話與推理 | conversation, note, notebook, source, synthesis (5) | ingestion, retrieval, grounding, evaluation (4) | ✅ 5 baseline + 4 gap |
-
----
-
-## Ubiquitous Language
-
-### Domain Key Terms
-
-| Domain | Cardinal Terms | Published Language |
-|---|---|---|
-| **platform** | Actor, Tenant, Entitlement, Consent, Secret | Defines all upstream concepts; all downstream must translate through these |
-| **workspace** | Workspace, Membership, ShareScope, ActivityFeed, AuditTrail | Consumes: actor reference, organization scope, access decision, entitlement signal |
-| **notion** | KnowledgeArtifact, Taxonomy, Relation, Publication | Consumes: actor reference, organization scope, entitlement signal, ai capability signal |
-| **notebooklm** | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation | Consumes: actor reference, organization scope, entitlement signal, ai capability signal |
-
-### Context Map (Upstream → Downstream)
-
-```text
-platform
-  ├→ workspace        (actor, organization scope, access decision, entitlement signal)
-  ├→ notion           (actor, organization scope, entitlement signal, ai capability signal)
-  └→ notebooklm       (actor, organization scope, entitlement signal, ai capability signal)
-
-workspace
-  ├→ notion           (workspaceId, membership scope, share scope)
-  └→ notebooklm       (workspaceId, membership scope, share scope)
-
-notion
-  └→ notebooklm       (knowledge artifact reference, attachment reference, taxonomy hint)
-
-notebooklm
-  └→ (none)            (terminal context in current strategic map)
-```
-
-### Published Language Token Glossary
-
-| Token | Canonical Domain | Constraint |
-|---|---|---|
-| actor reference | platform.Actor | Never mix with Membership |
-| organization scope | platform.Tenant / organization boundary | Never equals Workspace scope |
-| access decision | platform.access-control result | Pass decision only, not internal policy model |
-| entitlement signal | platform.entitlement / subscription capability | Never mix with feature-flag payload |
-| ai capability signal | platform.ai shared capability (only) | notion & notebooklm CONSUME only, never OWN `ai` subdomain |
-| workspaceId | workspace.Workspace identifier | Never replaces local knowledge/notebook primary key |
-| membership scope | workspace.Membership constraint | Never mixes with actor identity language |
-| share scope | workspace.ShareScope constraint | Never mixes with general permission fields |
-| knowledge artifact reference | notion.KnowledgeArtifact reference | Reference only, no ownership transfer |
-| attachment reference | notion / notebooklm attachment ref | Traceable reference, never leaked storage impl |
-| taxonomy hint | notebooklm retrieval hint (only) | Never overrides notion's canonical taxonomy |
-
----
-
-## Dependency Direction Rules
-
-### Fixed Upstream → Downstream Flow
-
-```
-platform
-  ↓
-workspace, notion, notebooklm (all consume platform governance APIs)
-  ↓
-workspace ↓ notion ↓ notebooklm
-(sequential consumption allowed; never reverse upstream)
-```
-
-### Anti-Patterns
-
-- ❌ workspace calling notion.api directly (must go through published language)
-- ❌ notion calling platform.domain internal models (must use Service API boundary)
-- ❌ notebooklm defining its own `ai` subdomain (belongs exclusively to platform)
-- ❌ Mixing Actor + Membership terminology (Actor = identity, Membership = workspace participation)
-- ❌ Treating notion's KnowledgeArtifact as writable by other domains (reference only)
-
----
-
-## Module Ownership Guardrails
-
-| Concern | Owner | Never Owned By |
-|---|---|---|
-| Identity, authentication, session | platform | workspace, notion, notebooklm |
-| Permission, entitlement, access control | platform | workspace, notion, notebooklm |
-| Tenant isolation, organization scope | platform | workspace, notion, notebooklm |
-| AI capability routing, model policy, safety | platform | notion, notebooklm (consumers only) |
-| Workspace creation, archival, lifecycle | workspace | notion, notebooklm, platform |
-| Knowledge artifact authoring, versioning | notion | platform, workspace, notebooklm |
-| Conversation, retrieval, synthesis | notebooklm | platform, workspace, notion (notion→notebooklm: reference only) |
-| Cross-module security rules, audit | platform | all others apply, never contradict |
-
----
-
-# 🚫 Hard Rules (Will Cause Refactors If Violated)
-
-## Strategic Ownership Rules (Non-Negotiable)
-
-### Rule 1: Platform is Unique Infrastructure Gateway
-- ✅ platform owns Firebase, Genkit, external AI routing, cross-domain auth
-- ❌ notion, notebooklm NEVER own infra (except local read-only access)
-- ❌ workspace NEVER touches Firebase/Storage/Genkit directly
-
-### Rule 5: Workspace is Orchestration Only
-- ✅ workspace composes module APIs and next.js routing
-- ❌ workspace NEVER contains domain business logic
-- ❌ workspace NEVER makes direct DB/permission decisions
-
-### Rule 6: Cross-Module Access Prohibition
-- ✅ module A imports module B only via `@/modules/b/api`
-- ❌ NO direct imports of domain/, application/, infrastructure/, interfaces/
-- ✅ ALL data sharing via events or published language tokens
-
-### Rule 7: Mandatory Single Entry Point (API Boundary)
-- ✅ Every module must export `api/index.ts`
-- ✅ `api/` exposes only public surface; hides internals
-- ❌ NO imports from internal module paths outside module
-
-### Rule 8: Platform is Only Infrastructure Layer
-- ✅ Firebase, Genkit, Auth, File Storage, Queue: platform owns
-- ✅ Cross-domain coordination, routing, governance: platform owns
-- ❌ Notion NEVER owns persistence (uses platform.infrastructure APIs)
-- ❌ Notebooklm NEVER owns embedding infra (uses platform.infrastructure APIs)
-
-### Rule 9: Cross-Module Data Flow MUST Use Events or API
-- ✅ When module A needs data from module B: A calls B.api or subscribes to B.event
-- ❌ NO shared in-memory state
-- ❌ NO direct repository access across module boundaries
-- ✅ All state mutations via transaction-protected API calls
-
-### Rule 10: Domain Layer is Externally Independent
-- ✅ domain/ contains entities, value objects, rules; NO framework deps
-- ❌ domain/ NEVER imports: React, Firebase SDK, HTTP client, ORM
-- ❌ domain/ NEVER depends on other modules (even platform)
-- ✅ All external deps injected via ports/adapters
-
-### Rule 28: Platform Cannot Depend on Downstream
-- ✅ platform → workspace | notion | notebooklm (one direction only)
-- ❌ platform NEVER imports from workspace, notion, notebooklm
-- ✅ If platform needs semantic data from notion/notebooklm: notion/notebooklm emit event to platform
-
-## Anti-Patterns (Will Require Refactors)
-
-### Rule 46: ❌ workspace directly calls Firestore
-- **Wrong**: `firestore.collection('documents').get()`
-- **Correct**: Use `@/modules/platform/api` (FileAPI, PermissionAPI, etc.)
-
-### Rule 47: ❌ notebooklm implements its own permission logic
-- **Wrong**: notebooklm checking `user.role === 'admin'`
-- **Correct**: Call `@/modules/platform/api → PermissionAPI.can()`
-
-### Rule 48: ❌ notion directly invokes AI/Genkit
-- **Wrong**: `notion/application/ imports Genkit`
-- **Correct**: Notion emits event; platform routes to notebooklm via AI API
-
-### Rule 49: ❌ Module imports another module's internal
-- **Wrong**: `import { SomeEntity } from '@/modules/notion/domain/entities'`
-- **Correct**: Use `import { api } from '@/modules/notion/api'` only
-
-### Rule 50: ❌ Business logic written in React component (workspace UI)
-- **Wrong**: `if (user.role === 'admin') { ... }` in .tsx
-- **Correct**: Move to application/ use-case; UI only composes and calls
-
-### Rule 51: ❌ Cross-module route components read foreign context providers
-- **Wrong**: notion/notebooklm route components call workspace providers directly (e.g. `useWorkspaceContext()`)
-- **Correct**: workspace is the composition owner and must pass explicit scope props (`accountId`, `workspaceId`, optional `currentUserId`) through module `api/` boundaries
-
----
-
-## Full Enforcement & Reference
-
-See `docs/hard-rules-consolidated.md` for:
-- All 51 rules with detailed explanations
-- Document placement strategy (7 homes)
-- Enforcement checklist
-- Layer responsibility rules (11-13, 21-23)
-- Event bus & async rules (4, 34-36)
-- File/data/permission rules (3, 29-32, 37-40)
-- Cross-module contract rules (24-27)
-````
-
-## File: app/(shell)/_providers/AppProvider.tsx
+## File: app/(shell)/(account)/[accountId]/dashboard/page.tsx
 ````typescript
-/**
- * AppProvider — app/(shell)/ composition layer
- *
- * Manages the platform-owned account lifecycle (auth → accounts → activeAccount).
- * Lives in app/ because the cross-module composition root is the correct owner
- * of account-state wiring that reads from platform subdomain queries.
- *
- * Workspace state is managed by WorkspaceContextProvider from workspace module.
- */
+import { AccountDashboardRouteScreen } from "@/modules/workspace/api";
 ⋮----
-import { useReducer, useEffect, type ReactNode } from "react";
-⋮----
-import {
-  AppContext,
-  APP_INITIAL_STATE,
-  type AppState,
-  type AppAction,
-} from "@/modules/platform/api";
-import {
-  resolveActiveAccount,
-  subscribeToAccountsForUser,
-} from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-⋮----
-function appReducer(state: AppState, action: AppAction): AppState
-⋮----
-export function AppProvider(
-⋮----
-// eslint-disable-next-line react-hooks/exhaustive-deps
-````
-
-## File: app/(shell)/_shell/shell-quick-create.ts
-````typescript
-/**
- * shell-quick-create — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it imports notion's createKnowledgePage.
- * Kept as a composition adapter at the app boundary.
- */
-⋮----
-import { createKnowledgePage } from "@/modules/workspace/api";
-⋮----
-export interface QuickCreatePageInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly createdByUserId: string;
-}
-⋮----
-export interface QuickCreatePageResult {
-  readonly success: boolean;
-  readonly error?: { message: string };
-}
-⋮----
-export async function quickCreateKnowledgePage(
-  input: QuickCreatePageInput,
-): Promise<QuickCreatePageResult>
-````
-
-## File: app/(shell)/_shell/ShellContextNavSection.tsx
-````typescript
-/**
- * ShellContextNavSection — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it imports from workspace module.
- */
-⋮----
-import Link from "next/link";
-import { appendWorkspaceContextQuery } from "@/modules/workspace/api";
-import { buildShellContextualHref } from "@/modules/platform/api";
-⋮----
-interface ContextScopedNavItem {
-  href: string;
-  label: string;
-}
-⋮----
-interface ShellContextNavSectionProps {
-  title: string;
-  items: readonly ContextScopedNavItem[];
-  isActiveRoute: (href: string) => boolean;
-  activeAccountId: string | null;
-  activeWorkspaceId: string | null;
-}
-````
-
-## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/dashboard/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-⋮----
-interface AccountWorkspaceDashboardPageProps {
-  params: {
-    accountId: string;
-    workspaceId: string;
-  };
-}
-⋮----
-export default function AccountWorkspaceDashboardPage(
+export default function AccountDashboardPage()
 ````
 
 ## File: app/(shell)/(account)/[accountId]/dev-tools/dev-tools-helpers.ts
@@ -42089,19 +42048,6 @@ interface AccountRouteLayoutProps {
 export default function AccountRouteLayout(
 ````
 
-## File: app/(shell)/(account)/[accountId]/organization/content/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-⋮----
-interface OrganizationKnowledgePageProps {
-  params: {
-    accountId: string;
-  };
-}
-⋮----
-export default function OrganizationKnowledgePage(
-````
-
 ## File: app/(shell)/(account)/[accountId]/organization/page.tsx
 ````typescript
 /**
@@ -42177,33 +42123,11 @@ function getFallbackAccountType(activeAccount: ActiveAccount | null): "user" | "
 export default function AccountWorkspaceHubPage()
 ````
 
-## File: app/(shell)/(account)/[accountId]/settings/general/page.tsx
+## File: app/(shell)/(account)/[accountId]/settings/notifications/page.tsx
 ````typescript
-/**
- * /settings/general — redirect to workspace (removed from MVP nav, Occam's Razor)
- */
-import { redirect } from "next/navigation";
+import { SettingsNotificationsRouteScreen } from "@/modules/platform/api";
 ⋮----
-interface SettingsGeneralPageProps {
-  params: {
-    accountId: string;
-  };
-}
-⋮----
-export default function SettingsGeneralPage(
-````
-
-## File: app/(shell)/(account)/[accountId]/settings/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-⋮----
-interface SettingsPageProps {
-  params: {
-    accountId: string;
-  };
-}
-⋮----
-export default function SettingsPage(
+export default function NotificationCenterPage()
 ````
 
 ## File: modules/notebooklm/api/server.ts
@@ -42908,6 +42832,31 @@ export function makeConversationUseCases(
 ): ConversationUseCases
 ````
 
+## File: modules/notebooklm/interfaces/conversation/helpers.ts
+````typescript
+import type { Thread } from "../../subdomains/conversation/domain/entities/thread";
+⋮----
+// ── Domain types ──────────────────────────────────────────────────────────────
+⋮----
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+⋮----
+// ── Storage key ───────────────────────────────────────────────────────────────
+⋮----
+export const STORAGE_KEY = (accountId: string, workspaceId: string)
+⋮----
+// ── Pure helpers ──────────────────────────────────────────────────────────────
+⋮----
+export function buildContextPrompt(history: ChatMessage[]): string
+⋮----
+export function generateMsgId()
+⋮----
+export function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: string): Thread
+````
+
 ## File: modules/notebooklm/interfaces/notebook/_actions/generate-notebook-response.actions.ts
 ````typescript
 import type {
@@ -43040,6 +42989,47 @@ export async function createKnowledgeDraftFromSourceDocument(
 export async function processSourceDocumentWorkflow(
   input: ProcessSourceDocumentWorkflowActionInput,
 ): Promise<SourceProcessingExecutionSummary>
+````
+
+## File: modules/notebooklm/interfaces/source/components/LibraryTablePanel.tsx
+````typescript
+import { useEffect, useMemo, useRef, useState } from "react";
+import { GripVertical } from "lucide-react";
+⋮----
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  useReactTable,
+} from "@lib-tanstack";
+import { draggable, dropTargetForElements, monitorForElements } from "@lib-dragdrop";
+⋮----
+import { getWikiLibrarySnapshot, listWikiLibraries } from "../composition/wiki-library-facade";
+import type { WikiLibraryRow } from "../../../subdomains/source/domain/entities/WikiLibrary";
+⋮----
+interface LibraryTablePanelProps {
+  readonly accountId: string;
+  readonly workspaceId?: string;
+}
+⋮----
+type RowData = WikiLibraryRow & { _values: Record<string, unknown> };
+⋮----
+/**
+ * LibraryTablePanel
+ *
+ * TanStack Table rendering library rows with:
+ * - Column-level text filter (global filter input)
+ * - Drag-to-reorder rows via pragmatic-drag-and-drop
+ */
+⋮----
+// Load library list
+⋮----
+// Load rows when selection changes
+⋮----
+// DnD row reorder
+⋮----
+onDrop(
 ````
 
 ## File: modules/notebooklm/interfaces/source/components/SourceDocumentsPanel.tsx
@@ -44737,11 +44727,33 @@ function handleSelect(href: string)
 function onKeyDown(event: KeyboardEvent)
 ````
 
-## File: modules/platform/subdomains/access-control/api/index.ts
+## File: modules/platform/subdomains/access-control/application/services/shell-account-access.ts
 ````typescript
+export interface ShellAccountActor {
+  readonly id: string;
+  readonly accountType?: string;
+}
+⋮----
+export function isOrganizationActor(
+  account: ShellAccountActor | null | undefined,
+): account is ShellAccountActor &
+⋮----
 /**
- * Public API boundary for the access-control subdomain.
+ * Type-narrowing guard for ActiveAccount (union of AccountEntity | AuthUser).
+ * Returns true when the active account is an organization account.
  */
+export function isActiveOrganizationAccount(
+  activeAccount: { id: string; accountType?: string } | null,
+): activeAccount is
+⋮----
+/**
+ * Keep shell fallback behavior centralized so route access rules are not
+ * duplicated across layout components.
+ */
+export function resolveOrganizationRouteFallback(
+  pathname: string,
+  account: ShellAccountActor | null | undefined,
+): string | null
 ````
 
 ## File: modules/platform/subdomains/account-profile/infrastructure/index.ts
@@ -44751,6 +44763,11 @@ function onKeyDown(event: KeyboardEvent)
  *
  * Composition logic lives in interfaces/composition/account-profile-service.ts.
  */
+````
+
+## File: modules/platform/subdomains/account-profile/interfaces/index.ts
+````typescript
+
 ````
 
 ## File: modules/platform/subdomains/account/interfaces/queries/account.queries.ts
@@ -44805,6 +44822,29 @@ export async function getAccountPolicies(_accountId: string): Promise<AccountPol
 export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]>
 ````
 
+## File: modules/platform/subdomains/ai/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * This barrel is client-safe — it exports only types and interfaces.
+ * Server-only functions (generateAiText, summarize) live in ./server.ts.
+ */
+⋮----
+import type { GenerateAiTextInput, GenerateAiTextOutput } from "../domain/ports/AiTextGenerationPort";
+⋮----
+// Re-export domain types through API boundary
+⋮----
+export interface AIAPI {
+	summarize(text: string, model?: string): Promise<string>;
+	generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
+}
+⋮----
+summarize(text: string, model?: string): Promise<string>;
+generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
+````
+
 ## File: modules/platform/subdomains/background-job/domain/index.ts
 ````typescript
 
@@ -44829,6 +44869,14 @@ export async function getActiveAccountPolicies(_accountId: string): Promise<Acco
  */
 ````
 
+## File: modules/platform/subdomains/notification/api/index.ts
+````typescript
+/**
+ * Public API boundary for the notification subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+````
+
 ## File: modules/platform/subdomains/organization/infrastructure/index.ts
 ````typescript
 /**
@@ -44836,6 +44884,11 @@ export async function getActiveAccountPolicies(_accountId: string): Promise<Acco
  *
  * Composition logic lives in interfaces/composition/organization-service.ts.
  */
+````
+
+## File: modules/platform/subdomains/organization/interfaces/index.ts
+````typescript
+
 ````
 
 ## File: modules/platform/subdomains/search/application/services/shell-command-catalog.ts
@@ -45037,85 +45090,11 @@ export function useWorkspaceOrchestrationContext(
 ): WorkspaceOrchestrationContext
 ````
 
-## File: modules/workspace/interfaces/web/providers/WorkspaceContextProvider.tsx
+## File: modules/workspace/subdomains/audit/api/index.ts
 ````typescript
 /**
- * WorkspaceContextProvider — workspace/interfaces/web layer
- *
- * Owns workspace-scoped state for the authenticated shell:
- *   - workspaces visible under the active account
- *   - active workspace selection and localStorage persistence
- *
- * Reads `activeAccount` from platform's useApp(); subscribes to workspaces
- * via workspace-owned query functions. This keeps workspace state ownership
- * inside the workspace bounded context instead of leaking into platform.
+ * workspace/subdomains/audit API boundary.
  */
-⋮----
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useReducer,
-  type Dispatch,
-  type ReactNode,
-} from "react";
-⋮----
-import { useApp } from "@/modules/platform/api";
-import type { WorkspaceEntity } from "../../api/contracts";
-import { subscribeToWorkspacesForAccount } from "../../api/facades/workspace.facade";
-import { toWorkspaceMap } from "../utils/workspace-map";
-import { getWorkspaceStorageKey } from "../state/workspace-session";
-⋮----
-// ── State ────────────────────────────────────────────────────────────────────
-⋮----
-export interface WorkspaceContextState {
-  /** Workspaces visible under the active account. */
-  workspaces: Record<string, WorkspaceEntity>;
-  /** True once the first active-account workspace snapshot has been received. */
-  workspacesHydrated: boolean;
-  /** Currently selected workspace context under the active account. */
-  activeWorkspaceId: string | null;
-}
-⋮----
-/** Workspaces visible under the active account. */
-⋮----
-/** True once the first active-account workspace snapshot has been received. */
-⋮----
-/** Currently selected workspace context under the active account. */
-⋮----
-export type WorkspaceContextAction =
-  | {
-      type: "SET_WORKSPACES";
-      payload: { workspaces: Record<string, WorkspaceEntity>; hydrated: boolean };
-    }
-  | { type: "SET_ACTIVE_WORKSPACE"; payload: string | null }
-  | { type: "RESET" };
-⋮----
-export interface WorkspaceContextValue {
-  state: WorkspaceContextState;
-  dispatch: Dispatch<WorkspaceContextAction>;
-}
-⋮----
-function workspaceReducer(
-  state: WorkspaceContextState,
-  action: WorkspaceContextAction,
-): WorkspaceContextState
-⋮----
-// ── Provider ─────────────────────────────────────────────────────────────────
-⋮----
-export function WorkspaceContextProvider(
-⋮----
-// Reset workspace state when account changes
-⋮----
-// Restore active workspace from localStorage
-⋮----
-// Persist active workspace to localStorage
-⋮----
-// Subscribe to workspaces for the active account
-⋮----
-// ── Hook ─────────────────────────────────────────────────────────────────────
-⋮----
-export function useWorkspaceContext()
 ````
 
 ## File: modules/workspace/subdomains/scheduling/infrastructure/firebase/FirebaseDemandRepository.ts
@@ -45649,6 +45628,55 @@ import { WorkspaceDetailRouteScreen } from "@/modules/workspace/api";
 export default function AccountWorkspaceDetailPage()
 ````
 
+## File: app/(shell)/(account)/[accountId]/organization/audit/page.tsx
+````typescript
+import { OrganizationAuditRouteScreen } from "@/modules/workspace/api";
+⋮----
+export default function OrganizationAuditPageRoute()
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/daily/page.tsx
+````typescript
+import { OrganizationDailyRouteScreen } from "@/modules/workspace/api";
+⋮----
+export default function OrganizationDailyPage()
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/members/page.tsx
+````typescript
+import { OrganizationMembersRouteScreen } from "@/modules/platform/api";
+⋮----
+export default function OrganizationMembersPage()
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/permissions/page.tsx
+````typescript
+import { OrganizationPermissionsRouteScreen } from "@/modules/platform/api";
+⋮----
+export default function OrganizationPermissionsPage()
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/schedule/page.tsx
+````typescript
+import { OrganizationScheduleRouteScreen } from "@/modules/workspace/api";
+⋮----
+export default function OrganizationSchedulePage()
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/teams/page.tsx
+````typescript
+import { OrganizationTeamsRouteScreen } from "@/modules/platform/api";
+⋮----
+export default function OrganizationTeamsPage()
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/workspaces/page.tsx
+````typescript
+import { OrganizationWorkspacesRouteScreen } from "@/modules/workspace/api";
+⋮----
+export default function OrganizationWorkspacesPage()
+````
+
 ## File: docs/bounded-context-subdomain-template.md
 ````markdown
 # Bounded Context Subdomain Template
@@ -45975,27 +46003,6 @@ export function getWikiLibrarySnapshot(
   accountId: string,
   libraryId: string,
 ): ReturnType<typeof _getWikiLibrarySnapshot>
-````
-
-## File: modules/notebooklm/interfaces/synthesis/_actions/rag-query.actions.ts
-````typescript
-import { runKnowledgeRagQuery } from "../../../subdomains/synthesis/api/server";
-import type { KnowledgeRagQueryResult } from "../../../subdomains/synthesis/api";
-⋮----
-function isBlank(value: string): boolean
-⋮----
-export interface RunKnowledgeRagQueryInput {
-  query: string;
-  accountId: string;
-  workspaceId: string;
-  topK?: number;
-  requireReady?: boolean;
-  maxAgeDays?: number;
-}
-⋮----
-export async function runKnowledgeRagQueryAction(
-  input: RunKnowledgeRagQueryInput,
-): Promise<KnowledgeRagQueryResult>
 ````
 
 ## File: modules/notebooklm/subdomains/notebook/api/server.ts
@@ -46456,75 +46463,6 @@ export function makeTaxonomyUseCases(
 // ── Use cases ─────────────────────────────────────────────────────────────────
 ````
 
-## File: modules/platform/subdomains/access-control/application/services/shell-account-access.ts
-````typescript
-export interface ShellAccountActor {
-  readonly id: string;
-  readonly accountType?: string;
-}
-⋮----
-export function isOrganizationActor(
-  account: ShellAccountActor | null | undefined,
-): account is ShellAccountActor &
-⋮----
-/**
- * Type-narrowing guard for ActiveAccount (union of AccountEntity | AuthUser).
- * Returns true when the active account is an organization account.
- */
-export function isActiveOrganizationAccount(
-  activeAccount: { id: string; accountType?: string } | null,
-): activeAccount is
-⋮----
-/**
- * Keep shell fallback behavior centralized so route access rules are not
- * duplicated across layout components.
- */
-export function resolveOrganizationRouteFallback(
-  pathname: string,
-  account: ShellAccountActor | null | undefined,
-): string | null
-````
-
-## File: modules/platform/subdomains/account-profile/api/index.ts
-````typescript
-/**
- * Public API boundary for the account-profile subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Composition root lives in interfaces/composition/account-profile-service.ts;
- * this boundary is intentionally thin — it only re-exports public contracts.
- *
- * Legacy data-source wiring is deferred: the account-profile-service
- * auto-configures its legacy data source on first use via lazy require,
- * eliminating the previous import-time side effect.
- */
-⋮----
-import {
-	getAccountProfile as getAccountProfileFromService,
-	subscribeToAccountProfile as subscribeToAccountProfileFromService,
-	updateAccountProfile as updateAccountProfileFromService,
-} from "../interfaces/composition/account-profile-service";
-import type { AccountProfile, Unsubscribe } from "../domain";
-import type { UpdateAccountProfileInput } from "../application";
-import type { CommandResult } from "@shared-types";
-⋮----
-// ── Use-case delegators ──────────────────────────────────────────────────
-⋮----
-export async function getAccountProfile(actorId: string): Promise<AccountProfile | null>
-⋮----
-export function subscribeToAccountProfile(
-	actorId: string,
-	onUpdate: (profile: AccountProfile | null) => void,
-): Unsubscribe
-⋮----
-export async function updateAccountProfile(
-	actorId: string,
-	input: UpdateAccountProfileInput,
-): Promise<CommandResult>
-⋮----
-// Legacy compatibility exports for migration window.
-````
-
 ## File: modules/platform/subdomains/account/api/index.ts
 ````typescript
 /**
@@ -46566,29 +46504,6 @@ export class IdentityTokenRefreshAdapter implements TokenRefreshPort {
 async emitTokenRefreshSignal(input: TokenRefreshSignalInput): Promise<void>
 ````
 
-## File: modules/platform/subdomains/ai/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * This barrel is client-safe — it exports only types and interfaces.
- * Server-only functions (generateAiText, summarize) live in ./server.ts.
- */
-⋮----
-import type { GenerateAiTextInput, GenerateAiTextOutput } from "../domain/ports/AiTextGenerationPort";
-⋮----
-// Re-export domain types through API boundary
-⋮----
-export interface AIAPI {
-	summarize(text: string, model?: string): Promise<string>;
-	generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
-}
-⋮----
-summarize(text: string, model?: string): Promise<string>;
-generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
-````
-
 ## File: modules/platform/subdomains/identity/api/index.ts
 ````typescript
 /**
@@ -46627,19 +46542,6 @@ export async function register(email: string, password: string, name: string): P
 export async function sendPasswordResetEmail(email: string): Promise<CommandResult>
 ⋮----
 export async function signOut(): Promise<CommandResult>
-````
-
-## File: modules/platform/subdomains/identity/interfaces/hooks/useTokenRefreshListener.tsx
-````typescript
-import { getFirebaseAuth } from "@integration-firebase";
-import { useEffect } from "react";
-import { createTokenRefreshRepository } from "../../api";
-⋮----
-function getTokenRefreshRepo(): ReturnType<typeof createTokenRefreshRepository>
-⋮----
-export function useTokenRefreshListener(accountId: string | null | undefined): void
-⋮----
-// Non-fatal: token refreshes naturally on next expiry cycle.
 ````
 
 ## File: modules/platform/subdomains/team/api/index.ts
@@ -46808,6 +46710,180 @@ Tags: #use skill context7 #use skill shadcn #use skill next-devtools-mcp
 #use skill repomix
 ````
 
+## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
+````typescript
+/**
+ * ShellDashboardSidebar — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it composes workspace module components.
+ */
+⋮----
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+⋮----
+import {
+  buildWorkspaceQuickAccessItems,
+  CustomizeNavigationDialog,
+  getWorkspaceIdFromPath,
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  readNavPreferences,
+  supportsWorkspaceSearchContext,
+  type NavPreferences,
+  useRecentWorkspaces,
+  useSidebarLocale,
+  WorkspaceQuickAccessRow,
+} from "@/modules/workspace/api";
+⋮----
+import {
+  type DashboardSidebarProps,
+  ORGANIZATION_MANAGEMENT_ITEMS,
+  ACCOUNT_NAV_ITEMS,
+  SECTION_TITLES,
+  resolveNavSection,
+  isActiveRoute,
+  isActiveOrganizationAccount,
+} from "./ShellSidebarNavData";
+import { ShellSidebarHeader } from "./ShellSidebarHeader";
+import { DashboardSidebarBody } from "./ShellSidebarBody";
+⋮----
+export function ShellDashboardSidebar({
+  pathname,
+  activeAccount,
+  workspaces,
+  activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
+  onSelectWorkspace,
+}: DashboardSidebarProps)
+⋮----
+isActiveRoute={(href) => isActiveRoute(pathname, href)}
+          activeAccountId={activeAccount?.id ?? null}
+          showAccountManagement={showAccountManagement}
+          visibleAccountItems={visibleAccountItems}
+          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
+          workspacePathId={workspacePathId}
+          navPrefs={navPrefs}
+          localeBundle={localeBundle}
+          showRecentWorkspaces={showRecentWorkspaces}
+          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+          hasOverflow={hasOverflow}
+          isExpanded={isExpanded}
+          activeWorkspaceId={activeWorkspaceId}
+          onSelectWorkspace={onSelectWorkspace}
+onToggleExpanded=
+````
+
+## File: app/(shell)/_shell/ShellRootLayout.tsx
+````typescript
+/**
+ * ShellRootLayout — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it composes downstream modules.
+ *
+ * Uses useApp() from platform (accounts/auth) and useWorkspaceContext()
+ * from workspace (workspaces/activeWorkspaceId).
+ */
+⋮----
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { PanelLeftOpen, Search } from "lucide-react";
+⋮----
+import {
+  useApp,
+  useAuth,
+  ShellGuard,
+  type AccountEntity,
+  subscribeToProfile,
+  type AccountProfile,
+  isOrganizationActor,
+  resolveOrganizationRouteFallback,
+  AccountSwitcher,
+  ShellAppBreadcrumbs,
+  ShellGlobalSearchDialog,
+  useShellGlobalSearch,
+  ShellHeaderControls,
+  ShellUserAvatar,
+  resolveShellPageTitle,
+  isExactOrChildPath,
+  buildShellContextualHref,
+  SHELL_MOBILE_NAV_ITEMS,
+  SHELL_ORG_PRIMARY_NAV_ITEMS,
+  SHELL_ORG_SECONDARY_NAV_ITEMS,
+} from "@/modules/platform/api";
+import { useWorkspaceContext, type WorkspaceEntity } from "@/modules/workspace/api";
+⋮----
+import { AppRail } from "./ShellAppRail";
+import { ShellDashboardSidebar } from "./ShellDashboardSidebar";
+⋮----
+function toggleSidebar()
+⋮----
+function handleSelectOrganization(account: AccountEntity)
+⋮----
+function handleSelectPersonal()
+⋮----
+function handleOrganizationCreated(account: AccountEntity)
+⋮----
+function handleSelectWorkspace(workspaceId: string | null)
+⋮----
+async function handleLogout()
+⋮----
+void handleLogout();
+````
+
+## File: app/(shell)/_shell/ShellSidebarNavData.tsx
+````typescript
+import {
+  Building2,
+  LayoutDashboard,
+  UserRound,
+  Users,
+} from "lucide-react";
+import Link from "next/link";
+⋮----
+import {
+  type ActiveAccount,
+  isOrganizationActor,
+  isActiveOrganizationAccount,
+  SHELL_ACCOUNT_SECTION_MATCHERS,
+  SHELL_ACCOUNT_NAV_ITEMS,
+  SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
+  SHELL_SECTION_LABELS,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  type ShellNavSection,
+} from "@/modules/platform/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+⋮----
+// ── Types ─────────────────────────────────────────────────────────────────────
+⋮----
+export interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly userId: string | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+}
+⋮----
+export type NavSection = ShellNavSection;
+⋮----
+// ── Static nav constants ──────────────────────────────────────────────────────
+⋮----
+// ── CSS class helpers ─────────────────────────────────────────────────────────
+⋮----
+export function sidebarItemClass(active: boolean)
+⋮----
+// ── Pure section helpers ──────────────────────────────────────────────────────
+⋮----
+export function resolveNavSection(pathname: string): NavSection
+⋮----
+export function isActiveRoute(pathname: string, href: string)
+⋮----
+// ── Simple section nav component ──────────────────────────────────────────────
+````
+
 ## File: modules/notebooklm/interfaces/source/composition/adapters.ts
 ````typescript
 import { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
@@ -46850,6 +46926,27 @@ export function waitForParsedDocument(
   accountId: string,
   docId: string,
 ): Promise<
+````
+
+## File: modules/notebooklm/interfaces/synthesis/_actions/rag-query.actions.ts
+````typescript
+import { runKnowledgeRagQuery } from "../../../subdomains/synthesis/api/server";
+import type { KnowledgeRagQueryResult } from "../../../subdomains/synthesis/domain/repositories/KnowledgeContentRepository";
+⋮----
+function isBlank(value: string): boolean
+⋮----
+export interface RunKnowledgeRagQueryInput {
+  query: string;
+  accountId: string;
+  workspaceId: string;
+  topK?: number;
+  requireReady?: boolean;
+  maxAgeDays?: number;
+}
+⋮----
+export async function runKnowledgeRagQueryAction(
+  input: RunKnowledgeRagQueryInput,
+): Promise<KnowledgeRagQueryResult>
 ````
 
 ## File: modules/notebooklm/subdomains/conversation/api/index.ts
@@ -46980,6 +47077,19 @@ function handleAdd()
 ⋮----
 function handleDelete(recordId: string)
 ⋮----
+````
+
+## File: modules/platform/subdomains/identity/interfaces/hooks/useTokenRefreshListener.tsx
+````typescript
+import { getFirebaseAuth } from "@integration-firebase";
+import { useEffect } from "react";
+import { createTokenRefreshRepository } from "../composition/identity-service";
+⋮----
+function getTokenRefreshRepo(): ReturnType<typeof createTokenRefreshRepository>
+⋮----
+export function useTokenRefreshListener(accountId: string | null | undefined): void
+⋮----
+// Non-fatal: token refreshes naturally on next expiry cycle.
 ````
 
 ## File: modules/platform/subdomains/organization/api/index.ts
@@ -47270,180 +47380,6 @@ export function writeNavPreferences(prefs: NavPreferences): void
 }
 ````
 
-## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
-````typescript
-/**
- * ShellDashboardSidebar — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it composes workspace module components.
- */
-⋮----
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-⋮----
-import {
-  buildWorkspaceQuickAccessItems,
-  CustomizeNavigationDialog,
-  getWorkspaceIdFromPath,
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  readNavPreferences,
-  supportsWorkspaceSearchContext,
-  type NavPreferences,
-  useRecentWorkspaces,
-  useSidebarLocale,
-  WorkspaceQuickAccessRow,
-} from "@/modules/workspace/api";
-⋮----
-import {
-  type DashboardSidebarProps,
-  ORGANIZATION_MANAGEMENT_ITEMS,
-  ACCOUNT_NAV_ITEMS,
-  SECTION_TITLES,
-  resolveNavSection,
-  isActiveRoute,
-  isActiveOrganizationAccount,
-} from "./ShellSidebarNavData";
-import { ShellSidebarHeader } from "./ShellSidebarHeader";
-import { DashboardSidebarBody } from "./ShellSidebarBody";
-⋮----
-export function ShellDashboardSidebar({
-  pathname,
-  activeAccount,
-  workspaces,
-  activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
-  onSelectWorkspace,
-}: DashboardSidebarProps)
-⋮----
-isActiveRoute={(href) => isActiveRoute(pathname, href)}
-          activeAccountId={activeAccount?.id ?? null}
-          showAccountManagement={showAccountManagement}
-          visibleAccountItems={visibleAccountItems}
-          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
-          workspacePathId={workspacePathId}
-          navPrefs={navPrefs}
-          localeBundle={localeBundle}
-          showRecentWorkspaces={showRecentWorkspaces}
-          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
-          hasOverflow={hasOverflow}
-          isExpanded={isExpanded}
-          activeWorkspaceId={activeWorkspaceId}
-          onSelectWorkspace={onSelectWorkspace}
-onToggleExpanded=
-````
-
-## File: app/(shell)/_shell/ShellRootLayout.tsx
-````typescript
-/**
- * ShellRootLayout — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it composes downstream modules.
- *
- * Uses useApp() from platform (accounts/auth) and useWorkspaceContext()
- * from workspace (workspaces/activeWorkspaceId).
- */
-⋮----
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { PanelLeftOpen, Search } from "lucide-react";
-⋮----
-import {
-  useApp,
-  useAuth,
-  ShellGuard,
-  type AccountEntity,
-  subscribeToProfile,
-  type AccountProfile,
-  isOrganizationActor,
-  resolveOrganizationRouteFallback,
-  AccountSwitcher,
-  ShellAppBreadcrumbs,
-  ShellGlobalSearchDialog,
-  useShellGlobalSearch,
-  ShellHeaderControls,
-  ShellUserAvatar,
-  resolveShellPageTitle,
-  isExactOrChildPath,
-  buildShellContextualHref,
-  SHELL_MOBILE_NAV_ITEMS,
-  SHELL_ORG_PRIMARY_NAV_ITEMS,
-  SHELL_ORG_SECONDARY_NAV_ITEMS,
-} from "@/modules/platform/api";
-import { useWorkspaceContext, type WorkspaceEntity } from "@/modules/workspace/api";
-⋮----
-import { AppRail } from "./ShellAppRail";
-import { ShellDashboardSidebar } from "./ShellDashboardSidebar";
-⋮----
-function toggleSidebar()
-⋮----
-function handleSelectOrganization(account: AccountEntity)
-⋮----
-function handleSelectPersonal()
-⋮----
-function handleOrganizationCreated(account: AccountEntity)
-⋮----
-function handleSelectWorkspace(workspaceId: string | null)
-⋮----
-async function handleLogout()
-⋮----
-void handleLogout();
-````
-
-## File: app/(shell)/_shell/ShellSidebarNavData.tsx
-````typescript
-import {
-  Building2,
-  LayoutDashboard,
-  UserRound,
-  Users,
-} from "lucide-react";
-import Link from "next/link";
-⋮----
-import {
-  type ActiveAccount,
-  isOrganizationActor,
-  isActiveOrganizationAccount,
-  SHELL_ACCOUNT_SECTION_MATCHERS,
-  SHELL_ACCOUNT_NAV_ITEMS,
-  SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
-  SHELL_SECTION_LABELS,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  type ShellNavSection,
-} from "@/modules/platform/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-⋮----
-// ── Types ─────────────────────────────────────────────────────────────────────
-⋮----
-export interface DashboardSidebarProps {
-  readonly pathname: string;
-  readonly userId: string | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-}
-⋮----
-export type NavSection = ShellNavSection;
-⋮----
-// ── Static nav constants ──────────────────────────────────────────────────────
-⋮----
-// ── CSS class helpers ─────────────────────────────────────────────────────────
-⋮----
-export function sidebarItemClass(active: boolean)
-⋮----
-// ── Pure section helpers ──────────────────────────────────────────────────────
-⋮----
-export function resolveNavSection(pathname: string): NavSection
-⋮----
-export function isActiveRoute(pathname: string, href: string)
-⋮----
-// ── Simple section nav component ──────────────────────────────────────────────
-````
-
 ## File: modules/notebooklm/subdomains/source/api/index.ts
 ````typescript
 /**
@@ -47662,6 +47598,46 @@ async call<TInput, TOutput>(
 ): Promise<TOutput>
 ````
 
+## File: modules/platform/subdomains/account-profile/api/index.ts
+````typescript
+/**
+ * Public API boundary for the account-profile subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Composition root lives in interfaces/composition/account-profile-service.ts;
+ * this boundary is intentionally thin — it only re-exports public contracts.
+ *
+ * Legacy data-source wiring is deferred: the account-profile-service
+ * auto-configures its legacy data source on first use via lazy require,
+ * eliminating the previous import-time side effect.
+ */
+⋮----
+import {
+	getAccountProfile as getAccountProfileFromService,
+	subscribeToAccountProfile as subscribeToAccountProfileFromService,
+	updateAccountProfile as updateAccountProfileFromService,
+} from "../interfaces/composition/account-profile-service";
+import type { AccountProfile, Unsubscribe } from "../domain";
+import type { UpdateAccountProfileInput } from "../application";
+import type { CommandResult } from "@shared-types";
+⋮----
+// ── Use-case delegators ──────────────────────────────────────────────────
+⋮----
+export async function getAccountProfile(actorId: string): Promise<AccountProfile | null>
+⋮----
+export function subscribeToAccountProfile(
+	actorId: string,
+	onUpdate: (profile: AccountProfile | null) => void,
+): Unsubscribe
+⋮----
+export async function updateAccountProfile(
+	actorId: string,
+	input: UpdateAccountProfileInput,
+): Promise<CommandResult>
+⋮----
+// Legacy compatibility exports for migration window.
+````
+
 ## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
 ````typescript
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -47866,6 +47842,96 @@ Subdomain = Business capability first; default core-first, add infra/interfaces 
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
+````
+
+## File: app/(shell)/_shell/ShellAppRail.tsx
+````typescript
+/**
+ * ShellAppRail — app/(shell)/_shell composition layer.
+ * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
+ * because it composes downstream modules (workspace).
+ *
+ * Platform is upstream and must not import downstream modules.
+ * app/ is the designated composition layer.
+ */
+⋮----
+import Link from "next/link";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  LayoutDashboard,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+⋮----
+import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
+import { CreateOrganizationDialog } from "@/modules/platform/api";
+import {
+  listShellRailCatalogItems,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  buildShellContextualHref,
+  type ShellRailCatalogItem,
+} from "@/modules/platform/api";
+import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+⋮----
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+⋮----
+interface RailItem {
+  id: string;
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+⋮----
+function getInitial(name: string | undefined | null): string
+⋮----
+function isActive(href: string)
+⋮----
+function buildWorkspaceDetailHref(workspaceId: string): string
+⋮----
+onClick=
+⋮----
+onSelectWorkspace(workspace.id);
+⋮----
+accountType=
 ````
 
 ## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
@@ -48303,96 +48369,6 @@ export function appendWorkspaceContextQuery(
 ): string
 ````
 
-## File: app/(shell)/_shell/ShellAppRail.tsx
-````typescript
-/**
- * ShellAppRail — app/(shell)/_shell composition layer.
- * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
- * because it composes downstream modules (workspace).
- *
- * Platform is upstream and must not import downstream modules.
- * app/ is the designated composition layer.
- */
-⋮----
-import Link from "next/link";
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  LayoutDashboard,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-⋮----
-import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
-import { CreateOrganizationDialog } from "@/modules/platform/api";
-import {
-  listShellRailCatalogItems,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  buildShellContextualHref,
-  type ShellRailCatalogItem,
-} from "@/modules/platform/api";
-import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-⋮----
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-⋮----
-interface RailItem {
-  id: string;
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-⋮----
-function getInitial(name: string | undefined | null): string
-⋮----
-function isActive(href: string)
-⋮----
-function buildWorkspaceDetailHref(workspaceId: string): string
-⋮----
-onClick=
-⋮----
-onSelectWorkspace(workspace.id);
-⋮----
-accountType=
-````
-
 ## File: modules/notebooklm/api/index.ts
 ````typescript
 /**
@@ -48519,113 +48495,62 @@ onClick=
 {/* View */}
 ````
 
-## File: modules/workspace/api/ui.ts
+## File: app/(shell)/_shell/ShellSidebarBody.tsx
 ````typescript
 /**
- * workspace api/ui.ts
- *
- * Canonical public web UI surface for the workspace bounded context.
- * App-layer consumers that need workspace UI components, hooks, and
- * navigation utilities should import from here.
- *
- * Internal source: interfaces/web/
+ * ShellSidebarBody — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it imports from workspace and notion modules.
  */
 ⋮----
-// ── Screen components ────────────────────────────────────────────────────────
+import Link from "next/link";
 ⋮----
-// ── Card components ──────────────────────────────────────────────────────────
-⋮----
-// ── Tab components ───────────────────────────────────────────────────────────
-⋮----
-// ── Layout components ────────────────────────────────────────────────────────
-⋮----
-// ── Rail components ──────────────────────────────────────────────────────────
-⋮----
-// ── Navigation ────────────────────────────────────────────────────────────────
-⋮----
-// ── Quick-access navigation ───────────────────────────────────────────────────
-⋮----
-// ── State helpers ─────────────────────────────────────────────────────────────
-⋮----
-// ── Map utilities ─────────────────────────────────────────────────────────────
-⋮----
-// ── Hooks ─────────────────────────────────────────────────────────────────────
-⋮----
-// ── Workspace context provider ────────────────────────────────────────────────
-⋮----
-// ── Navigation preferences ────────────────────────────────────────────────────
-⋮----
-// ── Sidebar locale ────────────────────────────────────────────────────────────
-⋮----
-// ── Navigation customize dialog ───────────────────────────────────────────────
-⋮----
-// ── Orchestrated notion UI (workspace as composition owner) ──────────────────
-⋮----
-// ── Orchestrated notebooklm UI (workspace as composition owner) ──────────────
-````
-
-## File: modules/notion/interfaces/knowledge/components/KnowledgeDetailPanel.tsx
-````typescript
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
-⋮----
-import { getKnowledgePage } from "../queries";
 import {
-  renameKnowledgePage,
-  archiveKnowledgePage,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-} from "../_actions/knowledge-page.actions";
-import type { KnowledgePageSnapshot as KnowledgePage } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
-import { PageEditorPanel } from "./PageEditorPanel";
-import { CommentPanel } from "@/modules/notion/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
+  WorkspaceSectionContent,
+  type NavPreferences,
+  type SidebarLocaleBundle,
+} from "@/modules/workspace/api";
+import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "@/modules/platform/api";
 ⋮----
-// ?? Props ?????????????????????????????????????????????????????????????????????
+import {
+  type NavSection,
+  sidebarItemClass,
+  sidebarSectionTitleClass,
+} from "./ShellSidebarNavData";
+import { ShellContextNavSection } from "./ShellContextNavSection";
 ⋮----
-export interface KnowledgeDetailPanelProps {
-  accountId: string;
-  activeWorkspaceId: string | null;
-  currentUserId: string;
+interface NavItem {
+  id: string;
+  label: string;
+  href: string;
 }
 ⋮----
-// ?? Component ?????????????????????????????????????????????????????????????????
+interface WorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
 ⋮----
-function handleRename(title: string)
+interface ShellSidebarBodyProps {
+  section: NavSection;
+  isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
+  showAccountManagement: boolean;
+  visibleAccountItems: readonly NavItem[];
+  visibleOrganizationManagementItems: readonly NavItem[];
+  workspacePathId: string | null;
+  navPrefs: NavPreferences;
+  localeBundle: SidebarLocaleBundle | null;
+  showRecentWorkspaces: boolean;
+  visibleRecentWorkspaceLinks: WorkspaceLink[];
+  hasOverflow: boolean;
+  isExpanded: boolean;
+  activeWorkspaceId: string | null;
+  onSelectWorkspace: (workspaceId: string | null) => void;
+  onToggleExpanded: () => void;
+  currentSearchWorkspaceId: string;
+}
 ⋮----
-function handleIconChange(iconUrl: string)
-⋮----
-function handleCoverChange(coverUrl: string)
-⋮----
-function handleArchive()
-⋮----
-// ?? Loading skeleton ????????????????????????????????????????????????????????
-⋮----
-// ?? Not found ???????????????????????????????????????????????????????????????
-⋮----
-<Button variant="ghost" size="sm" onClick=
-⋮----
-// ?? Page view ???????????????????????????????????????????????????????????????
-⋮----
-{/* Cover image */}
-⋮----
-{/* Top bar */}
-⋮----
-onClick=
-⋮----
-{/* Page header */}
-⋮----
-{/* Icon row */}
-⋮----
-{/* Main content + optional comment side panel */}
-⋮----
-{/* Block editor ??connected to Firebase */}
-⋮----
-{/* Comment panel ??slides in from right */}
+className=
 ````
 
 ## File: package.json
@@ -48740,155 +48665,68 @@ onClick=
 }
 ````
 
-## File: app/(shell)/_shell/ShellSidebarBody.tsx
+## File: modules/notion/interfaces/knowledge/components/KnowledgeDetailPanel.tsx
 ````typescript
-/**
- * ShellSidebarBody — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it imports from workspace and notion modules.
- */
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
 ⋮----
-import Link from "next/link";
-⋮----
+import { getKnowledgePage } from "../queries";
 import {
-  WorkspaceSectionContent,
-  type NavPreferences,
-  type SidebarLocaleBundle,
-} from "@/modules/workspace/api";
-import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "@/modules/platform/api";
-⋮----
-import {
-  type NavSection,
-  sidebarItemClass,
-  sidebarSectionTitleClass,
-} from "./ShellSidebarNavData";
-import { ShellContextNavSection } from "./ShellContextNavSection";
-⋮----
-interface NavItem {
-  id: string;
-  label: string;
-  href: string;
-}
-⋮----
-interface WorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-⋮----
-interface ShellSidebarBodyProps {
-  section: NavSection;
-  isActiveRoute: (href: string) => boolean;
-  activeAccountId: string | null;
-  showAccountManagement: boolean;
-  visibleAccountItems: readonly NavItem[];
-  visibleOrganizationManagementItems: readonly NavItem[];
-  workspacePathId: string | null;
-  navPrefs: NavPreferences;
-  localeBundle: SidebarLocaleBundle | null;
-  showRecentWorkspaces: boolean;
-  visibleRecentWorkspaceLinks: WorkspaceLink[];
-  hasOverflow: boolean;
-  isExpanded: boolean;
-  activeWorkspaceId: string | null;
-  onSelectWorkspace: (workspaceId: string | null) => void;
-  onToggleExpanded: () => void;
-  currentSearchWorkspaceId: string;
-}
-⋮----
-className=
-````
-
-## File: modules/platform/api/index.ts
-````typescript
-/**
- * platform public API boundary.
- *
- * account is listed before organization to establish canonical definitions for
- * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
- * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
- */
-⋮----
-// organization — explicit to avoid re-export conflicts with account subdomain
-⋮----
-// UI components
-⋮----
-// background-job — knowledge ingestion pipeline management
-⋮----
-// ai — shared AI provider capability (types only — client-safe)
-// Server-only functions (generateAiText, summarize) are in platform/api/server.ts
-⋮----
-// Cross-module and app-composition hooks from interfaces layer.
-// Only selective exports — do NOT wildcard re-export "../interfaces".
-⋮----
-// Shell UI components (pure platform — no downstream deps)
-⋮----
-// access-control — account type guards and route fallback
-````
-
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
-````typescript
-import Link from "next/link";
-import { useMemo, useState } from "react";
-⋮----
-import {
-  Card,
-  CardContent,
-} from "@ui-shadcn/ui/card";
+  renameKnowledgePage,
+  archiveKnowledgePage,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+} from "../_actions/knowledge-page.actions";
+import type { KnowledgePageSnapshot as KnowledgePage } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+import { PageEditorPanel } from "./PageEditorPanel";
+import { CommentPanel } from "../../collaboration/components/CommentPanel";
+import { Button } from "@ui-shadcn/ui/button";
 import { Badge } from "@ui-shadcn/ui/badge";
-import { useApp, useAuth } from "@/modules/platform/api";
-import {
-  WorkspaceAuditTab,
-  WorkspaceFeedWorkspaceView,
-  WorkspaceFilesTab,
-  WorkspaceFlowTab,
-  WorkspaceSchedulingTab,
-} from "@/modules/workspace/api";
-import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
 ⋮----
-import {
-  createSettingsDraft,
-  type WorkspaceSettingsDraft,
-} from "../../state/workspace-settings";
-import {
-  getWorkspaceAddressLines,
-  getWorkspacePersonnelEntries,
-} from "../../view-models/workspace-supporting-records";
-import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabValue,
-} from "../../navigation/workspace-tabs";
-import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
-import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
-import { renderWorkspaceCrossModuleTabSurface } from "../tabs/WorkspaceCrossModuleTabSurface";
-import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
-import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
-import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
+// ?? Props ?????????????????????????????????????????????????????????????????????
 ⋮----
-interface WorkspaceDetailScreenProps {
-  readonly workspaceId: string;
-  readonly accountId: string | null | undefined;
-  readonly accountsHydrated: boolean;
-  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-  readonly initialTab?: string;
-  readonly initialOverviewPanel?: string;
+export interface KnowledgeDetailPanelProps {
+  accountId: string;
+  activeWorkspaceId: string | null;
+  currentUserId: string;
 }
 ⋮----
-/** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+// ?? Component ?????????????????????????????????????????????????????????????????
 ⋮----
-function renderTabContent(tab: WorkspaceTabValue)
+function handleRename(title: string)
 ⋮----
-onSetActiveWorkspace=
+function handleIconChange(iconUrl: string)
 ⋮----
-{/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+function handleCoverChange(coverUrl: string)
 ⋮----
-<Badge variant="outline">
+function handleArchive()
 ⋮----
-setIsEditWorkspaceOpen(open);
+// ?? Loading skeleton ????????????????????????????????????????????????????????
+⋮----
+// ?? Not found ???????????????????????????????????????????????????????????????
+⋮----
+<Button variant="ghost" size="sm" onClick=
+⋮----
+// ?? Page view ???????????????????????????????????????????????????????????????
+⋮----
+{/* Cover image */}
+⋮----
+{/* Top bar */}
+⋮----
+onClick=
+⋮----
+{/* Page header */}
+⋮----
+{/* Icon row */}
+⋮----
+{/* Main content + optional comment side panel */}
+⋮----
+{/* Block editor ??connected to Firebase */}
+⋮----
+{/* Comment panel ??slides in from right */}
 ````
 
 ## File: eslint.config.mjs
@@ -48939,4 +48777,140 @@ const anyDomain = (type) => (
 // Downstream infrastructure must delegate Firebase access via platform infrastructure APIs.
 ⋮----
 // notion/notebooklm interface layers must not read workspace context directly.
+````
+
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
+````typescript
+import Link from "next/link";
+import { useMemo, useState } from "react";
+⋮----
+import {
+  Card,
+  CardContent,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { useApp, useAuth } from "@/modules/platform/api";
+import {
+  WorkspaceAuditTab,
+  WorkspaceFeedWorkspaceView,
+  WorkspaceFlowTab,
+  WorkspaceSchedulingTab,
+} from "@/modules/workspace/api";
+import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
+import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
+⋮----
+import {
+  createSettingsDraft,
+  type WorkspaceSettingsDraft,
+} from "../../state/workspace-settings";
+import {
+  getWorkspaceAddressLines,
+  getWorkspacePersonnelEntries,
+} from "../../view-models/workspace-supporting-records";
+import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
+import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabValue,
+} from "../../navigation/workspace-tabs";
+import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
+import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
+import { renderWorkspaceCrossModuleTabSurface } from "../tabs/WorkspaceCrossModuleTabSurface";
+import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
+import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
+import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
+⋮----
+interface WorkspaceDetailScreenProps {
+  readonly workspaceId: string;
+  readonly accountId: string | null | undefined;
+  readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
+  readonly initialOverviewPanel?: string;
+}
+⋮----
+/** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+⋮----
+function renderTabContent(tab: WorkspaceTabValue)
+⋮----
+onSetActiveWorkspace=
+⋮----
+{/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+⋮----
+<Badge variant="outline">
+⋮----
+setIsEditWorkspaceOpen(open);
+````
+
+## File: modules/platform/api/index.ts
+````typescript
+/**
+ * platform public API boundary.
+ *
+ * account is listed before organization to establish canonical definitions for
+ * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
+ * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
+ */
+⋮----
+// organization — explicit to avoid re-export conflicts with account subdomain
+⋮----
+// UI components
+⋮----
+// background-job — knowledge ingestion pipeline management
+⋮----
+// ai — shared AI provider capability (types only — client-safe)
+// Server-only functions (generateAiText, summarize) are in platform/api/server.ts
+⋮----
+// Cross-module and app-composition hooks from interfaces layer.
+// Only selective exports — do NOT wildcard re-export "../interfaces".
+⋮----
+// Shell UI components (pure platform — no downstream deps)
+⋮----
+// access-control — account type guards and route fallback
+````
+
+## File: modules/workspace/api/ui.ts
+````typescript
+/**
+ * workspace api/ui.ts
+ *
+ * Canonical public web UI surface for the workspace bounded context.
+ * App-layer consumers that need workspace UI components, hooks, and
+ * navigation utilities should import from here.
+ *
+ * Internal source: interfaces/web/
+ */
+⋮----
+// ── Screen components ────────────────────────────────────────────────────────
+⋮----
+// ── Card components ──────────────────────────────────────────────────────────
+⋮----
+// ── Tab components ───────────────────────────────────────────────────────────
+⋮----
+// ── Layout components ────────────────────────────────────────────────────────
+⋮----
+// ── Rail components ──────────────────────────────────────────────────────────
+⋮----
+// ── Navigation ────────────────────────────────────────────────────────────────
+⋮----
+// ── Quick-access navigation ───────────────────────────────────────────────────
+⋮----
+// ── State helpers ─────────────────────────────────────────────────────────────
+⋮----
+// ── Map utilities ─────────────────────────────────────────────────────────────
+⋮----
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+⋮----
+// ── Workspace context provider ────────────────────────────────────────────────
+⋮----
+// ── Navigation preferences ────────────────────────────────────────────────────
+⋮----
+// ── Sidebar locale ────────────────────────────────────────────────────────────
+⋮----
+// ── Navigation customize dialog ───────────────────────────────────────────────
+⋮----
+// ── Orchestrated notion UI (workspace as composition owner) ──────────────────
 ````
