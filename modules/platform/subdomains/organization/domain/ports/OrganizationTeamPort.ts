@@ -1,5 +1,5 @@
 /**
- * IOrganizationTeamPort — driven port for organization-scoped team operations.
+ * OrganizationTeamPort — driven port for organization-scoped team operations.
  *
  * Defined in organization's domain layer so the application layer can depend on
  * this interface without importing from a peer subdomain (team).
@@ -9,7 +9,7 @@
 
 import type { Team, CreateTeamInput } from "../entities/Organization";
 
-export interface IOrganizationTeamPort {
+export interface OrganizationTeamPort {
   createTeam(input: CreateTeamInput): Promise<string>;
   deleteTeam(organizationId: string, teamId: string): Promise<void>;
   addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;

@@ -18,10 +18,10 @@ export type { FeedbackSubmittedEvent } from "./events/EvaluationEvents";
 export * from "./events/SynthesisPipelineDomainEvent";
 
 // ── Ports ────────────────────────────────────────────────────────────────────
-export type { IGenerationPort } from "./ports/IGenerationPort";
-export type { IChunkRetrievalPort, RetrieveChunksInput } from "./ports/IChunkRetrievalPort";
-export type { IFeedbackPort } from "./ports/IFeedbackPort";
-export type { IVectorStore, VectorDocument, VectorSearchResult } from "./ports/IVectorStore";
+export type { GenerationPort } from "./ports/GenerationPort";
+export type { ChunkRetrievalPort, RetrieveChunksInput } from "./ports/ChunkRetrievalPort";
+export type { FeedbackPort } from "./ports/FeedbackPort";
+export type { VectorStore, VectorDocument, VectorSearchResult } from "./ports/VectorStore";
 
 // ── Repositories (output port interfaces) ────────────────────────────────────
 export * from "./repositories/RagGenerationRepository";

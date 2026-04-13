@@ -97,7 +97,7 @@ export type {
   RetrievedChunk,
   RetrievalSummary,
   RetrieveChunksInput,
-  IChunkRetrievalPort,
+  ChunkRetrievalPort,
   RetrievalCompletedEvent,
   RetrievalFailedEvent,
 } from "../subdomains/synthesis/api";
@@ -115,7 +115,7 @@ export type {
   GenerateAnswerInput,
   GenerateAnswerOutput,
   GenerateAnswerResult,
-  IGenerationPort,
+  GenerationPort,
   SynthesisCompletedEvent,
   SynthesisFailedEvent,
 } from "../subdomains/synthesis/api";
@@ -124,6 +124,6 @@ export type {
   FeedbackRating,
   QualityFeedback,
   SubmitFeedbackInput,
-  IFeedbackPort,
+  FeedbackPort,
   FeedbackSubmittedEvent,
 } from "../subdomains/synthesis/api";

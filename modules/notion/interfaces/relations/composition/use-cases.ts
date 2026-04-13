@@ -3,7 +3,7 @@ import {
   ListRelationsBySourceUseCase,
   ListRelationsByTargetUseCase,
   RemoveRelationUseCase,
-} from "../../../subdomains/relations/application/use-cases/RelationUseCases";
+} from "../../../subdomains/relations/application/use-cases/manage-relation.use-cases";
 import type { RelationRepository } from "../../../subdomains/relations/domain/repositories/RelationRepository";
 import { makeRelationRepo } from "./repositories";
 

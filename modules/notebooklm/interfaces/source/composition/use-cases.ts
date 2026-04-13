@@ -8,9 +8,9 @@ import { DeleteSourceDocumentUseCase } from "../../../subdomains/source/applicat
 import { CreateKnowledgeDraftFromSourceUseCase, type KnowledgePageGateway } from "../../../subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case";
 import type { SourceFileRepository } from "../../../subdomains/source/domain/repositories/SourceFileRepository";
 import type { RagDocumentRepository } from "../../../subdomains/source/domain/repositories/RagDocumentRepository";
-import type { ISourceDocumentCommandPort } from "../../../subdomains/source/domain/ports/ISourceDocumentPort";
-import type { ISourcePipelinePort } from "../../../subdomains/source/domain/ports/ISourcePipelinePort";
-import type { IParsedDocumentPort } from "../../../subdomains/source/domain/ports/IParsedDocumentPort";
+import type { SourceDocumentCommandPort } from "../../../subdomains/source/domain/ports/SourceDocumentPort";
+import type { SourcePipelinePort } from "../../../subdomains/source/domain/ports/SourcePipelinePort";
+import type { ParsedDocumentPort } from "../../../subdomains/source/domain/ports/ParsedDocumentPort";
 import {
   makeSourceFileAdapter,
   makeRagDocumentAdapter,
@@ -49,9 +49,9 @@ function makeParsedDocumentStatusPort(): ParsedDocumentStatusPort {
 export function makeSourceUseCases(
   fileRepository: SourceFileRepository = makeSourceFileAdapter(),
   ragDocumentRepository: RagDocumentRepository = makeRagDocumentAdapter(),
-  documentCommandPort: ISourceDocumentCommandPort = makeSourceDocumentCommandAdapter(),
-  pipelinePort: ISourcePipelinePort = makeSourcePipelineAdapter(),
-  parsedDocumentPort: IParsedDocumentPort = makeParsedDocumentAdapter(),
+  documentCommandPort: SourceDocumentCommandPort = makeSourceDocumentCommandAdapter(),
+  pipelinePort: SourcePipelinePort = makeSourcePipelineAdapter(),
+  parsedDocumentPort: ParsedDocumentPort = makeParsedDocumentAdapter(),
   knowledgePageGateway: KnowledgePageGateway = makeKnowledgePageGateway(),
 ): SourceUseCases {
   const parseUseCase = new ParseSourceDocumentUseCase(pipelinePort);

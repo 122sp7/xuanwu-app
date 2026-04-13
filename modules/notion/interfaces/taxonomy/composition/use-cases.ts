@@ -3,7 +3,7 @@ import {
   ListTaxonomyChildrenUseCase,
   ListTaxonomyRootsUseCase,
   RemoveTaxonomyNodeUseCase,
-} from "../../../subdomains/taxonomy/application/use-cases/TaxonomyUseCases";
+} from "../../../subdomains/taxonomy/application/use-cases/manage-taxonomy.use-cases";
 import type { TaxonomyRepository } from "../../../subdomains/taxonomy/domain/repositories/TaxonomyRepository";
 import { makeTaxonomyRepo } from "./repositories";
 

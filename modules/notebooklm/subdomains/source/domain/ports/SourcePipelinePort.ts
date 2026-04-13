@@ -27,7 +27,7 @@ export interface ReindexSourceDocumentOutput {
   readonly vectorCount: number;
 }
 
-export interface ISourcePipelinePort {
+export interface SourcePipelinePort {
   parseDocument(input: ParseSourceDocumentInput): Promise<ParseSourceDocumentOutput>;
   reindexDocument(input: ReindexSourceDocumentInput): Promise<ReindexSourceDocumentOutput>;
 }

@@ -20,7 +20,7 @@ export type { OrganizationEntity,
 } from "./entities/Organization";
 export type { OrganizationRepository, Unsubscribe } from "./repositories/OrganizationRepository";
 export type { OrgPolicyRepository } from "./repositories/OrgPolicyRepository";
-export type { IOrganizationTeamPort } from "./ports/IOrganizationTeamPort";
+export type { OrganizationTeamPort } from "./ports/OrganizationTeamPort";
 export * from "./aggregates";
 export * from "./events";
 export * from "./value-objects";

@@ -13,7 +13,7 @@ import {
   RenameCategoryUseCase,
   MoveCategoryUseCase,
   DeleteCategoryUseCase,
-} from "../../../subdomains/authoring/application/use-cases/CategoryUseCases";
+} from "../../../subdomains/authoring/application/use-cases/manage-category.use-cases";
 import type { z } from "@lib-zod";
 import type {
   CreateCategorySchema,

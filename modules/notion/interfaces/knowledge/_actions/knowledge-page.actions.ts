@@ -9,17 +9,17 @@ import {
   MoveKnowledgePageUseCase,
   ArchiveKnowledgePageUseCase,
   ReorderKnowledgePageBlocksUseCase,
-} from "../../../subdomains/knowledge/application/use-cases/KnowledgePageUseCases";
+} from "../../../subdomains/knowledge/application/use-cases/manage-knowledge-page.use-cases";
 import {
   ApproveKnowledgePageUseCase,
   VerifyKnowledgePageUseCase,
   RequestPageReviewUseCase,
   AssignPageOwnerUseCase,
-} from "../../../subdomains/knowledge/application/use-cases/KnowledgePageReviewUseCases";
+} from "../../../subdomains/knowledge/application/use-cases/review-knowledge-page.use-cases";
 import {
   UpdatePageIconUseCase,
   UpdatePageCoverUseCase,
-} from "../../../subdomains/knowledge/application/use-cases/KnowledgePageAppearanceUseCases";
+} from "../../../subdomains/knowledge/application/use-cases/manage-knowledge-page-appearance.use-cases";
 import { PublishKnowledgeVersionUseCase } from "../../../subdomains/knowledge/application/queries/knowledge-version.queries";
 import type {
   CreateKnowledgePageDto,

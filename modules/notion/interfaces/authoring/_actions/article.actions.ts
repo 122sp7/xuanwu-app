@@ -13,12 +13,12 @@ import {
   UpdateArticleUseCase,
   ArchiveArticleUseCase,
   DeleteArticleUseCase,
-} from "../../../subdomains/authoring/application/use-cases/ArticleLifecycleUseCases";
-import { PublishArticleUseCase } from "../../../subdomains/authoring/application/use-cases/ArticlePublicationUseCases";
+} from "../../../subdomains/authoring/application/use-cases/manage-article-lifecycle.use-cases";
+import { PublishArticleUseCase } from "../../../subdomains/authoring/application/use-cases/manage-article-publication.use-cases";
 import {
   VerifyArticleUseCase,
   RequestArticleReviewUseCase,
-} from "../../../subdomains/authoring/application/use-cases/ArticleVerificationUseCases";
+} from "../../../subdomains/authoring/application/use-cases/verify-article.use-cases";
 import type { z } from "@lib-zod";
 import type {
   CreateArticleSchema,

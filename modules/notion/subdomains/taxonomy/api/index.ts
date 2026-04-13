@@ -34,4 +34,4 @@ export {
   RemoveTaxonomyNodeUseCase,
   ListTaxonomyRootsUseCase,
   ListTaxonomyChildrenUseCase,
-} from "../application/use-cases/TaxonomyUseCases";
+} from "../application/use-cases/manage-taxonomy.use-cases";

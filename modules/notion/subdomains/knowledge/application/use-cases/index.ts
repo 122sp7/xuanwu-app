@@ -4,19 +4,19 @@ export {
   MoveKnowledgePageUseCase,
   ArchiveKnowledgePageUseCase,
   ReorderKnowledgePageBlocksUseCase,
-} from "./KnowledgePageUseCases";
+} from "./manage-knowledge-page.use-cases";
 
 export {
   VerifyKnowledgePageUseCase,
   ApproveKnowledgePageUseCase,
   RequestPageReviewUseCase,
   AssignPageOwnerUseCase,
-} from "./KnowledgePageReviewUseCases";
+} from "./review-knowledge-page.use-cases";
 
 export {
   UpdatePageIconUseCase,
   UpdatePageCoverUseCase,
-} from "./KnowledgePageAppearanceUseCases";
+} from "./manage-knowledge-page-appearance.use-cases";
 
 export {
   CreateKnowledgeCollectionUseCase,
@@ -24,4 +24,4 @@ export {
   AddPageToCollectionUseCase,
   RemovePageFromCollectionUseCase,
   ArchiveKnowledgeCollectionUseCase,
-} from "./KnowledgeCollectionUseCases";
+} from "./manage-knowledge-collection.use-cases";

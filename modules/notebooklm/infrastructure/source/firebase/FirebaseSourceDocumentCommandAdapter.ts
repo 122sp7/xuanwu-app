@@ -1,7 +1,7 @@
 /**
  * Module: notebooklm/subdomains/source
  * Layer: infrastructure/firebase
- * Adapter: FirebaseSourceDocumentCommandAdapter — Firestore implementation of ISourceDocumentCommandPort.
+ * Adapter: FirebaseSourceDocumentCommandAdapter — Firestore implementation of SourceDocumentCommandPort.
  *
  * Collection path: accounts/{accountId}/documents/{documentId}
  * This is a legacy collection; new data should use the workspaceFiles collection.
@@ -9,9 +9,9 @@
 
 import { firestoreInfrastructureApi } from "@/modules/platform/api";
 
-import type { ISourceDocumentCommandPort } from "../../../subdomains/source/domain/ports/ISourceDocumentPort";
+import type { SourceDocumentCommandPort } from "../../../subdomains/source/domain/ports/SourceDocumentPort";
 
-export class FirebaseSourceDocumentCommandAdapter implements ISourceDocumentCommandPort {
+export class FirebaseSourceDocumentCommandAdapter implements SourceDocumentCommandPort {
   async deleteDocument(accountId: string, documentId: string): Promise<void> {
     await firestoreInfrastructureApi.delete(`accounts/${accountId}/documents/${documentId}`);
   }

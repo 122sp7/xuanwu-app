@@ -3,7 +3,7 @@ import type {
   ParseSourceDocumentOutput,
   ReindexSourceDocumentInput,
   ReindexSourceDocumentOutput,
-} from "../../domain/ports/ISourcePipelinePort";
+} from "../../domain/ports/SourcePipelinePort";
 
 export interface SourcePipelineError {
   readonly code: "SOURCE_PIPELINE_INVALID_INPUT" | "SOURCE_PIPELINE_EXECUTION_FAILED";

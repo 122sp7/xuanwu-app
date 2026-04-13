@@ -14,7 +14,7 @@ import {
   UpdateCommentUseCase,
   ResolveCommentUseCase,
   DeleteCommentUseCase,
-} from "../../../subdomains/collaboration/application/use-cases/CommentUseCases";
+} from "../../../subdomains/collaboration/application/use-cases/manage-comment.use-cases";
 import type {
   CreateCommentDto,
   UpdateCommentDto,

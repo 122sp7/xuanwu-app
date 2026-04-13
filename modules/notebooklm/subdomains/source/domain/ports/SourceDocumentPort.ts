@@ -7,7 +7,7 @@
  * Infrastructure provides the Firebase adapter; interfaces consume via use cases.
  */
 
-export interface ISourceDocumentCommandPort {
+export interface SourceDocumentCommandPort {
   deleteDocument(accountId: string, documentId: string): Promise<void>;
   renameDocument(accountId: string, documentId: string, newName: string): Promise<void>;
 }

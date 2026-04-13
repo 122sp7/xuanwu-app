@@ -4,4 +4,4 @@ export {
   RemoveTaxonomyNodeUseCase,
   ListTaxonomyRootsUseCase,
   ListTaxonomyChildrenUseCase,
-} from "./use-cases/TaxonomyUseCases";
+} from "./use-cases/manage-taxonomy.use-cases";

@@ -7,11 +7,11 @@
 import { storageInfrastructureApi } from "@/modules/platform/api";
 
 import type {
-  ISourceStoragePort,
+  SourceStoragePort,
   SourceStorageUploadOptions,
-} from "../../../subdomains/source/domain/ports/ISourceStoragePort";
+} from "../../../subdomains/source/domain/ports/SourceStoragePort";
 
-export class PlatformSourceStorageAdapter implements ISourceStoragePort {
+export class PlatformSourceStorageAdapter implements SourceStoragePort {
   async upload(
     file: Blob,
     path: string,

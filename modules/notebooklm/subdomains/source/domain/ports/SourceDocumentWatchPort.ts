@@ -1,7 +1,7 @@
 /**
  * Module: notebooklm/subdomains/source
  * Layer: domain/ports
- * Port: ISourceDocumentWatchPort — real-time document collection watching contract.
+ * Port: SourceDocumentWatchPort — real-time document collection watching contract.
  *
  * Used by the useSourceDocumentsSnapshot hook to subscribe to document changes
  * without depending on platform infrastructure APIs directly.
@@ -13,7 +13,7 @@ export interface WatchedDocument<T> {
   readonly data: T;
 }
 
-export interface ISourceDocumentWatchPort {
+export interface SourceDocumentWatchPort {
   /** Subscribe to a Firestore collection and receive real-time updates. Returns an unsubscribe function. */
   watchCollection<T>(
     collectionPath: string,

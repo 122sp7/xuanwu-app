@@ -1,7 +1,7 @@
 /**
  * Module: notebooklm/subdomains/synthesis
  * Layer: domain/ports
- * Purpose: IVectorStore — hexagonal output port for vector database operations.
+ * Purpose: VectorStore — hexagonal output port for vector database operations.
  *
  * Design notes:
  * - Domain owns this interface; infrastructure implements it.
@@ -28,7 +28,7 @@ export interface VectorSearchResult {
  * Output port for any vector-store adapter (Upstash Vector, Pinecone, etc.).
  * Domain and application layers depend only on this interface.
  */
-export interface IVectorStore {
+export interface VectorStore {
   /** Insert or update documents; adapter handles embedding generation */
   upsert(documents: VectorDocument[]): Promise<void>;
 

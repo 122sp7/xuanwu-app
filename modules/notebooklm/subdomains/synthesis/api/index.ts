@@ -17,8 +17,8 @@ export type {
 
 export type {
   RetrieveChunksInput,
-  IChunkRetrievalPort,
-} from "../domain/ports/IChunkRetrievalPort";
+  ChunkRetrievalPort,
+} from "../domain/ports/ChunkRetrievalPort";
 
 export type {
   RetrievalCompletedEvent,
@@ -49,8 +49,8 @@ export type {
 } from "../domain/entities/SynthesisResult";
 
 export type {
-  IGenerationPort,
-} from "../domain/ports/IGenerationPort";
+  GenerationPort,
+} from "../domain/ports/GenerationPort";
 
 export type {
   SynthesisCompletedEvent,
@@ -65,8 +65,8 @@ export type {
 } from "../domain/entities/QualityFeedback";
 
 export type {
-  IFeedbackPort,
-} from "../domain/ports/IFeedbackPort";
+  FeedbackPort,
+} from "../domain/ports/FeedbackPort";
 
 export type {
   FeedbackSubmittedEvent,
@@ -75,7 +75,7 @@ export type {
 // ── Active pipeline types (used by use cases & infrastructure) ───────────────
 
 export type { RagRetrievedChunk, RagCitation, RagRetrievalSummary } from "../domain/entities/retrieval.entities";
-export type { IVectorStore, VectorDocument, VectorSearchResult } from "../domain/ports/IVectorStore";
+export type { VectorStore, VectorDocument, VectorSearchResult } from "../domain/ports/VectorStore";
 export type { RagRetrievalRepository, RetrieveChunksInput as LegacyRetrieveChunksInput } from "../domain/repositories/RagRetrievalRepository";
 export type {
   KnowledgeContentRepository,
