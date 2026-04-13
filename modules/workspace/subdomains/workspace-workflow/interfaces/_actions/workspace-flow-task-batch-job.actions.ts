@@ -14,7 +14,7 @@ import type {
   ExtractTaskCandidatesFromKnowledgeResult,
 } from "../../application/dto/extract-task-candidates-from-knowledge.dto";
 import type { SubmitTaskMaterializationBatchJobDto } from "../../application/dto/submit-task-materialization-batch-job.dto";
-import type { TaskMaterializationBatchJob } from "../../domain/entities/TaskMaterializationBatchJob";
+import type { TaskMaterializationBatchJob } from "../../application/dto/workflow.dto";
 
 function makeFacade(): WorkspaceFlowTaskBatchJobFacade {
   return new WorkspaceFlowTaskBatchJobFacade(makeTaskMaterializationBatchJobRepo());
