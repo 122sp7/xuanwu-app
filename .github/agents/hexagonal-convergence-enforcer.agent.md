@@ -48,6 +48,12 @@ handoffs:
 - 採 search-first：先 pattern search，再讀完整檔案。
 - `--skill-generate` 工作流採非互動模式（`--skill-output` + `--force`），避免互動阻塞。
 
+## Serena Troubleshooting
+
+- 若出現 `Skill not found: serena-mcp`，先確認 `.github/skills/serena-mcp/SKILL.md` frontmatter 合法（`---` 開始與結束）。
+- `serena start-mcp-server`、`activate_project`、`list_memories`、`read_memory` 屬於 Serena MCP 工作流，不是一般聊天語句。
+- 在支援 MCP tool 的客戶端中，應以對應 Serena 工具執行（例如 activate/check/list/read memory 工具）。
+
 ## Workflow
 
 1. Bootstrap Serena, activate project, load memories.

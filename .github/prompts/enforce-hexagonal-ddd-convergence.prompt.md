@@ -40,6 +40,10 @@ Skill declarations are centralized in:
 - read_memory
 ```
 
+若出現 `Skill not found: serena-mcp`：
+- 先檢查 `.github/skills/serena-mcp/SKILL.md` frontmatter 是否有效。
+- 改以 Serena MCP 工具流程執行 `activate_project`、`list_memories`、`read_memory`，不要把它們當成一般聊天語句。
+
 ### 0.5) Context7 Certainty Gate
 
 - 對任何 library/framework API、版本行為、設定 schema 的把握度低於 `99.99%`，一律先查 `context7` 文件。

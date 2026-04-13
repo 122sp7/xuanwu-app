@@ -4,9 +4,9 @@ description: >-
   Use when working with Serena MCP, .serena memories, Serena project indexing,
   onboarding, health-checks, or Serena bootstrap/repair tasks. Governs
   project memory operations, .serena scoped work, and Serena MCP startup.
-user-invocable: false
-disable-model-invocation: true
-------------------------------
+user-invocable: true
+disable-model-invocation: false
+---
 
 # Serena MCP
 
