@@ -4,7 +4,7 @@
  * Re-exports repository contracts from domain/repositories/, making the Ports layer
  * explicitly visible in the directory structure.
  */
-export type { BacklinkIndexRepository as IBacklinkIndexPort } from "../repositories/BacklinkIndexRepository";
-export type { ContentBlockRepository as IContentBlockPort } from "../repositories/ContentBlockRepository";
-export type { KnowledgeCollectionRepository as IKnowledgeCollectionPort } from "../repositories/KnowledgeCollectionRepository";
-export type { KnowledgePageRepository as IKnowledgePagePort } from "../repositories/KnowledgePageRepository";
+export type { BacklinkIndexRepository } from "../repositories/BacklinkIndexRepository";
+export type { ContentBlockRepository } from "../repositories/ContentBlockRepository";
+export type { KnowledgeCollectionRepository } from "../repositories/KnowledgeCollectionRepository";
+export type { KnowledgePageRepository } from "../repositories/KnowledgePageRepository";

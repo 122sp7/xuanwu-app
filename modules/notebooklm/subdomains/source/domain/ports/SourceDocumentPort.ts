@@ -1,7 +1,7 @@
 /**
  * Module: notebooklm/subdomains/source
  * Layer: domain/ports
- * Port: ISourceDocumentPort — commands for legacy source documents stored in accounts/{accountId}/documents.
+ * Port: SourceDocumentCommandPort — commands for legacy source documents stored in accounts/{accountId}/documents.
  *
  * This port isolates the legacy Firestore collection from interfaces.
  * Infrastructure provides the Firebase adapter; interfaces consume via use cases.

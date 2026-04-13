@@ -10,5 +10,3 @@ export * from "./events";
 export * from "./services";
 export * from "./value-objects";
 
-// ── Ports layer ──────────────────────────────────────────────────────────────
-export type { IAuditPort } from "./ports";
