@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import type { FieldType } from "@/modules/notion/api";
+import type { FieldType } from "../../../subdomains/database/application/dto/database.dto";
 import { Button } from "@ui-shadcn/ui/button";
 import { Input } from "@ui-shadcn/ui/input";
 import { Label } from "@ui-shadcn/ui/label";

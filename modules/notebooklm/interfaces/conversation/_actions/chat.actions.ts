@@ -3,12 +3,12 @@
 import type {
   GenerateNotebookResponseInput,
   GenerateNotebookResponseResult,
-} from "@/modules/notebooklm/api";
+} from "../../../subdomains/notebook/api";
 import {
   GenerateNotebookResponseUseCase,
   PlatformTextGenerationAdapter,
-} from "@/modules/notebooklm/api/server";
-import { saveThread, loadThread } from "@/modules/notebooklm/api";
+} from "../../../subdomains/notebook/api/server";
+import { saveThread, loadThread } from "./thread.actions";
 
 export async function sendChatMessage(
   input: GenerateNotebookResponseInput,

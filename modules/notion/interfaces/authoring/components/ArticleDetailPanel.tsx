@@ -24,7 +24,8 @@ import {
 import { ArticleDialog } from "./ArticleDialog";
 import type { ArticleSnapshot as Article } from "../../../subdomains/authoring/application/dto/authoring.dto";
 import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import { CommentPanel, VersionHistoryPanel } from "@/modules/notion/api";
+import { CommentPanel } from "../../collaboration/components/CommentPanel";
+import { VersionHistoryPanel } from "../../collaboration/components/VersionHistoryPanel";
 import { ReactMarkdown } from "@lib-react-markdown";
 import { remarkGfm } from "@lib-remark-gfm";
 import { Badge } from "@ui-shadcn/ui/badge";
