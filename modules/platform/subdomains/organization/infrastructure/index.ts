@@ -1,1 +1,1 @@
-export { organizationService, organizationQueryService } from "./organization-service";
+export { organizationService, organizationQueryService } from "../interfaces/composition/organization-service";

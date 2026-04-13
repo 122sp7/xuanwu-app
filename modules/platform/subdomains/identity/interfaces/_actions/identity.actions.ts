@@ -10,11 +10,10 @@ import {
 	SignOutUseCase,
 } from "../../application/use-cases/identity.use-cases";
 import { createIdentityRepository } from "../../api";
-import type { IdentityRepository } from "../../domain/repositories/IdentityRepository";
 
-let _identityRepo: IdentityRepository | undefined;
+let _identityRepo: ReturnType<typeof createIdentityRepository> | undefined;
 
-function getRepo(): IdentityRepository {
+function getRepo(): ReturnType<typeof createIdentityRepository> {
 	if (!_identityRepo) _identityRepo = createIdentityRepository();
 	return _identityRepo;
 }
