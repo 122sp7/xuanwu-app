@@ -18,6 +18,8 @@ import {
 
 // Dynamic import to break synchronous module-evaluation cycle between
 // workspace/api → workspace/interfaces → notebooklm/api → ConversationPanel → workspace/api.
+// SSR disabled because ConversationPanel is a "use client" component that
+// relies on browser-only hooks (useState, useEffect) and workspace context providers.
 const ConversationPanel = dynamic(
   () =>
     import("@/modules/notebooklm/subdomains/conversation/api/ui").then(

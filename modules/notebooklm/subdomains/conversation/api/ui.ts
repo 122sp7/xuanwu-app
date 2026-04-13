@@ -10,5 +10,7 @@
  *  - use `next/dynamic` to lazy-load from this path.
  */
 
-export { ConversationPanel } from "../../../interfaces/conversation/components/ConversationPanel";
-export type { ConversationPanelProps } from "../../../interfaces/conversation/components/ConversationPanel";
+export {
+  ConversationPanel,
+  type ConversationPanelProps,
+} from "../../../interfaces/conversation/components/ConversationPanel";
