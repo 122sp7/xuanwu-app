@@ -1,4 +1,6 @@
-﻿import { OrganizationWorkspacesRouteScreen } from "@/modules/workspace/api";
+﻿"use client";
+
+import { OrganizationWorkspacesRouteScreen } from "@/modules/workspace/api";
 
 export default function OrganizationWorkspacesPage() {
   return <OrganizationWorkspacesRouteScreen />;
