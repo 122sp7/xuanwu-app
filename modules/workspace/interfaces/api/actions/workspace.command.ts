@@ -15,9 +15,9 @@ import type {
   WorkspaceLocation,
 } from "../contracts";
 import { workspaceCommandPort } from "../runtime";
-import { RecordAuditEntryUseCase } from "../../../subdomains/audit/application/use-cases/record-audit-entry.use-case";
+import { RecordAuditEntryUseCase } from "../../../subdomains/audit/api";
 import { makeAuditRepo } from "../../../subdomains/audit/api/factories";
-import type { RecordAuditEntryInput } from "../../../subdomains/audit/domain/aggregates/AuditEntry";
+import type { RecordAuditEntryInput } from "../../../subdomains/audit/api";
 
 const auditUseCase = new RecordAuditEntryUseCase(makeAuditRepo());
 

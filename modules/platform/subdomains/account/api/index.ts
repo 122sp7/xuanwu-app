@@ -1,12 +1,11 @@
 /**
  * Public API boundary for the account subdomain.
  * Cross-module consumers must import through this entry point.
+ *
+ * Token-refresh wiring is deferred: the IdentityTokenRefreshAdapter
+ * auto-configures its emitter on first use via lazy require, eliminating
+ * the previous import-time side effect (configureTokenRefreshEmitter call).
  */
-
-import { identityApi } from "../../identity/api";
-import { configureTokenRefreshEmitter } from "../infrastructure/identity-token-refresh.adapter";
-
-configureTokenRefreshEmitter(identityApi.emitTokenRefreshSignal);
 
 export * from "../application";
 export { accountService, createClientAccountUseCases } from "../infrastructure";
