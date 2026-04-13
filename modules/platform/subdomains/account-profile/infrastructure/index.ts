@@ -10,4 +10,4 @@ export {
 	subscribeToAccountProfile as subscribeToAccountProfileFromService,
 	updateAccountProfile as updateAccountProfileFromService,
 	configureLegacyAccountProfileDataSource,
-} from "./account-profile-service";
+} from "../interfaces/composition/account-profile-service";
