@@ -1,3 +1,6 @@
-﻿export { ingestionService } from "./ingestion-service";
-export type { IngestionStatus } from "./ingestion-service";
+/**
+ * Background-job infrastructure barrel — adapter exports only.
+ *
+ * Composition logic lives in interfaces/composition/ingestion-service.ts.
+ */
 export { InMemoryIngestionJobRepository } from "./InMemoryIngestionJobRepository";

@@ -2,12 +2,6 @@
  * Public API boundary for the organization subdomain.
  * Cross-module consumers must import through this entry point.
  *
- * NOTE: We avoid `export * from "../infrastructure"` here because the
- * infrastructure barrel pulls in Firebase repository constructors during
- * module evaluation, which causes failures during Next.js static
- * prerendering. Infrastructure exports are available in the server barrel
- * (./server.ts) or via direct import from action / service files.
- *
  * Team port wiring is deferred: the organization-service auto-configures its
  * team port factory on first use via lazy require, eliminating the previous
  * import-time side effect (configureOrganizationTeamPortFactory call).
@@ -67,8 +61,8 @@ export {
   DeleteOrgPolicyUseCase,
 } from "../application";
 
-// --- Infrastructure (lazy, safe for SSR) ---
-export { organizationService, organizationQueryService } from "../infrastructure";
+// --- Composition (lazy, safe for SSR) ---
+export { organizationService, organizationQueryService } from "../interfaces/composition/organization-service";
 
 // --- Interfaces (UI, queries, actions) ---
 export * from "../interfaces";

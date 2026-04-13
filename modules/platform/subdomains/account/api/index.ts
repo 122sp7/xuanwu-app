@@ -8,7 +8,7 @@
  */
 
 export * from "../application";
-export { accountService, createClientAccountUseCases } from "../infrastructure";
+export { accountService, createClientAccountUseCases } from "../interfaces/composition/account-service";
 export type {
   AccountEntity,
   AccountType,

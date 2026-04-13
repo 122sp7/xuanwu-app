@@ -2,7 +2,7 @@
  * Public API boundary for the account-profile subdomain.
  * Cross-module consumers must import through this entry point.
  *
- * Composition root lives in infrastructure/account-profile-service.ts;
+ * Composition root lives in interfaces/composition/account-profile-service.ts;
  * this boundary is intentionally thin — it only re-exports public contracts.
  *
  * Legacy data-source wiring is deferred: the account-profile-service
@@ -11,10 +11,10 @@
  */
 
 import {
-	getAccountProfileFromService,
-	subscribeToAccountProfileFromService,
-	updateAccountProfileFromService,
-} from "../infrastructure";
+	getAccountProfile as getAccountProfileFromService,
+	subscribeToAccountProfile as subscribeToAccountProfileFromService,
+	updateAccountProfile as updateAccountProfileFromService,
+} from "../interfaces/composition/account-profile-service";
 import type { AccountProfile, Unsubscribe } from "../domain";
 import type { UpdateAccountProfileInput } from "../application";
 import type { CommandResult } from "@shared-types";
@@ -48,4 +48,4 @@ export { getProfile, subscribeToProfile, updateProfile } from "../interfaces";
 export * from "../application";
 
 export { SettingsProfileRouteScreen } from "../interfaces";
-export type { LegacyAccountProfileDataSource } from "../infrastructure";
+export type { LegacyAccountProfileDataSource } from "../infrastructure/create-legacy-account-profile-application.adapter";
