@@ -39,8 +39,6 @@
     ".github/agents/**",
     ".github/instructions/**/*.md",
     ".github/prompts/**",
-    ".github/skills/*/SKILL.md",
-    ".github/skills/*/AGENTS.md",
     "docs/**",
     "app/**",
     "modules/**",
@@ -117,10 +115,7 @@
 
       "*.sqlite",
       "*.db",
-      ".github/skills/**/references/**",
-      ".github/skills/**/resources/**",
-      ".github/skills/**/rules/**",
-      ".github/skills/xuanwu-*-skill/**"
+      ".github/skills/**/references/**"
     ]
   },
   "security": {
