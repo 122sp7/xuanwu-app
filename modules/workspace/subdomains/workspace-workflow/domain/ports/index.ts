@@ -7,3 +7,7 @@
 export type { InvoiceRepository } from "../repositories/InvoiceRepository";
 export type { IssueRepository } from "../repositories/IssueRepository";
 export type { TaskRepository } from "../repositories/TaskRepository";
+export type {
+	AIExtractedTaskCandidate,
+	TaskCandidateExtractionAiPort,
+} from "./TaskCandidateExtractionAiPort";

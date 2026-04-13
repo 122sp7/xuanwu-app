@@ -10,7 +10,7 @@ import type {
   ExtractTaskCandidatesFromKnowledgeResult,
 } from "../application/dto/extract-task-candidates-from-knowledge.dto";
 import type { SubmitTaskMaterializationBatchJobDto } from "../application/dto/submit-task-materialization-batch-job.dto";
-import type { TaskCandidateExtractionAiPort } from "../application/ports/TaskCandidateExtractionAiPort";
+import type { TaskCandidateExtractionAiPort } from "../domain/ports/TaskCandidateExtractionAiPort";
 import { ExtractTaskCandidatesFromKnowledgeUseCase } from "../application/use-cases/extract-task-candidates-from-knowledge.use-case";
 import { SubmitTaskMaterializationBatchJobUseCase } from "../application/use-cases/submit-task-materialization-batch-job.use-case";
 import type { TaskMaterializationBatchJob } from "../domain/entities/TaskMaterializationBatchJob";

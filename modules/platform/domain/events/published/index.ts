@@ -1,11 +1,10 @@
 /**
- * platform published event placeholder module.
+ * platform published event utilities — design-only.
+ *
+ * @see ../DESIGN.md for implementation intent.
+ *
+ * When implemented, this barrel should export:
+ *   buildPublishedEventEnvelope
+ *   publishSinglePlatformEvent
+ *   publishBatchPlatformEvents
  */
-
-export const PLATFORM_PUBLISHED_EVENT_FUNCTIONS = [
-	"buildPublishedEventEnvelope",
-	"publishSinglePlatformEvent",
-	"publishBatchPlatformEvents",
-] as const;
-
-export type PlatformPublishedEventFunction = (typeof PLATFORM_PUBLISHED_EVENT_FUNCTIONS)[number];
