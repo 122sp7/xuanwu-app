@@ -17,9 +17,11 @@
 | [ubiquitous-language.md](./ubiquitous-language.md) | 戰略詞彙表 |
 | [integration-guidelines.md](./integration-guidelines.md) | 主域整合規則 |
 | [strategic-patterns.md](./strategic-patterns.md) | 採用與禁用的戰略模式 |
+| [hard-rules-consolidated.md](./hard-rules-consolidated.md) | 全域硬性守則與 design smell 防線 |
 | [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md) | bounded context 與 subdomain 交付模板 |
 | [project-delivery-milestones.md](./project-delivery-milestones.md) | 從零到交付的專案里程碑 |
 | [decisions/README.md](./decisions/README.md) | ADR 索引與決策日誌 |
+| [decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md) | Design Smell taxonomy 與對應決策索引 |
 | [contexts/_template.md](./contexts/_template.md) | 新主域或新 context 文件樣板 |
 
 ## Context Folders
@@ -36,11 +38,13 @@
 - [context-map.md](./context-map.md)
 - [integration-guidelines.md](./integration-guidelines.md)
 - [strategic-patterns.md](./strategic-patterns.md)
+- [hard-rules-consolidated.md](./hard-rules-consolidated.md)
 - [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
 - [project-delivery-milestones.md](./project-delivery-milestones.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
 - [decisions/README.md](./decisions/README.md)
+- [decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md)
 - [contexts/_template.md](./contexts/_template.md)
 
 ## Conflict Resolution Rules
@@ -62,6 +66,7 @@
 
 - 生成程式碼前，先從本文件決定應讀哪些戰略文件與 context 文件。
 - 若任務涉及新 bounded context、subdomain 骨架或交付分期，先讀 [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md) 與 [project-delivery-milestones.md](./project-delivery-milestones.md)。
+- 若任務涉及 design smell、架構異味、boundary leakage、cyclic dependency 或 API surface 過胖，先讀 [hard-rules-consolidated.md](./hard-rules-consolidated.md)、[decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md) 與對應編號 smell ADR。
 - 奧卡姆剃刀：若現有文件網已能回答邊界問題，就不要再新增臨時規則文件。
 - 生成流程應先看 ADR，再看戰略文件，再看主域文件，最後才落到程式碼。
 
