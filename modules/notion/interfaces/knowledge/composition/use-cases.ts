@@ -16,8 +16,8 @@ import {
   RemovePageFromCollectionUseCase,
   ArchiveKnowledgeCollectionUseCase,
 } from "../../../subdomains/knowledge/application/use-cases";
-import type { IKnowledgePageRepository } from "../../../subdomains/knowledge/domain/repositories/IKnowledgePageRepository";
-import type { IKnowledgeCollectionRepository } from "../../../subdomains/knowledge/domain/repositories/IKnowledgeCollectionRepository";
+import type { KnowledgePageRepository } from "../../../subdomains/knowledge/domain/repositories/KnowledgePageRepository";
+import type { KnowledgeCollectionRepository } from "../../../subdomains/knowledge/domain/repositories/KnowledgeCollectionRepository";
 import type { IEventStoreRepository, IEventBusRepository } from "@shared-events";
 import { makePageRepo, makeCollectionRepo } from "./repositories";
 
@@ -59,8 +59,8 @@ export interface KnowledgeUseCases {
 }
 
 export function makeKnowledgeUseCases(
-  pageRepo: IKnowledgePageRepository = makePageRepo(),
-  collectionRepo: IKnowledgeCollectionRepository = makeCollectionRepo(),
+  pageRepo: KnowledgePageRepository = makePageRepo(),
+  collectionRepo: KnowledgeCollectionRepository = makeCollectionRepo(),
   eventStore: IEventStoreRepository = makeEventStore(),
   eventBus: IEventBusRepository = makeEventBus(),
 ): KnowledgeUseCases {

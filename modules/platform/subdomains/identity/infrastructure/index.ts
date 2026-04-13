@@ -1,4 +1,3 @@
-export { FirebaseIdentityRepository } from "./firebase/FirebaseIdentityRepository";
-export { FirebaseTokenRefreshRepository } from "./firebase/FirebaseTokenRefreshRepository";
+export { createIdentityRepository, createTokenRefreshRepository } from "./identity-service";
 export type { EmitTokenRefreshSignalInput } from "./identity-service";
 export { createClientAuthUseCases, identityApi } from "./identity-service";

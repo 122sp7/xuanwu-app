@@ -18,10 +18,10 @@ import {
   DeleteAutomationUseCase,
   ListAutomationsUseCase,
 } from "../../../subdomains/database/application/use-cases";
-import type { IDatabaseRepository } from "../../../subdomains/database/domain/repositories/IDatabaseRepository";
-import type { IDatabaseRecordRepository } from "../../../subdomains/database/domain/repositories/IDatabaseRecordRepository";
-import type { IViewRepository } from "../../../subdomains/database/domain/repositories/IViewRepository";
-import type { IAutomationRepository } from "../../../subdomains/database/domain/repositories/IAutomationRepository";
+import type { DatabaseRepository } from "../../../subdomains/database/domain/repositories/DatabaseRepository";
+import type { DatabaseRecordRepository } from "../../../subdomains/database/domain/repositories/DatabaseRecordRepository";
+import type { ViewRepository } from "../../../subdomains/database/domain/repositories/ViewRepository";
+import type { AutomationRepository } from "../../../subdomains/database/domain/repositories/AutomationRepository";
 import { makeDatabaseRepo, makeRecordRepo, makeViewRepo, makeAutomationRepo } from "./repositories";
 
 export interface DatabaseUseCases {
@@ -46,10 +46,10 @@ export interface DatabaseUseCases {
 }
 
 export function makeDatabaseUseCases(
-  databaseRepo: IDatabaseRepository = makeDatabaseRepo(),
-  recordRepo: IDatabaseRecordRepository = makeRecordRepo(),
-  viewRepo: IViewRepository = makeViewRepo(),
-  automationRepo: IAutomationRepository = makeAutomationRepo(),
+  databaseRepo: DatabaseRepository = makeDatabaseRepo(),
+  recordRepo: DatabaseRecordRepository = makeRecordRepo(),
+  viewRepo: ViewRepository = makeViewRepo(),
+  automationRepo: AutomationRepository = makeAutomationRepo(),
 ): DatabaseUseCases {
   return {
     createDatabase: new CreateDatabaseUseCase(databaseRepo),

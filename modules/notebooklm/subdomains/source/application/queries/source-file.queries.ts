@@ -4,15 +4,15 @@
  * Use Case: ListSourceFilesUseCase — lists workspace files as view-model DTOs.
  */
 
-import type { ListSourceFilesScope } from "../../domain/repositories/ISourceFileRepository";
-import type { ISourceFileRepository } from "../../domain/repositories/ISourceFileRepository";
+import type { ListSourceFilesScope } from "../../domain/repositories/SourceFileRepository";
+import type { SourceFileRepository } from "../../domain/repositories/SourceFileRepository";
 import type { WorkspaceFileListItemDto } from "../dto/source-file.dto";
 
 const DEFAULT_FILE_SOURCE = "source-module";
 const DEFAULT_FILE_DETAIL = "File metadata mapped from current workspace context.";
 
 export class ListSourceFilesUseCase {
-  constructor(private readonly fileRepository: ISourceFileRepository) {}
+  constructor(private readonly fileRepository: SourceFileRepository) {}
 
   async execute(scope: ListSourceFilesScope): Promise<WorkspaceFileListItemDto[]> {
     const workspaceId = scope.workspaceId.trim();

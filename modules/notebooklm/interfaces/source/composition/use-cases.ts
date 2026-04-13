@@ -6,11 +6,11 @@ import { RegisterUploadedRagDocumentUseCase } from "../../../subdomains/source/a
 import { RenameSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/rename-source-document.use-case";
 import { DeleteSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/delete-source-document.use-case";
 import { CreateKnowledgeDraftFromSourceUseCase, type KnowledgePageGateway } from "../../../subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case";
-import type { ISourceFileRepository } from "../../../subdomains/source/domain/repositories/ISourceFileRepository";
-import type { IRagDocumentRepository } from "../../../subdomains/source/domain/repositories/IRagDocumentRepository";
-import type { ISourceDocumentCommandPort } from "../../../subdomains/source/domain/ports/ISourceDocumentPort";
-import type { ISourcePipelinePort } from "../../../subdomains/source/domain/ports/ISourcePipelinePort";
-import type { IParsedDocumentPort } from "../../../subdomains/source/domain/ports/IParsedDocumentPort";
+import type { SourceFileRepository } from "../../../subdomains/source/domain/repositories/SourceFileRepository";
+import type { RagDocumentRepository } from "../../../subdomains/source/domain/repositories/RagDocumentRepository";
+import type { SourceDocumentCommandPort } from "../../../subdomains/source/domain/ports/SourceDocumentPort";
+import type { SourcePipelinePort } from "../../../subdomains/source/domain/ports/SourcePipelinePort";
+import type { ParsedDocumentPort } from "../../../subdomains/source/domain/ports/ParsedDocumentPort";
 import {
   makeSourceFileAdapter,
   makeRagDocumentAdapter,
@@ -47,11 +47,11 @@ function makeParsedDocumentStatusPort(): ParsedDocumentStatusPort {
 }
 
 export function makeSourceUseCases(
-  fileRepository: ISourceFileRepository = makeSourceFileAdapter(),
-  ragDocumentRepository: IRagDocumentRepository = makeRagDocumentAdapter(),
-  documentCommandPort: ISourceDocumentCommandPort = makeSourceDocumentCommandAdapter(),
-  pipelinePort: ISourcePipelinePort = makeSourcePipelineAdapter(),
-  parsedDocumentPort: IParsedDocumentPort = makeParsedDocumentAdapter(),
+  fileRepository: SourceFileRepository = makeSourceFileAdapter(),
+  ragDocumentRepository: RagDocumentRepository = makeRagDocumentAdapter(),
+  documentCommandPort: SourceDocumentCommandPort = makeSourceDocumentCommandAdapter(),
+  pipelinePort: SourcePipelinePort = makeSourcePipelineAdapter(),
+  parsedDocumentPort: ParsedDocumentPort = makeParsedDocumentAdapter(),
   knowledgePageGateway: KnowledgePageGateway = makeKnowledgePageGateway(),
 ): SourceUseCases {
   const parseUseCase = new ParseSourceDocumentUseCase(pipelinePort);

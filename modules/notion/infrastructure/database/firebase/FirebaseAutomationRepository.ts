@@ -12,7 +12,7 @@ import type {
   AutomationCondition,
   AutomationAction,
 } from "../../../subdomains/database/domain/aggregates/DatabaseAutomation";
-import type { IAutomationRepository, CreateAutomationInput, UpdateAutomationInput } from "../../../subdomains/database/domain/repositories/IAutomationRepository";
+import type { AutomationRepository, CreateAutomationInput, UpdateAutomationInput } from "../../../subdomains/database/domain/repositories/AutomationRepository";
 
 function automationsPath(accountId: string, databaseId: string): string {
   return `accounts/${accountId}/knowledgeDatabases/${databaseId}/automations`;
@@ -53,7 +53,7 @@ function toAutomation(id: string, data: Record<string, unknown>): DatabaseAutoma
   };
 }
 
-export class FirebaseAutomationRepository implements IAutomationRepository {
+export class FirebaseAutomationRepository implements AutomationRepository {
   async create(input: CreateAutomationInput): Promise<DatabaseAutomationSnapshot> {
     const id = generateId();
     const now = new Date().toISOString();

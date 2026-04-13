@@ -9,7 +9,7 @@
  * Failure: invalid input or persistence failure.
  */
 
-import type { ISourceDocumentCommandPort } from "../../domain/ports/ISourceDocumentPort";
+import type { SourceDocumentCommandPort } from "../../domain/ports/SourceDocumentPort";
 import type { SourceFileCommandErrorCode } from "../dto/source-file.dto";
 
 export interface RenameSourceDocumentInput {
@@ -24,7 +24,7 @@ type RenameSourceDocumentResult =
 
 export class RenameSourceDocumentUseCase {
   constructor(
-    private readonly documentPort: ISourceDocumentCommandPort,
+    private readonly documentPort: SourceDocumentCommandPort,
   ) {}
 
   async execute(input: RenameSourceDocumentInput): Promise<RenameSourceDocumentResult> {

@@ -9,7 +9,7 @@ import {
   RemovePageFromCollectionUseCase,
   AddCollectionColumnUseCase,
   ArchiveKnowledgeCollectionUseCase,
-} from "../../../subdomains/knowledge/application/use-cases/KnowledgeCollectionUseCases";
+} from "../../../subdomains/knowledge/application/use-cases/manage-knowledge-collection.use-cases";
 import type {
   CreateKnowledgeCollectionDto,
   RenameKnowledgeCollectionDto,

@@ -9,9 +9,9 @@ import {
   GrantPermissionUseCase,
   RevokePermissionUseCase,
 } from "../../../subdomains/collaboration/application/use-cases";
-import type { ICommentRepository } from "../../../subdomains/collaboration/domain/repositories/ICommentRepository";
-import type { IVersionRepository } from "../../../subdomains/collaboration/domain/repositories/IVersionRepository";
-import type { IPermissionRepository } from "../../../subdomains/collaboration/domain/repositories/IPermissionRepository";
+import type { CommentRepository } from "../../../subdomains/collaboration/domain/repositories/CommentRepository";
+import type { VersionRepository } from "../../../subdomains/collaboration/domain/repositories/VersionRepository";
+import type { PermissionRepository } from "../../../subdomains/collaboration/domain/repositories/PermissionRepository";
 import { makeCommentRepo, makeVersionRepo, makePermissionRepo } from "./repositories";
 
 export interface CollaborationUseCases {
@@ -27,9 +27,9 @@ export interface CollaborationUseCases {
 }
 
 export function makeCollaborationUseCases(
-  commentRepo: ICommentRepository = makeCommentRepo(),
-  versionRepo: IVersionRepository = makeVersionRepo(),
-  permissionRepo: IPermissionRepository = makePermissionRepo(),
+  commentRepo: CommentRepository = makeCommentRepo(),
+  versionRepo: VersionRepository = makeVersionRepo(),
+  permissionRepo: PermissionRepository = makePermissionRepo(),
 ): CollaborationUseCases {
   return {
     createComment: new CreateCommentUseCase(commentRepo),

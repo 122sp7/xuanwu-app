@@ -1,4 +1,4 @@
-// TODO: export IArticleRepository, ICategoryRepository
+// TODO: export ArticleRepository, CategoryRepository
 
-export type { IArticleRepository } from "./IArticleRepository";
-export type { ICategoryRepository } from "./ICategoryRepository";
+export type { ArticleRepository } from "./ArticleRepository";
+export type { CategoryRepository } from "./CategoryRepository";

@@ -1,7 +1,7 @@
 "use server";
 
 import { runKnowledgeRagQuery } from "../../../subdomains/synthesis/api/server";
-import type { KnowledgeRagQueryResult } from "../../../subdomains/synthesis/domain/repositories/IKnowledgeContentRepository";
+import type { KnowledgeRagQueryResult } from "../../../subdomains/synthesis/domain/repositories/KnowledgeContentRepository";
 
 function isBlank(value: string): boolean {
   return value.trim().length === 0;

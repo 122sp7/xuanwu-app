@@ -7,7 +7,7 @@
 
 import { firestoreInfrastructureApi } from "@/modules/platform/api";
 import type { CategorySnapshot } from "../../../subdomains/authoring/domain/aggregates/Category";
-import type { ICategoryRepository } from "../../../subdomains/authoring/domain/repositories/ICategoryRepository";
+import type { CategoryRepository } from "../../../subdomains/authoring/domain/repositories/CategoryRepository";
 
 function categoriesPath(accountId: string): string {
   return `accounts/${accountId}/kbCategories`;
@@ -36,7 +36,7 @@ function toSnapshot(id: string, data: Record<string, unknown>): CategorySnapshot
   };
 }
 
-export class FirebaseCategoryRepository implements ICategoryRepository {
+export class FirebaseCategoryRepository implements CategoryRepository {
   async getById(accountId: string, categoryId: string): Promise<CategorySnapshot | null> {
     const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
       categoryPath(accountId, categoryId),

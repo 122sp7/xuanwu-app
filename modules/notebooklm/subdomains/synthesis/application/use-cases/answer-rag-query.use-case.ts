@@ -12,14 +12,14 @@
 
 import { randomUUID } from "node:crypto";
 
-import type { IRagRetrievalRepository } from "../../domain/repositories/IRagRetrievalRepository";
+import type { RagRetrievalRepository } from "../../domain/repositories/RagRetrievalRepository";
 import type {
   AnswerRagQueryInput,
   AnswerRagQueryOutput,
   AnswerRagQueryResult,
   RagRetrievalSummary,
 } from "../../domain/entities/rag-query.entities";
-import type { IRagGenerationRepository } from "../../domain/repositories/IRagGenerationRepository";
+import type { RagGenerationRepository } from "../../domain/repositories/RagGenerationRepository";
 
 const DEFAULT_TOP_K = 5;
 const DEFAULT_MAX_TOP_K = 20; // Raise from the legacy hard-coded 10
@@ -31,8 +31,8 @@ function clampTopK(value: number | undefined, maxTopK: number): number {
 
 export class AnswerRagQueryUseCase {
   constructor(
-    private readonly retrievalRepository: IRagRetrievalRepository,
-    private readonly generationRepository: IRagGenerationRepository,
+    private readonly retrievalRepository: RagRetrievalRepository,
+    private readonly generationRepository: RagGenerationRepository,
     /** Maximum topK accepted from callers. Override at composition root for environment-specific limits. */
     private readonly maxTopK: number = DEFAULT_MAX_TOP_K,
   ) {}

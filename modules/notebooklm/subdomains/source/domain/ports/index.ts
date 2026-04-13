@@ -1,21 +1,20 @@
 /**
  * notebooklm/source domain/ports — driven port interfaces for the source subdomain.
  *
- * ISourceDocumentCommandPort and IParsedDocumentPort are the primary driven ports.
- * IRagDocumentPort, ISourceFilePort, IWikiLibraryPort re-export the legacy
- * repository contracts, making the Ports layer explicitly visible.
+ * SourceDocumentCommandPort and ParsedDocumentPort are the primary driven ports.
+ * Repository contracts are re-exported from domain/repositories/.
  */
-export type { ISourceDocumentCommandPort } from "./ISourceDocumentPort";
-export type { IParsedDocumentPort } from "./IParsedDocumentPort";
+export type { SourceDocumentCommandPort } from "./SourceDocumentPort";
+export type { ParsedDocumentPort } from "./ParsedDocumentPort";
 export type {
-	ISourcePipelinePort,
-	ParseSourceDocumentInput,
-	ParseSourceDocumentOutput,
-	ReindexSourceDocumentInput,
-	ReindexSourceDocumentOutput,
-} from "./ISourcePipelinePort";
-export type { IRagDocumentRepository as IRagDocumentPort } from "../repositories/IRagDocumentRepository";
-export type { ISourceFileRepository as ISourceFilePort } from "../repositories/ISourceFileRepository";
-export type { IWikiLibraryRepository as IWikiLibraryPort } from "../repositories/IWikiLibraryRepository";
-export type { ISourceStoragePort, SourceStorageUploadOptions } from "./ISourceStoragePort";
-export type { ISourceDocumentWatchPort, WatchedDocument } from "./ISourceDocumentWatchPort";
+SourcePipelinePort,
+ParseSourceDocumentInput,
+ParseSourceDocumentOutput,
+ReindexSourceDocumentInput,
+ReindexSourceDocumentOutput,
+} from "./SourcePipelinePort";
+export type { RagDocumentRepository } from "../repositories/RagDocumentRepository";
+export type { SourceFileRepository } from "../repositories/SourceFileRepository";
+export type { WikiLibraryRepository } from "../repositories/WikiLibraryRepository";
+export type { SourceStoragePort, SourceStorageUploadOptions } from "./SourceStoragePort";
+export type { SourceDocumentWatchPort, WatchedDocument } from "./SourceDocumentWatchPort";

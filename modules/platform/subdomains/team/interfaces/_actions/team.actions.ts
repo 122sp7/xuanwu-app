@@ -7,7 +7,7 @@ import {
   UpdateTeamMembersUseCase,
 } from "../../api";
 import type { CreateTeamInput } from "../../api";
-import { createTeamRepository } from "../../infrastructure/team-composition";
+import { createTeamRepository } from "../../api";
 
 function getRepo() {
   return createTeamRepository();

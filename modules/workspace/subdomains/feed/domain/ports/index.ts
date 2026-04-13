@@ -5,6 +5,6 @@
  * explicitly visible in the directory structure.
  */
 export type {
-  WorkspaceFeedPostRepository as IWorkspaceFeedPostPort,
-  WorkspaceFeedInteractionRepository as IWorkspaceFeedInteractionPort,
+  WorkspaceFeedPostRepository,
+  WorkspaceFeedInteractionRepository,
 } from "../repositories/workspace-feed.repositories";

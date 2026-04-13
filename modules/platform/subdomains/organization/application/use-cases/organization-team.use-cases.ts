@@ -1,18 +1,18 @@
 /**
  * Organization Team Use Cases — team-scoped operations owned by the organization subdomain.
  *
- * These use cases depend only on IOrganizationTeamPort (defined in organization's own
+ * These use cases depend only on OrganizationTeamPort (defined in organization's own
  * domain/ports/), keeping the application layer free from direct peer-subdomain imports.
  * The infrastructure composition root (organization-service.ts) injects the concrete
  * team adapter that satisfies the port.
  */
 
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { IOrganizationTeamPort } from "../../domain/ports/IOrganizationTeamPort";
+import type { OrganizationTeamPort } from "../../domain/ports/OrganizationTeamPort";
 import type { CreateTeamInput } from "../../domain/entities/Organization";
 
 export class CreateTeamUseCase {
-  constructor(private readonly teamPort: IOrganizationTeamPort) {}
+  constructor(private readonly teamPort: OrganizationTeamPort) {}
 
   async execute(input: CreateTeamInput): Promise<CommandResult> {
     try {
@@ -28,7 +28,7 @@ export class CreateTeamUseCase {
 }
 
 export class DeleteTeamUseCase {
-  constructor(private readonly teamPort: IOrganizationTeamPort) {}
+  constructor(private readonly teamPort: OrganizationTeamPort) {}
 
   async execute(organizationId: string, teamId: string): Promise<CommandResult> {
     try {
@@ -44,7 +44,7 @@ export class DeleteTeamUseCase {
 }
 
 export class UpdateTeamMembersUseCase {
-  constructor(private readonly teamPort: IOrganizationTeamPort) {}
+  constructor(private readonly teamPort: OrganizationTeamPort) {}
 
   async execute(
     organizationId: string,

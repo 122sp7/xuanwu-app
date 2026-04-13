@@ -21,7 +21,7 @@ import {
   DeleteTeamUseCase,
   UpdateTeamMembersUseCase,
 } from "../application/use-cases/organization-team.use-cases";
-import type { IOrganizationTeamPort } from "../domain/ports/IOrganizationTeamPort";
+import type { OrganizationTeamPort } from "../domain/ports/OrganizationTeamPort";
 import {
   CreatePartnerGroupUseCase,
   SendPartnerInviteUseCase,
@@ -45,11 +45,11 @@ import type { CommandResult } from "@shared-types";
 
 let _orgRepo: FirebaseOrganizationRepository | undefined;
 let _policyRepo: FirebaseOrgPolicyRepository | undefined;
-let _teamPort: IOrganizationTeamPort | undefined;
-let _teamPortFactory: (() => IOrganizationTeamPort) | undefined;
+let _teamPort: OrganizationTeamPort | undefined;
+let _teamPortFactory: (() => OrganizationTeamPort) | undefined;
 
 export function configureOrganizationTeamPortFactory(
-  factory: () => IOrganizationTeamPort,
+  factory: () => OrganizationTeamPort,
 ): void {
   _teamPortFactory = factory;
   _teamPort = undefined;
@@ -65,7 +65,7 @@ function getPolicyRepo(): FirebaseOrgPolicyRepository {
   return _policyRepo;
 }
 
-function getTeamPort(): IOrganizationTeamPort {
+function getTeamPort(): OrganizationTeamPort {
   if (!_teamPortFactory) {
     throw new Error("Organization team port factory is not configured.");
   }

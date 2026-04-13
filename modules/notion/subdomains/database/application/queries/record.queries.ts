@@ -1,10 +1,10 @@
-import type { IDatabaseRecordRepository } from "../../domain/repositories/IDatabaseRecordRepository";
+import type { DatabaseRecordRepository } from "../../domain/repositories/DatabaseRecordRepository";
 import type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRecord";
 import { ListRecordsSchema } from "../dto/DatabaseDto";
 import type { ListRecordsDto } from "../dto/DatabaseDto";
 
 export class ListRecordsUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
+  constructor(private readonly repo: DatabaseRecordRepository) {}
   async execute(input: ListRecordsDto): Promise<DatabaseRecordSnapshot[]> {
     const parsed = ListRecordsSchema.safeParse(input);
     if (!parsed.success) return [];

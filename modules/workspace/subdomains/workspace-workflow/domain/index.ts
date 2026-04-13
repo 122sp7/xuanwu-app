@@ -17,5 +17,3 @@ export * from "./value-objects/SourceReference";
 export * from "./value-objects/TaskId";
 export * from "./value-objects/TaskStatus";
 export * from "./value-objects/UserId";
-// Ports layer — driven port aliases
-export type { IInvoicePort, IIssuePort, ITaskPort } from "./ports";

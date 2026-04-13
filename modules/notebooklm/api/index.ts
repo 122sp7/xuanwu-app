@@ -6,7 +6,7 @@
  * is the orchestration owner.
  */
 
-export type { Message, MessageRole, Thread, IThreadRepository } from "../subdomains/conversation/api";
+export type { Message, MessageRole, Thread, ThreadRepository } from "../subdomains/conversation/api";
 
 export type {
   NotebookResponse,
@@ -97,7 +97,7 @@ export type {
   RetrievedChunk,
   RetrievalSummary,
   RetrieveChunksInput,
-  IChunkRetrievalPort,
+  ChunkRetrievalPort,
   RetrievalCompletedEvent,
   RetrievalFailedEvent,
 } from "../subdomains/synthesis/api";
@@ -106,7 +106,7 @@ export type {
   Citation,
   GroundingEvidence,
   CitationBuilderInput,
-  ICitationBuilder,
+  CitationBuilder,
   GroundingCompletedEvent,
 } from "../subdomains/synthesis/api";
 
@@ -115,7 +115,7 @@ export type {
   GenerateAnswerInput,
   GenerateAnswerOutput,
   GenerateAnswerResult,
-  IGenerationPort,
+  GenerationPort,
   SynthesisCompletedEvent,
   SynthesisFailedEvent,
 } from "../subdomains/synthesis/api";
@@ -124,6 +124,6 @@ export type {
   FeedbackRating,
   QualityFeedback,
   SubmitFeedbackInput,
-  IFeedbackPort,
+  FeedbackPort,
   FeedbackSubmittedEvent,
 } from "../subdomains/synthesis/api";

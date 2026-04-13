@@ -7,7 +7,7 @@
  * infrastructure directly.
  */
 
-import type { IWikiLibraryRepository } from "../../../subdomains/source/domain/repositories/IWikiLibraryRepository";
+import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
 import {
   listWikiLibraries as _listWikiLibraries,
   createWikiLibrary as _createWikiLibrary,
@@ -26,9 +26,9 @@ import type {
 import { makeWikiLibraryAdapter } from "./adapters";
 
 // Lazy singleton — no module-scope side effects.
-let _libraryRepo: IWikiLibraryRepository | null = null;
+let _libraryRepo: WikiLibraryRepository | null = null;
 
-function getLibraryRepo(): IWikiLibraryRepository {
+function getLibraryRepo(): WikiLibraryRepository {
   if (!_libraryRepo) _libraryRepo = makeWikiLibraryAdapter();
   return _libraryRepo;
 }

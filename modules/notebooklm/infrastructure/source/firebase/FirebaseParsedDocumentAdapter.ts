@@ -1,14 +1,14 @@
 /**
  * Module: notebooklm/subdomains/source
  * Layer: infrastructure/firebase
- * Adapter: FirebaseParsedDocumentAdapter — Firebase Storage implementation of IParsedDocumentPort.
+ * Adapter: FirebaseParsedDocumentAdapter — Firebase Storage implementation of ParsedDocumentPort.
  *
  * Reads parsed JSON from a GCS URI and extracts the text content.
  */
 
 import { storageInfrastructureApi } from "@/modules/platform/api";
 
-import type { IParsedDocumentPort } from "../../../subdomains/source/domain/ports/IParsedDocumentPort";
+import type { ParsedDocumentPort } from "../../../subdomains/source/domain/ports/ParsedDocumentPort";
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
@@ -29,7 +29,7 @@ function resolveStoragePathFromGsUri(input: string): string {
   return withoutScheme.slice(firstSlash + 1);
 }
 
-export class FirebaseParsedDocumentAdapter implements IParsedDocumentPort {
+export class FirebaseParsedDocumentAdapter implements ParsedDocumentPort {
   async loadParsedDocumentText(jsonGcsUri: string): Promise<string> {
     if (!jsonGcsUri) return "";
     const storagePath = resolveStoragePathFromGsUri(jsonGcsUri);

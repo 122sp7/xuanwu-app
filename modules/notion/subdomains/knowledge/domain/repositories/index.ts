@@ -1,4 +1,4 @@
-export type { IKnowledgePageRepository } from "./IKnowledgePageRepository";
-export type { IContentBlockRepository } from "./IContentBlockRepository";
-export type { IKnowledgeCollectionRepository } from "./IKnowledgeCollectionRepository";
-export type { IBacklinkIndexRepository, UpsertBacklinkEntriesInput, RemoveBacklinksFromSourceInput } from "./IBacklinkIndexRepository";
+export type { KnowledgePageRepository } from "./KnowledgePageRepository";
+export type { ContentBlockRepository } from "./ContentBlockRepository";
+export type { KnowledgeCollectionRepository } from "./KnowledgeCollectionRepository";
+export type { BacklinkIndexRepository, UpsertBacklinkEntriesInput, RemoveBacklinksFromSourceInput } from "./BacklinkIndexRepository";

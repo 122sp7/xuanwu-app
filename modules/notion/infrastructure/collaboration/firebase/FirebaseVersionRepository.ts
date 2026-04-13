@@ -7,7 +7,7 @@
 import { firestoreInfrastructureApi } from "@/modules/platform/api";
 import { v7 as generateId } from "@lib-uuid";
 import type { VersionSnapshot } from "../../../subdomains/collaboration/domain/aggregates/Version";
-import type { IVersionRepository, CreateVersionInput } from "../../../subdomains/collaboration/domain/repositories/IVersionRepository";
+import type { VersionRepository, CreateVersionInput } from "../../../subdomains/collaboration/domain/repositories/VersionRepository";
 
 function versionsPath(accountId: string): string {
   return `accounts/${accountId}/collaborationVersions`;
@@ -32,7 +32,7 @@ function toVersion(id: string, data: Record<string, unknown>): VersionSnapshot {
   };
 }
 
-export class FirebaseVersionRepository implements IVersionRepository {
+export class FirebaseVersionRepository implements VersionRepository {
   async create(input: CreateVersionInput): Promise<VersionSnapshot> {
     const id = generateId();
     const now = new Date().toISOString();

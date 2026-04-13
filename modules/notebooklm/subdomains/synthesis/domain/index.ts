@@ -18,22 +18,22 @@ export type { FeedbackSubmittedEvent } from "./events/EvaluationEvents";
 export * from "./events/SynthesisPipelineDomainEvent";
 
 // ── Ports ────────────────────────────────────────────────────────────────────
-export type { IGenerationPort } from "./ports/IGenerationPort";
-export type { IChunkRetrievalPort, RetrieveChunksInput } from "./ports/IChunkRetrievalPort";
-export type { IFeedbackPort } from "./ports/IFeedbackPort";
-export type { IVectorStore, VectorDocument, VectorSearchResult } from "./ports/IVectorStore";
+export type { GenerationPort } from "./ports/GenerationPort";
+export type { ChunkRetrievalPort, RetrieveChunksInput } from "./ports/ChunkRetrievalPort";
+export type { FeedbackPort } from "./ports/FeedbackPort";
+export type { VectorStore, VectorDocument, VectorSearchResult } from "./ports/VectorStore";
 
 // ── Repositories (output port interfaces) ────────────────────────────────────
-export * from "./repositories/IRagGenerationRepository";
-export * from "./repositories/IRagQueryFeedbackRepository";
-export * from "./repositories/IRagRetrievalRepository";
-export * from "./repositories/IKnowledgeContentRepository";
+export * from "./repositories/RagGenerationRepository";
+export * from "./repositories/RagQueryFeedbackRepository";
+export * from "./repositories/RagRetrievalRepository";
+export * from "./repositories/KnowledgeContentRepository";
 
 // ── Domain services ──────────────────────────────────────────────────────────
 export * from "./services/RagCitationBuilder";
 export * from "./services/RagPromptBuilder";
 export * from "./services/RagScoringService";
-export type { CitationBuilderInput, ICitationBuilder } from "./services/ICitationBuilder";
+export type { CitationBuilderInput, CitationBuilder } from "./services/CitationBuilder";
 
 // ── Value objects ────────────────────────────────────────────────────────────
 export * from "./value-objects";

@@ -12,7 +12,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 
 import type { SourceFile } from "../../domain/entities/SourceFile";
 import type { SourceFileVersion } from "../../domain/entities/SourceFileVersion";
-import type { ISourceFileRepository } from "../../domain/repositories/ISourceFileRepository";
+import type { SourceFileRepository } from "../../domain/repositories/SourceFileRepository";
 import type {
   SourceFileCommandErrorCode,
   UploadInitFileInputDto,
@@ -40,7 +40,7 @@ function buildUploadPath(
 }
 
 export class UploadInitSourceFileUseCase {
-  constructor(private readonly fileRepository: ISourceFileRepository) {}
+  constructor(private readonly fileRepository: SourceFileRepository) {}
 
   async execute(input: UploadInitFileInputDto): Promise<UploadInitSourceFileResult> {
     const workspaceId = input.workspaceId.trim();

@@ -3,18 +3,18 @@ export {
   UpdateArticleUseCase,
   ArchiveArticleUseCase,
   DeleteArticleUseCase,
-} from "./ArticleLifecycleUseCases";
+} from "./manage-article-lifecycle.use-cases";
 
-export { PublishArticleUseCase } from "./ArticlePublicationUseCases";
+export { PublishArticleUseCase } from "./manage-article-publication.use-cases";
 
 export {
   VerifyArticleUseCase,
   RequestArticleReviewUseCase,
-} from "./ArticleVerificationUseCases";
+} from "./verify-article.use-cases";
 
 export {
   CreateCategoryUseCase,
   RenameCategoryUseCase,
   MoveCategoryUseCase,
   DeleteCategoryUseCase,
-} from "./CategoryUseCases";
+} from "./manage-category.use-cases";

@@ -4,4 +4,4 @@
  * Re-exports repository contracts from domain/repositories/, making the Ports layer
  * explicitly visible in the directory structure.
  */
-export type { IThreadRepository as IThreadPort } from "../repositories/IThreadRepository";
+export type { ThreadRepository } from "../repositories/ThreadRepository";

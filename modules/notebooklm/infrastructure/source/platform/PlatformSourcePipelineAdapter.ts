@@ -1,12 +1,12 @@
 import { functionsInfrastructureApi } from "@/modules/platform/api";
 
 import type {
-  ISourcePipelinePort,
+  SourcePipelinePort,
   ParseSourceDocumentInput,
   ParseSourceDocumentOutput,
   ReindexSourceDocumentInput,
   ReindexSourceDocumentOutput,
-} from "../../../subdomains/source/domain/ports/ISourcePipelinePort";
+} from "../../../subdomains/source/domain/ports/SourcePipelinePort";
 
 const SOURCE_FUNCTION_REGION = "asia-southeast1";
 
@@ -22,7 +22,7 @@ function asNumber(value: unknown, fallback = 0): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
-export class PlatformSourcePipelineAdapter implements ISourcePipelinePort {
+export class PlatformSourcePipelineAdapter implements SourcePipelinePort {
   async parseDocument(input: ParseSourceDocumentInput): Promise<ParseSourceDocumentOutput> {
     const raw = await functionsInfrastructureApi.call<
       {

@@ -1,4 +1,4 @@
-import type { ISourcePipelinePort } from "../../domain/ports/ISourcePipelinePort";
+import type { SourcePipelinePort } from "../../domain/ports/SourcePipelinePort";
 import type {
   ParseSourceDocumentInputDto,
   ParseSourceDocumentOutputDto,
@@ -12,7 +12,7 @@ function isBlank(value: string): boolean {
 }
 
 export class ParseSourceDocumentUseCase {
-  constructor(private readonly pipelinePort: ISourcePipelinePort) {}
+  constructor(private readonly pipelinePort: SourcePipelinePort) {}
 
   async execute(
     input: ParseSourceDocumentInputDto,
@@ -51,7 +51,7 @@ export class ParseSourceDocumentUseCase {
 }
 
 export class ReindexSourceDocumentUseCase {
-  constructor(private readonly pipelinePort: ISourcePipelinePort) {}
+  constructor(private readonly pipelinePort: SourcePipelinePort) {}
 
   async execute(
     input: ReindexSourceDocumentInputDto,

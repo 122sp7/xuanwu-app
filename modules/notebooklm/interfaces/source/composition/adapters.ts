@@ -12,9 +12,9 @@ import {
   addKnowledgeBlock,
   createKnowledgePage,
 } from "@/modules/notion/api";
-import type { IWikiLibraryRepository } from "../../../subdomains/source/domain/repositories/IWikiLibraryRepository";
-import type { ISourceStoragePort } from "../../../subdomains/source/domain/ports/ISourceStoragePort";
-import type { ISourceDocumentWatchPort } from "../../../subdomains/source/domain/ports/ISourceDocumentWatchPort";
+import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
+import type { SourceStoragePort } from "../../../subdomains/source/domain/ports/SourceStoragePort";
+import type { SourceDocumentWatchPort } from "../../../subdomains/source/domain/ports/SourceDocumentWatchPort";
 
 export function makeSourceFileAdapter() {
   return new FirebaseSourceFileAdapter();
@@ -43,15 +43,15 @@ export function makeKnowledgePageGateway() {
   });
 }
 
-export function makeWikiLibraryAdapter(): IWikiLibraryRepository {
+export function makeWikiLibraryAdapter(): WikiLibraryRepository {
   return new FirebaseWikiLibraryAdapter();
 }
 
-export function makeSourceStorageAdapter(): ISourceStoragePort {
+export function makeSourceStorageAdapter(): SourceStoragePort {
   return new PlatformSourceStorageAdapter();
 }
 
-export function makeSourceDocumentWatchAdapter(): ISourceDocumentWatchPort {
+export function makeSourceDocumentWatchAdapter(): SourceDocumentWatchPort {
   return new PlatformSourceDocumentWatchAdapter();
 }
 

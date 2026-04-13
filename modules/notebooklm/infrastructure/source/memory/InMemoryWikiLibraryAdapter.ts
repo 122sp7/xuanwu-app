@@ -1,7 +1,7 @@
 /**
  * Module: notebooklm/subdomains/source
  * Layer: infrastructure/memory
- * Adapter: InMemoryWikiLibraryAdapter — in-memory implementation of IWikiLibraryRepository.
+ * Adapter: InMemoryWikiLibraryAdapter — in-memory implementation of WikiLibraryRepository.
  * Use case: local dev, tests, and no-firebase environments.
  */
 
@@ -10,9 +10,9 @@ import type {
   WikiLibraryField,
   WikiLibraryRow,
 } from "../../../subdomains/source/domain/entities/WikiLibrary";
-import type { IWikiLibraryRepository } from "../../../subdomains/source/domain/repositories/IWikiLibraryRepository";
+import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
 
-export class InMemoryWikiLibraryAdapter implements IWikiLibraryRepository {
+export class InMemoryWikiLibraryAdapter implements WikiLibraryRepository {
   private readonly libraries = new Map<string, WikiLibrary>();
   private readonly fields = new Map<string, WikiLibraryField>();
   private readonly rows = new Map<string, WikiLibraryRow>();

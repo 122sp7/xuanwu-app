@@ -13,8 +13,8 @@ export type {
 
 // ── Repository contracts ───────────────────────────────────────────────────────
 export type {
-  ITaxonomyRepository,
-} from "../domain/repositories/ITaxonomyRepository";
+  TaxonomyRepository,
+} from "../domain/repositories/TaxonomyRepository";
 
 // ── Domain events ─────────────────────────────────────────────────────────────
 export type {
@@ -34,4 +34,4 @@ export {
   RemoveTaxonomyNodeUseCase,
   ListTaxonomyRootsUseCase,
   ListTaxonomyChildrenUseCase,
-} from "../application/use-cases/TaxonomyUseCases";
+} from "../application/use-cases/manage-taxonomy.use-cases";

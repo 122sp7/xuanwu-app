@@ -12,7 +12,7 @@
 import type { CommandResult } from "@shared-types";
 import { commandFailureFrom, commandSuccess } from "@shared-types";
 
-import type { IParsedDocumentPort } from "../../domain/ports/IParsedDocumentPort";
+import type { ParsedDocumentPort } from "../../domain/ports/ParsedDocumentPort";
 
 export interface CreateKnowledgeDraftInput {
   readonly accountId: string;
@@ -52,7 +52,7 @@ function trimFileExtension(filename: string): string {
 
 export class CreateKnowledgeDraftFromSourceUseCase {
   constructor(
-    private readonly parsedDocumentPort: IParsedDocumentPort,
+    private readonly parsedDocumentPort: ParsedDocumentPort,
     private readonly knowledgeGateway: KnowledgePageGateway,
   ) {}
 

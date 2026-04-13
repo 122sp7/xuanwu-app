@@ -1,7 +1,7 @@
 /**
  * Module: notebooklm/subdomains/synthesis
  * Layer: infrastructure/platform
- * Purpose: Implements IRagGenerationRepository by delegating model invocation
+ * Purpose: Implements RagGenerationRepository by delegating model invocation
  *          to platform AI API. Prompt construction and citation building stay
  *          in this adapter (domain-specific to synthesis).
  *
@@ -10,7 +10,7 @@
  */
 
 import { generateAiText } from "@/modules/platform/api/server";
-import type { IRagGenerationRepository } from "../../../subdomains/synthesis/domain/repositories/IRagGenerationRepository";
+import type { RagGenerationRepository } from "../../../subdomains/synthesis/domain/repositories/RagGenerationRepository";
 import type {
   GenerateRagAnswerInput,
   GenerateRagAnswerResult,
@@ -50,7 +50,7 @@ function buildCitations(input: GenerateRagAnswerInput): readonly GenerationCitat
 const SYSTEM_PROMPT =
   "You are the Xuanwu RAG orchestration layer. Answer only from the supplied context and preserve citations.";
 
-export class PlatformRagGenerationAdapter implements IRagGenerationRepository {
+export class PlatformRagGenerationAdapter implements RagGenerationRepository {
   async generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult> {
     try {
       const result = await generateAiText({

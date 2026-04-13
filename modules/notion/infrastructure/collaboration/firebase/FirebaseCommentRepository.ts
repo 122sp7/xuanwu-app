@@ -8,12 +8,12 @@ import { firestoreInfrastructureApi } from "@/modules/platform/api";
 import { v7 as generateId } from "@lib-uuid";
 import type { CommentSnapshot, SelectionRange } from "../../../subdomains/collaboration/domain/aggregates/Comment";
 import type {
-  ICommentRepository,
+  CommentRepository,
   CommentUnsubscribe,
   CreateCommentInput,
   UpdateCommentInput,
   ResolveCommentInput,
-} from "../../../subdomains/collaboration/domain/repositories/ICommentRepository";
+} from "../../../subdomains/collaboration/domain/repositories/CommentRepository";
 
 function commentsPath(accountId: string): string {
   return `accounts/${accountId}/collaborationComments`;
@@ -52,7 +52,7 @@ function toComment(id: string, data: Record<string, unknown>): CommentSnapshot {
   };
 }
 
-export class FirebaseCommentRepository implements ICommentRepository {
+export class FirebaseCommentRepository implements CommentRepository {
   async create(input: CreateCommentInput): Promise<CommentSnapshot> {
     const id = generateId();
     const now = new Date().toISOString();

@@ -7,7 +7,7 @@
 
 import { firestoreInfrastructureApi } from "@/modules/platform/api";
 import type { ArticleSnapshot, ArticleStatus, ArticleVerificationState } from "../../../subdomains/authoring/domain/aggregates/Article";
-import type { IArticleRepository } from "../../../subdomains/authoring/domain/repositories/IArticleRepository";
+import type { ArticleRepository } from "../../../subdomains/authoring/domain/repositories/ArticleRepository";
 
 function articlesPath(accountId: string): string {
   return `accounts/${accountId}/kbArticles`;
@@ -45,7 +45,7 @@ function toSnapshot(id: string, data: Record<string, unknown>): ArticleSnapshot 
   };
 }
 
-export class FirebaseArticleRepository implements IArticleRepository {
+export class FirebaseArticleRepository implements ArticleRepository {
   async getById(accountId: string, articleId: string): Promise<ArticleSnapshot | null> {
     const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
       articlePath(accountId, articleId),

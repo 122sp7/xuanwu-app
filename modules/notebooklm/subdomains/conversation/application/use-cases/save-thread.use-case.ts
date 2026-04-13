@@ -7,10 +7,10 @@
  */
 
 import type { Thread } from "../../domain/entities/thread";
-import type { IThreadRepository } from "../../domain/repositories/IThreadRepository";
+import type { ThreadRepository } from "../../domain/repositories/ThreadRepository";
 
 export class SaveThreadUseCase {
-  constructor(private readonly threadRepository: IThreadRepository) {}
+  constructor(private readonly threadRepository: ThreadRepository) {}
 
   async execute(accountId: string, thread: Thread): Promise<void> {
     if (!accountId || !thread.id) {

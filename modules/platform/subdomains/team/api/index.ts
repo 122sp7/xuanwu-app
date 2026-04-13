@@ -2,8 +2,10 @@
  * Module: platform/subdomains/team
  * Layer: api (public boundary)
  * Purpose: Exports types and use cases for the team subdomain.
- *          Infrastructure composition (repository wiring) is internal
- *          and NOT exposed through the api boundary.
+ *
+ * createTeamRepository is promoted to the api boundary because the
+ * organization subdomain needs it for cross-subdomain team port wiring.
+ * It returns the TeamRepository interface, not a concrete implementation.
  */
 
 export type { Team, CreateTeamInput } from "../domain/entities/Team";
@@ -13,3 +15,4 @@ export {
   DeleteTeamUseCase,
   UpdateTeamMembersUseCase,
 } from "../application/use-cases/team.use-cases";
+export { createTeamRepository } from "../infrastructure/team-composition";

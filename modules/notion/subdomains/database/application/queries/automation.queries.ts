@@ -1,8 +1,8 @@
 import type { DatabaseAutomationSnapshot } from "../../domain/aggregates/DatabaseAutomation";
-import type { IAutomationRepository } from "../../domain/repositories/IAutomationRepository";
+import type { AutomationRepository } from "../../domain/repositories/AutomationRepository";
 
 export class ListAutomationsUseCase {
-  constructor(private readonly repo: IAutomationRepository) {}
+  constructor(private readonly repo: AutomationRepository) {}
 
   async execute(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]> {
     return this.repo.listByDatabase(accountId, databaseId);

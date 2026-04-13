@@ -1,7 +1,7 @@
 /**
  * Module: notion/subdomains/knowledge
  * Layer: infrastructure/firebase
- * Purpose: Firebase adapter implementing IContentBlockRepository.
+ * Purpose: Firebase adapter implementing ContentBlockRepository.
  * Firestore path: accounts/{accountId}/contentBlocks/{blockId}
  */
 
@@ -11,7 +11,7 @@ import {
 import { v7 as _generateId } from "@lib-uuid";
 import { ContentBlock } from "../../../subdomains/knowledge/domain/aggregates/ContentBlock";
 import type { ContentBlockSnapshot } from "../../../subdomains/knowledge/domain/aggregates/ContentBlock";
-import type { IContentBlockRepository } from "../../../subdomains/knowledge/domain/repositories/IContentBlockRepository";
+import type { ContentBlockRepository } from "../../../subdomains/knowledge/domain/repositories/ContentBlockRepository";
 import type { BlockContent } from "../../../subdomains/knowledge/domain/value-objects/BlockContent";
 import { BLOCK_TYPES } from "../../../subdomains/knowledge/domain/value-objects/BlockContent";
 
@@ -50,7 +50,7 @@ function toSnapshot(id: string, d: Record<string, unknown>): ContentBlockSnapsho
   };
 }
 
-export class FirebaseContentBlockRepository implements IContentBlockRepository {
+export class FirebaseContentBlockRepository implements ContentBlockRepository {
   async save(block: ContentBlock): Promise<void> {
     const snap = block.getSnapshot();
     const path = blockPath(snap.accountId, snap.id);

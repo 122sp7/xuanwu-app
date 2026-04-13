@@ -7,11 +7,11 @@
 import { firestoreInfrastructureApi } from "@/modules/platform/api";
 
 import type {
-  ISourceDocumentWatchPort,
+  SourceDocumentWatchPort,
   WatchedDocument,
-} from "../../../subdomains/source/domain/ports/ISourceDocumentWatchPort";
+} from "../../../subdomains/source/domain/ports/SourceDocumentWatchPort";
 
-export class PlatformSourceDocumentWatchAdapter implements ISourceDocumentWatchPort {
+export class PlatformSourceDocumentWatchAdapter implements SourceDocumentWatchPort {
   watchCollection<T>(
     collectionPath: string,
     handlers: {

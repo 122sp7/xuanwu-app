@@ -1,7 +1,7 @@
 /**
  * Module: notebooklm/subdomains/source
  * Layer: infrastructure/firebase
- * Adapter: FirebaseWikiLibraryAdapter — Firestore implementation of IWikiLibraryRepository.
+ * Adapter: FirebaseWikiLibraryAdapter — Firestore implementation of WikiLibraryRepository.
  *
  * Paths:
  *   accounts/{accountId}/wikiLibraries/{libraryId}
@@ -18,7 +18,7 @@ import type {
   WikiLibraryRow,
   WikiLibraryStatus,
 } from "../../../subdomains/source/domain/entities/WikiLibrary";
-import type { IWikiLibraryRepository } from "../../../subdomains/source/domain/repositories/IWikiLibraryRepository";
+import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
 
 // ── Firestore shapes (ISO strings; no Timestamp to avoid serialisation issues)
 
@@ -116,7 +116,7 @@ function toRow(id: string, data: FsRow): WikiLibraryRow {
 
 // ── Implementation ────────────────────────────────────────────────────────────
 
-export class FirebaseWikiLibraryAdapter implements IWikiLibraryRepository {
+export class FirebaseWikiLibraryAdapter implements WikiLibraryRepository {
   async listByAccountId(accountId: string): Promise<WikiLibrary[]> {
     const documents = await firestoreInfrastructureApi.queryDocuments<FsLibrary>(
       libraryCollectionPath(accountId),

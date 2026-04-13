@@ -6,4 +6,4 @@ export type { DatabaseSnapshot, Field, FieldType } from "../../domain/aggregates
 export type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRecord";
 export type { ViewSnapshot } from "../../domain/aggregates/View";
 export type { DatabaseAutomationSnapshot, AutomationTrigger, AutomationActionType } from "../../domain/aggregates/DatabaseAutomation";
-export type { CreateAutomationInput, UpdateAutomationInput } from "../../domain/repositories/IAutomationRepository";
+export type { CreateAutomationInput, UpdateAutomationInput } from "../../domain/repositories/AutomationRepository";

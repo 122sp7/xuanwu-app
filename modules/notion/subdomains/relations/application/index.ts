@@ -4,4 +4,4 @@ export {
   RemoveRelationUseCase,
   ListRelationsBySourceUseCase,
   ListRelationsByTargetUseCase,
-} from "./use-cases/RelationUseCases";
+} from "./use-cases/manage-relation.use-cases";

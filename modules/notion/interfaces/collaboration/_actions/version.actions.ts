@@ -8,7 +8,7 @@
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import { makeVersionRepo } from "../composition/repositories";
-import { CreateVersionUseCase, DeleteVersionUseCase } from "../../../subdomains/collaboration/application/use-cases/VersionUseCases";
+import { CreateVersionUseCase, DeleteVersionUseCase } from "../../../subdomains/collaboration/application/use-cases/manage-version.use-cases";
 import type { CreateVersionDto, DeleteVersionDto } from "../../../subdomains/collaboration/application/dto/CollaborationDto";
 
 export async function createVersion(input: CreateVersionDto): Promise<CommandResult> {

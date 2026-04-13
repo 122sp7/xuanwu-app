@@ -7,7 +7,7 @@
  * Default arguments make this self-wiring for production use.
  */
 
-import type { IThreadRepository } from "../../../subdomains/conversation/domain/repositories/IThreadRepository";
+import type { ThreadRepository } from "../../../subdomains/conversation/domain/repositories/ThreadRepository";
 import { SaveThreadUseCase } from "../../../subdomains/conversation/application/use-cases/save-thread.use-case";
 import { LoadThreadUseCase } from "../../../subdomains/conversation/application/use-cases/load-thread.use-case";
 import { makeThreadRepo } from "./adapters";
@@ -18,7 +18,7 @@ export interface ConversationUseCases {
 }
 
 export function makeConversationUseCases(
-  repo: IThreadRepository = makeThreadRepo(),
+  repo: ThreadRepository = makeThreadRepo(),
 ): ConversationUseCases {
   return {
     saveThread: new SaveThreadUseCase(repo),

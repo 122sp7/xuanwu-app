@@ -1,1 +1,1 @@
-export type { IOrganizationTeamPort } from "./IOrganizationTeamPort";
+export type { OrganizationTeamPort } from "./OrganizationTeamPort";

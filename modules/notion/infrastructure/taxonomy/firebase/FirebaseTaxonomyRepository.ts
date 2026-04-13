@@ -1,13 +1,13 @@
 /**
  * Module: notion/subdomains/taxonomy
  * Layer: infrastructure/firebase
- * Purpose: Firebase adapter implementing ITaxonomyRepository.
+ * Purpose: Firebase adapter implementing TaxonomyRepository.
  * Firestore path: notionTaxonomyNodes/{nodeId}
  */
 
 import { firestoreInfrastructureApi } from "@/modules/platform/api";
 import type { TaxonomyNode } from "../../../subdomains/taxonomy/domain/entities/TaxonomyNode";
-import type { ITaxonomyRepository } from "../../../subdomains/taxonomy/domain/repositories/ITaxonomyRepository";
+import type { TaxonomyRepository } from "../../../subdomains/taxonomy/domain/repositories/TaxonomyRepository";
 
 function collectionPath(): string {
   return "notionTaxonomyNodes";
@@ -37,7 +37,7 @@ function toTaxonomyNode(nodeId: string, data: Record<string, unknown>): Taxonomy
   };
 }
 
-export class FirebaseTaxonomyRepository implements ITaxonomyRepository {
+export class FirebaseTaxonomyRepository implements TaxonomyRepository {
   async findById(nodeId: string): Promise<TaxonomyNode | null> {
     const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(docPath(nodeId));
     if (!data) return null;

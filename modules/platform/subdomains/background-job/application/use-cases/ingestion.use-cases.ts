@@ -15,7 +15,7 @@ import type { DomainError } from "@shared-types";
 
 import type { IngestionDocument } from "../../domain/entities/IngestionDocument";
 import { canTransitionIngestionStatus, type IngestionJob, type IngestionStatus } from "../../domain/entities/IngestionJob";
-import type { IIngestionJobRepository } from "../../domain/repositories/IIngestionJobRepository";
+import type { IngestionJobRepository } from "../../domain/repositories/IngestionJobRepository";
 
 // ── Shared result type ────────────────────────────────────────────────────────
 
@@ -42,7 +42,7 @@ export interface RegisterIngestionDocumentInput {
 }
 
 export class RegisterIngestionDocumentUseCase {
-  constructor(private readonly repo: IIngestionJobRepository) {}
+  constructor(private readonly repo: IngestionJobRepository) {}
 
   async execute(input: RegisterIngestionDocumentInput): Promise<IngestionResult<IngestionJob>> {
     const organizationId = input.organizationId.trim();
@@ -92,7 +92,7 @@ export interface AdvanceIngestionStageInput {
 }
 
 export class AdvanceIngestionStageUseCase {
-  constructor(private readonly repo: IIngestionJobRepository) {}
+  constructor(private readonly repo: IngestionJobRepository) {}
 
   async execute(input: AdvanceIngestionStageInput): Promise<IngestionResult<IngestionJob>> {
     const documentId = input.documentId.trim();
@@ -130,7 +130,7 @@ export interface ListWorkspaceIngestionJobsInput {
 }
 
 export class ListWorkspaceIngestionJobsUseCase {
-  constructor(private readonly repo: IIngestionJobRepository) {}
+  constructor(private readonly repo: IngestionJobRepository) {}
 
   async execute(input: ListWorkspaceIngestionJobsInput): Promise<readonly IngestionJob[]> {
     return this.repo.listByWorkspace(input);

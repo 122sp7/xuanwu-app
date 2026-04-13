@@ -13,8 +13,8 @@
 
 import { randomUUID } from "node:crypto";
 
-import type { ISourceFileRepository } from "../../domain/repositories/ISourceFileRepository";
-import type { IRagDocumentRepository } from "../../domain/repositories/IRagDocumentRepository";
+import type { SourceFileRepository } from "../../domain/repositories/SourceFileRepository";
+import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
 import { completeUploadSourceFile } from "../../domain/services/complete-upload-source-file.service";
 import type {
   SourceFileCommandErrorCode,
@@ -48,8 +48,8 @@ function isFileAlreadyCompleted(file: SourceFile): boolean {
 
 export class UploadCompleteSourceFileUseCase {
   constructor(
-    private readonly fileRepository: ISourceFileRepository,
-    private readonly ragDocumentRepository: IRagDocumentRepository,
+    private readonly fileRepository: SourceFileRepository,
+    private readonly ragDocumentRepository: RagDocumentRepository,
   ) {}
 
   async execute(input: UploadCompleteFileInputDto): Promise<UploadCompleteSourceFileResult> {

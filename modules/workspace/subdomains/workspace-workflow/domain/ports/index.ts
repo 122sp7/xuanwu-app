@@ -4,6 +4,6 @@
  * Re-exports repository contracts from domain/repositories/, making the Ports layer
  * explicitly visible in the directory structure.
  */
-export type { InvoiceRepository as IInvoicePort } from "../repositories/InvoiceRepository";
-export type { IssueRepository as IIssuePort } from "../repositories/IssueRepository";
-export type { TaskRepository as ITaskPort } from "../repositories/TaskRepository";
+export type { InvoiceRepository } from "../repositories/InvoiceRepository";
+export type { IssueRepository } from "../repositories/IssueRepository";
+export type { TaskRepository } from "../repositories/TaskRepository";

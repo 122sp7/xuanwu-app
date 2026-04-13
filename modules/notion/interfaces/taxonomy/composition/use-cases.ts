@@ -3,8 +3,8 @@ import {
   ListTaxonomyChildrenUseCase,
   ListTaxonomyRootsUseCase,
   RemoveTaxonomyNodeUseCase,
-} from "../../../subdomains/taxonomy/application/use-cases/TaxonomyUseCases";
-import type { ITaxonomyRepository } from "../../../subdomains/taxonomy/domain/repositories/ITaxonomyRepository";
+} from "../../../subdomains/taxonomy/application/use-cases/manage-taxonomy.use-cases";
+import type { TaxonomyRepository } from "../../../subdomains/taxonomy/domain/repositories/TaxonomyRepository";
 import { makeTaxonomyRepo } from "./repositories";
 
 export interface TaxonomyUseCases {
@@ -15,7 +15,7 @@ export interface TaxonomyUseCases {
 }
 
 export function makeTaxonomyUseCases(
-  repo: ITaxonomyRepository = makeTaxonomyRepo(),
+  repo: TaxonomyRepository = makeTaxonomyRepo(),
 ): TaxonomyUseCases {
   return {
     createTaxonomyNode: new CreateTaxonomyNodeUseCase(repo),

@@ -54,6 +54,6 @@ export const subscribeToUserProfile = subscribeToAccountProfile;
 export { getProfile, subscribeToProfile, updateProfile } from "../interfaces";
 
 export * from "../application";
-export * from "../domain";
+
 export { SettingsProfileRouteScreen } from "../interfaces";
 export type { LegacyAccountProfileDataSource } from "../infrastructure";

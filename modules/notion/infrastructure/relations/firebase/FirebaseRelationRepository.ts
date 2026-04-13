@@ -1,13 +1,13 @@
 /**
  * Module: notion/subdomains/relations
  * Layer: infrastructure/firebase
- * Purpose: Firebase adapter implementing IRelationRepository.
+ * Purpose: Firebase adapter implementing RelationRepository.
  * Firestore path: notionRelations/{relationId}
  */
 
 import { firestoreInfrastructureApi } from "@/modules/platform/api";
 import type { Relation } from "../../../subdomains/relations/domain/entities/Relation";
-import type { IRelationRepository } from "../../../subdomains/relations/domain/repositories/IRelationRepository";
+import type { RelationRepository } from "../../../subdomains/relations/domain/repositories/RelationRepository";
 
 function relationsPath(): string {
   return "notionRelations";
@@ -30,7 +30,7 @@ function toRelation(relationId: string, data: Record<string, unknown>): Relation
   };
 }
 
-export class FirebaseRelationRepository implements IRelationRepository {
+export class FirebaseRelationRepository implements RelationRepository {
   async findById(relationId: string): Promise<Relation | null> {
     const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(relationPath(relationId));
     if (!data) return null;

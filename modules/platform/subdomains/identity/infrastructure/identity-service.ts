@@ -7,6 +7,8 @@
  */
 
 import type { TokenRefreshReason } from "../domain";
+import type { IdentityRepository } from "../domain/repositories/IdentityRepository";
+import type { TokenRefreshRepository } from "../domain/repositories/TokenRefreshRepository";
 import { EmitTokenRefreshSignalUseCase } from "../application/use-cases/token-refresh.use-cases";
 import {
 	RegisterUseCase,
@@ -47,6 +49,18 @@ export const identityApi = {
 		await getEmitUseCase().execute(input.accountId, input.reason, input.traceId);
 	},
 } as const;
+
+// ─── Repository factories ─────────────────────────────────────────────────────
+
+/** Returns an IdentityRepository backed by Firebase. */
+export function createIdentityRepository(): IdentityRepository {
+	return new FirebaseIdentityRepository();
+}
+
+/** Returns a TokenRefreshRepository backed by Firebase. */
+export function createTokenRefreshRepository(): TokenRefreshRepository {
+	return new FirebaseTokenRefreshRepository();
+}
 
 // ─── Client-side use-case factory ─────────────────────────────────────────────
 

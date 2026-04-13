@@ -23,7 +23,7 @@ import type {
   AddWikiLibraryFieldInput,
   CreateWikiLibraryRowInput,
 } from "../../domain/entities/WikiLibrary";
-import type { IWikiLibraryRepository } from "../../domain/repositories/IWikiLibraryRepository";
+import type { WikiLibraryRepository } from "../../domain/repositories/WikiLibraryRepository";
 import {
   generateSourceId,
   normalizeLibraryName,
@@ -50,7 +50,7 @@ function getEventPublisher(): PublishDomainEventUseCase {
 export async function listWikiLibraries(
   accountId: string,
   workspaceId: string | undefined,
-  libraryRepository: IWikiLibraryRepository,
+  libraryRepository: WikiLibraryRepository,
 ): Promise<WikiLibrary[]> {
   if (!accountId) throw new Error("accountId is required");
   const libraries = await libraryRepository.listByAccountId(accountId);
@@ -61,7 +61,7 @@ export async function listWikiLibraries(
 
 export async function createWikiLibrary(
   input: CreateWikiLibraryInput,
-  libraryRepository: IWikiLibraryRepository,
+  libraryRepository: WikiLibraryRepository,
 ): Promise<WikiLibrary> {
   if (!input.accountId) throw new Error("accountId is required");
 
@@ -102,7 +102,7 @@ export async function createWikiLibrary(
 
 export async function addWikiLibraryField(
   input: AddWikiLibraryFieldInput,
-  libraryRepository: IWikiLibraryRepository,
+  libraryRepository: WikiLibraryRepository,
 ): Promise<WikiLibraryField> {
   const library = await libraryRepository.findById(input.accountId, input.libraryId);
   if (!library) throw new Error("library not found");
@@ -137,7 +137,7 @@ export async function addWikiLibraryField(
 
 export async function createWikiLibraryRow(
   input: CreateWikiLibraryRowInput,
-  libraryRepository: IWikiLibraryRepository,
+  libraryRepository: WikiLibraryRepository,
 ): Promise<WikiLibraryRow> {
   const library = await libraryRepository.findById(input.accountId, input.libraryId);
   if (!library) throw new Error("library not found");
@@ -177,7 +177,7 @@ export interface WikiLibrarySnapshot {
 export async function getWikiLibrarySnapshot(
   accountId: string,
   libraryId: string,
-  libraryRepository: IWikiLibraryRepository,
+  libraryRepository: WikiLibraryRepository,
 ): Promise<WikiLibrarySnapshot> {
   const library = await libraryRepository.findById(accountId, libraryId);
   if (!library) throw new Error("library not found");

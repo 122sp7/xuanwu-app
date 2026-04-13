@@ -1,7 +1,7 @@
 /**
  * Module: notebooklm/subdomains/source
  * Layer: infrastructure/firebase
- * Adapter: FirebaseRagDocumentAdapter — Firestore implementation of IRagDocumentRepository.
+ * Adapter: FirebaseRagDocumentAdapter — Firestore implementation of RagDocumentRepository.
  *
  * Collection path:
  *   knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}
@@ -10,7 +10,7 @@
 import { firestoreInfrastructureApi } from "@/modules/platform/api";
 
 import type { RagDocumentRecord, RagDocumentStatus } from "../../../subdomains/source/domain/entities/RagDocument";
-import type { IRagDocumentRepository } from "../../../subdomains/source/domain/repositories/IRagDocumentRepository";
+import type { RagDocumentRepository } from "../../../subdomains/source/domain/repositories/RagDocumentRepository";
 
 function buildDocPath(input: {
   readonly organizationId: string;
@@ -79,7 +79,7 @@ function toRagDocumentRecord(
   };
 }
 
-export class FirebaseRagDocumentAdapter implements IRagDocumentRepository {
+export class FirebaseRagDocumentAdapter implements RagDocumentRepository {
   async findByStoragePath(scope: {
     readonly organizationId: string;
     readonly workspaceId: string;

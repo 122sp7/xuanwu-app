@@ -3,7 +3,7 @@
  */
 export type { Thread } from "./entities/thread";
 export type { Message } from "./entities/message";
-export type { IThreadRepository } from "./repositories/IThreadRepository";
+export type { ThreadRepository } from "./repositories/ThreadRepository";
 export * from "./ports";
 export type {
   ThreadCreatedEvent,

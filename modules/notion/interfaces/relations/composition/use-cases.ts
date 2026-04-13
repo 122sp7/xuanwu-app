@@ -3,8 +3,8 @@ import {
   ListRelationsBySourceUseCase,
   ListRelationsByTargetUseCase,
   RemoveRelationUseCase,
-} from "../../../subdomains/relations/application/use-cases/RelationUseCases";
-import type { IRelationRepository } from "../../../subdomains/relations/domain/repositories/IRelationRepository";
+} from "../../../subdomains/relations/application/use-cases/manage-relation.use-cases";
+import type { RelationRepository } from "../../../subdomains/relations/domain/repositories/RelationRepository";
 import { makeRelationRepo } from "./repositories";
 
 export interface RelationUseCases {
@@ -14,7 +14,7 @@ export interface RelationUseCases {
   readonly listRelationsByTarget: ListRelationsByTargetUseCase;
 }
 
-export function makeRelationUseCases(repo: IRelationRepository = makeRelationRepo()): RelationUseCases {
+export function makeRelationUseCases(repo: RelationRepository = makeRelationRepo()): RelationUseCases {
   return {
     createRelation: new CreateRelationUseCase(repo),
     removeRelation: new RemoveRelationUseCase(repo),

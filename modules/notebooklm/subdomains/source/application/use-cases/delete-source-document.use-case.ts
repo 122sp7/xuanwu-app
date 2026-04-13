@@ -9,7 +9,7 @@
  * Failure: invalid input or persistence failure.
  */
 
-import type { ISourceDocumentCommandPort } from "../../domain/ports/ISourceDocumentPort";
+import type { SourceDocumentCommandPort } from "../../domain/ports/SourceDocumentPort";
 import type { SourceFileCommandErrorCode } from "../dto/source-file.dto";
 
 export interface DeleteSourceDocumentInput {
@@ -23,7 +23,7 @@ type DeleteSourceDocumentResult =
 
 export class DeleteSourceDocumentUseCase {
   constructor(
-    private readonly documentPort: ISourceDocumentCommandPort,
+    private readonly documentPort: SourceDocumentCommandPort,
   ) {}
 
   async execute(input: DeleteSourceDocumentInput): Promise<DeleteSourceDocumentResult> {

@@ -15,7 +15,7 @@
     "removeComments": false,
     "removeEmptyLines": false,
 
-    "compress": false,
+    "compress": true,
 
     "topFilesLength": 10,
 
@@ -35,9 +35,17 @@
     }
   },
   "include": [
+    ".github/agents/**",
+    ".github/prompts/**",
+    ".github/skills/**",
+    "docs/**",
     "app/**",
     "modules/**",
-    "packages/**"
+    "packages/**",
+    "py_fn/**",
+    "AGENTS.md",
+    "package.json",
+    "repomix*.config.json"
   ],
   "ignore": {
     "useGitignore": true,
@@ -108,7 +116,9 @@
       "*.gz",
 
       "*.sqlite",
-      "*.db"
+      "*.db",
+
+      ".github/skills/**/references/**"
     ]
   },
   "security": {

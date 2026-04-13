@@ -14,8 +14,8 @@ export type {
 
 // ── Repository contracts ───────────────────────────────────────────────────────
 export type {
-  IRelationRepository,
-} from "../domain/repositories/IRelationRepository";
+  RelationRepository,
+} from "../domain/repositories/RelationRepository";
 
 // ── Domain events ─────────────────────────────────────────────────────────────
 export type {

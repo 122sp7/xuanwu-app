@@ -27,5 +27,3 @@ export type {
   WorkspaceFeedInteractionRepository,
 } from "./repositories/workspace-feed.repositories";
 
-// ── Ports layer ──────────────────────────────────────────────────────────────
-export type { IWorkspaceFeedPostPort, IWorkspaceFeedInteractionPort } from "./ports";

@@ -25,7 +25,6 @@ export type { AccountRepository } from "./repositories/AccountRepository";
 export type { AccountQueryRepository, WalletBalanceSnapshot, Unsubscribe } from "./repositories/AccountQueryRepository";
 export type { AccountPolicyRepository } from "./repositories/AccountPolicyRepository";
 export type { TokenRefreshPort, TokenRefreshSignalInput } from "./ports/TokenRefreshPort";
-export type { IAccountPort, IAccountQueryPort, IAccountPolicyPort } from "./ports";
 export * from "./aggregates";
 export * from "./events";
 export * from "./value-objects";

@@ -8,7 +8,7 @@
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import { makePermissionRepo } from "../composition/repositories";
-import { GrantPermissionUseCase, RevokePermissionUseCase } from "../../../subdomains/collaboration/application/use-cases/PermissionUseCases";
+import { GrantPermissionUseCase, RevokePermissionUseCase } from "../../../subdomains/collaboration/application/use-cases/manage-permission.use-cases";
 import type { GrantPermissionDto, RevokePermissionDto } from "../../../subdomains/collaboration/application/dto/CollaborationDto";
 
 export async function grantPermission(input: GrantPermissionDto): Promise<CommandResult> {
