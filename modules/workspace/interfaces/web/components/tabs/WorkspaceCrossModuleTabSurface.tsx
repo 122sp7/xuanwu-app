@@ -9,7 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-s
 import {
   KnowledgeBaseArticlesPanel,
   KnowledgeDatabasesPanel,
-  KnowledgePagesPanel,
 } from "@/modules/notion/api";
 import {
   RagQueryPanel,

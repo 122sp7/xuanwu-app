@@ -20430,31 +20430,6 @@ async function loadSidebarLocale()
 // Keep fallback labels when localization files are unavailable.
 ````
 
-## File: modules/workspace/interfaces/web/navigation/workspace-nav-items.ts
-````typescript
-/**
- * workspace-nav-items.ts
- *
- * Catalog of workspace sidebar tab entries owned by the workspace BC.
- * Consumers read this catalog; they do not define it.
- */
-⋮----
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabsInSidebarOrder,
-  type WorkspaceTabValue,
-} from "./workspace-tabs";
-⋮----
-export interface WorkspaceNavItem {
-  id: string;
-  tabKey: WorkspaceTabValue;
-  fallbackLabel: string;
-}
-⋮----
-export function normalizeWorkspaceOrder(order: unknown): string[]
-````
-
 ## File: modules/workspace/interfaces/web/providers/WorkspaceContextProvider.tsx
 ````typescript
 /**
@@ -40555,73 +40530,6 @@ export function formatTimestamp(
 export function trimOrUndefined(value: string): string | undefined
 ````
 
-## File: modules/workspace/interfaces/web/components/layout/WorkspaceSidebarSection.tsx
-````typescript
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-⋮----
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabsByGroup,
-  WORKSPACE_TAB_SIDEBAR_GROUP_ORDER,
-  getWorkspaceTabStatus,
-  isWorkspaceTabValue,
-  type WorkspaceTabGroup,
-  type WorkspaceTabValue,
-} from "../../navigation/workspace-tabs";
-⋮----
-export interface WorkspaceSidebarLocaleBundle {
-  workspace?: {
-    tabLabels?: Record<string, string>;
-  };
-}
-⋮----
-export interface WorkspaceNavigationPreferences {
-  pinnedWorkspace: string[];
-  workspaceOrder: string[];
-}
-⋮----
-interface TabLinkItem {
-  value: WorkspaceTabValue;
-  label: string;
-}
-⋮----
-function createWorkspaceLinkItems(group: WorkspaceTabGroup): TabLinkItem[]
-⋮----
-function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue): string
-⋮----
-function tTab(
-  tab: WorkspaceTabValue,
-  fallback: string,
-  localeBundle: WorkspaceSidebarLocaleBundle | null,
-): string
-⋮----
-function tTabWithDevStatus(
-  tab: WorkspaceTabValue,
-  fallback: string,
-  localeBundle: WorkspaceSidebarLocaleBundle | null,
-): string
-⋮----
-function getPrefId(tabValue: string): string
-⋮----
-function isItemEnabled(prefId: string, navPrefs: WorkspaceNavigationPreferences): boolean
-⋮----
-function getItemOrder(prefId: string, navPrefs: WorkspaceNavigationPreferences): number
-⋮----
-function sortByPreferenceOrder<T extends { value: string }>(
-  items: readonly T[],
-  navPrefs: WorkspaceNavigationPreferences,
-): T[]
-⋮----
-interface WorkspaceSidebarSectionProps {
-  workspacePathId: string;
-  navPrefs: WorkspaceNavigationPreferences;
-  localeBundle: WorkspaceSidebarLocaleBundle | null;
-  getItemClassName: (isActive: boolean) => string;
-}
-````
-
 ## File: modules/workspace/interfaces/web/components/screens/AccountDashboardRouteScreen.tsx
 ````typescript
 import { useMemo } from "react";
@@ -40673,30 +40581,6 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>)
 ⋮----
 resetDialog();
 setIsCreateOpen(true);
-````
-
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailRouteScreen.tsx
-````typescript
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-⋮----
-import { WorkspaceDetailScreen } from "./WorkspaceDetailScreen";
-⋮----
-interface WorkspaceDetailRouteScreenProps {
-  workspaceId: string;
-  accountId: string | null | undefined;
-  accountsHydrated: boolean;
-  initialTab?: string;
-  initialOverviewPanel?: string;
-}
-⋮----
-export function WorkspaceDetailRouteScreen({
-  workspaceId,
-  accountId,
-  accountsHydrated,
-  initialTab,
-  initialOverviewPanel,
-}: WorkspaceDetailRouteScreenProps)
 ````
 
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx
@@ -40770,6 +40654,32 @@ function normalizeRouteParam(value: string | string[] | undefined): string
 export function useWorkspaceOrchestrationContext(
   options: UseWorkspaceOrchestrationContextOptions = {},
 ): WorkspaceOrchestrationContext
+````
+
+## File: modules/workspace/interfaces/web/navigation/workspace-nav-items.ts
+````typescript
+/**
+ * workspace-nav-items.ts
+ *
+ * Catalog of workspace sidebar tab entries owned by the workspace BC.
+ * Consumers read this catalog; they do not define it.
+ */
+⋮----
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabsInSidebarOrder,
+  normalizeWorkspaceTabPrefId,
+  type WorkspaceTabValue,
+} from "./workspace-tabs";
+⋮----
+export interface WorkspaceNavItem {
+  id: string;
+  tabKey: WorkspaceTabValue;
+  fallbackLabel: string;
+}
+⋮----
+export function normalizeWorkspaceOrder(order: unknown): string[]
 ````
 
 ## File: modules/workspace/interfaces/web/state/workspace-settings.ts
@@ -44340,104 +44250,6 @@ modules/platform/domain/events/published/
 
 - **3201** (Duplication)：stub 文件中的 event type 常數已在 `domain/events/index.ts` 定義，存在文件層面的重複（已解決）
 - **5201** (Cognitive Load)：大量 stub 文件增加了閱讀 platform domain 的認知負荷（解決此 ADR 有助於降低認知負荷）
-````
-
-## File: docs/decisions/SMELL-INDEX.md
-````markdown
-# Design Smell Taxonomy Index
-
-本目錄收錄 Xuanwu App 的架構診斷記錄，依「smell 類型」編號分群，與原始 ADR（0001–0011）平行維護。
-
-## 編號體系
-
-| 前綴 | 類型 | 子類型 |
-|------|------|-------|
-| **1000** | **Architectural Smells** | 架構結構性問題 |
-| 1100 | Layer Violation | 層次邊界穿越 |
-| 1200 | Boundary Violation | 模組邊界穿越 |
-| 1300 | Cyclic Dependency | 循環依賴 |
-| 1400 | Dependency Leakage | 依賴洩漏 |
-| **2000** | **Coupling Smells** | 耦合問題 |
-| 2100 | Tight Coupling | 緊耦合 |
-| 2200 | Hidden Coupling | 隱式耦合 |
-| 2300 | Temporal Coupling | 時序耦合 |
-| **3000** | **Modularity Smells** | 模組性問題 |
-| 3100 | Low Cohesion | 低內聚 |
-| 3200 | Duplication | 重複 |
-| **4000** | **Maintainability Smells** | 可維護性問題 |
-| 4100 | Change Amplification | 變更放大 |
-| 4200 | Inconsistency | 不一致 |
-| 4300 | Semantic Drift | 語意漂移 |
-| **5000** | **Complexity Smells** | 複雜性問題 |
-| 5100 | Accidental Complexity | 偶然複雜性 |
-| 5200 | Cognitive Load | 認知負荷 |
-
-## Decision Log (Smell Taxonomy)
-
-| ID | File | Title | Status |
-|----|------|-------|--------|
-| 1100 | [1100-layer-violation.md](./1100-layer-violation.md) | Layer Violation — `interfaces/api/` 子目錄與 Firebase SDK 在 `api/` 層 | Accepted |
-| 1101 | [1101-layer-violation-crypto-in-domain.md](./1101-layer-violation-crypto-in-domain.md) | Layer Violation — `crypto.randomUUID()` 在 Domain 層（43 aggregates + 6 use-cases） | Accepted |
-| 1102 | [1102-layer-violation-ports-in-application.md](./1102-layer-violation-ports-in-application.md) | Layer Violation — Port 介面定義於 `application/ports/` 而非 `domain/ports/` | Accepted |
-| 1200 | [1200-boundary-violation.md](./1200-boundary-violation.md) | Boundary Violation — Cross-module direct domain imports | Accepted |
-| 1201 | [1201-boundary-violation-business-logic-in-infrastructure.md](./1201-boundary-violation-business-logic-in-infrastructure.md) | Boundary Violation — 業務規則（wallet balance check）漏入 Infrastructure 層 | Accepted |
-| 1300 | [1300-cyclic-dependency.md](./1300-cyclic-dependency.md) | Cyclic Dependency — workspace ↔ platform circular module-evaluation | Accepted |
-| 1400 | [1400-dependency-leakage.md](./1400-dependency-leakage.md) | Dependency Leakage — platform/api 混合 infra/service/UI exports | Accepted |
-| 2100 | [2100-tight-coupling.md](./2100-tight-coupling.md) | Tight Coupling — 78 files depending on monolithic platform/api | Accepted |
-| 2101 | [2101-tight-coupling-crypto-runtime.md](./2101-tight-coupling-crypto-runtime.md) | Tight Coupling — Domain Aggregates 直接綁定 Node.js `crypto` Runtime | Accepted |
-| 2200 | [2200-hidden-coupling.md](./2200-hidden-coupling.md) | Hidden Coupling | Accepted |
-| 2300 | [2300-temporal-coupling.md](./2300-temporal-coupling.md) | Temporal Coupling | Accepted |
-| 3100 | [3100-low-cohesion.md](./3100-low-cohesion.md) | Low Cohesion — use-case bundling | Accepted |
-| 3101 | [3101-low-cohesion-platform-application-layer.md](./3101-low-cohesion-platform-application-layer.md) | Low Cohesion — `platform/application/` 層 9 個異質子目錄 | Accepted |
-| 3200 | [3200-duplication.md](./3200-duplication.md) | Duplication | Accepted |
-| 3201 | [3201-duplication-event-discriminant-format.md](./3201-duplication-event-discriminant-format.md) | Duplication — Domain Event 識別符號格式 `snake_case` vs `kebab-case` 並存 | Accepted |
-| 4100 | [4100-change-amplification.md](./4100-change-amplification.md) | Change Amplification | Accepted |
-| 4101 | [4101-change-amplification-uuid-strategy.md](./4101-change-amplification-uuid-strategy.md) | Change Amplification — UUID 策略變更需觸及 49+ 個文件 | Accepted |
-| 4200 | [4200-inconsistency.md](./4200-inconsistency.md) | Inconsistency | Accepted |
-| 4201 | [4201-inconsistency-dto-vs-dtos.md](./4201-inconsistency-dto-vs-dtos.md) | Inconsistency — `dto` vs `dtos` 目錄命名不一致（4 vs 13 個模組） | Accepted |
-| 4300 | [4300-semantic-drift.md](./4300-semantic-drift.md) | Semantic Drift — interfaces/api 子目錄與 application/event-handlers | Accepted |
-| 4301 | [4301-semantic-drift-application-subdirectory-names.md](./4301-semantic-drift-application-subdirectory-names.md) | Semantic Drift — `event-handlers/`、`event-mappers/`、`handlers/`、`process-managers/` 命名偏離職責語意 | Accepted |
-| 5100 | [5100-accidental-complexity.md](./5100-accidental-complexity.md) | Accidental Complexity | Accepted |
-| 5101 | [5101-accidental-complexity-platform-domain-stubs.md](./5101-accidental-complexity-platform-domain-stubs.md) | Accidental Complexity — `platform/domain/` 102 個 TODO Stub 文件 | Accepted |
-| 5200 | [5200-cognitive-load.md](./5200-cognitive-load.md) | Cognitive Load | Accepted |
-| 5201 | [5201-cognitive-load-workspace-workflow-application.md](./5201-cognitive-load-workspace-workflow-application.md) | Cognitive Load — `workspace-workflow/application/` 混合 5 種子目錄慣例 | Accepted |
-
-## 與 0001–0011 ADR 的對應關係
-
-| Smell ADR | 對應 ADR |
-|-----------|---------|
-| 1100 Layer Violation | 0001 Hexagonal Architecture |
-| 1101 Layer Violation — crypto in domain | 0001 Hexagonal Architecture |
-| 1102 Layer Violation — ports in application | 0001 Hexagonal Architecture, 0008 Repository Interface |
-| 1200 Boundary Violation | 0002 Bounded Contexts, 0003 Context Map |
-| 1201 Boundary Violation — business logic in infra | 0001 Hexagonal Architecture, 0009 Anemic Aggregates |
-| 1300 Cyclic Dependency | 0001 Hexagonal Architecture |
-| 1400 Dependency Leakage | 0007 Infrastructure in api/, 0008 Repository Interface |
-| 2100 Tight Coupling | 0003 Context Map, 0007 Infrastructure in api/ |
-| 2101 Tight Coupling — crypto runtime | 0001 Hexagonal Architecture |
-| 2200 Hidden Coupling | 0010 Aggregate Domain Event Emission |
-| 2300 Temporal Coupling | 0007 Infrastructure in api/ |
-| 3100 Low Cohesion | 0011 Use Case Bundling |
-| 3101 Low Cohesion — platform application layer | 0001 Hexagonal Architecture, 0011 Use Case Bundling |
-| 3200 Duplication | 0004 Ubiquitous Language |
-| 3201 Duplication — event discriminant format | 0004 Ubiquitous Language, 0006 Domain Event Discriminant |
-| 4100 Change Amplification | 0011 Use Case Bundling |
-| 4101 Change Amplification — UUID strategy | 0001 Hexagonal Architecture |
-| 4200 Inconsistency | 0004 Ubiquitous Language, 0006 Domain Event Discriminant |
-| 4201 Inconsistency — dto vs dtos | 0004 Ubiquitous Language |
-| 4300 Semantic Drift | 0004 Ubiquitous Language |
-| 4301 Semantic Drift — application subdirectory names | 0001 Hexagonal Architecture, 0004 Ubiquitous Language |
-| 5100 Accidental Complexity | 0001 Hexagonal Architecture |
-| 5101 Accidental Complexity — platform domain stubs | 0001 Hexagonal Architecture, 0010 Aggregate Domain Event Emission |
-| 5200 Cognitive Load | 0009 Anemic Aggregates, 0011 Use Case Bundling |
-| 5201 Cognitive Load — workspace-workflow application | 0001 Hexagonal Architecture, 0011 Use Case Bundling |
-
-## How To Use This Index
-
-1. 識別問題所屬 smell 類型。
-2. 查閱對應編號文件的 context + decision + consequences。
-3. 參照「對應 ADR」確認架構規範根源。
-4. 若 smell 尚未記錄，按此編號體系新增文件。
 ````
 
 ## File: docs/hard-rules-consolidated.md
@@ -48608,6 +48420,97 @@ interface WorkspaceProductSpineCardProps {
 }
 ````
 
+## File: modules/workspace/interfaces/web/components/layout/WorkspaceSidebarSection.tsx
+````typescript
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+⋮----
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabsByGroup,
+  WORKSPACE_TAB_SIDEBAR_GROUP_ORDER,
+  getWorkspaceTabStatus,
+  resolveWorkspaceTabValue,
+  type WorkspaceTabGroup,
+  type WorkspaceTabValue,
+} from "../../navigation/workspace-tabs";
+⋮----
+export interface WorkspaceSidebarLocaleBundle {
+  workspace?: {
+    tabLabels?: Record<string, string>;
+  };
+}
+⋮----
+export interface WorkspaceNavigationPreferences {
+  pinnedWorkspace: string[];
+  workspaceOrder: string[];
+}
+⋮----
+interface TabLinkItem {
+  value: WorkspaceTabValue;
+  label: string;
+}
+⋮----
+function createWorkspaceLinkItems(group: WorkspaceTabGroup): TabLinkItem[]
+⋮----
+function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue): string
+⋮----
+function tTab(
+  tab: WorkspaceTabValue,
+  fallback: string,
+  localeBundle: WorkspaceSidebarLocaleBundle | null,
+): string
+⋮----
+function tTabWithDevStatus(
+  tab: WorkspaceTabValue,
+  fallback: string,
+  localeBundle: WorkspaceSidebarLocaleBundle | null,
+): string
+⋮----
+function getPrefId(tabValue: string): string
+⋮----
+function isItemEnabled(prefId: string, navPrefs: WorkspaceNavigationPreferences): boolean
+⋮----
+function getItemOrder(prefId: string, navPrefs: WorkspaceNavigationPreferences): number
+⋮----
+function sortByPreferenceOrder<T extends { value: string }>(
+  items: readonly T[],
+  navPrefs: WorkspaceNavigationPreferences,
+): T[]
+⋮----
+interface WorkspaceSidebarSectionProps {
+  workspacePathId: string;
+  navPrefs: WorkspaceNavigationPreferences;
+  localeBundle: WorkspaceSidebarLocaleBundle | null;
+  getItemClassName: (isActive: boolean) => string;
+}
+````
+
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailRouteScreen.tsx
+````typescript
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+⋮----
+import { WorkspaceDetailScreen } from "./WorkspaceDetailScreen";
+import { resolveWorkspaceTabValue } from "../../navigation/workspace-tabs";
+⋮----
+interface WorkspaceDetailRouteScreenProps {
+  workspaceId: string;
+  accountId: string | null | undefined;
+  accountsHydrated: boolean;
+  initialTab?: string;
+  initialOverviewPanel?: string;
+}
+⋮----
+function buildWorkspaceTabHref(
+  accountId: string,
+  workspaceId: string,
+  tab: string,
+  panel?: string,
+): string
+````
+
 ## File: modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx
 ````typescript
 import Link from "next/link";
@@ -49013,6 +48916,97 @@ async execute(accountId: string): Promise<WorkDemand[]>
     "encoding": "o200k_base"
   }
 }
+````
+
+## File: .github/instructions/subdomain-rules.instructions.md
+````markdown
+---
+description: '子域（Subdomain）戰略設計規則：業務能力切分、邊界穩定性、契約溝通、可替換性。'
+applyTo: 'modules/**/subdomains/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# 子域（Subdomain）設計規則
+
+> 完整邊界參考：**先查 `docs/subdomains.md`、`docs/bounded-contexts.md`、`docs/ubiquitous-language.md`**
+> 此文件只包含子域層級的**戰略設計約束**，不複製領域知識或程式碼範例。
+
+## 核心定義
+
+子域 = 業務能力邊界（Business Capability Boundary）
+
+每個子域代表一個獨立、明確定義的業務能力，不得混合多重職責。
+
+## 戰略設計規則
+
+1. 子域必須以「業務能力」切分，而不是技術功能或 UI 功能。
+2. 每個子域必須能獨立描述一個完整業務問題空間（Problem Space）。
+3. 子域之間禁止共享內部模型，只能透過明確契約（ACL / API / Event）。
+4. 子域邊界必須穩定，不能因 UI 或技術重構而頻繁變動。
+5. 子域劃分優先於技術架構（database / service / module）。
+6. 一個子域內可以包含多個 bounded context，但不能跨子域共享 domain model。
+7. 子域必須可被替換（replaceable），不依賴其他子域內部實作。
+8. 子域之間只能透過「輸入/輸出契約」溝通，不允許直接依賴 domain logic。
+
+## 層級約束（Hard Rules）
+
+子域預設形狀（default）採 core-first：
+- `api/`
+- `domain/`
+- `application/`
+- `ports/`（optional）
+
+子域內 `infrastructure/` 與 `interfaces/` 不是預設必建，僅在符合 mini-module gate 時允許建立：
+1. 該子域存在明確且持續的外部整合壓力（runtime / process / provider boundary）。
+2. 需要由子域本身承接本地 I/O 或 transport 組裝，而非 bounded context 根層共享能力。
+3. 仍維持 `interfaces -> application -> domain <- infrastructure`，且 business rule 不外溢到 adapter/UI。
+4. 跨子域與跨 bounded context 協作仍只能經由 `api/` 或事件契約，不得直接依賴他域內部。
+
+若不符合上述 gate，`infrastructure/` 與 `interfaces/` 應維持在 bounded context 根層，由 context-wide adapter/composition 承接。
+
+## 單一職責
+
+每個子域只負責一個業務能力。
+
+正確：authoring、collaboration、publishing
+
+錯誤：article + comment + permission 混在一起
+
+## 跨子域依賴禁止
+
+子域不得直接匯入其他子域。溝通必須經由：
+- 上層 application layer
+- module API boundary
+
+## 領域純度
+
+domain 層必須：
+- 零框架依賴
+- 不依賴 Firebase、DB 或 API
+- 不包含 UI logic
+
+允許：Entities、Value Objects、Domain Services、Business invariants
+
+## 命名規則
+
+使用業務語言命名子域。
+
+正確：authoring、taxonomy、workspace
+
+錯誤：utils、common、shared
+
+## 獨立演化
+
+每個子域應：
+- 可獨立測試
+- 可獨立重構
+- 為未來微服務拆分做準備
+
+## 一句話總結
+
+Subdomain = Business capability first; default core-first, add infra/interfaces only when real boundary pressure exists
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: .github/prompts/enforce-hexagonal-ddd-convergence.prompt.md
@@ -49551,6 +49545,104 @@ flowchart LR
 - [bounded-contexts.md](./bounded-contexts.md)
 - [../../ubiquitous-language.md](../../ubiquitous-language.md)
 - [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
+````
+
+## File: docs/decisions/SMELL-INDEX.md
+````markdown
+# Design Smell Taxonomy Index
+
+本目錄收錄 Xuanwu App 的架構診斷記錄，依「smell 類型」編號分群，與原始 ADR（0001–0011）平行維護。
+
+## 編號體系
+
+| 前綴 | 類型 | 子類型 |
+|------|------|-------|
+| **1000** | **Architectural Smells** | 架構結構性問題 |
+| 1100 | Layer Violation | 層次邊界穿越 |
+| 1200 | Boundary Violation | 模組邊界穿越 |
+| 1300 | Cyclic Dependency | 循環依賴 |
+| 1400 | Dependency Leakage | 依賴洩漏 |
+| **2000** | **Coupling Smells** | 耦合問題 |
+| 2100 | Tight Coupling | 緊耦合 |
+| 2200 | Hidden Coupling | 隱式耦合 |
+| 2300 | Temporal Coupling | 時序耦合 |
+| **3000** | **Modularity Smells** | 模組性問題 |
+| 3100 | Low Cohesion | 低內聚 |
+| 3200 | Duplication | 重複 |
+| **4000** | **Maintainability Smells** | 可維護性問題 |
+| 4100 | Change Amplification | 變更放大 |
+| 4200 | Inconsistency | 不一致 |
+| 4300 | Semantic Drift | 語意漂移 |
+| **5000** | **Complexity Smells** | 複雜性問題 |
+| 5100 | Accidental Complexity | 偶然複雜性 |
+| 5200 | Cognitive Load | 認知負荷 |
+
+## Decision Log (Smell Taxonomy)
+
+| ID | File | Title | Status |
+|----|------|-------|--------|
+| 1100 | [1100-layer-violation.md](./1100-layer-violation.md) | Layer Violation — `interfaces/api/` 子目錄與 Firebase SDK 在 `api/` 層 | Accepted |
+| 1101 | [1101-layer-violation-crypto-in-domain.md](./1101-layer-violation-crypto-in-domain.md) | Layer Violation — `crypto.randomUUID()` 在 Domain 層（14 aggregates + 13 use-cases → @lib-uuid） | **Resolved** |
+| 1102 | [1102-layer-violation-ports-in-application.md](./1102-layer-violation-ports-in-application.md) | Layer Violation — Port 介面定義於 `application/ports/` 而非 `domain/ports/`（部分解決） | Accepted |
+| 1200 | [1200-boundary-violation.md](./1200-boundary-violation.md) | Boundary Violation — Cross-module direct domain imports | Accepted |
+| 1201 | [1201-boundary-violation-business-logic-in-infrastructure.md](./1201-boundary-violation-business-logic-in-infrastructure.md) | Boundary Violation — 業務規則（wallet balance check）漏入 Infrastructure 層 | Accepted |
+| 1300 | [1300-cyclic-dependency.md](./1300-cyclic-dependency.md) | Cyclic Dependency — workspace ↔ platform circular module-evaluation | Partial |
+| 1400 | [1400-dependency-leakage.md](./1400-dependency-leakage.md) | Dependency Leakage — platform/api 混合 infra/service/UI exports | Accepted |
+| 2100 | [2100-tight-coupling.md](./2100-tight-coupling.md) | Tight Coupling — 78 files depending on monolithic platform/api | Accepted |
+| 2101 | [2101-tight-coupling-crypto-runtime.md](./2101-tight-coupling-crypto-runtime.md) | Tight Coupling — Domain Aggregates 直接綁定 Node.js `crypto` Runtime → @lib-uuid | **Resolved** |
+| 2200 | [2200-hidden-coupling.md](./2200-hidden-coupling.md) | Hidden Coupling | Accepted |
+| 2300 | [2300-temporal-coupling.md](./2300-temporal-coupling.md) | Temporal Coupling | Accepted |
+| 3100 | [3100-low-cohesion.md](./3100-low-cohesion.md) | Low Cohesion — use-case bundling | Accepted |
+| 3101 | [3101-low-cohesion-platform-application-layer.md](./3101-low-cohesion-platform-application-layer.md) | Low Cohesion — `platform/application/` 層 9 個異質子目錄 | Accepted |
+| 3200 | [3200-duplication.md](./3200-duplication.md) | Duplication | Accepted |
+| 3201 | [3201-duplication-event-discriminant-format.md](./3201-duplication-event-discriminant-format.md) | Duplication — Domain Event 識別符號格式統一為 `kebab-case` | **Resolved** |
+| 4100 | [4100-change-amplification.md](./4100-change-amplification.md) | Change Amplification | Accepted |
+| 4101 | [4101-change-amplification-uuid-strategy.md](./4101-change-amplification-uuid-strategy.md) | Change Amplification — UUID 策略集中於 @lib-uuid | **Resolved** |
+| 4200 | [4200-inconsistency.md](./4200-inconsistency.md) | Inconsistency | Accepted |
+| 4201 | [4201-inconsistency-dto-vs-dtos.md](./4201-inconsistency-dto-vs-dtos.md) | Inconsistency — `dto` vs `dtos` 目錄命名不一致（11 vs 13 個模組） | Accepted |
+| 4300 | [4300-semantic-drift.md](./4300-semantic-drift.md) | Semantic Drift — interfaces/api 子目錄與 application/event-handlers | Accepted |
+| 4301 | [4301-semantic-drift-application-subdirectory-names.md](./4301-semantic-drift-application-subdirectory-names.md) | Semantic Drift — `event-handlers/`、`event-mappers/`、`handlers/`、`process-managers/` 命名偏離職責語意 | Accepted |
+| 5100 | [5100-accidental-complexity.md](./5100-accidental-complexity.md) | Accidental Complexity | Accepted |
+| 5101 | [5101-accidental-complexity-platform-domain-stubs.md](./5101-accidental-complexity-platform-domain-stubs.md) | Accidental Complexity — platform/domain/ 21 TODO stub → DESIGN.md | **Resolved** |
+| 5200 | [5200-cognitive-load.md](./5200-cognitive-load.md) | Cognitive Load | Accepted |
+| 5201 | [5201-cognitive-load-workspace-workflow-application.md](./5201-cognitive-load-workspace-workflow-application.md) | Cognitive Load — `workspace-workflow/application/` 混合 5 種子目錄慣例 | Accepted |
+
+## 與 0001–0011 ADR 的對應關係
+
+| Smell ADR | 對應 ADR |
+|-----------|---------|
+| 1100 Layer Violation | 0001 Hexagonal Architecture |
+| 1101 Layer Violation — crypto in domain | 0001 Hexagonal Architecture |
+| 1102 Layer Violation — ports in application | 0001 Hexagonal Architecture, 0008 Repository Interface |
+| 1200 Boundary Violation | 0002 Bounded Contexts, 0003 Context Map |
+| 1201 Boundary Violation — business logic in infra | 0001 Hexagonal Architecture, 0009 Anemic Aggregates |
+| 1300 Cyclic Dependency | 0001 Hexagonal Architecture |
+| 1400 Dependency Leakage | 0007 Infrastructure in api/, 0008 Repository Interface |
+| 2100 Tight Coupling | 0003 Context Map, 0007 Infrastructure in api/ |
+| 2101 Tight Coupling — crypto runtime | 0001 Hexagonal Architecture |
+| 2200 Hidden Coupling | 0010 Aggregate Domain Event Emission |
+| 2300 Temporal Coupling | 0007 Infrastructure in api/ |
+| 3100 Low Cohesion | 0011 Use Case Bundling |
+| 3101 Low Cohesion — platform application layer | 0001 Hexagonal Architecture, 0011 Use Case Bundling |
+| 3200 Duplication | 0004 Ubiquitous Language |
+| 3201 Duplication — event discriminant format | 0004 Ubiquitous Language, 0006 Domain Event Discriminant |
+| 4100 Change Amplification | 0011 Use Case Bundling |
+| 4101 Change Amplification — UUID strategy | 0001 Hexagonal Architecture |
+| 4200 Inconsistency | 0004 Ubiquitous Language, 0006 Domain Event Discriminant |
+| 4201 Inconsistency — dto vs dtos | 0004 Ubiquitous Language |
+| 4300 Semantic Drift | 0004 Ubiquitous Language |
+| 4301 Semantic Drift — application subdirectory names | 0001 Hexagonal Architecture, 0004 Ubiquitous Language |
+| 5100 Accidental Complexity | 0001 Hexagonal Architecture |
+| 5101 Accidental Complexity — platform domain stubs | 0001 Hexagonal Architecture, 0010 Aggregate Domain Event Emission |
+| 5200 Cognitive Load | 0009 Anemic Aggregates, 0011 Use Case Bundling |
+| 5201 Cognitive Load — workspace-workflow application | 0001 Hexagonal Architecture, 0011 Use Case Bundling |
+
+## How To Use This Index
+
+1. 識別問題所屬 smell 類型。
+2. 查閱對應編號文件的 context + decision + consequences。
+3. 參照「對應 ADR」確認架構規範根源。
+4. 若 smell 尚未記錄，按此編號體系新增文件。
 ````
 
 ## File: docs/README.md
@@ -50698,44 +50790,6 @@ function enc(s: string): string
 {/* ── All workspaces list ─────────────────────────────────────────── */}
 ````
 
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceCrossModuleTabSurface.tsx
-````typescript
-import dynamic from "next/dynamic";
-import type { ReactNode } from "react";
-⋮----
-import type { WorkspaceEntity } from "../../../api/contracts";
-import type { WorkspaceTabValue } from "../../navigation/workspace-tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import {
-  KnowledgeBaseArticlesPanel,
-  KnowledgeDatabasesPanel,
-  KnowledgePagesPanel,
-} from "@/modules/notion/api";
-import {
-  RagQueryPanel,
-  SourceDocumentsPanel,
-} from "@/modules/notebooklm/api";
-⋮----
-// Dynamic import to break synchronous module-evaluation cycle between
-// workspace/api → workspace/interfaces → notebooklm/api → ConversationPanel → workspace/api.
-// SSR disabled because ConversationPanel is a "use client" component that
-// relies on browser-only hooks (useState, useEffect) and workspace context providers.
-⋮----
-interface WorkspaceCrossModuleTabSurfaceOptions {
-  readonly tab: WorkspaceTabValue;
-  readonly workspace: WorkspaceEntity;
-  readonly accountId: string;
-  readonly currentUserId?: string | null;
-  readonly workspaces: Record<string, WorkspaceEntity>;
-}
-⋮----
-function renderWorkspacePlaceholder(title: string, description: string): ReactNode
-⋮----
-export function renderWorkspaceCrossModuleTabSurface(
-  options: WorkspaceCrossModuleTabSurfaceOptions,
-): ReactNode | null
-````
-
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewKnowledgePanels.tsx
 ````typescript
 import { KnowledgeBaseArticlesPanel, KnowledgeDatabasesPanel, KnowledgePagesPanel } from "@/modules/notion/api";
@@ -50990,97 +51044,6 @@ handoffs:
 Tags: #use skill context7 #use skill shadcn #use skill next-devtools-mcp
 #use skill serena-mcp #use skill hexagonal-ddd #use skill occams-razor #use skill xuanwu-app-skill
 #use skill repomix
-````
-
-## File: .github/instructions/subdomain-rules.instructions.md
-````markdown
----
-description: '子域（Subdomain）戰略設計規則：業務能力切分、邊界穩定性、契約溝通、可替換性。'
-applyTo: 'modules/**/subdomains/**/*.{ts,tsx,js,jsx,md}'
----
-
-# 子域（Subdomain）設計規則
-
-> 完整邊界參考：**先查 `docs/subdomains.md`、`docs/bounded-contexts.md`、`docs/ubiquitous-language.md`**
-> 此文件只包含子域層級的**戰略設計約束**，不複製領域知識或程式碼範例。
-
-## 核心定義
-
-子域 = 業務能力邊界（Business Capability Boundary）
-
-每個子域代表一個獨立、明確定義的業務能力，不得混合多重職責。
-
-## 戰略設計規則
-
-1. 子域必須以「業務能力」切分，而不是技術功能或 UI 功能。
-2. 每個子域必須能獨立描述一個完整業務問題空間（Problem Space）。
-3. 子域之間禁止共享內部模型，只能透過明確契約（ACL / API / Event）。
-4. 子域邊界必須穩定，不能因 UI 或技術重構而頻繁變動。
-5. 子域劃分優先於技術架構（database / service / module）。
-6. 一個子域內可以包含多個 bounded context，但不能跨子域共享 domain model。
-7. 子域必須可被替換（replaceable），不依賴其他子域內部實作。
-8. 子域之間只能透過「輸入/輸出契約」溝通，不允許直接依賴 domain logic。
-
-## 層級約束（Hard Rules）
-
-子域預設形狀（default）採 core-first：
-- `api/`
-- `domain/`
-- `application/`
-- `ports/`（optional）
-
-子域內 `infrastructure/` 與 `interfaces/` 不是預設必建，僅在符合 mini-module gate 時允許建立：
-1. 該子域存在明確且持續的外部整合壓力（runtime / process / provider boundary）。
-2. 需要由子域本身承接本地 I/O 或 transport 組裝，而非 bounded context 根層共享能力。
-3. 仍維持 `interfaces -> application -> domain <- infrastructure`，且 business rule 不外溢到 adapter/UI。
-4. 跨子域與跨 bounded context 協作仍只能經由 `api/` 或事件契約，不得直接依賴他域內部。
-
-若不符合上述 gate，`infrastructure/` 與 `interfaces/` 應維持在 bounded context 根層，由 context-wide adapter/composition 承接。
-
-## 單一職責
-
-每個子域只負責一個業務能力。
-
-正確：authoring、collaboration、publishing
-
-錯誤：article + comment + permission 混在一起
-
-## 跨子域依賴禁止
-
-子域不得直接匯入其他子域。溝通必須經由：
-- 上層 application layer
-- module API boundary
-
-## 領域純度
-
-domain 層必須：
-- 零框架依賴
-- 不依賴 Firebase、DB 或 API
-- 不包含 UI logic
-
-允許：Entities、Value Objects、Domain Services、Business invariants
-
-## 命名規則
-
-使用業務語言命名子域。
-
-正確：authoring、taxonomy、workspace
-
-錯誤：utils、common、shared
-
-## 獨立演化
-
-每個子域應：
-- 可獨立測試
-- 可獨立重構
-- 為未來微服務拆分做準備
-
-## 一句話總結
-
-Subdomain = Business capability first; default core-first, add infra/interfaces only when real boundary pressure exists
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
 ````
 
 ## File: app/(shell)/_shell/ShellAppRail.tsx
@@ -51716,6 +51679,44 @@ export async function buildWikiContentTree(
 ): Promise<WikiAccountContentNode[]>
 ````
 
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceCrossModuleTabSurface.tsx
+````typescript
+import dynamic from "next/dynamic";
+import type { ReactNode } from "react";
+⋮----
+import type { WorkspaceEntity } from "../../../api/contracts";
+import type { WorkspaceTabValue } from "../../navigation/workspace-tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import {
+  KnowledgeBaseArticlesPanel,
+  KnowledgeDatabasesPanel,
+  KnowledgePagesPanel,
+} from "@/modules/notion/api";
+import {
+  RagQueryPanel,
+  SourceDocumentsPanel,
+} from "@/modules/notebooklm/api";
+⋮----
+// Dynamic import to break synchronous module-evaluation cycle between
+// workspace/api → workspace/interfaces → notebooklm/api → ConversationPanel → workspace/api.
+// SSR disabled because ConversationPanel is a "use client" component that
+// relies on browser-only hooks (useState, useEffect) and workspace context providers.
+⋮----
+interface WorkspaceCrossModuleTabSurfaceOptions {
+  readonly tab: WorkspaceTabValue;
+  readonly workspace: WorkspaceEntity;
+  readonly accountId: string;
+  readonly currentUserId?: string | null;
+  readonly workspaces: Record<string, WorkspaceEntity>;
+}
+⋮----
+function renderWorkspacePlaceholder(title: string, description: string): ReactNode
+⋮----
+export function renderWorkspaceCrossModuleTabSurface(
+  options: WorkspaceCrossModuleTabSurfaceOptions,
+): ReactNode | null
+````
+
 ## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
 ````typescript
 import { useEffect, useMemo, useState } from "react";
@@ -51743,72 +51744,6 @@ export function useRecentWorkspaces(
   pathname: string,
   workspaces: WorkspaceEntity[],
 )
-````
-
-## File: modules/workspace/interfaces/web/navigation/nav-preferences-data.ts
-````typescript
-/**
- * nav-preferences-data.ts  (workspace BC – interfaces/web/navigation)
- * Owns: NavPreferences type, nav-item catalogs, default values,
- *   validation helpers, and localStorage read/write utilities.
- * Constraints: No React imports. No UI imports. Pure data / serialization.
- */
-⋮----
-import {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "./workspace-nav-items";
-⋮----
-// Re-export for consumers that import from this file directly.
-⋮----
-// ── Types ──────────────────────────────────────────────────────────────────
-⋮----
-export interface NavPreferences {
-  pinnedPersonal: string[];
-  pinnedWorkspace: string[];
-  showLimitedWorkspaces: boolean;
-  maxWorkspaces: number;
-  workspaceOrder: string[];
-}
-⋮----
-export interface SidebarLocaleBundle {
-  workspace?: {
-    groups?: Record<string, string>;
-    tabLabels?: Record<string, string>;
-  };
-}
-⋮----
-// ── Personal nav items ─────────────────────────────────────────────────────
-⋮----
-// ── Organization management items ─────────────────────────────────────────
-⋮----
-// ── Defaults + validation ──────────────────────────────────────────────────
-⋮----
-/**
- * Legacy default order before workspace tab UX reorder.
- * Only exact legacy defaults are migrated; custom user orders are preserved.
- */
-⋮----
-/**
- * Notion / NotebookLM orchestration tabs added via workspace orchestration layer.
- * Existing users whose localStorage pre-dates these tabs need auto-migration.
- */
-⋮----
-function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[]
-⋮----
-function migrateWorkflowPins(ids: string[]): string[]
-⋮----
-function migrateNotionNotebooklmPins(ids: string[]): string[]
-⋮----
-function isExactOrderMatch(source: string[], target: readonly string[]): boolean
-⋮----
-function migrateWorkspaceOrder(order: string[]): string[]
-⋮----
-// ── localStorage helpers ───────────────────────────────────────────────────
-⋮----
-export function readNavPreferences(): NavPreferences
-⋮----
-export function writeNavPreferences(prefs: NavPreferences): void
 ````
 
 ## File: repomix.config.json
@@ -52301,34 +52236,71 @@ export function resolveShellPageTitle(pathname: string): string
 export function resolveShellBreadcrumbLabel(segment: string): string
 ````
 
-## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
+## File: modules/workspace/interfaces/web/navigation/nav-preferences-data.ts
 ````typescript
-export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
+/**
+ * nav-preferences-data.ts  (workspace BC – interfaces/web/navigation)
+ * Owns: NavPreferences type, nav-item catalogs, default values,
+ *   validation helpers, and localStorage read/write utilities.
+ * Constraints: No React imports. No UI imports. Pure data / serialization.
+ */
 ⋮----
-export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
+import {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "./workspace-nav-items";
+import { normalizeWorkspaceTabPrefId } from "./workspace-tabs";
 ⋮----
-export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
+// Re-export for consumers that import from this file directly.
 ⋮----
-interface WorkspaceTabMeta {
-  readonly label: string;
-  readonly prefId: string;
-  readonly group: WorkspaceTabGroup;
-  readonly status: WorkspaceTabDevStatus;
+// ── Types ──────────────────────────────────────────────────────────────────
+⋮----
+export interface NavPreferences {
+  pinnedPersonal: string[];
+  pinnedWorkspace: string[];
+  showLimitedWorkspaces: boolean;
+  maxWorkspaces: number;
+  workspaceOrder: string[];
 }
 ⋮----
-export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue
+export interface SidebarLocaleBundle {
+  workspace?: {
+    groups?: Record<string, string>;
+    tabLabels?: Record<string, string>;
+  };
+}
 ⋮----
-export function getWorkspaceTabMeta(tab: WorkspaceTabValue)
+// ── Personal nav items ─────────────────────────────────────────────────────
 ⋮----
-export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus
+// ── Organization management items ─────────────────────────────────────────
 ⋮----
-export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string
+// ── Defaults + validation ──────────────────────────────────────────────────
 ⋮----
-export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string
+/**
+ * Legacy default order before workspace tab UX reorder.
+ * Only exact legacy defaults are migrated; custom user orders are preserved.
+ */
 ⋮----
-export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[]
+/**
+ * Notion / NotebookLM orchestration tabs added via workspace orchestration layer.
+ * Existing users whose localStorage pre-dates these tabs need auto-migration.
+ */
 ⋮----
-export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[]
+function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[]
+⋮----
+function migrateWorkflowPins(ids: string[]): string[]
+⋮----
+function migrateNotionNotebooklmPins(ids: string[]): string[]
+⋮----
+function isExactOrderMatch(source: string[], target: readonly string[]): boolean
+⋮----
+function migrateWorkspaceOrder(order: string[]): string[]
+⋮----
+// ── localStorage helpers ───────────────────────────────────────────────────
+⋮----
+export function readNavPreferences(): NavPreferences
+⋮----
+export function writeNavPreferences(prefs: NavPreferences): void
 ````
 
 ## File: app/(shell)/_shell/ShellSidebarBody.tsx
@@ -52426,29 +52398,38 @@ function handleAdd()
 function handleDelete(recordId: string)
 ````
 
-## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
+## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
 ````typescript
-import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Library, MessageSquare, Notebook, Shield, User, Users } from "lucide-react";
-import type { ReactNode } from "react";
+export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
 ⋮----
-function isWorkspaceScopedPath(pathname: string)
+export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
 ⋮----
-export interface WorkspaceQuickAccessMatcherOptions {
-  panel: string | null;
-  tab: string | null;
+export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
+⋮----
+interface WorkspaceTabMeta {
+  readonly label: string;
+  readonly prefId: string;
+  readonly group: WorkspaceTabGroup;
+  readonly status: WorkspaceTabDevStatus;
 }
 ⋮----
-export interface WorkspaceQuickAccessItem {
-  href: string;
-  label: string;
-  icon: ReactNode;
-  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
-}
+export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue
 ⋮----
-export function buildWorkspaceQuickAccessItems(
-  workspaceId: string,
-  accountId?: string | null,
-): WorkspaceQuickAccessItem[]
+export function resolveWorkspaceTabValue(value: string | null | undefined): WorkspaceTabValue | null
+⋮----
+export function normalizeWorkspaceTabPrefId(prefId: string): string
+⋮----
+export function getWorkspaceTabMeta(tab: WorkspaceTabValue)
+⋮----
+export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus
+⋮----
+export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string
+⋮----
+export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string
+⋮----
+export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[]
+⋮----
+export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[]
 ````
 
 ## File: modules/notebooklm/subdomains/synthesis/api/index.ts
@@ -52543,142 +52524,31 @@ function buildPageDetailHref(pageId: string)
 onCreated=
 ````
 
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
+## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
 ````typescript
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Library, MessageSquare, Notebook, Shield, User, Users } from "lucide-react";
+import type { ReactNode } from "react";
 ⋮----
-import {
-  Card,
-  CardContent,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { useApp, useAuth } from "@/modules/platform/api";
-import {
-  WorkspaceAuditTab,
-  WorkspaceFeedWorkspaceView,
-  WorkspaceFlowTab,
-  WorkspaceSchedulingTab,
-} from "@/modules/workspace/api";
-import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
-import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
+import { resolveWorkspaceTabValue } from "../../navigation/workspace-tabs";
 ⋮----
-import {
-  createSettingsDraft,
-  type WorkspaceSettingsDraft,
-} from "../../state/workspace-settings";
-import {
-  getWorkspaceAddressLines,
-  getWorkspacePersonnelEntries,
-} from "../../view-models/workspace-supporting-records";
-import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabValue,
-} from "../../navigation/workspace-tabs";
-import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
-import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
-import { renderWorkspaceCrossModuleTabSurface } from "../tabs/WorkspaceCrossModuleTabSurface";
-import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
-import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
-import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
+function isWorkspaceScopedPath(pathname: string)
 ⋮----
-interface WorkspaceDetailScreenProps {
-  readonly workspaceId: string;
-  readonly accountId: string | null | undefined;
-  readonly accountsHydrated: boolean;
-  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-  readonly initialTab?: string;
-  readonly initialOverviewPanel?: string;
+export interface WorkspaceQuickAccessMatcherOptions {
+  panel: string | null;
+  tab: string | null;
 }
 ⋮----
-/** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-⋮----
-function renderTabContent(tab: WorkspaceTabValue)
-⋮----
-onSetActiveWorkspace=
-⋮----
-{/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
-⋮----
-<Badge variant="outline">
-⋮----
-setIsEditWorkspaceOpen(open);
-````
-
-## File: modules/notebooklm/api/index.ts
-````typescript
-/**
- * modules/notebooklm — public API barrel.
- *
- * Stable cross-module semantic surface for notebooklm.
- * Browser-facing route composition should prefer workspace/api when workspace
- * is the orchestration owner.
- */
-⋮----
-// ---------------------------------------------------------------------------
-// NotebookLM downstream UI surface
-// Consumed by workspace as the composition owner for browser-facing flows.
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Source subdomain — semantic downstream capability surface
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// conversation subdomain — AI chat helpers and types
-//
-// NOTE: ConversationPanel is NOT re-exported here to avoid a synchronous
-// module-evaluation cycle: workspace/api → workspace interfaces →
-// notebooklm/api → ConversationPanel → workspace/api.
-// Import ConversationPanel from "@/modules/notebooklm/subdomains/conversation/api/ui"
-// or use next/dynamic for lazy loading.
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Context-wide published language (cross-module reference types)
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Synthesis subdomain — complete RAG pipeline
-// (retrieval → grounding → synthesis → evaluation)
-// ---------------------------------------------------------------------------
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseFormsPanel.tsx
-````typescript
-/**
- * Route: /knowledge-database/databases/[databaseId]/forms
- * Purpose: Manage database forms ??create and embed form links for a specific database.
- */
-⋮----
-import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
-⋮----
-import { getDatabase } from "../queries";
-import { DatabaseFormPanel } from "./DatabaseFormPanel";
-import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-⋮----
-// ?? Props ?????????????????????????????????????????????????????????????????????
-⋮----
-export interface DatabaseFormsPanelProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
+export interface WorkspaceQuickAccessItem {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
 }
 ⋮----
-// ?? Component ?????????????????????????????????????????????????????????????????
-⋮----
-<Button variant="ghost" size="sm" onClick=
-⋮----
-{/* Top bar */}
+export function buildWorkspaceQuickAccessItems(
+  workspaceId: string,
+  accountId?: string | null,
+): WorkspaceQuickAccessItem[]
 ````
 
 ## File: package.json
@@ -52792,6 +52662,144 @@ export interface DatabaseFormsPanelProps {
     "vitest": "^4.1.2"
   }
 }
+````
+
+## File: modules/notebooklm/api/index.ts
+````typescript
+/**
+ * modules/notebooklm — public API barrel.
+ *
+ * Stable cross-module semantic surface for notebooklm.
+ * Browser-facing route composition should prefer workspace/api when workspace
+ * is the orchestration owner.
+ */
+⋮----
+// ---------------------------------------------------------------------------
+// NotebookLM downstream UI surface
+// Consumed by workspace as the composition owner for browser-facing flows.
+// ---------------------------------------------------------------------------
+⋮----
+// ---------------------------------------------------------------------------
+// Source subdomain — semantic downstream capability surface
+// ---------------------------------------------------------------------------
+⋮----
+// ---------------------------------------------------------------------------
+// conversation subdomain — AI chat helpers and types
+//
+// NOTE: ConversationPanel is NOT re-exported here to avoid a synchronous
+// module-evaluation cycle: workspace/api → workspace interfaces →
+// notebooklm/api → ConversationPanel → workspace/api.
+// Import ConversationPanel from "@/modules/notebooklm/subdomains/conversation/api/ui"
+// or use next/dynamic for lazy loading.
+// ---------------------------------------------------------------------------
+⋮----
+// ---------------------------------------------------------------------------
+// Context-wide published language (cross-module reference types)
+// ---------------------------------------------------------------------------
+⋮----
+// ---------------------------------------------------------------------------
+// Synthesis subdomain — complete RAG pipeline
+// (retrieval → grounding → synthesis → evaluation)
+// ---------------------------------------------------------------------------
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseFormsPanel.tsx
+````typescript
+/**
+ * Route: /knowledge-database/databases/[databaseId]/forms
+ * Purpose: Manage database forms ??create and embed form links for a specific database.
+ */
+⋮----
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
+⋮----
+import { getDatabase } from "../queries";
+import { DatabaseFormPanel } from "./DatabaseFormPanel";
+import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
+⋮----
+// ?? Props ?????????????????????????????????????????????????????????????????????
+⋮----
+export interface DatabaseFormsPanelProps {
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+⋮----
+// ?? Component ?????????????????????????????????????????????????????????????????
+⋮----
+<Button variant="ghost" size="sm" onClick=
+⋮----
+{/* Top bar */}
+````
+
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
+````typescript
+import Link from "next/link";
+import { useMemo, useState } from "react";
+⋮----
+import {
+  Card,
+  CardContent,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { useApp, useAuth } from "@/modules/platform/api";
+import {
+  WorkspaceAuditTab,
+  WorkspaceFeedWorkspaceView,
+  WorkspaceFlowTab,
+  WorkspaceSchedulingTab,
+} from "@/modules/workspace/api";
+import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
+import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
+⋮----
+import {
+  createSettingsDraft,
+  type WorkspaceSettingsDraft,
+} from "../../state/workspace-settings";
+import {
+  getWorkspaceAddressLines,
+  getWorkspacePersonnelEntries,
+} from "../../view-models/workspace-supporting-records";
+import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
+import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  resolveWorkspaceTabValue,
+  type WorkspaceTabValue,
+} from "../../navigation/workspace-tabs";
+import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
+import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
+import { renderWorkspaceCrossModuleTabSurface } from "../tabs/WorkspaceCrossModuleTabSurface";
+import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
+import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
+import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
+⋮----
+interface WorkspaceDetailScreenProps {
+  readonly workspaceId: string;
+  readonly accountId: string | null | undefined;
+  readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
+  readonly initialOverviewPanel?: string;
+}
+⋮----
+/** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+⋮----
+function renderTabContent(tab: WorkspaceTabValue)
+⋮----
+onSetActiveWorkspace=
+⋮----
+{/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+⋮----
+<Badge variant="outline">
+⋮----
+setIsEditWorkspaceOpen(open);
 ````
 
 ## File: modules/notion/interfaces/database/components/DatabaseDetailPanel.tsx
