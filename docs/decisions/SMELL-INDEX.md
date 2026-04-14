@@ -34,6 +34,7 @@
 | 1101 | [1101-layer-violation-crypto-in-domain.md](./1101-layer-violation-crypto-in-domain.md) | Layer Violation — `crypto.randomUUID()` 在 Domain 層（14 aggregates + 13 use-cases → @lib-uuid） | **Resolved** |
 | 1102 | [1102-layer-violation-ports-in-application.md](./1102-layer-violation-ports-in-application.md) | Layer Violation — Port 介面定義於 `application/ports/` 而非 `domain/ports/`（部分解決） | Accepted |
 | 1103 | [1103-layer-violation-firebase-sdk-in-api-layer.md](./1103-layer-violation-firebase-sdk-in-api-layer.md) | Layer Violation — Firebase SDK（`collectionGroup` 等）直接出現在 `platform/api/infrastructure-api.ts` | Accepted |
+| 1104 | [1104-layer-violation-globalthis-crypto-in-application-layer.md](./1104-layer-violation-globalthis-crypto-in-application-layer.md) | Layer Violation — `globalThis.crypto?.randomUUID` 出現在 `notebooklm/application/use-cases/wiki-library.helpers.ts` | Accepted |
 | 1200 | [1200-boundary-violation.md](./1200-boundary-violation.md) | Boundary Violation — Cross-module direct domain imports | Accepted |
 | 1201 | [1201-boundary-violation-business-logic-in-infrastructure.md](./1201-boundary-violation-business-logic-in-infrastructure.md) | Boundary Violation — 業務規則（wallet balance check）漏入 Infrastructure 層 | Accepted |
 | 1300 | [1300-cyclic-dependency.md](./1300-cyclic-dependency.md) | Cyclic Dependency — workspace ↔ platform circular module-evaluation | Partial |
@@ -41,6 +42,7 @@
 | 1401 | [1401-dependency-leakage-infrastructure-api-in-platform-api.md](./1401-dependency-leakage-infrastructure-api-in-platform-api.md) | Dependency Leakage — Infrastructure API symbols (`firestoreInfrastructureApi` 等) 暴露在 platform/api/index.ts 公開邊界 | **Resolved** |
 | 1402 | [1402-dependency-leakage-use-case-classes-in-platform-api.md](./1402-dependency-leakage-use-case-classes-in-platform-api.md) | Dependency Leakage — 17 個 use-case class 名稱透過 platform/api 公開（organization subdomain） | **Resolved** |
 | 1403 | [1403-dependency-leakage-subdomain-api-exports-interfaces-wildcard.md](./1403-dependency-leakage-subdomain-api-exports-interfaces-wildcard.md) | Dependency Leakage — 4 個 platform subdomain api/index.ts 使用 `export * from "../interfaces"` 洩漏 React UI 元件與 server actions | Accepted |
+| 1404 | [1404-dependency-leakage-subdomain-api-exports-application-wildcard.md](./1404-dependency-leakage-subdomain-api-exports-application-wildcard.md) | Dependency Leakage — 11 個 subdomain `api/index.ts` 使用 `export * from "../application"` 洩漏 use-case classes | Accepted |
 | 2100 | [2100-tight-coupling.md](./2100-tight-coupling.md) | Tight Coupling — 78 files depending on monolithic platform/api | Accepted |
 | 2101 | [2101-tight-coupling-crypto-runtime.md](./2101-tight-coupling-crypto-runtime.md) | Tight Coupling — Domain Aggregates 直接綁定 Node.js `crypto` Runtime → @lib-uuid | **Resolved** |
 | 2200 | [2200-hidden-coupling.md](./2200-hidden-coupling.md) | Hidden Coupling | Accepted |
@@ -57,6 +59,7 @@
 | 4200 | [4200-inconsistency.md](./4200-inconsistency.md) | Inconsistency | Accepted |
 | 4201 | [4201-inconsistency-dto-vs-dtos.md](./4201-inconsistency-dto-vs-dtos.md) | Inconsistency — `dto` vs `dtos` 目錄命名不一致（11 vs 13 個模組） | **Resolved** |
 | 4202 | [4202-inconsistency-uuid-v7-in-workspace-domain-events.md](./4202-inconsistency-uuid-v7-in-workspace-domain-events.md) | Inconsistency — `workspace/domain/events/workspace.events.ts` 使用 UUID v7，全 repo domain 層均為 v4 | **Resolved** |
+| 4203 | [4203-inconsistency-uuid-v7-application-infrastructure-layers.md](./4203-inconsistency-uuid-v7-application-infrastructure-layers.md) | Inconsistency — UUID v7 (`generateId`) 廣泛使用於 application 與 infrastructure 層（23 個檔案） | Accepted |
 | 4300 | [4300-semantic-drift.md](./4300-semantic-drift.md) | Semantic Drift — interfaces/api 子目錄與 application/event-handlers | Accepted |
 | 4301 | [4301-semantic-drift-application-subdirectory-names.md](./4301-semantic-drift-application-subdirectory-names.md) | Semantic Drift — `event-handlers/`、`event-mappers/`、`handlers/`、`process-managers/` 命名偏離職責語意 | Accepted |
 | 4302 | [4302-semantic-drift-notion-notebooklm-event-discriminant-format.md](./4302-semantic-drift-notion-notebooklm-event-discriminant-format.md) | Semantic Drift — Notion & NotebookLM event discriminant format snake_case → kebab-case | **Resolved** |
