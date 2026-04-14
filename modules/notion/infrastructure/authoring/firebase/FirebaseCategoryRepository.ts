@@ -5,7 +5,7 @@
  * Note: Preserves same collection path as previous knowledge-base module for data continuity.
  */
 
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 import type { CategorySnapshot } from "../../../subdomains/authoring/domain/aggregates/Category";
 import type { CategoryRepository } from "../../../subdomains/authoring/domain/repositories/CategoryRepository";
 

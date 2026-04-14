@@ -8,7 +8,7 @@
  *   workspaceFiles/{fileId}/versions/{versionId}
  */
 
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 
 import type { SourceFile } from "../../../subdomains/source/domain/entities/SourceFile";
 import type { SourceFileVersion } from "../../../subdomains/source/domain/entities/SourceFileVersion";

@@ -1,4 +1,4 @@
-import { v7 } from "@lib-uuid";
+import { v4 as uuid } from "@lib-uuid";
 import type { DomainEvent } from "@shared-types";
 
 import type {
@@ -7,8 +7,8 @@ import type {
 } from "../aggregates/Workspace";
 
 export const WORKSPACE_CREATED_EVENT_TYPE = "workspace.created" as const;
-export const WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE = "workspace.lifecycle_transitioned" as const;
-export const WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE = "workspace.visibility_changed" as const;
+export const WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE = "workspace.lifecycle-transitioned" as const;
+export const WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE = "workspace.visibility-changed" as const;
 
 interface WorkspaceEventBase extends DomainEvent {
   readonly workspaceId: string;
@@ -45,7 +45,7 @@ export function createWorkspaceCreatedEvent(input: {
   name: string;
 }): WorkspaceCreatedEvent {
   return {
-    eventId: v7(),
+    eventId: uuid(),
     type: WORKSPACE_CREATED_EVENT_TYPE,
     aggregateId: input.workspaceId,
     occurredAt: new Date().toISOString(),
@@ -63,7 +63,7 @@ export function createWorkspaceLifecycleTransitionedEvent(input: {
   toState: WorkspaceLifecycleState;
 }): WorkspaceLifecycleTransitionedEvent {
   return {
-    eventId: v7(),
+    eventId: uuid(),
     type: WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
     aggregateId: input.workspaceId,
     occurredAt: new Date().toISOString(),
@@ -81,7 +81,7 @@ export function createWorkspaceVisibilityChangedEvent(input: {
   toVisibility: WorkspaceVisibility;
 }): WorkspaceVisibilityChangedEvent {
   return {
-    eventId: v7(),
+    eventId: uuid(),
     type: WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
     aggregateId: input.workspaceId,
     occurredAt: new Date().toISOString(),

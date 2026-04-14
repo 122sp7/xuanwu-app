@@ -5,7 +5,7 @@ import type {
 } from "../../domain/entities/WorkspaceMemberView";
 import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
 import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
 
 const personnelLabels = {

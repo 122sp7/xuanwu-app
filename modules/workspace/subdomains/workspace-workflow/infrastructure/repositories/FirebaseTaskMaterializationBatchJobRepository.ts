@@ -5,7 +5,7 @@
  */
 
 import { v7 as generateId } from "@lib-uuid";
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 import type {
   CompleteTaskMaterializationBatchJobInput,
   CreateTaskMaterializationBatchJobInput,

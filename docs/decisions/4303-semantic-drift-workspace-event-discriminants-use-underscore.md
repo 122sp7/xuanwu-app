@@ -1,6 +1,7 @@
 # 4303 Semantic Drift — Workspace Event Discriminants Use Underscore Instead of Kebab-Case
 
-- Status: Accepted
+- Status: Resolved
+- Resolved: 2026-04-14
 - Date: 2026-04-14
 - Category: Architectural Smells > Semantic Drift
 
@@ -101,3 +102,16 @@ discriminant 字串值的更改需要確認這些消費者及任何依賴 string
 - **ADR 4302** (Semantic Drift — notion/notebooklm event discriminant format) — notion/notebooklm 域的同類遷移
 - **ADR 4300** (Semantic Drift) — 系列入口文件
 - **ADR 0006** (Domain Event Discriminant Format) — 架構規範根源
+
+## Resolution
+
+Changed 4 event discriminants to kebab-case:
+- `workspace.lifecycle_transitioned` → `workspace.lifecycle-transitioned` (WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE constant)
+- `workspace.visibility_changed` → `workspace.visibility-changed` (WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE constant)
+- `workspace.audit.entry_recorded` → `workspace.audit.entry-recorded` (AuditDomainEvent.ts interface + AuditEntry.ts inline string)
+- `workspace.audit.critical_detected` → `workspace.audit.critical-detected` (AuditDomainEvent.ts interface + AuditEntry.ts inline string)
+
+Files changed:
+- `modules/workspace/domain/events/workspace.events.ts`
+- `modules/workspace/subdomains/audit/domain/events/AuditDomainEvent.ts`
+- `modules/workspace/subdomains/audit/domain/aggregates/AuditEntry.ts`

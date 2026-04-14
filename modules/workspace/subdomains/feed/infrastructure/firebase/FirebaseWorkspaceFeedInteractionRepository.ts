@@ -1,6 +1,6 @@
 import {
   firestoreInfrastructureApi,
-} from "@/modules/platform/api";
+} from "@/modules/platform/api/infrastructure";
 import { v7 as generateId } from "@lib-uuid";
 
 import type { WorkspaceFeedInteractionRepository } from "../../domain/repositories/workspace-feed.repositories";

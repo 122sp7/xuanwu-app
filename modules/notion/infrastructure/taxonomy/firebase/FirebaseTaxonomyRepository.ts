@@ -5,7 +5,7 @@
  * Firestore path: notionTaxonomyNodes/{nodeId}
  */
 
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 import type { TaxonomyNode } from "../../../subdomains/taxonomy/domain/entities/TaxonomyNode";
 import type { TaxonomyRepository } from "../../../subdomains/taxonomy/domain/repositories/TaxonomyRepository";
 

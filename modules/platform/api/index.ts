@@ -12,12 +12,6 @@
 export * from "./contracts";
 export * from "./facade";
 export {
-  firestoreInfrastructureApi,
-  storageInfrastructureApi,
-  genkitInfrastructureApi,
-  functionsInfrastructureApi,
-} from "./infrastructure-api";
-export {
   authApi,
   permissionApi,
   fileApi,
@@ -84,23 +78,6 @@ export {
   createOrgPolicy,
   updateOrgPolicy,
   deleteOrgPolicy,
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
   // UI components belong in api/ui.ts — see ADR-1200
 } from "../subdomains/organization/api";
 

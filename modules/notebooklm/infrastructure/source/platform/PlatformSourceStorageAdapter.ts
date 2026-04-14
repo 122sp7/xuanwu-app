@@ -4,7 +4,7 @@
  * Adapter: PlatformSourceStorageAdapter — delegates to platform StorageAPI.
  */
 
-import { storageInfrastructureApi } from "@/modules/platform/api";
+import { storageInfrastructureApi } from "@/modules/platform/api/infrastructure";
 
 import type {
   SourceStoragePort,

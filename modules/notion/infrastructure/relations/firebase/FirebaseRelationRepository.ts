@@ -5,7 +5,7 @@
  * Firestore path: notionRelations/{relationId}
  */
 
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 import type { Relation } from "../../../subdomains/relations/domain/entities/Relation";
 import type { RelationRepository } from "../../../subdomains/relations/domain/repositories/RelationRepository";
 

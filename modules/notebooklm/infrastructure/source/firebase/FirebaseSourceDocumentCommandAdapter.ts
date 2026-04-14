@@ -7,7 +7,7 @@
  * This is a legacy collection; new data should use the workspaceFiles collection.
  */
 
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 
 import type { SourceDocumentCommandPort } from "../../../subdomains/source/domain/ports/SourceDocumentPort";
 

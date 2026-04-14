@@ -7,7 +7,7 @@
  *   knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}
  */
 
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 
 import type { RagDocumentRecord, RagDocumentStatus } from "../../../subdomains/source/domain/entities/RagDocument";
 import type { RagDocumentRepository } from "../../../subdomains/source/domain/repositories/RagDocumentRepository";

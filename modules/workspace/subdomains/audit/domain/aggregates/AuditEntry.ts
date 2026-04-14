@@ -65,7 +65,7 @@ export class AuditEntry {
 			recordedAtISO: now,
 		});
 		entry._domainEvents.push({
-			type: "workspace.audit.entry_recorded",
+			type: "workspace.audit.entry-recorded",
 			eventId: uuid(),
 			occurredAt: now,
 			payload: {
@@ -82,7 +82,7 @@ export class AuditEntry {
 		// Auto-escalation: critical entries emit an additional alert event
 		if (entry.isCritical()) {
 			entry._domainEvents.push({
-				type: "workspace.audit.critical_detected",
+				type: "workspace.audit.critical-detected",
 				eventId: uuid(),
 				occurredAt: now,
 				payload: {

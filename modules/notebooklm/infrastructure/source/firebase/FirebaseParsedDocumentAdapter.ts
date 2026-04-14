@@ -6,7 +6,7 @@
  * Reads parsed JSON from a GCS URI and extracts the text content.
  */
 
-import { storageInfrastructureApi } from "@/modules/platform/api";
+import { storageInfrastructureApi } from "@/modules/platform/api/infrastructure";
 
 import type { ParsedDocumentPort } from "../../../subdomains/source/domain/ports/ParsedDocumentPort";
 

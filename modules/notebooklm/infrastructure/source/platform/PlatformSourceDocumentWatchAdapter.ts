@@ -4,7 +4,7 @@
  * Adapter: PlatformSourceDocumentWatchAdapter — delegates to platform FirestoreAPI.
  */
 
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 
 import type {
   SourceDocumentWatchPort,

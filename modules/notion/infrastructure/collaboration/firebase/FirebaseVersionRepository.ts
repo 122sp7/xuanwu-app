@@ -4,7 +4,7 @@
  * Firestore: accounts/{accountId}/collaborationVersions/{versionId}
  */
 
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 import { v7 as generateId } from "@lib-uuid";
 import type { VersionSnapshot } from "../../../subdomains/collaboration/domain/aggregates/Version";
 import type { VersionRepository, CreateVersionInput } from "../../../subdomains/collaboration/domain/repositories/VersionRepository";

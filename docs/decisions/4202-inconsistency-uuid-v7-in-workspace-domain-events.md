@@ -1,6 +1,7 @@
 # 4202 Inconsistency — UUID v7 用於 workspace domain event factory（全 repo 均使用 v4）
 
-- Status: Accepted
+- Status: Resolved
+- Resolved: 2026-04-14
 - Date: 2026-04-14
 - Category: Maintainability Smells > Inconsistency
 
@@ -100,3 +101,9 @@ export function createWorkspaceCreatedEvent(input: { ... }): WorkspaceCreatedEve
 - **4200** (Inconsistency)：本 ADR 是 ADR 4200 識別的 inconsistency 類別的另一個具體實例
 - **2201** (Hidden Coupling)：一旦 workspace aggregate 改為內部收集 domain events，
   此 v7 問題需要同步處理（events 將從 aggregate 內部的 `v7()` 或 `uuid()` 生成）
+
+## Resolution
+
+Replaced `import { v7 } from "@lib-uuid"` with `import { v4 as uuid } from "@lib-uuid"` in `workspace/domain/events/workspace.events.ts`.
+All three factory functions (`createWorkspaceCreatedEvent`, `createWorkspaceLifecycleTransitionedEvent`, `createWorkspaceVisibilityChangedEvent`) now use `uuid()` (v4).
+Full repo domain-layer UUID strategy is now consistent.

@@ -12,7 +12,7 @@
  *  5. Sort descending by score, return top-K.
  */
 
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 
 import type { RagRetrievedChunk } from "../../../subdomains/synthesis/domain/entities/retrieval.entities";
 import type { RagRetrievalRepository, RetrieveChunksInput } from "../../../subdomains/synthesis/domain/repositories/RagRetrievalRepository";

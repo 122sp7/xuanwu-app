@@ -9,7 +9,7 @@
  *   accounts/{accountId}/wikiLibraries/{libraryId}/rows/{rowId}
  */
 
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 
 import type {
   WikiLibrary,

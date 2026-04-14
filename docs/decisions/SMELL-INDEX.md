@@ -38,8 +38,8 @@
 | 1201 | [1201-boundary-violation-business-logic-in-infrastructure.md](./1201-boundary-violation-business-logic-in-infrastructure.md) | Boundary Violation — 業務規則（wallet balance check）漏入 Infrastructure 層 | Accepted |
 | 1300 | [1300-cyclic-dependency.md](./1300-cyclic-dependency.md) | Cyclic Dependency — workspace ↔ platform circular module-evaluation | Partial |
 | 1400 | [1400-dependency-leakage.md](./1400-dependency-leakage.md) | Dependency Leakage — platform/api 混合 infra/service/UI exports | Accepted |
-| 1401 | [1401-dependency-leakage-infrastructure-api-in-platform-api.md](./1401-dependency-leakage-infrastructure-api-in-platform-api.md) | Dependency Leakage — Infrastructure API symbols (`firestoreInfrastructureApi` 等) 暴露在 platform/api/index.ts 公開邊界 | Accepted |
-| 1402 | [1402-dependency-leakage-use-case-classes-in-platform-api.md](./1402-dependency-leakage-use-case-classes-in-platform-api.md) | Dependency Leakage — 17 個 use-case class 名稱透過 platform/api 公開（organization subdomain） | Accepted |
+| 1401 | [1401-dependency-leakage-infrastructure-api-in-platform-api.md](./1401-dependency-leakage-infrastructure-api-in-platform-api.md) | Dependency Leakage — Infrastructure API symbols (`firestoreInfrastructureApi` 等) 暴露在 platform/api/index.ts 公開邊界 | **Resolved** |
+| 1402 | [1402-dependency-leakage-use-case-classes-in-platform-api.md](./1402-dependency-leakage-use-case-classes-in-platform-api.md) | Dependency Leakage — 17 個 use-case class 名稱透過 platform/api 公開（organization subdomain） | **Resolved** |
 | 1403 | [1403-dependency-leakage-subdomain-api-exports-interfaces-wildcard.md](./1403-dependency-leakage-subdomain-api-exports-interfaces-wildcard.md) | Dependency Leakage — 4 個 platform subdomain api/index.ts 使用 `export * from "../interfaces"` 洩漏 React UI 元件與 server actions | Accepted |
 | 2100 | [2100-tight-coupling.md](./2100-tight-coupling.md) | Tight Coupling — 78 files depending on monolithic platform/api | Accepted |
 | 2101 | [2101-tight-coupling-crypto-runtime.md](./2101-tight-coupling-crypto-runtime.md) | Tight Coupling — Domain Aggregates 直接綁定 Node.js `crypto` Runtime → @lib-uuid | **Resolved** |
@@ -51,16 +51,16 @@
 | 3200 | [3200-duplication.md](./3200-duplication.md) | Duplication | Accepted |
 | 3201 | [3201-duplication-event-discriminant-format.md](./3201-duplication-event-discriminant-format.md) | Duplication — Domain Event 識別符號格式統一為 `kebab-case` | **Resolved** |
 | 3202 | [3202-duplication-source-dto-reimplements-domain-service.md](./3202-duplication-source-dto-reimplements-domain-service.md) | Duplication — Source DTO re-implements domain service logic | **Resolved** |
-| 3203 | [3203-duplication-shell-quick-create-orphaned-platform-copy.md](./3203-duplication-shell-quick-create-orphaned-platform-copy.md) | Duplication — 兩個 `shell-quick-create` 實作（platform/application 版本孤兒化，無消費者） | Accepted |
+| 3203 | [3203-duplication-shell-quick-create-orphaned-platform-copy.md](./3203-duplication-shell-quick-create-orphaned-platform-copy.md) | Duplication — 兩個 `shell-quick-create` 實作（platform/application 版本孤兒化，無消費者） | **Resolved** |
 | 4100 | [4100-change-amplification.md](./4100-change-amplification.md) | Change Amplification | Accepted |
 | 4101 | [4101-change-amplification-uuid-strategy.md](./4101-change-amplification-uuid-strategy.md) | Change Amplification — UUID 策略集中於 @lib-uuid | **Resolved** |
 | 4200 | [4200-inconsistency.md](./4200-inconsistency.md) | Inconsistency | Accepted |
 | 4201 | [4201-inconsistency-dto-vs-dtos.md](./4201-inconsistency-dto-vs-dtos.md) | Inconsistency — `dto` vs `dtos` 目錄命名不一致（11 vs 13 個模組） | **Resolved** |
-| 4202 | [4202-inconsistency-uuid-v7-in-workspace-domain-events.md](./4202-inconsistency-uuid-v7-in-workspace-domain-events.md) | Inconsistency — `workspace/domain/events/workspace.events.ts` 使用 UUID v7，全 repo domain 層均為 v4 | Accepted |
+| 4202 | [4202-inconsistency-uuid-v7-in-workspace-domain-events.md](./4202-inconsistency-uuid-v7-in-workspace-domain-events.md) | Inconsistency — `workspace/domain/events/workspace.events.ts` 使用 UUID v7，全 repo domain 層均為 v4 | **Resolved** |
 | 4300 | [4300-semantic-drift.md](./4300-semantic-drift.md) | Semantic Drift — interfaces/api 子目錄與 application/event-handlers | Accepted |
 | 4301 | [4301-semantic-drift-application-subdirectory-names.md](./4301-semantic-drift-application-subdirectory-names.md) | Semantic Drift — `event-handlers/`、`event-mappers/`、`handlers/`、`process-managers/` 命名偏離職責語意 | Accepted |
 | 4302 | [4302-semantic-drift-notion-notebooklm-event-discriminant-format.md](./4302-semantic-drift-notion-notebooklm-event-discriminant-format.md) | Semantic Drift — Notion & NotebookLM event discriminant format snake_case → kebab-case | **Resolved** |
-| 4303 | [4303-semantic-drift-workspace-event-discriminants-use-underscore.md](./4303-semantic-drift-workspace-event-discriminants-use-underscore.md) | Semantic Drift — `workspace.lifecycle_transitioned`、`workspace.visibility_changed`、`workspace.audit.*` 使用下劃線分隔符，違反 kebab-case 規範 | Accepted |
+| 4303 | [4303-semantic-drift-workspace-event-discriminants-use-underscore.md](./4303-semantic-drift-workspace-event-discriminants-use-underscore.md) | Semantic Drift — `workspace.lifecycle_transitioned`、`workspace.visibility_changed`、`workspace.audit.*` 使用下劃線分隔符，違反 kebab-case 規範 | **Resolved** |
 | 5100 | [5100-accidental-complexity.md](./5100-accidental-complexity.md) | Accidental Complexity | Accepted |
 | 5101 | [5101-accidental-complexity-platform-domain-stubs.md](./5101-accidental-complexity-platform-domain-stubs.md) | Accidental Complexity — platform/domain/ 21 TODO stub → DESIGN.md | **Resolved** |
 | 5200 | [5200-cognitive-load.md](./5200-cognitive-load.md) | Cognitive Load | Accepted |

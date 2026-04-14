@@ -7,7 +7,7 @@
 
 import {
   firestoreInfrastructureApi,
-} from "@/modules/platform/api";
+} from "@/modules/platform/api/infrastructure";
 import { generateId } from "@shared-utils";
 import type { DatabaseRepository, CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../../../subdomains/database/domain/repositories/DatabaseRepository";
 import type { DatabaseSnapshot, Field } from "../../../subdomains/database/domain/aggregates/Database";

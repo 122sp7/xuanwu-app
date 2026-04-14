@@ -13,7 +13,7 @@
 import {
   firestoreInfrastructureApi,
   functionsInfrastructureApi,
-} from "@/modules/platform/api";
+} from "@/modules/platform/api/infrastructure";
 
 import type {
   KnowledgeContentRepository,

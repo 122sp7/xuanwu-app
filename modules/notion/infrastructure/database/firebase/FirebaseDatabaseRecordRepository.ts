@@ -7,7 +7,7 @@
 
 import {
   firestoreInfrastructureApi,
-} from "@/modules/platform/api";
+} from "@/modules/platform/api/infrastructure";
 import { v7 as generateId } from "@lib-uuid";
 import type { DatabaseRecordRepository, CreateRecordInput, UpdateRecordInput } from "../../../subdomains/database/domain/repositories/DatabaseRecordRepository";
 import type { DatabaseRecordSnapshot } from "../../../subdomains/database/domain/aggregates/DatabaseRecord";

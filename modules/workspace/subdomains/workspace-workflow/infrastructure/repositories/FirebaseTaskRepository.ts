@@ -9,7 +9,7 @@
 
 import {
   firestoreInfrastructureApi,
-} from "@/modules/platform/api";
+} from "@/modules/platform/api/infrastructure";
 import { v7 as generateId } from "@lib-uuid";
 import type { Task, CreateTaskInput, UpdateTaskInput } from "../../domain/entities/Task";
 import type { TaskRepository } from "../../domain/repositories/TaskRepository";
