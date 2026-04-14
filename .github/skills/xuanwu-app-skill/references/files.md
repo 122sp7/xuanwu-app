@@ -7560,6 +7560,45 @@ export async function waitForParsedDocument(
  */
 ````
 
+## File: modules/notebooklm/interfaces/conversation/components/ConversationPanel.tsx
+````typescript
+/**
+ * Module: notebooklm/subdomains/conversation
+ * Component: ConversationPanel
+ * Purpose: Full-page AI chat UI — wired to conversation server actions.
+ *          Thread persistence via Firestore. Multi-turn context support.
+ *
+ * Props are injected by the app/ shim so this component has no provider dependencies.
+ */
+⋮----
+import Link from "next/link";
+import { Bot, BookOpen, Brain, FileText, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
+⋮----
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { resolveWorkspaceFromMap, WorkspaceContextCard } from "@/modules/workspace/api";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+⋮----
+import { useAiChatThread } from "../hooks/useAiChatThread";
+⋮----
+// ── Props ─────────────────────────────────────────────────────────────────────
+⋮----
+export interface ConversationPanelProps {
+  accountId: string;
+  workspaces: Record<string, WorkspaceEntity>;
+  requestedWorkspaceId: string;
+}
+⋮----
+// ── Component ─────────────────────────────────────────────────────────────────
+⋮----
+export function ConversationPanel(
+⋮----
+onSubmit=
+⋮----
+onChange=
+````
+
 ## File: modules/notebooklm/interfaces/conversation/hooks/useAiChatThread.ts
 ````typescript
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -32469,45 +32508,6 @@ export class PlatformRagGenerationAdapter implements RagGenerationRepository {
 async generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult>
 ````
 
-## File: modules/notebooklm/interfaces/conversation/components/ConversationPanel.tsx
-````typescript
-/**
- * Module: notebooklm/subdomains/conversation
- * Component: ConversationPanel
- * Purpose: Full-page AI chat UI — wired to conversation server actions.
- *          Thread persistence via Firestore. Multi-turn context support.
- *
- * Props are injected by the app/ shim so this component has no provider dependencies.
- */
-⋮----
-import Link from "next/link";
-import { Bot, BookOpen, Brain, FileText, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
-⋮----
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { resolveWorkspaceFromMap, WorkspaceContextCard } from "@/modules/workspace/api";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-⋮----
-import { useAiChatThread } from "../hooks/useAiChatThread";
-⋮----
-// ── Props ─────────────────────────────────────────────────────────────────────
-⋮----
-export interface ConversationPanelProps {
-  accountId: string;
-  workspaces: Record<string, WorkspaceEntity>;
-  requestedWorkspaceId: string;
-}
-⋮----
-// ── Component ─────────────────────────────────────────────────────────────────
-⋮----
-export function ConversationPanel(
-⋮----
-onSubmit=
-⋮----
-onChange=
-````
-
 ## File: modules/notebooklm/interfaces/conversation/composition/adapters.ts
 ````typescript
 import { FirebaseThreadRepository } from "../../../infrastructure/conversation/firebase/FirebaseThreadRepository";
@@ -34679,6 +34679,28 @@ import { FirebaseTaxonomyRepository } from "../../../infrastructure/taxonomy/fir
 export function makeTaxonomyRepo()
 ````
 
+## File: modules/notion/subdomains/authoring/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/authoring
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ */
+⋮----
+// ??? Read contracts ????????????????????????????????????????????????????????????
+⋮----
+// ??? Identifiers used by other BCs ????????????????????????????????????????????
+export type ArticleId = string;
+export type CategoryId = string;
+⋮----
+// ??? Server Actions (write-side) ??????????????????????????????????????????????
+⋮----
+// ??? Queries (read-side) ??????????????????????????????????????????????????????
+⋮----
+// ??? UI Components ????????????????????????????????????????????????????????????
+````
+
 ## File: modules/notion/subdomains/authoring/api/server.ts
 ````typescript
 /**
@@ -35891,6 +35913,11 @@ async execute(accountId: string): Promise<KnowledgePageTreeNode[]>
 export class GetKnowledgePageTreeByWorkspaceUseCase {
 ⋮----
 async execute(accountId: string, workspaceId: string): Promise<KnowledgePageTreeNode[]>
+````
+
+## File: modules/notion/subdomains/knowledge/application/use-cases/index.ts
+````typescript
+
 ````
 
 ## File: modules/notion/subdomains/knowledge/application/use-cases/manage-knowledge-collection.use-cases.ts
@@ -45457,6 +45484,50 @@ The now-empty `application/services/` directory was deleted.
 - ADR Decision §6: `architecture-core.instructions.md` update not yet done.
 ````
 
+## File: docs/deliveries/AGENT.md
+````markdown
+# Deliveries Agent Guide
+
+本目錄寫跨 context 的流程編排。
+
+- 重點回答：怎麼串起來。
+- 可記錄 Saga、Flow、handoff 與步驟順序。
+- 以事件、流程與責任交接為主。
+- 保持流程導向，不展開底層架構細節。
+````
+
+## File: docs/deliveries/README.md
+````markdown
+# Deliveries Docs
+
+這裡整理跨 context 的流程編排文件。
+
+重點是描述整條流程怎麼串起來，而不是單一模組內部實作。
+這一層對齊 event-driven、Saga / Flow orchestration 與 system handoff。
+````
+
+## File: docs/feature/AGENT.md
+````markdown
+# Feature Docs Agent Guide
+
+本目錄寫單一 bounded context 內的 use case。
+
+- 重點回答：做什麼。
+- 聚焦單一能力、目標與結果。
+- 採用 Hexagonal + DDD 與 semantic-first 命名。
+- 不展開跨 context 串接流程。
+````
+
+## File: docs/feature/README.md
+````markdown
+# Feature Docs
+
+這裡整理單一 bounded context 內的 use case 文件。
+
+重點是說明這個功能做什麼。
+並遵循 Hexagonal + DDD 與 semantic-first 的業務語言設計。
+````
+
 ## File: docs/hard-rules-consolidated.md
 ````markdown
 # 50 Hard Rules — Consolidated Architecture Guardrails
@@ -46347,6 +46418,51 @@ type RowData = WikiLibraryRow & { _values: Record<string, unknown> };
 onDrop(
 ````
 
+## File: modules/notebooklm/interfaces/synthesis/components/RagQueryPanel.tsx
+````typescript
+import { useState } from "react";
+import { AlertCircle, Loader2, Search } from "lucide-react";
+import { toast } from "sonner";
+⋮----
+import { useApp } from "@/modules/platform/api/ui";
+import { useAuth } from "@/modules/platform/api";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@ui-shadcn/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from "@ui-shadcn/ui/alert";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+⋮----
+import type { KnowledgeCitation } from "../../../subdomains/synthesis/api";
+import { runKnowledgeRagQueryAction } from "../_actions/rag-query.actions";
+⋮----
+interface RagQueryPanelProps {
+  readonly workspaceId?: string;
+}
+⋮----
+/** Minimal RAG query chat interface. Uses local useState only — no streaming, no global state. */
+⋮----
+async function handleSubmit()
+⋮----
+// Compatibility fallback for older vectors without ready status.
+⋮----
+{/* Auth warning — shown upfront when user cannot execute RAG queries */}
+⋮----
+{/* Query input */}
+⋮----
+onClick=
+````
+
 ## File: modules/notebooklm/README.md
 ````markdown
 # NotebookLM
@@ -46440,6 +46556,25 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Context Map](../../docs/contexts/notebooklm/context-map.md)
 - [Ubiquitous Language](../../docs/contexts/notebooklm/ubiquitous-language.md)
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
+````
+
+## File: modules/notebooklm/subdomains/conversation/api/index.ts
+````typescript
+/**
+ * Public API boundary for the conversation subdomain.
+ *
+ * Cross-module consumers MUST import through this entry point for
+ * data, types, and helpers.
+ *
+ * UI components (ConversationPanel) are in a separate `./ui` entry
+ * to avoid synchronous module-evaluation cycles with workspace/api.
+ * Import ConversationPanel from `conversation/api/ui` or use
+ * `next/dynamic` for lazy loading.
+ */
+⋮----
+// Domain types
+⋮----
+// Thread persistence actions
 ````
 
 ## File: modules/notebooklm/subdomains/conversation/api/ui.ts
@@ -47964,28 +48099,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
-## File: modules/notion/subdomains/authoring/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/authoring
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- */
-⋮----
-// ??? Read contracts ????????????????????????????????????????????????????????????
-⋮----
-// ??? Identifiers used by other BCs ????????????????????????????????????????????
-export type ArticleId = string;
-export type CategoryId = string;
-⋮----
-// ??? Server Actions (write-side) ??????????????????????????????????????????????
-⋮----
-// ??? Queries (read-side) ??????????????????????????????????????????????????????
-⋮----
-// ??? UI Components ????????????????????????????????????????????????????????????
-````
-
 ## File: modules/notion/subdomains/authoring/domain/aggregates/Article.ts
 ````typescript
 /**
@@ -48150,6 +48263,31 @@ export interface VersionRestoredEvent extends NotionDomainEvent {
  */
 ````
 
+## File: modules/notion/subdomains/database/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ *
+ * Open Host Service contracts:
+ *   - getDatabaseById  ??consumed by knowledge subdomain (opaque reference resolution)
+ */
+⋮----
+// Domain types
+⋮----
+// Repository input types
+⋮----
+// Application DTOs
+⋮----
+// Server actions
+⋮----
+// Queries
+⋮----
+// UI components
+````
+
 ## File: modules/notion/subdomains/database/domain/aggregates/DatabaseAutomation.ts
 ````typescript
 /**
@@ -48305,9 +48443,38 @@ export interface ViewUpdatedEvent extends NotionDomainEvent {
  */
 ````
 
-## File: modules/notion/subdomains/knowledge/application/use-cases/index.ts
+## File: modules/notion/subdomains/knowledge/api/index.ts
 ````typescript
-
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ */
+⋮----
+// ?? Types (read-only snapshots ??no aggregate class refs) ?????????????????????
+⋮----
+/** @alias KnowledgePageSnapshot ??provided for backward-compatibility */
+⋮----
+// ?? Server action DTOs ????????????????????????????????????????????????????????
+⋮----
+// ?? Query functions (server-side reads) ???????????????????????????????????????
+⋮----
+// ?? Server actions (drives: app router, Server Components) ????????????????????
+⋮----
+// ?? UI Components ?????????????????????????????????????????????????????????????
+⋮----
+// ?? Store ?????????????????????????????????????????????????????????????????????
+⋮----
+// ?? Tree node type (needed by app/ pages) ?????????????????????????????????????
+⋮----
+// ?? Domain events (published language ??for cross-module event subscriptions) ?
+⋮----
+// ?? Sidebar component ?????????????????????????????????????????????????????????
+⋮----
+// ?? Page header widgets ???????????????????????????????????????????????????????
+⋮----
+// ?? Route screen components ???????????????????????????????????????????????????
 ````
 
 ## File: modules/notion/subdomains/knowledge/application/use-cases/review-knowledge-page.use-cases.ts
@@ -49939,6 +50106,20 @@ function buildWorkspaceTabHref(
   tab: string,
   panel?: string,
 ): string
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewKnowledgePanels.tsx
+````typescript
+import { KnowledgeBaseArticlesPanel, KnowledgeDatabasesPanel, KnowledgePagesPanel } from "@/modules/notion/api";
+import { LibrariesPanel, LibraryTablePanel } from "@/modules/notebooklm/api";
+import type { WorkspaceEntity } from "../../../contracts";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+⋮----
+interface WorkspaceOverviewKnowledgePanelsProps {
+  readonly workspace: WorkspaceEntity;
+  readonly currentUserId?: string | null;
+  readonly activeSurface: string;
+}
 ````
 
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx
@@ -51802,70 +51983,6 @@ export async function runKnowledgeRagQueryAction(
 ): Promise<KnowledgeRagQueryResult>
 ````
 
-## File: modules/notebooklm/interfaces/synthesis/components/RagQueryPanel.tsx
-````typescript
-import { useState } from "react";
-import { AlertCircle, Loader2, Search } from "lucide-react";
-import { toast } from "sonner";
-⋮----
-import { useApp } from "@/modules/platform/api/ui";
-import { useAuth } from "@/modules/platform/api";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@ui-shadcn/ui/accordion";
-import { Alert, AlertDescription, AlertTitle } from "@ui-shadcn/ui/alert";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-⋮----
-import type { KnowledgeCitation } from "../../../subdomains/synthesis/api";
-import { runKnowledgeRagQueryAction } from "../_actions/rag-query.actions";
-⋮----
-interface RagQueryPanelProps {
-  readonly workspaceId?: string;
-}
-⋮----
-/** Minimal RAG query chat interface. Uses local useState only — no streaming, no global state. */
-⋮----
-async function handleSubmit()
-⋮----
-// Compatibility fallback for older vectors without ready status.
-⋮----
-{/* Auth warning — shown upfront when user cannot execute RAG queries */}
-⋮----
-{/* Query input */}
-⋮----
-onClick=
-````
-
-## File: modules/notebooklm/subdomains/conversation/api/index.ts
-````typescript
-/**
- * Public API boundary for the conversation subdomain.
- *
- * Cross-module consumers MUST import through this entry point for
- * data, types, and helpers.
- *
- * UI components (ConversationPanel) are in a separate `./ui` entry
- * to avoid synchronous module-evaluation cycles with workspace/api.
- * Import ConversationPanel from `conversation/api/ui` or use
- * `next/dynamic` for lazy loading.
- */
-⋮----
-// Domain types
-⋮----
-// Thread persistence actions
-````
-
 ## File: modules/notebooklm/subdomains/synthesis/domain/index.ts
 ````typescript
 // ── Canonical domain types ────────────────────────────────────────────────────
@@ -52225,20 +52342,6 @@ onClick=
 ⋮----
 onOpenChange=
 onWorkspaceNameChange=
-````
-
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewKnowledgePanels.tsx
-````typescript
-import { KnowledgeBaseArticlesPanel, KnowledgeDatabasesPanel, KnowledgePagesPanel } from "@/modules/notion/api";
-import { LibrariesPanel, LibraryTablePanel } from "@/modules/notebooklm/api";
-import type { WorkspaceEntity } from "../../../contracts";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-⋮----
-interface WorkspaceOverviewKnowledgePanelsProps {
-  readonly workspace: WorkspaceEntity;
-  readonly currentUserId?: string | null;
-  readonly activeSurface: string;
-}
 ````
 
 ## File: modules/workspace/interfaces/web/navigation/workspace-context-links.ts
@@ -52842,6 +52945,98 @@ export function waitForParsedDocument(
 ): Promise<
 ````
 
+## File: modules/notebooklm/subdomains/synthesis/api/index.ts
+````typescript
+/**
+ * Public API boundary for the synthesis subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * This subdomain owns the complete RAG pipeline:
+ *   retrieval → grounding → synthesis → evaluation
+ *
+ * Migrated from: ai subdomain (AGENTS.md violation fix)
+ * Absorbed from: retrieval, grounding, evaluation stubs (Occam consolidation)
+ */
+⋮----
+// ── Canonical domain types (retrieval facet) ─────────────────────────────────
+⋮----
+// ── Canonical domain types (grounding facet) ─────────────────────────────────
+⋮----
+// ── Canonical domain types (synthesis facet) ─────────────────────────────────
+⋮----
+// ── Canonical domain types (evaluation facet) ────────────────────────────────
+⋮----
+// ── Active pipeline types (used by use cases & infrastructure) ───────────────
+⋮----
+// ── Use-case classes (for DI composition within synthesis subdomain) ──────────
+⋮----
+// ── UI components (downstream surface for workspace composition) ─────────────
+````
+
+## File: modules/notion/interfaces/authoring/components/ArticleDetailPanel.tsx
+````typescript
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  Archive,
+  ArrowLeft,
+  BadgeCheck,
+  Edit,
+  FileClock,
+  MessageSquare,
+  History,
+  Globe,
+  Link2,
+} from "lucide-react";
+⋮----
+import { getArticle, getCategories, getBacklinks } from "../queries";
+import {
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+} from "../_actions/article.actions";
+import { ArticleDialog } from "./ArticleDialog";
+import type { ArticleSnapshot as Article } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import { CommentPanel } from "../../collaboration/components/CommentPanel";
+import { VersionHistoryPanel } from "../../collaboration/components/VersionHistoryPanel";
+import { ReactMarkdown } from "@lib-react-markdown";
+import { remarkGfm } from "@lib-remark-gfm";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
+⋮----
+// ── Props ─────────────────────────────────────────────────────────────────────
+⋮----
+export interface ArticleDetailPanelProps {
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+⋮----
+// ── Component ─────────────────────────────────────────────────────────────────
+⋮----
+function buildArticleDetailHref(targetArticleId: string): string
+⋮----
+function handlePublish()
+⋮----
+function handleArchive()
+⋮----
+function handleVerify()
+⋮----
+function handleRequestReview()
+⋮----
+<Button variant="ghost" size="sm" onClick=
+⋮----
+{/* Back + actions bar */}
+⋮----
+{/* Header */}
+⋮----
+{/* Body tabs */}
+````
+
 ## File: modules/notion/interfaces/database/components/DatabaseAutomationPanel.tsx
 ````typescript
 /**
@@ -52975,65 +53170,6 @@ export interface KnowledgeDatabasesPanelProps {
 }
 ⋮----
 function handleSuccess(databaseId?: string)
-````
-
-## File: modules/notion/subdomains/database/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- *
- * Open Host Service contracts:
- *   - getDatabaseById  ??consumed by knowledge subdomain (opaque reference resolution)
- */
-⋮----
-// Domain types
-⋮----
-// Repository input types
-⋮----
-// Application DTOs
-⋮----
-// Server actions
-⋮----
-// Queries
-⋮----
-// UI components
-````
-
-## File: modules/notion/subdomains/knowledge/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- */
-⋮----
-// ?? Types (read-only snapshots ??no aggregate class refs) ?????????????????????
-⋮----
-/** @alias KnowledgePageSnapshot ??provided for backward-compatibility */
-⋮----
-// ?? Server action DTOs ????????????????????????????????????????????????????????
-⋮----
-// ?? Query functions (server-side reads) ???????????????????????????????????????
-⋮----
-// ?? Server actions (drives: app router, Server Components) ????????????????????
-⋮----
-// ?? UI Components ?????????????????????????????????????????????????????????????
-⋮----
-// ?? Store ?????????????????????????????????????????????????????????????????????
-⋮----
-// ?? Tree node type (needed by app/ pages) ?????????????????????????????????????
-⋮----
-// ?? Domain events (published language ??for cross-module event subscriptions) ?
-⋮----
-// ?? Sidebar component ?????????????????????????????????????????????????????????
-⋮----
-// ?? Page header widgets ???????????????????????????????????????????????????????
-⋮----
-// ?? Route screen components ???????????????????????????????????????????????????
 ````
 
 ## File: modules/platform/subdomains/account/infrastructure/identity-token-refresh.adapter.ts
@@ -53483,6 +53619,45 @@ onSelectWorkspace(workspace.id);
 accountType=
 ````
 
+## File: modules/notebooklm/api/index.ts
+````typescript
+/**
+ * modules/notebooklm — public API barrel.
+ *
+ * Stable cross-module semantic surface for notebooklm.
+ * Browser-facing route composition should prefer workspace/api when workspace
+ * is the orchestration owner.
+ */
+⋮----
+// ---------------------------------------------------------------------------
+// NotebookLM downstream UI surface
+// Consumed by workspace as the composition owner for browser-facing flows.
+// ---------------------------------------------------------------------------
+⋮----
+// ---------------------------------------------------------------------------
+// Source subdomain — semantic downstream capability surface
+// ---------------------------------------------------------------------------
+⋮----
+// ---------------------------------------------------------------------------
+// conversation subdomain — AI chat helpers and types
+//
+// NOTE: ConversationPanel is NOT re-exported here to avoid a synchronous
+// module-evaluation cycle: workspace/api → workspace interfaces →
+// notebooklm/api → ConversationPanel → workspace/api.
+// Import ConversationPanel from "@/modules/notebooklm/subdomains/conversation/api/ui"
+// or use next/dynamic for lazy loading.
+// ---------------------------------------------------------------------------
+⋮----
+// ---------------------------------------------------------------------------
+// Context-wide published language (cross-module reference types)
+// ---------------------------------------------------------------------------
+⋮----
+// ---------------------------------------------------------------------------
+// Synthesis subdomain — complete RAG pipeline
+// (retrieval → grounding → synthesis → evaluation)
+// ---------------------------------------------------------------------------
+````
+
 ## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
 ````typescript
 /**
@@ -53491,98 +53666,6 @@ accountType=
  * SourceDocumentCommandPort and ParsedDocumentPort are the primary driven ports.
  * Repository contracts are re-exported from domain/repositories/.
  */
-````
-
-## File: modules/notebooklm/subdomains/synthesis/api/index.ts
-````typescript
-/**
- * Public API boundary for the synthesis subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * This subdomain owns the complete RAG pipeline:
- *   retrieval → grounding → synthesis → evaluation
- *
- * Migrated from: ai subdomain (AGENTS.md violation fix)
- * Absorbed from: retrieval, grounding, evaluation stubs (Occam consolidation)
- */
-⋮----
-// ── Canonical domain types (retrieval facet) ─────────────────────────────────
-⋮----
-// ── Canonical domain types (grounding facet) ─────────────────────────────────
-⋮----
-// ── Canonical domain types (synthesis facet) ─────────────────────────────────
-⋮----
-// ── Canonical domain types (evaluation facet) ────────────────────────────────
-⋮----
-// ── Active pipeline types (used by use cases & infrastructure) ───────────────
-⋮----
-// ── Use-case classes (for DI composition within synthesis subdomain) ──────────
-⋮----
-// ── UI components (downstream surface for workspace composition) ─────────────
-````
-
-## File: modules/notion/interfaces/authoring/components/ArticleDetailPanel.tsx
-````typescript
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import {
-  Archive,
-  ArrowLeft,
-  BadgeCheck,
-  Edit,
-  FileClock,
-  MessageSquare,
-  History,
-  Globe,
-  Link2,
-} from "lucide-react";
-⋮----
-import { getArticle, getCategories, getBacklinks } from "../queries";
-import {
-  publishArticle,
-  archiveArticle,
-  verifyArticle,
-  requestArticleReview,
-} from "../_actions/article.actions";
-import { ArticleDialog } from "./ArticleDialog";
-import type { ArticleSnapshot as Article } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import { CommentPanel } from "../../collaboration/components/CommentPanel";
-import { VersionHistoryPanel } from "../../collaboration/components/VersionHistoryPanel";
-import { ReactMarkdown } from "@lib-react-markdown";
-import { remarkGfm } from "@lib-remark-gfm";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-⋮----
-// ── Props ─────────────────────────────────────────────────────────────────────
-⋮----
-export interface ArticleDetailPanelProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-⋮----
-// ── Component ─────────────────────────────────────────────────────────────────
-⋮----
-function buildArticleDetailHref(targetArticleId: string): string
-⋮----
-function handlePublish()
-⋮----
-function handleArchive()
-⋮----
-function handleVerify()
-⋮----
-function handleRequestReview()
-⋮----
-<Button variant="ghost" size="sm" onClick=
-⋮----
-{/* Back + actions bar */}
-⋮----
-{/* Header */}
-⋮----
-{/* Body tabs */}
 ````
 
 ## File: modules/platform/subdomains/account-profile/api/index.ts
@@ -53862,45 +53945,6 @@ interface ShellSidebarBodyProps {
 }
 ⋮----
 className=
-````
-
-## File: modules/notebooklm/api/index.ts
-````typescript
-/**
- * modules/notebooklm — public API barrel.
- *
- * Stable cross-module semantic surface for notebooklm.
- * Browser-facing route composition should prefer workspace/api when workspace
- * is the orchestration owner.
- */
-⋮----
-// ---------------------------------------------------------------------------
-// NotebookLM downstream UI surface
-// Consumed by workspace as the composition owner for browser-facing flows.
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Source subdomain — semantic downstream capability surface
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// conversation subdomain — AI chat helpers and types
-//
-// NOTE: ConversationPanel is NOT re-exported here to avoid a synchronous
-// module-evaluation cycle: workspace/api → workspace interfaces →
-// notebooklm/api → ConversationPanel → workspace/api.
-// Import ConversationPanel from "@/modules/notebooklm/subdomains/conversation/api/ui"
-// or use next/dynamic for lazy loading.
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Context-wide published language (cross-module reference types)
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Synthesis subdomain — complete RAG pipeline
-// (retrieval → grounding → synthesis → evaluation)
-// ---------------------------------------------------------------------------
 ````
 
 ## File: modules/notion/interfaces/database/components/DatabaseListPanel.tsx
@@ -54194,6 +54238,39 @@ export interface KnowledgeBaseArticlesPanelProps {
 function handleSuccess(articleId?: string)
 ````
 
+## File: modules/notion/interfaces/database/components/DatabaseFormsPanel.tsx
+````typescript
+/**
+ * Route: /knowledge-database/databases/[databaseId]/forms
+ * Purpose: Manage database forms ??create and embed form links for a specific database.
+ */
+⋮----
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
+⋮----
+import { getDatabase } from "../queries";
+import { DatabaseFormPanel } from "./DatabaseFormPanel";
+import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
+⋮----
+// ?? Props ?????????????????????????????????????????????????????????????????????
+⋮----
+export interface DatabaseFormsPanelProps {
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+⋮----
+// ?? Component ?????????????????????????????????????????????????????????????????
+⋮----
+<Button variant="ghost" size="sm" onClick=
+⋮----
+{/* Top bar */}
+````
+
 ## File: modules/notion/interfaces/knowledge/components/KnowledgePagesPanel.tsx
 ````typescript
 import { useCallback, useEffect, useState } from "react";
@@ -54363,39 +54440,6 @@ export function buildWorkspaceQuickAccessItems(
     "vitest": "^4.1.2"
   }
 }
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseFormsPanel.tsx
-````typescript
-/**
- * Route: /knowledge-database/databases/[databaseId]/forms
- * Purpose: Manage database forms ??create and embed form links for a specific database.
- */
-⋮----
-import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
-⋮----
-import { getDatabase } from "../queries";
-import { DatabaseFormPanel } from "./DatabaseFormPanel";
-import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-⋮----
-// ?? Props ?????????????????????????????????????????????????????????????????????
-⋮----
-export interface DatabaseFormsPanelProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-⋮----
-// ?? Component ?????????????????????????????????????????????????????????????????
-⋮----
-<Button variant="ghost" size="sm" onClick=
-⋮----
-{/* Top bar */}
 ````
 
 ## File: modules/notion/interfaces/database/components/DatabaseDetailPanel.tsx

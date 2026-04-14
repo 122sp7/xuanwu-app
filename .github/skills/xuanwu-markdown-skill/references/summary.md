@@ -42,11 +42,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-316 files | 19,894 lines
+334 files | 21,780 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 316 | 19,894 |
+| Markdown | 334 | 21,780 |
 
 **Largest files:**
 - `docs/hard-rules-consolidated.md` (455 lines)
@@ -54,8 +54,8 @@ This skill contains the following reference files:
 - `.github/skills/playwright-mcp-testing/SKILL.md` (358 lines)
 - `.github/skills/shadcn/SKILL.md` (296 lines)
 - `py_fn/README.md` (265 lines)
+- `modules/platform/domain/events/DESIGN.md` (257 lines)
 - `.github/prompts/serena-hexagonal-ddd-refactor.prompt.md` (215 lines)
 - `.github/prompts/enforce-hexagonal-ddd-convergence.prompt.md` (215 lines)
 - `.github/instructions/architecture.instructions.md` (211 lines)
 - `docs/bounded-context-subdomain-template.md` (206 lines)
-- `.github/skills/vercel-composition-patterns/rules/state-context-interface.md` (191 lines)
