@@ -25,6 +25,7 @@ export { WorkspaceContextCard } from "../interfaces/web/components/cards/Workspa
 // ── Tab components ───────────────────────────────────────────────────────────
 
 export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
+export { WorkspaceFilesManagementTab } from "../interfaces/web/components/tabs/WorkspaceFilesManagementTab";
 
 // ── Layout components ────────────────────────────────────────────────────────
 

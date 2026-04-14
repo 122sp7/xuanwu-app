@@ -28,6 +28,17 @@ export {
 } from "../interfaces/facades/workspace-member.facade";
 
 export {
+  getWorkspaceManagedFiles,
+  uploadWorkspaceManagedFile,
+  renameWorkspaceManagedFile,
+  deleteWorkspaceManagedFile,
+} from "../interfaces/facades/workspace-file.facade";
+
+export type {
+  WorkspaceManagedFileItem,
+} from "../interfaces/facades/workspace-file.facade";
+
+export {
   getOrganizationAuditLogs,
   getWorkspaceAuditLogs,
 } from "../subdomains/audit/api";

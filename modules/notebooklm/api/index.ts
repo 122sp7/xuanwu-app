@@ -41,6 +41,8 @@ export type {
   SourceLiveDocument,
   AssetDocument,
   AssetLiveDocument,
+  RagDocumentRecord,
+  RagDocumentStatus,
 } from "../subdomains/source/api";
 
 export {
@@ -54,6 +56,17 @@ export {
   addWikiLibraryField,
   createWikiLibraryRow,
   getWikiLibrarySnapshot,
+  uploadWorkspaceSourceFile,
+  getWorkspaceFiles,
+  getWorkspaceRagDocuments,
+  deleteSourceDocument,
+  renameSourceDocument,
+  createKnowledgeDraftFromSourceDocument,
+  processSourceDocumentWorkflow,
+} from "../subdomains/source/api";
+export type {
+  UploadWorkspaceSourceFileInput,
+  UploadWorkspaceSourceFileResult,
 } from "../subdomains/source/api";
 
 

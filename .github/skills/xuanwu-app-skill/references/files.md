@@ -7651,6 +7651,13 @@ export type GenerateNotebookResponseResult =
   | { ok: false; error: DomainError };
 ````
 
+## File: modules/notebooklm/subdomains/notebook/domain/index.ts
+````typescript
+/**
+ * notebooklm/notebook domain — public exports.
+ */
+````
+
 ## File: modules/notebooklm/subdomains/notebook/domain/repositories/NotebookRepository.ts
 ````typescript
 import type {
@@ -9462,6 +9469,11 @@ export interface VersionSnapshot {
 export type VersionId = string;
 ````
 
+## File: modules/notion/subdomains/collaboration/domain/events/index.ts
+````typescript
+
+````
+
 ## File: modules/notion/subdomains/database/application/dto/DatabaseDto.ts
 ````typescript
 /**
@@ -9638,6 +9650,11 @@ export interface ViewSnapshot {
 }
 ⋮----
 export type ViewId = string;
+````
+
+## File: modules/notion/subdomains/database/domain/events/index.ts
+````typescript
+
 ````
 
 ## File: modules/notion/subdomains/knowledge/application/dto/ContentBlockDto.ts
@@ -10005,6 +10022,34 @@ import { z } from "@lib-zod";
 export type VerificationState = z.infer<typeof VerificationStateSchema>;
 ````
 
+## File: modules/notion/subdomains/relations/application/dto/RelationDto.ts
+````typescript
+/**
+ * Module: notion/subdomains/relations
+ * Layer: application/dto
+ * Purpose: Input/output contracts for relation operations.
+ */
+⋮----
+export interface CreateRelationDto {
+  readonly sourceArtifactId: string;
+  readonly targetArtifactId: string;
+  readonly relationType: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+}
+⋮----
+export interface RelationDto {
+  readonly relationId: string;
+  readonly sourceArtifactId: string;
+  readonly targetArtifactId: string;
+  readonly relationType: string;
+  readonly direction: "forward" | "backward";
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly createdAtISO: string;
+}
+````
+
 ## File: modules/notion/subdomains/relations/domain/entities/Relation.ts
 ````typescript
 /**
@@ -10035,6 +10080,34 @@ export interface CreateRelationInput {
   readonly relationType: string;
   readonly organizationId: string;
   readonly workspaceId?: string;
+}
+````
+
+## File: modules/notion/subdomains/taxonomy/application/dto/TaxonomyDto.ts
+````typescript
+/**
+ * Module: notion/subdomains/taxonomy
+ * Layer: application/dto
+ * Purpose: Input/output contracts for taxonomy operations.
+ */
+⋮----
+export interface CreateTaxonomyNodeDto {
+  readonly label: string;
+  readonly parentNodeId: string | null;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+}
+⋮----
+export interface TaxonomyNodeDto {
+  readonly nodeId: string;
+  readonly label: string;
+  readonly parentNodeId: string | null;
+  readonly path: readonly string[];
+  readonly depth: number;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
 }
 ````
 
@@ -32178,6 +32251,50 @@ export async function getWorkspaceRagDocuments(
  */
 ````
 
+## File: modules/notebooklm/subdomains/conversation/domain/events/ConversationEvents.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/conversation
+ * Layer: domain/events
+ * Purpose: Domain events for conversation operations.
+ */
+⋮----
+import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
+⋮----
+export interface ThreadCreatedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.conversation.thread-created";
+  readonly payload: {
+    readonly threadId: string;
+    readonly accountId: string;
+  };
+}
+⋮----
+export interface MessageAddedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.conversation.message-added";
+  readonly payload: {
+    readonly threadId: string;
+    readonly messageId: string;
+    readonly role: "user" | "assistant" | "system";
+    readonly accountId: string;
+  };
+}
+⋮----
+export interface ThreadArchivedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.conversation.thread-archived";
+  readonly payload: {
+    readonly threadId: string;
+    readonly accountId: string;
+  };
+}
+````
+
+## File: modules/notebooklm/subdomains/conversation/domain/index.ts
+````typescript
+/**
+ * notebooklm/conversation domain — public exports.
+ */
+````
+
 ## File: modules/notebooklm/subdomains/conversation/domain/repositories/ThreadRepository.ts
 ````typescript
 /**
@@ -32237,11 +32354,31 @@ interfaces/ → application/ → domain/ ← infrastructure/
  */
 ````
 
-## File: modules/notebooklm/subdomains/notebook/domain/index.ts
+## File: modules/notebooklm/subdomains/notebook/domain/events/NotebookEvents.ts
 ````typescript
 /**
- * notebooklm/notebook domain — public exports.
+ * Module: notebooklm/subdomains/notebook
+ * Layer: domain/events
+ * Purpose: Domain events for notebook AI generation operations.
  */
+⋮----
+import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
+⋮----
+export interface NotebookResponseGeneratedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.notebook.response-generated";
+  readonly payload: {
+    readonly model: string;
+    readonly finishReason?: string;
+  };
+}
+⋮----
+export interface NotebookResponseFailedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.notebook.response-failed";
+  readonly payload: {
+    readonly errorCode: string;
+    readonly errorMessage: string;
+  };
+}
 ````
 
 ## File: modules/notebooklm/subdomains/notebook/domain/ports/index.ts
@@ -32491,6 +32628,64 @@ export class ReindexSourceDocumentUseCase {
 async execute(
     input: ReindexSourceDocumentInputDto,
 ): Promise<SourcePipelineResult<ReindexSourceDocumentOutputDto>>
+````
+
+## File: modules/notebooklm/subdomains/source/domain/events/SourceEvents.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: domain/events
+ * Purpose: Domain events for source document lifecycle operations.
+ */
+⋮----
+import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
+⋮----
+export interface SourceFileUploadedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.source.file-uploaded";
+  readonly payload: {
+    readonly fileId: string;
+    readonly organizationId: string;
+    readonly workspaceId: string;
+    readonly accountId: string;
+    readonly mimeType: string;
+    readonly sizeBytes: number;
+  };
+}
+⋮----
+export interface SourceDocumentProcessedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.source.document-processed";
+  readonly payload: {
+    readonly fileId: string;
+    readonly organizationId: string;
+    readonly chunkCount: number;
+  };
+}
+⋮----
+export interface SourceDocumentDeletedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.source.document-deleted";
+  readonly payload: {
+    readonly fileId: string;
+    readonly organizationId: string;
+    readonly accountId: string;
+  };
+}
+⋮----
+export interface SourceDocumentRenamedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.source.document-renamed";
+  readonly payload: {
+    readonly fileId: string;
+    readonly organizationId: string;
+    readonly previousName: string;
+    readonly newName: string;
+  };
+}
+````
+
+## File: modules/notebooklm/subdomains/source/domain/index.ts
+````typescript
+/**
+ * notebooklm/source domain — public exports.
+ */
 ````
 
 ## File: modules/notebooklm/subdomains/source/domain/ports/KnowledgePageGatewayPort.ts
@@ -34394,9 +34589,76 @@ export class DeleteVersionUseCase {
 async execute(input: DeleteVersionDto): Promise<CommandResult>
 ````
 
-## File: modules/notion/subdomains/collaboration/domain/events/index.ts
+## File: modules/notion/subdomains/collaboration/domain/events/CollaborationEvents.ts
 ````typescript
-
+/**
+ * Module: notion/subdomains/collaboration
+ * Layer: domain/events
+ * Purpose: Domain events for collaboration operations.
+ */
+⋮----
+import type { NotionDomainEvent } from "../../../../domain/events/NotionDomainEvent";
+⋮----
+export interface CommentCreatedEvent extends NotionDomainEvent {
+  readonly type: "notion.collaboration.comment-created";
+  readonly payload: {
+    readonly commentId: string;
+    readonly pageId: string;
+    readonly authorId: string;
+    readonly organizationId: string;
+  };
+}
+⋮----
+export interface CommentResolvedEvent extends NotionDomainEvent {
+  readonly type: "notion.collaboration.comment-resolved";
+  readonly payload: {
+    readonly commentId: string;
+    readonly resolvedById: string;
+    readonly organizationId: string;
+  };
+}
+⋮----
+export interface PermissionGrantedEvent extends NotionDomainEvent {
+  readonly type: "notion.collaboration.permission-granted";
+  readonly payload: {
+    readonly permissionId: string;
+    readonly resourceId: string;
+    readonly granteeId: string;
+    readonly level: string;
+    readonly organizationId: string;
+  };
+}
+⋮----
+export interface PermissionRevokedEvent extends NotionDomainEvent {
+  readonly type: "notion.collaboration.permission-revoked";
+  readonly payload: {
+    readonly permissionId: string;
+    readonly resourceId: string;
+    readonly granteeId: string;
+    readonly organizationId: string;
+  };
+}
+⋮----
+export interface VersionCreatedEvent extends NotionDomainEvent {
+  readonly type: "notion.collaboration.version-created";
+  readonly payload: {
+    readonly versionId: string;
+    readonly pageId: string;
+    readonly authorId: string;
+    readonly versionNumber: number;
+    readonly organizationId: string;
+  };
+}
+⋮----
+export interface VersionRestoredEvent extends NotionDomainEvent {
+  readonly type: "notion.collaboration.version-restored";
+  readonly payload: {
+    readonly versionId: string;
+    readonly pageId: string;
+    readonly restoredById: string;
+    readonly organizationId: string;
+  };
+}
 ````
 
 ## File: modules/notion/subdomains/collaboration/domain/index.ts
@@ -34800,9 +35062,101 @@ async execute(input: DeleteViewDto): Promise<CommandResult>
 // Re-export read queries for backward compatibility
 ````
 
-## File: modules/notion/subdomains/database/domain/events/index.ts
+## File: modules/notion/subdomains/database/domain/events/DatabaseEvents.ts
 ````typescript
-
+/**
+ * Module: notion/subdomains/database
+ * Layer: domain/events
+ * Purpose: Domain events for database operations.
+ */
+⋮----
+import type { NotionDomainEvent } from "../../../../domain/events/NotionDomainEvent";
+⋮----
+export interface DatabaseCreatedEvent extends NotionDomainEvent {
+  readonly type: "notion.database.database-created";
+  readonly payload: {
+    readonly databaseId: string;
+    readonly accountId: string;
+    readonly workspaceId: string;
+    readonly title: string;
+  };
+}
+⋮----
+export interface DatabaseRenamedEvent extends NotionDomainEvent {
+  readonly type: "notion.database.database-renamed";
+  readonly payload: {
+    readonly databaseId: string;
+    readonly previousTitle: string;
+    readonly newTitle: string;
+    readonly organizationId: string;
+  };
+}
+⋮----
+export interface FieldAddedEvent extends NotionDomainEvent {
+  readonly type: "notion.database.field-added";
+  readonly payload: {
+    readonly databaseId: string;
+    readonly fieldId: string;
+    readonly fieldName: string;
+    readonly fieldType: string;
+    readonly organizationId: string;
+  };
+}
+⋮----
+export interface FieldDeletedEvent extends NotionDomainEvent {
+  readonly type: "notion.database.field-deleted";
+  readonly payload: {
+    readonly databaseId: string;
+    readonly fieldId: string;
+    readonly organizationId: string;
+  };
+}
+⋮----
+export interface RecordAddedEvent extends NotionDomainEvent {
+  readonly type: "notion.database.record-added";
+  readonly payload: {
+    readonly databaseId: string;
+    readonly recordId: string;
+    readonly organizationId: string;
+  };
+}
+⋮----
+export interface RecordUpdatedEvent extends NotionDomainEvent {
+  readonly type: "notion.database.record-updated";
+  readonly payload: {
+    readonly databaseId: string;
+    readonly recordId: string;
+    readonly organizationId: string;
+  };
+}
+⋮----
+export interface RecordDeletedEvent extends NotionDomainEvent {
+  readonly type: "notion.database.record-deleted";
+  readonly payload: {
+    readonly databaseId: string;
+    readonly recordId: string;
+    readonly organizationId: string;
+  };
+}
+⋮----
+export interface ViewCreatedEvent extends NotionDomainEvent {
+  readonly type: "notion.database.view-created";
+  readonly payload: {
+    readonly databaseId: string;
+    readonly viewId: string;
+    readonly viewType: string;
+    readonly organizationId: string;
+  };
+}
+⋮----
+export interface ViewUpdatedEvent extends NotionDomainEvent {
+  readonly type: "notion.database.view-updated";
+  readonly payload: {
+    readonly databaseId: string;
+    readonly viewId: string;
+    readonly organizationId: string;
+  };
+}
 ````
 
 ## File: modules/notion/subdomains/database/domain/index.ts
@@ -35760,32 +36114,9 @@ interfaces/ → application/ → domain/ ← infrastructure/
  */
 ````
 
-## File: modules/notion/subdomains/relations/application/dto/RelationDto.ts
+## File: modules/notion/subdomains/relations/application/index.ts
 ````typescript
-/**
- * Module: notion/subdomains/relations
- * Layer: application/dto
- * Purpose: Input/output contracts for relation operations.
- */
-⋮----
-export interface CreateRelationDto {
-  readonly sourceArtifactId: string;
-  readonly targetArtifactId: string;
-  readonly relationType: string;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-}
-⋮----
-export interface RelationDto {
-  readonly relationId: string;
-  readonly sourceArtifactId: string;
-  readonly targetArtifactId: string;
-  readonly relationType: string;
-  readonly direction: "forward" | "backward";
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly createdAtISO: string;
-}
+
 ````
 
 ## File: modules/notion/subdomains/relations/domain/events/RelationEvents.ts
@@ -35858,32 +36189,9 @@ remove(relationId: string): Promise<void>;
  */
 ````
 
-## File: modules/notion/subdomains/taxonomy/application/dto/TaxonomyDto.ts
+## File: modules/notion/subdomains/taxonomy/application/index.ts
 ````typescript
-/**
- * Module: notion/subdomains/taxonomy
- * Layer: application/dto
- * Purpose: Input/output contracts for taxonomy operations.
- */
-⋮----
-export interface CreateTaxonomyNodeDto {
-  readonly label: string;
-  readonly parentNodeId: string | null;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-}
-⋮----
-export interface TaxonomyNodeDto {
-  readonly nodeId: string;
-  readonly label: string;
-  readonly parentNodeId: string | null;
-  readonly path: readonly string[];
-  readonly depth: number;
-  readonly organizationId: string;
-  readonly workspaceId?: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
+
 ````
 
 ## File: modules/notion/subdomains/taxonomy/domain/events/TaxonomyEvents.ts
@@ -47159,50 +47467,6 @@ constructor(private readonly threadRepository: ThreadRepository)
 async execute(accountId: string, thread: Thread): Promise<void>
 ````
 
-## File: modules/notebooklm/subdomains/conversation/domain/events/ConversationEvents.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/conversation
- * Layer: domain/events
- * Purpose: Domain events for conversation operations.
- */
-⋮----
-import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
-⋮----
-export interface ThreadCreatedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.conversation.thread-created";
-  readonly payload: {
-    readonly threadId: string;
-    readonly accountId: string;
-  };
-}
-⋮----
-export interface MessageAddedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.conversation.message-added";
-  readonly payload: {
-    readonly threadId: string;
-    readonly messageId: string;
-    readonly role: "user" | "assistant" | "system";
-    readonly accountId: string;
-  };
-}
-⋮----
-export interface ThreadArchivedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.conversation.thread-archived";
-  readonly payload: {
-    readonly threadId: string;
-    readonly accountId: string;
-  };
-}
-````
-
-## File: modules/notebooklm/subdomains/conversation/domain/index.ts
-````typescript
-/**
- * notebooklm/conversation domain — public exports.
- */
-````
-
 ## File: modules/notebooklm/subdomains/conversation/domain/ports/index.ts
 ````typescript
 /**
@@ -47211,33 +47475,6 @@ export interface ThreadArchivedEvent extends NotebookLmDomainEvent {
  * Re-exports repository contracts from domain/repositories/, making the Ports layer
  * explicitly visible in the directory structure.
  */
-````
-
-## File: modules/notebooklm/subdomains/notebook/domain/events/NotebookEvents.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/notebook
- * Layer: domain/events
- * Purpose: Domain events for notebook AI generation operations.
- */
-⋮----
-import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
-⋮----
-export interface NotebookResponseGeneratedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.notebook.response-generated";
-  readonly payload: {
-    readonly model: string;
-    readonly finishReason?: string;
-  };
-}
-⋮----
-export interface NotebookResponseFailedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.notebook.response-failed";
-  readonly payload: {
-    readonly errorCode: string;
-    readonly errorMessage: string;
-  };
-}
 ````
 
 ## File: modules/notebooklm/subdomains/source/api/index.ts
@@ -47538,64 +47775,6 @@ export async function getWikiLibrarySnapshot(
   libraryId: string,
   libraryRepository: WikiLibraryRepository,
 ): Promise<WikiLibrarySnapshot>
-````
-
-## File: modules/notebooklm/subdomains/source/domain/events/SourceEvents.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: domain/events
- * Purpose: Domain events for source document lifecycle operations.
- */
-⋮----
-import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
-⋮----
-export interface SourceFileUploadedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.source.file-uploaded";
-  readonly payload: {
-    readonly fileId: string;
-    readonly organizationId: string;
-    readonly workspaceId: string;
-    readonly accountId: string;
-    readonly mimeType: string;
-    readonly sizeBytes: number;
-  };
-}
-⋮----
-export interface SourceDocumentProcessedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.source.document-processed";
-  readonly payload: {
-    readonly fileId: string;
-    readonly organizationId: string;
-    readonly chunkCount: number;
-  };
-}
-⋮----
-export interface SourceDocumentDeletedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.source.document-deleted";
-  readonly payload: {
-    readonly fileId: string;
-    readonly organizationId: string;
-    readonly accountId: string;
-  };
-}
-⋮----
-export interface SourceDocumentRenamedEvent extends NotebookLmDomainEvent {
-  readonly type: "notebooklm.source.document-renamed";
-  readonly payload: {
-    readonly fileId: string;
-    readonly organizationId: string;
-    readonly previousName: string;
-    readonly newName: string;
-  };
-}
-````
-
-## File: modules/notebooklm/subdomains/source/domain/index.ts
-````typescript
-/**
- * notebooklm/source domain — public exports.
- */
 ````
 
 ## File: modules/notebooklm/subdomains/source/domain/ports/SourceDocumentPort.ts
@@ -48906,78 +49085,6 @@ get status(): ArticleStatus
  */
 ````
 
-## File: modules/notion/subdomains/collaboration/domain/events/CollaborationEvents.ts
-````typescript
-/**
- * Module: notion/subdomains/collaboration
- * Layer: domain/events
- * Purpose: Domain events for collaboration operations.
- */
-⋮----
-import type { NotionDomainEvent } from "../../../../domain/events/NotionDomainEvent";
-⋮----
-export interface CommentCreatedEvent extends NotionDomainEvent {
-  readonly type: "notion.collaboration.comment-created";
-  readonly payload: {
-    readonly commentId: string;
-    readonly pageId: string;
-    readonly authorId: string;
-    readonly organizationId: string;
-  };
-}
-⋮----
-export interface CommentResolvedEvent extends NotionDomainEvent {
-  readonly type: "notion.collaboration.comment-resolved";
-  readonly payload: {
-    readonly commentId: string;
-    readonly resolvedById: string;
-    readonly organizationId: string;
-  };
-}
-⋮----
-export interface PermissionGrantedEvent extends NotionDomainEvent {
-  readonly type: "notion.collaboration.permission-granted";
-  readonly payload: {
-    readonly permissionId: string;
-    readonly resourceId: string;
-    readonly granteeId: string;
-    readonly level: string;
-    readonly organizationId: string;
-  };
-}
-⋮----
-export interface PermissionRevokedEvent extends NotionDomainEvent {
-  readonly type: "notion.collaboration.permission-revoked";
-  readonly payload: {
-    readonly permissionId: string;
-    readonly resourceId: string;
-    readonly granteeId: string;
-    readonly organizationId: string;
-  };
-}
-⋮----
-export interface VersionCreatedEvent extends NotionDomainEvent {
-  readonly type: "notion.collaboration.version-created";
-  readonly payload: {
-    readonly versionId: string;
-    readonly pageId: string;
-    readonly authorId: string;
-    readonly versionNumber: number;
-    readonly organizationId: string;
-  };
-}
-⋮----
-export interface VersionRestoredEvent extends NotionDomainEvent {
-  readonly type: "notion.collaboration.version-restored";
-  readonly payload: {
-    readonly versionId: string;
-    readonly pageId: string;
-    readonly restoredById: string;
-    readonly organizationId: string;
-  };
-}
-````
-
 ## File: modules/notion/subdomains/collaboration/domain/ports/index.ts
 ````typescript
 /**
@@ -49059,103 +49166,6 @@ export interface DatabaseAutomationSnapshot {
 }
 ⋮----
 export type AutomationId = string;
-````
-
-## File: modules/notion/subdomains/database/domain/events/DatabaseEvents.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: domain/events
- * Purpose: Domain events for database operations.
- */
-⋮----
-import type { NotionDomainEvent } from "../../../../domain/events/NotionDomainEvent";
-⋮----
-export interface DatabaseCreatedEvent extends NotionDomainEvent {
-  readonly type: "notion.database.database-created";
-  readonly payload: {
-    readonly databaseId: string;
-    readonly accountId: string;
-    readonly workspaceId: string;
-    readonly title: string;
-  };
-}
-⋮----
-export interface DatabaseRenamedEvent extends NotionDomainEvent {
-  readonly type: "notion.database.database-renamed";
-  readonly payload: {
-    readonly databaseId: string;
-    readonly previousTitle: string;
-    readonly newTitle: string;
-    readonly organizationId: string;
-  };
-}
-⋮----
-export interface FieldAddedEvent extends NotionDomainEvent {
-  readonly type: "notion.database.field-added";
-  readonly payload: {
-    readonly databaseId: string;
-    readonly fieldId: string;
-    readonly fieldName: string;
-    readonly fieldType: string;
-    readonly organizationId: string;
-  };
-}
-⋮----
-export interface FieldDeletedEvent extends NotionDomainEvent {
-  readonly type: "notion.database.field-deleted";
-  readonly payload: {
-    readonly databaseId: string;
-    readonly fieldId: string;
-    readonly organizationId: string;
-  };
-}
-⋮----
-export interface RecordAddedEvent extends NotionDomainEvent {
-  readonly type: "notion.database.record-added";
-  readonly payload: {
-    readonly databaseId: string;
-    readonly recordId: string;
-    readonly organizationId: string;
-  };
-}
-⋮----
-export interface RecordUpdatedEvent extends NotionDomainEvent {
-  readonly type: "notion.database.record-updated";
-  readonly payload: {
-    readonly databaseId: string;
-    readonly recordId: string;
-    readonly organizationId: string;
-  };
-}
-⋮----
-export interface RecordDeletedEvent extends NotionDomainEvent {
-  readonly type: "notion.database.record-deleted";
-  readonly payload: {
-    readonly databaseId: string;
-    readonly recordId: string;
-    readonly organizationId: string;
-  };
-}
-⋮----
-export interface ViewCreatedEvent extends NotionDomainEvent {
-  readonly type: "notion.database.view-created";
-  readonly payload: {
-    readonly databaseId: string;
-    readonly viewId: string;
-    readonly viewType: string;
-    readonly organizationId: string;
-  };
-}
-⋮----
-export interface ViewUpdatedEvent extends NotionDomainEvent {
-  readonly type: "notion.database.view-updated";
-  readonly payload: {
-    readonly databaseId: string;
-    readonly viewId: string;
-    readonly organizationId: string;
-  };
-}
 ````
 
 ## File: modules/notion/subdomains/database/domain/ports/index.ts
@@ -49483,9 +49493,27 @@ export interface KnowledgePageTreeNode extends KnowledgePageSnapshot {
  */
 ````
 
-## File: modules/notion/subdomains/relations/application/index.ts
+## File: modules/notion/subdomains/relations/api/index.ts
 ````typescript
-
+/**
+ * Public API boundary for the relations subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Status: Tier 2 Recommended Gap Subdomain
+ */
+⋮----
+// ── Domain types ──────────────────────────────────────────────────────────────
+⋮----
+// ── Repository contracts ───────────────────────────────────────────────────────
+⋮----
+// ── Domain events ─────────────────────────────────────────────────────────────
+⋮----
+// ── Application DTOs ──────────────────────────────────────────────────────────
+⋮----
+// ── Application contracts ─────────────────────────────────────────────────────
+⋮----
+// Note: server-only composition and infrastructure adapters are exported from
+// `./server` to keep the default boundary runtime-safe.
 ````
 
 ## File: modules/notion/subdomains/relations/application/use-cases/manage-relation.use-cases.ts
@@ -49552,9 +49580,24 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notion/subdomains/taxonomy/application/index.ts
+## File: modules/notion/subdomains/taxonomy/api/index.ts
 ````typescript
-
+/**
+ * Public API boundary for the taxonomy subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Status: Tier 2 Recommended Gap Subdomain
+ */
+⋮----
+// ── Domain types ──────────────────────────────────────────────────────────────
+⋮----
+// ── Repository contracts ───────────────────────────────────────────────────────
+⋮----
+// ── Domain events ─────────────────────────────────────────────────────────────
+⋮----
+// ── Application DTOs ──────────────────────────────────────────────────────────
+⋮----
+// ── Use cases ─────────────────────────────────────────────────────────────────
 ````
 
 ## File: modules/notion/subdomains/taxonomy/application/use-cases/manage-taxonomy.use-cases.ts
@@ -53472,49 +53515,6 @@ async execute(input: RequestPageReviewDto): Promise<CommandResult>
 export class AssignPageOwnerUseCase {
 ⋮----
 async execute(input: AssignPageOwnerDto): Promise<CommandResult>
-````
-
-## File: modules/notion/subdomains/relations/api/index.ts
-````typescript
-/**
- * Public API boundary for the relations subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Status: Tier 2 Recommended Gap Subdomain
- */
-⋮----
-// ── Domain types ──────────────────────────────────────────────────────────────
-⋮----
-// ── Repository contracts ───────────────────────────────────────────────────────
-⋮----
-// ── Domain events ─────────────────────────────────────────────────────────────
-⋮----
-// ── Application DTOs ──────────────────────────────────────────────────────────
-⋮----
-// ── Application contracts ─────────────────────────────────────────────────────
-⋮----
-// Note: server-only composition and infrastructure adapters are exported from
-// `./server` to keep the default boundary runtime-safe.
-````
-
-## File: modules/notion/subdomains/taxonomy/api/index.ts
-````typescript
-/**
- * Public API boundary for the taxonomy subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Status: Tier 2 Recommended Gap Subdomain
- */
-⋮----
-// ── Domain types ──────────────────────────────────────────────────────────────
-⋮----
-// ── Repository contracts ───────────────────────────────────────────────────────
-⋮----
-// ── Domain events ─────────────────────────────────────────────────────────────
-⋮----
-// ── Application DTOs ──────────────────────────────────────────────────────────
-⋮----
-// ── Use cases ─────────────────────────────────────────────────────────────────
 ````
 
 ## File: modules/platform/interfaces/web/shell/search/ShellGlobalSearchDialog.tsx

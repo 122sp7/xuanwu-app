@@ -49,6 +49,13 @@ export {
   createWikiLibraryRow,
   getWikiLibrarySnapshot,
 } from "../../../interfaces/source/composition/wiki-library-facade";
+export {
+  uploadWorkspaceSourceFile,
+} from "../../../interfaces/source/composition/workspace-files.facade";
+export type {
+  UploadWorkspaceSourceFileInput,
+  UploadWorkspaceSourceFileResult,
+} from "../../../interfaces/source/composition/workspace-files.facade";
 
 // ---------------------------------------------------------------------------
 // Live document DTOs

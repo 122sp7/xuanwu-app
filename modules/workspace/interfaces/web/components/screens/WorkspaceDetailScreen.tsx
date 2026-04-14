@@ -16,8 +16,8 @@ import {
   WorkspaceFlowTab,
   WorkspaceSchedulingTab,
 } from "@/modules/workspace/api/ui";
-import { WorkspaceFilesTab } from "@/modules/notebooklm/api/ui";
 import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
+import { WorkspaceFilesManagementTab } from "../tabs/WorkspaceFilesManagementTab";
 
 import {
   createSettingsDraft,
@@ -159,7 +159,7 @@ export function WorkspaceDetailScreen({
       case "Daily":
         return <WorkspaceDailyTab workspace={workspace} />;
       case "Files":
-        return <WorkspaceFilesTab workspace={workspace} />;
+        return <WorkspaceFilesManagementTab workspace={workspace} />;
       case "Schedule":
         return (
           <WorkspaceSchedulingTab
