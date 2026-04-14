@@ -24,8 +24,12 @@ ai 是共享能力 bounded context。它封裝所有 AI 執行能力——從 ge
 
 - generation 是唯一直接呼叫 LLM provider 的子域，其他子域透過 ports 間接使用。
 - distillation 輸出的是「精煉知識片段」，不是 KnowledgeArtifact；語義屬於 ai，不屬於 notion。
+- memory 若需要長期保存內容，應優先保存 distilled knowledge，而不是無限制保留 raw content。
+- retrieval 若存在可選資料來源，應優先索引 distilled chunks 或結構化 knowledge signal。
+- evaluation 必須覆蓋 distillation，至少檢查 compression、retention 與 hallucination risk。
 - safety 的結果可以終止任何 AI 執行流程。
 - orchestration 是執行圖的主控，不直接持有業務資料。
+- tracing 只負責觀測與 debug，不得改變執行決策。
 - 所有子域的 domain 層必須框架無關。
 
 ## Dependency Direction

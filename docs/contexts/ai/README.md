@@ -35,6 +35,13 @@ ai 是共享 AI capability 主域。它負責 generation、orchestration、disti
 - 與 notion：向 notion 提供 generate、summarize、distill 能力。
 - 與 notebooklm：向 notebooklm 提供 generation、retrieval、distillation 能力。
 
+## Strategic Rules
+
+- Context 應先做 token budgeting、ranking 與壓縮，再把結果交給 generation 或 distillation。
+- Distillation 應被視為 knowledge compiler，而不是單純摘要工具。
+- Retrieval、memory、evaluation 都應明確接收並檢查 distillation 的輸出，而不是各自重新定義相同語義。
+- 大型蒸餾或多來源蒸餾應優先走 async pipeline，避免同步入口承擔過高成本與延遲。
+
 ## Reading Order
 
 1. [subdomains.md](./subdomains.md)

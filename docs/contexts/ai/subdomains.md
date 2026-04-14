@@ -36,9 +36,17 @@
 distillation 將多段 AI 輸出或長文濃縮為精煉、可引用的知識片段，與 generation 的差異在於：
 
 - generation：輸入 prompt → 輸出文字。
-- distillation：輸入多段內容 → 輸出精煉摘要或關鍵洞察。
+- distillation：輸入多段內容 → 輸出 overview、highlights 與其他 schema-ready knowledge fragments。
 
 下游（如 notebooklm）消費 distillation 能力，但 distillation 的輸出語義屬於 ai，不屬於 notebooklm 的推理輸出。
+
+### Distilled Rules
+
+- distillation 應被視為 knowledge compiler，而不是只做單一 summary 字串回傳。
+- memory 應優先吸收 distilled output，避免 raw content 直接放大 token 與成本。
+- retrieval 若可選擇資料來源，應優先使用 distilled chunks 或 structured knowledge signal。
+- evaluation 應把 distillation 視為正式品質對象，至少檢查 compression、retention 與 hallucination 風險。
+- 大型蒸餾流程應優先走 async pipeline，而不是把重工作壓在同步入口。
 
 ## Anti-Patterns
 
