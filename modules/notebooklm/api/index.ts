@@ -59,10 +59,14 @@ export {
   uploadWorkspaceSourceFile,
   getWorkspaceFiles,
   getWorkspaceRagDocuments,
+  getParsedSourceDocumentState,
   getSourceFileVersions,
   deleteSourceDocument,
   renameSourceDocument,
+  parseSourceDocument,
+  reindexSourceDocument,
   createKnowledgeDraftFromSourceDocument,
+  createTasksFromParsedSourceDocument,
   processSourceDocumentWorkflow,
 } from "../subdomains/source/api";
 export type {

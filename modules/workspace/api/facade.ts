@@ -33,9 +33,14 @@ export {
   uploadWorkspaceManagedFile,
   renameWorkspaceManagedFile,
   deleteWorkspaceManagedFile,
+  runWorkspaceManagedFileOcr,
+  runWorkspaceManagedFileRagIndex,
+  createWorkspaceManagedKnowledgePage,
+  createWorkspaceManagedTasks,
 } from "../interfaces/facades/workspace-file.facade";
 
 export type {
+  WorkspaceManagedFileActionResult,
   WorkspaceManagedFileItem,
   WorkspaceManagedFileVersionItem,
 } from "../interfaces/facades/workspace-file.facade";

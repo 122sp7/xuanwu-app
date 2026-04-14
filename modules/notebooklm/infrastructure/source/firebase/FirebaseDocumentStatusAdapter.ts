@@ -20,6 +20,24 @@ function asNumber(value: unknown, fallback = 0): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+export async function getParsedDocumentState(
+  accountId: string,
+  docId: string,
+): Promise<{ status: string; pageCount: number; jsonGcsUri: string } | null> {
+  const document = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+    `accounts/${accountId}/documents/${docId}`,
+  );
+  if (!document) return null;
+
+  const data = asRecord(document);
+  const parsed = asRecord(data.parsed);
+  return {
+    status: asString(data.status, "unknown"),
+    pageCount: asNumber(parsed.page_count, 0),
+    jsonGcsUri: asString(parsed.json_gcs_uri),
+  };
+}
+
 export async function waitForParsedDocument(
   accountId: string,
   docId: string,

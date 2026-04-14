@@ -1,8 +1,13 @@
 import {
+  createKnowledgeDraftFromSourceDocument,
+  createTasksFromParsedSourceDocument,
   deleteSourceDocument,
+  getParsedSourceDocumentState,
   getSourceFileVersions,
   getWorkspaceFiles,
   getWorkspaceRagDocuments,
+  parseSourceDocument,
+  reindexSourceDocument,
   renameSourceDocument,
   uploadWorkspaceSourceFile,
 } from "@/modules/notebooklm/api";
@@ -22,6 +27,9 @@ export interface WorkspaceManagedFileItem {
   readonly storagePath?: string;
   readonly sourceFileName?: string;
   readonly updatedAtISO?: string;
+  readonly jsonGcsUri?: string;
+  readonly pageCount?: number;
+  readonly hasParsedJson: boolean;
 }
 
 export interface WorkspaceManagedFileVersionItem {
@@ -30,6 +38,17 @@ export interface WorkspaceManagedFileVersionItem {
   readonly status: string;
   readonly storagePath: string;
   readonly createdAtISO: string;
+}
+
+export interface WorkspaceManagedFileActionResult {
+  readonly success: boolean;
+  readonly message: string;
+  readonly href?: string;
+}
+
+function toGsUri(storagePath: string): string {
+  const bucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || "xuanwu-i-00708880-4e2d8.firebasestorage.app";
+  return `gs://${bucket}/${storagePath.trim().replace(/^\/+/, "")}`;
 }
 
 export async function getWorkspaceManagedFiles(
@@ -63,6 +82,7 @@ export async function getWorkspaceManagedFiles(
       storagePath: document.storagePath,
       sourceFileName: document.sourceFileName,
       updatedAtISO: document.updatedAtISO,
+      hasParsedJson: false,
     };
   });
 
@@ -83,10 +103,29 @@ export async function getWorkspaceManagedFiles(
         detail: asset.detail,
         href: asset.href,
         updatedAtISO: undefined,
+        hasParsedJson: false,
       })),
   ];
 
-  return merged.sort((left, right) => {
+  const enriched = await Promise.all(
+    merged.map(async (file) => {
+      const parsedState = await getParsedSourceDocumentState(workspace.accountId, file.id);
+      const hasParsedJson = Boolean(parsedState?.jsonGcsUri);
+      const detail = hasParsedJson
+        ? `${file.detail} · JSON 已就緒${parsedState?.pageCount ? `（${parsedState.pageCount} 頁）` : ""}`
+        : file.detail;
+
+      return {
+        ...file,
+        detail,
+        jsonGcsUri: parsedState?.jsonGcsUri || undefined,
+        pageCount: parsedState?.pageCount || undefined,
+        hasParsedJson,
+      } satisfies WorkspaceManagedFileItem;
+    }),
+  );
+
+  return enriched.sort((left, right) => {
     const leftTime = left.updatedAtISO ? Date.parse(left.updatedAtISO) : 0;
     const rightTime = right.updatedAtISO ? Date.parse(right.updatedAtISO) : 0;
     return rightTime - leftTime;
@@ -134,4 +173,106 @@ export async function deleteWorkspaceManagedFile(
   documentId: string,
 ) {
   return deleteSourceDocument(workspace.accountId, documentId);
+}
+
+export async function runWorkspaceManagedFileOcr(
+  workspace: WorkspaceEntity,
+  file: WorkspaceManagedFileItem,
+): Promise<WorkspaceManagedFileActionResult> {
+  if (!file.storagePath) {
+    return { success: false, message: "缺少原始檔案路徑，無法執行 OCR。" };
+  }
+
+  const result = await parseSourceDocument({
+    accountId: workspace.accountId,
+    workspaceId: workspace.id,
+    sourceFileId: file.id,
+    filename: file.name,
+    gcsUri: toGsUri(file.storagePath),
+    mimeType: file.mimeType,
+    sizeBytes: file.sizeBytes,
+  });
+
+  return result.ok
+    ? { success: true, message: "已送出 OCR 解析，完成後會產生對應 JSON。" }
+    : { success: false, message: result.error.message };
+}
+
+export async function runWorkspaceManagedFileRagIndex(
+  workspace: WorkspaceEntity,
+  file: WorkspaceManagedFileItem,
+): Promise<WorkspaceManagedFileActionResult> {
+  if (!file.jsonGcsUri || !file.storagePath) {
+    return { success: false, message: "尚未找到已解析 JSON，請先執行 OCR。" };
+  }
+
+  const result = await reindexSourceDocument({
+    accountId: workspace.accountId,
+    workspaceId: workspace.id,
+    sourceFileId: file.id,
+    filename: file.name,
+    sourceGcsUri: toGsUri(file.storagePath),
+    jsonGcsUri: file.jsonGcsUri,
+    pageCount: file.pageCount ?? 0,
+  });
+
+  return result.ok
+    ? { success: true, message: `RAG 索引已完成，建立 ${result.data.chunkCount} 個 chunks。` }
+    : { success: false, message: result.error.message };
+}
+
+export async function createWorkspaceManagedKnowledgePage(
+  workspace: WorkspaceEntity,
+  file: WorkspaceManagedFileItem,
+  createdByUserId: string,
+): Promise<WorkspaceManagedFileActionResult> {
+  if (!file.jsonGcsUri || !file.storagePath) {
+    return { success: false, message: "尚未找到已解析 JSON，請先執行 OCR。" };
+  }
+
+  const result = await createKnowledgeDraftFromSourceDocument({
+    accountId: workspace.accountId,
+    workspaceId: workspace.id,
+    createdByUserId,
+    filename: file.name,
+    sourceGcsUri: toGsUri(file.storagePath),
+    jsonGcsUri: file.jsonGcsUri,
+    pageCount: file.pageCount ?? 0,
+  });
+
+  return result.success
+    ? {
+      success: true,
+      message: "Knowledge Page 已建立。",
+      href: `/knowledge/pages/${result.aggregateId}`,
+    }
+    : { success: false, message: result.error.message };
+}
+
+export async function createWorkspaceManagedTasks(
+  workspace: WorkspaceEntity,
+  file: WorkspaceManagedFileItem,
+  createdByUserId: string,
+): Promise<WorkspaceManagedFileActionResult> {
+  if (!file.jsonGcsUri || !file.storagePath) {
+    return { success: false, message: "尚未找到已解析 JSON，請先執行 OCR。" };
+  }
+
+  const result = await createTasksFromParsedSourceDocument({
+    accountId: workspace.accountId,
+    workspaceId: workspace.id,
+    createdByUserId,
+    filename: file.name,
+    sourceGcsUri: toGsUri(file.storagePath),
+    jsonGcsUri: file.jsonGcsUri,
+    pageCount: file.pageCount ?? 0,
+  });
+
+  return result.success
+    ? {
+      success: true,
+      message: "任務流程已建立，可前往 Tasks 查看。",
+      href: `/${encodeURIComponent(workspace.accountId)}/${encodeURIComponent(workspace.id)}?tab=Tasks`,
+    }
+    : { success: false, message: result.error.message };
 }

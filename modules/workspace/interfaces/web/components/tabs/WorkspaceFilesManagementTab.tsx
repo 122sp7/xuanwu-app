@@ -5,20 +5,24 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { WorkspaceFilesFilterPanel, type FileStatusFilter } from "./WorkspaceFilesFilterPanel";
 import { WorkspaceFilesSummaryCard } from "./WorkspaceFilesSummaryCard";
 import { WorkspaceManagedFileCard } from "./WorkspaceManagedFileCard";
+import { formatFileSize, getStatusTone, toGsUri } from "./workspace-file-tab.utils";
+import { useAuth } from "@/modules/iam/api";
 import { FileProcessingDialog } from "@/modules/notebooklm/api/ui";
 import {
+  createWorkspaceManagedKnowledgePage,
+  createWorkspaceManagedTasks,
   deleteWorkspaceManagedFile,
   getWorkspaceManagedFileVersions,
   getWorkspaceManagedFiles,
   renameWorkspaceManagedFile,
+  runWorkspaceManagedFileOcr,
+  runWorkspaceManagedFileRagIndex,
   uploadWorkspaceManagedFile,
   type WorkspaceManagedFileItem,
   type WorkspaceManagedFileVersionItem,
 } from "@/modules/workspace/api/facade";
 import { Card, CardContent } from "@ui-shadcn/ui/card";
 import type { WorkspaceEntity } from "../../../../domain/aggregates/Workspace";
-
-const DEFAULT_BUCKET = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || "xuanwu-i-00708880-4e2d8.firebasestorage.app";
 
 interface ProcessingTarget {
   readonly sourceFileId: string;
@@ -29,29 +33,9 @@ interface ProcessingTarget {
 }
 
 type FileWithRelativePath = File & { readonly webkitRelativePath?: string };
-function toGsUri(storagePath: string): string {
-  const normalized = storagePath.trim().replace(/^\/+/, "");
-  return `gs://${DEFAULT_BUCKET}/${normalized}`;
-}
-
-function formatFileSize(sizeBytes: number): string {
-  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) return "—";
-  const units = ["B", "KB", "MB", "GB"] as const;
-  let value = sizeBytes;
-  let unitIndex = 0;
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-  return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)} ${units[unitIndex]}`;
-}
-
-function getStatusTone(status: string): "default" | "secondary" | "outline" {
-  if (status === "ready") return "default";
-  if (status === "processing" || status === "uploaded") return "secondary";
-  return "outline";
-}
 export function WorkspaceFilesManagementTab({ workspace }: { readonly workspace: WorkspaceEntity }) {
+  const { state } = useAuth();
+  const user = state.user;
   const [documents, setDocuments] = useState<readonly WorkspaceManagedFileItem[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [uploading, setUploading] = useState(false);
@@ -214,6 +198,34 @@ export function WorkspaceFilesManagementTab({ workspace }: { readonly workspace:
     }
   }
 
+  async function handleManagedFileAction(
+    doc: WorkspaceManagedFileItem,
+    runner: () => Promise<{ success: boolean; message: string; href?: string }>,
+  ) {
+    setBusyDocId(doc.id);
+    try {
+      const result = await runner();
+      setUploadMessage(result.message);
+      if (result.success) {
+        await reloadLibrary();
+        if (result.href) {
+          window.open(result.href, "_blank", "noopener,noreferrer");
+        }
+      }
+    } finally {
+      setBusyDocId(null);
+    }
+  }
+
+  async function handleActorBoundAction(
+    doc: WorkspaceManagedFileItem,
+    missingMessage: string,
+    runner: (actorId: string) => Promise<{ success: boolean; message: string; href?: string }>,
+  ) {
+    if (!user?.id) return setUploadMessage(missingMessage);
+    await handleManagedFileAction(doc, () => runner(user.id));
+  }
+
   return (
     <div className="space-y-4">
       <WorkspaceFilesSummaryCard
@@ -259,6 +271,7 @@ export function WorkspaceFilesManagementTab({ workspace }: { readonly workspace:
                   setEditingDocId(doc.id);
                   setDraftName(doc.name);
                 }}
+                onRunOcr={() => void handleManagedFileAction(doc, () => runWorkspaceManagedFileOcr(workspace, doc))}
                 onOpenProcessing={() => {
                   if (!doc.storagePath) return;
                   setProcessingTarget({
@@ -269,6 +282,17 @@ export function WorkspaceFilesManagementTab({ workspace }: { readonly workspace:
                     sizeBytes: doc.sizeBytes,
                   });
                 }}
+                onCreateRagIndex={() => void handleManagedFileAction(doc, () => runWorkspaceManagedFileRagIndex(workspace, doc))}
+                onCreateKnowledgePage={() => void handleActorBoundAction(
+                  doc,
+                  "請先登入後再建立 Knowledge Page。",
+                  (actorId) => createWorkspaceManagedKnowledgePage(workspace, doc, actorId),
+                )}
+                onCreateTasks={() => void handleActorBoundAction(
+                  doc,
+                  "請先登入後再建立任務。",
+                  (actorId) => createWorkspaceManagedTasks(workspace, doc, actorId),
+                )}
                 onToggleVersionHistory={() => void toggleVersionHistory(doc.id)}
                 onDelete={() => void handleDeleteDocument(doc)}
                 getStatusTone={getStatusTone}

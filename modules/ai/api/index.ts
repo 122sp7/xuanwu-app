@@ -19,3 +19,17 @@ export type {
   DistillationResult,
   DistillationSource,
 } from "../subdomains/distillation/api";
+
+export type {
+  PromptExecutionMode,
+  PromptTemplateDescriptor,
+  ResolvedPrompt,
+  SourceFollowUpPromptInput,
+  SourceFollowUpPromptIntent,
+} from "../subdomains/prompt/api";
+
+export {
+  listSourceFollowUpPrompts,
+  resolveSourceFollowUpPrompt,
+  sourceFollowUpPromptService,
+} from "../subdomains/prompt/api";

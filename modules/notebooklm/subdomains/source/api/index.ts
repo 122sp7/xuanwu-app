@@ -79,7 +79,12 @@ export {
 // Queries
 // ---------------------------------------------------------------------------
 
-export { getWorkspaceFiles, getWorkspaceRagDocuments, getSourceFileVersions } from "../../../interfaces/source/queries/source-file.queries";
+export {
+  getWorkspaceFiles,
+  getWorkspaceRagDocuments,
+  getParsedSourceDocumentState,
+  getSourceFileVersions,
+} from "../../../interfaces/source/queries/source-file.queries";
 
 // ---------------------------------------------------------------------------
 // Server actions
@@ -94,7 +99,10 @@ export {
 } from "../../../interfaces/source/_actions/source-file.actions";
 
 export {
+  parseSourceDocument,
+  reindexSourceDocument,
   createKnowledgeDraftFromSourceDocument,
+  createTasksFromParsedSourceDocument,
   processSourceDocumentWorkflow,
 } from "../../../interfaces/source/_actions/source-processing.actions";
 export type {

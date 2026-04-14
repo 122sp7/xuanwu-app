@@ -4,7 +4,10 @@ import { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/so
 import { FirebaseSourceFileAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceFileAdapter";
 import { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
 import { NotionKnowledgePageGatewayAdapter } from "../../../infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter";
-import { waitForParsedDocument as _waitForParsedDocument } from "../../../infrastructure/source/firebase/FirebaseDocumentStatusAdapter";
+import {
+  getParsedDocumentState as _getParsedDocumentState,
+  waitForParsedDocument as _waitForParsedDocument,
+} from "../../../infrastructure/source/firebase/FirebaseDocumentStatusAdapter";
 import { PlatformSourcePipelineAdapter } from "../../../infrastructure/source/platform/PlatformSourcePipelineAdapter";
 import { PlatformSourceStorageAdapter } from "../../../infrastructure/source/platform/PlatformSourceStorageAdapter";
 import { PlatformSourceDocumentWatchAdapter } from "../../../infrastructure/source/platform/PlatformSourceDocumentWatchAdapter";
@@ -66,6 +69,13 @@ export function makeSourceStorageAdapter(): SourceStoragePort {
 
 export function makeSourceDocumentWatchAdapter(): SourceDocumentWatchPort {
   return new PlatformSourceDocumentWatchAdapter();
+}
+
+export function getParsedDocumentState(
+  accountId: string,
+  docId: string,
+): Promise<{ status: string; pageCount: number; jsonGcsUri: string } | null> {
+  return _getParsedDocumentState(accountId, docId);
 }
 
 export function waitForParsedDocument(

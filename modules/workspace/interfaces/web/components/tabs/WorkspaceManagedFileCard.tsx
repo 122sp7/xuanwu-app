@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Pencil, Trash2, Wand2 } from "lucide-react";
 
+import { listSourceFollowUpPrompts } from "@/modules/ai/api";
 import type {
   WorkspaceManagedFileItem,
   WorkspaceManagedFileVersionItem,
@@ -25,12 +26,20 @@ interface WorkspaceManagedFileCardProps {
   readonly onSave: () => void;
   readonly onCancelEdit: () => void;
   readonly onStartEdit: () => void;
+  readonly onRunOcr: () => void;
   readonly onOpenProcessing: () => void;
+  readonly onCreateRagIndex: () => void;
+  readonly onCreateKnowledgePage: () => void;
+  readonly onCreateTasks: () => void;
   readonly onToggleVersionHistory: () => void;
   readonly onDelete: () => void;
   readonly getStatusTone: (status: string) => "default" | "secondary" | "outline";
   readonly formatFileSize: (sizeBytes: number) => string;
 }
+
+const promptSummaryByIntent = new Map(
+  listSourceFollowUpPrompts("manual").map((prompt) => [prompt.intent, prompt.summary] as const),
+);
 
 export function WorkspaceManagedFileCard({
   doc,
@@ -44,7 +53,11 @@ export function WorkspaceManagedFileCard({
   onSave,
   onCancelEdit,
   onStartEdit,
+  onRunOcr,
   onOpenProcessing,
+  onCreateRagIndex,
+  onCreateKnowledgePage,
+  onCreateTasks,
   onToggleVersionHistory,
   onDelete,
   getStatusTone,
@@ -74,9 +87,24 @@ export function WorkspaceManagedFileCard({
         </div>
 
         <div className="flex flex-wrap gap-2 lg:justify-end">
-          <Button size="sm" variant="outline" disabled={!doc.storagePath} onClick={onOpenProcessing}>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!doc.storagePath || isBusy}
+            onClick={onRunOcr}
+            title={promptSummaryByIntent.get("source-ocr")}
+          >
             <Wand2 className="mr-1.5 h-4 w-4" />
-            OCR / 後續處理
+            OCR
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!doc.storagePath || isBusy}
+            onClick={onOpenProcessing}
+            title="開啟多步驟後續處理流程"
+          >
+            後續處理
           </Button>
           {doc.href ? (
             <Button asChild size="sm" variant="outline">
@@ -94,6 +122,43 @@ export function WorkspaceManagedFileCard({
           </Button>
         </div>
       </div>
+
+      {doc.hasParsedJson ? (
+        <div className="mt-3 flex flex-col gap-2 rounded-lg border border-dashed border-emerald-500/40 bg-emerald-500/5 p-3">
+          <p className="text-xs text-muted-foreground">
+            JSON 已就緒，可直接執行單一步驟動作。
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={onCreateRagIndex}
+              disabled={isBusy}
+              title={promptSummaryByIntent.get("source-rag-index")}
+            >
+              建立 RAG 索引
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={onCreateKnowledgePage}
+              disabled={isBusy}
+              title={promptSummaryByIntent.get("source-knowledge-page")}
+            >
+              建立 Knowledge Page
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={onCreateTasks}
+              disabled={isBusy}
+              title={promptSummaryByIntent.get("source-task-materialization")}
+            >
+              建立 任務
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {isVersionExpanded ? (
         <WorkspaceFileVersionHistory

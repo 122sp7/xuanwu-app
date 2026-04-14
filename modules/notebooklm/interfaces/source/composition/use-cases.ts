@@ -6,6 +6,7 @@ import { RegisterUploadedRagDocumentUseCase } from "../../../subdomains/source/a
 import { RenameSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/rename-source-document.use-case";
 import { DeleteSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/delete-source-document.use-case";
 import { CreateKnowledgeDraftFromSourceUseCase, type KnowledgePageGateway } from "../../../subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case";
+import { CreateTasksFromSourceUseCase } from "../../../subdomains/source/application/use-cases/create-tasks-from-source.use-case";
 import type { SourceFileRepository } from "../../../subdomains/source/domain/repositories/SourceFileRepository";
 import type { RagDocumentRepository } from "../../../subdomains/source/domain/repositories/RagDocumentRepository";
 import type { SourceDocumentCommandPort } from "../../../subdomains/source/domain/ports/SourceDocumentPort";
@@ -33,6 +34,7 @@ export interface SourceUseCases {
   readonly renameSourceDocument: RenameSourceDocumentUseCase;
   readonly deleteSourceDocument: DeleteSourceDocumentUseCase;
   readonly createKnowledgeDraftFromSource: CreateKnowledgeDraftFromSourceUseCase;
+  readonly createTasksFromSource: CreateTasksFromSourceUseCase;
 }
 
 interface ParsedDocumentStatusPort {
@@ -84,5 +86,10 @@ export function makeSourceUseCases(
     renameSourceDocument: new RenameSourceDocumentUseCase(documentCommandPort),
     deleteSourceDocument: new DeleteSourceDocumentUseCase(documentCommandPort),
     createKnowledgeDraftFromSource: createDraftUseCase,
+    createTasksFromSource: new CreateTasksFromSourceUseCase(
+      createDraftUseCase,
+      parsedDocumentPort,
+      taskWorkflowPort,
+    ),
   };
 }
