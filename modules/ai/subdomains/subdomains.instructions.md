@@ -1,228 +1,311 @@
 ---
-description: 'AI subdomains structural rules: hexagonal per subdomain, strict boundary isolation, orchestration vs inference separation, and domain purity enforcement.'
-applyTo: 'modules/ai/subdomains/**/*.{ts,tsx,md}'
+description: "AI subdomains architecture rules: capability-based subdomains, strict hexagonal boundaries, orchestration as application kernel, and infrastructure isolation."
+applyTo: "modules/ai/subdomains/**/*.{ts,tsx,md}"
 ---
-
-# AI Subdomains Layer (Local)
-
-This document defines execution guardrails for `modules/ai/subdomains/*`.
-It must be consistent with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/ai/subdomains.md`.
-
----
-
-## 1. Subdomain Standard Shape (Hexagonal Core)
-
-Each active subdomain MUST follow a consistent hexagonal layout:
-
 ```
 
+# AI Subdomains Layer (Canonical)
+
+This document defines structural rules for `modules/ai/subdomains/*`.
+
+It must align with AI execution architecture principles and remain consistent with DDD + Hexagonal + AI pipeline separation.
+
+---
+
+# 1️⃣ Core Principle
+
+Subdomains represent **capabilities inside a single AI execution engine**, NOT services.
+
+* ❌ NOT microservices
+* ❌ NOT independent APIs
+* ❌ NOT cross-service bus participants
+* ✔ ARE internal capability modules
+
+---
+
+# 2️⃣ Standard Subdomain Structure (Hexagonal Capability Module)
+
+Each subdomain MUST follow this structure:
+
+```
 api/
 application/
 domain/
 infrastructure/
 interfaces/
-ports/        (optional but preferred for external boundaries)
+ports/        (preferred for external contracts)
 README.md
-
 ```
 
-Rules:
-- `domain/` contains pure business logic only (no SDKs, no framework code)
-- `application/` contains use cases and coordination logic
-- `api/` is the ONLY cross-subdomain entry point
-- `interfaces/` defines inbound/outbound contracts (DTOs, ports contracts)
-- `infrastructure/` contains external integrations (Firebase, LLM SDKs, DB, APIs)
+---
+
+## Layer Responsibilities
+
+### domain/
+
+* Pure business logic
+* No SDKs, no LLM calls, no Firebase
+* Deterministic rules only
+
+### application/
+
+* Use cases
+* Coordination logic within the subdomain
+* Can call ports/interfaces
+
+### interfaces/
+
+* DTOs
+* Input/output contracts
+* Boundary definitions
+
+### ports/
+
+* Abstract external dependencies
+* LLM, DB, retrieval, tools, etc.
+
+### infrastructure/
+
+* Implements ports
+* Firebase / LLM SDK / vector DB / APIs
+
+### api/
+
+* External entry point ONLY
+* HTTP / Firebase Functions / Edge endpoints
 
 ---
 
-## 2. Boundary Isolation Rules
+# 3️⃣ System-Level Architecture Rule
 
-### 2.1 Cross-subdomain access rule
-- A subdomain MUST NOT import internals of another subdomain:
-  - ❌ `domain/` of sibling
-  - ❌ `application/` of sibling
-  - ❌ `infrastructure/` of sibling
-  - ❌ `interfaces/` of sibling
-- Allowed:
-  - ✅ import ONLY from sibling `api/`
+## 3.1 API is NOT internal bus
 
-This enforces strict bounded-context isolation inside `ai/*`.
+* ❌ subdomain-to-subdomain MUST NOT communicate via `api/`
+* ✔ api is ONLY external boundary
 
 ---
 
-### 2.2 Data ownership rule
-- Each subdomain owns its own Firestore collections
-- No direct read/write to another subdomain's collections
-- Cross-domain data access must go through:
-  - `api/` layer
-  - or orchestration pipeline contracts
+## 3.2 Internal communication model
+
+Subdomains communicate via:
+
+```
+application → ports → application
+```
+
+or via orchestration kernel:
+
+```
+orchestration (application) → subdomain application
+```
 
 ---
 
-## 3. Dependency Direction (Strict Layering)
+# 4️⃣ Dependency Rules (Strict Direction)
 
 Inside each subdomain:
 
 ```
-
 interfaces → application → domain ← infrastructure
-
 ```
 
 Rules:
-- `domain/` is the center and must not depend on anything else
-- `application/` depends on `domain/`
-- `interfaces/` depends on `application/`
-- `infrastructure/` depends on `domain/` (implements ports/adapters only)
+
+* domain is pure and independent
+* application depends only on domain + ports
+* infrastructure implements ports only
+* interfaces define contracts only
 
 ---
 
-## 4. Provider Isolation Rule (AI Safety Boundary)
+# 5️⃣ Cross-Subdomain Communication Rule
 
-- External AI providers (OpenAI / Gemini / Vertex / others) MUST ONLY exist in:
-  - `infrastructure/`
-- Forbidden in:
-  - `domain/`
-  - `application/`
-- Provider logic must be abstracted behind ports defined in `interfaces/ports/`
+### Allowed:
 
----
+* orchestration application calls other subdomain application via interfaces/ports
 
-## 5. Subdomain Responsibilities
+### Forbidden:
 
-### 5.1 orchestration
-- Owns multi-step pipeline composition
-- Controls routing between subdomains
-- Manages execution graph
-- Does NOT perform raw inference
-
-### 5.2 inference
-- Owns single model invocation boundary
-- Handles prompt execution abstraction
-- Does NOT orchestrate multi-step workflows
-
-### 5.3 context
-- Constructs per-request context window
-- Stateless per execution
-- Must NOT store persistent memory
-
-### 5.4 memory
-- Persistent cross-request state
-- Long-term user or system memory
-- Must NOT include request-time prompt assembly logic
-
-### 5.5 retrieval
-- Responsible for candidate ranking / fetching
-- Does NOT generate final answers
-- Does NOT perform reasoning or synthesis
-
-### 5.6 reasoning
-- Performs structured inference logic
-- Works on inputs only (no retrieval ownership)
-- May consume retrieval results but cannot fetch them directly
-
-### 5.7 generation
-- Produces final output artifacts
-- Consumes reasoning + context
-- Must NOT perform retrieval or orchestration
-
-### 5.8 evaluation
-- Evaluates output quality, correctness, regression
-- NOT for billing, usage tracking, or telemetry aggregation
-
-### 5.9 distillation
-- Produces compressed datasets / fine-tuning data
-- Must NOT generate canonical production content
-- Must remain downstream-only from generation/evaluation outputs
-
-### 5.10 tool-calling
-- Defines tool invocation contracts
-- Executes structured tool calls via orchestration
-- Must remain stateless
-
-### 5.11 safety
-- Enforces policy constraints and filtering rules
-- Must operate as a pre-generation gate
-- Cannot modify domain logic directly
-
-### 5.12 tracing
-- Observability layer for AI execution flows
-- Captures execution graphs, latency, and dependencies
-- Must NOT influence decision logic
+* ❌ direct domain-to-domain coupling
+* ❌ infrastructure-to-infrastructure coupling
+* ❌ api-to-api internal routing
 
 ---
 
-## 6. Cross-Subdomain Collaboration Rule
+# 6️⃣ AI Capability Subdomain Definitions
 
-All cross-subdomain communication MUST flow through:
+## 6.1 orchestration (system kernel)
+
+* Owns execution graph
+* Controls workflow sequencing
+* Calls subdomains via application layer
+* Does NOT perform inference itself
+
+---
+
+## 6.2 context
+
+* Builds request-time context
+* Stateless per execution
+* No persistence logic
+
+---
+
+## 6.3 memory
+
+* Persistent state across sessions
+* Read/write via ports only
+* No prompt construction logic
+
+---
+
+## 6.4 retrieval
+
+* Fetches and ranks candidates
+* No final answer generation
+* May use scoring models but no synthesis
+
+---
+
+## 6.5 reasoning
+
+* Structured inference logic
+* Operates on prepared inputs only
+* No data fetching responsibility
+
+---
+
+## 6.6 generation
+
+* Produces final output
+* Consumes reasoning + context
+* No retrieval or orchestration logic
+
+---
+
+## 6.7 tool-calling
+
+* Defines tool schemas and invocation contracts
+* Execution is handled in infrastructure/adapters
+* Stateless logic only
+
+---
+
+## 6.8 safety
+
+* Policy enforcement layer
+* Pre/post generation guardrails
+* Cannot modify domain logic
+
+---
+
+## 6.9 evaluation
+
+* Quality scoring and regression checks
+* Offline/online evaluation logic
+* No telemetry aggregation
+
+---
+
+## 6.10 distillation
+
+* Produces training datasets
+* Downstream-only from evaluation/generation
+
+---
+
+## 6.11 tracing
+
+* Observability only
+* Execution logs, latency, graph tracing
+* Must NOT affect decisions
+
+---
+
+# 7️⃣ AI Execution Flow (Canonical Model)
 
 ```
-
-subdomain/api/
-
+context
+   ↓
+retrieval
+   ↓
+reasoning
+   ↓
+tool-calling (optional)
+   ↓
+generation
+   ↓
+evaluation (async)
 ```
 
-Never:
-- direct application-to-application calls
-- domain-to-domain coupling
-- infrastructure sharing between subdomains
+Controlled by:
 
-Allowed pattern:
 ```
-
-orchestration/api → retrieval/api → reasoning/api → generation/api
-
+orchestration (application kernel)
 ```
 
 ---
 
-## 7. Event Naming Convention
-
-Domain events MUST follow:
+# 8️⃣ Event Convention
 
 ```
-
-ai.<subdomain>.<action>
-
+ai.<subdomain>.<event>
 ```
 
 Examples:
-- `ai.orchestration.pipeline-completed`
-- `ai.inference.model-called`
-- `ai.retrieval.candidates-ranked`
-- `ai.evaluation.score-computed`
+
+* ai.orchestration.started
+* ai.retrieval.completed
+* ai.reasoning.finished
+* ai.generation.completed
+* ai.evaluation.scored
 
 Rules:
-- events are immutable contracts
-- events are emitted from `domain/` or `application/` only
-- `infrastructure/` cannot define event semantics
+
+* domain/application emit events
+* infrastructure publishes events
+* events are immutable contracts
 
 ---
 
-## 8. Stub Promotion Rule
+# 9️⃣ Subdomain Activation Rule
 
-A subdomain is considered **ACTIVE** only when:
+A subdomain is ACTIVE only if:
 
-- `README.md` exists and defines responsibility
-- `domain/` contains non-trivial logic (not only index exports)
-- ADR exists for activation decision
-- at least one real integration exists in `application/` or `infrastructure/`
+* README defines responsibility
+* application layer contains real use cases
+* at least one port is implemented
+* infrastructure integration exists
 
 Otherwise:
-- it is considered a **stub**
-- must not be used as dependency target
+
+* treated as capability stub
+* cannot be referenced by orchestration
 
 ---
 
-## 9. Critical Semantic Separations
+# 🔟 Critical Semantic Constraints (Non-Negotiable)
 
-- `context` ≠ `memory`
-- `orchestration` ≠ `inference`
-- `retrieval` ≠ `generation`
-- `evaluation` ≠ `telemetry`
-- `distillation` ≠ `production content`
+* context ≠ memory
+* retrieval ≠ generation
+* reasoning ≠ orchestration
+* evaluation ≠ telemetry
+* tool-calling ≠ execution engine
+* api ≠ internal communication layer
 
-These separations are strict and non-negotiable.
+---
+
+# 🧠 Final Model
+
+This architecture represents:
+
+> AI Execution Engine with Capability-Based Modular Subdomains
+
+NOT:
+
+* microservices
+* API mesh
+* distributed services system
 
 ---
 
