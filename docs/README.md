@@ -4,7 +4,7 @@
 
 ## Purpose
 
-這份文件集提供四個主域的 architecture-first 戰略藍圖，並用單一決策日誌與主域文件消除術語、邊界與關係上的衝突。
+這份文件集提供八個主域 / bounded context 的 architecture-first 戰略藍圖，並用單一決策日誌與主域文件消除術語、邊界與關係上的衝突。
 
 ## Architecture Baseline
 
@@ -24,7 +24,7 @@
 | Document | Role |
 |---|---|
 | [architecture-overview.md](./architecture-overview.md) | 全域架構敘事總覽 |
-| [subdomains.md](./subdomains.md) | 四主域與子域總清單 |
+| [subdomains.md](./subdomains.md) | 八主域與子域總清單 |
 | [bounded-contexts.md](./bounded-contexts.md) | 主域與子域所有權地圖 |
 | [context-map.md](./context-map.md) | 主域間關係圖與方向 |
 | [ubiquitous-language.md](./ubiquitous-language.md) | 戰略詞彙表 |
@@ -39,8 +39,12 @@
 
 ## Context Folders
 
-- [contexts/workspace/README.md](./contexts/workspace/README.md)
+- [contexts/ai/README.md](./contexts/ai/README.md)
+- [contexts/analytics/README.md](./contexts/analytics/README.md)
+- [contexts/billing/README.md](./contexts/billing/README.md)
+- [contexts/iam/README.md](./contexts/iam/README.md)
 - [contexts/platform/README.md](./contexts/platform/README.md)
+- [contexts/workspace/README.md](./contexts/workspace/README.md)
 - [contexts/notion/README.md](./contexts/notion/README.md)
 - [contexts/notebooklm/README.md](./contexts/notebooklm/README.md)
 

@@ -30,9 +30,10 @@
 
 ## Domain-Specific Guidance
 
-- workspace 消費 platform 時，優先保護自己的 membership、sharing、presence 語言。
-- notion 消費 platform 或 workspace 時，優先保護自己的 knowledge artifact 與 taxonomy 語言。
-- notebooklm 消費 notion 時，優先保護自己的 retrieval、grounding、synthesis 語言。
+- workspace 消費 iam、billing 或 platform 時，優先保護自己的 membership、sharing、presence 語言。
+- notion 消費 iam、billing、ai 或 workspace 時，優先保護自己的 knowledge artifact 與 taxonomy 語言。
+- notebooklm 消費 notion、iam、billing 或 ai 時，優先保護自己的 retrieval、grounding、synthesis 語言。
+- analytics 消費其他主域時，應以 event projection 與 local read model 為主，不回寫上游 canonical model。
 
 ## App Router Boundary Guidance
 

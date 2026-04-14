@@ -4,10 +4,14 @@
 
 ## System Shape
 
-系統以四個主域組成，每個主域都視為一個有自己語言與規則的 bounded context 族群：
+系統以八個主域 / bounded context 組成，每個主域都視為一個有自己語言與規則的邊界：
 
+- iam：身份、租戶、存取判定與安全治理
+- billing：訂閱、權益、推薦與商業生命週期
+- ai：共享 AI capability orchestration、provider routing、safety 與 policy
+- analytics：報表、指標、儀表板與下游 read model 投影
+- platform：account、organization、notification、search、audit 與 operational services
 - workspace：協作容器與工作區範疇
-- platform：治理、身份、權益與營運支撐
 - notion：正典知識內容生命週期
 - notebooklm：對話、來源處理與推理輸出
 
@@ -27,8 +31,12 @@
 
 | Main Domain | Strategic Role | What It Owns |
 |---|---|---|
+| iam | 治理上游 | actor、identity、tenant、access decision、security policy |
+| billing | 商業上游 | subscription、entitlement、billing event、referral |
+| ai | 共享能力上游 | provider routing、model policy、quota、safety guardrails、prompt and flow orchestration |
+| analytics | 分析下游 | reporting、metrics、dashboard、projection read model |
+| platform | 平台營運支撐 | account、organization、team、notification、search、audit-log、observability、operational workflow |
 | workspace | 協作範疇 | workspaceId、membership、sharing、presence、feed、audit、scheduling、workspace-workflow |
-| platform | 治理上游 | actor、tenant、access、policy、entitlement、billing、ai capability、notification、audit-log |
 | notion | 正典內容 | knowledge artifact、taxonomy、relations、publication、knowledge-versioning |
 | notebooklm | 推理輸出 | ingestion、retrieval、grounding、conversation、synthesis、evaluation、conversation-versioning |
 
@@ -36,21 +44,25 @@
 
 | Upstream | Downstream | Reason |
 |---|---|---|
-| platform | workspace | 提供治理結果與權益判定 |
-| platform | notion | 提供治理結果與權益判定 |
-| platform | notebooklm | 提供治理結果與權益判定 |
-| workspace | notion | 提供 workspace scope 與 sharing scope |
-| workspace | notebooklm | 提供 workspace scope 與 sharing scope |
-| notion | notebooklm | 提供可引用的知識內容來源 |
+| iam | billing | 提供 actor、tenant 與 access policy 基線 |
+| iam | platform | 提供身份與安全治理基線 |
+| iam | workspace / notion / notebooklm | 提供 actor、tenant、access decision |
+| billing | workspace / notion / notebooklm | 提供 entitlement 與 subscription capability signal |
+| ai | notion / notebooklm | 提供 shared AI capability、model policy、quota 與 safety |
+| platform | workspace | 提供 account、organization 與 shared operational surface |
+| workspace | notion / notebooklm | 提供 workspace scope、membership scope、share scope |
+| notion | notebooklm | 提供可引用的正典知識內容來源 |
+| iam / billing / platform / workspace / notion / notebooklm | analytics | 輸出事件與 read model 供分析使用 |
 
 ## Contradiction-Free Rules
 
-- 只有四個主域，不再引入其他平級主域。
+- 目前採八個主域 / bounded context；若未來再切分，必須用新的 ADR 明確記錄。
 - 戰略文件若需要描述缺口，一律使用 recommended gap subdomains，而不是假裝它們已被實作驗證。
-- platform 是治理上游，不是內容或對話的正典擁有者。
-- platform 擁有 shared AI capability，但不擁有 notion 的正典內容語言或 notebooklm 的推理輸出語言。
-- notion 是正典內容擁有者，不是治理上游。
-- notebooklm 是衍生推理輸出擁有者，不是正典內容擁有者。
+- iam 是身份與存取治理上游，不是內容或商業正典擁有者。
+- billing 擁有 subscription 與 entitlement 的商業語義，不再把它們掛回 platform。
+- ai 擁有 shared AI capability，但不擁有 notion 的正典內容語言或 notebooklm 的推理輸出語言。
+- analytics 是下游 read-model sink，不應反向成為其他主域的 canonical owner。
+- notion 是正典內容擁有者；notebooklm 是衍生推理輸出擁有者。
 
 ## System-Wide Dependency Direction
 

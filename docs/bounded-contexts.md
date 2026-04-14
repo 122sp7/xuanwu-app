@@ -4,14 +4,18 @@
 
 ## Strategic Bounded Context Model
 
-系統固定由四個主域構成。每個主域下可再分成 baseline subdomains 與 recommended gap subdomains。
+系統目前以八個主域 / bounded context 構成。每個主域下可再分成 baseline subdomains 與 recommended gap subdomains。
 
 ## Main Domain Map
 
 | Main Domain | Strategic Role | Baseline Focus | Recommended Gap Focus |
 |---|---|---|---|
+| iam | 身份與存取治理 | identity、access-control、tenant、security-policy | session、consent、secret-governance |
+| billing | 商業與權益治理 | billing、subscription、entitlement、referral | pricing、invoice、quota-policy |
+| ai | 共享 AI capability | provider-routing、model-policy、safety-guardrail、prompt-pipeline | evaluation-policy、model-observability |
+| analytics | 分析與 read model 下游 | reporting、metrics、dashboards、telemetry-projection | experimentation、decision-support |
+| platform | 平台營運支撐 | account、organization、notification、search、audit-log、observability | consent、secret-management、operational-catalog |
 | workspace | 協作容器與 scope | audit、feed、scheduling、workspace-workflow | lifecycle、membership、sharing、presence |
-| platform | 治理與營運支撐 | identity、organization、access、policy、billing、ai、notification、observability | tenant、entitlement、secret-management、consent |
 | notion | 正典知識內容 | knowledge、authoring、collaboration、database、templates、knowledge-versioning | taxonomy、relations、publishing |
 | notebooklm | 對話與推理 | conversation、note、notebook、source、synthesis、conversation-versioning | ingestion、retrieval、grounding、evaluation |
 

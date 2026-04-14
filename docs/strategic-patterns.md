@@ -6,7 +6,7 @@
 
 | Pattern | Usage In This Architecture |
 |---|---|
-| Bounded Context | 四個主域與其子域切分的核心模式 |
+| Bounded Context | 八個主域 / bounded context 與其子域切分的核心模式 |
 | Upstream-Downstream | 主域級關係的唯一基線模式 |
 | Published Language | 所有跨主域交換的共同語言 |
 | Anti-Corruption Layer | downstream 語言需要保護時使用 |

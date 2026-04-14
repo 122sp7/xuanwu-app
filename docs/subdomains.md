@@ -6,12 +6,90 @@
 
 | Main Domain | Baseline Subdomains | Recommended Gap Subdomains |
 |---|---|---|
+| iam | identity, access-control, tenant, security-policy | session, consent, secret-governance |
+| billing | billing, subscription, entitlement, referral | pricing, invoice, quota-policy |
+| ai | provider-routing, model-policy, safety-guardrail, prompt-pipeline | evaluation-policy, model-observability |
+| analytics | reporting, metrics, dashboards, telemetry-projection | experimentation, decision-support |
+| platform | account, account-profile, organization, team, platform-config, feature-flag, onboarding, compliance, integration, workflow, notification, background-job, content, search, audit-log, observability, support | consent, secret-management |
 | workspace | audit, feed, scheduling, workspace-workflow | lifecycle, membership, sharing, presence |
-| platform | identity, account, account-profile, organization, access-control, security-policy, platform-config, feature-flag, onboarding, compliance, billing, subscription, referral, ai, integration, workflow, notification, background-job, content, search, audit-log, observability, analytics, support | tenant, entitlement, secret-management, consent |
 | notion | knowledge, authoring, collaboration, database, knowledge-analytics, attachments, automation, knowledge-integration, notes, templates, knowledge-versioning | taxonomy, relations, publishing |
 | notebooklm | conversation, note, notebook, source, synthesis, conversation-versioning | ingestion, retrieval, grounding, evaluation |
 
 ## Detailed Subdomain Catalog
+
+### iam
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| identity | 已驗證主體與身份信號治理 |
+| access-control | 主體現在能做什麼的授權判定 |
+| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
+| security-policy | 安全規則定義、版本化與發佈 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| session | session、token 與 identity lifecycle 收斂 |
+| consent | 同意與資料使用授權治理收斂 |
+| secret-governance | secret 與 credential access policy 收斂 |
+
+### billing
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| billing | 計費狀態、費率與財務證據 |
+| subscription | 方案、配額與續期治理 |
+| entitlement | 有效權益與功能可用性統一解算 |
+| referral | 推薦關係與獎勵追蹤 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| pricing | 價格模型與方案矩陣治理 |
+| invoice | 帳單、請款與對帳流程 |
+| quota-policy | 可量化配額與商業限制規則 |
+
+### ai
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| provider-routing | 模型供應商選擇與路由 |
+| model-policy | 模型能力、版本與使用政策 |
+| safety-guardrail | 安全護欄、內容保護與限制 |
+| prompt-pipeline | prompt、flow、tool calling orchestration |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| evaluation-policy | AI 品質與回歸評估政策 |
+| model-observability | 模型使用量、成本與效能監測 |
+
+### analytics
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| reporting | 報表輸出與查詢整理 |
+| metrics | 指標定義與聚合 |
+| dashboards | 儀表板呈現語義 |
+| telemetry-projection | 事件投影與 read model 匯總 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| experimentation | 實驗分析與對照觀測 |
+| decision-support | 決策輔助與洞察輸出 |
 
 ### workspace
 
@@ -39,20 +117,14 @@
 
 | Subdomain | 功能註解 |
 |---|---|
-| identity | 已驗證主體與身份信號治理 |
 | account | 帳號聚合根與帳號生命週期 |
 | account-profile | 主體屬性、偏好與治理設定 |
 | organization | 組織、成員與角色邊界 |
-| access-control | 主體現在能做什麼的授權判定 |
-| security-policy | 安全規則定義、版本化與發佈 |
+| team | Organization 內部成員分組治理 |
 | platform-config | 平台設定輪廓與配置管理 |
 | feature-flag | 功能開關策略與發佈節點 |
 | onboarding | 新主體初始設定與引導流程 |
 | compliance | 資料保留、稽核與法規執行 |
-| billing | 計費狀態、費率與財務證據 |
-| subscription | 方案、權益、配額與續期治理 |
-| referral | 推薦關係與獎勵追蹤 |
-| ai | 共享 AI provider 路由、模型政策、配額與安全護欄 |
 | integration | 外部系統整合邊界與契約 |
 | workflow | 平台級流程編排與狀態驅動執行 |
 | notification | 通知路由、偏好與投遞 |
@@ -61,17 +133,15 @@
 | search | 跨域搜尋路由與查詢協調 |
 | audit-log | 永久稽核軌跡與不可否認證據 |
 | observability | 健康量測、追蹤與告警 |
-| analytics | 平台使用行為量測與分析 |
 | support | 客服工單、支援知識與處理流程 |
 
 #### Recommended Gap Subdomains
 
 | Subdomain | 功能註解 |
 |---|---|
-| tenant | 建立多租戶隔離與 tenant-scoped 規則的正典邊界 |
-| entitlement | 建立有效權益與功能可用性的統一解算上下文 |
-| secret-management | 將憑證、token、rotation 從 integration 中切開 |
 | consent | 將同意與資料使用授權從 compliance 中切開 |
+| secret-management | 將憑證、token、rotation 從 integration 中切開 |
+| operational-catalog | 將平台營運資產與配置字典收斂成單一邊界 |
 
 ### notion
 
@@ -129,8 +199,12 @@
 
 ## Ownership Summary
 
+- iam 關心身份、租戶與存取治理。
+- billing 關心商業生命週期與有效權益。
+- ai 關心共享 AI capability 與模型政策。
+- analytics 關心下游分析、指標與 read model 投影。
+- platform 關心 account、organization 與 shared operational services。
 - workspace 關心協作範疇。
-- platform 關心治理與權益。
 - notion 關心正典知識內容。
 - notebooklm 關心推理與衍生輸出。
 
@@ -138,11 +212,13 @@
 
 | Original Term | Resolution |
 |---|---|
-| ai | `platform` 擁有唯一 generic `ai` 子域；`notion` 與 `notebooklm` 改為 consumer，不再各自擁有 `ai` 子域 |
-| analytics | `platform` 保留 generic `analytics`；`notion` 改為 `knowledge-analytics` |
-| integration | `platform` 保留 generic `integration`；`notion` 改為 `knowledge-integration` |
+| ai | `ai` context 擁有 generic AI capability；`notion` 與 `notebooklm` 僅為 consumer |
+| analytics | `analytics` context 擁有 generic analytics；`notion` 保留 `knowledge-analytics` |
+| entitlement | `billing` 擁有 entitlement；其他主域只消費 capability signal |
+| identity | `iam` 擁有 identity 與 access-control；其他主域不再各自宣稱 |
+| integration | `platform` 保留 generic `integration`；`notion` 保留 `knowledge-integration` |
 | versioning | `notion` 改為 `knowledge-versioning`；`notebooklm` 改為 `conversation-versioning` |
-| workflow | `platform` 保留 generic `workflow`；`workspace` 改為 `workspace-workflow` |
+| workflow | `platform` 保留 generic `workflow`；`workspace` 使用 `workspace-workflow` |
 
 ## Subdomain Anti-Patterns
 
