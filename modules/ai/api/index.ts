@@ -26,10 +26,10 @@ export type {
   ResolvedPrompt,
   SourceFollowUpPromptInput,
   SourceFollowUpPromptIntent,
-} from "../subdomains/prompt/api";
+} from "../subdomains/prompt-pipeline/api";
 
 export {
   listSourceFollowUpPrompts,
   resolveSourceFollowUpPrompt,
   sourceFollowUpPromptService,
-} from "../subdomains/prompt/api";
+} from "../subdomains/prompt-pipeline/api";
