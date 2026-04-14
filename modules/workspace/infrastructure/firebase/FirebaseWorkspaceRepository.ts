@@ -7,7 +7,7 @@
 import { v4 as uuid } from "@lib-uuid";
 import {
   firestoreInfrastructureApi,
-} from "@/modules/platform/api";
+} from "@/modules/platform/api/infrastructure";
 import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
 import type { WorkspaceCapabilityRepository } from "../../domain/ports/output/WorkspaceCapabilityRepository";
 import type { WorkspaceAccessRepository } from "../../domain/ports/output/WorkspaceAccessRepository";

@@ -1,7 +1,7 @@
 import { v4 as uuid } from "@lib-uuid";
 import {
   firestoreInfrastructureApi,
-} from "@/modules/platform/api";
+} from "@/modules/platform/api/infrastructure";
 import type { AuditEntry } from "../../domain/aggregates/AuditEntry";
 import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
 import type { AuditRepository } from "../../domain/repositories/AuditRepository";

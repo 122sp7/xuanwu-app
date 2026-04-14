@@ -4,7 +4,7 @@
  * Firestore: accounts/{accountId}/collaborationPermissions/{id}
  */
 
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 import { v7 as generateId } from "@lib-uuid";
 import type { PermissionSnapshot, PermissionLevel, PrincipalType } from "../../../subdomains/collaboration/domain/aggregates/Permission";
 import type { PermissionRepository, GrantPermissionInput } from "../../../subdomains/collaboration/domain/repositories/PermissionRepository";

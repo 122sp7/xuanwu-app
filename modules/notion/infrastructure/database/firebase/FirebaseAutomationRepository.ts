@@ -4,7 +4,7 @@
  * Firestore: accounts/{accountId}/knowledgeDatabases/{databaseId}/automations/{automationId}
  */
 
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 import { v7 as generateId } from "@lib-uuid";
 
 import type {

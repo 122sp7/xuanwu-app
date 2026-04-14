@@ -1,4 +1,4 @@
-import { functionsInfrastructureApi } from "@/modules/platform/api";
+import { functionsInfrastructureApi } from "@/modules/platform/api/infrastructure";
 
 import type {
   SourcePipelinePort,

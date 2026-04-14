@@ -6,7 +6,7 @@
  * Persists Thread (messages array) to Firestore so conversations survive page reload.
  */
 
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 import type { Thread } from "../../../subdomains/conversation/domain/entities/thread";
 import type { Message } from "../../../subdomains/conversation/domain/entities/message";
 import type { ThreadRepository } from "../../../subdomains/conversation/domain/repositories/ThreadRepository";

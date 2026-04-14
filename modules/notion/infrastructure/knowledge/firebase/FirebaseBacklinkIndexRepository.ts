@@ -7,7 +7,7 @@
  *   accounts/{accountId}/backlinkOutbound/{sourcePageId}
  */
 
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 import type { BacklinkIndexRepository, UpsertBacklinkEntriesInput, RemoveBacklinksFromSourceInput } from "../../../subdomains/knowledge/domain/repositories/BacklinkIndexRepository";
 import { BacklinkIndex } from "../../../subdomains/knowledge/domain/aggregates/BacklinkIndex";
 import type { BacklinkEntry, BacklinkIndexSnapshot } from "../../../subdomains/knowledge/domain/aggregates/BacklinkIndex";

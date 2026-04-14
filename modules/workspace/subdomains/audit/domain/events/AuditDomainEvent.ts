@@ -6,7 +6,7 @@ export interface AuditDomainEvent {
 }
 
 export interface AuditEntryRecordedEvent extends AuditDomainEvent {
-	readonly type: "workspace.audit.entry_recorded";
+	readonly type: "workspace.audit.entry-recorded";
 	readonly payload: {
 		readonly auditId: string;
 		readonly workspaceId: string;
@@ -19,7 +19,7 @@ export interface AuditEntryRecordedEvent extends AuditDomainEvent {
 }
 
 export interface CriticalAuditDetectedEvent extends AuditDomainEvent {
-	readonly type: "workspace.audit.critical_detected";
+	readonly type: "workspace.audit.critical-detected";
 	readonly payload: {
 		readonly auditId: string;
 		readonly workspaceId: string;

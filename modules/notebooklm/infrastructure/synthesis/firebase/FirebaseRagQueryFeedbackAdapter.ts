@@ -8,7 +8,7 @@
  */
 
 import { v7 as generateId } from "@lib-uuid";
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 
 import type { RagQueryFeedbackRepository } from "../../../subdomains/synthesis/domain/repositories/RagQueryFeedbackRepository";
 import type {

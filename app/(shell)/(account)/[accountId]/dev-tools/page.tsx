@@ -26,7 +26,7 @@ import {
 import {
   firestoreInfrastructureApi,
   storageInfrastructureApi,
-} from "@/modules/platform/api";
+} from "@/modules/platform/api/infrastructure";
 import { useApp } from "@/modules/platform/api/ui";
 import { useWorkspaceContext } from "@/modules/workspace/api";
 import { Button } from "@ui-shadcn/ui/button";

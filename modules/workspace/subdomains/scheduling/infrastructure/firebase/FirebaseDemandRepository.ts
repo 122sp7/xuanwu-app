@@ -1,6 +1,6 @@
 import {
   firestoreInfrastructureApi,
-} from "@/modules/platform/api";
+} from "@/modules/platform/api/infrastructure";
 
 import type { WorkDemand } from "../../domain/types";
 import type { DemandRepository } from "../../domain/repository";

@@ -32,35 +32,6 @@ export type {
 export type { OrganizationRepository, Unsubscribe } from "../domain";
 export type { OrgPolicyRepository } from "../domain";
 
-// --- Application use cases ---
-export {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-} from "../application";
-export {
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-} from "../application";
-export {
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "../application";
-export {
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "../application";
-export {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "../application";
-
 // --- Composition (lazy, safe for SSR) ---
 export { organizationService, organizationQueryService } from "../interfaces/composition/organization-service";
 

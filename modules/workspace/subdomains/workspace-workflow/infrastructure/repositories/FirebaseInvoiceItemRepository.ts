@@ -9,7 +9,7 @@
 
 import {
   firestoreInfrastructureApi,
-} from "@/modules/platform/api";
+} from "@/modules/platform/api/infrastructure";
 import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
 import { toInvoiceItem } from "../firebase/invoice-item.converter";
 import { WF_INVOICE_ITEMS_COLLECTION } from "../firebase/workspace-flow.collections";

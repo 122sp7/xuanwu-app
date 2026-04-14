@@ -7,7 +7,7 @@
 
 import {
   firestoreInfrastructureApi,
-} from "@/modules/platform/api";
+} from "@/modules/platform/api/infrastructure";
 import { v7 as _generateId } from "@lib-uuid";
 import { ContentBlock } from "../../../subdomains/knowledge/domain/aggregates/ContentBlock";
 import type { ContentBlockSnapshot } from "../../../subdomains/knowledge/domain/aggregates/ContentBlock";

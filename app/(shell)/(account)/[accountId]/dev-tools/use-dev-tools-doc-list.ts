@@ -16,7 +16,7 @@ import {
   firestoreInfrastructureApi,
   storageInfrastructureApi,
   functionsInfrastructureApi,
-} from "@/modules/platform/api";
+} from "@/modules/platform/api/infrastructure";
 
 import {
   gcsUriToPath,

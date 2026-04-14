@@ -7,7 +7,7 @@
 
 import {
   firestoreInfrastructureApi,
-} from "@/modules/platform/api";
+} from "@/modules/platform/api/infrastructure";
 import { v7 as generateId } from "@lib-uuid";
 import type { ViewRepository, CreateViewInput, UpdateViewInput } from "../../../subdomains/database/domain/repositories/ViewRepository";
 import type { ViewSnapshot } from "../../../subdomains/database/domain/aggregates/View";

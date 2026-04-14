@@ -1,6 +1,7 @@
 # 3203 Duplication — 兩個 `shell-quick-create` 實作（platform 版本孤兒化）
 
-- Status: Accepted
+- Status: Resolved
+- Resolved: 2026-04-14
 - Date: 2026-04-14
 - Category: Modularity Smells > Duplication
 
@@ -134,3 +135,9 @@ export async function quickCreateKnowledgePage(
 - **3200** (Duplication)：目錄命名和 use-case 位置的重複，此 ADR 是另一種形式的重複
 - **5100** (Accidental Complexity)：platform/application/services/ 承載 shell 邏輯是偶然複雜性的一例
 - **4300** (Semantic Drift)：`shell-quick-create.ts` 在 `platform/application/services/` 的語意與其實際 shell-layer 職責不符
+
+## Resolution
+
+Deleted orphaned file `modules/platform/application/services/shell-quick-create.ts` (no external consumers confirmed).
+Removed its re-export from `modules/platform/application/services/index.ts`.
+Canonical implementation remains at `app/(shell)/_shell/shell-quick-create.ts` (imported via `app/(shell)/_shell/index.ts`).
