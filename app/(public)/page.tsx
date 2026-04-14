@@ -14,6 +14,8 @@ import { Loader2, ShieldCheck } from "lucide-react";
 import {
   useAuth,
   createClientAuthUseCases,
+} from "@/modules/iam/api";
+import {
   createClientAccountUseCases,
 } from "@/modules/platform/api";
 

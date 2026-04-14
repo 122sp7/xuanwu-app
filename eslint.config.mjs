@@ -98,7 +98,7 @@ const moduleElementTypeRules = [
   { from: { type: "main-domain-application" }, allow: [sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-api"), sameDomain("subdomain-application")] },
   { from: { type: "main-domain-infrastructure" }, allow: [sameDomain("main-domain-infrastructure"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-domain"), sameDomain("subdomain-application"), anyDomain("main-domain-api")] },
   { from: { type: "main-domain-interfaces" }, allow: [sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("main-domain-infrastructure"), sameDomain("subdomain-api"), sameDomain("subdomain-application"), sameDomain("subdomain-domain"), anyDomain("main-domain-api")] },
-  { from: { type: "main-domain-api" }, allow: [sameDomain("main-domain-api"), sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("main-domain-infrastructure"), sameDomain("subdomain-api")] },
+  { from: { type: "main-domain-api" }, allow: [sameDomain("main-domain-api"), sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("main-domain-infrastructure"), sameDomain("subdomain-api"), anyDomain("main-domain-api")] },
   { from: { type: "subdomain-domain" }, allow: [sameSubdomain("subdomain-domain"), sameDomain("main-domain-domain")] },
   { from: { type: "subdomain-application" }, allow: [sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameDomain("main-domain-domain")] },
   { from: { type: "subdomain-api" }, allow: [sameSubdomain("subdomain-api"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameDomain("subdomain-api"), sameDomain("main-domain-infrastructure"), anyDomain("main-domain-api")] },
@@ -127,11 +127,11 @@ const restrictedGenkitImports = {
   paths: [
     {
       name: "genkit",
-      message: "Import Genkit only in modules/platform/subdomains/ai/infrastructure/**.",
+      message: "Import Genkit only in modules/ai/infrastructure/**.",
     },
     {
       name: "@genkit-ai/google-genai",
-      message: "Import Genkit only in modules/platform/subdomains/ai/infrastructure/**.",
+      message: "Import Genkit only in modules/ai/infrastructure/**.",
     },
   ],
 };
@@ -307,10 +307,10 @@ export default defineConfig([
     rules: { "no-restricted-imports": restrictedImportsRule([packageToModules]) },
   },
 
-  // Genkit must be centralized in platform AI infrastructure adapter.
+  // Genkit must be centralized in the AI bounded context infrastructure adapter.
   {
     files: ["modules/**/*.{ts,tsx,js,jsx}"],
-    ignores: ["modules/platform/subdomains/ai/infrastructure/**"],
+    ignores: ["modules/ai/infrastructure/**", "modules/ai/subdomains/**/infrastructure/**"],
     rules: {
       "no-restricted-imports": [WARN, restrictedGenkitImports],
     },

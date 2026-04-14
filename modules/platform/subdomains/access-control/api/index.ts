@@ -1,17 +1,33 @@
 /**
- * Public API boundary for the access-control subdomain.
+ * Platform compatibility façade for access-control.
+ * Canonical ownership now lives in the IAM bounded context.
  */
-export * from "../application";
-export { accessControlService } from "../interfaces/composition/access-control-service";
-export type { AccessPolicySnapshot, CreateAccessPolicyInput } from "../domain/aggregates/AccessPolicy";
-export type { AccessPolicyDomainEventType } from "../domain/events/AccessPolicyDomainEvent";
-export type { AccessPolicyRepository } from "../domain/repositories/AccessPolicyRepository";
-export type { SubjectRef } from "../domain/value-objects/SubjectRef";
-export type { ResourceRef } from "../domain/value-objects/ResourceRef";
-export type { PolicyEffect } from "../domain/value-objects/PolicyEffect";
+
 export {
-	isOrganizationActor,
-	isActiveOrganizationAccount,
-	resolveOrganizationRouteFallback,
-	type ShellAccountActor,
-} from "../application/services/shell-account-access";
+  EvaluatePermissionUseCase,
+  CreateAccessPolicyUseCase,
+  UpdateAccessPolicyUseCase,
+  DeactivateAccessPolicyUseCase,
+  accessControlService,
+  isOrganizationActor,
+  isActiveOrganizationAccount,
+  resolveOrganizationRouteFallback,
+  allowDecision,
+  denyDecision,
+  conditionalAllowDecision,
+  escalateDecision,
+  isAllowed,
+} from "@/modules/iam/subdomains/access-control/api";
+
+export type {
+  ShellAccountActor,
+  AccessPolicySnapshot,
+  CreateAccessPolicyInput,
+  AccessPolicyDomainEventType,
+  AccessPolicyRepository,
+  SubjectRef,
+  ResourceRef,
+  PolicyEffect,
+  PermissionDecision,
+  PermissionOutcome,
+} from "@/modules/iam/subdomains/access-control/api";

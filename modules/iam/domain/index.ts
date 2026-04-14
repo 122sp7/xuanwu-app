@@ -1,3 +1,10 @@
-/** iam/domain — reserved for future IAM domain models. */
+/** iam/domain — shared IAM domain models and value objects. */
 
-export {};
+export type { PermissionDecision, PermissionOutcome } from "./value-objects/PermissionDecision";
+export {
+  allowDecision,
+  denyDecision,
+  conditionalAllowDecision,
+  escalateDecision,
+  isAllowed,
+} from "./value-objects/PermissionDecision";

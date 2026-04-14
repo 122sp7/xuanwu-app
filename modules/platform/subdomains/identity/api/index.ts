@@ -1,25 +1,38 @@
 /**
- * identity subdomain public API boundary.
- * Consumers (e.g. infrastructure in sibling subdomains) must import through this barrel.
+ * Platform compatibility façade for identity.
+ * Canonical ownership now lives in the IAM bounded context.
  */
-export * from "../application";
+
 export {
+  AuthProvider,
+  useAuth,
+  ShellGuard,
+  register,
+  sendPasswordResetEmail,
+  signIn,
+  signInAnonymously,
+  signOut,
+  useTokenRefreshListener,
   createIdentityRepository,
   createTokenRefreshRepository,
   createClientAuthUseCases,
   identityApi,
-} from "../interfaces/composition/identity-service";
-export type { EmitTokenRefreshSignalInput } from "../interfaces/composition/identity-service";
+} from "@/modules/iam/subdomains/identity/api";
 
-// Domain types — explicit exports (no wildcard to avoid leaking repos/ports/aggregates)
-export type { IdentityEntity, RegistrationInput, SignInCredentials } from "../domain/entities/Identity";
-export type { TokenRefreshReason, TokenRefreshSignal } from "../domain/entities/TokenRefreshSignal";
-
-// Value objects
-export type { Email } from "../domain/value-objects/Email";
-export type { UserId } from "../domain/value-objects/UserId";
-export type { DisplayName } from "../domain/value-objects/DisplayName";
-export type { IdentityStatus } from "../domain/value-objects/IdentityStatus";
-
-// Interfaces (UI components, hooks, providers, actions)
-export * from "../interfaces";
+export type {
+  EmitTokenRefreshSignalInput,
+  IdentityEntity,
+  RegistrationInput,
+  SignInCredentials,
+  TokenRefreshReason,
+  TokenRefreshSignal,
+  Email,
+  UserId,
+  DisplayName,
+  IdentityStatus,
+  AuthState,
+  AuthAction,
+  AuthContextValue,
+  AuthStatus,
+  AuthUser,
+} from "@/modules/iam/subdomains/identity/api";
