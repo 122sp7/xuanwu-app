@@ -69,6 +69,7 @@
 | `content-generation` | **Content Generation** | 內容生成 | ✅ | AI 驅動的文本生成 |
 | `context-assembly` | **Context Assembly** | 上下文組裝 | ✅ | 為 AI 推理組裝 context window |
 | `memory-context` | **Memory Context** | 記憶上下文 | ✅ | 跨對話記憶與持久化 context |
+| `tool-runtime` | **Tool Runtime** | 工具執行環境 | ✅ | AI tool 的註冊、選擇與執行；提供 `generateWithTools()` 讓下游流程在生成時擁有工具呼叫能力 |
 | `provider-routing` | **Provider Routing** | 供應商路由 | 📋 Baseline | 模型供應商選擇與路由 |
 | `model-policy` | **Model Policy** | 模型政策 | 📋 Baseline | 模型版本、能力與使用政策 |
 
@@ -224,6 +225,7 @@
 | `modules/ai/subdomains/content-generation` | Content Generation |
 | `modules/ai/subdomains/context-assembly` | Context Assembly |
 | `modules/ai/subdomains/memory-context` | Memory Context |
+| `modules/ai/subdomains/tool-runtime` | Tool Runtime |
 | `modules/analytics` | Analytics & Read-Model |
 | `modules/analytics/subdomains/metrics` | Metrics Aggregation |
 | `modules/analytics/subdomains/event-ingestion` | Event Ingestion |

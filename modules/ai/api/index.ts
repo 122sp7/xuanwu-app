@@ -35,3 +35,11 @@ export {
   resolveSourceFollowUpPrompt,
   sourceFollowUpPromptService,
 } from "../subdomains/prompt-pipeline/api";
+
+export type {
+  ToolDescriptor,
+  ToolEnabledGenerationInput,
+  ToolEnabledGenerationOutput,
+  ToolRuntimeAPI,
+  ToolRuntimePort,
+} from "../subdomains/tool-runtime/api";
