@@ -82,14 +82,14 @@ const WORKSPACE_QUICK_ACCESS_CARDS: readonly QuickAccessCard[] = [
     label: "知識庫",
     description: "結構化知識管理",
     icon: <Notebook className="size-5 text-cyan-500" />,
-    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Knowledge`,
+    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=KnowledgePages`,
   },
   {
     key: "rag-query",
     label: "RAG 查詢",
     description: "問答與引用檢索",
     icon: <Brain className="size-5 text-pink-500" />,
-    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=Notebook`,
+    buildHref: (a, w) => `/${enc(a)}/${enc(w)}?tab=NotebookSynthesis`,
   },
   {
     key: "ai-chat",

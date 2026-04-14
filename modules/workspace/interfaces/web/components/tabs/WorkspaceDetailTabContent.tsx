@@ -69,7 +69,7 @@ export function renderWorkspaceDetailTabContent({
   }
 
   const overviewPanel: Record<string, string> = {
-    Knowledge: "knowledge-pages",
+    KnowledgePages: "knowledge-pages",
     WorkspaceSettings: "settings",
   };
 
@@ -78,7 +78,7 @@ export function renderWorkspaceDetailTabContent({
 
   switch (tab) {
     case "Overview":
-    case "Knowledge":
+    case "KnowledgePages":
     case "WorkspaceSettings":
       return (
         <WorkspaceOverviewTab

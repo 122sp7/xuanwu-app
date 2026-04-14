@@ -46,7 +46,7 @@ function buildContentBaseItems(accountId: string, workspaceId: string): WikiCont
       href: buildWorkspaceHref(accountId, workspaceId, "?tab=Overview&panel=knowledge-databases"),
       enabled: false,
     },
-    { key: "rag", label: "RAG", href: buildWorkspaceHref(accountId, workspaceId, "?tab=Notebook"), enabled: true },
+    { key: "rag", label: "RAG", href: buildWorkspaceHref(accountId, workspaceId, "?tab=NotebookSynthesis"), enabled: true },
     { key: "ai-tools", label: "AI Tools", href: buildWorkspaceHref(accountId, workspaceId, "?tab=AiChat"), enabled: true },
   ];
 }
