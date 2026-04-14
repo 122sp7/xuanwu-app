@@ -16,3 +16,12 @@
 | session | session、token 與 identity lifecycle 收斂 |
 | consent | 同意與資料使用授權治理收斂 |
 | secret-governance | secret 與 credential access policy 收斂 |
+
+## Migration-Safe Operational Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| authentication | sign-in、registration、credential recovery、provider bootstrap |
+| authorization | higher-level policy orchestration and decision semantics |
+| federation | external identity provider linking, SSO, and trust delegation |
+| session | token refresh, revocation, and server-side session lifecycle |

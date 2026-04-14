@@ -16,7 +16,7 @@ export {
   permissionApi,
   fileApi,
 } from "./service-api";
-export * from "../subdomains/identity/api";
+export * from "../../iam/api";
 export * from "../subdomains/account/api";
 export * from "../subdomains/notification/api";
 export * from "../subdomains/platform-config/api";
@@ -87,10 +87,5 @@ export * from "../subdomains/background-job/api";
 // Shell UI components, React hooks, and app-context types are in api/ui.ts.
 // @see ADR-1200 — UI components removed from capability-contract boundary.
 
-// access-control — account type guards and route fallback
-export {
-  isOrganizationActor,
-  isActiveOrganizationAccount,
-  resolveOrganizationRouteFallback,
-  type ShellAccountActor,
-} from "../subdomains/access-control/api";
+// IAM-owned access and identity exports are re-exposed from ../../iam/api
+// for backward compatibility while consumers migrate to the IAM boundary.

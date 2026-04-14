@@ -1,7 +1,7 @@
 import { v4 as uuid } from "@lib-uuid";
 import { getFirebaseAuth } from "@integration-firebase";
 
-import { accessControlService } from "../subdomains/access-control/api";
+import { accessControlService } from "../../iam/api";
 import { isAllowed, type PermissionDecision } from "../domain/value-objects/PermissionDecision";
 import { firestoreInfrastructureApi, storageInfrastructureApi } from "./infrastructure-api";
 import type {
