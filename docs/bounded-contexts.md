@@ -12,7 +12,7 @@
 |---|---|---|---|
 | iam | 身份與存取治理 | identity、access-control、tenant、security-policy | session、consent、secret-governance |
 | billing | 商業與權益治理 | billing、subscription、entitlement、referral | pricing、invoice、quota-policy |
-| ai | 共享 AI capability | provider-routing、model-policy、safety-guardrail、prompt-pipeline | evaluation-policy、model-observability |
+| ai | 共享 AI capability | content-generation、content-distillation、context-assembly、evaluation-policy、memory-context、model-observability、prompt-pipeline、safety-guardrail | provider-routing、model-policy |
 | analytics | 分析與 read model 下游 | reporting、metrics、dashboards、telemetry-projection | experimentation、decision-support |
 | platform | 平台營運支撐 | account、organization、notification、search、audit-log、observability | consent、secret-management、operational-catalog |
 | workspace | 協作容器與 scope | audit、feed、scheduling、workspace-workflow | lifecycle、membership、sharing、presence |
@@ -65,17 +65,21 @@
 
 | Subdomain | 功能註解 |
 |---|---|
-| provider-routing | 模型供應商選擇與路由 |
-| model-policy | 模型能力、版本與使用政策 |
+| content-generation | AI 驅動的文本生成與回覆輸出 |
+| content-distillation | AI 驅動的摘要、提煉與結構化壓縮 |
+| context-assembly | 推理前的 context window 組裝與排序 |
+| evaluation-policy | 品質與回歸評估政策 |
+| memory-context | 跨對話記憶與可重用上下文整理 |
+| model-observability | 模型使用量、成本與效能監測 |
+| prompt-pipeline | prompt、template、flow 與 tool calling orchestration |
 | safety-guardrail | 安全護欄、內容保護與限制 |
-| prompt-pipeline | prompt、flow 與 tool calling orchestration |
 
 #### Recommended Gap Subdomains
 
 | Subdomain | 功能註解 |
 |---|---|
-| evaluation-policy | 品質與回歸評估政策 |
-| model-observability | 模型使用量、成本與效能監測 |
+| provider-routing | 模型供應商選擇與路由治理 |
+| model-policy | 模型能力、版本與使用政策 |
 
 ### analytics
 
