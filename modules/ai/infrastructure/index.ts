@@ -1,3 +1,3 @@
-/** ai/infrastructure — reserved for future AI adapters. */
+/** ai/infrastructure — shared AI adapters. */
 
-export {};
+export { GenkitAiTextGenerationAdapter } from "./generation/genkit/GenkitAiTextGenerationAdapter";

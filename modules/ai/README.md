@@ -1,6 +1,6 @@
 # AI
 
-Minimal bounded-context skeleton for shared AI capability orchestration.
+Shared AI bounded context for model invocation, safety, orchestration, and provider capability.
 
 ## Intended ownership
 
@@ -8,5 +8,10 @@ Minimal bounded-context skeleton for shared AI capability orchestration.
 - model policy
 - quota and safety guardrails
 - prompt and flow orchestration
+- shared text generation used by downstream modules
 
-This module is intentionally minimal until concrete AI use cases are implemented.
+## Active baseline
+
+- the generation subdomain now hosts the shared Genkit-backed text generation seam
+- downstream modules should consume shared AI through the AI public boundary
+- platform no longer owns shared AI runtime generation behavior

@@ -1,3 +1,7 @@
-/** ai/domain — reserved for future AI domain models. */
+/** ai/domain — shared AI domain contracts. */
 
-export {};
+export type {
+  GenerateAiTextInput,
+  GenerateAiTextOutput,
+  AiTextGenerationPort,
+} from "../subdomains/generation/domain";

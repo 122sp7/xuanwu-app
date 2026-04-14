@@ -1,3 +1,3 @@
-/** ai/application — reserved for future AI orchestration use cases. */
+/** ai/application — shared AI orchestration use cases. */
 
-export {};
+export { GenerateAiTextUseCase } from "../subdomains/generation/application";
