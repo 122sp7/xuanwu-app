@@ -77,18 +77,18 @@ const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
       isWorkspaceScopedPath(pathname) && options?.tab === "Members",
   },
   {
-    href: `${WORKSPACE_BASE_HREF_TOKEN}?tab=Knowledge`,
+    href: `${WORKSPACE_BASE_HREF_TOKEN}?tab=KnowledgePages`,
     label: "知識庫",
     icon: <Notebook className="size-3.5" />,
     isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && resolveWorkspaceTabValue(options?.tab) === "Knowledge",
+      isWorkspaceScopedPath(pathname) && resolveWorkspaceTabValue(options?.tab) === "KnowledgePages",
   },
   {
-    href: `${WORKSPACE_BASE_HREF_TOKEN}?tab=Notebook`,
+    href: `${WORKSPACE_BASE_HREF_TOKEN}?tab=NotebookSynthesis`,
     label: "RAG 查詢",
     icon: <Brain className="size-3.5" />,
     isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && resolveWorkspaceTabValue(options?.tab) === "Notebook",
+      isWorkspaceScopedPath(pathname) && resolveWorkspaceTabValue(options?.tab) === "NotebookSynthesis",
   },
   {
     href: `${WORKSPACE_BASE_HREF_TOKEN}?tab=AiChat`,
