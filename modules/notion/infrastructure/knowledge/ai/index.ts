@@ -1,0 +1,1 @@
+export { SharedAiKnowledgeSummaryAdapter } from "./SharedAiKnowledgeSummaryAdapter";

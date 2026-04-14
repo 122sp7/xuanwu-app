@@ -8,3 +8,8 @@ export type { BacklinkIndexRepository } from "../repositories/BacklinkIndexRepos
 export type { ContentBlockRepository } from "../repositories/ContentBlockRepository";
 export type { KnowledgeCollectionRepository } from "../repositories/KnowledgeCollectionRepository";
 export type { KnowledgePageRepository } from "../repositories/KnowledgePageRepository";
+export type {
+  KnowledgeSummaryInput,
+  KnowledgeSummaryResult,
+  KnowledgeSummaryPort,
+} from "./KnowledgeSummaryPort";

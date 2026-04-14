@@ -16,6 +16,7 @@ export type { KnowledgeCollectionSnapshot } from "../domain/aggregates/Knowledge
 export type { CreateKnowledgePageDto, RenameKnowledgePageDto, MoveKnowledgePageDto, ArchiveKnowledgePageDto, ReorderKnowledgePageBlocksDto } from "../application/dto/KnowledgePageDto";
 export type { AddKnowledgeBlockDto, UpdateKnowledgeBlockDto, DeleteKnowledgeBlockDto } from "../application/dto/ContentBlockDto";
 export type { CreateKnowledgeCollectionDto } from "../application/dto/KnowledgeCollectionDto";
+export type { KnowledgePageSummary } from "../application/dto/knowledge.dto";
 
 // ?? Query functions (server-side reads) ???????????????????????????????????????
 export {

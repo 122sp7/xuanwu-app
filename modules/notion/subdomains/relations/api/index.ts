@@ -30,7 +30,12 @@ export type {
 } from "../application/dto/RelationDto";
 
 // ── Application contracts ─────────────────────────────────────────────────────
-export * from "../application";
+export {
+  CreateRelationUseCase,
+  RemoveRelationUseCase,
+  ListRelationsBySourceUseCase,
+  ListRelationsByTargetUseCase,
+} from "../application/use-cases/manage-relation.use-cases";
 
 // Note: server-only composition and infrastructure adapters are exported from
 // `./server` to keep the default boundary runtime-safe.

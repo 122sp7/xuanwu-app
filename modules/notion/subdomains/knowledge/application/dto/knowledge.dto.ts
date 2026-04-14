@@ -7,6 +7,14 @@ export type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock"
 export type { KnowledgeCollectionSnapshot } from "../../domain/aggregates/KnowledgeCollection";
 export type { BlockContent, RichTextSpan } from "../../domain/value-objects/BlockContent";
 
+export interface KnowledgePageSummary {
+  readonly pageId: string;
+  readonly title: string;
+  readonly summary: string;
+  readonly model: string;
+  readonly blockCount: number;
+}
+
 import type { RichTextSpan } from "../../domain/value-objects/BlockContent";
 
 /**
