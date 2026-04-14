@@ -39,7 +39,15 @@
 
 ```ts
 // client-safe types
-import type { AIAPI, GenerateAiTextInput, GenerateAiTextOutput, AiTextGenerationPort } from "@/modules/ai/api";
+import type {
+  AIAPI,
+  DistillationAPI,
+  DistillContentInput,
+  DistillationResult,
+  GenerateAiTextInput,
+  GenerateAiTextOutput,
+  AiTextGenerationPort,
+} from "@/modules/ai/api";
 
 // server-only functions
 import { distillContent, generateAiText, summarize } from "@/modules/ai/api/server";
