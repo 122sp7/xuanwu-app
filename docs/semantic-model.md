@@ -170,7 +170,7 @@
 |---|---|---|---|
 | `notion/knowledge-database` ✅ | ~~技術術語遮蔽業務語意~~ | **Knowledge Database** | ✅ 已完成：`database` → `knowledge-database`（2026-04-15） |
 | `analytics/event-projection` ✅ | ~~技術動詞遮蔽 DDD projection 語意~~ | **Event Projection** | ✅ 已完成：`event-processing` → `event-projection`（2026-04-15） |
-| `platform/background-job` 資料夾 vs 內部實體名稱 | 資料夾語意（通用）與實體語意（攝取特定）不一致 | **Background Job Management** (folder) / 實體需通用化 | 資料夾名稱 `background-job` 正確表達通用背景任務能力，但內部實體全以 `Ingestion*` 命名（IngestionDocument、IngestionChunk、IngestionJob）；實作時應將實體通用化為 `Job*` 或將子域改名為 `ingestion-tracking` |
+| `platform/background-job` 資料夾 ✅ vs 原內部實體名稱 | ~~資料夾語意（通用）與實體語意（攝取特定）不一致~~ | **Background Job Management** (folder) | ✅ 已完成：實體已通用化 `IngestionJob` → `BackgroundJob`、`IngestionDocument` → `JobDocument`、`IngestionChunk` → `JobChunk`（2026-04-15） |
 | `notion/knowledge-analytics` | 與 `analytics` domain 語意重疊 | **Knowledge Engagement** | analytics domain 擁有指標、投影與報表；notion 此子域只量測知識頁面使用行為，建議改名為 `knowledge-engagement` |
 | `notion/knowledge-integration` | 與 `platform/integration` 語意重疊 | **External Knowledge Sync** | platform integration 擁有外部系統整合契約；notion 此子域只做知識雙向同步，建議改名為 `external-knowledge-sync` |
 | `platform/workflow` | 與 `workspace/workspace-workflow` 語意重疊 | **Platform Workflow** | platform 只擁有平台級狀態驅動執行；workspace 使用 `workspace-workflow` 作為正典名稱，兩者不得互換；建立時應以 `platform-workflow` 命名 |
@@ -278,13 +278,13 @@
 | ~~`modules/notion/subdomains/database`~~ → **`modules/notion/subdomains/knowledge-database`** ✅ | **`knowledge-database`** | `database` 是技術術語；notion 所有其他子域以業務概念命名（knowledge、authoring、taxonomy、relations、collaboration）。此子域管理「結構化知識多視圖」，Domain aggregates 為 Database、DatabaseRecord、View、DatabaseAutomation，語意上是 knowledge database，應加 domain prefix 與兄弟子域一致 | **已完成 2026-04-15**：所有 import path、api/index.ts barrel、interfaces/ 元件均已更新 |
 | ~~`modules/analytics/subdomains/event-processing`~~ → **`modules/analytics/subdomains/event-projection`** ✅ | **`event-projection`** | DDD Event Sourcing 中將 domain events 轉換為 read model 的能力稱為 **projection**；`event-processing` 是通用技術動詞，遮蔽了業務語意。此子域的職責是事件→read model 的投影轉換，`event-projection` 精確反映 DDD 術語 | **已完成 2026-04-15**：資料夾已改名，無 import path 受影響（stub 子域） |
 
-### 7.2 已實作資料夾 — 內部語意不一致（Refactor Entities）
+### 7.2 已實作資料夾 — 內部語意不一致（Refactor Entities ✅）
 
-下列子域資料夾名稱正確，但內部實體命名與資料夾語意衝突，需在下次實作前解決。
+下列子域已完成實體通用化（2026-04-15）：
 
-| 資料夾 | 問題描述 | 建議解法 |
+| 資料夾 | 問題描述 | 已執行解法 |
 |---|---|---|
-| `modules/platform/subdomains/background-job` | 資料夾名稱 `background-job` 表達通用背景任務管理，但目前唯一的 domain entities 全以 `Ingestion*` 命名（IngestionDocument、IngestionChunk、IngestionJob）。README 標示為 Stub，但 IngestionJob 已在 Firestore 中使用 | A. 將實體通用化：`IngestionJob` → `BackgroundJob`、`IngestionDocument` → `JobDocument`、`IngestionChunk` → `JobChunk`（推薦，保持資料夾名稱）；或 B. 將子域改名為 `ingestion-tracking` 以精確反映目前職責 |
+| `modules/platform/subdomains/background-job` ✅ | 資料夾名稱 `background-job` 表達通用背景任務管理，原內部 domain entities 全以 `Ingestion*` 命名（IngestionDocument、IngestionChunk、IngestionJob），與資料夾語意不一致 | **已完成 2026-04-15**（Option A）：`IngestionJob` → `BackgroundJob`、`IngestionDocument` → `JobDocument`、`IngestionChunk` → `JobChunk`；`IngestionStatus` → `BackgroundJobStatus`；`IngestionJobRepository` → `BackgroundJobRepository`；`canTransitionIngestionStatus` → `canTransitionJobStatus`；`ingestionService` → `backgroundJobService`；所有 domain event discriminant、error code、use-case 類別名稱、composition service 全部同步更新。資料夾名稱保持 `background-job`。 |
 
 ### 7.3 計劃中子域 — 建立時使用正典名稱（Create With Canonical Name）
 
@@ -309,4 +309,4 @@
 | `docs/context-map.md` | Published language token flow between contexts |
 | `docs/semantic-model.md` (this file) | Folder → semantic name mapping, status, drift analysis |
 
-> Last verified: 2026-04-15. Section 7.1 renames completed 2026-04-15. Section 7 added 2026-04-15 based on Context7 DDD Hexagon evidence (`/sairyss/domain-driven-hexagon`).
+> Last verified: 2026-04-15. Section 7.1 renames completed 2026-04-15. Section 7.2 entity rename completed 2026-04-15. Section 7 added 2026-04-15 based on Context7 DDD Hexagon evidence (`/sairyss/domain-driven-hexagon`).

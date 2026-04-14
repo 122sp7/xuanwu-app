@@ -1,39 +1,39 @@
 /**
- * Ingestion Use Cases — application-layer orchestration for IngestionJob domain operations.
+ * Ingestion Use Cases — application-layer orchestration for BackgroundJob domain operations.
  *
  * Each use case receives its repository dependency via constructor injection,
  * keeping it testable and decoupled from any specific adapter.
  *
- * Return type uses a locally-defined IngestionResult<T> rather than the
+ * Return type uses a locally-defined JobResult<T> rather than the
  * command-only CommandResult, because creation and advancement operations
- * need to surface the resulting IngestionJob entity to callers.
+ * need to surface the resulting BackgroundJob entity to callers.
  */
 
 import { v4 as randomUUID } from "@lib-uuid";
 
 import type { DomainError } from "@shared-types";
 
-import type { IngestionDocument } from "../../domain/entities/IngestionDocument";
-import { canTransitionIngestionStatus, type IngestionJob, type IngestionStatus } from "../../domain/entities/IngestionJob";
-import type { IngestionJobRepository } from "../../domain/repositories/IngestionJobRepository";
+import type { JobDocument } from "../../domain/entities/JobDocument";
+import { canTransitionJobStatus, type BackgroundJob, type BackgroundJobStatus } from "../../domain/entities/BackgroundJob";
+import type { BackgroundJobRepository } from "../../domain/repositories/BackgroundJobRepository";
 
 // ── Shared result type ────────────────────────────────────────────────────────
 
-export type IngestionResult<T> =
+export type JobResult<T> =
   | { readonly ok: true; readonly data: T }
   | { readonly ok: false; readonly error: DomainError };
 
-function ok<T>(data: T): IngestionResult<T> {
+function ok<T>(data: T): JobResult<T> {
   return { ok: true, data };
 }
 
-function fail(code: string, message: string): IngestionResult<never> {
+function fail(code: string, message: string): JobResult<never> {
   return { ok: false, error: { code, message } };
 }
 
 // ── Register Ingestion Document ───────────────────────────────────────────────
 
-export interface RegisterIngestionDocumentInput {
+export interface RegisterJobDocumentInput {
   readonly organizationId: string;
   readonly workspaceId: string;
   readonly sourceFileId: string;
@@ -41,25 +41,25 @@ export interface RegisterIngestionDocumentInput {
   readonly mimeType: string;
 }
 
-export class RegisterIngestionDocumentUseCase {
-  constructor(private readonly repo: IngestionJobRepository) {}
+export class RegisterJobDocumentUseCase {
+  constructor(private readonly repo: BackgroundJobRepository) {}
 
-  async execute(input: RegisterIngestionDocumentInput): Promise<IngestionResult<IngestionJob>> {
+  async execute(input: RegisterJobDocumentInput): Promise<JobResult<BackgroundJob>> {
     const organizationId = input.organizationId.trim();
     const workspaceId    = input.workspaceId.trim();
     const sourceFileId   = input.sourceFileId.trim();
     const title          = input.title.trim();
     const mimeType       = input.mimeType.trim();
 
-    if (!organizationId) return fail("INGESTION_ORGANIZATION_REQUIRED", "Organization is required.");
-    if (!workspaceId)    return fail("INGESTION_WORKSPACE_REQUIRED",    "Workspace is required.");
-    if (!sourceFileId)   return fail("INGESTION_SOURCE_FILE_REQUIRED",  "Source file id is required.");
-    if (!title)          return fail("INGESTION_TITLE_REQUIRED",        "Document title is required.");
-    if (!mimeType)       return fail("INGESTION_MIME_TYPE_REQUIRED",    "Mime type is required.");
+    if (!organizationId) return fail("JOB_ORGANIZATION_REQUIRED", "Organization is required.");
+    if (!workspaceId)    return fail("JOB_WORKSPACE_REQUIRED",    "Workspace is required.");
+    if (!sourceFileId)   return fail("JOB_SOURCE_FILE_REQUIRED",  "Source file id is required.");
+    if (!title)          return fail("JOB_TITLE_REQUIRED",        "Document title is required.");
+    if (!mimeType)       return fail("JOB_MIME_TYPE_REQUIRED",    "Mime type is required.");
 
     const now = new Date().toISOString();
 
-    const document: IngestionDocument = {
+    const document: JobDocument = {
       id: randomUUID(),
       organizationId,
       workspaceId,
@@ -70,7 +70,7 @@ export class RegisterIngestionDocumentUseCase {
       updatedAtISO: now,
     };
 
-    const job: IngestionJob = {
+    const job: BackgroundJob = {
       id:           randomUUID(),
       document,
       status:       "uploaded",
@@ -85,26 +85,26 @@ export class RegisterIngestionDocumentUseCase {
 
 // ── Advance Ingestion Stage ───────────────────────────────────────────────────
 
-export interface AdvanceIngestionStageInput {
+export interface AdvanceJobStageInput {
   readonly documentId: string;
-  readonly nextStatus: IngestionStatus;
+  readonly nextStatus: BackgroundJobStatus;
   readonly statusMessage?: string;
 }
 
-export class AdvanceIngestionStageUseCase {
-  constructor(private readonly repo: IngestionJobRepository) {}
+export class AdvanceJobStageUseCase {
+  constructor(private readonly repo: BackgroundJobRepository) {}
 
-  async execute(input: AdvanceIngestionStageInput): Promise<IngestionResult<IngestionJob>> {
+  async execute(input: AdvanceJobStageInput): Promise<JobResult<BackgroundJob>> {
     const documentId = input.documentId.trim();
 
-    if (!documentId) return fail("INGESTION_DOCUMENT_REQUIRED", "Document id is required.");
+    if (!documentId) return fail("JOB_DOCUMENT_REQUIRED", "Document id is required.");
 
     const job = await this.repo.findByDocumentId(documentId);
-    if (!job) return fail("INGESTION_DOCUMENT_NOT_FOUND", "Ingestion document not found.");
+    if (!job) return fail("JOB_DOCUMENT_NOT_FOUND", "Ingestion document not found.");
 
-    if (!canTransitionIngestionStatus(job.status, input.nextStatus)) {
+    if (!canTransitionJobStatus(job.status, input.nextStatus)) {
       return fail(
-        "INGESTION_INVALID_STATUS_TRANSITION",
+        "JOB_INVALID_STATUS_TRANSITION",
         `Cannot transition ingestion status from '${job.status}' to '${input.nextStatus}'.`,
       );
     }
@@ -116,7 +116,7 @@ export class AdvanceIngestionStageUseCase {
       updatedAtISO:  new Date().toISOString(),
     });
 
-    if (!updated) return fail("INGESTION_UPDATE_FAILED", "Failed to persist ingestion status update.");
+    if (!updated) return fail("JOB_UPDATE_FAILED", "Failed to persist ingestion status update.");
 
     return ok(updated);
   }
@@ -124,15 +124,15 @@ export class AdvanceIngestionStageUseCase {
 
 // ── List Workspace Ingestion Jobs ─────────────────────────────────────────────
 
-export interface ListWorkspaceIngestionJobsInput {
+export interface ListWorkspaceJobsInput {
   readonly organizationId: string;
   readonly workspaceId: string;
 }
 
-export class ListWorkspaceIngestionJobsUseCase {
-  constructor(private readonly repo: IngestionJobRepository) {}
+export class ListWorkspaceJobsUseCase {
+  constructor(private readonly repo: BackgroundJobRepository) {}
 
-  async execute(input: ListWorkspaceIngestionJobsInput): Promise<readonly IngestionJob[]> {
+  async execute(input: ListWorkspaceJobsInput): Promise<readonly BackgroundJob[]> {
     return this.repo.listByWorkspace(input);
   }
 }

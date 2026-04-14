@@ -1,27 +1,27 @@
 /**
- * InMemoryIngestionJobRepository — default in-process adapter implementing IngestionJobRepository.
+ * InMemoryBackgroundJobRepository — default in-process adapter implementing BackgroundJobRepository.
  *
  * Suitable for development environments and unit tests. Scoped to a single
  * process lifetime (data is lost on restart).
  *
- * Replace with FirebaseIngestionJobRepository for production persistence.
+ * Replace with FirebaseBackgroundJobRepository for production persistence.
  */
 
-import type { IngestionJob, IngestionStatus } from "../domain/entities/IngestionJob";
-import type { IngestionJobRepository } from "../domain/repositories/IngestionJobRepository";
+import type { BackgroundJob, BackgroundJobStatus } from "../domain/entities/BackgroundJob";
+import type { BackgroundJobRepository } from "../domain/repositories/BackgroundJobRepository";
 
-export class InMemoryIngestionJobRepository implements IngestionJobRepository {
+export class InMemoryBackgroundJobRepository implements BackgroundJobRepository {
   /** Keyed by document.id for O(1) lookups. */
-  private readonly store = new Map<string, IngestionJob>();
+  private readonly store = new Map<string, BackgroundJob>();
 
-  async findByDocumentId(documentId: string): Promise<IngestionJob | null> {
+  async findByDocumentId(documentId: string): Promise<BackgroundJob | null> {
     return this.store.get(documentId) ?? null;
   }
 
   async listByWorkspace(input: {
     readonly organizationId: string;
     readonly workspaceId: string;
-  }): Promise<readonly IngestionJob[]> {
+  }): Promise<readonly BackgroundJob[]> {
     return [...this.store.values()].filter(
       (job) =>
         job.document.organizationId === input.organizationId &&
@@ -29,20 +29,20 @@ export class InMemoryIngestionJobRepository implements IngestionJobRepository {
     );
   }
 
-  async save(job: IngestionJob): Promise<void> {
+  async save(job: BackgroundJob): Promise<void> {
     this.store.set(job.document.id, job);
   }
 
   async updateStatus(input: {
     readonly documentId: string;
-    readonly status: IngestionStatus;
+    readonly status: BackgroundJobStatus;
     readonly statusMessage?: string;
     readonly updatedAtISO: string;
-  }): Promise<IngestionJob | null> {
+  }): Promise<BackgroundJob | null> {
     const current = this.store.get(input.documentId);
     if (!current) return null;
 
-    const updated: IngestionJob = {
+    const updated: BackgroundJob = {
       ...current,
       status:        input.status,
       statusMessage: input.statusMessage,

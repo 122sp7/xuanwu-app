@@ -1,11 +1,11 @@
 ﻿export {
-  RegisterIngestionDocumentUseCase,
-  AdvanceIngestionStageUseCase,
-  ListWorkspaceIngestionJobsUseCase,
-} from "./use-cases/ingestion.use-cases";
+  RegisterJobDocumentUseCase,
+  AdvanceJobStageUseCase,
+  ListWorkspaceJobsUseCase,
+} from "./use-cases/background-job.use-cases";
 export type {
-  IngestionResult,
-  RegisterIngestionDocumentInput,
-  AdvanceIngestionStageInput,
-  ListWorkspaceIngestionJobsInput,
-} from "./use-cases/ingestion.use-cases";
+  JobResult,
+  RegisterJobDocumentInput,
+  AdvanceJobStageInput,
+  ListWorkspaceJobsInput,
+} from "./use-cases/background-job.use-cases";

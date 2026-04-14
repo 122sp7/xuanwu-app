@@ -1,5 +1,5 @@
 /**
- * IngestionJob — aggregate entity tracking a document through the RAG
+ * BackgroundJob — aggregate entity tracking a document through the RAG
  * ingestion pipeline.
  *
  * The embedded state machine enforces strict one-way status transitions,
@@ -13,11 +13,11 @@
  *   failed   → re-indexing → parsing
  */
 
-import type { IngestionDocument } from "./IngestionDocument";
+import type { JobDocument } from "./JobDocument";
 
 // ── Status ────────────────────────────────────────────────────────────────────
 
-export type IngestionStatus =
+export type BackgroundJobStatus =
   | "uploaded"
   | "parsing"
   | "chunking"
@@ -27,7 +27,7 @@ export type IngestionStatus =
   | "re-indexing"
   | "failed";
 
-const ALLOWED_TRANSITIONS: Readonly<Record<IngestionStatus, readonly IngestionStatus[]>> = {
+const ALLOWED_TRANSITIONS: Readonly<Record<BackgroundJobStatus, readonly BackgroundJobStatus[]>> = {
   uploaded:      ["parsing",    "failed"],
   parsing:       ["chunking",   "failed"],
   chunking:      ["embedding",  "failed"],
@@ -42,22 +42,22 @@ const ALLOWED_TRANSITIONS: Readonly<Record<IngestionStatus, readonly IngestionSt
  * Domain guard: returns true only when the requested transition is permitted
  * by the state machine contract.
  */
-export function canTransitionIngestionStatus(
-  from: IngestionStatus,
-  to: IngestionStatus,
+export function canTransitionJobStatus(
+  from: BackgroundJobStatus,
+  to: BackgroundJobStatus,
 ): boolean {
   return ALLOWED_TRANSITIONS[from].includes(to);
 }
 
 // ── Aggregate ─────────────────────────────────────────────────────────────────
 
-export interface IngestionJob {
+export interface BackgroundJob {
   /** Unique job identifier (UUID). */
   readonly id: string;
   /** Immutable document snapshot attached to this job. */
-  readonly document: IngestionDocument;
+  readonly document: JobDocument;
   /** Current pipeline stage. */
-  readonly status: IngestionStatus;
+  readonly status: BackgroundJobStatus;
   /** Optional human-readable message describing the current stage or failure reason. */
   readonly statusMessage?: string;
   /** ISO-8601 timestamp of job creation. */

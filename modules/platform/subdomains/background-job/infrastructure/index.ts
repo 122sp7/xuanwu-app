@@ -1,6 +1,6 @@
 /**
  * Background-job infrastructure barrel — adapter exports only.
  *
- * Composition logic lives in interfaces/composition/ingestion-service.ts.
+ * Composition logic lives in interfaces/composition/background-job-service.ts.
  */
-export { InMemoryIngestionJobRepository } from "./InMemoryIngestionJobRepository";
+export { InMemoryBackgroundJobRepository } from "./InMemoryBackgroundJobRepository";

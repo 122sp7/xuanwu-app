@@ -1,7 +1,7 @@
 export type {
-  IngestionJobDomainEvent,
-  IngestionJobRegisteredEvent,
-  IngestionJobAdvancedEvent,
-  IngestionJobFailedEvent,
-  IngestionJobDomainEventType,
-} from "./IngestionJobDomainEvent";
+  BackgroundJobDomainEvent,
+  BackgroundJobRegisteredEvent,
+  BackgroundJobAdvancedEvent,
+  BackgroundJobFailedEvent,
+  BackgroundJobDomainEventType,
+} from "./BackgroundJobDomainEvent";

@@ -4,8 +4,8 @@
  */
 
 export * from "../application";
-export { ingestionService } from "../interfaces/composition/ingestion-service";
-export type { IngestionDocument } from "../domain/entities/IngestionDocument";
-export type { IngestionChunk, IngestionChunkMetadata } from "../domain/entities/IngestionChunk";
-export type { IngestionJob, IngestionStatus } from "../domain/entities/IngestionJob";
-export { canTransitionIngestionStatus } from "../domain/entities/IngestionJob";
+export { backgroundJobService } from "../interfaces/composition/background-job-service";
+export type { JobDocument } from "../domain/entities/JobDocument";
+export type { JobChunk, JobChunkMetadata } from "../domain/entities/JobChunk";
+export type { BackgroundJob, BackgroundJobStatus } from "../domain/entities/BackgroundJob";
+export { canTransitionJobStatus } from "../domain/entities/BackgroundJob";
