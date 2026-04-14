@@ -27,10 +27,10 @@ notion 是知識內容生命週期主域。它的責任是提供 knowledge artif
 - authoring
 - collaboration
 - database
-- knowledge-analytics
+- knowledge-engagement
 - attachments
 - automation
-- knowledge-integration
+- external-knowledge-sync
 - notes
 - templates
 - knowledge-versioning

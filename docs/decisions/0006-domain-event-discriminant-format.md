@@ -15,7 +15,7 @@
 |------|-----------|
 | platform | `access-control/domain/events/AccessPolicyDomainEvent.ts` |
 | platform | `account/domain/events/AccountDomainEvent.ts` |
-| platform | `background-job/domain/events/IngestionJobDomainEvent.ts` |
+| platform | `background-job/domain/events/BackgroundJobDomainEvent.ts` |
 | platform | `identity/domain/events/IdentityDomainEvent.ts` |
 | platform | `notification/domain/events/NotificationDomainEvent.ts` |
 | platform | `organization/domain/events/OrganizationDomainEvent.ts` |

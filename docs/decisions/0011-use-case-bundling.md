@@ -27,7 +27,7 @@
 | `platform/subdomains/organization/application/use-cases/organization-member.use-cases.ts` | 4 |
 | `platform/subdomains/organization/application/use-cases/organization-lifecycle.use-cases.ts` | 4 |
 | `platform/subdomains/access-control/application/use-cases/access-control.use-cases.ts` | 4 |
-| `platform/subdomains/background-job/application/use-cases/ingestion.use-cases.ts` | 3 |
+| `platform/subdomains/background-job/application/use-cases/background-job.use-cases.ts` | 3 |
 | `platform/subdomains/team/application/use-cases/team.use-cases.ts` | 3 |
 | `platform/subdomains/account/application/use-cases/account-policy.use-cases.ts` | 3 |
 | `platform/subdomains/notification/application/use-cases/notification.use-cases.ts` | 3 |
@@ -74,13 +74,13 @@
 | 文件 | Re-export 查詢 |
 |------|--------------|
 | `notion/knowledge/use-cases/manage-knowledge-page.use-cases.ts` | `GetKnowledgePageUseCase`, `ListKnowledgePagesUseCase`, `GetKnowledgePageTreeUseCase` 等 5 個 |
-| `notion/database/use-cases/manage-database.use-cases.ts` | `GetDatabaseUseCase`, `ListDatabasesUseCase` |
-| `notion/database/use-cases/manage-view.use-cases.ts` | `ListViewsUseCase` |
-| `notion/database/use-cases/manage-record.use-cases.ts` | `ListRecordsUseCase` |
-| `notion/database/use-cases/manage-automation.use-cases.ts` | `ListAutomationsUseCase` |
+| `notion/knowledge-database/use-cases/manage-database.use-cases.ts` | `GetDatabaseUseCase`, `ListDatabasesUseCase` |
+| `notion/knowledge-database/use-cases/manage-view.use-cases.ts` | `ListViewsUseCase` |
+| `notion/knowledge-database/use-cases/manage-record.use-cases.ts` | `ListRecordsUseCase` |
+| `notion/knowledge-database/use-cases/manage-automation.use-cases.ts` | `ListAutomationsUseCase` |
 | `platform/notification/use-cases/notification.use-cases.ts` | `GetNotificationsForRecipientUseCase`, `GetUnreadCountUseCase` |
 | `platform/subscription/use-cases/subscription.use-cases.ts` | `GetActiveSubscriptionUseCase`（混在命令類別中） |
-| `platform/background-job/use-cases/ingestion.use-cases.ts` | `ListWorkspaceIngestionJobsUseCase`（混在命令類別中） |
+| `platform/background-job/use-cases/background-job.use-cases.ts` | `ListWorkspaceJobsUseCase`（混在命令類別中） |
 
 ---
 
@@ -107,7 +107,7 @@
 | 高 | notion/knowledge `manage-knowledge-page.use-cases.ts` (5 classes) | 拆成 5 個獨立文件，queries re-export 移除 |
 | 高 | platform/account `account.use-cases.ts` (6 classes) | 拆成 6 個獨立文件 |
 | 中 | platform/subscription `subscription.use-cases.ts` — `GetActiveSubscriptionUseCase` | 移至 `queries/get-active-subscription.queries.ts` |
-| 中 | platform/background-job `ingestion.use-cases.ts` — `ListWorkspaceIngestionJobsUseCase` | 移至 `queries/list-ingestion-jobs.queries.ts` |
+| 中 | platform/background-job `background-job.use-cases.ts` — `ListWorkspaceJobsUseCase` | 移至 `queries/list-workspace-jobs.queries.ts` |
 | 低 | 其餘 manage-*.use-cases.ts | 按功能逐步拆分 |
 
 ## Consequences

@@ -47,7 +47,7 @@ modules/notebooklm/subdomains/source/application/use-cases/register-rag-document
   import { randomUUID } from "node:crypto";
 modules/notebooklm/subdomains/synthesis/application/use-cases/answer-rag-query.use-case.ts:13
   import { randomUUID } from "node:crypto";
-modules/platform/subdomains/background-job/application/use-cases/ingestion.use-cases.ts:12
+modules/platform/subdomains/background-job/application/use-cases/background-job.use-cases.ts:12
   import { randomUUID } from "node:crypto";
 ```
 

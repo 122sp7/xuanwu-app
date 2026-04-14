@@ -12,7 +12,7 @@
 | analytics | reporting, metrics, dashboards, telemetry-projection | experimentation, decision-support |
 | platform | account, account-profile, organization, team, platform-config, feature-flag, onboarding, compliance, integration, workflow, notification, background-job, content, search, audit-log, observability, support | consent, secret-management |
 | workspace | audit, feed, scheduling, workspace-workflow | lifecycle, membership, sharing, presence |
-| notion | knowledge, authoring, collaboration, knowledge-database, knowledge-analytics, attachments, automation, knowledge-integration, notes, templates, knowledge-versioning | taxonomy, relations, publishing |
+| notion | knowledge, authoring, collaboration, knowledge-database, knowledge-engagement, attachments, automation, external-knowledge-sync, notes, templates, knowledge-versioning | taxonomy, relations, publishing |
 | notebooklm | conversation, note, notebook, source, synthesis, conversation-versioning | ingestion, retrieval, grounding, evaluation |
 
 ## Detailed Subdomain Catalog
@@ -157,10 +157,10 @@
 | authoring | 知識庫文章建立、驗證與分類 |
 | collaboration | 協作留言、細粒度權限與版本快照 |
 | knowledge-database | 結構化資料多視圖管理 |
-| knowledge-analytics | 知識使用行為量測 |
+| knowledge-engagement | 知識使用行為量測 |
 | attachments | 附件與媒體關聯儲存 |
 | automation | 知識事件觸發自動化動作 |
-| knowledge-integration | 知識與外部系統雙向整合 |
+| external-knowledge-sync | 知識與外部系統雙向整合 |
 | notes | 個人輕量筆記與正式知識協作 |
 | templates | 頁面範本管理與套用 |
 | knowledge-versioning | 全域版本快照策略管理 |
@@ -217,10 +217,10 @@
 | Original Term | Resolution |
 |---|---|
 | ai | `ai` context 擁有 generic AI capability；`notion` 與 `notebooklm` 僅為 consumer |
-| analytics | `analytics` context 擁有 generic analytics；`notion` 保留 `knowledge-analytics` |
+| analytics | `analytics` context 擁有 generic analytics；`notion` 保留 `knowledge-engagement` |
 | entitlement | `billing` 擁有 entitlement；其他主域只消費 capability signal |
 | identity | `iam` 擁有 identity 與 access-control；其他主域不再各自宣稱 |
-| integration | `platform` 保留 generic `integration`；`notion` 保留 `knowledge-integration` |
+| integration | `platform` 保留 generic `integration`；`notion` 保留 `external-knowledge-sync` |
 | versioning | `notion` 改為 `knowledge-versioning`；`notebooklm` 改為 `conversation-versioning` |
 | workflow | `platform` 保留 generic `workflow`；`workspace` 使用 `workspace-workflow` |
 
