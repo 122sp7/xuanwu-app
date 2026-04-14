@@ -1,111 +1,128 @@
 
-==================== L0 ====================
----------------- platform subdomains ----------------
+# System-Wide Module Graph
 
-observability
-logging
-job-runner
-config
-event-bus
-rate-limit
-feature-flag
-security-policy
+本圖反映 [0014-main-domain-resplit.md](./decisions/0014-main-domain-resplit.md) 確立的八主域重切 baseline。
 
+凡例：
+  subdomain          = Baseline subdomain（已基線化）
+  [subdomain]        = Recommended Gap subdomain（尚未基線化，待 ADR 確認）
+  T0 / T1 / … / SINK = Upstream→Downstream Tier（越小越上游）
 
----------------- iam subdomains --------------------
+---
 
-identity
-authentication
-authorization
-tenant
-session
-access-control
-platform
-  ↓
-iam
-  ↓
+## Upstream → Downstream Dependency Map
 
-┌────────────────────────────────────────────┐
-│                L1 DOMAIN LAYER            │
-└────────────────────────────────────────────┘
+  Upstream     │  Downstream
+  ─────────────┼───────────────────────────────────────────────────────────
+  iam          │  billing · platform · workspace · notion · notebooklm
+  billing      │  workspace · notion · notebooklm
+  ai           │  notion · notebooklm
+  platform     │  workspace
+  workspace    │  notion · notebooklm
+  notion       │  notebooklm
+  (all above)  │  analytics  ← 事件 / 投影 sink，不反向寫回任何上游
 
-workspace            billing              ai
-    ↓                   ↓                ↓
+---
 
+## Domain + Subdomain Inventory
 
-==================== L1 ====================
+─────────────────────────────────────────────────────────────────────────────
+T0  IAM                     BILLING                 AI
+    身份與存取治理上游       商業與權益治理上游       共享 AI Capability 上游
+─────────────────────────────────────────────────────────────────────────────
 
-platform subdomains      iam subdomains
----------------------    ----------------------
+    identity                billing                 provider-routing
+    access-control          subscription            model-policy
+    tenant                  entitlement             safety-guardrail
+    security-policy         referral                prompt-pipeline
 
-observability            identity
-logging                  authentication
-job-runner               authorization
-config                   tenant
-security-policy          session
-event-bus                access-control
-rate-limit
-feature-flag
+    [session]               [pricing]               [evaluation-policy]
+    [consent]               [invoice]               [model-observability]
+    [secret-governance]     [quota-policy]
 
+─────────────────────────────────────────────────────────────────────────────
+T1  PLATFORM
+    平台營運支撐
+─────────────────────────────────────────────────────────────────────────────
 
-==================== L2 ====================
+    account                 notification            audit-log
+    account-profile         background-job          observability
+    organization            content                 support
+    team                    search                  workflow
+    platform-config         compliance
+    feature-flag            integration
+    onboarding
 
-workspace            billing            ai
-   │                   │                │
-   │                   │                │
-   ▼                   ▼                ▼
+    [consent]               [secret-management]     [operational-catalog]
 
-account           subscription     context
-account-profile   entitlement      memory
-organization                        retrieval
-team                               inference
-notification                       orchestration
-                                   tool-execution
-                                   evaluation
-                                   trace
-                                   distillation
-                                   routing
-                                   prompt
-                                   security
-                                   schema
-                                   feedback
+─────────────────────────────────────────────────────────────────────────────
+T2  WORKSPACE
+    協作容器與工作區範疇
+─────────────────────────────────────────────────────────────────────────────
 
+    audit
+    feed
+    scheduling
+    workspace-workflow
 
-==================== L3 ====================
+    [lifecycle]             [membership]
+    [sharing]               [presence]
 
-notebooklm        notion
-    │               │
-    │               │
-    ▼               ▼
+─────────────────────────────────────────────────────────────────────────────
+T3  NOTION
+    正典知識內容
+─────────────────────────────────────────────────────────────────────────────
 
+    knowledge               automation
+    authoring               knowledge-integration
+    collaboration           notes
+    database                templates
+    knowledge-analytics     knowledge-versioning
+    attachments
 
----------------- notebooklm -----------------
+    [taxonomy]              [relations]             [publishing]
 
-context
-memory
-retrieval
-inference
-orchestration
-tool-execution
-trace
-evaluation
+─────────────────────────────────────────────────────────────────────────────
+T4  NOTEBOOKLM
+    對話與推理輸出
+─────────────────────────────────────────────────────────────────────────────
 
+    conversation            source
+    note                    synthesis
+    notebook                conversation-versioning
 
------------------- notion -------------------
+    [ingestion]             [retrieval]
+    [grounding]             [evaluation]
 
-context
-inference
-orchestration
-tool-execution
-trace
-evaluation
-prompt
-schema
-feedback
+─────────────────────────────────────────────────────────────────────────────
+SINK  ANALYTICS
+      Read model / 事件 sink，下游 only，不反向擁有任何上游正典
+─────────────────────────────────────────────────────────────────────────────
 
+    reporting               telemetry-projection
+    metrics
+    dashboards
 
-==================== L4 ====================
+    [experimentation]       [decision-support]
 
-all modules
-  ↓
-analytics (event sink)
+---
+
+## Ownership Rules（速查）
+
+  iam         → 身份、tenant、access decision；不擁有商業、內容、推理正典
+  billing     → subscription、entitlement；不擁有身份治理或內容正典
+  ai          → shared AI capability；不擁有 notion 或 notebooklm 的語言
+  platform    → account、organization、operational services；不再是所有治理的總擁有者
+  workspace   → 工作區範疇與 membership；不擁有平台治理或正典內容
+  notion      → 正典知識內容；不擁有治理或推理流程
+  notebooklm  → 推理流程與衍生輸出；不擁有正典知識內容
+  analytics   → 下游 read model sink；不反向成為上游 canonical owner
+
+---
+
+## Document Network
+
+  architecture-overview.md  — 全域架構與主域關係
+  bounded-contexts.md        — 主域與子域所有權詳目
+  context-map.md             — Upstream/Downstream published language 對照
+  ubiquitous-language.md     — 戰略術語權威

@@ -69,10 +69,10 @@
 - ❌ domain/ NEVER depends on other modules (even platform)
 - ✅ All external deps injected via ports/adapters
 
-### Rule 28: Platform Cannot Depend on Downstream
-- ✅ platform → workspace | notion | notebooklm (one direction only)
-- ❌ platform NEVER imports from workspace, notion, notebooklm
-- ✅ If platform needs semantic data from notion/notebooklm: notion/notebooklm emit event to platform
+### Rule 28: Upstream Contexts Cannot Depend on Their Downstreams
+- ✅ iam / billing / ai / platform keep one-way dependency direction toward their downstream consumers
+- ❌ upstream contexts NEVER import downstream domain internals directly
+- ✅ If an upstream context needs semantic data from downstreams, use events or public APIs only
 ```
 
 ### Add to § "Anti-Patterns"

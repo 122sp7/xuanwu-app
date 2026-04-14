@@ -97,7 +97,7 @@ export class CreateWorkspaceUseCase {
 事件在主域間以 published language 包裝後傳遞，下游主域只訂閱與自身邏輯相關的事件，並以 ACL 或 Conformist 轉譯為本地語言：
 
 ```
-platform emits: platform.subscription.activated
+billing emits: billing.subscription.activated
     ↓ (QStash)
 workspace subscribes: maps to local MembershipEntitlementUpdated
 notion subscribes: maps to local ContentCapabilityGranted
@@ -114,7 +114,7 @@ notebooklm subscribes: maps to local AICapabilityGranted
 
 ### 使用場景
 
-- 跨主域的非同步觸發（platform → workspace / notion / notebooklm）
+- 跨主域的非同步觸發（例如 iam / billing / ai → workspace / notion / notebooklm）
 - 長時間執行的背景工作（embedding pipeline、ingestion job）
 - 需要可重試的 side effect（通知、webhook 回呼）
 

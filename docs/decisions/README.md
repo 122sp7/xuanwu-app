@@ -7,8 +7,8 @@
 | ADR | Title | Status | Scope |
 |---|---|---|---|
 | [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md) | Hexagonal Architecture | Accepted | 全域架構與邊界分層 |
-| [0002-bounded-contexts.md](./0002-bounded-contexts.md) | Bounded Contexts | Accepted | 四主域與子域切分 |
-| [0003-context-map.md](./0003-context-map.md) | Context Map | Accepted | 主域間依賴方向 |
+| [0002-bounded-contexts.md](./0002-bounded-contexts.md) | Bounded Contexts | Accepted | 舊四主域 baseline，若衝突由 0014 補正 |
+| [0003-context-map.md](./0003-context-map.md) | Context Map | Accepted | 舊主域依賴方向 baseline，若衝突由 0014 補正 |
 | [0004-ubiquitous-language.md](./0004-ubiquitous-language.md) | Ubiquitous Language | Accepted | 戰略術語治理 |
 | [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md) | Anti-Corruption Layer | Accepted | 邊界整合保護規則 |
 | [0006-domain-event-discriminant-format.md](./0006-domain-event-discriminant-format.md) | Domain Event Discriminant Format | Accepted | 83 snake_case + 4 missing prefix + 25 wrong module prefix violations |
@@ -18,6 +18,7 @@
 | [0010-aggregate-domain-event-emission.md](./0010-aggregate-domain-event-emission.md) | Aggregate Domain Event Emission | Accepted | 2 個 class 聚合根缺少 pullDomainEvents；Workspace 事件在 use-case 中手動組裝 |
 | [0011-use-case-bundling.md](./0011-use-case-bundling.md) | Use Case Bundling and Query-Command Mixing | Accepted | 30 個多類別 use-case 捆綁文件；8 處命令文件 re-export 查詢類別 |
 | [0012-source-to-task-orchestration.md](./0012-source-to-task-orchestration.md) | Source-To-Task Orchestration | Accepted | upload → parse → Knowledge Page → task 的跨 context 邊界與 orchestration 決策 |
+| [0014-main-domain-resplit.md](./0014-main-domain-resplit.md) | Main Domain Resplit | Accepted | 八主域重切與 ownership baseline 更新 |
 
 ## Design Smell Taxonomy (1000–5200)
 
