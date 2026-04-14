@@ -11121,23 +11121,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/analytics/README.md
-````markdown
-# Analytics
-
-Platform-wide analytics and metrics.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/platform/subdomains/audit-log/README.md
 ````markdown
 # Audit Log
@@ -11172,149 +11155,11 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/billing/README.md
-````markdown
-# Billing
-
-Billing and payment processing.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/compliance/README.md
-````markdown
-# Compliance
-
-Regulatory compliance management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/consent/README.md
-````markdown
-# Consent
-
-把同意與資料使用授權從 compliance 中切開。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/content/README.md
-````markdown
-# Content
-
-Platform content management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/entitlement/README.md
-````markdown
-# Entitlement
-
-建立有效權益與功能可用性的統一解算上下文。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/feature-flag/README.md
-````markdown
-# Feature Flag
-
-Feature flag management and rollout.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/integration/README.md
-````markdown
-# Integration
-
-External system integration management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/platform/subdomains/observability/README.md
 ````markdown
 # Observability
 
 System observability and monitoring.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/onboarding/README.md
-````markdown
-# Onboarding
-
-User and organization onboarding flows.
 
 ## Ownership
 
@@ -11344,23 +11189,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/referral/README.md
-````markdown
-# Referral
-
-Referral program management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/platform/subdomains/search/README.md
 ````markdown
 # Search
@@ -11378,63 +11206,11 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/secret-management/README.md
-````markdown
-# Secret Management
-
-把憑證、token、rotation 從 integration 中切開。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/platform/subdomains/security-policy/README.md
 ````markdown
 # Security Policy
 
 Security policy enforcement.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/subscription/README.md
-````markdown
-# Subscription
-
-Subscription plan management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/support/README.md
-````markdown
-# Support
-
-Customer support management.
 
 ## Ownership
 
@@ -11474,23 +11250,6 @@ When implementing, follow inside-out:
 
 - **Bounded Context**: platform
 - **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/workflow/README.md
-````markdown
-# Workflow
-
-Platform-level workflow orchestration.
-
-## Ownership
-
-- **Bounded Context**: platform
 - **Status**: Stub — awaiting use case definition
 
 ## Development Order
@@ -14718,6 +14477,126 @@ flowchart LR
 - [../decisions/README.md](../decisions/README.md)
 ````
 
+## File: docs/contexts/ai/AGENT.md
+````markdown
+
+````
+
+## File: docs/contexts/ai/bounded-contexts.md
+````markdown
+
+````
+
+## File: docs/contexts/ai/context-map.md
+````markdown
+
+````
+
+## File: docs/contexts/ai/README.md
+````markdown
+
+````
+
+## File: docs/contexts/ai/subdomains.md
+````markdown
+
+````
+
+## File: docs/contexts/ai/ubiquitous-language.md
+````markdown
+
+````
+
+## File: docs/contexts/analytics/AGENT.md
+````markdown
+
+````
+
+## File: docs/contexts/analytics/bounded-contexts.md
+````markdown
+
+````
+
+## File: docs/contexts/analytics/context-map.md
+````markdown
+
+````
+
+## File: docs/contexts/analytics/README.md
+````markdown
+
+````
+
+## File: docs/contexts/analytics/subdomains.md
+````markdown
+
+````
+
+## File: docs/contexts/analytics/ubiquitous-language.md
+````markdown
+
+````
+
+## File: docs/contexts/billing/AGENT.md
+````markdown
+
+````
+
+## File: docs/contexts/billing/bounded-contexts.md
+````markdown
+
+````
+
+## File: docs/contexts/billing/context-map.md
+````markdown
+
+````
+
+## File: docs/contexts/billing/README.md
+````markdown
+
+````
+
+## File: docs/contexts/billing/subdomains.md
+````markdown
+
+````
+
+## File: docs/contexts/billing/ubiquitous-language.md
+````markdown
+
+````
+
+## File: docs/contexts/iam/AGENT.md
+````markdown
+
+````
+
+## File: docs/contexts/iam/bounded-contexts.md
+````markdown
+
+````
+
+## File: docs/contexts/iam/context-map.md
+````markdown
+
+````
+
+## File: docs/contexts/iam/README.md
+````markdown
+
+````
+
+## File: docs/contexts/iam/subdomains.md
+````markdown
+
+````
+
+## File: docs/contexts/iam/ubiquitous-language.md
+````markdown
+
+````
+
 ## File: docs/decisions/0006-domain-event-discriminant-format.md
 ````markdown
 # 0006 Domain Event Discriminant Format
@@ -17602,6 +17481,81 @@ flowchart LR
 ## Summary
 
 這個 feature 的核心不是「直接建任務」，而是把**同一份 source document**安全地推進到多個下游消費能力，同時維持 `notebooklm → notion / workspace` 的邊界清楚。
+````
+
+## File: modules/ai/subdomains/access-control/README.md
+````markdown
+
+````
+
+## File: modules/ai/subdomains/identity/README.md
+````markdown
+
+````
+
+## File: modules/ai/subdomains/tenant/README.md
+````markdown
+
+````
+
+## File: modules/analytics/docs/README.md
+````markdown
+
+````
+
+## File: modules/billing/docs/README.md
+````markdown
+
+````
+
+## File: modules/billing/subdomains/entitlement/README.md
+````markdown
+# Entitlement
+
+建立有效權益與功能可用性的統一解算上下文。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/billing/subdomains/subscription/README.md
+````markdown
+# Subscription
+
+Subscription plan management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/iam/subdomains/access-control/README.md
+````markdown
+
+````
+
+## File: modules/iam/subdomains/identity/README.md
+````markdown
+
+````
+
+## File: modules/iam/subdomains/tenant/README.md
+````markdown
+
 ````
 
 ## File: modules/notebooklm/docs/README.md
@@ -23056,6 +23010,225 @@ flowchart LR
 - 若某整合指南與 [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md) 衝突，以 ADR 為準。
 ````
 
+## File: modules/ai/AGENT.md
+````markdown
+# AI Module Agent Guide
+
+## Purpose
+
+This bounded context is reserved for shared AI capability orchestration and policy.
+
+## Boundary Rules
+
+- Keep provider routing, model policy, safety, and AI orchestration concerns here.
+- Do not place workspace UI composition, billing policy, or identity governance here.
+- Cross-module consumers must use the public API boundary.
+- Preserve the dependency direction of interfaces to application to domain, with infrastructure depending inward.
+
+## Delivery Style
+
+- Keep this module minimal until concrete AI capabilities are promoted here.
+````
+
+## File: modules/ai/ai.instructions.md
+````markdown
+---
+description: Minimal rules for the AI bounded context.
+applyTo: 'modules/ai/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# AI Instructions
+
+- modules/ai owns shared AI capability orchestration and policy.
+- Keep AI safety, provider routing, and orchestration concerns behind public APIs.
+- Do not mix identity governance or billing policy into this module.
+- Keep domain logic framework-free and keep adapters isolated in infrastructure.
+````
+
+## File: modules/ai/docs/README.md
+````markdown
+# AI Docs
+
+This folder will hold module-local architecture notes for the AI bounded context when concrete capabilities are added.
+````
+
+## File: modules/ai/README.md
+````markdown
+# AI
+
+Minimal bounded-context skeleton for shared AI capability orchestration.
+
+## Intended ownership
+
+- provider routing
+- model policy
+- quota and safety guardrails
+- prompt and flow orchestration
+
+This module is intentionally minimal until concrete AI use cases are implemented.
+````
+
+## File: modules/analytics/AGENT.md
+````markdown
+# Analytics Module Agent Guide
+
+## Purpose
+
+`modules/analytics` owns reporting, metrics, and read-model analytics surfaces.
+
+## Boundary Rules
+
+- Keep analytics read-oriented by default.
+- Do not place billing, entitlement, or subscription policy here.
+- Cross-module collaboration must go through public `api/` boundaries.
+- Preserve `interfaces -> application -> domain <- infrastructure`.
+
+## Delivery Style
+
+- Prefer small query-oriented increments.
+- Add subdomains only when a real analytics capability emerges.
+````
+
+## File: modules/analytics/analytics.instructions.md
+````markdown
+---
+description: Minimal rules for the analytics bounded context.
+applyTo: 'modules/analytics/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Analytics Instructions
+
+- `modules/analytics` owns analytics and reporting concerns only.
+- Keep this module query-first and integration-light until concrete use cases arrive.
+- Do not import peer module internals; use public `api/` contracts only.
+- Keep domain logic framework-free.
+````
+
+## File: modules/analytics/README.md
+````markdown
+# Analytics
+
+Minimal bounded-context skeleton for analytics and reporting capabilities.
+
+## Intended ownership
+
+- reporting
+- metrics
+- dashboards
+- aggregated read models
+
+This module is intentionally minimal until a concrete analytics use case is implemented.
+````
+
+## File: modules/billing/AGENT.md
+````markdown
+# Billing Module Agent Guide
+
+## Purpose
+
+`modules/billing` owns commercial capability concerns, including subscription and entitlement.
+
+## Boundary Rules
+
+- Place billing policy and commercial lifecycle here.
+- Do not put storage, auth, or generic governance logic here.
+- Cross-module consumers must use `modules/billing/api`.
+- Preserve `interfaces -> application -> domain <- infrastructure`.
+
+## Current subdomains
+
+- subscription
+- entitlement
+````
+
+## File: modules/billing/billing.instructions.md
+````markdown
+---
+description: Minimal rules for the billing bounded context.
+applyTo: 'modules/billing/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Billing Instructions
+
+- `modules/billing` owns subscription and entitlement concerns.
+- Keep commercial policy inside billing, not platform UI or transport layers.
+- Expose only semantic capabilities from `api/`.
+- Keep infrastructure adapters isolated from domain logic.
+````
+
+## File: modules/billing/README.md
+````markdown
+# Billing
+
+Minimal bounded-context skeleton for billing capabilities.
+
+## Owned subdomains
+
+- subscription
+- entitlement
+
+This module now hosts the migrated subscription and entitlement implementations under `subdomains/`.
+````
+
+## File: modules/iam/AGENT.md
+````markdown
+# IAM Module Agent Guide
+
+## Purpose
+
+This bounded context owns identity, access control, and tenant-scoped governance concerns.
+
+## Boundary Rules
+
+- Keep authentication, actor identity, access decision, and tenant isolation here.
+- Do not place billing, AI orchestration, or workspace product behavior here.
+- Cross-module consumers must use the public API boundary.
+- Preserve the dependency direction of interfaces to application to domain, with infrastructure depending inward.
+
+## Current subdomains
+
+- identity
+- access-control
+- tenant
+````
+
+## File: modules/iam/docs/README.md
+````markdown
+# IAM Docs
+
+This folder will hold module-local architecture notes for the IAM bounded context when concrete capabilities are added.
+````
+
+## File: modules/iam/iam.instructions.md
+````markdown
+---
+description: Minimal rules for the IAM bounded context.
+applyTo: 'modules/iam/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# IAM Instructions
+
+- modules/iam owns identity, access-control, and tenant concerns.
+- Keep governance and access policy semantic here, not in UI composition.
+- Expose stable capability contracts from the public API only.
+- Keep domain logic framework-free and keep infrastructure adapters isolated.
+````
+
+## File: modules/iam/README.md
+````markdown
+# IAM
+
+Minimal bounded-context skeleton for identity and access management capabilities.
+
+## Owned subdomains
+
+- identity
+- access-control
+- tenant
+
+This module is the semantic home for identity, access decisions, and tenant isolation.
+````
+
 ## File: modules/notebooklm/AGENT.md
 ````markdown
 # NotebookLM Agent
@@ -25487,7 +25660,7 @@ description: Reference codebase for Xuanwu App. Use this skill when you need to 
 
 # Xuanwu App Codebase Reference
 
-1682 files | 49201 lines | 487201 tokens
+1688 files | 49572 lines | 490832 tokens
 
 ## Overview
 
