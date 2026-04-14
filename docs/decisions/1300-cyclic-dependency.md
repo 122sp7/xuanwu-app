@@ -1,7 +1,8 @@
 # 1300 Cyclic Dependency
 
-- Status: Accepted
+- Status: Partially Resolved
 - Date: 2026-04-13
+- Annotated (all 4 chains): 2026-04-14
 - Category: Architectural Smells > Cyclic Dependency
 
 ## Context
@@ -94,3 +95,23 @@ const bridge = require("../../../account/api/legacy-account-profile.bridge") as 
 2. `platform/subdomains/account/infrastructure/identity-token-refresh.adapter.ts:26` — account ↔ identity
 3. `platform/subdomains/organization/interfaces/composition/organization-service.ts:84` — organization ↔ team
 4. `platform/subdomains/account-profile/interfaces/composition/account-profile-service.ts:46` — account-profile ↔ account
+
+## Resolution (HX-1-005 — 2026-04-14)
+
+### 已完成：所有 4 個循環鏈均已標注 TODO(ADR-1300)
+
+每個 `require()` 延遲載入呼叫已更新，加入 `TODO(ADR-1300)` 標注，說明：
+- 所屬循環鏈（Chain A / B / C / D）
+- 循環路徑描述
+- 須保持 `require()` 直到 DI 注入方案落地
+
+| 檔案 | 鏈 | 狀態 |
+|------|----|------|
+| `workspace/interfaces/runtime/workspace-runtime.ts` | A | ✅ 已標注 |
+| `platform/subdomains/account/infrastructure/identity-token-refresh.adapter.ts` | B | ✅ 已標注 |
+| `platform/subdomains/organization/interfaces/composition/organization-service.ts` | C | ✅ 已標注 |
+| `platform/subdomains/account-profile/interfaces/composition/account-profile-service.ts` | D | ✅ 已標注 |
+
+### 仍開放
+
+真正的 DI 注入方案（移除 `require()` 本身）需要獨立的重構批次，以 constructor injection 取代模組層級自動配置。

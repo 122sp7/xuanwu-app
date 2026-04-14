@@ -77,6 +77,13 @@ function getPolicyRepo(): FirebaseOrgPolicyRepository {
 function getTeamPort(): OrganizationTeamPort {
   if (!_teamPort) {
     if (!_teamPortFactory) {
+      // TODO(ADR-1300): This require() breaks a circular dependency — Chain C:
+      //   organization/interfaces/composition/organization-service
+      //   → team/infrastructure/team-composition → team/api → team/interfaces
+      //   → organization (via team-member org validation wiring).
+      //
+      // The lazy require() is intentional and must remain until team factory
+      // wiring is migrated to constructor injection (DI composition root).
       // Auto-configure: lazy-require team factory from sibling subdomain
       // (platform/team/infrastructure/team-composition.ts) to avoid
       // import-time side effects in the organization api boundary.

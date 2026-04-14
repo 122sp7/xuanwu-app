@@ -1,5 +1,5 @@
 import { v4 as uuid } from "@lib-uuid";
-import type { WorkspaceEntity } from "../../api/contracts";
+import type { WorkspaceEntity } from "../../contracts";
 
 export interface WorkspaceCustomRoleDraft {
   readonly roleId: string;

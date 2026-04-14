@@ -1,5 +1,5 @@
-import type { WorkspaceCommandPort } from "../../../application/dto/workspace-interfaces.dto";
-import type { WorkspaceQueryPort } from "../../../application/dto/workspace-interfaces.dto";
+import type { WorkspaceCommandPort } from "../../application/dto/workspace-interfaces.dto";
+import type { WorkspaceQueryPort } from "../../application/dto/workspace-interfaces.dto";
 
 export interface WorkspaceSessionContext {
   readonly workspaceCommandPort: WorkspaceCommandPort;

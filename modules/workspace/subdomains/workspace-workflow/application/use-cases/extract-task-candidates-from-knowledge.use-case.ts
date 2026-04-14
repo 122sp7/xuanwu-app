@@ -9,7 +9,7 @@ import type {
   ExtractTaskCandidatesFromKnowledgeResult,
   ExtractedTaskCandidate,
 } from "../dto/extract-task-candidates-from-knowledge.dto";
-import type { TaskCandidateExtractionAiPort } from "../ports/TaskCandidateExtractionAiPort";
+import type { TaskCandidateExtractionAiPort } from "../../domain/ports/TaskCandidateExtractionAiPort";
 import { TaskCandidateRuleExtractor } from "../services/TaskCandidateRuleExtractor";
 
 function mergeUnique(candidates: ReadonlyArray<ExtractedTaskCandidate>): ReadonlyArray<ExtractedTaskCandidate> {

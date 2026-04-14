@@ -1,7 +1,8 @@
 # 1102 Layer Violation — Port 介面定義於 `application/ports/` 而非 `domain/ports/`
 
-- Status: Accepted
+- Status: Partially Resolved
 - Date: 2026-04-13
+- Resolved (deprecated shim removed): 2026-04-14
 - Category: Architectural Smells > Layer Violation
 
 ## Context
@@ -103,3 +104,22 @@ modules/platform/subdomains/ai/domain/ports/   ✅ 正確
 
 代價：
 - 4 個 port 文件需移動並更新所有 import 路徑（包含 use-case 和 adapter 文件）。
+
+## Resolution (HX-1-003 — 2026-04-14)
+
+### 已完成
+
+1. **棄用 shim 已刪除**：`application/ports/TaskCandidateExtractionAiPort.ts` 已刪除。
+   正式版本位於 `domain/ports/TaskCandidateExtractionAiPort.ts`（已無 application/ 層的反向依賴）。
+
+2. **3 個 Application Ports 已明確標示**：以 `@applicationPort` JSDoc 記錄為 Application-layer Port，
+   說明其方法簽名依賴 application/dto/ 型別、不可移至 domain/ports/：
+   - `application/ports/IssueService.ts`
+   - `application/ports/InvoiceService.ts`
+   - `application/ports/TaskService.ts`
+
+3. **domain/ports/index.ts 已加入交叉引用**：新增說明區塊，指向上述 3 個 Application Ports 及其不可遷移的原因（§3）。
+
+### 仍開放
+
+IssueService / InvoiceService / TaskService 本身的 infrastructure 實作尚未建立（見 ADR 1102 原文 §2）。

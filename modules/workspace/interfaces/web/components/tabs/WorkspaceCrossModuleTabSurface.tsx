@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import type { ReactNode } from "react";
 
-import type { WorkspaceEntity } from "../../../api/contracts";
+import type { WorkspaceEntity } from "../../../contracts";
 import type { WorkspaceTabValue } from "../../navigation/workspace-tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import {

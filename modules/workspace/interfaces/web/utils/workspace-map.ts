@@ -1,4 +1,4 @@
-import type { WorkspaceEntity } from "../../api/contracts";
+import type { WorkspaceEntity } from "../../contracts";
 
 export function toWorkspaceMap(workspaces: WorkspaceEntity[]): Record<string, WorkspaceEntity> {
   return Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace]));

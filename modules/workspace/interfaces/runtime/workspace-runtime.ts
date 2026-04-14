@@ -1,22 +1,27 @@
-import { WorkspaceCommandApplicationService } from "../../../application/services/WorkspaceCommandApplicationService";
-import { WorkspaceQueryApplicationService } from "../../../application/services/WorkspaceQueryApplicationService";
+import { WorkspaceCommandApplicationService } from "../../application/services/WorkspaceCommandApplicationService";
+import { WorkspaceQueryApplicationService } from "../../application/services/WorkspaceQueryApplicationService";
 import {
   makeWikiWorkspaceRepo,
   makeWorkspaceDomainEventPublisher,
   makeWorkspaceQueryRepo,
   makeWorkspaceRepo,
-} from "../../../api/runtime/factories";
-import type { WorkspaceCommandPort } from "../../../application/dto/workspace-interfaces.dto";
-import type { WorkspaceQueryPort } from "../../../application/dto/workspace-interfaces.dto";
+} from "../../api/runtime/factories";
+import type { WorkspaceCommandPort } from "../../application/dto/workspace-interfaces.dto";
+import type { WorkspaceQueryPort } from "../../application/dto/workspace-interfaces.dto";
 import { createWorkspaceSessionContext } from "./workspace-session-context";
 
 let _sessionContext: ReturnType<typeof createWorkspaceSessionContext> | undefined;
 
 function getSessionContext() {
   if (!_sessionContext) {
-    // Lazy-load the organization query functions to break the circular module
-    // evaluation chain: workspace-runtime → platform/api → organization/interfaces
-    // → organization/api → workspace (via barrel re-exports).
+    // TODO(ADR-1300): This require() breaks a circular module evaluation chain:
+    //   workspace-runtime → platform/api → organization/interfaces
+    //   → organization/api → workspace (via barrel re-exports).
+    //
+    // Chain A of ADR-1300. The lazy require() is intentional and must remain
+    // until the organization query gateway is extracted into a lightweight
+    // module that does not re-import workspace, at which point this can be
+    // replaced with a static import.
     //
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const platformApi = require("@/modules/platform/api");

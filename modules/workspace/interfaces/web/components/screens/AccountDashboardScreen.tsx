@@ -24,7 +24,7 @@ import {
 } from "@ui-shadcn/ui/card";
 import { Badge } from "@ui-shadcn/ui/badge";
 
-import type { WorkspaceEntity } from "../../../api/contracts";
+import type { WorkspaceEntity } from "../../../contracts";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

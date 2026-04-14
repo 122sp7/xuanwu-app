@@ -40,6 +40,13 @@ export function configureLegacyAccountProfileDataSource(
 
 function getLegacyDataSource(): LegacyAccountProfileDataSource {
 	if (!_legacyDataSource) {
+		// TODO(ADR-1300): This require() breaks a circular dependency — Chain D:
+		//   account-profile/interfaces/composition/account-profile-service
+		//   → account/api/legacy-account-profile.bridge → account/api
+		//   → account/interfaces → account-profile (via profile-completion wiring).
+		//
+		// The lazy require() is intentional and must remain until the legacy bridge
+		// is replaced by a proper DI-injected adapter (see ADR-1300).
 		// Auto-configure: lazy-require from sibling subdomain bridge to avoid
 		// import-time side effects in the account-profile api boundary.
 		// eslint-disable-next-line @typescript-eslint/no-require-imports
