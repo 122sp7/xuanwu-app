@@ -16,7 +16,7 @@ export { FirebaseKnowledgePageRepository } from "../../../infrastructure/knowled
 export { FirebaseContentBlockRepository } from "../../../infrastructure/knowledge/firebase/FirebaseContentBlockRepository";
 export { FirebaseKnowledgeCollectionRepository } from "../../../infrastructure/knowledge/firebase/FirebaseKnowledgeCollectionRepository";
 export { FirebaseBacklinkIndexRepository } from "../../../infrastructure/knowledge/firebase/FirebaseBacklinkIndexRepository";
-export { makePageRepo, makeBlockRepo, makeCollectionRepo } from "../../../interfaces/knowledge/composition/repositories";
+export { makePageRepo, makeBlockRepo, makeCollectionRepo };
 export type { KnowledgeUseCases } from "../../../interfaces/knowledge/composition/use-cases";
 export { makeKnowledgeUseCases } from "../../../interfaces/knowledge/composition/use-cases";
 
