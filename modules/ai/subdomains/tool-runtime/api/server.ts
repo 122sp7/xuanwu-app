@@ -2,11 +2,16 @@ import "server-only";
 
 import { GenerateWithToolsUseCase } from "../application/use-cases/generate-with-tools.use-case";
 import { GenkitToolRuntimeAdapter } from "../infrastructure/genkit/GenkitToolRuntimeAdapter";
+import { GenkitTaskExtractionAdapter } from "../infrastructure/genkit/GenkitTaskExtractionAdapter";
 import type {
   ToolDescriptor,
   ToolEnabledGenerationInput,
   ToolEnabledGenerationOutput,
 } from "../domain/ports/ToolRuntimePort";
+import type {
+  TaskExtractionInput,
+  TaskExtractionOutput,
+} from "../domain/ports/TaskExtractionPort";
 
 let _useCase: GenerateWithToolsUseCase | undefined;
 
@@ -24,4 +29,10 @@ export async function generateWithTools(
 
 export function listAvailableTools(): ReadonlyArray<ToolDescriptor> {
   return new GenkitToolRuntimeAdapter().listAvailableTools();
+}
+
+export async function extractTasksFromContent(
+  input: TaskExtractionInput,
+): Promise<TaskExtractionOutput> {
+  return new GenkitTaskExtractionAdapter().extractTasks(input);
 }

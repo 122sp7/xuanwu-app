@@ -4,3 +4,9 @@ export type {
   ToolEnabledGenerationOutput,
   ToolRuntimePort,
 } from "./ports/ToolRuntimePort";
+export type {
+  ExtractedTaskItem,
+  TaskExtractionInput,
+  TaskExtractionOutput,
+  TaskExtractionPort,
+} from "./ports/TaskExtractionPort";
