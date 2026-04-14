@@ -7795,6 +7795,16 @@ import { FirebaseTaxonomyRepository } from "../../../infrastructure/taxonomy/fir
 export function makeTaxonomyRepo()
 ````
 
+## File: modules/notion/subdomains/authoring/api/server.ts
+````typescript
+/**
+ * authoring subdomain — server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
+````
+
 ## File: modules/notion/subdomains/authoring/application/dto/ArticleDto.ts
 ````typescript
 /**
@@ -7956,6 +7966,16 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/subdomains/collaboration/api/server.ts
+````typescript
+/**
+ * collaboration subdomain — server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
 ````
 
 ## File: modules/notion/subdomains/collaboration/application/dto/CollaborationDto.ts
@@ -8152,6 +8172,16 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/subdomains/database/api/server.ts
+````typescript
+/**
+ * database subdomain — server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
 ````
 
 ## File: modules/notion/subdomains/database/application/dto/DatabaseDto.ts
@@ -8386,6 +8416,16 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/subdomains/knowledge/api/server.ts
+````typescript
+/**
+ * knowledge subdomain — server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
 ````
 
 ## File: modules/notion/subdomains/knowledge/application/dto/ContentBlockDto.ts
@@ -12797,195 +12837,6 @@ interface ShellUserAvatarProps {
 export function ShellUserAvatar(
 ````
 
-## File: modules/platform/subdomains/access-control/application/use-cases/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/access-control/domain/aggregates/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/access-control/domain/events/AccessPolicyDomainEvent.ts
-````typescript
-import type { SubjectRef } from "../value-objects/SubjectRef";
-import type { ResourceRef } from "../value-objects/ResourceRef";
-import type { PolicyEffect } from "../value-objects/PolicyEffect";
-⋮----
-export interface AccessPolicyDomainEvent {
-  readonly eventId: string;
-  readonly occurredAt: string;
-  readonly type: string;
-  readonly payload: object;
-}
-⋮----
-export interface AccessPolicyCreatedEvent extends AccessPolicyDomainEvent {
-  readonly type: "platform.access_policy.created";
-  readonly payload: {
-    readonly policyId: string;
-    readonly subjectRef: SubjectRef;
-    readonly resourceRef: ResourceRef;
-    readonly actions: readonly string[];
-    readonly effect: PolicyEffect;
-  };
-}
-⋮----
-export interface AccessPolicyUpdatedEvent extends AccessPolicyDomainEvent {
-  readonly type: "platform.access_policy.updated";
-  readonly payload: { readonly policyId: string };
-}
-⋮----
-export interface AccessPolicyDeactivatedEvent extends AccessPolicyDomainEvent {
-  readonly type: "platform.access_policy.deactivated";
-  readonly payload: { readonly policyId: string };
-}
-⋮----
-export type AccessPolicyDomainEventType =
-  | AccessPolicyCreatedEvent
-  | AccessPolicyUpdatedEvent
-  | AccessPolicyDeactivatedEvent;
-````
-
-## File: modules/platform/subdomains/access-control/domain/events/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/access-control/domain/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/access-control/domain/repositories/AccessPolicyRepository.ts
-````typescript
-/**
- * AccessPolicyRepository — Write-side persistence port (CQRS).
- */
-import type { AccessPolicySnapshot } from "../aggregates/AccessPolicy";
-⋮----
-export interface AccessPolicyRepository {
-  findById(id: string): Promise<AccessPolicySnapshot | null>;
-  findBySubject(subjectId: string): Promise<AccessPolicySnapshot[]>;
-  findActiveBySubjectAndResource(
-    subjectId: string,
-    resourceType: string,
-    resourceId?: string,
-  ): Promise<AccessPolicySnapshot[]>;
-  save(snapshot: AccessPolicySnapshot): Promise<void>;
-  update(snapshot: AccessPolicySnapshot): Promise<void>;
-}
-⋮----
-findById(id: string): Promise<AccessPolicySnapshot | null>;
-findBySubject(subjectId: string): Promise<AccessPolicySnapshot[]>;
-findActiveBySubjectAndResource(
-    subjectId: string,
-    resourceType: string,
-    resourceId?: string,
-  ): Promise<AccessPolicySnapshot[]>;
-save(snapshot: AccessPolicySnapshot): Promise<void>;
-update(snapshot: AccessPolicySnapshot): Promise<void>;
-````
-
-## File: modules/platform/subdomains/access-control/domain/repositories/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/access-control/domain/value-objects/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/access-control/domain/value-objects/PolicyEffect.ts
-````typescript
-export type PolicyEffect = "allow" | "deny";
-⋮----
-export function isAllow(effect: PolicyEffect): boolean
-````
-
-## File: modules/platform/subdomains/access-control/domain/value-objects/ResourceRef.ts
-````typescript
-import { z } from "@lib-zod";
-⋮----
-export type ResourceRef = z.infer<typeof ResourceRefSchema>;
-⋮----
-export function createResourceRef(
-  resourceType: string,
-  resourceId?: string,
-  workspaceId?: string,
-): ResourceRef
-````
-
-## File: modules/platform/subdomains/access-control/domain/value-objects/SubjectRef.ts
-````typescript
-import { z } from "@lib-zod";
-⋮----
-export type SubjectRef = z.infer<typeof SubjectRefSchema>;
-⋮----
-export function createSubjectRef(subjectId: string, subjectType: SubjectRef["subjectType"]): SubjectRef
-````
-
-## File: modules/platform/subdomains/access-control/infrastructure/firebase/FirebaseAccessPolicyRepository.ts
-````typescript
-/**
- * FirebaseAccessPolicyRepository — Infrastructure adapter for access-policy persistence.
- * Firebase SDK only exists in this file.
- */
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { AccessPolicyRepository } from "../../domain/repositories/AccessPolicyRepository";
-import type { AccessPolicySnapshot } from "../../domain/aggregates/AccessPolicy";
-⋮----
-function toSnapshot(id: string, data: Record<string, unknown>): AccessPolicySnapshot
-⋮----
-export class FirebaseAccessPolicyRepository implements AccessPolicyRepository {
-⋮----
-private get db()
-⋮----
-async findById(id: string): Promise<AccessPolicySnapshot | null>
-⋮----
-async findBySubject(subjectId: string): Promise<AccessPolicySnapshot[]>
-⋮----
-async findActiveBySubjectAndResource(
-    subjectId: string,
-    resourceType: string,
-    resourceId?: string,
-): Promise<AccessPolicySnapshot[]>
-⋮----
-async save(snapshot: AccessPolicySnapshot): Promise<void>
-⋮----
-async update(snapshot: AccessPolicySnapshot): Promise<void>
-````
-
-## File: modules/platform/subdomains/access-control/README.md
-````markdown
-# Access Control
-
-Access control policies and permission resolution.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/platform/subdomains/account-profile/application/use-cases/get-account-profile.use-case.ts
 ````typescript
 import {
@@ -13973,31 +13824,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/audit-log/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-````
-
-## File: modules/platform/subdomains/audit-log/README.md
-````markdown
-# Audit Log
-
-Platform audit logging.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/platform/subdomains/background-job/application/index.ts
 ````typescript
 
@@ -14188,377 +14014,6 @@ Background job scheduling and execution.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/identity/application/identity-error-message.ts
-````typescript
-type StructuredError = {
-	code?: string;
-	message?: string;
-};
-⋮----
-export function toIdentityErrorMessage(error: unknown, fallback: string): string
-⋮----
-const resolveFromMessage = (message: string) =>
-````
-
-## File: modules/platform/subdomains/identity/application/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/identity/application/use-cases/identity.use-cases.ts
-````typescript
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { RegistrationInput, SignInCredentials } from "../../domain";
-import type { IdentityRepository } from "../../domain";
-import { toIdentityErrorMessage } from "../identity-error-message";
-⋮----
-export class SignInUseCase {
-⋮----
-constructor(private readonly identityRepo: IdentityRepository)
-⋮----
-async execute(credentials: SignInCredentials): Promise<CommandResult>
-⋮----
-export class SignInAnonymouslyUseCase {
-⋮----
-async execute(): Promise<CommandResult>
-⋮----
-export class RegisterUseCase {
-⋮----
-async execute(input: RegistrationInput): Promise<CommandResult>
-⋮----
-export class SendPasswordResetEmailUseCase {
-⋮----
-async execute(email: string): Promise<CommandResult>
-⋮----
-export class SignOutUseCase {
-````
-
-## File: modules/platform/subdomains/identity/application/use-cases/token-refresh.use-cases.ts
-````typescript
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TokenRefreshReason } from "../../domain";
-import type { TokenRefreshRepository } from "../../domain";
-⋮----
-export class EmitTokenRefreshSignalUseCase {
-⋮----
-constructor(private readonly tokenRefreshRepo: TokenRefreshRepository)
-⋮----
-async execute(accountId: string, reason: TokenRefreshReason, traceId?: string): Promise<CommandResult>
-````
-
-## File: modules/platform/subdomains/identity/domain/aggregates/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/identity/domain/entities/Identity.ts
-````typescript
-/**
- * Identity Domain Entity — represents an authenticated user session.
- * Zero external dependencies.
- */
-export interface IdentityEntity {
-	readonly uid: string;
-	readonly email: string | null;
-	readonly displayName: string | null;
-	readonly photoURL: string | null;
-	readonly isAnonymous: boolean;
-	readonly emailVerified: boolean;
-}
-⋮----
-/** Value Object — credentials for sign-in */
-export interface SignInCredentials {
-	readonly email: string;
-	readonly password: string;
-}
-⋮----
-/** Value Object — registration input */
-export interface RegistrationInput {
-	readonly email: string;
-	readonly password: string;
-	readonly name: string;
-}
-````
-
-## File: modules/platform/subdomains/identity/domain/entities/TokenRefreshSignal.ts
-````typescript
-/**
- * TokenRefreshSignal — Domain Value Object.
- * Represents the signal written to Firestore when Custom Claims change.
- */
-⋮----
-export type TokenRefreshReason = "role:changed" | "policy:changed";
-⋮----
-export interface TokenRefreshSignal {
-	readonly accountId: string;
-	readonly reason: TokenRefreshReason;
-	readonly issuedAt: string;
-	readonly traceId?: string;
-}
-````
-
-## File: modules/platform/subdomains/identity/domain/events/IdentityDomainEvent.ts
-````typescript
-export interface IdentityDomainEvent {
-	readonly eventId: string;
-	readonly occurredAt: string;
-	readonly type: string;
-	readonly payload: object;
-}
-⋮----
-export interface IdentityCreatedEvent extends IdentityDomainEvent {
-	readonly type: "platform.identity.created";
-	readonly payload: {
-		readonly uid: string;
-		readonly email: string | null;
-		readonly isAnonymous: boolean;
-	};
-}
-⋮----
-export interface SignedInEvent extends IdentityDomainEvent {
-	readonly type: "platform.identity.signed_in";
-	readonly payload: {
-		readonly uid: string;
-		readonly signedInAtISO: string;
-	};
-}
-⋮----
-export interface DisplayNameUpdatedEvent extends IdentityDomainEvent {
-	readonly type: "platform.identity.display_name_updated";
-	readonly payload: {
-		readonly uid: string;
-		readonly previousDisplayName: string | null;
-		readonly displayName: string;
-	};
-}
-⋮----
-export interface EmailVerifiedEvent extends IdentityDomainEvent {
-	readonly type: "platform.identity.email_verified";
-	readonly payload: {
-		readonly uid: string;
-		readonly email: string | null;
-	};
-}
-⋮----
-export interface IdentitySuspendedEvent extends IdentityDomainEvent {
-	readonly type: "platform.identity.suspended";
-	readonly payload: {
-		readonly uid: string;
-	};
-}
-⋮----
-export interface IdentityReactivatedEvent extends IdentityDomainEvent {
-	readonly type: "platform.identity.reactivated";
-	readonly payload: {
-		readonly uid: string;
-	};
-}
-⋮----
-export type IdentityDomainEventType =
-	| IdentityCreatedEvent
-	| SignedInEvent
-	| DisplayNameUpdatedEvent
-	| EmailVerifiedEvent
-	| IdentitySuspendedEvent
-	| IdentityReactivatedEvent;
-````
-
-## File: modules/platform/subdomains/identity/domain/events/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/identity/domain/repositories/IdentityRepository.ts
-````typescript
-import type { IdentityEntity, RegistrationInput, SignInCredentials } from "../entities/Identity";
-⋮----
-export interface IdentityRepository {
-	signInWithEmailAndPassword(credentials: SignInCredentials): Promise<IdentityEntity>;
-	signInAnonymously(): Promise<IdentityEntity>;
-	createUserWithEmailAndPassword(input: RegistrationInput): Promise<IdentityEntity>;
-	updateDisplayName(uid: string, displayName: string): Promise<void>;
-	sendPasswordResetEmail(email: string): Promise<void>;
-	signOut(): Promise<void>;
-	getCurrentUser(): IdentityEntity | null;
-}
-⋮----
-signInWithEmailAndPassword(credentials: SignInCredentials): Promise<IdentityEntity>;
-signInAnonymously(): Promise<IdentityEntity>;
-createUserWithEmailAndPassword(input: RegistrationInput): Promise<IdentityEntity>;
-updateDisplayName(uid: string, displayName: string): Promise<void>;
-sendPasswordResetEmail(email: string): Promise<void>;
-signOut(): Promise<void>;
-getCurrentUser(): IdentityEntity | null;
-````
-
-## File: modules/platform/subdomains/identity/domain/repositories/TokenRefreshRepository.ts
-````typescript
-import type { TokenRefreshSignal } from "../entities/TokenRefreshSignal";
-⋮----
-export interface TokenRefreshRepository {
-	emit(signal: TokenRefreshSignal): Promise<void>;
-	subscribe(accountId: string, onSignal: () => void): () => void;
-}
-⋮----
-emit(signal: TokenRefreshSignal): Promise<void>;
-subscribe(accountId: string, onSignal: ()
-````
-
-## File: modules/platform/subdomains/identity/domain/value-objects/DisplayName.ts
-````typescript
-import { z } from "@lib-zod";
-⋮----
-export type DisplayName = z.infer<typeof DisplayNameSchema>;
-⋮----
-export function createDisplayName(raw: string): DisplayName
-````
-
-## File: modules/platform/subdomains/identity/domain/value-objects/Email.ts
-````typescript
-import { z } from "@lib-zod";
-⋮----
-export type Email = z.infer<typeof EmailSchema>;
-⋮----
-export function createEmail(raw: string): Email
-⋮----
-export function unsafeEmail(raw: string): Email
-````
-
-## File: modules/platform/subdomains/identity/domain/value-objects/IdentityStatus.ts
-````typescript
-export type IdentityStatus = (typeof IDENTITY_STATUSES)[number];
-⋮----
-export function canSuspend(status: IdentityStatus): boolean
-⋮----
-export function canReactivate(status: IdentityStatus): boolean
-````
-
-## File: modules/platform/subdomains/identity/domain/value-objects/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/identity/domain/value-objects/UserId.ts
-````typescript
-import { z } from "@lib-zod";
-⋮----
-export type UserId = z.infer<typeof UserIdSchema>;
-⋮----
-export function createUserId(raw: string): UserId
-⋮----
-export function unsafeUserId(raw: string): UserId
-````
-
-## File: modules/platform/subdomains/identity/infrastructure/firebase/FirebaseIdentityRepository.ts
-````typescript
-import { firebaseClientApp } from "@integration-firebase/client";
-import {
-	createUserWithEmailAndPassword as fbCreateUser,
-	getAuth,
-	sendPasswordResetEmail as fbSendPasswordResetEmail,
-	signInAnonymously as fbSignInAnonymously,
-	signInWithEmailAndPassword as fbSignIn,
-	signOut as fbSignOut,
-	type User,
-	updateProfile,
-} from "firebase/auth";
-import type { IdentityEntity, IdentityRepository, RegistrationInput, SignInCredentials } from "../../domain";
-⋮----
-function toIdentityEntity(user: User): IdentityEntity
-⋮----
-export class FirebaseIdentityRepository implements IdentityRepository {
-⋮----
-private get auth()
-⋮----
-async signInWithEmailAndPassword(credentials: SignInCredentials): Promise<IdentityEntity>
-⋮----
-async signInAnonymously(): Promise<IdentityEntity>
-⋮----
-async createUserWithEmailAndPassword(input: RegistrationInput): Promise<IdentityEntity>
-⋮----
-async updateDisplayName(uid: string, displayName: string): Promise<void>
-⋮----
-async sendPasswordResetEmail(email: string): Promise<void>
-⋮----
-async signOut(): Promise<void>
-⋮----
-getCurrentUser(): IdentityEntity | null
-````
-
-## File: modules/platform/subdomains/identity/infrastructure/firebase/FirebaseTokenRefreshRepository.ts
-````typescript
-import { firebaseClientApp } from "@integration-firebase/client";
-import { doc, getFirestore, onSnapshot, setDoc } from "firebase/firestore";
-import type { TokenRefreshRepository, TokenRefreshSignal } from "../../domain";
-⋮----
-export class FirebaseTokenRefreshRepository implements TokenRefreshRepository {
-⋮----
-private get db()
-⋮----
-async emit(signal: TokenRefreshSignal): Promise<void>
-⋮----
-subscribe(accountId: string, onSignal: () => void): () => void
-````
-
-## File: modules/platform/subdomains/identity/interfaces/components/ShellGuard.tsx
-````typescript
-/**
- * ShellGuard – platform/identity interfaces component.
- * Client-side auth guard for the authenticated shell.
- *
- * Responsibilities:
- *  1. Redirect to `/` (public auth page) when auth status is "unauthenticated"
- *  2. Mount useTokenRefreshListener for [S6] Claims refresh (Party 3)
- *  3. Show a loading state while auth is initializing
- */
-⋮----
-import { useEffect, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
-⋮----
-import { useAuth } from "../providers/auth-provider";
-import { useTokenRefreshListener } from "../hooks/useTokenRefreshListener";
-⋮----
-interface ShellGuardProps {
-  children: ReactNode;
-}
-⋮----
-export function ShellGuard(
-⋮----
-// [S6] Party 3: force-refresh ID token when a TOKEN_REFRESH_SIGNAL is emitted
-````
-
-## File: modules/platform/subdomains/identity/interfaces/contexts/auth-context.ts
-````typescript
-/**
- * auth-context.ts — platform/identity interfaces layer
- * Defines the AuthContext contract: state shape, actions, and React context.
- * Consumed by AuthProvider and useAuth().
- *
- * AuthUser is owned by the Platform/Identity bounded context.
- */
-⋮----
-import { createContext, type Dispatch } from "react";
-⋮----
-import type { AuthUser } from "@/modules/platform/api/contracts";
-⋮----
-export type AuthStatus = "initializing" | "authenticated" | "unauthenticated";
-⋮----
-export interface AuthState {
-  user: AuthUser | null;
-  status: AuthStatus;
-}
-⋮----
-export type AuthAction =
-  | { type: "SET_AUTH_STATE"; payload: { user: AuthUser | null; status: AuthStatus } }
-  | { type: "UPDATE_DISPLAY_NAME"; payload: { name: string } };
-⋮----
-export interface AuthContextValue {
-  state: AuthState;
-  dispatch: Dispatch<AuthAction>;
-  logout: () => Promise<void>;
-}
 ````
 
 ## File: modules/platform/subdomains/identity/README.md
@@ -15793,31 +15248,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/security-policy/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-````
-
-## File: modules/platform/subdomains/security-policy/README.md
-````markdown
-# Security Policy
-
-Security policy enforcement.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/platform/subdomains/subdomains.instructions.md
 ````markdown
 ---
@@ -15997,32 +15427,6 @@ Team management within organizations.
 ## Ownership
 
 - **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/tenant/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-````
-
-## File: modules/platform/subdomains/tenant/README.md
-````markdown
-# Tenant
-
-建立多租戶隔離與 tenant-scoped 規則的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
 - **Status**: Stub — awaiting use case definition
 
 ## Development Order
@@ -25535,13 +24939,6 @@ import tailwindcssAnimate from 'tailwindcss-animate';
 }
 ````
 
-## File: vitest.config.ts
-````typescript
-import { resolve } from "node:path";
-⋮----
-import { defineConfig } from "vitest/config";
-````
-
 ## File: .github/agents/ai-genkit-lead.agent.md
 ````markdown
 ---
@@ -26875,39 +26272,6 @@ import { WorkspaceContextProvider } from "@/modules/workspace/api/ui";
 import { AppProvider } from "../(shell)/_providers/AppProvider";
 ⋮----
 export function Providers(
-````
-
-## File: app/(shell)/_providers/AppProvider.tsx
-````typescript
-/**
- * AppProvider — app/(shell)/ composition layer
- *
- * Manages the platform-owned account lifecycle (auth → accounts → activeAccount).
- * Lives in app/ because the cross-module composition root is the correct owner
- * of account-state wiring that reads from platform subdomain queries.
- *
- * Workspace state is managed by WorkspaceContextProvider from workspace module.
- */
-⋮----
-import { useReducer, useEffect, type ReactNode } from "react";
-⋮----
-import {
-  AppContext,
-  APP_INITIAL_STATE,
-  type AppState,
-  type AppAction,
-} from "@/modules/platform/api/ui";
-import {
-  resolveActiveAccount,
-  subscribeToAccountsForUser,
-} from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-⋮----
-function appReducer(state: AppState, action: AppAction): AppState
-⋮----
-export function AppProvider(
-⋮----
-// eslint-disable-next-line react-hooks/exhaustive-deps
 ````
 
 ## File: app/(shell)/_shell/shell-quick-create.ts
@@ -33148,9 +32512,36 @@ When implementing, follow inside-out:
 /** iam/application — reserved for future IAM use cases. */
 ````
 
-## File: modules/iam/domain/index.ts
+## File: modules/iam/domain/value-objects/PermissionDecision.ts
 ````typescript
-/** iam/domain — reserved for future IAM domain models. */
+/**
+ * PermissionDecision — Value Object / Decision Object
+ *
+ * The outcome of a permission evaluation.
+ * Possible outcomes: allow | deny | conditional_allow | escalate
+ */
+⋮----
+export type PermissionOutcome = "allow" | "deny" | "conditional_allow" | "escalate";
+⋮----
+export interface PermissionDecision {
+  readonly outcome: PermissionOutcome;
+  readonly reason: string;
+  readonly conditions?: readonly string[];
+  readonly evaluatedAt: string;
+}
+⋮----
+export function allowDecision(reason: string): PermissionDecision
+⋮----
+export function denyDecision(reason: string): PermissionDecision
+⋮----
+export function conditionalAllowDecision(
+  reason: string,
+  conditions: string[],
+): PermissionDecision
+⋮----
+export function escalateDecision(reason: string): PermissionDecision
+⋮----
+export function isAllowed(decision: PermissionDecision): boolean
 ````
 
 ## File: modules/iam/index.ts
@@ -33168,17 +32559,376 @@ When implementing, follow inside-out:
 /** iam/interfaces — reserved for future IAM UI and transport entrypoints. */
 ````
 
-## File: modules/iam/subdomains/access-control/api/index.ts
+## File: modules/iam/subdomains/access-control/application/dto/access-control.dto.ts
+````typescript
+import type { AccessPolicySnapshot } from "../../domain/aggregates/AccessPolicy";
+⋮----
+export type AccessPolicyView = Readonly<AccessPolicySnapshot>;
+⋮----
+export interface PermissionEvaluationView {
+  readonly subjectId: string;
+  readonly resourceType: string;
+  readonly resourceId?: string;
+  readonly action: string;
+  readonly allowed: boolean;
+  readonly reason: string;
+}
+````
+
+## File: modules/iam/subdomains/access-control/application/dto/index.ts
+````typescript
+
+````
+
+## File: modules/iam/subdomains/access-control/application/index.ts
+````typescript
+
+````
+
+## File: modules/iam/subdomains/access-control/application/services/shell-account-access.ts
+````typescript
+export interface ShellAccountActor {
+  readonly id: string;
+  readonly accountType?: string;
+}
+⋮----
+export function isOrganizationActor(
+  account: ShellAccountActor | null | undefined,
+): account is ShellAccountActor &
+⋮----
+/**
+ * Type-narrowing guard for ActiveAccount (union of AccountEntity | AuthUser).
+ * Returns true when the active account is an organization account.
+ */
+export function isActiveOrganizationAccount(
+  activeAccount: { id: string; accountType?: string } | null,
+): activeAccount is
+⋮----
+/**
+ * Keep shell fallback behavior centralized so route access rules are not
+ * duplicated across layout components.
+ */
+export function resolveOrganizationRouteFallback(
+  pathname: string,
+  account: ShellAccountActor | null | undefined,
+): string | null
+````
+
+## File: modules/iam/subdomains/access-control/application/use-cases/access-control.use-cases.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+/**
+ * Access-Control Use Cases — pure application logic.
+ */
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { AccessPolicy } from "../../domain/aggregates/AccessPolicy";
+import {
+  allowDecision,
+  denyDecision,
+} from "../../../../domain/value-objects/PermissionDecision";
+import type { AccessPolicyRepository } from "../../domain/repositories/AccessPolicyRepository";
+import type { SubjectRef } from "../../domain/value-objects/SubjectRef";
+import type { ResourceRef } from "../../domain/value-objects/ResourceRef";
+import type { PolicyEffect } from "../../domain/value-objects/PolicyEffect";
+⋮----
+// ─── Evaluate Permission ──────────────────────────────────────────────────────
+⋮----
+export class EvaluatePermissionUseCase {
+⋮----
+constructor(private readonly repo: AccessPolicyRepository)
+⋮----
+async execute(input: {
+    subjectId: string;
+    resourceType: string;
+    resourceId?: string;
+    action: string;
+}): Promise<CommandResult>
+⋮----
+// Explicit deny takes priority (deny-override semantics)
+⋮----
+// ─── Create Access Policy ─────────────────────────────────────────────────────
+⋮----
+export class CreateAccessPolicyUseCase {
+⋮----
+async execute(input: {
+    subjectRef: SubjectRef;
+    resourceRef: ResourceRef;
+    actions: string[];
+    effect: PolicyEffect;
+    conditions?: string[];
+}): Promise<CommandResult>
+⋮----
+// ─── Update Access Policy ─────────────────────────────────────────────────────
+⋮----
+export class UpdateAccessPolicyUseCase {
+⋮----
+async execute(
+    policyId: string,
+    input: { actions?: string[]; effect?: PolicyEffect; conditions?: string[] },
+): Promise<CommandResult>
+⋮----
+// ─── Delete (Deactivate) Access Policy ───────────────────────────────────────
+⋮----
+export class DeactivateAccessPolicyUseCase {
+⋮----
+async execute(policyId: string): Promise<CommandResult>
+````
+
+## File: modules/iam/subdomains/access-control/application/use-cases/index.ts
+````typescript
+
+````
+
+## File: modules/iam/subdomains/access-control/domain/aggregates/AccessPolicy.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import type { AccessPolicyDomainEventType } from "../events/AccessPolicyDomainEvent";
+import type { SubjectRef } from "../value-objects/SubjectRef";
+import type { ResourceRef } from "../value-objects/ResourceRef";
+import type { PolicyEffect } from "../value-objects/PolicyEffect";
+⋮----
+export interface AccessPolicySnapshot {
+  readonly id: string;
+  readonly subjectRef: SubjectRef;
+  readonly resourceRef: ResourceRef;
+  readonly actions: readonly string[];
+  readonly effect: PolicyEffect;
+  readonly conditions: readonly string[];
+  readonly isActive: boolean;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateAccessPolicyInput {
+  readonly subjectRef: SubjectRef;
+  readonly resourceRef: ResourceRef;
+  readonly actions: string[];
+  readonly effect: PolicyEffect;
+  readonly conditions?: string[];
+}
+⋮----
+export class AccessPolicy {
+⋮----
+private constructor(private _props: AccessPolicySnapshot)
+⋮----
+static create(id: string, input: CreateAccessPolicyInput): AccessPolicy
+⋮----
+static reconstitute(snapshot: AccessPolicySnapshot): AccessPolicy
+⋮----
+update(input:
+⋮----
+deactivate(): void
+⋮----
+get id(): string
+get subjectRef(): SubjectRef
+get resourceRef(): ResourceRef
+get actions(): readonly string[]
+get effect(): PolicyEffect
+get conditions(): readonly string[]
+get isActive(): boolean
+⋮----
+getSnapshot(): Readonly<AccessPolicySnapshot>
+⋮----
+pullDomainEvents(): AccessPolicyDomainEventType[]
+````
+
+## File: modules/iam/subdomains/access-control/domain/aggregates/index.ts
+````typescript
+
+````
+
+## File: modules/iam/subdomains/access-control/domain/events/AccessPolicyDomainEvent.ts
+````typescript
+import type { SubjectRef } from "../value-objects/SubjectRef";
+import type { ResourceRef } from "../value-objects/ResourceRef";
+import type { PolicyEffect } from "../value-objects/PolicyEffect";
+⋮----
+export interface AccessPolicyDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
+}
+⋮----
+export interface AccessPolicyCreatedEvent extends AccessPolicyDomainEvent {
+  readonly type: "platform.access_policy.created";
+  readonly payload: {
+    readonly policyId: string;
+    readonly subjectRef: SubjectRef;
+    readonly resourceRef: ResourceRef;
+    readonly actions: readonly string[];
+    readonly effect: PolicyEffect;
+  };
+}
+⋮----
+export interface AccessPolicyUpdatedEvent extends AccessPolicyDomainEvent {
+  readonly type: "platform.access_policy.updated";
+  readonly payload: { readonly policyId: string };
+}
+⋮----
+export interface AccessPolicyDeactivatedEvent extends AccessPolicyDomainEvent {
+  readonly type: "platform.access_policy.deactivated";
+  readonly payload: { readonly policyId: string };
+}
+⋮----
+export type AccessPolicyDomainEventType =
+  | AccessPolicyCreatedEvent
+  | AccessPolicyUpdatedEvent
+  | AccessPolicyDeactivatedEvent;
+````
+
+## File: modules/iam/subdomains/access-control/domain/events/index.ts
+````typescript
+
+````
+
+## File: modules/iam/subdomains/access-control/domain/index.ts
+````typescript
+
+````
+
+## File: modules/iam/subdomains/access-control/domain/repositories/AccessPolicyRepository.ts
 ````typescript
 /**
- * IAM access-control public API.
- * Transitional canonical boundary while implementation is converged from legacy owners.
+ * AccessPolicyRepository — Write-side persistence port (CQRS).
+ */
+import type { AccessPolicySnapshot } from "../aggregates/AccessPolicy";
+⋮----
+export interface AccessPolicyRepository {
+  findById(id: string): Promise<AccessPolicySnapshot | null>;
+  findBySubject(subjectId: string): Promise<AccessPolicySnapshot[]>;
+  findActiveBySubjectAndResource(
+    subjectId: string,
+    resourceType: string,
+    resourceId?: string,
+  ): Promise<AccessPolicySnapshot[]>;
+  save(snapshot: AccessPolicySnapshot): Promise<void>;
+  update(snapshot: AccessPolicySnapshot): Promise<void>;
+}
+⋮----
+findById(id: string): Promise<AccessPolicySnapshot | null>;
+findBySubject(subjectId: string): Promise<AccessPolicySnapshot[]>;
+findActiveBySubjectAndResource(
+    subjectId: string,
+    resourceType: string,
+    resourceId?: string,
+  ): Promise<AccessPolicySnapshot[]>;
+save(snapshot: AccessPolicySnapshot): Promise<void>;
+update(snapshot: AccessPolicySnapshot): Promise<void>;
+````
+
+## File: modules/iam/subdomains/access-control/domain/repositories/index.ts
+````typescript
+
+````
+
+## File: modules/iam/subdomains/access-control/domain/value-objects/index.ts
+````typescript
+
+````
+
+## File: modules/iam/subdomains/access-control/domain/value-objects/PolicyEffect.ts
+````typescript
+export type PolicyEffect = "allow" | "deny";
+⋮----
+export function isAllow(effect: PolicyEffect): boolean
+````
+
+## File: modules/iam/subdomains/access-control/domain/value-objects/ResourceRef.ts
+````typescript
+import { z } from "@lib-zod";
+⋮----
+export type ResourceRef = z.infer<typeof ResourceRefSchema>;
+⋮----
+export function createResourceRef(
+  resourceType: string,
+  resourceId?: string,
+  workspaceId?: string,
+): ResourceRef
+````
+
+## File: modules/iam/subdomains/access-control/domain/value-objects/SubjectRef.ts
+````typescript
+import { z } from "@lib-zod";
+⋮----
+export type SubjectRef = z.infer<typeof SubjectRefSchema>;
+⋮----
+export function createSubjectRef(subjectId: string, subjectType: SubjectRef["subjectType"]): SubjectRef
+````
+
+## File: modules/iam/subdomains/access-control/infrastructure/firebase/FirebaseAccessPolicyRepository.ts
+````typescript
+/**
+ * FirebaseAccessPolicyRepository — Infrastructure adapter for access-policy persistence.
+ * Firebase SDK only exists in this file.
+ */
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { AccessPolicyRepository } from "../../domain/repositories/AccessPolicyRepository";
+import type { AccessPolicySnapshot } from "../../domain/aggregates/AccessPolicy";
+⋮----
+function toSnapshot(id: string, data: Record<string, unknown>): AccessPolicySnapshot
+⋮----
+export class FirebaseAccessPolicyRepository implements AccessPolicyRepository {
+⋮----
+private get db()
+⋮----
+async findById(id: string): Promise<AccessPolicySnapshot | null>
+⋮----
+async findBySubject(subjectId: string): Promise<AccessPolicySnapshot[]>
+⋮----
+async findActiveBySubjectAndResource(
+    subjectId: string,
+    resourceType: string,
+    resourceId?: string,
+): Promise<AccessPolicySnapshot[]>
+⋮----
+async save(snapshot: AccessPolicySnapshot): Promise<void>
+⋮----
+async update(snapshot: AccessPolicySnapshot): Promise<void>
+````
+
+## File: modules/iam/subdomains/access-control/infrastructure/index.ts
+````typescript
+/**
+ * Access-control infrastructure barrel — adapter exports only.
+ *
+ * Composition logic lives in interfaces/composition/access-control-service.ts.
  */
 ````
 
-## File: modules/iam/subdomains/access-control/README.md
-````markdown
-
+## File: modules/iam/subdomains/access-control/interfaces/composition/access-control-service.ts
+````typescript
+/**
+ * AccessControlService — Composition root for access-control use cases.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
+ */
+import {
+  EvaluatePermissionUseCase,
+  CreateAccessPolicyUseCase,
+  UpdateAccessPolicyUseCase,
+  DeactivateAccessPolicyUseCase,
+} from "../../application/use-cases/access-control.use-cases";
+import { FirebaseAccessPolicyRepository } from "../../infrastructure/firebase/FirebaseAccessPolicyRepository";
+import type { SubjectRef } from "../../domain/value-objects/SubjectRef";
+import type { ResourceRef } from "../../domain/value-objects/ResourceRef";
+import type { PolicyEffect } from "../../domain/value-objects/PolicyEffect";
+import type { CommandResult } from "@shared-types";
+⋮----
+function getRepo(): FirebaseAccessPolicyRepository
 ````
 
 ## File: modules/iam/subdomains/authentication/api/index.ts
@@ -33197,12 +32947,616 @@ When implementing, follow inside-out:
  */
 ````
 
-## File: modules/iam/subdomains/federation/api/index.ts
+## File: modules/iam/subdomains/identity/application/identity-error-message.ts
+````typescript
+type StructuredError = {
+	code?: string;
+	message?: string;
+};
+⋮----
+export function toIdentityErrorMessage(error: unknown, fallback: string): string
+⋮----
+const resolveFromMessage = (message: string) =>
+````
+
+## File: modules/iam/subdomains/identity/application/index.ts
+````typescript
+
+````
+
+## File: modules/iam/subdomains/identity/application/use-cases/identity.use-cases.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { RegistrationInput, SignInCredentials } from "../../domain";
+import type { IdentityRepository } from "../../domain";
+import { toIdentityErrorMessage } from "../identity-error-message";
+⋮----
+export class SignInUseCase {
+⋮----
+constructor(private readonly identityRepo: IdentityRepository)
+⋮----
+async execute(credentials: SignInCredentials): Promise<CommandResult>
+⋮----
+export class SignInAnonymouslyUseCase {
+⋮----
+async execute(): Promise<CommandResult>
+⋮----
+export class RegisterUseCase {
+⋮----
+async execute(input: RegistrationInput): Promise<CommandResult>
+⋮----
+export class SendPasswordResetEmailUseCase {
+⋮----
+async execute(email: string): Promise<CommandResult>
+⋮----
+export class SignOutUseCase {
+````
+
+## File: modules/iam/subdomains/identity/application/use-cases/token-refresh.use-cases.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { TokenRefreshReason } from "../../domain";
+import type { TokenRefreshRepository } from "../../domain";
+⋮----
+export class EmitTokenRefreshSignalUseCase {
+⋮----
+constructor(private readonly tokenRefreshRepo: TokenRefreshRepository)
+⋮----
+async execute(accountId: string, reason: TokenRefreshReason, traceId?: string): Promise<CommandResult>
+````
+
+## File: modules/iam/subdomains/identity/domain/aggregates/index.ts
+````typescript
+
+````
+
+## File: modules/iam/subdomains/identity/domain/aggregates/UserIdentity.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import type { IdentityDomainEventType } from "../events";
+import { canReactivate, canSuspend } from "../value-objects";
+import { createDisplayName, createEmail, createUserId } from "../value-objects";
+import type { IdentityStatus } from "../value-objects";
+⋮----
+export interface UserIdentitySnapshot {
+	readonly uid: string;
+	readonly email: string | null;
+	readonly displayName: string | null;
+	readonly photoURL: string | null;
+	readonly isAnonymous: boolean;
+	readonly emailVerified: boolean;
+	readonly status: IdentityStatus;
+	readonly lastSignInAtISO: string | null;
+	readonly createdAtISO: string;
+	readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateIdentityInput {
+	readonly email: string | null;
+	readonly displayName: string | null;
+	readonly photoURL: string | null;
+	readonly isAnonymous: boolean;
+	readonly emailVerified: boolean;
+}
+⋮----
+export class UserIdentity {
+⋮----
+private constructor(private _props: UserIdentitySnapshot)
+⋮----
+static create(uid: string, input: CreateIdentityInput): UserIdentity
+⋮----
+static reconstitute(snapshot: UserIdentitySnapshot): UserIdentity
+⋮----
+signIn(): void
+⋮----
+updateDisplayName(name: string): void
+⋮----
+verifyEmail(): void
+⋮----
+suspend(): void
+⋮----
+reactivate(): void
+⋮----
+get uid(): string
+⋮----
+get email(): string | null
+⋮----
+get displayName(): string | null
+⋮----
+get isActive(): boolean
+⋮----
+get isAnonymous(): boolean
+⋮----
+get emailVerified(): boolean
+⋮----
+getSnapshot(): Readonly<UserIdentitySnapshot>
+⋮----
+pullDomainEvents(): IdentityDomainEventType[]
+````
+
+## File: modules/iam/subdomains/identity/domain/entities/Identity.ts
 ````typescript
 /**
- * IAM federation public API.
- * Reserved for SSO, external identity provider linking, and provider-token flows.
+ * Identity Domain Entity — represents an authenticated user session.
+ * Zero external dependencies.
  */
+export interface IdentityEntity {
+	readonly uid: string;
+	readonly email: string | null;
+	readonly displayName: string | null;
+	readonly photoURL: string | null;
+	readonly isAnonymous: boolean;
+	readonly emailVerified: boolean;
+}
+⋮----
+/** Value Object — credentials for sign-in */
+export interface SignInCredentials {
+	readonly email: string;
+	readonly password: string;
+}
+⋮----
+/** Value Object — registration input */
+export interface RegistrationInput {
+	readonly email: string;
+	readonly password: string;
+	readonly name: string;
+}
+````
+
+## File: modules/iam/subdomains/identity/domain/entities/TokenRefreshSignal.ts
+````typescript
+/**
+ * TokenRefreshSignal — Domain Value Object.
+ * Represents the signal written to Firestore when Custom Claims change.
+ */
+⋮----
+export type TokenRefreshReason = "role:changed" | "policy:changed";
+⋮----
+export interface TokenRefreshSignal {
+	readonly accountId: string;
+	readonly reason: TokenRefreshReason;
+	readonly issuedAt: string;
+	readonly traceId?: string;
+}
+````
+
+## File: modules/iam/subdomains/identity/domain/events/IdentityDomainEvent.ts
+````typescript
+export interface IdentityDomainEvent {
+	readonly eventId: string;
+	readonly occurredAt: string;
+	readonly type: string;
+	readonly payload: object;
+}
+⋮----
+export interface IdentityCreatedEvent extends IdentityDomainEvent {
+	readonly type: "platform.identity.created";
+	readonly payload: {
+		readonly uid: string;
+		readonly email: string | null;
+		readonly isAnonymous: boolean;
+	};
+}
+⋮----
+export interface SignedInEvent extends IdentityDomainEvent {
+	readonly type: "platform.identity.signed_in";
+	readonly payload: {
+		readonly uid: string;
+		readonly signedInAtISO: string;
+	};
+}
+⋮----
+export interface DisplayNameUpdatedEvent extends IdentityDomainEvent {
+	readonly type: "platform.identity.display_name_updated";
+	readonly payload: {
+		readonly uid: string;
+		readonly previousDisplayName: string | null;
+		readonly displayName: string;
+	};
+}
+⋮----
+export interface EmailVerifiedEvent extends IdentityDomainEvent {
+	readonly type: "platform.identity.email_verified";
+	readonly payload: {
+		readonly uid: string;
+		readonly email: string | null;
+	};
+}
+⋮----
+export interface IdentitySuspendedEvent extends IdentityDomainEvent {
+	readonly type: "platform.identity.suspended";
+	readonly payload: {
+		readonly uid: string;
+	};
+}
+⋮----
+export interface IdentityReactivatedEvent extends IdentityDomainEvent {
+	readonly type: "platform.identity.reactivated";
+	readonly payload: {
+		readonly uid: string;
+	};
+}
+⋮----
+export type IdentityDomainEventType =
+	| IdentityCreatedEvent
+	| SignedInEvent
+	| DisplayNameUpdatedEvent
+	| EmailVerifiedEvent
+	| IdentitySuspendedEvent
+	| IdentityReactivatedEvent;
+````
+
+## File: modules/iam/subdomains/identity/domain/events/index.ts
+````typescript
+
+````
+
+## File: modules/iam/subdomains/identity/domain/index.ts
+````typescript
+
+````
+
+## File: modules/iam/subdomains/identity/domain/ports/index.ts
+````typescript
+/**
+ * identity domain/ports — driven port interfaces for the identity subdomain.
+ *
+ * Re-exports repository contracts from domain/repositories/, making the Ports layer
+ * explicitly visible in the directory structure.
+ */
+````
+
+## File: modules/iam/subdomains/identity/domain/repositories/IdentityRepository.ts
+````typescript
+import type { IdentityEntity, RegistrationInput, SignInCredentials } from "../entities/Identity";
+⋮----
+export interface IdentityRepository {
+	signInWithEmailAndPassword(credentials: SignInCredentials): Promise<IdentityEntity>;
+	signInAnonymously(): Promise<IdentityEntity>;
+	createUserWithEmailAndPassword(input: RegistrationInput): Promise<IdentityEntity>;
+	updateDisplayName(uid: string, displayName: string): Promise<void>;
+	sendPasswordResetEmail(email: string): Promise<void>;
+	signOut(): Promise<void>;
+	getCurrentUser(): IdentityEntity | null;
+}
+⋮----
+signInWithEmailAndPassword(credentials: SignInCredentials): Promise<IdentityEntity>;
+signInAnonymously(): Promise<IdentityEntity>;
+createUserWithEmailAndPassword(input: RegistrationInput): Promise<IdentityEntity>;
+updateDisplayName(uid: string, displayName: string): Promise<void>;
+sendPasswordResetEmail(email: string): Promise<void>;
+signOut(): Promise<void>;
+getCurrentUser(): IdentityEntity | null;
+````
+
+## File: modules/iam/subdomains/identity/domain/repositories/TokenRefreshRepository.ts
+````typescript
+import type { TokenRefreshSignal } from "../entities/TokenRefreshSignal";
+⋮----
+export interface TokenRefreshRepository {
+	emit(signal: TokenRefreshSignal): Promise<void>;
+	subscribe(accountId: string, onSignal: () => void): () => void;
+}
+⋮----
+emit(signal: TokenRefreshSignal): Promise<void>;
+subscribe(accountId: string, onSignal: ()
+````
+
+## File: modules/iam/subdomains/identity/domain/value-objects/DisplayName.ts
+````typescript
+import { z } from "@lib-zod";
+⋮----
+export type DisplayName = z.infer<typeof DisplayNameSchema>;
+⋮----
+export function createDisplayName(raw: string): DisplayName
+````
+
+## File: modules/iam/subdomains/identity/domain/value-objects/Email.ts
+````typescript
+import { z } from "@lib-zod";
+⋮----
+export type Email = z.infer<typeof EmailSchema>;
+⋮----
+export function createEmail(raw: string): Email
+⋮----
+export function unsafeEmail(raw: string): Email
+````
+
+## File: modules/iam/subdomains/identity/domain/value-objects/IdentityStatus.ts
+````typescript
+export type IdentityStatus = (typeof IDENTITY_STATUSES)[number];
+⋮----
+export function canSuspend(status: IdentityStatus): boolean
+⋮----
+export function canReactivate(status: IdentityStatus): boolean
+````
+
+## File: modules/iam/subdomains/identity/domain/value-objects/index.ts
+````typescript
+
+````
+
+## File: modules/iam/subdomains/identity/domain/value-objects/UserId.ts
+````typescript
+import { z } from "@lib-zod";
+⋮----
+export type UserId = z.infer<typeof UserIdSchema>;
+⋮----
+export function createUserId(raw: string): UserId
+⋮----
+export function unsafeUserId(raw: string): UserId
+````
+
+## File: modules/iam/subdomains/identity/infrastructure/firebase/FirebaseIdentityRepository.ts
+````typescript
+import { firebaseClientApp } from "@integration-firebase/client";
+import {
+	createUserWithEmailAndPassword as fbCreateUser,
+	getAuth,
+	sendPasswordResetEmail as fbSendPasswordResetEmail,
+	signInAnonymously as fbSignInAnonymously,
+	signInWithEmailAndPassword as fbSignIn,
+	signOut as fbSignOut,
+	type User,
+	updateProfile,
+} from "firebase/auth";
+import type { IdentityEntity, IdentityRepository, RegistrationInput, SignInCredentials } from "../../domain";
+⋮----
+function toIdentityEntity(user: User): IdentityEntity
+⋮----
+export class FirebaseIdentityRepository implements IdentityRepository {
+⋮----
+private get auth()
+⋮----
+async signInWithEmailAndPassword(credentials: SignInCredentials): Promise<IdentityEntity>
+⋮----
+async signInAnonymously(): Promise<IdentityEntity>
+⋮----
+async createUserWithEmailAndPassword(input: RegistrationInput): Promise<IdentityEntity>
+⋮----
+async updateDisplayName(uid: string, displayName: string): Promise<void>
+⋮----
+async sendPasswordResetEmail(email: string): Promise<void>
+⋮----
+async signOut(): Promise<void>
+⋮----
+getCurrentUser(): IdentityEntity | null
+````
+
+## File: modules/iam/subdomains/identity/infrastructure/firebase/FirebaseTokenRefreshRepository.ts
+````typescript
+import { firebaseClientApp } from "@integration-firebase/client";
+import { doc, getFirestore, onSnapshot, setDoc } from "firebase/firestore";
+import type { TokenRefreshRepository, TokenRefreshSignal } from "../../domain";
+⋮----
+export class FirebaseTokenRefreshRepository implements TokenRefreshRepository {
+⋮----
+private get db()
+⋮----
+async emit(signal: TokenRefreshSignal): Promise<void>
+⋮----
+subscribe(accountId: string, onSignal: () => void): () => void
+````
+
+## File: modules/iam/subdomains/identity/infrastructure/index.ts
+````typescript
+/**
+ * Identity infrastructure barrel — adapter exports only.
+ *
+ * Composition logic lives in interfaces/composition/identity-service.ts.
+ */
+````
+
+## File: modules/iam/subdomains/identity/interfaces/_actions/identity.actions.ts
+````typescript
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { toIdentityErrorMessage } from "../../application/identity-error-message";
+import {
+	RegisterUseCase,
+	SendPasswordResetEmailUseCase,
+	SignInAnonymouslyUseCase,
+	SignInUseCase,
+	SignOutUseCase,
+} from "../../application/use-cases/identity.use-cases";
+import { createIdentityRepository } from "../composition/identity-service";
+⋮----
+function getRepo(): ReturnType<typeof createIdentityRepository>
+⋮----
+export async function signIn(email: string, password: string): Promise<CommandResult>
+⋮----
+export async function signInAnonymously(): Promise<CommandResult>
+⋮----
+export async function register(email: string, password: string, name: string): Promise<CommandResult>
+⋮----
+export async function sendPasswordResetEmail(email: string): Promise<CommandResult>
+⋮----
+export async function signOut(): Promise<CommandResult>
+````
+
+## File: modules/iam/subdomains/identity/interfaces/components/ShellGuard.tsx
+````typescript
+/**
+ * ShellGuard – platform/identity interfaces component.
+ * Client-side auth guard for the authenticated shell.
+ *
+ * Responsibilities:
+ *  1. Redirect to `/` (public auth page) when auth status is "unauthenticated"
+ *  2. Mount useTokenRefreshListener for [S6] Claims refresh (Party 3)
+ *  3. Show a loading state while auth is initializing
+ */
+⋮----
+import { useEffect, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+⋮----
+import { useAuth } from "../providers/auth-provider";
+import { useTokenRefreshListener } from "../hooks/useTokenRefreshListener";
+⋮----
+interface ShellGuardProps {
+  children: ReactNode;
+}
+⋮----
+export function ShellGuard(
+⋮----
+// [S6] Party 3: force-refresh ID token when a TOKEN_REFRESH_SIGNAL is emitted
+````
+
+## File: modules/iam/subdomains/identity/interfaces/composition/identity-service.ts
+````typescript
+/**
+ * identity-service — Composition root for identity use cases.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
+ * This file wires Firebase-backed repositories into identity use cases.
+ */
+⋮----
+import type { TokenRefreshReason } from "../../domain";
+import type { IdentityRepository } from "../../domain/repositories/IdentityRepository";
+import type { TokenRefreshRepository } from "../../domain/repositories/TokenRefreshRepository";
+import { EmitTokenRefreshSignalUseCase } from "../../application/use-cases/token-refresh.use-cases";
+import {
+	RegisterUseCase,
+	SendPasswordResetEmailUseCase,
+	SignInAnonymouslyUseCase,
+	SignInUseCase,
+} from "../../application/use-cases/identity.use-cases";
+import { FirebaseIdentityRepository } from "../../infrastructure/firebase/FirebaseIdentityRepository";
+import { FirebaseTokenRefreshRepository } from "../../infrastructure/firebase/FirebaseTokenRefreshRepository";
+⋮----
+// ─── Types ────────────────────────────────────────────────────────────────────
+⋮----
+export interface EmitTokenRefreshSignalInput {
+	accountId: string;
+	reason: TokenRefreshReason;
+	traceId?: string;
+}
+⋮----
+// ─── Server-side token refresh signal emitter ─────────────────────────────────
+⋮----
+function getEmitUseCase(): EmitTokenRefreshSignalUseCase
+⋮----
+/**
+ * identityApi — server-side operations for identity management.
+ * Intended for use in Server Actions and server-side code paths.
+ */
+⋮----
+async emitTokenRefreshSignal(input: EmitTokenRefreshSignalInput): Promise<void>
+⋮----
+// ─── Repository factories ─────────────────────────────────────────────────────
+⋮----
+/** Returns an IdentityRepository backed by Firebase. */
+export function createIdentityRepository(): IdentityRepository
+⋮----
+/** Returns a TokenRefreshRepository backed by Firebase. */
+export function createTokenRefreshRepository(): TokenRefreshRepository
+⋮----
+// ─── Client-side use-case factory ─────────────────────────────────────────────
+⋮----
+/**
+ * createClientAuthUseCases — creates Firebase-wired client-side auth use cases.
+ * Each call returns fresh use-case instances sharing one repository instance.
+ * Use only in "use client" components or client-side hooks.
+ */
+export function createClientAuthUseCases()
+````
+
+## File: modules/iam/subdomains/identity/interfaces/contexts/auth-context.ts
+````typescript
+/**
+ * auth-context.ts — platform/identity interfaces layer
+ * Defines the AuthContext contract: state shape, actions, and React context.
+ * Consumed by AuthProvider and useAuth().
+ *
+ * AuthUser is owned by the Platform/Identity bounded context.
+ */
+⋮----
+import { createContext, type Dispatch } from "react";
+⋮----
+import type { AuthUser } from "@/modules/platform/api/contracts";
+⋮----
+export type AuthStatus = "initializing" | "authenticated" | "unauthenticated";
+⋮----
+export interface AuthState {
+  user: AuthUser | null;
+  status: AuthStatus;
+}
+⋮----
+export type AuthAction =
+  | { type: "SET_AUTH_STATE"; payload: { user: AuthUser | null; status: AuthStatus } }
+  | { type: "UPDATE_DISPLAY_NAME"; payload: { name: string } };
+⋮----
+export interface AuthContextValue {
+  state: AuthState;
+  dispatch: Dispatch<AuthAction>;
+  logout: () => Promise<void>;
+}
+````
+
+## File: modules/iam/subdomains/identity/interfaces/hooks/useTokenRefreshListener.tsx
+````typescript
+import { getFirebaseAuth } from "@integration-firebase";
+import { useEffect } from "react";
+import { createTokenRefreshRepository } from "../composition/identity-service";
+⋮----
+function getTokenRefreshRepo(): ReturnType<typeof createTokenRefreshRepository>
+⋮----
+export function useTokenRefreshListener(accountId: string | null | undefined): void
+⋮----
+// Non-fatal: token refreshes naturally on next expiry cycle.
+````
+
+## File: modules/iam/subdomains/identity/interfaces/index.ts
+````typescript
+
+````
+
+## File: modules/iam/subdomains/identity/interfaces/providers/auth-provider.tsx
+````typescript
+/**
+ * auth-provider.tsx — platform/identity interfaces layer
+ * Hosts the Firebase auth state lifecycle and exposes useAuth().
+ * Syncs onAuthStateChanged → AuthContext → consumed by AppProvider and shell guard.
+ *
+ * [S6] Token refresh is handled separately by useTokenRefreshListener (Party 3).
+ */
+⋮----
+import { useReducer, useContext, useEffect, type ReactNode } from "react";
+import {
+  getFirebaseAuth,
+  onFirebaseAuthStateChanged,
+  signOutFirebase,
+  type User,
+} from "@integration-firebase";
+import {
+  AuthContext,
+  type AuthAction,
+  type AuthState,
+  type AuthUser,
+} from "../contexts/auth-context";
+⋮----
+// ─── Constants ────────────────────────────────────────────────────────────────
+⋮----
+// ─── Mapper ───────────────────────────────────────────────────────────────────
+⋮----
+function toAuthUser(user: User): AuthUser
+⋮----
+// ─── Reducer ──────────────────────────────────────────────────────────────────
+⋮----
+const authReducer = (state: AuthState, action: AuthAction): AuthState =>
+⋮----
+// ─── Provider ─────────────────────────────────────────────────────────────────
+⋮----
+export function AuthProvider(
+⋮----
+const logout = async () =>
+⋮----
+// Always dispatch unauthenticated: onAuthStateChanged will not fire when
+// there is no real Firebase session (e.g. dev-demo guest mode), so we
+// cannot rely solely on the listener to clear the auth state.
+⋮----
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+⋮----
+export function useAuth()
 ````
 
 ## File: modules/iam/subdomains/identity/README.md
@@ -33980,6 +34334,17 @@ Notebook container and organization.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notebooklm/subdomains/source/api/server.ts
+````typescript
+/**
+ * source subdomain — server-only API.
+ *
+ * Exports composition factories for server-side wiring.
+ * Server Actions, route handlers, and other server-side entry points should
+ * use these factories instead of importing infrastructure adapters directly.
+ */
 ````
 
 ## File: modules/notebooklm/subdomains/source/api/ui.ts
@@ -35293,6 +35658,45 @@ export async function moveCategory(input: z.infer<typeof MoveCategorySchema>): P
 export async function deleteCategory(input: z.infer<typeof DeleteCategorySchema>): Promise<CommandResult>
 ````
 
+## File: modules/notion/interfaces/authoring/composition/use-cases.ts
+````typescript
+import {
+  CreateArticleUseCase,
+  UpdateArticleUseCase,
+  ArchiveArticleUseCase,
+  DeleteArticleUseCase,
+  PublishArticleUseCase,
+  VerifyArticleUseCase,
+  RequestArticleReviewUseCase,
+  CreateCategoryUseCase,
+  RenameCategoryUseCase,
+  MoveCategoryUseCase,
+  DeleteCategoryUseCase,
+} from "../../../subdomains/authoring/application/use-cases";
+import type { ArticleRepository } from "../../../subdomains/authoring/domain/repositories/ArticleRepository";
+import type { CategoryRepository } from "../../../subdomains/authoring/domain/repositories/CategoryRepository";
+import { makeArticleRepo, makeCategoryRepo } from "./repositories";
+⋮----
+export interface AuthoringUseCases {
+  readonly createArticle: CreateArticleUseCase;
+  readonly updateArticle: UpdateArticleUseCase;
+  readonly archiveArticle: ArchiveArticleUseCase;
+  readonly deleteArticle: DeleteArticleUseCase;
+  readonly publishArticle: PublishArticleUseCase;
+  readonly verifyArticle: VerifyArticleUseCase;
+  readonly requestArticleReview: RequestArticleReviewUseCase;
+  readonly createCategory: CreateCategoryUseCase;
+  readonly renameCategory: RenameCategoryUseCase;
+  readonly moveCategory: MoveCategoryUseCase;
+  readonly deleteCategory: DeleteCategoryUseCase;
+}
+⋮----
+export function makeAuthoringUseCases(
+  articleRepo: ArticleRepository = makeArticleRepo(),
+  categoryRepo: CategoryRepository = makeCategoryRepo(),
+): AuthoringUseCases
+````
+
 ## File: modules/notion/interfaces/collaboration/_actions/comment.actions.ts
 ````typescript
 /**
@@ -35362,6 +35766,43 @@ export async function createVersion(input: CreateVersionDto): Promise<CommandRes
 export async function deleteVersion(input: DeleteVersionDto): Promise<CommandResult>
 ````
 
+## File: modules/notion/interfaces/collaboration/composition/use-cases.ts
+````typescript
+import {
+  CreateCommentUseCase,
+  UpdateCommentUseCase,
+  ResolveCommentUseCase,
+  DeleteCommentUseCase,
+  ListCommentsUseCase,
+  CreateVersionUseCase,
+  DeleteVersionUseCase,
+  GrantPermissionUseCase,
+  RevokePermissionUseCase,
+} from "../../../subdomains/collaboration/application/use-cases";
+import type { CommentRepository } from "../../../subdomains/collaboration/domain/repositories/CommentRepository";
+import type { VersionRepository } from "../../../subdomains/collaboration/domain/repositories/VersionRepository";
+import type { PermissionRepository } from "../../../subdomains/collaboration/domain/repositories/PermissionRepository";
+import { makeCommentRepo, makeVersionRepo, makePermissionRepo } from "./repositories";
+⋮----
+export interface CollaborationUseCases {
+  readonly createComment: CreateCommentUseCase;
+  readonly updateComment: UpdateCommentUseCase;
+  readonly resolveComment: ResolveCommentUseCase;
+  readonly deleteComment: DeleteCommentUseCase;
+  readonly listComments: ListCommentsUseCase;
+  readonly createVersion: CreateVersionUseCase;
+  readonly deleteVersion: DeleteVersionUseCase;
+  readonly grantPermission: GrantPermissionUseCase;
+  readonly revokePermission: RevokePermissionUseCase;
+}
+⋮----
+export function makeCollaborationUseCases(
+  commentRepo: CommentRepository = makeCommentRepo(),
+  versionRepo: VersionRepository = makeVersionRepo(),
+  permissionRepo: PermissionRepository = makePermissionRepo(),
+): CollaborationUseCases
+````
+
 ## File: modules/notion/interfaces/database/components/DatabaseAddFieldDialog.tsx
 ````typescript
 import { useState } from "react";
@@ -35415,6 +35856,63 @@ function handleCreate()
 function handleToggle(automation: DatabaseAutomationSnapshot)
 ⋮----
 function handleDelete(automationId: string)
+````
+
+## File: modules/notion/interfaces/database/composition/use-cases.ts
+````typescript
+import {
+  CreateDatabaseUseCase,
+  UpdateDatabaseUseCase,
+  AddFieldUseCase,
+  ArchiveDatabaseUseCase,
+  GetDatabaseUseCase,
+  ListDatabasesUseCase,
+  CreateRecordUseCase,
+  UpdateRecordUseCase,
+  DeleteRecordUseCase,
+  ListRecordsUseCase,
+  CreateViewUseCase,
+  UpdateViewUseCase,
+  DeleteViewUseCase,
+  ListViewsUseCase,
+  CreateAutomationUseCase,
+  UpdateAutomationUseCase,
+  DeleteAutomationUseCase,
+  ListAutomationsUseCase,
+} from "../../../subdomains/database/application/use-cases";
+import type { DatabaseRepository } from "../../../subdomains/database/domain/repositories/DatabaseRepository";
+import type { DatabaseRecordRepository } from "../../../subdomains/database/domain/repositories/DatabaseRecordRepository";
+import type { ViewRepository } from "../../../subdomains/database/domain/repositories/ViewRepository";
+import type { AutomationRepository } from "../../../subdomains/database/domain/repositories/AutomationRepository";
+import { makeDatabaseRepo, makeRecordRepo, makeViewRepo, makeAutomationRepo } from "./repositories";
+⋮----
+export interface DatabaseUseCases {
+  readonly createDatabase: CreateDatabaseUseCase;
+  readonly updateDatabase: UpdateDatabaseUseCase;
+  readonly addField: AddFieldUseCase;
+  readonly archiveDatabase: ArchiveDatabaseUseCase;
+  readonly getDatabase: GetDatabaseUseCase;
+  readonly listDatabases: ListDatabasesUseCase;
+  readonly createRecord: CreateRecordUseCase;
+  readonly updateRecord: UpdateRecordUseCase;
+  readonly deleteRecord: DeleteRecordUseCase;
+  readonly listRecords: ListRecordsUseCase;
+  readonly createView: CreateViewUseCase;
+  readonly updateView: UpdateViewUseCase;
+  readonly deleteView: DeleteViewUseCase;
+  readonly listViews: ListViewsUseCase;
+  readonly createAutomation: CreateAutomationUseCase;
+  readonly updateAutomation: UpdateAutomationUseCase;
+  readonly deleteAutomation: DeleteAutomationUseCase;
+  readonly listAutomations: ListAutomationsUseCase;
+}
+⋮----
+export function makeDatabaseUseCases(
+  databaseRepo: DatabaseRepository = makeDatabaseRepo(),
+  recordRepo: DatabaseRecordRepository = makeRecordRepo(),
+  viewRepo: ViewRepository = makeViewRepo(),
+  automationRepo: AutomationRepository = makeAutomationRepo(),
+): DatabaseUseCases
 ````
 
 ## File: modules/notion/interfaces/knowledge/_actions/knowledge-collection.actions.ts
@@ -35529,16 +36027,6 @@ export type CategoryId = string;
 // ??? Queries (read-side) ??????????????????????????????????????????????????????
 ⋮----
 // UI components are exported from ./ui to keep this barrel semantic-only.
-````
-
-## File: modules/notion/subdomains/authoring/api/server.ts
-````typescript
-/**
- * authoring subdomain — server-only API.
- *
- * Exports infrastructure implementations and composition helpers that must only
- * run in Server Actions, route handlers, or other server-side entry points.
- */
 ````
 
 ## File: modules/notion/subdomains/authoring/api/ui.ts
@@ -35808,16 +36296,6 @@ delete(accountId: string, categoryId: string): Promise<void>;
 // Queries
 ⋮----
 // UI components
-````
-
-## File: modules/notion/subdomains/collaboration/api/server.ts
-````typescript
-/**
- * collaboration subdomain — server-only API.
- *
- * Exports infrastructure implementations and composition helpers that must only
- * run in Server Actions, route handlers, or other server-side entry points.
- */
 ````
 
 ## File: modules/notion/subdomains/collaboration/application/dto/collaboration.dto.ts
@@ -36141,16 +36619,6 @@ create(input: CreateVersionInput): Promise<VersionSnapshot>;
 delete(accountId: string, versionId: string): Promise<void>;
 findById(accountId: string, versionId: string): Promise<VersionSnapshot | null>;
 listByContent(accountId: string, contentId: string): Promise<VersionSnapshot[]>;
-````
-
-## File: modules/notion/subdomains/database/api/server.ts
-````typescript
-/**
- * database subdomain — server-only API.
- *
- * Exports infrastructure implementations and composition helpers that must only
- * run in Server Actions, route handlers, or other server-side entry points.
- */
 ````
 
 ## File: modules/notion/subdomains/database/api/ui.ts
@@ -36637,16 +37105,6 @@ create(input: CreateViewInput): Promise<ViewSnapshot>;
 update(input: UpdateViewInput): Promise<ViewSnapshot>;
 delete(id: string, accountId: string): Promise<void>;
 listByDatabase(accountId: string, databaseId: string): Promise<ViewSnapshot[]>;
-````
-
-## File: modules/notion/subdomains/knowledge/api/server.ts
-````typescript
-/**
- * knowledge subdomain — server-only API.
- *
- * Exports infrastructure implementations and composition helpers that must only
- * run in Server Actions, route handlers, or other server-side entry points.
- */
 ````
 
 ## File: modules/notion/subdomains/knowledge/api/ui.ts
@@ -38810,261 +39268,6 @@ import { ShellTranslationSwitcher } from "./ShellTranslationSwitcher";
 export function ShellHeaderControls()
 ````
 
-## File: modules/platform/platform.instructions.md
-````markdown
----
-description: 'Platform bounded context rules: governance upstream role, module shape, subdomain routing, and cross-context dependency direction.'
-applyTo: 'modules/platform/**/*.{ts,tsx,md}'
----
-
-# Platform Bounded Context (Local)
-
-Use this file as execution guardrails for `modules/platform/`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/contexts/platform/README.md`, and `docs/bounded-contexts.md`.
-
-## Core Rules
-
-- `platform` is the **governance upstream** for all other bounded contexts (`workspace`, `notion`, `notebooklm`); never invert this dependency.
-- Cross-module consumers must import from `modules/platform/api` only — never from `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- Route work to the correct subdomain first; do not place subdomain-specific logic in the context-wide `application/` or `domain/` layers.
-- New top-level main domains are forbidden — the system has exactly four: `platform`, `workspace`, `notion`, `notebooklm`.
-- Use ubiquitous language from `docs/contexts/platform/ubiquitous-language.md`: `Actor` not `User`, `Entitlement` not `Plan`, `Membership` not `User` for workspace participant.
-- Shell account scope uses `accountId`; `organizationId` remains an organization-scoped downstream identifier, not a shell route param.
-- Code-level account scope values remain `"user" | "organization"`; keep personal account / organization account as display language only.
-- Canonical governance URLs are flattened account-scoped routes, not legacy `/{accountId}/organization/*` paths.
-
-## Route to Subdomain When
-
-| Concern | Subdomain |
-|---|---|
-| Authentication, identity federation | `identity` |
-| Account lifecycle | `account` |
-| Account profile & preferences | `account-profile` |
-| Organization, tenant structure | `organization` |
-| Team membership | `team` |
-| Subscription & billing plan | `subscription` |
-| Capability grants | `entitlement` |
-| Access policy enforcement | `access-control` |
-| Notification dispatch | `notification` |
-| Background / ingestion jobs | `background-job` |
-
-## Route Elsewhere When
-
-- Workspace lifecycle, membership, presence → `workspace`
-- Knowledge content creation, taxonomy, publishing → `notion`
-- Conversation, retrieval, synthesis → `notebooklm`
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
-## File: modules/platform/subdomains/access-control/api/index.ts
-````typescript
-/**
- * Public API boundary for the access-control subdomain.
- */
-````
-
-## File: modules/platform/subdomains/access-control/application/dto/access-control.dto.ts
-````typescript
-import type { AccessPolicySnapshot } from "../../domain/aggregates/AccessPolicy";
-⋮----
-export type AccessPolicyView = Readonly<AccessPolicySnapshot>;
-⋮----
-export interface PermissionEvaluationView {
-  readonly subjectId: string;
-  readonly resourceType: string;
-  readonly resourceId?: string;
-  readonly action: string;
-  readonly allowed: boolean;
-  readonly reason: string;
-}
-````
-
-## File: modules/platform/subdomains/access-control/application/dto/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/access-control/application/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/access-control/application/services/shell-account-access.ts
-````typescript
-export interface ShellAccountActor {
-  readonly id: string;
-  readonly accountType?: string;
-}
-⋮----
-export function isOrganizationActor(
-  account: ShellAccountActor | null | undefined,
-): account is ShellAccountActor &
-⋮----
-/**
- * Type-narrowing guard for ActiveAccount (union of AccountEntity | AuthUser).
- * Returns true when the active account is an organization account.
- */
-export function isActiveOrganizationAccount(
-  activeAccount: { id: string; accountType?: string } | null,
-): activeAccount is
-⋮----
-/**
- * Keep shell fallback behavior centralized so route access rules are not
- * duplicated across layout components.
- */
-export function resolveOrganizationRouteFallback(
-  pathname: string,
-  account: ShellAccountActor | null | undefined,
-): string | null
-````
-
-## File: modules/platform/subdomains/access-control/application/use-cases/access-control.use-cases.ts
-````typescript
-import { v4 as uuid } from "@lib-uuid";
-/**
- * Access-Control Use Cases — pure application logic.
- */
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import { AccessPolicy } from "../../domain/aggregates/AccessPolicy";
-import {
-  allowDecision,
-  denyDecision,
-} from "../../../../domain/value-objects/PermissionDecision";
-import type { AccessPolicyRepository } from "../../domain/repositories/AccessPolicyRepository";
-import type { SubjectRef } from "../../domain/value-objects/SubjectRef";
-import type { ResourceRef } from "../../domain/value-objects/ResourceRef";
-import type { PolicyEffect } from "../../domain/value-objects/PolicyEffect";
-⋮----
-// ─── Evaluate Permission ──────────────────────────────────────────────────────
-⋮----
-export class EvaluatePermissionUseCase {
-⋮----
-constructor(private readonly repo: AccessPolicyRepository)
-⋮----
-async execute(input: {
-    subjectId: string;
-    resourceType: string;
-    resourceId?: string;
-    action: string;
-}): Promise<CommandResult>
-⋮----
-// Explicit deny takes priority (deny-override semantics)
-⋮----
-// ─── Create Access Policy ─────────────────────────────────────────────────────
-⋮----
-export class CreateAccessPolicyUseCase {
-⋮----
-async execute(input: {
-    subjectRef: SubjectRef;
-    resourceRef: ResourceRef;
-    actions: string[];
-    effect: PolicyEffect;
-    conditions?: string[];
-}): Promise<CommandResult>
-⋮----
-// ─── Update Access Policy ─────────────────────────────────────────────────────
-⋮----
-export class UpdateAccessPolicyUseCase {
-⋮----
-async execute(
-    policyId: string,
-    input: { actions?: string[]; effect?: PolicyEffect; conditions?: string[] },
-): Promise<CommandResult>
-⋮----
-// ─── Delete (Deactivate) Access Policy ───────────────────────────────────────
-⋮----
-export class DeactivateAccessPolicyUseCase {
-⋮----
-async execute(policyId: string): Promise<CommandResult>
-````
-
-## File: modules/platform/subdomains/access-control/domain/aggregates/AccessPolicy.ts
-````typescript
-import { v4 as uuid } from "@lib-uuid";
-import type { AccessPolicyDomainEventType } from "../events/AccessPolicyDomainEvent";
-import type { SubjectRef } from "../value-objects/SubjectRef";
-import type { ResourceRef } from "../value-objects/ResourceRef";
-import type { PolicyEffect } from "../value-objects/PolicyEffect";
-⋮----
-export interface AccessPolicySnapshot {
-  readonly id: string;
-  readonly subjectRef: SubjectRef;
-  readonly resourceRef: ResourceRef;
-  readonly actions: readonly string[];
-  readonly effect: PolicyEffect;
-  readonly conditions: readonly string[];
-  readonly isActive: boolean;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateAccessPolicyInput {
-  readonly subjectRef: SubjectRef;
-  readonly resourceRef: ResourceRef;
-  readonly actions: string[];
-  readonly effect: PolicyEffect;
-  readonly conditions?: string[];
-}
-⋮----
-export class AccessPolicy {
-⋮----
-private constructor(private _props: AccessPolicySnapshot)
-⋮----
-static create(id: string, input: CreateAccessPolicyInput): AccessPolicy
-⋮----
-static reconstitute(snapshot: AccessPolicySnapshot): AccessPolicy
-⋮----
-update(input:
-⋮----
-deactivate(): void
-⋮----
-get id(): string
-get subjectRef(): SubjectRef
-get resourceRef(): ResourceRef
-get actions(): readonly string[]
-get effect(): PolicyEffect
-get conditions(): readonly string[]
-get isActive(): boolean
-⋮----
-getSnapshot(): Readonly<AccessPolicySnapshot>
-⋮----
-pullDomainEvents(): AccessPolicyDomainEventType[]
-````
-
-## File: modules/platform/subdomains/access-control/infrastructure/index.ts
-````typescript
-/**
- * Access-control infrastructure barrel — adapter exports only.
- *
- * Composition logic lives in interfaces/composition/access-control-service.ts.
- */
-````
-
-## File: modules/platform/subdomains/access-control/interfaces/composition/access-control-service.ts
-````typescript
-/**
- * AccessControlService — Composition root for access-control use cases.
- *
- * Relocated from infrastructure/ to interfaces/composition/ to fix
- * the infrastructure → application dependency direction violation (HX-1-001).
- */
-import {
-  EvaluatePermissionUseCase,
-  CreateAccessPolicyUseCase,
-  UpdateAccessPolicyUseCase,
-  DeactivateAccessPolicyUseCase,
-} from "../../application/use-cases/access-control.use-cases";
-import { FirebaseAccessPolicyRepository } from "../../infrastructure/firebase/FirebaseAccessPolicyRepository";
-import type { SubjectRef } from "../../domain/value-objects/SubjectRef";
-import type { ResourceRef } from "../../domain/value-objects/ResourceRef";
-import type { PolicyEffect } from "../../domain/value-objects/PolicyEffect";
-import type { CommandResult } from "@shared-types";
-⋮----
-function getRepo(): FirebaseAccessPolicyRepository
-````
-
 ## File: modules/platform/subdomains/account-profile/application/dto/account-profile.dto.ts
 ````typescript
 /**
@@ -39528,199 +39731,6 @@ advanceStage(input: AdvanceIngestionStageInput): Promise<IngestionResult<Ingesti
 ⋮----
 // Re-export status type for convenience (callers using `ingestionService` should not
 // need to reach into the domain layer directly).
-````
-
-## File: modules/platform/subdomains/identity/domain/aggregates/UserIdentity.ts
-````typescript
-import { v4 as uuid } from "@lib-uuid";
-import type { IdentityDomainEventType } from "../events";
-import { canReactivate, canSuspend } from "../value-objects";
-import { createDisplayName, createEmail, createUserId } from "../value-objects";
-import type { IdentityStatus } from "../value-objects";
-⋮----
-export interface UserIdentitySnapshot {
-	readonly uid: string;
-	readonly email: string | null;
-	readonly displayName: string | null;
-	readonly photoURL: string | null;
-	readonly isAnonymous: boolean;
-	readonly emailVerified: boolean;
-	readonly status: IdentityStatus;
-	readonly lastSignInAtISO: string | null;
-	readonly createdAtISO: string;
-	readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateIdentityInput {
-	readonly email: string | null;
-	readonly displayName: string | null;
-	readonly photoURL: string | null;
-	readonly isAnonymous: boolean;
-	readonly emailVerified: boolean;
-}
-⋮----
-export class UserIdentity {
-⋮----
-private constructor(private _props: UserIdentitySnapshot)
-⋮----
-static create(uid: string, input: CreateIdentityInput): UserIdentity
-⋮----
-static reconstitute(snapshot: UserIdentitySnapshot): UserIdentity
-⋮----
-signIn(): void
-⋮----
-updateDisplayName(name: string): void
-⋮----
-verifyEmail(): void
-⋮----
-suspend(): void
-⋮----
-reactivate(): void
-⋮----
-get uid(): string
-⋮----
-get email(): string | null
-⋮----
-get displayName(): string | null
-⋮----
-get isActive(): boolean
-⋮----
-get isAnonymous(): boolean
-⋮----
-get emailVerified(): boolean
-⋮----
-getSnapshot(): Readonly<UserIdentitySnapshot>
-⋮----
-pullDomainEvents(): IdentityDomainEventType[]
-````
-
-## File: modules/platform/subdomains/identity/domain/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/identity/domain/ports/index.ts
-````typescript
-/**
- * identity domain/ports — driven port interfaces for the identity subdomain.
- *
- * Re-exports repository contracts from domain/repositories/, making the Ports layer
- * explicitly visible in the directory structure.
- */
-````
-
-## File: modules/platform/subdomains/identity/interfaces/composition/identity-service.ts
-````typescript
-/**
- * identity-service — Composition root for identity use cases.
- *
- * Relocated from infrastructure/ to interfaces/composition/ to fix
- * the infrastructure → application dependency direction violation (HX-1-001).
- * This file wires Firebase-backed repositories into identity use cases.
- */
-⋮----
-import type { TokenRefreshReason } from "../../domain";
-import type { IdentityRepository } from "../../domain/repositories/IdentityRepository";
-import type { TokenRefreshRepository } from "../../domain/repositories/TokenRefreshRepository";
-import { EmitTokenRefreshSignalUseCase } from "../../application/use-cases/token-refresh.use-cases";
-import {
-	RegisterUseCase,
-	SendPasswordResetEmailUseCase,
-	SignInAnonymouslyUseCase,
-	SignInUseCase,
-} from "../../application/use-cases/identity.use-cases";
-import { FirebaseIdentityRepository } from "../../infrastructure/firebase/FirebaseIdentityRepository";
-import { FirebaseTokenRefreshRepository } from "../../infrastructure/firebase/FirebaseTokenRefreshRepository";
-⋮----
-// ─── Types ────────────────────────────────────────────────────────────────────
-⋮----
-export interface EmitTokenRefreshSignalInput {
-	accountId: string;
-	reason: TokenRefreshReason;
-	traceId?: string;
-}
-⋮----
-// ─── Server-side token refresh signal emitter ─────────────────────────────────
-⋮----
-function getEmitUseCase(): EmitTokenRefreshSignalUseCase
-⋮----
-/**
- * identityApi — server-side operations for identity management.
- * Intended for use in Server Actions and server-side code paths.
- */
-⋮----
-async emitTokenRefreshSignal(input: EmitTokenRefreshSignalInput): Promise<void>
-⋮----
-// ─── Repository factories ─────────────────────────────────────────────────────
-⋮----
-/** Returns an IdentityRepository backed by Firebase. */
-export function createIdentityRepository(): IdentityRepository
-⋮----
-/** Returns a TokenRefreshRepository backed by Firebase. */
-export function createTokenRefreshRepository(): TokenRefreshRepository
-⋮----
-// ─── Client-side use-case factory ─────────────────────────────────────────────
-⋮----
-/**
- * createClientAuthUseCases — creates Firebase-wired client-side auth use cases.
- * Each call returns fresh use-case instances sharing one repository instance.
- * Use only in "use client" components or client-side hooks.
- */
-export function createClientAuthUseCases()
-````
-
-## File: modules/platform/subdomains/identity/interfaces/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/identity/interfaces/providers/auth-provider.tsx
-````typescript
-/**
- * auth-provider.tsx — platform/identity interfaces layer
- * Hosts the Firebase auth state lifecycle and exposes useAuth().
- * Syncs onAuthStateChanged → AuthContext → consumed by AppProvider and shell guard.
- *
- * [S6] Token refresh is handled separately by useTokenRefreshListener (Party 3).
- */
-⋮----
-import { useReducer, useContext, useEffect, type ReactNode } from "react";
-import {
-  getFirebaseAuth,
-  onFirebaseAuthStateChanged,
-  signOutFirebase,
-  type User,
-} from "@integration-firebase";
-import {
-  AuthContext,
-  type AuthAction,
-  type AuthState,
-  type AuthUser,
-} from "../contexts/auth-context";
-⋮----
-// ─── Constants ────────────────────────────────────────────────────────────────
-⋮----
-// ─── Mapper ───────────────────────────────────────────────────────────────────
-⋮----
-function toAuthUser(user: User): AuthUser
-⋮----
-// ─── Reducer ──────────────────────────────────────────────────────────────────
-⋮----
-const authReducer = (state: AuthState, action: AuthAction): AuthState =>
-⋮----
-// ─── Provider ─────────────────────────────────────────────────────────────────
-⋮----
-export function AuthProvider(
-⋮----
-const logout = async () =>
-⋮----
-// Always dispatch unauthenticated: onAuthStateChanged will not fire when
-// there is no real Firebase session (e.g. dev-demo guest mode), so we
-// cannot rely solely on the listener to clear the auth state.
-⋮----
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-⋮----
-export function useAuth()
 ````
 
 ## File: modules/platform/subdomains/notification/application/dto/notification.dto.ts
@@ -42952,6 +42962,13 @@ async publish<T extends DomainEvent>(event: T): Promise<void>
 clear(): void
 ````
 
+## File: vitest.config.ts
+````typescript
+import { resolve } from "node:path";
+⋮----
+import { defineConfig } from "vitest/config";
+````
+
 ## File: .github/agents/architecture-enforcer.agent.md
 ````markdown
 ---
@@ -43645,36 +43662,37 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: app/(public)/page.tsx
+## File: app/(shell)/_providers/AppProvider.tsx
 ````typescript
 /**
- * app/(public)/page.tsx
- * Public landing page with top-right auth entry and inline auth panel.
- * Uses identity module use cases directly on the client so Firebase auth state
- * actually updates AuthProvider via onAuthStateChanged.
+ * AppProvider — app/(shell)/ composition layer
+ *
+ * Manages the platform-owned account lifecycle (auth → accounts → activeAccount).
+ * Lives in app/ because the cross-module composition root is the correct owner
+ * of account-state wiring that reads from platform subdomain queries.
+ *
+ * Workspace state is managed by WorkspaceContextProvider from workspace module.
  */
 ⋮----
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { useReducer, useEffect, type ReactNode } from "react";
 ⋮----
 import {
-  useAuth,
-  createClientAuthUseCases,
-  createClientAccountUseCases,
+  AppContext,
+  APP_INITIAL_STATE,
+  type AppState,
+  type AppAction,
+} from "@/modules/platform/api/ui";
+import {
+  resolveActiveAccount,
+  subscribeToAccountsForUser,
 } from "@/modules/platform/api";
+import { useAuth } from "@/modules/iam/api";
 ⋮----
-type Tab = "login" | "register";
+function appReducer(state: AppState, action: AppAction): AppState
 ⋮----
-async function handleSubmit(e: React.FormEvent)
+export function AppProvider(
 ⋮----
-async function handleGuestAccess()
-⋮----
-async function handlePasswordReset()
-⋮----
-setError(null);
-setResetSent(false);
-setIsAuthPanelOpen((prev)
+// eslint-disable-next-line react-hooks/exhaustive-deps
 ````
 
 ## File: app/(shell)/_shell/ShellRootLayout.tsx
@@ -46722,61 +46740,6 @@ SINK  ANALYTICS
   ubiquitous-language.md     — 戰略術語權威
 ````
 
-## File: eslint.config.mjs
-````javascript
-// ─── Globs ───────────────────────────────────────────────────────────────────
-⋮----
-// ─── Module boundary helpers ─────────────────────────────────────────────────
-⋮----
-const normalizeWarnSeverity = (ruleConfig) =>
-⋮----
-const mapRulesToWarn = (rules =
-⋮----
-const maxLinesRule = (max) => [WARN,
-const restrictedImportsRule = (patterns, extraOptions =
-const restrictedSyntaxRule = (selectors)
-⋮----
-const sameDomain = (type) => (
-⋮----
-const sameSubdomain = (type) => (
-⋮----
-const anyDomain = (type) => (
-⋮----
-// ─── Restricted import patterns ───────────────────────────────────────────────
-⋮----
-// ─── Config ───────────────────────────────────────────────────────────────────
-⋮----
-// JSDoc
-⋮----
-// TypeScript naming + type imports + unused vars
-⋮----
-// React + a11y
-⋮----
-// Module boundaries (eslint-plugin-boundaries)
-⋮----
-// File-size guardrails per Hexagonal DDD layer
-⋮----
-// Legacy alias migration
-⋮----
-// app / providers / debug → only module api entrypoints
-⋮----
-// modules → strict entrypoint + internal layer enforcement
-⋮----
-// Cyclic-dependency smell signal: lazy require should remain exceptional, not normal composition.
-⋮----
-// Dependency-leakage smell signal: api boundaries must not wildcard re-export inner layers.
-⋮----
-// packages must not depend on application modules
-⋮----
-// Genkit must be centralized in platform AI infrastructure adapter.
-⋮----
-// Downstream interfaces must consume platform APIs, not Firebase SDK wrappers directly.
-⋮----
-// Downstream infrastructure must delegate Firebase access via platform infrastructure APIs.
-⋮----
-// notion/notebooklm interface layers must not read workspace context directly.
-````
-
 ## File: modules/ai/AGENT.md
 ````markdown
 # AI Module Agent Guide
@@ -46992,12 +46955,34 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 This folder will hold module-local architecture notes for the IAM bounded context when concrete capabilities are added.
 ````
 
-## File: modules/iam/subdomains/identity/api/index.ts
+## File: modules/iam/domain/index.ts
+````typescript
+/** iam/domain — shared IAM domain models and value objects. */
+````
+
+## File: modules/iam/subdomains/access-control/api/index.ts
 ````typescript
 /**
- * IAM identity public API.
- * Transitional canonical boundary while implementation is converged from legacy owners.
+ * IAM access-control public API.
+ * Canonical owner boundary for permission evaluation and policy lifecycle.
  */
+````
+
+## File: modules/iam/subdomains/access-control/README.md
+````markdown
+# Access Control
+
+Access control policies and permission resolution.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/iam/subdomains/subdomains.instructions.md
@@ -47813,17 +47798,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
  *
  * Re-exports repository contracts from domain/repositories/, making the Ports layer
  * explicitly visible in the directory structure.
- */
-````
-
-## File: modules/notebooklm/subdomains/source/api/server.ts
-````typescript
-/**
- * source subdomain — server-only API.
- *
- * Exports composition factories for server-side wiring.
- * Server Actions, route handlers, and other server-side entry points should
- * use these factories instead of importing infrastructure adapters directly.
  */
 ````
 
@@ -48825,82 +48799,6 @@ async save(node: TaxonomyNode): Promise<void>
 async remove(nodeId: string): Promise<void>
 ````
 
-## File: modules/notion/interfaces/authoring/composition/use-cases.ts
-````typescript
-import {
-  CreateArticleUseCase,
-  UpdateArticleUseCase,
-  ArchiveArticleUseCase,
-  DeleteArticleUseCase,
-  PublishArticleUseCase,
-  VerifyArticleUseCase,
-  RequestArticleReviewUseCase,
-  CreateCategoryUseCase,
-  RenameCategoryUseCase,
-  MoveCategoryUseCase,
-  DeleteCategoryUseCase,
-} from "../../../subdomains/authoring/application/use-cases";
-import type { ArticleRepository } from "../../../subdomains/authoring/domain/repositories/ArticleRepository";
-import type { CategoryRepository } from "../../../subdomains/authoring/domain/repositories/CategoryRepository";
-import { makeArticleRepo, makeCategoryRepo } from "./repositories";
-⋮----
-export interface AuthoringUseCases {
-  readonly createArticle: CreateArticleUseCase;
-  readonly updateArticle: UpdateArticleUseCase;
-  readonly archiveArticle: ArchiveArticleUseCase;
-  readonly deleteArticle: DeleteArticleUseCase;
-  readonly publishArticle: PublishArticleUseCase;
-  readonly verifyArticle: VerifyArticleUseCase;
-  readonly requestArticleReview: RequestArticleReviewUseCase;
-  readonly createCategory: CreateCategoryUseCase;
-  readonly renameCategory: RenameCategoryUseCase;
-  readonly moveCategory: MoveCategoryUseCase;
-  readonly deleteCategory: DeleteCategoryUseCase;
-}
-⋮----
-export function makeAuthoringUseCases(
-  articleRepo: ArticleRepository = makeArticleRepo(),
-  categoryRepo: CategoryRepository = makeCategoryRepo(),
-): AuthoringUseCases
-````
-
-## File: modules/notion/interfaces/collaboration/composition/use-cases.ts
-````typescript
-import {
-  CreateCommentUseCase,
-  UpdateCommentUseCase,
-  ResolveCommentUseCase,
-  DeleteCommentUseCase,
-  ListCommentsUseCase,
-  CreateVersionUseCase,
-  DeleteVersionUseCase,
-  GrantPermissionUseCase,
-  RevokePermissionUseCase,
-} from "../../../subdomains/collaboration/application/use-cases";
-import type { CommentRepository } from "../../../subdomains/collaboration/domain/repositories/CommentRepository";
-import type { VersionRepository } from "../../../subdomains/collaboration/domain/repositories/VersionRepository";
-import type { PermissionRepository } from "../../../subdomains/collaboration/domain/repositories/PermissionRepository";
-import { makeCommentRepo, makeVersionRepo, makePermissionRepo } from "./repositories";
-⋮----
-export interface CollaborationUseCases {
-  readonly createComment: CreateCommentUseCase;
-  readonly updateComment: UpdateCommentUseCase;
-  readonly resolveComment: ResolveCommentUseCase;
-  readonly deleteComment: DeleteCommentUseCase;
-  readonly listComments: ListCommentsUseCase;
-  readonly createVersion: CreateVersionUseCase;
-  readonly deleteVersion: DeleteVersionUseCase;
-  readonly grantPermission: GrantPermissionUseCase;
-  readonly revokePermission: RevokePermissionUseCase;
-}
-⋮----
-export function makeCollaborationUseCases(
-  commentRepo: CommentRepository = makeCommentRepo(),
-  versionRepo: VersionRepository = makeVersionRepo(),
-  permissionRepo: PermissionRepository = makePermissionRepo(),
-): CollaborationUseCases
-````
-
 ## File: modules/notion/interfaces/database/components/DatabaseDetailPanel.tsx
 ````typescript
 import { useCallback, useEffect, useState, useTransition } from "react";
@@ -48966,63 +48864,6 @@ onClick=
 {/* View */}
 ````
 
-## File: modules/notion/interfaces/database/composition/use-cases.ts
-````typescript
-import {
-  CreateDatabaseUseCase,
-  UpdateDatabaseUseCase,
-  AddFieldUseCase,
-  ArchiveDatabaseUseCase,
-  GetDatabaseUseCase,
-  ListDatabasesUseCase,
-  CreateRecordUseCase,
-  UpdateRecordUseCase,
-  DeleteRecordUseCase,
-  ListRecordsUseCase,
-  CreateViewUseCase,
-  UpdateViewUseCase,
-  DeleteViewUseCase,
-  ListViewsUseCase,
-  CreateAutomationUseCase,
-  UpdateAutomationUseCase,
-  DeleteAutomationUseCase,
-  ListAutomationsUseCase,
-} from "../../../subdomains/database/application/use-cases";
-import type { DatabaseRepository } from "../../../subdomains/database/domain/repositories/DatabaseRepository";
-import type { DatabaseRecordRepository } from "../../../subdomains/database/domain/repositories/DatabaseRecordRepository";
-import type { ViewRepository } from "../../../subdomains/database/domain/repositories/ViewRepository";
-import type { AutomationRepository } from "../../../subdomains/database/domain/repositories/AutomationRepository";
-import { makeDatabaseRepo, makeRecordRepo, makeViewRepo, makeAutomationRepo } from "./repositories";
-⋮----
-export interface DatabaseUseCases {
-  readonly createDatabase: CreateDatabaseUseCase;
-  readonly updateDatabase: UpdateDatabaseUseCase;
-  readonly addField: AddFieldUseCase;
-  readonly archiveDatabase: ArchiveDatabaseUseCase;
-  readonly getDatabase: GetDatabaseUseCase;
-  readonly listDatabases: ListDatabasesUseCase;
-  readonly createRecord: CreateRecordUseCase;
-  readonly updateRecord: UpdateRecordUseCase;
-  readonly deleteRecord: DeleteRecordUseCase;
-  readonly listRecords: ListRecordsUseCase;
-  readonly createView: CreateViewUseCase;
-  readonly updateView: UpdateViewUseCase;
-  readonly deleteView: DeleteViewUseCase;
-  readonly listViews: ListViewsUseCase;
-  readonly createAutomation: CreateAutomationUseCase;
-  readonly updateAutomation: UpdateAutomationUseCase;
-  readonly deleteAutomation: DeleteAutomationUseCase;
-  readonly listAutomations: ListAutomationsUseCase;
-}
-⋮----
-export function makeDatabaseUseCases(
-  databaseRepo: DatabaseRepository = makeDatabaseRepo(),
-  recordRepo: DatabaseRecordRepository = makeRecordRepo(),
-  viewRepo: ViewRepository = makeViewRepo(),
-  automationRepo: AutomationRepository = makeAutomationRepo(),
-): DatabaseUseCases
-````
-
 ## File: modules/notion/interfaces/knowledge/_actions/knowledge-page.actions.ts
 ````typescript
 import { commandFailureFrom, type CommandResult } from "@shared-types";
@@ -49068,6 +48909,59 @@ export async function assignKnowledgePageOwner(input: AssignPageOwnerDto): Promi
 export async function updateKnowledgePageIcon(input: UpdatePageIconDto): Promise<CommandResult>
 ⋮----
 export async function updateKnowledgePageCover(input: UpdatePageCoverDto): Promise<CommandResult>
+````
+
+## File: modules/notion/interfaces/knowledge/composition/use-cases.ts
+````typescript
+import {
+  CreateKnowledgePageUseCase,
+  RenameKnowledgePageUseCase,
+  MoveKnowledgePageUseCase,
+  ArchiveKnowledgePageUseCase,
+  ReorderKnowledgePageBlocksUseCase,
+  VerifyKnowledgePageUseCase,
+  ApproveKnowledgePageUseCase,
+  RequestPageReviewUseCase,
+  AssignPageOwnerUseCase,
+  UpdatePageIconUseCase,
+  UpdatePageCoverUseCase,
+  CreateKnowledgeCollectionUseCase,
+  RenameKnowledgeCollectionUseCase,
+  AddPageToCollectionUseCase,
+  RemovePageFromCollectionUseCase,
+  ArchiveKnowledgeCollectionUseCase,
+} from "../../../subdomains/knowledge/application/use-cases";
+import type { KnowledgePageRepository } from "../../../subdomains/knowledge/domain/repositories/KnowledgePageRepository";
+import type { KnowledgeCollectionRepository } from "../../../subdomains/knowledge/domain/repositories/KnowledgeCollectionRepository";
+import type { IEventStoreRepository, IEventBusRepository } from "@shared-events";
+import { createPlatformEventInfrastructure } from "@/modules/platform/api/server";
+import { makePageRepo, makeCollectionRepo } from "./repositories";
+⋮----
+export interface KnowledgeUseCases {
+  readonly createKnowledgePage: CreateKnowledgePageUseCase;
+  readonly renameKnowledgePage: RenameKnowledgePageUseCase;
+  readonly moveKnowledgePage: MoveKnowledgePageUseCase;
+  readonly archiveKnowledgePage: ArchiveKnowledgePageUseCase;
+  readonly reorderKnowledgePageBlocks: ReorderKnowledgePageBlocksUseCase;
+  readonly verifyKnowledgePage: VerifyKnowledgePageUseCase;
+  readonly approveKnowledgePage: ApproveKnowledgePageUseCase;
+  readonly requestPageReview: RequestPageReviewUseCase;
+  readonly assignPageOwner: AssignPageOwnerUseCase;
+  readonly updatePageIcon: UpdatePageIconUseCase;
+  readonly updatePageCover: UpdatePageCoverUseCase;
+  readonly createKnowledgeCollection: CreateKnowledgeCollectionUseCase;
+  readonly renameKnowledgeCollection: RenameKnowledgeCollectionUseCase;
+  readonly addPageToCollection: AddPageToCollectionUseCase;
+  readonly removePageFromCollection: RemovePageFromCollectionUseCase;
+  readonly archiveKnowledgeCollection: ArchiveKnowledgeCollectionUseCase;
+}
+⋮----
+export function makeKnowledgeUseCases(
+  pageRepo: KnowledgePageRepository = makePageRepo(),
+  collectionRepo: KnowledgeCollectionRepository = makeCollectionRepo(),
+  eventStore?: IEventStoreRepository,
+  eventBus?: IEventBusRepository,
+): KnowledgeUseCases
 ````
 
 ## File: modules/notion/interfaces/relations/composition/use-cases.ts
@@ -49907,58 +49801,6 @@ export interface PlatformEventInfrastructure {
 export function createPlatformEventInfrastructure(): PlatformEventInfrastructure
 ````
 
-## File: modules/platform/api/service-api.ts
-````typescript
-import { v4 as uuid } from "@lib-uuid";
-import { getFirebaseAuth } from "@integration-firebase";
-⋮----
-import { accessControlService } from "../../iam/api";
-import { isAllowed, type PermissionDecision } from "../domain/value-objects/PermissionDecision";
-import { firestoreInfrastructureApi, storageInfrastructureApi } from "./infrastructure-api";
-import type {
-	AuthAPI,
-	AuthSession,
-	FileAPI,
-	PermissionAPI,
-	UploadUserFileInput,
-	UploadUserFileOutput,
-} from "./contracts";
-⋮----
-interface PlatformFileRecord {
-	readonly fileId: string;
-	readonly ownerId: string;
-	readonly storagePath: string;
-	readonly filename: string;
-	readonly contentType: string;
-	readonly url: string;
-	readonly metadata: Record<string, string>;
-	readonly createdAtISO: string;
-	readonly deletedAtISO?: string;
-}
-⋮----
-function normalizeOwnerId(ownerId: string): string
-⋮----
-function normalizeFileName(input: UploadUserFileInput): string
-⋮----
-function sanitizeFileName(fileName: string): string
-⋮----
-function parseResource(resource: string):
-⋮----
-function parsePermissionDecision(raw: string): PermissionDecision | null
-⋮----
-function buildFileRecordPath(fileId: string): string
-⋮----
-async getSession(): Promise<AuthSession | null>
-⋮----
-async requireAuth(): Promise<AuthSession>
-⋮----
-async can(userId: string, action: string, resource: string): Promise<boolean>
-⋮----
-async uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>
-⋮----
-async deleteFile(fileId: string): Promise<void>
-````
-
 ## File: modules/platform/application/use-cases/emit-observability-signal.use-cases.ts
 ````typescript
 /**
@@ -50021,6 +49863,53 @@ export interface AccountRouteContext {
 function normalizeRouteParam(value: string | string[] | undefined): string
 ⋮----
 export function useAccountRouteContext(): AccountRouteContext
+````
+
+## File: modules/platform/platform.instructions.md
+````markdown
+---
+description: 'Platform bounded context rules: governance upstream role, module shape, subdomain routing, and cross-context dependency direction.'
+applyTo: 'modules/platform/**/*.{ts,tsx,md}'
+---
+
+# Platform Bounded Context (Local)
+
+Use this file as execution guardrails for `modules/platform/`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/contexts/platform/README.md`, and `docs/bounded-contexts.md`.
+
+## Core Rules
+
+- `platform` is the **governance upstream** for all other bounded contexts (`workspace`, `notion`, `notebooklm`); never invert this dependency.
+- Cross-module consumers must import from `modules/platform/api` only — never from `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
+- Route work to the correct subdomain first; do not place subdomain-specific logic in the context-wide `application/` or `domain/` layers.
+- New top-level main domains are forbidden — follow the repo strategic docs for the canonical eight-context model and do not re-centralize IAM or AI back into platform.
+- Use ubiquitous language from `docs/contexts/platform/ubiquitous-language.md`: `Actor` not `User`, `Entitlement` not `Plan`, `Membership` not `User` for workspace participant.
+- Shell account scope uses `accountId`; `organizationId` remains an organization-scoped downstream identifier, not a shell route param.
+- Code-level account scope values remain `"user" | "organization"`; keep personal account / organization account as display language only.
+- Canonical governance URLs are flattened account-scoped routes, not legacy `/{accountId}/organization/*` paths.
+
+## Route to Subdomain When
+
+| Concern | Subdomain |
+|---|---|
+| Account lifecycle | `account` |
+| Account profile & preferences | `account-profile` |
+| Organization, tenant structure | `organization` |
+| Team membership | `team` |
+| Subscription & billing plan | `subscription` |
+| Capability grants | `entitlement` |
+| Access policy enforcement | `access-control` |
+| Notification dispatch | `notification` |
+| Background / ingestion jobs | `background-job` |
+
+## Route Elsewhere When
+
+- Workspace lifecycle, membership, presence → `workspace`
+- Knowledge content creation, taxonomy, publishing → `notion`
+- Conversation, retrieval, synthesis → `notebooklm`
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: modules/platform/README.md
@@ -50413,15 +50302,6 @@ async execute(input: ListWorkspaceIngestionJobsInput): Promise<readonly Ingestio
  *
  * Re-exports repository contracts from domain/repositories/, making the Ports layer
  * explicitly visible in the directory structure.
- */
-````
-
-## File: modules/platform/subdomains/identity/infrastructure/index.ts
-````typescript
-/**
- * Identity infrastructure barrel — adapter exports only.
- *
- * Composition logic lives in interfaces/composition/identity-service.ts.
  */
 ````
 
@@ -52297,6 +52177,40 @@ Skill declarations are centralized in:
 Tags: #use agent hexagonal-convergence-enforcer
 ````
 
+## File: app/(public)/page.tsx
+````typescript
+/**
+ * app/(public)/page.tsx
+ * Public landing page with top-right auth entry and inline auth panel.
+ * Uses identity module use cases directly on the client so Firebase auth state
+ * actually updates AuthProvider via onAuthStateChanged.
+ */
+⋮----
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, ShieldCheck } from "lucide-react";
+⋮----
+import {
+  useAuth,
+  createClientAuthUseCases,
+} from "@/modules/iam/api";
+import {
+  createClientAccountUseCases,
+} from "@/modules/platform/api";
+⋮----
+type Tab = "login" | "register";
+⋮----
+async function handleSubmit(e: React.FormEvent)
+⋮----
+async function handleGuestAccess()
+⋮----
+async function handlePasswordReset()
+⋮----
+setError(null);
+setResetSent(false);
+setIsAuthPanelOpen((prev)
+````
+
 ## File: docs/contexts/iam/README.md
 ````markdown
 # IAM Context
@@ -53062,6 +52976,61 @@ flowchart LR
 - 若某整合指南與 [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md) 衝突，以 ADR 為準。
 ````
 
+## File: eslint.config.mjs
+````javascript
+// ─── Globs ───────────────────────────────────────────────────────────────────
+⋮----
+// ─── Module boundary helpers ─────────────────────────────────────────────────
+⋮----
+const normalizeWarnSeverity = (ruleConfig) =>
+⋮----
+const mapRulesToWarn = (rules =
+⋮----
+const maxLinesRule = (max) => [WARN,
+const restrictedImportsRule = (patterns, extraOptions =
+const restrictedSyntaxRule = (selectors)
+⋮----
+const sameDomain = (type) => (
+⋮----
+const sameSubdomain = (type) => (
+⋮----
+const anyDomain = (type) => (
+⋮----
+// ─── Restricted import patterns ───────────────────────────────────────────────
+⋮----
+// ─── Config ───────────────────────────────────────────────────────────────────
+⋮----
+// JSDoc
+⋮----
+// TypeScript naming + type imports + unused vars
+⋮----
+// React + a11y
+⋮----
+// Module boundaries (eslint-plugin-boundaries)
+⋮----
+// File-size guardrails per Hexagonal DDD layer
+⋮----
+// Legacy alias migration
+⋮----
+// app / providers / debug → only module api entrypoints
+⋮----
+// modules → strict entrypoint + internal layer enforcement
+⋮----
+// Cyclic-dependency smell signal: lazy require should remain exceptional, not normal composition.
+⋮----
+// Dependency-leakage smell signal: api boundaries must not wildcard re-export inner layers.
+⋮----
+// packages must not depend on application modules
+⋮----
+// Genkit must be centralized in the AI bounded context infrastructure adapter.
+⋮----
+// Downstream interfaces must consume platform APIs, not Firebase SDK wrappers directly.
+⋮----
+// Downstream infrastructure must delegate Firebase access via platform infrastructure APIs.
+⋮----
+// notion/notebooklm interface layers must not read workspace context directly.
+````
+
 ## File: modules/ai/ai.instructions.md
 ````markdown
 ---
@@ -53190,6 +53159,22 @@ This module is the semantic home for actor identity, sign-in lifecycle, authoriz
 ## Migration note
 
 Platform may still host some legacy implementation details during convergence, but new cross-context consumers should depend on the IAM public boundary first.
+````
+
+## File: modules/iam/subdomains/federation/api/index.ts
+````typescript
+/**
+ * IAM federation public API.
+ * Reserved for SSO, external identity provider linking, and trust delegation flows.
+ */
+````
+
+## File: modules/iam/subdomains/identity/api/index.ts
+````typescript
+/**
+ * IAM identity public API.
+ * Canonical owner boundary for authentication and identity lifecycle concerns.
+ */
 ````
 
 ## File: modules/notebooklm/infrastructure/source/firebase/FirebaseRagDocumentAdapter.ts
@@ -53337,6 +53322,70 @@ async function handleUpload()
 async function handleDelete(doc: SourceLiveDocument)
 ⋮----
 async function handleRename(doc: SourceLiveDocument, newName: string)
+````
+
+## File: modules/notebooklm/interfaces/source/composition/use-cases.ts
+````typescript
+import { UploadInitSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-init-source-file.use-case";
+import { UploadCompleteSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-complete-source-file.use-case";
+import { ParseSourceDocumentUseCase, ReindexSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/source-pipeline.use-cases";
+import { ProcessSourceDocumentWorkflowUseCase } from "../../../subdomains/source/application/use-cases/process-source-document-workflow.use-case";
+import { RegisterUploadedRagDocumentUseCase } from "../../../subdomains/source/application/use-cases/register-rag-document.use-case";
+import { RenameSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/rename-source-document.use-case";
+import { DeleteSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/delete-source-document.use-case";
+import { CreateKnowledgeDraftFromSourceUseCase, type KnowledgePageGateway } from "../../../subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case";
+import type { SourceFileRepository } from "../../../subdomains/source/domain/repositories/SourceFileRepository";
+import type { RagDocumentRepository } from "../../../subdomains/source/domain/repositories/RagDocumentRepository";
+import type { SourceDocumentCommandPort } from "../../../subdomains/source/domain/ports/SourceDocumentPort";
+import type { SourcePipelinePort } from "../../../subdomains/source/domain/ports/SourcePipelinePort";
+import type { ParsedDocumentPort } from "../../../subdomains/source/domain/ports/ParsedDocumentPort";
+import type { TaskMaterializationWorkflowPort } from "../../../subdomains/source/domain/ports/TaskMaterializationWorkflowPort";
+import {
+  makeSourceFileAdapter,
+  makeRagDocumentAdapter,
+  makeSourceDocumentCommandAdapter,
+  makeSourcePipelineAdapter,
+  makeParsedDocumentAdapter,
+  makeKnowledgePageGateway,
+  makeTaskMaterializationWorkflowAdapter,
+  waitForParsedDocument,
+} from "./adapters";
+⋮----
+export interface SourceUseCases {
+  readonly uploadInitSourceFile: UploadInitSourceFileUseCase;
+  readonly uploadCompleteSourceFile: UploadCompleteSourceFileUseCase;
+  readonly parseSourceDocument: ParseSourceDocumentUseCase;
+  readonly reindexSourceDocument: ReindexSourceDocumentUseCase;
+  readonly processSourceDocumentWorkflow: ProcessSourceDocumentWorkflowUseCase;
+  readonly registerUploadedRagDocument: RegisterUploadedRagDocumentUseCase;
+  readonly renameSourceDocument: RenameSourceDocumentUseCase;
+  readonly deleteSourceDocument: DeleteSourceDocumentUseCase;
+  readonly createKnowledgeDraftFromSource: CreateKnowledgeDraftFromSourceUseCase;
+}
+⋮----
+interface ParsedDocumentStatusPort {
+  waitForParsedDocument(
+    accountId: string,
+    documentId: string,
+  ): Promise<{ pageCount: number; jsonGcsUri: string }>;
+}
+⋮----
+waitForParsedDocument(
+    accountId: string,
+    documentId: string,
+): Promise<
+⋮----
+function makeParsedDocumentStatusPort(): ParsedDocumentStatusPort
+⋮----
+export function makeSourceUseCases(
+  fileRepository: SourceFileRepository = makeSourceFileAdapter(),
+  ragDocumentRepository: RagDocumentRepository = makeRagDocumentAdapter(),
+  documentCommandPort: SourceDocumentCommandPort = makeSourceDocumentCommandAdapter(),
+  pipelinePort: SourcePipelinePort = makeSourcePipelineAdapter(),
+  parsedDocumentPort: ParsedDocumentPort = makeParsedDocumentAdapter(),
+  knowledgePageGateway: KnowledgePageGateway = makeKnowledgePageGateway(),
+  taskWorkflowPort: TaskMaterializationWorkflowPort = makeTaskMaterializationWorkflowAdapter(),
+): SourceUseCases
 ````
 
 ## File: modules/notebooklm/interfaces/source/composition/wiki-library-facade.ts
@@ -53783,59 +53832,6 @@ function buildPageDetailHref(pageId: string)
 onCreated=
 ````
 
-## File: modules/notion/interfaces/knowledge/composition/use-cases.ts
-````typescript
-import {
-  CreateKnowledgePageUseCase,
-  RenameKnowledgePageUseCase,
-  MoveKnowledgePageUseCase,
-  ArchiveKnowledgePageUseCase,
-  ReorderKnowledgePageBlocksUseCase,
-  VerifyKnowledgePageUseCase,
-  ApproveKnowledgePageUseCase,
-  RequestPageReviewUseCase,
-  AssignPageOwnerUseCase,
-  UpdatePageIconUseCase,
-  UpdatePageCoverUseCase,
-  CreateKnowledgeCollectionUseCase,
-  RenameKnowledgeCollectionUseCase,
-  AddPageToCollectionUseCase,
-  RemovePageFromCollectionUseCase,
-  ArchiveKnowledgeCollectionUseCase,
-} from "../../../subdomains/knowledge/application/use-cases";
-import type { KnowledgePageRepository } from "../../../subdomains/knowledge/domain/repositories/KnowledgePageRepository";
-import type { KnowledgeCollectionRepository } from "../../../subdomains/knowledge/domain/repositories/KnowledgeCollectionRepository";
-import type { IEventStoreRepository, IEventBusRepository } from "@shared-events";
-import { createPlatformEventInfrastructure } from "@/modules/platform/api/server";
-import { makePageRepo, makeCollectionRepo } from "./repositories";
-⋮----
-export interface KnowledgeUseCases {
-  readonly createKnowledgePage: CreateKnowledgePageUseCase;
-  readonly renameKnowledgePage: RenameKnowledgePageUseCase;
-  readonly moveKnowledgePage: MoveKnowledgePageUseCase;
-  readonly archiveKnowledgePage: ArchiveKnowledgePageUseCase;
-  readonly reorderKnowledgePageBlocks: ReorderKnowledgePageBlocksUseCase;
-  readonly verifyKnowledgePage: VerifyKnowledgePageUseCase;
-  readonly approveKnowledgePage: ApproveKnowledgePageUseCase;
-  readonly requestPageReview: RequestPageReviewUseCase;
-  readonly assignPageOwner: AssignPageOwnerUseCase;
-  readonly updatePageIcon: UpdatePageIconUseCase;
-  readonly updatePageCover: UpdatePageCoverUseCase;
-  readonly createKnowledgeCollection: CreateKnowledgeCollectionUseCase;
-  readonly renameKnowledgeCollection: RenameKnowledgeCollectionUseCase;
-  readonly addPageToCollection: AddPageToCollectionUseCase;
-  readonly removePageFromCollection: RemovePageFromCollectionUseCase;
-  readonly archiveKnowledgeCollection: ArchiveKnowledgeCollectionUseCase;
-}
-⋮----
-export function makeKnowledgeUseCases(
-  pageRepo: KnowledgePageRepository = makePageRepo(),
-  collectionRepo: KnowledgeCollectionRepository = makeCollectionRepo(),
-  eventStore?: IEventStoreRepository,
-  eventBus?: IEventBusRepository,
-): KnowledgeUseCases
-````
-
 ## File: modules/notion/subdomains/knowledge/application/use-cases/review-knowledge-page.use-cases.ts
 ````typescript
 /**
@@ -54109,6 +54105,61 @@ import type { AccountEntity } from "../subdomains/account/api";
 export type ActiveAccount = AccountEntity | AuthUser;
 ````
 
+## File: modules/platform/api/service-api.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import { getFirebaseAuth } from "@integration-firebase";
+⋮----
+import {
+	accessControlService,
+	isAllowed,
+	type PermissionDecision,
+} from "../../iam/api";
+import { firestoreInfrastructureApi, storageInfrastructureApi } from "./infrastructure-api";
+import type {
+	AuthAPI,
+	AuthSession,
+	FileAPI,
+	PermissionAPI,
+	UploadUserFileInput,
+	UploadUserFileOutput,
+} from "./contracts";
+⋮----
+interface PlatformFileRecord {
+	readonly fileId: string;
+	readonly ownerId: string;
+	readonly storagePath: string;
+	readonly filename: string;
+	readonly contentType: string;
+	readonly url: string;
+	readonly metadata: Record<string, string>;
+	readonly createdAtISO: string;
+	readonly deletedAtISO?: string;
+}
+⋮----
+function normalizeOwnerId(ownerId: string): string
+⋮----
+function normalizeFileName(input: UploadUserFileInput): string
+⋮----
+function sanitizeFileName(fileName: string): string
+⋮----
+function parseResource(resource: string):
+⋮----
+function parsePermissionDecision(raw: string): PermissionDecision | null
+⋮----
+function buildFileRecordPath(fileId: string): string
+⋮----
+async getSession(): Promise<AuthSession | null>
+⋮----
+async requireAuth(): Promise<AuthSession>
+⋮----
+async can(userId: string, action: string, resource: string): Promise<boolean>
+⋮----
+async uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>
+⋮----
+async deleteFile(fileId: string): Promise<void>
+````
+
 ## File: modules/platform/interfaces/web/shell/search/ShellGlobalSearchDialog.tsx
 ````typescript
 import { useEffect, useState } from "react";
@@ -54201,20 +54252,6 @@ export async function getAccountPolicies(_accountId: string): Promise<AccountPol
 // Policy reads are server-side only; keep client bundles free of policy repo deps.
 ⋮----
 export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]>
-````
-
-## File: modules/platform/subdomains/identity/api/index.ts
-````typescript
-/**
- * identity subdomain public API boundary.
- * Consumers (e.g. infrastructure in sibling subdomains) must import through this barrel.
- */
-⋮----
-// Domain types — explicit exports (no wildcard to avoid leaking repos/ports/aggregates)
-⋮----
-// Value objects
-⋮----
-// Interfaces (UI components, hooks, providers, actions)
 ````
 
 ## File: modules/platform/subdomains/organization/interfaces/components/screens/OrganizationOverviewRouteScreen.tsx
@@ -54740,6 +54777,97 @@ handoffs:
 Tags: #use skill context7 #use skill shadcn #use skill next-devtools-mcp
 #use skill serena-mcp #use skill hexagonal-ddd #use skill occams-razor #use skill xuanwu-app-skill
 #use skill repomix
+````
+
+## File: app/(shell)/_shell/ShellAppRail.tsx
+````typescript
+/**
+ * ShellAppRail — app/(shell)/_shell composition layer.
+ * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
+ * because it composes downstream modules (workspace).
+ *
+ * Platform is upstream and must not import downstream modules.
+ * app/ is the designated composition layer.
+ */
+⋮----
+import Link from "next/link";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  LayoutDashboard,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+⋮----
+import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
+import { CreateOrganizationDialog } from "@/modules/platform/api/ui";
+import {
+  listShellRailCatalogItems,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  buildShellContextualHref,
+  type ShellRailCatalogItem,
+} from "@/modules/platform/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { CreateWorkspaceDialogRail } from "@/modules/workspace/api/ui";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+⋮----
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+⋮----
+interface RailItem {
+  id: string;
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+⋮----
+function getInitial(name: string | undefined | null): string
+⋮----
+function isActive(href: string)
+⋮----
+function buildWorkspaceDetailHref(workspaceId: string): string
+⋮----
+onClick=
+⋮----
+onSelectWorkspace(workspace.id);
+⋮----
+accountType=
 ````
 
 ## File: app/(shell)/(account)/[accountId]/dev-tools/page.tsx
@@ -56257,70 +56385,6 @@ export function waitForParsedDocument(
 ): Promise<
 ````
 
-## File: modules/notebooklm/interfaces/source/composition/use-cases.ts
-````typescript
-import { UploadInitSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-init-source-file.use-case";
-import { UploadCompleteSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-complete-source-file.use-case";
-import { ParseSourceDocumentUseCase, ReindexSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/source-pipeline.use-cases";
-import { ProcessSourceDocumentWorkflowUseCase } from "../../../subdomains/source/application/use-cases/process-source-document-workflow.use-case";
-import { RegisterUploadedRagDocumentUseCase } from "../../../subdomains/source/application/use-cases/register-rag-document.use-case";
-import { RenameSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/rename-source-document.use-case";
-import { DeleteSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/delete-source-document.use-case";
-import { CreateKnowledgeDraftFromSourceUseCase, type KnowledgePageGateway } from "../../../subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case";
-import type { SourceFileRepository } from "../../../subdomains/source/domain/repositories/SourceFileRepository";
-import type { RagDocumentRepository } from "../../../subdomains/source/domain/repositories/RagDocumentRepository";
-import type { SourceDocumentCommandPort } from "../../../subdomains/source/domain/ports/SourceDocumentPort";
-import type { SourcePipelinePort } from "../../../subdomains/source/domain/ports/SourcePipelinePort";
-import type { ParsedDocumentPort } from "../../../subdomains/source/domain/ports/ParsedDocumentPort";
-import type { TaskMaterializationWorkflowPort } from "../../../subdomains/source/domain/ports/TaskMaterializationWorkflowPort";
-import {
-  makeSourceFileAdapter,
-  makeRagDocumentAdapter,
-  makeSourceDocumentCommandAdapter,
-  makeSourcePipelineAdapter,
-  makeParsedDocumentAdapter,
-  makeKnowledgePageGateway,
-  makeTaskMaterializationWorkflowAdapter,
-  waitForParsedDocument,
-} from "./adapters";
-⋮----
-export interface SourceUseCases {
-  readonly uploadInitSourceFile: UploadInitSourceFileUseCase;
-  readonly uploadCompleteSourceFile: UploadCompleteSourceFileUseCase;
-  readonly parseSourceDocument: ParseSourceDocumentUseCase;
-  readonly reindexSourceDocument: ReindexSourceDocumentUseCase;
-  readonly processSourceDocumentWorkflow: ProcessSourceDocumentWorkflowUseCase;
-  readonly registerUploadedRagDocument: RegisterUploadedRagDocumentUseCase;
-  readonly renameSourceDocument: RenameSourceDocumentUseCase;
-  readonly deleteSourceDocument: DeleteSourceDocumentUseCase;
-  readonly createKnowledgeDraftFromSource: CreateKnowledgeDraftFromSourceUseCase;
-}
-⋮----
-interface ParsedDocumentStatusPort {
-  waitForParsedDocument(
-    accountId: string,
-    documentId: string,
-  ): Promise<{ pageCount: number; jsonGcsUri: string }>;
-}
-⋮----
-waitForParsedDocument(
-    accountId: string,
-    documentId: string,
-): Promise<
-⋮----
-function makeParsedDocumentStatusPort(): ParsedDocumentStatusPort
-⋮----
-export function makeSourceUseCases(
-  fileRepository: SourceFileRepository = makeSourceFileAdapter(),
-  ragDocumentRepository: RagDocumentRepository = makeRagDocumentAdapter(),
-  documentCommandPort: SourceDocumentCommandPort = makeSourceDocumentCommandAdapter(),
-  pipelinePort: SourcePipelinePort = makeSourcePipelineAdapter(),
-  parsedDocumentPort: ParsedDocumentPort = makeParsedDocumentAdapter(),
-  knowledgePageGateway: KnowledgePageGateway = makeKnowledgePageGateway(),
-  taskWorkflowPort: TaskMaterializationWorkflowPort = makeTaskMaterializationWorkflowAdapter(),
-): SourceUseCases
-````
-
 ## File: modules/notion/interfaces/authoring/components/ArticleDetailPanel.tsx
 ````typescript
 import { useCallback, useEffect, useState, useTransition } from "react";
@@ -56449,43 +56513,12 @@ onClick=
 {/* Comment panel ??slides in from right */}
 ````
 
-## File: modules/platform/subdomains/identity/interfaces/_actions/identity.actions.ts
+## File: modules/platform/subdomains/identity/api/index.ts
 ````typescript
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { toIdentityErrorMessage } from "../../application/identity-error-message";
-import {
-	RegisterUseCase,
-	SendPasswordResetEmailUseCase,
-	SignInAnonymouslyUseCase,
-	SignInUseCase,
-	SignOutUseCase,
-} from "../../application/use-cases/identity.use-cases";
-import { createIdentityRepository } from "../composition/identity-service";
-⋮----
-function getRepo(): ReturnType<typeof createIdentityRepository>
-⋮----
-export async function signIn(email: string, password: string): Promise<CommandResult>
-⋮----
-export async function signInAnonymously(): Promise<CommandResult>
-⋮----
-export async function register(email: string, password: string, name: string): Promise<CommandResult>
-⋮----
-export async function sendPasswordResetEmail(email: string): Promise<CommandResult>
-⋮----
-export async function signOut(): Promise<CommandResult>
-````
-
-## File: modules/platform/subdomains/identity/interfaces/hooks/useTokenRefreshListener.tsx
-````typescript
-import { getFirebaseAuth } from "@integration-firebase";
-import { useEffect } from "react";
-import { createTokenRefreshRepository } from "../composition/identity-service";
-⋮----
-function getTokenRefreshRepo(): ReturnType<typeof createTokenRefreshRepository>
-⋮----
-export function useTokenRefreshListener(accountId: string | null | undefined): void
-⋮----
-// Non-fatal: token refreshes naturally on next expiry cycle.
+/**
+ * Platform compatibility façade for identity.
+ * Canonical ownership now lives in the IAM bounded context.
+ */
 ````
 
 ## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
@@ -56604,6 +56637,35 @@ export async function buildWikiContentTree(
   seeds: WikiAccountSeed[],
   workspaceRepository: WikiWorkspaceRepository,
 ): Promise<WikiAccountContentNode[]>
+````
+
+## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
+````typescript
+import { useEffect, useMemo, useState } from "react";
+⋮----
+import type { WorkspaceEntity } from "../../contracts";
+⋮----
+interface RecentWorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+⋮----
+function getStorageKey(accountId: string)
+⋮----
+function readRecentWorkspaceIds(accountId: string): string[]
+⋮----
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[])
+⋮----
+function trackWorkspaceFromPath(pathname: string, accountId: string)
+⋮----
+function getWorkspaceIdFromPath(pathname: string): string | null
+⋮----
+export function useRecentWorkspaces(
+  accountId: string | undefined,
+  pathname: string,
+  workspaces: WorkspaceEntity[],
+)
 ````
 
 ## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
@@ -56829,97 +56891,6 @@ export function writeNavPreferences(prefs: NavPreferences): void
 }
 ````
 
-## File: app/(shell)/_shell/ShellAppRail.tsx
-````typescript
-/**
- * ShellAppRail — app/(shell)/_shell composition layer.
- * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
- * because it composes downstream modules (workspace).
- *
- * Platform is upstream and must not import downstream modules.
- * app/ is the designated composition layer.
- */
-⋮----
-import Link from "next/link";
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  LayoutDashboard,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-⋮----
-import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
-import { CreateOrganizationDialog } from "@/modules/platform/api/ui";
-import {
-  listShellRailCatalogItems,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  buildShellContextualHref,
-  type ShellRailCatalogItem,
-} from "@/modules/platform/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { CreateWorkspaceDialogRail } from "@/modules/workspace/api/ui";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-⋮----
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-⋮----
-interface RailItem {
-  id: string;
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-⋮----
-function getInitial(name: string | undefined | null): string
-⋮----
-function isActive(href: string)
-⋮----
-function buildWorkspaceDetailHref(workspaceId: string): string
-⋮----
-onClick=
-⋮----
-onSelectWorkspace(workspace.id);
-⋮----
-accountType=
-````
-
 ## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
 ````typescript
 /**
@@ -56980,6 +56951,64 @@ isActiveRoute={(href) => isActiveRoute(pathname, href)}
           activeWorkspaceId={activeWorkspaceId}
           onSelectWorkspace={onSelectWorkspace}
 onToggleExpanded=
+````
+
+## File: app/(shell)/_shell/ShellSidebarBody.tsx
+````typescript
+/**
+ * ShellSidebarBody — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it imports from workspace and notion modules.
+ */
+⋮----
+import Link from "next/link";
+⋮----
+import {
+  WorkspaceSectionContent,
+  type NavPreferences,
+  type SidebarLocaleBundle,
+} from "@/modules/workspace/api/ui";
+import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "@/modules/platform/api";
+⋮----
+import {
+  type NavSection,
+  sidebarItemClass,
+  sidebarSectionTitleClass,
+} from "./ShellSidebarNavData";
+import { ShellContextNavSection } from "./ShellContextNavSection";
+⋮----
+interface NavItem {
+  id: string;
+  label: string;
+  href: string;
+}
+⋮----
+interface WorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+⋮----
+interface ShellSidebarBodyProps {
+  section: NavSection;
+  isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
+  showAccountManagement: boolean;
+  visibleAccountItems: readonly NavItem[];
+  visibleOrganizationManagementItems: readonly NavItem[];
+  workspacePathId: string | null;
+  navPrefs: NavPreferences;
+  localeBundle: SidebarLocaleBundle | null;
+  showRecentWorkspaces: boolean;
+  visibleRecentWorkspaceLinks: WorkspaceLink[];
+  hasOverflow: boolean;
+  isExpanded: boolean;
+  activeWorkspaceId: string | null;
+  onSelectWorkspace: (workspaceId: string | null) => void;
+  onToggleExpanded: () => void;
+  currentSearchWorkspaceId: string;
+}
+⋮----
+className=
 ````
 
 ## File: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
@@ -57330,35 +57359,6 @@ export function buildWorkspaceQuickAccessItems(
 ): WorkspaceQuickAccessItem[]
 ````
 
-## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
-````typescript
-import { useEffect, useMemo, useState } from "react";
-⋮----
-import type { WorkspaceEntity } from "../../contracts";
-⋮----
-interface RecentWorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-⋮----
-function getStorageKey(accountId: string)
-⋮----
-function readRecentWorkspaceIds(accountId: string): string[]
-⋮----
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[])
-⋮----
-function trackWorkspaceFromPath(pathname: string, accountId: string)
-⋮----
-function getWorkspaceIdFromPath(pathname: string): string | null
-⋮----
-export function useRecentWorkspaces(
-  accountId: string | undefined,
-  pathname: string,
-  workspaces: WorkspaceEntity[],
-)
-````
-
 ## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
 ````typescript
 export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
@@ -57391,64 +57391,6 @@ export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string
 export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[]
 ⋮----
 export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[]
-````
-
-## File: app/(shell)/_shell/ShellSidebarBody.tsx
-````typescript
-/**
- * ShellSidebarBody — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it imports from workspace and notion modules.
- */
-⋮----
-import Link from "next/link";
-⋮----
-import {
-  WorkspaceSectionContent,
-  type NavPreferences,
-  type SidebarLocaleBundle,
-} from "@/modules/workspace/api/ui";
-import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "@/modules/platform/api";
-⋮----
-import {
-  type NavSection,
-  sidebarItemClass,
-  sidebarSectionTitleClass,
-} from "./ShellSidebarNavData";
-import { ShellContextNavSection } from "./ShellContextNavSection";
-⋮----
-interface NavItem {
-  id: string;
-  label: string;
-  href: string;
-}
-⋮----
-interface WorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-⋮----
-interface ShellSidebarBodyProps {
-  section: NavSection;
-  isActiveRoute: (href: string) => boolean;
-  activeAccountId: string | null;
-  showAccountManagement: boolean;
-  visibleAccountItems: readonly NavItem[];
-  visibleOrganizationManagementItems: readonly NavItem[];
-  workspacePathId: string | null;
-  navPrefs: NavPreferences;
-  localeBundle: SidebarLocaleBundle | null;
-  showRecentWorkspaces: boolean;
-  visibleRecentWorkspaceLinks: WorkspaceLink[];
-  hasOverflow: boolean;
-  isExpanded: boolean;
-  activeWorkspaceId: string | null;
-  onSelectWorkspace: (workspaceId: string | null) => void;
-  onToggleExpanded: () => void;
-  currentSearchWorkspaceId: string;
-}
-⋮----
-className=
 ````
 
 ## File: docs/decisions/README.md
