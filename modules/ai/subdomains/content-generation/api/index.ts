@@ -1,5 +1,5 @@
 /**
- * Public API boundary for the AI generation subdomain.
+ * Public API boundary for the AI content-generation subdomain.
  * Cross-module consumers must import through this entry point.
  *
  * This barrel is client-safe — it exports only types and interfaces.
