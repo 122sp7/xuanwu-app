@@ -6902,6 +6902,26 @@ export interface TaxonomyHint {
 
 ````
 
+## File: modules/notion/infrastructure/relations/firebase/index.ts
+````typescript
+
+````
+
+## File: modules/notion/infrastructure/relations/index.ts
+````typescript
+
+````
+
+## File: modules/notion/infrastructure/taxonomy/firebase/index.ts
+````typescript
+
+````
+
+## File: modules/notion/infrastructure/taxonomy/index.ts
+````typescript
+
+````
+
 ## File: modules/notion/interfaces/authoring/_actions/index.ts
 ````typescript
 // TODO: export server actions: createArticle, updateArticle, publishArticle, archiveArticle
@@ -7737,6 +7757,20 @@ export async function getKnowledgeBlocks(accountId: string, pageId: string): Pro
 export async function getKnowledgeCollection(accountId: string, collectionId: string): Promise<KnowledgeCollectionSnapshot | null>
 ⋮----
 export async function getKnowledgeCollections(accountId: string): Promise<KnowledgeCollectionSnapshot[]>
+````
+
+## File: modules/notion/interfaces/relations/composition/repositories.ts
+````typescript
+import { FirebaseRelationRepository } from "../../../infrastructure/relations/firebase/FirebaseRelationRepository";
+⋮----
+export function makeRelationRepo()
+````
+
+## File: modules/notion/interfaces/taxonomy/composition/repositories.ts
+````typescript
+import { FirebaseTaxonomyRepository } from "../../../infrastructure/taxonomy/firebase/FirebaseTaxonomyRepository";
+⋮----
+export function makeTaxonomyRepo()
 ````
 
 ## File: modules/notion/subdomains/authoring/application/dto/ArticleDto.ts
@@ -8694,6 +8728,16 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/notion/subdomains/relations/api/server.ts
+````typescript
+/**
+ * relations subdomain - server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
+````
+
 ## File: modules/notion/subdomains/relations/application/dto/RelationDto.ts
 ````typescript
 /**
@@ -8753,6 +8797,16 @@ export interface CreateRelationInput {
   readonly organizationId: string;
   readonly workspaceId?: string;
 }
+````
+
+## File: modules/notion/subdomains/taxonomy/api/server.ts
+````typescript
+/**
+ * taxonomy subdomain - server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
 ````
 
 ## File: modules/notion/subdomains/taxonomy/application/dto/TaxonomyDto.ts
@@ -32967,11 +33021,6 @@ When implementing, follow inside-out:
 
 ````
 
-## File: modules/iam/subdomains/tenant/README.md
-````markdown
-
-````
-
 ## File: modules/notebooklm/api/server.ts
 ````typescript
 /**
@@ -34922,26 +34971,6 @@ build(input: CitationBuilderInput): readonly Citation[];
  */
 ````
 
-## File: modules/notion/infrastructure/relations/firebase/index.ts
-````typescript
-
-````
-
-## File: modules/notion/infrastructure/relations/index.ts
-````typescript
-
-````
-
-## File: modules/notion/infrastructure/taxonomy/firebase/index.ts
-````typescript
-
-````
-
-## File: modules/notion/infrastructure/taxonomy/index.ts
-````typescript
-
-````
-
 ## File: modules/notion/interfaces/authoring/_actions/article.actions.ts
 ````typescript
 /**
@@ -35233,20 +35262,6 @@ deleteBlock(id)
 reorder(ids)
 ⋮----
 clearDirty()
-````
-
-## File: modules/notion/interfaces/relations/composition/repositories.ts
-````typescript
-import { FirebaseRelationRepository } from "../../../infrastructure/relations/firebase/FirebaseRelationRepository";
-⋮----
-export function makeRelationRepo()
-````
-
-## File: modules/notion/interfaces/taxonomy/composition/repositories.ts
-````typescript
-import { FirebaseTaxonomyRepository } from "../../../infrastructure/taxonomy/firebase/FirebaseTaxonomyRepository";
-⋮----
-export function makeTaxonomyRepo()
 ````
 
 ## File: modules/notion/notion.instructions.md
@@ -37087,14 +37102,27 @@ listSnapshotsByAccountId(accountId: string): Promise<KnowledgePageSnapshot[]>;
 listSnapshotsByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]>;
 ````
 
-## File: modules/notion/subdomains/relations/api/server.ts
+## File: modules/notion/subdomains/relations/api/index.ts
 ````typescript
 /**
- * relations subdomain - server-only API.
+ * Public API boundary for the relations subdomain.
+ * Cross-module consumers must import through this entry point.
  *
- * Exports infrastructure implementations and composition helpers that must only
- * run in Server Actions, route handlers, or other server-side entry points.
+ * Status: Tier 2 Recommended Gap Subdomain
  */
+⋮----
+// ── Domain types ──────────────────────────────────────────────────────────────
+⋮----
+// ── Repository contracts ───────────────────────────────────────────────────────
+⋮----
+// ── Domain events ─────────────────────────────────────────────────────────────
+⋮----
+// ── Application DTOs ──────────────────────────────────────────────────────────
+⋮----
+// ── Application contracts ─────────────────────────────────────────────────────
+⋮----
+// Note: server-only composition and infrastructure adapters are exported from
+// `./server` to keep the default boundary runtime-safe.
 ````
 
 ## File: modules/notion/subdomains/relations/application/index.ts
@@ -37193,16 +37221,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/taxonomy/api/server.ts
-````typescript
-/**
- * taxonomy subdomain - server-only API.
- *
- * Exports infrastructure implementations and composition helpers that must only
- * run in Server Actions, route handlers, or other server-side entry points.
- */
 ````
 
 ## File: modules/notion/subdomains/taxonomy/application/index.ts
@@ -48902,6 +48920,70 @@ async listSnapshotsByAccountId(accountId: string): Promise<KnowledgePageSnapshot
 async listSnapshotsByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]>
 ````
 
+## File: modules/notion/infrastructure/relations/firebase/FirebaseRelationRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/relations
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase adapter implementing RelationRepository.
+ * Firestore path: notionRelations/{relationId}
+ */
+⋮----
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
+import type { Relation } from "../../../subdomains/relations/domain/entities/Relation";
+import type { RelationRepository } from "../../../subdomains/relations/domain/repositories/RelationRepository";
+⋮----
+function relationsPath(): string
+⋮----
+function relationPath(relationId: string): string
+⋮----
+function toRelation(relationId: string, data: Record<string, unknown>): Relation
+⋮----
+export class FirebaseRelationRepository implements RelationRepository {
+⋮----
+async findById(relationId: string): Promise<Relation | null>
+⋮----
+async listBySource(sourceArtifactId: string): Promise<readonly Relation[]>
+⋮----
+async listByTarget(targetArtifactId: string): Promise<readonly Relation[]>
+⋮----
+async save(relation: Relation): Promise<void>
+⋮----
+async remove(relationId: string): Promise<void>
+````
+
+## File: modules/notion/infrastructure/taxonomy/firebase/FirebaseTaxonomyRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/taxonomy
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase adapter implementing TaxonomyRepository.
+ * Firestore path: notionTaxonomyNodes/{nodeId}
+ */
+⋮----
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
+import type { TaxonomyNode } from "../../../subdomains/taxonomy/domain/entities/TaxonomyNode";
+import type { TaxonomyRepository } from "../../../subdomains/taxonomy/domain/repositories/TaxonomyRepository";
+⋮----
+function collectionPath(): string
+⋮----
+function docPath(nodeId: string): string
+⋮----
+function toTaxonomyNode(nodeId: string, data: Record<string, unknown>): TaxonomyNode
+⋮----
+export class FirebaseTaxonomyRepository implements TaxonomyRepository {
+⋮----
+async findById(nodeId: string): Promise<TaxonomyNode | null>
+⋮----
+async listRoots(organizationId: string): Promise<readonly TaxonomyNode[]>
+⋮----
+async listChildren(parentNodeId: string): Promise<readonly TaxonomyNode[]>
+⋮----
+async save(node: TaxonomyNode): Promise<void>
+⋮----
+async remove(nodeId: string): Promise<void>
+````
+
 ## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesPanel.tsx
 ````typescript
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -49238,6 +49320,50 @@ export interface KnowledgePagesPanelProps {
 function buildPageDetailHref(pageId: string)
 ⋮----
 onCreated=
+````
+
+## File: modules/notion/interfaces/relations/composition/use-cases.ts
+````typescript
+import {
+  CreateRelationUseCase,
+  ListRelationsBySourceUseCase,
+  ListRelationsByTargetUseCase,
+  RemoveRelationUseCase,
+} from "../../../subdomains/relations/application/use-cases/manage-relation.use-cases";
+import type { RelationRepository } from "../../../subdomains/relations/domain/repositories/RelationRepository";
+import { makeRelationRepo } from "./repositories";
+⋮----
+export interface RelationUseCases {
+  readonly createRelation: CreateRelationUseCase;
+  readonly removeRelation: RemoveRelationUseCase;
+  readonly listRelationsBySource: ListRelationsBySourceUseCase;
+  readonly listRelationsByTarget: ListRelationsByTargetUseCase;
+}
+⋮----
+export function makeRelationUseCases(repo: RelationRepository = makeRelationRepo()): RelationUseCases
+````
+
+## File: modules/notion/interfaces/taxonomy/composition/use-cases.ts
+````typescript
+import {
+  CreateTaxonomyNodeUseCase,
+  ListTaxonomyChildrenUseCase,
+  ListTaxonomyRootsUseCase,
+  RemoveTaxonomyNodeUseCase,
+} from "../../../subdomains/taxonomy/application/use-cases/manage-taxonomy.use-cases";
+import type { TaxonomyRepository } from "../../../subdomains/taxonomy/domain/repositories/TaxonomyRepository";
+import { makeTaxonomyRepo } from "./repositories";
+⋮----
+export interface TaxonomyUseCases {
+  readonly createTaxonomyNode: CreateTaxonomyNodeUseCase;
+  readonly removeTaxonomyNode: RemoveTaxonomyNodeUseCase;
+  readonly listTaxonomyRoots: ListTaxonomyRootsUseCase;
+  readonly listTaxonomyChildren: ListTaxonomyChildrenUseCase;
+}
+⋮----
+export function makeTaxonomyUseCases(
+  repo: TaxonomyRepository = makeTaxonomyRepo(),
+): TaxonomyUseCases
 ````
 
 ## File: modules/notion/README.md
@@ -49867,29 +49993,6 @@ export interface KnowledgePageTreeNode extends KnowledgePageSnapshot {
  * Re-exports repository contracts from domain/repositories/, making the Ports layer
  * explicitly visible in the directory structure.
  */
-````
-
-## File: modules/notion/subdomains/relations/api/index.ts
-````typescript
-/**
- * Public API boundary for the relations subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Status: Tier 2 Recommended Gap Subdomain
- */
-⋮----
-// ── Domain types ──────────────────────────────────────────────────────────────
-⋮----
-// ── Repository contracts ───────────────────────────────────────────────────────
-⋮----
-// ── Domain events ─────────────────────────────────────────────────────────────
-⋮----
-// ── Application DTOs ──────────────────────────────────────────────────────────
-⋮----
-// ── Application contracts ─────────────────────────────────────────────────────
-⋮----
-// Note: server-only composition and infrastructure adapters are exported from
-// `./server` to keep the default boundary runtime-safe.
 ````
 
 ## File: modules/notion/subdomains/relations/application/use-cases/manage-relation.use-cases.ts
@@ -53852,70 +53955,6 @@ async delete(id: string, accountId: string, databaseId: string): Promise<void>
 async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]>
 ````
 
-## File: modules/notion/infrastructure/relations/firebase/FirebaseRelationRepository.ts
-````typescript
-/**
- * Module: notion/subdomains/relations
- * Layer: infrastructure/firebase
- * Purpose: Firebase adapter implementing RelationRepository.
- * Firestore path: notionRelations/{relationId}
- */
-⋮----
-import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
-import type { Relation } from "../../../subdomains/relations/domain/entities/Relation";
-import type { RelationRepository } from "../../../subdomains/relations/domain/repositories/RelationRepository";
-⋮----
-function relationsPath(): string
-⋮----
-function relationPath(relationId: string): string
-⋮----
-function toRelation(relationId: string, data: Record<string, unknown>): Relation
-⋮----
-export class FirebaseRelationRepository implements RelationRepository {
-⋮----
-async findById(relationId: string): Promise<Relation | null>
-⋮----
-async listBySource(sourceArtifactId: string): Promise<readonly Relation[]>
-⋮----
-async listByTarget(targetArtifactId: string): Promise<readonly Relation[]>
-⋮----
-async save(relation: Relation): Promise<void>
-⋮----
-async remove(relationId: string): Promise<void>
-````
-
-## File: modules/notion/infrastructure/taxonomy/firebase/FirebaseTaxonomyRepository.ts
-````typescript
-/**
- * Module: notion/subdomains/taxonomy
- * Layer: infrastructure/firebase
- * Purpose: Firebase adapter implementing TaxonomyRepository.
- * Firestore path: notionTaxonomyNodes/{nodeId}
- */
-⋮----
-import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
-import type { TaxonomyNode } from "../../../subdomains/taxonomy/domain/entities/TaxonomyNode";
-import type { TaxonomyRepository } from "../../../subdomains/taxonomy/domain/repositories/TaxonomyRepository";
-⋮----
-function collectionPath(): string
-⋮----
-function docPath(nodeId: string): string
-⋮----
-function toTaxonomyNode(nodeId: string, data: Record<string, unknown>): TaxonomyNode
-⋮----
-export class FirebaseTaxonomyRepository implements TaxonomyRepository {
-⋮----
-async findById(nodeId: string): Promise<TaxonomyNode | null>
-⋮----
-async listRoots(organizationId: string): Promise<readonly TaxonomyNode[]>
-⋮----
-async listChildren(parentNodeId: string): Promise<readonly TaxonomyNode[]>
-⋮----
-async save(node: TaxonomyNode): Promise<void>
-⋮----
-async remove(nodeId: string): Promise<void>
-````
-
 ## File: modules/notion/interfaces/database/components/DatabaseFormsPanel.tsx
 ````typescript
 /**
@@ -54000,50 +54039,6 @@ export function makeKnowledgeUseCases(
   eventStore?: IEventStoreRepository,
   eventBus?: IEventBusRepository,
 ): KnowledgeUseCases
-````
-
-## File: modules/notion/interfaces/relations/composition/use-cases.ts
-````typescript
-import {
-  CreateRelationUseCase,
-  ListRelationsBySourceUseCase,
-  ListRelationsByTargetUseCase,
-  RemoveRelationUseCase,
-} from "../../../subdomains/relations/application/use-cases/manage-relation.use-cases";
-import type { RelationRepository } from "../../../subdomains/relations/domain/repositories/RelationRepository";
-import { makeRelationRepo } from "./repositories";
-⋮----
-export interface RelationUseCases {
-  readonly createRelation: CreateRelationUseCase;
-  readonly removeRelation: RemoveRelationUseCase;
-  readonly listRelationsBySource: ListRelationsBySourceUseCase;
-  readonly listRelationsByTarget: ListRelationsByTargetUseCase;
-}
-⋮----
-export function makeRelationUseCases(repo: RelationRepository = makeRelationRepo()): RelationUseCases
-````
-
-## File: modules/notion/interfaces/taxonomy/composition/use-cases.ts
-````typescript
-import {
-  CreateTaxonomyNodeUseCase,
-  ListTaxonomyChildrenUseCase,
-  ListTaxonomyRootsUseCase,
-  RemoveTaxonomyNodeUseCase,
-} from "../../../subdomains/taxonomy/application/use-cases/manage-taxonomy.use-cases";
-import type { TaxonomyRepository } from "../../../subdomains/taxonomy/domain/repositories/TaxonomyRepository";
-import { makeTaxonomyRepo } from "./repositories";
-⋮----
-export interface TaxonomyUseCases {
-  readonly createTaxonomyNode: CreateTaxonomyNodeUseCase;
-  readonly removeTaxonomyNode: RemoveTaxonomyNodeUseCase;
-  readonly listTaxonomyRoots: ListTaxonomyRootsUseCase;
-  readonly listTaxonomyChildren: ListTaxonomyChildrenUseCase;
-}
-⋮----
-export function makeTaxonomyUseCases(
-  repo: TaxonomyRepository = makeTaxonomyRepo(),
-): TaxonomyUseCases
 ````
 
 ## File: modules/notion/subdomains/knowledge/application/use-cases/review-knowledge-page.use-cases.ts
