@@ -5434,6 +5434,16 @@ export interface ConversationReference {
 }
 ````
 
+## File: modules/notebooklm/interfaces/conversation/_actions/thread.actions.ts
+````typescript
+import type { Thread } from "../../../subdomains/conversation/application/dto/conversation.dto";
+import { makeConversationUseCases } from "../composition/use-cases";
+⋮----
+export async function saveThread(accountId: string, thread: Thread): Promise<void>
+⋮----
+export async function loadThread(accountId: string, threadId: string): Promise<Thread | null>
+````
+
 ## File: modules/notebooklm/interfaces/conversation/composition/adapters.ts
 ````typescript
 import { FirebaseThreadRepository } from "../../../infrastructure/conversation/firebase/FirebaseThreadRepository";
@@ -5671,6 +5681,18 @@ export async function getWorkspaceFiles(
 export async function getWorkspaceRagDocuments(
   workspace: WorkspaceEntity,
 ): Promise<readonly RagDocumentRecord[]>
+````
+
+## File: modules/notebooklm/subdomains/conversation/api/server.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/conversation
+ * Layer: api/server
+ *
+ * Server-only boundary for the conversation subdomain.
+ * Import this path only from Server Components, Server Actions, or route handlers.
+ * Do NOT import in client components or public api/index.ts.
+ */
 ````
 
 ## File: modules/notebooklm/subdomains/conversation/application/dto/conversation.dto.ts
@@ -8081,6 +8103,24 @@ export type VersionId = string;
 
 ````
 
+## File: modules/notion/subdomains/collaboration/domain/services/index.ts
+````typescript
+/**
+ * Domain services for the collaboration subdomain.
+ * Deferred: PermissionResolutionService and VersionRetentionService
+ * will be defined when permission and versioning use cases are scoped.
+ */
+````
+
+## File: modules/notion/subdomains/collaboration/domain/value-objects/index.ts
+````typescript
+/**
+ * Value objects for the collaboration subdomain.
+ * Deferred: CommentId, PermissionId, VersionId, ContentId, PermissionLevel
+ * will be defined when collaboration use cases are scoped.
+ */
+````
+
 ## File: modules/notion/subdomains/collaboration/README.md
 ````markdown
 # Collaboration
@@ -8295,6 +8335,24 @@ export type ViewId = string;
 ## File: modules/notion/subdomains/database/domain/events/index.ts
 ````typescript
 
+````
+
+## File: modules/notion/subdomains/database/domain/services/index.ts
+````typescript
+/**
+ * Domain services for the database subdomain.
+ * Deferred: DatabaseQueryService, FormulaEvaluationService, RollupComputationService
+ * will be defined when filter/sort/formula use cases are scoped.
+ */
+````
+
+## File: modules/notion/subdomains/database/domain/value-objects/index.ts
+````typescript
+/**
+ * Value objects for the database subdomain.
+ * Deferred: DatabaseId, RecordId, ViewId, FieldId, FieldType, ViewType, FieldValue
+ * will be defined when database record and view use cases are scoped.
+ */
 ````
 
 ## File: modules/notion/subdomains/database/README.md
@@ -8799,6 +8857,39 @@ export interface CreateRelationInput {
 }
 ````
 
+## File: modules/notion/subdomains/relations/README.md
+````markdown
+# Relations
+
+建立內容之間關聯與 backlink 的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Recommended Gap
+- **Status**: Active — domain + application + infrastructure adapter + composition wired
+
+## Layers
+
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Local public boundary for same bounded context access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, events, repositories, and business rules |
+
+> By default, `infrastructure/` and `interfaces/` live at the bounded-context root and are grouped by subdomain. Add local `infrastructure/` or `interfaces/` inside a subdomain only when the mini-module gate is explicitly justified.
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/notion/subdomains/taxonomy/api/server.ts
 ````typescript
 /**
@@ -8866,6 +8957,39 @@ export interface CreateTaxonomyNodeInput {
   readonly organizationId: string;
   readonly workspaceId?: string;
 }
+````
+
+## File: modules/notion/subdomains/taxonomy/README.md
+````markdown
+# Taxonomy
+
+建立分類法與語義組織的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Recommended Gap
+- **Status**: Active — domain + application + infrastructure adapter + composition wired
+
+## Layers
+
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Local public boundary for same bounded context access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, events, repositories, and business rules |
+
+> By default, `infrastructure/` and `interfaces/` live at the bounded-context root and are grouped by subdomain. Add local `infrastructure/` or `interfaces/` inside a subdomain only when the mini-module gate is explicitly justified.
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/api/facade.ts
@@ -12604,21 +12728,6 @@ import { ChevronRight } from "lucide-react";
 import { resolveShellBreadcrumbLabel } from "../../../../subdomains/platform-config/api";
 ⋮----
 // Only render when there's more than one segment (i.e., not just root page).
-````
-
-## File: modules/platform/interfaces/web/shell/header/components/ShellHeaderControls.tsx
-````typescript
-/**
- * ShellHeaderControls – platform interfaces/web component.
- * Composes shell header utility controls: language switch, theme toggle, notification bell.
- */
-⋮----
-import { useAuth } from "../../../../../subdomains/identity/api";
-import { ShellNotificationButton } from "./ShellNotificationButton";
-import { ShellThemeToggle } from "./ShellThemeToggle";
-import { ShellTranslationSwitcher } from "./ShellTranslationSwitcher";
-⋮----
-export function ShellHeaderControls()
 ````
 
 ## File: modules/platform/interfaces/web/shell/header/components/ShellNotificationButton.tsx
@@ -26852,6 +26961,61 @@ interface ShellContextNavSectionProps {
 }
 ````
 
+## File: app/(shell)/_shell/ShellSidebarNavData.tsx
+````typescript
+import {
+  Building2,
+  LayoutDashboard,
+  UserRound,
+  Users,
+} from "lucide-react";
+import Link from "next/link";
+⋮----
+import {
+  type ActiveAccount,
+  isOrganizationActor,
+  isActiveOrganizationAccount,
+  SHELL_ACCOUNT_SECTION_MATCHERS,
+  SHELL_ACCOUNT_NAV_ITEMS,
+  SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
+  SHELL_SECTION_LABELS,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  type ShellNavSection,
+} from "@/modules/platform/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+⋮----
+// ── Types ─────────────────────────────────────────────────────────────────────
+⋮----
+export interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly userId: string | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+}
+⋮----
+export type NavSection = ShellNavSection;
+⋮----
+// ── Static nav constants ──────────────────────────────────────────────────────
+⋮----
+// ── CSS class helpers ─────────────────────────────────────────────────────────
+⋮----
+export function sidebarItemClass(active: boolean)
+⋮----
+// ── Pure section helpers ──────────────────────────────────────────────────────
+⋮----
+export function resolveNavSection(pathname: string): NavSection
+⋮----
+export function isActiveRoute(pathname: string, href: string)
+⋮----
+// ── Simple section nav component ──────────────────────────────────────────────
+````
+
 ## File: app/(shell)/(account)/[accountId]/dev-tools/dev-tools-helpers.ts
 ````typescript
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -32979,13 +33143,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/iam/api/index.ts
-````typescript
-/**
- * Public API boundary for the IAM bounded context.
- */
-````
-
 ## File: modules/iam/application/index.ts
 ````typescript
 /** iam/application — reserved for future IAM use cases. */
@@ -33011,14 +33168,77 @@ When implementing, follow inside-out:
 /** iam/interfaces — reserved for future IAM UI and transport entrypoints. */
 ````
 
+## File: modules/iam/subdomains/access-control/api/index.ts
+````typescript
+/**
+ * IAM access-control public API.
+ * Transitional canonical boundary while implementation is converged from legacy owners.
+ */
+````
+
 ## File: modules/iam/subdomains/access-control/README.md
 ````markdown
 
 ````
 
+## File: modules/iam/subdomains/authentication/api/index.ts
+````typescript
+/**
+ * IAM authentication public API.
+ * Reserved for sign-in, registration, recovery, and credential lifecycle use cases.
+ */
+````
+
+## File: modules/iam/subdomains/authorization/api/index.ts
+````typescript
+/**
+ * IAM authorization public API.
+ * Reserved for policy orchestration and decision use cases above low-level access-control.
+ */
+````
+
+## File: modules/iam/subdomains/federation/api/index.ts
+````typescript
+/**
+ * IAM federation public API.
+ * Reserved for SSO, external identity provider linking, and provider-token flows.
+ */
+````
+
 ## File: modules/iam/subdomains/identity/README.md
 ````markdown
 
+````
+
+## File: modules/iam/subdomains/security-policy/api/index.ts
+````typescript
+/**
+ * IAM security-policy public API.
+ * Reserved for policy publication, versioning, and security-governance rules.
+ */
+````
+
+## File: modules/iam/subdomains/security-policy/README.md
+````markdown
+# Security Policy
+
+Owns security-policy publication, rule versioning, and governance contracts for the IAM bounded context.
+````
+
+## File: modules/iam/subdomains/session/api/index.ts
+````typescript
+/**
+ * IAM session public API.
+ * Reserved for server session, token rotation, revocation, and session-observability flows.
+ */
+````
+
+## File: modules/iam/subdomains/tenant/api/index.ts
+````typescript
+/**
+ * IAM tenant public API.
+ * Reserved for tenant isolation, scope resolution, and tenant-governance contracts.
+ */
 ````
 
 ## File: modules/notebooklm/api/server.ts
@@ -33279,16 +33499,6 @@ async generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult>
  */
 ````
 
-## File: modules/notebooklm/interfaces/conversation/_actions/thread.actions.ts
-````typescript
-import type { Thread } from "../../../subdomains/conversation/application/dto/conversation.dto";
-import { makeConversationUseCases } from "../composition/use-cases";
-⋮----
-export async function saveThread(accountId: string, thread: Thread): Promise<void>
-⋮----
-export async function loadThread(accountId: string, threadId: string): Promise<Thread | null>
-````
-
 ## File: modules/notebooklm/interfaces/conversation/components/ConversationPanel.tsx
 ````typescript
 /**
@@ -33326,6 +33536,32 @@ export function ConversationPanel(
 onSubmit=
 ⋮----
 onChange=
+````
+
+## File: modules/notebooklm/interfaces/conversation/composition/use-cases.ts
+````typescript
+/**
+ * Module: notebooklm/interfaces/conversation/composition
+ * Layer: interfaces/composition
+ *
+ * Conversation use-case composition factory.
+ * Wires SaveThreadUseCase and LoadThreadUseCase with their Firestore adapter.
+ * Default arguments make this self-wiring for production use.
+ */
+⋮----
+import type { ThreadRepository } from "../../../subdomains/conversation/domain/repositories/ThreadRepository";
+import { SaveThreadUseCase } from "../../../subdomains/conversation/application/use-cases/save-thread.use-case";
+import { LoadThreadUseCase } from "../../../subdomains/conversation/application/use-cases/load-thread.use-case";
+import { makeThreadRepo } from "./adapters";
+⋮----
+export interface ConversationUseCases {
+  saveThread: SaveThreadUseCase;
+  loadThread: LoadThreadUseCase;
+}
+⋮----
+export function makeConversationUseCases(
+  repo: ThreadRepository = makeThreadRepo(),
+): ConversationUseCases
 ````
 
 ## File: modules/notebooklm/interfaces/conversation/helpers.ts
@@ -33432,47 +33668,6 @@ interface FileProcessingDialogBodyProps {
   readonly onShouldCreateTasksChange: (checked: boolean) => void;
   readonly summary: ExecutionSummary;
 }
-````
-
-## File: modules/notebooklm/interfaces/source/components/FileProcessingDialog.tsx
-````typescript
-import { useState } from "react";
-import Link from "next/link";
-⋮----
-import { useAuth } from "@/modules/platform/api";
-import { Button } from "@ui-shadcn/ui/button";
-⋮----
-import { processSourceDocumentWorkflow } from "../_actions/source-processing.actions";
-import { FileProcessingDialogBody } from "./file-processing-dialog.body";
-import { FileProcessingDialogSurface } from "./file-processing-dialog.surface";
-import {
-  createIdleSummary,
-  type ExecutionSummary,
-} from "./file-processing-dialog.utils";
-⋮----
-interface FileProcessingDialogProps {
-  readonly open: boolean;
-  readonly onClose: () => void;
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly sourceFileId: string;
-  readonly filename: string;
-  readonly gcsUri: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-}
-⋮----
-type DialogStep = "decide" | "select" | "executing" | "done";
-⋮----
-function handleOpenChange(nextOpen: boolean)
-⋮----
-function handleShouldCreatePageChange(nextChecked: boolean)
-⋮----
-function handleShouldCreateTasksChange(nextChecked: boolean)
-⋮----
-async function handleExecute()
-⋮----
-<Button onClick=
 ````
 
 ## File: modules/notebooklm/interfaces/source/components/LibraryTablePanel.tsx
@@ -33622,16 +33817,44 @@ export function useSourceDocumentsSnapshot(
 
 ````
 
-## File: modules/notebooklm/subdomains/conversation/api/server.ts
+## File: modules/notebooklm/subdomains/conversation/application/use-cases/load-thread.use-case.ts
 ````typescript
 /**
  * Module: notebooklm/subdomains/conversation
- * Layer: api/server
+ * Layer: application/use-cases
  *
- * Server-only boundary for the conversation subdomain.
- * Import this path only from Server Components, Server Actions, or route handlers.
- * Do NOT import in client components or public api/index.ts.
+ * LoadThreadUseCase — retrieves a conversation thread by ID (query handler).
+ * Returns null if the thread does not exist.
  */
+⋮----
+import type { Thread } from "../../domain/entities/thread";
+import type { ThreadRepository } from "../../domain/repositories/ThreadRepository";
+⋮----
+export class LoadThreadUseCase {
+⋮----
+constructor(private readonly threadRepository: ThreadRepository)
+⋮----
+async execute(accountId: string, threadId: string): Promise<Thread | null>
+````
+
+## File: modules/notebooklm/subdomains/conversation/application/use-cases/save-thread.use-case.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/conversation
+ * Layer: application/use-cases
+ *
+ * SaveThreadUseCase — persists a conversation thread via the repository port.
+ * Validates required fields before delegating to infrastructure.
+ */
+⋮----
+import type { Thread } from "../../domain/entities/thread";
+import type { ThreadRepository } from "../../domain/repositories/ThreadRepository";
+⋮----
+export class SaveThreadUseCase {
+⋮----
+constructor(private readonly threadRepository: ThreadRepository)
+⋮----
+async execute(accountId: string, thread: Thread): Promise<void>
 ````
 
 ## File: modules/notebooklm/subdomains/conversation/domain/events/ConversationEvents.ts
@@ -33740,6 +33963,23 @@ export interface NotebookResponseFailedEvent extends NotebookLmDomainEvent {
  * Re-exports repository contracts from domain/repositories/, making the Ports layer
  * explicitly visible in the directory structure.
  */
+````
+
+## File: modules/notebooklm/subdomains/notebook/README.md
+````markdown
+# Notebook
+
+Notebook container and organization.
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Status**: Active — GenerateNotebookResponseUseCase + AiTextGenerationAdapter + Server Actions wired
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notebooklm/subdomains/source/api/ui.ts
@@ -35903,24 +36143,6 @@ findById(accountId: string, versionId: string): Promise<VersionSnapshot | null>;
 listByContent(accountId: string, contentId: string): Promise<VersionSnapshot[]>;
 ````
 
-## File: modules/notion/subdomains/collaboration/domain/services/index.ts
-````typescript
-/**
- * Domain services for the collaboration subdomain.
- * Deferred: PermissionResolutionService and VersionRetentionService
- * will be defined when permission and versioning use cases are scoped.
- */
-````
-
-## File: modules/notion/subdomains/collaboration/domain/value-objects/index.ts
-````typescript
-/**
- * Value objects for the collaboration subdomain.
- * Deferred: CommentId, PermissionId, VersionId, ContentId, PermissionLevel
- * will be defined when collaboration use cases are scoped.
- */
-````
-
 ## File: modules/notion/subdomains/database/api/server.ts
 ````typescript
 /**
@@ -36415,24 +36637,6 @@ create(input: CreateViewInput): Promise<ViewSnapshot>;
 update(input: UpdateViewInput): Promise<ViewSnapshot>;
 delete(id: string, accountId: string): Promise<void>;
 listByDatabase(accountId: string, databaseId: string): Promise<ViewSnapshot[]>;
-````
-
-## File: modules/notion/subdomains/database/domain/services/index.ts
-````typescript
-/**
- * Domain services for the database subdomain.
- * Deferred: DatabaseQueryService, FormulaEvaluationService, RollupComputationService
- * will be defined when filter/sort/formula use cases are scoped.
- */
-````
-
-## File: modules/notion/subdomains/database/domain/value-objects/index.ts
-````typescript
-/**
- * Value objects for the database subdomain.
- * Deferred: DatabaseId, RecordId, ViewId, FieldId, FieldType, ViewType, FieldValue
- * will be defined when database record and view use cases are scoped.
- */
 ````
 
 ## File: modules/notion/subdomains/knowledge/api/server.ts
@@ -37190,39 +37394,6 @@ save(relation: Relation): Promise<void>;
 remove(relationId: string): Promise<void>;
 ````
 
-## File: modules/notion/subdomains/relations/README.md
-````markdown
-# Relations
-
-建立內容之間關聯與 backlink 的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Recommended Gap
-- **Status**: Active — domain + application + infrastructure adapter + composition wired
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Local public boundary for same bounded context access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, events, repositories, and business rules |
-
-> By default, `infrastructure/` and `interfaces/` live at the bounded-context root and are grouped by subdomain. Add local `infrastructure/` or `interfaces/` inside a subdomain only when the mini-module gate is explicitly justified.
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/notion/subdomains/taxonomy/application/index.ts
 ````typescript
 
@@ -37285,39 +37456,6 @@ listChildren(parentNodeId: string): Promise<readonly TaxonomyNode[]>;
 listRoots(organizationId: string): Promise<readonly TaxonomyNode[]>;
 save(node: TaxonomyNode): Promise<void>;
 remove(nodeId: string): Promise<void>;
-````
-
-## File: modules/notion/subdomains/taxonomy/README.md
-````markdown
-# Taxonomy
-
-建立分類法與語義組織的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Recommended Gap
-- **Status**: Active — domain + application + infrastructure adapter + composition wired
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Local public boundary for same bounded context access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, events, repositories, and business rules |
-
-> By default, `infrastructure/` and `interfaces/` live at the bounded-context root and are grouped by subdomain. Add local `infrastructure/` or `interfaces/` inside a subdomain only when the mini-module gate is explicitly justified.
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/AGENT.md
@@ -37489,58 +37627,6 @@ async call<TInput, TOutput>(
 		input: TInput,
 		options?: FunctionsCallOptions,
 ): Promise<TOutput>
-````
-
-## File: modules/platform/api/service-api.ts
-````typescript
-import { v4 as uuid } from "@lib-uuid";
-import { getFirebaseAuth } from "@integration-firebase";
-⋮----
-import { accessControlService } from "../subdomains/access-control/api";
-import { isAllowed, type PermissionDecision } from "../domain/value-objects/PermissionDecision";
-import { firestoreInfrastructureApi, storageInfrastructureApi } from "./infrastructure-api";
-import type {
-	AuthAPI,
-	AuthSession,
-	FileAPI,
-	PermissionAPI,
-	UploadUserFileInput,
-	UploadUserFileOutput,
-} from "./contracts";
-⋮----
-interface PlatformFileRecord {
-	readonly fileId: string;
-	readonly ownerId: string;
-	readonly storagePath: string;
-	readonly filename: string;
-	readonly contentType: string;
-	readonly url: string;
-	readonly metadata: Record<string, string>;
-	readonly createdAtISO: string;
-	readonly deletedAtISO?: string;
-}
-⋮----
-function normalizeOwnerId(ownerId: string): string
-⋮----
-function normalizeFileName(input: UploadUserFileInput): string
-⋮----
-function sanitizeFileName(fileName: string): string
-⋮----
-function parseResource(resource: string):
-⋮----
-function parsePermissionDecision(raw: string): PermissionDecision | null
-⋮----
-function buildFileRecordPath(fileId: string): string
-⋮----
-async getSession(): Promise<AuthSession | null>
-⋮----
-async requireAuth(): Promise<AuthSession>
-⋮----
-async can(userId: string, action: string, resource: string): Promise<boolean>
-⋮----
-async uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>
-⋮----
-async deleteFile(fileId: string): Promise<void>
 ````
 
 ## File: modules/platform/api/ui.ts
@@ -38704,32 +38790,24 @@ export type PlatformDomainEventType = (typeof PLATFORM_DOMAIN_EVENT_TYPES)[numbe
 // TODO: implement renderPlatformCliResult formatter
 ````
 
-## File: modules/platform/interfaces/web/hooks/useAccountRouteContext.ts
-````typescript
-import { useParams } from "next/navigation";
-⋮----
-import { isActiveOrganizationAccount } from "../../../subdomains/access-control/api";
-import { useAuth } from "../../../subdomains/identity/api";
-import { useApp } from "../providers/ShellAppContext";
-⋮----
-export interface AccountRouteContext {
-  readonly routeAccountId: string;
-  readonly resolvedAccountId: string;
-  readonly currentUserId: string | null;
-  readonly organizationId: string | null;
-  readonly accountType: "user" | "organization";
-  readonly accountsHydrated: boolean;
-  readonly isResolvingOrganizationRoute: boolean;
-}
-⋮----
-function normalizeRouteParam(value: string | string[] | undefined): string
-⋮----
-export function useAccountRouteContext(): AccountRouteContext
-````
-
 ## File: modules/platform/interfaces/web/index.ts
 ````typescript
 // providers — context and useApp from platform-only ShellAppContext
+````
+
+## File: modules/platform/interfaces/web/shell/header/components/ShellHeaderControls.tsx
+````typescript
+/**
+ * ShellHeaderControls – platform interfaces/web component.
+ * Composes shell header utility controls: language switch, theme toggle, notification bell.
+ */
+⋮----
+import { useAuth } from "@/modules/iam/api";
+import { ShellNotificationButton } from "./ShellNotificationButton";
+import { ShellThemeToggle } from "./ShellThemeToggle";
+import { ShellTranslationSwitcher } from "./ShellTranslationSwitcher";
+⋮----
+export function ShellHeaderControls()
 ````
 
 ## File: modules/platform/platform.instructions.md
@@ -39802,15 +39880,6 @@ function handleMarkAll()
 {/* Header */}
 ⋮----
 {/* Body */}
-````
-
-## File: modules/platform/subdomains/notification/interfaces/components/screens/SettingsNotificationsRouteScreen.tsx
-````typescript
-import { useAuth } from "../../../../identity/api";
-⋮----
-import { NotificationsPage } from "../NotificationsPage";
-⋮----
-export function SettingsNotificationsRouteScreen()
 ````
 
 ## File: modules/platform/subdomains/notification/interfaces/composition/notification-service.ts
@@ -43668,61 +43737,6 @@ async function handleLogout()
 void handleLogout();
 ````
 
-## File: app/(shell)/_shell/ShellSidebarNavData.tsx
-````typescript
-import {
-  Building2,
-  LayoutDashboard,
-  UserRound,
-  Users,
-} from "lucide-react";
-import Link from "next/link";
-⋮----
-import {
-  type ActiveAccount,
-  isOrganizationActor,
-  isActiveOrganizationAccount,
-  SHELL_ACCOUNT_SECTION_MATCHERS,
-  SHELL_ACCOUNT_NAV_ITEMS,
-  SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
-  SHELL_SECTION_LABELS,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  type ShellNavSection,
-} from "@/modules/platform/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-⋮----
-// ── Types ─────────────────────────────────────────────────────────────────────
-⋮----
-export interface DashboardSidebarProps {
-  readonly pathname: string;
-  readonly userId: string | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-}
-⋮----
-export type NavSection = ShellNavSection;
-⋮----
-// ── Static nav constants ──────────────────────────────────────────────────────
-⋮----
-// ── CSS class helpers ─────────────────────────────────────────────────────────
-⋮----
-export function sidebarItemClass(active: boolean)
-⋮----
-// ── Pure section helpers ──────────────────────────────────────────────────────
-⋮----
-export function resolveNavSection(pathname: string): NavSection
-⋮----
-export function isActiveRoute(pathname: string, href: string)
-⋮----
-// ── Simple section nav component ──────────────────────────────────────────────
-````
-
 ## File: app/(shell)/(account)/[accountId]/dev-tools/use-dev-tools-doc-list.ts
 ````typescript
 /**
@@ -44441,48 +44455,6 @@ iam 是 governance bounded context。它是身份、tenant 與 access decision �
 ## Notes
 
 - iam 是治理上游，不擁有商業、內容或推理正典模型。
-````
-
-## File: docs/contexts/iam/README.md
-````markdown
-# IAM Context
-
-本 README 在本次重切作業下，定義 identity and access management 的主域邊界。
-
-## Purpose
-
-iam 是身份、租戶與存取治理主域。它提供 actor、identity、tenant、access decision 與 security policy 語言，作為其他主域的治理上游。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 身份、租戶與 access governance |
-| Upstream Dependency | 無主域級上游 |
-| Downstream Consumers | billing、platform、workspace、notion、notebooklm |
-| Core Principle | 提供治理判定，不接管商業、內容或推理正典 |
-````
-
-## File: docs/contexts/iam/subdomains.md
-````markdown
-# IAM
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| identity | 已驗證主體與身份信號治理 |
-| access-control | 主體現在能做什麼的授權判定 |
-| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
-| security-policy | 安全規則定義、版本化與發佈 |
-
-## Recommended Gap Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| session | session、token 與 identity lifecycle 收斂 |
-| consent | 同意與資料使用授權治理收斂 |
-| secret-governance | secret 與 credential access policy 收斂 |
 ````
 
 ## File: docs/contexts/iam/ubiquitous-language.md
@@ -47013,28 +46985,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/iam/AGENT.md
-````markdown
-# IAM Module Agent Guide
-
-## Purpose
-
-This bounded context owns identity, access control, and tenant-scoped governance concerns.
-
-## Boundary Rules
-
-- Keep authentication, actor identity, access decision, and tenant isolation here.
-- Do not place billing, AI orchestration, or workspace product behavior here.
-- Cross-module consumers must use the public API boundary.
-- Preserve the dependency direction of interfaces to application to domain, with infrastructure depending inward.
-
-## Current subdomains
-
-- identity
-- access-control
-- tenant
-````
-
 ## File: modules/iam/docs/README.md
 ````markdown
 # IAM Docs
@@ -47042,34 +46992,12 @@ This bounded context owns identity, access control, and tenant-scoped governance
 This folder will hold module-local architecture notes for the IAM bounded context when concrete capabilities are added.
 ````
 
-## File: modules/iam/iam.instructions.md
-````markdown
----
-description: Minimal rules for the IAM bounded context.
-applyTo: 'modules/iam/**/*.{ts,tsx,js,jsx,md}'
----
-
-# IAM Instructions
-
-- modules/iam owns identity, access-control, and tenant concerns.
-- Keep governance and access policy semantic here, not in UI composition.
-- Expose stable capability contracts from the public API only.
-- Keep domain logic framework-free and keep infrastructure adapters isolated.
-````
-
-## File: modules/iam/README.md
-````markdown
-# IAM
-
-Minimal bounded-context skeleton for identity and access management capabilities.
-
-## Owned subdomains
-
-- identity
-- access-control
-- tenant
-
-This module is the semantic home for identity, access decisions, and tenant isolation.
+## File: modules/iam/subdomains/identity/api/index.ts
+````typescript
+/**
+ * IAM identity public API.
+ * Transitional canonical boundary while implementation is converged from legacy owners.
+ */
 ````
 
 ## File: modules/iam/subdomains/subdomains.instructions.md
@@ -47668,32 +47596,6 @@ async retrieve(input: RetrieveChunksInput): Promise<readonly RagRetrievedChunk[]
 // Step 3 — score, filter, sort, slice
 ````
 
-## File: modules/notebooklm/interfaces/conversation/composition/use-cases.ts
-````typescript
-/**
- * Module: notebooklm/interfaces/conversation/composition
- * Layer: interfaces/composition
- *
- * Conversation use-case composition factory.
- * Wires SaveThreadUseCase and LoadThreadUseCase with their Firestore adapter.
- * Default arguments make this self-wiring for production use.
- */
-⋮----
-import type { ThreadRepository } from "../../../subdomains/conversation/domain/repositories/ThreadRepository";
-import { SaveThreadUseCase } from "../../../subdomains/conversation/application/use-cases/save-thread.use-case";
-import { LoadThreadUseCase } from "../../../subdomains/conversation/application/use-cases/load-thread.use-case";
-import { makeThreadRepo } from "./adapters";
-⋮----
-export interface ConversationUseCases {
-  saveThread: SaveThreadUseCase;
-  loadThread: LoadThreadUseCase;
-}
-⋮----
-export function makeConversationUseCases(
-  repo: ThreadRepository = makeThreadRepo(),
-): ConversationUseCases
-````
-
 ## File: modules/notebooklm/interfaces/source/_actions/source-processing.actions.ts
 ````typescript
 import type { CommandResult } from "@shared-types";
@@ -47734,49 +47636,45 @@ export async function processSourceDocumentWorkflow(
 ): Promise<SourceProcessingExecutionSummary>
 ````
 
-## File: modules/notebooklm/interfaces/synthesis/components/RagQueryPanel.tsx
+## File: modules/notebooklm/interfaces/source/components/FileProcessingDialog.tsx
 ````typescript
 import { useState } from "react";
-import { AlertCircle, Loader2, Search } from "lucide-react";
-import { toast } from "sonner";
+import Link from "next/link";
 ⋮----
-import { useApp } from "@/modules/platform/api/ui";
-import { useAuth } from "@/modules/platform/api";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@ui-shadcn/ui/accordion";
-import { Alert, AlertDescription, AlertTitle } from "@ui-shadcn/ui/alert";
+import { useAuth } from "@/modules/iam/api";
 import { Button } from "@ui-shadcn/ui/button";
+⋮----
+import { processSourceDocumentWorkflow } from "../_actions/source-processing.actions";
+import { FileProcessingDialogBody } from "./file-processing-dialog.body";
+import { FileProcessingDialogSurface } from "./file-processing-dialog.surface";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Textarea } from "@ui-shadcn/ui/textarea";
+  createIdleSummary,
+  type ExecutionSummary,
+} from "./file-processing-dialog.utils";
 ⋮----
-import type { KnowledgeCitation } from "../../../subdomains/synthesis/api";
-import { runKnowledgeRagQueryAction } from "../_actions/rag-query.actions";
-⋮----
-interface RagQueryPanelProps {
-  readonly workspaceId?: string;
+interface FileProcessingDialogProps {
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
 }
 ⋮----
-/** Minimal RAG query chat interface. Uses local useState only — no streaming, no global state. */
+type DialogStep = "decide" | "select" | "executing" | "done";
 ⋮----
-async function handleSubmit()
+function handleOpenChange(nextOpen: boolean)
 ⋮----
-// Compatibility fallback for older vectors without ready status.
+function handleShouldCreatePageChange(nextChecked: boolean)
 ⋮----
-{/* Auth warning — shown upfront when user cannot execute RAG queries */}
+function handleShouldCreateTasksChange(nextChecked: boolean)
 ⋮----
-{/* Query input */}
+async function handleExecute()
 ⋮----
-onClick=
+<Button onClick=
 ````
 
 ## File: modules/notebooklm/README.md
@@ -47908,46 +47806,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
  */
 ````
 
-## File: modules/notebooklm/subdomains/conversation/application/use-cases/load-thread.use-case.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/conversation
- * Layer: application/use-cases
- *
- * LoadThreadUseCase — retrieves a conversation thread by ID (query handler).
- * Returns null if the thread does not exist.
- */
-⋮----
-import type { Thread } from "../../domain/entities/thread";
-import type { ThreadRepository } from "../../domain/repositories/ThreadRepository";
-⋮----
-export class LoadThreadUseCase {
-⋮----
-constructor(private readonly threadRepository: ThreadRepository)
-⋮----
-async execute(accountId: string, threadId: string): Promise<Thread | null>
-````
-
-## File: modules/notebooklm/subdomains/conversation/application/use-cases/save-thread.use-case.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/conversation
- * Layer: application/use-cases
- *
- * SaveThreadUseCase — persists a conversation thread via the repository port.
- * Validates required fields before delegating to infrastructure.
- */
-⋮----
-import type { Thread } from "../../domain/entities/thread";
-import type { ThreadRepository } from "../../domain/repositories/ThreadRepository";
-⋮----
-export class SaveThreadUseCase {
-⋮----
-constructor(private readonly threadRepository: ThreadRepository)
-⋮----
-async execute(accountId: string, thread: Thread): Promise<void>
-````
-
 ## File: modules/notebooklm/subdomains/conversation/domain/ports/index.ts
 ````typescript
 /**
@@ -47956,23 +47814,6 @@ async execute(accountId: string, thread: Thread): Promise<void>
  * Re-exports repository contracts from domain/repositories/, making the Ports layer
  * explicitly visible in the directory structure.
  */
-````
-
-## File: modules/notebooklm/subdomains/notebook/README.md
-````markdown
-# Notebook
-
-Notebook container and organization.
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Status**: Active — GenerateNotebookResponseUseCase + AiTextGenerationAdapter + Server Actions wired
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notebooklm/subdomains/source/api/server.ts
@@ -48984,39 +48825,6 @@ async save(node: TaxonomyNode): Promise<void>
 async remove(nodeId: string): Promise<void>
 ````
 
-## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesPanel.tsx
-````typescript
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
-⋮----
-import { useAuth } from "@/modules/platform/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-⋮----
-import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import { getArticles, getCategories } from "../queries";
-import { ArticleDialog } from "./ArticleDialog";
-import { CategoryTreePanel } from "./CategoryTreePanel";
-⋮----
-/**
- * KnowledgeBaseArticlesPanel
- * Route-level screen component for /knowledge-base/articles.
- * Encapsulates data-loading, filtering and layout so the Next.js route
- * file stays thin (params/context wiring only).
- */
-export interface KnowledgeBaseArticlesPanelProps {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly currentUserId?: string | null;
-}
-⋮----
-function handleSuccess(articleId?: string)
-````
-
 ## File: modules/notion/interfaces/authoring/composition/use-cases.ts
 ````typescript
 import {
@@ -49158,35 +48966,6 @@ onClick=
 {/* View */}
 ````
 
-## File: modules/notion/interfaces/database/components/KnowledgeDatabasesPanel.tsx
-````typescript
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Table2 } from "lucide-react";
-⋮----
-import { useAuth } from "@/modules/platform/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-⋮----
-import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
-import { getDatabases } from "../queries";
-import { DatabaseDialog } from "./DatabaseDialog";
-⋮----
-/**
- * KnowledgeDatabasesPanel
- * Route-level screen component for /knowledge-database/databases.
- * Encapsulates data-loading and layout so the Next.js route file stays thin.
- */
-export interface KnowledgeDatabasesPanelProps {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly currentUserId?: string | null;
-}
-⋮----
-function handleSuccess(databaseId?: string)
-````
-
 ## File: modules/notion/interfaces/database/composition/use-cases.ts
 ````typescript
 import {
@@ -49289,37 +49068,6 @@ export async function assignKnowledgePageOwner(input: AssignPageOwnerDto): Promi
 export async function updateKnowledgePageIcon(input: UpdatePageIconDto): Promise<CommandResult>
 ⋮----
 export async function updateKnowledgePageCover(input: UpdatePageCoverDto): Promise<CommandResult>
-````
-
-## File: modules/notion/interfaces/knowledge/components/KnowledgePagesPanel.tsx
-````typescript
-import { useCallback, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-⋮----
-import { useAuth } from "@/modules/platform/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-⋮----
-import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
-import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
-import { PageTreePanel } from "./PageTreePanel";
-⋮----
-/**
- * KnowledgePagesPanel
- * Route-level screen component for /knowledge/pages.
- * Encapsulates data-loading, scope resolution and layout so that the
- * Next.js route file stays thin (params/context wiring only).
- */
-export interface KnowledgePagesPanelProps {
-  readonly accountId: string;
-  readonly workspaceId?: string | null;
-  readonly currentUserId?: string | null;
-  readonly scope?: "workspace" | "account";
-}
-⋮----
-function buildPageDetailHref(pageId: string)
-⋮----
-onCreated=
 ````
 
 ## File: modules/notion/interfaces/relations/composition/use-cases.ts
@@ -50159,6 +49907,58 @@ export interface PlatformEventInfrastructure {
 export function createPlatformEventInfrastructure(): PlatformEventInfrastructure
 ````
 
+## File: modules/platform/api/service-api.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import { getFirebaseAuth } from "@integration-firebase";
+⋮----
+import { accessControlService } from "../../iam/api";
+import { isAllowed, type PermissionDecision } from "../domain/value-objects/PermissionDecision";
+import { firestoreInfrastructureApi, storageInfrastructureApi } from "./infrastructure-api";
+import type {
+	AuthAPI,
+	AuthSession,
+	FileAPI,
+	PermissionAPI,
+	UploadUserFileInput,
+	UploadUserFileOutput,
+} from "./contracts";
+⋮----
+interface PlatformFileRecord {
+	readonly fileId: string;
+	readonly ownerId: string;
+	readonly storagePath: string;
+	readonly filename: string;
+	readonly contentType: string;
+	readonly url: string;
+	readonly metadata: Record<string, string>;
+	readonly createdAtISO: string;
+	readonly deletedAtISO?: string;
+}
+⋮----
+function normalizeOwnerId(ownerId: string): string
+⋮----
+function normalizeFileName(input: UploadUserFileInput): string
+⋮----
+function sanitizeFileName(fileName: string): string
+⋮----
+function parseResource(resource: string):
+⋮----
+function parsePermissionDecision(raw: string): PermissionDecision | null
+⋮----
+function buildFileRecordPath(fileId: string): string
+⋮----
+async getSession(): Promise<AuthSession | null>
+⋮----
+async requireAuth(): Promise<AuthSession>
+⋮----
+async can(userId: string, action: string, resource: string): Promise<boolean>
+⋮----
+async uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>
+⋮----
+async deleteFile(fileId: string): Promise<void>
+````
+
 ## File: modules/platform/application/use-cases/emit-observability-signal.use-cases.ts
 ````typescript
 /**
@@ -50199,6 +49999,28 @@ export class RequestNotificationDispatchUseCase {
 constructor(
 ⋮----
 async execute(input: RequestNotificationDispatchInput): Promise<PlatformCommandResult>
+````
+
+## File: modules/platform/interfaces/web/hooks/useAccountRouteContext.ts
+````typescript
+import { useParams } from "next/navigation";
+⋮----
+import { isActiveOrganizationAccount, useAuth } from "@/modules/iam/api";
+import { useApp } from "../providers/ShellAppContext";
+⋮----
+export interface AccountRouteContext {
+  readonly routeAccountId: string;
+  readonly resolvedAccountId: string;
+  readonly currentUserId: string | null;
+  readonly organizationId: string | null;
+  readonly accountType: "user" | "organization";
+  readonly accountsHydrated: boolean;
+  readonly isResolvingOrganizationRoute: boolean;
+}
+⋮----
+function normalizeRouteParam(value: string | string[] | undefined): string
+⋮----
+export function useAccountRouteContext(): AccountRouteContext
 ````
 
 ## File: modules/platform/README.md
@@ -50631,6 +50453,15 @@ export async function markNotificationRead(
 export async function markAllNotificationsRead(recipientId: string): Promise<CommandResult>
 ````
 
+## File: modules/platform/subdomains/notification/interfaces/components/screens/SettingsNotificationsRouteScreen.tsx
+````typescript
+import { useAuth } from "@/modules/iam/api";
+⋮----
+import { NotificationsPage } from "../NotificationsPage";
+⋮----
+export function SettingsNotificationsRouteScreen()
+````
+
 ## File: modules/platform/subdomains/notification/interfaces/queries/notification.queries.ts
 ````typescript
 /**
@@ -50734,31 +50565,6 @@ export async function dismissPartnerMember(
   teamId: string,
   memberId: string,
 ): Promise<CommandResult>
-````
-
-## File: modules/platform/subdomains/organization/interfaces/components/screens/OrganizationOverviewRouteScreen.tsx
-````typescript
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-⋮----
-import { isActiveOrganizationAccount } from "../../../../access-control/api";
-import type { AccountEntity } from "../../../../account/api";
-import { useAuth } from "../../../../identity/api";
-import { useApp } from "../../../../../interfaces/web/providers/ShellAppContext";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-⋮----
-export function OrganizationOverviewRouteScreen()
-⋮----
-function buildAccountHref(targetAccountId: string, suffix = "")
-⋮----
-function handleSwitch(account: AccountEntity)
-⋮----
-function handleSwitchToPersonal()
-⋮----
-<Link href=
-⋮----
-onClick=
 ````
 
 ## File: modules/platform/subdomains/organization/interfaces/composition/organization-service.ts
@@ -51239,20 +51045,6 @@ interface WorkspaceSidebarSectionProps {
 }
 ````
 
-## File: modules/workspace/interfaces/web/components/screens/AccountDashboardRouteScreen.tsx
-````typescript
-import { useMemo } from "react";
-⋮----
-import { useAuth } from "@/modules/platform/api";
-import { useAccountRouteContext, useApp } from "@/modules/platform/api/ui";
-⋮----
-import { getWorkspaceStorageKey } from "../../state/workspace-session";
-import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";
-import { AccountDashboardScreen } from "./AccountDashboardScreen";
-⋮----
-export function AccountDashboardRouteScreen()
-````
-
 ## File: modules/workspace/interfaces/web/components/screens/OrganizationWorkspacesRouteScreen.tsx
 ````typescript
 import { useAccountRouteContext } from "@/modules/platform/api/ui";
@@ -51341,38 +51133,6 @@ interface WorkspaceOverviewKnowledgePanelsProps {
   readonly currentUserId?: string | null;
   readonly activeSurface: string;
 }
-````
-
-## File: modules/workspace/interfaces/web/hooks/useWorkspaceOrchestrationContext.ts
-````typescript
-import { useParams } from "next/navigation";
-⋮----
-import { useAuth } from "@/modules/platform/api";
-import { useApp } from "@/modules/platform/api/ui";
-⋮----
-import { resolveWorkspaceFromMap } from "../utils/workspace-map";
-import { useWorkspaceContext } from "../providers/WorkspaceContextProvider";
-⋮----
-export interface WorkspaceOrchestrationContext {
-  readonly accountId: string;
-  readonly currentUserId: string;
-  readonly activeWorkspaceId: string;
-  readonly workspaceId: string;
-}
-⋮----
-export interface UseWorkspaceOrchestrationContextOptions {
-  readonly requestedWorkspaceId?: string;
-}
-⋮----
-function normalizeRouteParam(value: string | string[] | undefined): string
-⋮----
-/**
- * Provides normalized account/workspace actor context for app route shims.
- * This keeps route-level composition thin and moves orchestration into workspace API.
- */
-export function useWorkspaceOrchestrationContext(
-  options: UseWorkspaceOrchestrationContextOptions = {},
-): WorkspaceOrchestrationContext
 ````
 
 ## File: modules/workspace/interfaces/web/providers/WorkspaceContextProvider.tsx
@@ -52537,6 +52297,57 @@ Skill declarations are centralized in:
 Tags: #use agent hexagonal-convergence-enforcer
 ````
 
+## File: docs/contexts/iam/README.md
+````markdown
+# IAM Context
+
+本 README 在本次重切作業下，定義 identity and access management 的主域邊界。
+
+## Purpose
+
+iam 是身份、驗證、授權、federation、session、租戶與存取治理主域。它提供 actor、identity、tenant、access decision 與 security policy 語言，作為其他主域的治理上游。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 身份、租戶與 access governance |
+| Upstream Dependency | 無主域級上游 |
+| Downstream Consumers | billing、platform、workspace、notion、notebooklm |
+| Core Principle | 提供治理判定，不接管商業、內容或推理正典 |
+````
+
+## File: docs/contexts/iam/subdomains.md
+````markdown
+# IAM
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| identity | 已驗證主體與身份信號治理 |
+| access-control | 主體現在能做什麼的授權判定 |
+| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
+| security-policy | 安全規則定義、版本化與發佈 |
+
+## Recommended Gap Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| session | session、token 與 identity lifecycle 收斂 |
+| consent | 同意與資料使用授權治理收斂 |
+| secret-governance | secret 與 credential access policy 收斂 |
+
+## Migration-Safe Operational Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| authentication | sign-in、registration、credential recovery、provider bootstrap |
+| authorization | higher-level policy orchestration and decision semantics |
+| federation | external identity provider linking, SSO, and trust delegation |
+| session | token refresh, revocation, and server-side session lifecycle |
+````
+
 ## File: docs/contexts/workspace/README.md
 ````markdown
 # Workspace Context
@@ -53301,238 +53112,84 @@ Shared AI bounded context for model invocation, safety, orchestration, and provi
 - platform no longer owns shared AI runtime generation behavior
 ````
 
-## File: modules/ai/subdomains/subdomains.instructions.md
+## File: modules/iam/AGENT.md
+````markdown
+# IAM Module Agent Guide
+
+## Purpose
+
+This bounded context owns identity, authentication, authorization, access control, federation, session, tenant-scoped governance, and security-policy concerns.
+
+## Boundary Rules
+
+- Keep sign-in, actor identity, access decisions, session lifecycle, federation, and tenant isolation here.
+- Do not place billing, AI orchestration, or workspace product behavior here.
+- Cross-module consumers must use the public API boundary.
+- Preserve the dependency direction of interfaces to application to domain, with infrastructure depending inward.
+- During migration, prefer IAM-owned bridges over direct imports from Platform internals.
+
+## Current subdomains
+
+- identity
+- authentication
+- authorization
+- access-control
+- federation
+- session
+- tenant
+- security-policy
+````
+
+## File: modules/iam/api/index.ts
+````typescript
+/**
+ * Public API boundary for the IAM bounded context.
+ *
+ * This barrel is the canonical migration target for identity, authentication,
+ * authorization, session, federation, tenant, and security-policy concerns.
+ * Legacy Platform-owned implementations may still back some exports while the
+ * repo converges on IAM as the single owner.
+ */
+````
+
+## File: modules/iam/iam.instructions.md
 ````markdown
 ---
-description: 'AI subdomains structural rules: hexagonal per subdomain, strict boundary isolation, orchestration vs inference separation, and domain purity enforcement.'
-applyTo: 'modules/ai/subdomains/**/*.{ts,tsx,md}'
+description: Minimal rules for the IAM bounded context.
+applyTo: 'modules/iam/**/*.{ts,tsx,js,jsx,md}'
 ---
 
-# AI Subdomains Layer (Local)
+# IAM Instructions
 
-This document defines execution guardrails for `modules/ai/subdomains/*`.
-It must be consistent with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/ai/subdomains.md`.
+- modules/iam owns identity, authentication, authorization, access-control, federation, session, tenant, and security-policy concerns.
+- Keep governance and access policy semantic here, not in UI composition.
+- Expose stable capability contracts from the public API only.
+- Keep domain logic framework-free and keep infrastructure adapters isolated.
+- Use migration-safe bridges when extracting legacy IAM behavior out of Platform and other bounded contexts.
+````
 
----
+## File: modules/iam/README.md
+````markdown
+# IAM
 
-## 1. Subdomain Standard Shape (Hexagonal Core)
+Migration-safe bounded-context foundation for identity and access management.
 
-Each active subdomain MUST follow a consistent hexagonal layout:
+## Canonical subdomains
 
-```
+- identity
+- authentication
+- authorization
+- access-control
+- federation
+- session
+- tenant
+- security-policy
 
-api/
-application/
-domain/
-infrastructure/
-interfaces/
-ports/        (optional but preferred for external boundaries)
-README.md
+This module is the semantic home for actor identity, sign-in lifecycle, authorization decisions, federated provider integration, tenant isolation, and security governance.
 
-```
+## Migration note
 
-Rules:
-- `domain/` contains pure business logic only (no SDKs, no framework code)
-- `application/` contains use cases and coordination logic
-- `api/` is the ONLY cross-subdomain entry point
-- `interfaces/` defines inbound/outbound contracts (DTOs, ports contracts)
-- `infrastructure/` contains external integrations (Firebase, LLM SDKs, DB, APIs)
-
----
-
-## 2. Boundary Isolation Rules
-
-### 2.1 Cross-subdomain access rule
-- A subdomain MUST NOT import internals of another subdomain:
-  - ❌ `domain/` of sibling
-  - ❌ `application/` of sibling
-  - ❌ `infrastructure/` of sibling
-  - ❌ `interfaces/` of sibling
-- Allowed:
-  - ✅ import ONLY from sibling `api/`
-
-This enforces strict bounded-context isolation inside `ai/*`.
-
----
-
-### 2.2 Data ownership rule
-- Each subdomain owns its own Firestore collections
-- No direct read/write to another subdomain's collections
-- Cross-domain data access must go through:
-  - `api/` layer
-  - or orchestration pipeline contracts
-
----
-
-## 3. Dependency Direction (Strict Layering)
-
-Inside each subdomain:
-
-```
-
-interfaces → application → domain ← infrastructure
-
-```
-
-Rules:
-- `domain/` is the center and must not depend on anything else
-- `application/` depends on `domain/`
-- `interfaces/` depends on `application/`
-- `infrastructure/` depends on `domain/` (implements ports/adapters only)
-
----
-
-## 4. Provider Isolation Rule (AI Safety Boundary)
-
-- External AI providers (OpenAI / Gemini / Vertex / others) MUST ONLY exist in:
-  - `infrastructure/`
-- Forbidden in:
-  - `domain/`
-  - `application/`
-- Provider logic must be abstracted behind ports defined in `interfaces/ports/`
-
----
-
-## 5. Subdomain Responsibilities
-
-### 5.1 orchestration
-- Owns multi-step pipeline composition
-- Controls routing between subdomains
-- Manages execution graph
-- Does NOT perform raw inference
-
-### 5.2 inference
-- Owns single model invocation boundary
-- Handles prompt execution abstraction
-- Does NOT orchestrate multi-step workflows
-
-### 5.3 context
-- Constructs per-request context window
-- Stateless per execution
-- Must NOT store persistent memory
-
-### 5.4 memory
-- Persistent cross-request state
-- Long-term user or system memory
-- Must NOT include request-time prompt assembly logic
-
-### 5.5 retrieval
-- Responsible for candidate ranking / fetching
-- Does NOT generate final answers
-- Does NOT perform reasoning or synthesis
-
-### 5.6 reasoning
-- Performs structured inference logic
-- Works on inputs only (no retrieval ownership)
-- May consume retrieval results but cannot fetch them directly
-
-### 5.7 generation
-- Produces final output artifacts
-- Consumes reasoning + context
-- Must NOT perform retrieval or orchestration
-
-### 5.8 evaluation
-- Evaluates output quality, correctness, regression
-- NOT for billing, usage tracking, or telemetry aggregation
-
-### 5.9 distillation
-- Produces compressed datasets / fine-tuning data
-- Must NOT generate canonical production content
-- Must remain downstream-only from generation/evaluation outputs
-
-### 5.10 tool-calling
-- Defines tool invocation contracts
-- Executes structured tool calls via orchestration
-- Must remain stateless
-
-### 5.11 safety
-- Enforces policy constraints and filtering rules
-- Must operate as a pre-generation gate
-- Cannot modify domain logic directly
-
-### 5.12 tracing
-- Observability layer for AI execution flows
-- Captures execution graphs, latency, and dependencies
-- Must NOT influence decision logic
-
----
-
-## 6. Cross-Subdomain Collaboration Rule
-
-All cross-subdomain communication MUST flow through:
-
-```
-
-subdomain/api/
-
-```
-
-Never:
-- direct application-to-application calls
-- domain-to-domain coupling
-- infrastructure sharing between subdomains
-
-Allowed pattern:
-```
-
-orchestration/api → retrieval/api → reasoning/api → generation/api
-
-```
-
----
-
-## 7. Event Naming Convention
-
-Domain events MUST follow:
-
-```
-
-ai.<subdomain>.<action>
-
-```
-
-Examples:
-- `ai.orchestration.pipeline-completed`
-- `ai.inference.model-called`
-- `ai.retrieval.candidates-ranked`
-- `ai.evaluation.score-computed`
-
-Rules:
-- events are immutable contracts
-- events are emitted from `domain/` or `application/` only
-- `infrastructure/` cannot define event semantics
-
----
-
-## 8. Stub Promotion Rule
-
-A subdomain is considered **ACTIVE** only when:
-
-- `README.md` exists and defines responsibility
-- `domain/` contains non-trivial logic (not only index exports)
-- ADR exists for activation decision
-- at least one real integration exists in `application/` or `infrastructure/`
-
-Otherwise:
-- it is considered a **stub**
-- must not be used as dependency target
-
----
-
-## 9. Critical Semantic Separations
-
-- `context` ≠ `memory`
-- `orchestration` ≠ `inference`
-- `retrieval` ≠ `generation`
-- `evaluation` ≠ `telemetry`
-- `distillation` ≠ `production content`
-
-These separations are strict and non-negotiable.
-
----
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
+Platform may still host some legacy implementation details during convergence, but new cross-context consumers should depend on the IAM public boundary first.
 ````
 
 ## File: modules/notebooklm/infrastructure/source/firebase/FirebaseRagDocumentAdapter.ts
@@ -53750,6 +53407,51 @@ export async function runKnowledgeRagQueryAction(
 ): Promise<KnowledgeRagQueryResult>
 ````
 
+## File: modules/notebooklm/interfaces/synthesis/components/RagQueryPanel.tsx
+````typescript
+import { useState } from "react";
+import { AlertCircle, Loader2, Search } from "lucide-react";
+import { toast } from "sonner";
+⋮----
+import { useApp } from "@/modules/platform/api/ui";
+import { useAuth } from "@/modules/iam/api";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@ui-shadcn/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from "@ui-shadcn/ui/alert";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+⋮----
+import type { KnowledgeCitation } from "../../../subdomains/synthesis/api";
+import { runKnowledgeRagQueryAction } from "../_actions/rag-query.actions";
+⋮----
+interface RagQueryPanelProps {
+  readonly workspaceId?: string;
+}
+⋮----
+/** Minimal RAG query chat interface. Uses local useState only — no streaming, no global state. */
+⋮----
+async function handleSubmit()
+⋮----
+// Compatibility fallback for older vectors without ready status.
+⋮----
+{/* Auth warning — shown upfront when user cannot execute RAG queries */}
+⋮----
+{/* Query input */}
+⋮----
+onClick=
+````
+
 ## File: modules/notebooklm/subdomains/source/api/index.ts
 ````typescript
 /**
@@ -53955,6 +53657,39 @@ async delete(id: string, accountId: string, databaseId: string): Promise<void>
 async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]>
 ````
 
+## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesPanel.tsx
+````typescript
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
+⋮----
+import { useAuth } from "@/modules/iam/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+⋮----
+import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import { getArticles, getCategories } from "../queries";
+import { ArticleDialog } from "./ArticleDialog";
+import { CategoryTreePanel } from "./CategoryTreePanel";
+⋮----
+/**
+ * KnowledgeBaseArticlesPanel
+ * Route-level screen component for /knowledge-base/articles.
+ * Encapsulates data-loading, filtering and layout so the Next.js route
+ * file stays thin (params/context wiring only).
+ */
+export interface KnowledgeBaseArticlesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly currentUserId?: string | null;
+}
+⋮----
+function handleSuccess(articleId?: string)
+````
+
 ## File: modules/notion/interfaces/database/components/DatabaseFormsPanel.tsx
 ````typescript
 /**
@@ -53986,6 +53721,66 @@ export interface DatabaseFormsPanelProps {
 <Button variant="ghost" size="sm" onClick=
 ⋮----
 {/* Top bar */}
+````
+
+## File: modules/notion/interfaces/database/components/KnowledgeDatabasesPanel.tsx
+````typescript
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Table2 } from "lucide-react";
+⋮----
+import { useAuth } from "@/modules/iam/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+⋮----
+import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
+import { getDatabases } from "../queries";
+import { DatabaseDialog } from "./DatabaseDialog";
+⋮----
+/**
+ * KnowledgeDatabasesPanel
+ * Route-level screen component for /knowledge-database/databases.
+ * Encapsulates data-loading and layout so the Next.js route file stays thin.
+ */
+export interface KnowledgeDatabasesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly currentUserId?: string | null;
+}
+⋮----
+function handleSuccess(databaseId?: string)
+````
+
+## File: modules/notion/interfaces/knowledge/components/KnowledgePagesPanel.tsx
+````typescript
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+⋮----
+import { useAuth } from "@/modules/iam/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+⋮----
+import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
+import { PageTreePanel } from "./PageTreePanel";
+⋮----
+/**
+ * KnowledgePagesPanel
+ * Route-level screen component for /knowledge/pages.
+ * Encapsulates data-loading, scope resolution and layout so that the
+ * Next.js route file stays thin (params/context wiring only).
+ */
+export interface KnowledgePagesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId?: string | null;
+  readonly currentUserId?: string | null;
+  readonly scope?: "workspace" | "account";
+}
+⋮----
+function buildPageDetailHref(pageId: string)
+⋮----
+onCreated=
 ````
 
 ## File: modules/notion/interfaces/knowledge/composition/use-cases.ts
@@ -54422,6 +54217,30 @@ export async function getActiveAccountPolicies(_accountId: string): Promise<Acco
 // Interfaces (UI components, hooks, providers, actions)
 ````
 
+## File: modules/platform/subdomains/organization/interfaces/components/screens/OrganizationOverviewRouteScreen.tsx
+````typescript
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+⋮----
+import { isActiveOrganizationAccount, useAuth } from "@/modules/iam/api";
+import type { AccountEntity } from "../../../../account/api";
+import { useApp } from "../../../../../interfaces/web/providers/ShellAppContext";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+⋮----
+export function OrganizationOverviewRouteScreen()
+⋮----
+function buildAccountHref(targetAccountId: string, suffix = "")
+⋮----
+function handleSwitch(account: AccountEntity)
+⋮----
+function handleSwitchToPersonal()
+⋮----
+<Link href=
+⋮----
+onClick=
+````
+
 ## File: modules/platform/subdomains/team/api/index.ts
 ````typescript
 /**
@@ -54456,6 +54275,81 @@ import {
 interface WorkspaceProductSpineCardProps {
   readonly workspace: WorkspaceEntity;
 }
+````
+
+## File: modules/workspace/interfaces/web/components/screens/AccountDashboardRouteScreen.tsx
+````typescript
+import { useMemo } from "react";
+⋮----
+import { useAuth } from "@/modules/iam/api";
+import { useAccountRouteContext, useApp } from "@/modules/platform/api/ui";
+⋮----
+import { getWorkspaceStorageKey } from "../../state/workspace-session";
+import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";
+import { AccountDashboardScreen } from "./AccountDashboardScreen";
+⋮----
+export function AccountDashboardRouteScreen()
+````
+
+## File: modules/workspace/interfaces/web/components/screens/AccountDashboardScreen.tsx
+````typescript
+import Link from "next/link";
+import {
+  BookOpen,
+  Brain,
+  Database,
+  FileText,
+  FolderOpen,
+  Library,
+  MessageSquare,
+  Notebook,
+  Shield,
+  User,
+  Users,
+} from "lucide-react";
+⋮----
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+⋮----
+import type { WorkspaceEntity } from "../../../contracts";
+⋮----
+// ── Types ─────────────────────────────────────────────────────────────────────
+⋮----
+interface AccountDashboardScreenProps {
+  readonly accountId: string;
+  readonly accountName: string | null;
+  readonly accountType: "user" | "organization";
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly currentUserId: string | null;
+}
+⋮----
+// ── Quick-access card definitions ─────────────────────────────────────────────
+⋮----
+interface QuickAccessCard {
+  readonly key: string;
+  readonly label: string;
+  readonly description: string;
+  readonly icon: React.ReactNode;
+  readonly buildHref: (accountId: string, workspaceId: string) => string;
+}
+⋮----
+function enc(s: string): string
+⋮----
+// ── Component ─────────────────────────────────────────────────────────────────
+⋮----
+{/* ── Header ──────────────────────────────────────────────────────── */}
+⋮----
+{/* ── Active workspace quick-access ──────────────────────────────── */}
+⋮----
+{/* ── All workspaces list ─────────────────────────────────────────── */}
 ````
 
 ## File: modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx
@@ -54505,6 +54399,38 @@ onClick=
 ⋮----
 onOpenChange=
 onWorkspaceNameChange=
+````
+
+## File: modules/workspace/interfaces/web/hooks/useWorkspaceOrchestrationContext.ts
+````typescript
+import { useParams } from "next/navigation";
+⋮----
+import { useAuth } from "@/modules/iam/api";
+import { useApp } from "@/modules/platform/api/ui";
+⋮----
+import { resolveWorkspaceFromMap } from "../utils/workspace-map";
+import { useWorkspaceContext } from "../providers/WorkspaceContextProvider";
+⋮----
+export interface WorkspaceOrchestrationContext {
+  readonly accountId: string;
+  readonly currentUserId: string;
+  readonly activeWorkspaceId: string;
+  readonly workspaceId: string;
+}
+⋮----
+export interface UseWorkspaceOrchestrationContextOptions {
+  readonly requestedWorkspaceId?: string;
+}
+⋮----
+function normalizeRouteParam(value: string | string[] | undefined): string
+⋮----
+/**
+ * Provides normalized account/workspace actor context for app route shims.
+ * This keeps route-level composition thin and moves orchestration into workspace API.
+ */
+export function useWorkspaceOrchestrationContext(
+  options: UseWorkspaceOrchestrationContextOptions = {},
+): WorkspaceOrchestrationContext
 ````
 
 ## File: modules/workspace/interfaces/web/navigation/workspace-context-links.ts
@@ -55962,6 +55888,323 @@ flowchart LR
 - 若同一個詞在多主域都想擁有，優先看它服務的是治理、協作範疇、正典內容還是推理輸出。
 ````
 
+## File: modules/ai/subdomains/subdomains.instructions.md
+````markdown
+---
+description: "AI subdomains architecture rules: capability-based subdomains, strict hexagonal boundaries, orchestration as application kernel, and infrastructure isolation."
+applyTo: "modules/ai/subdomains/**/*.{ts,tsx,md}"
+---
+```
+
+# AI Subdomains Layer (Canonical)
+
+This document defines structural rules for `modules/ai/subdomains/*`.
+
+It must align with AI execution architecture principles and remain consistent with DDD + Hexagonal + AI pipeline separation.
+
+---
+
+# 1️⃣ Core Principle
+
+Subdomains represent **capabilities inside a single AI execution engine**, NOT services.
+
+* ❌ NOT microservices
+* ❌ NOT independent APIs
+* ❌ NOT cross-service bus participants
+* ✔ ARE internal capability modules
+
+---
+
+# 2️⃣ Standard Subdomain Structure (Hexagonal Capability Module)
+
+Each subdomain MUST follow this structure:
+
+```
+api/
+application/
+domain/
+infrastructure/
+interfaces/
+ports/        (preferred for external contracts)
+README.md
+```
+
+---
+
+## Layer Responsibilities
+
+### domain/
+
+* Pure business logic
+* No SDKs, no LLM calls, no Firebase
+* Deterministic rules only
+
+### application/
+
+* Use cases
+* Coordination logic within the subdomain
+* Can call ports/interfaces
+
+### interfaces/
+
+* DTOs
+* Input/output contracts
+* Boundary definitions
+
+### ports/
+
+* Abstract external dependencies
+* LLM, DB, retrieval, tools, etc.
+
+### infrastructure/
+
+* Implements ports
+* Firebase / LLM SDK / vector DB / APIs
+
+### api/
+
+* External entry point ONLY
+* HTTP / Firebase Functions / Edge endpoints
+
+---
+
+# 3️⃣ System-Level Architecture Rule
+
+## 3.1 API is NOT internal bus
+
+* ❌ subdomain-to-subdomain MUST NOT communicate via `api/`
+* ✔ api is ONLY external boundary
+
+---
+
+## 3.2 Internal communication model
+
+Subdomains communicate via:
+
+```
+application → ports → application
+```
+
+or via orchestration kernel:
+
+```
+orchestration (application) → subdomain application
+```
+
+---
+
+# 4️⃣ Dependency Rules (Strict Direction)
+
+Inside each subdomain:
+
+```
+interfaces → application → domain ← infrastructure
+```
+
+Rules:
+
+* domain is pure and independent
+* application depends only on domain + ports
+* infrastructure implements ports only
+* interfaces define contracts only
+
+---
+
+# 5️⃣ Cross-Subdomain Communication Rule
+
+### Allowed:
+
+* orchestration application calls other subdomain application via interfaces/ports
+
+### Forbidden:
+
+* ❌ direct domain-to-domain coupling
+* ❌ infrastructure-to-infrastructure coupling
+* ❌ api-to-api internal routing
+
+---
+
+# 6️⃣ AI Capability Subdomain Definitions
+
+## 6.1 orchestration (system kernel)
+
+* Owns execution graph
+* Controls workflow sequencing
+* Calls subdomains via application layer
+* Does NOT perform inference itself
+
+---
+
+## 6.2 context
+
+* Builds request-time context
+* Stateless per execution
+* No persistence logic
+
+---
+
+## 6.3 memory
+
+* Persistent state across sessions
+* Read/write via ports only
+* No prompt construction logic
+
+---
+
+## 6.4 retrieval
+
+* Fetches and ranks candidates
+* No final answer generation
+* May use scoring models but no synthesis
+
+---
+
+## 6.5 reasoning
+
+* Structured inference logic
+* Operates on prepared inputs only
+* No data fetching responsibility
+
+---
+
+## 6.6 generation
+
+* Produces final output
+* Consumes reasoning + context
+* No retrieval or orchestration logic
+
+---
+
+## 6.7 tool-calling
+
+* Defines tool schemas and invocation contracts
+* Execution is handled in infrastructure/adapters
+* Stateless logic only
+
+---
+
+## 6.8 safety
+
+* Policy enforcement layer
+* Pre/post generation guardrails
+* Cannot modify domain logic
+
+---
+
+## 6.9 evaluation
+
+* Quality scoring and regression checks
+* Offline/online evaluation logic
+* No telemetry aggregation
+
+---
+
+## 6.10 distillation
+
+* Produces training datasets
+* Downstream-only from evaluation/generation
+
+---
+
+## 6.11 tracing
+
+* Observability only
+* Execution logs, latency, graph tracing
+* Must NOT affect decisions
+
+---
+
+# 7️⃣ AI Execution Flow (Canonical Model)
+
+```
+context
+   ↓
+retrieval
+   ↓
+reasoning
+   ↓
+tool-calling (optional)
+   ↓
+generation
+   ↓
+evaluation (async)
+```
+
+Controlled by:
+
+```
+orchestration (application kernel)
+```
+
+---
+
+# 8️⃣ Event Convention
+
+```
+ai.<subdomain>.<event>
+```
+
+Examples:
+
+* ai.orchestration.started
+* ai.retrieval.completed
+* ai.reasoning.finished
+* ai.generation.completed
+* ai.evaluation.scored
+
+Rules:
+
+* domain/application emit events
+* infrastructure publishes events
+* events are immutable contracts
+
+---
+
+# 9️⃣ Subdomain Activation Rule
+
+A subdomain is ACTIVE only if:
+
+* README defines responsibility
+* application layer contains real use cases
+* at least one port is implemented
+* infrastructure integration exists
+
+Otherwise:
+
+* treated as capability stub
+* cannot be referenced by orchestration
+
+---
+
+# 🔟 Critical Semantic Constraints (Non-Negotiable)
+
+* context ≠ memory
+* retrieval ≠ generation
+* reasoning ≠ orchestration
+* evaluation ≠ telemetry
+* tool-calling ≠ execution engine
+* api ≠ internal communication layer
+
+---
+
+# 🧠 Final Model
+
+This architecture represents:
+
+> AI Execution Engine with Capability-Based Modular Subdomains
+
+NOT:
+
+* microservices
+* API mesh
+* distributed services system
+
+---
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
 ## File: modules/notebooklm/interfaces/source/composition/adapters.ts
 ````typescript
 import { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
@@ -56206,42 +56449,6 @@ onClick=
 {/* Comment panel ??slides in from right */}
 ````
 
-## File: modules/platform/subdomains/account/infrastructure/identity-token-refresh.adapter.ts
-````typescript
-/**
- * IdentityTokenRefreshAdapter — Implements TokenRefreshPort using the platform identity subdomain.
- * This adapter lives in the adapters layer so the application layer stays clean.
- */
-⋮----
-import type { TokenRefreshPort, TokenRefreshSignalInput } from "../domain/ports/TokenRefreshPort";
-⋮----
-type EmitTokenRefreshSignal = (input: TokenRefreshSignalInput) => Promise<void>;
-⋮----
-/**
- * Override the default token refresh emitter. Call before first use of
- * token-refresh flows if a custom emitter is needed.
- */
-export function configureTokenRefreshEmitter(emitFn: EmitTokenRefreshSignal): void
-⋮----
-function getEmitFn(): EmitTokenRefreshSignal
-⋮----
-// TODO(ADR-1300): This require() breaks a circular dependency — Chain B:
-//   account/infrastructure/identity-token-refresh.adapter
-//   → identity/api → identity/interfaces
-//   → identity/application → account (via token-refresh callback wiring).
-//
-// The lazy require() is intentional and must remain until this flow is
-// wired through constructor injection (DI composition root).
-// Auto-configure: lazy-require identity api from sibling subdomain
-// (platform/identity/api) to avoid import-time side effects in the
-// account api boundary.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-⋮----
-export class IdentityTokenRefreshAdapter implements TokenRefreshPort {
-⋮----
-async emitTokenRefreshSignal(input: TokenRefreshSignalInput): Promise<void>
-````
-
 ## File: modules/platform/subdomains/identity/interfaces/_actions/identity.actions.ts
 ````typescript
 import { commandFailureFrom, type CommandResult } from "@shared-types";
@@ -56281,6 +56488,91 @@ export function useTokenRefreshListener(accountId: string | null | undefined): v
 // Non-fatal: token refreshes naturally on next expiry cycle.
 ````
 
+## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
+````typescript
+// ── Types ──────────────────────────────────────────────────────────────────────
+⋮----
+export type ShellNavSection =
+  | "workspace"
+  | "dashboard"
+  | "account"
+  | "organization"
+  | "other";
+⋮----
+export interface ShellNavItem {
+  readonly id: string;
+  readonly label: string;
+  readonly href: string;
+}
+⋮----
+export interface ShellRailCatalogItem {
+  readonly id: string;
+  readonly href: string;
+  readonly label: string;
+  /** If true, this item is only visible to organization accounts. */
+  readonly requiresOrganization: boolean;
+  /** Route prefix for active-state matching. When absent, defaults to href. */
+  readonly activeRoutePrefix?: string;
+}
+⋮----
+/** If true, this item is only visible to organization accounts. */
+⋮----
+/** Route prefix for active-state matching. When absent, defaults to href. */
+⋮----
+export interface ShellContextSectionConfig {
+  readonly title: string;
+  readonly items: readonly { href: string; label: string }[];
+}
+⋮----
+export interface ShellRouteContext {
+  readonly accountId?: string | null;
+  readonly workspaceId?: string | null;
+}
+⋮----
+function parseHref(href: string):
+⋮----
+function joinHref(path: string, query: string): string
+⋮----
+function isAccountScopedWorkspacePath(pathname: string): boolean
+⋮----
+export function normalizeShellRoutePath(pathname: string): string
+⋮----
+export function buildShellContextualHref(
+  href: string,
+  context: ShellRouteContext,
+): string
+⋮----
+// ── Route-matching utility ────────────────────────────────────────────────────
+⋮----
+export function isExactOrChildPath(targetPath: string, pathname: string): boolean
+⋮----
+// ── Account section matchers ──────────────────────────────────────────────────
+⋮----
+// ── Route titles & breadcrumb labels ──────────────────────────────────────────
+⋮----
+// ── Organization management items ─────────────────────────────────────────────
+⋮----
+// ── Account nav items ─────────────────────────────────────────────────────────
+⋮----
+// ── Section labels ────────────────────────────────────────────────────────────
+⋮----
+// ── Rail catalog ──────────────────────────────────────────────────────────────
+⋮----
+export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[]
+⋮----
+// ── Context section config ────────────────────────────────────────────────────
+⋮----
+// ── Mobile & organization nav items ───────────────────────────────────────────
+⋮----
+// ── Section resolvers ─────────────────────────────────────────────────────────
+⋮----
+export function resolveShellNavSection(pathname: string): ShellNavSection
+⋮----
+export function resolveShellPageTitle(pathname: string): string
+⋮----
+export function resolveShellBreadcrumbLabel(segment: string): string
+````
+
 ## File: modules/workspace/application/queries/wiki-content-tree.queries.ts
 ````typescript
 /**
@@ -56312,67 +56604,6 @@ export async function buildWikiContentTree(
   seeds: WikiAccountSeed[],
   workspaceRepository: WikiWorkspaceRepository,
 ): Promise<WikiAccountContentNode[]>
-````
-
-## File: modules/workspace/interfaces/web/components/screens/AccountDashboardScreen.tsx
-````typescript
-import Link from "next/link";
-import {
-  BookOpen,
-  Brain,
-  Database,
-  FileText,
-  FolderOpen,
-  Library,
-  MessageSquare,
-  Notebook,
-  Shield,
-  User,
-  Users,
-} from "lucide-react";
-⋮----
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-⋮----
-import type { WorkspaceEntity } from "../../../contracts";
-⋮----
-// ── Types ─────────────────────────────────────────────────────────────────────
-⋮----
-interface AccountDashboardScreenProps {
-  readonly accountId: string;
-  readonly accountName: string | null;
-  readonly accountType: "user" | "organization";
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly currentUserId: string | null;
-}
-⋮----
-// ── Quick-access card definitions ─────────────────────────────────────────────
-⋮----
-interface QuickAccessCard {
-  readonly key: string;
-  readonly label: string;
-  readonly description: string;
-  readonly icon: React.ReactNode;
-  readonly buildHref: (accountId: string, workspaceId: string) => string;
-}
-⋮----
-function enc(s: string): string
-⋮----
-// ── Component ─────────────────────────────────────────────────────────────────
-⋮----
-{/* ── Header ──────────────────────────────────────────────────────── */}
-⋮----
-{/* ── Active workspace quick-access ──────────────────────────────── */}
-⋮----
-{/* ── All workspaces list ─────────────────────────────────────────── */}
 ````
 
 ## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
@@ -56596,6 +56827,97 @@ export function writeNavPreferences(prefs: NavPreferences): void
     "encoding": "o200k_base"
   }
 }
+````
+
+## File: app/(shell)/_shell/ShellAppRail.tsx
+````typescript
+/**
+ * ShellAppRail — app/(shell)/_shell composition layer.
+ * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
+ * because it composes downstream modules (workspace).
+ *
+ * Platform is upstream and must not import downstream modules.
+ * app/ is the designated composition layer.
+ */
+⋮----
+import Link from "next/link";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  LayoutDashboard,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+⋮----
+import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
+import { CreateOrganizationDialog } from "@/modules/platform/api/ui";
+import {
+  listShellRailCatalogItems,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  buildShellContextualHref,
+  type ShellRailCatalogItem,
+} from "@/modules/platform/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { CreateWorkspaceDialogRail } from "@/modules/workspace/api/ui";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+⋮----
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+⋮----
+interface RailItem {
+  id: string;
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+⋮----
+function getInitial(name: string | undefined | null): string
+⋮----
+function isActive(href: string)
+⋮----
+function buildWorkspaceDetailHref(workspaceId: string): string
+⋮----
+onClick=
+⋮----
+onSelectWorkspace(workspace.id);
+⋮----
+accountType=
 ````
 
 ## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
@@ -56916,6 +57238,41 @@ export async function updateAccountProfile(
 // Legacy compatibility exports for migration window.
 ````
 
+## File: modules/platform/subdomains/account/infrastructure/identity-token-refresh.adapter.ts
+````typescript
+/**
+ * IdentityTokenRefreshAdapter — Implements TokenRefreshPort using the IAM public boundary.
+ * This adapter lives in the adapters layer so the application layer stays clean.
+ */
+⋮----
+import type { TokenRefreshPort, TokenRefreshSignalInput } from "../domain/ports/TokenRefreshPort";
+⋮----
+type EmitTokenRefreshSignal = (input: TokenRefreshSignalInput) => Promise<void>;
+⋮----
+/**
+ * Override the default token refresh emitter. Call before first use of
+ * token-refresh flows if a custom emitter is needed.
+ */
+export function configureTokenRefreshEmitter(emitFn: EmitTokenRefreshSignal): void
+⋮----
+function getEmitFn(): EmitTokenRefreshSignal
+⋮----
+// TODO(ADR-1300): This require() breaks a circular dependency — Chain B:
+//   account/infrastructure/identity-token-refresh.adapter
+//   → identity/api → identity/interfaces
+//   → identity/application → account (via token-refresh callback wiring).
+//
+// The lazy require() is intentional and must remain until this flow is
+// wired through constructor injection (DI composition root).
+// Auto-configure: lazy-require the IAM api boundary to avoid import-time
+// side effects in the account api boundary.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+⋮----
+export class IdentityTokenRefreshAdapter implements TokenRefreshPort {
+⋮----
+async emitTokenRefreshSignal(input: TokenRefreshSignalInput): Promise<void>
+````
+
 ## File: modules/platform/subdomains/organization/api/index.ts
 ````typescript
 /**
@@ -56932,91 +57289,6 @@ export async function updateAccountProfile(
 // --- Composition (lazy, safe for SSR) ---
 ⋮----
 // --- Interfaces (UI, queries, actions) ---
-````
-
-## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
-````typescript
-// ── Types ──────────────────────────────────────────────────────────────────────
-⋮----
-export type ShellNavSection =
-  | "workspace"
-  | "dashboard"
-  | "account"
-  | "organization"
-  | "other";
-⋮----
-export interface ShellNavItem {
-  readonly id: string;
-  readonly label: string;
-  readonly href: string;
-}
-⋮----
-export interface ShellRailCatalogItem {
-  readonly id: string;
-  readonly href: string;
-  readonly label: string;
-  /** If true, this item is only visible to organization accounts. */
-  readonly requiresOrganization: boolean;
-  /** Route prefix for active-state matching. When absent, defaults to href. */
-  readonly activeRoutePrefix?: string;
-}
-⋮----
-/** If true, this item is only visible to organization accounts. */
-⋮----
-/** Route prefix for active-state matching. When absent, defaults to href. */
-⋮----
-export interface ShellContextSectionConfig {
-  readonly title: string;
-  readonly items: readonly { href: string; label: string }[];
-}
-⋮----
-export interface ShellRouteContext {
-  readonly accountId?: string | null;
-  readonly workspaceId?: string | null;
-}
-⋮----
-function parseHref(href: string):
-⋮----
-function joinHref(path: string, query: string): string
-⋮----
-function isAccountScopedWorkspacePath(pathname: string): boolean
-⋮----
-export function normalizeShellRoutePath(pathname: string): string
-⋮----
-export function buildShellContextualHref(
-  href: string,
-  context: ShellRouteContext,
-): string
-⋮----
-// ── Route-matching utility ────────────────────────────────────────────────────
-⋮----
-export function isExactOrChildPath(targetPath: string, pathname: string): boolean
-⋮----
-// ── Account section matchers ──────────────────────────────────────────────────
-⋮----
-// ── Route titles & breadcrumb labels ──────────────────────────────────────────
-⋮----
-// ── Organization management items ─────────────────────────────────────────────
-⋮----
-// ── Account nav items ─────────────────────────────────────────────────────────
-⋮----
-// ── Section labels ────────────────────────────────────────────────────────────
-⋮----
-// ── Rail catalog ──────────────────────────────────────────────────────────────
-⋮----
-export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[]
-⋮----
-// ── Context section config ────────────────────────────────────────────────────
-⋮----
-// ── Mobile & organization nav items ───────────────────────────────────────────
-⋮----
-// ── Section resolvers ─────────────────────────────────────────────────────────
-⋮----
-export function resolveShellNavSection(pathname: string): ShellNavSection
-⋮----
-export function resolveShellPageTitle(pathname: string): string
-⋮----
-export function resolveShellBreadcrumbLabel(segment: string): string
 ````
 
 ## File: modules/workspace/api/facade.ts
@@ -57119,97 +57391,6 @@ export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string
 export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[]
 ⋮----
 export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[]
-````
-
-## File: app/(shell)/_shell/ShellAppRail.tsx
-````typescript
-/**
- * ShellAppRail — app/(shell)/_shell composition layer.
- * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
- * because it composes downstream modules (workspace).
- *
- * Platform is upstream and must not import downstream modules.
- * app/ is the designated composition layer.
- */
-⋮----
-import Link from "next/link";
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  LayoutDashboard,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-⋮----
-import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
-import { CreateOrganizationDialog } from "@/modules/platform/api/ui";
-import {
-  listShellRailCatalogItems,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  buildShellContextualHref,
-  type ShellRailCatalogItem,
-} from "@/modules/platform/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { CreateWorkspaceDialogRail } from "@/modules/workspace/api/ui";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-⋮----
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-⋮----
-interface RailItem {
-  id: string;
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-⋮----
-function getInitial(name: string | undefined | null): string
-⋮----
-function isActive(href: string)
-⋮----
-function buildWorkspaceDetailHref(workspaceId: string): string
-⋮----
-onClick=
-⋮----
-onSelectWorkspace(workspace.id);
-⋮----
-accountType=
 ````
 
 ## File: app/(shell)/_shell/ShellSidebarBody.tsx
@@ -57613,29 +57794,45 @@ export function renderWorkspaceCrossModuleTabSurface(
 ): ReactNode | null
 ````
 
-## File: modules/platform/api/index.ts
+## File: modules/workspace/api/ui.ts
 ````typescript
 /**
- * platform public API boundary — semantic capability contracts only.
+ * workspace api/ui.ts
  *
- * account is listed before organization to establish canonical definitions for
- * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
- * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
+ * Canonical public web UI surface for the workspace bounded context.
+ * App-layer consumers that need workspace UI components, hooks, and
+ * navigation utilities should import from here.
  *
- * Shell UI components, React hooks, and app-context types live in api/ui.ts.
- * @see ADR-1200 Boundary Violation — UI components separated from capability contracts.
+ * Internal source: interfaces/web/
  */
 ⋮----
-// organization — explicit to avoid re-export conflicts with account subdomain
+// ── Screen components ────────────────────────────────────────────────────────
 ⋮----
-// UI components belong in api/ui.ts — see ADR-1200
+// ── Card components ──────────────────────────────────────────────────────────
 ⋮----
-// background-job — knowledge ingestion pipeline management
+// ── Tab components ───────────────────────────────────────────────────────────
 ⋮----
-// Shell UI components, React hooks, and app-context types are in api/ui.ts.
-// @see ADR-1200 — UI components removed from capability-contract boundary.
+// ── Layout components ────────────────────────────────────────────────────────
 ⋮----
-// access-control — account type guards and route fallback
+// ── Rail components ──────────────────────────────────────────────────────────
+⋮----
+// ── Navigation ────────────────────────────────────────────────────────────────
+⋮----
+// ── Quick-access navigation ───────────────────────────────────────────────────
+⋮----
+// ── State helpers ─────────────────────────────────────────────────────────────
+⋮----
+// ── Map utilities ─────────────────────────────────────────────────────────────
+⋮----
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+⋮----
+// ── Workspace context provider ────────────────────────────────────────────────
+⋮----
+// ── Navigation preferences ────────────────────────────────────────────────────
+⋮----
+// ── Sidebar locale ────────────────────────────────────────────────────────────
+⋮----
+// ── Navigation customize dialog ───────────────────────────────────────────────
 ````
 
 ## File: docs/decisions/SMELL-INDEX.md
@@ -57763,45 +57960,30 @@ export function renderWorkspaceCrossModuleTabSurface(
 4. 若 smell 尚未記錄，按此編號體系新增文件。
 ````
 
-## File: modules/workspace/api/ui.ts
+## File: modules/platform/api/index.ts
 ````typescript
 /**
- * workspace api/ui.ts
+ * platform public API boundary — semantic capability contracts only.
  *
- * Canonical public web UI surface for the workspace bounded context.
- * App-layer consumers that need workspace UI components, hooks, and
- * navigation utilities should import from here.
+ * account is listed before organization to establish canonical definitions for
+ * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
+ * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
  *
- * Internal source: interfaces/web/
+ * Shell UI components, React hooks, and app-context types live in api/ui.ts.
+ * @see ADR-1200 Boundary Violation — UI components separated from capability contracts.
  */
 ⋮----
-// ── Screen components ────────────────────────────────────────────────────────
+// organization — explicit to avoid re-export conflicts with account subdomain
 ⋮----
-// ── Card components ──────────────────────────────────────────────────────────
+// UI components belong in api/ui.ts — see ADR-1200
 ⋮----
-// ── Tab components ───────────────────────────────────────────────────────────
+// background-job — knowledge ingestion pipeline management
 ⋮----
-// ── Layout components ────────────────────────────────────────────────────────
+// Shell UI components, React hooks, and app-context types are in api/ui.ts.
+// @see ADR-1200 — UI components removed from capability-contract boundary.
 ⋮----
-// ── Rail components ──────────────────────────────────────────────────────────
-⋮----
-// ── Navigation ────────────────────────────────────────────────────────────────
-⋮----
-// ── Quick-access navigation ───────────────────────────────────────────────────
-⋮----
-// ── State helpers ─────────────────────────────────────────────────────────────
-⋮----
-// ── Map utilities ─────────────────────────────────────────────────────────────
-⋮----
-// ── Hooks ─────────────────────────────────────────────────────────────────────
-⋮----
-// ── Workspace context provider ────────────────────────────────────────────────
-⋮----
-// ── Navigation preferences ────────────────────────────────────────────────────
-⋮----
-// ── Sidebar locale ────────────────────────────────────────────────────────────
-⋮----
-// ── Navigation customize dialog ───────────────────────────────────────────────
+// IAM-owned access and identity exports are re-exposed from ../../iam/api
+// for backward compatibility while consumers migrate to the IAM boundary.
 ````
 
 ## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
@@ -57814,7 +57996,7 @@ import {
   CardContent,
 } from "@ui-shadcn/ui/card";
 import { Badge } from "@ui-shadcn/ui/badge";
-import { useAuth } from "@/modules/platform/api";
+import { useAuth } from "@/modules/iam/api";
 import { useApp } from "@/modules/platform/api/ui";
 import {
   WorkspaceAuditTab,
