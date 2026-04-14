@@ -1,6 +1,6 @@
 /**
- * IAM federation public API.
- * Reserved for SSO, external identity provider linking, and provider-token flows.
+ * IAM tenant public API.
+ * Reserved for tenant isolation, scope resolution, and tenant-governance contracts.
  */
 
-export const federationApi = {} as const;
+export const tenantApi = {} as const;
