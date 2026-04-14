@@ -8,7 +8,7 @@ import {
   CardContent,
 } from "@ui-shadcn/ui/card";
 import { Badge } from "@ui-shadcn/ui/badge";
-import { useAuth } from "@/modules/platform/api";
+import { useAuth } from "@/modules/iam/api";
 import { useApp } from "@/modules/platform/api/ui";
 import {
   WorkspaceAuditTab,

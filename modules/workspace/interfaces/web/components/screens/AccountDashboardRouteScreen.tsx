@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 
-import { useAuth } from "@/modules/platform/api";
+import { useAuth } from "@/modules/iam/api";
 import { useAccountRouteContext, useApp } from "@/modules/platform/api/ui";
 
 import { getWorkspaceStorageKey } from "../../state/workspace-session";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "../../../../identity/api";
+import { useAuth } from "@/modules/iam/api";
 
 import { NotificationsPage } from "../NotificationsPage";
 

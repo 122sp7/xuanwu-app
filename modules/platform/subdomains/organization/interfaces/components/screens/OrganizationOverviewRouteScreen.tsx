@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
-import { isActiveOrganizationAccount } from "../../../../access-control/api";
+import { isActiveOrganizationAccount, useAuth } from "@/modules/iam/api";
 import type { AccountEntity } from "../../../../account/api";
-import { useAuth } from "../../../../identity/api";
 import { useApp } from "../../../../../interfaces/web/providers/ShellAppContext";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";

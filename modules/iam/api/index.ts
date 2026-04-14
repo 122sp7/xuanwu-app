@@ -9,9 +9,9 @@
 
 export * from "../subdomains/identity/api";
 export * from "../subdomains/access-control/api";
-export * from "../subdomains/authentication/api";
-export * from "../subdomains/authorization/api";
-export * from "../subdomains/federation/api";
-export * from "../subdomains/session/api";
-export * from "../subdomains/tenant/api";
-export * from "../subdomains/security-policy/api";
+export * from "../subdomains/authentication/api/index";
+export * from "../subdomains/authorization/api/index";
+export * from "../subdomains/federation/api/index";
+export * from "../subdomains/session/api/index";
+export * from "../subdomains/tenant/api/index";
+export * from "../subdomains/security-policy/api/index";

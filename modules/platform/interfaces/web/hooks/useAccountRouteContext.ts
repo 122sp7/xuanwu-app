@@ -2,8 +2,7 @@
 
 import { useParams } from "next/navigation";
 
-import { isActiveOrganizationAccount } from "../../../subdomains/access-control/api";
-import { useAuth } from "../../../subdomains/identity/api";
+import { isActiveOrganizationAccount, useAuth } from "@/modules/iam/api";
 import { useApp } from "../providers/ShellAppContext";
 
 export interface AccountRouteContext {

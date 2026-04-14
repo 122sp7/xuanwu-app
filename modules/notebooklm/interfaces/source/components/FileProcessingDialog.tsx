@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 
-import { useAuth } from "@/modules/platform/api";
+import { useAuth } from "@/modules/iam/api";
 import { Button } from "@ui-shadcn/ui/button";
 
 import { processSourceDocumentWorkflow } from "../_actions/source-processing.actions";

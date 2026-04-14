@@ -16,7 +16,39 @@ export {
   permissionApi,
   fileApi,
 } from "./service-api";
-export * from "../../iam/api";
+export {
+  AuthProvider,
+  useAuth,
+  ShellGuard,
+  register,
+  sendPasswordResetEmail,
+  signIn,
+  signInAnonymously,
+  signOut,
+  useTokenRefreshListener,
+  createIdentityRepository,
+  createTokenRefreshRepository,
+  createClientAuthUseCases,
+  identityApi,
+  accessControlService,
+  isOrganizationActor,
+  isActiveOrganizationAccount,
+  resolveOrganizationRouteFallback,
+} from "../../iam/api";
+export type {
+  EmitTokenRefreshSignalInput,
+  AuthState,
+  AuthAction,
+  AuthContextValue,
+  AuthStatus,
+  AuthUser,
+  IdentityEntity,
+  RegistrationInput,
+  SignInCredentials,
+  TokenRefreshReason,
+  TokenRefreshSignal,
+  ShellAccountActor,
+} from "../../iam/api";
 export * from "../subdomains/account/api";
 export * from "../subdomains/notification/api";
 export * from "../subdomains/platform-config/api";
