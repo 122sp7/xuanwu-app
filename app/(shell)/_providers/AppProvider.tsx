@@ -17,7 +17,7 @@ import {
   APP_INITIAL_STATE,
   type AppState,
   type AppAction,
-} from "@/modules/platform/api";
+} from "@/modules/platform/api/ui";
 import {
   resolveActiveAccount,
   subscribeToAccountsForUser,

@@ -4,6 +4,9 @@ import { use, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import {
+  useAuth,
+} from "@/modules/platform/api";
+import {
   OrganizationMembersRouteScreen,
   OrganizationOverviewRouteScreen,
   OrganizationPermissionsRouteScreen,
@@ -11,8 +14,7 @@ import {
   SettingsNotificationsRouteScreen,
   useAccountRouteContext,
   useApp,
-  useAuth,
-} from "@/modules/platform/api";
+} from "@/modules/platform/api/ui";
 import {
   AccountDashboardRouteScreen,
   OrganizationAuditRouteScreen,

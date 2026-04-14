@@ -1,7 +1,8 @@
 # 1100 Layer Violation
 
-- Status: Accepted
+- Status: Partially Resolved
 - Date: 2026-04-13
+- Resolved (workspace interfaces/api/): 2026-04-14
 - Category: Architectural Smells > Layer Violation
 
 ## Context
@@ -57,3 +58,26 @@ import { collectionGroup } from "firebase/firestore";   // Firebase SDK in api/ 
 代價：
 - workspace `interfaces/api/` 的遷移需要同步更新 `workspace/api/facade.ts` 的 import 路徑，以及所有消費 `workspace/interfaces/api/` 的 app 層文件。
 - `platform/api/infrastructure-api.ts` 重構需要確認哪些呼叫者依賴其低階行為，避免破壞 Firebase adapter 注入鏈。
+
+## Resolution (HX-1-001 — 2026-04-14)
+
+### 違規一已修復：`workspace/interfaces/api/` 已展平
+
+`modules/workspace/interfaces/api/` 目錄已完全移除。原有的 15 個文件遷移至：
+
+```
+modules/workspace/interfaces/
+  actions/workspace.command.ts    ← 原 interfaces/api/actions/
+  contracts/{index,...}.ts        ← 原 interfaces/api/contracts/
+  facades/{index,...}.ts          ← 原 interfaces/api/facades/
+  queries/{workspace,...}.ts      ← 原 interfaces/api/queries/
+  runtime/{index,...}.ts          ← 原 interfaces/api/runtime/
+```
+
+`modules/workspace/api/facade.ts` 的 import 路徑已同步更新：
+- `"../interfaces/api/facades/workspace.facade"` → `"../interfaces/facades/workspace.facade"`
+- `"../interfaces/api/facades/workspace-member.facade"` → `"../interfaces/facades/workspace-member.facade"`
+
+### 違規二仍開放：`platform/api/infrastructure-api.ts` Firebase SDK
+
+見 ADR 1103（`1103-layer-violation-firebase-sdk-in-api-layer.md`）——違規二已提升為獨立追蹤文件。

@@ -1,4 +1,4 @@
-import type { WorkspaceGrant } from "../../api/contracts";
+import type { WorkspaceGrant } from "../../contracts";
 
 export function describeGrant(grant: WorkspaceGrant): string {
   if (grant.teamId) {

@@ -1,4 +1,4 @@
-import type { WorkspaceEntity } from "../../api/contracts";
+import type { WorkspaceEntity } from "../../contracts";
 
 export interface WorkspacePersonnelEntry {
   label: string;

@@ -1,7 +1,8 @@
 # 1201 Boundary Violation — 業務規則漏入 Infrastructure 層
 
-- Status: Accepted
+- Status: Partially Resolved
 - Date: 2026-04-13
+- Resolution Date: 2026-04-14
 - Category: Architectural Smells > Boundary Violation
 
 ## Context
@@ -88,3 +89,31 @@ modules/notion/infrastructure/database/firebase/FirebaseDatabaseRepository.ts:74
 
 - **ADR 0009** (Anemic Aggregates)：wallet 規則放在 infrastructure 是 Anemic Model 的一種表現
 - **ADR 1100** (Layer Violation)：layer violation 的另一形式
+
+## Resolution
+
+**HX-2-002 — 2026-04-14**
+
+`FirebaseAccountRepository.creditWallet()` and `debitWallet()` were
+refactored to delegate wallet invariant enforcement to the `Account`
+aggregate:
+
+1. A private `toAccountSnapshot()` helper maps Firestore document data
+   (including `Timestamp` → ISO string conversion) to `AccountSnapshot`.
+2. Inside the Firestore transaction, the Account aggregate is reconstituted
+   via `Account.reconstitute(snapshot)`.
+3. `account.creditWallet(amount, description)` or
+   `account.debitWallet(amount, description)` is called on the aggregate —
+   the `Insufficient wallet balance` invariant check is now enforced
+   exclusively in the domain layer.
+4. The resulting `account.walletBalance` is written back to Firestore;
+   the repository no longer contains any balance arithmetic.
+
+**Remaining open work (follow-up tasks):**
+- ADR Decision §1: `Account.deductFromWallet()` was not added; the
+  existing `account.debitWallet()` method already encapsulates the
+  invariant check. A separate `WalletDeducted` domain event is not yet
+  emitted; domain events from wallet operations are not published.
+- ADR Decision §3: Repository "not found" returns are still `Error` throws
+  in some paths; migration to `null`-return pattern is tracked separately.
+- ADR Decision §4: `AccountDomainError` type not yet created.

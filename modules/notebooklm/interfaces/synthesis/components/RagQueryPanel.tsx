@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AlertCircle, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 
-import { useApp } from "@/modules/platform/api";
+import { useApp } from "@/modules/platform/api/ui";
 import { useAuth } from "@/modules/platform/api";
 import {
   Accordion,

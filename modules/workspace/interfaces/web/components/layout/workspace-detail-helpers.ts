@@ -1,4 +1,4 @@
-import type { WorkspaceEntity } from "../../../api/contracts";
+import type { WorkspaceEntity } from "../../../contracts";
 import { formatDate } from "@shared-utils";
 import type { WorkspaceTabGroup } from "../../navigation/workspace-tabs";
 

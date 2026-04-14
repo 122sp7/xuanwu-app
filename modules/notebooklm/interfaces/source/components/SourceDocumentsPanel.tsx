@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import { FileUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { useApp } from "@/modules/platform/api";
+import { useApp } from "@/modules/platform/api/ui";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 

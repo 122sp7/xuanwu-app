@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Eye, Heart, MessageCircle, Repeat2, Send, Share2, Star } from "lucide-react";
 
-import { useApp } from "@/modules/platform/api";
+import { useApp } from "@/modules/platform/api/ui";
 import { Avatar, AvatarFallback, AvatarImage } from "@ui-shadcn/ui/avatar";
 import { Button } from "@ui-shadcn/ui/button";
 import { Textarea } from "@ui-shadcn/ui/textarea";

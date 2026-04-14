@@ -4,7 +4,7 @@
  * Canonical public type surface for the workspace bounded context.
  * Cross-module and app-layer consumers should import types from here.
  *
- * Internal source: interfaces/api/contracts/
+ * Internal source: interfaces/contracts/
  */
 
 export type {

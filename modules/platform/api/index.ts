@@ -1,9 +1,12 @@
 ﻿/**
- * platform public API boundary.
+ * platform public API boundary — semantic capability contracts only.
  *
  * account is listed before organization to establish canonical definitions for
  * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
  * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
+ *
+ * Shell UI components, React hooks, and app-context types live in api/ui.ts.
+ * @see ADR-1200 Boundary Violation — UI components separated from capability contracts.
  */
 
 export * from "./contracts";
@@ -98,18 +101,8 @@ export {
   CreateOrgPolicyUseCase,
   UpdateOrgPolicyUseCase,
   DeleteOrgPolicyUseCase,
-  // UI components
-  AccountSwitcher,
-  CreateOrganizationDialog,
-  OrganizationOverviewRouteScreen,
-  MembersPage,
-  OrganizationMembersRouteScreen,
-  TeamsPage,
-  OrganizationTeamsRouteScreen,
-  PermissionsPage,
-  OrganizationPermissionsRouteScreen,
+  // UI components belong in api/ui.ts — see ADR-1200
 } from "../subdomains/organization/api";
-export type { MembersPageProps, TeamsPageProps, PermissionsPageProps } from "../subdomains/organization/api";
 
 // background-job — knowledge ingestion pipeline management
 export * from "../subdomains/background-job/api";
@@ -123,27 +116,8 @@ export {
   type AiTextGenerationPort,
 } from "../subdomains/ai/api";
 
-// Cross-module and app-composition hooks from interfaces layer.
-// Only selective exports — do NOT wildcard re-export "../interfaces".
-export {
-  useApp,
-  type AppState,
-  type AppAction,
-  type AppContextValue,
-  AppContext,
-  APP_INITIAL_STATE,
-  type ActiveAccount,
-  // Shell UI components (pure platform — no downstream deps)
-  ShellHeaderControls,
-  ShellThemeToggle,
-  ShellNotificationButton,
-  ShellUserAvatar,
-  ShellTranslationSwitcher,
-  ShellAppBreadcrumbs,
-  ShellGlobalSearchDialog,
-  useShellGlobalSearch,
-  useAccountRouteContext,
-} from "../interfaces";
+// Shell UI components, React hooks, and app-context types are in api/ui.ts.
+// @see ADR-1200 — UI components removed from capability-contract boundary.
 
 // access-control — account type guards and route fallback
 export {

@@ -8,9 +8,9 @@ import { v4 as uuid } from "@lib-uuid";
 import type { CommandResult } from "@shared-types";
 import { commandFailureFrom, commandSuccess } from "@shared-types";
 
-import type { WorkDemand } from "../domain/types";
-import type { DemandRepository } from "../domain/repository";
-import type { AssignMemberInput, CreateDemandInput } from "./dto/work-demand.dto";
+import type { WorkDemand } from "../../domain/types";
+import type { DemandRepository } from "../../domain/repository";
+import type { AssignMemberInput, CreateDemandInput } from "../dto/work-demand.dto";
 
 export class SubmitWorkDemandUseCase {
   constructor(private readonly repo: DemandRepository) {}

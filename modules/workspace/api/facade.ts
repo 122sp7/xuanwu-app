@@ -4,7 +4,7 @@
  * Canonical public behavior surface for the workspace bounded context.
  * Cross-module and app-layer consumers invoke commands and queries from here.
  *
- * Internal source: interfaces/api/facades/
+ * Internal source: interfaces/facades/
  */
 
 export {
@@ -21,11 +21,11 @@ export {
   grantIndividualWorkspaceAccess,
   mountCapabilities,
   updateWorkspaceSettings,
-} from "../interfaces/api/facades/workspace.facade";
+} from "../interfaces/facades/workspace.facade";
 
 export {
   getWorkspaceMembers,
-} from "../interfaces/api/facades/workspace-member.facade";
+} from "../interfaces/facades/workspace-member.facade";
 
 export {
   getOrganizationAuditLogs,

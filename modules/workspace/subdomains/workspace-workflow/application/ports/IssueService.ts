@@ -1,7 +1,13 @@
 /**
  * @module workspace-flow/application/ports
  * @file IssueService.ts
- * @description Application port interface for Issue operations.
+ * @description Application-layer port interface for Issue operations.
+ *
+ * @applicationPort This is an Application-layer Port (not a Domain-layer Port) because
+ * its method signatures depend on application DTOs (OpenIssueDto, IssueQueryDto) defined
+ * in application/dto/. It must remain in application/ports/ and must NOT be moved to
+ * domain/ports/. See ADR-1102 §3.
+ *
  * @author workspace-flow
  * @since 2026-03-24
  * @todo Wire use cases and implement concrete adapters

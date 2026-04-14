@@ -2,7 +2,7 @@ import type { WorkDemand } from "../../application/dto/work-demand.dto";
 import {
   ListWorkspaceDemandsUseCase,
   ListAccountDemandsUseCase,
-} from "../../application/work-demand.use-cases";
+} from "../../application/use-cases/work-demand.use-cases";
 import { makeDemandRepo } from "../../api/factories";
 
 function makeRepo() {

@@ -19,6 +19,13 @@ export function configureTokenRefreshEmitter(emitFn: EmitTokenRefreshSignal): vo
 
 function getEmitFn(): EmitTokenRefreshSignal {
   if (!_emitTokenRefreshSignal) {
+    // TODO(ADR-1300): This require() breaks a circular dependency — Chain B:
+    //   account/infrastructure/identity-token-refresh.adapter
+    //   → identity/api → identity/interfaces
+    //   → identity/application → account (via token-refresh callback wiring).
+    //
+    // The lazy require() is intentional and must remain until this flow is
+    // wired through constructor injection (DI composition root).
     // Auto-configure: lazy-require identity api from sibling subdomain
     // (platform/identity/api) to avoid import-time side effects in the
     // account api boundary.

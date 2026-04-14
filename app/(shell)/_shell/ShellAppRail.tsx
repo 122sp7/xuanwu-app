@@ -26,7 +26,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
-import { CreateOrganizationDialog } from "@/modules/platform/api";
+import { CreateOrganizationDialog } from "@/modules/platform/api/ui";
 import {
   listShellRailCatalogItems,
   isExactOrChildPath,
