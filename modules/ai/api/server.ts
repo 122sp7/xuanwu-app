@@ -6,5 +6,5 @@
  * infrastructure adapters.
  */
 
-export { generateAiText, summarize } from "../subdomains/generation/api/server";
+export { generateAiText, summarize } from "../subdomains/content-generation/api/server";
 export { distillContent } from "../subdomains/distillation/api/server";

@@ -1,3 +1,3 @@
 /** ai/application — shared AI orchestration use cases. */
 
-export { GenerateAiTextUseCase } from "../subdomains/generation/application";
+export { GenerateAiTextUseCase } from "../subdomains/content-generation/application";

@@ -10,7 +10,7 @@ export type {
   GenerateAiTextInput,
   GenerateAiTextOutput,
   AiTextGenerationPort,
-} from "../subdomains/generation/api";
+} from "../subdomains/content-generation/api";
 export type {
   DistillationAPI,
   DistillContentInput,
