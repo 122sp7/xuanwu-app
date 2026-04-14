@@ -10,6 +10,7 @@ export interface RegisterUploadedRagDocumentInputDto {
   readonly organizationId: string;
   readonly workspaceId: string;
   readonly accountId: string;
+  readonly sourceFileId?: string;
   readonly title: string;
   readonly sourceFileName: string;
   readonly mimeType: string;

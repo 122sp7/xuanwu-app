@@ -32,23 +32,35 @@ export async function getWorkspaceManagedFiles(
   ]);
 
   const assetById = new Map(assets.map((asset) => [asset.id, asset]));
-  const documentIds = new Set(documents.map((document) => document.id));
+  const assetByName = new Map(assets.map((asset) => [asset.name.trim().toLowerCase(), asset]));
 
-  const merged = [
-    ...documents.map((document) => ({
-      id: document.id,
+  const mergedDocuments = documents.map((document) => {
+    const matchedAsset = document.sourceFileId
+      ? assetById.get(document.sourceFileId)
+      : assetByName.get((document.sourceFileName || document.displayName).trim().toLowerCase());
+
+    const effectiveId = document.sourceFileId || matchedAsset?.id || document.id;
+
+    return {
+      id: effectiveId,
       name: document.displayName || document.sourceFileName,
       workspaceId: document.workspaceId,
       organizationId: document.organizationId,
       mimeType: document.mimeType || "application/octet-stream",
       sizeBytes: document.sizeBytes,
       status: document.status,
-      detail: assetById.get(document.id)?.detail || document.statusMessage || document.sourceFileName,
-      href: assetById.get(document.id)?.href,
+      detail: matchedAsset?.detail || document.statusMessage || document.sourceFileName,
+      href: matchedAsset?.href,
       storagePath: document.storagePath,
       sourceFileName: document.sourceFileName,
       updatedAtISO: document.updatedAtISO,
-    })),
+    };
+  });
+
+  const documentIds = new Set(mergedDocuments.map((document) => document.id));
+
+  const merged = [
+    ...mergedDocuments,
     ...assets
       .filter((asset) => !documentIds.has(asset.id))
       .map((asset) => ({

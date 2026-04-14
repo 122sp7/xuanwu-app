@@ -105,6 +105,7 @@ export class UploadCompleteSourceFileUseCase {
 
       await this.ragDocumentRepository.saveUploaded({
         id: ragDocumentId,
+        sourceFileId: nextFile.id,
         organizationId,
         workspaceId,
         accountId: actorAccountId,

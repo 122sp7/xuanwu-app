@@ -46,6 +46,7 @@ function toRagDocumentRecord(
 ): RagDocumentRecord {
   return {
     id: documentId,
+    sourceFileId: typeof data.sourceFileId === "string" ? data.sourceFileId : undefined,
     organizationId: typeof data.organizationId === "string" ? data.organizationId : fallback.organizationId,
     workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : fallback.workspaceId,
     displayName:
@@ -112,6 +113,7 @@ export class FirebaseRagDocumentAdapter implements RagDocumentRepository {
   async saveUploaded(record: RagDocumentRecord): Promise<void> {
     await firestoreInfrastructureApi.set(buildDocPath({ organizationId: record.organizationId, workspaceId: record.workspaceId, documentId: record.id }), {
       id: record.id,
+      ...(record.sourceFileId ? { sourceFileId: record.sourceFileId } : {}),
       organizationId: record.organizationId,
       workspaceId: record.workspaceId,
       displayName: record.displayName,

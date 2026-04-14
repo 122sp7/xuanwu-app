@@ -48,6 +48,7 @@ export class RegisterUploadedRagDocumentUseCase {
 
     await this.ragDocumentRepository.saveUploaded({
       id: documentId,
+      sourceFileId: input.sourceFileId?.trim() || undefined,
       organizationId,
       workspaceId,
       accountId,

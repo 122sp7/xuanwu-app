@@ -32,6 +32,7 @@ export function canTransitionRagDocumentStatus(
  */
 export interface RagDocumentRecord {
   readonly id: string;
+  readonly sourceFileId?: string;
   readonly organizationId: string;
   readonly workspaceId: string;
   readonly displayName: string;
