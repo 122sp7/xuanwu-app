@@ -2,22 +2,26 @@ import type {
   PromptExecutionMode,
   PromptRegistryPort,
   PromptTemplateDescriptor,
+  PromptTemplateFamily,
   ResolvedPrompt,
   SourceFollowUpPromptInput,
   SourceFollowUpPromptIntent,
 } from "../domain";
 
-const PROMPT_TEMPLATES: Record<
-  SourceFollowUpPromptIntent,
-  {
-    readonly label: string;
-    readonly summary: string;
-    readonly outcome: string;
-    readonly system: string;
-    readonly promptBuilder: (input: SourceFollowUpPromptInput, mode: PromptExecutionMode) => string;
-  }
-> = {
+const SOURCE_FOLLOW_UP_FAMILY: PromptTemplateFamily = "source-follow-up";
+
+type PromptTemplateDefinition = {
+  readonly templateKey: SourceFollowUpPromptIntent;
+  readonly label: string;
+  readonly summary: string;
+  readonly outcome: string;
+  readonly system: string;
+  readonly promptBuilder: (input: SourceFollowUpPromptInput, mode: PromptExecutionMode) => string;
+};
+
+const PROMPT_TEMPLATES: Record<SourceFollowUpPromptIntent, PromptTemplateDefinition> = {
   "source-ocr": {
+    templateKey: "source-ocr",
     label: "OCR 解析",
     summary: "先把檔案轉成可追溯的結構化 JSON，不自動做後續知識動作。",
     outcome: "產出 page_count 與 json_gcs_uri，供後續處理使用。",
@@ -29,6 +33,7 @@ const PROMPT_TEMPLATES: Record<
     ].join("\n"),
   },
   "source-rag-index": {
+    templateKey: "source-rag-index",
     label: "建立 RAG 索引",
     summary: "使用既有 parsed JSON 建立向量索引，不重新 OCR。",
     outcome: "把結構化文本切 chunk 並寫入檢索索引。",
@@ -40,6 +45,7 @@ const PROMPT_TEMPLATES: Record<
     ].join("\n"),
   },
   "source-knowledge-page": {
+    templateKey: "source-knowledge-page",
     label: "建立 Knowledge Page",
     summary: "將既有 parsed JSON 轉成可編輯的知識頁面草稿。",
     outcome: "建立單一 Knowledge Page，保留來源可追溯性。",
@@ -50,6 +56,7 @@ const PROMPT_TEMPLATES: Record<
     ].join("\n"),
   },
   "source-task-materialization": {
+    templateKey: "source-task-materialization",
     label: "建立任務",
     summary: "先建立知識頁，再從 parsed text 萃取可執行任務。",
     outcome: "建立 Knowledge Page 並 materialize 到 Tasks。",
@@ -63,11 +70,17 @@ const PROMPT_TEMPLATES: Record<
 };
 
 class SourceFollowUpPromptService implements PromptRegistryPort {
+  listPromptFamilies(): ReadonlyArray<PromptTemplateFamily> {
+    return [SOURCE_FOLLOW_UP_FAMILY];
+  }
+
   listSourceFollowUpPrompts(mode: PromptExecutionMode = "manual"): ReadonlyArray<PromptTemplateDescriptor> {
     return (Object.entries(PROMPT_TEMPLATES) as Array<[
       SourceFollowUpPromptIntent,
-      (typeof PROMPT_TEMPLATES)[SourceFollowUpPromptIntent],
+      PromptTemplateDefinition,
     ]>).map(([intent, template]) => ({
+      family: SOURCE_FOLLOW_UP_FAMILY,
+      templateKey: template.templateKey,
       intent,
       mode,
       label: template.label,
@@ -83,10 +96,13 @@ class SourceFollowUpPromptService implements PromptRegistryPort {
   ): ResolvedPrompt {
     const template = PROMPT_TEMPLATES[intent];
     return {
+      family: SOURCE_FOLLOW_UP_FAMILY,
+      templateKey: template.templateKey,
       intent,
       mode,
       label: template.label,
       summary: template.summary,
+      outcome: template.outcome,
       system: template.system,
       prompt: template.promptBuilder(input, mode),
     };
@@ -94,6 +110,10 @@ class SourceFollowUpPromptService implements PromptRegistryPort {
 }
 
 export const sourceFollowUpPromptService = new SourceFollowUpPromptService();
+
+export function listPromptFamilies(): ReadonlyArray<PromptTemplateFamily> {
+  return sourceFollowUpPromptService.listPromptFamilies();
+}
 
 export function listSourceFollowUpPrompts(
   mode: PromptExecutionMode = "manual",

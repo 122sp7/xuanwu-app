@@ -61,7 +61,7 @@
 
 | Folder Name | Semantic Name | Chinese Label | Status | Notes |
 |---|---|---|---|---|
-| `prompt-pipeline` | **Prompt & Flow Pipeline** | 提示與流程管線 | ✅ | prompt、flow、tool calling orchestration |
+| `prompt-pipeline` | **Prompt & Flow Pipeline** | 提示與流程管線 | ✅ | 單一 AI 能力邊界，容納多個 prompt families、template variants 與 flow orchestration；不因模板變多而改成 plural folder |
 | `safety-guardrail` | **Safety Guardrail** | 安全護欄 | ✅ | 內容保護與限制 |
 | `evaluation-policy` | **Evaluation Policy** | 評估政策 | ✅ | AI 品質與回歸評估政策 |
 | `model-observability` | **Model Observability** | 模型可觀測性 | ✅ | 使用量、成本、效能監測 |
@@ -173,6 +173,7 @@
 | `platform/workflow` | 與 `workspace/workspace-workflow` 語意重疊 | **Platform Workflow** | platform 只擁有平台級狀態驅動執行；workspace 使用 `workspace-workflow` 作為正典名稱，兩者不得互換 |
 | `notion/knowledge-versioning` vs `notebooklm/conversation-versioning` | 同語意前綴、不同主域 | 各自保留完整名稱 | 兩者都應保留 domain prefix（`knowledge-` / `conversation-`）以防跨域混名 |
 | `ai/content-distillation` vs `notebooklm/synthesis` | 跨主域語意可能重疊 | **Content Distillation** (ai) / **RAG Synthesis** (notebooklm) | `content-distillation` 屬 ai domain（共享 AI 能力）；`synthesis` 屬 notebooklm（消費者，RAG 推理輸出），層級不同 |
+| `ai/prompt-pipeline` vs `prompts-pipelines` | 單複數命名誤導 | **Prompt & Flow Pipeline** | 子域命名應表達能力邊界而非模板數量；多個 prompts / variants 仍屬同一 prompt orchestration capability |
 | `analytics/insights` vs `analytics/realtime-insights` | 重複語意前綴 | **Insights** (批次) / **Realtime Insights** (串流) | `insights` 為批次/歷史洞察；`realtime-insights` 為串流/即時洞察，時效性是唯一區分軸 |
 | `platform/notification` (merged) | 曾有 workspace 重複宣稱 | **Notification Routing & Preferences** | workspace/subdomains/notification 已刪除並合併至 platform；所有 workspace notification 能力由 platform notification 統一擁有 |
 | `iam/authorization` vs `iam/access-control` | 同一主域內語意重疊 | **Authorization** (execution) / **Access Control** (management) | `authorization` 負責執行時的存取判定；`access-control` 負責管理 RBAC/ABAC 規則與政策集合 |
@@ -271,4 +272,4 @@
 | `docs/context-map.md` | Published language token flow between contexts |
 | `docs/semantic-model.md` (this file) | Folder → semantic name mapping, status, drift analysis |
 
-> Last verified: 2026-04-14. Re-verify after any subdomain add/remove or boundary merge.
+> Last verified: 2026-04-15. Re-verify after any subdomain add/remove or boundary merge.

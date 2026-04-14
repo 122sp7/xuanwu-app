@@ -23,12 +23,14 @@ export type {
 export type {
   PromptExecutionMode,
   PromptTemplateDescriptor,
+  PromptTemplateFamily,
   ResolvedPrompt,
   SourceFollowUpPromptInput,
   SourceFollowUpPromptIntent,
 } from "../subdomains/prompt-pipeline/api";
 
 export {
+  listPromptFamilies,
   listSourceFollowUpPrompts,
   resolveSourceFollowUpPrompt,
   sourceFollowUpPromptService,

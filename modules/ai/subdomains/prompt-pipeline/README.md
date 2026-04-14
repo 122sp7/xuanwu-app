@@ -8,8 +8,10 @@ It is a pure bounded-context capability inside `modules/ai` and does not call an
 ## Responsibility
 
 - define prompt-pipeline intents in domain language
-- provide a typed registry for manual vs workflow prompt variants
+- provide a typed registry for prompt families, template keys, and manual vs workflow variants
 - resolve prompt text for downstream consumers such as workspace and notebooklm
+
+A single prompt-pipeline subdomain may contain many prompt templates. The capability stays singular because the business boundary is shared prompt orchestration, not one folder per prompt.
 
 ## Non-Responsibility
 

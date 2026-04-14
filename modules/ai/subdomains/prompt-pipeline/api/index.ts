@@ -8,12 +8,14 @@
 export type {
   PromptExecutionMode,
   PromptTemplateDescriptor,
+  PromptTemplateFamily,
   ResolvedPrompt,
   SourceFollowUpPromptInput,
   SourceFollowUpPromptIntent,
 } from "../domain";
 
 export {
+  listPromptFamilies,
   listSourceFollowUpPrompts,
   resolveSourceFollowUpPrompt,
   sourceFollowUpPromptService,
