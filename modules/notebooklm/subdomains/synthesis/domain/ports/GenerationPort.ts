@@ -3,7 +3,7 @@
  * Layer: domain/ports
  * Purpose: GenerationPort — output port for AI answer generation.
  *
- * The platform AI adapter (infrastructure) implements this port.
+ * The AI bounded-context adapter (infrastructure) implements this port.
  */
 
 import type { GenerateAnswerInput, GenerateAnswerResult } from "../entities/SynthesisResult";

@@ -5,7 +5,7 @@ Notebook container and organization.
 ## Ownership
 
 - **Bounded Context**: notebooklm
-- **Status**: Active — GenerateNotebookResponseUseCase + PlatformTextGenerationAdapter + Server Actions wired
+- **Status**: Active — GenerateNotebookResponseUseCase + AiTextGenerationAdapter + Server Actions wired
 
 ## Development Order
 

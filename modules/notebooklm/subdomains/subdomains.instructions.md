@@ -24,7 +24,7 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 - `synthesis` owns the complete RAG pipeline (retrieval → grounding → generation → evaluation) as internal facets; do not split these facets into separate subdomains unless an explicit split trigger is documented in an ADR.
 - Retrieval is upstream of generation; grounding aligns output to source evidence — do not reverse this dependency.
 - `evaluation` describes output quality and grounding confidence; it must not emit billing signals or usage metrics.
-- Shared AI provider capability (model routing, quota, safety) is supplied by `platform.ai` — do not replicate provider policy inside notebooklm subdomains.
+- Shared AI provider capability (model routing, quota, safety) is supplied by the `ai` bounded context — do not replicate provider policy inside notebooklm subdomains.
 - Use `organizationId` only as an internal storage scope identifier derived after boundary translation; do not treat it as a shell route parameter.
 - Use `Conversation` (not `Chat` or `Session`) and `Ingestion` (not `File Import` or `Upload`) in all subdomain published language.
 

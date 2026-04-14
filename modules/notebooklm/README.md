@@ -7,7 +7,7 @@
 | Aspect | Description |
 |--------|-------------|
 | Primary role | 對話、來源處理、檢索與推理輸出 |
-| Upstream | platform（治理、AI capability）、workspace（scope）、notion（knowledge artifact, attachment reference） |
+| Upstream | platform（治理）、ai（shared AI capability）、workspace（scope）、notion（knowledge artifact, attachment reference） |
 | Downstream | 無固定主域級下游；GroundedAnswer 可被其他主域消費 |
 | Core principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容 |
 | Cross-module boundary | `api/` only — no direct import of notion/platform/workspace internals |
@@ -79,7 +79,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - NotebookLM consumes `accountId` and `workspaceId` from workspace-owned shell composition; it does not own top-level shell routes and any browser-facing links should remain anchored to canonical `/{accountId}/{workspaceId}` workspace navigation.
 - Source and synthesis internals may derive an `organizationId` for organization-scoped storage and retrieval, but that identifier is an internal domain/infrastructure scope token, not a shell route param.
 - For personal-account scope, source workflows currently derive a synthetic internal organization scope token from `accountId`; this is an implementation detail for org-scoped storage isolation, not an alternate accountType contract.
-- This bounded context follows the repo baseline: Hexagonal Architecture + DDD, Firebase adapters outside the core, Genkit capability consumed through upstream platform boundaries, Zustand/XState only in interface workflows, and Zod at runtime validation boundaries.
+- This bounded context follows the repo baseline: Hexagonal Architecture + DDD, Firebase adapters outside the core, shared AI capability consumed through upstream ai boundaries, Zustand/XState only in interface workflows, and Zod at runtime validation boundaries.
 
 ## Strategic Documentation
 

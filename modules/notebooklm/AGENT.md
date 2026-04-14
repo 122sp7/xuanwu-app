@@ -11,7 +11,7 @@
 | Aspect | Description |
 |--------|-------------|
 | Primary role | 對話、來源處理與推理輸出 |
-| Upstream | platform（治理、AI capability）、workspace（scope）、notion（knowledge artifact reference） |
+| Upstream | platform（治理）、ai（shared AI capability）、workspace（scope）、notion（knowledge artifact reference） |
 | Downstream | 無固定主域級下游；輸出可被其他主域吸收 |
 | Core invariant | notebooklm 只能持有衍生推理輸出，不得直接修改 notion 的正典內容 |
 | Published language | Notebook reference、Conversation reference、SourceReference、GroundedAnswer |
@@ -35,7 +35,7 @@
 
 - 正典知識頁面、文章、分類、正式發布屬於 notion。
 - 身份、授權、權益、憑證治理屬於 platform。
-- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 ai。
 - 工作區生命週期、成員管理、共享範圍屬於 workspace。
 - browser-facing shell composition、tab orchestration、panel assembly 屬於 workspace；notebooklm 提供下游能力，不擁有外層 UI orchestration。
 
@@ -62,7 +62,7 @@
 ### Domain Invariants
 
 - notebooklm 只擁有衍生推理流程，不擁有正典知識內容。
-- shared AI capability 由 platform.ai 提供；notebooklm 在 synthesis 擁有 retrieval、grounding、generation、evaluation 的本地語義。
+- shared AI capability 由 ai 提供；notebooklm 在 synthesis 擁有 retrieval、grounding、generation、evaluation 的本地語義。
 - grounding 應能把輸出對齊到來源證據。
 - retrieval 是 generation 的上游能力。
 - evaluation 應描述品質，而不是單純使用量。

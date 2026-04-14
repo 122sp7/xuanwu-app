@@ -11,7 +11,7 @@
 | Aspect | Description |
 |--------|-------------|
 | Primary role | 正典知識內容生命週期 |
-| Upstream | platform（治理、AI capability）、workspace（workspaceId、membership scope、share scope） |
+| Upstream | platform（治理）、ai（shared AI capability）、workspace（workspaceId、membership scope、share scope） |
 | Downstream | notebooklm（knowledge artifact reference、attachment reference、taxonomy hint） |
 | Core invariant | notion 只能修改自己的正典內容，不可直接呼叫 notebooklm 的推理流程 |
 | Published language | KnowledgeArtifact reference、attachment reference、taxonomy hint |
@@ -38,7 +38,7 @@
 ## Route Elsewhere When
 
 - 身份、租戶、授權、權益、憑證治理屬於 platform。
-- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 ai。
 - 工作區生命週期、成員管理、共享範圍屬於 workspace。
 - notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
 - browser-facing shell composition、tab orchestration、panel assembly 屬於 workspace；notion 提供下游能力，不擁有外層 UI orchestration。
@@ -84,7 +84,7 @@
 - 知識內容的正典狀態屬於 notion。
 - taxonomy 應獨立於具體 UI 視圖存在（目前由 Category 承載部分）。
 - BacklinkIndex 描述自動反向連結；Relation 描述主動宣告的語義關係。兩者不互相取代。
-- platform.ai 可被 notion use case 消費，但 AI provider / policy ownership 不屬於 notion。
+- ai 可被 notion use case 消費，但 AI provider / policy ownership 不屬於 notion。
 - 任何來自 notebooklm 的輸出，若要成為正典內容，必須先被 notion 吸收。
 
 ## Subdomain Analysis — 子域數量合理性

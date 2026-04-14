@@ -93,7 +93,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - Shell composition remains account-scoped under `/{accountId}/[[...slug]]`; flattened governance routes such as `/{accountId}/members` and `/{accountId}/teams` are canonical, while `/{accountId}/organization/*` is legacy redirect-only surface.
 - Platform-owned account scope string contract remains `"user" | "organization"`; business language may say personal account / organization account, but code-level contracts must not drift to `"personal"`.
 - Identifier boundaries stay explicit: `accountId` for shell account scope, `organizationId` for organization-scoped domain or integration contracts, `userId` for concrete users, `actorId` for acting principals, and `tenantId` for tenant isolation.
-- This bounded context anchors the repo baseline: Hexagonal Architecture + DDD, Firebase serverless adapters outside the core, Genkit capability ownership in platform, Zustand/XState only in interface workflows, and Zod at runtime validation boundaries.
+- This bounded context anchors the repo baseline: Hexagonal Architecture + DDD, Firebase serverless adapters outside the core, shared AI capability consumed from the upstream ai bounded context, Zustand/XState only in interface workflows, and Zod at runtime validation boundaries.
 
 ## Strategic Documentation
 
