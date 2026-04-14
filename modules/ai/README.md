@@ -14,6 +14,7 @@
 ## Active Baseline
 
 - generation 子域持有 Genkit-backed 文字生成接縫（`generateAiText`、`summarize`）
+- distillation 子域現在提供結構化蒸餾能力（`distillContent`）
 - 下游模組透過 `modules/ai/api`（client-safe types）與 `modules/ai/api/server`（server-only functions）消費
 - 其餘子域為骨架，依需求逐步實作
 
@@ -23,7 +24,7 @@
 |---|---|---|
 | generation | active | GenkitAiTextGenerationAdapter 已實作 |
 | orchestration | stub | 多步驟 AI flow |
-| distillation | stub | 長輸出蒸餾 |
+| distillation | active | GenkitDistillationAdapter 已實作 |
 | retrieval | stub | 向量搜尋 |
 | memory | stub | 對話歷史 |
 | context | stub | prompt 上下文組裝 |
@@ -41,7 +42,7 @@
 import type { AIAPI, GenerateAiTextInput, GenerateAiTextOutput, AiTextGenerationPort } from "@/modules/ai/api";
 
 // server-only functions
-import { generateAiText, summarize } from "@/modules/ai/api/server";
+import { distillContent, generateAiText, summarize } from "@/modules/ai/api/server";
 ```
 
 ## Dependency Direction

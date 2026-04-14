@@ -15,6 +15,20 @@ export interface KnowledgePageSummary {
   readonly blockCount: number;
 }
 
+export interface KnowledgePageDistillation {
+  readonly pageId: string;
+  readonly title: string;
+  readonly overview: string;
+  readonly highlights: ReadonlyArray<{
+    readonly title: string;
+    readonly summary: string;
+  }>;
+  readonly model: string;
+  readonly traceId: string;
+  readonly completedAt: string;
+  readonly blockCount: number;
+}
+
 import type { RichTextSpan } from "../../domain/value-objects/BlockContent";
 
 /**

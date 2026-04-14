@@ -9,6 +9,12 @@ export type { ContentBlockRepository } from "../repositories/ContentBlockReposit
 export type { KnowledgeCollectionRepository } from "../repositories/KnowledgeCollectionRepository";
 export type { KnowledgePageRepository } from "../repositories/KnowledgePageRepository";
 export type {
+  KnowledgeDistillationHighlight,
+  KnowledgeDistillationInput,
+  KnowledgeDistillationResult,
+  KnowledgeDistillationPort,
+} from "./KnowledgeDistillationPort";
+export type {
   KnowledgeSummaryInput,
   KnowledgeSummaryResult,
   KnowledgeSummaryPort,

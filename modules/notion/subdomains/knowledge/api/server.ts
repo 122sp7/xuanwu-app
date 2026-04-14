@@ -7,8 +7,11 @@ import "server-only";
  * run in Server Actions, route handlers, or other server-side entry points.
  */
 
-import { GenerateKnowledgePageSummaryQuery } from "../application/queries/knowledge-summary.queries";
-import type { KnowledgePageSummary } from "../application/dto/knowledge.dto";
+import {
+  GenerateKnowledgePageDistillationQuery,
+  GenerateKnowledgePageSummaryQuery,
+} from "../application/queries/knowledge-summary.queries";
+import type { KnowledgePageDistillation, KnowledgePageSummary } from "../application/dto/knowledge.dto";
 import { SharedAiKnowledgeSummaryAdapter } from "../../../infrastructure/knowledge/ai/SharedAiKnowledgeSummaryAdapter";
 import { FirebaseKnowledgePageRepository } from "../../../infrastructure/knowledge/firebase/FirebaseKnowledgePageRepository";
 import { FirebaseContentBlockRepository } from "../../../infrastructure/knowledge/firebase/FirebaseContentBlockRepository";
@@ -22,6 +25,17 @@ export { FirebaseBacklinkIndexRepository };
 
 export async function getKnowledgePageSummary(accountId: string, pageId: string): Promise<KnowledgePageSummary | null> {
   return new GenerateKnowledgePageSummaryQuery(
+    new FirebaseKnowledgePageRepository(),
+    new FirebaseContentBlockRepository(),
+    new SharedAiKnowledgeSummaryAdapter(),
+  ).execute(accountId, pageId);
+}
+
+export async function getKnowledgePageDistillation(
+  accountId: string,
+  pageId: string,
+): Promise<KnowledgePageDistillation | null> {
+  return new GenerateKnowledgePageDistillationQuery(
     new FirebaseKnowledgePageRepository(),
     new FirebaseContentBlockRepository(),
     new SharedAiKnowledgeSummaryAdapter(),

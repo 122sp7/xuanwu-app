@@ -5,4 +5,17 @@
  * Server-only helpers live in ./server.ts.
  */
 
-export type { AIAPI, GenerateAiTextInput, GenerateAiTextOutput, AiTextGenerationPort } from "../subdomains/generation/api";
+export type {
+  AIAPI,
+  GenerateAiTextInput,
+  GenerateAiTextOutput,
+  AiTextGenerationPort,
+} from "../subdomains/generation/api";
+export type {
+  DistillationAPI,
+  DistillContentInput,
+  DistillationItem,
+  DistillationPort,
+  DistillationResult,
+  DistillationSource,
+} from "../subdomains/distillation/api";
