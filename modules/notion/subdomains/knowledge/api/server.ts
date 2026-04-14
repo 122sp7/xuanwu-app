@@ -14,15 +14,11 @@ import { FirebaseKnowledgePageRepository } from "../../../infrastructure/knowled
 import { FirebaseContentBlockRepository } from "../../../infrastructure/knowledge/firebase/FirebaseContentBlockRepository";
 import { FirebaseKnowledgeCollectionRepository } from "../../../infrastructure/knowledge/firebase/FirebaseKnowledgeCollectionRepository";
 import { FirebaseBacklinkIndexRepository } from "../../../infrastructure/knowledge/firebase/FirebaseBacklinkIndexRepository";
-import { makePageRepo, makeBlockRepo, makeCollectionRepo } from "../../../interfaces/knowledge/composition/repositories";
 
 export { FirebaseKnowledgePageRepository };
 export { FirebaseContentBlockRepository };
 export { FirebaseKnowledgeCollectionRepository };
 export { FirebaseBacklinkIndexRepository };
-export { makePageRepo, makeBlockRepo, makeCollectionRepo };
-export type { KnowledgeUseCases } from "../../../interfaces/knowledge/composition/use-cases";
-export { makeKnowledgeUseCases } from "../../../interfaces/knowledge/composition/use-cases";
 
 export async function getKnowledgePageSummary(accountId: string, pageId: string): Promise<KnowledgePageSummary | null> {
   return new GenerateKnowledgePageSummaryQuery(
