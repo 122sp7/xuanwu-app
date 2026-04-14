@@ -4,15 +4,18 @@
 
 ## Context Role
 
-platform 是其他三個主域的治理上游。依 Context Mapper 的 upstream/downstream 關係，它向下游提供身份、組織、存取、權益與營運支撐語言。
+platform 是 account、organization 與 shared operational services 的供應者。它不再同時擁有 identity、billing、AI、analytics 的正典語言，而是與 iam、billing、ai 並列協作。
 
 ## Relationships
 
 | Related Domain | Relationship Type | Platform Position | Published Language |
 |---|---|---|---|
-| workspace | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal |
-| notion | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal、ai capability signal |
-| notebooklm | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal、ai capability signal |
+| iam | Upstream/Downstream | downstream consumer | actor reference、tenant scope、access decision |
+| billing | Upstream/Downstream | downstream consumer | entitlement signal、subscription capability signal |
+| ai | Upstream/Downstream | downstream consumer | ai capability signal、model policy |
+| workspace | Upstream/Downstream | operational supplier | account scope、organization surface、operational service signal |
+| notion | Upstream/Downstream | operational supplier as needed | notification、search、audit、observability signal |
+| notebooklm | Upstream/Downstream | operational supplier as needed | notification、search、audit、observability signal |
 
 ## Mapping Rules
 
@@ -53,9 +56,15 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-	Platform["platform"] -->|actor / org / access / entitlement| Workspace["workspace"]
-	Platform -->|actor / org / access / entitlement / ai| Notion["notion"]
-	Platform -->|actor / org / access / entitlement / ai| NotebookLM["notebooklm"]
+	IAM["iam"] --> Workspace["workspace"]
+	IAM --> Notion["notion"]
+	IAM --> NotebookLM["notebooklm"]
+	Billing["billing"] --> Workspace
+	Billing --> Notion
+	Billing --> NotebookLM
+	AI["ai"] --> Notion
+	AI --> NotebookLM
+	Platform["platform"] -->|account / organization / operational services| Workspace
 ```
 
 ## Document Network

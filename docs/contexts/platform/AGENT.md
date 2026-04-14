@@ -4,28 +4,19 @@
 
 ## Mission
 
-保護 platform 主域作為治理、身份、組織、權益、策略與營運支撐邊界。任何變更都應維持 platform 對治理語言的所有權，不吸收 workspace、notion、notebooklm 的正典業務模型。
+保護 platform 主域作為 account、organization 與營運支撐邊界。任何變更都應維持 platform 對 operational surface 的所有權，不吸收 iam、billing、ai、workspace、notion、notebooklm 的正典語言。
 
 ## Canonical Ownership
 
-- identity
 - account
 - account-profile
 - organization
 - team
-- tenant
-- access-control
-- security-policy
 - platform-config
 - feature-flag
-- entitlement
 - onboarding
 - compliance
 - consent
-- billing
-- subscription
-- referral
-- ai
 - integration
 - secret-management
 - workflow
@@ -35,15 +26,13 @@
 - search
 - audit-log
 - observability
-- analytics
 - support
 
 ## Route Here When
 
-- 問題核心是 actor、organization、tenant、access、policy、entitlement 或商業權益。
-- 問題核心是通知治理、背景任務、平台級搜尋、觀測與支援。
-- 問題核心是共享 AI provider、模型政策、配額、安全護欄或下游主域共同消費的 AI capability。
-- 問題需要提供其他主域共同消費的治理結果。
+- 問題核心是 account、organization、notification、search、audit、observability 或支援能力。
+- 問題核心是平台級 workflow、background job、integration 或 secret-management。
+- 問題需要提供其他主域共同消費的 operational services 或 account-scoped surface。
 
 ## Route Elsewhere When
 
@@ -53,12 +42,12 @@
 
 ## Guardrails
 
-- Actor 與 Identity 屬於 platform，不能在其他主域重定義。
-- entitlement 是 subscription、feature-flag、policy 的解算結果，不等於 plan 本身。
-- ai 屬於 platform 的共享能力治理，不等於 notebooklm 的推理輸出所有權。
+- Actor、Identity、Tenant、AccessDecision 屬於 iam，platform 不重定義它們。
+- Subscription、Entitlement、BillingEvent 屬於 billing，platform 只消費 capability signal。
+- shared AI capability 屬於 ai context，不等於 notebooklm 的推理輸出所有權。
 - secret-management 應與 integration 分離，避免憑證語義擴散。
 - consent 與 compliance 有關，但不是同一個 bounded context。
-- 平台輸出治理信號，不接管其他主域的正典內容生命週期。
+- platform 提供營運與 account surface，不接管其他主域的正典內容生命週期。
 
 ## Dependency Direction
 
@@ -74,8 +63,8 @@
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先保留 platform 作為治理 upstream，而不是內容或推理 owner。
-- notion 與 notebooklm 若需要 AI 能力，先走 platform.ai 的 published language / API boundary。
+- 生成程式碼時，先保留 platform 作為 operational supplier，而不是治理、內容或推理 owner。
+- notion 與 notebooklm 若需要 AI 能力，先走 ai context 的 published language / API boundary。
 - 奧卡姆剃刀：若既有治理子域與單一 use case 能承接需求，就不要新增第二層 policy service、flag service 或 entitlement facade。
 - 只有在外部依賴、敏感治理或跨主域轉譯明確存在時，才建立 port、ACL 或 local DTO。
 - 對 workspace、notion、notebooklm 的輸出應停在 published language / API boundary。

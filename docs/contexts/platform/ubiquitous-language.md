@@ -6,26 +6,19 @@
 
 | Term | Meaning |
 |---|---|
-| Actor | 被平台識別與治理的主體 |
-| Identity | 證明 Actor 是誰的訊號集合 |
-| Account | Actor 的帳號生命週期聚合根 |
+| Account | 平台帳號生命週期聚合根 |
 | AccountProfile | 帳號附屬屬性與偏好 |
-| Organization | 多主體治理邊界 |
-| OrganizationTeam | Organization 邊界內的成員分組實體（內部/外部）。Team 是 OrganizationTeam 的縮寫，不代表獨立 Tenant。 |
-| Tenant | 租戶隔離與 tenant-scoped 規則邊界 |
-| AccessDecision | 對 actor 當下能否執行某行為的判定 |
-| SecurityPolicy | 可版本化的安全規則集合 |
+| Organization | 多主體營運與治理表面 |
+| OrganizationTeam | Organization 邊界內的成員分組實體 |
+| PlatformConfig | 平台設定輪廓與配置管理 |
 | FeatureFlag | 功能暴露與 rollout 的治理開關 |
-| Entitlement | 綜合 subscription、policy、flag 之後的有效權益 |
-| BillingEvent | 財務計價或收費事實 |
-| Subscription | 方案、配額與續期狀態 |
 | Consent | 同意、偏好與資料使用授權紀錄 |
 | Secret | 受控憑證、token 或 integration credential |
 | NotificationRoute | 訊息投遞路由與偏好結果 |
 | AuditLog | 平台級永久稽核證據 |
 | AccountScope | shell 上由 `accountId` 表示的帳號範疇，對應 `AccountType = "user" | "organization"` 所決定的 account context |
-| PersonalAccount | 由單一 Actor 擁有、對應 `AccountType = "user"` 的 account scope |
-| OrganizationAccount | 由 Organization 語意支撐、對應 `AccountType = "organization"` 的 account scope |
+| PersonalAccount | 對應 `AccountType = "user"` 的 account scope |
+| OrganizationAccount | 對應 `AccountType = "organization"` 的 account scope |
 
 ## Shell Surface Terms
 
@@ -47,12 +40,12 @@
 
 ## Language Rules
 
-- 使用 Actor，不使用 User 作為平台通用詞。`AccountType = "user"` 是 code-level string contract，代表「個人 Actor 帳號」，不等於 User 作為命名概念。
-- 使用 Tenant 區分租戶隔離，不以 Organization 代替。
-- 使用 OrganizationTeam 表示 Organization 邊界內的分組（縮寫為 Team 可接受）。Team 不代表獨立的 Tenant 或頂層治理邊界。
-- 使用 Entitlement 表示解算後權益，不用 Plan 或 Feature 混稱。
+- platform 以 Account、Organization、NotificationRoute、AuditLog 等營運語言為主。
+- Actor、Identity、Tenant、AccessDecision 屬於 iam 的 canonical language；platform 只消費其結果。
+- Entitlement、BillingEvent、Subscription 屬於 billing 的 canonical language；platform 不再主張其所有權。
 - 使用 Consent 表示授權與同意，不用 Preference 混稱法律或治理語意。
 - 使用 Secret 表示受控憑證，不放入一般 Integration payload 語言。
+- 使用 OrganizationTeam 表示 Organization 邊界內的分組（縮寫為 Team 可接受）。
 - Organization member 的移除操作使用 `removeMember`（通用）。`dismissPartnerMember` 僅限 external partner 場景，對應 DismissPartnerMember 使用案例。
 - shell route 上的 `accountId` 表示 AccountScope，不等於 workspaceId。
 - shell route 使用 `accountId`，不使用 `organizationId` 當 route param；organization-scoped model 需要時，再由 use case / mapper 顯式轉譯。

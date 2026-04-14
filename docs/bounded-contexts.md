@@ -21,6 +21,80 @@
 
 ## Subdomain Inventory By Main Domain
 
+### iam
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| identity | 已驗證主體與身份信號治理 |
+| access-control | 主體現在能做什麼的授權判定 |
+| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
+| security-policy | 安全規則定義、版本化與發佈 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| session | 將 session 與 token lifecycle 收斂為獨立能力 |
+| consent | 將同意與授權治理從泛用平台設定中切開 |
+| secret-governance | 將 secret access policy 收斂為明確治理邊界 |
+
+### billing
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| billing | 計費狀態、費率與財務證據 |
+| subscription | 方案、配額與續期治理 |
+| entitlement | 有效權益與功能可用性統一解算 |
+| referral | 推薦關係與獎勵追蹤 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| pricing | 價格模型與方案矩陣治理 |
+| invoice | 帳單、請款與對帳流程 |
+| quota-policy | 將可量化商業限制收斂成單一政策語言 |
+
+### ai
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| provider-routing | 模型供應商選擇與路由 |
+| model-policy | 模型能力、版本與使用政策 |
+| safety-guardrail | 安全護欄、內容保護與限制 |
+| prompt-pipeline | prompt、flow 與 tool calling orchestration |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| evaluation-policy | 品質與回歸評估政策 |
+| model-observability | 模型使用量、成本與效能監測 |
+
+### analytics
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| reporting | 報表輸出與查詢整理 |
+| metrics | 指標定義與聚合 |
+| dashboards | 儀表板呈現語義 |
+| telemetry-projection | 事件投影與 read model 匯總 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| experimentation | 實驗分析與對照觀測 |
+| decision-support | 決策輔助與洞察輸出 |
+
 ### workspace
 
 #### Baseline Subdomains
@@ -47,20 +121,14 @@
 
 | Subdomain | 功能註解 |
 |---|---|
-| identity | 已驗證主體與身份信號治理 |
 | account | 帳號聚合根與帳號生命週期 |
 | account-profile | 主體屬性、偏好與治理設定 |
 | organization | 組織、成員與角色邊界 |
-| access-control | 主體現在能做什麼的授權判定 |
-| security-policy | 安全規則定義、版本化與發佈 |
+| team | Organization 內部成員分組治理 |
 | platform-config | 平台設定輪廓與配置管理 |
 | feature-flag | 功能開關策略與發佈節點 |
 | onboarding | 新主體初始設定與引導流程 |
 | compliance | 資料保留、稽核與法規執行 |
-| billing | 計費狀態、費率與財務證據 |
-| subscription | 方案、權益、配額與續期治理 |
-| referral | 推薦關係與獎勵追蹤 |
-| ai | 共享 AI provider 路由、模型政策、配額與安全護欄 |
 | integration | 外部系統整合邊界與契約 |
 | workflow | 平台級流程編排與狀態驅動執行 |
 | notification | 通知路由、偏好與投遞 |
@@ -69,17 +137,15 @@
 | search | 跨域搜尋路由與查詢協調 |
 | audit-log | 永久稽核軌跡與不可否認證據 |
 | observability | 健康量測、追蹤與告警 |
-| analytics | 平台使用行為量測與分析 |
 | support | 客服工單、支援知識與處理流程 |
 
 #### Recommended Gap Subdomains
 
 | Subdomain | 功能註解 |
 |---|---|
-| tenant | 建立多租戶隔離與 tenant-scoped 規則的正典邊界 |
-| entitlement | 建立有效權益與功能可用性的統一解算上下文 |
-| secret-management | 將憑證、token、rotation 從 integration 中切開 |
 | consent | 將同意與資料使用授權從 compliance 中切開 |
+| secret-management | 將憑證、token、rotation 從 integration 中切開 |
+| operational-catalog | 將平台營運資產與配置字典收斂成單一邊界 |
 
 ### notion
 
@@ -131,8 +197,12 @@
 
 ## Ownership Rules
 
+- iam 擁有身份、租戶與 access decision，不擁有商業、內容或推理正典。
+- billing 擁有 subscription 與 entitlement，不擁有身份治理或內容正典。
+- ai 擁有 shared AI capability，不擁有內容或 notebook 推理正典。
+- analytics 擁有下游報表與 projection，不擁有上游寫入模型。
+- platform 擁有 account、organization 與 operational service，不再作為所有治理能力的總擁有者。
 - workspace 擁有工作區範疇，不擁有平台治理或正典內容。
-- platform 擁有治理與權益，不擁有正典內容或推理輸出。
 - notion 擁有正典知識內容，不擁有治理或推理流程。
 - notebooklm 擁有推理流程與衍生輸出，不擁有正典知識內容。
 
@@ -145,9 +215,11 @@
 ## Conflict Resolution
 
 - 若某子域同時被多個主域宣稱，依最能維持語言自洽與 context map 方向的主域保留所有權。
-- 若某能力同時像治理又像內容，先問它是否定義 actor / tenant / entitlement；若是，歸 platform。
+- 若某能力定義 actor、identity、tenant 或 access decision，優先歸 iam。
+- 若某能力定義 subscription、entitlement、pricing 或 referral，優先歸 billing。
+- 若某能力定義 shared model capability、provider routing、safety 或 prompt orchestration，優先歸 ai。
+- 若某能力只消費事件並形成報表或 read model，優先歸 analytics。
 - 若某能力同時像內容又像推理輸出，先問它是否是正典內容狀態；若是，歸 notion，否則歸 notebooklm。
-- generic `ai` 由 platform 擁有；notion 與 notebooklm 只能消費 platform 的 AI capability，不能再各自宣稱 `ai` 子域。
 - `workflow` 作為 generic 名稱只保留在 platform；workspace 使用 `workspace-workflow` 避免跨主域混名。
 
 ## Forbidden Ownership Moves

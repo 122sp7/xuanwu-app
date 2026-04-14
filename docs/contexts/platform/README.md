@@ -96,7 +96,7 @@ platform 是帳號、組織與 shared operational services 主域。它的責任
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先保留 platform 的治理定位，再安排 identity、access、entitlement、ai、secret-management 的交互。
+- 生成程式碼時，先保留 platform 的 operational 定位，再安排 account、organization、notification、search、audit、secret-management 的交互。
 - 奧卡姆剃刀：不要預先建立多餘 facade；能直接由既有治理邊界承接就維持單一路徑。
 - 優先讓 request -> orchestration -> domain decision -> published language 保持單純可追溯。
 

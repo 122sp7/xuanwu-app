@@ -223,7 +223,7 @@
 
 ### Rule 31: AI Input Traceability
 - ✅ Every AI request logged: [timestamp, source, input, model, params]
-- ✅ Logging in application/ service before sending to platform.ai
+- ✅ Logging in application/ service before sending to the ai context
 - ❌ NEVER lose context (prompt + source + groundings)
 - ✅ Can replay prompts; deterministic when possible
 
@@ -293,7 +293,7 @@
 ### Rule 27: Workspace Cannot Direct-Call AI
 - ✅ workspace orchestrates; notebooklm synthesizes
 - ✅ workspace calls notebooklm.api; notebooklm handles AI routing
-- ❌ NEVER workspace imports platform.ai or genkit directly
+- ❌ NEVER workspace imports the ai context or genkit directly
 - ✅ Decouples UI from AI complexity
 ```
 
@@ -330,7 +330,7 @@ Each module should have its own constraints section, such as:
 ```markdown
 ## Notion-Specific Hard Rules
 
-1. **Rule 26**: Notion is agnostic of AI systems; zero imports from notebooklm or platform.ai
+1. **Rule 26**: Notion is agnostic of AI systems; zero imports from notebooklm or the ai context
 2. **Rule 24-25**: Notion owns knowledge artifact authoring; others access via notion.api only
 3. **Rule 24**: Notion controls persistence schema; downstream modules don't query Firestore
 ```
@@ -341,7 +341,7 @@ Each module should have its own constraints section, such as:
 ## NotebookLM-Specific Hard Rules
 
 1. **Rule 24-25**: All knowledge data requests via notion.api; never direct Firestore
-2. **Rule 27**: Workspace calls notebooklm.api; notebooklm routes to platform.ai internally
+2. **Rule 27**: Workspace calls notebooklm.api; notebooklm routes to the ai context internally
 3. **Rule 31-32**: All AI prompts/outputs logged with full traceability metadata
 4. **Rule 34**: Retrieval + synthesis always async; non-blocking to request
 ```

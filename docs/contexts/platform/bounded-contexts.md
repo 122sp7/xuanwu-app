@@ -4,17 +4,16 @@
 
 ## Domain Role
 
-platform 是治理與營運支撐主域。依 bounded context 原則，它應把 actor、organization、access、policy、entitlement、billing 與 operational intelligence 封裝成清楚的上下文，而非讓這些責任滲入其他主域。
+platform 是 account、organization 與 operational-service 主域。依 bounded context 原則，它應把帳號與營運支撐責任封裝成清楚的上下文，而不是再作為 identity、billing、AI、analytics 的 umbrella owner。
 
 ## Baseline Bounded Contexts
 
 | Cluster | Subdomains |
 |---|---|
-| Identity and Organization | identity, account, account-profile, organization, team, tenant |
-| Governance | access-control, security-policy, platform-config, feature-flag, onboarding, compliance, consent |
-| Commercial | billing, subscription, referral, entitlement |
-| Delivery and Operations | ai, integration, workflow, notification, background-job, secret-management |
-| Intelligence and Audit | content, search, audit-log, observability, analytics, support |
+| Account and Organization | account, account-profile, organization, team |
+| Platform Governance and Configuration | platform-config, feature-flag, onboarding, compliance |
+| Delivery and Operations | integration, workflow, notification, background-job, secret-management |
+| Intelligence and Audit | content, search, audit-log, observability, support |
 
 ## Strategic Reinforcement Focus
 
@@ -45,7 +44,7 @@ platform 是治理與營運支撐主域。依 bounded context 原則，它應把
 - 把 entitlement 當成 subscription plan 名稱或 UI 開關。
 - 把 secret-management 混回 integration，使敏感治理責任失焦。
 - 讓 platform 直接持有其他主域的正典內容或推理模型。
-- 把 platform.ai 與 notebooklm 的 retrieval / grounding / synthesis 混成同一個子域所有權。
+- 把 ai context 與 notebooklm 的 retrieval / grounding / synthesis 混成同一個子域所有權。
 
 ## Copilot Generation Rules
 

@@ -10,20 +10,22 @@ workspace 對其他主域提供工作區範疇。依 Context Mapper 的 context 
 
 | Related Domain | Relationship Type | Workspace Position | Published Language |
 |---|---|---|---|
-| platform | Upstream/Downstream | downstream | actor reference、organization scope、access decision、entitlement signal |
+| iam | Upstream/Downstream | downstream | actor reference、tenant scope、access decision |
+| billing | Upstream/Downstream | downstream | entitlement signal、subscription capability signal |
+| platform | Upstream/Downstream | downstream | account scope、organization surface、operational service signal |
 | notion | Upstream/Downstream | upstream | workspaceId、membership scope、share scope |
 | notebooklm | Upstream/Downstream | upstream | workspaceId、membership scope、share scope |
 
 ## Mapping Rules
 
-- workspace 消費 platform 的治理結果，但不重建 identity、policy 或 entitlement 模型。
+- workspace 消費 iam、billing、platform 的 signals 與治理結果，但不重建 identity、policy 或 entitlement 模型。
 - notion 與 notebooklm 可以在 workspace scope 內運作，但不反向定義 workspace 生命週期。
 - sharing 與 membership 是 workspace 對內容與對話主域輸出的核心 published language。
 - 與其他主域的整合優先使用 API 邊界或事件，而不是直接模型滲透。
 
 ## Dependency Direction
 
-- workspace 對 platform 屬 downstream；對 notion 與 notebooklm 屬 upstream 的 scope supplier。
+- workspace 對 iam、billing、platform 屬 downstream；對 notion 與 notebooklm 屬 upstream 的 scope supplier。
 - workspace 對外輸出 workspaceId、membership scope、share scope，而不是內部 aggregate 或投影實作。
 - downstream 若需保護自己的語言，ACL 由 downstream 自行實作，不由 workspace 代做。
 
@@ -54,7 +56,9 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-	Platform["platform"] -->|actor / access / entitlement| Boundary["workspace API boundary"]
+	IAM["iam"] -->|actor / tenant / access| Boundary["workspace API boundary"]
+	Billing["billing"] -->|entitlement| Boundary
+	Platform["platform"] -->|account / organization surface| Boundary
 	Boundary --> ACL["ACL or local DTO"]
 	ACL --> Domain["Workspace domain"]
 	Domain --> Scope["workspaceId / membership scope / share scope"]

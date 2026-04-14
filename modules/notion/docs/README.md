@@ -22,7 +22,7 @@ Strategic architecture documentation lives in `docs/contexts/notion/`:
 
 - Workspace route authority stays outside notion: when local implementation docs mention shell-facing navigation, point to the canonical workspace route `/{accountId}/{workspaceId}` owned by workspace composition.
 - Scope-token authority stays in the root docs: notion consumes `accountId` and `workspaceId` as published scope inputs and uses concrete user identifiers such as `currentUserId` or `createdByUserId` for acting users.
-- If notion implementation notes describe AI or orchestration, keep ownership language aligned with the root baseline: platform owns shared AI capability; notion consumes it.
+- If notion implementation notes describe AI or orchestration, keep ownership language aligned with the root baseline: the AI context owns shared AI capability; notion consumes it.
 - System-wide baseline remains the root architecture set: Hexagonal + DDD, Firebase serverless backend, Genkit orchestration, Zustand/XState frontend state, and Zod runtime validation.
 
 ## Conflict Resolution

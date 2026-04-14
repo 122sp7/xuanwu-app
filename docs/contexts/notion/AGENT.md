@@ -31,8 +31,8 @@
 
 ## Route Elsewhere When
 
-- 身份、租戶、授權、權益、憑證治理屬於 platform。
-- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
+- 身份、租戶與授權治理屬於 iam；權益屬於 billing；憑證與營運服務屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 ai context。
 - 工作區生命週期、共享、存在感與工作區流程屬於 workspace。
 - notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
 
@@ -41,7 +41,7 @@
 - notion 的正典內容不等於 notebooklm 的衍生輸出。
 - taxonomy 與 relations 應作為內容語義邊界，而不是 UI 功能附屬物。
 - publishing 應與 authoring 分離，避免編輯語意與交付語意混用。
-- notion 可以消費 platform.ai，但不擁有 AI provider / policy 的正典邊界。
+- notion 可以消費 ai context，但不擁有 AI provider / policy 的正典邊界。
 - attachments 是內容資產語言，不是平台 secret 或一般檔案暫存語言。
 - 跨主域互動只經過 published language、API 邊界或事件。
 
@@ -55,12 +55,12 @@
 
 - 不得讓 notebooklm 的 Conversation、Synthesis 直接滲入 notion 作為正典內容模型。
 - 不得讓 domain 或 application 直接依賴 UI、HTTP、資料庫 SDK 或框架語言。
-- 不得讓 notion 直接接管 platform 的 actor、tenant、entitlement 治理責任。
+- 不得讓 notion 直接接管 iam 的 actor、tenant、access 或 billing 的 entitlement 治理責任。
 
 ## Copilot Generation Rules
 
 - 生成程式碼時，先保留 notion 作為正典內容主域，不讓治理或推理語言滲入核心。
-- 內容輔助若只是支援 knowledge / authoring / publishing use case，先消費 platform.ai，而不是在 notion 內重建 generic `ai` 子域。
+- 內容輔助若只是支援 knowledge / authoring / publishing use case，先消費 ai context，而不是在 notion 內重建 generic `ai` 子域。
 - 奧卡姆剃刀：若一個既有內容子域與一條清楚 use case 就能承接需求，不要再新增額外 service、mapper 或子域。
 - 只有在外部依賴或跨主域語義污染出現時，才建立 port、ACL 或 local DTO。
 - 對 notebooklm 或 workspace 的互動一律先經 published language / API boundary，再進入 notion 語言。

@@ -24,16 +24,16 @@
 
 ## Anti-Patterns
 
-- 不把 retrieval 與 grounding 併回 source 或 platform.ai 接入層，否則推理鏈條失去清楚邊界。
+- 不把 retrieval 與 grounding 併回 source 或 ai context 接入層，否則推理鏈條失去清楚邊界。
 - 不把 evaluation 只當成 dashboard 指標，否則品質語言無法成為可演化的關注點。
 - 不把 notebook、conversation 混成單一 UI 容器語意，否則無法維持聚合邊界。
-- 不把 platform.ai 的共享能力誤寫成 notebooklm 自己擁有的 `ai` 子域。
+- 不把 ai context 的共享能力誤寫成 notebooklm 自己擁有的 `ai` 子域。
 - 不過早拆分子域：只有當語言分歧或演化速率不同時才拆分。
 
 ## Copilot Generation Rules
 
 - 生成程式碼時，先問新需求落在哪個既有子域；只有既有子域無法容納時才建立新子域。
-- 模型 provider、配額與安全護欄優先歸 platform.ai；notebooklm 在 synthesis 保留 pipeline 本地語義。
+- 模型 provider、配額與安全護欄優先歸 ai context；notebooklm 在 synthesis 保留 pipeline 本地語義。
 - 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新增第二個平行子域。
 - 子域命名應反映責任與語義，不應只是頁面名稱或工具名稱。
 

@@ -22,8 +22,8 @@
 ## Route Elsewhere When
 
 - 正典知識頁面、內容分類、正式發布屬於 notion。
-- 身份、授權、權益、憑證治理屬於 platform。
-- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
+- 身份、授權與 tenant 治理屬於 iam；權益屬於 billing；憑證與營運服務屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 ai context。
 - 工作區生命週期、共享與存在感屬於 workspace。
 
 ## Guardrails
@@ -44,12 +44,12 @@
 - 不得把 notion 的 KnowledgeArtifact 直接當成 notebooklm 的本地主域模型。
 - 不得讓 domain 或 application 直接依賴模型 SDK、向量儲存或外部檔案處理框架。
 - 不得讓 notebooklm 直接改寫 workspace 或 notion 的內部狀態，而繞過其 API 邊界。
-- 不得建立獨立的 `ai` 子域與 platform.ai 語義重疊。
+- 不得建立獨立的 `ai` 子域與 ai context 語義重疊。
 
 ## Copilot Generation Rules
 
 - 生成程式碼時，先維持 notebooklm 作為 downstream 推理主域，不回推治理或正典內容所有權。
-- 共享模型能力若已由 platform.ai 提供，就不要在 notebooklm 再建立第二個 generic `ai` 子域。
+- 共享模型能力若已由 ai context 提供，就不要在 notebooklm 再建立第二個 generic `ai` 子域。
 - 奧卡姆剃刀：若較少的抽象已能保護邊界，就不要額外新增 port、ACL、DTO、subdomain 或 process manager。
 - 只有碰到外部依賴、語義污染或跨主域轉譯時，才建立 port、ACL 或 local DTO。
 - 任何跨主域互動都先走 API boundary / published language，再轉成本地主域語言。

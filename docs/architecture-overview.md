@@ -20,7 +20,7 @@
 - 主域內部採用 Hexagonal Architecture（Ports and Adapters）+ Domain-Driven Design（DDD）。
 - 領域建模採 semantic-first，優先對齊 business language，再決定資料結構與 adapter 位置。
 - 後端 runtime 基線採 Firebase Serverless Backend Architecture：Authentication、Firestore、Cloud Functions、Hosting。
-- AI orchestration 基線採 Genkit：AI Flows、Tool Calling、Prompt Pipelines 皆視為外部能力，由 platform.ai 統一治理。
+- AI orchestration 基線採 Genkit：AI Flows、Tool Calling、Prompt Pipelines 皆視為外部能力，由 ai context 統一治理。
 - 前端 state 基線採 Zustand 與 XState：Zustand 承接輕量 client state，XState 承接有限狀態工作流。
 - runtime validation 基線採 Zod：所有外部輸入先經 Zod，再進入 application 與 domain。
 - 主域之間只透過 published language、API 邊界或事件互動。

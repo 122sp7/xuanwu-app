@@ -67,12 +67,12 @@ notion 是知識內容生命週期主域。它的責任是提供 knowledge artif
 - 不把 notebooklm 的衍生輸出直接當成 notion 正典內容。
 - 不把 taxonomy、relations、publishing 壓回單一 knowledge 編輯流程。
 - 不把 platform 的治理語言混成內容生命週期本身。
-- 不把 platform.ai 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
+- 不把 ai context 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
 
 ## Copilot Generation Rules
 
 - 生成程式碼時，先保留 notion 的正典內容定位，再安排 authoring、knowledge、taxonomy、publishing 的交互。
-- 內容輔助、摘要與生成若只是內容 use case 的支援能力，優先由 knowledge / authoring use case 消費 `platform.ai`，而不是在 notion 再建一個 generic `ai` 子域。
+- 內容輔助、摘要與生成若只是內容 use case 的支援能力，優先由 knowledge / authoring use case 消費 ai context，而不是在 notion 再建一個 generic `ai` 子域。
 - 奧卡姆剃刀：不要預先新增第二套內容流程，只在既有內容邊界真的不夠時才補新抽象。
 - 優先讓同一條 input -> translation -> application -> domain -> publication 流程保持單純可追溯。
 

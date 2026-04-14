@@ -22,7 +22,7 @@ Strategic architecture documentation lives in `docs/contexts/notebooklm/`:
 
 - Workspace route authority stays outside notebooklm: when local implementation docs mention shell-facing navigation, point to the canonical workspace route `/{accountId}/{workspaceId}` owned by workspace composition.
 - Identifier authority must remain explicit: `accountId` is account scope, `workspaceId` is workspace scope, `organizationId` is an internal organization-scoped token for source/synthesis flows, and it must not be documented as a shell route param.
-- If notebooklm implementation notes mention AI, keep ownership aligned with the root baseline: platform owns shared AI capability; notebooklm owns local retrieval, grounding, synthesis, and evaluation language.
+- If notebooklm implementation notes mention AI, keep ownership aligned with the root baseline: the AI context owns shared AI capability; notebooklm owns local retrieval, grounding, synthesis, and evaluation language.
 - System-wide baseline remains the root architecture set: Hexagonal + DDD, Firebase serverless backend, Genkit orchestration, Zustand/XState frontend state, and Zod runtime validation.
 
 ## Conflict Resolution
