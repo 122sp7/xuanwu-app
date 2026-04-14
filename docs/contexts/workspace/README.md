@@ -17,9 +17,9 @@ workspace 是協作容器與工作區範疇主域。它的責任是提供 worksp
 | Aspect | Summary |
 |---|---|
 | Primary Role | 協作容器與 workspace scope |
-| Upstream Dependency | platform 的 actor、organization、access、entitlement |
+| Upstream Dependency | iam 的 actor、tenant、access decision；billing 的 entitlement；platform 的 account 與 organization surface |
 | Downstream Consumers | notion、notebooklm |
-| Core Principle | workspace 暴露 scope，不接管治理或內容正典 |
+| Core Principle | workspace 暴露 scope，不接管治理、商業或內容正典 |
 
 ## Baseline Subdomains
 
@@ -37,7 +37,9 @@ workspace 是協作容器與工作區範疇主域。它的責任是提供 worksp
 
 ## Key Relationships
 
-- 與 platform：workspace 是治理結果的 downstream consumer。
+- 與 iam：workspace 消費 actor、tenant 與 access decision。
+- 與 billing：workspace 消費 entitlement 與 subscription capability signal。
+- 與 platform：workspace 消費 account scope 與 organization surface。
 - 與 notion：workspace 向 notion 提供 workspaceId、membership scope、share scope。
 - 與 notebooklm：workspace 向 notebooklm 提供 workspaceId、membership scope、share scope。
 

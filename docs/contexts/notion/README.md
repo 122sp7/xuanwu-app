@@ -17,9 +17,9 @@ notion 是知識內容生命週期主域。它的責任是提供 knowledge artif
 | Aspect | Summary |
 |---|---|
 | Primary Role | 正典知識內容生命週期 |
-| Upstream Dependency | platform 治理、workspace scope |
+| Upstream Dependency | iam 治理、billing entitlement、ai capability、workspace scope |
 | Downstream Consumer | notebooklm |
-| Core Principle | notion 擁有正式內容，不擁有治理或推理過程 |
+| Core Principle | notion 擁有正式內容，不擁有治理、商業或推理過程 |
 
 ## Baseline Subdomains
 
@@ -43,7 +43,9 @@ notion 是知識內容生命週期主域。它的責任是提供 knowledge artif
 
 ## Key Relationships
 
-- 與 platform：notion 消費 actor、organization、access、entitlement、ai capability。
+- 與 iam：notion 消費 actor、tenant 與 access decision。
+- 與 billing：notion 消費 entitlement 與 subscription capability signal。
+- 與 ai：notion 消費 ai capability、model policy 與 safety result。
 - 與 workspace：notion 消費 workspaceId、membership scope、share scope。
 - 與 notebooklm：notion 向 notebooklm 提供 knowledge artifact reference 與 attachment reference。
 

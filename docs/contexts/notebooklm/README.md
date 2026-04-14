@@ -17,9 +17,9 @@ notebooklm 是對話、來源處理與推理主域。它的責任是提供 noteb
 | Aspect | Summary |
 |---|---|
 | Primary Role | 對話、來源處理、檢索與推理輸出 |
-| Upstream Dependency | platform 治理、workspace scope、notion 內容來源 |
+| Upstream Dependency | iam 治理、billing entitlement、ai capability、workspace scope、notion 內容來源 |
 | Downstream Consumer | 無固定主域級 consumer；輸出可被其他主域吸收 |
-| Core Principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容 |
+| Core Principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容或共享 AI capability |
 
 ## Baseline Subdomains
 
@@ -39,7 +39,9 @@ notebooklm 是對話、來源處理與推理主域。它的責任是提供 noteb
 
 ## Key Relationships
 
-- 與 platform：notebooklm 消費 actor、organization、access、entitlement、ai capability。
+- 與 iam：notebooklm 消費 actor、tenant 與 access decision。
+- 與 billing：notebooklm 消費 entitlement 與 subscription capability signal。
+- 與 ai：notebooklm 消費 ai capability、model policy 與 safety result。
 - 與 workspace：notebooklm 消費 workspaceId、membership scope、share scope。
 - 與 notion：notebooklm 消費 knowledge artifact reference、attachment reference、taxonomy hint。
 
