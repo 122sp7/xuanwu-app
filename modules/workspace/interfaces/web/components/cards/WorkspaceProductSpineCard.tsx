@@ -103,7 +103,7 @@ export function WorkspaceProductSpineCard({ workspace }: WorkspaceProductSpineCa
               <Link href={`/${encodeURIComponent(workspace.accountId)}/${encodeURIComponent(workspace.id)}?tab=AiChat`}>AI 對話</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href={`/${encodeURIComponent(workspace.accountId)}/${encodeURIComponent(workspace.id)}?tab=Notebook`}>
+              <Link href={`/${encodeURIComponent(workspace.accountId)}/${encodeURIComponent(workspace.id)}?tab=NotebookSynthesis`}>
                 RAG Query
               </Link>
             </Button>

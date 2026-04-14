@@ -111,7 +111,7 @@ export function renderWorkspaceCrossModuleTabSurface(
           </CardContent>
         </Card>
       );
-    case "Notebook":
+    case "NotebookSynthesis":
       return <RagQueryPanel workspaceId={workspace.id} />;
     case "AiChat":
       return (
@@ -121,9 +121,9 @@ export function renderWorkspaceCrossModuleTabSurface(
           requestedWorkspaceId={workspace.id}
         />
       );
-    case "NotebookNotebook":
+    case "NotebookManager":
       return renderWorkspacePlaceholder(
-        "NotebookLM Notebook",
+        "NotebookLM Notebooks",
         "Notebook subdomain currently exposes actions without a dedicated workspace-facing panel. This tab is reserved for future notebook-centric UI.",
       );
     default:
