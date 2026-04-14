@@ -9,21 +9,25 @@ import "server-only";
 
 import { GenerateKnowledgePageSummaryQuery } from "../application/queries/knowledge-summary.queries";
 import type { KnowledgePageSummary } from "../application/dto/knowledge.dto";
-import { makeKnowledgeSummaryPort } from "../../../interfaces/knowledge/composition/capabilities";
+import { SharedAiKnowledgeSummaryAdapter } from "../../../infrastructure/knowledge/ai/SharedAiKnowledgeSummaryAdapter";
+import { FirebaseKnowledgePageRepository } from "../../../infrastructure/knowledge/firebase/FirebaseKnowledgePageRepository";
+import { FirebaseContentBlockRepository } from "../../../infrastructure/knowledge/firebase/FirebaseContentBlockRepository";
+import { FirebaseKnowledgeCollectionRepository } from "../../../infrastructure/knowledge/firebase/FirebaseKnowledgeCollectionRepository";
+import { FirebaseBacklinkIndexRepository } from "../../../infrastructure/knowledge/firebase/FirebaseBacklinkIndexRepository";
 import { makePageRepo, makeBlockRepo, makeCollectionRepo } from "../../../interfaces/knowledge/composition/repositories";
 
-export { FirebaseKnowledgePageRepository } from "../../../infrastructure/knowledge/firebase/FirebaseKnowledgePageRepository";
-export { FirebaseContentBlockRepository } from "../../../infrastructure/knowledge/firebase/FirebaseContentBlockRepository";
-export { FirebaseKnowledgeCollectionRepository } from "../../../infrastructure/knowledge/firebase/FirebaseKnowledgeCollectionRepository";
-export { FirebaseBacklinkIndexRepository } from "../../../infrastructure/knowledge/firebase/FirebaseBacklinkIndexRepository";
+export { FirebaseKnowledgePageRepository };
+export { FirebaseContentBlockRepository };
+export { FirebaseKnowledgeCollectionRepository };
+export { FirebaseBacklinkIndexRepository };
 export { makePageRepo, makeBlockRepo, makeCollectionRepo };
 export type { KnowledgeUseCases } from "../../../interfaces/knowledge/composition/use-cases";
 export { makeKnowledgeUseCases } from "../../../interfaces/knowledge/composition/use-cases";
 
 export async function getKnowledgePageSummary(accountId: string, pageId: string): Promise<KnowledgePageSummary | null> {
   return new GenerateKnowledgePageSummaryQuery(
-    makePageRepo(),
-    makeBlockRepo(),
-    makeKnowledgeSummaryPort(),
+    new FirebaseKnowledgePageRepository(),
+    new FirebaseContentBlockRepository(),
+    new SharedAiKnowledgeSummaryAdapter(),
   ).execute(accountId, pageId);
 }
