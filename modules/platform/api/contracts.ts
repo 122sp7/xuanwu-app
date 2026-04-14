@@ -125,10 +125,6 @@ export interface StorageAPI {
 	toGsUri(path: string): string;
 }
 
-export interface GenkitAPI {
-	runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput>;
-}
-
 export interface FunctionsCallOptions {
 	readonly region?: string;
 }

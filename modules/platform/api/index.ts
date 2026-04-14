@@ -84,15 +84,6 @@ export {
 // background-job — knowledge ingestion pipeline management
 export * from "../subdomains/background-job/api";
 
-// ai — shared AI provider capability (types only — client-safe)
-// Server-only functions (generateAiText, summarize) are in platform/api/server.ts
-export {
-  type AIAPI,
-  type GenerateAiTextInput,
-  type GenerateAiTextOutput,
-  type AiTextGenerationPort,
-} from "../subdomains/ai/api";
-
 // Shell UI components, React hooks, and app-context types are in api/ui.ts.
 // @see ADR-1200 — UI components removed from capability-contract boundary.
 

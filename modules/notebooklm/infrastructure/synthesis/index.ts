@@ -5,4 +5,4 @@
 export { FirebaseRagRetrievalAdapter } from "./firebase/FirebaseRagRetrievalAdapter";
 export { FirebaseKnowledgeContentAdapter } from "./firebase/FirebaseKnowledgeContentAdapter";
 export { FirebaseRagQueryFeedbackAdapter } from "./firebase/FirebaseRagQueryFeedbackAdapter";
-export { PlatformRagGenerationAdapter } from "./platform/PlatformRagGenerationAdapter";
+export { AiRagGenerationAdapter } from "./ai/AiRagGenerationAdapter";

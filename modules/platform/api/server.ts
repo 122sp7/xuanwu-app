@@ -1,7 +1,7 @@
 /**
  * platform — server-only API barrel.
  *
- * Exports that depend on server-only packages (genkit, Firebase Admin, etc.).
+ * Exports that depend on server-only infrastructure packages or event-bus wiring.
  * Must only be imported in Server Actions, route handlers, or server-side
  * infrastructure adapters.
  */
@@ -37,4 +37,4 @@ export function createPlatformEventInfrastructure(): PlatformEventInfrastructure
   };
 }
 
-export { generateAiText, summarize } from "../subdomains/ai/api/server";
+

@@ -6,14 +6,14 @@ import type {
 } from "../../../subdomains/notebook/api";
 import {
   GenerateNotebookResponseUseCase,
-  PlatformTextGenerationAdapter,
+  AiTextGenerationAdapter,
 } from "../../../subdomains/notebook/api/server";
 import { saveThread, loadThread } from "./thread.actions";
 
 export async function sendChatMessage(
   input: GenerateNotebookResponseInput,
 ): Promise<GenerateNotebookResponseResult> {
-  const useCase = new GenerateNotebookResponseUseCase(new PlatformTextGenerationAdapter());
+  const useCase = new GenerateNotebookResponseUseCase(new AiTextGenerationAdapter());
   return useCase.execute(input);
 }
 

@@ -1,5 +1,5 @@
-import { PlatformTextGenerationAdapter } from "../../../infrastructure/notebook/platform/PlatformTextGenerationAdapter";
+import { AiTextGenerationAdapter } from "../../../infrastructure/notebook/ai/AiTextGenerationAdapter";
 
 export function makeNotebookRepo() {
-  return new PlatformTextGenerationAdapter();
+  return new AiTextGenerationAdapter();
 }

@@ -12,6 +12,5 @@
 export {
   firestoreInfrastructureApi,
   storageInfrastructureApi,
-  genkitInfrastructureApi,
   functionsInfrastructureApi,
 } from "./infrastructure-api";

@@ -10,7 +10,7 @@ import "server-only";
  * composition still goes through workspace/api when workspace owns the flow.
  */
 
-export { GenerateNotebookResponseUseCase, PlatformTextGenerationAdapter } from "../subdomains/notebook/api/server";
+export { GenerateNotebookResponseUseCase, AiTextGenerationAdapter } from "../subdomains/notebook/api/server";
 
 // Q&A subdomain — AnswerRagQueryUseCase factory (now in synthesis subdomain)
 export { createAnswerRagQueryUseCase } from "../subdomains/synthesis/api/server";

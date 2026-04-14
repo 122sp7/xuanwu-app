@@ -14,7 +14,6 @@ import type {
 	FunctionsCallOptions,
 	FirestoreQueryOptions,
 	FirestoreWhereClause,
-	GenkitAPI,
 	StorageAPI,
 	StorageUploadOptions,
 } from "./contracts";
@@ -275,20 +274,6 @@ export const storageInfrastructureApi: StorageAPI = {
 	toGsUri(path: string): string {
 		const normalizedPath = resolveStoragePath(path);
 		return `gs://${resolveStorageBucket()}/${normalizedPath}`;
-	},
-};
-
-export const genkitInfrastructureApi: GenkitAPI = {
-	async runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput> {
-		const normalizedFlow = flow.trim();
-		if (!normalizedFlow) {
-			throw new Error("Flow name is required.");
-		}
-
-		const functions = getFirebaseFunctions(DEFAULT_FUNCTION_REGION);
-		const runFlow = functionsApi.httpsCallable(functions, "platform_run_genkit_flow");
-		const response = await runFlow({ flow: normalizedFlow, input });
-		return response.data as TOutput;
 	},
 };
 

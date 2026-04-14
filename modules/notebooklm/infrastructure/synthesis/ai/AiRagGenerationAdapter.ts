@@ -1,15 +1,12 @@
 /**
  * Module: notebooklm/subdomains/synthesis
- * Layer: infrastructure/platform
- * Purpose: Implements RagGenerationRepository by delegating model invocation
- *          to platform AI API. Prompt construction and citation building stay
- *          in this adapter (domain-specific to synthesis).
- *
- * All Genkit wiring lives exclusively in
- * modules/platform/subdomains/ai/infrastructure.
+ * Layer: infrastructure/ai
+ * Purpose: Implements RagGenerationRepository by delegating shared model invocation
+ *          to the AI bounded-context API. Prompt construction and citation building stay
+ *          local to NotebookLM synthesis semantics.
  */
 
-import { generateAiText } from "@/modules/platform/api/server";
+import { generateAiText } from "@/modules/ai/api/server";
 import type { RagGenerationRepository } from "../../../subdomains/synthesis/domain/repositories/RagGenerationRepository";
 import type {
   GenerateRagAnswerInput,
@@ -17,8 +14,6 @@ import type {
   GenerateRagAnswerOutput,
   GenerationCitation,
 } from "../../../subdomains/synthesis/domain/entities/generation.entities";
-
-// --- Prompt construction helpers (pure, testable) ----------------------------
 
 function formatChunkForPrompt(chunk: GenerateRagAnswerInput["chunks"][number]): string {
   const pageLabel = typeof chunk.page === "number" ? ` page:${chunk.page}` : "";
@@ -45,12 +40,10 @@ function buildCitations(input: GenerateRagAnswerInput): readonly GenerationCitat
   }));
 }
 
-// --- Adapter ------------------------------------------------------------------
-
 const SYSTEM_PROMPT =
   "You are the Xuanwu RAG orchestration layer. Answer only from the supplied context and preserve citations.";
 
-export class PlatformRagGenerationAdapter implements RagGenerationRepository {
+export class AiRagGenerationAdapter implements RagGenerationRepository {
   async generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult> {
     try {
       const result = await generateAiText({

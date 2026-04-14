@@ -8,7 +8,7 @@
 
 import { FirebaseRagRetrievalAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseRagRetrievalAdapter";
 import { FirebaseKnowledgeContentAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter";
-import { PlatformRagGenerationAdapter } from "../../../infrastructure/synthesis/platform/PlatformRagGenerationAdapter";
+import { AiRagGenerationAdapter } from "../../../infrastructure/synthesis/ai/AiRagGenerationAdapter";
 import { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
 import type {
   KnowledgeParsedDocument,
@@ -16,7 +16,7 @@ import type {
   KnowledgeReindexInput,
 } from "../domain/repositories/KnowledgeContentRepository";
 
-export { PlatformRagGenerationAdapter } from "../../../infrastructure/synthesis/platform/PlatformRagGenerationAdapter";
+export { AiRagGenerationAdapter } from "../../../infrastructure/synthesis/ai/AiRagGenerationAdapter";
 
 let knowledgeContentRepository: FirebaseKnowledgeContentAdapter | undefined;
 
@@ -30,7 +30,7 @@ function getKnowledgeContentRepository(): FirebaseKnowledgeContentAdapter {
 export function createAnswerRagQueryUseCase(): AnswerRagQueryUseCase {
   return new AnswerRagQueryUseCase(
     new FirebaseRagRetrievalAdapter(),
-    new PlatformRagGenerationAdapter(),
+    new AiRagGenerationAdapter(),
   );
 }
 

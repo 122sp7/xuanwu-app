@@ -5,5 +5,5 @@
  * Must only be imported in Server Actions, route handlers, or server-side infrastructure.
  */
 
-export { PlatformTextGenerationAdapter } from "../../../infrastructure/notebook/platform/PlatformTextGenerationAdapter";
+export { AiTextGenerationAdapter } from "../../../infrastructure/notebook/ai/AiTextGenerationAdapter";
 export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-notebook-response.use-case";
