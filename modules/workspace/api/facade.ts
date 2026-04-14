@@ -80,6 +80,8 @@ export {
   getWorkspaceFlowTaskMaterializationBatchJobs,
   getWorkspaceFlowTaskMaterializationBatchJob,
   createKnowledgeToWorkflowListener,
+  extractTaskCandidatesFromKnowledge,
+  submitTaskMaterializationBatchJob,
 } from "../subdomains/workspace-workflow/api";
 
 export type {

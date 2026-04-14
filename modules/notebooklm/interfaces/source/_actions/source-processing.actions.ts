@@ -25,6 +25,7 @@ interface ProcessSourceDocumentWorkflowActionInput {
   readonly sizeBytes: number;
   readonly shouldRunRag: boolean;
   readonly shouldCreatePage: boolean;
+  readonly shouldCreateTasks: boolean;
   readonly createdByUserId?: string | null;
 }
 

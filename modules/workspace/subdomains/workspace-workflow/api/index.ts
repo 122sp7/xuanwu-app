@@ -94,6 +94,13 @@ export {
   getWorkspaceFlowTaskMaterializationBatchJob,
 } from "../interfaces/queries/workspace-flow.queries";
 
+// ── Public write-side commands for knowledge → task flow ────────────────────
+
+export {
+  wfSubmitTaskMaterializationBatchJob as submitTaskMaterializationBatchJob,
+  wfExtractTaskCandidatesFromKnowledge as extractTaskCandidatesFromKnowledge,
+} from "../interfaces/_actions/workspace-flow-task-batch-job.actions";
+
 // ── UI components ─────────────────────────────────────────────────────────────
 
 export { WorkspaceFlowTab } from "../interfaces/components/WorkspaceFlowTab";

@@ -11,6 +11,7 @@ import type { RagDocumentRepository } from "../../../subdomains/source/domain/re
 import type { SourceDocumentCommandPort } from "../../../subdomains/source/domain/ports/SourceDocumentPort";
 import type { SourcePipelinePort } from "../../../subdomains/source/domain/ports/SourcePipelinePort";
 import type { ParsedDocumentPort } from "../../../subdomains/source/domain/ports/ParsedDocumentPort";
+import type { TaskMaterializationWorkflowPort } from "../../../subdomains/source/domain/ports/TaskMaterializationWorkflowPort";
 import {
   makeSourceFileAdapter,
   makeRagDocumentAdapter,
@@ -18,6 +19,7 @@ import {
   makeSourcePipelineAdapter,
   makeParsedDocumentAdapter,
   makeKnowledgePageGateway,
+  makeTaskMaterializationWorkflowAdapter,
   waitForParsedDocument,
 } from "./adapters";
 
@@ -53,6 +55,7 @@ export function makeSourceUseCases(
   pipelinePort: SourcePipelinePort = makeSourcePipelineAdapter(),
   parsedDocumentPort: ParsedDocumentPort = makeParsedDocumentAdapter(),
   knowledgePageGateway: KnowledgePageGateway = makeKnowledgePageGateway(),
+  taskWorkflowPort: TaskMaterializationWorkflowPort = makeTaskMaterializationWorkflowAdapter(),
 ): SourceUseCases {
   const parseUseCase = new ParseSourceDocumentUseCase(pipelinePort);
   const reindexUseCase = new ReindexSourceDocumentUseCase(pipelinePort);
@@ -74,6 +77,8 @@ export function makeSourceUseCases(
       reindexUseCase,
       createDraftUseCase,
       makeParsedDocumentStatusPort(),
+      parsedDocumentPort,
+      taskWorkflowPort,
     ),
     registerUploadedRagDocument: new RegisterUploadedRagDocumentUseCase(ragDocumentRepository),
     renameSourceDocument: new RenameSourceDocumentUseCase(documentCommandPort),

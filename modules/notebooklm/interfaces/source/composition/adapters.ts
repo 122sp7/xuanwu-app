@@ -10,11 +10,17 @@ import { PlatformSourceStorageAdapter } from "../../../infrastructure/source/pla
 import { PlatformSourceDocumentWatchAdapter } from "../../../infrastructure/source/platform/PlatformSourceDocumentWatchAdapter";
 import {
   addKnowledgeBlock,
+  approveKnowledgePage,
   createKnowledgePage,
 } from "@/modules/notion/api";
+import {
+  extractTaskCandidatesFromKnowledge,
+} from "@/modules/workspace/api";
 import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
 import type { SourceStoragePort } from "../../../subdomains/source/domain/ports/SourceStoragePort";
 import type { SourceDocumentWatchPort } from "../../../subdomains/source/domain/ports/SourceDocumentWatchPort";
+import type { TaskMaterializationWorkflowPort } from "../../../subdomains/source/domain/ports/TaskMaterializationWorkflowPort";
+import { TaskMaterializationWorkflowAdapter } from "../../../infrastructure/source/adapters/TaskMaterializationWorkflowAdapter";
 
 export function makeSourceFileAdapter() {
   return new FirebaseSourceFileAdapter();
@@ -45,6 +51,13 @@ export function makeKnowledgePageGateway() {
 
 export function makeWikiLibraryAdapter(): WikiLibraryRepository {
   return new FirebaseWikiLibraryAdapter();
+}
+
+export function makeTaskMaterializationWorkflowAdapter(): TaskMaterializationWorkflowPort {
+  return new TaskMaterializationWorkflowAdapter({
+    extractTaskCandidates: extractTaskCandidatesFromKnowledge,
+    approveKnowledgePage,
+  });
 }
 
 export function makeSourceStorageAdapter(): SourceStoragePort {

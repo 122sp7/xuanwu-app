@@ -43,12 +43,27 @@ export function FileProcessingDialog({
   const [step, setStep] = useState<DialogStep>("decide");
   const [shouldRunRag, setShouldRunRag] = useState(true);
   const [shouldCreatePage, setShouldCreatePage] = useState(false);
+  const [shouldCreateTasks, setShouldCreateTasks] = useState(false);
   const [summary, setSummary] = useState<ExecutionSummary>(createIdleSummary);
 
   const canDismiss = step !== "executing";
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen && canDismiss) onClose();
+  }
+
+  function handleShouldCreatePageChange(nextChecked: boolean) {
+    setShouldCreatePage(nextChecked);
+    if (!nextChecked) {
+      setShouldCreateTasks(false);
+    }
+  }
+
+  function handleShouldCreateTasksChange(nextChecked: boolean) {
+    setShouldCreateTasks(nextChecked);
+    if (nextChecked) {
+      setShouldCreatePage(true);
+    }
   }
 
   async function handleExecute() {
@@ -59,9 +74,17 @@ export function FileProcessingDialog({
       rag: shouldRunRag
         ? { status: "idle", detail: "等待文件解析完成後建立索引" }
         : { status: "skipped", detail: "使用者未勾選 RAG 索引" },
-      page: shouldCreatePage
-        ? { status: "idle", detail: "等待文件解析完成後建立單頁草稿" }
+      page: shouldCreatePage || shouldCreateTasks
+        ? {
+          status: "idle",
+          detail: shouldCreateTasks
+            ? "等待建立 Knowledge Page 以承接任務流程"
+            : "等待文件解析完成後建立單頁草稿",
+        }
         : { status: "skipped", detail: "使用者未勾選 Knowledge Page" },
+      task: shouldCreateTasks
+        ? { status: "idle", detail: "等待抽取候選任務並送入 Workspace Flow" }
+        : { status: "skipped", detail: "使用者未勾選任務流程" },
     });
 
     try {
@@ -75,6 +98,7 @@ export function FileProcessingDialog({
         sizeBytes,
         shouldRunRag,
         shouldCreatePage,
+        shouldCreateTasks,
         createdByUserId: user?.id,
       });
 
@@ -88,7 +112,7 @@ export function FileProcessingDialog({
     }
   }
 
-  const canContinue = shouldRunRag || shouldCreatePage;
+  const canContinue = shouldRunRag || shouldCreatePage || shouldCreateTasks;
 
   const footerActions = (
     <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
@@ -108,13 +132,18 @@ export function FileProcessingDialog({
 
       {step === "done" && (
         <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          {summary.pageHref && summary.page.status === "success" ? (
-            <Button asChild size="sm" variant="outline" className="w-full sm:w-auto">
-              <Link href={summary.pageHref}>前往 Draft Page</Link>
-            </Button>
-          ) : (
-            <div className="hidden sm:block" />
-          )}
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
+            {summary.pageHref && summary.page.status === "success" ? (
+              <Button asChild size="sm" variant="outline" className="w-full sm:w-auto">
+                <Link href={summary.pageHref}>前往 Knowledge Page</Link>
+              </Button>
+            ) : null}
+            {summary.workflowHref && summary.task.status === "success" ? (
+              <Button asChild size="sm" variant="outline" className="w-full sm:w-auto">
+                <Link href={summary.workflowHref}>前往 Tasks</Link>
+              </Button>
+            ) : null}
+          </div>
           <Button onClick={onClose} className="w-full sm:w-auto">完成</Button>
         </div>
       )}
@@ -136,8 +165,10 @@ export function FileProcessingDialog({
         sizeBytes={sizeBytes}
         shouldRunRag={shouldRunRag}
         shouldCreatePage={shouldCreatePage}
+        shouldCreateTasks={shouldCreateTasks}
         onShouldRunRagChange={setShouldRunRag}
-        onShouldCreatePageChange={setShouldCreatePage}
+        onShouldCreatePageChange={handleShouldCreatePageChange}
+        onShouldCreateTasksChange={handleShouldCreateTasksChange}
         summary={summary}
       />
     </FileProcessingDialogSurface>

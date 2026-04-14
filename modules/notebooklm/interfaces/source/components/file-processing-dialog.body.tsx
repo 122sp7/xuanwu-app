@@ -1,6 +1,6 @@
 "use client";
 
-import { ScanSearch, Sparkles } from "lucide-react";
+import { ClipboardList, ScanSearch, Sparkles } from "lucide-react";
 
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Checkbox } from "@ui-shadcn/ui/checkbox";
@@ -17,8 +17,10 @@ interface FileProcessingDialogBodyProps {
   readonly sizeBytes: number;
   readonly shouldRunRag: boolean;
   readonly shouldCreatePage: boolean;
+  readonly shouldCreateTasks: boolean;
   readonly onShouldRunRagChange: (checked: boolean) => void;
   readonly onShouldCreatePageChange: (checked: boolean) => void;
+  readonly onShouldCreateTasksChange: (checked: boolean) => void;
   readonly summary: ExecutionSummary;
 }
 
@@ -30,8 +32,10 @@ export function FileProcessingDialogBody({
   sizeBytes,
   shouldRunRag,
   shouldCreatePage,
+  shouldCreateTasks,
   onShouldRunRagChange,
   onShouldCreatePageChange,
+  onShouldCreateTasksChange,
   summary,
 }: FileProcessingDialogBodyProps) {
   return (
@@ -76,6 +80,7 @@ export function FileProcessingDialogBody({
                 onCheckedChange={(checked) => onShouldCreatePageChange(Boolean(checked))}
                 id="file-processing-page"
                 className="mt-1"
+                disabled={shouldCreateTasks}
               />
               <div className="min-w-0 space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -91,6 +96,29 @@ export function FileProcessingDialogBody({
               </div>
             </div>
           </div>
+
+          <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm sm:p-5">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <Checkbox
+                checked={shouldCreateTasks}
+                onCheckedChange={(checked) => onShouldCreateTasksChange(Boolean(checked))}
+                id="file-processing-task"
+                className="mt-1"
+              />
+              <div className="min-w-0 space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Label htmlFor="file-processing-task" className="flex cursor-pointer items-center gap-2 text-sm font-medium text-foreground sm:text-base">
+                    <ClipboardList className="size-4" aria-hidden="true" />
+                    建立任務
+                  </Label>
+                  <Badge variant="secondary">Auto Flow</Badge>
+                </div>
+                <p className="text-sm leading-6 text-muted-foreground text-pretty">
+                  會先建立 Knowledge Page，抽取待辦事項，再自動送進 Workspace Flow 的任務列表。
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -99,6 +127,7 @@ export function FileProcessingDialogBody({
           <FileProcessingResultRow label="文件解析" result={summary.parse} />
           <FileProcessingResultRow label="RAG 索引" result={summary.rag} />
           <FileProcessingResultRow label="Knowledge Page" result={summary.page} />
+          <FileProcessingResultRow label="任務流程" result={summary.task} />
         </div>
       )}
 
@@ -107,11 +136,13 @@ export function FileProcessingDialogBody({
           <FileProcessingResultRow label="文件解析" result={summary.parse} />
           <FileProcessingResultRow label="RAG 索引" result={summary.rag} />
           <FileProcessingResultRow label="Knowledge Page" result={summary.page} />
+          <FileProcessingResultRow label="任務流程" result={summary.task} />
           {summary.pageCount > 0 && (
             <div className="space-y-2 rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm sm:p-5">
               <p className="text-sm font-medium text-foreground">解析輸出</p>
               <p className="text-sm leading-6 text-muted-foreground">
                 共完成 {summary.pageCount} 頁解析結果。
+                {summary.taskCount > 0 ? ` 並已送出 ${summary.taskCount} 項任務。` : ""}
               </p>
               {summary.jsonGcsUri ? (
                 <div className="space-y-1.5">
