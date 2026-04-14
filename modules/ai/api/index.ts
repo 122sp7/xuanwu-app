@@ -18,7 +18,7 @@ export type {
   DistillationPort,
   DistillationResult,
   DistillationSource,
-} from "../subdomains/distillation/api";
+} from "../subdomains/content-distillation/api";
 
 export type {
   PromptExecutionMode,

@@ -7,4 +7,4 @@
  */
 
 export { generateAiText, summarize } from "../subdomains/content-generation/api/server";
-export { distillContent } from "../subdomains/distillation/api/server";
+export { distillContent } from "../subdomains/content-distillation/api/server";
