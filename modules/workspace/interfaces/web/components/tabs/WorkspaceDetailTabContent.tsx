@@ -4,6 +4,7 @@ import { WorkspaceAuditTab } from "../../../../subdomains/audit/api";
 import { WorkspaceFeedWorkspaceView } from "../../../../subdomains/feed/api";
 import { WorkspaceSchedulingTab } from "../../../../subdomains/scheduling/api";
 import { WorkspaceFlowTab } from "../../../../subdomains/workspace-workflow/api";
+import { WorkspaceNotificationPreferencesPanel } from "../../../../subdomains/notification/api";
 import type { WorkspaceEntity } from "../../../../domain/aggregates/Workspace";
 import type { WorkspaceTabValue } from "../../navigation/workspace-tabs";
 import {
@@ -108,6 +109,16 @@ export function renderWorkspaceDetailTabContent({
       );
     case "Audit":
       return <WorkspaceAuditTab workspaceId={workspace.id} />;
+    case "Notifications":
+      if (!currentUserId) {
+        return null;
+      }
+      return (
+        <WorkspaceNotificationPreferencesPanel
+          workspaceId={workspace.id}
+          memberId={currentUserId}
+        />
+      );
     case "Feed":
       return (
         <WorkspaceFeedWorkspaceView
