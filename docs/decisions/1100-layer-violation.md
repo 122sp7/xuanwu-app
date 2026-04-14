@@ -80,4 +80,4 @@ modules/workspace/interfaces/
 
 ### 違規二仍開放：`platform/api/infrastructure-api.ts` Firebase SDK
 
-見 HX-1-002（待後續 Batch T1-B 處理）。
+見 ADR 1103（`1103-layer-violation-firebase-sdk-in-api-layer.md`）——違規二已提升為獨立追蹤文件。
