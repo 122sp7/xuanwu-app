@@ -64,6 +64,16 @@ import { distillContent, generateAiText, summarize } from "@/modules/ai/api/serv
 - distillation 輸出屬於 **AI capability signal**，不是 KnowledgeArtifact 或 Notebook 的正典模型。
 - 子域之間的協調仍由 application / orchestration 控制，不直接跨子域 domain 依賴。
 
+## Distilled Rule Sentences
+
+- Context 應提供 token-budgeted、ranked、可直接送入模型的輸入，而不是把所有 raw 資料直接交給 generation。
+- Distillation 不等於單純 summary；它應優先產出可重用的 overview、highlights 與其他 schema-ready knowledge fragments。
+- Memory 若需要長期保存內容，應優先保存 distilled output，避免 raw content 無限制膨脹成本。
+- Retrieval 若可選擇資料來源，應優先索引 distilled chunks 或 structured knowledge，而不是直接倚賴未整理的 raw text。
+- Evaluation 應把 distillation 視為正式質量對象，至少檢查 compression ratio、information retention 與 hallucination risk。
+- 大文件或多來源蒸餾應優先走 async pipeline，避免同步請求承擔過高延遲與成本。
+- Tracing 應記錄 traceId、model、latency、token usage 與 errors，讓 flow 可觀測但不干預決策。
+
 ## References
 
 - [modules/ai/README.md](modules/ai/README.md)
