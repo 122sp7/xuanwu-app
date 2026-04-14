@@ -9,6 +9,7 @@ export interface UploadWorkspaceSourceFileInput {
   readonly accountId: string;
   readonly accountType: "user" | "organization";
   readonly file: File;
+  readonly displayName?: string;
 }
 
 export interface UploadWorkspaceSourceFileResult {
@@ -26,11 +27,13 @@ export async function uploadWorkspaceSourceFile(
 ): Promise<UploadWorkspaceSourceFileResult> {
   const organizationId = resolveSourceOrganizationId(input.accountType, input.accountId);
 
+  const fileName = input.displayName?.trim() || input.file.name;
+
   const initResult = await uploadInitFile({
     workspaceId: input.workspaceId,
     organizationId,
     actorAccountId: input.accountId,
-    fileName: input.file.name,
+    fileName,
     mimeType: input.file.type || "application/octet-stream",
     sizeBytes: input.file.size,
   });
@@ -64,7 +67,7 @@ export async function uploadWorkspaceSourceFile(
   return {
     success: true,
     sourceFileId: initResult.data.fileId,
-    filename: input.file.name,
+    filename: fileName,
     gcsUri: sourceStorage.toGsUri(initResult.data.uploadPath),
     mimeType: input.file.type || "application/octet-stream",
     sizeBytes: input.file.size,

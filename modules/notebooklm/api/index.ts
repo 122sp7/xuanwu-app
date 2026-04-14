@@ -59,6 +59,7 @@ export {
   uploadWorkspaceSourceFile,
   getWorkspaceFiles,
   getWorkspaceRagDocuments,
+  getSourceFileVersions,
   deleteSourceDocument,
   renameSourceDocument,
   createKnowledgeDraftFromSourceDocument,

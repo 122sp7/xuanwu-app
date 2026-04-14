@@ -157,6 +157,8 @@ const NOTION_NOTEBOOKLM_PIN_MIGRATION_IDS = [
   "ai-chat",
 ] as const;
 
+const WORKSPACE_SURFACE_PIN_MIGRATION_IDS = ["audit"] as const;
+
 function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[] {
   if (!Array.isArray(ids)) return fallback;
   const normalized = ids
@@ -189,6 +191,63 @@ function migrateNotionNotebooklmPins(ids: string[]): string[] {
   return changed ? next : ids;
 }
 
+function migrateWorkspaceSurfacePins(ids: string[]): string[] {
+  const next = [...ids];
+  let changed = false;
+
+  for (const id of WORKSPACE_SURFACE_PIN_MIGRATION_IDS) {
+    if (!next.includes(id) && VALID_WORKSPACE_ITEM_IDS.has(id)) {
+      const settingsIndex = next.indexOf("workspace-settings");
+      if (settingsIndex >= 0) {
+        next.splice(settingsIndex, 0, id);
+      } else {
+        next.push(id);
+      }
+      changed = true;
+    }
+  }
+
+  return changed ? next : ids;
+}
+
+function migrateWorkspaceSurfaceOrder(order: string[]): string[] {
+  if (!order.includes("audit")) {
+    const next = [...order];
+    const settingsIndex = next.indexOf("workspace-settings");
+    const aiChatIndex = next.indexOf("ai-chat");
+
+    if (settingsIndex >= 0) {
+      next.splice(settingsIndex, 0, "audit");
+      return next;
+    }
+
+    if (aiChatIndex >= 0) {
+      next.splice(aiChatIndex + 1, 0, "audit");
+      return next;
+    }
+
+    next.push("audit");
+    return next;
+  }
+
+  const next = order.filter((id) => id !== "audit");
+  const settingsIndex = next.indexOf("workspace-settings");
+  const aiChatIndex = next.indexOf("ai-chat");
+
+  if (settingsIndex >= 0) {
+    next.splice(settingsIndex, 0, "audit");
+    return next;
+  }
+
+  if (aiChatIndex >= 0) {
+    next.splice(aiChatIndex + 1, 0, "audit");
+    return next;
+  }
+
+  next.push("audit");
+  return next;
+}
+
 function isExactOrderMatch(source: string[], target: readonly string[]): boolean {
   if (source.length !== target.length) {
     return false;
@@ -198,9 +257,9 @@ function isExactOrderMatch(source: string[], target: readonly string[]): boolean
 
 function migrateWorkspaceOrder(order: string[]): string[] {
   if (isExactOrderMatch(order, LEGACY_DEFAULT_WORKSPACE_ORDER)) {
-    return DEFAULT_PREFS.workspaceOrder;
+    return migrateWorkspaceSurfaceOrder(DEFAULT_PREFS.workspaceOrder);
   }
-  return order;
+  return migrateWorkspaceSurfaceOrder(order);
 }
 
 // ── localStorage helpers ───────────────────────────────────────────────────
@@ -222,7 +281,9 @@ export function readNavPreferences(): NavPreferences {
         VALID_PERSONAL_ITEM_IDS,
         DEFAULT_PREFS.pinnedPersonal,
       ),
-      pinnedWorkspace: migrateNotionNotebooklmPins(migrateWorkflowPins(normalizedWorkspacePinned)),
+      pinnedWorkspace: migrateWorkspaceSurfacePins(
+        migrateNotionNotebooklmPins(migrateWorkflowPins(normalizedWorkspacePinned)),
+      ),
       showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
       maxWorkspaces:
         typeof parsed.maxWorkspaces === "number"

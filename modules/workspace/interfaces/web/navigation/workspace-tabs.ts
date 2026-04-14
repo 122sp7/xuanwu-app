@@ -21,7 +21,6 @@ export const WORKSPACE_TAB_VALUES = [
   "TaskIssues",
   "TaskFinance",
   "Schedule",
-  "Audit",
   "Feed",
   "Knowledge",
   "NotionAuthoring",
@@ -33,6 +32,7 @@ export const WORKSPACE_TAB_VALUES = [
   "NotebookNotebook",
   "NotebookSource",
   "AiChat",
+  "Audit",
   "WorkspaceSettings",
 ] as const;
 
@@ -98,7 +98,6 @@ export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceT
     "TaskIssues",
     "TaskFinance",
     "Schedule",
-    "Audit",
     "Feed",
     "Knowledge",
     "NotionAuthoring",
@@ -110,6 +109,7 @@ export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceT
     "NotebookNotebook",
     "NotebookSource",
     "AiChat",
+    "Audit",
     "WorkspaceSettings",
   ],
 };

@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Pencil, Plus } from "lucide-react";
 
 import type { CommandResult } from "@shared-types";
 import { Badge } from "@ui-shadcn/ui/badge";
@@ -19,6 +19,7 @@ import {
 } from "../_actions/workspace-flow.actions";
 import { getWorkspaceFlowIssues } from "../queries/workspace-flow.queries";
 import { AssignTaskDialog } from "./AssignTaskDialog";
+import { EditTaskDialog } from "./EditTaskDialog";
 import { IssueRow } from "./IssueRow";
 import { OpenIssueDialog } from "./OpenIssueDialog";
 
@@ -64,6 +65,7 @@ export interface TaskRowProps {
 
 export function TaskRow({ task, currentUserId, onTransitioned }: TaskRowProps) {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [issuesExpanded, setIssuesExpanded] = useState(false);
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -152,6 +154,16 @@ export function TaskRow({ task, currentUserId, onTransitioned }: TaskRowProps) {
           size="sm"
           variant="ghost"
           className="text-muted-foreground"
+          onClick={() => setEditDialogOpen(true)}
+          disabled={task.status === "archived"}
+        >
+          <Pencil className="mr-1 h-3.5 w-3.5" />
+          編輯
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-muted-foreground"
           onClick={() => setIssueDialogOpen(true)}
         >
           <Plus className="mr-1 h-3.5 w-3.5" />
@@ -195,6 +207,12 @@ export function TaskRow({ task, currentUserId, onTransitioned }: TaskRowProps) {
         taskId={task.id}
         onClose={() => setAssignDialogOpen(false)}
         onDone={onTransitioned}
+      />
+      <EditTaskDialog
+        open={editDialogOpen}
+        task={task}
+        onClose={() => setEditDialogOpen(false)}
+        onUpdated={onTransitioned}
       />
       <OpenIssueDialog
         open={issueDialogOpen}

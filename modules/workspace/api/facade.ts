@@ -29,6 +29,7 @@ export {
 
 export {
   getWorkspaceManagedFiles,
+  getWorkspaceManagedFileVersions,
   uploadWorkspaceManagedFile,
   renameWorkspaceManagedFile,
   deleteWorkspaceManagedFile,
@@ -36,6 +37,7 @@ export {
 
 export type {
   WorkspaceManagedFileItem,
+  WorkspaceManagedFileVersionItem,
 } from "../interfaces/facades/workspace-file.facade";
 
 export {

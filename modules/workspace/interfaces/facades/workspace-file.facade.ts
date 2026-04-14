@@ -1,5 +1,6 @@
 import {
   deleteSourceDocument,
+  getSourceFileVersions,
   getWorkspaceFiles,
   getWorkspaceRagDocuments,
   renameSourceDocument,
@@ -21,6 +22,14 @@ export interface WorkspaceManagedFileItem {
   readonly storagePath?: string;
   readonly sourceFileName?: string;
   readonly updatedAtISO?: string;
+}
+
+export interface WorkspaceManagedFileVersionItem {
+  readonly id: string;
+  readonly versionNumber: number;
+  readonly status: string;
+  readonly storagePath: string;
+  readonly createdAtISO: string;
 }
 
 export async function getWorkspaceManagedFiles(
@@ -87,13 +96,29 @@ export async function getWorkspaceManagedFiles(
 export async function uploadWorkspaceManagedFile(
   workspace: WorkspaceEntity,
   file: File,
+  options?: { readonly relativePath?: string },
 ) {
   return uploadWorkspaceSourceFile({
     workspaceId: workspace.id,
     accountId: workspace.accountId,
     accountType: workspace.accountType,
     file,
+    displayName: options?.relativePath,
   });
+}
+
+export async function getWorkspaceManagedFileVersions(
+  documentId: string,
+): Promise<WorkspaceManagedFileVersionItem[]> {
+  const versions = await getSourceFileVersions(documentId);
+
+  return versions.map((version) => ({
+    id: version.id,
+    versionNumber: version.versionNumber,
+    status: version.status,
+    storagePath: version.storagePath,
+    createdAtISO: version.createdAtISO,
+  }));
 }
 
 export async function renameWorkspaceManagedFile(

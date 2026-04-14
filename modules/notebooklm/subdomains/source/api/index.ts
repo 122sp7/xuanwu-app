@@ -79,7 +79,7 @@ export {
 // Queries
 // ---------------------------------------------------------------------------
 
-export { getWorkspaceFiles, getWorkspaceRagDocuments } from "../../../interfaces/source/queries/source-file.queries";
+export { getWorkspaceFiles, getWorkspaceRagDocuments, getSourceFileVersions } from "../../../interfaces/source/queries/source-file.queries";
 
 // ---------------------------------------------------------------------------
 // Server actions

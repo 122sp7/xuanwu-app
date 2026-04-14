@@ -16,6 +16,7 @@ export interface ListSourceFilesScope {
 export interface SourceFileRepository {
   findById(fileId: string): Promise<SourceFile | null>;
   findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null>;
+  listVersions(fileId: string): Promise<readonly SourceFileVersion[]>;
   listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>;
   save(file: SourceFile, versions?: readonly SourceFileVersion[]): Promise<void>;
 }

@@ -3056,6 +3056,69 @@ export function StatusBadge(
 export function RagBadge(
 ````
 
+## File: app/(shell)/(account)/[accountId]/dev-tools/dev-tools-helpers.ts
+````typescript
+// ── Types ─────────────────────────────────────────────────────────────────────
+⋮----
+export interface ParseResult {
+  doc_id: string;
+  status: "processing" | "completed" | "error";
+  page_count?: number;
+  json_gcs_uri?: string;
+  error_message?: string;
+}
+⋮----
+export interface DocRecord {
+  id: string;
+  status: "processing" | "completed" | "error" | string;
+  filename: string;
+  gcs_uri: string;
+  uploaded_at: Date | null;
+  page_count?: number;
+  json_gcs_uri?: string;
+  error_message?: string;
+  rag_status?: string;
+  rag_chunk_count?: number;
+  rag_vector_count?: number;
+  rag_raw_chars?: number;
+  rag_normalized_chars?: number;
+  rag_normalization_version?: string;
+  rag_language_hint?: string;
+  rag_error?: string;
+}
+⋮----
+export type UploadStatus = "idle" | "uploading" | "waiting" | "done" | "error";
+⋮----
+// ── Constants ─────────────────────────────────────────────────────────────────
+⋮----
+// ── Data-mapping helpers ──────────────────────────────────────────────────────
+⋮----
+export function formatDateTime(value: Date | null): string
+⋮----
+/**
+ * Extract the storage object path from a `gs://bucket/path` URI.
+ * Returns the path portion only (e.g. `uploads/abc/file.pdf`).
+ */
+export function gcsUriToPath(gcsUri: string): string
+⋮----
+function deriveJsonUri(gcsUri: string): string
+⋮----
+export function asRecord(value: unknown): Record<string, unknown>
+⋮----
+export function asString(value: unknown, fallback = ""): string
+⋮----
+export function asNumber(value: unknown): number | undefined
+⋮----
+function asDate(value: unknown): Date | null
+⋮----
+/**
+ * Map a plain data record (from platform infrastructure API) to DocRecord.
+ * Accepts `{ id, data }` where data is an already-resolved object —
+ * NOT a Firestore DocumentSnapshot with a `data()` method.
+ */
+export function mapDocRecord(doc:
+````
+
 ## File: app/(shell)/(account)/[accountId]/dev-tools/dev-tools-parsed-docs-section.tsx
 ````typescript
 /**
@@ -5362,6 +5425,7 @@ import type { WorkspaceEntity } from "@/modules/workspace/api";
 import type { WorkspaceFileListItemDto } from "../../../subdomains/source/application/dto/source-file.dto";
 import { resolveSourceOrganizationId } from "../../../subdomains/source/application/dto/source.dto";
 import type { RagDocumentRecord } from "../../../subdomains/source/application/dto/source.dto";
+import type { SourceFileVersion } from "../../../subdomains/source/domain/entities/SourceFileVersion";
 import { makeRagDocumentAdapter, makeSourceFileAdapter } from "../composition/adapters";
 import { ListSourceFilesUseCase } from "../../../subdomains/source/application/queries/source-file.queries";
 ⋮----
@@ -5372,6 +5436,8 @@ export async function getWorkspaceFiles(
 export async function getWorkspaceRagDocuments(
   workspace: WorkspaceEntity,
 ): Promise<readonly RagDocumentRecord[]>
+⋮----
+export async function getSourceFileVersions(fileId: string): Promise<readonly SourceFileVersion[]>
 ````
 
 ## File: modules/notebooklm/subdomains/conversation/api/server.ts
@@ -6606,11 +6672,6 @@ export interface TaxonomyHint {
 ````
 
 ## File: modules/notion/infrastructure/knowledge/firebase/index.ts
-````typescript
-
-````
-
-## File: modules/notion/infrastructure/knowledge/index.ts
 ````typescript
 
 ````
@@ -8107,16 +8168,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/knowledge/api/server.ts
-````typescript
-/**
- * knowledge subdomain — server-only API.
- *
- * Exports infrastructure implementations and composition helpers that must only
- * run in Server Actions, route handlers, or other server-side entry points.
- */
 ````
 
 ## File: modules/notion/subdomains/knowledge/application/dto/ContentBlockDto.ts
@@ -15094,17 +15145,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/system.ts
-````typescript
-/**
- * modules/system.ts — Composition Root
- *
- * Shared demo / development constants used across modules.
- * Composition of module facades is handled at the server-action layer
- * (each subdomain wires its own repositories in interfaces/_actions/).
- */
-````
-
 ## File: modules/workspace/api/runtime/factories.ts
 ````typescript
 import { SharedWorkspaceDomainEventPublisher } from "../../infrastructure/events/SharedWorkspaceDomainEventPublisher";
@@ -16231,6 +16271,23 @@ interface WorkspaceSectionContentProps {
 onSelectWorkspace(workspace.id);
 ````
 
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceFileVersionHistory.tsx
+````typescript
+import { Badge } from "@ui-shadcn/ui/badge";
+⋮----
+import type { WorkspaceManagedFileVersionItem } from "@/modules/workspace/api/facade";
+⋮----
+function formatVersionDate(value: string): string
+⋮----
+interface WorkspaceFileVersionHistoryProps {
+  readonly loadState: "idle" | "loading" | "loaded" | "error" | undefined;
+  readonly versions: readonly WorkspaceManagedFileVersionItem[];
+  readonly getStatusTone: (status: string) => "default" | "secondary" | "outline";
+}
+⋮----
+<Badge variant=
+````
+
 ## File: modules/workspace/interfaces/web/index.ts
 ````typescript
 /**
@@ -16240,6 +16297,31 @@ onSelectWorkspace(workspace.id);
  * App-layer and cross-module consumers that need UI composition must import
  * from this path instead of reaching into individual sub-directories.
  */
+````
+
+## File: modules/workspace/interfaces/web/navigation/nav-preferences-data.test.ts
+````typescript
+import { afterEach, describe, expect, it } from "vitest";
+⋮----
+import { readNavPreferences } from "./nav-preferences-data";
+⋮----
+type StorageLike = {
+  readonly length: number;
+  getItem: (key: string) => string | null;
+  setItem: (key: string, value: string) => void;
+  removeItem: (key: string) => void;
+  clear: () => void;
+  key: (index: number) => string | null;
+};
+⋮----
+function createLocalStorageMock(): StorageLike
+⋮----
+get length()
+getItem(key)
+setItem(key, value)
+removeItem(key)
+clear()
+key(index)
 ````
 
 ## File: modules/workspace/interfaces/web/navigation/use-sidebar-locale.ts
@@ -20076,6 +20158,36 @@ onChange=
 // eslint-disable-next-line jsx-a11y/no-autofocus
 ````
 
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/EditTaskDialog.tsx
+````typescript
+import { useEffect, useState } from "react";
+⋮----
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+⋮----
+import type { Task } from "../../application/dto/workflow.dto";
+import { wfUpdateTask } from "../_actions/workspace-flow.actions";
+⋮----
+export interface EditTaskDialogProps {
+  open: boolean;
+  task: Task;
+  onClose: () => void;
+  onUpdated: () => void;
+}
+⋮----
+async function handleSubmit(event: React.FormEvent)
+````
+
 ## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/InvoiceRow.tsx
 ````typescript
 import { useState } from "react";
@@ -20189,7 +20301,7 @@ onChange=
 ````typescript
 import { useCallback, useState } from "react";
 ⋮----
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Pencil, Plus } from "lucide-react";
 ⋮----
 import type { CommandResult } from "@shared-types";
 import { Badge } from "@ui-shadcn/ui/badge";
@@ -20206,6 +20318,7 @@ import {
 } from "../_actions/workspace-flow.actions";
 import { getWorkspaceFlowIssues } from "../queries/workspace-flow.queries";
 import { AssignTaskDialog } from "./AssignTaskDialog";
+import { EditTaskDialog } from "./EditTaskDialog";
 import { IssueRow } from "./IssueRow";
 import { OpenIssueDialog } from "./OpenIssueDialog";
 ⋮----
@@ -20232,6 +20345,8 @@ return <Button size="sm" variant="outline" disabled=
 {/* ── Task header ─────────────────────── */}
 ⋮----
 {/* ── Action row ──────────────────────── */}
+⋮----
+<Button
 ⋮----
 {/* ── Issues sub-list ─────────────────── */}
 ⋮----
@@ -26002,67 +26117,78 @@ export function isActiveRoute(pathname: string, href: string)
 // ── Simple section nav component ──────────────────────────────────────────────
 ````
 
-## File: app/(shell)/(account)/[accountId]/dev-tools/dev-tools-helpers.ts
+## File: app/(shell)/(account)/[accountId]/dev-tools/use-dev-tools-doc-list.ts
 ````typescript
-// ── Types ─────────────────────────────────────────────────────────────────────
+/**
+ * useDevToolsDocList.ts
+ * Owns: Firestore subscription for the document list, JSON-preview state,
+ *   and all per-document async operations (view, delete, reindex).
+ *
+ * All Firebase access routes through platform infrastructure APIs
+ * (firestoreInfrastructureApi, storageInfrastructureApi, functionsInfrastructureApi)
+ * per AGENTS.md Rule 46 — app/ NEVER touches Firebase SDK directly.
+ */
 ⋮----
-export interface ParseResult {
-  doc_id: string;
-  status: "processing" | "completed" | "error";
-  page_count?: number;
-  json_gcs_uri?: string;
-  error_message?: string;
+import { useEffect, useRef, useState } from "react";
+⋮----
+import {
+  firestoreInfrastructureApi,
+  storageInfrastructureApi,
+  functionsInfrastructureApi,
+} from "@/modules/platform/api/infrastructure";
+⋮----
+import {
+  gcsUriToPath,
+  mapDocRecord,
+  formatDateTime,
+  type DocRecord,
+} from "./dev-tools-helpers";
+⋮----
+// ── Public state ───────────────────────────────────────────────────────────
+⋮----
+export interface DocListState {
+  allDocs: DocRecord[];
+  selectedDocId: string | null;
+  selectedDoc: DocRecord | undefined;
+  jsonContent: string | null;
+  jsonLoading: boolean;
+  deletingId: string | null;
+  reindexingId: string | null;
 }
 ⋮----
-export interface DocRecord {
-  id: string;
-  status: "processing" | "completed" | "error" | string;
-  filename: string;
-  gcs_uri: string;
-  uploaded_at: Date | null;
-  page_count?: number;
-  json_gcs_uri?: string;
-  error_message?: string;
-  rag_status?: string;
-  rag_chunk_count?: number;
-  rag_vector_count?: number;
-  rag_raw_chars?: number;
-  rag_normalized_chars?: number;
-  rag_normalization_version?: string;
-  rag_language_hint?: string;
-  rag_error?: string;
+export interface DocListHandlers {
+  handleViewOriginal: (doc: DocRecord) => Promise<void>;
+  handleViewJson: (doc: DocRecord) => Promise<void>;
+  handleDeleteDoc: (doc: DocRecord) => Promise<void>;
+  handleManualProcess: (doc: DocRecord, appendLog: (msg: string) => void) => Promise<void>;
+  closeJsonPreview: () => void;
+  formatNormalizationRatio: (doc: DocRecord) => string;
 }
 ⋮----
-export type UploadStatus = "idle" | "uploading" | "waiting" | "done" | "error";
+// ── Hook ───────────────────────────────────────────────────────────────────
 ⋮----
-// ── Constants ─────────────────────────────────────────────────────────────────
+export function useDevToolsDocList(activeAccountId: string): DocListState & DocListHandlers
 ⋮----
-// ── Data-mapping helpers ──────────────────────────────────────────────────────
+// Subscribe to all documents for this account
 ⋮----
-export function formatDateTime(value: Date | null): string
+function closeJsonPreview()
 ⋮----
-/**
- * Extract the storage object path from a `gs://bucket/path` URI.
- * Returns the path portion only (e.g. `uploads/abc/file.pdf`).
- */
-export function gcsUriToPath(gcsUri: string): string
+async function handleViewOriginal(doc: DocRecord)
 ⋮----
-function deriveJsonUri(gcsUri: string): string
+async function handleViewJson(doc: DocRecord)
 ⋮----
-export function asRecord(value: unknown): Record<string, unknown>
+async function handleDeleteDoc(doc: DocRecord)
 ⋮----
-export function asString(value: unknown, fallback = ""): string
+async function handleManualProcess(
+    doc: DocRecord,
+    appendLog: (msg: string) => void,
+)
 ⋮----
-export function asNumber(value: unknown): number | undefined
+function formatNormalizationRatio(doc: DocRecord): string
 ⋮----
-function asDate(value: unknown): Date | null
+// re-export for table columns
 ⋮----
-/**
- * Map a plain data record (from platform infrastructure API) to DocRecord.
- * Accepts `{ id, data }` where data is an already-resolved object —
- * NOT a Firestore DocumentSnapshot with a `data()` method.
- */
-export function mapDocRecord(doc:
+// Re-export for convenience in table components
 ````
 
 ## File: app/(shell)/layout.tsx
@@ -30947,22 +31073,6 @@ flowchart LR
 - [contexts/notebooklm/subdomains.md](./contexts/notebooklm/subdomains.md)
 ````
 
-## File: modules/ai/api/server.ts
-````typescript
-/**
- * ai — server-only API barrel.
- *
- * Exports that depend on server-only packages such as Genkit.
- * Must only be imported in Server Actions, route handlers, or server-side
- * infrastructure adapters.
- */
-````
-
-## File: modules/ai/index.ts
-````typescript
-
-````
-
 ## File: modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts
 ````typescript
 import { genkit } from "genkit";
@@ -31024,19 +31134,79 @@ async generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>
 
 ````
 
-## File: modules/ai/subdomains/distillation/api/index.ts
+## File: modules/ai/subdomains/distillation/api/server.ts
 ````typescript
-/** ai/distillation/api — minimal public boundary stub. */
+import { DistillContentUseCase } from "../application/use-cases/distill-content.use-case";
+import { GenkitDistillationAdapter } from "../infrastructure/llm/GenkitDistillationAdapter";
+import type { DistillContentInput, DistillationResult } from "../domain/ports/DistillationPort";
+⋮----
+function getUseCase(): DistillContentUseCase
+⋮----
+export async function distillContent(input: DistillContentInput): Promise<DistillationResult>
 ````
 
-## File: modules/ai/subdomains/distillation/application/index.ts
+## File: modules/ai/subdomains/distillation/application/use-cases/distill-content.use-case.ts
 ````typescript
-/** ai/distillation/application — minimal orchestration stub. */
+import type { DistillContentInput, DistillationPort, DistillationResult } from "../../domain/ports/DistillationPort";
+⋮----
+export class DistillContentUseCase {
+⋮----
+constructor(private readonly distillationPort: DistillationPort)
+⋮----
+async execute(input: DistillContentInput): Promise<DistillationResult>
 ````
 
-## File: modules/ai/subdomains/distillation/domain/index.ts
+## File: modules/ai/subdomains/distillation/domain/ports/DistillationPort.ts
 ````typescript
-/** ai/distillation/domain — minimal domain stub. */
+export interface DistillationSource {
+  readonly title?: string | null;
+  readonly text: string;
+}
+⋮----
+export interface DistillContentInput {
+  readonly sources: readonly DistillationSource[];
+  readonly objective?: string;
+  readonly model?: string;
+}
+⋮----
+export interface DistillationItem {
+  readonly title: string;
+  readonly summary: string;
+  readonly sourceTitle?: string | null;
+}
+⋮----
+export interface DistillationResult {
+  readonly overview: string;
+  readonly distilledItems: readonly DistillationItem[];
+  readonly model: string;
+  readonly traceId: string;
+  readonly completedAt: string;
+}
+⋮----
+export interface DistillationPort {
+  distill(input: DistillContentInput): Promise<DistillationResult>;
+}
+⋮----
+distill(input: DistillContentInput): Promise<DistillationResult>;
+````
+
+## File: modules/ai/subdomains/distillation/infrastructure/llm/GenkitDistillationAdapter.ts
+````typescript
+import { googleAI } from "@genkit-ai/google-genai";
+import { v4 as uuid } from "@lib-uuid";
+import { genkit, z } from "genkit";
+⋮----
+import type {
+  DistillContentInput,
+  DistillationPort,
+  DistillationResult,
+} from "../../domain/ports/DistillationPort";
+⋮----
+function buildDistillationPrompt(input: DistillContentInput): string
+⋮----
+export class GenkitDistillationAdapter implements DistillationPort {
+⋮----
+async distill(input: DistillContentInput): Promise<DistillationResult>
 ````
 
 ## File: modules/ai/subdomains/distillation/README.md
@@ -33733,6 +33903,7 @@ export interface UploadWorkspaceSourceFileInput {
   readonly accountId: string;
   readonly accountType: "user" | "organization";
   readonly file: File;
+  readonly displayName?: string;
 }
 ⋮----
 export interface UploadWorkspaceSourceFileResult {
@@ -34665,12 +34836,14 @@ export interface ListSourceFilesScope {
 export interface SourceFileRepository {
   findById(fileId: string): Promise<SourceFile | null>;
   findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null>;
+  listVersions(fileId: string): Promise<readonly SourceFileVersion[]>;
   listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>;
   save(file: SourceFile, versions?: readonly SourceFileVersion[]): Promise<void>;
 }
 ⋮----
 findById(fileId: string): Promise<SourceFile | null>;
 findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null>;
+listVersions(fileId: string): Promise<readonly SourceFileVersion[]>;
 listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>;
 save(file: SourceFile, versions?: readonly SourceFileVersion[]): Promise<void>;
 ````
@@ -35198,6 +35371,16 @@ build(input: CitationBuilderInput): readonly Citation[];
  */
 ````
 
+## File: modules/notion/infrastructure/knowledge/ai/index.ts
+````typescript
+
+````
+
+## File: modules/notion/infrastructure/knowledge/index.ts
+````typescript
+
+````
+
 ## File: modules/notion/interfaces/authoring/_actions/article.actions.ts
 ````typescript
 /**
@@ -35569,6 +35752,13 @@ export async function removePageFromCollection(input: RemovePageFromCollectionDt
 export async function addCollectionColumn(input: AddCollectionColumnDto): Promise<CommandResult>
 ⋮----
 export async function archiveKnowledgeCollection(input: ArchiveKnowledgeCollectionDto): Promise<CommandResult>
+````
+
+## File: modules/notion/interfaces/knowledge/composition/capabilities.ts
+````typescript
+import { SharedAiKnowledgeSummaryAdapter } from "../../../infrastructure/knowledge/ai";
+⋮----
+export function makeKnowledgeSummaryPort()
 ````
 
 ## File: modules/notion/interfaces/knowledge/store/block-editor.store.ts
@@ -36737,24 +36927,6 @@ listByDatabase(accountId: string, databaseId: string): Promise<ViewSnapshot[]>;
  */
 ````
 
-## File: modules/notion/subdomains/knowledge/application/dto/knowledge.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the knowledge subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-⋮----
-import type { RichTextSpan } from "../../domain/value-objects/BlockContent";
-⋮----
-/**
- * richTextToPlainText — converts rich-text spans to a plain string.
- *
- * Application-layer utility that mirrors the domain value-object helper.
- * Defined here so interfaces/ do not depend directly on domain/.
- */
-export function richTextToPlainText(spans: ReadonlyArray<RichTextSpan>): string
-````
-
 ## File: modules/notion/subdomains/knowledge/application/queries/backlink.queries.ts
 ````typescript
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
@@ -37258,9 +37430,64 @@ export type KnowledgePageDomainEvent =
   | PageCoverUpdatedEvent;
 ````
 
-## File: modules/notion/subdomains/knowledge/domain/index.ts
+## File: modules/notion/subdomains/knowledge/domain/ports/KnowledgeDistillationPort.ts
 ````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: domain/ports
+ * Purpose: External capability contract for structured knowledge-page distillation.
+ */
+⋮----
+export interface KnowledgeDistillationInput {
+  readonly title: string;
+  readonly plainText: string;
+  readonly model?: string;
+}
+⋮----
+export interface KnowledgeDistillationHighlight {
+  readonly title: string;
+  readonly summary: string;
+}
+⋮----
+export interface KnowledgeDistillationResult {
+  readonly overview: string;
+  readonly highlights: readonly KnowledgeDistillationHighlight[];
+  readonly model: string;
+  readonly traceId: string;
+  readonly completedAt: string;
+}
+⋮----
+export interface KnowledgeDistillationPort {
+  distillPage(input: KnowledgeDistillationInput): Promise<KnowledgeDistillationResult>;
+}
+⋮----
+distillPage(input: KnowledgeDistillationInput): Promise<KnowledgeDistillationResult>;
+````
 
+## File: modules/notion/subdomains/knowledge/domain/ports/KnowledgeSummaryPort.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: domain/ports
+ * Purpose: External capability contract for knowledge-page summarization.
+ */
+⋮----
+export interface KnowledgeSummaryInput {
+  readonly title: string;
+  readonly plainText: string;
+  readonly model?: string;
+}
+⋮----
+export interface KnowledgeSummaryResult {
+  readonly summary: string;
+  readonly model: string;
+}
+⋮----
+export interface KnowledgeSummaryPort {
+  summarizePage(input: KnowledgeSummaryInput): Promise<KnowledgeSummaryResult>;
+}
+⋮----
+summarizePage(input: KnowledgeSummaryInput): Promise<KnowledgeSummaryResult>;
 ````
 
 ## File: modules/notion/subdomains/knowledge/domain/repositories/BacklinkIndexRepository.ts
@@ -37384,29 +37611,6 @@ countByParent(accountId: string, parentPageId: string | null): Promise<number>;
 findSnapshotById(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null>;
 listSnapshotsByAccountId(accountId: string): Promise<KnowledgePageSnapshot[]>;
 listSnapshotsByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]>;
-````
-
-## File: modules/notion/subdomains/relations/api/index.ts
-````typescript
-/**
- * Public API boundary for the relations subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Status: Tier 2 Recommended Gap Subdomain
- */
-⋮----
-// ── Domain types ──────────────────────────────────────────────────────────────
-⋮----
-// ── Repository contracts ───────────────────────────────────────────────────────
-⋮----
-// ── Domain events ─────────────────────────────────────────────────────────────
-⋮----
-// ── Application DTOs ──────────────────────────────────────────────────────────
-⋮----
-// ── Application contracts ─────────────────────────────────────────────────────
-⋮----
-// Note: server-only composition and infrastructure adapters are exported from
-// `./server` to keep the default boundary runtime-safe.
 ````
 
 ## File: modules/notion/subdomains/relations/application/index.ts
@@ -40823,16 +41027,19 @@ onSetActiveWorkspace=
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceFilesManagementTab.tsx
 ````typescript
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FileSearch, Loader2, Pencil, Plus, RefreshCw, Trash2, Wand2 } from "lucide-react";
 ⋮----
+import { WorkspaceFileVersionHistory } from "./WorkspaceFileVersionHistory";
 import { FileProcessingDialog } from "@/modules/notebooklm/api/ui";
 import {
   deleteWorkspaceManagedFile,
+  getWorkspaceManagedFileVersions,
   getWorkspaceManagedFiles,
   renameWorkspaceManagedFile,
   uploadWorkspaceManagedFile,
   type WorkspaceManagedFileItem,
+  type WorkspaceManagedFileVersionItem,
 } from "@/modules/workspace/api/facade";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
@@ -40850,14 +41057,16 @@ interface ProcessingTarget {
   readonly sizeBytes: number;
 }
 ⋮----
+type FileWithRelativePath = File & { readonly webkitRelativePath?: string };
 function toGsUri(storagePath: string): string
 ⋮----
 function formatFileSize(sizeBytes: number): string
 ⋮----
 function getStatusTone(status: string): "default" | "secondary" | "outline"
 ⋮----
-async function handleUploadFile(file: File)
+async function handleUploadFiles(files: readonly File[], sourceLabel: "file" | "folder")
 ⋮----
+async function toggleVersionHistory(documentId: string)
 async function handleDeleteDocument(doc: WorkspaceManagedFileItem)
 ⋮----
 async function handleRenameSave(doc: WorkspaceManagedFileItem)
@@ -40873,15 +41082,19 @@ setProcessingTarget({
                           });
 ⋮----
 <Button size="sm" variant="outline" onClick=
+⋮----
+onClose=
 ````
 
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceMembersTab.tsx
 ````typescript
 import { useEffect, useMemo, useState } from "react";
 ⋮----
+import { dismissMember, inviteMember, updateMemberRole, type OrganizationRole } from "@/modules/platform/api";
 import type { WorkspaceEntity, WorkspaceMemberView } from "../../../contracts";
 import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
 import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
   CardContent,
@@ -40889,6 +41102,23 @@ import {
   CardHeader,
   CardTitle,
 } from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
 import { getWorkspaceMembers } from "../../../facades";
 ⋮----
 function getMemberInitials(name: string)
@@ -40900,6 +41130,14 @@ interface WorkspaceMembersTabProps {
 }
 ⋮----
 async function loadMembers()
+⋮----
+async function handleInviteMember()
+⋮----
+async function handleRoleChange(memberId: string, role: OrganizationRole)
+⋮----
+async function handleRemoveMember(memberId: string)
+⋮----
+<Button onClick=
 ⋮----
 key=
 ````
@@ -42719,6 +42957,216 @@ async publish<T extends DomainEvent>(event: T): Promise<void>
 clear(): void
 ````
 
+## File: repomix-notebooklm.config.json
+````json
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "input": {
+    "maxFileSize": 52428800
+  },
+  "output": {
+    "filePath": "repomix-output.json",
+    "style": "json",
+    "parsableStyle": true,
+
+    "fileSummary": true,
+    "directoryStructure": true,
+    "files": true,
+
+    "removeComments": false,
+    "removeEmptyLines": false,
+
+    "compress": true,
+
+    "topFilesLength": 10,
+
+    "showLineNumbers": false,
+    "truncateBase64": false,
+    "copyToClipboard": false,
+
+    "includeFullDirectoryStructure": false,
+    "tokenCountTree": true,
+
+    "git": {
+      "sortByChanges": true,
+      "sortByChangesMaxCommits": 200,
+      "includeDiffs": false,
+      "includeLogs": false,
+      "includeLogsCount": 50
+    }
+  },
+  "include": [
+    "modules/notebooklm/**"
+  ],
+    "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      ".next/**",
+      ".turbo/**",
+      ".vercel/**",
+      ".firebase/**",
+      ".output/**",
+      ".parcel-cache/**",
+
+      ".cursor/**",
+      ".vscode/**",
+      ".serena/**",
+      ".claude/**",
+      ".opencode/**",
+      ".idea/**",
+      ".history/**",
+
+      ".cache/**",
+      ".temp/**",
+      ".tmp/**",
+      "tmp/**",
+      "temp/**",
+
+      "logs/**",
+      "firebase-debug.log",
+      "repomix-output.*",
+
+      ".env*",
+      "*.pem",
+      "*.key",
+      "*.crt",
+
+      "skills-lock.json",
+
+      "docs/architecture/**",
+      "diagrams/**",
+
+      "*.png",
+      "*.jpg",
+      "*.jpeg",
+      "*.gif",
+      "*.webp",
+      "*.mp4",
+      "*.zip",
+      "*.tar",
+      "*.gz",
+
+      "*.sqlite",
+      "*.db",
+      ".github/skills/**/references/**"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}
+````
+
+## File: repomix-notion.config.json
+````json
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "input": {
+    "maxFileSize": 52428800
+  },
+  "output": {
+    "filePath": "repomix-output.json",
+    "style": "json",
+    "parsableStyle": true,
+
+    "fileSummary": true,
+    "directoryStructure": true,
+    "files": true,
+
+    "removeComments": false,
+    "removeEmptyLines": false,
+
+    "compress": true,
+
+    "topFilesLength": 10,
+
+    "showLineNumbers": false,
+    "truncateBase64": false,
+    "copyToClipboard": false,
+
+    "includeFullDirectoryStructure": false,
+    "tokenCountTree": true,
+
+    "git": {
+      "sortByChanges": true,
+      "sortByChangesMaxCommits": 200,
+      "includeDiffs": false,
+      "includeLogs": false,
+      "includeLogsCount": 50
+    }
+  },
+  "include": [
+    "modules/notion/**"
+  ],
+    "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      ".next/**",
+      ".turbo/**",
+      ".vercel/**",
+      ".firebase/**",
+      ".output/**",
+      ".parcel-cache/**",
+
+      ".cursor/**",
+      ".vscode/**",
+      ".serena/**",
+      ".claude/**",
+      ".opencode/**",
+      ".idea/**",
+      ".history/**",
+
+      ".cache/**",
+      ".temp/**",
+      ".tmp/**",
+      "tmp/**",
+      "temp/**",
+
+      "logs/**",
+      "firebase-debug.log",
+      "repomix-output.*",
+
+      ".env*",
+      "*.pem",
+      "*.key",
+      "*.crt",
+
+      "skills-lock.json",
+
+      "docs/architecture/**",
+      "diagrams/**",
+
+      "*.png",
+      "*.jpg",
+      "*.jpeg",
+      "*.gif",
+      "*.webp",
+      "*.mp4",
+      "*.zip",
+      "*.tar",
+      "*.gz",
+
+      "*.sqlite",
+      "*.db",
+      ".github/skills/**/references/**"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}
+````
+
 ## File: vitest.config.ts
 ````typescript
 import { resolve } from "node:path";
@@ -43686,6 +44134,40 @@ See `docs/hard-rules-consolidated.md` for:
 - Cross-module contract rules (24-27)
 ````
 
+## File: app/(public)/page.tsx
+````typescript
+/**
+ * app/(public)/page.tsx
+ * Public landing page with top-right auth entry and inline auth panel.
+ * Uses identity module use cases directly on the client so Firebase auth state
+ * actually updates AuthProvider via onAuthStateChanged.
+ */
+⋮----
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, ShieldCheck } from "lucide-react";
+⋮----
+import {
+  useAuth,
+  createClientAuthUseCases,
+} from "@/modules/iam/api";
+import {
+  createClientAccountUseCases,
+} from "@/modules/platform/api";
+⋮----
+type Tab = "login" | "register";
+⋮----
+async function handleSubmit(e: React.FormEvent)
+⋮----
+async function handleGuestAccess()
+⋮----
+async function handlePasswordReset()
+⋮----
+setError(null);
+setResetSent(false);
+setIsAuthPanelOpen((prev)
+````
+
 ## File: app/(shell)/_providers/AppProvider.tsx
 ````typescript
 /**
@@ -43777,80 +44259,6 @@ function handleSelectWorkspace(workspaceId: string | null)
 async function handleLogout()
 ⋮----
 void handleLogout();
-````
-
-## File: app/(shell)/(account)/[accountId]/dev-tools/use-dev-tools-doc-list.ts
-````typescript
-/**
- * useDevToolsDocList.ts
- * Owns: Firestore subscription for the document list, JSON-preview state,
- *   and all per-document async operations (view, delete, reindex).
- *
- * All Firebase access routes through platform infrastructure APIs
- * (firestoreInfrastructureApi, storageInfrastructureApi, functionsInfrastructureApi)
- * per AGENTS.md Rule 46 — app/ NEVER touches Firebase SDK directly.
- */
-⋮----
-import { useEffect, useRef, useState } from "react";
-⋮----
-import {
-  firestoreInfrastructureApi,
-  storageInfrastructureApi,
-  functionsInfrastructureApi,
-} from "@/modules/platform/api/infrastructure";
-⋮----
-import {
-  gcsUriToPath,
-  mapDocRecord,
-  formatDateTime,
-  type DocRecord,
-} from "./dev-tools-helpers";
-⋮----
-// ── Public state ───────────────────────────────────────────────────────────
-⋮----
-export interface DocListState {
-  allDocs: DocRecord[];
-  selectedDocId: string | null;
-  selectedDoc: DocRecord | undefined;
-  jsonContent: string | null;
-  jsonLoading: boolean;
-  deletingId: string | null;
-  reindexingId: string | null;
-}
-⋮----
-export interface DocListHandlers {
-  handleViewOriginal: (doc: DocRecord) => Promise<void>;
-  handleViewJson: (doc: DocRecord) => Promise<void>;
-  handleDeleteDoc: (doc: DocRecord) => Promise<void>;
-  handleManualProcess: (doc: DocRecord, appendLog: (msg: string) => void) => Promise<void>;
-  closeJsonPreview: () => void;
-  formatNormalizationRatio: (doc: DocRecord) => string;
-}
-⋮----
-// ── Hook ───────────────────────────────────────────────────────────────────
-⋮----
-export function useDevToolsDocList(activeAccountId: string): DocListState & DocListHandlers
-⋮----
-// Subscribe to all documents for this account
-⋮----
-function closeJsonPreview()
-⋮----
-async function handleViewOriginal(doc: DocRecord)
-⋮----
-async function handleViewJson(doc: DocRecord)
-⋮----
-async function handleDeleteDoc(doc: DocRecord)
-⋮----
-async function handleManualProcess(
-    doc: DocRecord,
-    appendLog: (msg: string) => void,
-)
-⋮----
-function formatNormalizationRatio(doc: DocRecord): string
-⋮----
-// re-export for table columns
-⋮----
-// Re-export for convenience in table components
 ````
 
 ## File: docs/bounded-contexts.md
@@ -44121,114 +44529,6 @@ flowchart LR
 - [project-delivery-milestones.md](./project-delivery-milestones.md)
 - [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
 - [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
-````
-
-## File: docs/contexts/ai/AGENT.md
-````markdown
-# AI Context Agent Guide
-
-## Purpose
-
-The AI context owns shared AI capability orchestration, provider routing, model policy, and safety guardrails.
-
-## Rules
-
-- Keep shared AI policy and orchestration here.
-- Do not move canonical knowledge or notebook reasoning ownership into this context.
-- Other contexts consume AI capability through published language and public APIs.
-````
-
-## File: docs/contexts/ai/bounded-contexts.md
-````markdown
-# AI
-
-## Domain Role
-
-ai 是共享能力 bounded context，不負責 notion 的正典內容，也不負責 notebooklm 的 retrieval、grounding、synthesis 正典語言。
-
-## Ownership Rules
-
-- 擁有 shared AI capability、model policy、safety。
-- 只輸出 capability signal、policy result 與 orchestration contract。
-- 不直接擁有 workspace、knowledge 或 notebook aggregate。
-````
-
-## File: docs/contexts/ai/context-map.md
-````markdown
-# AI
-
-## Relationships
-
-| Upstream | Downstream | Published Language |
-|---|---|---|
-| iam | ai | actor reference、access decision |
-| billing | ai | entitlement signal、quota capability |
-| ai | notion | ai capability signal、model policy、safety result |
-| ai | notebooklm | ai capability signal、model policy、safety result |
-
-## Notes
-
-- ai 只輸出共享能力，不回寫他域正典模型。
-````
-
-## File: docs/contexts/ai/README.md
-````markdown
-# AI Context
-
-本 README 在本次重切作業下，定義 shared AI capability 的主域邊界。
-
-## Purpose
-
-ai 是共享 AI capability 主域。它負責 provider routing、model policy、quota 與 safety guardrails，供 platform、notion、notebooklm 等主域穩定消費。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 共享 AI capability 與 orchestration |
-| Upstream Dependency | iam 的 access policy、billing 的 entitlement |
-| Downstream Consumers | platform、notion、notebooklm |
-| Core Principle | 提供 AI 能力，不接管內容或推理正典 |
-````
-
-## File: docs/contexts/ai/subdomains.md
-````markdown
-# AI
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| provider-routing | 模型供應商選擇與路由 |
-| model-policy | 模型能力、版本與使用政策 |
-| safety-guardrail | 安全護欄與內容保護 |
-| prompt-pipeline | prompt、flow、tool calling orchestration |
-
-## Recommended Gap Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| evaluation-policy | AI 品質與回歸評估 |
-| model-observability | 模型使用量、成本與效能觀測 |
-````
-
-## File: docs/contexts/ai/ubiquitous-language.md
-````markdown
-# AI
-
-## Canonical Terms
-
-| Term | Meaning |
-|---|---|
-| AICapability | 可被下游消費的共享 AI 能力 |
-| ModelPolicy | 模型選擇、版本與限制政策 |
-| SafetyGuardrail | 安全檢查與內容保護結果 |
-| PromptPipeline | flow、prompt 與 tool calling 的協調流程 |
-
-## Avoid
-
-- 不把 AI 當成 notebooklm 的本地推理語言。
-- 不把 AI 當成 notion 的內容正典語言。
 ````
 
 ## File: docs/contexts/analytics/AGENT.md
@@ -46764,33 +47064,14 @@ SINK  ANALYTICS
   ubiquitous-language.md     — 戰略術語權威
 ````
 
-## File: modules/ai/AGENT.md
-````markdown
-# AI Module Agent Guide
-
-## Purpose
-
-This bounded context is reserved for shared AI capability orchestration and policy.
-
-## Boundary Rules
-
-- Keep provider routing, model policy, safety, and AI orchestration concerns here.
-- Do not place workspace UI composition, billing policy, or identity governance here.
-- Cross-module consumers must use the public API boundary.
-- Preserve the dependency direction of interfaces to application to domain, with infrastructure depending inward.
-
-## Delivery Style
-
-- Keep this module minimal until concrete AI capabilities are promoted here.
-````
-
-## File: modules/ai/api/index.ts
+## File: modules/ai/api/server.ts
 ````typescript
 /**
- * Public API boundary for the AI bounded context.
+ * ai — server-only API barrel.
  *
- * Cross-module consumers must import shared AI contracts through this entry point.
- * Server-only helpers live in ./server.ts.
+ * Exports that depend on server-only packages such as Genkit.
+ * Must only be imported in Server Actions, route handlers, or server-side
+ * infrastructure adapters.
  */
 ````
 
@@ -46804,9 +47085,48 @@ This bounded context is reserved for shared AI capability orchestration and poli
 /** ai/domain — shared AI domain contracts. */
 ````
 
+## File: modules/ai/index.ts
+````typescript
+/**
+ * modules/ai — public barrel.
+ *
+ * Client-safe types only. Server-only functions live in ./api/server.ts.
+ * Cross-module consumers must import through this entry point.
+ */
+````
+
 ## File: modules/ai/infrastructure/index.ts
 ````typescript
 /** ai/infrastructure — shared AI adapters. */
+````
+
+## File: modules/ai/subdomains/distillation/api/index.ts
+````typescript
+/**
+ * Public API boundary for the AI distillation subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * This barrel is client-safe — it exports only types and interfaces.
+ * Server-only functions live in ./server.ts.
+ */
+⋮----
+import type { DistillContentInput, DistillationResult } from "../domain/ports/DistillationPort";
+⋮----
+export interface DistillationAPI {
+  distillContent(input: DistillContentInput): Promise<DistillationResult>;
+}
+⋮----
+distillContent(input: DistillContentInput): Promise<DistillationResult>;
+````
+
+## File: modules/ai/subdomains/distillation/application/index.ts
+````typescript
+
+````
+
+## File: modules/ai/subdomains/distillation/domain/index.ts
+````typescript
+
 ````
 
 ## File: modules/analytics/AGENT.md
@@ -47314,6 +47634,8 @@ async findById(fileId: string): Promise<SourceFile | null>
 ⋮----
 async findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null>
 ⋮----
+async listVersions(fileId: string): Promise<readonly SourceFileVersion[]>
+⋮----
 async listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>
 ⋮----
 async save(file: SourceFile, versions: readonly SourceFileVersion[] = []): Promise<void>
@@ -47701,6 +48023,51 @@ function handleShouldCreateTasksChange(nextChecked: boolean)
 async function handleExecute()
 ⋮----
 <Button onClick=
+````
+
+## File: modules/notebooklm/interfaces/synthesis/components/RagQueryPanel.tsx
+````typescript
+import { useState } from "react";
+import { AlertCircle, Loader2, Search } from "lucide-react";
+import { toast } from "sonner";
+⋮----
+import { useApp } from "@/modules/platform/api/ui";
+import { useAuth } from "@/modules/iam/api";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@ui-shadcn/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from "@ui-shadcn/ui/alert";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+⋮----
+import type { KnowledgeCitation } from "../../../subdomains/synthesis/api";
+import { runKnowledgeRagQueryAction } from "../_actions/rag-query.actions";
+⋮----
+interface RagQueryPanelProps {
+  readonly workspaceId?: string;
+}
+⋮----
+/** Minimal RAG query chat interface. Uses local useState only — no streaming, no global state. */
+⋮----
+async function handleSubmit()
+⋮----
+// Compatibility fallback for older vectors without ready status.
+⋮----
+{/* Auth warning — shown upfront when user cannot execute RAG queries */}
+⋮----
+{/* Query input */}
+⋮----
+onClick=
 ````
 
 ## File: modules/notebooklm/README.md
@@ -48298,6 +48665,11 @@ Legacy migration (Strangler Pattern):
 5. Replace Infrastructure adapter; remove old path when stable
 ````
 
+## File: modules/notion/api/server.ts
+````typescript
+
+````
+
 ## File: modules/notion/docs/README.md
 ````markdown
 # Notion Documentation
@@ -48624,6 +48996,31 @@ async update(input: UpdateViewInput): Promise<ViewSnapshot>
 async delete(id: string, accountId: string): Promise<void>
 ⋮----
 async listByDatabase(accountId: string, databaseId: string): Promise<ViewSnapshot[]>
+````
+
+## File: modules/notion/infrastructure/knowledge/ai/SharedAiKnowledgeSummaryAdapter.ts
+````typescript
+import { distillContent } from "@/modules/ai/api/server";
+import type {
+  KnowledgeDistillationInput,
+  KnowledgeDistillationPort,
+  KnowledgeDistillationResult,
+} from "../../../subdomains/knowledge/domain/ports/KnowledgeDistillationPort";
+import type {
+  KnowledgeSummaryInput,
+  KnowledgeSummaryPort,
+  KnowledgeSummaryResult,
+} from "../../../subdomains/knowledge/domain/ports/KnowledgeSummaryPort";
+⋮----
+/**
+ * Infrastructure adapter that lets Notion consume the shared AI bounded context
+ * without embedding provider or Genkit ownership into the Notion module.
+ */
+export class SharedAiKnowledgeSummaryAdapter implements KnowledgeSummaryPort, KnowledgeDistillationPort {
+⋮----
+async summarizePage(input: KnowledgeSummaryInput): Promise<KnowledgeSummaryResult>
+⋮----
+async distillPage(input: KnowledgeDistillationInput): Promise<KnowledgeDistillationResult>
 ````
 
 ## File: modules/notion/infrastructure/knowledge/firebase/FirebaseBacklinkIndexRepository.ts
@@ -49363,34 +49760,27 @@ export type AutomationId = string;
  */
 ````
 
-## File: modules/notion/subdomains/knowledge/api/index.ts
+## File: modules/notion/subdomains/knowledge/application/queries/knowledge-summary.queries.ts
 ````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- */
+import type { ContentBlock } from "../../domain/aggregates/ContentBlock";
+import type { KnowledgeDistillationPort } from "../../domain/ports/KnowledgeDistillationPort";
+import type { KnowledgeSummaryPort } from "../../domain/ports/KnowledgeSummaryPort";
+import type { ContentBlockRepository } from "../../domain/repositories/ContentBlockRepository";
+import type { KnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
+import { richTextToPlainText } from "../../domain/value-objects/BlockContent";
+import type { KnowledgePageDistillation, KnowledgePageSummary } from "../dto/knowledge.dto";
 ⋮----
-// ?? Types (read-only snapshots ??no aggregate class refs) ?????????????????????
+function buildPagePlainText(blocks: readonly ContentBlock[], resolvedTitle: string): string
 ⋮----
-/** @alias KnowledgePageSnapshot ??provided for backward-compatibility */
+export class GenerateKnowledgePageSummaryQuery {
 ⋮----
-// ?? Server action DTOs ????????????????????????????????????????????????????????
+constructor(
 ⋮----
-// ?? Query functions (server-side reads) ???????????????????????????????????????
+async execute(accountId: string, pageId: string): Promise<KnowledgePageSummary | null>
 ⋮----
-// ?? Server actions (drives: app router, Server Components) ????????????????????
+export class GenerateKnowledgePageDistillationQuery {
 ⋮----
-// UI components and editor store are exported from ./ui to keep this barrel semantic-only.
-⋮----
-// ?? Tree node type (needed by app/ pages) ?????????????????????????????????????
-⋮----
-// ?? Domain events (published language ??for cross-module event subscriptions) ?
-⋮----
-// ?? Sidebar component ?????????????????????????????????????????????????????????
-⋮----
-// Header widgets and detail panels are exported from ./ui.
+async execute(accountId: string, pageId: string): Promise<KnowledgePageDistillation | null>
 ````
 
 ## File: modules/notion/subdomains/knowledge/domain/aggregates/ContentBlock.ts
@@ -49668,14 +50058,32 @@ export interface KnowledgePageTreeNode extends KnowledgePageSnapshot {
 }
 ````
 
-## File: modules/notion/subdomains/knowledge/domain/ports/index.ts
+## File: modules/notion/subdomains/knowledge/domain/index.ts
+````typescript
+
+````
+
+## File: modules/notion/subdomains/relations/api/index.ts
 ````typescript
 /**
- * notion/knowledge domain/ports — driven port interfaces for the knowledge subdomain.
+ * Public API boundary for the relations subdomain.
+ * Cross-module consumers must import through this entry point.
  *
- * Re-exports repository contracts from domain/repositories/, making the Ports layer
- * explicitly visible in the directory structure.
+ * Status: Tier 2 Recommended Gap Subdomain
  */
+⋮----
+// ── Domain types ──────────────────────────────────────────────────────────────
+⋮----
+// ── Repository contracts ───────────────────────────────────────────────────────
+⋮----
+// ── Domain events ─────────────────────────────────────────────────────────────
+⋮----
+// ── Application DTOs ──────────────────────────────────────────────────────────
+⋮----
+// ── Application contracts ─────────────────────────────────────────────────────
+⋮----
+// Note: server-only composition and infrastructure adapters are exported from
+// `./server` to keep the default boundary runtime-safe.
 ````
 
 ## File: modules/notion/subdomains/relations/application/use-cases/manage-relation.use-cases.ts
@@ -50709,6 +51117,7 @@ export async function createWorkspaceLocation(
 ````typescript
 import {
   deleteSourceDocument,
+  getSourceFileVersions,
   getWorkspaceFiles,
   getWorkspaceRagDocuments,
   renameSourceDocument,
@@ -50732,6 +51141,14 @@ export interface WorkspaceManagedFileItem {
   readonly updatedAtISO?: string;
 }
 ⋮----
+export interface WorkspaceManagedFileVersionItem {
+  readonly id: string;
+  readonly versionNumber: number;
+  readonly status: string;
+  readonly storagePath: string;
+  readonly createdAtISO: string;
+}
+⋮----
 export async function getWorkspaceManagedFiles(
   workspace: WorkspaceEntity,
 ): Promise<WorkspaceManagedFileItem[]>
@@ -50739,7 +51156,12 @@ export async function getWorkspaceManagedFiles(
 export async function uploadWorkspaceManagedFile(
   workspace: WorkspaceEntity,
   file: File,
+  options?: { readonly relativePath?: string },
 )
+⋮----
+export async function getWorkspaceManagedFileVersions(
+  documentId: string,
+): Promise<WorkspaceManagedFileVersionItem[]>
 ⋮----
 export async function renameWorkspaceManagedFile(
   workspace: WorkspaceEntity,
@@ -50944,6 +51366,77 @@ interface WorkspaceOverviewKnowledgePanelsProps {
   readonly currentUserId?: string | null;
   readonly activeSurface: string;
 }
+````
+
+## File: modules/workspace/interfaces/web/navigation/nav-preferences-data.ts
+````typescript
+/**
+ * nav-preferences-data.ts  (workspace BC – interfaces/web/navigation)
+ * Owns: NavPreferences type, nav-item catalogs, default values,
+ *   validation helpers, and localStorage read/write utilities.
+ * Constraints: No React imports. No UI imports. Pure data / serialization.
+ */
+⋮----
+import {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "./workspace-nav-items";
+import { normalizeWorkspaceTabPrefId } from "./workspace-tabs";
+⋮----
+// Re-export for consumers that import from this file directly.
+⋮----
+// ── Types ──────────────────────────────────────────────────────────────────
+⋮----
+export interface NavPreferences {
+  pinnedPersonal: string[];
+  pinnedWorkspace: string[];
+  showLimitedWorkspaces: boolean;
+  maxWorkspaces: number;
+  workspaceOrder: string[];
+}
+⋮----
+export interface SidebarLocaleBundle {
+  workspace?: {
+    groups?: Record<string, string>;
+    tabLabels?: Record<string, string>;
+  };
+}
+⋮----
+// ── Personal nav items ─────────────────────────────────────────────────────
+⋮----
+// ── Organization management items ─────────────────────────────────────────
+⋮----
+// ── Defaults + validation ──────────────────────────────────────────────────
+⋮----
+/**
+ * Legacy default order before workspace tab UX reorder.
+ * Only exact legacy defaults are migrated; custom user orders are preserved.
+ */
+⋮----
+/**
+ * Notion / NotebookLM orchestration tabs added via workspace orchestration layer.
+ * Existing users whose localStorage pre-dates these tabs need auto-migration.
+ */
+⋮----
+function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[]
+⋮----
+function migrateWorkflowPins(ids: string[]): string[]
+⋮----
+function migrateNotionNotebooklmPins(ids: string[]): string[]
+⋮----
+function migrateWorkspaceSurfacePins(ids: string[]): string[]
+⋮----
+function migrateWorkspaceSurfaceOrder(order: string[]): string[]
+⋮----
+function isExactOrderMatch(source: string[], target: readonly string[]): boolean
+⋮----
+function migrateWorkspaceOrder(order: string[]): string[]
+⋮----
+// ── localStorage helpers ───────────────────────────────────────────────────
+⋮----
+export function readNavPreferences(): NavPreferences
+⋮----
+export function writeNavPreferences(prefs: NavPreferences): void
 ````
 
 ## File: modules/workspace/interfaces/web/providers/WorkspaceContextProvider.tsx
@@ -52116,38 +52609,359 @@ Skill declarations are centralized in:
 Tags: #use agent hexagonal-convergence-enforcer
 ````
 
-## File: app/(public)/page.tsx
+## File: app/(shell)/_shell/ShellSidebarBody.tsx
 ````typescript
 /**
- * app/(public)/page.tsx
- * Public landing page with top-right auth entry and inline auth panel.
- * Uses identity module use cases directly on the client so Firebase auth state
- * actually updates AuthProvider via onAuthStateChanged.
+ * ShellSidebarBody — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it imports from workspace and notion modules.
  */
 ⋮----
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck } from "lucide-react";
+import Link from "next/link";
 ⋮----
 import {
-  useAuth,
-  createClientAuthUseCases,
-} from "@/modules/iam/api";
+  WorkspaceSectionContent,
+  type NavPreferences,
+  type SidebarLocaleBundle,
+} from "@/modules/workspace/api/ui";
+import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "@/modules/platform/api";
+⋮----
 import {
-  createClientAccountUseCases,
-} from "@/modules/platform/api";
+  type NavSection,
+  sidebarItemClass,
+  sidebarSectionTitleClass,
+} from "./ShellSidebarNavData";
+import { ShellContextNavSection } from "./ShellContextNavSection";
 ⋮----
-type Tab = "login" | "register";
+interface NavItem {
+  id: string;
+  label: string;
+  href: string;
+}
 ⋮----
-async function handleSubmit(e: React.FormEvent)
+interface WorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
 ⋮----
-async function handleGuestAccess()
+interface ShellSidebarBodyProps {
+  section: NavSection;
+  isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
+  showAccountManagement: boolean;
+  visibleAccountItems: readonly NavItem[];
+  visibleOrganizationManagementItems: readonly NavItem[];
+  workspacePathId: string | null;
+  navPrefs: NavPreferences;
+  localeBundle: SidebarLocaleBundle | null;
+  showRecentWorkspaces: boolean;
+  visibleRecentWorkspaceLinks: WorkspaceLink[];
+  hasOverflow: boolean;
+  isExpanded: boolean;
+  activeWorkspaceId: string | null;
+  onSelectWorkspace: (workspaceId: string | null) => void;
+  onToggleExpanded: () => void;
+  currentSearchWorkspaceId: string;
+}
 ⋮----
-async function handlePasswordReset()
+className=
+````
+
+## File: app/(shell)/(account)/[accountId]/dev-tools/page.tsx
+````typescript
+/**
+ * Module: dev-tools page — /dev-tools
+ * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
+ * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
+ * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
+ *   Doc-list state and operations → useDevToolsDocList hook.
+ *   Parsed-docs table → DevToolsParsedDocsSection component.
+ */
 ⋮----
-setError(null);
-setResetSent(false);
-setIsAuthPanelOpen((prev)
+import { useRef, useState, useEffect } from "react";
+import {
+  FlaskConical,
+  FileUp,
+  AlertCircle,
+  FileText,
+  Trash2,
+  Code2,
+  ExternalLink,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
+⋮----
+import {
+  firestoreInfrastructureApi,
+  storageInfrastructureApi,
+} from "@/modules/platform/api/infrastructure";
+import { useApp } from "@/modules/platform/api/ui";
+import { useWorkspaceContext } from "@/modules/workspace/api/ui";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  WATCH_PATH,
+  ACCEPTED_MIME,
+  ACCEPTED_EXTS,
+  asRecord,
+  asString,
+  asNumber,
+  type ParseResult,
+  type UploadStatus,
+} from "./dev-tools-helpers";
+import { StatusBadge, RagBadge } from "./dev-tools-badges";
+import { useDevToolsDocList, formatDateTime } from "./use-dev-tools-doc-list";
+import { DevToolsParsedDocsSection } from "./dev-tools-parsed-docs-section";
+⋮----
+// ── Page component ─────────────────────────────────────────────────────────
+⋮----
+// ── Upload state ──────────────────────────────────────────────────────────
+⋮----
+// ── Doc list + operations (extracted hook) ────────────────────────────────
+⋮----
+// Cleanup upload subscription on unmount
+⋮----
+function appendLog(msg: string)
+⋮----
+function handleFileChange(e: React.ChangeEvent<HTMLInputElement>)
+⋮----
+function buildUuidUploadPath(accountId: string, file: File)
+⋮----
+function watchDocument(docId: string)
+⋮----
+async function handleUploadAndParse()
+⋮----
+// Step 1: Upload to GCS via platform infrastructure API
+⋮----
+// Step 2: Watch Firestore for status updates
+⋮----
+function reset()
+⋮----
+{/* ── Header ─────────────────────────────────────────────────── */}
+⋮----
+{/* ── Stats ──────────────────────────────────────────────────── */}
+⋮----
+{/* ── File picker ────────────────────────────────────────────── */}
+⋮----
+{/* ── Actions ────────────────────────────────────────────────── */}
+⋮----
+{/* ── Result ─────────────────────────────────────────────────── */}
+⋮----
+{/* ── All uploaded docs table ─────────────────────────────────── */}
+⋮----
+onClick=
+⋮----
+{/* JSON preview panel */}
+⋮----
+{/* ── Parsed docs table (extracted component) ─────────────────── */}
+⋮----
+{/* ── Console log ────────────────────────────────────────────── */}
+````
+
+## File: docs/contexts/ai/AGENT.md
+````markdown
+# AI Context Agent Guide
+
+## Mission
+
+保護 ai 主域作為共享 AI capability 邊界。任何變更都應維持 ai 擁有 generation、orchestration、distillation、retrieval、safety 與 provider policy 語言，而不是吸收內容正典或推理輸出語義。
+
+## Canonical Ownership
+
+- generation
+- orchestration
+- distillation
+- retrieval
+- memory
+- context
+- safety
+- tool-calling
+- reasoning
+- conversation
+- evaluation
+- tracing
+
+## Route Here When
+
+- 問題核心是 LLM 呼叫、模型選擇、provider routing。
+- 問題需要 prompt 組裝、flow 執行或 tool calling 協調。
+- 問題需要將長輸出濃縮（distillation）或進行向量搜尋（retrieval）。
+- 問題需要安全護欄、配額或 AI 執行觀測。
+
+## Route Elsewhere When
+
+- 身份與存取治理屬於 iam。
+- 訂閱、配額商業政策屬於 billing。
+- 正典知識內容屬於 notion。
+- 對話推理輸出、grounding、notebook synthesis 屬於 notebooklm。
+
+## Guardrails
+
+- ai 的 distillation 是通用蒸餾能力，不是 notebooklm 的推理輸出語言。
+- ai 的 retrieval 是通用向量搜尋能力，不是 notion 的知識查詢正典。
+- ai 的 conversation 管理 AI 輪次，不等同 notebooklm 的 Conversation aggregate。
+- 下游消費只能透過 `modules/ai/api` 公開邊界，不能直接存取 subdomain internals。
+- Genkit 與 LLM SDK 只能存在於 infrastructure 層。
+
+## Hard Prohibitions
+
+- 不得讓 domain 或 application 直接依賴 Genkit、Firebase SDK 或框架語言。
+- 不得讓其他模組直接 import ai 的 infrastructure 或 subdomain domain 層。
+- 不得在 ai 內定義 KnowledgeArtifact、Notebook、Membership 等他域正典型別。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認需求屬於哪個 ai subdomain，再決定 port 定義與 adapter 位置。
+- 新能力若已有對應子域，先在該子域擴展，不要新建平行子域。
+- 奧卡姆剃刀：若一個 port + use case 就能承接需求，不要再新增 service 或 manager。
+- distillation 若只是摘要變體，先確認 generation 子域的 summarize 是否已足夠，再決定是否升級為 distillation use case。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces / Driving Adapters"] --> A["Application / Use Cases"]
+	A --> D["AI Domain / Ports"]
+	P["Ports"] -. used by .-> A
+	X["Infrastructure / Adapters"] -. implements .-> P
+	X --> D
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	IAM["iam upstream"] -->|actor / access| Boundary["ai API boundary"]
+	Billing["billing upstream"] -->|entitlement| Boundary
+	Boundary --> App["Application orchestration"]
+	App --> Generation["generation"]
+	App --> Distillation["distillation"]
+	App --> Retrieval["retrieval"]
+	App --> Safety["safety"]
+	Generation --> Output["AI capability signal"]
+	Distillation --> Output
+	Retrieval --> Output
+	Output --> Notion["notion consumer"]
+	Output --> NotebookLM["notebooklm consumer"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+````
+
+## File: docs/contexts/ai/context-map.md
+````markdown
+# AI Context Map
+
+## Context Role
+
+ai 對其他主域提供共享 AI capability signal。它消費 iam 的 access decision 與 billing 的 entitlement signal，向 notion 與 notebooklm 輸出 generation、distillation、retrieval 等能力。
+
+## Relationships
+
+| Upstream | Downstream | Relationship Type | Published Language |
+|---|---|---|---|
+| iam | ai | Upstream/Downstream | actor reference、access decision |
+| billing | ai | Upstream/Downstream | entitlement signal、quota capability |
+| ai | notion | Upstream/Downstream | ai capability signal、distillation result、safety result |
+| ai | notebooklm | Upstream/Downstream | ai capability signal、distillation result、retrieval result、safety result |
+
+## Mapping Rules
+
+- ai 消費 iam 的結果，但不重建 actor 或 tenant 模型。
+- ai 消費 billing 的 entitlement signal 決定配額，但不擁有訂閱或計費語義。
+- notion 消費 ai capability，但 AI provider / policy 所有權不屬於 notion。
+- notebooklm 消費 ai 的 generation、distillation、retrieval，但推理輸出的正典語義屬於 notebooklm 自己。
+- ai 不回寫任何下游主域的正典模型。
+
+## Integration Pattern
+
+- ai 作為下游消費 iam 與 billing 時，採用 Conformist 或 ACL，視語義相容性決定。
+- notion 與 notebooklm 消費 ai 時，ai 的 published language 是 capability signal，不是 aggregate。
+
+## Dependency Direction
+
+- ai 對 iam、billing 屬 downstream。
+- ai 對 notion、notebooklm 屬 upstream 的能力供應者。
+
+## Anti-Patterns
+
+- 把 ai 與 notebooklm 寫成 Shared Kernel，同時擁有推理輸出語義。
+- 讓 notion 或 notebooklm 直接 import ai 的 infrastructure 或 subdomain domain。
+- 把 iam 的 actor model 直接帶入 ai domain，而非只消費 access decision。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	IAM["iam upstream"] -->|access decision| Boundary["ai API boundary"]
+	Billing["billing upstream"] -->|entitlement signal| Boundary
+	Boundary --> App["ai Application"]
+	App --> Capability["AI capability signal / distillation result"]
+	Capability --> Notion["notion consumer"]
+	Capability --> NotebookLM["notebooklm consumer"]
+```
+````
+
+## File: docs/contexts/ai/ubiquitous-language.md
+````markdown
+# AI Ubiquitous Language
+
+## Canonical Terms
+
+| Term | Meaning |
+|---|---|
+| AICapabilitySignal | ai 向下游輸出的能力結果，不是具體 aggregate |
+| GenerationResult | 單次文字生成的輸出，包含 text、model、finishReason |
+| DistillationResult | 從多段內容或長輸出濃縮出的精煉知識片段 |
+| RetrievalResult | 向量搜尋後回傳的相關內容片段與分數 |
+| PromptContext | 組裝後準備送入 LLM 的完整上下文物件 |
+| SafetyResult | 安全護欄對輸入或輸出的檢查結果（pass / block） |
+| ModelPolicy | 模型選擇、版本鎖定與使用限制規則 |
+| OrchestrationFlow | 多步驟 AI 執行圖，由 orchestration 子域控制 |
+| ToolCall | 外部工具的調用請求與結果 |
+| MemoryEntry | 對話歷史或跨輪次狀態的單筆記錄 |
+| EvaluationScore | 針對 AI 輸出的品質量測結果 |
+| TraceSpan | AI 執行流程中的單一可觀測片段 |
+
+## Language Rules
+
+- 使用 DistillationResult 表示蒸餾輸出，不用 Summary 混稱精煉過程與摘要功能。
+- 使用 GenerationResult 表示生成輸出，不用 Response 泛稱所有 LLM 回傳。
+- 使用 PromptContext 表示組裝後的上下文，不用 Prompt 直接傳遞原始字串。
+- 使用 SafetyResult 表示護欄結果，不用 Filter 混指檢查流程。
+- 使用 AICapabilitySignal 作為跨主域 published language，不暴露內部 aggregate。
+
+## Avoid
+
+| Avoid | Use Instead |
+|---|---|
+| Summary（跨域泛稱） | DistillationResult（ai 精煉輸出）或 GenerationResult（生成摘要） |
+| Response | GenerationResult |
+| Filter | SafetyResult |
+| Prompt（跨域傳遞） | PromptContext |
+| Chat | conversation（ai 輪次管理）或 Conversation（notebooklm 正典） |
+
+## Naming Anti-Patterns
+
+- 不用 Summary 混指 distillation 的精煉結果與 generation 的摘要功能。
+- 不用 Chat 混指 ai 的 conversation 管理與 notebooklm 的 Conversation aggregate。
+- 不用 Prompt 作為跨域傳遞型別，必須先組裝成 PromptContext。
+- 不用 Filter 表示 safety 的護欄判定，SafetyResult 已含通過或攔截語義。
+
+## Copilot Generation Rules
+
+- 命名先對齊上表 Canonical Terms，再決定類別與檔名。
+- distillation 子域的輸出型別命名用 DistillationResult，不要退化為 SummarizedText。
+- 奧卡姆剃刀：若一個正確名詞已能表達邊界，不要再堆疊近義抽象。
 ````
 
 ## File: docs/contexts/iam/README.md
@@ -52970,54 +53784,51 @@ const anyDomain = (type) => (
 // notion/notebooklm interface layers must not read workspace context directly.
 ````
 
-## File: modules/ai/ai.instructions.md
+## File: modules/ai/AGENT.md
 ````markdown
----
-description: Minimal rules for the AI bounded context.
-applyTo: 'modules/ai/**/*.{ts,tsx,js,jsx,md}'
----
+# AI Module Agent Guide
 
-# AI Instructions
+## Purpose
 
-- modules/ai owns shared AI capability orchestration, generation, safety, tracing, and provider policy.
-- Keep Genkit and provider SDK imports only in modules/ai/infrastructure.
-- Downstream consumers must import shared AI only through modules/ai/api or modules/ai/api/server.
-- Do not mix identity governance or billing policy into this module.
-- Keep domain logic framework-free and keep adapters isolated in infrastructure.
+modules/ai 是共享 AI capability 的唯一邊界。它擁有 generation、orchestration、distillation、retrieval、memory、safety 與 provider policy，向下游模組輸出能力接縫。
+
+## Boundary Rules
+
+- 把 provider routing、model policy、safety 與 AI orchestration 放在這裡。
+- distillation（長輸出蒸餾）與 retrieval（向量搜尋）的通用能力屬於此模組。
+- 不放 workspace UI 組合、billing policy、identity governance。
+- 跨模組消費者只能透過 `modules/ai/api`（types）或 `modules/ai/api/server`（functions）存取。
+- Genkit 與 LLM SDK 只能在 `infrastructure/` 層，domain 層必須框架無關。
+
+## Route Here When
+
+- 需要呼叫 LLM、選擇模型、路由 provider。
+- 需要蒸餾（distillation）長輸出或多來源內容為精煉片段。
+- 需要向量搜尋、上下文組裝或多步驟 AI flow。
+- 需要 safety 護欄或 AI 執行觀測。
+
+## Route Elsewhere When
+
+- 身份與存取治理 → iam。
+- 訂閱、配額商業政策 → billing。
+- 正典知識內容 → notion。
+- 推理輸出、notebook synthesis → notebooklm。
+
+## Delivery Style
+
+- 優先擴展 generation 子域（已有實作），再決定是否需要 distillation 或 orchestration 子域。
+- 新子域只有在業務語義真的不同時才建立；骨架存在不代表需要立即實作。
+- 奧卡姆剃刀：一個 port + use case 能解決就不要新增 service。
 ````
 
-## File: modules/ai/docs/README.md
-````markdown
-# AI Docs
-
-This folder holds module-local architecture notes for the AI bounded context.
-
-## Current baseline
-
-- shared text generation is owned by the generation subdomain
-- Genkit wiring is isolated to AI infrastructure
-- downstream modules must consume shared AI through the AI public boundary only
-````
-
-## File: modules/ai/README.md
-````markdown
-# AI
-
-Shared AI bounded context for model invocation, safety, orchestration, and provider capability.
-
-## Intended ownership
-
-- provider routing
-- model policy
-- quota and safety guardrails
-- prompt and flow orchestration
-- shared text generation used by downstream modules
-
-## Active baseline
-
-- the generation subdomain now hosts the shared Genkit-backed text generation seam
-- downstream modules should consume shared AI through the AI public boundary
-- platform no longer owns shared AI runtime generation behavior
+## File: modules/ai/api/index.ts
+````typescript
+/**
+ * Public API boundary for the AI bounded context.
+ *
+ * Cross-module consumers must import shared AI contracts through this entry point.
+ * Server-only helpers live in ./server.ts.
+ */
 ````
 
 ## File: modules/iam/AGENT.md
@@ -53378,51 +54189,6 @@ export async function runKnowledgeRagQueryAction(
 ): Promise<KnowledgeRagQueryResult>
 ````
 
-## File: modules/notebooklm/interfaces/synthesis/components/RagQueryPanel.tsx
-````typescript
-import { useState } from "react";
-import { AlertCircle, Loader2, Search } from "lucide-react";
-import { toast } from "sonner";
-⋮----
-import { useApp } from "@/modules/platform/api/ui";
-import { useAuth } from "@/modules/iam/api";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@ui-shadcn/ui/accordion";
-import { Alert, AlertDescription, AlertTitle } from "@ui-shadcn/ui/alert";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-⋮----
-import type { KnowledgeCitation } from "../../../subdomains/synthesis/api";
-import { runKnowledgeRagQueryAction } from "../_actions/rag-query.actions";
-⋮----
-interface RagQueryPanelProps {
-  readonly workspaceId?: string;
-}
-⋮----
-/** Minimal RAG query chat interface. Uses local useState only — no streaming, no global state. */
-⋮----
-async function handleSubmit()
-⋮----
-// Compatibility fallback for older vectors without ready status.
-⋮----
-{/* Auth warning — shown upfront when user cannot execute RAG queries */}
-⋮----
-{/* Query input */}
-⋮----
-onClick=
-````
-
 ## File: modules/notebooklm/subdomains/source/api/index.ts
 ````typescript
 /**
@@ -53723,6 +54489,70 @@ export interface KnowledgeDatabasesPanelProps {
 function handleSuccess(databaseId?: string)
 ````
 
+## File: modules/notion/interfaces/knowledge/components/KnowledgeDetailPanel.tsx
+````typescript
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
+⋮----
+import { getKnowledgePage } from "../queries";
+import {
+  renameKnowledgePage,
+  archiveKnowledgePage,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+} from "../_actions/knowledge-page.actions";
+import type { KnowledgePageSnapshot as KnowledgePage } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+import { PageEditorPanel } from "./PageEditorPanel";
+import { CommentPanel } from "../../collaboration/components/CommentPanel";
+import { Button } from "@ui-shadcn/ui/button";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
+⋮----
+// ?? Props ?????????????????????????????????????????????????????????????????????
+⋮----
+export interface KnowledgeDetailPanelProps {
+  accountId: string;
+  activeWorkspaceId: string | null;
+  currentUserId: string;
+}
+⋮----
+// ?? Component ?????????????????????????????????????????????????????????????????
+⋮----
+function handleRename(title: string)
+⋮----
+function handleIconChange(iconUrl: string)
+⋮----
+function handleCoverChange(coverUrl: string)
+⋮----
+function handleArchive()
+⋮----
+// ?? Loading skeleton ????????????????????????????????????????????????????????
+⋮----
+// ?? Not found ???????????????????????????????????????????????????????????????
+⋮----
+<Button variant="ghost" size="sm" onClick=
+⋮----
+// ?? Page view ???????????????????????????????????????????????????????????????
+⋮----
+{/* Cover image */}
+⋮----
+{/* Top bar */}
+⋮----
+onClick=
+⋮----
+{/* Page header */}
+⋮----
+{/* Icon row */}
+⋮----
+{/* Main content + optional comment side panel */}
+⋮----
+{/* Block editor ??connected to Firebase */}
+⋮----
+{/* Comment panel ??slides in from right */}
+````
+
 ## File: modules/notion/interfaces/knowledge/components/KnowledgePagesPanel.tsx
 ````typescript
 import { useCallback, useEffect, useState } from "react";
@@ -53752,6 +54582,76 @@ export interface KnowledgePagesPanelProps {
 function buildPageDetailHref(pageId: string)
 ⋮----
 onCreated=
+````
+
+## File: modules/notion/subdomains/knowledge/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ */
+⋮----
+// ?? Types (read-only snapshots ??no aggregate class refs) ?????????????????????
+⋮----
+/** @alias KnowledgePageSnapshot ??provided for backward-compatibility */
+⋮----
+// ?? Server action DTOs ????????????????????????????????????????????????????????
+⋮----
+// ?? Query functions (server-side reads) ???????????????????????????????????????
+⋮----
+// ?? Server actions (drives: app router, Server Components) ????????????????????
+⋮----
+// UI components and editor store are exported from ./ui to keep this barrel semantic-only.
+⋮----
+// ?? Tree node type (needed by app/ pages) ?????????????????????????????????????
+⋮----
+// ?? Domain events (published language ??for cross-module event subscriptions) ?
+⋮----
+// ?? Sidebar component ?????????????????????????????????????????????????????????
+⋮----
+// Header widgets and detail panels are exported from ./ui.
+````
+
+## File: modules/notion/subdomains/knowledge/application/dto/knowledge.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the knowledge subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+⋮----
+export interface KnowledgePageSummary {
+  readonly pageId: string;
+  readonly title: string;
+  readonly summary: string;
+  readonly model: string;
+  readonly blockCount: number;
+}
+⋮----
+export interface KnowledgePageDistillation {
+  readonly pageId: string;
+  readonly title: string;
+  readonly overview: string;
+  readonly highlights: ReadonlyArray<{
+    readonly title: string;
+    readonly summary: string;
+  }>;
+  readonly model: string;
+  readonly traceId: string;
+  readonly completedAt: string;
+  readonly blockCount: number;
+}
+⋮----
+import type { RichTextSpan } from "../../domain/value-objects/BlockContent";
+⋮----
+/**
+ * richTextToPlainText — converts rich-text spans to a plain string.
+ *
+ * Application-layer utility that mirrors the domain value-object helper.
+ * Defined here so interfaces/ do not depend directly on domain/.
+ */
+export function richTextToPlainText(spans: ReadonlyArray<RichTextSpan>): string
 ````
 
 ## File: modules/notion/subdomains/knowledge/application/use-cases/review-knowledge-page.use-cases.ts
@@ -54246,6 +55146,91 @@ function handleSwitchToPersonal()
 onClick=
 ````
 
+## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
+````typescript
+// ── Types ──────────────────────────────────────────────────────────────────────
+⋮----
+export type ShellNavSection =
+  | "workspace"
+  | "dashboard"
+  | "account"
+  | "organization"
+  | "other";
+⋮----
+export interface ShellNavItem {
+  readonly id: string;
+  readonly label: string;
+  readonly href: string;
+}
+⋮----
+export interface ShellRailCatalogItem {
+  readonly id: string;
+  readonly href: string;
+  readonly label: string;
+  /** If true, this item is only visible to organization accounts. */
+  readonly requiresOrganization: boolean;
+  /** Route prefix for active-state matching. When absent, defaults to href. */
+  readonly activeRoutePrefix?: string;
+}
+⋮----
+/** If true, this item is only visible to organization accounts. */
+⋮----
+/** Route prefix for active-state matching. When absent, defaults to href. */
+⋮----
+export interface ShellContextSectionConfig {
+  readonly title: string;
+  readonly items: readonly { href: string; label: string }[];
+}
+⋮----
+export interface ShellRouteContext {
+  readonly accountId?: string | null;
+  readonly workspaceId?: string | null;
+}
+⋮----
+function parseHref(href: string):
+⋮----
+function joinHref(path: string, query: string): string
+⋮----
+function isAccountScopedWorkspacePath(pathname: string): boolean
+⋮----
+export function normalizeShellRoutePath(pathname: string): string
+⋮----
+export function buildShellContextualHref(
+  href: string,
+  context: ShellRouteContext,
+): string
+⋮----
+// ── Route-matching utility ────────────────────────────────────────────────────
+⋮----
+export function isExactOrChildPath(targetPath: string, pathname: string): boolean
+⋮----
+// ── Account section matchers ──────────────────────────────────────────────────
+⋮----
+// ── Route titles & breadcrumb labels ──────────────────────────────────────────
+⋮----
+// ── Organization management items ─────────────────────────────────────────────
+⋮----
+// ── Account nav items ─────────────────────────────────────────────────────────
+⋮----
+// ── Section labels ────────────────────────────────────────────────────────────
+⋮----
+// ── Rail catalog ──────────────────────────────────────────────────────────────
+⋮----
+export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[]
+⋮----
+// ── Context section config ────────────────────────────────────────────────────
+⋮----
+// ── Mobile & organization nav items ───────────────────────────────────────────
+⋮----
+// ── Section resolvers ─────────────────────────────────────────────────────────
+⋮----
+export function resolveShellNavSection(pathname: string): ShellNavSection
+⋮----
+export function resolveShellPageTitle(pathname: string): string
+⋮----
+export function resolveShellBreadcrumbLabel(segment: string): string
+````
+
 ## File: modules/platform/subdomains/team/api/index.ts
 ````typescript
 /**
@@ -54406,6 +55391,31 @@ onOpenChange=
 onWorkspaceNameChange=
 ````
 
+## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
+````typescript
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { WorkspaceEntity } from "../../contracts";
+import { getWorkspaceById, getWorkspaceByIdForAccount } from "../../facades";
+⋮----
+export type WorkspaceLoadState = "loading" | "loaded" | "error";
+⋮----
+export interface UseWorkspaceDetailResult {
+  workspace: WorkspaceEntity | null;
+  loadState: WorkspaceLoadState;
+  setWorkspace: (ws: WorkspaceEntity) => void;
+}
+⋮----
+export function useWorkspaceDetail(
+  workspaceId: string,
+  accountId: string | null | undefined,
+  accountsHydrated: boolean,
+  accessibleAccountIds: readonly string[] = [],
+): UseWorkspaceDetailResult
+⋮----
+async function loadWorkspace()
+````
+
 ## File: modules/workspace/interfaces/web/hooks/useWorkspaceOrchestrationContext.ts
 ````typescript
 import { useParams } from "next/navigation";
@@ -54465,6 +55475,40 @@ export function appendWorkspaceContextQuery(
   href: string,
   context: WorkspaceNavigationContext,
 ): string
+````
+
+## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
+````typescript
+export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
+⋮----
+export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
+⋮----
+export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
+⋮----
+interface WorkspaceTabMeta {
+  readonly label: string;
+  readonly prefId: string;
+  readonly group: WorkspaceTabGroup;
+  readonly status: WorkspaceTabDevStatus;
+}
+⋮----
+export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue
+⋮----
+export function resolveWorkspaceTabValue(value: string | null | undefined): WorkspaceTabValue | null
+⋮----
+export function normalizeWorkspaceTabPrefId(prefId: string): string
+⋮----
+export function getWorkspaceTabMeta(tab: WorkspaceTabValue)
+⋮----
+export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus
+⋮----
+export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string
+⋮----
+export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string
+⋮----
+export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[]
+⋮----
+export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[]
 ````
 
 ## File: modules/workspace/subdomains/audit/api/index.ts
@@ -54845,95 +55889,66 @@ onSelectWorkspace(workspace.id);
 accountType=
 ````
 
-## File: app/(shell)/(account)/[accountId]/dev-tools/page.tsx
+## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
 ````typescript
 /**
- * Module: dev-tools page — /dev-tools
- * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
- * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
- * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
- *   Doc-list state and operations → useDevToolsDocList hook.
- *   Parsed-docs table → DevToolsParsedDocsSection component.
+ * ShellDashboardSidebar — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it composes workspace module components.
  */
 ⋮----
-import { useRef, useState, useEffect } from "react";
-import {
-  FlaskConical,
-  FileUp,
-  AlertCircle,
-  FileText,
-  Trash2,
-  Code2,
-  ExternalLink,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 ⋮----
 import {
-  firestoreInfrastructureApi,
-  storageInfrastructureApi,
-} from "@/modules/platform/api/infrastructure";
-import { useApp } from "@/modules/platform/api/ui";
-import { useWorkspaceContext } from "@/modules/workspace/api/ui";
-import { Button } from "@ui-shadcn/ui/button";
+  buildWorkspaceQuickAccessItems,
+  CustomizeNavigationDialog,
+  getWorkspaceIdFromPath,
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  readNavPreferences,
+  supportsWorkspaceSearchContext,
+  type NavPreferences,
+  useRecentWorkspaces,
+  useSidebarLocale,
+  WorkspaceQuickAccessRow,
+} from "@/modules/workspace/api/ui";
+⋮----
 import {
-  WATCH_PATH,
-  ACCEPTED_MIME,
-  ACCEPTED_EXTS,
-  asRecord,
-  asString,
-  asNumber,
-  type ParseResult,
-  type UploadStatus,
-} from "./dev-tools-helpers";
-import { StatusBadge, RagBadge } from "./dev-tools-badges";
-import { useDevToolsDocList, formatDateTime } from "./use-dev-tools-doc-list";
-import { DevToolsParsedDocsSection } from "./dev-tools-parsed-docs-section";
+  type DashboardSidebarProps,
+  ORGANIZATION_MANAGEMENT_ITEMS,
+  ACCOUNT_NAV_ITEMS,
+  SECTION_TITLES,
+  resolveNavSection,
+  isActiveRoute,
+  isActiveOrganizationAccount,
+} from "./ShellSidebarNavData";
+import { ShellSidebarHeader } from "./ShellSidebarHeader";
+import { DashboardSidebarBody } from "./ShellSidebarBody";
 ⋮----
-// ── Page component ─────────────────────────────────────────────────────────
+export function ShellDashboardSidebar({
+  pathname,
+  activeAccount,
+  workspaces,
+  activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
+  onSelectWorkspace,
+}: DashboardSidebarProps)
 ⋮----
-// ── Upload state ──────────────────────────────────────────────────────────
-⋮----
-// ── Doc list + operations (extracted hook) ────────────────────────────────
-⋮----
-// Cleanup upload subscription on unmount
-⋮----
-function appendLog(msg: string)
-⋮----
-function handleFileChange(e: React.ChangeEvent<HTMLInputElement>)
-⋮----
-function buildUuidUploadPath(accountId: string, file: File)
-⋮----
-function watchDocument(docId: string)
-⋮----
-async function handleUploadAndParse()
-⋮----
-// Step 1: Upload to GCS via platform infrastructure API
-⋮----
-// Step 2: Watch Firestore for status updates
-⋮----
-function reset()
-⋮----
-{/* ── Header ─────────────────────────────────────────────────── */}
-⋮----
-{/* ── Stats ──────────────────────────────────────────────────── */}
-⋮----
-{/* ── File picker ────────────────────────────────────────────── */}
-⋮----
-{/* ── Actions ────────────────────────────────────────────────── */}
-⋮----
-{/* ── Result ─────────────────────────────────────────────────── */}
-⋮----
-{/* ── All uploaded docs table ─────────────────────────────────── */}
-⋮----
-onClick=
-⋮----
-{/* JSON preview panel */}
-⋮----
-{/* ── Parsed docs table (extracted component) ─────────────────── */}
-⋮----
-{/* ── Console log ────────────────────────────────────────────── */}
+isActiveRoute={(href) => isActiveRoute(pathname, href)}
+          activeAccountId={activeAccount?.id ?? null}
+          showAccountManagement={showAccountManagement}
+          visibleAccountItems={visibleAccountItems}
+          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
+          workspacePathId={workspacePathId}
+          navPrefs={navPrefs}
+          localeBundle={localeBundle}
+          showRecentWorkspaces={showRecentWorkspaces}
+          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+          hasOverflow={hasOverflow}
+          isExpanded={isExpanded}
+          activeWorkspaceId={activeWorkspaceId}
+          onSelectWorkspace={onSelectWorkspace}
+onToggleExpanded=
 ````
 
 ## File: docs/architecture-overview.md
@@ -55075,6 +56090,243 @@ flowchart LR
 5. [integration-guidelines.md](./integration-guidelines.md)
 6. [strategic-patterns.md](./strategic-patterns.md)
 7. [decisions/README.md](./decisions/README.md)
+````
+
+## File: docs/contexts/ai/bounded-contexts.md
+````markdown
+# AI Bounded Contexts
+
+## Domain Role
+
+ai 是共享能力 bounded context。它封裝所有 AI 執行能力——從 generation、distillation 到 safety——讓下游主域穩定消費，而不需要了解 LLM provider 細節。
+
+## Baseline Bounded Contexts
+
+| Cluster | Subdomains |
+|---|---|
+| Core Execution | generation、orchestration、distillation |
+| Knowledge Access | retrieval、memory、context |
+| Quality & Safety | safety、evaluation、tracing |
+| Extended Capability | tool-calling、reasoning、conversation |
+
+## Recommended Gap Bounded Contexts
+
+| Subdomain | Why Needed | Gap If Missing |
+|---|---|---|
+| evaluation | 建立 AI 輸出品質的正式評估邊界 | 輸出品質只能靠人工驗收，無回歸基準 |
+| tracing | 建立 AI 執行成本與 span 的觀測邊界 | 無法量測 LLM 使用量與偵錯 AI 流程 |
+
+## Domain Invariants
+
+- generation 是唯一直接呼叫 LLM provider 的子域，其他子域透過 ports 間接使用。
+- distillation 輸出的是「精煉知識片段」，不是 KnowledgeArtifact；語義屬於 ai，不屬於 notion。
+- memory 若需要長期保存內容，應優先保存 distilled knowledge，而不是無限制保留 raw content。
+- retrieval 若存在可選資料來源，應優先索引 distilled chunks 或結構化 knowledge signal。
+- evaluation 必須覆蓋 distillation，至少檢查 compression、retention 與 hallucination risk。
+- safety 的結果可以終止任何 AI 執行流程。
+- orchestration 是執行圖的主控，不直接持有業務資料。
+- tracing 只負責觀測與 debug，不得改變執行決策。
+- 所有子域的 domain 層必須框架無關。
+
+## Dependency Direction
+
+- ai 子域在存在對應層時遵守 interfaces -> application -> domain <- infrastructure。
+- 子域之間透過 ports 或 orchestration application 協調，不直接依賴彼此 domain。
+- 外部輸入只能先經 API boundary，再進入 ai 內部執行流程。
+
+## Anti-Patterns
+
+- 讓 generation 子域直接依賴 notion 或 notebooklm 的業務型別。
+- 把 distillation 當成 notebooklm synthesis 的 alias，混淆輸出語義。
+- 讓下游模組繞過 ai API 邊界，直接 import ai infrastructure。
+- 在 ai domain 層 import Genkit、Firebase 或任何 SDK。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認能力屬於哪個 cluster，再決定子域與層。
+- 跨子域協調一律交給 orchestration application，不讓子域直接相互呼叫。
+- 奧卡姆剃刀：能在現有子域加一個 port + use case 解決，就不要新建子域。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain / Ports"]
+	X["Infrastructure"] -. implements .-> D
+```
+````
+
+## File: docs/contexts/ai/README.md
+````markdown
+# AI Context
+
+## Purpose
+
+ai 是共享 AI capability 主域。它負責 generation、orchestration、distillation、retrieval、memory、safety 與 provider routing，供 notion、notebooklm 等主域穩定消費。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 共享 AI capability orchestration |
+| Upstream Dependency | iam access policy、billing entitlement |
+| Downstream Consumers | notion、notebooklm |
+| Core Principle | 提供 AI 能力，不接管內容正典或推理輸出語義 |
+
+## Baseline Subdomains
+
+- generation — 文字生成，Genkit 接縫
+- orchestration — 執行圖與工作流協調
+- distillation — 將長輸出濃縮為精煉知識片段
+- retrieval — 向量搜尋與上下文抓取
+- memory — 對話歷史與狀態保存
+- context — prompt 上下文組裝
+- safety — 安全護欄與內容保護
+- tool-calling — 外部工具調用協調
+- reasoning — 推理步驟管理
+- conversation — AI 互動輪次管理
+- evaluation — 輸出品質評估
+- tracing — AI 執行觀測與追蹤
+
+## Key Relationships
+
+- 與 iam：消費 actor reference 與 access decision。
+- 與 billing：消費 entitlement signal 決定 AI 配額。
+- 與 notion：向 notion 提供 generate、summarize、distill 能力。
+- 與 notebooklm：向 notebooklm 提供 generation、retrieval、distillation 能力。
+
+## Strategic Rules
+
+- Context 應先做 token budgeting、ranking 與壓縮，再把結果交給 generation 或 distillation。
+- Distillation 應被視為 knowledge compiler，而不是單純摘要工具。
+- Retrieval、memory、evaluation 都應明確接收並檢查 distillation 的輸出，而不是各自重新定義相同語義。
+- 大型蒸餾或多來源蒸餾應優先走 async pipeline，避免同步入口承擔過高成本與延遲。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENT.md](./AGENT.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- Genkit、LLM SDK 等 provider 細節只能停留在 infrastructure 層。
+- 下游消費者只透過 `modules/ai/api` 或 `modules/ai/api/server` 存取。
+
+## Anti-Pattern Rules
+
+- 不把 notion 的 KnowledgeArtifact 或 notebooklm 的 Conversation 語義拉進 ai domain。
+- 不在 ai 內重建 identity 或 billing 邏輯。
+- 不讓下游模組直接呼叫 ai 的 infrastructure 或 subdomain internals。
+
+## Document Network
+
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+````
+
+## File: docs/contexts/ai/subdomains.md
+````markdown
+# AI Subdomains
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| generation | 文字生成；Genkit 接縫；`generateText`、`summarize` |
+| orchestration | 執行圖與多步驟 AI workflow 協調 |
+| distillation | 將長輸出或多來源濃縮為精煉知識片段 |
+| retrieval | 向量搜尋、相似度查詢與上下文抓取 |
+| memory | 對話歷史與跨輪次狀態保存 |
+| context | prompt 上下文組裝與 token 預算管理 |
+| safety | 安全護欄、有害內容過濾與合規保護 |
+| tool-calling | 外部工具調用協調與結果回注 |
+| reasoning | 推理步驟管理（chain-of-thought、反思） |
+| conversation | AI 互動輪次追蹤與歷史管理 |
+| evaluation | 輸出品質評估與回歸基準 |
+| tracing | AI 執行觀測、span 紀錄與成本追蹤 |
+
+## Subdomain Groupings
+
+| Group | Subdomains |
+|---|---|
+| Core Execution | generation、orchestration、distillation |
+| Knowledge Access | retrieval、memory、context |
+| Quality & Safety | safety、evaluation、tracing |
+| Extended Capability | tool-calling、reasoning、conversation |
+
+## Active Baseline
+
+- generation 子域已有 Genkit 實作（`GenkitAiTextGenerationAdapter`）。
+- 其餘子域為骨架狀態，依需求逐步實作。
+
+## Distillation 說明
+
+distillation 將多段 AI 輸出或長文濃縮為精煉、可引用的知識片段，與 generation 的差異在於：
+
+- generation：輸入 prompt → 輸出文字。
+- distillation：輸入多段內容 → 輸出 overview、highlights 與其他 schema-ready knowledge fragments。
+
+下游（如 notebooklm）消費 distillation 能力，但 distillation 的輸出語義屬於 ai，不屬於 notebooklm 的推理輸出。
+
+### Distilled Rules
+
+- distillation 應被視為 knowledge compiler，而不是只做單一 summary 字串回傳。
+- memory 應優先吸收 distilled output，避免 raw content 直接放大 token 與成本。
+- retrieval 若可選擇資料來源，應優先使用 distilled chunks 或 structured knowledge signal。
+- evaluation 應把 distillation 視為正式品質對象，至少檢查 compression、retention 與 hallucination 風險。
+- 大型蒸餾流程應優先走 async pipeline，而不是把重工作壓在同步入口。
+
+## Anti-Patterns
+
+- 不把 distillation 子域當成 notebooklm 的 synthesis 子域的替代品；兩者語義不同。
+- 不把 retrieval 混成 notion 的知識查詢；ai retrieval 是通用向量能力。
+- 不把 conversation 子域等同 notebooklm 的 Conversation aggregate。
+- 不在 subdomain domain 層 import 任何 LLM SDK 或 Firebase 相關依賴。
+
+## Copilot Generation Rules
+
+- 新 AI use case 先對應到上表某個子域，再決定 port 位置與 adapter 實作。
+- 若 distillation 只是 summarize 的變體，先在 generation 子域新增 use case，確認不夠後才升至 distillation 子域。
+- 奧卡姆剃刀：子域骨架存在不代表需要立即填滿所有層；按需實作。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case (application)"]
+	UseCase --> Port["Port (domain)"]
+	Infra["Infrastructure adapter"] -. implements .-> Port
+```
+
+## Correct Subdomain Interaction
+
+```mermaid
+flowchart LR
+	Orchestration["orchestration"] --> Generation["generation"]
+	Orchestration --> Distillation["distillation"]
+	Orchestration --> Retrieval["retrieval"]
+	Context["context"] --> Orchestration
+	Memory["memory"] --> Context
+	Safety["safety"] --> Orchestration
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../subdomains.md](../../subdomains.md)
 ````
 
 ## File: docs/contexts/platform/README.md
@@ -55991,6 +57243,40 @@ flowchart LR
 - 若同一個詞在多主域都想擁有，優先看它服務的是治理、協作範疇、正典內容還是推理輸出。
 ````
 
+## File: modules/ai/ai.instructions.md
+````markdown
+---
+description: Rules for the AI bounded context.
+applyTo: 'modules/ai/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# AI Instructions
+
+## Ownership
+
+- modules/ai 擁有共享 AI capability：generation、orchestration、distillation、retrieval、memory、context、safety、tool-calling、reasoning、conversation、evaluation、tracing。
+- provider routing 與 model policy 在此模組定義，不在下游模組重建。
+
+## Dependency Rules
+
+- Genkit 與 provider SDK import 只能出現在 `modules/ai/infrastructure/`。
+- 下游消費者只能透過 `modules/ai/api`（client-safe types）或 `modules/ai/api/server`（server functions）存取。
+- domain 層不得依賴任何框架、SDK 或傳輸層。
+- 子域之間透過 ports 或 orchestration application 協調，不直接互相 import domain 層。
+
+## Naming
+
+- 生成輸出型別用 `GenerationResult` 或 `GenerateAiTextOutput`，不用 `Response`。
+- 蒸餾輸出型別用 `DistillationResult`，不用 `SummarizedText` 或 `Summary`。
+- 搜尋輸出型別用 `RetrievalResult`，不用 `SearchResult` 泛稱。
+
+## Anti-Patterns
+
+- 不在 ai 內定義 KnowledgeArtifact、Notebook、Conversation（notebooklm 正典）等他域型別。
+- 不混入 identity governance 或 billing policy。
+- 不讓其他模組繞過 api 邊界直接 import subdomain internals。
+````
+
 ## File: modules/ai/subdomains/subdomains.instructions.md
 ````markdown
 ---
@@ -56424,153 +57710,14 @@ function handleRequestReview()
 {/* Body tabs */}
 ````
 
-## File: modules/notion/interfaces/knowledge/components/KnowledgeDetailPanel.tsx
+## File: modules/notion/subdomains/knowledge/domain/ports/index.ts
 ````typescript
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
-⋮----
-import { getKnowledgePage } from "../queries";
-import {
-  renameKnowledgePage,
-  archiveKnowledgePage,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-} from "../_actions/knowledge-page.actions";
-import type { KnowledgePageSnapshot as KnowledgePage } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
-import { PageEditorPanel } from "./PageEditorPanel";
-import { CommentPanel } from "../../collaboration/components/CommentPanel";
-import { Button } from "@ui-shadcn/ui/button";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
-⋮----
-// ?? Props ?????????????????????????????????????????????????????????????????????
-⋮----
-export interface KnowledgeDetailPanelProps {
-  accountId: string;
-  activeWorkspaceId: string | null;
-  currentUserId: string;
-}
-⋮----
-// ?? Component ?????????????????????????????????????????????????????????????????
-⋮----
-function handleRename(title: string)
-⋮----
-function handleIconChange(iconUrl: string)
-⋮----
-function handleCoverChange(coverUrl: string)
-⋮----
-function handleArchive()
-⋮----
-// ?? Loading skeleton ????????????????????????????????????????????????????????
-⋮----
-// ?? Not found ???????????????????????????????????????????????????????????????
-⋮----
-<Button variant="ghost" size="sm" onClick=
-⋮----
-// ?? Page view ???????????????????????????????????????????????????????????????
-⋮----
-{/* Cover image */}
-⋮----
-{/* Top bar */}
-⋮----
-onClick=
-⋮----
-{/* Page header */}
-⋮----
-{/* Icon row */}
-⋮----
-{/* Main content + optional comment side panel */}
-⋮----
-{/* Block editor ??connected to Firebase */}
-⋮----
-{/* Comment panel ??slides in from right */}
-````
-
-## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
-````typescript
-// ── Types ──────────────────────────────────────────────────────────────────────
-⋮----
-export type ShellNavSection =
-  | "workspace"
-  | "dashboard"
-  | "account"
-  | "organization"
-  | "other";
-⋮----
-export interface ShellNavItem {
-  readonly id: string;
-  readonly label: string;
-  readonly href: string;
-}
-⋮----
-export interface ShellRailCatalogItem {
-  readonly id: string;
-  readonly href: string;
-  readonly label: string;
-  /** If true, this item is only visible to organization accounts. */
-  readonly requiresOrganization: boolean;
-  /** Route prefix for active-state matching. When absent, defaults to href. */
-  readonly activeRoutePrefix?: string;
-}
-⋮----
-/** If true, this item is only visible to organization accounts. */
-⋮----
-/** Route prefix for active-state matching. When absent, defaults to href. */
-⋮----
-export interface ShellContextSectionConfig {
-  readonly title: string;
-  readonly items: readonly { href: string; label: string }[];
-}
-⋮----
-export interface ShellRouteContext {
-  readonly accountId?: string | null;
-  readonly workspaceId?: string | null;
-}
-⋮----
-function parseHref(href: string):
-⋮----
-function joinHref(path: string, query: string): string
-⋮----
-function isAccountScopedWorkspacePath(pathname: string): boolean
-⋮----
-export function normalizeShellRoutePath(pathname: string): string
-⋮----
-export function buildShellContextualHref(
-  href: string,
-  context: ShellRouteContext,
-): string
-⋮----
-// ── Route-matching utility ────────────────────────────────────────────────────
-⋮----
-export function isExactOrChildPath(targetPath: string, pathname: string): boolean
-⋮----
-// ── Account section matchers ──────────────────────────────────────────────────
-⋮----
-// ── Route titles & breadcrumb labels ──────────────────────────────────────────
-⋮----
-// ── Organization management items ─────────────────────────────────────────────
-⋮----
-// ── Account nav items ─────────────────────────────────────────────────────────
-⋮----
-// ── Section labels ────────────────────────────────────────────────────────────
-⋮----
-// ── Rail catalog ──────────────────────────────────────────────────────────────
-⋮----
-export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[]
-⋮----
-// ── Context section config ────────────────────────────────────────────────────
-⋮----
-// ── Mobile & organization nav items ───────────────────────────────────────────
-⋮----
-// ── Section resolvers ─────────────────────────────────────────────────────────
-⋮----
-export function resolveShellNavSection(pathname: string): ShellNavSection
-⋮----
-export function resolveShellPageTitle(pathname: string): string
-⋮----
-export function resolveShellBreadcrumbLabel(segment: string): string
+/**
+ * notion/knowledge domain/ports — driven port interfaces for the knowledge subdomain.
+ *
+ * Re-exports repository contracts from domain/repositories/, making the Ports layer
+ * explicitly visible in the directory structure.
+ */
 ````
 
 ## File: modules/workspace/application/queries/wiki-content-tree.queries.ts
@@ -56633,98 +57780,6 @@ export function useRecentWorkspaces(
   pathname: string,
   workspaces: WorkspaceEntity[],
 )
-````
-
-## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
-````typescript
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { WorkspaceEntity } from "../../contracts";
-import { getWorkspaceById, getWorkspaceByIdForAccount } from "../../facades";
-⋮----
-export type WorkspaceLoadState = "loading" | "loaded" | "error";
-⋮----
-export interface UseWorkspaceDetailResult {
-  workspace: WorkspaceEntity | null;
-  loadState: WorkspaceLoadState;
-  setWorkspace: (ws: WorkspaceEntity) => void;
-}
-⋮----
-export function useWorkspaceDetail(
-  workspaceId: string,
-  accountId: string | null | undefined,
-  accountsHydrated: boolean,
-  accessibleAccountIds: readonly string[] = [],
-): UseWorkspaceDetailResult
-⋮----
-async function loadWorkspace()
-````
-
-## File: modules/workspace/interfaces/web/navigation/nav-preferences-data.ts
-````typescript
-/**
- * nav-preferences-data.ts  (workspace BC – interfaces/web/navigation)
- * Owns: NavPreferences type, nav-item catalogs, default values,
- *   validation helpers, and localStorage read/write utilities.
- * Constraints: No React imports. No UI imports. Pure data / serialization.
- */
-⋮----
-import {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "./workspace-nav-items";
-import { normalizeWorkspaceTabPrefId } from "./workspace-tabs";
-⋮----
-// Re-export for consumers that import from this file directly.
-⋮----
-// ── Types ──────────────────────────────────────────────────────────────────
-⋮----
-export interface NavPreferences {
-  pinnedPersonal: string[];
-  pinnedWorkspace: string[];
-  showLimitedWorkspaces: boolean;
-  maxWorkspaces: number;
-  workspaceOrder: string[];
-}
-⋮----
-export interface SidebarLocaleBundle {
-  workspace?: {
-    groups?: Record<string, string>;
-    tabLabels?: Record<string, string>;
-  };
-}
-⋮----
-// ── Personal nav items ─────────────────────────────────────────────────────
-⋮----
-// ── Organization management items ─────────────────────────────────────────
-⋮----
-// ── Defaults + validation ──────────────────────────────────────────────────
-⋮----
-/**
- * Legacy default order before workspace tab UX reorder.
- * Only exact legacy defaults are migrated; custom user orders are preserved.
- */
-⋮----
-/**
- * Notion / NotebookLM orchestration tabs added via workspace orchestration layer.
- * Existing users whose localStorage pre-dates these tabs need auto-migration.
- */
-⋮----
-function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[]
-⋮----
-function migrateWorkflowPins(ids: string[]): string[]
-⋮----
-function migrateNotionNotebooklmPins(ids: string[]): string[]
-⋮----
-function isExactOrderMatch(source: string[], target: readonly string[]): boolean
-⋮----
-function migrateWorkspaceOrder(order: string[]): string[]
-⋮----
-// ── localStorage helpers ───────────────────────────────────────────────────
-⋮----
-export function readNavPreferences(): NavPreferences
-⋮----
-export function writeNavPreferences(prefs: NavPreferences): void
 ````
 
 ## File: repomix.config.json
@@ -56856,126 +57911,6 @@ export function writeNavPreferences(prefs: NavPreferences): void
     "encoding": "o200k_base"
   }
 }
-````
-
-## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
-````typescript
-/**
- * ShellDashboardSidebar — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it composes workspace module components.
- */
-⋮----
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-⋮----
-import {
-  buildWorkspaceQuickAccessItems,
-  CustomizeNavigationDialog,
-  getWorkspaceIdFromPath,
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  readNavPreferences,
-  supportsWorkspaceSearchContext,
-  type NavPreferences,
-  useRecentWorkspaces,
-  useSidebarLocale,
-  WorkspaceQuickAccessRow,
-} from "@/modules/workspace/api/ui";
-⋮----
-import {
-  type DashboardSidebarProps,
-  ORGANIZATION_MANAGEMENT_ITEMS,
-  ACCOUNT_NAV_ITEMS,
-  SECTION_TITLES,
-  resolveNavSection,
-  isActiveRoute,
-  isActiveOrganizationAccount,
-} from "./ShellSidebarNavData";
-import { ShellSidebarHeader } from "./ShellSidebarHeader";
-import { DashboardSidebarBody } from "./ShellSidebarBody";
-⋮----
-export function ShellDashboardSidebar({
-  pathname,
-  activeAccount,
-  workspaces,
-  activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
-  onSelectWorkspace,
-}: DashboardSidebarProps)
-⋮----
-isActiveRoute={(href) => isActiveRoute(pathname, href)}
-          activeAccountId={activeAccount?.id ?? null}
-          showAccountManagement={showAccountManagement}
-          visibleAccountItems={visibleAccountItems}
-          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
-          workspacePathId={workspacePathId}
-          navPrefs={navPrefs}
-          localeBundle={localeBundle}
-          showRecentWorkspaces={showRecentWorkspaces}
-          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
-          hasOverflow={hasOverflow}
-          isExpanded={isExpanded}
-          activeWorkspaceId={activeWorkspaceId}
-          onSelectWorkspace={onSelectWorkspace}
-onToggleExpanded=
-````
-
-## File: app/(shell)/_shell/ShellSidebarBody.tsx
-````typescript
-/**
- * ShellSidebarBody — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it imports from workspace and notion modules.
- */
-⋮----
-import Link from "next/link";
-⋮----
-import {
-  WorkspaceSectionContent,
-  type NavPreferences,
-  type SidebarLocaleBundle,
-} from "@/modules/workspace/api/ui";
-import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "@/modules/platform/api";
-⋮----
-import {
-  type NavSection,
-  sidebarItemClass,
-  sidebarSectionTitleClass,
-} from "./ShellSidebarNavData";
-import { ShellContextNavSection } from "./ShellContextNavSection";
-⋮----
-interface NavItem {
-  id: string;
-  label: string;
-  href: string;
-}
-⋮----
-interface WorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-⋮----
-interface ShellSidebarBodyProps {
-  section: NavSection;
-  isActiveRoute: (href: string) => boolean;
-  activeAccountId: string | null;
-  showAccountManagement: boolean;
-  visibleAccountItems: readonly NavItem[];
-  visibleOrganizationManagementItems: readonly NavItem[];
-  workspacePathId: string | null;
-  navPrefs: NavPreferences;
-  localeBundle: SidebarLocaleBundle | null;
-  showRecentWorkspaces: boolean;
-  visibleRecentWorkspaceLinks: WorkspaceLink[];
-  hasOverflow: boolean;
-  isExpanded: boolean;
-  activeWorkspaceId: string | null;
-  onSelectWorkspace: (workspaceId: string | null) => void;
-  onToggleExpanded: () => void;
-  currentSearchWorkspaceId: string;
-}
-⋮----
-className=
 ````
 
 ## File: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
@@ -57192,6 +58127,34 @@ flowchart LR
 // ── Use-case classes (for DI composition within synthesis subdomain) ──────────
 ⋮----
 // UI components are exported from ./ui to keep this barrel semantic-only.
+````
+
+## File: modules/notion/subdomains/knowledge/api/server.ts
+````typescript
+/**
+ * knowledge subdomain — server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
+⋮----
+import {
+  GenerateKnowledgePageDistillationQuery,
+  GenerateKnowledgePageSummaryQuery,
+} from "../application/queries/knowledge-summary.queries";
+import type { KnowledgePageDistillation, KnowledgePageSummary } from "../application/dto/knowledge.dto";
+import { SharedAiKnowledgeSummaryAdapter } from "../../../infrastructure/knowledge/ai/SharedAiKnowledgeSummaryAdapter";
+import { FirebaseKnowledgePageRepository } from "../../../infrastructure/knowledge/firebase/FirebaseKnowledgePageRepository";
+import { FirebaseContentBlockRepository } from "../../../infrastructure/knowledge/firebase/FirebaseContentBlockRepository";
+import { FirebaseKnowledgeCollectionRepository } from "../../../infrastructure/knowledge/firebase/FirebaseKnowledgeCollectionRepository";
+import { FirebaseBacklinkIndexRepository } from "../../../infrastructure/knowledge/firebase/FirebaseBacklinkIndexRepository";
+⋮----
+export async function getKnowledgePageSummary(accountId: string, pageId: string): Promise<KnowledgePageSummary | null>
+⋮----
+export async function getKnowledgePageDistillation(
+  accountId: string,
+  pageId: string,
+): Promise<KnowledgePageDistillation | null>
 ````
 
 ## File: modules/platform/subdomains/account-profile/api/index.ts
@@ -57483,6 +58446,92 @@ flowchart LR
 - 本目錄不是對既有 repo 內容做過語意比對後的歷史還原。
 ````
 
+## File: modules/ai/docs/README.md
+````markdown
+# AI Module Docs
+
+模組本地架構筆記。此文件描述 **目前已落地的 infrastructure baseline**，並用 Context7 驗證過的 Genkit 模式補齊本地說明。
+
+## Current Baseline
+
+- generation 子域持有 Genkit-backed 文字生成接縫，實作位於 [modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts](modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts)。
+- distillation 子域已提供結構化蒸餾能力，實作位於 [modules/ai/subdomains/distillation/infrastructure/llm/GenkitDistillationAdapter.ts](modules/ai/subdomains/distillation/infrastructure/llm/GenkitDistillationAdapter.ts)。
+- `generateAiText`、`summarize`、`distillContent` 是目前對外可用的 server functions。
+- Notion 與 NotebookLM 都只能透過 AI 公開邊界消費能力，不擁有 provider 或 Genkit runtime。
+
+## Infrastructure Layout
+
+| Path | Responsibility |
+|---|---|
+| [modules/ai/api/index.ts](modules/ai/api/index.ts) | client-safe types 與 capability contracts |
+| [modules/ai/api/server.ts](modules/ai/api/server.ts) | server-only public functions |
+| [modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts](modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts) | 自由文字 generation 與 summarization |
+| [modules/ai/subdomains/distillation/infrastructure/llm/GenkitDistillationAdapter.ts](modules/ai/subdomains/distillation/infrastructure/llm/GenkitDistillationAdapter.ts) | schema-validated structured distillation |
+
+## Distillation
+
+distillation 子域負責將長輸出或多段內容濃縮為精煉知識片段（`DistillationResult`）。
+
+它與 generation 的 `summarize` 差異如下：
+
+- generation/summarize：回傳單一摘要字串，偏向快速文字結果。
+- distillation：接收 `objective + sources[]`，回傳 `overview + distilledItems[] + trace metadata`，適合下游主域重用。
+
+目前實作的輸出欄位包含：
+- `overview`
+- `distilledItems`
+- `model`
+- `traceId`
+- `completedAt`
+
+根據 Context7 驗證的官方 Genkit 文件，這個能力使用了：
+- `generate()` 作為標準模型呼叫入口
+- 結構化輸出 schema 驗證
+- prompt/flow 作為可觀測、可調試的執行單位
+
+## Public API Surface
+
+```ts
+// client-safe types
+import type {
+  AIAPI,
+  DistillationAPI,
+  DistillContentInput,
+  DistillationResult,
+  GenerateAiTextInput,
+  GenerateAiTextOutput,
+  AiTextGenerationPort,
+} from "@/modules/ai/api";
+
+// server-only functions
+import { distillContent, generateAiText, summarize } from "@/modules/ai/api/server";
+```
+
+## Architecture Notes
+
+- provider plugin 與 Genkit client 只能存在於 infrastructure adapter。
+- 預設模型為 `googleai/gemini-2.5-flash`，可透過 `GENKIT_MODEL` 覆蓋。
+- distillation 輸出屬於 **AI capability signal**，不是 KnowledgeArtifact 或 Notebook 的正典模型。
+- 子域之間的協調仍由 application / orchestration 控制，不直接跨子域 domain 依賴。
+
+## Distilled Rule Sentences
+
+- Context 應提供 token-budgeted、ranked、可直接送入模型的輸入，而不是把所有 raw 資料直接交給 generation。
+- Distillation 不等於單純 summary；它應優先產出可重用的 overview、highlights 與其他 schema-ready knowledge fragments。
+- Memory 若需要長期保存內容，應優先保存 distilled output，避免 raw content 無限制膨脹成本。
+- Retrieval 若可選擇資料來源，應優先索引 distilled chunks 或 structured knowledge，而不是直接倚賴未整理的 raw text。
+- Evaluation 應把 distillation 視為正式質量對象，至少檢查 compression ratio、information retention 與 hallucination risk。
+- 大文件或多來源蒸餾應優先走 async pipeline，避免同步請求承擔過高延遲與成本。
+- Tracing 應記錄 traceId、model、latency、token usage 與 errors，讓 flow 可觀測但不干預決策。
+
+## References
+
+- [modules/ai/README.md](modules/ai/README.md)
+- [docs/contexts/ai/README.md](docs/contexts/ai/README.md)
+- [docs/contexts/ai/subdomains.md](docs/contexts/ai/subdomains.md)
+- [docs/contexts/ai/ubiquitous-language.md](docs/contexts/ai/ubiquitous-language.md)
+````
+
 ## File: modules/notebooklm/api/index.ts
 ````typescript
 /**
@@ -57519,38 +58568,165 @@ flowchart LR
 // ---------------------------------------------------------------------------
 ````
 
-## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
+## File: modules/workspace/api/ui.ts
 ````typescript
-export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
+/**
+ * workspace api/ui.ts
+ *
+ * Canonical public web UI surface for the workspace bounded context.
+ * App-layer consumers that need workspace UI components, hooks, and
+ * navigation utilities should import from here.
+ *
+ * Internal source: interfaces/web/
+ */
 ⋮----
-export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
+// ── Screen components ────────────────────────────────────────────────────────
 ⋮----
-export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
+// ── Card components ──────────────────────────────────────────────────────────
 ⋮----
-interface WorkspaceTabMeta {
-  readonly label: string;
-  readonly prefId: string;
-  readonly group: WorkspaceTabGroup;
-  readonly status: WorkspaceTabDevStatus;
+// ── Tab components ───────────────────────────────────────────────────────────
+⋮----
+// ── Layout components ────────────────────────────────────────────────────────
+⋮----
+// ── Rail components ──────────────────────────────────────────────────────────
+⋮----
+// ── Navigation ────────────────────────────────────────────────────────────────
+⋮----
+// ── Quick-access navigation ───────────────────────────────────────────────────
+⋮----
+// ── State helpers ─────────────────────────────────────────────────────────────
+⋮----
+// ── Map utilities ─────────────────────────────────────────────────────────────
+⋮----
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+⋮----
+// ── Workspace context provider ────────────────────────────────────────────────
+⋮----
+// ── Navigation preferences ────────────────────────────────────────────────────
+⋮----
+// ── Sidebar locale ────────────────────────────────────────────────────────────
+⋮----
+// ── Navigation customize dialog ───────────────────────────────────────────────
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceCrossModuleTabSurface.tsx
+````typescript
+import dynamic from "next/dynamic";
+import type { ReactNode } from "react";
+⋮----
+import type { WorkspaceEntity } from "../../../contracts";
+import type { WorkspaceTabValue } from "../../navigation/workspace-tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import {
+  KnowledgeBaseArticlesPanel,
+  KnowledgeDatabasesPanel,
+} from "@/modules/notion/api/ui";
+import {
+  RagQueryPanel,
+  SourceDocumentsPanel,
+} from "@/modules/notebooklm/api/ui";
+⋮----
+// Dynamic import to break synchronous module-evaluation cycle between
+// workspace/api → workspace/interfaces → notebooklm/api → ConversationPanel → workspace/api.
+// SSR disabled because ConversationPanel is a "use client" component that
+// relies on browser-only hooks (useState, useEffect) and workspace context providers.
+⋮----
+interface WorkspaceCrossModuleTabSurfaceOptions {
+  readonly tab: WorkspaceTabValue;
+  readonly workspace: WorkspaceEntity;
+  readonly accountId: string;
+  readonly currentUserId?: string | null;
+  readonly workspaces: Record<string, WorkspaceEntity>;
 }
 ⋮----
-export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue
+function renderWorkspacePlaceholder(title: string, description: string): ReactNode
 ⋮----
-export function resolveWorkspaceTabValue(value: string | null | undefined): WorkspaceTabValue | null
-⋮----
-export function normalizeWorkspaceTabPrefId(prefId: string): string
-⋮----
-export function getWorkspaceTabMeta(tab: WorkspaceTabValue)
-⋮----
-export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus
-⋮----
-export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string
-⋮----
-export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string
-⋮----
-export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[]
-⋮----
-export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[]
+export function renderWorkspaceCrossModuleTabSurface(
+  options: WorkspaceCrossModuleTabSurfaceOptions,
+): ReactNode | null
+````
+
+## File: modules/ai/README.md
+````markdown
+# AI
+
+共享 AI capability bounded context：generation、orchestration、distillation、retrieval、memory、safety 與 provider routing。
+
+## Intended Ownership
+
+- provider routing 與 model policy
+- quota 與 safety guardrails
+- prompt & flow orchestration
+- shared text generation（Genkit 接縫）
+- distillation：將長輸出濃縮為精煉知識片段
+- retrieval：向量搜尋與上下文抓取
+
+## Active Baseline
+
+- generation 子域持有 Genkit-backed 文字生成接縫（`generateAiText`、`summarize`）
+- distillation 子域現在提供結構化蒸餾能力（`distillContent`）
+- 下游模組透過 `modules/ai/api`（client-safe types）與 `modules/ai/api/server`（server-only functions）消費
+- 其餘子域為骨架，依需求逐步實作
+
+## Capability Rules
+
+- context 應先聚合、排序並壓縮上下文，再把可用輸入交給 generation 或 distillation。
+- conversation 應管理 AI 互動輪次、system prompt 注入與 replay/debug 狀態，但不得接管 notebooklm 的正典 Conversation 語義。
+- generation 應透過 provider-agnostic adapter 產生最終文字或結構化輸出，且輸出必須先經 schema 驗證。
+- retrieval 應負責抓取、排序與重排候選內容，不直接負責最終答案生成。
+- memory 應優先保存 distilled knowledge，而不是無限制累積 raw content。
+- distillation 應作為 AI domain 的 knowledge compiler，把 raw 或多來源內容轉為低 token、可重用、可結構化的知識訊號。
+- distillation pipeline 應遵守 ingest → chunk/filter → score → distill → structure → store/index 的順序；大型工作應走 async job。
+- reasoning 應只對已準備好的輸入做多步推理，不負責資料抓取或持久化。
+- orchestration 應控制多步 flow、retry、fallback 與 parallel execution，不承載下游業務語義。
+- tool-calling 應定義工具契約、權限與結果正規化；工具執行仍屬 infrastructure。
+- evaluation 應覆蓋 generation 與 distillation，至少量測 compression、retention 與 hallucination 風險。
+- safety 可以在任何步驟阻斷執行；tracing 只負責觀測，不得改變業務決策。
+
+## Subdomains
+
+| Subdomain | Status | Notes |
+|---|---|---|
+| generation | active | GenkitAiTextGenerationAdapter 已實作 |
+| orchestration | stub | 多步驟 AI flow |
+| distillation | active | GenkitDistillationAdapter 已實作 |
+| retrieval | stub | 向量搜尋 |
+| memory | stub | 對話歷史 |
+| context | stub | prompt 上下文組裝 |
+| safety | stub | 安全護欄 |
+| tool-calling | stub | 外部工具調用 |
+| reasoning | stub | 推理步驟管理 |
+| conversation | stub | AI 輪次管理 |
+| evaluation | stub | 輸出品質評估 |
+| tracing | stub | 執行觀測 |
+
+## Public API
+
+```ts
+// client-safe types
+import type {
+  AIAPI,
+  DistillationAPI,
+  DistillContentInput,
+  DistillationResult,
+  GenerateAiTextInput,
+  GenerateAiTextOutput,
+  AiTextGenerationPort,
+} from "@/modules/ai/api";
+
+// server-only functions
+import { distillContent, generateAiText, summarize } from "@/modules/ai/api/server";
+```
+
+## Dependency Direction
+
+```
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- domain 不得依賴任何 SDK 或框架。
+- Genkit 與 provider SDK 只能在 `infrastructure/` 層。
+- 跨模組消費只能透過 `api/` 邊界。
 ````
 
 ## File: package.json
@@ -57577,6 +58753,8 @@ export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[]
     "deploy:firebase": "npx firebase deploy",
     "repomix:skill": "npx repomix --config repomix.config.json --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
     "repomix:markdown": "npx repomix --config repomix-markdown.config.json --skill-generate xuanwu-markdown-skill --skill-output .github/skills/xuanwu-markdown-skill --force",
+    "repomix:notebooklm": "npx repomix --config repomix-notebooklm.config.json --skill-generate xuanwu-notebooklm-skill --skill-output .github/skills/xuanwu-notebooklm-skill --force",
+    "repomix:notion": "npx repomix --config repomix-notion.config.json --skill-generate xuanwu-notion-skill --skill-output .github/skills/xuanwu-notion-skill --force",
     "repomix:explore": "npx repomix --config repomix.config.json",
     "repomix:remote": "npx repomix --remote",
     "repomix:local": "npx repomix"
@@ -57664,84 +58842,6 @@ export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[]
     "vitest": "^4.1.2"
   }
 }
-````
-
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceCrossModuleTabSurface.tsx
-````typescript
-import dynamic from "next/dynamic";
-import type { ReactNode } from "react";
-⋮----
-import type { WorkspaceEntity } from "../../../contracts";
-import type { WorkspaceTabValue } from "../../navigation/workspace-tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import {
-  KnowledgeBaseArticlesPanel,
-  KnowledgeDatabasesPanel,
-} from "@/modules/notion/api/ui";
-import {
-  RagQueryPanel,
-  SourceDocumentsPanel,
-} from "@/modules/notebooklm/api/ui";
-⋮----
-// Dynamic import to break synchronous module-evaluation cycle between
-// workspace/api → workspace/interfaces → notebooklm/api → ConversationPanel → workspace/api.
-// SSR disabled because ConversationPanel is a "use client" component that
-// relies on browser-only hooks (useState, useEffect) and workspace context providers.
-⋮----
-interface WorkspaceCrossModuleTabSurfaceOptions {
-  readonly tab: WorkspaceTabValue;
-  readonly workspace: WorkspaceEntity;
-  readonly accountId: string;
-  readonly currentUserId?: string | null;
-  readonly workspaces: Record<string, WorkspaceEntity>;
-}
-⋮----
-function renderWorkspacePlaceholder(title: string, description: string): ReactNode
-⋮----
-export function renderWorkspaceCrossModuleTabSurface(
-  options: WorkspaceCrossModuleTabSurfaceOptions,
-): ReactNode | null
-````
-
-## File: modules/workspace/api/ui.ts
-````typescript
-/**
- * workspace api/ui.ts
- *
- * Canonical public web UI surface for the workspace bounded context.
- * App-layer consumers that need workspace UI components, hooks, and
- * navigation utilities should import from here.
- *
- * Internal source: interfaces/web/
- */
-⋮----
-// ── Screen components ────────────────────────────────────────────────────────
-⋮----
-// ── Card components ──────────────────────────────────────────────────────────
-⋮----
-// ── Tab components ───────────────────────────────────────────────────────────
-⋮----
-// ── Layout components ────────────────────────────────────────────────────────
-⋮----
-// ── Rail components ──────────────────────────────────────────────────────────
-⋮----
-// ── Navigation ────────────────────────────────────────────────────────────────
-⋮----
-// ── Quick-access navigation ───────────────────────────────────────────────────
-⋮----
-// ── State helpers ─────────────────────────────────────────────────────────────
-⋮----
-// ── Map utilities ─────────────────────────────────────────────────────────────
-⋮----
-// ── Hooks ─────────────────────────────────────────────────────────────────────
-⋮----
-// ── Workspace context provider ────────────────────────────────────────────────
-⋮----
-// ── Navigation preferences ────────────────────────────────────────────────────
-⋮----
-// ── Sidebar locale ────────────────────────────────────────────────────────────
-⋮----
-// ── Navigation customize dialog ───────────────────────────────────────────────
 ````
 
 ## File: docs/decisions/SMELL-INDEX.md
@@ -57869,32 +58969,6 @@ export function renderWorkspaceCrossModuleTabSurface(
 4. 若 smell 尚未記錄，按此編號體系新增文件。
 ````
 
-## File: modules/platform/api/index.ts
-````typescript
-/**
- * platform public API boundary — semantic capability contracts only.
- *
- * account is listed before organization to establish canonical definitions for
- * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
- * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
- *
- * Shell UI components, React hooks, and app-context types live in api/ui.ts.
- * @see ADR-1200 Boundary Violation — UI components separated from capability contracts.
- */
-⋮----
-// organization — explicit to avoid re-export conflicts with account subdomain
-⋮----
-// UI components belong in api/ui.ts — see ADR-1200
-⋮----
-// background-job — knowledge ingestion pipeline management
-⋮----
-// Shell UI components, React hooks, and app-context types are in api/ui.ts.
-// @see ADR-1200 — UI components removed from capability-contract boundary.
-⋮----
-// IAM-owned access and identity exports are re-exposed from ../../iam/api
-// for backward compatibility while consumers migrate to the IAM boundary.
-````
-
 ## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
 ````typescript
 import Link from "next/link";
@@ -57944,4 +59018,30 @@ function renderTabContent(tab: WorkspaceTabValue)
 <Badge variant="outline">
 ⋮----
 setIsEditWorkspaceOpen(open);
+````
+
+## File: modules/platform/api/index.ts
+````typescript
+/**
+ * platform public API boundary — semantic capability contracts only.
+ *
+ * account is listed before organization to establish canonical definitions for
+ * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
+ * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
+ *
+ * Shell UI components, React hooks, and app-context types live in api/ui.ts.
+ * @see ADR-1200 Boundary Violation — UI components separated from capability contracts.
+ */
+⋮----
+// organization — explicit to avoid re-export conflicts with account subdomain
+⋮----
+// UI components belong in api/ui.ts — see ADR-1200
+⋮----
+// background-job — knowledge ingestion pipeline management
+⋮----
+// Shell UI components, React hooks, and app-context types are in api/ui.ts.
+// @see ADR-1200 — UI components removed from capability-contract boundary.
+⋮----
+// IAM-owned access and identity exports are re-exposed from ../../iam/api
+// for backward compatibility while consumers migrate to the IAM boundary.
 ````

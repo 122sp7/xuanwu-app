@@ -42,20 +42,20 @@ This skill contains the following reference files:
 
 ## Statistics
 
-406 files | 25,078 lines
+404 files | 25,976 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 406 | 25,078 |
+| Markdown | 404 | 25,976 |
 
 **Largest files:**
 - `docs/hard-rules-consolidated.md` (455 lines)
 - `.github/skills/hexagonal-ddd/SKILL.md` (415 lines)
 - `.github/skills/playwright-mcp-testing/SKILL.md` (358 lines)
+- `modules/ai/subdomains/subdomains.instructions.md` (313 lines)
 - `.github/skills/shadcn/SKILL.md` (296 lines)
 - `.github/skills/zustand-xstate/SKILL.md` (284 lines)
 - `.github/skills/zod-validation/SKILL.md` (274 lines)
 - `.github/skills/genkit-ai/SKILL.md` (271 lines)
 - `docs/bounded-contexts.md` (266 lines)
 - `py_fn/README.md` (265 lines)
-- `docs/subdomains.md` (265 lines)

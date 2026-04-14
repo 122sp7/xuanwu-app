@@ -91,6 +91,24 @@ export class FirebaseSourceFileAdapter implements SourceFileRepository {
     return toSourceFileVersionEntity(nVersionId, data);
   }
 
+  async listVersions(fileId: string): Promise<readonly SourceFileVersion[]> {
+    const normalizedFileId = fileId.trim();
+    if (!normalizedFileId) return [];
+
+    const versions = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      `${FILE_COLLECTION}/${normalizedFileId}/${VERSION_SUBCOLLECTION}`,
+    );
+
+    return versions
+      .map((version) => toSourceFileVersionEntity(version.id, version.data))
+      .sort((left, right) => {
+        if (right.versionNumber !== left.versionNumber) {
+          return right.versionNumber - left.versionNumber;
+        }
+        return right.createdAtISO.localeCompare(left.createdAtISO);
+      });
+  }
+
   async listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]> {
     const workspaceId = scope.workspaceId.trim();
     const organizationId = scope.organizationId.trim();
