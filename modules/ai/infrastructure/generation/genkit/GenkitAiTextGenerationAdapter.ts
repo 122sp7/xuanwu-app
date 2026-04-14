@@ -5,7 +5,7 @@ import type {
   AiTextGenerationPort,
   GenerateAiTextInput,
   GenerateAiTextOutput,
-} from "../../../subdomains/generation/domain/ports/AiTextGenerationPort";
+} from "../../../subdomains/content-generation/domain/ports/AiTextGenerationPort";
 
 const DEFAULT_MODEL = "googleai/gemini-2.5-flash";
 

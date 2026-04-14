@@ -159,3 +159,5 @@ export {
 } from "../subdomains/scheduling/api";
 
 export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";
+
+export { WorkspaceNotificationPreferencesPanel } from "@/modules/platform/subdomains/notification/api";

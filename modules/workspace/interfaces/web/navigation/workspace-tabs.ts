@@ -34,6 +34,7 @@ export const WORKSPACE_TAB_VALUES = [
   "AiChat",
   "Audit",
   "WorkspaceSettings",
+  "Notifications",
 ] as const;
 
 export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
@@ -80,6 +81,7 @@ export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
   Feed: { label: "Feed", prefId: "feed", group: "modules", status: "🏗️" },
   KnowledgePages: { label: "Knowledge Pages", prefId: "knowledge-pages", group: "modules", status: "🏗️" },
   WorkspaceSettings: { label: "Workspace Settings", prefId: "workspace-settings", group: "modules", status: "✅" },
+  Notifications: { label: "通知偏好", prefId: "notifications", group: "modules", status: "✅" },
   NotionAuthoring: { label: "Notion Authoring", prefId: "notion-authoring", group: "modules", status: "🏗️" },
   NotionDatabase: { label: "Notion Database", prefId: "notion-database", group: "modules", status: "🏗️" },
   NotionCollaboration: { label: "Notion Collaboration", prefId: "notion-collaboration", group: "modules", status: "🏗️" },
@@ -117,6 +119,7 @@ export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceT
     "AiChat",
     "Audit",
     "WorkspaceSettings",
+    "Notifications",
   ],
 };
 

@@ -12,11 +12,11 @@
 |---|---|---|---|
 | iam | 身份與存取治理 | identity、access-control、tenant、security-policy | session、consent、secret-governance |
 | billing | 商業與權益治理 | billing、subscription、entitlement、referral | pricing、invoice、quota-policy |
-| ai | 共享 AI capability | provider-routing、model-policy、safety-guardrail、prompt-pipeline | evaluation-policy、model-observability |
+| ai | 共享 AI capability | content-generation、content-distillation、context-assembly、evaluation-policy、memory-context、model-observability、prompt-pipeline、safety-guardrail | provider-routing、model-policy |
 | analytics | 分析與 read model 下游 | reporting、metrics、dashboards、telemetry-projection | experimentation、decision-support |
 | platform | 平台營運支撐 | account、organization、notification、search、audit-log、observability | consent、secret-management、operational-catalog |
 | workspace | 協作容器與 scope | audit、feed、scheduling、workspace-workflow | lifecycle、membership、sharing、presence |
-| notion | 正典知識內容 | knowledge、authoring、collaboration、database、templates、knowledge-versioning | taxonomy、relations、publishing |
+| notion | 正典知識內容 | knowledge、authoring、collaboration、knowledge-database、templates、knowledge-versioning | taxonomy、relations、publishing |
 | notebooklm | 對話與推理 | conversation、note、notebook、source、synthesis、conversation-versioning | ingestion、retrieval、grounding、evaluation |
 
 ## Subdomain Inventory By Main Domain
@@ -65,17 +65,21 @@
 
 | Subdomain | 功能註解 |
 |---|---|
-| provider-routing | 模型供應商選擇與路由 |
-| model-policy | 模型能力、版本與使用政策 |
+| content-generation | AI 驅動的文本生成與回覆輸出 |
+| content-distillation | AI 驅動的摘要、提煉與結構化壓縮 |
+| context-assembly | 推理前的 context window 組裝與排序 |
+| evaluation-policy | 品質與回歸評估政策 |
+| memory-context | 跨對話記憶與可重用上下文整理 |
+| model-observability | 模型使用量、成本與效能監測 |
+| prompt-pipeline | prompt、template、flow 與 tool calling orchestration |
 | safety-guardrail | 安全護欄、內容保護與限制 |
-| prompt-pipeline | prompt、flow 與 tool calling orchestration |
 
 #### Recommended Gap Subdomains
 
 | Subdomain | 功能註解 |
 |---|---|
-| evaluation-policy | 品質與回歸評估政策 |
-| model-observability | 模型使用量、成本與效能監測 |
+| provider-routing | 模型供應商選擇與路由治理 |
+| model-policy | 模型能力、版本與使用政策 |
 
 ### analytics
 
@@ -156,7 +160,7 @@
 | knowledge | 頁面建立、組織、版本化與交付 |
 | authoring | 知識庫文章建立、驗證與分類 |
 | collaboration | 協作留言、細粒度權限與版本快照 |
-| database | 結構化資料多視圖管理 |
+| knowledge-database | 結構化資料多視圖管理 |
 | knowledge-analytics | 知識使用行為量測 |
 | attachments | 附件與媒體關聯儲存 |
 | automation | 知識事件觸發自動化動作 |

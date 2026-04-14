@@ -43,12 +43,12 @@
 | `notion/subdomains/knowledge/application/use-cases/manage-knowledge-page.use-cases.ts` | 5 |
 | `notion/subdomains/authoring/application/use-cases/manage-article-lifecycle.use-cases.ts` | 4 |
 | `notion/subdomains/authoring/application/use-cases/manage-category.use-cases.ts` | 4 |
-| `notion/subdomains/database/application/use-cases/manage-database.use-cases.ts` | 4 |
-| `notion/subdomains/database/application/use-cases/manage-record.use-cases.ts` | 3 |
-| `notion/subdomains/database/application/use-cases/manage-automation.use-cases.ts` | 3 |
+| `notion/subdomains/knowledge-database/application/use-cases/manage-database.use-cases.ts` | 4 |
+| `notion/subdomains/knowledge-database/application/use-cases/manage-record.use-cases.ts` | 3 |
+| `notion/subdomains/knowledge-database/application/use-cases/manage-automation.use-cases.ts` | 3 |
 | `notion/subdomains/taxonomy/application/use-cases/manage-taxonomy.use-cases.ts` | 4 |
 | `notion/subdomains/relations/application/use-cases/manage-relation.use-cases.ts` | 4 |
-| `notion/subdomains/database/application/use-cases/manage-view.use-cases.ts` | 3 |
+| `notion/subdomains/knowledge-database/application/use-cases/manage-view.use-cases.ts` | 3 |
 
 **workspace 域（4 個文件）**
 

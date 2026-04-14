@@ -10,7 +10,7 @@ export type {
   GenerateAiTextInput,
   GenerateAiTextOutput,
   AiTextGenerationPort,
-} from "../subdomains/generation/api";
+} from "../subdomains/content-generation/api";
 export type {
   DistillationAPI,
   DistillContentInput,
@@ -18,18 +18,20 @@ export type {
   DistillationPort,
   DistillationResult,
   DistillationSource,
-} from "../subdomains/distillation/api";
+} from "../subdomains/content-distillation/api";
 
 export type {
   PromptExecutionMode,
   PromptTemplateDescriptor,
+  PromptTemplateFamily,
   ResolvedPrompt,
   SourceFollowUpPromptInput,
   SourceFollowUpPromptIntent,
-} from "../subdomains/prompt/api";
+} from "../subdomains/prompt-pipeline/api";
 
 export {
+  listPromptFamilies,
   listSourceFollowUpPrompts,
   resolveSourceFollowUpPrompt,
   sourceFollowUpPromptService,
-} from "../subdomains/prompt/api";
+} from "../subdomains/prompt-pipeline/api";

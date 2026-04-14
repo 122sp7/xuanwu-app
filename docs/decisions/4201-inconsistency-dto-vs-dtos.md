@@ -35,7 +35,7 @@ modules/workspace/subdomains/workspace-workflow/application/dto/
 modules/workspace/subdomains/scheduling/application/dto/
 modules/workspace/subdomains/feed/application/dto/
 modules/notion/subdomains/knowledge/application/dto/
-modules/notion/subdomains/database/application/dto/
+modules/notion/subdomains/knowledge-database/application/dto/
 modules/notion/subdomains/collaboration/application/dto/
 modules/notion/subdomains/taxonomy/application/dto/
 modules/notion/subdomains/relations/application/dto/

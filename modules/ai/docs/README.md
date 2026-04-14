@@ -4,8 +4,8 @@
 
 ## Current Baseline
 
-- generation 子域持有 Genkit-backed 文字生成接縫，實作位於 [modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts](modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts)。
-- distillation 子域已提供結構化蒸餾能力，實作位於 [modules/ai/subdomains/distillation/infrastructure/llm/GenkitDistillationAdapter.ts](modules/ai/subdomains/distillation/infrastructure/llm/GenkitDistillationAdapter.ts)。
+- content-generation 子域持有 Genkit-backed 文字生成接縫，實作位於 [modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts](modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts)。
+- content-distillation 子域已提供結構化蒸餾能力，實作位於 [modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts](modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts)。
 - `generateAiText`、`summarize`、`distillContent` 是目前對外可用的 server functions。
 - Notion 與 NotebookLM 都只能透過 AI 公開邊界消費能力，不擁有 provider 或 Genkit runtime。
 
@@ -15,17 +15,17 @@
 |---|---|
 | [modules/ai/api/index.ts](modules/ai/api/index.ts) | client-safe types 與 capability contracts |
 | [modules/ai/api/server.ts](modules/ai/api/server.ts) | server-only public functions |
-| [modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts](modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts) | 自由文字 generation 與 summarization |
-| [modules/ai/subdomains/distillation/infrastructure/llm/GenkitDistillationAdapter.ts](modules/ai/subdomains/distillation/infrastructure/llm/GenkitDistillationAdapter.ts) | schema-validated structured distillation |
+| [modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts](modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts) | content-generation 與 summarization |
+| [modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts](modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts) | schema-validated content-distillation |
 
-## Distillation
+## Content Distillation
 
-distillation 子域負責將長輸出或多段內容濃縮為精煉知識片段（`DistillationResult`）。
+content-distillation 子域負責將長輸出或多段內容濃縮為精煉知識片段（`DistillationResult`）。
 
-它與 generation 的 `summarize` 差異如下：
+它與 content-generation 的 `summarize` 差異如下：
 
-- generation/summarize：回傳單一摘要字串，偏向快速文字結果。
-- distillation：接收 `objective + sources[]`，回傳 `overview + distilledItems[] + trace metadata`，適合下游主域重用。
+- content-generation/summarize：回傳單一摘要字串，偏向快速文字結果。
+- content-distillation：接收 `objective + sources[]`，回傳 `overview + distilledItems[] + trace metadata`，適合下游主域重用。
 
 目前實作的輸出欄位包含：
 - `overview`
@@ -66,13 +66,13 @@ import { distillContent, generateAiText, summarize } from "@/modules/ai/api/serv
 
 ## Distilled Rule Sentences
 
-- Context 應提供 token-budgeted、ranked、可直接送入模型的輸入，而不是把所有 raw 資料直接交給 generation。
-- Distillation 不等於單純 summary；它應優先產出可重用的 overview、highlights 與其他 schema-ready knowledge fragments。
-- Memory 若需要長期保存內容，應優先保存 distilled output，避免 raw content 無限制膨脹成本。
-- Retrieval 若可選擇資料來源，應優先索引 distilled chunks 或 structured knowledge，而不是直接倚賴未整理的 raw text。
-- Evaluation 應把 distillation 視為正式質量對象，至少檢查 compression ratio、information retention 與 hallucination risk。
+- context-assembly 應提供 token-budgeted、ranked、可直接送入模型的輸入，而不是把所有 raw 資料直接交給 content-generation。
+- content-distillation 不等於單純 summary；它應優先產出可重用的 overview、highlights 與其他 schema-ready knowledge fragments。
+- memory-context 若需要長期保存內容，應優先保存 distilled output，避免 raw content 無限制膨脹成本。
+- context-assembly 若可選擇資料來源，應優先組裝 distilled chunks 或 structured knowledge，而不是直接倚賴未整理的 raw text。
+- evaluation-policy 應把 content-distillation 視為正式質量對象，至少檢查 compression ratio、information retention 與 hallucination risk。
 - 大文件或多來源蒸餾應優先走 async pipeline，避免同步請求承擔過高延遲與成本。
-- Tracing 應記錄 traceId、model、latency、token usage 與 errors，讓 flow 可觀測但不干預決策。
+- model-observability 應記錄 traceId、model、latency、token usage 與 errors，讓 flow 可觀測但不干預決策。
 
 ## References
 

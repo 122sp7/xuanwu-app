@@ -31,13 +31,17 @@ T0  IAM                     BILLING                 AI
     身份與存取治理上游       商業與權益治理上游       共享 AI Capability 上游
 ─────────────────────────────────────────────────────────────────────────────
 
-    identity                billing                 provider-routing
-    access-control          subscription            model-policy
-    tenant                  entitlement             safety-guardrail
-    security-policy         referral                prompt-pipeline
+    identity                billing                 content-generation
+    access-control          subscription            content-distillation
+    tenant                  entitlement             context-assembly
+    security-policy         referral                evaluation-policy
+                                                     memory-context
+                                                     model-observability
+                                                     prompt-pipeline
+                                                     safety-guardrail
 
-    [session]               [pricing]               [evaluation-policy]
-    [consent]               [invoice]               [model-observability]
+    [session]               [pricing]               [provider-routing]
+    [consent]               [invoice]               [model-policy]
     [secret-governance]     [quota-policy]
 
 ─────────────────────────────────────────────────────────────────────────────

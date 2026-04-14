@@ -105,3 +105,9 @@ export {
 export type {
   KnowledgePageApprovedHandler,
 } from "../subdomains/workspace-workflow/api";
+
+export {
+  updateWorkspaceNotificationPreferences,
+  notifyWorkspaceMembers,
+  getWorkspaceNotificationPreferences,
+} from "@/modules/platform/subdomains/notification/api";

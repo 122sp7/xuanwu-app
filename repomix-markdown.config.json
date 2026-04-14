@@ -94,7 +94,10 @@
 
       "*.sqlite",
       "*.db",
-      ".github/skills/**/references/**"
+      ".github/skills/xuanwu-app-skill/**",
+      ".github/skills/xuanwu-markdown-skill/**",
+      ".github/skills/xuanwu-notebooklm-skill/**",
+      ".github/skills/xuanwu-notion-skill/**"
     ]
   },
   "security": {

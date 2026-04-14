@@ -4,4 +4,4 @@ export type {
   GenerateAiTextInput,
   GenerateAiTextOutput,
   AiTextGenerationPort,
-} from "../subdomains/generation/domain";
+} from "../subdomains/content-generation/domain";

@@ -107,6 +107,15 @@ export {
 } from "../subdomains/scheduling/api";
 
 export type {
+  WorkspaceNotificationEventType,
+  WorkspaceNotificationPreferenceDto,
+  UpdateNotificationPreferencesCommand,
+  WorkspaceEventPayload,
+} from "@/modules/platform/subdomains/notification/api";
+
+export { WORKSPACE_NOTIFICATION_EVENT_TYPES } from "@/modules/platform/subdomains/notification/api";
+
+export type {
   Task,
   Issue,
   Invoice,

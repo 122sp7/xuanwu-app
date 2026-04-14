@@ -5478,6 +5478,13 @@ When adding or changing docs:
 Start every session with Serena MCP. If a question spans modules or architecture, consult the DDD reference authority (ubiquitous-language, bounded-contexts, context-map) before implementation.
 ````
 
+## File: modules/ai/subdomains/prompt/application/index.test.ts
+````typescript
+import { describe, expect, it } from "vitest";
+⋮----
+import { listSourceFollowUpPrompts, resolveSourceFollowUpPrompt } from "./index";
+````
+
 ## File: modules/notebooklm/application/use-cases/index.ts
 ````typescript
 
@@ -15539,6 +15546,23 @@ async addMemberToTeam(organizationId: string, teamId: string, memberId: string):
 async removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>
 ⋮----
 async getTeams(organizationId: string): Promise<Team[]>
+````
+
+## File: modules/platform/subdomains/team/infrastructure/team-composition.ts
+````typescript
+/**
+ * Module: platform/subdomains/team
+ * Layer: infrastructure (composition root)
+ * Purpose: Internal factory for creating TeamRepository instances.
+ *          NOT exported through the api/ boundary — used only by
+ *          team interfaces and sibling subdomains within platform.
+ */
+⋮----
+import type { TeamRepository } from "../domain/repositories/TeamRepository";
+import { FirebaseTeamRepository } from "./firebase/FirebaseTeamRepository";
+⋮----
+/** Returns a TeamRepository backed by Firebase. */
+export function createTeamRepository(): TeamRepository
 ````
 
 ## File: modules/platform/subdomains/team/interfaces/index.ts
@@ -26591,6 +26615,40 @@ import { AppProvider } from "../(shell)/_providers/AppProvider";
 export function Providers(
 ````
 
+## File: app/(public)/page.tsx
+````typescript
+/**
+ * app/(public)/page.tsx
+ * Public landing page with top-right auth entry and inline auth panel.
+ * Uses identity module use cases directly on the client so Firebase auth state
+ * actually updates AuthProvider via onAuthStateChanged.
+ */
+⋮----
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, ShieldCheck } from "lucide-react";
+⋮----
+import {
+  useAuth,
+  createClientAuthUseCases,
+} from "@/modules/iam/api";
+import {
+  createClientAccountUseCases,
+} from "@/modules/platform/api";
+⋮----
+type Tab = "login" | "register";
+⋮----
+async function handleSubmit(e: React.FormEvent)
+⋮----
+async function handleGuestAccess()
+⋮----
+async function handlePasswordReset()
+⋮----
+setError(null);
+setResetSent(false);
+setIsAuthPanelOpen((prev)
+````
+
 ## File: app/(shell)/_shell/shell-quick-create.ts
 ````typescript
 /**
@@ -26640,6 +26698,64 @@ interface ShellContextNavSectionProps {
   activeAccountId: string | null;
   activeWorkspaceId: string | null;
 }
+````
+
+## File: app/(shell)/_shell/ShellSidebarBody.tsx
+````typescript
+/**
+ * ShellSidebarBody — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it imports from workspace and notion modules.
+ */
+⋮----
+import Link from "next/link";
+⋮----
+import {
+  WorkspaceSectionContent,
+  type NavPreferences,
+  type SidebarLocaleBundle,
+} from "@/modules/workspace/api/ui";
+import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "@/modules/platform/api";
+⋮----
+import {
+  type NavSection,
+  sidebarItemClass,
+  sidebarSectionTitleClass,
+} from "./ShellSidebarNavData";
+import { ShellContextNavSection } from "./ShellContextNavSection";
+⋮----
+interface NavItem {
+  id: string;
+  label: string;
+  href: string;
+}
+⋮----
+interface WorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+⋮----
+interface ShellSidebarBodyProps {
+  section: NavSection;
+  isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
+  showAccountManagement: boolean;
+  visibleAccountItems: readonly NavItem[];
+  visibleOrganizationManagementItems: readonly NavItem[];
+  workspacePathId: string | null;
+  navPrefs: NavPreferences;
+  localeBundle: SidebarLocaleBundle | null;
+  showRecentWorkspaces: boolean;
+  visibleRecentWorkspaceLinks: WorkspaceLink[];
+  hasOverflow: boolean;
+  isExpanded: boolean;
+  activeWorkspaceId: string | null;
+  onSelectWorkspace: (workspaceId: string | null) => void;
+  onToggleExpanded: () => void;
+  currentSearchWorkspaceId: string;
+}
+⋮----
+className=
 ````
 
 ## File: app/(shell)/(account)/[accountId]/dev-tools/use-dev-tools-doc-list.ts
@@ -40355,21 +40471,32 @@ import { z } from "@lib-zod";
 export type TeamType = z.infer<typeof TeamTypeSchema>;
 ````
 
-## File: modules/platform/subdomains/team/infrastructure/team-composition.ts
+## File: modules/platform/subdomains/team/interfaces/_actions/team.actions.ts
 ````typescript
-/**
- * Module: platform/subdomains/team
- * Layer: infrastructure (composition root)
- * Purpose: Internal factory for creating TeamRepository instances.
- *          NOT exported through the api/ boundary — used only by
- *          team interfaces and sibling subdomains within platform.
- */
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "../../api";
+import type { CreateTeamInput } from "../../api";
+import { createTeamRepository } from "../../api";
 ⋮----
-import type { TeamRepository } from "../domain/repositories/TeamRepository";
-import { FirebaseTeamRepository } from "./firebase/FirebaseTeamRepository";
+function getRepo()
 ⋮----
-/** Returns a TeamRepository backed by Firebase. */
-export function createTeamRepository(): TeamRepository
+export async function createTeamAction(input: CreateTeamInput): Promise<CommandResult>
+⋮----
+export async function deleteTeamAction(
+  organizationId: string,
+  teamId: string,
+): Promise<CommandResult>
+⋮----
+export async function updateTeamMembersAction(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+  action: "add" | "remove",
+): Promise<CommandResult>
 ````
 
 ## File: modules/workspace/AGENT.md
@@ -40448,18 +40575,6 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
-````
-
-## File: modules/workspace/api/contracts.ts
-````typescript
-/**
- * workspace api/contracts.ts
- *
- * Canonical public type surface for the workspace bounded context.
- * Cross-module and app-layer consumers should import types from here.
- *
- * Internal source: interfaces/contracts/
- */
 ````
 
 ## File: modules/workspace/api/index.ts
@@ -41826,19 +41941,485 @@ onClick=
 /** ai/orchestration/domain — minimal domain stub. */
 ````
 
-## File: modules/workspace/subdomains/notification/api/index.ts
+## File: modules/workspace/subdomains/notification/application/dto/notification-preference.dto.ts
 ````typescript
-/** ai/orchestration/api — minimal public boundary stub. */
+/**
+ * Application-layer DTOs for the workspace notification subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+⋮----
+import type { WorkspaceNotificationEventType } from "../../domain/value-objects/WorkspaceNotificationEventType";
+⋮----
+export interface WorkspaceNotificationPreferenceDto {
+  readonly workspaceId: string;
+  readonly memberId: string;
+  readonly subscribedEvents: WorkspaceNotificationEventType[];
+  readonly updatedAtISO: string;
+}
 ````
 
-## File: modules/workspace/subdomains/notification/application/index.ts
+## File: modules/workspace/subdomains/notification/application/queries/get-notification-preferences.queries.ts
 ````typescript
-/** ai/orchestration/application — minimal orchestration stub. */
+import type { WorkspaceNotificationPreferenceRepository } from "../../domain/repositories/WorkspaceNotificationPreferenceRepository";
+import type { WorkspaceNotificationPreferenceDto } from "../dto/notification-preference.dto";
+import { WORKSPACE_NOTIFICATION_EVENT_TYPES } from "../../domain/value-objects/WorkspaceNotificationEventType";
+import type { WorkspaceNotificationEventType } from "../../domain/value-objects/WorkspaceNotificationEventType";
+⋮----
+/**
+ * GetWorkspaceNotificationPreferencesQuery
+ *
+ * Pure read — returns the member's current preference DTO.
+ * Falls back to the default (all events enabled) when no record exists.
+ */
+export class GetWorkspaceNotificationPreferencesQuery {
+⋮----
+constructor(
+⋮----
+async execute(
+    workspaceId: string,
+    memberId: string,
+): Promise<WorkspaceNotificationPreferenceDto>
 ````
 
-## File: modules/workspace/subdomains/notification/domain/index.ts
+## File: modules/workspace/subdomains/notification/application/use-cases/notify-workspace-members.use-case.ts
 ````typescript
-/** ai/orchestration/domain — minimal domain stub. */
+import type { WorkspaceNotificationPreferenceRepository } from "../../domain/repositories/WorkspaceNotificationPreferenceRepository";
+import type { NotificationDispatchPort } from "../../domain/ports/NotificationDispatchPort";
+⋮----
+export interface WorkspaceEventPayload {
+  /** The workspace-workflow or workspace event discriminant. */
+  readonly eventType: string;
+  readonly workspaceId: string;
+  /** Human-readable title for the generated notification. */
+  readonly title: string;
+  /** Human-readable message body. */
+  readonly message: string;
+  /** Additional context forwarded as notification metadata. */
+  readonly metadata?: Record<string, unknown>;
+}
+⋮----
+/** The workspace-workflow or workspace event discriminant. */
+⋮----
+/** Human-readable title for the generated notification. */
+⋮----
+/** Human-readable message body. */
+⋮----
+/** Additional context forwarded as notification metadata. */
+⋮----
+/**
+ * NotifyWorkspaceMembersUseCase
+ *
+ * Fan-out: given a workspace event payload, find all workspace members subscribed
+ * to that event type and dispatch a platform notification for each.
+ *
+ * Deliberately does not return CommandResult — notification delivery is
+ * fire-and-forget from the caller's perspective (failures are swallowed per
+ * subscriber and logged, not surfaced as command failures).
+ */
+export class NotifyWorkspaceMembersUseCase {
+⋮----
+constructor(
+⋮----
+async execute(event: WorkspaceEventPayload): Promise<void>
+````
+
+## File: modules/workspace/subdomains/notification/application/use-cases/update-notification-preferences.use-case.ts
+````typescript
+import { commandSuccess, commandFailureFrom } from "@shared-types";
+import type { CommandResult } from "@shared-types";
+import type { WorkspaceNotificationPreferenceRepository } from "../../domain/repositories/WorkspaceNotificationPreferenceRepository";
+import { WorkspaceNotificationPreference } from "../../domain/entities/WorkspaceNotificationPreference";
+import type { WorkspaceNotificationEventType } from "../../domain/value-objects/WorkspaceNotificationEventType";
+⋮----
+export interface UpdateNotificationPreferencesCommand {
+  readonly workspaceId: string;
+  readonly memberId: string;
+  /** The complete desired set of subscribed event types. */
+  readonly subscribedEvents: WorkspaceNotificationEventType[];
+}
+⋮----
+/** The complete desired set of subscribed event types. */
+⋮----
+/**
+ * UpdateNotificationPreferencesUseCase
+ *
+ * Creates or replaces a workspace member's notification preference record.
+ * Emits workspace.notification.preference-updated via the returned event list.
+ */
+export class UpdateNotificationPreferencesUseCase {
+⋮----
+constructor(
+⋮----
+async execute(
+    command: UpdateNotificationPreferencesCommand,
+): Promise<CommandResult>
+````
+
+## File: modules/workspace/subdomains/notification/domain/entities/WorkspaceNotificationPreference.ts
+````typescript
+/**
+ * WorkspaceNotificationPreference — entity modelling per-member notification
+ * subscriptions within a single workspace.
+ *
+ * Design notes:
+ * - Framework-free; no Firebase, React, or HTTP imports.
+ * - Immutable snapshot pattern: all mutations return a new entity value.
+ * - Equality is identity-based: workspaceId + memberId uniquely identify a record.
+ */
+⋮----
+import type { WorkspaceNotificationEventType } from "../value-objects/WorkspaceNotificationEventType";
+import { WORKSPACE_NOTIFICATION_EVENT_TYPES } from "../value-objects/WorkspaceNotificationEventType";
+⋮----
+export interface WorkspaceNotificationPreferenceProps {
+  readonly workspaceId: string;
+  readonly memberId: string;
+  /** Set of workspace event types the member has opted into. */
+  readonly subscribedEvents: ReadonlySet<WorkspaceNotificationEventType>;
+  readonly updatedAtISO: string;
+}
+⋮----
+/** Set of workspace event types the member has opted into. */
+⋮----
+export class WorkspaceNotificationPreference {
+⋮----
+private constructor(
+⋮----
+/** Factory: create a new preference record with full defaults (all events on). */
+static create(
+    workspaceId: string,
+    memberId: string,
+): WorkspaceNotificationPreference
+⋮----
+/** Factory: reconstitute from persisted snapshot. */
+static reconstitute(
+    props: WorkspaceNotificationPreferenceProps,
+): WorkspaceNotificationPreference
+⋮----
+/** Returns a new entity with the subscription set replaced. */
+withSubscriptions(
+    events: ReadonlySet<WorkspaceNotificationEventType>,
+): WorkspaceNotificationPreference
+⋮----
+isSubscribedTo(eventType: WorkspaceNotificationEventType): boolean
+⋮----
+get workspaceId(): string
+⋮----
+get memberId(): string
+⋮----
+get subscribedEvents(): ReadonlySet<WorkspaceNotificationEventType>
+⋮----
+get updatedAtISO(): string
+⋮----
+getSnapshot(): Readonly<WorkspaceNotificationPreferenceProps>
+````
+
+## File: modules/workspace/subdomains/notification/domain/events/index.ts
+````typescript
+
+````
+
+## File: modules/workspace/subdomains/notification/domain/events/WorkspaceNotificationDomainEvent.ts
+````typescript
+/**
+ * Domain events for the workspace notification subdomain.
+ * Discriminants follow the kebab-case module.action convention.
+ */
+⋮----
+export interface WorkspaceNotificationDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
+}
+⋮----
+export interface WorkspaceNotificationPreferenceUpdatedEvent
+  extends WorkspaceNotificationDomainEvent {
+  readonly type: "workspace.notification.preference-updated";
+  readonly payload: {
+    readonly workspaceId: string;
+    readonly memberId: string;
+    readonly subscribedEventCount: number;
+  };
+}
+⋮----
+export type WorkspaceNotificationDomainEventType =
+  WorkspaceNotificationPreferenceUpdatedEvent;
+````
+
+## File: modules/workspace/subdomains/notification/domain/ports/index.ts
+````typescript
+
+````
+
+## File: modules/workspace/subdomains/notification/domain/ports/NotificationDispatchPort.ts
+````typescript
+/**
+ * NotificationDispatchPort — driven port interface for dispatching a notification.
+ *
+ * The workspace notification subdomain depends on this abstraction; the concrete
+ * adapter lives in infrastructure/platform/ and delegates to the platform
+ * notification service.
+ *
+ * NotificationType is defined locally to keep domain/ free of cross-module imports.
+ * The infrastructure adapter maps this to the platform notification type.
+ */
+⋮----
+/** Severity level aligned with platform notification types. */
+export type WorkspaceNotificationLevel = "info" | "alert" | "success" | "warning";
+⋮----
+export interface WorkspaceNotificationDispatch {
+  recipientId: string;
+  title: string;
+  message: string;
+  level: WorkspaceNotificationLevel;
+  sourceEventType?: string;
+  metadata?: Record<string, unknown>;
+}
+⋮----
+export interface NotificationDispatchPort {
+  dispatch(input: WorkspaceNotificationDispatch): Promise<void>;
+}
+⋮----
+dispatch(input: WorkspaceNotificationDispatch): Promise<void>;
+````
+
+## File: modules/workspace/subdomains/notification/domain/repositories/WorkspaceNotificationPreferenceRepository.ts
+````typescript
+import type { WorkspaceNotificationPreference } from "../entities/WorkspaceNotificationPreference";
+⋮----
+/**
+ * Repository port: workspace-scoped notification preference persistence.
+ * Implemented in infrastructure/; domain only holds this interface.
+ */
+export interface WorkspaceNotificationPreferenceRepository {
+  /** Find the preference record for a workspace member; returns undefined if not set. */
+  findByMember(
+    workspaceId: string,
+    memberId: string,
+  ): Promise<WorkspaceNotificationPreference | undefined>;
+
+  /** Persist (create or update) the preference record for a workspace member. */
+  save(preference: WorkspaceNotificationPreference): Promise<void>;
+
+  /**
+   * Return all member IDs in a workspace that have opted into a specific event type.
+   * Used by the notification fan-out use case.
+   */
+  findSubscribersByEventType(
+    workspaceId: string,
+    eventType: string,
+  ): Promise<string[]>;
+}
+⋮----
+/** Find the preference record for a workspace member; returns undefined if not set. */
+findByMember(
+    workspaceId: string,
+    memberId: string,
+  ): Promise<WorkspaceNotificationPreference | undefined>;
+⋮----
+/** Persist (create or update) the preference record for a workspace member. */
+save(preference: WorkspaceNotificationPreference): Promise<void>;
+⋮----
+/**
+   * Return all member IDs in a workspace that have opted into a specific event type.
+   * Used by the notification fan-out use case.
+   */
+findSubscribersByEventType(
+    workspaceId: string,
+    eventType: string,
+  ): Promise<string[]>;
+````
+
+## File: modules/workspace/subdomains/notification/domain/value-objects/index.ts
+````typescript
+
+````
+
+## File: modules/workspace/subdomains/notification/domain/value-objects/WorkspaceNotificationEventType.ts
+````typescript
+import { z } from "@lib-zod";
+⋮----
+/**
+ * Canonical workspace event types that can trigger a notification.
+ * Aligned with the discriminants emitted by workspace-workflow domain events.
+ */
+⋮----
+export type WorkspaceNotificationEventType =
+  (typeof WORKSPACE_NOTIFICATION_EVENT_TYPES)[number];
+⋮----
+export function createWorkspaceNotificationEventType(
+  raw: string,
+): WorkspaceNotificationEventType
+````
+
+## File: modules/workspace/subdomains/notification/infrastructure/firebase/FirebaseWorkspaceNotificationPreferenceRepository.ts
+````typescript
+/**
+ * FirebaseWorkspaceNotificationPreferenceRepository
+ *
+ * Infrastructure adapter implementing the WorkspaceNotificationPreferenceRepository port.
+ * Uses the platform infrastructure API (Firestore) for persistence.
+ *
+ * Firestore collection: workspaceNotificationPreferences
+ * Document path:        workspaceNotificationPreferences/{workspaceId}_{memberId}
+ * Composite index:      workspaceId ASC, memberId ASC (implicit on doc ID)
+ * Secondary index:      workspaceId ASC, subscribedEvents ARRAY_CONTAINS (for fan-out query)
+ */
+⋮----
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
+import type { WorkspaceNotificationPreferenceRepository } from "../../domain/repositories/WorkspaceNotificationPreferenceRepository";
+import { WorkspaceNotificationPreference } from "../../domain/entities/WorkspaceNotificationPreference";
+import { createWorkspaceNotificationEventType } from "../../domain/value-objects/WorkspaceNotificationEventType";
+import type { WorkspaceNotificationEventType } from "../../domain/value-objects/WorkspaceNotificationEventType";
+⋮----
+function docId(workspaceId: string, memberId: string): string
+⋮----
+interface PersistedPreference {
+  workspaceId: string;
+  memberId: string;
+  subscribedEvents: string[];
+  updatedAtISO: string;
+}
+⋮----
+function toEntity(data: PersistedPreference): WorkspaceNotificationPreference
+⋮----
+export class FirebaseWorkspaceNotificationPreferenceRepository
+implements WorkspaceNotificationPreferenceRepository
+⋮----
+async findByMember(
+    workspaceId: string,
+    memberId: string,
+): Promise<WorkspaceNotificationPreference | undefined>
+⋮----
+async save(preference: WorkspaceNotificationPreference): Promise<void>
+⋮----
+async findSubscribersByEventType(
+    workspaceId: string,
+    eventType: string,
+): Promise<string[]>
+````
+
+## File: modules/workspace/subdomains/notification/infrastructure/index.ts
+````typescript
+/**
+ * workspace/subdomains/notification infrastructure barrel.
+ * Composition logic lives in interfaces/composition/.
+ */
+````
+
+## File: modules/workspace/subdomains/notification/infrastructure/platform/PlatformNotificationDispatchAdapter.ts
+````typescript
+import { notificationService } from "@/modules/platform/subdomains/notification/interfaces/composition/notification-service";
+import type { NotificationDispatchPort, WorkspaceNotificationDispatch } from "../../domain/ports/NotificationDispatchPort";
+⋮----
+export class PlatformNotificationDispatchAdapter
+implements NotificationDispatchPort
+⋮----
+async dispatch(input: WorkspaceNotificationDispatch): Promise<void>
+````
+
+## File: modules/workspace/subdomains/notification/interfaces/_actions/workspace-notification.actions.ts
+````typescript
+/**
+ * Workspace notification server actions — thin wrappers over use cases.
+ */
+⋮----
+import { commandFailureFrom, commandSuccess } from "@shared-types";
+import type { CommandResult } from "@shared-types";
+import { workspaceNotificationService } from "../composition/notification-preference-service";
+import type { UpdateNotificationPreferencesCommand } from "../../application/use-cases/update-notification-preferences.use-case";
+import type { WorkspaceEventPayload } from "../../application/use-cases/notify-workspace-members.use-case";
+⋮----
+export async function updateWorkspaceNotificationPreferences(
+  command: UpdateNotificationPreferencesCommand,
+): Promise<CommandResult>
+⋮----
+/**
+ * Notify workspace members for a given workspace event.
+ * Fire-and-forget: always returns success; individual delivery failures are swallowed.
+ */
+export async function notifyWorkspaceMembers(
+  event: WorkspaceEventPayload,
+): Promise<CommandResult>
+````
+
+## File: modules/workspace/subdomains/notification/interfaces/components/WorkspaceNotificationPreferencesPanel.tsx
+````typescript
+/**
+ * WorkspaceNotificationPreferencesPanel
+ *
+ * Workspace-scoped notification preferences UI.
+ * Lets a workspace member toggle which event types they want notifications for.
+ */
+⋮----
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { Bell } from "lucide-react";
+import { Switch } from "@ui-shadcn/ui/switch";
+import { Label } from "@ui-shadcn/ui/label";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+⋮----
+import {
+  getWorkspaceNotificationPreferences,
+} from "../queries/workspace-notification.queries";
+import { updateWorkspaceNotificationPreferences } from "../_actions/workspace-notification.actions";
+import {
+  WORKSPACE_NOTIFICATION_EVENT_TYPES,
+} from "../../application/dto/notification-preference.dto";
+import type { WorkspaceNotificationEventType } from "../../application/dto/notification-preference.dto";
+⋮----
+interface WorkspaceNotificationPreferencesPanelProps {
+  readonly workspaceId: string;
+  readonly memberId: string;
+}
+⋮----
+function handleToggle(eventType: WorkspaceNotificationEventType)
+⋮----
+function handleSave()
+````
+
+## File: modules/workspace/subdomains/notification/interfaces/composition/notification-preference-service.ts
+````typescript
+/**
+ * Composition root for the workspace notification subdomain.
+ * Wires infrastructure adapters into use cases and queries.
+ *
+ * All use-case and query instances are created lazily (singleton per server runtime).
+ */
+⋮----
+import { FirebaseWorkspaceNotificationPreferenceRepository } from "../../infrastructure/firebase/FirebaseWorkspaceNotificationPreferenceRepository";
+import { PlatformNotificationDispatchAdapter } from "../../infrastructure/platform/PlatformNotificationDispatchAdapter";
+import { UpdateNotificationPreferencesUseCase } from "../../application/use-cases/update-notification-preferences.use-case";
+import { NotifyWorkspaceMembersUseCase } from "../../application/use-cases/notify-workspace-members.use-case";
+import { GetWorkspaceNotificationPreferencesQuery } from "../../application/queries/get-notification-preferences.queries";
+import type { UpdateNotificationPreferencesCommand } from "../../application/use-cases/update-notification-preferences.use-case";
+import type { WorkspaceEventPayload } from "../../application/use-cases/notify-workspace-members.use-case";
+import type { WorkspaceNotificationPreferenceDto } from "../../application/dto/notification-preference.dto";
+import type { CommandResult } from "@shared-types";
+⋮----
+function getPreferenceRepo(): FirebaseWorkspaceNotificationPreferenceRepository
+⋮----
+function getDispatchAdapter(): PlatformNotificationDispatchAdapter
+````
+
+## File: modules/workspace/subdomains/notification/interfaces/index.ts
+````typescript
+
+````
+
+## File: modules/workspace/subdomains/notification/interfaces/queries/workspace-notification.queries.ts
+````typescript
+/**
+ * Workspace notification queries — delegates to the composition service.
+ */
+⋮----
+import { workspaceNotificationService } from "../composition/notification-preference-service";
+import type { WorkspaceNotificationPreferenceDto } from "../../application/dto/notification-preference.dto";
+⋮----
+export async function getWorkspaceNotificationPreferences(
+  workspaceId: string,
+  memberId: string,
+): Promise<WorkspaceNotificationPreferenceDto>
 ````
 
 ## File: modules/workspace/subdomains/notification/README.md
@@ -44306,40 +44887,6 @@ See `docs/hard-rules-consolidated.md` for:
 - Cross-module contract rules (24-27)
 ````
 
-## File: app/(public)/page.tsx
-````typescript
-/**
- * app/(public)/page.tsx
- * Public landing page with top-right auth entry and inline auth panel.
- * Uses identity module use cases directly on the client so Firebase auth state
- * actually updates AuthProvider via onAuthStateChanged.
- */
-⋮----
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck } from "lucide-react";
-⋮----
-import {
-  useAuth,
-  createClientAuthUseCases,
-} from "@/modules/iam/api";
-import {
-  createClientAccountUseCases,
-} from "@/modules/platform/api";
-⋮----
-type Tab = "login" | "register";
-⋮----
-async function handleSubmit(e: React.FormEvent)
-⋮----
-async function handleGuestAccess()
-⋮----
-async function handlePasswordReset()
-⋮----
-setError(null);
-setResetSent(false);
-setIsAuthPanelOpen((prev)
-````
-
 ## File: app/(shell)/_providers/AppProvider.tsx
 ````typescript
 /**
@@ -44431,64 +44978,6 @@ function handleSelectWorkspace(workspaceId: string | null)
 async function handleLogout()
 ⋮----
 void handleLogout();
-````
-
-## File: app/(shell)/_shell/ShellSidebarBody.tsx
-````typescript
-/**
- * ShellSidebarBody — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it imports from workspace and notion modules.
- */
-⋮----
-import Link from "next/link";
-⋮----
-import {
-  WorkspaceSectionContent,
-  type NavPreferences,
-  type SidebarLocaleBundle,
-} from "@/modules/workspace/api/ui";
-import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "@/modules/platform/api";
-⋮----
-import {
-  type NavSection,
-  sidebarItemClass,
-  sidebarSectionTitleClass,
-} from "./ShellSidebarNavData";
-import { ShellContextNavSection } from "./ShellContextNavSection";
-⋮----
-interface NavItem {
-  id: string;
-  label: string;
-  href: string;
-}
-⋮----
-interface WorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-⋮----
-interface ShellSidebarBodyProps {
-  section: NavSection;
-  isActiveRoute: (href: string) => boolean;
-  activeAccountId: string | null;
-  showAccountManagement: boolean;
-  visibleAccountItems: readonly NavItem[];
-  visibleOrganizationManagementItems: readonly NavItem[];
-  workspacePathId: string | null;
-  navPrefs: NavPreferences;
-  localeBundle: SidebarLocaleBundle | null;
-  showRecentWorkspaces: boolean;
-  visibleRecentWorkspaceLinks: WorkspaceLink[];
-  hasOverflow: boolean;
-  isExpanded: boolean;
-  activeWorkspaceId: string | null;
-  onSelectWorkspace: (workspaceId: string | null) => void;
-  onToggleExpanded: () => void;
-  currentSearchWorkspaceId: string;
-}
-⋮----
-className=
 ````
 
 ## File: docs/bounded-contexts.md
@@ -51635,32 +52124,29 @@ export function resolveShellPageTitle(pathname: string): string
 export function resolveShellBreadcrumbLabel(segment: string): string
 ````
 
-## File: modules/platform/subdomains/team/interfaces/_actions/team.actions.ts
+## File: modules/platform/subdomains/team/api/index.ts
 ````typescript
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import {
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "../../api";
-import type { CreateTeamInput } from "../../api";
-import { createTeamRepository } from "../../api";
-⋮----
-function getRepo()
-⋮----
-export async function createTeamAction(input: CreateTeamInput): Promise<CommandResult>
-⋮----
-export async function deleteTeamAction(
-  organizationId: string,
-  teamId: string,
-): Promise<CommandResult>
-⋮----
-export async function updateTeamMembersAction(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-  action: "add" | "remove",
-): Promise<CommandResult>
+/**
+ * Module: platform/subdomains/team
+ * Layer: api (public boundary)
+ * Purpose: Exports types and use cases for the team subdomain.
+ *
+ * createTeamRepository is promoted to the api boundary because the
+ * organization subdomain needs it for cross-subdomain team port wiring.
+ * It returns the TeamRepository interface, not a concrete implementation.
+ */
+````
+
+## File: modules/workspace/api/contracts.ts
+````typescript
+/**
+ * workspace api/contracts.ts
+ *
+ * Canonical public type surface for the workspace bounded context.
+ * Cross-module and app-layer consumers should import types from here.
+ *
+ * Internal source: interfaces/contracts/
+ */
 ````
 
 ## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository.ts
@@ -51955,53 +52441,6 @@ interface WorkspaceDailyTabProps {
 }
 ⋮----
 export function WorkspaceDailyTab(
-````
-
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceDetailTabContent.tsx
-````typescript
-import type { ReactNode } from "react";
-⋮----
-import { WorkspaceAuditTab } from "../../../../subdomains/audit/api";
-import { WorkspaceFeedWorkspaceView } from "../../../../subdomains/feed/api";
-import { WorkspaceSchedulingTab } from "../../../../subdomains/scheduling/api";
-import { WorkspaceFlowTab } from "../../../../subdomains/workspace-workflow/api";
-import type { WorkspaceEntity } from "../../../../domain/aggregates/Workspace";
-import type { WorkspaceTabValue } from "../../navigation/workspace-tabs";
-import {
-  getWorkspaceAddressLines,
-  getWorkspacePersonnelEntries,
-} from "../../view-models/workspace-supporting-records";
-import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
-import { WorkspaceFilesManagementTab } from "./WorkspaceFilesManagementTab";
-import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
-import { WorkspaceOverviewTab } from "./WorkspaceOverviewTab";
-import { renderWorkspaceCrossModuleTabSurface } from "./WorkspaceCrossModuleTabSurface";
-⋮----
-interface WorkspaceDetailTabContentOptions {
-  readonly tab: WorkspaceTabValue;
-  readonly workspace: WorkspaceEntity;
-  readonly accountId: string | null | undefined;
-  readonly currentUserId: string | undefined;
-  readonly workspaces: Record<string, WorkspaceEntity>;
-  readonly activeWorkspaceId: string | null;
-  readonly initialOverviewPanel?: string;
-  readonly onEditWorkspace: () => void;
-  readonly onSetActiveWorkspace: (workspaceId: string) => void;
-}
-⋮----
-export function renderWorkspaceDetailTabContent({
-  tab,
-  workspace,
-  accountId,
-  currentUserId,
-  workspaces,
-  activeWorkspaceId,
-  initialOverviewPanel,
-  onEditWorkspace,
-  onSetActiveWorkspace,
-}: WorkspaceDetailTabContentOptions): ReactNode
-⋮----
-onSetActiveWorkspace=
 ````
 
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceManagedFileCard.tsx
@@ -52610,6 +53049,40 @@ Key entity:
 Out of scope:
 - Task creation logic
 - Financial processes
+````
+
+## File: modules/workspace/subdomains/notification/api/index.ts
+````typescript
+/**
+ * workspace/subdomains/notification — public API boundary.
+ *
+ * Cross-subdomain and cross-module consumers must import through this path.
+ * Internal layers (domain/, application/, infrastructure/, interfaces/) must
+ * not be imported directly from outside this subdomain.
+ */
+⋮----
+// ── Types & value objects ────────────────────────────────────────────────────
+⋮----
+// ── Commands ─────────────────────────────────────────────────────────────────
+⋮----
+// ── Server actions & queries (composition surface) ──────────────────────────
+⋮----
+// ── UI components ────────────────────────────────────────────────────────────
+⋮----
+// ── Composition service (for internal workspace orchestration only) ──────────
+````
+
+## File: modules/workspace/subdomains/notification/application/index.ts
+````typescript
+
+````
+
+## File: modules/workspace/subdomains/notification/domain/index.ts
+````typescript
+/**
+ * workspace/subdomains/notification/domain barrel.
+ * Cross-layer imports must use this barrel, not internal sub-paths.
+ */
 ````
 
 ## File: modules/workspace/subdomains/scheduling/infrastructure/firebase/FirebaseDemandRepository.ts
@@ -55739,19 +56212,6 @@ function handleSwitchToPersonal()
 onClick=
 ````
 
-## File: modules/platform/subdomains/team/api/index.ts
-````typescript
-/**
- * Module: platform/subdomains/team
- * Layer: api (public boundary)
- * Purpose: Exports types and use cases for the team subdomain.
- *
- * createTeamRepository is promoted to the api boundary because the
- * organization subdomain needs it for cross-subdomain team port wiring.
- * It returns the TeamRepository interface, not a concrete implementation.
- */
-````
-
 ## File: modules/workspace/interfaces/web/components/cards/WorkspaceProductSpineCard.tsx
 ````typescript
 import Link from "next/link";
@@ -55836,6 +56296,54 @@ onClick=
 ⋮----
 onOpenChange=
 onWorkspaceNameChange=
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceDetailTabContent.tsx
+````typescript
+import type { ReactNode } from "react";
+⋮----
+import { WorkspaceAuditTab } from "../../../../subdomains/audit/api";
+import { WorkspaceFeedWorkspaceView } from "../../../../subdomains/feed/api";
+import { WorkspaceSchedulingTab } from "../../../../subdomains/scheduling/api";
+import { WorkspaceFlowTab } from "../../../../subdomains/workspace-workflow/api";
+import { WorkspaceNotificationPreferencesPanel } from "../../../../subdomains/notification/api";
+import type { WorkspaceEntity } from "../../../../domain/aggregates/Workspace";
+import type { WorkspaceTabValue } from "../../navigation/workspace-tabs";
+import {
+  getWorkspaceAddressLines,
+  getWorkspacePersonnelEntries,
+} from "../../view-models/workspace-supporting-records";
+import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
+import { WorkspaceFilesManagementTab } from "./WorkspaceFilesManagementTab";
+import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
+import { WorkspaceOverviewTab } from "./WorkspaceOverviewTab";
+import { renderWorkspaceCrossModuleTabSurface } from "./WorkspaceCrossModuleTabSurface";
+⋮----
+interface WorkspaceDetailTabContentOptions {
+  readonly tab: WorkspaceTabValue;
+  readonly workspace: WorkspaceEntity;
+  readonly accountId: string | null | undefined;
+  readonly currentUserId: string | undefined;
+  readonly workspaces: Record<string, WorkspaceEntity>;
+  readonly activeWorkspaceId: string | null;
+  readonly initialOverviewPanel?: string;
+  readonly onEditWorkspace: () => void;
+  readonly onSetActiveWorkspace: (workspaceId: string) => void;
+}
+⋮----
+export function renderWorkspaceDetailTabContent({
+  tab,
+  workspace,
+  accountId,
+  currentUserId,
+  workspaces,
+  activeWorkspaceId,
+  initialOverviewPanel,
+  onEditWorkspace,
+  onSetActiveWorkspace,
+}: WorkspaceDetailTabContentOptions): ReactNode
+⋮----
+onSetActiveWorkspace=
 ````
 
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceMembersTab.tsx
@@ -57979,6 +58487,24 @@ export function makeSourceUseCases(
  */
 ````
 
+## File: modules/platform/subdomains/organization/api/index.ts
+````typescript
+/**
+ * Public API boundary for the organization subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Team port wiring is deferred: the organization-service auto-configures its
+ * team port factory on first use via lazy require, eliminating the previous
+ * import-time side effect (configureOrganizationTeamPortFactory call).
+ */
+⋮----
+// --- Domain types ---
+⋮----
+// --- Composition (lazy, safe for SSR) ---
+⋮----
+// --- Interfaces (UI, queries, actions) ---
+````
+
 ## File: modules/workspace/application/queries/wiki-content-tree.queries.ts
 ````typescript
 /**
@@ -58242,40 +58768,6 @@ onToggleVersionHistory=
 onDelete=
 ⋮----
 onClose=
-````
-
-## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
-````typescript
-export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
-⋮----
-export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
-⋮----
-export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
-⋮----
-interface WorkspaceTabMeta {
-  readonly label: string;
-  readonly prefId: string;
-  readonly group: WorkspaceTabGroup;
-  readonly status: WorkspaceTabDevStatus;
-}
-⋮----
-export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue
-⋮----
-export function resolveWorkspaceTabValue(value: string | null | undefined): WorkspaceTabValue | null
-⋮----
-export function normalizeWorkspaceTabPrefId(prefId: string): string
-⋮----
-export function getWorkspaceTabMeta(tab: WorkspaceTabValue)
-⋮----
-export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus
-⋮----
-export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string
-⋮----
-export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string
-⋮----
-export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[]
-⋮----
-export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[]
 ````
 
 ## File: repomix.config.json
@@ -58718,24 +59210,6 @@ export class IdentityTokenRefreshAdapter implements TokenRefreshPort {
 async emitTokenRefreshSignal(input: TokenRefreshSignalInput): Promise<void>
 ````
 
-## File: modules/platform/subdomains/organization/api/index.ts
-````typescript
-/**
- * Public API boundary for the organization subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Team port wiring is deferred: the organization-service auto-configures its
- * team port factory on first use via lazy require, eliminating the previous
- * import-time side effect (configureOrganizationTeamPortFactory call).
- */
-⋮----
-// --- Domain types ---
-⋮----
-// --- Composition (lazy, safe for SSR) ---
-⋮----
-// --- Interfaces (UI, queries, actions) ---
-````
-
 ## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
 ````typescript
 import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Library, MessageSquare, Notebook, Shield, User, Users } from "lucide-react";
@@ -58761,6 +59235,40 @@ export function buildWorkspaceQuickAccessItems(
   workspaceId: string,
   accountId?: string | null,
 ): WorkspaceQuickAccessItem[]
+````
+
+## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
+````typescript
+export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
+⋮----
+export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
+⋮----
+export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
+⋮----
+interface WorkspaceTabMeta {
+  readonly label: string;
+  readonly prefId: string;
+  readonly group: WorkspaceTabGroup;
+  readonly status: WorkspaceTabDevStatus;
+}
+⋮----
+export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue
+⋮----
+export function resolveWorkspaceTabValue(value: string | null | undefined): WorkspaceTabValue | null
+⋮----
+export function normalizeWorkspaceTabPrefId(prefId: string): string
+⋮----
+export function getWorkspaceTabMeta(tab: WorkspaceTabValue)
+⋮----
+export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus
+⋮----
+export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string
+⋮----
+export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string
+⋮----
+export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[]
+⋮----
+export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[]
 ````
 
 ## File: docs/decisions/README.md
@@ -59006,179 +59514,6 @@ import { distillContent, generateAiText, summarize } from "@/modules/ai/api/serv
 - [docs/contexts/ai/ubiquitous-language.md](docs/contexts/ai/ubiquitous-language.md)
 ````
 
-## File: modules/workspace/api/facade.ts
-````typescript
-/**
- * workspace api/facade.ts
- *
- * Canonical public behavior surface for the workspace bounded context.
- * Cross-module and app-layer consumers invoke commands and queries from here.
- *
- * Internal source: interfaces/facades/
- */
-````
-
-## File: modules/workspace/api/ui.ts
-````typescript
-/**
- * workspace api/ui.ts
- *
- * Canonical public web UI surface for the workspace bounded context.
- * App-layer consumers that need workspace UI components, hooks, and
- * navigation utilities should import from here.
- *
- * Internal source: interfaces/web/
- */
-⋮----
-// ── Screen components ────────────────────────────────────────────────────────
-⋮----
-// ── Card components ──────────────────────────────────────────────────────────
-⋮----
-// ── Tab components ───────────────────────────────────────────────────────────
-⋮----
-// ── Layout components ────────────────────────────────────────────────────────
-⋮----
-// ── Rail components ──────────────────────────────────────────────────────────
-⋮----
-// ── Navigation ────────────────────────────────────────────────────────────────
-⋮----
-// ── Quick-access navigation ───────────────────────────────────────────────────
-⋮----
-// ── State helpers ─────────────────────────────────────────────────────────────
-⋮----
-// ── Map utilities ─────────────────────────────────────────────────────────────
-⋮----
-// ── Hooks ─────────────────────────────────────────────────────────────────────
-⋮----
-// ── Workspace context provider ────────────────────────────────────────────────
-⋮----
-// ── Navigation preferences ────────────────────────────────────────────────────
-⋮----
-// ── Sidebar locale ────────────────────────────────────────────────────────────
-⋮----
-// ── Navigation customize dialog ───────────────────────────────────────────────
-````
-
-## File: modules/ai/README.md
-````markdown
-# AI
-
-共享 AI capability bounded context：generation、orchestration、distillation、retrieval、memory、safety 與 provider routing。
-
-## Intended Ownership
-
-- provider routing 與 model policy
-- quota 與 safety guardrails
-- prompt & flow orchestration
-- shared text generation（Genkit 接縫）
-- distillation：將長輸出濃縮為精煉知識片段
-- retrieval：向量搜尋與上下文抓取
-
-## Active Baseline
-
-- generation 子域持有 Genkit-backed 文字生成接縫（`generateAiText`、`summarize`）
-- distillation 子域現在提供結構化蒸餾能力（`distillContent`）
-- 下游模組透過 `modules/ai/api`（client-safe types）與 `modules/ai/api/server`（server-only functions）消費
-- 其餘子域為骨架，依需求逐步實作
-
-## Capability Rules
-
-- context 應先聚合、排序並壓縮上下文，再把可用輸入交給 generation 或 distillation。
-- conversation 應管理 AI 互動輪次、system prompt 注入與 replay/debug 狀態，但不得接管 notebooklm 的正典 Conversation 語義。
-- generation 應透過 provider-agnostic adapter 產生最終文字或結構化輸出，且輸出必須先經 schema 驗證。
-- retrieval 應負責抓取、排序與重排候選內容，不直接負責最終答案生成。
-- memory 應優先保存 distilled knowledge，而不是無限制累積 raw content。
-- distillation 應作為 AI domain 的 knowledge compiler，把 raw 或多來源內容轉為低 token、可重用、可結構化的知識訊號。
-- distillation pipeline 應遵守 ingest → chunk/filter → score → distill → structure → store/index 的順序；大型工作應走 async job。
-- reasoning 應只對已準備好的輸入做多步推理，不負責資料抓取或持久化。
-- orchestration 應控制多步 flow、retry、fallback 與 parallel execution，不承載下游業務語義。
-- tool-calling 應定義工具契約、權限與結果正規化；工具執行仍屬 infrastructure。
-- evaluation 應覆蓋 generation 與 distillation，至少量測 compression、retention 與 hallucination 風險。
-- safety 可以在任何步驟阻斷執行；tracing 只負責觀測，不得改變業務決策。
-
-## Subdomains
-
-| Subdomain | Status | Notes |
-|---|---|---|
-| generation | active | GenkitAiTextGenerationAdapter 已實作 |
-| orchestration | stub | 多步驟 AI flow |
-| distillation | active | GenkitDistillationAdapter 已實作 |
-| retrieval | stub | 向量搜尋 |
-| memory | stub | 對話歷史 |
-| context | stub | prompt 上下文組裝 |
-| safety | stub | 安全護欄 |
-| tool-calling | stub | 外部工具調用 |
-| reasoning | stub | 推理步驟管理 |
-| conversation | stub | AI 輪次管理 |
-| evaluation | stub | 輸出品質評估 |
-| tracing | stub | 執行觀測 |
-
-## Public API
-
-```ts
-// client-safe types
-import type {
-  AIAPI,
-  DistillationAPI,
-  DistillContentInput,
-  DistillationResult,
-  GenerateAiTextInput,
-  GenerateAiTextOutput,
-  AiTextGenerationPort,
-} from "@/modules/ai/api";
-
-// server-only functions
-import { distillContent, generateAiText, summarize } from "@/modules/ai/api/server";
-```
-
-## Dependency Direction
-
-```
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- domain 不得依賴任何 SDK 或框架。
-- Genkit 與 provider SDK 只能在 `infrastructure/` 層。
-- 跨模組消費只能透過 `api/` 邊界。
-````
-
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceCrossModuleTabSurface.tsx
-````typescript
-import dynamic from "next/dynamic";
-import type { ReactNode } from "react";
-⋮----
-import type { WorkspaceEntity } from "../../../contracts";
-import type { WorkspaceTabValue } from "../../navigation/workspace-tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import {
-  KnowledgeBaseArticlesPanel,
-  KnowledgeDatabasesPanel,
-} from "@/modules/notion/api/ui";
-import {
-  RagQueryPanel,
-  SourceDocumentsPanel,
-} from "@/modules/notebooklm/api/ui";
-⋮----
-// Dynamic import to break synchronous module-evaluation cycle between
-// workspace/api → workspace/interfaces → notebooklm/api → ConversationPanel → workspace/api.
-// SSR disabled because ConversationPanel is a "use client" component that
-// relies on browser-only hooks (useState, useEffect) and workspace context providers.
-⋮----
-interface WorkspaceCrossModuleTabSurfaceOptions {
-  readonly tab: WorkspaceTabValue;
-  readonly workspace: WorkspaceEntity;
-  readonly accountId: string;
-  readonly currentUserId?: string | null;
-  readonly workspaces: Record<string, WorkspaceEntity>;
-}
-⋮----
-function renderWorkspacePlaceholder(title: string, description: string): ReactNode
-⋮----
-export function renderWorkspaceCrossModuleTabSurface(
-  options: WorkspaceCrossModuleTabSurfaceOptions,
-): ReactNode | null
-````
-
 ## File: package.json
 ````json
 {
@@ -59292,6 +59627,179 @@ export function renderWorkspaceCrossModuleTabSurface(
     "vitest": "^4.1.2"
   }
 }
+````
+
+## File: modules/ai/README.md
+````markdown
+# AI
+
+共享 AI capability bounded context：generation、orchestration、distillation、retrieval、memory、safety 與 provider routing。
+
+## Intended Ownership
+
+- provider routing 與 model policy
+- quota 與 safety guardrails
+- prompt & flow orchestration
+- shared text generation（Genkit 接縫）
+- distillation：將長輸出濃縮為精煉知識片段
+- retrieval：向量搜尋與上下文抓取
+
+## Active Baseline
+
+- generation 子域持有 Genkit-backed 文字生成接縫（`generateAiText`、`summarize`）
+- distillation 子域現在提供結構化蒸餾能力（`distillContent`）
+- 下游模組透過 `modules/ai/api`（client-safe types）與 `modules/ai/api/server`（server-only functions）消費
+- 其餘子域為骨架，依需求逐步實作
+
+## Capability Rules
+
+- context 應先聚合、排序並壓縮上下文，再把可用輸入交給 generation 或 distillation。
+- conversation 應管理 AI 互動輪次、system prompt 注入與 replay/debug 狀態，但不得接管 notebooklm 的正典 Conversation 語義。
+- generation 應透過 provider-agnostic adapter 產生最終文字或結構化輸出，且輸出必須先經 schema 驗證。
+- retrieval 應負責抓取、排序與重排候選內容，不直接負責最終答案生成。
+- memory 應優先保存 distilled knowledge，而不是無限制累積 raw content。
+- distillation 應作為 AI domain 的 knowledge compiler，把 raw 或多來源內容轉為低 token、可重用、可結構化的知識訊號。
+- distillation pipeline 應遵守 ingest → chunk/filter → score → distill → structure → store/index 的順序；大型工作應走 async job。
+- reasoning 應只對已準備好的輸入做多步推理，不負責資料抓取或持久化。
+- orchestration 應控制多步 flow、retry、fallback 與 parallel execution，不承載下游業務語義。
+- tool-calling 應定義工具契約、權限與結果正規化；工具執行仍屬 infrastructure。
+- evaluation 應覆蓋 generation 與 distillation，至少量測 compression、retention 與 hallucination 風險。
+- safety 可以在任何步驟阻斷執行；tracing 只負責觀測，不得改變業務決策。
+
+## Subdomains
+
+| Subdomain | Status | Notes |
+|---|---|---|
+| generation | active | GenkitAiTextGenerationAdapter 已實作 |
+| orchestration | stub | 多步驟 AI flow |
+| distillation | active | GenkitDistillationAdapter 已實作 |
+| retrieval | stub | 向量搜尋 |
+| memory | stub | 對話歷史 |
+| context | stub | prompt 上下文組裝 |
+| safety | stub | 安全護欄 |
+| tool-calling | stub | 外部工具調用 |
+| reasoning | stub | 推理步驟管理 |
+| conversation | stub | AI 輪次管理 |
+| evaluation | stub | 輸出品質評估 |
+| tracing | stub | 執行觀測 |
+
+## Public API
+
+```ts
+// client-safe types
+import type {
+  AIAPI,
+  DistillationAPI,
+  DistillContentInput,
+  DistillationResult,
+  GenerateAiTextInput,
+  GenerateAiTextOutput,
+  AiTextGenerationPort,
+} from "@/modules/ai/api";
+
+// server-only functions
+import { distillContent, generateAiText, summarize } from "@/modules/ai/api/server";
+```
+
+## Dependency Direction
+
+```
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- domain 不得依賴任何 SDK 或框架。
+- Genkit 與 provider SDK 只能在 `infrastructure/` 層。
+- 跨模組消費只能透過 `api/` 邊界。
+````
+
+## File: modules/workspace/api/facade.ts
+````typescript
+/**
+ * workspace api/facade.ts
+ *
+ * Canonical public behavior surface for the workspace bounded context.
+ * Cross-module and app-layer consumers invoke commands and queries from here.
+ *
+ * Internal source: interfaces/facades/
+ */
+````
+
+## File: modules/workspace/api/ui.ts
+````typescript
+/**
+ * workspace api/ui.ts
+ *
+ * Canonical public web UI surface for the workspace bounded context.
+ * App-layer consumers that need workspace UI components, hooks, and
+ * navigation utilities should import from here.
+ *
+ * Internal source: interfaces/web/
+ */
+⋮----
+// ── Screen components ────────────────────────────────────────────────────────
+⋮----
+// ── Card components ──────────────────────────────────────────────────────────
+⋮----
+// ── Tab components ───────────────────────────────────────────────────────────
+⋮----
+// ── Layout components ────────────────────────────────────────────────────────
+⋮----
+// ── Rail components ──────────────────────────────────────────────────────────
+⋮----
+// ── Navigation ────────────────────────────────────────────────────────────────
+⋮----
+// ── Quick-access navigation ───────────────────────────────────────────────────
+⋮----
+// ── State helpers ─────────────────────────────────────────────────────────────
+⋮----
+// ── Map utilities ─────────────────────────────────────────────────────────────
+⋮----
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+⋮----
+// ── Workspace context provider ────────────────────────────────────────────────
+⋮----
+// ── Navigation preferences ────────────────────────────────────────────────────
+⋮----
+// ── Sidebar locale ────────────────────────────────────────────────────────────
+⋮----
+// ── Navigation customize dialog ───────────────────────────────────────────────
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceCrossModuleTabSurface.tsx
+````typescript
+import dynamic from "next/dynamic";
+import type { ReactNode } from "react";
+⋮----
+import type { WorkspaceEntity } from "../../../contracts";
+import type { WorkspaceTabValue } from "../../navigation/workspace-tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import {
+  KnowledgeBaseArticlesPanel,
+  KnowledgeDatabasesPanel,
+} from "@/modules/notion/api/ui";
+import {
+  RagQueryPanel,
+  SourceDocumentsPanel,
+} from "@/modules/notebooklm/api/ui";
+⋮----
+// Dynamic import to break synchronous module-evaluation cycle between
+// workspace/api → workspace/interfaces → notebooklm/api → ConversationPanel → workspace/api.
+// SSR disabled because ConversationPanel is a "use client" component that
+// relies on browser-only hooks (useState, useEffect) and workspace context providers.
+⋮----
+interface WorkspaceCrossModuleTabSurfaceOptions {
+  readonly tab: WorkspaceTabValue;
+  readonly workspace: WorkspaceEntity;
+  readonly accountId: string;
+  readonly currentUserId?: string | null;
+  readonly workspaces: Record<string, WorkspaceEntity>;
+}
+⋮----
+function renderWorkspacePlaceholder(title: string, description: string): ReactNode
+⋮----
+export function renderWorkspaceCrossModuleTabSurface(
+  options: WorkspaceCrossModuleTabSurfaceOptions,
+): ReactNode | null
 ````
 
 ## File: modules/notebooklm/api/index.ts
@@ -59455,6 +59963,32 @@ export function renderWorkspaceCrossModuleTabSurface(
 4. 若 smell 尚未記錄，按此編號體系新增文件。
 ````
 
+## File: modules/platform/api/index.ts
+````typescript
+/**
+ * platform public API boundary — semantic capability contracts only.
+ *
+ * account is listed before organization to establish canonical definitions for
+ * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
+ * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
+ *
+ * Shell UI components, React hooks, and app-context types live in api/ui.ts.
+ * @see ADR-1200 Boundary Violation — UI components separated from capability contracts.
+ */
+⋮----
+// organization — explicit to avoid re-export conflicts with account subdomain
+⋮----
+// UI components belong in api/ui.ts — see ADR-1200
+⋮----
+// background-job — knowledge ingestion pipeline management
+⋮----
+// Shell UI components, React hooks, and app-context types are in api/ui.ts.
+// @see ADR-1200 — UI components removed from capability-contract boundary.
+⋮----
+// IAM-owned access and identity exports are re-exposed from ../../iam/api
+// for backward compatibility while consumers migrate to the IAM boundary.
+````
+
 ## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
 ````typescript
 import Link from "next/link";
@@ -59504,30 +60038,4 @@ function renderTabContent(tab: WorkspaceTabValue)
 <Badge variant="outline">
 ⋮----
 setIsEditWorkspaceOpen(open);
-````
-
-## File: modules/platform/api/index.ts
-````typescript
-/**
- * platform public API boundary — semantic capability contracts only.
- *
- * account is listed before organization to establish canonical definitions for
- * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
- * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
- *
- * Shell UI components, React hooks, and app-context types live in api/ui.ts.
- * @see ADR-1200 Boundary Violation — UI components separated from capability contracts.
- */
-⋮----
-// organization — explicit to avoid re-export conflicts with account subdomain
-⋮----
-// UI components belong in api/ui.ts — see ADR-1200
-⋮----
-// background-job — knowledge ingestion pipeline management
-⋮----
-// Shell UI components, React hooks, and app-context types are in api/ui.ts.
-// @see ADR-1200 — UI components removed from capability-contract boundary.
-⋮----
-// IAM-owned access and identity exports are re-exposed from ../../iam/api
-// for backward compatibility while consumers migrate to the IAM boundary.
 ````
