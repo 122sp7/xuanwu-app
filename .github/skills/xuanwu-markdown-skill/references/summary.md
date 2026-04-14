@@ -42,11 +42,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-384 files | 24,198 lines
+401 files | 24,673 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 384 | 24,198 |
+| Markdown | 401 | 24,673 |
 
 **Largest files:**
 - `docs/hard-rules-consolidated.md` (455 lines)
@@ -57,5 +57,5 @@ This skill contains the following reference files:
 - `.github/skills/zod-validation/SKILL.md` (274 lines)
 - `.github/skills/genkit-ai/SKILL.md` (271 lines)
 - `py_fn/README.md` (265 lines)
+- `docs/subdomains.md` (265 lines)
 - `modules/platform/domain/events/DESIGN.md` (257 lines)
-- `.github/skills/firebase-rules/SKILL.md` (247 lines)
