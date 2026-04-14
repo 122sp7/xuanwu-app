@@ -9,7 +9,7 @@ import { makeDemandRepo } from "../../api/factories";
 import {
   SubmitWorkDemandUseCase,
   AssignWorkDemandUseCase,
-} from "../../application/work-demand.use-cases";
+} from "../../application/use-cases/work-demand.use-cases";
 
 function makeRepo() {
   return makeDemandRepo();

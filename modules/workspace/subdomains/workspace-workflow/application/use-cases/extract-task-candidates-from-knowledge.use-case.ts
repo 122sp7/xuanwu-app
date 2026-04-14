@@ -10,7 +10,7 @@ import type {
   ExtractedTaskCandidate,
 } from "../dto/extract-task-candidates-from-knowledge.dto";
 import type { TaskCandidateExtractionAiPort } from "../../domain/ports/TaskCandidateExtractionAiPort";
-import { TaskCandidateRuleExtractor } from "../services/TaskCandidateRuleExtractor";
+import { TaskCandidateRuleExtractor } from "../../domain/services/TaskCandidateRuleExtractor";
 
 function mergeUnique(candidates: ReadonlyArray<ExtractedTaskCandidate>): ReadonlyArray<ExtractedTaskCandidate> {
   const dedup = new Map<string, ExtractedTaskCandidate>();

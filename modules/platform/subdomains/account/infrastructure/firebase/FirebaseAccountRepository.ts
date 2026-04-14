@@ -14,6 +14,7 @@ import {
   addDoc,
   runTransaction,
   serverTimestamp,
+  Timestamp,
 } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
 import type { AccountRepository } from "../../domain/repositories/AccountRepository";
@@ -24,6 +25,7 @@ import type {
   AccountRoleRecord,
   OrganizationRole,
 } from "../../domain/entities/Account";
+import { Account, type AccountSnapshot } from "../../domain/aggregates/Account";
 
 function toAccountEntity(id: string, data: Record<string, unknown>): AccountEntity {
   return {
@@ -45,6 +47,41 @@ function toAccountEntity(id: string, data: Record<string, unknown>): AccountEnti
     createdAt: data.createdAt as AccountEntity["createdAt"],
   };
 }
+
+/**
+ * Maps raw Firestore account data to an AccountSnapshot suitable for
+ * reconstituting the Account aggregate, so domain invariants (e.g. wallet
+ * balance checks) are enforced by the aggregate — not duplicated here.
+ */
+function toAccountSnapshot(id: string, data: Record<string, unknown>): AccountSnapshot {
+  const wallet = data.wallet as Record<string, unknown> | undefined;
+  const toISO = (v: unknown): string => {
+    if (v instanceof Timestamp) return v.toDate().toISOString();
+    if (typeof v === "string") return v;
+    return new Date().toISOString();
+  };
+  const status = (["active", "suspended", "closed"] as const).includes(
+    data.status as "active" | "suspended" | "closed",
+  )
+    ? (data.status as "active" | "suspended" | "closed")
+    : "active";
+  return {
+    id,
+    name: typeof data.name === "string" ? data.name : "",
+    accountType:
+      (data.accountType as AccountSnapshot["accountType"]) === "organization"
+        ? "organization"
+        : "user",
+    email: typeof data.email === "string" ? data.email : null,
+    photoURL: typeof data.photoURL === "string" ? data.photoURL : null,
+    bio: typeof data.bio === "string" ? data.bio : null,
+    status,
+    walletBalance: typeof wallet?.balance === "number" ? wallet.balance : 0,
+    createdAtISO: toISO(data.createdAt),
+    updatedAtISO: toISO(data.updatedAt),
+  };
+}
+
 
 export class FirebaseAccountRepository implements AccountRepository {
   private get db() {
@@ -89,14 +126,18 @@ export class FirebaseAccountRepository implements AccountRepository {
     const db = this.db;
     const accountRef = doc(db, "accounts", accountId);
 
+    let newBalance = 0;
     await runTransaction(db, async (txn) => {
       const snap = await txn.get(accountRef);
-      const current = snap.exists()
-        ? ((snap.data() as Record<string, unknown>).wallet as Record<string, unknown> | undefined)
-        : undefined;
-      const currentBalance = typeof current?.balance === "number" ? current.balance : 0;
+      if (!snap.exists()) throw new Error(`Account ${accountId} not found`);
+      const account = Account.reconstitute(
+        toAccountSnapshot(accountId, snap.data() as Record<string, unknown>),
+      );
+      // Delegate credit logic and invariant enforcement to the domain aggregate.
+      account.creditWallet(amount, description);
+      newBalance = account.walletBalance;
       txn.update(accountRef, {
-        "wallet.balance": currentBalance + amount,
+        "wallet.balance": newBalance,
         updatedAt: serverTimestamp(),
       });
     });
@@ -122,17 +163,18 @@ export class FirebaseAccountRepository implements AccountRepository {
     const db = this.db;
     const accountRef = doc(db, "accounts", accountId);
 
+    let newBalance = 0;
     await runTransaction(db, async (txn) => {
       const snap = await txn.get(accountRef);
-      const current = snap.exists()
-        ? ((snap.data() as Record<string, unknown>).wallet as Record<string, unknown> | undefined)
-        : undefined;
-      const currentBalance = typeof current?.balance === "number" ? current.balance : 0;
-      if (currentBalance < amount) {
-        throw new Error(`Insufficient wallet balance: have ${currentBalance}, need ${amount}`);
-      }
+      if (!snap.exists()) throw new Error(`Account ${accountId} not found`);
+      const account = Account.reconstitute(
+        toAccountSnapshot(accountId, snap.data() as Record<string, unknown>),
+      );
+      // Delegate debit logic and "Insufficient balance" invariant to the domain aggregate.
+      account.debitWallet(amount, description);
+      newBalance = account.walletBalance;
       txn.update(accountRef, {
-        "wallet.balance": currentBalance - amount,
+        "wallet.balance": newBalance,
         updatedAt: serverTimestamp(),
       });
     });

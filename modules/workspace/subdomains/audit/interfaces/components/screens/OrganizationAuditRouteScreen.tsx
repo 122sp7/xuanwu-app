@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { useAccountRouteContext } from "@/modules/platform/api";
+import { useAccountRouteContext } from "@/modules/platform/api/ui";
 import { Badge } from "@ui-shadcn/ui/badge";
 import {
   Card,

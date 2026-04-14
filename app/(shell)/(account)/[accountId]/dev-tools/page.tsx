@@ -24,10 +24,10 @@ import {
 } from "lucide-react";
 
 import {
-  useApp,
   firestoreInfrastructureApi,
   storageInfrastructureApi,
 } from "@/modules/platform/api";
+import { useApp } from "@/modules/platform/api/ui";
 import { useWorkspaceContext } from "@/modules/workspace/api";
 import { Button } from "@ui-shadcn/ui/button";
 import {

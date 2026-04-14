@@ -2,7 +2,8 @@
 
 import { useMemo } from "react";
 
-import { useAccountRouteContext, useApp, useAuth } from "@/modules/platform/api";
+import { useAuth } from "@/modules/platform/api";
+import { useAccountRouteContext, useApp } from "@/modules/platform/api/ui";
 
 import { getWorkspaceStorageKey } from "../../state/workspace-session";
 import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";

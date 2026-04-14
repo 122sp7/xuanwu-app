@@ -14,7 +14,6 @@ import { useEffect, useState } from "react";
 import { PanelLeftOpen, Search } from "lucide-react";
 
 import {
-  useApp,
   useAuth,
   ShellGuard,
   type AccountEntity,
@@ -22,12 +21,6 @@ import {
   type AccountProfile,
   isOrganizationActor,
   resolveOrganizationRouteFallback,
-  AccountSwitcher,
-  ShellAppBreadcrumbs,
-  ShellGlobalSearchDialog,
-  useShellGlobalSearch,
-  ShellHeaderControls,
-  ShellUserAvatar,
   resolveShellPageTitle,
   isExactOrChildPath,
   buildShellContextualHref,
@@ -35,6 +28,15 @@ import {
   SHELL_ORG_PRIMARY_NAV_ITEMS,
   SHELL_ORG_SECONDARY_NAV_ITEMS,
 } from "@/modules/platform/api";
+import {
+  useApp,
+  AccountSwitcher,
+  ShellAppBreadcrumbs,
+  ShellGlobalSearchDialog,
+  useShellGlobalSearch,
+  ShellHeaderControls,
+  ShellUserAvatar,
+} from "@/modules/platform/api/ui";
 import { useWorkspaceContext, type WorkspaceEntity } from "@/modules/workspace/api";
 
 import { AppRail } from "./ShellAppRail";

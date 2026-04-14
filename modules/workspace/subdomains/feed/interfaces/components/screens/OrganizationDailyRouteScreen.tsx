@@ -1,6 +1,6 @@
 "use client";
 
-import { useAccountRouteContext } from "@/modules/platform/api";
+import { useAccountRouteContext } from "@/modules/platform/api/ui";
 
 import { WorkspaceFeedAccountView } from "../WorkspaceFeedAccountView";
 

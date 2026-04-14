@@ -1,7 +1,8 @@
 # 1200 Boundary Violation
 
-- Status: Accepted
+- Status: Partially Resolved
 - Date: 2026-04-13
+- Resolution Date: 2026-04-14
 - Category: Architectural Smells > Boundary Violation
 
 ## Context
@@ -78,3 +79,27 @@ export { WorkspaceHubScreen } from "../interfaces/web/components/...";
 代價：
 - 需要更新 app/(shell) 中所有從 `platform/api` import UI 元件的文件，改為 `platform/api/ui`。
 - workspace/api/ui.ts 已是獨立文件，但 platform 目前將 UI 混入 `api/index.ts`，遷移量較大（約 18 個 UI 相關 export）。
+
+
+## Resolution (§3 — platform/api/ui.ts)
+
+**HX-2-001 — 2026-04-14**
+
+`modules/platform/api/ui.ts` was created as a dedicated UI boundary file.
+All Shell UI components, React hooks (`useApp`, `useAccountRouteContext`,
+`useShellGlobalSearch`), app context (`AppContext`, `APP_INITIAL_STATE`,
+`AppState`, `AppAction`, `AppContextValue`), organisation UI
+(`AccountSwitcher`, `CreateOrganizationDialog`, route screens), and
+notification UI (`NotificationBell`, `NotificationsPage`,
+`SettingsNotificationsRouteScreen`) were removed from `api/index.ts` and
+are now exported exclusively from `api/ui.ts`.
+
+All consumers in `app/(shell)/` and in downstream module interfaces
+(`workspace`, `notebooklm`) were updated to import from
+`@/modules/platform/api/ui` instead of `@/modules/platform/api`.
+
+**Remaining open work:**
+- ADR-1400 (wildcard exports): `notification/api/index.ts` still has
+  `export * from "../application"` and `export * from "../interfaces"`.
+  This is tracked under ADR-1400 and not in scope here.
+- `workspace/api/ui.ts` already existed prior to this resolution.

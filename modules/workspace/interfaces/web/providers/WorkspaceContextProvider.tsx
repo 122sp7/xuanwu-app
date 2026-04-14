@@ -21,7 +21,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { useApp } from "@/modules/platform/api";
+import { useApp } from "@/modules/platform/api/ui";
 import type { WorkspaceEntity } from "../../contracts";
 import { subscribeToWorkspacesForAccount } from "../../facades/workspace.facade";
 import { toWorkspaceMap } from "../utils/workspace-map";

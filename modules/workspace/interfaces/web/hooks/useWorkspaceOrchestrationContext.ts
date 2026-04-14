@@ -1,6 +1,7 @@
 import { useParams } from "next/navigation";
 
-import { useApp, useAuth } from "@/modules/platform/api";
+import { useAuth } from "@/modules/platform/api";
+import { useApp } from "@/modules/platform/api/ui";
 
 import { resolveWorkspaceFromMap } from "../utils/workspace-map";
 import { useWorkspaceContext } from "../providers/WorkspaceContextProvider";

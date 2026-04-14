@@ -1,13 +1,17 @@
 /**
- * @module workspace-flow/application/services
+ * @module workspace-flow/domain/services
  * @file TaskCandidateRuleExtractor.ts
- * @description Rule-first extractor for task candidates from plain text blocks.
+ * @description Pure, stateless rule engine that extracts task candidates from
+ *   plain-text knowledge blocks using pattern matching.
+ *
+ * Moved from application/services/ to domain/services/ because the extractor
+ * contains only domain rules and has no application or infrastructure
+ * dependencies.
+ *
+ * @see ADR-5201 Accidental Complexity — workspace-workflow application structure
  */
 
-import type {
-  ExtractedTaskCandidate,
-  KnowledgeTextBlockInput,
-} from "../dto/extract-task-candidates-from-knowledge.dto";
+import type { ExtractedTaskCandidate, KnowledgeTextBlockInput } from "../value-objects/TaskCandidate";
 
 const CHECKBOX_PATTERN = /^\s*[-*]\s*\[(?:\s|x|X)\]\s+(.+)$/;
 const TASK_PREFIX_PATTERN = /^\s*(?:[-*]|\d+[.)])?\s*task\s*[:：]\s+(.+)$/i;
@@ -32,7 +36,10 @@ export class TaskCandidateRuleExtractor {
     const candidates: ExtractedTaskCandidate[] = [];
 
     for (const block of blocks) {
-      const lines = block.text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      const lines = block.text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
       for (const line of lines) {
         const checkboxMatch = line.match(CHECKBOX_PATTERN);
         const taskPrefixMatch = line.match(TASK_PREFIX_PATTERN);

@@ -1,26 +1,25 @@
 /**
  * @module workspace-flow/application/dto
  * @file extract-task-candidates-from-knowledge.dto.ts
- * @description DTOs for extracting task candidates from knowledge content.
+ * @description Application-layer DTOs for the ExtractTaskCandidatesFromKnowledge use case.
+ *
+ * Pure value types (KnowledgeTextBlockInput, ExtractedTaskCandidate, TaskCandidateSource)
+ * now live in domain/value-objects/TaskCandidate.ts. They are re-exported here so existing
+ * application-layer import paths continue to resolve.
+ *
+ * @see ADR-5201 Accidental Complexity — workspace-workflow application structure
  */
 
-export interface KnowledgeTextBlockInput {
-  readonly blockId: string;
-  readonly text: string;
-  readonly pageIndex?: number;
-}
+import type {
+  KnowledgeTextBlockInput,
+  ExtractedTaskCandidate,
+} from "../../domain/value-objects/TaskCandidate";
 
-export type TaskCandidateSource = "rule" | "ai";
-
-export interface ExtractedTaskCandidate {
-  readonly title: string;
-  readonly description?: string;
-  readonly dueDate?: string;
-  readonly source: TaskCandidateSource;
-  readonly confidence: number;
-  readonly sourceBlockId?: string;
-  readonly sourceSnippet?: string;
-}
+export type {
+  KnowledgeTextBlockInput,
+  TaskCandidateSource,
+  ExtractedTaskCandidate,
+} from "../../domain/value-objects/TaskCandidate";
 
 export interface ExtractTaskCandidatesFromKnowledgeDto {
   readonly knowledgePageId: string;
@@ -32,3 +31,4 @@ export interface ExtractTaskCandidatesFromKnowledgeResult {
   readonly candidates: ReadonlyArray<ExtractedTaskCandidate>;
   readonly usedAiFallback: boolean;
 }
+

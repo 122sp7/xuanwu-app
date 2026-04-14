@@ -4,7 +4,7 @@ import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { AccountEntity, AuthUser } from "../../../../api";
-import { useApp } from "../../../../api";
+import { useApp } from "../../../../api/ui";
 import { createOrganization } from "../_actions/organization.actions";
 import { Button } from "@ui-shadcn/ui/button";
 import {
