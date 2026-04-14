@@ -42,20 +42,20 @@ This skill contains the following reference files:
 
 ## Statistics
 
-334 files | 21,780 lines
+350 files | 24,161 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 334 | 21,780 |
+| Markdown | 350 | 24,161 |
 
 **Largest files:**
 - `docs/hard-rules-consolidated.md` (455 lines)
 - `.github/skills/hexagonal-ddd/SKILL.md` (415 lines)
 - `.github/skills/playwright-mcp-testing/SKILL.md` (358 lines)
 - `.github/skills/shadcn/SKILL.md` (296 lines)
+- `.github/skills/zustand-xstate/SKILL.md` (284 lines)
+- `.github/skills/zod-validation/SKILL.md` (274 lines)
+- `.github/skills/genkit-ai/SKILL.md` (271 lines)
 - `py_fn/README.md` (265 lines)
 - `modules/platform/domain/events/DESIGN.md` (257 lines)
-- `.github/prompts/serena-hexagonal-ddd-refactor.prompt.md` (215 lines)
-- `.github/prompts/enforce-hexagonal-ddd-convergence.prompt.md` (215 lines)
-- `.github/instructions/architecture.instructions.md` (211 lines)
-- `docs/bounded-context-subdomain-template.md` (206 lines)
+- `.github/skills/firebase-rules/SKILL.md` (247 lines)

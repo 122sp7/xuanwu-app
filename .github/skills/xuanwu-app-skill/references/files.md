@@ -29319,6 +29319,83 @@ export class CreateWorkspaceUseCase {
 - 查詢類別從命令文件移除後，api/index.ts 需直接從 `application/queries/` import，確保對外合約不中斷。
 ````
 
+## File: docs/decisions/0012-source-to-task-orchestration.md
+````markdown
+# 0012 Source-To-Task Orchestration
+
+- Status: Accepted
+- Date: 2026-04-14
+- Scope: `notebooklm.source` → `notion.knowledge` → `workspace.workspace-workflow` → `platform` event infrastructure
+
+## Context
+
+系統原本已具備：
+
+- 上傳文件
+- 解析文件
+- 建立 Knowledge Page
+
+但接下來需要支援：
+
+- 上傳文件
+- 解析文件
+- 建立任務
+
+若直接為了「建立任務」而讓 `notebooklm` 直接寫入 workspace 任務資料，會同時造成：
+
+1. `notebooklm` 越界掌管 task materialization。
+2. `workspace` 被迫接受 raw ingestion intent，而不是已整理的 business intent。
+3. `notion` 的正典 Knowledge Page 邊界被繞過。
+4. platform 作為 event / infra gateway 的角色被削弱。
+
+## Decision
+
+1. **入口仍由 `notebooklm.source` 擁有**
+   - 使用者的 upload 與 processing dialog 仍留在 source context。
+
+2. **Task flow 先經過 Knowledge Page**
+   - 若使用者選擇建立任務，系統必須先建立 Knowledge Page，作為正典內容承接點。
+
+3. **Task extraction / materialization 由 `workspace.workspace-workflow` 擁有**
+   - notebooklm 不直接寫 task repository。
+   - notebooklm 只能透過 public API / port 與 workspace 協作。
+
+4. **跨 context handoff 必須走公開邊界與事件**
+   - extraction：走 workspace 公開 command
+   - page approval：走 notion 公開 action
+   - materialization：走 knowledge-approved event + workspace listener
+
+5. **Platform 擁有 event infrastructure**
+   - event transport、shared bus、dispatch infrastructure 仍由 platform server-side composition 建立。
+
+## Consequences
+
+### Positive
+
+- 維持 bounded context ownership 清楚。
+- 任務建立流程可以和既有 knowledge approval flow 對齊。
+- notebooklm 不需要知道 workspace task aggregate 的內部結構。
+- platform 的 infra ownership 沒有被 feature shortcut 侵蝕。
+
+### Trade-offs
+
+- Task flow 不是最短路徑；它依賴 Knowledge Page 作為中介正典載體。
+- 若未來要支援「不建 page 也建 task」，必須先新增另一條被正式建模的 published language，而不是直接在現有流程偷接 repository。
+
+## Conflict Resolution
+
+- 若未來有人想讓 source dialog 直接呼叫 workspace repository，應以本 ADR 為準並拒絕該改動。
+- 若 workflow 需要更多資料，優先擴充 public API 或 event payload，不得跨 context import internals。
+
+## Related Docs
+
+- [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md)
+- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
+- [0003-context-map.md](./0003-context-map.md)
+- [../architecture/source-to-task-flow.md](../architecture/source-to-task-flow.md)
+- [../deliveries/upload-parse-to-task-flow.md](../deliveries/upload-parse-to-task-flow.md)
+````
+
 ## File: docs/decisions/1103-layer-violation-firebase-sdk-in-api-layer.md
 ````markdown
 # 1103 Layer Violation — Firebase SDK in platform/api/infrastructure-api.ts
@@ -31335,6 +31412,177 @@ export * from "./services/shell-account-access"; // 多少函式？
 - **ADR 1403** (Dependency Leakage — subdomain api barrels export * from interfaces) — `export * from "../interfaces"` 的具體危害
 - **ADR 5200** (Cognitive Load) — 系列入口文件
 - **ADR 0001** (Hexagonal Architecture) — API boundary 設計規範根源
+````
+
+## File: docs/deliveries/upload-parse-to-task-flow.md
+````markdown
+# Upload → Parse → Knowledge Page → Task Flow Delivery
+
+## Delivery Scope
+
+這份 delivery 文件描述跨 context 的完整 handoff 流程，目標是把現有的：
+
+`Upload → Parse → Knowledge Page`
+
+擴充為：
+
+`Upload → Parse → Knowledge Page → Tasks`
+
+且在整個串接過程中維持 platform / notebooklm / notion / workspace 的責任邊界清楚。
+
+## End-to-End Flow
+
+```mermaid
+flowchart LR
+    User[User] --> SourceUI[notebooklm source dialog]
+    SourceUI --> Parse[Parse source document]
+    Parse --> RAG[Optional RAG indexing]
+    Parse --> Draft[Create Knowledge Page draft]
+    Draft --> Extract[Extract task candidates]
+    Extract --> Approve[Approve knowledge page with extracted tasks]
+    Approve --> EventBus[platform event infrastructure]
+    EventBus --> Materializer[workspace knowledge-to-workflow materializer]
+    Materializer --> Tasks[Workspace Flow tasks]
+```
+
+## Responsibility Handoff Table
+
+| Step | Owner | Responsibility | Output |
+|---|---|---|---|
+| Upload / options | `notebooklm.source.interfaces` | 收集使用者選項與啟動 workflow | processing request |
+| Parse | `notebooklm.source.application` + pipeline port | 呼叫解析流程並等待結果 | parsed JSON + page count |
+| RAG | `notebooklm.source.application` | 選擇性建立索引 | chunks / vectors |
+| Draft page | `notion.knowledge` | 建立正典 Knowledge Page 草稿 | `pageId` |
+| Candidate extraction | `workspace-workflow` public API | 從 parsed blocks 抽取候選任務 | extracted tasks |
+| Approval / publish | `notion` + `platform` event infra | 透過公開能力與事件 transport 交接 | approved page event |
+| Materialization | `workspace-workflow` listener | 將 extracted tasks 落地為 workspace tasks | workflow tasks |
+
+## Compliance Rules Applied
+
+1. **Platform owns event transport**
+   - 事件基礎設施由 platform server-side composition 建立。
+2. **NotebookLM owns orchestration only**
+   - notebooklm 不直接寫 task repository。
+3. **Notion remains canonical content owner**
+   - 任務流程先經過 Knowledge Page，不跳過正典內容邊界。
+4. **Workspace owns task materialization**
+   - 真正的 task 落地仍由 workspace-workflow 處理。
+5. **Cross-context collaboration uses public API or events only**
+   - 不直接 import 他域的 `domain/` 或 `application/` internals。
+
+## Operational Outcome
+
+交付後，使用者在同一個處理對話框中就能看見：
+
+- 文件解析結果
+- RAG 結果
+- Knowledge Page 狀態
+- 任務流程狀態
+- 前往 Knowledge Page 的連結
+- 前往 Tasks 的連結
+
+## Validation Evidence
+
+本次交付已通過下列驗證：
+
+- source workflow regression test：passed
+- Next.js production build：passed
+- lint：0 errors（僅保留 repo 既有 warnings）
+- browser load check：passed
+
+## Delivery Summary
+
+這次交付不是新增一條繞路流程，而是把既有的知識頁流程，**向下安全延伸到 workspace 任務流程**，並保留事件驅動與 public API 的合規結構。
+````
+
+## File: docs/feature/notebooklm-source-processing-task-flow.md
+````markdown
+# NotebookLM Source Processing Task Flow
+
+## Purpose
+
+這份 feature 文件描述 `notebooklm/source` 內部的單一 use case：
+
+**上傳文件後，使用者可以在同一個 processing dialog 中選擇：**
+- 只做解析
+- 解析後建立 RAG 索引
+- 解析後建立 Knowledge Page
+- 解析後建立 Knowledge Page，並進一步送入任務流程
+
+這一層只回答「這個功能做什麼」，不展開跨 context 的完整交接流程。
+
+## Owning Bounded Context
+
+- **Main Domain**: `notebooklm`
+- **Subdomain**: `source`
+- **Primary use case**: `ProcessSourceDocumentWorkflowUseCase`
+
+## Business Goal
+
+讓使用者在文件上傳完成後，不需要切換多個頁面或重複操作，就能把同一份來源文件推進到下一個需要的消費場景。
+
+## Actor
+
+- 已登入的 workspace 成員
+
+## Main Success Scenario
+
+1. 使用者上傳文件。
+2. 系統呼叫文件解析流程，等待 parse 完成。
+3. 使用者可選擇是否建立 RAG 索引。
+4. 使用者可選擇是否建立 Knowledge Page。
+5. 若使用者勾選「建立任務」，系統會：
+   - 先建立 Knowledge Page 作為正典內容承接點；
+   - 再從解析文字中抽取 task candidates；
+   - 最後把候選任務送入 Workspace Flow。
+6. UI 回傳每個 step 的明確狀態與下一步連結。
+
+## Failure Branches
+
+- parse 失敗：RAG / Page / Task 全部跳過。
+- 無登入 user：Page 與 Task 不執行。
+- draft page 建立失敗：Task 流程停止，不直接跨過 notion 邊界寫入 workspace。
+- task extraction 成功但沒有候選項：標記成功，但 `taskCount = 0`。
+
+## Boundary Rules
+
+- `notebooklm/source` **只負責 orchestration**，不直接寫入 workspace repositories。
+- 任務流程只能透過 `TaskMaterializationWorkflowPort` 進行。
+- `source` 內部只處理 parse / reindex / page handoff / task handoff 的流程狀態，不持有 workflow domain rule。
+- 建立任務時，**Knowledge Page 是必要的中介正典載體**；不允許跳過正典內容直接從來源文件去改寫 workspace 任務資料。
+
+## Public User-Facing Output
+
+執行完成後，summary 會回傳：
+
+- parse 狀態
+- rag 狀態
+- page 狀態
+- task 狀態
+- `pageHref`
+- `workflowHref`
+- `taskCount`
+- `pageCount`
+
+## Implementation Notes
+
+目前對應的實作重點如下：
+
+- dialog 決策 UI：processing dialog 增加 `shouldCreateTasks`
+- application orchestration：`ProcessSourceDocumentWorkflowUseCase`
+- task handoff port：`TaskMaterializationWorkflowPort`
+- adapter 實作：`TaskMaterializationWorkflowAdapter`
+
+## Guardrails
+
+- 不把 task domain rule 放回 `notebooklm`。
+- 不讓 UI 直接呼叫 workspace repository。
+- 不讓 notebooklm 直接擁有 canonical task model。
+- 不把「建立任務」做成第二條平行且不經 Knowledge Page 的流程。
+
+## Summary
+
+這個 feature 的核心不是「直接建任務」，而是把**同一份 source document**安全地推進到多個下游消費能力，同時維持 `notebooklm → notion / workspace` 的邊界清楚。
 ````
 
 ## File: modules/notebooklm/api/server.ts
@@ -45433,16 +45681,6 @@ The now-empty `application/services/` directory was deleted.
 - 保持流程導向，不展開底層架構細節。
 ````
 
-## File: docs/deliveries/README.md
-````markdown
-# Deliveries Docs
-
-這裡整理跨 context 的流程編排文件。
-
-重點是描述整條流程怎麼串起來，而不是單一模組內部實作。
-這一層對齊 event-driven、Saga / Flow orchestration 與 system handoff。
-````
-
 ## File: docs/feature/AGENT.md
 ````markdown
 # Feature Docs Agent Guide
@@ -45453,16 +45691,6 @@ The now-empty `application/services/` directory was deleted.
 - 聚焦單一能力、目標與結果。
 - 採用 Hexagonal + DDD 與 semantic-first 命名。
 - 不展開跨 context 串接流程。
-````
-
-## File: docs/feature/README.md
-````markdown
-# Feature Docs
-
-這裡整理單一 bounded context 內的 use case 文件。
-
-重點是說明這個功能做什麼。
-並遵循 Hexagonal + DDD 與 semantic-first 的業務語言設計。
 ````
 
 ## File: docs/hard-rules-consolidated.md
@@ -52466,123 +52694,32 @@ application/use-cases/ → 全部複數 ✅（僅 scheduling 例外，見 ADR 32
 - **ADR 4200** (Inconsistency)：這是命名一致性問題的延伸
 ````
 
-## File: docs/README.md
+## File: docs/deliveries/README.md
 ````markdown
-# Docs
+# Deliveries Docs
 
-本文件集在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 參考重建，不主張反映現況實作。
+這裡整理跨 context 的流程編排文件。
 
-## Purpose
+重點是描述整條流程怎麼串起來，而不是單一模組內部實作。
+這一層對齊 event-driven、Saga / Flow orchestration 與 system handoff。
 
-這份文件集提供四個主域的 architecture-first 戰略藍圖，並用單一決策日誌與主域文件消除術語、邊界與關係上的衝突。
+## Current Delivery Write-ups
 
-## Architecture Baseline
+- [upload-parse-to-task-flow.md](./upload-parse-to-task-flow.md) — upload → parse → Knowledge Page → task flow 的跨 context handoff 與交付證據。
+````
 
-本文件網的架構權威基線是：
+## File: docs/feature/README.md
+````markdown
+# Feature Docs
 
-- Hexagonal Architecture（Ports and Adapters）+ Domain-Driven Design（DDD）
-- semantic-first 的 business-language-aligned domain modeling
-- Firebase Serverless Backend Architecture：Authentication、Firestore、Cloud Functions、Hosting
-- Genkit AI Orchestration Layer：AI Flows、Tool Calling、Prompt Pipelines
-- Frontend State Management Layer：Zustand for client state、XState for finite-state workflows
-- Schema Validation Layer：Zod for runtime type safety and domain validation
+這裡整理單一 bounded context 內的 use case 文件。
 
-若任務涉及模組分層、runtime 邊界、AI orchestration、frontend state、validation 或 shell route contract，先以 [architecture-overview.md](./architecture-overview.md) 為全域敘事權威，再落到對應 context 文件。
+重點是說明這個功能做什麼。
+並遵循 Hexagonal + DDD 與 semantic-first 的業務語言設計。
 
-## Single Source Of Truth Map
+## Current Feature Write-ups
 
-| Document | Role |
-|---|---|
-| [architecture-overview.md](./architecture-overview.md) | 全域架構敘事總覽 |
-| [subdomains.md](./subdomains.md) | 四主域與子域總清單 |
-| [bounded-contexts.md](./bounded-contexts.md) | 主域與子域所有權地圖 |
-| [context-map.md](./context-map.md) | 主域間關係圖與方向 |
-| [ubiquitous-language.md](./ubiquitous-language.md) | 戰略詞彙表 |
-| [integration-guidelines.md](./integration-guidelines.md) | 主域整合規則 |
-| [strategic-patterns.md](./strategic-patterns.md) | 採用與禁用的戰略模式 |
-| [hard-rules-consolidated.md](./hard-rules-consolidated.md) | 全域硬性守則與 design smell 防線 |
-| [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md) | bounded context 與 subdomain 交付模板 |
-| [project-delivery-milestones.md](./project-delivery-milestones.md) | 從零到交付的專案里程碑 |
-| [decisions/README.md](./decisions/README.md) | ADR 索引與決策日誌 |
-| [decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md) | Design Smell taxonomy 與對應決策索引 |
-| [contexts/_template.md](./contexts/_template.md) | 新主域或新 context 文件樣板 |
-
-## Context Folders
-
-- [contexts/workspace/README.md](./contexts/workspace/README.md)
-- [contexts/platform/README.md](./contexts/platform/README.md)
-- [contexts/notion/README.md](./contexts/notion/README.md)
-- [contexts/notebooklm/README.md](./contexts/notebooklm/README.md)
-
-## Route Contract Authority
-
-- shell composition 與 canonical account / workspace URL 以 [architecture-overview.md](./architecture-overview.md) 為全域權威。
-- account scope、`AccountType = "user" | "organization"` 的字串契約，以及 flattened governance route 以 [contexts/platform/README.md](./contexts/platform/README.md) 與 [contexts/platform/ubiquitous-language.md](./contexts/platform/ubiquitous-language.md) 為權威。
-- workspace scope 與 canonical workspace detail route 以 [contexts/workspace/README.md](./contexts/workspace/README.md) 與 [contexts/workspace/ubiquitous-language.md](./contexts/workspace/ubiquitous-language.md) 為權威。
-- `/{accountId}/workspace/{workspaceId}` 與 `/{accountId}/organization/*` 只作為 legacy redirect surface，不是新文件或新 UI 應引用的 canonical contract。
-
-## Document Network
-
-- [architecture-overview.md](./architecture-overview.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [integration-guidelines.md](./integration-guidelines.md)
-- [strategic-patterns.md](./strategic-patterns.md)
-- [hard-rules-consolidated.md](./hard-rules-consolidated.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [decisions/README.md](./decisions/README.md)
-- [decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md)
-- [contexts/_template.md](./contexts/_template.md)
-
-## Conflict Resolution Rules
-
-- ADR 與戰略敘事衝突時，以 ADR 為準。
-- 戰略文件與主域文件衝突時，先以更具邊界意義的主域文件為準，再回寫戰略文件。
-- 子域所有權衝突時，以 [bounded-contexts.md](./bounded-contexts.md) 與 [subdomains.md](./subdomains.md) 為準。
-- 關係方向衝突時，以 [context-map.md](./context-map.md) 為準。
-- 若 root `docs/` 與 `modules/*/docs/*` 的 generic 子域命名衝突，以 root `docs/` 的戰略命名與 duplicate resolution 為準。
-
-## Global Anti-Pattern Rules
-
-- 不把 framework、transport、storage、SDK 細節寫進 domain 核心。
-- 不把其他主域的內部模型當成自己的正典語言。
-- 不把對稱關係與 directed relationship 混寫在同一套戰略文件。
-- 不把 gap subdomains 描述成已驗證現況。
-
-## Copilot Generation Rules
-
-- 生成程式碼前，先從本文件決定應讀哪些戰略文件與 context 文件。
-- 若任務涉及新 bounded context、subdomain 骨架或交付分期，先讀 [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md) 與 [project-delivery-milestones.md](./project-delivery-milestones.md)。
-- 若任務涉及 design smell、架構異味、boundary leakage、cyclic dependency 或 API surface 過胖，先讀 [hard-rules-consolidated.md](./hard-rules-consolidated.md)、[decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md) 與對應編號 smell ADR。
-- 奧卡姆剃刀：若現有文件網已能回答邊界問題，就不要再新增臨時規則文件。
-- 生成流程應先看 ADR，再看戰略文件，再看主域文件，最後才落到程式碼。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	ADR["ADR"] --> Strategy["Strategic docs"]
-	Strategy --> Context["Context docs"]
-	Context --> Code["Generated code"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Question["Coding question"] --> ADR["Check ADR"]
-	ADR --> Strategy["Read strategic docs"]
-	Strategy --> Context["Read owning context docs"]
-	Context --> Code["Generate boundary-safe code"]
-```
-
-## Constraints
-
-- 本文件集是 Context7-only 的 architecture-first 版本。
-- 本文件集沒有檢視任何既有專案內容，因此不應被解讀為 repo-inspected 現況描述。
+- [notebooklm-source-processing-task-flow.md](./notebooklm-source-processing-task-flow.md) — `notebooklm/source` 的 parse / RAG / Knowledge Page / Task Flow 單一功能說明。
 ````
 
 ## File: docs/ubiquitous-language.md
@@ -53103,6 +53240,43 @@ async listChildren(parentNodeId: string): Promise<readonly TaxonomyNode[]>
 async save(node: TaxonomyNode): Promise<void>
 ⋮----
 async remove(nodeId: string): Promise<void>
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseListPanel.tsx
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseListPanel ??flat record list with fields as readable rows.
+ */
+⋮----
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
+⋮----
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+⋮----
+import { getRecords } from "../queries";
+import { createRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+⋮----
+interface DatabaseListPanelProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+⋮----
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown
+⋮----
+function displayValue(val: unknown, type: string): string
+⋮----
+function toggleExpand(id: string)
+⋮----
+function handleAdd()
+⋮----
+function handleDelete(recordId: string)
 ````
 
 ## File: modules/notion/interfaces/knowledge/_actions/knowledge-page.actions.ts
@@ -53950,103 +54124,106 @@ onClick=
 {/* ── Console log ────────────────────────────────────────────── */}
 ````
 
-## File: docs/decisions/README.md
+## File: docs/README.md
 ````markdown
-# Decisions
+# Docs
 
-本目錄是 architecture-first 的決策日誌。依 ADR 參考模式，每份 ADR 至少說明 context、decision、consequences 與 conflict resolution，讓後續戰略文件可以引用相同決策來源。
+本文件集在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 參考重建，不主張反映現況實作。
 
-## Decision Log
+## Purpose
 
-| ADR | Title | Status | Scope |
-|---|---|---|---|
-| [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md) | Hexagonal Architecture | Accepted | 全域架構與邊界分層 |
-| [0002-bounded-contexts.md](./0002-bounded-contexts.md) | Bounded Contexts | Accepted | 四主域與子域切分 |
-| [0003-context-map.md](./0003-context-map.md) | Context Map | Accepted | 主域間依賴方向 |
-| [0004-ubiquitous-language.md](./0004-ubiquitous-language.md) | Ubiquitous Language | Accepted | 戰略術語治理 |
-| [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md) | Anti-Corruption Layer | Accepted | 邊界整合保護規則 |
-| [0006-domain-event-discriminant-format.md](./0006-domain-event-discriminant-format.md) | Domain Event Discriminant Format | Accepted | 83 snake_case + 4 missing prefix + 25 wrong module prefix violations |
-| [0007-infrastructure-in-api-layer.md](./0007-infrastructure-in-api-layer.md) | Infrastructure Wiring in api/ Layer | Accepted | workspace & platform api/ 層直接實例化 Firebase 適配器（10 檔、28 處）|
-| [0008-repository-interface-placement.md](./0008-repository-interface-placement.md) | Repository Interface Placement | Accepted | domain/repositories/ vs domain/ports/ 混用（23+24 個子域）|
-| [0009-anemic-aggregates.md](./0009-anemic-aggregates.md) | Anemic Aggregates | Accepted | 11 個 domain/aggregates/ 文件只含 interface/type，無 class 與業務行為 |
-| [0010-aggregate-domain-event-emission.md](./0010-aggregate-domain-event-emission.md) | Aggregate Domain Event Emission | Accepted | 2 個 class 聚合根缺少 pullDomainEvents；Workspace 事件在 use-case 中手動組裝 |
-| [0011-use-case-bundling.md](./0011-use-case-bundling.md) | Use Case Bundling and Query-Command Mixing | Accepted | 30 個多類別 use-case 捆綁文件；8 處命令文件 re-export 查詢類別 |
+這份文件集提供四個主域的 architecture-first 戰略藍圖，並用單一決策日誌與主域文件消除術語、邊界與關係上的衝突。
 
-## Design Smell Taxonomy (1000–5200)
+## Architecture Baseline
 
-完整編號體系請見 [SMELL-INDEX.md](./SMELL-INDEX.md)。
+本文件網的架構權威基線是：
 
-| ID | Title | Category | Status |
-|----|-------|----------|--------|
-| [1100](./1100-layer-violation.md) | Layer Violation | Architectural | Accepted |
-| [1200](./1200-boundary-violation.md) | Boundary Violation | Architectural | Accepted |
-| [1300](./1300-cyclic-dependency.md) | Cyclic Dependency | Architectural | Accepted |
-| [1400](./1400-dependency-leakage.md) | Dependency Leakage | Architectural | Accepted |
-| [2100](./2100-tight-coupling.md) | Tight Coupling | Coupling | Accepted |
-| [2200](./2200-hidden-coupling.md) | Hidden Coupling | Coupling | Accepted |
-| [2300](./2300-temporal-coupling.md) | Temporal Coupling | Coupling | Accepted |
-| [3100](./3100-low-cohesion.md) | Low Cohesion | Modularity | Accepted |
-| [3200](./3200-duplication.md) | Duplication | Modularity | Accepted |
-| [4100](./4100-change-amplification.md) | Change Amplification | Maintainability | Accepted |
-| [4200](./4200-inconsistency.md) | Inconsistency | Maintainability | Accepted |
-| [4300](./4300-semantic-drift.md) | Semantic Drift | Maintainability | Accepted |
-| [5100](./5100-accidental-complexity.md) | Accidental Complexity | Complexity | Accepted |
-| [5200](./5200-cognitive-load.md) | Cognitive Load | Complexity | Accepted |
+- Hexagonal Architecture（Ports and Adapters）+ Domain-Driven Design（DDD）
+- semantic-first 的 business-language-aligned domain modeling
+- Firebase Serverless Backend Architecture：Authentication、Firestore、Cloud Functions、Hosting
+- Genkit AI Orchestration Layer：AI Flows、Tool Calling、Prompt Pipelines
+- Frontend State Management Layer：Zustand for client state、XState for finite-state workflows
+- Schema Validation Layer：Zod for runtime type safety and domain validation
 
-## How To Use This Directory
+若任務涉及模組分層、runtime 邊界、AI orchestration、frontend state、validation 或 shell route contract，先以 [architecture-overview.md](./architecture-overview.md) 為全域敘事權威，再落到對應 context 文件。
 
-- 先讀標題以取得整體脈絡。
-- 若某份戰略文件與 ADR 衝突，以 ADR 的 decision 與 conflict resolution 為準。
-- 若未來新增新的架構決策，應沿用同一結構補充，而不是覆寫舊決策歷史。
-- Design Smell ADR（1000–5200）記錄具體 smell 的 context + evidence + decision；遇到對應 smell 時先查此表再動手。
+## Single Source Of Truth Map
 
-## Lint Signal Mapping
+| Document | Role |
+|---|---|
+| [architecture-overview.md](./architecture-overview.md) | 全域架構敘事總覽 |
+| [subdomains.md](./subdomains.md) | 四主域與子域總清單 |
+| [bounded-contexts.md](./bounded-contexts.md) | 主域與子域所有權地圖 |
+| [context-map.md](./context-map.md) | 主域間關係圖與方向 |
+| [ubiquitous-language.md](./ubiquitous-language.md) | 戰略詞彙表 |
+| [integration-guidelines.md](./integration-guidelines.md) | 主域整合規則 |
+| [strategic-patterns.md](./strategic-patterns.md) | 採用與禁用的戰略模式 |
+| [hard-rules-consolidated.md](./hard-rules-consolidated.md) | 全域硬性守則與 design smell 防線 |
+| [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md) | bounded context 與 subdomain 交付模板 |
+| [project-delivery-milestones.md](./project-delivery-milestones.md) | 從零到交付的專案里程碑 |
+| [decisions/README.md](./decisions/README.md) | ADR 索引與決策日誌 |
+| [decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md) | Design Smell taxonomy 與對應決策索引 |
+| [contexts/_template.md](./contexts/_template.md) | 新主域或新 context 文件樣板 |
 
-下列 smell 有對應的 ESLint warning-level signal。lint 只負責早期暴露壓力，不自動等於完整語意判決。
+## Context Folders
 
-| Smell ADR | Lint Signal | Enforcement Target |
-|---|---|---|
-| 1300 Cyclic Dependency | `no-restricted-syntax` 禁止 `require()` | `modules/**/*.{ts,tsx,js,jsx}` |
-| 1400 Dependency Leakage | `no-restricted-syntax` 禁止 `api/index.ts` wildcard re-export `../application` / `../interfaces` | `modules/**/api/**/*.ts` |
-| 3100 Low Cohesion | `max-lines` 預警 API surface 過胖 | `modules/*/api/**/*.{ts,tsx,js,jsx}` |
-| 5200 Cognitive Load | `max-lines` 預警 fat screen | `modules/*/**/interfaces/**/components/screens/**/*.{ts,tsx}` |
+- [contexts/workspace/README.md](./contexts/workspace/README.md)
+- [contexts/platform/README.md](./contexts/platform/README.md)
+- [contexts/notion/README.md](./contexts/notion/README.md)
+- [contexts/notebooklm/README.md](./contexts/notebooklm/README.md)
 
-- 若 lint warning 指向上述 smell，先回到對應 smell ADR 看 decision 與 conflict resolution，再決定是拆分、降 surface、還是保留臨時例外。
-- 若某個 smell 目前無法由 lint 穩定表達，文件判準仍優先於方便但粗糙的 regex 規則。
+## Focused Implementation Docs
 
-## Anti-Pattern Coverage
+- [architecture/source-to-task-flow.md](./architecture/source-to-task-flow.md)
+- [feature/notebooklm-source-processing-task-flow.md](./feature/notebooklm-source-processing-task-flow.md)
+- [deliveries/upload-parse-to-task-flow.md](./deliveries/upload-parse-to-task-flow.md)
+- [decisions/0012-source-to-task-orchestration.md](./decisions/0012-source-to-task-orchestration.md)
 
-- 0001 禁止把 framework / infrastructure 滲入核心。
-- 0002 禁止主域與子域所有權漂移。
-- 0003 禁止上下游方向與對稱關係混寫。
-- 0004 禁止語言污染與同詞多義。
-- 0005 禁止錯置 ACL / Conformist 的責任位置。
-- 0006 禁止 domain event discriminant 使用 snake_case、缺少主域前綴、或使用縮寫模組名稱。
-- 0007 禁止在 api/ 層持有 infrastructure singleton 或 Firebase 適配器實例化。
-- 0008 禁止在 api/ 或 application/ 定義 inline port interface；repository 與 non-repository port 應分別放入 domain/repositories/ 與 domain/ports/。
-- 0009 禁止在 domain/aggregates/ 放只含 interface/type 的文件；aggregates/ 只放 class，純資料快照移至 entities/ 或與 class 共置。
-- 0010 禁止在 use-case 中手動組裝 aggregate 領域事件；聚合根必須實作 _domainEvents 陣列與 pullDomainEvents()，use-case 只在持久化後提取。
-- 0011 禁止在一個 use-case 文件中捆綁多個 class；禁止命令 use-case 文件 re-export 查詢類別（GetXxx/ListXxx 屬 application/queries/）。
-- 1100 禁止 interfaces/ 下建立 api/ 子目錄；api/ 層禁止直接 import Firebase SDK（應透過 @integration-firebase adapter）。
-- 1200 禁止 api/ 邊界暴露 UI 元件或 React hooks；跨模組能力合約只含 use-case、service interface、DTO types。
-- 1300 禁止主域間直接循環依賴；intra-subdomain 循環必須透過 Port + DI 解決，`require()` 延遲載入只作臨時補丁並標注 TODO。
-- 1400 禁止 `export * from "../application"` 或 `export * from "../interfaces"` 在 api/index.ts 中使用；只精確 export 公開能力合約符號。
-- 2100 禁止消費者無差別 import `platform/api` 整體；應從精確子域路徑或分離的 api/ui.ts 取用。
-- 2200 禁止在 application/ 層或 server action 文件中持有 module-level `let _xxx` singleton；singleton 只允許在 interfaces/composition/ 中。
-- 2300 禁止隱式初始化順序依賴；延遲初始化前提條件必須在型別（Promise、factory）中顯式表達。
-- 3100 禁止 api/index.ts 混合基礎設施 API、服務 API、UI 元件、hooks；各職責應分離至獨立文件。
-- 3200 禁止混用 dto/dtos 目錄命名；統一使用 dto（單數）；use-case 文件統一放入 use-cases/ 子目錄。
-- 4100 禁止 platform/api 作為單一 monolithic 依賴點；精確子域 import 降低變更放大範圍。
-- 4200 禁止不一致的目錄命名（dto/dtos）和 queries/ 歸屬；統一規則記錄於模組 instructions 中。
-- 4300 禁止 interfaces/ 內嵌 api/ 子目錄；禁止 application/ 持有 event-mappers/（屬 infrastructure）；handlers/ 必須有明確語意名稱。
-- 5100 禁止在 api/ 層製造超過必要數量的文件；workspace/api contracts.ts 與 facade.ts 應合併；infrastructure-api.ts 長期移至 infrastructure/。
-- 5200 路徑深度上限 10 層；platform/application/ 子目錄控制在 4 個以內；platform/api/ 文件精簡至 3 個。
+## Route Contract Authority
+
+- shell composition 與 canonical account / workspace URL 以 [architecture-overview.md](./architecture-overview.md) 為全域權威。
+- account scope、`AccountType = "user" | "organization"` 的字串契約，以及 flattened governance route 以 [contexts/platform/README.md](./contexts/platform/README.md) 與 [contexts/platform/ubiquitous-language.md](./contexts/platform/ubiquitous-language.md) 為權威。
+- workspace scope 與 canonical workspace detail route 以 [contexts/workspace/README.md](./contexts/workspace/README.md) 與 [contexts/workspace/ubiquitous-language.md](./contexts/workspace/ubiquitous-language.md) 為權威。
+- `/{accountId}/workspace/{workspaceId}` 與 `/{accountId}/organization/*` 只作為 legacy redirect surface，不是新文件或新 UI 應引用的 canonical contract。
+
+## Document Network
+
+- [architecture-overview.md](./architecture-overview.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [integration-guidelines.md](./integration-guidelines.md)
+- [strategic-patterns.md](./strategic-patterns.md)
+- [hard-rules-consolidated.md](./hard-rules-consolidated.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [decisions/README.md](./decisions/README.md)
+- [decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md)
+- [contexts/_template.md](./contexts/_template.md)
+
+## Conflict Resolution Rules
+
+- ADR 與戰略敘事衝突時，以 ADR 為準。
+- 戰略文件與主域文件衝突時，先以更具邊界意義的主域文件為準，再回寫戰略文件。
+- 子域所有權衝突時，以 [bounded-contexts.md](./bounded-contexts.md) 與 [subdomains.md](./subdomains.md) 為準。
+- 關係方向衝突時，以 [context-map.md](./context-map.md) 為準。
+- 若 root `docs/` 與 `modules/*/docs/*` 的 generic 子域命名衝突，以 root `docs/` 的戰略命名與 duplicate resolution 為準。
+
+## Global Anti-Pattern Rules
+
+- 不把 framework、transport、storage、SDK 細節寫進 domain 核心。
+- 不把其他主域的內部模型當成自己的正典語言。
+- 不把對稱關係與 directed relationship 混寫在同一套戰略文件。
+- 不把 gap subdomains 描述成已驗證現況。
 
 ## Copilot Generation Rules
 
-- 生成程式碼前，先由 ADR 決定邊界、語言與整合責任，再下手實作。
-- 奧卡姆剃刀：若既有 ADR 已能解決當前判斷，就不要再堆疊新的臨時規則文件。
-- 新規則若會改變邊界，先補 ADR，再補戰略文件與 context docs。
+- 生成程式碼前，先從本文件決定應讀哪些戰略文件與 context 文件。
+- 若任務涉及新 bounded context、subdomain 骨架或交付分期，先讀 [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md) 與 [project-delivery-milestones.md](./project-delivery-milestones.md)。
+- 若任務涉及 design smell、架構異味、boundary leakage、cyclic dependency 或 API surface 過胖，先讀 [hard-rules-consolidated.md](./hard-rules-consolidated.md)、[decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md) 與對應編號 smell ADR。
+- 奧卡姆剃刀：若現有文件網已能回答邊界問題，就不要再新增臨時規則文件。
+- 生成流程應先看 ADR，再看戰略文件，再看主域文件，最後才落到程式碼。
 
 ## Dependency Direction Flow
 
@@ -54061,48 +54238,16 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-	Question["Architecture question"] --> ADR["Check ADR"]
-	ADR --> Strategy["Align strategic docs"]
-	Strategy --> Context["Align context docs"]
+	Question["Coding question"] --> ADR["Check ADR"]
+	ADR --> Strategy["Read strategic docs"]
+	Strategy --> Context["Read owning context docs"]
 	Context --> Code["Generate boundary-safe code"]
 ```
 
-## Document Network
-
-- [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md)
-- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
-- [0003-context-map.md](./0003-context-map.md)
-- [0004-ubiquitous-language.md](./0004-ubiquitous-language.md)
-- [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md)
-- [0006-domain-event-discriminant-format.md](./0006-domain-event-discriminant-format.md)
-- [0007-infrastructure-in-api-layer.md](./0007-infrastructure-in-api-layer.md)
-- [0008-repository-interface-placement.md](./0008-repository-interface-placement.md)
-- [0009-anemic-aggregates.md](./0009-anemic-aggregates.md)
-- [0010-aggregate-domain-event-emission.md](./0010-aggregate-domain-event-emission.md)
-- [0011-use-case-bundling.md](./0011-use-case-bundling.md)
-- [SMELL-INDEX.md](./SMELL-INDEX.md) ← Design Smell Taxonomy Index
-- [1100-layer-violation.md](./1100-layer-violation.md)
-- [1200-boundary-violation.md](./1200-boundary-violation.md)
-- [1300-cyclic-dependency.md](./1300-cyclic-dependency.md)
-- [1400-dependency-leakage.md](./1400-dependency-leakage.md)
-- [2100-tight-coupling.md](./2100-tight-coupling.md)
-- [2200-hidden-coupling.md](./2200-hidden-coupling.md)
-- [2300-temporal-coupling.md](./2300-temporal-coupling.md)
-- [3100-low-cohesion.md](./3100-low-cohesion.md)
-- [3200-duplication.md](./3200-duplication.md)
-- [4100-change-amplification.md](./4100-change-amplification.md)
-- [4200-inconsistency.md](./4200-inconsistency.md)
-- [4300-semantic-drift.md](./4300-semantic-drift.md)
-- [5100-accidental-complexity.md](./5100-accidental-complexity.md)
-- [5200-cognitive-load.md](./5200-cognitive-load.md)
-- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
-- [../project-delivery-milestones.md](../project-delivery-milestones.md)
-- [../README.md](../README.md)
-
 ## Constraints
 
-- 本目錄在本次任務限制下，只依 Context7 架構參考重建。
-- 本目錄不是對既有 repo 內容做過語意比對後的歷史還原。
+- 本文件集是 Context7-only 的 architecture-first 版本。
+- 本文件集沒有檢視任何既有專案內容，因此不應被解讀為 repo-inspected 現況描述。
 ````
 
 ## File: modules/notebooklm/interfaces/source/composition/use-cases.ts
@@ -54266,41 +54411,35 @@ export interface KnowledgeBaseArticlesPanelProps {
 function handleSuccess(articleId?: string)
 ````
 
-## File: modules/notion/interfaces/database/components/DatabaseListPanel.tsx
+## File: modules/notion/interfaces/knowledge/components/KnowledgePagesPanel.tsx
 ````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseListPanel ??flat record list with fields as readable rows.
- */
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 ⋮----
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
-⋮----
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { useAuth } from "@/modules/platform/api";
 import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
 ⋮----
-import { getRecords } from "../queries";
-import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
+import { PageTreePanel } from "./PageTreePanel";
 ⋮----
-interface DatabaseListPanelProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
+/**
+ * KnowledgePagesPanel
+ * Route-level screen component for /knowledge/pages.
+ * Encapsulates data-loading, scope resolution and layout so that the
+ * Next.js route file stays thin (params/context wiring only).
+ */
+export interface KnowledgePagesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId?: string | null;
+  readonly currentUserId?: string | null;
+  readonly scope?: "workspace" | "account";
 }
 ⋮----
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown
+function buildPageDetailHref(pageId: string)
 ⋮----
-function displayValue(val: unknown, type: string): string
-⋮----
-function toggleExpand(id: string)
-⋮----
-function handleAdd()
-⋮----
-function handleDelete(recordId: string)
+onCreated=
 ````
 
 ## File: modules/platform/subdomains/account/infrastructure/identity-token-refresh.adapter.ts
@@ -54738,6 +54877,162 @@ export default function AccountRouteDispatcherPage({
 if (accountType === "organization")
 ````
 
+## File: docs/decisions/README.md
+````markdown
+# Decisions
+
+本目錄是 architecture-first 的決策日誌。依 ADR 參考模式，每份 ADR 至少說明 context、decision、consequences 與 conflict resolution，讓後續戰略文件可以引用相同決策來源。
+
+## Decision Log
+
+| ADR | Title | Status | Scope |
+|---|---|---|---|
+| [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md) | Hexagonal Architecture | Accepted | 全域架構與邊界分層 |
+| [0002-bounded-contexts.md](./0002-bounded-contexts.md) | Bounded Contexts | Accepted | 四主域與子域切分 |
+| [0003-context-map.md](./0003-context-map.md) | Context Map | Accepted | 主域間依賴方向 |
+| [0004-ubiquitous-language.md](./0004-ubiquitous-language.md) | Ubiquitous Language | Accepted | 戰略術語治理 |
+| [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md) | Anti-Corruption Layer | Accepted | 邊界整合保護規則 |
+| [0006-domain-event-discriminant-format.md](./0006-domain-event-discriminant-format.md) | Domain Event Discriminant Format | Accepted | 83 snake_case + 4 missing prefix + 25 wrong module prefix violations |
+| [0007-infrastructure-in-api-layer.md](./0007-infrastructure-in-api-layer.md) | Infrastructure Wiring in api/ Layer | Accepted | workspace & platform api/ 層直接實例化 Firebase 適配器（10 檔、28 處）|
+| [0008-repository-interface-placement.md](./0008-repository-interface-placement.md) | Repository Interface Placement | Accepted | domain/repositories/ vs domain/ports/ 混用（23+24 個子域）|
+| [0009-anemic-aggregates.md](./0009-anemic-aggregates.md) | Anemic Aggregates | Accepted | 11 個 domain/aggregates/ 文件只含 interface/type，無 class 與業務行為 |
+| [0010-aggregate-domain-event-emission.md](./0010-aggregate-domain-event-emission.md) | Aggregate Domain Event Emission | Accepted | 2 個 class 聚合根缺少 pullDomainEvents；Workspace 事件在 use-case 中手動組裝 |
+| [0011-use-case-bundling.md](./0011-use-case-bundling.md) | Use Case Bundling and Query-Command Mixing | Accepted | 30 個多類別 use-case 捆綁文件；8 處命令文件 re-export 查詢類別 |
+| [0012-source-to-task-orchestration.md](./0012-source-to-task-orchestration.md) | Source-To-Task Orchestration | Accepted | upload → parse → Knowledge Page → task 的跨 context 邊界與 orchestration 決策 |
+
+## Design Smell Taxonomy (1000–5200)
+
+完整編號體系請見 [SMELL-INDEX.md](./SMELL-INDEX.md)。
+
+| ID | Title | Category | Status |
+|----|-------|----------|--------|
+| [1100](./1100-layer-violation.md) | Layer Violation | Architectural | Accepted |
+| [1200](./1200-boundary-violation.md) | Boundary Violation | Architectural | Accepted |
+| [1300](./1300-cyclic-dependency.md) | Cyclic Dependency | Architectural | Accepted |
+| [1400](./1400-dependency-leakage.md) | Dependency Leakage | Architectural | Accepted |
+| [2100](./2100-tight-coupling.md) | Tight Coupling | Coupling | Accepted |
+| [2200](./2200-hidden-coupling.md) | Hidden Coupling | Coupling | Accepted |
+| [2300](./2300-temporal-coupling.md) | Temporal Coupling | Coupling | Accepted |
+| [3100](./3100-low-cohesion.md) | Low Cohesion | Modularity | Accepted |
+| [3200](./3200-duplication.md) | Duplication | Modularity | Accepted |
+| [4100](./4100-change-amplification.md) | Change Amplification | Maintainability | Accepted |
+| [4200](./4200-inconsistency.md) | Inconsistency | Maintainability | Accepted |
+| [4300](./4300-semantic-drift.md) | Semantic Drift | Maintainability | Accepted |
+| [5100](./5100-accidental-complexity.md) | Accidental Complexity | Complexity | Accepted |
+| [5200](./5200-cognitive-load.md) | Cognitive Load | Complexity | Accepted |
+
+## How To Use This Directory
+
+- 先讀標題以取得整體脈絡。
+- 若某份戰略文件與 ADR 衝突，以 ADR 的 decision 與 conflict resolution 為準。
+- 若未來新增新的架構決策，應沿用同一結構補充，而不是覆寫舊決策歷史。
+- Design Smell ADR（1000–5200）記錄具體 smell 的 context + evidence + decision；遇到對應 smell 時先查此表再動手。
+
+## Lint Signal Mapping
+
+下列 smell 有對應的 ESLint warning-level signal。lint 只負責早期暴露壓力，不自動等於完整語意判決。
+
+| Smell ADR | Lint Signal | Enforcement Target |
+|---|---|---|
+| 1300 Cyclic Dependency | `no-restricted-syntax` 禁止 `require()` | `modules/**/*.{ts,tsx,js,jsx}` |
+| 1400 Dependency Leakage | `no-restricted-syntax` 禁止 `api/index.ts` wildcard re-export `../application` / `../interfaces` | `modules/**/api/**/*.ts` |
+| 3100 Low Cohesion | `max-lines` 預警 API surface 過胖 | `modules/*/api/**/*.{ts,tsx,js,jsx}` |
+| 5200 Cognitive Load | `max-lines` 預警 fat screen | `modules/*/**/interfaces/**/components/screens/**/*.{ts,tsx}` |
+
+- 若 lint warning 指向上述 smell，先回到對應 smell ADR 看 decision 與 conflict resolution，再決定是拆分、降 surface、還是保留臨時例外。
+- 若某個 smell 目前無法由 lint 穩定表達，文件判準仍優先於方便但粗糙的 regex 規則。
+
+## Anti-Pattern Coverage
+
+- 0001 禁止把 framework / infrastructure 滲入核心。
+- 0002 禁止主域與子域所有權漂移。
+- 0003 禁止上下游方向與對稱關係混寫。
+- 0004 禁止語言污染與同詞多義。
+- 0005 禁止錯置 ACL / Conformist 的責任位置。
+- 0006 禁止 domain event discriminant 使用 snake_case、缺少主域前綴、或使用縮寫模組名稱。
+- 0007 禁止在 api/ 層持有 infrastructure singleton 或 Firebase 適配器實例化。
+- 0008 禁止在 api/ 或 application/ 定義 inline port interface；repository 與 non-repository port 應分別放入 domain/repositories/ 與 domain/ports/。
+- 0009 禁止在 domain/aggregates/ 放只含 interface/type 的文件；aggregates/ 只放 class，純資料快照移至 entities/ 或與 class 共置。
+- 0010 禁止在 use-case 中手動組裝 aggregate 領域事件；聚合根必須實作 _domainEvents 陣列與 pullDomainEvents()，use-case 只在持久化後提取。
+- 0011 禁止在一個 use-case 文件中捆綁多個 class；禁止命令 use-case 文件 re-export 查詢類別（GetXxx/ListXxx 屬 application/queries/）。
+- 1100 禁止 interfaces/ 下建立 api/ 子目錄；api/ 層禁止直接 import Firebase SDK（應透過 @integration-firebase adapter）。
+- 1200 禁止 api/ 邊界暴露 UI 元件或 React hooks；跨模組能力合約只含 use-case、service interface、DTO types。
+- 1300 禁止主域間直接循環依賴；intra-subdomain 循環必須透過 Port + DI 解決，`require()` 延遲載入只作臨時補丁並標注 TODO。
+- 1400 禁止 `export * from "../application"` 或 `export * from "../interfaces"` 在 api/index.ts 中使用；只精確 export 公開能力合約符號。
+- 2100 禁止消費者無差別 import `platform/api` 整體；應從精確子域路徑或分離的 api/ui.ts 取用。
+- 2200 禁止在 application/ 層或 server action 文件中持有 module-level `let _xxx` singleton；singleton 只允許在 interfaces/composition/ 中。
+- 2300 禁止隱式初始化順序依賴；延遲初始化前提條件必須在型別（Promise、factory）中顯式表達。
+- 3100 禁止 api/index.ts 混合基礎設施 API、服務 API、UI 元件、hooks；各職責應分離至獨立文件。
+- 3200 禁止混用 dto/dtos 目錄命名；統一使用 dto（單數）；use-case 文件統一放入 use-cases/ 子目錄。
+- 4100 禁止 platform/api 作為單一 monolithic 依賴點；精確子域 import 降低變更放大範圍。
+- 4200 禁止不一致的目錄命名（dto/dtos）和 queries/ 歸屬；統一規則記錄於模組 instructions 中。
+- 4300 禁止 interfaces/ 內嵌 api/ 子目錄；禁止 application/ 持有 event-mappers/（屬 infrastructure）；handlers/ 必須有明確語意名稱。
+- 5100 禁止在 api/ 層製造超過必要數量的文件；workspace/api contracts.ts 與 facade.ts 應合併；infrastructure-api.ts 長期移至 infrastructure/。
+- 5200 路徑深度上限 10 層；platform/application/ 子目錄控制在 4 個以內；platform/api/ 文件精簡至 3 個。
+
+## Copilot Generation Rules
+
+- 生成程式碼前，先由 ADR 決定邊界、語言與整合責任，再下手實作。
+- 奧卡姆剃刀：若既有 ADR 已能解決當前判斷，就不要再堆疊新的臨時規則文件。
+- 新規則若會改變邊界，先補 ADR，再補戰略文件與 context docs。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	ADR["ADR"] --> Strategy["Strategic docs"]
+	Strategy --> Context["Context docs"]
+	Context --> Code["Generated code"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Question["Architecture question"] --> ADR["Check ADR"]
+	ADR --> Strategy["Align strategic docs"]
+	Strategy --> Context["Align context docs"]
+	Context --> Code["Generate boundary-safe code"]
+```
+
+## Document Network
+
+- [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md)
+- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
+- [0003-context-map.md](./0003-context-map.md)
+- [0004-ubiquitous-language.md](./0004-ubiquitous-language.md)
+- [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md)
+- [0006-domain-event-discriminant-format.md](./0006-domain-event-discriminant-format.md)
+- [0007-infrastructure-in-api-layer.md](./0007-infrastructure-in-api-layer.md)
+- [0008-repository-interface-placement.md](./0008-repository-interface-placement.md)
+- [0009-anemic-aggregates.md](./0009-anemic-aggregates.md)
+- [0010-aggregate-domain-event-emission.md](./0010-aggregate-domain-event-emission.md)
+- [0011-use-case-bundling.md](./0011-use-case-bundling.md)
+- [SMELL-INDEX.md](./SMELL-INDEX.md) ← Design Smell Taxonomy Index
+- [1100-layer-violation.md](./1100-layer-violation.md)
+- [1200-boundary-violation.md](./1200-boundary-violation.md)
+- [1300-cyclic-dependency.md](./1300-cyclic-dependency.md)
+- [1400-dependency-leakage.md](./1400-dependency-leakage.md)
+- [2100-tight-coupling.md](./2100-tight-coupling.md)
+- [2200-hidden-coupling.md](./2200-hidden-coupling.md)
+- [2300-temporal-coupling.md](./2300-temporal-coupling.md)
+- [3100-low-cohesion.md](./3100-low-cohesion.md)
+- [3200-duplication.md](./3200-duplication.md)
+- [4100-change-amplification.md](./4100-change-amplification.md)
+- [4200-inconsistency.md](./4200-inconsistency.md)
+- [4300-semantic-drift.md](./4300-semantic-drift.md)
+- [5100-accidental-complexity.md](./5100-accidental-complexity.md)
+- [5200-cognitive-load.md](./5200-cognitive-load.md)
+- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
+- [../project-delivery-milestones.md](../project-delivery-milestones.md)
+- [../README.md](../README.md)
+
+## Constraints
+
+- 本目錄在本次任務限制下，只依 Context7 架構參考重建。
+- 本目錄不是對既有 repo 內容做過語意比對後的歷史還原。
+````
+
 ## File: modules/notebooklm/interfaces/source/composition/adapters.ts
 ````typescript
 import { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
@@ -54924,37 +55219,6 @@ export interface DatabaseFormsPanelProps {
 <Button variant="ghost" size="sm" onClick=
 ⋮----
 {/* Top bar */}
-````
-
-## File: modules/notion/interfaces/knowledge/components/KnowledgePagesPanel.tsx
-````typescript
-import { useCallback, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-⋮----
-import { useAuth } from "@/modules/platform/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-⋮----
-import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
-import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
-import { PageTreePanel } from "./PageTreePanel";
-⋮----
-/**
- * KnowledgePagesPanel
- * Route-level screen component for /knowledge/pages.
- * Encapsulates data-loading, scope resolution and layout so that the
- * Next.js route file stays thin (params/context wiring only).
- */
-export interface KnowledgePagesPanelProps {
-  readonly accountId: string;
-  readonly workspaceId?: string | null;
-  readonly currentUserId?: string | null;
-  readonly scope?: "workspace" | "account";
-}
-⋮----
-function buildPageDetailHref(pageId: string)
-⋮----
-onCreated=
 ````
 
 ## File: modules/platform/subdomains/account-profile/api/index.ts
@@ -55427,6 +55691,70 @@ interface ShellSidebarBodyProps {
 className=
 ````
 
+## File: modules/notion/interfaces/knowledge/components/KnowledgeDetailPanel.tsx
+````typescript
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
+⋮----
+import { getKnowledgePage } from "../queries";
+import {
+  renameKnowledgePage,
+  archiveKnowledgePage,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+} from "../_actions/knowledge-page.actions";
+import type { KnowledgePageSnapshot as KnowledgePage } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+import { PageEditorPanel } from "./PageEditorPanel";
+import { CommentPanel } from "../../collaboration/components/CommentPanel";
+import { Button } from "@ui-shadcn/ui/button";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
+⋮----
+// ?? Props ?????????????????????????????????????????????????????????????????????
+⋮----
+export interface KnowledgeDetailPanelProps {
+  accountId: string;
+  activeWorkspaceId: string | null;
+  currentUserId: string;
+}
+⋮----
+// ?? Component ?????????????????????????????????????????????????????????????????
+⋮----
+function handleRename(title: string)
+⋮----
+function handleIconChange(iconUrl: string)
+⋮----
+function handleCoverChange(coverUrl: string)
+⋮----
+function handleArchive()
+⋮----
+// ?? Loading skeleton ????????????????????????????????????????????????????????
+⋮----
+// ?? Not found ???????????????????????????????????????????????????????????????
+⋮----
+<Button variant="ghost" size="sm" onClick=
+⋮----
+// ?? Page view ???????????????????????????????????????????????????????????????
+⋮----
+{/* Cover image */}
+⋮----
+{/* Top bar */}
+⋮----
+onClick=
+⋮----
+{/* Page header */}
+⋮----
+{/* Icon row */}
+⋮----
+{/* Main content + optional comment side panel */}
+⋮----
+{/* Block editor ??connected to Firebase */}
+⋮----
+{/* Comment panel ??slides in from right */}
+````
+
 ## File: modules/platform/api/index.ts
 ````typescript
 /**
@@ -55630,70 +55958,6 @@ export function renderWorkspaceCrossModuleTabSurface(
     "vitest": "^4.1.2"
   }
 }
-````
-
-## File: modules/notion/interfaces/knowledge/components/KnowledgeDetailPanel.tsx
-````typescript
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
-⋮----
-import { getKnowledgePage } from "../queries";
-import {
-  renameKnowledgePage,
-  archiveKnowledgePage,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-} from "../_actions/knowledge-page.actions";
-import type { KnowledgePageSnapshot as KnowledgePage } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
-import { PageEditorPanel } from "./PageEditorPanel";
-import { CommentPanel } from "../../collaboration/components/CommentPanel";
-import { Button } from "@ui-shadcn/ui/button";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
-⋮----
-// ?? Props ?????????????????????????????????????????????????????????????????????
-⋮----
-export interface KnowledgeDetailPanelProps {
-  accountId: string;
-  activeWorkspaceId: string | null;
-  currentUserId: string;
-}
-⋮----
-// ?? Component ?????????????????????????????????????????????????????????????????
-⋮----
-function handleRename(title: string)
-⋮----
-function handleIconChange(iconUrl: string)
-⋮----
-function handleCoverChange(coverUrl: string)
-⋮----
-function handleArchive()
-⋮----
-// ?? Loading skeleton ????????????????????????????????????????????????????????
-⋮----
-// ?? Not found ???????????????????????????????????????????????????????????????
-⋮----
-<Button variant="ghost" size="sm" onClick=
-⋮----
-// ?? Page view ???????????????????????????????????????????????????????????????
-⋮----
-{/* Cover image */}
-⋮----
-{/* Top bar */}
-⋮----
-onClick=
-⋮----
-{/* Page header */}
-⋮----
-{/* Icon row */}
-⋮----
-{/* Main content + optional comment side panel */}
-⋮----
-{/* Block editor ??connected to Firebase */}
-⋮----
-{/* Comment panel ??slides in from right */}
 ````
 
 ## File: docs/decisions/SMELL-INDEX.md
