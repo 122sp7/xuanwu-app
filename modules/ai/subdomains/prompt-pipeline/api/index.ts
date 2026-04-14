@@ -1,5 +1,5 @@
 /**
- * AI prompt subdomain public API.
+ * AI prompt-pipeline subdomain public API.
  *
  * Semantic prompt-registry boundary only.
  * No provider SDKs, UI exports, or infrastructure leakage.

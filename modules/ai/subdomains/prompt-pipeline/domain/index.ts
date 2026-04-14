@@ -1,5 +1,5 @@
 /**
- * AI prompt subdomain — domain contracts.
+ * AI prompt-pipeline subdomain — domain contracts.
  *
  * This layer stays framework-free and defines the semantic prompt registry
  * used by downstream modules such as workspace and notebooklm.
