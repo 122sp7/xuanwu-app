@@ -267,7 +267,7 @@ docs/
   module-graph.system-wide.md (131 lines)
   project-delivery-milestones.md (109 lines)
   README.md (126 lines)
-  semantic-model.md (312 lines)
+  semantic-model.md (333 lines)
   strategic-patterns.md (81 lines)
   subdomains.md (269 lines)
   ubiquitous-language.md (166 lines)

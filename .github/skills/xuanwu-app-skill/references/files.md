@@ -26494,16 +26494,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
  */
 ````
 
-## File: modules/notion/application/dto/index.ts
-````typescript
-// relations and taxonomy currently expose no DTO barrel.
-````
-
-## File: modules/notion/application/use-cases/index.ts
-````typescript
-// relations/taxonomy are still placeholder-only at the application layer.
-````
-
 ## File: modules/notion/docs/README.md
 ````markdown
 # Notion Documentation
@@ -31663,24 +31653,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 // UI components are exported from ./ui to keep this barrel semantic-only.
 ````
 
-## File: modules/notion/subdomains/knowledge-database/api/server.ts
-````typescript
-/**
- * database subdomain — server-only API.
- *
- * Exports infrastructure implementations and composition helpers that must only
- * run in Server Actions, route handlers, or other server-side entry points.
- */
-````
-
-## File: modules/notion/subdomains/knowledge-database/api/ui.ts
-````typescript
-/**
- * notion/database UI surface.
- * UI consumers should import from this file instead of the semantic api barrel.
- */
-````
-
 ## File: modules/notion/subdomains/knowledge-database/application/dto/DatabaseDto.ts
 ````typescript
 /**
@@ -31731,14 +31703,6 @@ export type ListViewsDto = z.infer<typeof ListViewsSchema>;
 ## File: modules/notion/subdomains/knowledge-database/application/dto/index.ts
 ````typescript
 
-````
-
-## File: modules/notion/subdomains/knowledge-database/application/dto/knowledge-database.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the database subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
 ````
 
 ## File: modules/notion/subdomains/knowledge-database/application/queries/automation.queries.ts
@@ -32196,16 +32160,6 @@ export interface ViewUpdatedEvent extends NotionDomainEvent {
 
 ````
 
-## File: modules/notion/subdomains/knowledge-database/domain/ports/index.ts
-````typescript
-/**
- * notion/database domain/ports — driven port interfaces for the database subdomain.
- *
- * Re-exports repository contracts from domain/repositories/, making the Ports layer
- * explicitly visible in the directory structure.
- */
-````
-
 ## File: modules/notion/subdomains/knowledge-database/domain/repositories/AutomationRepository.ts
 ````typescript
 /**
@@ -32393,24 +32347,6 @@ create(input: CreateViewInput): Promise<ViewSnapshot>;
 update(input: UpdateViewInput): Promise<ViewSnapshot>;
 delete(id: string, accountId: string): Promise<void>;
 listByDatabase(accountId: string, databaseId: string): Promise<ViewSnapshot[]>;
-````
-
-## File: modules/notion/subdomains/knowledge-database/domain/services/index.ts
-````typescript
-/**
- * Domain services for the database subdomain.
- * Deferred: DatabaseQueryService, FormulaEvaluationService, RollupComputationService
- * will be defined when filter/sort/formula use cases are scoped.
- */
-````
-
-## File: modules/notion/subdomains/knowledge-database/domain/value-objects/index.ts
-````typescript
-/**
- * Value objects for the database subdomain.
- * Deferred: DatabaseId, RecordId, ViewId, FieldId, FieldType, ViewType, FieldValue
- * will be defined when database record and view use cases are scoped.
- */
 ````
 
 ## File: modules/notion/subdomains/knowledge-database/domain/index.ts
@@ -40412,170 +40348,17 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/background-job/application/use-cases/background-job.use-cases.ts
+## File: modules/platform/subdomains/background-job/api/index.ts
 ````typescript
 /**
- * Ingestion Use Cases — application-layer orchestration for BackgroundJob domain operations.
- *
- * Each use case receives its repository dependency via constructor injection,
- * keeping it testable and decoupled from any specific adapter.
- *
- * Return type uses a locally-defined JobResult<T> rather than the
- * command-only CommandResult, because creation and advancement operations
- * need to surface the resulting BackgroundJob entity to callers.
+ * Public API boundary for the background-job subdomain.
+ * Cross-module consumers must import through this entry point.
  */
-⋮----
-import { v4 as randomUUID } from "@lib-uuid";
-⋮----
-import type { DomainError } from "@shared-types";
-⋮----
-import type { JobDocument } from "../../domain/entities/JobDocument";
-import { canTransitionJobStatus, type BackgroundJob, type BackgroundJobStatus } from "../../domain/entities/BackgroundJob";
-import type { BackgroundJobRepository } from "../../domain/repositories/BackgroundJobRepository";
-⋮----
-// ── Shared result type ────────────────────────────────────────────────────────
-⋮----
-export type JobResult<T> =
-  | { readonly ok: true; readonly data: T }
-  | { readonly ok: false; readonly error: DomainError };
-⋮----
-function ok<T>(data: T): JobResult<T>
-⋮----
-function fail(code: string, message: string): JobResult<never>
-⋮----
-// ── Register Ingestion Document ───────────────────────────────────────────────
-⋮----
-export interface RegisterJobDocumentInput {
-  readonly organizationId: string;
-  readonly workspaceId: string;
-  readonly sourceFileId: string;
-  readonly title: string;
-  readonly mimeType: string;
-}
-⋮----
-export class RegisterJobDocumentUseCase
-⋮----
-constructor(private readonly repo: BackgroundJobRepository)
-⋮----
-async execute(input: RegisterJobDocumentInput): Promise<JobResult<BackgroundJob>>
-⋮----
-// ── Advance Ingestion Stage ───────────────────────────────────────────────────
-⋮----
-export interface AdvanceJobStageInput {
-  readonly documentId: string;
-  readonly nextStatus: BackgroundJobStatus;
-  readonly statusMessage?: string;
-}
-⋮----
-export class AdvanceJobStageUseCase
-⋮----
-async execute(input: AdvanceJobStageInput): Promise<JobResult<BackgroundJob>>
-⋮----
-// ── List Workspace Ingestion Jobs ─────────────────────────────────────────────
-⋮----
-export interface ListWorkspaceJobsInput {
-  readonly organizationId: string;
-  readonly workspaceId: string;
-}
-⋮----
-export class ListWorkspaceJobsUseCase
-⋮----
-async execute(input: ListWorkspaceJobsInput): Promise<readonly BackgroundJob[]>
 ````
 
-## File: modules/platform/subdomains/background-job/domain/entities/BackgroundJob.ts
+## File: modules/platform/subdomains/background-job/application/index.ts
 ````typescript
-/**
- * BackgroundJob — aggregate entity tracking a document through the RAG
- * ingestion pipeline.
- *
- * The embedded state machine enforces strict one-way status transitions,
- * keeping invalid states impossible at the domain level.
- *
- * Lifecycle (happy path):
- *   uploaded → parsing → chunking → embedding → indexed
- *
- * Repair paths:
- *   indexed  → stale → re-indexing → parsing
- *   failed   → re-indexing → parsing
- */
-⋮----
-import type { JobDocument } from "./JobDocument";
-⋮----
-// ── Status ────────────────────────────────────────────────────────────────────
-⋮----
-export type BackgroundJobStatus =
-  | "uploaded"
-  | "parsing"
-  | "chunking"
-  | "embedding"
-  | "indexed"
-  | "stale"
-  | "re-indexing"
-  | "failed";
-⋮----
-/**
- * Domain guard: returns true only when the requested transition is permitted
- * by the state machine contract.
- */
-export function canTransitionJobStatus(
-  from: BackgroundJobStatus,
-  to: BackgroundJobStatus,
-): boolean
-⋮----
-// ── Aggregate ─────────────────────────────────────────────────────────────────
-⋮----
-export interface BackgroundJob {
-  /** Unique job identifier (UUID). */
-  readonly id: string;
-  /** Immutable document snapshot attached to this job. */
-  readonly document: JobDocument;
-  /** Current pipeline stage. */
-  readonly status: BackgroundJobStatus;
-  /** Optional human-readable message describing the current stage or failure reason. */
-  readonly statusMessage?: string;
-  /** ISO-8601 timestamp of job creation. */
-  readonly createdAtISO: string;
-  /** ISO-8601 timestamp of last status update. */
-  readonly updatedAtISO: string;
-}
-⋮----
-/** Unique job identifier (UUID). */
-⋮----
-/** Immutable document snapshot attached to this job. */
-⋮----
-/** Current pipeline stage. */
-⋮----
-/** Optional human-readable message describing the current stage or failure reason. */
-⋮----
-/** ISO-8601 timestamp of job creation. */
-⋮----
-/** ISO-8601 timestamp of last status update. */
-````
 
-## File: modules/platform/subdomains/background-job/domain/entities/JobChunk.ts
-````typescript
-/**
- * JobChunk — value-like entity representing a text segment produced
- * by the chunking stage of the ingestion pipeline.
- *
- * Produced downstream from the Python `py_fn` worker; tracked by the
- * platform layer for audit and retrieval-quality accounting.
- */
-⋮----
-export interface JobChunkMetadata {
-  readonly sourceDocId: string;
-  readonly section?: string;
-  readonly pageNumber?: number;
-}
-⋮----
-export interface JobChunk {
-  readonly id: string;
-  readonly documentId: string;
-  readonly chunkIndex: number;
-  readonly content: string;
-  readonly metadata: JobChunkMetadata;
-}
 ````
 
 ## File: modules/platform/subdomains/background-job/domain/entities/JobDocument.ts
@@ -40648,58 +40431,33 @@ export type BackgroundJobDomainEventType =
   | BackgroundJobFailedEvent;
 ````
 
-## File: modules/platform/subdomains/background-job/domain/repositories/BackgroundJobRepository.ts
+## File: modules/platform/subdomains/background-job/domain/events/index.ts
+````typescript
+
+````
+
+## File: modules/platform/subdomains/background-job/domain/ports/index.ts
 ````typescript
 /**
- * BackgroundJobRepository — output port (driven port) for ingestion job persistence.
+ * background-job domain/ports — driven port interfaces for the background-job subdomain.
  *
- * Implementations live in the adapters layer (InMemoryBackgroundJobRepository,
- * FirebaseBackgroundJobRepository, …). The domain core depends only on this interface.
+ * Re-exports repository contracts from domain/repositories/, making the Ports layer
+ * explicitly visible in the directory structure.
  */
-⋮----
-import type { BackgroundJob, BackgroundJobStatus } from "../entities/BackgroundJob";
-⋮----
-export interface BackgroundJobRepository {
-  /** Retrieve a job by its associated document id. Returns null if not found. */
-  findByDocumentId(documentId: string): Promise<BackgroundJob | null>;
+````
 
-  /** List all jobs scoped to a specific workspace. */
-  listByWorkspace(input: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-  }): Promise<readonly BackgroundJob[]>;
+## File: modules/platform/subdomains/background-job/domain/index.ts
+````typescript
 
-  /** Persist a new ingestion job. */
-  save(job: BackgroundJob): Promise<void>;
+````
 
-  /** Advance job status; returns the updated job, or null if the document was not found. */
-  updateStatus(input: {
-    readonly documentId: string;
-    readonly status: BackgroundJobStatus;
-    readonly statusMessage?: string;
-    readonly updatedAtISO: string;
-  }): Promise<BackgroundJob | null>;
-}
-⋮----
-/** Retrieve a job by its associated document id. Returns null if not found. */
-findByDocumentId(documentId: string): Promise<BackgroundJob | null>;
-⋮----
-/** List all jobs scoped to a specific workspace. */
-listByWorkspace(input: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-  }): Promise<readonly BackgroundJob[]>;
-⋮----
-/** Persist a new ingestion job. */
-save(job: BackgroundJob): Promise<void>;
-⋮----
-/** Advance job status; returns the updated job, or null if the document was not found. */
-updateStatus(input: {
-    readonly documentId: string;
-    readonly status: BackgroundJobStatus;
-    readonly statusMessage?: string;
-    readonly updatedAtISO: string;
-  }): Promise<BackgroundJob | null>;
+## File: modules/platform/subdomains/background-job/infrastructure/index.ts
+````typescript
+/**
+ * Background-job infrastructure barrel — adapter exports only.
+ *
+ * Composition logic lives in interfaces/composition/background-job-service.ts.
+ */
 ````
 
 ## File: modules/platform/subdomains/background-job/infrastructure/InMemoryBackgroundJobRepository.ts
@@ -40737,60 +40495,36 @@ async updateStatus(input: {
 }): Promise<BackgroundJob | null>
 ````
 
-## File: modules/platform/subdomains/background-job/interfaces/composition/background-job-service.ts
-````typescript
-/**
- * backgroundJobService — Composition root for knowledge ingestion use cases.
- *
- * Relocated from infrastructure/ to interfaces/composition/ to fix
- * the infrastructure → application dependency direction violation (HX-1-001).
- *
- * Wires use cases to the default InMemoryBackgroundJobRepository.
- * Swap the repository assignment here once a Firebase adapter is in place.
- *
- * This module is the single entry point for ingestion side-effects; adapters
- * (Server Actions, route handlers) must not reach into use cases directly.
- */
-⋮----
-import type { BackgroundJob } from "../../domain/entities/BackgroundJob";
-import type { BackgroundJobStatus } from "../../domain/entities/BackgroundJob";
-import {
-  RegisterJobDocumentUseCase,
-  AdvanceJobStageUseCase,
-  ListWorkspaceJobsUseCase,
-  type JobResult,
-  type RegisterJobDocumentInput,
-  type AdvanceJobStageInput,
-} from "../../application/use-cases/background-job.use-cases";
-import { InMemoryBackgroundJobRepository } from "../../infrastructure/InMemoryBackgroundJobRepository";
-⋮----
-// Single shared repository instance for the lifetime of the module.
-⋮----
-/**
-   * Register a newly uploaded document and create an BackgroundJob in
-   * `uploaded` status, ready for the Python worker handoff.
-   */
-registerDocument(input: RegisterJobDocumentInput): Promise<JobResult<BackgroundJob>>
-⋮----
-/**
-   * Advance the ingestion pipeline to the given status.
-   * Rejects invalid transitions with `JOB_INVALID_STATUS_TRANSITION`.
-   */
-advanceStage(input: AdvanceJobStageInput): Promise<JobResult<BackgroundJob>>
-⋮----
-/**
-   * Return all ingestion jobs belonging to a workspace.
-   */
-listWorkspaceJobs(input: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-}): Promise<readonly BackgroundJob[]>
-⋮----
-registerDocument(input: RegisterJobDocumentInput): Promise<JobResult<BackgroundJob>>;
-advanceStage(input: AdvanceJobStageInput): Promise<JobResult<BackgroundJob>>;
-⋮----
-// Re-export status type for convenience (callers using `backgroundJobService` should not
-// need to reach into the domain layer directly).
+## File: modules/platform/subdomains/background-job/README.md
+````markdown
+# Background Job
+
+Generic background job tracking and lifecycle management for the platform layer.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Semantic Name**: Background Job Management
+- **Status**: Implemented (domain entities, application use cases, in-memory adapter)
+
+## Domain Entities
+
+| Entity | Role |
+|---|---|
+| `BackgroundJob` | Aggregate root — tracks a document through the processing pipeline with a strict status state machine |
+| `JobDocument` | Immutable snapshot of the source document submitted for processing |
+| `JobChunk` | Text segment produced by the chunking stage; tracked for audit and retrieval-quality accounting |
+
+## Key Types
+
+- `BackgroundJobStatus` — pipeline stage union (`uploaded` → `parsing` → `chunking` → `embedding` → `indexed` / `stale` / `re-indexing` / `failed`)
+- `canTransitionJobStatus(from, to)` — domain guard enforcing valid state-machine transitions
+- `backgroundJobService` — composition root wiring use cases to the in-memory repository
+
+## Development Order
+
+When extending, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/notification/api/index.ts
@@ -52217,54 +51951,6 @@ export function canTransitionIssueStatus(from: IssueStatus, to: IssueStatus): bo
 export function isTerminalIssueStatus(status: IssueStatus): boolean
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/SourceReference.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file SourceReference.ts
- * @description Value object representing the origin of a materialized entity (Task or Invoice).
- *
- * A SourceReference is attached to Task and Invoice entities that were created
- * by the KnowledgeToWorkflowMaterializer Process Manager in response to a
- * `notion.knowledge.page-approved` event. It provides full audit traceability:
- *
- *   Task → sourceReference → KnowledgePage → IngestionJob → source PDF
- */
-⋮----
-export type SourceReferenceType = "KnowledgePage";
-⋮----
-export interface SourceReference {
-  /** The type of the source aggregate. */
-  readonly type: SourceReferenceType;
-  /** The ID of the source aggregate (e.g. KnowledgePage.id). */
-  readonly id: string;
-  /**
-   * causationId from the `notion.knowledge.page-approved` event that triggered
-   * materialization.  Stored for idempotency checks and audit trails.
-   */
-  readonly causationId: string;
-  /**
-   * correlationId tracing the entire business flow:
-   *   ingestion → human review → approval → materialization.
-   */
-  readonly correlationId: string;
-}
-⋮----
-/** The type of the source aggregate. */
-⋮----
-/** The ID of the source aggregate (e.g. KnowledgePage.id). */
-⋮----
-/**
-   * causationId from the `notion.knowledge.page-approved` event that triggered
-   * materialization.  Stored for idempotency checks and audit trails.
-   */
-⋮----
-/**
-   * correlationId tracing the entire business flow:
-   *   ingestion → human review → approval → materialization.
-   */
-````
-
 ## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/TaskCandidate.ts
 ````typescript
 /**
@@ -60144,7 +59830,28 @@ import { defineConfig } from "vitest/config";
 
 | 資料夾 | 問題描述 | 已執行解法 |
 |---|---|---|
-| `modules/platform/subdomains/background-job` ✅ | 資料夾名稱 `background-job` 表達通用背景任務管理，原內部 domain entities 全以 `Ingestion*` 命名（IngestionDocument、IngestionChunk、IngestionJob），與資料夾語意不一致 | **已完成 2026-04-15**（Option A）：`IngestionJob` → `BackgroundJob`、`IngestionDocument` → `JobDocument`、`IngestionChunk` → `JobChunk`；`IngestionStatus` → `BackgroundJobStatus`；`IngestionJobRepository` → `BackgroundJobRepository`；`canTransitionIngestionStatus` → `canTransitionJobStatus`；`ingestionService` → `backgroundJobService`；所有 domain event discriminant、error code、use-case 類別名稱、composition service 全部同步更新。資料夾名稱保持 `background-job`。 |
+| `modules/platform/subdomains/background-job` ✅ | 資料夾名稱 `background-job` 表達通用背景任務管理，原內部 domain entities 全以 `Ingestion*` 命名（IngestionDocument、IngestionChunk、IngestionJob），與資料夾語意不一致 | **已完成 2026-04-15**（Option A）：`IngestionJob` → `BackgroundJob`、`IngestionDocument` → `JobDocument`、`IngestionChunk` → `JobChunk`；`IngestionStatus` → `BackgroundJobStatus`；`IngestionJobRepository` → `BackgroundJobRepository`；`canTransitionIngestionStatus` → `canTransitionJobStatus`；`ingestionService` → `backgroundJobService`；所有 domain event discriminant、error code、use-case 類別名稱、composition service 全部同步更新。資料夾名稱保持 `background-job`。**2026-04-15（補完）**：所有 JSDoc 注釋中殘留的 `ingestion`（如 "ingestion pipeline"、"Ingestion document not found"）全部通用化為 `background job`/`document processing pipeline`；`SourceReference.ts` 中 `IngestionJob` 稽核鏈描述更新為 `BackgroundJob`。 |
+
+### 7.4 Comment-Level Semantic Cleanup ✅
+
+下列 comment header 與 namespace alias 已完成語意更新（2026-04-15）：
+
+| 位置 | 舊語意 | 新語意 |
+|---|---|---|
+| `notion/subdomains/knowledge-database/domain/services/index.ts` | `the database subdomain` | `the knowledge-database subdomain` |
+| `notion/subdomains/knowledge-database/domain/ports/index.ts` | `notion/database domain/ports … database subdomain` | `notion/knowledge-database domain/ports … knowledge-database subdomain` |
+| `notion/subdomains/knowledge-database/domain/value-objects/index.ts` | `the database subdomain` | `the knowledge-database subdomain` |
+| `notion/subdomains/knowledge-database/application/dto/knowledge-database.dto.ts` | `the database subdomain` | `the knowledge-database subdomain` |
+| `notion/subdomains/knowledge-database/api/server.ts` | `database subdomain — server-only API` | `knowledge-database subdomain — server-only API` |
+| `notion/subdomains/knowledge-database/api/ui.ts` | `notion/database UI surface` | `notion/knowledge-database UI surface` |
+| `notion/application/dto/index.ts` | `export * as databaseDtos` | `export * as knowledgeDatabaseDtos` |
+| `notion/application/use-cases/index.ts` | `export * as databaseUseCases` | `export * as knowledgeDatabaseUseCases` |
+| `workspace-workflow/domain/value-objects/SourceReference.ts` | `IngestionJob → source PDF` (audit chain) | `BackgroundJob → source PDF` |
+| `platform/background-job/domain/entities/BackgroundJob.ts` | `RAG ingestion pipeline` | `document processing pipeline` |
+| `platform/background-job/domain/entities/JobChunk.ts` | `ingestion pipeline` | `document processing pipeline` |
+| `platform/background-job/domain/repositories/BackgroundJobRepository.ts` | `ingestion job persistence`, `Persist a new ingestion job` | `background job persistence`, `Persist a new background job` |
+| `platform/background-job/application/use-cases/background-job.use-cases.ts` | `Ingestion Use Cases`, `Register Ingestion Document`, `Advance Ingestion Stage`, user-facing messages with `ingestion` | `Background Job Use Cases`, `Register Job Document`, `Advance Job Stage`, messages updated to `job` |
+| `platform/background-job/interfaces/composition/background-job-service.ts` | `knowledge ingestion use cases`, `ingestion side-effects`, `ingestion pipeline`, `ingestion jobs` | `background job use cases`, `background job side-effects`, job-level descriptions |
 
 ### 7.3 計劃中子域 — 建立時使用正典名稱（Create With Canonical Name）
 
@@ -60169,79 +59876,393 @@ import { defineConfig } from "vitest/config";
 | `docs/context-map.md` | Published language token flow between contexts |
 | `docs/semantic-model.md` (this file) | Folder → semantic name mapping, status, drift analysis |
 
-> Last verified: 2026-04-15. Section 7.1 renames completed 2026-04-15. Section 7.2 entity rename completed 2026-04-15. Section 7 added 2026-04-15 based on Context7 DDD Hexagon evidence (`/sairyss/domain-driven-hexagon`).
+> Last verified: 2026-04-15. Section 7.1 renames completed 2026-04-15. Section 7.2 entity rename completed 2026-04-15. Section 7.4 comment-level semantic cleanup completed 2026-04-15. All implemented subdomain folders and their internal code comments/namespace aliases now match the canonical semantic names in this document. Section 7.3 entries remain as governance rules for future subdomain creation. Section 7 added 2026-04-15 based on Context7 DDD Hexagon evidence (`/sairyss/domain-driven-hexagon`).
 ````
 
-## File: modules/platform/subdomains/background-job/api/index.ts
+## File: modules/notion/application/dto/index.ts
+````typescript
+// relations and taxonomy currently expose no DTO barrel.
+````
+
+## File: modules/notion/application/use-cases/index.ts
+````typescript
+// relations/taxonomy are still placeholder-only at the application layer.
+````
+
+## File: modules/notion/subdomains/knowledge-database/api/server.ts
 ````typescript
 /**
- * Public API boundary for the background-job subdomain.
- * Cross-module consumers must import through this entry point.
+ * knowledge-database subdomain — server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
  */
 ````
 
-## File: modules/platform/subdomains/background-job/application/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/background-job/domain/events/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/background-job/domain/ports/index.ts
+## File: modules/notion/subdomains/knowledge-database/api/ui.ts
 ````typescript
 /**
- * background-job domain/ports — driven port interfaces for the background-job subdomain.
+ * notion/knowledge-database UI surface.
+ * UI consumers should import from this file instead of the semantic api barrel.
+ */
+````
+
+## File: modules/notion/subdomains/knowledge-database/application/dto/knowledge-database.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the knowledge-database subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+````
+
+## File: modules/notion/subdomains/knowledge-database/domain/ports/index.ts
+````typescript
+/**
+ * notion/knowledge-database domain/ports — driven port interfaces for the knowledge-database subdomain.
  *
  * Re-exports repository contracts from domain/repositories/, making the Ports layer
  * explicitly visible in the directory structure.
  */
 ````
 
-## File: modules/platform/subdomains/background-job/domain/index.ts
-````typescript
-
-````
-
-## File: modules/platform/subdomains/background-job/infrastructure/index.ts
+## File: modules/notion/subdomains/knowledge-database/domain/services/index.ts
 ````typescript
 /**
- * Background-job infrastructure barrel — adapter exports only.
- *
- * Composition logic lives in interfaces/composition/background-job-service.ts.
+ * Domain services for the knowledge-database subdomain.
+ * Deferred: DatabaseQueryService, FormulaEvaluationService, RollupComputationService
+ * will be defined when filter/sort/formula use cases are scoped.
  */
 ````
 
-## File: modules/platform/subdomains/background-job/README.md
-````markdown
-# Background Job
+## File: modules/notion/subdomains/knowledge-database/domain/value-objects/index.ts
+````typescript
+/**
+ * Value objects for the knowledge-database subdomain.
+ * Deferred: DatabaseId, RecordId, ViewId, FieldId, FieldType, ViewType, FieldValue
+ * will be defined when database record and view use cases are scoped.
+ */
+````
 
-Generic background job tracking and lifecycle management for the platform layer.
+## File: modules/platform/subdomains/background-job/application/use-cases/background-job.use-cases.ts
+````typescript
+/**
+ * Background Job Use Cases — application-layer orchestration for BackgroundJob domain operations.
+ *
+ * Each use case receives its repository dependency via constructor injection,
+ * keeping it testable and decoupled from any specific adapter.
+ *
+ * Return type uses a locally-defined JobResult<T> rather than the
+ * command-only CommandResult, because creation and advancement operations
+ * need to surface the resulting BackgroundJob entity to callers.
+ */
+⋮----
+import { v4 as randomUUID } from "@lib-uuid";
+⋮----
+import type { DomainError } from "@shared-types";
+⋮----
+import type { JobDocument } from "../../domain/entities/JobDocument";
+import { canTransitionJobStatus, type BackgroundJob, type BackgroundJobStatus } from "../../domain/entities/BackgroundJob";
+import type { BackgroundJobRepository } from "../../domain/repositories/BackgroundJobRepository";
+⋮----
+// ── Shared result type ────────────────────────────────────────────────────────
+⋮----
+export type JobResult<T> =
+  | { readonly ok: true; readonly data: T }
+  | { readonly ok: false; readonly error: DomainError };
+⋮----
+function ok<T>(data: T): JobResult<T>
+⋮----
+function fail(code: string, message: string): JobResult<never>
+⋮----
+// ── Register Job Document ───────────────────────────────────────────────
+⋮----
+export interface RegisterJobDocumentInput {
+  readonly organizationId: string;
+  readonly workspaceId: string;
+  readonly sourceFileId: string;
+  readonly title: string;
+  readonly mimeType: string;
+}
+⋮----
+export class RegisterJobDocumentUseCase
+⋮----
+constructor(private readonly repo: BackgroundJobRepository)
+⋮----
+async execute(input: RegisterJobDocumentInput): Promise<JobResult<BackgroundJob>>
+⋮----
+// ── Advance Job Stage ───────────────────────────────────────────────────
+⋮----
+export interface AdvanceJobStageInput {
+  readonly documentId: string;
+  readonly nextStatus: BackgroundJobStatus;
+  readonly statusMessage?: string;
+}
+⋮----
+export class AdvanceJobStageUseCase
+⋮----
+async execute(input: AdvanceJobStageInput): Promise<JobResult<BackgroundJob>>
+⋮----
+// ── List Workspace Background Jobs ─────────────────────────────────────────────
+⋮----
+export interface ListWorkspaceJobsInput {
+  readonly organizationId: string;
+  readonly workspaceId: string;
+}
+⋮----
+export class ListWorkspaceJobsUseCase
+⋮----
+async execute(input: ListWorkspaceJobsInput): Promise<readonly BackgroundJob[]>
+````
 
-## Ownership
+## File: modules/platform/subdomains/background-job/domain/entities/BackgroundJob.ts
+````typescript
+/**
+ * BackgroundJob — aggregate entity tracking a document through the
+ * document processing pipeline.
+ *
+ * The embedded state machine enforces strict one-way status transitions,
+ * keeping invalid states impossible at the domain level.
+ *
+ * Lifecycle (happy path):
+ *   uploaded → parsing → chunking → embedding → indexed
+ *
+ * Repair paths:
+ *   indexed  → stale → re-indexing → parsing
+ *   failed   → re-indexing → parsing
+ */
+⋮----
+import type { JobDocument } from "./JobDocument";
+⋮----
+// ── Status ────────────────────────────────────────────────────────────────────
+⋮----
+export type BackgroundJobStatus =
+  | "uploaded"
+  | "parsing"
+  | "chunking"
+  | "embedding"
+  | "indexed"
+  | "stale"
+  | "re-indexing"
+  | "failed";
+⋮----
+/**
+ * Domain guard: returns true only when the requested transition is permitted
+ * by the state machine contract.
+ */
+export function canTransitionJobStatus(
+  from: BackgroundJobStatus,
+  to: BackgroundJobStatus,
+): boolean
+⋮----
+// ── Aggregate ─────────────────────────────────────────────────────────────────
+⋮----
+export interface BackgroundJob {
+  /** Unique job identifier (UUID). */
+  readonly id: string;
+  /** Immutable document snapshot attached to this job. */
+  readonly document: JobDocument;
+  /** Current pipeline stage. */
+  readonly status: BackgroundJobStatus;
+  /** Optional human-readable message describing the current stage or failure reason. */
+  readonly statusMessage?: string;
+  /** ISO-8601 timestamp of job creation. */
+  readonly createdAtISO: string;
+  /** ISO-8601 timestamp of last status update. */
+  readonly updatedAtISO: string;
+}
+⋮----
+/** Unique job identifier (UUID). */
+⋮----
+/** Immutable document snapshot attached to this job. */
+⋮----
+/** Current pipeline stage. */
+⋮----
+/** Optional human-readable message describing the current stage or failure reason. */
+⋮----
+/** ISO-8601 timestamp of job creation. */
+⋮----
+/** ISO-8601 timestamp of last status update. */
+````
 
-- **Bounded Context**: platform
-- **Semantic Name**: Background Job Management
-- **Status**: Implemented (domain entities, application use cases, in-memory adapter)
+## File: modules/platform/subdomains/background-job/domain/entities/JobChunk.ts
+````typescript
+/**
+ * JobChunk — value-like entity representing a text segment produced
+ * by the chunking stage of the document processing pipeline.
+ *
+ * Produced downstream from the Python `py_fn` worker; tracked by the
+ * platform layer for audit and retrieval-quality accounting.
+ */
+⋮----
+export interface JobChunkMetadata {
+  readonly sourceDocId: string;
+  readonly section?: string;
+  readonly pageNumber?: number;
+}
+⋮----
+export interface JobChunk {
+  readonly id: string;
+  readonly documentId: string;
+  readonly chunkIndex: number;
+  readonly content: string;
+  readonly metadata: JobChunkMetadata;
+}
+````
 
-## Domain Entities
+## File: modules/platform/subdomains/background-job/domain/repositories/BackgroundJobRepository.ts
+````typescript
+/**
+ * BackgroundJobRepository — output port (driven port) for background job persistence.
+ *
+ * Implementations live in the adapters layer (InMemoryBackgroundJobRepository,
+ * FirebaseBackgroundJobRepository, …). The domain core depends only on this interface.
+ */
+⋮----
+import type { BackgroundJob, BackgroundJobStatus } from "../entities/BackgroundJob";
+⋮----
+export interface BackgroundJobRepository {
+  /** Retrieve a job by its associated document id. Returns null if not found. */
+  findByDocumentId(documentId: string): Promise<BackgroundJob | null>;
 
-| Entity | Role |
-|---|---|
-| `BackgroundJob` | Aggregate root — tracks a document through the processing pipeline with a strict status state machine |
-| `JobDocument` | Immutable snapshot of the source document submitted for processing |
-| `JobChunk` | Text segment produced by the chunking stage; tracked for audit and retrieval-quality accounting |
+  /** List all jobs scoped to a specific workspace. */
+  listByWorkspace(input: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+  }): Promise<readonly BackgroundJob[]>;
 
-## Key Types
+  /** Persist a new background job. */
+  save(job: BackgroundJob): Promise<void>;
 
-- `BackgroundJobStatus` — pipeline stage union (`uploaded` → `parsing` → `chunking` → `embedding` → `indexed` / `stale` / `re-indexing` / `failed`)
-- `canTransitionJobStatus(from, to)` — domain guard enforcing valid state-machine transitions
-- `backgroundJobService` — composition root wiring use cases to the in-memory repository
+  /** Advance job status; returns the updated job, or null if the document was not found. */
+  updateStatus(input: {
+    readonly documentId: string;
+    readonly status: BackgroundJobStatus;
+    readonly statusMessage?: string;
+    readonly updatedAtISO: string;
+  }): Promise<BackgroundJob | null>;
+}
+⋮----
+/** Retrieve a job by its associated document id. Returns null if not found. */
+findByDocumentId(documentId: string): Promise<BackgroundJob | null>;
+⋮----
+/** List all jobs scoped to a specific workspace. */
+listByWorkspace(input: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+  }): Promise<readonly BackgroundJob[]>;
+⋮----
+/** Persist a new background job. */
+save(job: BackgroundJob): Promise<void>;
+⋮----
+/** Advance job status; returns the updated job, or null if the document was not found. */
+updateStatus(input: {
+    readonly documentId: string;
+    readonly status: BackgroundJobStatus;
+    readonly statusMessage?: string;
+    readonly updatedAtISO: string;
+  }): Promise<BackgroundJob | null>;
+````
 
-## Development Order
+## File: modules/platform/subdomains/background-job/interfaces/composition/background-job-service.ts
+````typescript
+/**
+ * backgroundJobService — Composition root for background job use cases.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
+ *
+ * Wires use cases to the default InMemoryBackgroundJobRepository.
+ * Swap the repository assignment here once a Firebase adapter is in place.
+ *
+ * This module is the single entry point for background job side-effects; adapters
+ * (Server Actions, route handlers) must not reach into use cases directly.
+ */
+⋮----
+import type { BackgroundJob } from "../../domain/entities/BackgroundJob";
+import type { BackgroundJobStatus } from "../../domain/entities/BackgroundJob";
+import {
+  RegisterJobDocumentUseCase,
+  AdvanceJobStageUseCase,
+  ListWorkspaceJobsUseCase,
+  type JobResult,
+  type RegisterJobDocumentInput,
+  type AdvanceJobStageInput,
+} from "../../application/use-cases/background-job.use-cases";
+import { InMemoryBackgroundJobRepository } from "../../infrastructure/InMemoryBackgroundJobRepository";
+⋮----
+// Single shared repository instance for the lifetime of the module.
+⋮----
+/**
+   * Register a newly uploaded document and create an BackgroundJob in
+   * `uploaded` status, ready for the Python worker handoff.
+   */
+registerDocument(input: RegisterJobDocumentInput): Promise<JobResult<BackgroundJob>>
+⋮----
+/**
+   * Advance the job to the given status.
+   * Rejects invalid transitions with `JOB_INVALID_STATUS_TRANSITION`.
+   */
+advanceStage(input: AdvanceJobStageInput): Promise<JobResult<BackgroundJob>>
+⋮----
+/**
+   * Return all background jobs belonging to a workspace.
+   */
+listWorkspaceJobs(input: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+}): Promise<readonly BackgroundJob[]>
+⋮----
+registerDocument(input: RegisterJobDocumentInput): Promise<JobResult<BackgroundJob>>;
+advanceStage(input: AdvanceJobStageInput): Promise<JobResult<BackgroundJob>>;
+⋮----
+// Re-export status type for convenience (callers using `backgroundJobService` should not
+// need to reach into the domain layer directly).
+````
 
-When extending, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/SourceReference.ts
+````typescript
+/**
+ * @module workspace-flow/domain/value-objects
+ * @file SourceReference.ts
+ * @description Value object representing the origin of a materialized entity (Task or Invoice).
+ *
+ * A SourceReference is attached to Task and Invoice entities that were created
+ * by the KnowledgeToWorkflowMaterializer Process Manager in response to a
+ * `notion.knowledge.page-approved` event. It provides full audit traceability:
+ *
+ *   Task → sourceReference → KnowledgePage → BackgroundJob → source PDF
+ */
+⋮----
+export type SourceReferenceType = "KnowledgePage";
+⋮----
+export interface SourceReference {
+  /** The type of the source aggregate. */
+  readonly type: SourceReferenceType;
+  /** The ID of the source aggregate (e.g. KnowledgePage.id). */
+  readonly id: string;
+  /**
+   * causationId from the `notion.knowledge.page-approved` event that triggered
+   * materialization.  Stored for idempotency checks and audit trails.
+   */
+  readonly causationId: string;
+  /**
+   * correlationId tracing the entire business flow:
+   *   ingestion → human review → approval → materialization.
+   */
+  readonly correlationId: string;
+}
+⋮----
+/** The type of the source aggregate. */
+⋮----
+/** The ID of the source aggregate (e.g. KnowledgePage.id). */
+⋮----
+/**
+   * causationId from the `notion.knowledge.page-approved` event that triggered
+   * materialization.  Stored for idempotency checks and audit trails.
+   */
+⋮----
+/**
+   * correlationId tracing the entire business flow:
+   *   ingestion → human review → approval → materialization.
+   */
 ````
