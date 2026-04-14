@@ -25,13 +25,12 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 |---|---|
 | Account lifecycle | `account` |
 | Account profile & preferences | `account-profile` |
-| Organization, tenant structure | `organization` |
+| Organization structure | `organization` |
 | Team membership | `team` |
-| Subscription & billing plan | `subscription` |
-| Capability grants | `entitlement` |
-| Access policy enforcement | `access-control` |
 | Notification dispatch | `notification` |
 | Background / ingestion jobs | `background-job` |
+
+> Identity, authentication, tenant isolation, and access-control are IAM-owned and should not be reintroduced under Platform.
 
 ## Route Elsewhere When
 

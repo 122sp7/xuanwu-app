@@ -119,7 +119,7 @@ Firebase Storage
 
 ---
 
-# Four Main Domains
+# Strategic Domain Overview
 
 ## Strategic Overview
 
@@ -197,7 +197,7 @@ workspace ↓ notion ↓ notebooklm
 
 - ❌ workspace calling notion.api directly (must go through published language)
 - ❌ notion calling platform.domain internal models (must use Service API boundary)
-- ❌ notebooklm defining its own `ai` subdomain (belongs exclusively to platform)
+- ❌ notebooklm defining its own `ai` subdomain (belongs exclusively to ai)
 - ❌ Mixing Actor + Membership terminology (Actor = identity, Membership = workspace participation)
 - ❌ Treating notion's KnowledgeArtifact as writable by other domains (reference only)
 
@@ -207,10 +207,11 @@ workspace ↓ notion ↓ notebooklm
 
 | Concern | Owner | Never Owned By |
 |---|---|---|
-| Identity, authentication, session | platform | workspace, notion, notebooklm |
-| Permission, entitlement, access control | platform | workspace, notion, notebooklm |
-| Tenant isolation, organization scope | platform | workspace, notion, notebooklm |
-| AI capability routing, model policy, safety | platform | notion, notebooklm (consumers only) |
+| Identity, authentication, session | iam | workspace, notion, notebooklm |
+| Permission, access control | iam | workspace, notion, notebooklm |
+| Tenant isolation | iam | workspace, notion, notebooklm |
+| Organization scope | platform | workspace, notion, notebooklm |
+| AI capability routing, model policy, safety | ai | notion, notebooklm (consumers only) |
 | Workspace creation, archival, lifecycle | workspace | notion, notebooklm, platform |
 | Knowledge artifact authoring, versioning | notion | platform, workspace, notebooklm |
 | Conversation, retrieval, synthesis | notebooklm | platform, workspace, notion (notion→notebooklm: reference only) |

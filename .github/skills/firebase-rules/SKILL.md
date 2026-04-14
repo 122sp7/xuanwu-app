@@ -77,8 +77,8 @@ export class FirebaseWorkspaceRepository implements WorkspaceRepository {
 
 ## Firebase Authentication Rules
 
-- Auth session is resolved in `platform/subdomains/identity/infrastructure/` only.
-- Server Actions resolve Actor identity via `platform.api.resolveActor()` — never call `getAuth()` directly.
+- Auth session adapters are now owned by `modules/iam/subdomains/identity/infrastructure/`.
+- Server Actions resolve Actor identity via `platform.api` or `iam.api` capabilities — never call `getAuth()` directly.
 - `actorId` is the domain identity token; it is derived from the Firebase Auth UID in the adapter but never equals the UID in domain language.
 - Client-side `onAuthStateChanged` is for UI login state only — not for domain authorization decisions.
 
