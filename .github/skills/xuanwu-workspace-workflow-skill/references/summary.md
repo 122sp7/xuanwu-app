@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: .github/copilot-instructions.md, .github/agents/**, .github/instructions/**/*.md, .github/prompts/**, docs/**, app/**, modules/**, packages/**, py_fn/**, AGENTS.md, CLAUDE.md, apphosting.yaml, components.json, eslint.config.mjs, firebase.apphosting.json, firebase.json, firestore.indexes.json, firestore.rules, llms.txt, next.config.ts, package.json, postcss.config.mjs, storage.rules, tailwind.config.ts, tsconfig.json, vitest.config.ts, repomix*.config.json
+- Only files matching these patterns are included: modules/workspace/subdomains/workspace-workflow/**
 - Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -42,30 +42,22 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1822 files | 53,222 lines
+119 files | 3,562 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1206 | 25,122 |
-| Markdown | 325 | 20,456 |
-| TypeScript (TSX) | 181 | 4,767 |
-| Python | 61 | 1,404 |
-| No Extension | 30 | 35 |
-| JSON | 10 | 1,150 |
-| Text | 3 | 107 |
-| RULES | 2 | 18 |
-| JavaScript (ESM) | 2 | 52 |
-| CSS | 1 | 47 |
-| Other | 1 | 64 |
+| TypeScript | 109 | 3,189 |
+| TypeScript (TSX) | 8 | 317 |
+| Markdown | 2 | 56 |
 
 **Largest files:**
-- `docs/hard-rules-consolidated.md` (455 lines)
-- `firestore.indexes.json` (437 lines)
-- `docs/semantic-model.md` (345 lines)
-- `modules/ai/subdomains/subdomains.instructions.md` (313 lines)
-- `docs/bounded-contexts.md` (270 lines)
-- `docs/subdomains.md` (269 lines)
-- `py_fn/README.md` (265 lines)
-- `AGENTS.md` (263 lines)
-- `modules/platform/domain/events/DESIGN.md` (257 lines)
-- `modules/platform/api/contracts.ts` (218 lines)
+- `modules/workspace/subdomains/workspace-workflow/api/workspace-flow.facade.ts` (110 lines)
+- `modules/workspace/subdomains/workspace-workflow/domain/events/InvoiceEvent.ts` (104 lines)
+- `modules/workspace/subdomains/workspace-workflow/domain/events/IssueEvent.ts` (86 lines)
+- `modules/workspace/subdomains/workspace-workflow/domain/events/TaskEvent.ts` (78 lines)
+- `modules/workspace/subdomains/workspace-workflow/api/workspace-flow-invoice.facade.ts` (77 lines)
+- `modules/workspace/subdomains/workspace-workflow/api/workspace-flow-task.facade.ts` (75 lines)
+- `modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx` (75 lines)
+- `modules/workspace/subdomains/workspace-workflow/interfaces/contracts/workspace-flow.contract.ts` (71 lines)
+- `modules/workspace/subdomains/workspace-workflow/api/workspace-flow-issue.facade.ts` (70 lines)
+- `modules/workspace/subdomains/workspace-workflow/interfaces/queries/workspace-flow.queries.ts` (69 lines)

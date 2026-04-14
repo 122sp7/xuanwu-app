@@ -18,6 +18,7 @@
     "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
     "deploy:functions:all": "npx firebase deploy --only functions",
     "deploy:firebase": "npx firebase deploy",
+    "repomix:workflow": "npx repomix --config repomix.workflow.json --skill-generate xuanwu-workspace-workflow-skill --skill-output .github/skills/xuanwu-workspace-workflow-skill --force",
     "repomix:skill": "npx repomix --config repomix.config.json --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
     "repomix:markdown": "npx repomix --config repomix-markdown.config.json --skill-generate xuanwu-markdown-skill --skill-output .github/skills/xuanwu-markdown-skill --force",
     "repomix:notebooklm": "npx repomix --config repomix-notebooklm.config.json --skill-generate xuanwu-notebooklm-skill --skill-output .github/skills/xuanwu-notebooklm-skill --force",
