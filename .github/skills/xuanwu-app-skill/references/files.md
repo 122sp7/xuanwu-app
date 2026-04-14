@@ -9075,6 +9075,52 @@ function handleSubmit(e: React.FormEvent)
 onChange=
 ````
 
+## File: modules/notion/interfaces/database/components/DatabaseFormPanel.tsx
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseFormPanel ??public-facing form to collect one Record into a Database.
+ */
+⋮----
+import { useState, useTransition } from "react";
+import { CheckCircle2 } from "lucide-react";
+⋮----
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+⋮----
+import { createRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, Field } from "../../../subdomains/database/application/dto/database.dto";
+⋮----
+interface DatabaseFormPanelProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  /** The user submitting the form. Pass anonymous ID or guest token for public forms. */
+  submitterId: string;
+  /** Optional: restrict to a subset of fields. */
+  fieldIds?: string[];
+  title?: string;
+  description?: string;
+}
+⋮----
+/** The user submitting the form. Pass anonymous ID or guest token for public forms. */
+⋮----
+/** Optional: restrict to a subset of fields. */
+⋮----
+checked=
+⋮----
+onChange=
+⋮----
+function handleChange(fieldId: string, value: unknown)
+⋮----
+function handleSubmit(e: React.FormEvent)
+⋮----
+<Button variant="outline" size="sm" onClick=
+````
+
 ## File: modules/notion/interfaces/database/components/index.ts
 ````typescript
 
@@ -32182,6 +32228,34 @@ async function handleUploadFile(file: File)
 onClose=
 ````
 
+## File: modules/notebooklm/interfaces/source/composition/workspace-files.facade.ts
+````typescript
+import { uploadCompleteFile, uploadInitFile } from "../_actions/source-file.actions";
+import { makeSourceStorageAdapter } from "./adapters";
+import { resolveSourceOrganizationId } from "../../../subdomains/source/application/dto/source.dto";
+⋮----
+export interface UploadWorkspaceSourceFileInput {
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly accountType: "user" | "organization";
+  readonly file: File;
+}
+⋮----
+export interface UploadWorkspaceSourceFileResult {
+  readonly success: boolean;
+  readonly sourceFileId?: string;
+  readonly filename?: string;
+  readonly gcsUri?: string;
+  readonly mimeType?: string;
+  readonly sizeBytes?: number;
+  readonly error?: { readonly message: string };
+}
+⋮----
+export async function uploadWorkspaceSourceFile(
+  input: UploadWorkspaceSourceFileInput,
+): Promise<UploadWorkspaceSourceFileResult>
+````
+
 ## File: modules/notebooklm/interfaces/source/hooks/useSourceDocumentsSnapshot.ts
 ````typescript
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -33849,52 +33923,6 @@ function getTitle(record: DatabaseRecordSnapshot): string
 function handleAdd(groupValue: string)
 ⋮----
 function handleDelete(recordId: string)
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseFormPanel.tsx
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseFormPanel ??public-facing form to collect one Record into a Database.
- */
-⋮----
-import { useState, useTransition } from "react";
-import { CheckCircle2 } from "lucide-react";
-⋮----
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-⋮----
-import { createRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, Field } from "../../../subdomains/database/application/dto/database.dto";
-⋮----
-interface DatabaseFormPanelProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  /** The user submitting the form. Pass anonymous ID or guest token for public forms. */
-  submitterId: string;
-  /** Optional: restrict to a subset of fields. */
-  fieldIds?: string[];
-  title?: string;
-  description?: string;
-}
-⋮----
-/** The user submitting the form. Pass anonymous ID or guest token for public forms. */
-⋮----
-/** Optional: restrict to a subset of fields. */
-⋮----
-checked=
-⋮----
-onChange=
-⋮----
-function handleChange(fieldId: string, value: unknown)
-⋮----
-function handleSubmit(e: React.FormEvent)
-⋮----
-<Button variant="outline" size="sm" onClick=
 ````
 
 ## File: modules/notion/interfaces/database/components/DatabaseTablePanel.tsx
@@ -40230,6 +40258,54 @@ export async function createWorkspaceLocation(
  */
 ````
 
+## File: modules/workspace/interfaces/facades/workspace-file.facade.ts
+````typescript
+import {
+  deleteSourceDocument,
+  getWorkspaceFiles,
+  getWorkspaceRagDocuments,
+  renameSourceDocument,
+  uploadWorkspaceSourceFile,
+} from "@/modules/notebooklm/api";
+⋮----
+import type { WorkspaceEntity } from "../contracts";
+⋮----
+export interface WorkspaceManagedFileItem {
+  readonly id: string;
+  readonly name: string;
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly status: string;
+  readonly detail: string;
+  readonly href?: string;
+  readonly storagePath?: string;
+  readonly sourceFileName?: string;
+  readonly updatedAtISO?: string;
+}
+⋮----
+export async function getWorkspaceManagedFiles(
+  workspace: WorkspaceEntity,
+): Promise<WorkspaceManagedFileItem[]>
+⋮----
+export async function uploadWorkspaceManagedFile(
+  workspace: WorkspaceEntity,
+  file: File,
+)
+⋮----
+export async function renameWorkspaceManagedFile(
+  workspace: WorkspaceEntity,
+  documentId: string,
+  newName: string,
+)
+⋮----
+export async function deleteWorkspaceManagedFile(
+  workspace: WorkspaceEntity,
+  documentId: string,
+)
+````
+
 ## File: modules/workspace/interfaces/facades/workspace-member.facade.ts
 ````typescript
 import type { WorkspaceMemberView } from "../contracts";
@@ -40507,6 +40583,61 @@ onOpenChange(isOpen);
 ⋮----
 reset();
 onOpenChange(false);
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceFilesManagementTab.tsx
+````typescript
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { FileSearch, Loader2, Pencil, Plus, RefreshCw, Trash2, Wand2 } from "lucide-react";
+⋮----
+import { FileProcessingDialog } from "@/modules/notebooklm/api/ui";
+import {
+  deleteWorkspaceManagedFile,
+  getWorkspaceManagedFiles,
+  renameWorkspaceManagedFile,
+  uploadWorkspaceManagedFile,
+  type WorkspaceManagedFileItem,
+} from "@/modules/workspace/api/facade";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Input } from "@ui-shadcn/ui/input";
+import type { WorkspaceEntity } from "../../../../domain/aggregates/Workspace";
+⋮----
+type FileStatusFilter = "all" | "uploaded" | "processing" | "ready" | "failed" | "active";
+⋮----
+interface ProcessingTarget {
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+}
+⋮----
+function toGsUri(storagePath: string): string
+⋮----
+function formatFileSize(sizeBytes: number): string
+⋮----
+function getStatusTone(status: string): "default" | "secondary" | "outline"
+⋮----
+async function handleUploadFile(file: File)
+⋮----
+async function handleDeleteDocument(doc: WorkspaceManagedFileItem)
+⋮----
+async function handleRenameSave(doc: WorkspaceManagedFileItem)
+⋮----
+<Badge variant=
+⋮----
+setProcessingTarget({
+                            sourceFileId: doc.id,
+                            filename: doc.name || doc.sourceFileName || "Untitled file",
+                            gcsUri: toGsUri(doc.storagePath),
+                            mimeType: doc.mimeType,
+                            sizeBytes: doc.sizeBytes,
+                          });
+⋮----
+<Button size="sm" variant="outline" onClick=
 ````
 
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceMembersTab.tsx
@@ -47477,38 +47608,6 @@ async execute(accountId: string, thread: Thread): Promise<void>
  */
 ````
 
-## File: modules/notebooklm/subdomains/source/api/index.ts
-````typescript
-/**
- * Public API boundary for the source subdomain.
- *
- * Cross-module consumers MUST import through this entry point.
- * Internal consumers within the subdomain import from their own layer.
- */
-⋮----
-// ---------------------------------------------------------------------------
-// Domain entity types
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Wiki library use cases (pre-wired facade from composition layer)
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Live document DTOs
-// ---------------------------------------------------------------------------
-⋮----
-// Hooks and UI components are exported from ./ui to keep this barrel semantic-only.
-⋮----
-// ---------------------------------------------------------------------------
-// Queries
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Server actions
-// ---------------------------------------------------------------------------
-````
-
 ## File: modules/notebooklm/subdomains/source/api/server.ts
 ````typescript
 /**
@@ -48742,6 +48841,43 @@ function handleAdd()
 ⋮----
 function handleDelete(recordId: string)
 ⋮----
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseListPanel.tsx
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseListPanel ??flat record list with fields as readable rows.
+ */
+⋮----
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
+⋮----
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+⋮----
+import { getRecords } from "../queries";
+import { createRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+⋮----
+interface DatabaseListPanelProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+⋮----
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown
+⋮----
+function displayValue(val: unknown, type: string): string
+⋮----
+function toggleExpand(id: string)
+⋮----
+function handleAdd()
+⋮----
+function handleDelete(recordId: string)
 ````
 
 ## File: modules/notion/interfaces/database/components/KnowledgeDatabasesPanel.tsx
@@ -53165,6 +53301,38 @@ export async function runKnowledgeRagQueryAction(
 ): Promise<KnowledgeRagQueryResult>
 ````
 
+## File: modules/notebooklm/subdomains/source/api/index.ts
+````typescript
+/**
+ * Public API boundary for the source subdomain.
+ *
+ * Cross-module consumers MUST import through this entry point.
+ * Internal consumers within the subdomain import from their own layer.
+ */
+⋮----
+// ---------------------------------------------------------------------------
+// Domain entity types
+// ---------------------------------------------------------------------------
+⋮----
+// ---------------------------------------------------------------------------
+// Wiki library use cases (pre-wired facade from composition layer)
+// ---------------------------------------------------------------------------
+⋮----
+// ---------------------------------------------------------------------------
+// Live document DTOs
+// ---------------------------------------------------------------------------
+⋮----
+// Hooks and UI components are exported from ./ui to keep this barrel semantic-only.
+⋮----
+// ---------------------------------------------------------------------------
+// Queries
+// ---------------------------------------------------------------------------
+⋮----
+// ---------------------------------------------------------------------------
+// Server actions
+// ---------------------------------------------------------------------------
+````
+
 ## File: modules/notebooklm/subdomains/synthesis/domain/index.ts
 ````typescript
 // ── Canonical domain types ────────────────────────────────────────────────────
@@ -53283,43 +53451,6 @@ async listChildren(parentNodeId: string): Promise<readonly TaxonomyNode[]>
 async save(node: TaxonomyNode): Promise<void>
 ⋮----
 async remove(nodeId: string): Promise<void>
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseListPanel.tsx
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseListPanel ??flat record list with fields as readable rows.
- */
-⋮----
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
-⋮----
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-⋮----
-import { getRecords } from "../queries";
-import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
-⋮----
-interface DatabaseListPanelProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-⋮----
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown
-⋮----
-function displayValue(val: unknown, type: string): string
-⋮----
-function toggleExpand(id: string)
-⋮----
-function handleAdd()
-⋮----
-function handleDelete(recordId: string)
 ````
 
 ## File: modules/notion/interfaces/knowledge/_actions/knowledge-page.actions.ts
@@ -55364,18 +55495,6 @@ export function resolveShellPageTitle(pathname: string): string
 export function resolveShellBreadcrumbLabel(segment: string): string
 ````
 
-## File: modules/workspace/api/facade.ts
-````typescript
-/**
- * workspace api/facade.ts
- *
- * Canonical public behavior surface for the workspace bounded context.
- * Cross-module and app-layer consumers invoke commands and queries from here.
- *
- * Internal source: interfaces/facades/
- */
-````
-
 ## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
 ````typescript
 import { useEffect, useMemo, useState } from "react";
@@ -55563,40 +55682,80 @@ onSelectWorkspace(workspace.id);
 accountType=
 ````
 
-## File: modules/notebooklm/api/index.ts
+## File: modules/notion/interfaces/knowledge/components/KnowledgeDetailPanel.tsx
+````typescript
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
+⋮----
+import { getKnowledgePage } from "../queries";
+import {
+  renameKnowledgePage,
+  archiveKnowledgePage,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+} from "../_actions/knowledge-page.actions";
+import type { KnowledgePageSnapshot as KnowledgePage } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+import { PageEditorPanel } from "./PageEditorPanel";
+import { CommentPanel } from "../../collaboration/components/CommentPanel";
+import { Button } from "@ui-shadcn/ui/button";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
+⋮----
+// ?? Props ?????????????????????????????????????????????????????????????????????
+⋮----
+export interface KnowledgeDetailPanelProps {
+  accountId: string;
+  activeWorkspaceId: string | null;
+  currentUserId: string;
+}
+⋮----
+// ?? Component ?????????????????????????????????????????????????????????????????
+⋮----
+function handleRename(title: string)
+⋮----
+function handleIconChange(iconUrl: string)
+⋮----
+function handleCoverChange(coverUrl: string)
+⋮----
+function handleArchive()
+⋮----
+// ?? Loading skeleton ????????????????????????????????????????????????????????
+⋮----
+// ?? Not found ???????????????????????????????????????????????????????????????
+⋮----
+<Button variant="ghost" size="sm" onClick=
+⋮----
+// ?? Page view ???????????????????????????????????????????????????????????????
+⋮----
+{/* Cover image */}
+⋮----
+{/* Top bar */}
+⋮----
+onClick=
+⋮----
+{/* Page header */}
+⋮----
+{/* Icon row */}
+⋮----
+{/* Main content + optional comment side panel */}
+⋮----
+{/* Block editor ??connected to Firebase */}
+⋮----
+{/* Comment panel ??slides in from right */}
+````
+
+## File: modules/workspace/api/facade.ts
 ````typescript
 /**
- * modules/notebooklm — public API barrel.
+ * workspace api/facade.ts
  *
- * Stable cross-module semantic surface for notebooklm.
- * Browser-facing route composition should prefer workspace/api when workspace
- * is the orchestration owner.
+ * Canonical public behavior surface for the workspace bounded context.
+ * Cross-module and app-layer consumers invoke commands and queries from here.
+ *
+ * Internal source: interfaces/facades/
  */
-⋮----
-// UI components and hooks are exported from notebooklm/api/ui.ts.
-⋮----
-// ---------------------------------------------------------------------------
-// Source subdomain — semantic downstream capability surface
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// conversation subdomain — AI chat helpers and types
-//
-// NOTE: ConversationPanel is NOT re-exported here to avoid a synchronous
-// module-evaluation cycle: workspace/api → workspace interfaces →
-// notebooklm/api → ConversationPanel → workspace/api.
-// Import ConversationPanel from "@/modules/notebooklm/subdomains/conversation/api/ui"
-// or use next/dynamic for lazy loading.
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Context-wide published language (cross-module reference types)
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Synthesis subdomain — complete RAG pipeline
-// (retrieval → grounding → synthesis → evaluation)
-// ---------------------------------------------------------------------------
 ````
 
 ## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
@@ -55691,68 +55850,40 @@ interface ShellSidebarBodyProps {
 className=
 ````
 
-## File: modules/notion/interfaces/knowledge/components/KnowledgeDetailPanel.tsx
+## File: modules/notebooklm/api/index.ts
 ````typescript
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
+/**
+ * modules/notebooklm — public API barrel.
+ *
+ * Stable cross-module semantic surface for notebooklm.
+ * Browser-facing route composition should prefer workspace/api when workspace
+ * is the orchestration owner.
+ */
 ⋮----
-import { getKnowledgePage } from "../queries";
-import {
-  renameKnowledgePage,
-  archiveKnowledgePage,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-} from "../_actions/knowledge-page.actions";
-import type { KnowledgePageSnapshot as KnowledgePage } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
-import { PageEditorPanel } from "./PageEditorPanel";
-import { CommentPanel } from "../../collaboration/components/CommentPanel";
-import { Button } from "@ui-shadcn/ui/button";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
+// UI components and hooks are exported from notebooklm/api/ui.ts.
 ⋮----
-// ?? Props ?????????????????????????????????????????????????????????????????????
+// ---------------------------------------------------------------------------
+// Source subdomain — semantic downstream capability surface
+// ---------------------------------------------------------------------------
 ⋮----
-export interface KnowledgeDetailPanelProps {
-  accountId: string;
-  activeWorkspaceId: string | null;
-  currentUserId: string;
-}
+// ---------------------------------------------------------------------------
+// conversation subdomain — AI chat helpers and types
+//
+// NOTE: ConversationPanel is NOT re-exported here to avoid a synchronous
+// module-evaluation cycle: workspace/api → workspace interfaces →
+// notebooklm/api → ConversationPanel → workspace/api.
+// Import ConversationPanel from "@/modules/notebooklm/subdomains/conversation/api/ui"
+// or use next/dynamic for lazy loading.
+// ---------------------------------------------------------------------------
 ⋮----
-// ?? Component ?????????????????????????????????????????????????????????????????
+// ---------------------------------------------------------------------------
+// Context-wide published language (cross-module reference types)
+// ---------------------------------------------------------------------------
 ⋮----
-function handleRename(title: string)
-⋮----
-function handleIconChange(iconUrl: string)
-⋮----
-function handleCoverChange(coverUrl: string)
-⋮----
-function handleArchive()
-⋮----
-// ?? Loading skeleton ????????????????????????????????????????????????????????
-⋮----
-// ?? Not found ???????????????????????????????????????????????????????????????
-⋮----
-<Button variant="ghost" size="sm" onClick=
-⋮----
-// ?? Page view ???????????????????????????????????????????????????????????????
-⋮----
-{/* Cover image */}
-⋮----
-{/* Top bar */}
-⋮----
-onClick=
-⋮----
-{/* Page header */}
-⋮----
-{/* Icon row */}
-⋮----
-{/* Main content + optional comment side panel */}
-⋮----
-{/* Block editor ??connected to Firebase */}
-⋮----
-{/* Comment panel ??slides in from right */}
+// ---------------------------------------------------------------------------
+// Synthesis subdomain — complete RAG pipeline
+// (retrieval → grounding → synthesis → evaluation)
+// ---------------------------------------------------------------------------
 ````
 
 ## File: modules/platform/api/index.ts
@@ -56144,8 +56275,8 @@ import {
   WorkspaceFlowTab,
   WorkspaceSchedulingTab,
 } from "@/modules/workspace/api/ui";
-import { WorkspaceFilesTab } from "@/modules/notebooklm/api/ui";
 import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
+import { WorkspaceFilesManagementTab } from "../tabs/WorkspaceFilesManagementTab";
 ⋮----
 import {
   createSettingsDraft,
