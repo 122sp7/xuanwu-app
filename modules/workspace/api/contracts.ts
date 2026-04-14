@@ -111,9 +111,9 @@ export type {
   WorkspaceNotificationPreferenceDto,
   UpdateNotificationPreferencesCommand,
   WorkspaceEventPayload,
-} from "../subdomains/notification/api";
+} from "@/modules/platform/subdomains/notification/api";
 
-export { WORKSPACE_NOTIFICATION_EVENT_TYPES } from "../subdomains/notification/api";
+export { WORKSPACE_NOTIFICATION_EVENT_TYPES } from "@/modules/platform/subdomains/notification/api";
 
 export type {
   Task,

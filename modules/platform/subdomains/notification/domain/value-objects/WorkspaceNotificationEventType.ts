@@ -2,7 +2,7 @@ import { z } from "@lib-zod";
 
 /**
  * Canonical workspace event types that can trigger a notification.
- * Aligned with the discriminants emitted by workspace-workflow domain events.
+ * Aligned with discriminants emitted by workspace-workflow domain events.
  */
 export const WORKSPACE_NOTIFICATION_EVENT_TYPES = [
   "workspace-flow.task.assigned",
