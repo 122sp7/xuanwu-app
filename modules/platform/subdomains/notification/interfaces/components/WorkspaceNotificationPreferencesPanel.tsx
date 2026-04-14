@@ -3,8 +3,9 @@
 /**
  * WorkspaceNotificationPreferencesPanel
  *
- * Workspace-scoped notification preferences UI.
- * Lets a workspace member toggle which event types they want notifications for.
+ * Workspace-scoped notification preferences UI. Lets a workspace member toggle
+ * which event types they want notifications for.
+ * Owned by platform/subdomains/notification.
  */
 
 import { useCallback, useEffect, useState, useTransition } from "react";
@@ -14,14 +15,10 @@ import { Label } from "@ui-shadcn/ui/label";
 import { Button } from "@ui-shadcn/ui/button";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
-import {
-  getWorkspaceNotificationPreferences,
-} from "../queries/workspace-notification.queries";
+import { getWorkspaceNotificationPreferences } from "../queries/workspace-notification.queries";
 import { updateWorkspaceNotificationPreferences } from "../_actions/workspace-notification.actions";
-import {
-  WORKSPACE_NOTIFICATION_EVENT_TYPES,
-} from "../../application/dto/notification-preference.dto";
-import type { WorkspaceNotificationEventType } from "../../application/dto/notification-preference.dto";
+import { WORKSPACE_NOTIFICATION_EVENT_TYPES } from "../../domain/value-objects/WorkspaceNotificationEventType";
+import type { WorkspaceNotificationEventType } from "../../domain/value-objects/WorkspaceNotificationEventType";
 
 const EVENT_LABELS: Record<WorkspaceNotificationEventType, string> = {
   "workspace-flow.task.assigned": "任務指派",
@@ -45,37 +42,26 @@ export function WorkspaceNotificationPreferencesPanel({
   workspaceId,
   memberId,
 }: WorkspaceNotificationPreferencesPanelProps) {
-  const [subscribed, setSubscribed] = useState<
-    Set<WorkspaceNotificationEventType>
-  >(new Set());
+  const [subscribed, setSubscribed] = useState<Set<WorkspaceNotificationEventType>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, startSaving] = useTransition();
 
   const load = useCallback(async () => {
     setIsLoading(true);
     try {
-      const prefs = await getWorkspaceNotificationPreferences(
-        workspaceId,
-        memberId,
-      );
+      const prefs = await getWorkspaceNotificationPreferences(workspaceId, memberId);
       setSubscribed(new Set(prefs.subscribedEvents));
     } finally {
       setIsLoading(false);
     }
   }, [workspaceId, memberId]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   function handleToggle(eventType: WorkspaceNotificationEventType) {
     setSubscribed((prev) => {
       const next = new Set(prev);
-      if (next.has(eventType)) {
-        next.delete(eventType);
-      } else {
-        next.add(eventType);
-      }
+      if (next.has(eventType)) { next.delete(eventType); } else { next.add(eventType); }
       return next;
     });
   }
@@ -107,21 +93,13 @@ export function WorkspaceNotificationPreferencesPanel({
         <ul className="space-y-3">
           {WORKSPACE_NOTIFICATION_EVENT_TYPES.map((eventType) => (
             <li key={eventType} className="flex items-center justify-between gap-3">
-              <Label
-                htmlFor={`notif-${eventType}`}
-                className="text-sm cursor-pointer"
-              >
-                {EVENT_LABELS[eventType as WorkspaceNotificationEventType] ??
-                  eventType}
+              <Label htmlFor={`notif-${eventType}`} className="text-sm cursor-pointer">
+                {EVENT_LABELS[eventType as WorkspaceNotificationEventType] ?? eventType}
               </Label>
               <Switch
                 id={`notif-${eventType}`}
-                checked={subscribed.has(
-                  eventType as WorkspaceNotificationEventType,
-                )}
-                onCheckedChange={() =>
-                  handleToggle(eventType as WorkspaceNotificationEventType)
-                }
+                checked={subscribed.has(eventType as WorkspaceNotificationEventType)}
+                onCheckedChange={() => handleToggle(eventType as WorkspaceNotificationEventType)}
                 disabled={isSaving}
               />
             </li>
@@ -129,12 +107,7 @@ export function WorkspaceNotificationPreferencesPanel({
         </ul>
       )}
 
-      <Button
-        size="sm"
-        disabled={isLoading || isSaving}
-        onClick={handleSave}
-        className="w-full"
-      >
+      <Button size="sm" disabled={isLoading || isSaving} onClick={handleSave} className="w-full">
         {isSaving ? "儲存中…" : "儲存偏好"}
       </Button>
     </div>

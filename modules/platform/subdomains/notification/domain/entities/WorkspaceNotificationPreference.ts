@@ -1,11 +1,6 @@
 /**
  * WorkspaceNotificationPreference — entity modelling per-member notification
- * subscriptions within a single workspace.
- *
- * Design notes:
- * - Framework-free; no Firebase, React, or HTTP imports.
- * - Immutable snapshot pattern: all mutations return a new entity value.
- * - Equality is identity-based: workspaceId + memberId uniquely identify a record.
+ * subscriptions within a single workspace. Framework-free; zero external deps.
  */
 
 import type { WorkspaceNotificationEventType } from "../value-objects/WorkspaceNotificationEventType";
@@ -14,7 +9,6 @@ import { WORKSPACE_NOTIFICATION_EVENT_TYPES } from "../value-objects/WorkspaceNo
 export interface WorkspaceNotificationPreferenceProps {
   readonly workspaceId: string;
   readonly memberId: string;
-  /** Set of workspace event types the member has opted into. */
   readonly subscribedEvents: ReadonlySet<WorkspaceNotificationEventType>;
   readonly updatedAtISO: string;
 }
@@ -24,7 +18,6 @@ export class WorkspaceNotificationPreference {
     private readonly _props: WorkspaceNotificationPreferenceProps,
   ) {}
 
-  /** Factory: create a new preference record with full defaults (all events on). */
   static create(
     workspaceId: string,
     memberId: string,
@@ -39,14 +32,12 @@ export class WorkspaceNotificationPreference {
     });
   }
 
-  /** Factory: reconstitute from persisted snapshot. */
   static reconstitute(
     props: WorkspaceNotificationPreferenceProps,
   ): WorkspaceNotificationPreference {
     return new WorkspaceNotificationPreference({ ...props });
   }
 
-  /** Returns a new entity with the subscription set replaced. */
   withSubscriptions(
     events: ReadonlySet<WorkspaceNotificationEventType>,
   ): WorkspaceNotificationPreference {
@@ -61,21 +52,10 @@ export class WorkspaceNotificationPreference {
     return this._props.subscribedEvents.has(eventType);
   }
 
-  get workspaceId(): string {
-    return this._props.workspaceId;
-  }
-
-  get memberId(): string {
-    return this._props.memberId;
-  }
-
-  get subscribedEvents(): ReadonlySet<WorkspaceNotificationEventType> {
-    return this._props.subscribedEvents;
-  }
-
-  get updatedAtISO(): string {
-    return this._props.updatedAtISO;
-  }
+  get workspaceId(): string { return this._props.workspaceId; }
+  get memberId(): string { return this._props.memberId; }
+  get subscribedEvents(): ReadonlySet<WorkspaceNotificationEventType> { return this._props.subscribedEvents; }
+  get updatedAtISO(): string { return this._props.updatedAtISO; }
 
   getSnapshot(): Readonly<WorkspaceNotificationPreferenceProps> {
     return Object.freeze({

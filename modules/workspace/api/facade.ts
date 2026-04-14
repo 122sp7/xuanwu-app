@@ -110,5 +110,4 @@ export {
   updateWorkspaceNotificationPreferences,
   notifyWorkspaceMembers,
   getWorkspaceNotificationPreferences,
-  workspaceNotificationService,
-} from "../subdomains/notification/api";
+} from "@/modules/platform/subdomains/notification/api";

@@ -160,4 +160,4 @@ export {
 
 export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";
 
-export { WorkspaceNotificationPreferencesPanel } from "../subdomains/notification/api";
+export { WorkspaceNotificationPreferencesPanel } from "@/modules/platform/subdomains/notification/api";
