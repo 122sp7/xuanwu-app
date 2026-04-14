@@ -22,7 +22,7 @@ import {
   resolveActiveAccount,
   subscribeToAccountsForUser,
 } from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
+import { useAuth } from "@/modules/iam/api";
 
 const LAST_ACTIVE_ACCOUNT_STORAGE_KEY = "xuanwu_last_active_account";
 
