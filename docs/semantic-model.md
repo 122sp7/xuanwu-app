@@ -78,7 +78,7 @@
 |---|---|---|---|---|
 | `metrics` | **Metrics Aggregation** | 指標聚合 | ✅ | 指標定義與聚合 |
 | `event-ingestion` | **Event Ingestion** | 事件擷取 | ✅ | analytics 事件接收管線 |
-| `event-processing` | **Event Projection** ⚠️ | 事件投影 | ✅ | 事件轉換與 read model 投影；**命名漂移**：DDD 中稱為 projection，建議改名為 `event-projection` |
+| `event-projection` | **Event Projection** ✅ | 事件投影 | ✅ | 事件轉換與 read model 投影；已從 `event-processing` 改名為 `event-projection`（DDD projection 術語） |
 | `event-contracts` | **Analytics Event Contracts** | 事件契約 | ✅ | 跨域事件 schema 定義 |
 | `insights` | **Insights** | 洞察輸出 | ✅ | 批次/歷史分析結果輸出 |
 | `realtime-insights` | **Realtime Insights** | 即時洞察 | ✅ | 串流/即時資料流分析 |
@@ -133,7 +133,7 @@
 | `knowledge` | **Knowledge Page Lifecycle** | 知識頁面生命週期 | ✅ | 頁面建立、組織、版本化與交付 |
 | `authoring` | **Knowledge Authoring** | 知識撰寫 | ✅ | 文章建立、驗證與分類 |
 | `collaboration` | **Knowledge Collaboration** | 知識協作 | ✅ | 協作留言、細粒度權限、版本快照 |
-| `database` | **Structured Knowledge Database** ⚠️ | 結構化知識資料庫 | ✅ | 結構化資料多視圖管理；**命名漂移**：`database` 是技術術語，建議改名為 `knowledge-database` |
+| `knowledge-database` | **Structured Knowledge Database** ✅ | 結構化知識資料庫 | ✅ | 結構化資料多視圖管理；已從 `database` 改名為 `knowledge-database`（移除技術術語） |
 | `taxonomy` | **Knowledge Taxonomy** | 知識分類法 | ✅ | 分類法與語義組織（已從 gap 升為 implemented） |
 | `relations` | **Knowledge Relations** | 知識關聯 | ✅ | 內容關聯與 backlink（已從 gap 升為 implemented） |
 | `knowledge-analytics` | **Knowledge Engagement Analytics** ⚠️ | 知識使用行為量測 | 📋 Baseline | 與 analytics domain 語意重疊；建議改名為 `knowledge-engagement` |
@@ -168,8 +168,8 @@
 
 | Current Name | Drift Type | Canonical Semantic Name | Disambiguation Rule |
 |---|---|---|---|
-| `notion/database` | 技術術語遮蔽業務語意 | **Knowledge Database** | 所有 notion 子域以業務概念命名（knowledge、authoring、taxonomy…）；`database` 是技術術語，此處指「結構化知識多視圖管理」，建議改名為 `knowledge-database` |
-| `analytics/event-processing` | 技術動詞遮蔽 DDD projection 語意 | **Event Projection** | DDD 將事件轉換為 read model 的能力稱為 projection；`event-processing` 太通用，建議改名為 `event-projection` 以反映 DDD 投影語意 |
+| `notion/knowledge-database` ✅ | ~~技術術語遮蔽業務語意~~ | **Knowledge Database** | ✅ 已完成：`database` → `knowledge-database`（2026-04-15） |
+| `analytics/event-projection` ✅ | ~~技術動詞遮蔽 DDD projection 語意~~ | **Event Projection** | ✅ 已完成：`event-processing` → `event-projection`（2026-04-15） |
 | `platform/background-job` 資料夾 vs 內部實體名稱 | 資料夾語意（通用）與實體語意（攝取特定）不一致 | **Background Job Management** (folder) / 實體需通用化 | 資料夾名稱 `background-job` 正確表達通用背景任務能力，但內部實體全以 `Ingestion*` 命名（IngestionDocument、IngestionChunk、IngestionJob）；實作時應將實體通用化為 `Job*` 或將子域改名為 `ingestion-tracking` |
 | `notion/knowledge-analytics` | 與 `analytics` domain 語意重疊 | **Knowledge Engagement** | analytics domain 擁有指標、投影與報表；notion 此子域只量測知識頁面使用行為，建議改名為 `knowledge-engagement` |
 | `notion/knowledge-integration` | 與 `platform/integration` 語意重疊 | **External Knowledge Sync** | platform integration 擁有外部系統整合契約；notion 此子域只做知識雙向同步，建議改名為 `external-knowledge-sync` |
@@ -227,7 +227,7 @@
 | `modules/analytics` | Analytics & Read-Model |
 | `modules/analytics/subdomains/metrics` | Metrics Aggregation |
 | `modules/analytics/subdomains/event-ingestion` | Event Ingestion |
-| `modules/analytics/subdomains/event-processing` | Event Processing ⚠️ → **Event Projection** (rename to `event-projection`) |
+| `modules/analytics/subdomains/event-projection` ✅ | **Event Projection** (renamed from `event-processing` 2026-04-15) |
 | `modules/analytics/subdomains/event-contracts` | Analytics Event Contracts |
 | `modules/analytics/subdomains/insights` | Insights |
 | `modules/analytics/subdomains/realtime-insights` | Realtime Insights |
@@ -253,7 +253,7 @@
 | `modules/notion/subdomains/knowledge` | Knowledge Page Lifecycle |
 | `modules/notion/subdomains/authoring` | Knowledge Authoring |
 | `modules/notion/subdomains/collaboration` | Knowledge Collaboration |
-| `modules/notion/subdomains/database` | Structured Knowledge Database ⚠️ → **Knowledge Database** (rename to `knowledge-database`) |
+| `modules/notion/subdomains/knowledge-database` ✅ | **Structured Knowledge Database** (renamed from `database` 2026-04-15) |
 | `modules/notion/subdomains/taxonomy` | Knowledge Taxonomy |
 | `modules/notion/subdomains/relations` | Knowledge Relations |
 | `modules/notebooklm` | Conversational Reasoning & Synthesis |
@@ -269,14 +269,14 @@
 > **依據**：Context7 驗證的 Domain-Driven Hexagon 命名原則：「模組名稱必須反映領域概念，而不是技術/架構術語」；跨境名稱應讓業務能力從目錄結構直接可見。
 > 原則來源：`/sairyss/domain-driven-hexagon` — Modules section, Folder and File Structure section。
 
-### 7.1 已實作資料夾 — 立即改名（Rename Now）
+### 7.1 已實作資料夾 — 改名已完成（Renamed ✅）
 
-下列子域已實作，但資料夾名稱與 DDD 業務能力命名原則不符，需要改名。
+下列子域已完成改名（2026-04-15）：資料夾、import path、comment header、interfaces/ 元件、docs 全部同步更新。
 
 | 目前資料夾 | 建議新名稱 | 改名理由 | 影響範圍 |
 |---|---|---|---|
-| `modules/notion/subdomains/database` | **`knowledge-database`** | `database` 是技術術語；notion 所有其他子域以業務概念命名（knowledge、authoring、taxonomy、relations、collaboration）。此子域管理「結構化知識多視圖」，Domain aggregates 為 Database、DatabaseRecord、View、DatabaseAutomation，語意上是 knowledge database，應加 domain prefix 與兄弟子域一致 | import path、api/index.ts barrel、interfaces/ 中引用此子域的元件 |
-| `modules/analytics/subdomains/event-processing` | **`event-projection`** | DDD Event Sourcing 中將 domain events 轉換為 read model 的能力稱為 **projection**；`event-processing` 是通用技術動詞，遮蔽了業務語意。此子域的職責是事件→read model 的投影轉換，`event-projection` 精確反映 DDD 術語 | analytics module 內部 barrel 及 app/ 中引用 analytics projection 的 query path |
+| ~~`modules/notion/subdomains/database`~~ → **`modules/notion/subdomains/knowledge-database`** ✅ | **`knowledge-database`** | `database` 是技術術語；notion 所有其他子域以業務概念命名（knowledge、authoring、taxonomy、relations、collaboration）。此子域管理「結構化知識多視圖」，Domain aggregates 為 Database、DatabaseRecord、View、DatabaseAutomation，語意上是 knowledge database，應加 domain prefix 與兄弟子域一致 | **已完成 2026-04-15**：所有 import path、api/index.ts barrel、interfaces/ 元件均已更新 |
+| ~~`modules/analytics/subdomains/event-processing`~~ → **`modules/analytics/subdomains/event-projection`** ✅ | **`event-projection`** | DDD Event Sourcing 中將 domain events 轉換為 read model 的能力稱為 **projection**；`event-processing` 是通用技術動詞，遮蔽了業務語意。此子域的職責是事件→read model 的投影轉換，`event-projection` 精確反映 DDD 術語 | **已完成 2026-04-15**：資料夾已改名，無 import path 受影響（stub 子域） |
 
 ### 7.2 已實作資料夾 — 內部語意不一致（Refactor Entities）
 
@@ -309,4 +309,4 @@
 | `docs/context-map.md` | Published language token flow between contexts |
 | `docs/semantic-model.md` (this file) | Folder → semantic name mapping, status, drift analysis |
 
-> Last verified: 2026-04-15. Re-verify after any subdomain add/remove or boundary merge. Section 7 added 2026-04-15 based on Context7 DDD Hexagon evidence (`/sairyss/domain-driven-hexagon`).
+> Last verified: 2026-04-15. Section 7.1 renames completed 2026-04-15. Section 7 added 2026-04-15 based on Context7 DDD Hexagon evidence (`/sairyss/domain-driven-hexagon`).

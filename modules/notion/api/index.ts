@@ -34,10 +34,10 @@ export * from "../subdomains/authoring/api";
 // aggregates stable public capabilities during the collaboration convergence.
 export * from "../subdomains/collaboration/api";
 
-// ── database subdomain ────────────────────────────────────────────────────────
+// ── knowledge-database subdomain ────────────────────────────────────────────────────────
 // Migration state: subdomain-owned composition remains private; root api only
-// aggregates stable public capabilities during the database convergence.
-export * from "../subdomains/database/api";
+// aggregates stable public capabilities during the knowledge-database convergence.
+export * from "../subdomains/knowledge-database/api";
 
 // ── taxonomy subdomain ────────────────────────────────────────────────────────
 // Tier 2 — classification hierarchy and semantic organization

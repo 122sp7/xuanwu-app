@@ -19,7 +19,7 @@ modules/notebooklm/subdomains/notebook/application/dto/
 modules/notebooklm/subdomains/source/application/dto/
 modules/notion/subdomains/authoring/application/dto/
 modules/notion/subdomains/collaboration/application/dto/
-modules/notion/subdomains/database/application/dto/
+modules/notion/subdomains/knowledge-database/application/dto/
 modules/notion/subdomains/knowledge/application/dto/
 modules/notion/subdomains/relations/application/dto/
 modules/notion/subdomains/taxonomy/application/dto/

@@ -6,5 +6,5 @@
  */
 
 export * from "../subdomains/authoring/api/ui";
-export * from "../subdomains/database/api/ui";
+export * from "../subdomains/knowledge-database/api/ui";
 export * from "../subdomains/knowledge/api/ui";
