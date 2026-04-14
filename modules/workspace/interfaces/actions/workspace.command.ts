@@ -15,15 +15,11 @@ import type {
   WorkspaceLocation,
 } from "../contracts";
 import { workspaceCommandPort } from "../runtime";
-import { RecordAuditEntryUseCase } from "../../subdomains/audit/api";
-import { makeAuditRepo } from "../../subdomains/audit/api/factories";
-import type { RecordAuditEntryInput } from "../../subdomains/audit/api";
-
-const auditUseCase = new RecordAuditEntryUseCase(makeAuditRepo());
+import { recordWorkspaceAuditEntry, type RecordAuditEntryInput } from "../../subdomains/audit/api";
 
 async function recordAudit(input: RecordAuditEntryInput): Promise<void> {
   try {
-    await auditUseCase.execute(input);
+    await recordWorkspaceAuditEntry(input);
   } catch {
     // Audit recording is best-effort — do not fail the primary command.
     if (process.env.NODE_ENV !== "production") {

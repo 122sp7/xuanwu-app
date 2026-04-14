@@ -42,12 +42,14 @@ const LEGACY_WORKSPACE_TAB_ALIASES: Record<string, WorkspaceTabValue> = {
   NotionKnowledge: "Knowledge",
   NotebookConversation: "AiChat",
   NotebookSynthesis: "Notebook",
+  WorkspaceAudit: "Audit",
 };
 
 const LEGACY_WORKSPACE_TAB_PREF_ID_ALIASES: Record<string, string> = {
   "notion-knowledge": "knowledge",
   "notebook-conversation": "ai-chat",
   "notebook-synthesis": "notebook",
+  "workspace-audit": "audit",
 };
 
 interface WorkspaceTabMeta {

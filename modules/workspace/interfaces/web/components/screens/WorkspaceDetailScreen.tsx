@@ -10,25 +10,12 @@ import {
 import { Badge } from "@ui-shadcn/ui/badge";
 import { useAuth } from "@/modules/iam/api";
 import { useApp } from "@/modules/platform/api/ui";
-import {
-  WorkspaceAuditTab,
-  WorkspaceFeedWorkspaceView,
-  WorkspaceFlowTab,
-  WorkspaceSchedulingTab,
-} from "@/modules/workspace/api/ui";
 import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
-import { WorkspaceFilesManagementTab } from "../tabs/WorkspaceFilesManagementTab";
 
 import {
   createSettingsDraft,
   type WorkspaceSettingsDraft,
 } from "../../state/workspace-settings";
-import {
-  getWorkspaceAddressLines,
-  getWorkspacePersonnelEntries,
-} from "../../view-models/workspace-supporting-records";
-import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
 import {
   getWorkspaceTabLabel,
   getWorkspaceTabStatus,
@@ -37,9 +24,8 @@ import {
   type WorkspaceTabValue,
 } from "../../navigation/workspace-tabs";
 import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
-import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
-import { renderWorkspaceCrossModuleTabSurface } from "../tabs/WorkspaceCrossModuleTabSurface";
 import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
+import { renderWorkspaceDetailTabContent } from "../tabs/WorkspaceDetailTabContent";
 import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
 import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
 
@@ -90,97 +76,25 @@ export function WorkspaceDetailScreen({
     },
   });
 
-  const personnelEntries = useMemo(() => {
-    return workspace ? getWorkspacePersonnelEntries(workspace) : [];
-  }, [workspace]);
-
-  const addressLines = useMemo(() => {
-    return workspace ? getWorkspaceAddressLines(workspace) : [];
-  }, [workspace]);
-
   function renderTabContent(tab: WorkspaceTabValue) {
     if (!workspace) return null;
 
-    const crossModuleTabContent = renderWorkspaceCrossModuleTabSurface({
+    return renderWorkspaceDetailTabContent({
       tab,
       workspace,
-      accountId: accountId ?? workspace.accountId,
+      accountId,
       currentUserId: authState.user?.id,
       workspaces: wsState.workspaces ?? {},
+      activeWorkspaceId: wsState.activeWorkspaceId,
+      initialOverviewPanel,
+      onEditWorkspace: () => {
+        setSettingsDraft(createSettingsDraft(workspace));
+        clearSaveError();
+        setIsEditWorkspaceOpen(true);
+      },
+      onSetActiveWorkspace: (nextWorkspaceId) =>
+        wsDispatch({ type: "SET_ACTIVE_WORKSPACE", payload: nextWorkspaceId }),
     });
-    if (crossModuleTabContent) {
-      return crossModuleTabContent;
-    }
-
-    const flowSection: Record<string, "tasks" | "qa" | "acceptance" | "issues" | "invoices"> = {
-      Tasks: "tasks", TaskQa: "qa", TaskAcceptance: "acceptance",
-      TaskIssues: "issues", TaskFinance: "invoices",
-    };
-
-    if (tab in flowSection) {
-      return (
-        <WorkspaceFlowTab
-          workspaceId={workspace.id}
-          currentUserId={accountId ?? "anonymous"}
-          initialSection={flowSection[tab]}
-        />
-      );
-    }
-
-    const overviewPanel: Record<string, string> = {
-      Knowledge: "knowledge-pages",
-      WorkspaceSettings: "settings",
-    };
-
-    switch (tab) {
-      case "Overview":
-      case "Knowledge":
-      case "WorkspaceSettings":
-        return (
-          <WorkspaceOverviewTab
-            workspace={workspace}
-            activeWorkspaceId={wsState.activeWorkspaceId}
-            currentUserId={authState.user?.id}
-            personnelEntries={personnelEntries}
-            addressLines={addressLines}
-            initialPanel={overviewPanel[tab] ?? initialOverviewPanel}
-            onEditClick={() => {
-              setSettingsDraft(createSettingsDraft(workspace));
-              clearSaveError();
-              setIsEditWorkspaceOpen(true);
-            }}
-            onSetActiveWorkspace={() =>
-              wsDispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
-            }
-          />
-        );
-      case "Members":
-        return <WorkspaceMembersTab workspace={workspace} />;
-      case "Daily":
-        return <WorkspaceDailyTab workspace={workspace} />;
-      case "Files":
-        return <WorkspaceFilesManagementTab workspace={workspace} />;
-      case "Schedule":
-        return (
-          <WorkspaceSchedulingTab
-            workspace={workspace}
-            accountId={accountId ?? workspace.accountId}
-            currentUserId={accountId ?? "anonymous"}
-          />
-        );
-      case "Audit":
-        return <WorkspaceAuditTab workspaceId={workspace.id} />;
-      case "Feed":
-        return (
-          <WorkspaceFeedWorkspaceView
-            accountId={accountId ?? workspace.accountId}
-            workspaceId={workspace.id}
-            workspaceName={workspace.name}
-          />
-        );
-      default:
-        return null;
-    }
   }
 
   const resolvedTab: WorkspaceTabValue = resolveWorkspaceTabValue(initialTab) ?? "Overview";
