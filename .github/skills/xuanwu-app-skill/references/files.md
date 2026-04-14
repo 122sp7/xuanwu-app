@@ -3047,6 +3047,61 @@ export function ShellSidebarHeader({
 }: ShellSidebarHeaderProps)
 ````
 
+## File: app/(shell)/_shell/ShellSidebarNavData.tsx
+````typescript
+import {
+  Building2,
+  LayoutDashboard,
+  UserRound,
+  Users,
+} from "lucide-react";
+import Link from "next/link";
+⋮----
+import {
+  type ActiveAccount,
+  isOrganizationActor,
+  isActiveOrganizationAccount,
+  SHELL_ACCOUNT_SECTION_MATCHERS,
+  SHELL_ACCOUNT_NAV_ITEMS,
+  SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
+  SHELL_SECTION_LABELS,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  type ShellNavSection,
+} from "@/modules/platform/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+⋮----
+// ── Types ─────────────────────────────────────────────────────────────────────
+⋮----
+export interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly userId: string | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+}
+⋮----
+export type NavSection = ShellNavSection;
+⋮----
+// ── Static nav constants ──────────────────────────────────────────────────────
+⋮----
+// ── CSS class helpers ─────────────────────────────────────────────────────────
+⋮----
+export function sidebarItemClass(active: boolean)
+⋮----
+// ── Pure section helpers ──────────────────────────────────────────────────────
+⋮----
+export function resolveNavSection(pathname: string): NavSection
+⋮----
+export function isActiveRoute(pathname: string, href: string)
+⋮----
+// ── Simple section nav component ──────────────────────────────────────────────
+````
+
 ## File: app/(shell)/(account)/[accountId]/dev-tools/dev-tools-badges.tsx
 ````typescript
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
@@ -5398,6 +5453,41 @@ onChange=
 <input type="text" value=
 ````
 
+## File: modules/notebooklm/interfaces/source/components/WorkspaceFilesTab.tsx
+````typescript
+import { useCallback, useEffect, useMemo, useState } from "react";
+⋮----
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+⋮----
+import type { WorkspaceFileListItemDto } from "../../../subdomains/source/application/dto/source-file.dto";
+import { resolveSourceOrganizationId } from "../../../subdomains/source/application/dto/source.dto";
+import { getWorkspaceFiles } from "../queries/source-file.queries";
+import { uploadCompleteFile, uploadInitFile } from "../_actions/source-file.actions";
+import { makeSourceStorageAdapter } from "../composition/adapters";
+import { FileProcessingDialog } from "./FileProcessingDialog";
+⋮----
+interface WorkspaceFilesTabProps {
+  readonly workspace: WorkspaceEntity;
+}
+⋮----
+interface PendingUploadProcessing {
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+}
+⋮----
+async function handleUploadFile(file: File)
+⋮----
+onClose=
+````
+
 ## File: modules/notebooklm/interfaces/source/contracts/source-command-result.ts
 ````typescript
 import type { SourceFileCommandErrorCode } from "../../../subdomains/source/application/dto/source-file.dto";
@@ -5418,26 +5508,42 @@ export type SourceFileCommandResult<TData> =
     };
 ````
 
-## File: modules/notebooklm/interfaces/source/queries/source-file.queries.ts
+## File: modules/notebooklm/interfaces/source/hooks/useSourceDocumentsSnapshot.ts
 ````typescript
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { useCallback, useEffect, useRef, useState } from "react";
 ⋮----
-import type { WorkspaceFileListItemDto } from "../../../subdomains/source/application/dto/source-file.dto";
-import { resolveSourceOrganizationId } from "../../../subdomains/source/application/dto/source.dto";
-import type { RagDocumentRecord } from "../../../subdomains/source/application/dto/source.dto";
-import type { SourceFileVersion } from "../../../subdomains/source/domain/entities/SourceFileVersion";
-import { makeRagDocumentAdapter, makeSourceFileAdapter } from "../composition/adapters";
-import { ListSourceFilesUseCase } from "../../../subdomains/source/application/queries/source-file.queries";
+import { makeSourceDocumentWatchAdapter } from "../composition/adapters";
 ⋮----
-export async function getWorkspaceFiles(
-  workspace: WorkspaceEntity,
-): Promise<WorkspaceFileListItemDto[]>
+import type {
+  SourceLiveDocument,
+} from "../../../subdomains/source/application/dto/source-live-document.dto";
+import {
+  mapToSourceLiveDocument,
+} from "../../../subdomains/source/application/dto/source-live-document.dto";
 ⋮----
-export async function getWorkspaceRagDocuments(
-  workspace: WorkspaceEntity,
-): Promise<readonly RagDocumentRecord[]>
+// Re-export types for backward compatibility
 ⋮----
-export async function getSourceFileVersions(fileId: string): Promise<readonly SourceFileVersion[]>
+// ── Helpers ───────────────────────────────────────────────────────────────────
+⋮----
+function isRecord(value: unknown): value is Record<string, unknown>
+⋮----
+function objectOrEmpty(value: unknown): Record<string, unknown>
+⋮----
+// ── Hook ──────────────────────────────────────────────────────────────────────
+⋮----
+export interface UseSourceDocumentsSnapshotResult {
+  readonly docs: SourceLiveDocument[];
+  readonly loading: boolean;
+  readonly pendingDocs: SourceLiveDocument[];
+  readonly addPending: (doc: SourceLiveDocument) => void;
+  readonly removePending: (id: string) => void;
+}
+⋮----
+/** Subscribes to Firestore `accounts/{accountId}/documents` in real time via onSnapshot. */
+export function useSourceDocumentsSnapshot(
+  accountId: string,
+  workspaceId?: string,
+): UseSourceDocumentsSnapshotResult
 ````
 
 ## File: modules/notebooklm/subdomains/conversation/api/server.ts
@@ -5600,6 +5706,17 @@ export interface NotebookRepository {
 }
 ⋮----
 generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>;
+````
+
+## File: modules/notebooklm/subdomains/source/api/server.ts
+````typescript
+/**
+ * source subdomain — server-only API.
+ *
+ * Exports composition factories for server-side wiring.
+ * Server Actions, route handlers, and other server-side entry points should
+ * use these factories instead of importing infrastructure adapters directly.
+ */
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/dto/source-file.dto.ts
@@ -16271,23 +16388,6 @@ interface WorkspaceSectionContentProps {
 onSelectWorkspace(workspace.id);
 ````
 
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceFileVersionHistory.tsx
-````typescript
-import { Badge } from "@ui-shadcn/ui/badge";
-⋮----
-import type { WorkspaceManagedFileVersionItem } from "@/modules/workspace/api/facade";
-⋮----
-function formatVersionDate(value: string): string
-⋮----
-interface WorkspaceFileVersionHistoryProps {
-  readonly loadState: "idle" | "loading" | "loaded" | "error" | undefined;
-  readonly versions: readonly WorkspaceManagedFileVersionItem[];
-  readonly getStatusTone: (status: string) => "default" | "secondary" | "outline";
-}
-⋮----
-<Badge variant=
-````
-
 ## File: modules/workspace/interfaces/web/index.ts
 ````typescript
 /**
@@ -16297,31 +16397,6 @@ interface WorkspaceFileVersionHistoryProps {
  * App-layer and cross-module consumers that need UI composition must import
  * from this path instead of reaching into individual sub-directories.
  */
-````
-
-## File: modules/workspace/interfaces/web/navigation/nav-preferences-data.test.ts
-````typescript
-import { afterEach, describe, expect, it } from "vitest";
-⋮----
-import { readNavPreferences } from "./nav-preferences-data";
-⋮----
-type StorageLike = {
-  readonly length: number;
-  getItem: (key: string) => string | null;
-  setItem: (key: string, value: string) => void;
-  removeItem: (key: string) => void;
-  clear: () => void;
-  key: (index: number) => string | null;
-};
-⋮----
-function createLocalStorageMock(): StorageLike
-⋮----
-get length()
-getItem(key)
-setItem(key, value)
-removeItem(key)
-clear()
-key(index)
 ````
 
 ## File: modules/workspace/interfaces/web/navigation/use-sidebar-locale.ts
@@ -17825,6 +17900,52 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
+## File: modules/workspace/subdomains/workspace-workflow/api/contracts.ts
+````typescript
+/**
+ * @module workspace-flow/api
+ * @file contracts.ts
+ * @description Public contracts exposed through the workspace-flow module boundary.
+ *
+ * All types, DTOs, and projection helpers that external consumers need are
+ * re-exported from this single file.  XState internals (canTransition*, nextStatus,
+ * isTerminal*) are intentionally NOT exposed here — status machines are internal.
+ *
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+⋮----
+// ── Entity types ──────────────────────────────────────────────────────────────
+⋮----
+// ── Value objects (enum / list only — no transition helpers) ──────────────────
+⋮----
+// ── Source reference (content → workspace-flow provenance) ────────────────────
+⋮----
+// ── Summary projections ───────────────────────────────────────────────────────
+⋮----
+// ── CRUD / command DTOs ───────────────────────────────────────────────────────
+⋮----
+// ── Query / pagination DTOs ───────────────────────────────────────────────────
+⋮----
+// ── Command / operation result ────────────────────────────────────────────────
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/api/factories.ts
+````typescript
+import { FirebaseInvoiceRepository } from "../infrastructure/repositories/FirebaseInvoiceRepository";
+import { FirebaseIssueRepository } from "../infrastructure/repositories/FirebaseIssueRepository";
+import { FirebaseTaskMaterializationBatchJobRepository } from "../infrastructure/repositories/FirebaseTaskMaterializationBatchJobRepository";
+import { FirebaseTaskRepository } from "../infrastructure/repositories/FirebaseTaskRepository";
+⋮----
+export function makeTaskRepo()
+⋮----
+export function makeIssueRepo()
+⋮----
+export function makeInvoiceRepo()
+⋮----
+export function makeTaskMaterializationBatchJobRepo()
+````
+
 ## File: modules/workspace/subdomains/workspace-workflow/api/workspace-flow-invoice.facade.ts
 ````typescript
 /**
@@ -18342,6 +18463,22 @@ export interface ResolveIssueDto {
 }
 ````
 
+## File: modules/workspace/subdomains/workspace-workflow/application/dto/submit-task-materialization-batch-job.dto.ts
+````typescript
+/**
+ * @module workspace-flow/application/dto
+ * @file submit-task-materialization-batch-job.dto.ts
+ * @description Command DTO for submitting a task materialization batch job.
+ */
+⋮----
+export interface SubmitTaskMaterializationBatchJobDto {
+  readonly workspaceId: string;
+  readonly actorId: string;
+  readonly correlationId?: string;
+  readonly knowledgePageIds: ReadonlyArray<string>;
+}
+````
+
 ## File: modules/workspace/subdomains/workspace-workflow/application/dto/task-query.dto.ts
 ````typescript
 /**
@@ -18403,6 +18540,14 @@ export interface UpdateTaskDto {
   readonly assigneeId?: string;
   readonly dueDateISO?: string;
 }
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/application/dto/workflow.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the workspace-workflow subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/add-invoice-item.use-case.ts
@@ -18901,6 +19046,26 @@ constructor(private readonly issueRepository: IssueRepository)
 async execute(issueId: string): Promise<CommandResult>
 ````
 
+## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/submit-task-materialization-batch-job.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file submit-task-materialization-batch-job.use-case.ts
+ * @description Submit a task materialization batch job in queued status.
+ */
+⋮----
+import { v7 as generateId } from "@lib-uuid";
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { TaskMaterializationBatchJobRepository } from "../../domain/repositories/TaskMaterializationBatchJobRepository";
+import type { SubmitTaskMaterializationBatchJobDto } from "../dto/submit-task-materialization-batch-job.dto";
+⋮----
+export class SubmitTaskMaterializationBatchJobUseCase {
+⋮----
+constructor(
+⋮----
+async execute(dto: SubmitTaskMaterializationBatchJobDto): Promise<CommandResult>
+````
+
 ## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/submit-task-to-qa.use-case.ts
 ````typescript
 /**
@@ -19045,6 +19210,49 @@ export interface UpdateIssueInput {
   readonly title?: string;
   readonly description?: string;
   readonly assignedTo?: string;
+}
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/domain/entities/TaskMaterializationBatchJob.ts
+````typescript
+/**
+ * @module workspace-flow/domain/entities
+ * @file TaskMaterializationBatchJob.ts
+ * @description Batch job aggregate for task materialization orchestration.
+ */
+⋮----
+import type { TaskMaterializationBatchJobStatus } from "../value-objects/TaskMaterializationBatchJobStatus";
+⋮----
+export interface TaskMaterializationBatchJob {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly actorId: string;
+  readonly correlationId: string;
+  readonly knowledgePageIds: ReadonlyArray<string>;
+  readonly totalItems: number;
+  readonly processedItems: number;
+  readonly succeededItems: number;
+  readonly failedItems: number;
+  readonly status: TaskMaterializationBatchJobStatus;
+  readonly startedAtISO?: string;
+  readonly completedAtISO?: string;
+  readonly errorCode?: string;
+  readonly errorMessage?: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateTaskMaterializationBatchJobInput {
+  readonly workspaceId: string;
+  readonly actorId: string;
+  readonly correlationId: string;
+  readonly knowledgePageIds: ReadonlyArray<string>;
+}
+⋮----
+export interface CompleteTaskMaterializationBatchJobInput {
+  readonly processedItems: number;
+  readonly succeededItems: number;
+  readonly failedItems: number;
 }
 ````
 
@@ -19435,6 +19643,43 @@ countOpenByTaskId(taskId: string): Promise<number>;
 transitionStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<Issue | null>;
 ````
 
+## File: modules/workspace/subdomains/workspace-workflow/domain/repositories/TaskMaterializationBatchJobRepository.ts
+````typescript
+/**
+ * @module workspace-flow/domain/repositories
+ * @file TaskMaterializationBatchJobRepository.ts
+ * @description Repository port for task materialization batch jobs.
+ */
+⋮----
+import type {
+  CompleteTaskMaterializationBatchJobInput,
+  CreateTaskMaterializationBatchJobInput,
+  TaskMaterializationBatchJob,
+} from "../entities/TaskMaterializationBatchJob";
+⋮----
+export interface TaskMaterializationBatchJobRepository {
+  create(input: CreateTaskMaterializationBatchJobInput): Promise<TaskMaterializationBatchJob>;
+  findById(jobId: string): Promise<TaskMaterializationBatchJob | null>;
+  findByWorkspaceId(workspaceId: string): Promise<TaskMaterializationBatchJob[]>;
+  markRunning(jobId: string): Promise<TaskMaterializationBatchJob | null>;
+  markCompleted(
+    jobId: string,
+    input: CompleteTaskMaterializationBatchJobInput,
+  ): Promise<TaskMaterializationBatchJob | null>;
+  markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<TaskMaterializationBatchJob | null>;
+}
+⋮----
+create(input: CreateTaskMaterializationBatchJobInput): Promise<TaskMaterializationBatchJob>;
+findById(jobId: string): Promise<TaskMaterializationBatchJob | null>;
+findByWorkspaceId(workspaceId: string): Promise<TaskMaterializationBatchJob[]>;
+markRunning(jobId: string): Promise<TaskMaterializationBatchJob | null>;
+markCompleted(
+    jobId: string,
+    input: CompleteTaskMaterializationBatchJobInput,
+  ): Promise<TaskMaterializationBatchJob | null>;
+markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<TaskMaterializationBatchJob | null>;
+````
+
 ## File: modules/workspace/subdomains/workspace-workflow/domain/repositories/TaskRepository.ts
 ````typescript
 /**
@@ -19808,6 +20053,18 @@ export type TaskId = string & { readonly [TaskIdBrand]: void };
 export function taskId(raw: string): TaskId
 ````
 
+## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/TaskMaterializationBatchJobStatus.ts
+````typescript
+/**
+ * @module workspace-flow/domain/value-objects
+ * @file TaskMaterializationBatchJobStatus.ts
+ * @description Lifecycle statuses for task materialization batch jobs.
+ */
+⋮----
+export type TaskMaterializationBatchJobStatus =
+  (typeof TASK_MATERIALIZATION_BATCH_JOB_STATUSES)[number];
+````
+
 ## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/TaskStatus.ts
 ````typescript
 /**
@@ -19960,6 +20217,26 @@ import type { SourceReference } from "../../domain/value-objects/SourceReference
 export function toSourceReference(raw: unknown): SourceReference | undefined
 ````
 
+## File: modules/workspace/subdomains/workspace-workflow/infrastructure/firebase/task-materialization-batch-job.converter.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/firebase
+ * @file task-materialization-batch-job.converter.ts
+ * @description Firestore document-to-entity converter for task materialization batch jobs.
+ */
+⋮----
+import type { TaskMaterializationBatchJob } from "../../domain/entities/TaskMaterializationBatchJob";
+import {
+  TASK_MATERIALIZATION_BATCH_JOB_STATUSES,
+  type TaskMaterializationBatchJobStatus,
+} from "../../domain/value-objects/TaskMaterializationBatchJobStatus";
+⋮----
+export function toTaskMaterializationBatchJob(
+  id: string,
+  raw: Record<string, unknown>,
+): TaskMaterializationBatchJob
+````
+
 ## File: modules/workspace/subdomains/workspace-workflow/infrastructure/firebase/task.converter.ts
 ````typescript
 /**
@@ -19982,6 +20259,28 @@ import { toSourceReference } from "./sourceReference.converter";
  * @param data - Raw document fields from Firestore
  */
 export function toTask(id: string, data: Record<string, unknown>): Task
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/infrastructure/firebase/workspace-flow.collections.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/firebase
+ * @file workspace-flow.collections.ts
+ * @description Firestore collection path constants for the workspace-flow module.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Update collection names to match production Firestore schema
+ */
+⋮----
+/** Top-level Firestore collection for workspace-flow tasks. */
+⋮----
+/** Top-level Firestore collection for workspace-flow issues. */
+⋮----
+/** Top-level Firestore collection for workspace-flow invoices. */
+⋮----
+/** Top-level Firestore collection for workspace-flow invoice items. */
+⋮----
+/** Top-level Firestore collection for task materialization batch jobs. */
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow-invoice.actions.ts
@@ -20089,6 +20388,21 @@ export async function wfApproveTaskAcceptance(taskId: string): Promise<CommandRe
 export async function wfArchiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult>
 ````
 
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow.actions.ts
+````typescript
+/**
+ * @module workspace-flow/interfaces/_actions
+ * @file workspace-flow.actions.ts
+ * @description Re-export barrel for all workspace-flow Server Actions.
+ *              Each sub-file carries its own "use server" directive; this barrel
+ *              must NOT repeat it — Turbopack cannot resolve re-exports from a
+ *              "use server" barrel that itself re-exports other "use server" files.
+ *  - workspace-flow-task.actions.ts    (create, update, assign, qa, approve, archive)
+ *  - workspace-flow-issue.actions.ts   (open, start, fix, retest, resolve, close)
+ *  - workspace-flow-invoice.actions.ts (create, add/update/remove item, submit, review, approve, reject, pay, close)
+ */
+````
+
 ## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/AssignTaskDialog.tsx
 ````typescript
 import { useState } from "react";
@@ -20156,36 +20470,6 @@ async function handleSubmit(e: React.FormEvent)
 onChange=
 ⋮----
 // eslint-disable-next-line jsx-a11y/no-autofocus
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/EditTaskDialog.tsx
-````typescript
-import { useEffect, useState } from "react";
-⋮----
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-⋮----
-import type { Task } from "../../application/dto/workflow.dto";
-import { wfUpdateTask } from "../_actions/workspace-flow.actions";
-⋮----
-export interface EditTaskDialogProps {
-  open: boolean;
-  task: Task;
-  onClose: () => void;
-  onUpdated: () => void;
-}
-⋮----
-async function handleSubmit(event: React.FormEvent)
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/InvoiceRow.tsx
@@ -20297,68 +20581,6 @@ onChange=
 // eslint-disable-next-line jsx-a11y/no-autofocus
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/TaskRow.tsx
-````typescript
-import { useCallback, useState } from "react";
-⋮----
-import { ChevronDown, ChevronRight, Pencil, Plus } from "lucide-react";
-⋮----
-import type { CommandResult } from "@shared-types";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-⋮----
-import type { Issue } from "../../application/dto/workflow.dto";
-import type { Task } from "../../application/dto/workflow.dto";
-import type { TaskStatus } from "../../application/dto/workflow.dto";
-import {
-  wfApproveTaskAcceptance,
-  wfArchiveTask,
-  wfPassTaskQa,
-  wfSubmitTaskToQa,
-} from "../_actions/workspace-flow.actions";
-import { getWorkspaceFlowIssues } from "../queries/workspace-flow.queries";
-import { AssignTaskDialog } from "./AssignTaskDialog";
-import { EditTaskDialog } from "./EditTaskDialog";
-import { IssueRow } from "./IssueRow";
-import { OpenIssueDialog } from "./OpenIssueDialog";
-⋮----
-function formatShortDate(iso: string | undefined): string
-⋮----
-export interface TaskRowProps {
-  task: Task;
-  currentUserId: string;
-  onTransitioned: () => void;
-}
-⋮----
-export function TaskRow(
-⋮----
-// non-fatal
-⋮----
-async function toggleIssues()
-⋮----
-async function runAction(action: () => Promise<CommandResult>)
-⋮----
-<Button size="sm" variant="outline" disabled=
-⋮----
-return <Button size="sm" variant="outline" disabled=
-⋮----
-{/* ── Task header ─────────────────────── */}
-⋮----
-{/* ── Action row ──────────────────────── */}
-⋮----
-<Button
-⋮----
-{/* ── Issues sub-list ─────────────────── */}
-⋮----
-{/* ── Dialogs ─────────────────────────── */}
-⋮----
-onClose=
-⋮----
-onCreated=
-await loadIssues();
-if (!issuesExpanded) setIssuesExpanded(true);
-````
-
 ## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx
 ````typescript
 /**
@@ -20436,6 +20658,154 @@ async function handleCreateInvoice()
 {/* ── Invoices section ──────────────────────────────────────────── */}
 ⋮----
 {/* ── Create Task Dialog ─────────────────────────────────────────── */}
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/contracts/workspace-flow.contract.ts
+````typescript
+/**
+ * @module workspace-flow/interfaces/contracts
+ * @file workspace-flow.contract.ts
+ * @description Module-local interface contracts for workspace-flow UI adapters.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Expand with view-model contracts as UI adapters are added
+ */
+⋮----
+import type { Task } from "../../application/dto/workflow.dto";
+import type { Issue } from "../../application/dto/workflow.dto";
+import type { Invoice } from "../../application/dto/workflow.dto";
+import type { InvoiceItem } from "../../application/dto/workflow.dto";
+import type { TaskMaterializationBatchJob } from "../../application/dto/workflow.dto";
+⋮----
+// ── Summary read models (lean projections for UI) ─────────────────────────────
+⋮----
+export interface TaskSummary {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly title: string;
+  readonly status: Task["status"];
+  readonly assigneeId?: string;
+}
+⋮----
+export interface IssueSummary {
+  readonly id: string;
+  readonly taskId: string;
+  readonly title: string;
+  readonly status: Issue["status"];
+  readonly stage: Issue["stage"];
+}
+⋮----
+export interface InvoiceSummary {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly status: Invoice["status"];
+  readonly totalAmount: number;
+}
+⋮----
+export interface InvoiceItemSummary {
+  readonly id: string;
+  readonly invoiceId: string;
+  readonly taskId: string;
+  readonly amount: InvoiceItem["amount"];
+}
+⋮----
+export interface TaskMaterializationBatchJobSummary {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly status: TaskMaterializationBatchJob["status"];
+  readonly totalItems: number;
+  readonly processedItems: number;
+  readonly succeededItems: number;
+  readonly failedItems: number;
+  readonly updatedAtISO: string;
+}
+⋮----
+// ── Projection helpers ────────────────────────────────────────────────────────
+⋮----
+export function toTaskSummary(task: Task): TaskSummary
+⋮----
+export function toIssueSummary(issue: Issue): IssueSummary
+⋮----
+export function toInvoiceSummary(invoice: Invoice): InvoiceSummary
+⋮----
+export function toInvoiceItemSummary(item: InvoiceItem): InvoiceItemSummary
+⋮----
+export function toTaskMaterializationBatchJobSummary(
+  job: TaskMaterializationBatchJob,
+): TaskMaterializationBatchJobSummary
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/queries/workspace-flow.queries.ts
+````typescript
+/**
+ * @module workspace-flow/interfaces/queries
+ * @file workspace-flow.queries.ts
+ * @description Server-side read queries for workspace-flow entities.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add pagination support and caching layer
+ */
+⋮----
+import type { Task } from "../../application/dto/workflow.dto";
+import type { Issue } from "../../application/dto/workflow.dto";
+import type { Invoice } from "../../application/dto/workflow.dto";
+import type { InvoiceItem } from "../../application/dto/workflow.dto";
+import type { TaskMaterializationBatchJob } from "../../application/dto/workflow.dto";
+import {
+  makeInvoiceRepo,
+  makeIssueRepo,
+  makeTaskMaterializationBatchJobRepo,
+  makeTaskRepo,
+} from "../../api/factories";
+⋮----
+/**
+ * List all tasks for a workspace.
+ *
+ * @param workspaceId - The workspace to query
+ */
+export async function getWorkspaceFlowTasks(workspaceId: string): Promise<Task[]>
+⋮----
+/**
+ * Get a single task by id.
+ *
+ * @param taskId - The task identifier
+ */
+export async function getWorkspaceFlowTask(taskId: string): Promise<Task | null>
+⋮----
+/**
+ * List all issues for a task.
+ *
+ * @param taskId - The task identifier
+ */
+export async function getWorkspaceFlowIssues(taskId: string): Promise<Issue[]>
+⋮----
+/**
+ * List all invoices for a workspace.
+ *
+ * @param workspaceId - The workspace to query
+ */
+export async function getWorkspaceFlowInvoices(workspaceId: string): Promise<Invoice[]>
+⋮----
+/**
+ * Get items for an invoice.
+ *
+ * @param invoiceId - The invoice identifier
+ */
+export async function getWorkspaceFlowInvoiceItems(invoiceId: string): Promise<InvoiceItem[]>
+⋮----
+/**
+ * List task materialization batch jobs for a workspace.
+ */
+export async function getWorkspaceFlowTaskMaterializationBatchJobs(
+  workspaceId: string,
+): Promise<TaskMaterializationBatchJob[]>
+⋮----
+/**
+ * Get a single task materialization batch job by id.
+ */
+export async function getWorkspaceFlowTaskMaterializationBatchJob(
+  jobId: string,
+): Promise<TaskMaterializationBatchJob | null>
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/README.md
@@ -26060,61 +26430,6 @@ interface ShellContextNavSectionProps {
   activeAccountId: string | null;
   activeWorkspaceId: string | null;
 }
-````
-
-## File: app/(shell)/_shell/ShellSidebarNavData.tsx
-````typescript
-import {
-  Building2,
-  LayoutDashboard,
-  UserRound,
-  Users,
-} from "lucide-react";
-import Link from "next/link";
-⋮----
-import {
-  type ActiveAccount,
-  isOrganizationActor,
-  isActiveOrganizationAccount,
-  SHELL_ACCOUNT_SECTION_MATCHERS,
-  SHELL_ACCOUNT_NAV_ITEMS,
-  SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
-  SHELL_SECTION_LABELS,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  type ShellNavSection,
-} from "@/modules/platform/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-⋮----
-// ── Types ─────────────────────────────────────────────────────────────────────
-⋮----
-export interface DashboardSidebarProps {
-  readonly pathname: string;
-  readonly userId: string | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-}
-⋮----
-export type NavSection = ShellNavSection;
-⋮----
-// ── Static nav constants ──────────────────────────────────────────────────────
-⋮----
-// ── CSS class helpers ─────────────────────────────────────────────────────────
-⋮----
-export function sidebarItemClass(active: boolean)
-⋮----
-// ── Pure section helpers ──────────────────────────────────────────────────────
-⋮----
-export function resolveNavSection(pathname: string): NavSection
-⋮----
-export function isActiveRoute(pathname: string, href: string)
-⋮----
-// ── Simple section nav component ──────────────────────────────────────────────
 ````
 
 ## File: app/(shell)/(account)/[accountId]/dev-tools/use-dev-tools-doc-list.ts
@@ -33857,106 +34172,26 @@ type RowData = WikiLibraryRow & { _values: Record<string, unknown> };
 onDrop(
 ````
 
-## File: modules/notebooklm/interfaces/source/components/WorkspaceFilesTab.tsx
+## File: modules/notebooklm/interfaces/source/queries/source-file.queries.ts
 ````typescript
-import { useCallback, useEffect, useMemo, useState } from "react";
-⋮----
 import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
 ⋮----
 import type { WorkspaceFileListItemDto } from "../../../subdomains/source/application/dto/source-file.dto";
 import { resolveSourceOrganizationId } from "../../../subdomains/source/application/dto/source.dto";
-import { getWorkspaceFiles } from "../queries/source-file.queries";
-import { uploadCompleteFile, uploadInitFile } from "../_actions/source-file.actions";
-import { makeSourceStorageAdapter } from "../composition/adapters";
-import { FileProcessingDialog } from "./FileProcessingDialog";
+import type { RagDocumentRecord } from "../../../subdomains/source/application/dto/source.dto";
+import type { SourceFileVersion } from "../../../subdomains/source/domain/entities/SourceFileVersion";
+import { makeRagDocumentAdapter, makeSourceFileAdapter } from "../composition/adapters";
+import { ListSourceFilesUseCase } from "../../../subdomains/source/application/queries/source-file.queries";
 ⋮----
-interface WorkspaceFilesTabProps {
-  readonly workspace: WorkspaceEntity;
-}
+export async function getWorkspaceFiles(
+  workspace: WorkspaceEntity,
+): Promise<WorkspaceFileListItemDto[]>
 ⋮----
-interface PendingUploadProcessing {
-  readonly sourceFileId: string;
-  readonly filename: string;
-  readonly gcsUri: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-}
+export async function getWorkspaceRagDocuments(
+  workspace: WorkspaceEntity,
+): Promise<readonly RagDocumentRecord[]>
 ⋮----
-async function handleUploadFile(file: File)
-⋮----
-onClose=
-````
-
-## File: modules/notebooklm/interfaces/source/composition/workspace-files.facade.ts
-````typescript
-import { uploadCompleteFile, uploadInitFile } from "../_actions/source-file.actions";
-import { makeSourceStorageAdapter } from "./adapters";
-import { resolveSourceOrganizationId } from "../../../subdomains/source/application/dto/source.dto";
-⋮----
-export interface UploadWorkspaceSourceFileInput {
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly accountType: "user" | "organization";
-  readonly file: File;
-  readonly displayName?: string;
-}
-⋮----
-export interface UploadWorkspaceSourceFileResult {
-  readonly success: boolean;
-  readonly sourceFileId?: string;
-  readonly filename?: string;
-  readonly gcsUri?: string;
-  readonly mimeType?: string;
-  readonly sizeBytes?: number;
-  readonly error?: { readonly message: string };
-}
-⋮----
-export async function uploadWorkspaceSourceFile(
-  input: UploadWorkspaceSourceFileInput,
-): Promise<UploadWorkspaceSourceFileResult>
-````
-
-## File: modules/notebooklm/interfaces/source/hooks/useSourceDocumentsSnapshot.ts
-````typescript
-import { useCallback, useEffect, useRef, useState } from "react";
-⋮----
-import { makeSourceDocumentWatchAdapter } from "../composition/adapters";
-⋮----
-import type {
-  SourceLiveDocument,
-} from "../../../subdomains/source/application/dto/source-live-document.dto";
-import {
-  mapToSourceLiveDocument,
-} from "../../../subdomains/source/application/dto/source-live-document.dto";
-⋮----
-// Re-export types for backward compatibility
-⋮----
-// ── Helpers ───────────────────────────────────────────────────────────────────
-⋮----
-function isRecord(value: unknown): value is Record<string, unknown>
-⋮----
-function objectOrEmpty(value: unknown): Record<string, unknown>
-⋮----
-// ── Hook ──────────────────────────────────────────────────────────────────────
-⋮----
-export interface UseSourceDocumentsSnapshotResult {
-  readonly docs: SourceLiveDocument[];
-  readonly loading: boolean;
-  readonly pendingDocs: SourceLiveDocument[];
-  readonly addPending: (doc: SourceLiveDocument) => void;
-  readonly removePending: (id: string) => void;
-}
-⋮----
-/** Subscribes to Firestore `accounts/{accountId}/documents` in real time via onSnapshot. */
-export function useSourceDocumentsSnapshot(
-  accountId: string,
-  workspaceId?: string,
-): UseSourceDocumentsSnapshotResult
+export async function getSourceFileVersions(fileId: string): Promise<readonly SourceFileVersion[]>
 ````
 
 ## File: modules/notebooklm/notebooklm.instructions.md
@@ -34127,17 +34362,6 @@ Notebook container and organization.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notebooklm/subdomains/source/api/server.ts
-````typescript
-/**
- * source subdomain — server-only API.
- *
- * Exports composition factories for server-side wiring.
- * Server Actions, route handlers, and other server-side entry points should
- * use these factories instead of importing infrastructure adapters directly.
- */
 ````
 
 ## File: modules/notebooklm/subdomains/source/api/ui.ts
@@ -34814,38 +35038,6 @@ findByWorkspace(scope: {
     readonly workspaceId: string;
   }): Promise<readonly RagDocumentRecord[]>;
 saveUploaded(record: RagDocumentRecord): Promise<void>;
-````
-
-## File: modules/notebooklm/subdomains/source/domain/repositories/SourceFileRepository.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: domain/repositories
- * Port: SourceFileRepository — persistence contract for SourceFile aggregates.
- */
-⋮----
-import type { SourceFile } from "../entities/SourceFile";
-import type { SourceFileVersion } from "../entities/SourceFileVersion";
-⋮----
-export interface ListSourceFilesScope {
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly actorAccountId: string;
-}
-⋮----
-export interface SourceFileRepository {
-  findById(fileId: string): Promise<SourceFile | null>;
-  findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null>;
-  listVersions(fileId: string): Promise<readonly SourceFileVersion[]>;
-  listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>;
-  save(file: SourceFile, versions?: readonly SourceFileVersion[]): Promise<void>;
-}
-⋮----
-findById(fileId: string): Promise<SourceFile | null>;
-findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null>;
-listVersions(fileId: string): Promise<readonly SourceFileVersion[]>;
-listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>;
-save(file: SourceFile, versions?: readonly SourceFileVersion[]): Promise<void>;
 ````
 
 ## File: modules/notebooklm/subdomains/source/domain/repositories/WikiLibraryRepository.ts
@@ -40931,6 +41123,21 @@ export function WorkspaceSettingsDialog({
 }: WorkspaceSettingsDialogProps)
 ````
 
+## File: modules/workspace/interfaces/web/components/layout/workspace-detail-helpers.ts
+````typescript
+import type { WorkspaceEntity } from "../../../contracts";
+import { formatDate } from "@shared-utils";
+import type { WorkspaceTabGroup } from "../../navigation/workspace-tabs";
+⋮----
+export function getWorkspaceInitials(name: string): string
+⋮----
+export function formatTimestamp(
+  timestamp: WorkspaceEntity["createdAt"] | undefined,
+): string
+⋮----
+export function trimOrUndefined(value: string): string | undefined
+````
+
 ## File: modules/workspace/interfaces/web/components/rails/CreateWorkspaceDialogRail.tsx
 ````typescript
 import { type FormEvent, useState } from "react";
@@ -40977,131 +41184,145 @@ reset();
 onOpenChange(false);
 ````
 
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceDetailTabContent.tsx
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceFilesFilterPanel.tsx
 ````typescript
-import type { ReactNode } from "react";
+import { FileSearch, Loader2 } from "lucide-react";
 ⋮----
-import { WorkspaceAuditTab } from "../../../../subdomains/audit/api";
-import { WorkspaceFeedWorkspaceView } from "../../../../subdomains/feed/api";
-import { WorkspaceSchedulingTab } from "../../../../subdomains/scheduling/api";
-import { WorkspaceFlowTab } from "../../../../subdomains/workspace-workflow/api";
-import type { WorkspaceEntity } from "../../../../domain/aggregates/Workspace";
-import type { WorkspaceTabValue } from "../../navigation/workspace-tabs";
-import {
-  getWorkspaceAddressLines,
-  getWorkspacePersonnelEntries,
-} from "../../view-models/workspace-supporting-records";
-import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
-import { WorkspaceFilesManagementTab } from "./WorkspaceFilesManagementTab";
-import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
-import { WorkspaceOverviewTab } from "./WorkspaceOverviewTab";
-import { renderWorkspaceCrossModuleTabSurface } from "./WorkspaceCrossModuleTabSurface";
-⋮----
-interface WorkspaceDetailTabContentOptions {
-  readonly tab: WorkspaceTabValue;
-  readonly workspace: WorkspaceEntity;
-  readonly accountId: string | null | undefined;
-  readonly currentUserId: string | undefined;
-  readonly workspaces: Record<string, WorkspaceEntity>;
-  readonly activeWorkspaceId: string | null;
-  readonly initialOverviewPanel?: string;
-  readonly onEditWorkspace: () => void;
-  readonly onSetActiveWorkspace: (workspaceId: string) => void;
-}
-⋮----
-export function renderWorkspaceDetailTabContent({
-  tab,
-  workspace,
-  accountId,
-  currentUserId,
-  workspaces,
-  activeWorkspaceId,
-  initialOverviewPanel,
-  onEditWorkspace,
-  onSetActiveWorkspace,
-}: WorkspaceDetailTabContentOptions): ReactNode
-⋮----
-onSetActiveWorkspace=
-````
-
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceFilesManagementTab.tsx
-````typescript
-import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FileSearch, Loader2, Pencil, Plus, RefreshCw, Trash2, Wand2 } from "lucide-react";
-⋮----
-import { WorkspaceFileVersionHistory } from "./WorkspaceFileVersionHistory";
-import { FileProcessingDialog } from "@/modules/notebooklm/api/ui";
-import {
-  deleteWorkspaceManagedFile,
-  getWorkspaceManagedFileVersions,
-  getWorkspaceManagedFiles,
-  renameWorkspaceManagedFile,
-  uploadWorkspaceManagedFile,
-  type WorkspaceManagedFileItem,
-  type WorkspaceManagedFileVersionItem,
-} from "@/modules/workspace/api/facade";
-import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Input } from "@ui-shadcn/ui/input";
-import type { WorkspaceEntity } from "../../../../domain/aggregates/Workspace";
 ⋮----
 type FileStatusFilter = "all" | "uploaded" | "processing" | "ready" | "failed" | "active";
 ⋮----
-interface ProcessingTarget {
-  readonly sourceFileId: string;
-  readonly filename: string;
-  readonly gcsUri: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
+interface WorkspaceFilesFilterPanelProps {
+  readonly search: string;
+  readonly filter: FileStatusFilter;
+  readonly uploadMessage: string | null;
+  readonly loadState: "loading" | "loaded" | "error";
+  readonly empty: boolean;
+  readonly onSearchChange: (value: string) => void;
+  readonly onFilterChange: (value: FileStatusFilter) => void;
 }
-⋮----
-type FileWithRelativePath = File & { readonly webkitRelativePath?: string };
-function toGsUri(storagePath: string): string
-⋮----
-function formatFileSize(sizeBytes: number): string
-⋮----
-function getStatusTone(status: string): "default" | "secondary" | "outline"
-⋮----
-async function handleUploadFiles(files: readonly File[], sourceLabel: "file" | "folder")
-⋮----
-async function toggleVersionHistory(documentId: string)
-async function handleDeleteDocument(doc: WorkspaceManagedFileItem)
-⋮----
-async function handleRenameSave(doc: WorkspaceManagedFileItem)
-⋮----
-<Badge variant=
-⋮----
-setProcessingTarget({
-                            sourceFileId: doc.id,
-                            filename: doc.name || doc.sourceFileName || "Untitled file",
-                            gcsUri: toGsUri(doc.storagePath),
-                            mimeType: doc.mimeType,
-                            sizeBytes: doc.sizeBytes,
-                          });
-⋮----
-<Button size="sm" variant="outline" onClick=
-⋮----
-onClose=
 ````
 
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceMembersTab.tsx
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceFilesSummaryCard.tsx
 ````typescript
-import { useEffect, useMemo, useState } from "react";
+import { Plus, RefreshCw } from "lucide-react";
 ⋮----
-import { dismissMember, inviteMember, updateMemberRole, type OrganizationRole } from "@/modules/platform/api";
-import type { WorkspaceEntity, WorkspaceMemberView } from "../../../contracts";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+⋮----
+interface WorkspaceFilesSummaryCardProps {
+  readonly uploading: boolean;
+  readonly managedFileCount: number;
+  readonly readyCount: number;
+  readonly failedCount: number;
+  readonly folderInputRef: React.RefObject<HTMLInputElement | null>;
+  readonly onRefresh: () => void;
+  readonly onFilesSelected: (files: readonly File[]) => void;
+  readonly onFolderSelected: (files: readonly File[]) => void;
+}
+⋮----
+export function WorkspaceFilesSummaryCard({
+  uploading,
+  managedFileCount,
+  readyCount,
+  failedCount,
+  folderInputRef,
+  onRefresh,
+  onFilesSelected,
+  onFolderSelected,
+}: WorkspaceFilesSummaryCardProps)
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceFileVersionHistory.tsx
+````typescript
+import { Badge } from "@ui-shadcn/ui/badge";
+⋮----
+import type { WorkspaceManagedFileVersionItem } from "@/modules/workspace/api/facade";
+⋮----
+function formatVersionDate(value: string): string
+⋮----
+interface WorkspaceFileVersionHistoryProps {
+  readonly loadState: "idle" | "loading" | "loaded" | "error" | undefined;
+  readonly versions: readonly WorkspaceManagedFileVersionItem[];
+  readonly getStatusTone: (status: string) => "default" | "secondary" | "outline";
+}
+⋮----
+<Badge variant=
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceManagedFileCard.tsx
+````typescript
+import Link from "next/link";
+import { Pencil, Trash2, Wand2 } from "lucide-react";
+⋮----
+import type {
+  WorkspaceManagedFileItem,
+  WorkspaceManagedFileVersionItem,
+} from "@/modules/workspace/api/facade";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+⋮----
+import { WorkspaceFileVersionHistory } from "./WorkspaceFileVersionHistory";
+⋮----
+interface WorkspaceManagedFileCardProps {
+  readonly doc: WorkspaceManagedFileItem;
+  readonly isEditing: boolean;
+  readonly draftName: string;
+  readonly isBusy: boolean;
+  readonly isVersionExpanded: boolean;
+  readonly versionLoadState?: "idle" | "loading" | "loaded" | "error";
+  readonly versions: readonly WorkspaceManagedFileVersionItem[];
+  readonly onDraftNameChange: (value: string) => void;
+  readonly onSave: () => void;
+  readonly onCancelEdit: () => void;
+  readonly onStartEdit: () => void;
+  readonly onOpenProcessing: () => void;
+  readonly onToggleVersionHistory: () => void;
+  readonly onDelete: () => void;
+  readonly getStatusTone: (status: string) => "default" | "secondary" | "outline";
+  readonly formatFileSize: (sizeBytes: number) => string;
+}
+⋮----
+<Badge variant=
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceMemberCard.tsx
+````typescript
+import type { WorkspaceMemberView } from "../../../contracts";
+import type { OrganizationRole } from "@/modules/platform/api";
 import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+⋮----
+function getMemberInitials(name: string)
+⋮----
+function getAccessChannelKey(memberId: string, channel: WorkspaceMemberView["accessChannels"][number], index: number)
+⋮----
+interface WorkspaceMemberCardProps {
+  readonly member: WorkspaceMemberView;
+  readonly canManage: boolean;
+  readonly pending: boolean;
+  readonly editableRoles: readonly OrganizationRole[];
+  readonly onRoleChange: (role: OrganizationRole) => void;
+  readonly onRemove: () => void;
+}
+⋮----
+<Badge key=
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceMemberInviteDialog.tsx
+````typescript
+import type { OrganizationRole } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -41119,27 +41340,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@ui-shadcn/ui/select";
-import { getWorkspaceMembers } from "../../../facades";
 ⋮----
-function getMemberInitials(name: string)
-⋮----
-function getAccessChannelKey(memberId: string, channel: WorkspaceMemberView["accessChannels"][number], index: number)
-⋮----
-interface WorkspaceMembersTabProps {
-  readonly workspace: WorkspaceEntity;
+interface WorkspaceMemberInviteDialogProps {
+  readonly open: boolean;
+  readonly email: string;
+  readonly role: OrganizationRole;
+  readonly submitting: boolean;
+  readonly editableRoles: readonly OrganizationRole[];
+  readonly onOpenChange: (open: boolean) => void;
+  readonly onEmailChange: (value: string) => void;
+  readonly onRoleChange: (role: OrganizationRole) => void;
+  readonly onSubmit: () => void;
 }
-⋮----
-async function loadMembers()
-⋮----
-async function handleInviteMember()
-⋮----
-async function handleRoleChange(memberId: string, role: OrganizationRole)
-⋮----
-async function handleRemoveMember(memberId: string)
-⋮----
-<Button onClick=
-⋮----
-key=
 ````
 
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewSettingsTab.tsx
@@ -41352,6 +41564,11 @@ export function getWorkspaceGovernanceSummary(
 ): WorkspaceGovernanceSummary
 ````
 
+## File: modules/workspace/subdomains/attachment/README.md
+````markdown
+
+````
+
 ## File: modules/workspace/subdomains/audit/application/queries/list-audit-logs.queries.ts
 ````typescript
 import type { AuditLogEntity } from "../../domain/entities/AuditLog";
@@ -41449,6 +41666,26 @@ export async function recordWorkspaceAuditEntry(
 ## File: modules/workspace/subdomains/audit/interfaces/queries/audit.queries.ts
 ````typescript
 
+````
+
+## File: modules/workspace/subdomains/comment/README.md
+````markdown
+# Comment Subdomain
+
+Provides discussion and feedback system across workspace entities.
+
+Responsibilities:
+- Store comments for tasks, reviews, issues
+- Support threaded discussions (optional)
+- Track author and timestamps
+- Enable collaboration context
+
+Key entity:
+- Comment
+
+Out of scope:
+- Workflow decisions
+- Approval logic
 ````
 
 ## File: modules/workspace/subdomains/feed/api/index.ts
@@ -41642,6 +41879,26 @@ async function handleReply(postId: string)
 onChange=
 ⋮----
 onClick=
+````
+
+## File: modules/workspace/subdomains/notification/README.md
+````markdown
+# Notification Subdomain
+
+Handles user-facing event notifications.
+
+Responsibilities:
+- Deliver event-based notifications
+- Support in-app notifications
+- Track read/unread state
+- Integrate with system events (task, review, issue)
+
+Key entity:
+- Notification
+
+Out of scope:
+- Business logic of events
+- Workflow orchestration
 ````
 
 ## File: modules/workspace/subdomains/scheduling/api/index.ts
@@ -41843,20 +42100,138 @@ export async function getWorkspaceDemands(workspaceId: string): Promise<WorkDema
 export async function getAccountDemands(accountId: string): Promise<WorkDemand[]>
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/api/factories.ts
+## File: modules/workspace/subdomains/tag/README.md
+````markdown
+# Tag Subdomain
+
+Provides labeling system for workspace entities.
+
+Responsibilities:
+- Create and manage tags
+- Attach tags to tasks, issues, reviews
+- Support filtering and grouping
+- Maintain tag taxonomy
+
+Key entity:
+- Tag
+
+Out of scope:
+- Workflow logic
+- Business state transitions
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/api/index.ts
 ````typescript
-import { FirebaseInvoiceRepository } from "../infrastructure/repositories/FirebaseInvoiceRepository";
-import { FirebaseIssueRepository } from "../infrastructure/repositories/FirebaseIssueRepository";
-import { FirebaseTaskMaterializationBatchJobRepository } from "../infrastructure/repositories/FirebaseTaskMaterializationBatchJobRepository";
-import { FirebaseTaskRepository } from "../infrastructure/repositories/FirebaseTaskRepository";
+/**
+ * @module workspace-flow/api
+ * @file index.ts
+ * @description Public cross-module boundary for workspace-flow.
+ *
+ * External consumers MUST import only from this path:
+ *   @/modules/workspace/api
+ *
+ * Never import from domain/, application/, infrastructure/, or interfaces/ directly.
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
 ⋮----
-export function makeTaskRepo()
+// ── Facade (write + summary-read surface) ────────────────────────────────────
 ⋮----
-export function makeIssueRepo()
+// Composite facade (all three aggregates)
 ⋮----
-export function makeInvoiceRepo()
+// Focused facades (prefer these when only one aggregate is needed)
 ⋮----
-export function makeTaskMaterializationBatchJobRepo()
+// ── Public contracts ──────────────────────────────────────────────────────────
+⋮----
+// Entities
+⋮----
+// Value objects
+⋮----
+// Summary projections
+⋮----
+// CRUD / command DTOs
+⋮----
+// Query / pagination DTOs
+⋮----
+// Command result
+⋮----
+// Value object lists (enum arrays)
+⋮----
+// Summary projection helpers
+⋮----
+// ── Read queries (server-side) ────────────────────────────────────────────────
+⋮----
+// ── Public write-side commands for knowledge → task flow ────────────────────
+⋮----
+// ── UI components ─────────────────────────────────────────────────────────────
+⋮----
+// ── Event listeners (knowledge → workspace-flow integration) ─────────────────
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/api/workspace-flow-task-batch-job.facade.ts
+````typescript
+/**
+ * @module workspace-flow/api
+ * @file workspace-flow-task-batch-job.facade.ts
+ * @description Focused facade for task materialization batch jobs.
+ */
+⋮----
+import type { CommandResult } from "@shared-types";
+import type {
+  ExtractTaskCandidatesFromKnowledgeDto,
+  ExtractTaskCandidatesFromKnowledgeResult,
+} from "../application/dto/extract-task-candidates-from-knowledge.dto";
+import type { SubmitTaskMaterializationBatchJobDto } from "../application/dto/submit-task-materialization-batch-job.dto";
+import type { TaskCandidateExtractionAiPort } from "../domain/ports/TaskCandidateExtractionAiPort";
+import { ExtractTaskCandidatesFromKnowledgeUseCase } from "../application/use-cases/extract-task-candidates-from-knowledge.use-case";
+import { SubmitTaskMaterializationBatchJobUseCase } from "../application/use-cases/submit-task-materialization-batch-job.use-case";
+import type { TaskMaterializationBatchJob } from "../domain/entities/TaskMaterializationBatchJob";
+import type { TaskMaterializationBatchJobRepository } from "../domain/repositories/TaskMaterializationBatchJobRepository";
+⋮----
+export class WorkspaceFlowTaskBatchJobFacade {
+⋮----
+constructor(
+⋮----
+async submitBatchJob(dto: SubmitTaskMaterializationBatchJobDto): Promise<CommandResult>
+⋮----
+async getBatchJob(jobId: string): Promise<TaskMaterializationBatchJob | null>
+⋮----
+async listBatchJobs(workspaceId: string): Promise<TaskMaterializationBatchJob[]>
+⋮----
+async extractTaskCandidates(
+    dto: ExtractTaskCandidatesFromKnowledgeDto,
+): Promise<ExtractTaskCandidatesFromKnowledgeResult>
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/application/dto/extract-task-candidates-from-knowledge.dto.ts
+````typescript
+/**
+ * @module workspace-flow/application/dto
+ * @file extract-task-candidates-from-knowledge.dto.ts
+ * @description Application-layer DTOs for the ExtractTaskCandidatesFromKnowledge use case.
+ *
+ * Pure value types (KnowledgeTextBlockInput, ExtractedTaskCandidate, TaskCandidateSource)
+ * now live in domain/value-objects/TaskCandidate.ts. They are re-exported here so existing
+ * application-layer import paths continue to resolve.
+ *
+ * @see ADR-5201 Accidental Complexity — workspace-workflow application structure
+ */
+⋮----
+import type {
+  KnowledgeTextBlockInput,
+  ExtractedTaskCandidate,
+} from "../../domain/value-objects/TaskCandidate";
+⋮----
+export interface ExtractTaskCandidatesFromKnowledgeDto {
+  readonly knowledgePageId: string;
+  readonly blocks: ReadonlyArray<KnowledgeTextBlockInput>;
+  readonly enableAiFallback?: boolean;
+}
+⋮----
+export interface ExtractTaskCandidatesFromKnowledgeResult {
+  readonly candidates: ReadonlyArray<ExtractedTaskCandidate>;
+  readonly usedAiFallback: boolean;
+}
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/application/dto/materialize-from-knowledge.dto.ts
@@ -41899,30 +42274,6 @@ export interface MaterializeFromKnowledgeDto {
 /** ID of the KnowledgePage that was approved (same as sourceReference.id). */
 ⋮----
 /** Pre-built SourceReference value object to attach to every created entity. */
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/submit-task-materialization-batch-job.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file submit-task-materialization-batch-job.dto.ts
- * @description Command DTO for submitting a task materialization batch job.
- */
-⋮----
-export interface SubmitTaskMaterializationBatchJobDto {
-  readonly workspaceId: string;
-  readonly actorId: string;
-  readonly correlationId?: string;
-  readonly knowledgePageIds: ReadonlyArray<string>;
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/workflow.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the workspace-workflow subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/application/ports/InvoiceService.ts
@@ -42095,26 +42446,6 @@ constructor(
 async execute(dto: MaterializeFromKnowledgeDto): Promise<CommandResult>
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/submit-task-materialization-batch-job.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file submit-task-materialization-batch-job.use-case.ts
- * @description Submit a task materialization batch job in queued status.
- */
-⋮----
-import { v7 as generateId } from "@lib-uuid";
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskMaterializationBatchJobRepository } from "../../domain/repositories/TaskMaterializationBatchJobRepository";
-import type { SubmitTaskMaterializationBatchJobDto } from "../dto/submit-task-materialization-batch-job.dto";
-⋮----
-export class SubmitTaskMaterializationBatchJobUseCase {
-⋮----
-constructor(
-⋮----
-async execute(dto: SubmitTaskMaterializationBatchJobDto): Promise<CommandResult>
-````
-
 ## File: modules/workspace/subdomains/workspace-workflow/domain/entities/Invoice.ts
 ````typescript
 /**
@@ -42221,49 +42552,6 @@ export interface UpdateTaskInput {
 }
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/domain/entities/TaskMaterializationBatchJob.ts
-````typescript
-/**
- * @module workspace-flow/domain/entities
- * @file TaskMaterializationBatchJob.ts
- * @description Batch job aggregate for task materialization orchestration.
- */
-⋮----
-import type { TaskMaterializationBatchJobStatus } from "../value-objects/TaskMaterializationBatchJobStatus";
-⋮----
-export interface TaskMaterializationBatchJob {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly actorId: string;
-  readonly correlationId: string;
-  readonly knowledgePageIds: ReadonlyArray<string>;
-  readonly totalItems: number;
-  readonly processedItems: number;
-  readonly succeededItems: number;
-  readonly failedItems: number;
-  readonly status: TaskMaterializationBatchJobStatus;
-  readonly startedAtISO?: string;
-  readonly completedAtISO?: string;
-  readonly errorCode?: string;
-  readonly errorMessage?: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateTaskMaterializationBatchJobInput {
-  readonly workspaceId: string;
-  readonly actorId: string;
-  readonly correlationId: string;
-  readonly knowledgePageIds: ReadonlyArray<string>;
-}
-⋮----
-export interface CompleteTaskMaterializationBatchJobInput {
-  readonly processedItems: number;
-  readonly succeededItems: number;
-  readonly failedItems: number;
-}
-````
-
 ## File: modules/workspace/subdomains/workspace-workflow/domain/index.ts
 ````typescript
 /**
@@ -42300,43 +42588,6 @@ extractTaskCandidates(input: {
     readonly content: string;
     readonly maxCandidates?: number;
   }): Promise<ReadonlyArray<AIExtractedTaskCandidate>>;
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/repositories/TaskMaterializationBatchJobRepository.ts
-````typescript
-/**
- * @module workspace-flow/domain/repositories
- * @file TaskMaterializationBatchJobRepository.ts
- * @description Repository port for task materialization batch jobs.
- */
-⋮----
-import type {
-  CompleteTaskMaterializationBatchJobInput,
-  CreateTaskMaterializationBatchJobInput,
-  TaskMaterializationBatchJob,
-} from "../entities/TaskMaterializationBatchJob";
-⋮----
-export interface TaskMaterializationBatchJobRepository {
-  create(input: CreateTaskMaterializationBatchJobInput): Promise<TaskMaterializationBatchJob>;
-  findById(jobId: string): Promise<TaskMaterializationBatchJob | null>;
-  findByWorkspaceId(workspaceId: string): Promise<TaskMaterializationBatchJob[]>;
-  markRunning(jobId: string): Promise<TaskMaterializationBatchJob | null>;
-  markCompleted(
-    jobId: string,
-    input: CompleteTaskMaterializationBatchJobInput,
-  ): Promise<TaskMaterializationBatchJob | null>;
-  markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<TaskMaterializationBatchJob | null>;
-}
-⋮----
-create(input: CreateTaskMaterializationBatchJobInput): Promise<TaskMaterializationBatchJob>;
-findById(jobId: string): Promise<TaskMaterializationBatchJob | null>;
-findByWorkspaceId(workspaceId: string): Promise<TaskMaterializationBatchJob[]>;
-markRunning(jobId: string): Promise<TaskMaterializationBatchJob | null>;
-markCompleted(
-    jobId: string,
-    input: CompleteTaskMaterializationBatchJobInput,
-  ): Promise<TaskMaterializationBatchJob | null>;
-markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<TaskMaterializationBatchJob | null>;
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/domain/services/TaskCandidateRuleExtractor.ts
@@ -42444,60 +42695,6 @@ export interface ExtractedTaskCandidate {
   readonly sourceBlockId?: string;
   readonly sourceSnippet?: string;
 }
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/TaskMaterializationBatchJobStatus.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file TaskMaterializationBatchJobStatus.ts
- * @description Lifecycle statuses for task materialization batch jobs.
- */
-⋮----
-export type TaskMaterializationBatchJobStatus =
-  (typeof TASK_MATERIALIZATION_BATCH_JOB_STATUSES)[number];
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/firebase/task-materialization-batch-job.converter.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/firebase
- * @file task-materialization-batch-job.converter.ts
- * @description Firestore document-to-entity converter for task materialization batch jobs.
- */
-⋮----
-import type { TaskMaterializationBatchJob } from "../../domain/entities/TaskMaterializationBatchJob";
-import {
-  TASK_MATERIALIZATION_BATCH_JOB_STATUSES,
-  type TaskMaterializationBatchJobStatus,
-} from "../../domain/value-objects/TaskMaterializationBatchJobStatus";
-⋮----
-export function toTaskMaterializationBatchJob(
-  id: string,
-  raw: Record<string, unknown>,
-): TaskMaterializationBatchJob
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/firebase/workspace-flow.collections.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/firebase
- * @file workspace-flow.collections.ts
- * @description Firestore collection path constants for the workspace-flow module.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Update collection names to match production Firestore schema
- */
-⋮----
-/** Top-level Firestore collection for workspace-flow tasks. */
-⋮----
-/** Top-level Firestore collection for workspace-flow issues. */
-⋮----
-/** Top-level Firestore collection for workspace-flow invoices. */
-⋮----
-/** Top-level Firestore collection for workspace-flow invoice items. */
-⋮----
-/** Top-level Firestore collection for task materialization batch jobs. */
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseInvoiceItemRepository.ts
@@ -42628,6 +42825,45 @@ async countOpenByTaskId(taskId: string): Promise<number>
 async transitionStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<Issue | null>
 ````
 
+## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseTaskMaterializationBatchJobRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseTaskMaterializationBatchJobRepository.ts
+ * @description Firestore implementation for TaskMaterializationBatchJobRepository.
+ */
+⋮----
+import { v7 as generateId } from "@lib-uuid";
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
+import type {
+  CompleteTaskMaterializationBatchJobInput,
+  CreateTaskMaterializationBatchJobInput,
+  TaskMaterializationBatchJob,
+} from "../../domain/entities/TaskMaterializationBatchJob";
+import type { TaskMaterializationBatchJobRepository } from "../../domain/repositories/TaskMaterializationBatchJobRepository";
+import { toTaskMaterializationBatchJob } from "../firebase/task-materialization-batch-job.converter";
+import { WF_TASK_MATERIALIZATION_BATCH_JOBS_COLLECTION } from "../firebase/workspace-flow.collections";
+⋮----
+export class FirebaseTaskMaterializationBatchJobRepository implements TaskMaterializationBatchJobRepository {
+⋮----
+private path(jobId: string): string
+⋮----
+async create(input: CreateTaskMaterializationBatchJobInput): Promise<TaskMaterializationBatchJob>
+⋮----
+async findById(jobId: string): Promise<TaskMaterializationBatchJob | null>
+⋮----
+async findByWorkspaceId(workspaceId: string): Promise<TaskMaterializationBatchJob[]>
+⋮----
+async markRunning(jobId: string): Promise<TaskMaterializationBatchJob | null>
+⋮----
+async markCompleted(
+    jobId: string,
+    input: CompleteTaskMaterializationBatchJobInput,
+): Promise<TaskMaterializationBatchJob | null>
+⋮----
+async markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<TaskMaterializationBatchJob | null>
+````
+
 ## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseTaskRepository.ts
 ````typescript
 /**
@@ -42666,152 +42902,133 @@ async findByWorkspaceId(workspaceId: string): Promise<Task[]>
 async transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null>
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/contracts/workspace-flow.contract.ts
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow-task-batch-job.actions.ts
 ````typescript
 /**
- * @module workspace-flow/interfaces/contracts
- * @file workspace-flow.contract.ts
- * @description Module-local interface contracts for workspace-flow UI adapters.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Expand with view-model contracts as UI adapters are added
+ * @module workspace-flow/interfaces/_actions
+ * @file workspace-flow-task-batch-job.actions.ts
+ * @description Server Actions for task materialization batch job operations.
  */
 ⋮----
-import type { Task } from "../../application/dto/workflow.dto";
-import type { Issue } from "../../application/dto/workflow.dto";
-import type { Invoice } from "../../application/dto/workflow.dto";
-import type { InvoiceItem } from "../../application/dto/workflow.dto";
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { WorkspaceFlowTaskBatchJobFacade } from "../../api/workspace-flow-task-batch-job.facade";
+import { makeTaskMaterializationBatchJobRepo } from "../../api/factories";
+import type {
+  ExtractTaskCandidatesFromKnowledgeDto,
+  ExtractTaskCandidatesFromKnowledgeResult,
+} from "../../application/dto/extract-task-candidates-from-knowledge.dto";
+import type { SubmitTaskMaterializationBatchJobDto } from "../../application/dto/submit-task-materialization-batch-job.dto";
 import type { TaskMaterializationBatchJob } from "../../application/dto/workflow.dto";
 ⋮----
-// ── Summary read models (lean projections for UI) ─────────────────────────────
+function makeFacade(): WorkspaceFlowTaskBatchJobFacade
 ⋮----
-export interface TaskSummary {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly title: string;
-  readonly status: Task["status"];
-  readonly assigneeId?: string;
-}
+export async function wfSubmitTaskMaterializationBatchJob(
+  dto: SubmitTaskMaterializationBatchJobDto,
+): Promise<CommandResult>
 ⋮----
-export interface IssueSummary {
-  readonly id: string;
-  readonly taskId: string;
-  readonly title: string;
-  readonly status: Issue["status"];
-  readonly stage: Issue["stage"];
-}
+export async function wfGetTaskMaterializationBatchJob(
+  jobId: string,
+): Promise<TaskMaterializationBatchJob | null>
 ⋮----
-export interface InvoiceSummary {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly status: Invoice["status"];
-  readonly totalAmount: number;
-}
-⋮----
-export interface InvoiceItemSummary {
-  readonly id: string;
-  readonly invoiceId: string;
-  readonly taskId: string;
-  readonly amount: InvoiceItem["amount"];
-}
-⋮----
-export interface TaskMaterializationBatchJobSummary {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly status: TaskMaterializationBatchJob["status"];
-  readonly totalItems: number;
-  readonly processedItems: number;
-  readonly succeededItems: number;
-  readonly failedItems: number;
-  readonly updatedAtISO: string;
-}
-⋮----
-// ── Projection helpers ────────────────────────────────────────────────────────
-⋮----
-export function toTaskSummary(task: Task): TaskSummary
-⋮----
-export function toIssueSummary(issue: Issue): IssueSummary
-⋮----
-export function toInvoiceSummary(invoice: Invoice): InvoiceSummary
-⋮----
-export function toInvoiceItemSummary(item: InvoiceItem): InvoiceItemSummary
-⋮----
-export function toTaskMaterializationBatchJobSummary(
-  job: TaskMaterializationBatchJob,
-): TaskMaterializationBatchJobSummary
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/queries/workspace-flow.queries.ts
-````typescript
-/**
- * @module workspace-flow/interfaces/queries
- * @file workspace-flow.queries.ts
- * @description Server-side read queries for workspace-flow entities.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add pagination support and caching layer
- */
-⋮----
-import type { Task } from "../../application/dto/workflow.dto";
-import type { Issue } from "../../application/dto/workflow.dto";
-import type { Invoice } from "../../application/dto/workflow.dto";
-import type { InvoiceItem } from "../../application/dto/workflow.dto";
-import type { TaskMaterializationBatchJob } from "../../application/dto/workflow.dto";
-import {
-  makeInvoiceRepo,
-  makeIssueRepo,
-  makeTaskMaterializationBatchJobRepo,
-  makeTaskRepo,
-} from "../../api/factories";
-⋮----
-/**
- * List all tasks for a workspace.
- *
- * @param workspaceId - The workspace to query
- */
-export async function getWorkspaceFlowTasks(workspaceId: string): Promise<Task[]>
-⋮----
-/**
- * Get a single task by id.
- *
- * @param taskId - The task identifier
- */
-export async function getWorkspaceFlowTask(taskId: string): Promise<Task | null>
-⋮----
-/**
- * List all issues for a task.
- *
- * @param taskId - The task identifier
- */
-export async function getWorkspaceFlowIssues(taskId: string): Promise<Issue[]>
-⋮----
-/**
- * List all invoices for a workspace.
- *
- * @param workspaceId - The workspace to query
- */
-export async function getWorkspaceFlowInvoices(workspaceId: string): Promise<Invoice[]>
-⋮----
-/**
- * Get items for an invoice.
- *
- * @param invoiceId - The invoice identifier
- */
-export async function getWorkspaceFlowInvoiceItems(invoiceId: string): Promise<InvoiceItem[]>
-⋮----
-/**
- * List task materialization batch jobs for a workspace.
- */
-export async function getWorkspaceFlowTaskMaterializationBatchJobs(
+export async function wfListTaskMaterializationBatchJobs(
   workspaceId: string,
 ): Promise<TaskMaterializationBatchJob[]>
 ⋮----
-/**
- * Get a single task materialization batch job by id.
- */
-export async function getWorkspaceFlowTaskMaterializationBatchJob(
-  jobId: string,
-): Promise<TaskMaterializationBatchJob | null>
+export async function wfExtractTaskCandidatesFromKnowledge(
+  dto: ExtractTaskCandidatesFromKnowledgeDto,
+): Promise<ExtractTaskCandidatesFromKnowledgeResult>
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/EditTaskDialog.tsx
+````typescript
+import { useEffect, useState } from "react";
+⋮----
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+⋮----
+import type { Task } from "../../application/dto/workflow.dto";
+import { wfUpdateTask } from "../_actions/workspace-flow.actions";
+⋮----
+export interface EditTaskDialogProps {
+  open: boolean;
+  task: Task;
+  onClose: () => void;
+  onUpdated: () => void;
+}
+⋮----
+async function handleSubmit(event: React.FormEvent)
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/TaskRow.tsx
+````typescript
+import { useCallback, useState } from "react";
+⋮----
+import { ChevronDown, ChevronRight, Pencil, Plus } from "lucide-react";
+⋮----
+import type { CommandResult } from "@shared-types";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+⋮----
+import type { Issue } from "../../application/dto/workflow.dto";
+import type { Task } from "../../application/dto/workflow.dto";
+import type { TaskStatus } from "../../application/dto/workflow.dto";
+import {
+  wfApproveTaskAcceptance,
+  wfArchiveTask,
+  wfPassTaskQa,
+  wfSubmitTaskToQa,
+} from "../_actions/workspace-flow.actions";
+import { getWorkspaceFlowIssues } from "../queries/workspace-flow.queries";
+import { AssignTaskDialog } from "./AssignTaskDialog";
+import { EditTaskDialog } from "./EditTaskDialog";
+import { IssueRow } from "./IssueRow";
+import { OpenIssueDialog } from "./OpenIssueDialog";
+⋮----
+function formatShortDate(iso: string | undefined): string
+⋮----
+export interface TaskRowProps {
+  task: Task;
+  currentUserId: string;
+  onTransitioned: () => void;
+}
+⋮----
+export function TaskRow(
+⋮----
+// non-fatal
+⋮----
+async function toggleIssues()
+⋮----
+async function runAction(action: () => Promise<CommandResult>)
+⋮----
+<Button size="sm" variant="outline" disabled=
+⋮----
+return <Button size="sm" variant="outline" disabled=
+⋮----
+{/* ── Task header ─────────────────────── */}
+⋮----
+{/* ── Action row ──────────────────────── */}
+⋮----
+<Button
+⋮----
+{/* ── Issues sub-list ─────────────────── */}
+⋮----
+{/* ── Dialogs ─────────────────────────── */}
+⋮----
+onClose=
+⋮----
+onCreated=
+await loadIssues();
+if (!issuesExpanded) setIssuesExpanded(true);
 ````
 
 ## File: packages/shared-events/index.ts
@@ -44259,6 +44476,64 @@ function handleSelectWorkspace(workspaceId: string | null)
 async function handleLogout()
 ⋮----
 void handleLogout();
+````
+
+## File: app/(shell)/_shell/ShellSidebarBody.tsx
+````typescript
+/**
+ * ShellSidebarBody — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it imports from workspace and notion modules.
+ */
+⋮----
+import Link from "next/link";
+⋮----
+import {
+  WorkspaceSectionContent,
+  type NavPreferences,
+  type SidebarLocaleBundle,
+} from "@/modules/workspace/api/ui";
+import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "@/modules/platform/api";
+⋮----
+import {
+  type NavSection,
+  sidebarItemClass,
+  sidebarSectionTitleClass,
+} from "./ShellSidebarNavData";
+import { ShellContextNavSection } from "./ShellContextNavSection";
+⋮----
+interface NavItem {
+  id: string;
+  label: string;
+  href: string;
+}
+⋮----
+interface WorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+⋮----
+interface ShellSidebarBodyProps {
+  section: NavSection;
+  isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
+  showAccountManagement: boolean;
+  visibleAccountItems: readonly NavItem[];
+  visibleOrganizationManagementItems: readonly NavItem[];
+  workspacePathId: string | null;
+  navPrefs: NavPreferences;
+  localeBundle: SidebarLocaleBundle | null;
+  showRecentWorkspaces: boolean;
+  visibleRecentWorkspaceLinks: WorkspaceLink[];
+  hasOverflow: boolean;
+  isExpanded: boolean;
+  activeWorkspaceId: string | null;
+  onSelectWorkspace: (workspaceId: string | null) => void;
+  onToggleExpanded: () => void;
+  currentSearchWorkspaceId: string;
+}
+⋮----
+className=
 ````
 
 ## File: docs/bounded-contexts.md
@@ -47598,49 +47873,6 @@ async deleteDocument(accountId: string, documentId: string): Promise<void>
 async renameDocument(accountId: string, documentId: string, newName: string): Promise<void>
 ````
 
-## File: modules/notebooklm/infrastructure/source/firebase/FirebaseSourceFileAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/firebase
- * Adapter: FirebaseSourceFileAdapter — Firestore implementation of SourceFileRepository.
- *
- * Collections:
- *   workspaceFiles/{fileId}
- *   workspaceFiles/{fileId}/versions/{versionId}
- */
-⋮----
-import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
-⋮----
-import type { SourceFile } from "../../../subdomains/source/domain/entities/SourceFile";
-import type { SourceFileVersion } from "../../../subdomains/source/domain/entities/SourceFileVersion";
-import type { SourceFileRepository, ListSourceFilesScope } from "../../../subdomains/source/domain/repositories/SourceFileRepository";
-⋮----
-function isSourceFileStatus(value: unknown): value is SourceFile["status"]
-⋮----
-function isSourceFileClassification(value: unknown): value is SourceFile["classification"]
-⋮----
-function toStringArray(value: unknown): readonly string[]
-⋮----
-function toSourceFileEntity(fileId: string, data: Record<string, unknown>): SourceFile
-⋮----
-function isVersionStatus(value: unknown): value is SourceFileVersion["status"]
-⋮----
-function toSourceFileVersionEntity(versionId: string, data: Record<string, unknown>): SourceFileVersion
-⋮----
-export class FirebaseSourceFileAdapter implements SourceFileRepository {
-⋮----
-async findById(fileId: string): Promise<SourceFile | null>
-⋮----
-async findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null>
-⋮----
-async listVersions(fileId: string): Promise<readonly SourceFileVersion[]>
-⋮----
-async listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>
-⋮----
-async save(file: SourceFile, versions: readonly SourceFileVersion[] = []): Promise<void>
-````
-
 ## File: modules/notebooklm/infrastructure/source/firebase/FirebaseWikiLibraryAdapter.ts
 ````typescript
 /**
@@ -47733,6 +47965,29 @@ async createRow(accountId: string, row: WikiLibraryRow): Promise<void>
 async listRows(accountId: string, libraryId: string): Promise<WikiLibraryRow[]>
 ````
 
+## File: modules/notebooklm/infrastructure/source/platform/PlatformSourceDocumentWatchAdapter.ts
+````typescript
+/**
+ * Module: notebooklm
+ * Layer: infrastructure/source/platform
+ * Adapter: PlatformSourceDocumentWatchAdapter — delegates to platform FirestoreAPI.
+ */
+⋮----
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
+⋮----
+import type {
+  SourceDocumentWatchPort,
+  WatchedDocument,
+} from "../../../subdomains/source/domain/ports/SourceDocumentWatchPort";
+⋮----
+export class PlatformSourceDocumentWatchAdapter implements SourceDocumentWatchPort {
+⋮----
+watchCollection<T>(
+    collectionPath: string,
+    handlers: {
+onNext: (documents: readonly WatchedDocument<T>[])
+````
+
 ## File: modules/notebooklm/infrastructure/source/platform/PlatformSourcePipelineAdapter.ts
 ````typescript
 import { functionsInfrastructureApi } from "@/modules/platform/api/infrastructure";
@@ -47756,6 +48011,32 @@ export class PlatformSourcePipelineAdapter implements SourcePipelinePort {
 async parseDocument(input: ParseSourceDocumentInput): Promise<ParseSourceDocumentOutput>
 ⋮----
 async reindexDocument(input: ReindexSourceDocumentInput): Promise<ReindexSourceDocumentOutput>
+````
+
+## File: modules/notebooklm/infrastructure/source/platform/PlatformSourceStorageAdapter.ts
+````typescript
+/**
+ * Module: notebooklm
+ * Layer: infrastructure/source/platform
+ * Adapter: PlatformSourceStorageAdapter — delegates to platform StorageAPI.
+ */
+⋮----
+import { storageInfrastructureApi } from "@/modules/platform/api/infrastructure";
+⋮----
+import type {
+  SourceStoragePort,
+  SourceStorageUploadOptions,
+} from "../../../subdomains/source/domain/ports/SourceStoragePort";
+⋮----
+export class PlatformSourceStorageAdapter implements SourceStoragePort {
+⋮----
+async upload(
+    file: Blob,
+    path: string,
+    options?: SourceStorageUploadOptions,
+): Promise<string>
+⋮----
+toGsUri(path: string): string
 ````
 
 ## File: modules/notebooklm/infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter.ts
@@ -48023,6 +48304,113 @@ function handleShouldCreateTasksChange(nextChecked: boolean)
 async function handleExecute()
 ⋮----
 <Button onClick=
+````
+
+## File: modules/notebooklm/interfaces/source/components/SourceDocumentsPanel.tsx
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import { useRef, useState } from "react";
+import { FileUp, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+⋮----
+import { useApp } from "@/modules/platform/api/ui";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+⋮----
+import type { SourceLiveDocument } from "../hooks/useSourceDocumentsSnapshot";
+import { useSourceDocumentsSnapshot } from "../hooks/useSourceDocumentsSnapshot";
+import { deleteSourceDocument, renameSourceDocument } from "../_actions/source-file.actions";
+import { makeSourceStorageAdapter } from "../composition/adapters";
+⋮----
+interface SourceDocumentsPanelProps {
+  readonly workspaceId?: string;
+}
+⋮----
+/** Upload dropzone + real-time document list backed by Firebase onSnapshot. */
+⋮----
+function handleFileChange(file: File | null)
+⋮----
+async function handleUpload()
+⋮----
+async function handleDelete(doc: SourceLiveDocument)
+⋮----
+async function handleRename(doc: SourceLiveDocument, newName: string)
+````
+
+## File: modules/notebooklm/interfaces/source/composition/wiki-library-facade.ts
+````typescript
+/**
+ * Composition: wiki-library-facade
+ *
+ * Pre-wired facade functions for wiki library use cases.
+ * Encapsulates the lazy singleton repository pattern so the subdomain
+ * api/index.ts can re-export clean function signatures without importing
+ * infrastructure directly.
+ */
+⋮----
+import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
+import {
+  listWikiLibraries as _listWikiLibraries,
+  createWikiLibrary as _createWikiLibrary,
+  addWikiLibraryField as _addWikiLibraryField,
+  createWikiLibraryRow as _createWikiLibraryRow,
+  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
+} from "../../../subdomains/source/application/use-cases/wiki-library.use-cases";
+import type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../../../subdomains/source/application/dto/source.dto";
+import { makeWikiLibraryAdapter } from "./adapters";
+⋮----
+// Lazy singleton — no module-scope side effects.
+⋮----
+function getLibraryRepo(): WikiLibraryRepository
+⋮----
+export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]>
+⋮----
+export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary>
+⋮----
+export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField>
+⋮----
+export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow>
+⋮----
+export function getWikiLibrarySnapshot(
+  accountId: string,
+  libraryId: string,
+): ReturnType<typeof _getWikiLibrarySnapshot>
+````
+
+## File: modules/notebooklm/interfaces/source/composition/workspace-files.facade.ts
+````typescript
+import { uploadCompleteFile, uploadInitFile } from "../_actions/source-file.actions";
+import { makeSourceStorageAdapter } from "./adapters";
+import { resolveSourceOrganizationId } from "../../../subdomains/source/application/dto/source.dto";
+⋮----
+export interface UploadWorkspaceSourceFileInput {
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly accountType: "user" | "organization";
+  readonly file: File;
+  readonly displayName?: string;
+}
+⋮----
+export interface UploadWorkspaceSourceFileResult {
+  readonly success: boolean;
+  readonly sourceFileId?: string;
+  readonly filename?: string;
+  readonly gcsUri?: string;
+  readonly mimeType?: string;
+  readonly sizeBytes?: number;
+  readonly error?: { readonly message: string };
+}
+⋮----
+export async function uploadWorkspaceSourceFile(
+  input: UploadWorkspaceSourceFileInput,
+): Promise<UploadWorkspaceSourceFileResult>
 ````
 
 ## File: modules/notebooklm/interfaces/synthesis/components/RagQueryPanel.tsx
@@ -48403,6 +48791,38 @@ export interface SourceDocumentCommandPort {
 ⋮----
 deleteDocument(accountId: string, documentId: string): Promise<void>;
 renameDocument(accountId: string, documentId: string, newName: string): Promise<void>;
+````
+
+## File: modules/notebooklm/subdomains/source/domain/repositories/SourceFileRepository.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: domain/repositories
+ * Port: SourceFileRepository — persistence contract for SourceFile aggregates.
+ */
+⋮----
+import type { SourceFile } from "../entities/SourceFile";
+import type { SourceFileVersion } from "../entities/SourceFileVersion";
+⋮----
+export interface ListSourceFilesScope {
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly actorAccountId: string;
+}
+⋮----
+export interface SourceFileRepository {
+  findById(fileId: string): Promise<SourceFile | null>;
+  findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null>;
+  listVersions(fileId: string): Promise<readonly SourceFileVersion[]>;
+  listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>;
+  save(file: SourceFile, versions?: readonly SourceFileVersion[]): Promise<void>;
+}
+⋮----
+findById(fileId: string): Promise<SourceFile | null>;
+findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null>;
+listVersions(fileId: string): Promise<readonly SourceFileVersion[]>;
+listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>;
+save(file: SourceFile, versions?: readonly SourceFileVersion[]): Promise<void>;
 ````
 
 ## File: modules/notebooklm/subdomains/synthesis/api/server.ts
@@ -49300,6 +49720,39 @@ onClick=
 <Button size="sm" variant="outline" onClick=
 ⋮----
 {/* View */}
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseFormsPanel.tsx
+````typescript
+/**
+ * Route: /knowledge-database/databases/[databaseId]/forms
+ * Purpose: Manage database forms ??create and embed form links for a specific database.
+ */
+⋮----
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
+⋮----
+import { getDatabase } from "../queries";
+import { DatabaseFormPanel } from "./DatabaseFormPanel";
+import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
+⋮----
+// ?? Props ?????????????????????????????????????????????????????????????????????
+⋮----
+export interface DatabaseFormsPanelProps {
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+⋮----
+// ?? Component ?????????????????????????????????????????????????????????????????
+⋮----
+<Button variant="ghost" size="sm" onClick=
+⋮----
+{/* Top bar */}
 ````
 
 ## File: modules/notion/interfaces/knowledge/_actions/knowledge-page.actions.ts
@@ -50314,6 +50767,36 @@ function normalizeRouteParam(value: string | string[] | undefined): string
 export function useAccountRouteContext(): AccountRouteContext
 ````
 
+## File: modules/platform/interfaces/web/shell/search/ShellGlobalSearchDialog.tsx
+````typescript
+import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { FileText, Layout } from "lucide-react";
+import { listShellCommandCatalogItems } from "../../../../subdomains/search/api";
+import { buildShellContextualHref } from "../../../../subdomains/platform-config/api";
+⋮----
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from "@ui-shadcn/ui/command";
+⋮----
+interface ShellGlobalSearchDialogProps {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+}
+⋮----
+function handleSelect(href: string)
+⋮----
+/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
+⋮----
+function onKeyDown(event: KeyboardEvent)
+````
+
 ## File: modules/platform/README.md
 ````markdown
 # Platform
@@ -50955,6 +51438,91 @@ export function getOrganizationTeams(organizationId: string): Promise<Team[]>
 export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]>
 ````
 
+## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
+````typescript
+// ── Types ──────────────────────────────────────────────────────────────────────
+⋮----
+export type ShellNavSection =
+  | "workspace"
+  | "dashboard"
+  | "account"
+  | "organization"
+  | "other";
+⋮----
+export interface ShellNavItem {
+  readonly id: string;
+  readonly label: string;
+  readonly href: string;
+}
+⋮----
+export interface ShellRailCatalogItem {
+  readonly id: string;
+  readonly href: string;
+  readonly label: string;
+  /** If true, this item is only visible to organization accounts. */
+  readonly requiresOrganization: boolean;
+  /** Route prefix for active-state matching. When absent, defaults to href. */
+  readonly activeRoutePrefix?: string;
+}
+⋮----
+/** If true, this item is only visible to organization accounts. */
+⋮----
+/** Route prefix for active-state matching. When absent, defaults to href. */
+⋮----
+export interface ShellContextSectionConfig {
+  readonly title: string;
+  readonly items: readonly { href: string; label: string }[];
+}
+⋮----
+export interface ShellRouteContext {
+  readonly accountId?: string | null;
+  readonly workspaceId?: string | null;
+}
+⋮----
+function parseHref(href: string):
+⋮----
+function joinHref(path: string, query: string): string
+⋮----
+function isAccountScopedWorkspacePath(pathname: string): boolean
+⋮----
+export function normalizeShellRoutePath(pathname: string): string
+⋮----
+export function buildShellContextualHref(
+  href: string,
+  context: ShellRouteContext,
+): string
+⋮----
+// ── Route-matching utility ────────────────────────────────────────────────────
+⋮----
+export function isExactOrChildPath(targetPath: string, pathname: string): boolean
+⋮----
+// ── Account section matchers ──────────────────────────────────────────────────
+⋮----
+// ── Route titles & breadcrumb labels ──────────────────────────────────────────
+⋮----
+// ── Organization management items ─────────────────────────────────────────────
+⋮----
+// ── Account nav items ─────────────────────────────────────────────────────────
+⋮----
+// ── Section labels ────────────────────────────────────────────────────────────
+⋮----
+// ── Rail catalog ──────────────────────────────────────────────────────────────
+⋮----
+export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[]
+⋮----
+// ── Context section config ────────────────────────────────────────────────────
+⋮----
+// ── Mobile & organization nav items ───────────────────────────────────────────
+⋮----
+// ── Section resolvers ─────────────────────────────────────────────────────────
+⋮----
+export function resolveShellNavSection(pathname: string): ShellNavSection
+⋮----
+export function resolveShellPageTitle(pathname: string): string
+⋮----
+export function resolveShellBreadcrumbLabel(segment: string): string
+````
+
 ## File: modules/platform/subdomains/team/interfaces/_actions/team.actions.ts
 ````typescript
 import { commandFailureFrom, type CommandResult } from "@shared-types";
@@ -51113,68 +51681,6 @@ export async function createWorkspaceLocation(
 ): Promise<CommandResult>
 ````
 
-## File: modules/workspace/interfaces/facades/workspace-file.facade.ts
-````typescript
-import {
-  deleteSourceDocument,
-  getSourceFileVersions,
-  getWorkspaceFiles,
-  getWorkspaceRagDocuments,
-  renameSourceDocument,
-  uploadWorkspaceSourceFile,
-} from "@/modules/notebooklm/api";
-⋮----
-import type { WorkspaceEntity } from "../contracts";
-⋮----
-export interface WorkspaceManagedFileItem {
-  readonly id: string;
-  readonly name: string;
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-  readonly status: string;
-  readonly detail: string;
-  readonly href?: string;
-  readonly storagePath?: string;
-  readonly sourceFileName?: string;
-  readonly updatedAtISO?: string;
-}
-⋮----
-export interface WorkspaceManagedFileVersionItem {
-  readonly id: string;
-  readonly versionNumber: number;
-  readonly status: string;
-  readonly storagePath: string;
-  readonly createdAtISO: string;
-}
-⋮----
-export async function getWorkspaceManagedFiles(
-  workspace: WorkspaceEntity,
-): Promise<WorkspaceManagedFileItem[]>
-⋮----
-export async function uploadWorkspaceManagedFile(
-  workspace: WorkspaceEntity,
-  file: File,
-  options?: { readonly relativePath?: string },
-)
-⋮----
-export async function getWorkspaceManagedFileVersions(
-  documentId: string,
-): Promise<WorkspaceManagedFileVersionItem[]>
-⋮----
-export async function renameWorkspaceManagedFile(
-  workspace: WorkspaceEntity,
-  documentId: string,
-  newName: string,
-)
-⋮----
-export async function deleteWorkspaceManagedFile(
-  workspace: WorkspaceEntity,
-  documentId: string,
-)
-````
-
 ## File: modules/workspace/interfaces/web/components/cards/WorkspaceContextCard.tsx
 ````typescript
 /**
@@ -51194,21 +51700,6 @@ import type { WorkspaceEntity } from "../../../contracts";
 interface WorkspaceContextCardProps {
   readonly workspace: WorkspaceEntity | null;
 }
-````
-
-## File: modules/workspace/interfaces/web/components/layout/workspace-detail-helpers.ts
-````typescript
-import type { WorkspaceEntity } from "../../../contracts";
-import { formatDate } from "@shared-utils";
-import type { WorkspaceTabGroup } from "../../navigation/workspace-tabs";
-⋮----
-export function getWorkspaceInitials(name: string): string
-⋮----
-export function formatTimestamp(
-  timestamp: WorkspaceEntity["createdAt"] | undefined,
-): string
-⋮----
-export function trimOrUndefined(value: string): string | undefined
 ````
 
 ## File: modules/workspace/interfaces/web/components/layout/WorkspaceSidebarSection.tsx
@@ -51354,6 +51845,53 @@ interface WorkspaceDailyTabProps {
 export function WorkspaceDailyTab(
 ````
 
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceDetailTabContent.tsx
+````typescript
+import type { ReactNode } from "react";
+⋮----
+import { WorkspaceAuditTab } from "../../../../subdomains/audit/api";
+import { WorkspaceFeedWorkspaceView } from "../../../../subdomains/feed/api";
+import { WorkspaceSchedulingTab } from "../../../../subdomains/scheduling/api";
+import { WorkspaceFlowTab } from "../../../../subdomains/workspace-workflow/api";
+import type { WorkspaceEntity } from "../../../../domain/aggregates/Workspace";
+import type { WorkspaceTabValue } from "../../navigation/workspace-tabs";
+import {
+  getWorkspaceAddressLines,
+  getWorkspacePersonnelEntries,
+} from "../../view-models/workspace-supporting-records";
+import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
+import { WorkspaceFilesManagementTab } from "./WorkspaceFilesManagementTab";
+import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
+import { WorkspaceOverviewTab } from "./WorkspaceOverviewTab";
+import { renderWorkspaceCrossModuleTabSurface } from "./WorkspaceCrossModuleTabSurface";
+⋮----
+interface WorkspaceDetailTabContentOptions {
+  readonly tab: WorkspaceTabValue;
+  readonly workspace: WorkspaceEntity;
+  readonly accountId: string | null | undefined;
+  readonly currentUserId: string | undefined;
+  readonly workspaces: Record<string, WorkspaceEntity>;
+  readonly activeWorkspaceId: string | null;
+  readonly initialOverviewPanel?: string;
+  readonly onEditWorkspace: () => void;
+  readonly onSetActiveWorkspace: (workspaceId: string) => void;
+}
+⋮----
+export function renderWorkspaceDetailTabContent({
+  tab,
+  workspace,
+  accountId,
+  currentUserId,
+  workspaces,
+  activeWorkspaceId,
+  initialOverviewPanel,
+  onEditWorkspace,
+  onSetActiveWorkspace,
+}: WorkspaceDetailTabContentOptions): ReactNode
+⋮----
+onSetActiveWorkspace=
+````
+
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewKnowledgePanels.tsx
 ````typescript
 import { KnowledgeBaseArticlesPanel, KnowledgeDatabasesPanel, KnowledgePagesPanel } from "@/modules/notion/api/ui";
@@ -51366,6 +51904,38 @@ interface WorkspaceOverviewKnowledgePanelsProps {
   readonly currentUserId?: string | null;
   readonly activeSurface: string;
 }
+````
+
+## File: modules/workspace/interfaces/web/hooks/useWorkspaceOrchestrationContext.ts
+````typescript
+import { useParams } from "next/navigation";
+⋮----
+import { useAuth } from "@/modules/iam/api";
+import { useApp } from "@/modules/platform/api/ui";
+⋮----
+import { resolveWorkspaceFromMap } from "../utils/workspace-map";
+import { useWorkspaceContext } from "../providers/WorkspaceContextProvider";
+⋮----
+export interface WorkspaceOrchestrationContext {
+  readonly accountId: string;
+  readonly currentUserId: string;
+  readonly activeWorkspaceId: string;
+  readonly workspaceId: string;
+}
+⋮----
+export interface UseWorkspaceOrchestrationContextOptions {
+  readonly requestedWorkspaceId?: string;
+}
+⋮----
+function normalizeRouteParam(value: string | string[] | undefined): string
+⋮----
+/**
+ * Provides normalized account/workspace actor context for app route shims.
+ * This keeps route-level composition thin and moves orchestration into workspace API.
+ */
+export function useWorkspaceOrchestrationContext(
+  options: UseWorkspaceOrchestrationContextOptions = {},
+): WorkspaceOrchestrationContext
 ````
 
 ## File: modules/workspace/interfaces/web/navigation/nav-preferences-data.ts
@@ -51437,6 +52007,35 @@ function migrateWorkspaceOrder(order: string[]): string[]
 export function readNavPreferences(): NavPreferences
 ⋮----
 export function writeNavPreferences(prefs: NavPreferences): void
+````
+
+## File: modules/workspace/interfaces/web/navigation/workspace-context-links.ts
+````typescript
+export interface WorkspaceNavigationContext {
+  readonly accountId: string | null;
+  readonly workspaceId: string | null;
+}
+⋮----
+export type WorkspaceOverviewPanel = (typeof WORKSPACE_OVERVIEW_PANELS)[number];
+⋮----
+function tryGetAccountIdFromPath(pathname: string): string | null
+⋮----
+function buildWorkspaceBaseHref(workspaceId: string, accountId?: string | null): string
+⋮----
+export function buildWorkspaceOverviewPanelHref(
+  workspaceId: string,
+  panel?: WorkspaceOverviewPanel,
+  accountId?: string | null,
+): string
+⋮----
+export function supportsWorkspaceSearchContext(_pathname: string): boolean
+⋮----
+export function buildWorkspaceContextHref(pathname: string, workspaceId: string): string
+⋮----
+export function appendWorkspaceContextQuery(
+  href: string,
+  context: WorkspaceNavigationContext,
+): string
 ````
 
 ## File: modules/workspace/interfaces/web/providers/WorkspaceContextProvider.tsx
@@ -51649,6 +52248,26 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
+## File: modules/workspace/subdomains/approval/README.md
+````markdown
+# Approval Subdomain
+
+Handles final decision-making for task completion.
+
+Responsibilities:
+- Approve or reject task completion
+- Store approval decisions and metadata
+- Define approver roles and permissions
+- Trigger downstream settlement when approved
+
+Key entity:
+- ApprovalRecord
+
+Out of scope:
+- Internal review checks
+- Issue resolution logic
+````
+
 ## File: modules/workspace/subdomains/audit/application/use-cases/record-audit-entry.use-case.ts
 ````typescript
 import { v4 as uuid } from "@lib-uuid";
@@ -51839,6 +52458,66 @@ async function handleReply(post: WorkspaceFeedPost)
 onClick=
 ````
 
+## File: modules/workspace/subdomains/issue/README.md
+````markdown
+# Issue Subdomain
+
+Manages problems, defects, and blockers related to tasks.
+
+Responsibilities:
+- Create and track issues
+- Link issues to tasks, reviews, or approvals
+- Manage issue lifecycle (open, fixing, resolved)
+- Support rework loops back into workflow
+
+Key entity:
+- Issue
+
+Out of scope:
+- Task creation logic
+- Financial processes
+````
+
+## File: modules/workspace/subdomains/review/README.md
+````markdown
+# Review Subdomain
+
+Handles internal evaluation and quality inspection of tasks.
+
+Responsibilities:
+- Perform structured review checks
+- Record review results (pass/fail/notes)
+- Support checklist or scoring systems
+- Trigger rework via issues if needed
+
+Key entity:
+- ReviewResult
+
+Out of scope:
+- Final approval decisions
+- Financial settlement
+````
+
+## File: modules/workspace/subdomains/revision/README.md
+````markdown
+# Revision Subdomain
+
+Manages versioning and evolution of task content.
+
+Responsibilities:
+- Track task revisions over time
+- Store snapshots of task state changes
+- Support rollback or comparison between versions
+- Provide audit-friendly history
+
+Key entity:
+- TaskRevision
+
+Out of scope:
+- Approval decisions
+- Review results
+````
+
 ## File: modules/workspace/subdomains/scheduling/infrastructure/firebase/FirebaseDemandRepository.ts
 ````typescript
 import {
@@ -51874,34 +52553,68 @@ import { AccountSchedulingView } from "../AccountSchedulingView";
 export function OrganizationScheduleRouteScreen()
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/api/contracts.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file contracts.ts
- * @description Public contracts exposed through the workspace-flow module boundary.
- *
- * All types, DTOs, and projection helpers that external consumers need are
- * re-exported from this single file.  XState internals (canTransition*, nextStatus,
- * isTerminal*) are intentionally NOT exposed here — status machines are internal.
- *
- * @author workspace-flow
- * @since 2026-03-24
- */
-⋮----
-// ── Entity types ──────────────────────────────────────────────────────────────
-⋮----
-// ── Value objects (enum / list only — no transition helpers) ──────────────────
-⋮----
-// ── Source reference (content → workspace-flow provenance) ────────────────────
-⋮----
-// ── Summary projections ───────────────────────────────────────────────────────
-⋮----
-// ── CRUD / command DTOs ───────────────────────────────────────────────────────
-⋮----
-// ── Query / pagination DTOs ───────────────────────────────────────────────────
-⋮----
-// ── Command / operation result ────────────────────────────────────────────────
+## File: modules/workspace/subdomains/settlement/README.md
+````markdown
+# Settlement Subdomain
+
+Handles financial settlement for tasks, including progress-based payments.
+
+Responsibilities:
+- Calculate total and partial payments
+- Manage milestone-based settlements
+- Track payment status (pending, partial, completed)
+- Store payment history
+
+Key concepts:
+- Settlement (aggregate)
+- Settlement item (milestone payment)
+- Payment records
+
+Out of scope:
+- Task lifecycle management
+- Approval logic
+````
+
+## File: modules/workspace/subdomains/task/README.md
+````markdown
+# Task Subdomain
+
+Defines the core business unit of work in the workspace domain.
+
+Responsibilities:
+- Create, update, and manage tasks
+- Maintain task lifecycle state
+- Store metadata (priority, assignee, deadlines)
+- Provide stable identity for all downstream subdomains
+
+Out of scope:
+- Financial logic (settlement)
+- QA / review decisions
+- Workflow orchestration rules
+
+Key entity:
+- Task
+````
+
+## File: modules/workspace/subdomains/workflow/README.md
+````markdown
+# Workflow Subdomain
+
+Defines and controls task lifecycle transitions across subdomains.
+
+Responsibilities:
+- Manage state machine for tasks
+- Define allowed transitions between stages
+- Orchestrate events between subdomains
+- Handle loops (issue → revision → review)
+
+Key concepts:
+- Workflow definition
+- Workflow instance
+- State transitions
+
+Out of scope:
+- Business logic inside each step
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/api/listeners.ts
@@ -51956,37 +52669,6 @@ export interface KnowledgePageApprovedHandler {
 }
 ⋮----
 handle(event: PageApprovedEvent, workspaceId?: string): Promise<boolean>;
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/extract-task-candidates-from-knowledge.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file extract-task-candidates-from-knowledge.dto.ts
- * @description Application-layer DTOs for the ExtractTaskCandidatesFromKnowledge use case.
- *
- * Pure value types (KnowledgeTextBlockInput, ExtractedTaskCandidate, TaskCandidateSource)
- * now live in domain/value-objects/TaskCandidate.ts. They are re-exported here so existing
- * application-layer import paths continue to resolve.
- *
- * @see ADR-5201 Accidental Complexity — workspace-workflow application structure
- */
-⋮----
-import type {
-  KnowledgeTextBlockInput,
-  ExtractedTaskCandidate,
-} from "../../domain/value-objects/TaskCandidate";
-⋮----
-export interface ExtractTaskCandidatesFromKnowledgeDto {
-  readonly knowledgePageId: string;
-  readonly blocks: ReadonlyArray<KnowledgeTextBlockInput>;
-  readonly enableAiFallback?: boolean;
-}
-⋮----
-export interface ExtractTaskCandidatesFromKnowledgeResult {
-  readonly candidates: ReadonlyArray<ExtractedTaskCandidate>;
-  readonly usedAiFallback: boolean;
-}
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/application/process-managers/knowledge-to-workflow-materializer.ts
@@ -52054,58 +52736,31 @@ constructor(
 async handle(event: PageApprovedEvent, workspaceId?: string): Promise<boolean>
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseTaskMaterializationBatchJobRepository.ts
+## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/extract-task-candidates-from-knowledge.use-case.ts
 ````typescript
 /**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseTaskMaterializationBatchJobRepository.ts
- * @description Firestore implementation for TaskMaterializationBatchJobRepository.
+ * @module workspace-flow/application/use-cases
+ * @file extract-task-candidates-from-knowledge.use-case.ts
+ * @description Extract task candidates from knowledge blocks with rule-first strategy.
  */
 ⋮----
-import { v7 as generateId } from "@lib-uuid";
-import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 import type {
-  CompleteTaskMaterializationBatchJobInput,
-  CreateTaskMaterializationBatchJobInput,
-  TaskMaterializationBatchJob,
-} from "../../domain/entities/TaskMaterializationBatchJob";
-import type { TaskMaterializationBatchJobRepository } from "../../domain/repositories/TaskMaterializationBatchJobRepository";
-import { toTaskMaterializationBatchJob } from "../firebase/task-materialization-batch-job.converter";
-import { WF_TASK_MATERIALIZATION_BATCH_JOBS_COLLECTION } from "../firebase/workspace-flow.collections";
+  ExtractTaskCandidatesFromKnowledgeDto,
+  ExtractTaskCandidatesFromKnowledgeResult,
+  ExtractedTaskCandidate,
+} from "../dto/extract-task-candidates-from-knowledge.dto";
+import type { TaskCandidateExtractionAiPort } from "../../domain/ports/TaskCandidateExtractionAiPort";
+import { TaskCandidateRuleExtractor } from "../../domain/services/TaskCandidateRuleExtractor";
 ⋮----
-export class FirebaseTaskMaterializationBatchJobRepository implements TaskMaterializationBatchJobRepository {
+function mergeUnique(candidates: ReadonlyArray<ExtractedTaskCandidate>): ReadonlyArray<ExtractedTaskCandidate>
 ⋮----
-private path(jobId: string): string
+export class ExtractTaskCandidatesFromKnowledgeUseCase {
 ⋮----
-async create(input: CreateTaskMaterializationBatchJobInput): Promise<TaskMaterializationBatchJob>
+constructor(private readonly aiPort?: TaskCandidateExtractionAiPort)
 ⋮----
-async findById(jobId: string): Promise<TaskMaterializationBatchJob | null>
-⋮----
-async findByWorkspaceId(workspaceId: string): Promise<TaskMaterializationBatchJob[]>
-⋮----
-async markRunning(jobId: string): Promise<TaskMaterializationBatchJob | null>
-⋮----
-async markCompleted(
-    jobId: string,
-    input: CompleteTaskMaterializationBatchJobInput,
-): Promise<TaskMaterializationBatchJob | null>
-⋮----
-async markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<TaskMaterializationBatchJob | null>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow.actions.ts
-````typescript
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow.actions.ts
- * @description Re-export barrel for all workspace-flow Server Actions.
- *              Each sub-file carries its own "use server" directive; this barrel
- *              must NOT repeat it — Turbopack cannot resolve re-exports from a
- *              "use server" barrel that itself re-exports other "use server" files.
- *  - workspace-flow-task.actions.ts    (create, update, assign, qa, approve, archive)
- *  - workspace-flow-issue.actions.ts   (open, start, fix, retest, resolve, close)
- *  - workspace-flow-invoice.actions.ts (create, add/update/remove item, submit, review, approve, reject, pay, close)
- */
+async execute(
+    dto: ExtractTaskCandidatesFromKnowledgeDto,
+): Promise<ExtractTaskCandidatesFromKnowledgeResult>
 ````
 
 ## File: repomix-markdown.config.json
@@ -52609,62 +53264,66 @@ Skill declarations are centralized in:
 Tags: #use agent hexagonal-convergence-enforcer
 ````
 
-## File: app/(shell)/_shell/ShellSidebarBody.tsx
+## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
 ````typescript
 /**
- * ShellSidebarBody — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it imports from workspace and notion modules.
+ * ShellDashboardSidebar — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it composes workspace module components.
  */
 ⋮----
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 ⋮----
 import {
-  WorkspaceSectionContent,
+  buildWorkspaceQuickAccessItems,
+  CustomizeNavigationDialog,
+  getWorkspaceIdFromPath,
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  readNavPreferences,
+  supportsWorkspaceSearchContext,
   type NavPreferences,
-  type SidebarLocaleBundle,
+  useRecentWorkspaces,
+  useSidebarLocale,
+  WorkspaceQuickAccessRow,
 } from "@/modules/workspace/api/ui";
-import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "@/modules/platform/api";
 ⋮----
 import {
-  type NavSection,
-  sidebarItemClass,
-  sidebarSectionTitleClass,
+  type DashboardSidebarProps,
+  ORGANIZATION_MANAGEMENT_ITEMS,
+  ACCOUNT_NAV_ITEMS,
+  SECTION_TITLES,
+  resolveNavSection,
+  isActiveRoute,
+  isActiveOrganizationAccount,
 } from "./ShellSidebarNavData";
-import { ShellContextNavSection } from "./ShellContextNavSection";
+import { ShellSidebarHeader } from "./ShellSidebarHeader";
+import { DashboardSidebarBody } from "./ShellSidebarBody";
 ⋮----
-interface NavItem {
-  id: string;
-  label: string;
-  href: string;
-}
+export function ShellDashboardSidebar({
+  pathname,
+  activeAccount,
+  workspaces,
+  activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
+  onSelectWorkspace,
+}: DashboardSidebarProps)
 ⋮----
-interface WorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-⋮----
-interface ShellSidebarBodyProps {
-  section: NavSection;
-  isActiveRoute: (href: string) => boolean;
-  activeAccountId: string | null;
-  showAccountManagement: boolean;
-  visibleAccountItems: readonly NavItem[];
-  visibleOrganizationManagementItems: readonly NavItem[];
-  workspacePathId: string | null;
-  navPrefs: NavPreferences;
-  localeBundle: SidebarLocaleBundle | null;
-  showRecentWorkspaces: boolean;
-  visibleRecentWorkspaceLinks: WorkspaceLink[];
-  hasOverflow: boolean;
-  isExpanded: boolean;
-  activeWorkspaceId: string | null;
-  onSelectWorkspace: (workspaceId: string | null) => void;
-  onToggleExpanded: () => void;
-  currentSearchWorkspaceId: string;
-}
-⋮----
-className=
+isActiveRoute={(href) => isActiveRoute(pathname, href)}
+          activeAccountId={activeAccount?.id ?? null}
+          showAccountManagement={showAccountManagement}
+          visibleAccountItems={visibleAccountItems}
+          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
+          workspacePathId={workspacePathId}
+          navPrefs={navPrefs}
+          localeBundle={localeBundle}
+          showRecentWorkspaces={showRecentWorkspaces}
+          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+          hasOverflow={hasOverflow}
+          isExpanded={isExpanded}
+          activeWorkspaceId={activeWorkspaceId}
+          onSelectWorkspace={onSelectWorkspace}
+onToggleExpanded=
 ````
 
 ## File: app/(shell)/(account)/[accountId]/dev-tools/page.tsx
@@ -53977,84 +54636,99 @@ async findByWorkspace(scope: {
 async saveUploaded(record: RagDocumentRecord): Promise<void>
 ````
 
-## File: modules/notebooklm/infrastructure/source/platform/PlatformSourceDocumentWatchAdapter.ts
+## File: modules/notebooklm/infrastructure/source/firebase/FirebaseSourceFileAdapter.ts
 ````typescript
 /**
- * Module: notebooklm
- * Layer: infrastructure/source/platform
- * Adapter: PlatformSourceDocumentWatchAdapter — delegates to platform FirestoreAPI.
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/firebase
+ * Adapter: FirebaseSourceFileAdapter — Firestore implementation of SourceFileRepository.
+ *
+ * Collections:
+ *   workspaceFiles/{fileId}
+ *   workspaceFiles/{fileId}/versions/{versionId}
  */
 ⋮----
 import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 ⋮----
-import type {
-  SourceDocumentWatchPort,
-  WatchedDocument,
-} from "../../../subdomains/source/domain/ports/SourceDocumentWatchPort";
+import type { SourceFile } from "../../../subdomains/source/domain/entities/SourceFile";
+import type { SourceFileVersion } from "../../../subdomains/source/domain/entities/SourceFileVersion";
+import type { SourceFileRepository, ListSourceFilesScope } from "../../../subdomains/source/domain/repositories/SourceFileRepository";
 ⋮----
-export class PlatformSourceDocumentWatchAdapter implements SourceDocumentWatchPort {
+function isSourceFileStatus(value: unknown): value is SourceFile["status"]
 ⋮----
-watchCollection<T>(
-    collectionPath: string,
-    handlers: {
-onNext: (documents: readonly WatchedDocument<T>[])
+function isSourceFileClassification(value: unknown): value is SourceFile["classification"]
+⋮----
+function toStringArray(value: unknown): readonly string[]
+⋮----
+function toSourceFileEntity(fileId: string, data: Record<string, unknown>): SourceFile
+⋮----
+function isVersionStatus(value: unknown): value is SourceFileVersion["status"]
+⋮----
+function toSourceFileVersionEntity(versionId: string, data: Record<string, unknown>): SourceFileVersion
+⋮----
+export class FirebaseSourceFileAdapter implements SourceFileRepository {
+⋮----
+async findById(fileId: string): Promise<SourceFile | null>
+⋮----
+async findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null>
+⋮----
+async listVersions(fileId: string): Promise<readonly SourceFileVersion[]>
+⋮----
+async listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>
+⋮----
+async save(file: SourceFile, versions: readonly SourceFileVersion[] = []): Promise<void>
 ````
 
-## File: modules/notebooklm/infrastructure/source/platform/PlatformSourceStorageAdapter.ts
+## File: modules/notebooklm/interfaces/source/composition/adapters.ts
 ````typescript
-/**
- * Module: notebooklm
- * Layer: infrastructure/source/platform
- * Adapter: PlatformSourceStorageAdapter — delegates to platform StorageAPI.
- */
+import { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
+import { FirebaseRagDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseRagDocumentAdapter";
+import { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter";
+import { FirebaseSourceFileAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceFileAdapter";
+import { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
+import { NotionKnowledgePageGatewayAdapter } from "../../../infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter";
+import { waitForParsedDocument as _waitForParsedDocument } from "../../../infrastructure/source/firebase/FirebaseDocumentStatusAdapter";
+import { PlatformSourcePipelineAdapter } from "../../../infrastructure/source/platform/PlatformSourcePipelineAdapter";
+import { PlatformSourceStorageAdapter } from "../../../infrastructure/source/platform/PlatformSourceStorageAdapter";
+import { PlatformSourceDocumentWatchAdapter } from "../../../infrastructure/source/platform/PlatformSourceDocumentWatchAdapter";
+import {
+  addKnowledgeBlock,
+  approveKnowledgePage,
+  createKnowledgePage,
+} from "@/modules/notion/api";
+import {
+  extractTaskCandidatesFromKnowledge,
+} from "@/modules/workspace/api";
+import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
+import type { SourceStoragePort } from "../../../subdomains/source/domain/ports/SourceStoragePort";
+import type { SourceDocumentWatchPort } from "../../../subdomains/source/domain/ports/SourceDocumentWatchPort";
+import type { TaskMaterializationWorkflowPort } from "../../../subdomains/source/domain/ports/TaskMaterializationWorkflowPort";
+import { TaskMaterializationWorkflowAdapter } from "../../../infrastructure/source/adapters/TaskMaterializationWorkflowAdapter";
 ⋮----
-import { storageInfrastructureApi } from "@/modules/platform/api/infrastructure";
+export function makeSourceFileAdapter()
 ⋮----
-import type {
-  SourceStoragePort,
-  SourceStorageUploadOptions,
-} from "../../../subdomains/source/domain/ports/SourceStoragePort";
+export function makeRagDocumentAdapter()
 ⋮----
-export class PlatformSourceStorageAdapter implements SourceStoragePort {
+export function makeSourceDocumentCommandAdapter()
 ⋮----
-async upload(
-    file: Blob,
-    path: string,
-    options?: SourceStorageUploadOptions,
-): Promise<string>
+export function makeParsedDocumentAdapter()
 ⋮----
-toGsUri(path: string): string
-````
-
-## File: modules/notebooklm/interfaces/source/components/SourceDocumentsPanel.tsx
-````typescript
-import { v4 as uuid } from "@lib-uuid";
-import { useRef, useState } from "react";
-import { FileUp, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+export function makeSourcePipelineAdapter()
 ⋮----
-import { useApp } from "@/modules/platform/api/ui";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+export function makeKnowledgePageGateway()
 ⋮----
-import type { SourceLiveDocument } from "../hooks/useSourceDocumentsSnapshot";
-import { useSourceDocumentsSnapshot } from "../hooks/useSourceDocumentsSnapshot";
-import { deleteSourceDocument, renameSourceDocument } from "../_actions/source-file.actions";
-import { makeSourceStorageAdapter } from "../composition/adapters";
+export function makeWikiLibraryAdapter(): WikiLibraryRepository
 ⋮----
-interface SourceDocumentsPanelProps {
-  readonly workspaceId?: string;
-}
+export function makeTaskMaterializationWorkflowAdapter(): TaskMaterializationWorkflowPort
 ⋮----
-/** Upload dropzone + real-time document list backed by Firebase onSnapshot. */
+export function makeSourceStorageAdapter(): SourceStoragePort
 ⋮----
-function handleFileChange(file: File | null)
+export function makeSourceDocumentWatchAdapter(): SourceDocumentWatchPort
 ⋮----
-async function handleUpload()
-⋮----
-async function handleDelete(doc: SourceLiveDocument)
-⋮----
-async function handleRename(doc: SourceLiveDocument, newName: string)
+export function waitForParsedDocument(
+  accountId: string,
+  docId: string,
+): Promise<
 ````
 
 ## File: modules/notebooklm/interfaces/source/composition/use-cases.ts
@@ -54119,53 +54793,6 @@ export function makeSourceUseCases(
   knowledgePageGateway: KnowledgePageGateway = makeKnowledgePageGateway(),
   taskWorkflowPort: TaskMaterializationWorkflowPort = makeTaskMaterializationWorkflowAdapter(),
 ): SourceUseCases
-````
-
-## File: modules/notebooklm/interfaces/source/composition/wiki-library-facade.ts
-````typescript
-/**
- * Composition: wiki-library-facade
- *
- * Pre-wired facade functions for wiki library use cases.
- * Encapsulates the lazy singleton repository pattern so the subdomain
- * api/index.ts can re-export clean function signatures without importing
- * infrastructure directly.
- */
-⋮----
-import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
-import {
-  listWikiLibraries as _listWikiLibraries,
-  createWikiLibrary as _createWikiLibrary,
-  addWikiLibraryField as _addWikiLibraryField,
-  createWikiLibraryRow as _createWikiLibraryRow,
-  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
-} from "../../../subdomains/source/application/use-cases/wiki-library.use-cases";
-import type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../../../subdomains/source/application/dto/source.dto";
-import { makeWikiLibraryAdapter } from "./adapters";
-⋮----
-// Lazy singleton — no module-scope side effects.
-⋮----
-function getLibraryRepo(): WikiLibraryRepository
-⋮----
-export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]>
-⋮----
-export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary>
-⋮----
-export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField>
-⋮----
-export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow>
-⋮----
-export function getWikiLibrarySnapshot(
-  accountId: string,
-  libraryId: string,
-): ReturnType<typeof _getWikiLibrarySnapshot>
 ````
 
 ## File: modules/notebooklm/interfaces/synthesis/_actions/rag-query.actions.ts
@@ -54394,6 +55021,70 @@ async delete(id: string, accountId: string, databaseId: string): Promise<void>
 async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]>
 ````
 
+## File: modules/notion/interfaces/authoring/components/ArticleDetailPanel.tsx
+````typescript
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  Archive,
+  ArrowLeft,
+  BadgeCheck,
+  Edit,
+  FileClock,
+  MessageSquare,
+  History,
+  Globe,
+  Link2,
+} from "lucide-react";
+⋮----
+import { getArticle, getCategories, getBacklinks } from "../queries";
+import {
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+} from "../_actions/article.actions";
+import { ArticleDialog } from "./ArticleDialog";
+import type { ArticleSnapshot as Article } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import { CommentPanel } from "../../collaboration/components/CommentPanel";
+import { VersionHistoryPanel } from "../../collaboration/components/VersionHistoryPanel";
+import { ReactMarkdown } from "@lib-react-markdown";
+import { remarkGfm } from "@lib-remark-gfm";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
+⋮----
+// ── Props ─────────────────────────────────────────────────────────────────────
+⋮----
+export interface ArticleDetailPanelProps {
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+⋮----
+// ── Component ─────────────────────────────────────────────────────────────────
+⋮----
+function buildArticleDetailHref(targetArticleId: string): string
+⋮----
+function handlePublish()
+⋮----
+function handleArchive()
+⋮----
+function handleVerify()
+⋮----
+function handleRequestReview()
+⋮----
+<Button variant="ghost" size="sm" onClick=
+⋮----
+{/* Back + actions bar */}
+⋮----
+{/* Header */}
+⋮----
+{/* Body tabs */}
+````
+
 ## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesPanel.tsx
 ````typescript
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -54425,39 +55116,6 @@ export interface KnowledgeBaseArticlesPanelProps {
 }
 ⋮----
 function handleSuccess(articleId?: string)
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseFormsPanel.tsx
-````typescript
-/**
- * Route: /knowledge-database/databases/[databaseId]/forms
- * Purpose: Manage database forms ??create and embed form links for a specific database.
- */
-⋮----
-import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
-⋮----
-import { getDatabase } from "../queries";
-import { DatabaseFormPanel } from "./DatabaseFormPanel";
-import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-⋮----
-// ?? Props ?????????????????????????????????????????????????????????????????????
-⋮----
-export interface DatabaseFormsPanelProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-⋮----
-// ?? Component ?????????????????????????????????????????????????????????????????
-⋮----
-<Button variant="ghost" size="sm" onClick=
-⋮----
-{/* Top bar */}
 ````
 
 ## File: modules/notion/interfaces/database/components/KnowledgeDatabasesPanel.tsx
@@ -54982,36 +55640,6 @@ async uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>
 async deleteFile(fileId: string): Promise<void>
 ````
 
-## File: modules/platform/interfaces/web/shell/search/ShellGlobalSearchDialog.tsx
-````typescript
-import { useEffect, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { FileText, Layout } from "lucide-react";
-import { listShellCommandCatalogItems } from "../../../../subdomains/search/api";
-import { buildShellContextualHref } from "../../../../subdomains/platform-config/api";
-⋮----
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandShortcut,
-} from "@ui-shadcn/ui/command";
-⋮----
-interface ShellGlobalSearchDialogProps {
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-}
-⋮----
-function handleSelect(href: string)
-⋮----
-/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
-⋮----
-function onKeyDown(event: KeyboardEvent)
-````
-
 ## File: modules/platform/platform.instructions.md
 ````markdown
 ---
@@ -55146,91 +55774,6 @@ function handleSwitchToPersonal()
 onClick=
 ````
 
-## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
-````typescript
-// ── Types ──────────────────────────────────────────────────────────────────────
-⋮----
-export type ShellNavSection =
-  | "workspace"
-  | "dashboard"
-  | "account"
-  | "organization"
-  | "other";
-⋮----
-export interface ShellNavItem {
-  readonly id: string;
-  readonly label: string;
-  readonly href: string;
-}
-⋮----
-export interface ShellRailCatalogItem {
-  readonly id: string;
-  readonly href: string;
-  readonly label: string;
-  /** If true, this item is only visible to organization accounts. */
-  readonly requiresOrganization: boolean;
-  /** Route prefix for active-state matching. When absent, defaults to href. */
-  readonly activeRoutePrefix?: string;
-}
-⋮----
-/** If true, this item is only visible to organization accounts. */
-⋮----
-/** Route prefix for active-state matching. When absent, defaults to href. */
-⋮----
-export interface ShellContextSectionConfig {
-  readonly title: string;
-  readonly items: readonly { href: string; label: string }[];
-}
-⋮----
-export interface ShellRouteContext {
-  readonly accountId?: string | null;
-  readonly workspaceId?: string | null;
-}
-⋮----
-function parseHref(href: string):
-⋮----
-function joinHref(path: string, query: string): string
-⋮----
-function isAccountScopedWorkspacePath(pathname: string): boolean
-⋮----
-export function normalizeShellRoutePath(pathname: string): string
-⋮----
-export function buildShellContextualHref(
-  href: string,
-  context: ShellRouteContext,
-): string
-⋮----
-// ── Route-matching utility ────────────────────────────────────────────────────
-⋮----
-export function isExactOrChildPath(targetPath: string, pathname: string): boolean
-⋮----
-// ── Account section matchers ──────────────────────────────────────────────────
-⋮----
-// ── Route titles & breadcrumb labels ──────────────────────────────────────────
-⋮----
-// ── Organization management items ─────────────────────────────────────────────
-⋮----
-// ── Account nav items ─────────────────────────────────────────────────────────
-⋮----
-// ── Section labels ────────────────────────────────────────────────────────────
-⋮----
-// ── Rail catalog ──────────────────────────────────────────────────────────────
-⋮----
-export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[]
-⋮----
-// ── Context section config ────────────────────────────────────────────────────
-⋮----
-// ── Mobile & organization nav items ───────────────────────────────────────────
-⋮----
-// ── Section resolvers ─────────────────────────────────────────────────────────
-⋮----
-export function resolveShellNavSection(pathname: string): ShellNavSection
-⋮----
-export function resolveShellPageTitle(pathname: string): string
-⋮----
-export function resolveShellBreadcrumbLabel(segment: string): string
-````
-
 ## File: modules/platform/subdomains/team/api/index.ts
 ````typescript
 /**
@@ -55242,6 +55785,68 @@ export function resolveShellBreadcrumbLabel(segment: string): string
  * organization subdomain needs it for cross-subdomain team port wiring.
  * It returns the TeamRepository interface, not a concrete implementation.
  */
+````
+
+## File: modules/workspace/interfaces/facades/workspace-file.facade.ts
+````typescript
+import {
+  deleteSourceDocument,
+  getSourceFileVersions,
+  getWorkspaceFiles,
+  getWorkspaceRagDocuments,
+  renameSourceDocument,
+  uploadWorkspaceSourceFile,
+} from "@/modules/notebooklm/api";
+⋮----
+import type { WorkspaceEntity } from "../contracts";
+⋮----
+export interface WorkspaceManagedFileItem {
+  readonly id: string;
+  readonly name: string;
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly status: string;
+  readonly detail: string;
+  readonly href?: string;
+  readonly storagePath?: string;
+  readonly sourceFileName?: string;
+  readonly updatedAtISO?: string;
+}
+⋮----
+export interface WorkspaceManagedFileVersionItem {
+  readonly id: string;
+  readonly versionNumber: number;
+  readonly status: string;
+  readonly storagePath: string;
+  readonly createdAtISO: string;
+}
+⋮----
+export async function getWorkspaceManagedFiles(
+  workspace: WorkspaceEntity,
+): Promise<WorkspaceManagedFileItem[]>
+⋮----
+export async function uploadWorkspaceManagedFile(
+  workspace: WorkspaceEntity,
+  file: File,
+  options?: { readonly relativePath?: string },
+)
+⋮----
+export async function getWorkspaceManagedFileVersions(
+  documentId: string,
+): Promise<WorkspaceManagedFileVersionItem[]>
+⋮----
+export async function renameWorkspaceManagedFile(
+  workspace: WorkspaceEntity,
+  documentId: string,
+  newName: string,
+)
+⋮----
+export async function deleteWorkspaceManagedFile(
+  workspace: WorkspaceEntity,
+  documentId: string,
+)
 ````
 
 ## File: modules/workspace/interfaces/web/components/cards/WorkspaceProductSpineCard.tsx
@@ -55279,67 +55884,6 @@ import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";
 import { AccountDashboardScreen } from "./AccountDashboardScreen";
 ⋮----
 export function AccountDashboardRouteScreen()
-````
-
-## File: modules/workspace/interfaces/web/components/screens/AccountDashboardScreen.tsx
-````typescript
-import Link from "next/link";
-import {
-  BookOpen,
-  Brain,
-  Database,
-  FileText,
-  FolderOpen,
-  Library,
-  MessageSquare,
-  Notebook,
-  Shield,
-  User,
-  Users,
-} from "lucide-react";
-⋮----
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-⋮----
-import type { WorkspaceEntity } from "../../../contracts";
-⋮----
-// ── Types ─────────────────────────────────────────────────────────────────────
-⋮----
-interface AccountDashboardScreenProps {
-  readonly accountId: string;
-  readonly accountName: string | null;
-  readonly accountType: "user" | "organization";
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly currentUserId: string | null;
-}
-⋮----
-// ── Quick-access card definitions ─────────────────────────────────────────────
-⋮----
-interface QuickAccessCard {
-  readonly key: string;
-  readonly label: string;
-  readonly description: string;
-  readonly icon: React.ReactNode;
-  readonly buildHref: (accountId: string, workspaceId: string) => string;
-}
-⋮----
-function enc(s: string): string
-⋮----
-// ── Component ─────────────────────────────────────────────────────────────────
-⋮----
-{/* ── Header ──────────────────────────────────────────────────────── */}
-⋮----
-{/* ── Active workspace quick-access ──────────────────────────────── */}
-⋮----
-{/* ── All workspaces list ─────────────────────────────────────────── */}
 ````
 
 ## File: modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx
@@ -55391,6 +55935,122 @@ onOpenChange=
 onWorkspaceNameChange=
 ````
 
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceFilesManagementTab.tsx
+````typescript
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+⋮----
+import { WorkspaceFilesFilterPanel, type FileStatusFilter } from "./WorkspaceFilesFilterPanel";
+import { WorkspaceFilesSummaryCard } from "./WorkspaceFilesSummaryCard";
+import { WorkspaceManagedFileCard } from "./WorkspaceManagedFileCard";
+import { FileProcessingDialog } from "@/modules/notebooklm/api/ui";
+import {
+  deleteWorkspaceManagedFile,
+  getWorkspaceManagedFileVersions,
+  getWorkspaceManagedFiles,
+  renameWorkspaceManagedFile,
+  uploadWorkspaceManagedFile,
+  type WorkspaceManagedFileItem,
+  type WorkspaceManagedFileVersionItem,
+} from "@/modules/workspace/api/facade";
+import { Card, CardContent } from "@ui-shadcn/ui/card";
+import type { WorkspaceEntity } from "../../../../domain/aggregates/Workspace";
+⋮----
+interface ProcessingTarget {
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+}
+⋮----
+type FileWithRelativePath = File & { readonly webkitRelativePath?: string };
+function toGsUri(storagePath: string): string
+⋮----
+function formatFileSize(sizeBytes: number): string
+⋮----
+function getStatusTone(status: string): "default" | "secondary" | "outline"
+⋮----
+async function handleUploadFiles(files: readonly File[], sourceLabel: "file" | "folder")
+⋮----
+async function toggleVersionHistory(documentId: string)
+async function handleDeleteDocument(doc: WorkspaceManagedFileItem)
+⋮----
+async function handleRenameSave(doc: WorkspaceManagedFileItem)
+⋮----
+onFilesSelected=
+onFolderSelected=
+⋮----
+setEditingDocId(null);
+setDraftName("");
+⋮----
+setEditingDocId(doc.id);
+setDraftName(doc.name);
+⋮----
+setProcessingTarget({
+                    sourceFileId: doc.id,
+                    filename: doc.name || doc.sourceFileName || "Untitled file",
+                    gcsUri: toGsUri(doc.storagePath),
+                    mimeType: doc.mimeType,
+                    sizeBytes: doc.sizeBytes,
+                  });
+⋮----
+onClose=
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceMembersTab.tsx
+````typescript
+import { useCallback, useEffect, useMemo, useState } from "react";
+⋮----
+import { dismissMember, inviteMember, updateMemberRole, type OrganizationRole } from "@/modules/platform/api";
+import type { WorkspaceEntity, WorkspaceMemberView } from "../../../contracts";
+import { getWorkspaceMembers } from "../../../facades";
+import { WorkspaceMemberCard } from "./WorkspaceMemberCard";
+import { WorkspaceMemberInviteDialog } from "./WorkspaceMemberInviteDialog";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+⋮----
+interface WorkspaceMembersTabProps {
+  readonly workspace: WorkspaceEntity;
+}
+⋮----
+async function handleInviteMember()
+⋮----
+async function handleRoleChange(memberId: string, role: OrganizationRole)
+⋮----
+async function handleRemoveMember(memberId: string)
+⋮----
+<Button onClick=
+````
+
+## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
+````typescript
+import { useEffect, useMemo, useState } from "react";
+⋮----
+import type { WorkspaceEntity } from "../../contracts";
+⋮----
+interface RecentWorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+⋮----
+function getStorageKey(accountId: string)
+⋮----
+function readRecentWorkspaceIds(accountId: string): string[]
+⋮----
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[])
+⋮----
+function trackWorkspaceFromPath(pathname: string, accountId: string)
+⋮----
+function getWorkspaceIdFromPath(pathname: string): string | null
+⋮----
+export function useRecentWorkspaces(
+  accountId: string | undefined,
+  pathname: string,
+  workspaces: WorkspaceEntity[],
+)
+````
+
 ## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
 ````typescript
 import { useEffect, useState } from "react";
@@ -55416,216 +56076,11 @@ export function useWorkspaceDetail(
 async function loadWorkspace()
 ````
 
-## File: modules/workspace/interfaces/web/hooks/useWorkspaceOrchestrationContext.ts
-````typescript
-import { useParams } from "next/navigation";
-⋮----
-import { useAuth } from "@/modules/iam/api";
-import { useApp } from "@/modules/platform/api/ui";
-⋮----
-import { resolveWorkspaceFromMap } from "../utils/workspace-map";
-import { useWorkspaceContext } from "../providers/WorkspaceContextProvider";
-⋮----
-export interface WorkspaceOrchestrationContext {
-  readonly accountId: string;
-  readonly currentUserId: string;
-  readonly activeWorkspaceId: string;
-  readonly workspaceId: string;
-}
-⋮----
-export interface UseWorkspaceOrchestrationContextOptions {
-  readonly requestedWorkspaceId?: string;
-}
-⋮----
-function normalizeRouteParam(value: string | string[] | undefined): string
-⋮----
-/**
- * Provides normalized account/workspace actor context for app route shims.
- * This keeps route-level composition thin and moves orchestration into workspace API.
- */
-export function useWorkspaceOrchestrationContext(
-  options: UseWorkspaceOrchestrationContextOptions = {},
-): WorkspaceOrchestrationContext
-````
-
-## File: modules/workspace/interfaces/web/navigation/workspace-context-links.ts
-````typescript
-export interface WorkspaceNavigationContext {
-  readonly accountId: string | null;
-  readonly workspaceId: string | null;
-}
-⋮----
-export type WorkspaceOverviewPanel = (typeof WORKSPACE_OVERVIEW_PANELS)[number];
-⋮----
-function tryGetAccountIdFromPath(pathname: string): string | null
-⋮----
-function buildWorkspaceBaseHref(workspaceId: string, accountId?: string | null): string
-⋮----
-export function buildWorkspaceOverviewPanelHref(
-  workspaceId: string,
-  panel?: WorkspaceOverviewPanel,
-  accountId?: string | null,
-): string
-⋮----
-export function supportsWorkspaceSearchContext(_pathname: string): boolean
-⋮----
-export function buildWorkspaceContextHref(pathname: string, workspaceId: string): string
-⋮----
-export function appendWorkspaceContextQuery(
-  href: string,
-  context: WorkspaceNavigationContext,
-): string
-````
-
-## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
-````typescript
-export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
-⋮----
-export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
-⋮----
-export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
-⋮----
-interface WorkspaceTabMeta {
-  readonly label: string;
-  readonly prefId: string;
-  readonly group: WorkspaceTabGroup;
-  readonly status: WorkspaceTabDevStatus;
-}
-⋮----
-export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue
-⋮----
-export function resolveWorkspaceTabValue(value: string | null | undefined): WorkspaceTabValue | null
-⋮----
-export function normalizeWorkspaceTabPrefId(prefId: string): string
-⋮----
-export function getWorkspaceTabMeta(tab: WorkspaceTabValue)
-⋮----
-export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus
-⋮----
-export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string
-⋮----
-export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string
-⋮----
-export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[]
-⋮----
-export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[]
-````
-
 ## File: modules/workspace/subdomains/audit/api/index.ts
 ````typescript
 /**
  * workspace/subdomains/audit API boundary.
  */
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/api/index.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file index.ts
- * @description Public cross-module boundary for workspace-flow.
- *
- * External consumers MUST import only from this path:
- *   @/modules/workspace/api
- *
- * Never import from domain/, application/, infrastructure/, or interfaces/ directly.
- * @author workspace-flow
- * @since 2026-03-24
- */
-⋮----
-// ── Facade (write + summary-read surface) ────────────────────────────────────
-⋮----
-// Composite facade (all three aggregates)
-⋮----
-// Focused facades (prefer these when only one aggregate is needed)
-⋮----
-// ── Public contracts ──────────────────────────────────────────────────────────
-⋮----
-// Entities
-⋮----
-// Value objects
-⋮----
-// Summary projections
-⋮----
-// CRUD / command DTOs
-⋮----
-// Query / pagination DTOs
-⋮----
-// Command result
-⋮----
-// Value object lists (enum arrays)
-⋮----
-// Summary projection helpers
-⋮----
-// ── Read queries (server-side) ────────────────────────────────────────────────
-⋮----
-// ── Public write-side commands for knowledge → task flow ────────────────────
-⋮----
-// ── UI components ─────────────────────────────────────────────────────────────
-⋮----
-// ── Event listeners (knowledge → workspace-flow integration) ─────────────────
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/api/workspace-flow-task-batch-job.facade.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file workspace-flow-task-batch-job.facade.ts
- * @description Focused facade for task materialization batch jobs.
- */
-⋮----
-import type { CommandResult } from "@shared-types";
-import type {
-  ExtractTaskCandidatesFromKnowledgeDto,
-  ExtractTaskCandidatesFromKnowledgeResult,
-} from "../application/dto/extract-task-candidates-from-knowledge.dto";
-import type { SubmitTaskMaterializationBatchJobDto } from "../application/dto/submit-task-materialization-batch-job.dto";
-import type { TaskCandidateExtractionAiPort } from "../domain/ports/TaskCandidateExtractionAiPort";
-import { ExtractTaskCandidatesFromKnowledgeUseCase } from "../application/use-cases/extract-task-candidates-from-knowledge.use-case";
-import { SubmitTaskMaterializationBatchJobUseCase } from "../application/use-cases/submit-task-materialization-batch-job.use-case";
-import type { TaskMaterializationBatchJob } from "../domain/entities/TaskMaterializationBatchJob";
-import type { TaskMaterializationBatchJobRepository } from "../domain/repositories/TaskMaterializationBatchJobRepository";
-⋮----
-export class WorkspaceFlowTaskBatchJobFacade {
-⋮----
-constructor(
-⋮----
-async submitBatchJob(dto: SubmitTaskMaterializationBatchJobDto): Promise<CommandResult>
-⋮----
-async getBatchJob(jobId: string): Promise<TaskMaterializationBatchJob | null>
-⋮----
-async listBatchJobs(workspaceId: string): Promise<TaskMaterializationBatchJob[]>
-⋮----
-async extractTaskCandidates(
-    dto: ExtractTaskCandidatesFromKnowledgeDto,
-): Promise<ExtractTaskCandidatesFromKnowledgeResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/extract-task-candidates-from-knowledge.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file extract-task-candidates-from-knowledge.use-case.ts
- * @description Extract task candidates from knowledge blocks with rule-first strategy.
- */
-⋮----
-import type {
-  ExtractTaskCandidatesFromKnowledgeDto,
-  ExtractTaskCandidatesFromKnowledgeResult,
-  ExtractedTaskCandidate,
-} from "../dto/extract-task-candidates-from-knowledge.dto";
-import type { TaskCandidateExtractionAiPort } from "../../domain/ports/TaskCandidateExtractionAiPort";
-import { TaskCandidateRuleExtractor } from "../../domain/services/TaskCandidateRuleExtractor";
-⋮----
-function mergeUnique(candidates: ReadonlyArray<ExtractedTaskCandidate>): ReadonlyArray<ExtractedTaskCandidate>
-⋮----
-export class ExtractTaskCandidatesFromKnowledgeUseCase {
-⋮----
-constructor(private readonly aiPort?: TaskCandidateExtractionAiPort)
-⋮----
-async execute(
-    dto: ExtractTaskCandidatesFromKnowledgeDto,
-): Promise<ExtractTaskCandidatesFromKnowledgeResult>
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/domain/ports/index.ts
@@ -55643,43 +56098,6 @@ async execute(
  *   - TaskService    — Task operations (uses CreateTaskDto, TaskQueryDto)
  * These must not be moved here; see ADR-1102 §3.
  */
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow-task-batch-job.actions.ts
-````typescript
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow-task-batch-job.actions.ts
- * @description Server Actions for task materialization batch job operations.
- */
-⋮----
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { WorkspaceFlowTaskBatchJobFacade } from "../../api/workspace-flow-task-batch-job.facade";
-import { makeTaskMaterializationBatchJobRepo } from "../../api/factories";
-import type {
-  ExtractTaskCandidatesFromKnowledgeDto,
-  ExtractTaskCandidatesFromKnowledgeResult,
-} from "../../application/dto/extract-task-candidates-from-knowledge.dto";
-import type { SubmitTaskMaterializationBatchJobDto } from "../../application/dto/submit-task-materialization-batch-job.dto";
-import type { TaskMaterializationBatchJob } from "../../application/dto/workflow.dto";
-⋮----
-function makeFacade(): WorkspaceFlowTaskBatchJobFacade
-⋮----
-export async function wfSubmitTaskMaterializationBatchJob(
-  dto: SubmitTaskMaterializationBatchJobDto,
-): Promise<CommandResult>
-⋮----
-export async function wfGetTaskMaterializationBatchJob(
-  jobId: string,
-): Promise<TaskMaterializationBatchJob | null>
-⋮----
-export async function wfListTaskMaterializationBatchJobs(
-  workspaceId: string,
-): Promise<TaskMaterializationBatchJob[]>
-⋮----
-export async function wfExtractTaskCandidatesFromKnowledge(
-  dto: ExtractTaskCandidatesFromKnowledgeDto,
-): Promise<ExtractTaskCandidatesFromKnowledgeResult>
 ````
 
 ## File: .github/agents/hexagonal-convergence-enforcer.agent.md
@@ -55887,68 +56305,6 @@ onClick=
 onSelectWorkspace(workspace.id);
 ⋮----
 accountType=
-````
-
-## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
-````typescript
-/**
- * ShellDashboardSidebar — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it composes workspace module components.
- */
-⋮----
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-⋮----
-import {
-  buildWorkspaceQuickAccessItems,
-  CustomizeNavigationDialog,
-  getWorkspaceIdFromPath,
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  readNavPreferences,
-  supportsWorkspaceSearchContext,
-  type NavPreferences,
-  useRecentWorkspaces,
-  useSidebarLocale,
-  WorkspaceQuickAccessRow,
-} from "@/modules/workspace/api/ui";
-⋮----
-import {
-  type DashboardSidebarProps,
-  ORGANIZATION_MANAGEMENT_ITEMS,
-  ACCOUNT_NAV_ITEMS,
-  SECTION_TITLES,
-  resolveNavSection,
-  isActiveRoute,
-  isActiveOrganizationAccount,
-} from "./ShellSidebarNavData";
-import { ShellSidebarHeader } from "./ShellSidebarHeader";
-import { DashboardSidebarBody } from "./ShellSidebarBody";
-⋮----
-export function ShellDashboardSidebar({
-  pathname,
-  activeAccount,
-  workspaces,
-  activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
-  onSelectWorkspace,
-}: DashboardSidebarProps)
-⋮----
-isActiveRoute={(href) => isActiveRoute(pathname, href)}
-          activeAccountId={activeAccount?.id ?? null}
-          showAccountManagement={showAccountManagement}
-          visibleAccountItems={visibleAccountItems}
-          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
-          workspacePathId={workspacePathId}
-          navPrefs={navPrefs}
-          localeBundle={localeBundle}
-          showRecentWorkspaces={showRecentWorkspaces}
-          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
-          hasOverflow={hasOverflow}
-          isExpanded={isExpanded}
-          activeWorkspaceId={activeWorkspaceId}
-          onSelectWorkspace={onSelectWorkspace}
-onToggleExpanded=
 ````
 
 ## File: docs/architecture-overview.md
@@ -57594,120 +57950,14 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/notebooklm/interfaces/source/composition/adapters.ts
+## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
 ````typescript
-import { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
-import { FirebaseRagDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseRagDocumentAdapter";
-import { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter";
-import { FirebaseSourceFileAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceFileAdapter";
-import { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
-import { NotionKnowledgePageGatewayAdapter } from "../../../infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter";
-import { waitForParsedDocument as _waitForParsedDocument } from "../../../infrastructure/source/firebase/FirebaseDocumentStatusAdapter";
-import { PlatformSourcePipelineAdapter } from "../../../infrastructure/source/platform/PlatformSourcePipelineAdapter";
-import { PlatformSourceStorageAdapter } from "../../../infrastructure/source/platform/PlatformSourceStorageAdapter";
-import { PlatformSourceDocumentWatchAdapter } from "../../../infrastructure/source/platform/PlatformSourceDocumentWatchAdapter";
-import {
-  addKnowledgeBlock,
-  approveKnowledgePage,
-  createKnowledgePage,
-} from "@/modules/notion/api";
-import {
-  extractTaskCandidatesFromKnowledge,
-} from "@/modules/workspace/api";
-import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
-import type { SourceStoragePort } from "../../../subdomains/source/domain/ports/SourceStoragePort";
-import type { SourceDocumentWatchPort } from "../../../subdomains/source/domain/ports/SourceDocumentWatchPort";
-import type { TaskMaterializationWorkflowPort } from "../../../subdomains/source/domain/ports/TaskMaterializationWorkflowPort";
-import { TaskMaterializationWorkflowAdapter } from "../../../infrastructure/source/adapters/TaskMaterializationWorkflowAdapter";
-⋮----
-export function makeSourceFileAdapter()
-⋮----
-export function makeRagDocumentAdapter()
-⋮----
-export function makeSourceDocumentCommandAdapter()
-⋮----
-export function makeParsedDocumentAdapter()
-⋮----
-export function makeSourcePipelineAdapter()
-⋮----
-export function makeKnowledgePageGateway()
-⋮----
-export function makeWikiLibraryAdapter(): WikiLibraryRepository
-⋮----
-export function makeTaskMaterializationWorkflowAdapter(): TaskMaterializationWorkflowPort
-⋮----
-export function makeSourceStorageAdapter(): SourceStoragePort
-⋮----
-export function makeSourceDocumentWatchAdapter(): SourceDocumentWatchPort
-⋮----
-export function waitForParsedDocument(
-  accountId: string,
-  docId: string,
-): Promise<
-````
-
-## File: modules/notion/interfaces/authoring/components/ArticleDetailPanel.tsx
-````typescript
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import {
-  Archive,
-  ArrowLeft,
-  BadgeCheck,
-  Edit,
-  FileClock,
-  MessageSquare,
-  History,
-  Globe,
-  Link2,
-} from "lucide-react";
-⋮----
-import { getArticle, getCategories, getBacklinks } from "../queries";
-import {
-  publishArticle,
-  archiveArticle,
-  verifyArticle,
-  requestArticleReview,
-} from "../_actions/article.actions";
-import { ArticleDialog } from "./ArticleDialog";
-import type { ArticleSnapshot as Article } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import { CommentPanel } from "../../collaboration/components/CommentPanel";
-import { VersionHistoryPanel } from "../../collaboration/components/VersionHistoryPanel";
-import { ReactMarkdown } from "@lib-react-markdown";
-import { remarkGfm } from "@lib-remark-gfm";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-⋮----
-// ── Props ─────────────────────────────────────────────────────────────────────
-⋮----
-export interface ArticleDetailPanelProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-⋮----
-// ── Component ─────────────────────────────────────────────────────────────────
-⋮----
-function buildArticleDetailHref(targetArticleId: string): string
-⋮----
-function handlePublish()
-⋮----
-function handleArchive()
-⋮----
-function handleVerify()
-⋮----
-function handleRequestReview()
-⋮----
-<Button variant="ghost" size="sm" onClick=
-⋮----
-{/* Back + actions bar */}
-⋮----
-{/* Header */}
-⋮----
-{/* Body tabs */}
+/**
+ * notebooklm/source domain/ports — driven port interfaces for the source subdomain.
+ *
+ * SourceDocumentCommandPort and ParsedDocumentPort are the primary driven ports.
+ * Repository contracts are re-exported from domain/repositories/.
+ */
 ````
 
 ## File: modules/notion/subdomains/knowledge/domain/ports/index.ts
@@ -57753,33 +58003,99 @@ export async function buildWikiContentTree(
 ): Promise<WikiAccountContentNode[]>
 ````
 
-## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
+## File: modules/workspace/interfaces/web/components/screens/AccountDashboardScreen.tsx
 ````typescript
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  BookOpen,
+  Brain,
+  Database,
+  FileText,
+  FolderOpen,
+  Library,
+  MessageSquare,
+  Notebook,
+  Shield,
+  User,
+  Users,
+} from "lucide-react";
 ⋮----
-import type { WorkspaceEntity } from "../../contracts";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
 ⋮----
-interface RecentWorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
+import type { WorkspaceEntity } from "../../../contracts";
+⋮----
+// ── Types ─────────────────────────────────────────────────────────────────────
+⋮----
+interface AccountDashboardScreenProps {
+  readonly accountId: string;
+  readonly accountName: string | null;
+  readonly accountType: "user" | "organization";
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly currentUserId: string | null;
 }
 ⋮----
-function getStorageKey(accountId: string)
+// ── Quick-access card definitions ─────────────────────────────────────────────
 ⋮----
-function readRecentWorkspaceIds(accountId: string): string[]
+interface QuickAccessCard {
+  readonly key: string;
+  readonly label: string;
+  readonly description: string;
+  readonly icon: React.ReactNode;
+  readonly buildHref: (accountId: string, workspaceId: string) => string;
+}
 ⋮----
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[])
+function enc(s: string): string
 ⋮----
-function trackWorkspaceFromPath(pathname: string, accountId: string)
+// ── Component ─────────────────────────────────────────────────────────────────
 ⋮----
-function getWorkspaceIdFromPath(pathname: string): string | null
+{/* ── Header ──────────────────────────────────────────────────────── */}
 ⋮----
-export function useRecentWorkspaces(
-  accountId: string | undefined,
-  pathname: string,
-  workspaces: WorkspaceEntity[],
-)
+{/* ── Active workspace quick-access ──────────────────────────────── */}
+⋮----
+{/* ── All workspaces list ─────────────────────────────────────────── */}
+````
+
+## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
+````typescript
+export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
+⋮----
+export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
+⋮----
+export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
+⋮----
+interface WorkspaceTabMeta {
+  readonly label: string;
+  readonly prefId: string;
+  readonly group: WorkspaceTabGroup;
+  readonly status: WorkspaceTabDevStatus;
+}
+⋮----
+export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue
+⋮----
+export function resolveWorkspaceTabValue(value: string | null | undefined): WorkspaceTabValue | null
+⋮----
+export function normalizeWorkspaceTabPrefId(prefId: string): string
+⋮----
+export function getWorkspaceTabMeta(tab: WorkspaceTabValue)
+⋮----
+export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus
+⋮----
+export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string
+⋮----
+export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string
+⋮----
+export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[]
+⋮----
+export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[]
 ````
 
 ## File: repomix.config.json
@@ -58089,16 +58405,6 @@ flowchart LR
 
 - 本文件集是 Context7-only 的 architecture-first 版本。
 - 本文件集沒有檢視任何既有專案內容，因此不應被解讀為 repo-inspected 現況描述。
-````
-
-## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
-````typescript
-/**
- * notebooklm/source domain/ports — driven port interfaces for the source subdomain.
- *
- * SourceDocumentCommandPort and ParsedDocumentPort are the primary driven ports.
- * Repository contracts are re-exported from domain/repositories/.
- */
 ````
 
 ## File: modules/notebooklm/subdomains/synthesis/api/index.ts
@@ -58532,42 +58838,6 @@ import { distillContent, generateAiText, summarize } from "@/modules/ai/api/serv
 - [docs/contexts/ai/ubiquitous-language.md](docs/contexts/ai/ubiquitous-language.md)
 ````
 
-## File: modules/notebooklm/api/index.ts
-````typescript
-/**
- * modules/notebooklm — public API barrel.
- *
- * Stable cross-module semantic surface for notebooklm.
- * Browser-facing route composition should prefer workspace/api when workspace
- * is the orchestration owner.
- */
-⋮----
-// UI components and hooks are exported from notebooklm/api/ui.ts.
-⋮----
-// ---------------------------------------------------------------------------
-// Source subdomain — semantic downstream capability surface
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// conversation subdomain — AI chat helpers and types
-//
-// NOTE: ConversationPanel is NOT re-exported here to avoid a synchronous
-// module-evaluation cycle: workspace/api → workspace interfaces →
-// notebooklm/api → ConversationPanel → workspace/api.
-// Import ConversationPanel from "@/modules/notebooklm/subdomains/conversation/api/ui"
-// or use next/dynamic for lazy loading.
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Context-wide published language (cross-module reference types)
-// ---------------------------------------------------------------------------
-⋮----
-// ---------------------------------------------------------------------------
-// Synthesis subdomain — complete RAG pipeline
-// (retrieval → grounding → synthesis → evaluation)
-// ---------------------------------------------------------------------------
-````
-
 ## File: modules/workspace/api/ui.ts
 ````typescript
 /**
@@ -58607,43 +58877,6 @@ import { distillContent, generateAiText, summarize } from "@/modules/ai/api/serv
 // ── Sidebar locale ────────────────────────────────────────────────────────────
 ⋮----
 // ── Navigation customize dialog ───────────────────────────────────────────────
-````
-
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceCrossModuleTabSurface.tsx
-````typescript
-import dynamic from "next/dynamic";
-import type { ReactNode } from "react";
-⋮----
-import type { WorkspaceEntity } from "../../../contracts";
-import type { WorkspaceTabValue } from "../../navigation/workspace-tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import {
-  KnowledgeBaseArticlesPanel,
-  KnowledgeDatabasesPanel,
-} from "@/modules/notion/api/ui";
-import {
-  RagQueryPanel,
-  SourceDocumentsPanel,
-} from "@/modules/notebooklm/api/ui";
-⋮----
-// Dynamic import to break synchronous module-evaluation cycle between
-// workspace/api → workspace/interfaces → notebooklm/api → ConversationPanel → workspace/api.
-// SSR disabled because ConversationPanel is a "use client" component that
-// relies on browser-only hooks (useState, useEffect) and workspace context providers.
-⋮----
-interface WorkspaceCrossModuleTabSurfaceOptions {
-  readonly tab: WorkspaceTabValue;
-  readonly workspace: WorkspaceEntity;
-  readonly accountId: string;
-  readonly currentUserId?: string | null;
-  readonly workspaces: Record<string, WorkspaceEntity>;
-}
-⋮----
-function renderWorkspacePlaceholder(title: string, description: string): ReactNode
-⋮----
-export function renderWorkspaceCrossModuleTabSurface(
-  options: WorkspaceCrossModuleTabSurfaceOptions,
-): ReactNode | null
 ````
 
 ## File: modules/ai/README.md
@@ -58727,6 +58960,79 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - domain 不得依賴任何 SDK 或框架。
 - Genkit 與 provider SDK 只能在 `infrastructure/` 層。
 - 跨模組消費只能透過 `api/` 邊界。
+````
+
+## File: modules/notebooklm/api/index.ts
+````typescript
+/**
+ * modules/notebooklm — public API barrel.
+ *
+ * Stable cross-module semantic surface for notebooklm.
+ * Browser-facing route composition should prefer workspace/api when workspace
+ * is the orchestration owner.
+ */
+⋮----
+// UI components and hooks are exported from notebooklm/api/ui.ts.
+⋮----
+// ---------------------------------------------------------------------------
+// Source subdomain — semantic downstream capability surface
+// ---------------------------------------------------------------------------
+⋮----
+// ---------------------------------------------------------------------------
+// conversation subdomain — AI chat helpers and types
+//
+// NOTE: ConversationPanel is NOT re-exported here to avoid a synchronous
+// module-evaluation cycle: workspace/api → workspace interfaces →
+// notebooklm/api → ConversationPanel → workspace/api.
+// Import ConversationPanel from "@/modules/notebooklm/subdomains/conversation/api/ui"
+// or use next/dynamic for lazy loading.
+// ---------------------------------------------------------------------------
+⋮----
+// ---------------------------------------------------------------------------
+// Context-wide published language (cross-module reference types)
+// ---------------------------------------------------------------------------
+⋮----
+// ---------------------------------------------------------------------------
+// Synthesis subdomain — complete RAG pipeline
+// (retrieval → grounding → synthesis → evaluation)
+// ---------------------------------------------------------------------------
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceCrossModuleTabSurface.tsx
+````typescript
+import dynamic from "next/dynamic";
+import type { ReactNode } from "react";
+⋮----
+import type { WorkspaceEntity } from "../../../contracts";
+import type { WorkspaceTabValue } from "../../navigation/workspace-tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import {
+  KnowledgeBaseArticlesPanel,
+  KnowledgeDatabasesPanel,
+} from "@/modules/notion/api/ui";
+import {
+  RagQueryPanel,
+  SourceDocumentsPanel,
+} from "@/modules/notebooklm/api/ui";
+⋮----
+// Dynamic import to break synchronous module-evaluation cycle between
+// workspace/api → workspace/interfaces → notebooklm/api → ConversationPanel → workspace/api.
+// SSR disabled because ConversationPanel is a "use client" component that
+// relies on browser-only hooks (useState, useEffect) and workspace context providers.
+⋮----
+interface WorkspaceCrossModuleTabSurfaceOptions {
+  readonly tab: WorkspaceTabValue;
+  readonly workspace: WorkspaceEntity;
+  readonly accountId: string;
+  readonly currentUserId?: string | null;
+  readonly workspaces: Record<string, WorkspaceEntity>;
+}
+⋮----
+function renderWorkspacePlaceholder(title: string, description: string): ReactNode
+⋮----
+export function renderWorkspaceCrossModuleTabSurface(
+  options: WorkspaceCrossModuleTabSurfaceOptions,
+): ReactNode | null
 ````
 
 ## File: package.json

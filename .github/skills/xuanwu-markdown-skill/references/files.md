@@ -18321,6 +18321,71 @@ Strategic architecture documentation lives in `docs/contexts/workspace/`:
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
+## File: modules/workspace/subdomains/attachment/README.md
+````markdown
+
+````
+
+## File: modules/workspace/subdomains/comment/README.md
+````markdown
+# Comment Subdomain
+
+Provides discussion and feedback system across workspace entities.
+
+Responsibilities:
+- Store comments for tasks, reviews, issues
+- Support threaded discussions (optional)
+- Track author and timestamps
+- Enable collaboration context
+
+Key entity:
+- Comment
+
+Out of scope:
+- Workflow decisions
+- Approval logic
+````
+
+## File: modules/workspace/subdomains/notification/README.md
+````markdown
+# Notification Subdomain
+
+Handles user-facing event notifications.
+
+Responsibilities:
+- Deliver event-based notifications
+- Support in-app notifications
+- Track read/unread state
+- Integrate with system events (task, review, issue)
+
+Key entity:
+- Notification
+
+Out of scope:
+- Business logic of events
+- Workflow orchestration
+````
+
+## File: modules/workspace/subdomains/tag/README.md
+````markdown
+# Tag Subdomain
+
+Provides labeling system for workspace entities.
+
+Responsibilities:
+- Create and manage tags
+- Attach tags to tasks, issues, reviews
+- Support filtering and grouping
+- Maintain tag taxonomy
+
+Key entity:
+- Tag
+
+Out of scope:
+- Workflow logic
+- Business state transitions
+````
+
 ## File: modules/workspace/subdomains/workspace-workflow/application/process-managers/README.md
 ````markdown
 # workspace-workflow / application / process-managers
@@ -23458,6 +23523,150 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
+## File: modules/workspace/subdomains/approval/README.md
+````markdown
+# Approval Subdomain
+
+Handles final decision-making for task completion.
+
+Responsibilities:
+- Approve or reject task completion
+- Store approval decisions and metadata
+- Define approver roles and permissions
+- Trigger downstream settlement when approved
+
+Key entity:
+- ApprovalRecord
+
+Out of scope:
+- Internal review checks
+- Issue resolution logic
+````
+
+## File: modules/workspace/subdomains/issue/README.md
+````markdown
+# Issue Subdomain
+
+Manages problems, defects, and blockers related to tasks.
+
+Responsibilities:
+- Create and track issues
+- Link issues to tasks, reviews, or approvals
+- Manage issue lifecycle (open, fixing, resolved)
+- Support rework loops back into workflow
+
+Key entity:
+- Issue
+
+Out of scope:
+- Task creation logic
+- Financial processes
+````
+
+## File: modules/workspace/subdomains/review/README.md
+````markdown
+# Review Subdomain
+
+Handles internal evaluation and quality inspection of tasks.
+
+Responsibilities:
+- Perform structured review checks
+- Record review results (pass/fail/notes)
+- Support checklist or scoring systems
+- Trigger rework via issues if needed
+
+Key entity:
+- ReviewResult
+
+Out of scope:
+- Final approval decisions
+- Financial settlement
+````
+
+## File: modules/workspace/subdomains/revision/README.md
+````markdown
+# Revision Subdomain
+
+Manages versioning and evolution of task content.
+
+Responsibilities:
+- Track task revisions over time
+- Store snapshots of task state changes
+- Support rollback or comparison between versions
+- Provide audit-friendly history
+
+Key entity:
+- TaskRevision
+
+Out of scope:
+- Approval decisions
+- Review results
+````
+
+## File: modules/workspace/subdomains/settlement/README.md
+````markdown
+# Settlement Subdomain
+
+Handles financial settlement for tasks, including progress-based payments.
+
+Responsibilities:
+- Calculate total and partial payments
+- Manage milestone-based settlements
+- Track payment status (pending, partial, completed)
+- Store payment history
+
+Key concepts:
+- Settlement (aggregate)
+- Settlement item (milestone payment)
+- Payment records
+
+Out of scope:
+- Task lifecycle management
+- Approval logic
+````
+
+## File: modules/workspace/subdomains/task/README.md
+````markdown
+# Task Subdomain
+
+Defines the core business unit of work in the workspace domain.
+
+Responsibilities:
+- Create, update, and manage tasks
+- Maintain task lifecycle state
+- Store metadata (priority, assignee, deadlines)
+- Provide stable identity for all downstream subdomains
+
+Out of scope:
+- Financial logic (settlement)
+- QA / review decisions
+- Workflow orchestration rules
+
+Key entity:
+- Task
+````
+
+## File: modules/workspace/subdomains/workflow/README.md
+````markdown
+# Workflow Subdomain
+
+Defines and controls task lifecycle transitions across subdomains.
+
+Responsibilities:
+- Manage state machine for tasks
+- Define allowed transitions between stages
+- Orchestrate events between subdomains
+- Handle loops (issue → revision → review)
+
+Key concepts:
+- Workflow definition
+- Workflow instance
+- State transitions
+
+Out of scope:
+- Business logic inside each step
+````
+
 ## File: .github/agents/firebase-guardian.agent.md
 ````markdown
 ---
@@ -27518,7 +27727,7 @@ description: Reference codebase for Xuanwu App. Use this skill when you need to 
 
 # Xuanwu App Codebase Reference
 
-1793 files | 50774 lines | 503689 tokens
+1808 files | 51814 lines | 514037 tokens
 
 ## Overview
 

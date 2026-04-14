@@ -2252,11 +2252,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notion/api/server.ts
-````typescript
-
-````
-
 ## File: modules/notion/api/ui.ts
 ````typescript
 /**
@@ -2283,24 +2278,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## File: modules/notion/infrastructure/knowledge/ai/index.ts
 ````typescript
 
-````
-
-## File: modules/notion/infrastructure/knowledge/ai/SharedAiKnowledgeSummaryAdapter.ts
-````typescript
-import { summarize } from "@/modules/ai/api/server";
-import type {
-  KnowledgeSummaryInput,
-  KnowledgeSummaryPort,
-  KnowledgeSummaryResult,
-} from "../../../subdomains/knowledge/domain/ports/KnowledgeSummaryPort";
-⋮----
-/**
- * Infrastructure adapter that lets Notion consume the shared AI bounded context
- * without embedding provider or Genkit ownership into the Notion module.
- */
-export class SharedAiKnowledgeSummaryAdapter implements KnowledgeSummaryPort {
-⋮----
-async summarizePage(input: KnowledgeSummaryInput): Promise<KnowledgeSummaryResult>
 ````
 
 ## File: modules/notion/infrastructure/knowledge/index.ts
@@ -3972,21 +3949,6 @@ export class GetKnowledgePageTreeByWorkspaceUseCase {
 async execute(accountId: string, workspaceId: string): Promise<KnowledgePageTreeNode[]>
 ````
 
-## File: modules/notion/subdomains/knowledge/application/queries/knowledge-summary.queries.ts
-````typescript
-import type { KnowledgePageSummary } from "../dto/knowledge.dto";
-import type { KnowledgeSummaryPort } from "../../domain/ports/KnowledgeSummaryPort";
-import type { ContentBlockRepository } from "../../domain/repositories/ContentBlockRepository";
-import type { KnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
-import { richTextToPlainText } from "../../domain/value-objects/BlockContent";
-⋮----
-export class GenerateKnowledgePageSummaryQuery {
-⋮----
-constructor(
-⋮----
-async execute(accountId: string, pageId: string): Promise<KnowledgePageSummary | null>
-````
-
 ## File: modules/notion/subdomains/knowledge/application/use-cases/index.ts
 ````typescript
 
@@ -4370,6 +4332,40 @@ export type KnowledgePageDomainEvent =
   | PageOwnerAssignedEvent
   | PageIconUpdatedEvent
   | PageCoverUpdatedEvent;
+````
+
+## File: modules/notion/subdomains/knowledge/domain/ports/KnowledgeDistillationPort.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: domain/ports
+ * Purpose: External capability contract for structured knowledge-page distillation.
+ */
+⋮----
+export interface KnowledgeDistillationInput {
+  readonly title: string;
+  readonly plainText: string;
+  readonly model?: string;
+}
+⋮----
+export interface KnowledgeDistillationHighlight {
+  readonly title: string;
+  readonly summary: string;
+}
+⋮----
+export interface KnowledgeDistillationResult {
+  readonly overview: string;
+  readonly highlights: readonly KnowledgeDistillationHighlight[];
+  readonly model: string;
+  readonly traceId: string;
+  readonly completedAt: string;
+}
+⋮----
+export interface KnowledgeDistillationPort {
+  distillPage(input: KnowledgeDistillationInput): Promise<KnowledgeDistillationResult>;
+}
+⋮----
+distillPage(input: KnowledgeDistillationInput): Promise<KnowledgeDistillationResult>;
 ````
 
 ## File: modules/notion/subdomains/knowledge/domain/ports/KnowledgeSummaryPort.ts
@@ -4816,6 +4812,11 @@ Legacy migration (Strangler Pattern):
 5. Replace Infrastructure adapter; remove old path when stable
 ````
 
+## File: modules/notion/api/server.ts
+````typescript
+
+````
+
 ## File: modules/notion/docs/README.md
 ````markdown
 # Notion Documentation
@@ -5144,6 +5145,31 @@ async delete(id: string, accountId: string): Promise<void>
 async listByDatabase(accountId: string, databaseId: string): Promise<ViewSnapshot[]>
 ````
 
+## File: modules/notion/infrastructure/knowledge/ai/SharedAiKnowledgeSummaryAdapter.ts
+````typescript
+import { distillContent } from "@/modules/ai/api/server";
+import type {
+  KnowledgeDistillationInput,
+  KnowledgeDistillationPort,
+  KnowledgeDistillationResult,
+} from "../../../subdomains/knowledge/domain/ports/KnowledgeDistillationPort";
+import type {
+  KnowledgeSummaryInput,
+  KnowledgeSummaryPort,
+  KnowledgeSummaryResult,
+} from "../../../subdomains/knowledge/domain/ports/KnowledgeSummaryPort";
+⋮----
+/**
+ * Infrastructure adapter that lets Notion consume the shared AI bounded context
+ * without embedding provider or Genkit ownership into the Notion module.
+ */
+export class SharedAiKnowledgeSummaryAdapter implements KnowledgeSummaryPort, KnowledgeDistillationPort {
+⋮----
+async summarizePage(input: KnowledgeSummaryInput): Promise<KnowledgeSummaryResult>
+⋮----
+async distillPage(input: KnowledgeDistillationInput): Promise<KnowledgeDistillationResult>
+````
+
 ## File: modules/notion/infrastructure/knowledge/firebase/FirebaseBacklinkIndexRepository.ts
 ````typescript
 /**
@@ -5421,6 +5447,39 @@ onClick=
 <Button size="sm" variant="outline" onClick=
 ⋮----
 {/* View */}
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseFormsPanel.tsx
+````typescript
+/**
+ * Route: /knowledge-database/databases/[databaseId]/forms
+ * Purpose: Manage database forms ??create and embed form links for a specific database.
+ */
+⋮----
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
+⋮----
+import { getDatabase } from "../queries";
+import { DatabaseFormPanel } from "./DatabaseFormPanel";
+import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
+⋮----
+// ?? Props ?????????????????????????????????????????????????????????????????????
+⋮----
+export interface DatabaseFormsPanelProps {
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+⋮----
+// ?? Component ?????????????????????????????????????????????????????????????????
+⋮----
+<Button variant="ghost" size="sm" onClick=
+⋮----
+{/* Top bar */}
 ````
 
 ## File: modules/notion/interfaces/knowledge/_actions/knowledge-page.actions.ts
@@ -5881,60 +5940,27 @@ export type AutomationId = string;
  */
 ````
 
-## File: modules/notion/subdomains/knowledge/api/index.ts
+## File: modules/notion/subdomains/knowledge/application/queries/knowledge-summary.queries.ts
 ````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- */
+import type { ContentBlock } from "../../domain/aggregates/ContentBlock";
+import type { KnowledgeDistillationPort } from "../../domain/ports/KnowledgeDistillationPort";
+import type { KnowledgeSummaryPort } from "../../domain/ports/KnowledgeSummaryPort";
+import type { ContentBlockRepository } from "../../domain/repositories/ContentBlockRepository";
+import type { KnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
+import { richTextToPlainText } from "../../domain/value-objects/BlockContent";
+import type { KnowledgePageDistillation, KnowledgePageSummary } from "../dto/knowledge.dto";
 ⋮----
-// ?? Types (read-only snapshots ??no aggregate class refs) ?????????????????????
+function buildPagePlainText(blocks: readonly ContentBlock[], resolvedTitle: string): string
 ⋮----
-/** @alias KnowledgePageSnapshot ??provided for backward-compatibility */
+export class GenerateKnowledgePageSummaryQuery {
 ⋮----
-// ?? Server action DTOs ????????????????????????????????????????????????????????
+constructor(
 ⋮----
-// ?? Query functions (server-side reads) ???????????????????????????????????????
+async execute(accountId: string, pageId: string): Promise<KnowledgePageSummary | null>
 ⋮----
-// ?? Server actions (drives: app router, Server Components) ????????????????????
+export class GenerateKnowledgePageDistillationQuery {
 ⋮----
-// UI components and editor store are exported from ./ui to keep this barrel semantic-only.
-⋮----
-// ?? Tree node type (needed by app/ pages) ?????????????????????????????????????
-⋮----
-// ?? Domain events (published language ??for cross-module event subscriptions) ?
-⋮----
-// ?? Sidebar component ?????????????????????????????????????????????????????????
-⋮----
-// Header widgets and detail panels are exported from ./ui.
-````
-
-## File: modules/notion/subdomains/knowledge/application/dto/knowledge.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the knowledge subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-⋮----
-export interface KnowledgePageSummary {
-  readonly pageId: string;
-  readonly title: string;
-  readonly summary: string;
-  readonly model: string;
-  readonly blockCount: number;
-}
-⋮----
-import type { RichTextSpan } from "../../domain/value-objects/BlockContent";
-⋮----
-/**
- * richTextToPlainText — converts rich-text spans to a plain string.
- *
- * Application-layer utility that mirrors the domain value-object helper.
- * Defined here so interfaces/ do not depend directly on domain/.
- */
-export function richTextToPlainText(spans: ReadonlyArray<RichTextSpan>): string
+async execute(accountId: string, pageId: string): Promise<KnowledgePageDistillation | null>
 ````
 
 ## File: modules/notion/subdomains/knowledge/domain/aggregates/ContentBlock.ts
@@ -6398,193 +6424,6 @@ async delete(id: string, accountId: string, databaseId: string): Promise<void>
 async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]>
 ````
 
-## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesPanel.tsx
-````typescript
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
-⋮----
-import { useAuth } from "@/modules/iam/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-⋮----
-import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import { getArticles, getCategories } from "../queries";
-import { ArticleDialog } from "./ArticleDialog";
-import { CategoryTreePanel } from "./CategoryTreePanel";
-⋮----
-/**
- * KnowledgeBaseArticlesPanel
- * Route-level screen component for /knowledge-base/articles.
- * Encapsulates data-loading, filtering and layout so the Next.js route
- * file stays thin (params/context wiring only).
- */
-export interface KnowledgeBaseArticlesPanelProps {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly currentUserId?: string | null;
-}
-⋮----
-function handleSuccess(articleId?: string)
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseFormsPanel.tsx
-````typescript
-/**
- * Route: /knowledge-database/databases/[databaseId]/forms
- * Purpose: Manage database forms ??create and embed form links for a specific database.
- */
-⋮----
-import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
-⋮----
-import { getDatabase } from "../queries";
-import { DatabaseFormPanel } from "./DatabaseFormPanel";
-import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-⋮----
-// ?? Props ?????????????????????????????????????????????????????????????????????
-⋮----
-export interface DatabaseFormsPanelProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-⋮----
-// ?? Component ?????????????????????????????????????????????????????????????????
-⋮----
-<Button variant="ghost" size="sm" onClick=
-⋮----
-{/* Top bar */}
-````
-
-## File: modules/notion/interfaces/database/components/KnowledgeDatabasesPanel.tsx
-````typescript
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Table2 } from "lucide-react";
-⋮----
-import { useAuth } from "@/modules/iam/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-⋮----
-import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
-import { getDatabases } from "../queries";
-import { DatabaseDialog } from "./DatabaseDialog";
-⋮----
-/**
- * KnowledgeDatabasesPanel
- * Route-level screen component for /knowledge-database/databases.
- * Encapsulates data-loading and layout so the Next.js route file stays thin.
- */
-export interface KnowledgeDatabasesPanelProps {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly currentUserId?: string | null;
-}
-⋮----
-function handleSuccess(databaseId?: string)
-````
-
-## File: modules/notion/interfaces/knowledge/components/KnowledgePagesPanel.tsx
-````typescript
-import { useCallback, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-⋮----
-import { useAuth } from "@/modules/iam/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-⋮----
-import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
-import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
-import { PageTreePanel } from "./PageTreePanel";
-⋮----
-/**
- * KnowledgePagesPanel
- * Route-level screen component for /knowledge/pages.
- * Encapsulates data-loading, scope resolution and layout so that the
- * Next.js route file stays thin (params/context wiring only).
- */
-export interface KnowledgePagesPanelProps {
-  readonly accountId: string;
-  readonly workspaceId?: string | null;
-  readonly currentUserId?: string | null;
-  readonly scope?: "workspace" | "account";
-}
-⋮----
-function buildPageDetailHref(pageId: string)
-⋮----
-onCreated=
-````
-
-## File: modules/notion/subdomains/knowledge/application/use-cases/review-knowledge-page.use-cases.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: application/use-cases
- * Purpose: Page review/wiki use cases — approve, verify, request review, assign owner.
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
-⋮----
-import type { KnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
-import {
-  PublishDomainEventUseCase,
-  type IEventStoreRepository,
-  type IEventBusRepository,
-} from "@shared-events";
-import {
-  ApproveKnowledgePageSchema,
-  type ApproveKnowledgePageDto,
-} from "../dto/KnowledgePageDto";
-import {
-  VerifyKnowledgePageSchema,
-  type VerifyKnowledgePageDto,
-  RequestPageReviewSchema,
-  type RequestPageReviewDto,
-  AssignPageOwnerSchema,
-  type AssignPageOwnerDto,
-} from "../dto/KnowledgePageLifecycleDto";
-⋮----
-export class ApproveKnowledgePageUseCase {
-⋮----
-constructor(
-⋮----
-async execute(input: ApproveKnowledgePageDto): Promise<CommandResult>
-⋮----
-export class VerifyKnowledgePageUseCase {
-⋮----
-constructor(private readonly repo: KnowledgePageRepository)
-⋮----
-async execute(input: VerifyKnowledgePageDto): Promise<CommandResult>
-⋮----
-export class RequestPageReviewUseCase {
-⋮----
-async execute(input: RequestPageReviewDto): Promise<CommandResult>
-⋮----
-export class AssignPageOwnerUseCase {
-⋮----
-async execute(input: AssignPageOwnerDto): Promise<CommandResult>
-````
-
-## File: modules/notion/subdomains/knowledge/domain/ports/index.ts
-````typescript
-/**
- * notion/knowledge domain/ports — driven port interfaces for the knowledge subdomain.
- *
- * Re-exports repository contracts from domain/repositories/, making the Ports layer
- * explicitly visible in the directory structure.
- */
-````
-
 ## File: modules/notion/interfaces/authoring/components/ArticleDetailPanel.tsx
 ````typescript
 import { useCallback, useEffect, useState, useTransition } from "react";
@@ -6647,6 +6486,68 @@ function handleRequestReview()
 {/* Header */}
 ⋮----
 {/* Body tabs */}
+````
+
+## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesPanel.tsx
+````typescript
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
+⋮----
+import { useAuth } from "@/modules/iam/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+⋮----
+import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import { getArticles, getCategories } from "../queries";
+import { ArticleDialog } from "./ArticleDialog";
+import { CategoryTreePanel } from "./CategoryTreePanel";
+⋮----
+/**
+ * KnowledgeBaseArticlesPanel
+ * Route-level screen component for /knowledge-base/articles.
+ * Encapsulates data-loading, filtering and layout so the Next.js route
+ * file stays thin (params/context wiring only).
+ */
+export interface KnowledgeBaseArticlesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly currentUserId?: string | null;
+}
+⋮----
+function handleSuccess(articleId?: string)
+````
+
+## File: modules/notion/interfaces/database/components/KnowledgeDatabasesPanel.tsx
+````typescript
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Table2 } from "lucide-react";
+⋮----
+import { useAuth } from "@/modules/iam/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+⋮----
+import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
+import { getDatabases } from "../queries";
+import { DatabaseDialog } from "./DatabaseDialog";
+⋮----
+/**
+ * KnowledgeDatabasesPanel
+ * Route-level screen component for /knowledge-database/databases.
+ * Encapsulates data-loading and layout so the Next.js route file stays thin.
+ */
+export interface KnowledgeDatabasesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly currentUserId?: string | null;
+}
+⋮----
+function handleSuccess(databaseId?: string)
 ````
 
 ## File: modules/notion/interfaces/knowledge/components/KnowledgeDetailPanel.tsx
@@ -6713,6 +6614,168 @@ onClick=
 {/* Comment panel ??slides in from right */}
 ````
 
+## File: modules/notion/interfaces/knowledge/components/KnowledgePagesPanel.tsx
+````typescript
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+⋮----
+import { useAuth } from "@/modules/iam/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+⋮----
+import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
+import { PageTreePanel } from "./PageTreePanel";
+⋮----
+/**
+ * KnowledgePagesPanel
+ * Route-level screen component for /knowledge/pages.
+ * Encapsulates data-loading, scope resolution and layout so that the
+ * Next.js route file stays thin (params/context wiring only).
+ */
+export interface KnowledgePagesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId?: string | null;
+  readonly currentUserId?: string | null;
+  readonly scope?: "workspace" | "account";
+}
+⋮----
+function buildPageDetailHref(pageId: string)
+⋮----
+onCreated=
+````
+
+## File: modules/notion/subdomains/knowledge/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ */
+⋮----
+// ?? Types (read-only snapshots ??no aggregate class refs) ?????????????????????
+⋮----
+/** @alias KnowledgePageSnapshot ??provided for backward-compatibility */
+⋮----
+// ?? Server action DTOs ????????????????????????????????????????????????????????
+⋮----
+// ?? Query functions (server-side reads) ???????????????????????????????????????
+⋮----
+// ?? Server actions (drives: app router, Server Components) ????????????????????
+⋮----
+// UI components and editor store are exported from ./ui to keep this barrel semantic-only.
+⋮----
+// ?? Tree node type (needed by app/ pages) ?????????????????????????????????????
+⋮----
+// ?? Domain events (published language ??for cross-module event subscriptions) ?
+⋮----
+// ?? Sidebar component ?????????????????????????????????????????????????????????
+⋮----
+// Header widgets and detail panels are exported from ./ui.
+````
+
+## File: modules/notion/subdomains/knowledge/application/dto/knowledge.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the knowledge subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+⋮----
+export interface KnowledgePageSummary {
+  readonly pageId: string;
+  readonly title: string;
+  readonly summary: string;
+  readonly model: string;
+  readonly blockCount: number;
+}
+⋮----
+export interface KnowledgePageDistillation {
+  readonly pageId: string;
+  readonly title: string;
+  readonly overview: string;
+  readonly highlights: ReadonlyArray<{
+    readonly title: string;
+    readonly summary: string;
+  }>;
+  readonly model: string;
+  readonly traceId: string;
+  readonly completedAt: string;
+  readonly blockCount: number;
+}
+⋮----
+import type { RichTextSpan } from "../../domain/value-objects/BlockContent";
+⋮----
+/**
+ * richTextToPlainText — converts rich-text spans to a plain string.
+ *
+ * Application-layer utility that mirrors the domain value-object helper.
+ * Defined here so interfaces/ do not depend directly on domain/.
+ */
+export function richTextToPlainText(spans: ReadonlyArray<RichTextSpan>): string
+````
+
+## File: modules/notion/subdomains/knowledge/application/use-cases/review-knowledge-page.use-cases.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: application/use-cases
+ * Purpose: Page review/wiki use cases — approve, verify, request review, assign owner.
+ */
+⋮----
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import { v7 as generateId } from "@lib-uuid";
+⋮----
+import type { KnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
+import {
+  PublishDomainEventUseCase,
+  type IEventStoreRepository,
+  type IEventBusRepository,
+} from "@shared-events";
+import {
+  ApproveKnowledgePageSchema,
+  type ApproveKnowledgePageDto,
+} from "../dto/KnowledgePageDto";
+import {
+  VerifyKnowledgePageSchema,
+  type VerifyKnowledgePageDto,
+  RequestPageReviewSchema,
+  type RequestPageReviewDto,
+  AssignPageOwnerSchema,
+  type AssignPageOwnerDto,
+} from "../dto/KnowledgePageLifecycleDto";
+⋮----
+export class ApproveKnowledgePageUseCase {
+⋮----
+constructor(
+⋮----
+async execute(input: ApproveKnowledgePageDto): Promise<CommandResult>
+⋮----
+export class VerifyKnowledgePageUseCase {
+⋮----
+constructor(private readonly repo: KnowledgePageRepository)
+⋮----
+async execute(input: VerifyKnowledgePageDto): Promise<CommandResult>
+⋮----
+export class RequestPageReviewUseCase {
+⋮----
+async execute(input: RequestPageReviewDto): Promise<CommandResult>
+⋮----
+export class AssignPageOwnerUseCase {
+⋮----
+async execute(input: AssignPageOwnerDto): Promise<CommandResult>
+````
+
+## File: modules/notion/subdomains/knowledge/domain/ports/index.ts
+````typescript
+/**
+ * notion/knowledge domain/ports — driven port interfaces for the knowledge subdomain.
+ *
+ * Re-exports repository contracts from domain/repositories/, making the Ports layer
+ * explicitly visible in the directory structure.
+ */
+````
+
 ## File: modules/notion/subdomains/knowledge/api/server.ts
 ````typescript
 /**
@@ -6722,8 +6785,11 @@ onClick=
  * run in Server Actions, route handlers, or other server-side entry points.
  */
 ⋮----
-import { GenerateKnowledgePageSummaryQuery } from "../application/queries/knowledge-summary.queries";
-import type { KnowledgePageSummary } from "../application/dto/knowledge.dto";
+import {
+  GenerateKnowledgePageDistillationQuery,
+  GenerateKnowledgePageSummaryQuery,
+} from "../application/queries/knowledge-summary.queries";
+import type { KnowledgePageDistillation, KnowledgePageSummary } from "../application/dto/knowledge.dto";
 import { SharedAiKnowledgeSummaryAdapter } from "../../../infrastructure/knowledge/ai/SharedAiKnowledgeSummaryAdapter";
 import { FirebaseKnowledgePageRepository } from "../../../infrastructure/knowledge/firebase/FirebaseKnowledgePageRepository";
 import { FirebaseContentBlockRepository } from "../../../infrastructure/knowledge/firebase/FirebaseContentBlockRepository";
@@ -6731,4 +6797,9 @@ import { FirebaseKnowledgeCollectionRepository } from "../../../infrastructure/k
 import { FirebaseBacklinkIndexRepository } from "../../../infrastructure/knowledge/firebase/FirebaseBacklinkIndexRepository";
 ⋮----
 export async function getKnowledgePageSummary(accountId: string, pageId: string): Promise<KnowledgePageSummary | null>
+⋮----
+export async function getKnowledgePageDistillation(
+  accountId: string,
+  pageId: string,
+): Promise<KnowledgePageDistillation | null>
 ````

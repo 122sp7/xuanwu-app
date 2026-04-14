@@ -276,6 +276,41 @@ onChange=
 <input type="text" value=
 ````
 
+## File: modules/notebooklm/interfaces/source/components/WorkspaceFilesTab.tsx
+````typescript
+import { useCallback, useEffect, useMemo, useState } from "react";
+⋮----
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+⋮----
+import type { WorkspaceFileListItemDto } from "../../../subdomains/source/application/dto/source-file.dto";
+import { resolveSourceOrganizationId } from "../../../subdomains/source/application/dto/source.dto";
+import { getWorkspaceFiles } from "../queries/source-file.queries";
+import { uploadCompleteFile, uploadInitFile } from "../_actions/source-file.actions";
+import { makeSourceStorageAdapter } from "../composition/adapters";
+import { FileProcessingDialog } from "./FileProcessingDialog";
+⋮----
+interface WorkspaceFilesTabProps {
+  readonly workspace: WorkspaceEntity;
+}
+⋮----
+interface PendingUploadProcessing {
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+}
+⋮----
+async function handleUploadFile(file: File)
+⋮----
+onClose=
+````
+
 ## File: modules/notebooklm/interfaces/source/contracts/source-command-result.ts
 ````typescript
 import type { SourceFileCommandErrorCode } from "../../../subdomains/source/application/dto/source-file.dto";
@@ -296,23 +331,42 @@ export type SourceFileCommandResult<TData> =
     };
 ````
 
-## File: modules/notebooklm/interfaces/source/queries/source-file.queries.ts
+## File: modules/notebooklm/interfaces/source/hooks/useSourceDocumentsSnapshot.ts
 ````typescript
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { useCallback, useEffect, useRef, useState } from "react";
 ⋮----
-import type { WorkspaceFileListItemDto } from "../../../subdomains/source/application/dto/source-file.dto";
-import { resolveSourceOrganizationId } from "../../../subdomains/source/application/dto/source.dto";
-import type { RagDocumentRecord } from "../../../subdomains/source/application/dto/source.dto";
-import { makeRagDocumentAdapter, makeSourceFileAdapter } from "../composition/adapters";
-import { ListSourceFilesUseCase } from "../../../subdomains/source/application/queries/source-file.queries";
+import { makeSourceDocumentWatchAdapter } from "../composition/adapters";
 ⋮----
-export async function getWorkspaceFiles(
-  workspace: WorkspaceEntity,
-): Promise<WorkspaceFileListItemDto[]>
+import type {
+  SourceLiveDocument,
+} from "../../../subdomains/source/application/dto/source-live-document.dto";
+import {
+  mapToSourceLiveDocument,
+} from "../../../subdomains/source/application/dto/source-live-document.dto";
 ⋮----
-export async function getWorkspaceRagDocuments(
-  workspace: WorkspaceEntity,
-): Promise<readonly RagDocumentRecord[]>
+// Re-export types for backward compatibility
+⋮----
+// ── Helpers ───────────────────────────────────────────────────────────────────
+⋮----
+function isRecord(value: unknown): value is Record<string, unknown>
+⋮----
+function objectOrEmpty(value: unknown): Record<string, unknown>
+⋮----
+// ── Hook ──────────────────────────────────────────────────────────────────────
+⋮----
+export interface UseSourceDocumentsSnapshotResult {
+  readonly docs: SourceLiveDocument[];
+  readonly loading: boolean;
+  readonly pendingDocs: SourceLiveDocument[];
+  readonly addPending: (doc: SourceLiveDocument) => void;
+  readonly removePending: (id: string) => void;
+}
+⋮----
+/** Subscribes to Firestore `accounts/{accountId}/documents` in real time via onSnapshot. */
+export function useSourceDocumentsSnapshot(
+  accountId: string,
+  workspaceId?: string,
+): UseSourceDocumentsSnapshotResult
 ````
 
 ## File: modules/notebooklm/subdomains/conversation/api/server.ts
@@ -475,6 +529,17 @@ export interface NotebookRepository {
 }
 ⋮----
 generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>;
+````
+
+## File: modules/notebooklm/subdomains/source/api/server.ts
+````typescript
+/**
+ * source subdomain — server-only API.
+ *
+ * Exports composition factories for server-side wiring.
+ * Server Actions, route handlers, and other server-side entry points should
+ * use these factories instead of importing infrastructure adapters directly.
+ */
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/dto/source-file.dto.ts
@@ -1867,105 +1932,26 @@ type RowData = WikiLibraryRow & { _values: Record<string, unknown> };
 onDrop(
 ````
 
-## File: modules/notebooklm/interfaces/source/components/WorkspaceFilesTab.tsx
+## File: modules/notebooklm/interfaces/source/queries/source-file.queries.ts
 ````typescript
-import { useCallback, useEffect, useMemo, useState } from "react";
-⋮----
 import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
 ⋮----
 import type { WorkspaceFileListItemDto } from "../../../subdomains/source/application/dto/source-file.dto";
 import { resolveSourceOrganizationId } from "../../../subdomains/source/application/dto/source.dto";
-import { getWorkspaceFiles } from "../queries/source-file.queries";
-import { uploadCompleteFile, uploadInitFile } from "../_actions/source-file.actions";
-import { makeSourceStorageAdapter } from "../composition/adapters";
-import { FileProcessingDialog } from "./FileProcessingDialog";
+import type { RagDocumentRecord } from "../../../subdomains/source/application/dto/source.dto";
+import type { SourceFileVersion } from "../../../subdomains/source/domain/entities/SourceFileVersion";
+import { makeRagDocumentAdapter, makeSourceFileAdapter } from "../composition/adapters";
+import { ListSourceFilesUseCase } from "../../../subdomains/source/application/queries/source-file.queries";
 ⋮----
-interface WorkspaceFilesTabProps {
-  readonly workspace: WorkspaceEntity;
-}
+export async function getWorkspaceFiles(
+  workspace: WorkspaceEntity,
+): Promise<WorkspaceFileListItemDto[]>
 ⋮----
-interface PendingUploadProcessing {
-  readonly sourceFileId: string;
-  readonly filename: string;
-  readonly gcsUri: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-}
+export async function getWorkspaceRagDocuments(
+  workspace: WorkspaceEntity,
+): Promise<readonly RagDocumentRecord[]>
 ⋮----
-async function handleUploadFile(file: File)
-⋮----
-onClose=
-````
-
-## File: modules/notebooklm/interfaces/source/composition/workspace-files.facade.ts
-````typescript
-import { uploadCompleteFile, uploadInitFile } from "../_actions/source-file.actions";
-import { makeSourceStorageAdapter } from "./adapters";
-import { resolveSourceOrganizationId } from "../../../subdomains/source/application/dto/source.dto";
-⋮----
-export interface UploadWorkspaceSourceFileInput {
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly accountType: "user" | "organization";
-  readonly file: File;
-}
-⋮----
-export interface UploadWorkspaceSourceFileResult {
-  readonly success: boolean;
-  readonly sourceFileId?: string;
-  readonly filename?: string;
-  readonly gcsUri?: string;
-  readonly mimeType?: string;
-  readonly sizeBytes?: number;
-  readonly error?: { readonly message: string };
-}
-⋮----
-export async function uploadWorkspaceSourceFile(
-  input: UploadWorkspaceSourceFileInput,
-): Promise<UploadWorkspaceSourceFileResult>
-````
-
-## File: modules/notebooklm/interfaces/source/hooks/useSourceDocumentsSnapshot.ts
-````typescript
-import { useCallback, useEffect, useRef, useState } from "react";
-⋮----
-import { makeSourceDocumentWatchAdapter } from "../composition/adapters";
-⋮----
-import type {
-  SourceLiveDocument,
-} from "../../../subdomains/source/application/dto/source-live-document.dto";
-import {
-  mapToSourceLiveDocument,
-} from "../../../subdomains/source/application/dto/source-live-document.dto";
-⋮----
-// Re-export types for backward compatibility
-⋮----
-// ── Helpers ───────────────────────────────────────────────────────────────────
-⋮----
-function isRecord(value: unknown): value is Record<string, unknown>
-⋮----
-function objectOrEmpty(value: unknown): Record<string, unknown>
-⋮----
-// ── Hook ──────────────────────────────────────────────────────────────────────
-⋮----
-export interface UseSourceDocumentsSnapshotResult {
-  readonly docs: SourceLiveDocument[];
-  readonly loading: boolean;
-  readonly pendingDocs: SourceLiveDocument[];
-  readonly addPending: (doc: SourceLiveDocument) => void;
-  readonly removePending: (id: string) => void;
-}
-⋮----
-/** Subscribes to Firestore `accounts/{accountId}/documents` in real time via onSnapshot. */
-export function useSourceDocumentsSnapshot(
-  accountId: string,
-  workspaceId?: string,
-): UseSourceDocumentsSnapshotResult
+export async function getSourceFileVersions(fileId: string): Promise<readonly SourceFileVersion[]>
 ````
 
 ## File: modules/notebooklm/notebooklm.instructions.md
@@ -2136,17 +2122,6 @@ Notebook container and organization.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notebooklm/subdomains/source/api/server.ts
-````typescript
-/**
- * source subdomain — server-only API.
- *
- * Exports composition factories for server-side wiring.
- * Server Actions, route handlers, and other server-side entry points should
- * use these factories instead of importing infrastructure adapters directly.
- */
 ````
 
 ## File: modules/notebooklm/subdomains/source/api/ui.ts
@@ -2823,36 +2798,6 @@ findByWorkspace(scope: {
     readonly workspaceId: string;
   }): Promise<readonly RagDocumentRecord[]>;
 saveUploaded(record: RagDocumentRecord): Promise<void>;
-````
-
-## File: modules/notebooklm/subdomains/source/domain/repositories/SourceFileRepository.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: domain/repositories
- * Port: SourceFileRepository — persistence contract for SourceFile aggregates.
- */
-⋮----
-import type { SourceFile } from "../entities/SourceFile";
-import type { SourceFileVersion } from "../entities/SourceFileVersion";
-⋮----
-export interface ListSourceFilesScope {
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly actorAccountId: string;
-}
-⋮----
-export interface SourceFileRepository {
-  findById(fileId: string): Promise<SourceFile | null>;
-  findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null>;
-  listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>;
-  save(file: SourceFile, versions?: readonly SourceFileVersion[]): Promise<void>;
-}
-⋮----
-findById(fileId: string): Promise<SourceFile | null>;
-findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null>;
-listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>;
-save(file: SourceFile, versions?: readonly SourceFileVersion[]): Promise<void>;
 ````
 
 ## File: modules/notebooklm/subdomains/source/domain/repositories/WikiLibraryRepository.ts
@@ -3591,47 +3536,6 @@ async deleteDocument(accountId: string, documentId: string): Promise<void>
 async renameDocument(accountId: string, documentId: string, newName: string): Promise<void>
 ````
 
-## File: modules/notebooklm/infrastructure/source/firebase/FirebaseSourceFileAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/firebase
- * Adapter: FirebaseSourceFileAdapter — Firestore implementation of SourceFileRepository.
- *
- * Collections:
- *   workspaceFiles/{fileId}
- *   workspaceFiles/{fileId}/versions/{versionId}
- */
-⋮----
-import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
-⋮----
-import type { SourceFile } from "../../../subdomains/source/domain/entities/SourceFile";
-import type { SourceFileVersion } from "../../../subdomains/source/domain/entities/SourceFileVersion";
-import type { SourceFileRepository, ListSourceFilesScope } from "../../../subdomains/source/domain/repositories/SourceFileRepository";
-⋮----
-function isSourceFileStatus(value: unknown): value is SourceFile["status"]
-⋮----
-function isSourceFileClassification(value: unknown): value is SourceFile["classification"]
-⋮----
-function toStringArray(value: unknown): readonly string[]
-⋮----
-function toSourceFileEntity(fileId: string, data: Record<string, unknown>): SourceFile
-⋮----
-function isVersionStatus(value: unknown): value is SourceFileVersion["status"]
-⋮----
-function toSourceFileVersionEntity(versionId: string, data: Record<string, unknown>): SourceFileVersion
-⋮----
-export class FirebaseSourceFileAdapter implements SourceFileRepository {
-⋮----
-async findById(fileId: string): Promise<SourceFile | null>
-⋮----
-async findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null>
-⋮----
-async listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>
-⋮----
-async save(file: SourceFile, versions: readonly SourceFileVersion[] = []): Promise<void>
-````
-
 ## File: modules/notebooklm/infrastructure/source/firebase/FirebaseWikiLibraryAdapter.ts
 ````typescript
 /**
@@ -3724,6 +3628,29 @@ async createRow(accountId: string, row: WikiLibraryRow): Promise<void>
 async listRows(accountId: string, libraryId: string): Promise<WikiLibraryRow[]>
 ````
 
+## File: modules/notebooklm/infrastructure/source/platform/PlatformSourceDocumentWatchAdapter.ts
+````typescript
+/**
+ * Module: notebooklm
+ * Layer: infrastructure/source/platform
+ * Adapter: PlatformSourceDocumentWatchAdapter — delegates to platform FirestoreAPI.
+ */
+⋮----
+import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
+⋮----
+import type {
+  SourceDocumentWatchPort,
+  WatchedDocument,
+} from "../../../subdomains/source/domain/ports/SourceDocumentWatchPort";
+⋮----
+export class PlatformSourceDocumentWatchAdapter implements SourceDocumentWatchPort {
+⋮----
+watchCollection<T>(
+    collectionPath: string,
+    handlers: {
+onNext: (documents: readonly WatchedDocument<T>[])
+````
+
 ## File: modules/notebooklm/infrastructure/source/platform/PlatformSourcePipelineAdapter.ts
 ````typescript
 import { functionsInfrastructureApi } from "@/modules/platform/api/infrastructure";
@@ -3747,6 +3674,32 @@ export class PlatformSourcePipelineAdapter implements SourcePipelinePort {
 async parseDocument(input: ParseSourceDocumentInput): Promise<ParseSourceDocumentOutput>
 ⋮----
 async reindexDocument(input: ReindexSourceDocumentInput): Promise<ReindexSourceDocumentOutput>
+````
+
+## File: modules/notebooklm/infrastructure/source/platform/PlatformSourceStorageAdapter.ts
+````typescript
+/**
+ * Module: notebooklm
+ * Layer: infrastructure/source/platform
+ * Adapter: PlatformSourceStorageAdapter — delegates to platform StorageAPI.
+ */
+⋮----
+import { storageInfrastructureApi } from "@/modules/platform/api/infrastructure";
+⋮----
+import type {
+  SourceStoragePort,
+  SourceStorageUploadOptions,
+} from "../../../subdomains/source/domain/ports/SourceStoragePort";
+⋮----
+export class PlatformSourceStorageAdapter implements SourceStoragePort {
+⋮----
+async upload(
+    file: Blob,
+    path: string,
+    options?: SourceStorageUploadOptions,
+): Promise<string>
+⋮----
+toGsUri(path: string): string
 ````
 
 ## File: modules/notebooklm/infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter.ts
@@ -4014,6 +3967,113 @@ function handleShouldCreateTasksChange(nextChecked: boolean)
 async function handleExecute()
 ⋮----
 <Button onClick=
+````
+
+## File: modules/notebooklm/interfaces/source/components/SourceDocumentsPanel.tsx
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import { useRef, useState } from "react";
+import { FileUp, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+⋮----
+import { useApp } from "@/modules/platform/api/ui";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+⋮----
+import type { SourceLiveDocument } from "../hooks/useSourceDocumentsSnapshot";
+import { useSourceDocumentsSnapshot } from "../hooks/useSourceDocumentsSnapshot";
+import { deleteSourceDocument, renameSourceDocument } from "../_actions/source-file.actions";
+import { makeSourceStorageAdapter } from "../composition/adapters";
+⋮----
+interface SourceDocumentsPanelProps {
+  readonly workspaceId?: string;
+}
+⋮----
+/** Upload dropzone + real-time document list backed by Firebase onSnapshot. */
+⋮----
+function handleFileChange(file: File | null)
+⋮----
+async function handleUpload()
+⋮----
+async function handleDelete(doc: SourceLiveDocument)
+⋮----
+async function handleRename(doc: SourceLiveDocument, newName: string)
+````
+
+## File: modules/notebooklm/interfaces/source/composition/wiki-library-facade.ts
+````typescript
+/**
+ * Composition: wiki-library-facade
+ *
+ * Pre-wired facade functions for wiki library use cases.
+ * Encapsulates the lazy singleton repository pattern so the subdomain
+ * api/index.ts can re-export clean function signatures without importing
+ * infrastructure directly.
+ */
+⋮----
+import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
+import {
+  listWikiLibraries as _listWikiLibraries,
+  createWikiLibrary as _createWikiLibrary,
+  addWikiLibraryField as _addWikiLibraryField,
+  createWikiLibraryRow as _createWikiLibraryRow,
+  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
+} from "../../../subdomains/source/application/use-cases/wiki-library.use-cases";
+import type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../../../subdomains/source/application/dto/source.dto";
+import { makeWikiLibraryAdapter } from "./adapters";
+⋮----
+// Lazy singleton — no module-scope side effects.
+⋮----
+function getLibraryRepo(): WikiLibraryRepository
+⋮----
+export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]>
+⋮----
+export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary>
+⋮----
+export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField>
+⋮----
+export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow>
+⋮----
+export function getWikiLibrarySnapshot(
+  accountId: string,
+  libraryId: string,
+): ReturnType<typeof _getWikiLibrarySnapshot>
+````
+
+## File: modules/notebooklm/interfaces/source/composition/workspace-files.facade.ts
+````typescript
+import { uploadCompleteFile, uploadInitFile } from "../_actions/source-file.actions";
+import { makeSourceStorageAdapter } from "./adapters";
+import { resolveSourceOrganizationId } from "../../../subdomains/source/application/dto/source.dto";
+⋮----
+export interface UploadWorkspaceSourceFileInput {
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly accountType: "user" | "organization";
+  readonly file: File;
+  readonly displayName?: string;
+}
+⋮----
+export interface UploadWorkspaceSourceFileResult {
+  readonly success: boolean;
+  readonly sourceFileId?: string;
+  readonly filename?: string;
+  readonly gcsUri?: string;
+  readonly mimeType?: string;
+  readonly sizeBytes?: number;
+  readonly error?: { readonly message: string };
+}
+⋮----
+export async function uploadWorkspaceSourceFile(
+  input: UploadWorkspaceSourceFileInput,
+): Promise<UploadWorkspaceSourceFileResult>
 ````
 
 ## File: modules/notebooklm/interfaces/synthesis/components/RagQueryPanel.tsx
@@ -4396,6 +4456,38 @@ deleteDocument(accountId: string, documentId: string): Promise<void>;
 renameDocument(accountId: string, documentId: string, newName: string): Promise<void>;
 ````
 
+## File: modules/notebooklm/subdomains/source/domain/repositories/SourceFileRepository.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: domain/repositories
+ * Port: SourceFileRepository — persistence contract for SourceFile aggregates.
+ */
+⋮----
+import type { SourceFile } from "../entities/SourceFile";
+import type { SourceFileVersion } from "../entities/SourceFileVersion";
+⋮----
+export interface ListSourceFilesScope {
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly actorAccountId: string;
+}
+⋮----
+export interface SourceFileRepository {
+  findById(fileId: string): Promise<SourceFile | null>;
+  findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null>;
+  listVersions(fileId: string): Promise<readonly SourceFileVersion[]>;
+  listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>;
+  save(file: SourceFile, versions?: readonly SourceFileVersion[]): Promise<void>;
+}
+⋮----
+findById(fileId: string): Promise<SourceFile | null>;
+findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null>;
+listVersions(fileId: string): Promise<readonly SourceFileVersion[]>;
+listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>;
+save(file: SourceFile, versions?: readonly SourceFileVersion[]): Promise<void>;
+````
+
 ## File: modules/notebooklm/subdomains/synthesis/api/server.ts
 ````typescript
 /**
@@ -4540,84 +4632,99 @@ async findByWorkspace(scope: {
 async saveUploaded(record: RagDocumentRecord): Promise<void>
 ````
 
-## File: modules/notebooklm/infrastructure/source/platform/PlatformSourceDocumentWatchAdapter.ts
+## File: modules/notebooklm/infrastructure/source/firebase/FirebaseSourceFileAdapter.ts
 ````typescript
 /**
- * Module: notebooklm
- * Layer: infrastructure/source/platform
- * Adapter: PlatformSourceDocumentWatchAdapter — delegates to platform FirestoreAPI.
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/firebase
+ * Adapter: FirebaseSourceFileAdapter — Firestore implementation of SourceFileRepository.
+ *
+ * Collections:
+ *   workspaceFiles/{fileId}
+ *   workspaceFiles/{fileId}/versions/{versionId}
  */
 ⋮----
 import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 ⋮----
-import type {
-  SourceDocumentWatchPort,
-  WatchedDocument,
-} from "../../../subdomains/source/domain/ports/SourceDocumentWatchPort";
+import type { SourceFile } from "../../../subdomains/source/domain/entities/SourceFile";
+import type { SourceFileVersion } from "../../../subdomains/source/domain/entities/SourceFileVersion";
+import type { SourceFileRepository, ListSourceFilesScope } from "../../../subdomains/source/domain/repositories/SourceFileRepository";
 ⋮----
-export class PlatformSourceDocumentWatchAdapter implements SourceDocumentWatchPort {
+function isSourceFileStatus(value: unknown): value is SourceFile["status"]
 ⋮----
-watchCollection<T>(
-    collectionPath: string,
-    handlers: {
-onNext: (documents: readonly WatchedDocument<T>[])
+function isSourceFileClassification(value: unknown): value is SourceFile["classification"]
+⋮----
+function toStringArray(value: unknown): readonly string[]
+⋮----
+function toSourceFileEntity(fileId: string, data: Record<string, unknown>): SourceFile
+⋮----
+function isVersionStatus(value: unknown): value is SourceFileVersion["status"]
+⋮----
+function toSourceFileVersionEntity(versionId: string, data: Record<string, unknown>): SourceFileVersion
+⋮----
+export class FirebaseSourceFileAdapter implements SourceFileRepository {
+⋮----
+async findById(fileId: string): Promise<SourceFile | null>
+⋮----
+async findVersion(fileId: string, versionId: string): Promise<SourceFileVersion | null>
+⋮----
+async listVersions(fileId: string): Promise<readonly SourceFileVersion[]>
+⋮----
+async listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>
+⋮----
+async save(file: SourceFile, versions: readonly SourceFileVersion[] = []): Promise<void>
 ````
 
-## File: modules/notebooklm/infrastructure/source/platform/PlatformSourceStorageAdapter.ts
+## File: modules/notebooklm/interfaces/source/composition/adapters.ts
 ````typescript
-/**
- * Module: notebooklm
- * Layer: infrastructure/source/platform
- * Adapter: PlatformSourceStorageAdapter — delegates to platform StorageAPI.
- */
+import { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
+import { FirebaseRagDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseRagDocumentAdapter";
+import { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter";
+import { FirebaseSourceFileAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceFileAdapter";
+import { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
+import { NotionKnowledgePageGatewayAdapter } from "../../../infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter";
+import { waitForParsedDocument as _waitForParsedDocument } from "../../../infrastructure/source/firebase/FirebaseDocumentStatusAdapter";
+import { PlatformSourcePipelineAdapter } from "../../../infrastructure/source/platform/PlatformSourcePipelineAdapter";
+import { PlatformSourceStorageAdapter } from "../../../infrastructure/source/platform/PlatformSourceStorageAdapter";
+import { PlatformSourceDocumentWatchAdapter } from "../../../infrastructure/source/platform/PlatformSourceDocumentWatchAdapter";
+import {
+  addKnowledgeBlock,
+  approveKnowledgePage,
+  createKnowledgePage,
+} from "@/modules/notion/api";
+import {
+  extractTaskCandidatesFromKnowledge,
+} from "@/modules/workspace/api";
+import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
+import type { SourceStoragePort } from "../../../subdomains/source/domain/ports/SourceStoragePort";
+import type { SourceDocumentWatchPort } from "../../../subdomains/source/domain/ports/SourceDocumentWatchPort";
+import type { TaskMaterializationWorkflowPort } from "../../../subdomains/source/domain/ports/TaskMaterializationWorkflowPort";
+import { TaskMaterializationWorkflowAdapter } from "../../../infrastructure/source/adapters/TaskMaterializationWorkflowAdapter";
 ⋮----
-import { storageInfrastructureApi } from "@/modules/platform/api/infrastructure";
+export function makeSourceFileAdapter()
 ⋮----
-import type {
-  SourceStoragePort,
-  SourceStorageUploadOptions,
-} from "../../../subdomains/source/domain/ports/SourceStoragePort";
+export function makeRagDocumentAdapter()
 ⋮----
-export class PlatformSourceStorageAdapter implements SourceStoragePort {
+export function makeSourceDocumentCommandAdapter()
 ⋮----
-async upload(
-    file: Blob,
-    path: string,
-    options?: SourceStorageUploadOptions,
-): Promise<string>
+export function makeParsedDocumentAdapter()
 ⋮----
-toGsUri(path: string): string
-````
-
-## File: modules/notebooklm/interfaces/source/components/SourceDocumentsPanel.tsx
-````typescript
-import { v4 as uuid } from "@lib-uuid";
-import { useRef, useState } from "react";
-import { FileUp, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+export function makeSourcePipelineAdapter()
 ⋮----
-import { useApp } from "@/modules/platform/api/ui";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+export function makeKnowledgePageGateway()
 ⋮----
-import type { SourceLiveDocument } from "../hooks/useSourceDocumentsSnapshot";
-import { useSourceDocumentsSnapshot } from "../hooks/useSourceDocumentsSnapshot";
-import { deleteSourceDocument, renameSourceDocument } from "../_actions/source-file.actions";
-import { makeSourceStorageAdapter } from "../composition/adapters";
+export function makeWikiLibraryAdapter(): WikiLibraryRepository
 ⋮----
-interface SourceDocumentsPanelProps {
-  readonly workspaceId?: string;
-}
+export function makeTaskMaterializationWorkflowAdapter(): TaskMaterializationWorkflowPort
 ⋮----
-/** Upload dropzone + real-time document list backed by Firebase onSnapshot. */
+export function makeSourceStorageAdapter(): SourceStoragePort
 ⋮----
-function handleFileChange(file: File | null)
+export function makeSourceDocumentWatchAdapter(): SourceDocumentWatchPort
 ⋮----
-async function handleUpload()
-⋮----
-async function handleDelete(doc: SourceLiveDocument)
-⋮----
-async function handleRename(doc: SourceLiveDocument, newName: string)
+export function waitForParsedDocument(
+  accountId: string,
+  docId: string,
+): Promise<
 ````
 
 ## File: modules/notebooklm/interfaces/source/composition/use-cases.ts
@@ -4682,53 +4789,6 @@ export function makeSourceUseCases(
   knowledgePageGateway: KnowledgePageGateway = makeKnowledgePageGateway(),
   taskWorkflowPort: TaskMaterializationWorkflowPort = makeTaskMaterializationWorkflowAdapter(),
 ): SourceUseCases
-````
-
-## File: modules/notebooklm/interfaces/source/composition/wiki-library-facade.ts
-````typescript
-/**
- * Composition: wiki-library-facade
- *
- * Pre-wired facade functions for wiki library use cases.
- * Encapsulates the lazy singleton repository pattern so the subdomain
- * api/index.ts can re-export clean function signatures without importing
- * infrastructure directly.
- */
-⋮----
-import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
-import {
-  listWikiLibraries as _listWikiLibraries,
-  createWikiLibrary as _createWikiLibrary,
-  addWikiLibraryField as _addWikiLibraryField,
-  createWikiLibraryRow as _createWikiLibraryRow,
-  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
-} from "../../../subdomains/source/application/use-cases/wiki-library.use-cases";
-import type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../../../subdomains/source/application/dto/source.dto";
-import { makeWikiLibraryAdapter } from "./adapters";
-⋮----
-// Lazy singleton — no module-scope side effects.
-⋮----
-function getLibraryRepo(): WikiLibraryRepository
-⋮----
-export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]>
-⋮----
-export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary>
-⋮----
-export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField>
-⋮----
-export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow>
-⋮----
-export function getWikiLibrarySnapshot(
-  accountId: string,
-  libraryId: string,
-): ReturnType<typeof _getWikiLibrarySnapshot>
 ````
 
 ## File: modules/notebooklm/interfaces/synthesis/_actions/rag-query.actions.ts
@@ -4916,58 +4976,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 // ── Domain services ──────────────────────────────────────────────────────────
 ⋮----
 // ── Value objects ────────────────────────────────────────────────────────────
-````
-
-## File: modules/notebooklm/interfaces/source/composition/adapters.ts
-````typescript
-import { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
-import { FirebaseRagDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseRagDocumentAdapter";
-import { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter";
-import { FirebaseSourceFileAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceFileAdapter";
-import { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
-import { NotionKnowledgePageGatewayAdapter } from "../../../infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter";
-import { waitForParsedDocument as _waitForParsedDocument } from "../../../infrastructure/source/firebase/FirebaseDocumentStatusAdapter";
-import { PlatformSourcePipelineAdapter } from "../../../infrastructure/source/platform/PlatformSourcePipelineAdapter";
-import { PlatformSourceStorageAdapter } from "../../../infrastructure/source/platform/PlatformSourceStorageAdapter";
-import { PlatformSourceDocumentWatchAdapter } from "../../../infrastructure/source/platform/PlatformSourceDocumentWatchAdapter";
-import {
-  addKnowledgeBlock,
-  approveKnowledgePage,
-  createKnowledgePage,
-} from "@/modules/notion/api";
-import {
-  extractTaskCandidatesFromKnowledge,
-} from "@/modules/workspace/api";
-import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
-import type { SourceStoragePort } from "../../../subdomains/source/domain/ports/SourceStoragePort";
-import type { SourceDocumentWatchPort } from "../../../subdomains/source/domain/ports/SourceDocumentWatchPort";
-import type { TaskMaterializationWorkflowPort } from "../../../subdomains/source/domain/ports/TaskMaterializationWorkflowPort";
-import { TaskMaterializationWorkflowAdapter } from "../../../infrastructure/source/adapters/TaskMaterializationWorkflowAdapter";
-⋮----
-export function makeSourceFileAdapter()
-⋮----
-export function makeRagDocumentAdapter()
-⋮----
-export function makeSourceDocumentCommandAdapter()
-⋮----
-export function makeParsedDocumentAdapter()
-⋮----
-export function makeSourcePipelineAdapter()
-⋮----
-export function makeKnowledgePageGateway()
-⋮----
-export function makeWikiLibraryAdapter(): WikiLibraryRepository
-⋮----
-export function makeTaskMaterializationWorkflowAdapter(): TaskMaterializationWorkflowPort
-⋮----
-export function makeSourceStorageAdapter(): SourceStoragePort
-⋮----
-export function makeSourceDocumentWatchAdapter(): SourceDocumentWatchPort
-⋮----
-export function waitForParsedDocument(
-  accountId: string,
-  docId: string,
-): Promise<
 ````
 
 ## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
