@@ -1,7 +1,7 @@
 "use client";
 
-import { KnowledgeBaseArticlesPanel, KnowledgeDatabasesPanel, KnowledgePagesPanel } from "@/modules/notion/api";
-import { LibrariesPanel, LibraryTablePanel } from "@/modules/notebooklm/api";
+import { KnowledgeBaseArticlesPanel, KnowledgeDatabasesPanel, KnowledgePagesPanel } from "@/modules/notion/api/ui";
+import { LibrariesPanel, LibraryTablePanel } from "@/modules/notebooklm/api/ui";
 import type { WorkspaceEntity } from "../../../contracts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 

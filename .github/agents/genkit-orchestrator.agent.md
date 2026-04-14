@@ -78,5 +78,6 @@ handoffs:
 4. **驗證結果**：`npm run lint` + `npm run build`
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill genkit-ai
 #use skill xuanwu-rag-runtime-boundary
 #use skill next-devtools-mcp

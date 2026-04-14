@@ -11,7 +11,7 @@ import {
   WorkspaceSectionContent,
   type NavPreferences,
   type SidebarLocaleBundle,
-} from "@/modules/workspace/api";
+} from "@/modules/workspace/api/ui";
 import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "@/modules/platform/api";
 
 import {

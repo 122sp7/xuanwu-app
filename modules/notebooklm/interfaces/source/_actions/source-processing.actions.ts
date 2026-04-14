@@ -2,19 +2,8 @@
 
 import type { CommandResult } from "@shared-types";
 
-import {
-  makeKnowledgePageGateway,
-  makeParsedDocumentAdapter,
-  makeSourcePipelineAdapter,
-  waitForParsedDocument,
-} from "../composition/adapters";
+import { makeSourceUseCases } from "../composition/use-cases";
 import type { SourceProcessingExecutionSummary } from "../../../subdomains/source/application/dto/source-processing.dto";
-import { CreateKnowledgeDraftFromSourceUseCase } from "../../../subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case";
-import { ProcessSourceDocumentWorkflowUseCase } from "../../../subdomains/source/application/use-cases/process-source-document-workflow.use-case";
-import {
-  ParseSourceDocumentUseCase,
-  ReindexSourceDocumentUseCase,
-} from "../../../subdomains/source/application/use-cases/source-pipeline.use-cases";
 
 interface CreateKnowledgeDraftFromSourceDocumentInput {
   readonly accountId: string;
@@ -42,26 +31,11 @@ interface ProcessSourceDocumentWorkflowActionInput {
 export async function createKnowledgeDraftFromSourceDocument(
   input: CreateKnowledgeDraftFromSourceDocumentInput,
 ): Promise<CommandResult> {
-  const useCase = new CreateKnowledgeDraftFromSourceUseCase(
-    makeParsedDocumentAdapter(),
-    makeKnowledgePageGateway(),
-  );
-  return useCase.execute(input);
+  return makeSourceUseCases().createKnowledgeDraftFromSource.execute(input);
 }
 
 export async function processSourceDocumentWorkflow(
   input: ProcessSourceDocumentWorkflowActionInput,
 ): Promise<SourceProcessingExecutionSummary> {
-  const sourcePipelineAdapter = makeSourcePipelineAdapter();
-  const workflowUseCase = new ProcessSourceDocumentWorkflowUseCase(
-    new ParseSourceDocumentUseCase(sourcePipelineAdapter),
-    new ReindexSourceDocumentUseCase(sourcePipelineAdapter),
-    new CreateKnowledgeDraftFromSourceUseCase(
-      makeParsedDocumentAdapter(),
-      makeKnowledgePageGateway(),
-    ),
-    { waitForParsedDocument },
-  );
-
-  return workflowUseCase.execute(input);
+  return makeSourceUseCases().processSourceDocumentWorkflow.execute(input);
 }

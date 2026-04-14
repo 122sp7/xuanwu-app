@@ -9,11 +9,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-s
 import {
   KnowledgeBaseArticlesPanel,
   KnowledgeDatabasesPanel,
-} from "@/modules/notion/api";
+} from "@/modules/notion/api/ui";
 import {
   RagQueryPanel,
   SourceDocumentsPanel,
-} from "@/modules/notebooklm/api";
+} from "@/modules/notebooklm/api/ui";
 
 // Dynamic import to break synchronous module-evaluation cycle between
 // workspace/api → workspace/interfaces → notebooklm/api → ConversationPanel → workspace/api.

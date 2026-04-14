@@ -17,4 +17,5 @@
 
 export * from "./contracts";
 export * from "./facade";
-export * from "./ui";
+
+// UI components, hooks, and navigation helpers live in workspace/api/ui.ts.

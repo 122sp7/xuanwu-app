@@ -71,7 +71,7 @@ export class ApproveKnowledgePageUseCase {
         extractedTasks,
         extractedInvoices,
         actorId,
-        causationId: inputCausationId,
+        causationId,
         correlationId,
       },
       metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },

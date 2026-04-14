@@ -23,7 +23,7 @@ import {
   OrganizationWorkspacesRouteScreen,
   WorkspaceDetailRouteScreen,
   WorkspaceHubScreen,
-} from "@/modules/workspace/api";
+} from "@/modules/workspace/api/ui";
 
 interface AccountRouteDispatcherPageProps {
   params: Promise<{

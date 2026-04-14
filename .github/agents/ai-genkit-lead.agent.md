@@ -38,4 +38,5 @@ handoffs:
 - Keep parsing, chunking, embedding in py_fn workers.
 - Do not model `notion` or `notebooklm` as owning a generic `ai` bounded-context surface.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill genkit-ai

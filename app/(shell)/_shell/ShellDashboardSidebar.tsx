@@ -19,7 +19,7 @@ import {
   useRecentWorkspaces,
   useSidebarLocale,
   WorkspaceQuickAccessRow,
-} from "@/modules/workspace/api";
+} from "@/modules/workspace/api/ui";
 
 import {
   type DashboardSidebarProps,

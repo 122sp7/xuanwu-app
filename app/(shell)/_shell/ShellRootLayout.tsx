@@ -37,7 +37,8 @@ import {
   ShellHeaderControls,
   ShellUserAvatar,
 } from "@/modules/platform/api/ui";
-import { useWorkspaceContext, type WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { useWorkspaceContext } from "@/modules/workspace/api/ui";
 
 import { AppRail } from "./ShellAppRail";
 import { ShellDashboardSidebar } from "./ShellDashboardSidebar";

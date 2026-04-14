@@ -15,8 +15,8 @@ import {
   WorkspaceFeedWorkspaceView,
   WorkspaceFlowTab,
   WorkspaceSchedulingTab,
-} from "@/modules/workspace/api";
-import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
+} from "@/modules/workspace/api/ui";
+import { WorkspaceFilesTab } from "@/modules/notebooklm/api/ui";
 import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
 
 import {

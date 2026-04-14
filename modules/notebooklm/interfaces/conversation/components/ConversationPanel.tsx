@@ -13,7 +13,7 @@ import Link from "next/link";
 import { Bot, BookOpen, Brain, FileText, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
 
 import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { resolveWorkspaceFromMap, WorkspaceContextCard } from "@/modules/workspace/api";
+import { resolveWorkspaceFromMap, WorkspaceContextCard } from "@/modules/workspace/api/ui";
 import { cn } from "@shared-utils";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";

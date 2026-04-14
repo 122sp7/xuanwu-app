@@ -33,6 +33,7 @@ import type { SourceReference } from "../../domain/value-objects/SourceReference
 interface PageApprovedEvent {
   payload: {
     pageId: string;
+    workspaceId?: string;
     causationId: string;
     correlationId: string;
     extractedTasks: ReadonlyArray<ExtractedTaskItem>;
@@ -60,12 +61,13 @@ export class KnowledgeToWorkflowMaterializer {
    *   Typically resolved from the event's `workspaceId` field if present.
    * @returns true if materialization succeeded, false if skipped (idempotency) or failed.
    */
-  async handle(event: PageApprovedEvent, workspaceId: string): Promise<boolean> {
+  async handle(event: PageApprovedEvent, workspaceId?: string): Promise<boolean> {
     if (this.processedCausationIds.has(event.payload.causationId)) {
       return false;
     }
 
-    if (!workspaceId.trim()) return false;
+    const resolvedWorkspaceId = workspaceId?.trim() || event.payload.workspaceId?.trim() || "";
+    if (!resolvedWorkspaceId) return false;
 
     const sourceReference: SourceReference = {
       type: "KnowledgePage",
@@ -80,7 +82,7 @@ export class KnowledgeToWorkflowMaterializer {
     );
 
     const result = await useCase.execute({
-      workspaceId,
+      workspaceId: resolvedWorkspaceId,
       knowledgePageId: event.payload.pageId,
       sourceReference,
       extractedTasks: event.payload.extractedTasks,

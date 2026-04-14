@@ -66,6 +66,12 @@ export interface IEventBusRepository {
   publish(event: EventRecord): Promise<void>;
 }
 
+export interface PublishedDomainEvent<TPayload = EventRecordPayload> extends DomainEvent {
+  readonly aggregateType: string;
+  readonly payload: TPayload;
+  readonly metadata: EventMetadata;
+}
+
 // ── PublishDomainEventUseCase ─────────────────────────────────────────────────
 
 export interface PublishDomainEventDTO {
@@ -141,6 +147,39 @@ export class InMemoryEventStoreRepository implements IEventStoreRepository {
 export class NoopEventBusRepository implements IEventBusRepository {
   async publish(_event: EventRecord): Promise<void> {
     // Intentional no-op: replace with a real transport adapter when needed.
+  }
+}
+
+let sharedEventBus: SimpleEventBus | null = null;
+
+export function getSharedEventBus(): SimpleEventBus {
+  sharedEventBus ??= new SimpleEventBus();
+  return sharedEventBus;
+}
+
+export class InProcessEventBusRepository implements IEventBusRepository {
+  constructor(private readonly bus: SimpleEventBus = getSharedEventBus()) {}
+
+  async publish(event: EventRecord): Promise<void> {
+    await this.bus.publish<PublishedDomainEvent>({
+      eventId: event.id,
+      type: event.eventName,
+      aggregateId: event.aggregateId,
+      aggregateType: event.aggregateType,
+      occurredAt: event.occurredAt.toISOString(),
+      payload: event.payload,
+      metadata: event.metadata,
+    });
+  }
+}
+
+export class CompositeEventBusRepository implements IEventBusRepository {
+  constructor(private readonly delegates: ReadonlyArray<IEventBusRepository>) {}
+
+  async publish(event: EventRecord): Promise<void> {
+    for (const delegate of this.delegates) {
+      await delegate.publish(event);
+    }
   }
 }
 

@@ -19,25 +19,8 @@ import {
 import type { KnowledgePageRepository } from "../../../subdomains/knowledge/domain/repositories/KnowledgePageRepository";
 import type { KnowledgeCollectionRepository } from "../../../subdomains/knowledge/domain/repositories/KnowledgeCollectionRepository";
 import type { IEventStoreRepository, IEventBusRepository } from "@shared-events";
+import { createPlatformEventInfrastructure } from "@/modules/platform/api/server";
 import { makePageRepo, makeCollectionRepo } from "./repositories";
-
-/** Stub event store — persists nothing. Replace with a real impl once infrastructure is wired. */
-function makeEventStore(): IEventStoreRepository {
-  return {
-    save: async () => {},
-    findById: async () => null,
-    findByAggregate: async () => [],
-    findUndispatched: async () => [],
-    markDispatched: async () => {},
-  };
-}
-
-/** Stub event bus — publishes nothing. Replace with QStash/Firestore publish once infrastructure is wired. */
-function makeEventBus(): IEventBusRepository {
-  return {
-    publish: async () => {},
-  };
-}
 
 export interface KnowledgeUseCases {
   readonly createKnowledgePage: CreateKnowledgePageUseCase;
@@ -61,9 +44,20 @@ export interface KnowledgeUseCases {
 export function makeKnowledgeUseCases(
   pageRepo: KnowledgePageRepository = makePageRepo(),
   collectionRepo: KnowledgeCollectionRepository = makeCollectionRepo(),
-  eventStore: IEventStoreRepository = makeEventStore(),
-  eventBus: IEventBusRepository = makeEventBus(),
+  eventStore?: IEventStoreRepository,
+  eventBus?: IEventBusRepository,
 ): KnowledgeUseCases {
+  const eventInfrastructure = eventStore && eventBus
+    ? null
+    : createPlatformEventInfrastructure();
+
+  const resolvedEventStore = eventStore ?? eventInfrastructure?.eventStore;
+  const resolvedEventBus = eventBus ?? eventInfrastructure?.eventBus;
+
+  if (!resolvedEventStore || !resolvedEventBus) {
+    throw new Error("Knowledge use cases require an event store and event bus.");
+  }
+
   return {
     createKnowledgePage: new CreateKnowledgePageUseCase(pageRepo),
     renameKnowledgePage: new RenameKnowledgePageUseCase(pageRepo),
@@ -71,7 +65,7 @@ export function makeKnowledgeUseCases(
     archiveKnowledgePage: new ArchiveKnowledgePageUseCase(pageRepo),
     reorderKnowledgePageBlocks: new ReorderKnowledgePageBlocksUseCase(pageRepo),
     verifyKnowledgePage: new VerifyKnowledgePageUseCase(pageRepo),
-    approveKnowledgePage: new ApproveKnowledgePageUseCase(pageRepo, eventStore, eventBus),
+    approveKnowledgePage: new ApproveKnowledgePageUseCase(pageRepo, resolvedEventStore, resolvedEventBus),
     requestPageReview: new RequestPageReviewUseCase(pageRepo),
     assignPageOwner: new AssignPageOwnerUseCase(pageRepo),
     updatePageIcon: new UpdatePageIconUseCase(pageRepo),

@@ -38,4 +38,5 @@ handoffs:
 - Avoid leaking worker-only logic into app orchestration.
 - Keep generic AI ownership in `platform.ai`; downstream contexts consume capability rather than redefining ownership.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill genkit-ai

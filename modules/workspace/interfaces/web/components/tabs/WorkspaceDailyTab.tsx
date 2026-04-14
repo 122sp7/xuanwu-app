@@ -1,7 +1,7 @@
 "use client";
 
 import type { WorkspaceEntity } from "../../../contracts";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api/ui";
 
 interface WorkspaceDailyTabProps {
   readonly workspace: WorkspaceEntity;

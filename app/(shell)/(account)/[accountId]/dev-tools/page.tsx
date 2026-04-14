@@ -28,7 +28,7 @@ import {
   storageInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
 import { useApp } from "@/modules/platform/api/ui";
-import { useWorkspaceContext } from "@/modules/workspace/api";
+import { useWorkspaceContext } from "@/modules/workspace/api/ui";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   WATCH_PATH,

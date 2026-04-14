@@ -102,6 +102,4 @@ export type { RagGenerationRepository } from "../domain/repositories/RagGenerati
 export { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
 export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-rag-feedback.use-case";
 
-// ── UI components (downstream surface for workspace composition) ─────────────
-
-export { RagQueryPanel } from "../../../interfaces/synthesis/components/RagQueryPanel";
+// UI components are exported from ./ui to keep this barrel semantic-only.

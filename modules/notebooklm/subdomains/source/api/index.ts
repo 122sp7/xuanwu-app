@@ -65,16 +65,8 @@ export {
   mapToAssetLiveDocument,
 } from "../application/dto/source-live-document.dto";
 
-// ---------------------------------------------------------------------------
-// Hooks
-// ---------------------------------------------------------------------------
+// Hooks and UI components are exported from ./ui to keep this barrel semantic-only.
 
-export type {
-  UseSourceDocumentsSnapshotResult,
-} from "../../../interfaces/source/hooks/useSourceDocumentsSnapshot";
-export {
-  useSourceDocumentsSnapshot,
-} from "../../../interfaces/source/hooks/useSourceDocumentsSnapshot";
 
 // ---------------------------------------------------------------------------
 // Queries
@@ -104,13 +96,5 @@ export type {
   SourceProcessingTaskStatus,
 } from "../application/dto/source-processing.dto";
 
-// ---------------------------------------------------------------------------
-// UI components
-// ---------------------------------------------------------------------------
 
-export { SourceDocumentsPanel } from "../../../interfaces/source/components/SourceDocumentsPanel";
-export { WorkspaceFilesTab } from "../../../interfaces/source/components/WorkspaceFilesTab";
-export { LibrariesPanel } from "../../../interfaces/source/components/LibrariesPanel";
-export { LibraryTablePanel } from "../../../interfaces/source/components/LibraryTablePanel";
-export { FileProcessingDialog } from "../../../interfaces/source/components/FileProcessingDialog";
 

@@ -34,7 +34,8 @@ import {
   buildShellContextualHref,
   type ShellRailCatalogItem,
 } from "@/modules/platform/api";
-import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { CreateWorkspaceDialogRail } from "@/modules/workspace/api/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,

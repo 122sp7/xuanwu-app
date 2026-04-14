@@ -6,7 +6,7 @@
  */
 
 import Link from "next/link";
-import { appendWorkspaceContextQuery } from "@/modules/workspace/api";
+import { appendWorkspaceContextQuery } from "@/modules/workspace/api/ui";
 import { buildShellContextualHref } from "@/modules/platform/api";
 
 interface ContextScopedNavItem {

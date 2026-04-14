@@ -18,11 +18,7 @@ export type {
 export { generateNotebookResponse } from "../subdomains/notebook/api";
 export { saveThread, loadThread } from "../subdomains/conversation/api";
 
-// ---------------------------------------------------------------------------
-// NotebookLM downstream UI surface
-// Consumed by workspace as the composition owner for browser-facing flows.
-// ---------------------------------------------------------------------------
-export { RagQueryPanel } from "../subdomains/synthesis/api";
+// UI components and hooks are exported from notebooklm/api/ui.ts.
 
 // ---------------------------------------------------------------------------
 // Source subdomain — semantic downstream capability surface
@@ -48,7 +44,6 @@ export type {
 } from "../subdomains/source/api";
 
 export {
-  useSourceDocumentsSnapshot,
   mapToSourceLiveDocument,
   mapToAssetLiveDocument,
 } from "../subdomains/source/api";
@@ -61,13 +56,6 @@ export {
   getWikiLibrarySnapshot,
 } from "../subdomains/source/api";
 
-export {
-  SourceDocumentsPanel,
-  WorkspaceFilesTab,
-  LibrariesPanel,
-  LibraryTablePanel,
-  FileProcessingDialog,
-} from "../subdomains/source/api";
 
 // ---------------------------------------------------------------------------
 // conversation subdomain — AI chat helpers and types

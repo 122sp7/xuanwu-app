@@ -64,6 +64,69 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 5. Update docs and imports in the same change.
 6. Migrate public API and event contracts before removing old paths.
 
+## Zod — System-Level Validation Layer
+
+Zod is the system's runtime validation baseline. It is applied at three distinct levels with different purposes:
+
+### Level 1 — External Input Boundary (interfaces / Server Action)
+
+All external input (Server Action args, tRPC input, API route body) must pass through a Zod schema **before** reaching the application layer. If parsing fails, return a structured error immediately — do not let unparsed data propagate.
+
+```typescript
+// ✅ Correct: parse at Server Action boundary
+const CreateWorkspaceInputSchema = z.object({
+  name: z.string().min(1).max(100).trim(),
+  organizationId: z.string().uuid(),
+});
+
+export async function createWorkspaceAction(rawInput: unknown) {
+  const input = CreateWorkspaceInputSchema.parse(rawInput);  // throws ZodError if invalid
+  return createWorkspaceUseCase.execute(input);
+}
+```
+
+### Level 2 — Domain Value Objects (domain layer)
+
+Value objects in `domain/` use Zod brand types to enforce type safety at compile time and runtime. This is the only place Zod is permitted inside `domain/`.
+
+```typescript
+// ✅ Correct: brand type in domain
+export const WorkspaceIdSchema = z.string().uuid().brand('WorkspaceId');
+export type WorkspaceId = z.infer<typeof WorkspaceIdSchema>;
+```
+
+`domain/` must not import Zod for anything other than schema definitions and brand types. No I/O, no HTTP, no Firebase.
+
+### Level 3 — External System Output (infrastructure / AI adapters)
+
+Any data arriving from external systems (Firestore reads, AI flow outputs, third-party APIs) must be validated with a Zod schema in the infrastructure/adapter layer before the typed result is returned to the application layer.
+
+```typescript
+// ✅ Correct: validate Firestore result before returning to use case
+const raw = (await docRef.get()).data();
+return FirestoreWorkspaceSchema.parse(raw);  // throws if schema drifted
+
+// ❌ Wrong: cast without validation
+return raw as WorkspaceSnapshot;
+```
+
+### Zod Placement Rules
+
+| Where | Use Zod for |
+|---|---|
+| `interfaces/` (Server Action, route) | External input parsing before use-case call |
+| `domain/value-objects/` | Brand type definitions only |
+| `domain/events/` | Domain event payload schemas |
+| `infrastructure/` adapters | External system output validation |
+| `application/` DTOs | Command/query input schemas (optional, defer to boundary) |
+
+### Anti-Patterns
+
+- ❌ Passing `rawInput: unknown` into a use case without Zod parsing at the boundary
+- ❌ Using `as SomeType` to cast Firestore or AI output without validation
+- ❌ Importing Zod in `domain/` for anything other than schema and brand-type definitions
+- ❌ Duplicating the same schema in both `domain/` and `application/` — keep it in one place
+
 ## Validation
 
 - Use `eslint.config.mjs` restricted-import and boundary rules as enforcement source.
