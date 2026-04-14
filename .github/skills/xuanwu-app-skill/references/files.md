@@ -7426,31 +7426,6 @@ function handleNewThread(): void
 function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>): void
 ````
 
-## File: modules/notebooklm/interfaces/source/components/file-processing-dialog.body.tsx
-````typescript
-import { ScanSearch, Sparkles } from "lucide-react";
-⋮----
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Checkbox } from "@ui-shadcn/ui/checkbox";
-import { Label } from "@ui-shadcn/ui/label";
-⋮----
-import type { ExecutionSummary } from "./file-processing-dialog.utils";
-import { FileProcessingPathValue, FileProcessingResultRow, FileProcessingSourceCard } from "./file-processing-dialog.parts";
-⋮----
-interface FileProcessingDialogBodyProps {
-  readonly step: "decide" | "select" | "executing" | "done";
-  readonly filename: string;
-  readonly mimeType: string;
-  readonly gcsUri: string;
-  readonly sizeBytes: number;
-  readonly shouldRunRag: boolean;
-  readonly shouldCreatePage: boolean;
-  readonly onShouldRunRagChange: (checked: boolean) => void;
-  readonly onShouldCreatePageChange: (checked: boolean) => void;
-  readonly summary: ExecutionSummary;
-}
-````
-
 ## File: modules/notebooklm/interfaces/source/components/file-processing-dialog.parts.tsx
 ````typescript
 import { CheckCircle2, FileText, Loader2, XCircle } from "lucide-react";
@@ -7527,43 +7502,6 @@ export function readCallableData(value: unknown): Record<string, unknown>
 export function readString(value: unknown, fallback = ""): string
 ⋮----
 export function readNumber(value: unknown, fallback = 0): number
-````
-
-## File: modules/notebooklm/interfaces/source/components/FileProcessingDialog.tsx
-````typescript
-import { useState } from "react";
-import Link from "next/link";
-⋮----
-import { useAuth } from "@/modules/platform/api";
-import { Button } from "@ui-shadcn/ui/button";
-⋮----
-import { processSourceDocumentWorkflow } from "../_actions/source-processing.actions";
-import { FileProcessingDialogBody } from "./file-processing-dialog.body";
-import { FileProcessingDialogSurface } from "./file-processing-dialog.surface";
-import {
-  createIdleSummary,
-  type ExecutionSummary,
-} from "./file-processing-dialog.utils";
-⋮----
-interface FileProcessingDialogProps {
-  readonly open: boolean;
-  readonly onClose: () => void;
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly sourceFileId: string;
-  readonly filename: string;
-  readonly gcsUri: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-}
-⋮----
-type DialogStep = "decide" | "select" | "executing" | "done";
-⋮----
-function handleOpenChange(nextOpen: boolean)
-⋮----
-async function handleExecute()
-⋮----
-<Button onClick=
 ````
 
 ## File: modules/notebooklm/interfaces/source/components/LibrariesPanel.tsx
@@ -7932,76 +7870,9 @@ export function mapToSourceLiveDocument(
 const n = (v: unknown)
 ````
 
-## File: modules/notebooklm/subdomains/source/application/dto/source-processing.dto.ts
-````typescript
-export type SourceProcessingTaskStatus = "idle" | "running" | "success" | "error" | "skipped";
-⋮----
-export interface SourceProcessingTaskResult {
-  readonly status: SourceProcessingTaskStatus;
-  readonly detail: string;
-}
-⋮----
-export interface SourceProcessingExecutionSummary {
-  readonly pageCount: number;
-  readonly jsonGcsUri: string;
-  readonly pageHref: string;
-  readonly parse: SourceProcessingTaskResult;
-  readonly rag: SourceProcessingTaskResult;
-  readonly page: SourceProcessingTaskResult;
-}
-⋮----
-export function createIdleExecutionSummary(): SourceProcessingExecutionSummary
-````
-
 ## File: modules/notebooklm/subdomains/source/application/index.ts
 ````typescript
 
-````
-
-## File: modules/notebooklm/subdomains/source/application/use-cases/process-source-document-workflow.use-case.ts
-````typescript
-import {
-  createIdleExecutionSummary,
-  type SourceProcessingExecutionSummary,
-} from "../dto/source-processing.dto";
-import type {
-  ParseSourceDocumentUseCase,
-  ReindexSourceDocumentUseCase,
-} from "./source-pipeline.use-cases";
-import type { CreateKnowledgeDraftFromSourceUseCase } from "./create-knowledge-draft-from-source.use-case";
-⋮----
-export interface ProcessSourceDocumentWorkflowInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly sourceFileId: string;
-  readonly filename: string;
-  readonly gcsUri: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-  readonly shouldRunRag: boolean;
-  readonly shouldCreatePage: boolean;
-  readonly createdByUserId?: string | null;
-}
-⋮----
-interface ParsedDocumentStatusPort {
-  waitForParsedDocument(
-    accountId: string,
-    documentId: string,
-  ): Promise<{ pageCount: number; jsonGcsUri: string }>;
-}
-⋮----
-waitForParsedDocument(
-    accountId: string,
-    documentId: string,
-): Promise<
-⋮----
-export class ProcessSourceDocumentWorkflowUseCase {
-⋮----
-constructor(
-⋮----
-async execute(
-    input: ProcessSourceDocumentWorkflowInput,
-): Promise<SourceProcessingExecutionSummary>
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/use-cases/wiki-library.helpers.ts
@@ -9128,6 +8999,35 @@ function handleDelete(versionId: string)
 ## File: modules/notion/interfaces/database/_actions/index.ts
 ````typescript
 
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseCalendarPanel.tsx
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseCalendarPanel ??month-grid calendar grouped by a date field.
+ */
+⋮----
+import { useCallback, useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+⋮----
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+⋮----
+import { getRecords } from "../queries";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+⋮----
+interface DatabaseCalendarPanelProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+}
+⋮----
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown
+⋮----
+function prevMonth()
+function nextMonth()
 ````
 
 ## File: modules/notion/interfaces/database/components/DatabaseDialog.tsx
@@ -31573,6 +31473,40 @@ async addBlock(input: {
 }): Promise<CommandResult>
 ````
 
+## File: modules/notebooklm/infrastructure/source/adapters/TaskMaterializationWorkflowAdapter.ts
+````typescript
+import type { CommandResult } from "@shared-types";
+⋮----
+import type {
+  ExtractTaskCandidatesInput,
+  ExtractTaskCandidatesOutput,
+  MaterializeKnowledgeTasksInput,
+  TaskMaterializationWorkflowPort,
+} from "../../../subdomains/source/domain/ports/TaskMaterializationWorkflowPort";
+⋮----
+export class TaskMaterializationWorkflowAdapter implements TaskMaterializationWorkflowPort {
+⋮----
+constructor(
+    private readonly deps: {
+      extractTaskCandidates: (input: {
+        knowledgePageId: string;
+        blocks: ReadonlyArray<{
+          blockId: string;
+          text: string;
+          pageIndex?: number;
+        }>;
+        enableAiFallback?: boolean;
+}) => Promise<
+⋮----
+async extractTaskCandidates(
+    input: ExtractTaskCandidatesInput,
+): Promise<ExtractTaskCandidatesOutput>
+⋮----
+async materializeKnowledgeTasks(
+    input: MaterializeKnowledgeTasksInput,
+): Promise<CommandResult>
+````
+
 ## File: modules/notebooklm/infrastructure/source/firebase/FirebaseDocumentStatusAdapter.ts
 ````typescript
 /**
@@ -31781,6 +31715,74 @@ export async function parseSourceDocument(
 export async function reindexSourceDocument(
   input: ReindexSourceDocumentInputDto,
 ): Promise<SourcePipelineResult<ReindexSourceDocumentOutputDto>>
+````
+
+## File: modules/notebooklm/interfaces/source/components/file-processing-dialog.body.tsx
+````typescript
+import { ClipboardList, ScanSearch, Sparkles } from "lucide-react";
+⋮----
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Checkbox } from "@ui-shadcn/ui/checkbox";
+import { Label } from "@ui-shadcn/ui/label";
+⋮----
+import type { ExecutionSummary } from "./file-processing-dialog.utils";
+import { FileProcessingPathValue, FileProcessingResultRow, FileProcessingSourceCard } from "./file-processing-dialog.parts";
+⋮----
+interface FileProcessingDialogBodyProps {
+  readonly step: "decide" | "select" | "executing" | "done";
+  readonly filename: string;
+  readonly mimeType: string;
+  readonly gcsUri: string;
+  readonly sizeBytes: number;
+  readonly shouldRunRag: boolean;
+  readonly shouldCreatePage: boolean;
+  readonly shouldCreateTasks: boolean;
+  readonly onShouldRunRagChange: (checked: boolean) => void;
+  readonly onShouldCreatePageChange: (checked: boolean) => void;
+  readonly onShouldCreateTasksChange: (checked: boolean) => void;
+  readonly summary: ExecutionSummary;
+}
+````
+
+## File: modules/notebooklm/interfaces/source/components/FileProcessingDialog.tsx
+````typescript
+import { useState } from "react";
+import Link from "next/link";
+⋮----
+import { useAuth } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
+⋮----
+import { processSourceDocumentWorkflow } from "../_actions/source-processing.actions";
+import { FileProcessingDialogBody } from "./file-processing-dialog.body";
+import { FileProcessingDialogSurface } from "./file-processing-dialog.surface";
+import {
+  createIdleSummary,
+  type ExecutionSummary,
+} from "./file-processing-dialog.utils";
+⋮----
+interface FileProcessingDialogProps {
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+}
+⋮----
+type DialogStep = "decide" | "select" | "executing" | "done";
+⋮----
+function handleOpenChange(nextOpen: boolean)
+⋮----
+function handleShouldCreatePageChange(nextChecked: boolean)
+⋮----
+function handleShouldCreateTasksChange(nextChecked: boolean)
+⋮----
+async function handleExecute()
+⋮----
+<Button onClick=
 ````
 
 ## File: modules/notebooklm/interfaces/source/components/LibraryTablePanel.tsx
@@ -32053,6 +32055,30 @@ export type ReindexSourceDocumentInputDto = ReindexSourceDocumentInput;
 export type ReindexSourceDocumentOutputDto = ReindexSourceDocumentOutput;
 ````
 
+## File: modules/notebooklm/subdomains/source/application/dto/source-processing.dto.ts
+````typescript
+export type SourceProcessingTaskStatus = "idle" | "running" | "success" | "error" | "skipped";
+⋮----
+export interface SourceProcessingTaskResult {
+  readonly status: SourceProcessingTaskStatus;
+  readonly detail: string;
+}
+⋮----
+export interface SourceProcessingExecutionSummary {
+  readonly pageCount: number;
+  readonly jsonGcsUri: string;
+  readonly pageHref: string;
+  readonly workflowHref: string;
+  readonly taskCount: number;
+  readonly parse: SourceProcessingTaskResult;
+  readonly rag: SourceProcessingTaskResult;
+  readonly page: SourceProcessingTaskResult;
+  readonly task: SourceProcessingTaskResult;
+}
+⋮----
+export function createIdleExecutionSummary(): SourceProcessingExecutionSummary
+````
+
 ## File: modules/notebooklm/subdomains/source/application/queries/source-file.queries.ts
 ````typescript
 /**
@@ -32102,6 +32128,60 @@ export class DeleteSourceDocumentUseCase {
 constructor(
 ⋮----
 async execute(input: DeleteSourceDocumentInput): Promise<DeleteSourceDocumentResult>
+````
+
+## File: modules/notebooklm/subdomains/source/application/use-cases/process-source-document-workflow.use-case.ts
+````typescript
+import {
+  createIdleExecutionSummary,
+  type SourceProcessingExecutionSummary,
+} from "../dto/source-processing.dto";
+import type {
+  ParseSourceDocumentUseCase,
+  ReindexSourceDocumentUseCase,
+} from "./source-pipeline.use-cases";
+import type { ParsedDocumentPort } from "../../domain/ports/ParsedDocumentPort";
+import type {
+  ParsedKnowledgeTaskBlock,
+  TaskMaterializationWorkflowPort,
+} from "../../domain/ports/TaskMaterializationWorkflowPort";
+import type { CreateKnowledgeDraftFromSourceUseCase } from "./create-knowledge-draft-from-source.use-case";
+⋮----
+export interface ProcessSourceDocumentWorkflowInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly shouldRunRag: boolean;
+  readonly shouldCreatePage: boolean;
+  readonly shouldCreateTasks: boolean;
+  readonly createdByUserId?: string | null;
+}
+⋮----
+interface ParsedDocumentStatusPort {
+  waitForParsedDocument(
+    accountId: string,
+    documentId: string,
+  ): Promise<{ pageCount: number; jsonGcsUri: string }>;
+}
+⋮----
+waitForParsedDocument(
+    accountId: string,
+    documentId: string,
+): Promise<
+⋮----
+function toTaskBlocks(parsedText: string): ReadonlyArray<ParsedKnowledgeTaskBlock>
+⋮----
+export class ProcessSourceDocumentWorkflowUseCase {
+⋮----
+constructor(
+⋮----
+async execute(
+    input: ProcessSourceDocumentWorkflowInput,
+): Promise<SourceProcessingExecutionSummary>
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/use-cases/rename-source-document.use-case.ts
@@ -32338,6 +32418,60 @@ export interface SourceStoragePort {
 upload(file: Blob, path: string, options?: SourceStorageUploadOptions): Promise<string>;
 /** Convert a relative storage path to a gs:// URI. */
 toGsUri(path: string): string;
+````
+
+## File: modules/notebooklm/subdomains/source/domain/ports/TaskMaterializationWorkflowPort.ts
+````typescript
+import type { CommandResult } from "@shared-types";
+⋮----
+export interface ParsedKnowledgeTaskBlock {
+  readonly blockId: string;
+  readonly text: string;
+  readonly pageIndex?: number;
+}
+⋮----
+export interface ExtractedKnowledgeTask {
+  readonly title: string;
+  readonly description?: string;
+  readonly dueDate?: string;
+}
+⋮----
+export interface ExtractTaskCandidatesInput {
+  readonly knowledgePageId: string;
+  readonly blocks: ReadonlyArray<ParsedKnowledgeTaskBlock>;
+  readonly enableAiFallback?: boolean;
+}
+⋮----
+export interface ExtractTaskCandidatesOutput {
+  readonly candidates: ReadonlyArray<ExtractedKnowledgeTask>;
+  readonly usedAiFallback: boolean;
+}
+⋮----
+export interface MaterializeKnowledgeTasksInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly pageId: string;
+  readonly actorId: string;
+  readonly extractedTasks: ReadonlyArray<ExtractedKnowledgeTask>;
+}
+⋮----
+export interface TaskMaterializationWorkflowPort {
+  extractTaskCandidates(
+    input: ExtractTaskCandidatesInput,
+  ): Promise<ExtractTaskCandidatesOutput>;
+
+  materializeKnowledgeTasks(
+    input: MaterializeKnowledgeTasksInput,
+  ): Promise<CommandResult>;
+}
+⋮----
+extractTaskCandidates(
+    input: ExtractTaskCandidatesInput,
+  ): Promise<ExtractTaskCandidatesOutput>;
+⋮----
+materializeKnowledgeTasks(
+    input: MaterializeKnowledgeTasksInput,
+  ): Promise<CommandResult>;
 ````
 
 ## File: modules/notebooklm/subdomains/source/domain/repositories/RagDocumentRepository.ts
@@ -33213,6 +33347,32 @@ function handleSubmit(e: React.FormEvent)
 <Select value=
 ````
 
+## File: modules/notion/interfaces/database/components/DatabaseAutomationPanel.tsx
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: Manage automation rules for a database ??list/create/toggle/delete.
+ */
+⋮----
+import { useEffect, useState, useTransition } from "react";
+import type { DatabaseAutomationSnapshot, AutomationTrigger, AutomationActionType } from "../../../subdomains/database/application/dto/database.dto";
+import { getAutomations } from "../queries";
+import { createAutomation, updateAutomation, deleteAutomation } from "../_actions/database.actions";
+⋮----
+interface Props {
+  databaseId: string;
+  accountId: string;
+  currentUserId: string;
+}
+⋮----
+function handleCreate()
+⋮----
+function handleToggle(automation: DatabaseAutomationSnapshot)
+⋮----
+function handleDelete(automationId: string)
+````
+
 ## File: modules/notion/interfaces/database/components/DatabaseBoardPanel.tsx
 ````typescript
 /**
@@ -33248,33 +33408,50 @@ function handleAdd(groupValue: string)
 function handleDelete(recordId: string)
 ````
 
-## File: modules/notion/interfaces/database/components/DatabaseCalendarPanel.tsx
+## File: modules/notion/interfaces/database/components/DatabaseFormPanel.tsx
 ````typescript
 /**
  * Module: notion/subdomains/database
  * Layer: interfaces/components
- * Purpose: DatabaseCalendarPanel ??month-grid calendar grouped by a date field.
+ * Purpose: DatabaseFormPanel ??public-facing form to collect one Record into a Database.
  */
 ⋮----
-import { useCallback, useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useTransition } from "react";
+import { CheckCircle2 } from "lucide-react";
 ⋮----
 import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
 ⋮----
-import { getRecords } from "../queries";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+import { createRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, Field } from "../../../subdomains/database/application/dto/database.dto";
 ⋮----
-interface DatabaseCalendarPanelProps {
+interface DatabaseFormPanelProps {
   database: DatabaseSnapshot;
   accountId: string;
+  workspaceId: string;
+  /** The user submitting the form. Pass anonymous ID or guest token for public forms. */
+  submitterId: string;
+  /** Optional: restrict to a subset of fields. */
+  fieldIds?: string[];
+  title?: string;
+  description?: string;
 }
 ⋮----
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown
+/** The user submitting the form. Pass anonymous ID or guest token for public forms. */
 ⋮----
-function prevMonth()
-function nextMonth()
+/** Optional: restrict to a subset of fields. */
+⋮----
+checked=
+⋮----
+onChange=
+⋮----
+function handleChange(fieldId: string, value: unknown)
+⋮----
+function handleSubmit(e: React.FormEvent)
+⋮----
+<Button variant="outline" size="sm" onClick=
 ````
 
 ## File: modules/notion/interfaces/database/components/DatabaseTablePanel.tsx
@@ -46540,45 +46717,6 @@ export async function renameSourceDocument(
 ): Promise<SourceFileCommandResult<
 ````
 
-## File: modules/notebooklm/interfaces/source/_actions/source-processing.actions.ts
-````typescript
-import type { CommandResult } from "@shared-types";
-⋮----
-import { makeSourceUseCases } from "../composition/use-cases";
-import type { SourceProcessingExecutionSummary } from "../../../subdomains/source/application/dto/source-processing.dto";
-⋮----
-interface CreateKnowledgeDraftFromSourceDocumentInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly createdByUserId: string;
-  readonly filename: string;
-  readonly sourceGcsUri: string;
-  readonly jsonGcsUri: string;
-  readonly pageCount: number;
-}
-⋮----
-interface ProcessSourceDocumentWorkflowActionInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly sourceFileId: string;
-  readonly filename: string;
-  readonly gcsUri: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-  readonly shouldRunRag: boolean;
-  readonly shouldCreatePage: boolean;
-  readonly createdByUserId?: string | null;
-}
-⋮----
-export async function createKnowledgeDraftFromSourceDocument(
-  input: CreateKnowledgeDraftFromSourceDocumentInput,
-): Promise<CommandResult>
-⋮----
-export async function processSourceDocumentWorkflow(
-  input: ProcessSourceDocumentWorkflowActionInput,
-): Promise<SourceProcessingExecutionSummary>
-````
-
 ## File: modules/notebooklm/interfaces/synthesis/components/RagQueryPanel.tsx
 ````typescript
 import { useState } from "react";
@@ -48163,78 +48301,6 @@ export function makeCollaborationUseCases(
   versionRepo: VersionRepository = makeVersionRepo(),
   permissionRepo: PermissionRepository = makePermissionRepo(),
 ): CollaborationUseCases
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseAutomationPanel.tsx
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: Manage automation rules for a database ??list/create/toggle/delete.
- */
-⋮----
-import { useEffect, useState, useTransition } from "react";
-import type { DatabaseAutomationSnapshot, AutomationTrigger, AutomationActionType } from "../../../subdomains/database/application/dto/database.dto";
-import { getAutomations } from "../queries";
-import { createAutomation, updateAutomation, deleteAutomation } from "../_actions/database.actions";
-⋮----
-interface Props {
-  databaseId: string;
-  accountId: string;
-  currentUserId: string;
-}
-⋮----
-function handleCreate()
-⋮----
-function handleToggle(automation: DatabaseAutomationSnapshot)
-⋮----
-function handleDelete(automationId: string)
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseFormPanel.tsx
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseFormPanel ??public-facing form to collect one Record into a Database.
- */
-⋮----
-import { useState, useTransition } from "react";
-import { CheckCircle2 } from "lucide-react";
-⋮----
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-⋮----
-import { createRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, Field } from "../../../subdomains/database/application/dto/database.dto";
-⋮----
-interface DatabaseFormPanelProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  /** The user submitting the form. Pass anonymous ID or guest token for public forms. */
-  submitterId: string;
-  /** Optional: restrict to a subset of fields. */
-  fieldIds?: string[];
-  title?: string;
-  description?: string;
-}
-⋮----
-/** The user submitting the form. Pass anonymous ID or guest token for public forms. */
-⋮----
-/** Optional: restrict to a subset of fields. */
-⋮----
-checked=
-⋮----
-onChange=
-⋮----
-function handleChange(fieldId: string, value: unknown)
-⋮----
-function handleSubmit(e: React.FormEvent)
-⋮----
-<Button variant="outline" size="sm" onClick=
 ````
 
 ## File: modules/notion/interfaces/database/components/DatabaseGalleryPanel.tsx
@@ -51100,52 +51166,6 @@ export function OrganizationScheduleRouteScreen()
 // ── Command / operation result ────────────────────────────────────────────────
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/api/index.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file index.ts
- * @description Public cross-module boundary for workspace-flow.
- *
- * External consumers MUST import only from this path:
- *   @/modules/workspace/api
- *
- * Never import from domain/, application/, infrastructure/, or interfaces/ directly.
- * @author workspace-flow
- * @since 2026-03-24
- */
-⋮----
-// ── Facade (write + summary-read surface) ────────────────────────────────────
-⋮----
-// Composite facade (all three aggregates)
-⋮----
-// Focused facades (prefer these when only one aggregate is needed)
-⋮----
-// ── Public contracts ──────────────────────────────────────────────────────────
-⋮----
-// Entities
-⋮----
-// Value objects
-⋮----
-// Summary projections
-⋮----
-// CRUD / command DTOs
-⋮----
-// Query / pagination DTOs
-⋮----
-// Command result
-⋮----
-// Value object lists (enum arrays)
-⋮----
-// Summary projection helpers
-⋮----
-// ── Read queries (server-side) ────────────────────────────────────────────────
-⋮----
-// ── UI components ─────────────────────────────────────────────────────────────
-⋮----
-// ── Event listeners (knowledge → workspace-flow integration) ─────────────────
-````
-
 ## File: modules/workspace/subdomains/workspace-workflow/api/listeners.ts
 ````typescript
 /**
@@ -52826,6 +52846,46 @@ async upload(
 toGsUri(path: string): string
 ````
 
+## File: modules/notebooklm/interfaces/source/_actions/source-processing.actions.ts
+````typescript
+import type { CommandResult } from "@shared-types";
+⋮----
+import { makeSourceUseCases } from "../composition/use-cases";
+import type { SourceProcessingExecutionSummary } from "../../../subdomains/source/application/dto/source-processing.dto";
+⋮----
+interface CreateKnowledgeDraftFromSourceDocumentInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly createdByUserId: string;
+  readonly filename: string;
+  readonly sourceGcsUri: string;
+  readonly jsonGcsUri: string;
+  readonly pageCount: number;
+}
+⋮----
+interface ProcessSourceDocumentWorkflowActionInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly shouldRunRag: boolean;
+  readonly shouldCreatePage: boolean;
+  readonly shouldCreateTasks: boolean;
+  readonly createdByUserId?: string | null;
+}
+⋮----
+export async function createKnowledgeDraftFromSourceDocument(
+  input: CreateKnowledgeDraftFromSourceDocumentInput,
+): Promise<CommandResult>
+⋮----
+export async function processSourceDocumentWorkflow(
+  input: ProcessSourceDocumentWorkflowActionInput,
+): Promise<SourceProcessingExecutionSummary>
+````
+
 ## File: modules/notebooklm/interfaces/source/components/SourceDocumentsPanel.tsx
 ````typescript
 import { v4 as uuid } from "@lib-uuid";
@@ -52855,67 +52915,6 @@ async function handleUpload()
 async function handleDelete(doc: SourceLiveDocument)
 ⋮----
 async function handleRename(doc: SourceLiveDocument, newName: string)
-````
-
-## File: modules/notebooklm/interfaces/source/composition/use-cases.ts
-````typescript
-import { UploadInitSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-init-source-file.use-case";
-import { UploadCompleteSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-complete-source-file.use-case";
-import { ParseSourceDocumentUseCase, ReindexSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/source-pipeline.use-cases";
-import { ProcessSourceDocumentWorkflowUseCase } from "../../../subdomains/source/application/use-cases/process-source-document-workflow.use-case";
-import { RegisterUploadedRagDocumentUseCase } from "../../../subdomains/source/application/use-cases/register-rag-document.use-case";
-import { RenameSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/rename-source-document.use-case";
-import { DeleteSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/delete-source-document.use-case";
-import { CreateKnowledgeDraftFromSourceUseCase, type KnowledgePageGateway } from "../../../subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case";
-import type { SourceFileRepository } from "../../../subdomains/source/domain/repositories/SourceFileRepository";
-import type { RagDocumentRepository } from "../../../subdomains/source/domain/repositories/RagDocumentRepository";
-import type { SourceDocumentCommandPort } from "../../../subdomains/source/domain/ports/SourceDocumentPort";
-import type { SourcePipelinePort } from "../../../subdomains/source/domain/ports/SourcePipelinePort";
-import type { ParsedDocumentPort } from "../../../subdomains/source/domain/ports/ParsedDocumentPort";
-import {
-  makeSourceFileAdapter,
-  makeRagDocumentAdapter,
-  makeSourceDocumentCommandAdapter,
-  makeSourcePipelineAdapter,
-  makeParsedDocumentAdapter,
-  makeKnowledgePageGateway,
-  waitForParsedDocument,
-} from "./adapters";
-⋮----
-export interface SourceUseCases {
-  readonly uploadInitSourceFile: UploadInitSourceFileUseCase;
-  readonly uploadCompleteSourceFile: UploadCompleteSourceFileUseCase;
-  readonly parseSourceDocument: ParseSourceDocumentUseCase;
-  readonly reindexSourceDocument: ReindexSourceDocumentUseCase;
-  readonly processSourceDocumentWorkflow: ProcessSourceDocumentWorkflowUseCase;
-  readonly registerUploadedRagDocument: RegisterUploadedRagDocumentUseCase;
-  readonly renameSourceDocument: RenameSourceDocumentUseCase;
-  readonly deleteSourceDocument: DeleteSourceDocumentUseCase;
-  readonly createKnowledgeDraftFromSource: CreateKnowledgeDraftFromSourceUseCase;
-}
-⋮----
-interface ParsedDocumentStatusPort {
-  waitForParsedDocument(
-    accountId: string,
-    documentId: string,
-  ): Promise<{ pageCount: number; jsonGcsUri: string }>;
-}
-⋮----
-waitForParsedDocument(
-    accountId: string,
-    documentId: string,
-): Promise<
-⋮----
-function makeParsedDocumentStatusPort(): ParsedDocumentStatusPort
-⋮----
-export function makeSourceUseCases(
-  fileRepository: SourceFileRepository = makeSourceFileAdapter(),
-  ragDocumentRepository: RagDocumentRepository = makeRagDocumentAdapter(),
-  documentCommandPort: SourceDocumentCommandPort = makeSourceDocumentCommandAdapter(),
-  pipelinePort: SourcePipelinePort = makeSourcePipelineAdapter(),
-  parsedDocumentPort: ParsedDocumentPort = makeParsedDocumentAdapter(),
-  knowledgePageGateway: KnowledgePageGateway = makeKnowledgePageGateway(),
-): SourceUseCases
 ````
 
 ## File: modules/notebooklm/interfaces/source/composition/wiki-library-facade.ts
@@ -53580,6 +53579,54 @@ export function appendWorkspaceContextQuery(
 ): string
 ````
 
+## File: modules/workspace/subdomains/workspace-workflow/api/index.ts
+````typescript
+/**
+ * @module workspace-flow/api
+ * @file index.ts
+ * @description Public cross-module boundary for workspace-flow.
+ *
+ * External consumers MUST import only from this path:
+ *   @/modules/workspace/api
+ *
+ * Never import from domain/, application/, infrastructure/, or interfaces/ directly.
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+⋮----
+// ── Facade (write + summary-read surface) ────────────────────────────────────
+⋮----
+// Composite facade (all three aggregates)
+⋮----
+// Focused facades (prefer these when only one aggregate is needed)
+⋮----
+// ── Public contracts ──────────────────────────────────────────────────────────
+⋮----
+// Entities
+⋮----
+// Value objects
+⋮----
+// Summary projections
+⋮----
+// CRUD / command DTOs
+⋮----
+// Query / pagination DTOs
+⋮----
+// Command result
+⋮----
+// Value object lists (enum arrays)
+⋮----
+// Summary projection helpers
+⋮----
+// ── Read queries (server-side) ────────────────────────────────────────────────
+⋮----
+// ── Public write-side commands for knowledge → task flow ────────────────────
+⋮----
+// ── UI components ─────────────────────────────────────────────────────────────
+⋮----
+// ── Event listeners (knowledge → workspace-flow integration) ─────────────────
+````
+
 ## File: modules/workspace/subdomains/workspace-workflow/api/workspace-flow-task-batch-job.facade.ts
 ````typescript
 /**
@@ -54058,48 +54105,68 @@ flowchart LR
 - 本目錄不是對既有 repo 內容做過語意比對後的歷史還原。
 ````
 
-## File: modules/notebooklm/interfaces/source/composition/adapters.ts
+## File: modules/notebooklm/interfaces/source/composition/use-cases.ts
 ````typescript
-import { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
-import { FirebaseRagDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseRagDocumentAdapter";
-import { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter";
-import { FirebaseSourceFileAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceFileAdapter";
-import { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
-import { NotionKnowledgePageGatewayAdapter } from "../../../infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter";
-import { waitForParsedDocument as _waitForParsedDocument } from "../../../infrastructure/source/firebase/FirebaseDocumentStatusAdapter";
-import { PlatformSourcePipelineAdapter } from "../../../infrastructure/source/platform/PlatformSourcePipelineAdapter";
-import { PlatformSourceStorageAdapter } from "../../../infrastructure/source/platform/PlatformSourceStorageAdapter";
-import { PlatformSourceDocumentWatchAdapter } from "../../../infrastructure/source/platform/PlatformSourceDocumentWatchAdapter";
+import { UploadInitSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-init-source-file.use-case";
+import { UploadCompleteSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-complete-source-file.use-case";
+import { ParseSourceDocumentUseCase, ReindexSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/source-pipeline.use-cases";
+import { ProcessSourceDocumentWorkflowUseCase } from "../../../subdomains/source/application/use-cases/process-source-document-workflow.use-case";
+import { RegisterUploadedRagDocumentUseCase } from "../../../subdomains/source/application/use-cases/register-rag-document.use-case";
+import { RenameSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/rename-source-document.use-case";
+import { DeleteSourceDocumentUseCase } from "../../../subdomains/source/application/use-cases/delete-source-document.use-case";
+import { CreateKnowledgeDraftFromSourceUseCase, type KnowledgePageGateway } from "../../../subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case";
+import type { SourceFileRepository } from "../../../subdomains/source/domain/repositories/SourceFileRepository";
+import type { RagDocumentRepository } from "../../../subdomains/source/domain/repositories/RagDocumentRepository";
+import type { SourceDocumentCommandPort } from "../../../subdomains/source/domain/ports/SourceDocumentPort";
+import type { SourcePipelinePort } from "../../../subdomains/source/domain/ports/SourcePipelinePort";
+import type { ParsedDocumentPort } from "../../../subdomains/source/domain/ports/ParsedDocumentPort";
+import type { TaskMaterializationWorkflowPort } from "../../../subdomains/source/domain/ports/TaskMaterializationWorkflowPort";
 import {
-  addKnowledgeBlock,
-  createKnowledgePage,
-} from "@/modules/notion/api";
-import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
-import type { SourceStoragePort } from "../../../subdomains/source/domain/ports/SourceStoragePort";
-import type { SourceDocumentWatchPort } from "../../../subdomains/source/domain/ports/SourceDocumentWatchPort";
+  makeSourceFileAdapter,
+  makeRagDocumentAdapter,
+  makeSourceDocumentCommandAdapter,
+  makeSourcePipelineAdapter,
+  makeParsedDocumentAdapter,
+  makeKnowledgePageGateway,
+  makeTaskMaterializationWorkflowAdapter,
+  waitForParsedDocument,
+} from "./adapters";
 ⋮----
-export function makeSourceFileAdapter()
+export interface SourceUseCases {
+  readonly uploadInitSourceFile: UploadInitSourceFileUseCase;
+  readonly uploadCompleteSourceFile: UploadCompleteSourceFileUseCase;
+  readonly parseSourceDocument: ParseSourceDocumentUseCase;
+  readonly reindexSourceDocument: ReindexSourceDocumentUseCase;
+  readonly processSourceDocumentWorkflow: ProcessSourceDocumentWorkflowUseCase;
+  readonly registerUploadedRagDocument: RegisterUploadedRagDocumentUseCase;
+  readonly renameSourceDocument: RenameSourceDocumentUseCase;
+  readonly deleteSourceDocument: DeleteSourceDocumentUseCase;
+  readonly createKnowledgeDraftFromSource: CreateKnowledgeDraftFromSourceUseCase;
+}
 ⋮----
-export function makeRagDocumentAdapter()
+interface ParsedDocumentStatusPort {
+  waitForParsedDocument(
+    accountId: string,
+    documentId: string,
+  ): Promise<{ pageCount: number; jsonGcsUri: string }>;
+}
 ⋮----
-export function makeSourceDocumentCommandAdapter()
-⋮----
-export function makeParsedDocumentAdapter()
-⋮----
-export function makeSourcePipelineAdapter()
-⋮----
-export function makeKnowledgePageGateway()
-⋮----
-export function makeWikiLibraryAdapter(): WikiLibraryRepository
-⋮----
-export function makeSourceStorageAdapter(): SourceStoragePort
-⋮----
-export function makeSourceDocumentWatchAdapter(): SourceDocumentWatchPort
-⋮----
-export function waitForParsedDocument(
-  accountId: string,
-  docId: string,
+waitForParsedDocument(
+    accountId: string,
+    documentId: string,
 ): Promise<
+⋮----
+function makeParsedDocumentStatusPort(): ParsedDocumentStatusPort
+⋮----
+export function makeSourceUseCases(
+  fileRepository: SourceFileRepository = makeSourceFileAdapter(),
+  ragDocumentRepository: RagDocumentRepository = makeRagDocumentAdapter(),
+  documentCommandPort: SourceDocumentCommandPort = makeSourceDocumentCommandAdapter(),
+  pipelinePort: SourcePipelinePort = makeSourcePipelineAdapter(),
+  parsedDocumentPort: ParsedDocumentPort = makeParsedDocumentAdapter(),
+  knowledgePageGateway: KnowledgePageGateway = makeKnowledgePageGateway(),
+  taskWorkflowPort: TaskMaterializationWorkflowPort = makeTaskMaterializationWorkflowAdapter(),
+): SourceUseCases
 ````
 
 ## File: modules/notion/interfaces/authoring/components/ArticleDetailPanel.tsx
@@ -54164,6 +54231,39 @@ function handleRequestReview()
 {/* Header */}
 ⋮----
 {/* Body tabs */}
+````
+
+## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesPanel.tsx
+````typescript
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
+⋮----
+import { useAuth } from "@/modules/platform/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+⋮----
+import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import { getArticles, getCategories } from "../queries";
+import { ArticleDialog } from "./ArticleDialog";
+import { CategoryTreePanel } from "./CategoryTreePanel";
+⋮----
+/**
+ * KnowledgeBaseArticlesPanel
+ * Route-level screen component for /knowledge-base/articles.
+ * Encapsulates data-loading, filtering and layout so the Next.js route
+ * file stays thin (params/context wiring only).
+ */
+export interface KnowledgeBaseArticlesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly currentUserId?: string | null;
+}
+⋮----
+function handleSuccess(articleId?: string)
 ````
 
 ## File: modules/notion/interfaces/database/components/DatabaseListPanel.tsx
@@ -54276,18 +54376,6 @@ function getTokenRefreshRepo(): ReturnType<typeof createTokenRefreshRepository>
 export function useTokenRefreshListener(accountId: string | null | undefined): void
 ⋮----
 // Non-fatal: token refreshes naturally on next expiry cycle.
-````
-
-## File: modules/workspace/api/facade.ts
-````typescript
-/**
- * workspace api/facade.ts
- *
- * Canonical public behavior surface for the workspace bounded context.
- * Cross-module and app-layer consumers invoke commands and queries from here.
- *
- * Internal source: interfaces/facades/
- */
 ````
 
 ## File: modules/workspace/application/queries/wiki-content-tree.queries.ts
@@ -54650,6 +54738,58 @@ export default function AccountRouteDispatcherPage({
 if (accountType === "organization")
 ````
 
+## File: modules/notebooklm/interfaces/source/composition/adapters.ts
+````typescript
+import { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
+import { FirebaseRagDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseRagDocumentAdapter";
+import { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter";
+import { FirebaseSourceFileAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceFileAdapter";
+import { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
+import { NotionKnowledgePageGatewayAdapter } from "../../../infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter";
+import { waitForParsedDocument as _waitForParsedDocument } from "../../../infrastructure/source/firebase/FirebaseDocumentStatusAdapter";
+import { PlatformSourcePipelineAdapter } from "../../../infrastructure/source/platform/PlatformSourcePipelineAdapter";
+import { PlatformSourceStorageAdapter } from "../../../infrastructure/source/platform/PlatformSourceStorageAdapter";
+import { PlatformSourceDocumentWatchAdapter } from "../../../infrastructure/source/platform/PlatformSourceDocumentWatchAdapter";
+import {
+  addKnowledgeBlock,
+  approveKnowledgePage,
+  createKnowledgePage,
+} from "@/modules/notion/api";
+import {
+  extractTaskCandidatesFromKnowledge,
+} from "@/modules/workspace/api";
+import type { WikiLibraryRepository } from "../../../subdomains/source/domain/repositories/WikiLibraryRepository";
+import type { SourceStoragePort } from "../../../subdomains/source/domain/ports/SourceStoragePort";
+import type { SourceDocumentWatchPort } from "../../../subdomains/source/domain/ports/SourceDocumentWatchPort";
+import type { TaskMaterializationWorkflowPort } from "../../../subdomains/source/domain/ports/TaskMaterializationWorkflowPort";
+import { TaskMaterializationWorkflowAdapter } from "../../../infrastructure/source/adapters/TaskMaterializationWorkflowAdapter";
+⋮----
+export function makeSourceFileAdapter()
+⋮----
+export function makeRagDocumentAdapter()
+⋮----
+export function makeSourceDocumentCommandAdapter()
+⋮----
+export function makeParsedDocumentAdapter()
+⋮----
+export function makeSourcePipelineAdapter()
+⋮----
+export function makeKnowledgePageGateway()
+⋮----
+export function makeWikiLibraryAdapter(): WikiLibraryRepository
+⋮----
+export function makeTaskMaterializationWorkflowAdapter(): TaskMaterializationWorkflowPort
+⋮----
+export function makeSourceStorageAdapter(): SourceStoragePort
+⋮----
+export function makeSourceDocumentWatchAdapter(): SourceDocumentWatchPort
+⋮----
+export function waitForParsedDocument(
+  accountId: string,
+  docId: string,
+): Promise<
+````
+
 ## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
 ````typescript
 /**
@@ -54688,37 +54828,69 @@ if (accountType === "organization")
 // UI components are exported from ./ui to keep this barrel semantic-only.
 ````
 
-## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesPanel.tsx
+## File: modules/notion/interfaces/database/components/DatabaseDetailPanel.tsx
 ````typescript
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Archive,
+  FileText,
+  PlusCircle,
+  Table2,
+  Kanban,
+  List,
+  Calendar,
+  LayoutGrid,
+  Zap,
+} from "lucide-react";
 ⋮----
-import { useAuth } from "@/modules/platform/api";
-import { Badge } from "@ui-shadcn/ui/badge";
+import { getDatabase } from "../queries";
+import { addDatabaseField, archiveDatabase } from "../_actions/database.actions";
+import { DatabaseTablePanel } from "./DatabaseTablePanel";
+import { DatabaseBoardPanel } from "./DatabaseBoardPanel";
+import { DatabaseListPanel } from "./DatabaseListPanel";
+import { DatabaseCalendarPanel } from "./DatabaseCalendarPanel";
+import { DatabaseGalleryPanel } from "./DatabaseGalleryPanel";
+import { DatabaseAutomationPanel } from "./DatabaseAutomationPanel";
+import { AddFieldDialog } from "./DatabaseAddFieldDialog";
+import type { DatabaseSnapshot as Database, FieldType } from "../../../subdomains/database/application/dto/database.dto";
 import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 ⋮----
-import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import { getArticles, getCategories } from "../queries";
-import { ArticleDialog } from "./ArticleDialog";
-import { CategoryTreePanel } from "./CategoryTreePanel";
+// ?? Props ?????????????????????????????????????????????????????????????????????
 ⋮----
-/**
- * KnowledgeBaseArticlesPanel
- * Route-level screen component for /knowledge-base/articles.
- * Encapsulates data-loading, filtering and layout so the Next.js route
- * file stays thin (params/context wiring only).
- */
-export interface KnowledgeBaseArticlesPanelProps {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly currentUserId?: string | null;
+export interface DatabaseDetailPanelProps {
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
 }
 ⋮----
-function handleSuccess(articleId?: string)
+// ?? Component ?????????????????????????????????????????????????????????????????
+⋮----
+export function DatabaseDetailPanel({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: DatabaseDetailPanelProps)
+⋮----
+function handleAddField(name: string, type: FieldType, required: boolean)
+⋮----
+function handleArchive()
+⋮----
+<Button variant="ghost" size="sm" onClick=
+⋮----
+{/* Top bar */}
+⋮----
+{/* Page header */}
+⋮----
+{/* View switcher + actions */}
+⋮----
+onClick=
+⋮----
+<Button size="sm" variant="outline" onClick=
+⋮----
+{/* View */}
 ````
 
 ## File: modules/notion/interfaces/database/components/DatabaseFormsPanel.tsx
@@ -54926,6 +55098,18 @@ export function resolveShellNavSection(pathname: string): ShellNavSection
 export function resolveShellPageTitle(pathname: string): string
 ⋮----
 export function resolveShellBreadcrumbLabel(segment: string): string
+````
+
+## File: modules/workspace/api/facade.ts
+````typescript
+/**
+ * workspace api/facade.ts
+ *
+ * Canonical public behavior surface for the workspace bounded context.
+ * Cross-module and app-layer consumers invoke commands and queries from here.
+ *
+ * Internal source: interfaces/facades/
+ */
 ````
 
 ## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
@@ -55149,71 +55333,6 @@ accountType=
 // Synthesis subdomain — complete RAG pipeline
 // (retrieval → grounding → synthesis → evaluation)
 // ---------------------------------------------------------------------------
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseDetailPanel.tsx
-````typescript
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  Archive,
-  FileText,
-  PlusCircle,
-  Table2,
-  Kanban,
-  List,
-  Calendar,
-  LayoutGrid,
-  Zap,
-} from "lucide-react";
-⋮----
-import { getDatabase } from "../queries";
-import { addDatabaseField, archiveDatabase } from "../_actions/database.actions";
-import { DatabaseTablePanel } from "./DatabaseTablePanel";
-import { DatabaseBoardPanel } from "./DatabaseBoardPanel";
-import { DatabaseListPanel } from "./DatabaseListPanel";
-import { DatabaseCalendarPanel } from "./DatabaseCalendarPanel";
-import { DatabaseGalleryPanel } from "./DatabaseGalleryPanel";
-import { DatabaseAutomationPanel } from "./DatabaseAutomationPanel";
-import { AddFieldDialog } from "./DatabaseAddFieldDialog";
-import type { DatabaseSnapshot as Database, FieldType } from "../../../subdomains/database/application/dto/database.dto";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-⋮----
-// ?? Props ?????????????????????????????????????????????????????????????????????
-⋮----
-export interface DatabaseDetailPanelProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-⋮----
-// ?? Component ?????????????????????????????????????????????????????????????????
-⋮----
-export function DatabaseDetailPanel({
-  accountId,
-  workspaceId,
-  currentUserId,
-}: DatabaseDetailPanelProps)
-⋮----
-function handleAddField(name: string, type: FieldType, required: boolean)
-⋮----
-function handleArchive()
-⋮----
-<Button variant="ghost" size="sm" onClick=
-⋮----
-{/* Top bar */}
-⋮----
-{/* Page header */}
-⋮----
-{/* View switcher + actions */}
-⋮----
-onClick=
-⋮----
-<Button size="sm" variant="outline" onClick=
-⋮----
-{/* View */}
 ````
 
 ## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
