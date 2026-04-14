@@ -1,5 +1,5 @@
 /**
- * notion/database domain/ports — driven port interfaces for the database subdomain.
+ * notion/knowledge-database domain/ports — driven port interfaces for the knowledge-database subdomain.
  *
  * Re-exports repository contracts from domain/repositories/, making the Ports layer
  * explicitly visible in the directory structure.

@@ -1,5 +1,5 @@
 /**
- * BackgroundJobRepository — output port (driven port) for ingestion job persistence.
+ * BackgroundJobRepository — output port (driven port) for background job persistence.
  *
  * Implementations live in the adapters layer (InMemoryBackgroundJobRepository,
  * FirebaseBackgroundJobRepository, …). The domain core depends only on this interface.
@@ -17,7 +17,7 @@ export interface BackgroundJobRepository {
     readonly workspaceId: string;
   }): Promise<readonly BackgroundJob[]>;
 
-  /** Persist a new ingestion job. */
+  /** Persist a new background job. */
   save(job: BackgroundJob): Promise<void>;
 
   /** Advance job status; returns the updated job, or null if the document was not found. */

@@ -1,5 +1,5 @@
 /**
- * backgroundJobService — Composition root for knowledge ingestion use cases.
+ * backgroundJobService — Composition root for background job use cases.
  *
  * Relocated from infrastructure/ to interfaces/composition/ to fix
  * the infrastructure → application dependency direction violation (HX-1-001).
@@ -7,7 +7,7 @@
  * Wires use cases to the default InMemoryBackgroundJobRepository.
  * Swap the repository assignment here once a Firebase adapter is in place.
  *
- * This module is the single entry point for ingestion side-effects; adapters
+ * This module is the single entry point for background job side-effects; adapters
  * (Server Actions, route handlers) must not reach into use cases directly.
  */
 
@@ -36,7 +36,7 @@ export const backgroundJobService = {
   },
 
   /**
-   * Advance the ingestion pipeline to the given status.
+   * Advance the job to the given status.
    * Rejects invalid transitions with `JOB_INVALID_STATUS_TRANSITION`.
    */
   advanceStage(input: AdvanceJobStageInput): Promise<JobResult<BackgroundJob>> {
@@ -44,7 +44,7 @@ export const backgroundJobService = {
   },
 
   /**
-   * Return all ingestion jobs belonging to a workspace.
+   * Return all background jobs belonging to a workspace.
    */
   listWorkspaceJobs(input: {
     readonly organizationId: string;

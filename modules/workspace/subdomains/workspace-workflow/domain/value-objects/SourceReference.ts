@@ -7,7 +7,7 @@
  * by the KnowledgeToWorkflowMaterializer Process Manager in response to a
  * `notion.knowledge.page-approved` event. It provides full audit traceability:
  *
- *   Task → sourceReference → KnowledgePage → IngestionJob → source PDF
+ *   Task → sourceReference → KnowledgePage → BackgroundJob → source PDF
  */
 
 export type SourceReferenceType = "KnowledgePage";

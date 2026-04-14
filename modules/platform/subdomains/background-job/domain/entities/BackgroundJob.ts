@@ -1,6 +1,6 @@
 /**
- * BackgroundJob — aggregate entity tracking a document through the RAG
- * ingestion pipeline.
+ * BackgroundJob — aggregate entity tracking a document through the
+ * document processing pipeline.
  *
  * The embedded state machine enforces strict one-way status transitions,
  * keeping invalid states impossible at the domain level.

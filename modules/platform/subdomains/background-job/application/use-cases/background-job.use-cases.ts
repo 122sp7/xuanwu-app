@@ -1,5 +1,5 @@
 /**
- * Ingestion Use Cases — application-layer orchestration for BackgroundJob domain operations.
+ * Background Job Use Cases — application-layer orchestration for BackgroundJob domain operations.
  *
  * Each use case receives its repository dependency via constructor injection,
  * keeping it testable and decoupled from any specific adapter.
@@ -31,7 +31,7 @@ function fail(code: string, message: string): JobResult<never> {
   return { ok: false, error: { code, message } };
 }
 
-// ── Register Ingestion Document ───────────────────────────────────────────────
+// ── Register Job Document ───────────────────────────────────────────────
 
 export interface RegisterJobDocumentInput {
   readonly organizationId: string;
@@ -83,7 +83,7 @@ export class RegisterJobDocumentUseCase {
   }
 }
 
-// ── Advance Ingestion Stage ───────────────────────────────────────────────────
+// ── Advance Job Stage ───────────────────────────────────────────────────
 
 export interface AdvanceJobStageInput {
   readonly documentId: string;
@@ -100,12 +100,12 @@ export class AdvanceJobStageUseCase {
     if (!documentId) return fail("JOB_DOCUMENT_REQUIRED", "Document id is required.");
 
     const job = await this.repo.findByDocumentId(documentId);
-    if (!job) return fail("JOB_DOCUMENT_NOT_FOUND", "Ingestion document not found.");
+    if (!job) return fail("JOB_DOCUMENT_NOT_FOUND", "Job document not found.");
 
     if (!canTransitionJobStatus(job.status, input.nextStatus)) {
       return fail(
         "JOB_INVALID_STATUS_TRANSITION",
-        `Cannot transition ingestion status from '${job.status}' to '${input.nextStatus}'.`,
+        `Cannot transition job status from '${job.status}' to '${input.nextStatus}'.`,
       );
     }
 
@@ -116,13 +116,13 @@ export class AdvanceJobStageUseCase {
       updatedAtISO:  new Date().toISOString(),
     });
 
-    if (!updated) return fail("JOB_UPDATE_FAILED", "Failed to persist ingestion status update.");
+    if (!updated) return fail("JOB_UPDATE_FAILED", "Failed to persist job status update.");
 
     return ok(updated);
   }
 }
 
-// ── List Workspace Ingestion Jobs ─────────────────────────────────────────────
+// ── List Workspace Background Jobs ─────────────────────────────────────────────
 
 export interface ListWorkspaceJobsInput {
   readonly organizationId: string;

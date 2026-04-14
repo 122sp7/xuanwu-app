@@ -284,7 +284,28 @@
 
 | 資料夾 | 問題描述 | 已執行解法 |
 |---|---|---|
-| `modules/platform/subdomains/background-job` ✅ | 資料夾名稱 `background-job` 表達通用背景任務管理，原內部 domain entities 全以 `Ingestion*` 命名（IngestionDocument、IngestionChunk、IngestionJob），與資料夾語意不一致 | **已完成 2026-04-15**（Option A）：`IngestionJob` → `BackgroundJob`、`IngestionDocument` → `JobDocument`、`IngestionChunk` → `JobChunk`；`IngestionStatus` → `BackgroundJobStatus`；`IngestionJobRepository` → `BackgroundJobRepository`；`canTransitionIngestionStatus` → `canTransitionJobStatus`；`ingestionService` → `backgroundJobService`；所有 domain event discriminant、error code、use-case 類別名稱、composition service 全部同步更新。資料夾名稱保持 `background-job`。 |
+| `modules/platform/subdomains/background-job` ✅ | 資料夾名稱 `background-job` 表達通用背景任務管理，原內部 domain entities 全以 `Ingestion*` 命名（IngestionDocument、IngestionChunk、IngestionJob），與資料夾語意不一致 | **已完成 2026-04-15**（Option A）：`IngestionJob` → `BackgroundJob`、`IngestionDocument` → `JobDocument`、`IngestionChunk` → `JobChunk`；`IngestionStatus` → `BackgroundJobStatus`；`IngestionJobRepository` → `BackgroundJobRepository`；`canTransitionIngestionStatus` → `canTransitionJobStatus`；`ingestionService` → `backgroundJobService`；所有 domain event discriminant、error code、use-case 類別名稱、composition service 全部同步更新。資料夾名稱保持 `background-job`。**2026-04-15（補完）**：所有 JSDoc 注釋中殘留的 `ingestion`（如 "ingestion pipeline"、"Ingestion document not found"）全部通用化為 `background job`/`document processing pipeline`；`SourceReference.ts` 中 `IngestionJob` 稽核鏈描述更新為 `BackgroundJob`。 |
+
+### 7.4 Comment-Level Semantic Cleanup ✅
+
+下列 comment header 與 namespace alias 已完成語意更新（2026-04-15）：
+
+| 位置 | 舊語意 | 新語意 |
+|---|---|---|
+| `notion/subdomains/knowledge-database/domain/services/index.ts` | `the database subdomain` | `the knowledge-database subdomain` |
+| `notion/subdomains/knowledge-database/domain/ports/index.ts` | `notion/database domain/ports … database subdomain` | `notion/knowledge-database domain/ports … knowledge-database subdomain` |
+| `notion/subdomains/knowledge-database/domain/value-objects/index.ts` | `the database subdomain` | `the knowledge-database subdomain` |
+| `notion/subdomains/knowledge-database/application/dto/knowledge-database.dto.ts` | `the database subdomain` | `the knowledge-database subdomain` |
+| `notion/subdomains/knowledge-database/api/server.ts` | `database subdomain — server-only API` | `knowledge-database subdomain — server-only API` |
+| `notion/subdomains/knowledge-database/api/ui.ts` | `notion/database UI surface` | `notion/knowledge-database UI surface` |
+| `notion/application/dto/index.ts` | `export * as databaseDtos` | `export * as knowledgeDatabaseDtos` |
+| `notion/application/use-cases/index.ts` | `export * as databaseUseCases` | `export * as knowledgeDatabaseUseCases` |
+| `workspace-workflow/domain/value-objects/SourceReference.ts` | `IngestionJob → source PDF` (audit chain) | `BackgroundJob → source PDF` |
+| `platform/background-job/domain/entities/BackgroundJob.ts` | `RAG ingestion pipeline` | `document processing pipeline` |
+| `platform/background-job/domain/entities/JobChunk.ts` | `ingestion pipeline` | `document processing pipeline` |
+| `platform/background-job/domain/repositories/BackgroundJobRepository.ts` | `ingestion job persistence`, `Persist a new ingestion job` | `background job persistence`, `Persist a new background job` |
+| `platform/background-job/application/use-cases/background-job.use-cases.ts` | `Ingestion Use Cases`, `Register Ingestion Document`, `Advance Ingestion Stage`, user-facing messages with `ingestion` | `Background Job Use Cases`, `Register Job Document`, `Advance Job Stage`, messages updated to `job` |
+| `platform/background-job/interfaces/composition/background-job-service.ts` | `knowledge ingestion use cases`, `ingestion side-effects`, `ingestion pipeline`, `ingestion jobs` | `background job use cases`, `background job side-effects`, job-level descriptions |
 
 ### 7.3 計劃中子域 — 建立時使用正典名稱（Create With Canonical Name）
 
@@ -309,4 +330,4 @@
 | `docs/context-map.md` | Published language token flow between contexts |
 | `docs/semantic-model.md` (this file) | Folder → semantic name mapping, status, drift analysis |
 
-> Last verified: 2026-04-15. Section 7.1 renames completed 2026-04-15. Section 7.2 entity rename completed 2026-04-15. Section 7 added 2026-04-15 based on Context7 DDD Hexagon evidence (`/sairyss/domain-driven-hexagon`).
+> Last verified: 2026-04-15. Section 7.1 renames completed 2026-04-15. Section 7.2 entity rename completed 2026-04-15. Section 7.4 comment-level semantic cleanup completed 2026-04-15. All implemented subdomain folders and their internal code comments/namespace aliases now match the canonical semantic names in this document. Section 7.3 entries remain as governance rules for future subdomain creation. Section 7 added 2026-04-15 based on Context7 DDD Hexagon evidence (`/sairyss/domain-driven-hexagon`).
