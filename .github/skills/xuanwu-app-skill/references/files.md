@@ -7748,200 +7748,6 @@ flowchart LR
 - [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
 ````
 
-## File: docs/contexts/notion/AGENT.md
-````markdown
-# Notion Agent
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Mission
-
-保護 notion 主域作為知識內容生命週期邊界。任何變更都應維持 notion 擁有內容建立、分類、關聯、協作、模板、發布與版本化語言，而不是吸收平台治理或對話推理語言。
-
-## Canonical Ownership
-
-- knowledge
-- authoring
-- collaboration
-- database
-- taxonomy
-- relations
-- knowledge-analytics
-- attachments
-- automation
-- knowledge-integration
-- notes
-- templates
-- publishing
-- knowledge-versioning
-
-## Route Here When
-
-- 問題核心是知識頁面、文章、內容結構、分類、關聯、模板與發布。
-- 問題需要把輸入吸收成正式知識內容的正典狀態。
-- 問題需要定義內容版本、內容協作與內容交付。
-
-## Route Elsewhere When
-
-- 身份、租戶與授權治理屬於 iam；權益屬於 billing；憑證與營運服務屬於 platform。
-- 共享 AI provider、模型政策、配額與安全護欄屬於 ai context。
-- 工作區生命週期、共享、存在感與工作區流程屬於 workspace。
-- notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
-
-## Guardrails
-
-- notion 的正典內容不等於 notebooklm 的衍生輸出。
-- taxonomy 與 relations 應作為內容語義邊界，而不是 UI 功能附屬物。
-- publishing 應與 authoring 分離，避免編輯語意與交付語意混用。
-- notion 可以消費 ai context，但不擁有 AI provider / policy 的正典邊界。
-- attachments 是內容資產語言，不是平台 secret 或一般檔案暫存語言。
-- 跨主域互動只經過 published language、API 邊界或事件。
-
-## Dependency Direction
-
-- notion 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
-- authoring、knowledge、database、publishing 對外部能力的依賴只能透過 ports 進入核心。
-- infrastructure 只負責儲存、傳輸、ACL 轉譯，不定義 KnowledgeArtifact 的正典語義。
-
-## Hard Prohibitions
-
-- 不得讓 notebooklm 的 Conversation、Synthesis 直接滲入 notion 作為正典內容模型。
-- 不得讓 domain 或 application 直接依賴 UI、HTTP、資料庫 SDK 或框架語言。
-- 不得讓 notion 直接接管 iam 的 actor、tenant、access 或 billing 的 entitlement 治理責任。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 notion 作為正典內容主域，不讓治理或推理語言滲入核心。
-- 內容輔助若只是支援 knowledge / authoring / publishing use case，先消費 ai context，而不是在 notion 內重建 generic `ai` 子域。
-- 奧卡姆剃刀：若一個既有內容子域與一條清楚 use case 就能承接需求，不要再新增額外 service、mapper 或子域。
-- 只有在外部依賴或跨主域語義污染出現時，才建立 port、ACL 或 local DTO。
-- 對 notebooklm 或 workspace 的互動一律先經 published language / API boundary，再進入 notion 語言。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
-	A --> D["Notion Domain / Invariants"]
-	P["Ports / Domain-fit Contracts"] -. used by .-> A
-	X["Infrastructure / Driven Adapters"] -. implements .-> P
-	X --> D
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform upstream"] -->|Published Language| Boundary["notion API boundary"]
-	Workspace["workspace upstream"] -->|Published Language| Boundary
-	Boundary --> Translation["Local DTO / ACL when needed"]
-	Translation --> App["Application orchestration"]
-	App --> Domain["Knowledge / Authoring / Relations / Publishing"]
-	Domain --> Output["KnowledgeArtifact / Publication / Reference"]
-	Output --> NotebookLM["notebooklm downstream"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/contexts/notion/bounded-contexts.md
-````markdown
-# Notion
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Domain Role
-
-notion 是知識內容主域。依 bounded context 原則，它應封裝內容建立、編輯、結構化、分類、關聯、版本化與對外發布的高凝聚規則。
-
-## Baseline Bounded Contexts
-
-| Cluster | Subdomains |
-|---|---|
-| Content Core | knowledge, authoring, database |
-| Collaboration and Change | collaboration, knowledge-versioning, templates |
-| Intelligence and Extension | knowledge-analytics, attachments, automation, knowledge-integration, notes |
-
-## Recommended Gap Bounded Contexts
-
-| Subdomain | Why It Should Exist | Gap If Missing |
-|---|---|---|
-| taxonomy | 承接標籤、分類、語義樹與主題治理 | authoring 與 database 會混入分類責任 |
-| relations | 承接內容之間的引用、backlink 與語義關聯 | 內容關係只能隱藏在欄位或 UI 裡 |
-| publishing | 承接發布流程、受眾可見性與正式交付 | 編輯語意與交付語意無法分離 |
-
-## Domain Invariants
-
-- 知識內容的正典狀態屬於 notion。
-- taxonomy 應獨立於具體 UI 視圖存在。
-- relations 應描述內容對內容的語義關係，而不是臨時連結。
-- ai context 可被 notion use case 消費，但 AI provider / policy ownership 不屬於 notion。
-- publishing 只交付已被 notion 吸收的內容狀態。
-- 任何來自 notebooklm 的輸出，若要成為正典內容，必須先被 notion 吸收。
-
-## Dependency Direction
-
-- notion 子域在存在對應層時必須遵守 interfaces -> application -> domain <- infrastructure；不必為形式完整而預建所有層。
-- content lifecycle 由 knowledge、authoring、database、publishing 等上下文在核心內協作，不由外層技術層直接驅動。
-- 外部內容輸入只能先經 API boundary 或 adapter 轉譯，再進入 notion 語言。
-
-## Anti-Patterns
-
-- 把 taxonomy 或 relations 當成純 UI 功能，而不是內容語義邊界。
-- 讓 publishing 直接等同 authoring，混淆編輯與交付責任。
-- 讓 notebooklm 或 platform 的語言直接取代 notion 的 KnowledgeArtifact 模型。
-- 把 ai context 的共享能力提升成 notion 自己的 generic `ai` 子域所有權。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先決定需求屬於 content core、collaboration、還是 extension，再安排具體型別與流程。
-- 奧卡姆剃刀：不要為了看起來完整而新增抽象層；只在現有內容邊界真的失效時才拆更多上下文。
-- 外部能力若不影響正典內容語言，就不要把它抬升成新的內容核心抽象。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Notion bounded contexts"]
-	X["Infrastructure"] --> D
-	X -. adapter / provider .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Input["Governance / scope / author input"] --> Boundary["Notion boundary"]
-	Boundary --> App["Use case orchestration"]
-	App --> Knowledge["Knowledge / Authoring / Database"]
-	Knowledge --> Taxonomy["Taxonomy / Relations"]
-	Taxonomy --> Publishing["Publishing / Knowledge Versioning"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
-````
-
 ## File: docs/contexts/notion/context-map.md
 ````markdown
 # Notion
@@ -8024,206 +7830,6 @@ flowchart LR
 - [../../strategic-patterns.md](../../strategic-patterns.md)
 - [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/contexts/notion/README.md
-````markdown
-# Notion Context
-
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
-
-## Purpose
-
-notion 是知識內容生命週期主域。它的責任是提供 knowledge artifact、authoring、database、taxonomy、relations、templates、publishing、knowledge-versioning 與 collaboration 等內容語言，承接正式知識內容的正典狀態。
-
-## Why This Context Exists
-
-- 把知識內容正典與平台治理、工作區範疇、對話推理分離。
-- 讓內容建立、分類、關聯、交付與版本規則維持在同一個主域。
-- 提供 notebooklm 可引用、但不可直接改寫的知識來源。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 正典知識內容生命週期 |
-| Upstream Dependency | iam 治理、billing entitlement、ai capability、workspace scope |
-| Downstream Consumer | notebooklm |
-| Core Principle | notion 擁有正式內容，不擁有治理、商業或推理過程 |
-
-## Baseline Subdomains
-
-- knowledge
-- authoring
-- collaboration
-- database
-- knowledge-analytics
-- attachments
-- automation
-- knowledge-integration
-- notes
-- templates
-- knowledge-versioning
-
-## Recommended Gap Subdomains
-
-- taxonomy
-- relations
-- publishing
-
-## Key Relationships
-
-- 與 iam：notion 消費 actor、tenant 與 access decision。
-- 與 billing：notion 消費 entitlement 與 subscription capability signal。
-- 與 ai：notion 消費 ai capability、model policy 與 safety result。
-- 與 workspace：notion 消費 workspaceId、membership scope、share scope。
-- 與 notebooklm：notion 向 notebooklm 提供 knowledge artifact reference 與 attachment reference。
-
-## Reading Order
-
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
-
-## Dependency Direction
-
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- notion 對外只暴露 published language、API boundary、events，不暴露內部內容模型。
-
-## Anti-Pattern Rules
-
-- 不把 notebooklm 的衍生輸出直接當成 notion 正典內容。
-- 不把 taxonomy、relations、publishing 壓回單一 knowledge 編輯流程。
-- 不把 platform 的治理語言混成內容生命週期本身。
-- 不把 ai context 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 notion 的正典內容定位，再安排 authoring、knowledge、taxonomy、publishing 的交互。
-- 內容輔助、摘要與生成若只是內容 use case 的支援能力，優先由 knowledge / authoring use case 消費 ai context，而不是在 notion 再建一個 generic `ai` 子域。
-- 奧卡姆剃刀：不要預先新增第二套內容流程，只在既有內容邊界真的不夠時才補新抽象。
-- 優先讓同一條 input -> translation -> application -> domain -> publication 流程保持單純可追溯。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain"]
-	X["Infrastructure"] --> D
-	X -. implements ports .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] --> Boundary["notion boundary"]
-	Workspace["workspace"] --> Boundary
-	Boundary --> Translation["DTO / ACL"]
-	Translation --> App["Application use case"]
-	App --> Domain["Notion domain"]
-	Domain --> Output["KnowledgeArtifact / Publication"]
-	Output --> NotebookLM["notebooklm consumer"]
-```
-
-## Document Network
-
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../README.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-
-## Constraints
-
-- 本文件是 architecture-first 版本。
-- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
-- 本文件不代表對既有 repo 內容做過語意校準。
-````
-
-## File: docs/contexts/notion/subdomains.md
-````markdown
-# Notion
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| knowledge | 頁面建立、組織、版本化與交付 |
-| authoring | 知識庫文章建立、驗證與分類 |
-| collaboration | 協作留言、細粒度權限與版本快照 |
-| database | 結構化資料多視圖管理 |
-| knowledge-analytics | 知識使用行為量測 |
-| attachments | 附件與媒體關聯儲存 |
-| automation | 知識事件觸發自動化動作 |
-| knowledge-integration | 知識與外部系統雙向整合 |
-| notes | 個人輕量筆記與正式知識協作 |
-| templates | 頁面範本管理與套用 |
-| knowledge-versioning | 全域版本快照策略管理 |
-
-## Recommended Gap Subdomains
-
-| Subdomain | Why Needed |
-|---|---|
-| taxonomy | 建立分類法與語義組織的正典邊界 |
-| relations | 建立內容之間關聯與 backlink 的正典邊界 |
-| publishing | 建立正式發布與對外交付的正典邊界 |
-
-## Recommended Order
-
-1. taxonomy
-2. relations
-3. publishing
-
-## Anti-Patterns
-
-- 不把 taxonomy 混成 authoring 裡的附屬設定。
-- 不把 relations 混成單純 hyperlink 功能，失去語義關係邊界。
-- 不把 publishing 混成 UI 上的一個按鈕事件，而忽略正式交付語言。
-- 不把 ai context 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先判斷需求屬於 knowledge、authoring、relations、publishing、knowledge-analytics、knowledge-integration、knowledge-versioning 哪一個內容責任。
-- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新建第二個概念接近的子域。
-- 子域命名要反映內容語義，不要退化成頁面或元件名稱。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case"]
-	UseCase --> Subdomain["Owning subdomain domain"]
-	Infra["Infra adapter"] --> Subdomain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Authoring["Authoring"] --> Knowledge["Knowledge"]
-	Knowledge --> Taxonomy["Taxonomy"]
-	Knowledge --> Relations["Relations"]
-	Taxonomy --> Publishing["Publishing"]
-	Relations --> Publishing
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
 ````
 
 ## File: docs/contexts/notion/ubiquitous-language.md
@@ -10138,127 +9744,6 @@ flowchart LR
 - [../project-delivery-milestones.md](../project-delivery-milestones.md)
 ````
 
-## File: docs/decisions/0006-domain-event-discriminant-format.md
-````markdown
-# 0006 Domain Event Discriminant Format
-
-- Status: Accepted
-- Date: 2026-04-13
-
-## Context
-
-架構指引要求 domain event discriminant 遵守格式 `<module-name>.<subdomain>.<action>`，其中 action 部分必須使用 **kebab-case**（例如 `platform.identity.signed-in`）。但掃描後發現三類格式偏差，影響全庫共 112 處 domain event 類型宣告：
-
-### 偏差一：action 部分使用 snake_case（83 處）
-
-`snake_case` 出現在以下 24 個事件文件中，覆蓋所有四個主域：
-
-| 主域 | 受影響文件 |
-|------|-----------|
-| platform | `access-control/domain/events/AccessPolicyDomainEvent.ts` |
-| platform | `account/domain/events/AccountDomainEvent.ts` |
-| platform | `background-job/domain/events/IngestionJobDomainEvent.ts` |
-| platform | `identity/domain/events/IdentityDomainEvent.ts` |
-| platform | `notification/domain/events/NotificationDomainEvent.ts` |
-| platform | `organization/domain/events/OrganizationDomainEvent.ts` |
-| platform | `subscription/domain/events/SubscriptionDomainEvent.ts` |
-| workspace | `audit/domain/events/AuditDomainEvent.ts` |
-| workspace | `workspace-workflow/domain/events/InvoiceEvent.ts` |
-| workspace | `workspace-workflow/domain/events/IssueEvent.ts` |
-| workspace | `workspace-workflow/domain/events/TaskEvent.ts` |
-| notion | `authoring/domain/events/AuthoringEvents.ts` |
-| notion | `collaboration/domain/events/CollaborationEvents.ts` |
-| notion | `database/domain/events/DatabaseEvents.ts` |
-| notion | `knowledge/domain/events/KnowledgeBlockEvents.ts` |
-| notion | `knowledge/domain/events/KnowledgeCollectionEvents.ts` |
-| notion | `knowledge/domain/events/KnowledgePageEvents.ts` |
-| notion | `relations/domain/events/RelationEvents.ts` |
-| notion | `taxonomy/domain/events/TaxonomyEvents.ts` |
-| notebooklm | `conversation/domain/events/ConversationEvents.ts` |
-| notebooklm | `notebook/domain/events/NotebookEvents.ts` |
-| notebooklm | `source/domain/events/SourceEvents.ts` |
-| notebooklm | `synthesis/domain/events/EvaluationEvents.ts` |
-| notebooklm | `synthesis/domain/events/SynthesisPipelineDomainEvent.ts` |
-
-範例（snake_case 違規 → 應改為 kebab-case）：
-
-```
-"platform.identity.signed_in"         → "platform.identity.signed-in"
-"platform.account.profile_updated"    → "platform.account.profile-updated"
-"platform.access_policy.created"      → "platform.access-control.created"
-"notion.knowledge.page_created"       → "notion.knowledge.page-created"
-"notebooklm.synthesis.query_submitted" → "notebooklm.synthesis.query-submitted"
-"workspace.audit.entry_recorded"      → "workspace.audit.entry-recorded"
-```
-
-### 偏差二：team 子域事件缺少主域前綴（4 處）
-
-`modules/platform/subdomains/team/domain/events/OrganizationTeamDomainEvent.ts` 中四個事件使用 `team.*` 而非 `platform.team.*`：
-
-```
-"team.created"        → "platform.team.created"
-"team.deleted"        → "platform.team.deleted"
-"team.member-added"   → "platform.team.member-added"
-"team.member-removed" → "platform.team.member-removed"
-```
-
-### 偏差三：workspace-workflow 事件使用 workspace-flow 縮寫前綴（25 處）
-
-`modules/workspace/subdomains/workspace-workflow/domain/events/` 中所有事件使用 `workspace-flow.*` 前綴，與主域路徑 `workspace.workspace-workflow.*` 不一致：
-
-```
-"workspace-flow.task.created"     → "workspace.workspace-workflow.task-created"
-"workspace-flow.invoice.approved" → "workspace.workspace-workflow.invoice-approved"
-"workspace-flow.issue.opened"     → "workspace.workspace-workflow.issue-opened"
-```
-
-## Decision
-
-確立以下全庫 domain event discriminant 格式規則，作為後續修復的唯一基準：
-
-```
-<main-domain>.<subdomain>.<action>
-```
-
-格式約束：
-
-1. **主域前綴**：必須是四個主域之一（`platform`、`workspace`、`notion`、`notebooklm`）。
-2. **子域段**：與 `modules/<main-domain>/subdomains/<subdomain>/` 路徑一致，使用 **kebab-case**。
-3. **action 段**：使用 **kebab-case**，不允許 `snake_case` 或 `PascalCase`。
-4. **三段結構**：格式固定為三段，不允許省略主域前綴或子域段。
-
-正確範例：
-
-```
-platform.identity.signed-in
-platform.team.member-added
-platform.access-control.policy-created
-workspace.workspace-workflow.task-created
-workspace.audit.entry-recorded
-notion.knowledge.page-created
-notebooklm.synthesis.query-submitted
-```
-
-## Consequences
-
-正面影響：
-
-- 所有 domain event 可以透過主域前綴在 event bus 做一致的路由與訂閱過濾。
-- 不再需要用不同命名規則判斷事件來源。
-- 工具自動化（訂閱規則、QStash routing）可以依賴一致格式。
-
-代價與限制：
-
-- 需要同步修改 112 個 discriminant 值，並更新所有消費方的 switch/case 與型別衛語句。
-- `workspace-flow.*` 的修改會觸及 listeners、facades 與測試合約，需要版本協議窗口。
-- 建議以 subdomain 為單位分批遷移，每批修改後執行 `npm run build && npm run lint` 驗證。
-
-## Conflict Resolution
-
-- 若現有消費方（py_fn 訂閱器、QStash 路由）使用 `snake_case` 鍵，遷移期間需同時保留舊值為 alias，在新版確認無消費後才移除。
-- `workspace-flow` 縮寫前綴遷移至 `workspace.workspace-workflow` 為破壞性變更，需事先對齊 py_fn 與任何外部訂閱合約。
-````
-
 ## File: docs/decisions/0007-infrastructure-in-api-layer.md
 ````markdown
 # 0007 Infrastructure Wiring in api/ Layer
@@ -10422,91 +9907,6 @@ workspace/subdomains/workspace-workflow/domain/ports/...
 - 若有消費端直接 import `domain/repositories/` 或 `domain/ports/`（違反 API 邊界），應優先修正消費端改從 `api/` import，再考慮目錄整合。
 ````
 
-## File: docs/decisions/0009-anemic-aggregates.md
-````markdown
-# 0009 Anemic Aggregates
-
-- Status: Accepted
-- Date: 2026-04-13
-
-## Context
-
-架構規範要求 `domain/aggregates/` 目錄只放**聚合根（Aggregate Root）類別**：必須封裝狀態與行為、保護不變數（invariants）、透過工廠方法建立，並在狀態變更時記錄領域事件。
-
-掃描後發現 `domain/aggregates/` 目錄下共有 **11 個文件**只包含 `interface`、`type`、`export type` 宣告，完全沒有 `class` 定義——即典型的**貧血領域模型（Anemic Domain Model）**。這些文件名稱暗示是聚合根，但實際上是純資料結構：
-
-### 違規文件清單
-
-| 文件 | 包含內容 | 應有形態 |
-|------|---------|---------|
-| `modules/platform/domain/aggregates/PlatformContext.ts` | `interface PlatformContextSnapshot`，`type PlatformContextId` | 聚合根 class 封裝平台配置不變數 |
-| `modules/platform/domain/aggregates/SubscriptionAgreement.ts` | `interface SubscriptionAgreementSnapshot` | 聚合根 class 管理訂閱合約生命週期 |
-| `modules/platform/domain/aggregates/IntegrationContract.ts` | `interface IntegrationContractSnapshot` | 聚合根 class 管理整合合約 |
-| `modules/platform/domain/aggregates/PolicyCatalog.ts` | `interface PolicyCatalogSnapshot` | 聚合根 class 管理政策目錄 |
-| `modules/notion/subdomains/knowledge-database/domain/aggregates/Database.ts` | `interface DatabaseSnapshot`, `interface Field`, `type FieldType` | 聚合根 class 封裝資料庫欄位不變數 |
-| `modules/notion/subdomains/knowledge-database/domain/aggregates/DatabaseRecord.ts` | `interface DatabaseRecordSnapshot` | 聚合根 class 管理記錄欄位值型別驗證 |
-| `modules/notion/subdomains/knowledge-database/domain/aggregates/View.ts` | `interface ViewSnapshot`, `interface FilterRule`, `interface SortRule` | 聚合根 class 管理過濾排序規則不變數 |
-| `modules/notion/subdomains/knowledge-database/domain/aggregates/DatabaseAutomation.ts` | `interface DatabaseAutomationSnapshot`, `type AutomationTrigger` | 聚合根 class 管理自動化規則不變數 |
-| `modules/notion/subdomains/collaboration/domain/aggregates/Version.ts` | `interface VersionSnapshot` | 聚合根 class 管理版本生命週期 |
-| `modules/notion/subdomains/collaboration/domain/aggregates/Permission.ts` | `interface PermissionSnapshot`, `type PermissionLevel` | 聚合根 class 管理權限授予不變數 |
-| `modules/notion/subdomains/collaboration/domain/aggregates/Comment.ts` | `interface CommentSnapshot`, `interface SelectionRange` | 聚合根 class 管理留言生命週期 |
-
-### 危害
-
-- Use-case 直接操作裸資料結構，業務邏輯外洩至 application 層。
-- 「新增欄位需有最大欄位數」等不變數無法在 aggregate 內保護，只能在 use-case 重複實作。
-- 缺乏 `pullDomainEvents` → 無法觸發 domain event → 下游訂閱者收不到變更信號。
-- `*Snapshot` interface 與 `*class` 邊界混淆，讀者無法分辨哪個是真正的聚合根。
-
-### 與現有正確實作的對比
-
-正確的聚合根（如 `KnowledgePage`、`OrganizationTeam`、`Subscription`）使用：
-
-```typescript
-export class KnowledgePage {
-  private _domainEvents: DomainEvent[] = [];
-  private constructor(readonly id: string, private _state: KnowledgePageState) {}
-  static create(...): KnowledgePage { ... }
-  static reconstitute(snapshot: KnowledgePageSnapshot): KnowledgePage { ... }
-  rename(title: string): void { /* enforce invariant + emit event */ }
-  pullDomainEvents(): DomainEvent[] { ... }
-  getSnapshot(): Readonly<KnowledgePageState> { ... }
-}
-```
-
-## Decision
-
-確立以下規則：
-
-1. **`domain/aggregates/` 只放 class**：`*.ts` 文件必須 `export class`，不允許只放 `interface` / `type` / `export type`。
-2. **純資料快照（Snapshot）interface 位置**：應放在同一 class 文件中（作為 `export interface XxxSnapshot`），或移入 `domain/entities/` 目錄（若是子實體）。
-3. **class-less 資料結構的遷移路徑**：
-   - 若業務行為確實不存在（例如 `ViewSnapshot` 只是持久化格式）→ 移至 `domain/entities/` 並改名為 entity。
-   - 若業務行為存在但尚未實作 → 新建對應 class，`*Snapshot` interface 保留在同一文件。
-4. **判斷條件**：業務行為包括但不限於：
-   - 狀態轉移（生命週期）
-   - 不變數保護（欄位驗證、數量上限、狀態前置條件）
-   - 事件記錄（`_domainEvents`）
-
-## Consequences
-
-正面影響：
-
-- domain/aggregates/ 目錄的意圖明確：進入此目錄的開發者知道裡面只有含業務行為的聚合根。
-- 不變數集中在 aggregate class，use-case 職責縮減為純 orchestration。
-
-代價與限制：
-
-- 11 個文件需重構，需判斷哪些應成為真正的 aggregate class，哪些應降格為 entity。
-- notion/database 的 4 個聚合根（Database、Record、View、Automation）都有對應的 `DatabaseEvents.ts` → 遷移時需同步確認事件觸發路徑。
-- `PermissionLevel`、`ContentType` 等型別目前放在 collaboration/aggregates，遷移後應移入 `domain/value-objects/`。
-
-## Conflict Resolution
-
-- 若現有 infrastructure repository（如 `FirebaseDatabaseRepository`）使用 `*Snapshot` interface 作為 Firestore 序列化格式，snapshot interface 可以保留在 class 文件中作為 `export interface`，但不得取代 class 本身。
-- 遷移期間 use-case 可先繼續使用 snapshot interface 建立實例，逐步改為呼叫 class factory，不需要一次全部替換。
-````
-
 ## File: docs/decisions/0010-aggregate-domain-event-emission.md
 ````markdown
 # 0010 Aggregate Domain Event Emission Pattern
@@ -10623,139 +10023,6 @@ export class CreateWorkspaceUseCase {
 
 - 若現有 `create-workspace.use-case.ts` 直接 import `WORKSPACE_CREATED_EVENT_TYPE` 來組裝事件，遷移後這些 import 應移除，改由 `workspace.pullDomainEvents()` 提供。
 - `workspace.events.ts` 的常數定義（`WORKSPACE_CREATED_EVENT_TYPE` 等）保留不動，改由 aggregate 內部 import 使用。
-````
-
-## File: docs/decisions/0011-use-case-bundling.md
-````markdown
-# 0011 Use Case Bundling and Query-Command Mixing
-
-- Status: Accepted
-- Date: 2026-04-13
-
-## Context
-
-架構規範要求 use-case 文件遵守以下兩個原則：
-
-1. **一個文件一個 use-case**：文件名為 `verb-noun.use-case.ts`，只包含一個 `export class`。
-2. **命令與查詢分離（CQS）**：命令 use-case 文件（`VerbNounUseCase`）不包含查詢類別；查詢類別放在 `application/queries/` 目錄。
-
-掃描後發現兩類違規：
-
-### 違規一：多類別 use-case 捆綁（Multi-Class Bundle）— 30 個文件
-
-單一 `.use-cases.ts` 文件包含 3–6 個 use-case class，實際上是「分組容器」而非獨立 use-case：
-
-**platform 域（13 個文件）**
-
-| 文件 | Class 數 |
-|------|---------|
-| `platform/subdomains/account/application/use-cases/account.use-cases.ts` | 6 |
-| `platform/subdomains/identity/application/use-cases/identity.use-cases.ts` | 5 |
-| `platform/subdomains/entitlement/application/use-cases/entitlement.use-cases.ts` | 5 |
-| `platform/subdomains/subscription/application/use-cases/subscription.use-cases.ts` | 5 |
-| `platform/subdomains/organization/application/use-cases/organization-member.use-cases.ts` | 4 |
-| `platform/subdomains/organization/application/use-cases/organization-lifecycle.use-cases.ts` | 4 |
-| `platform/subdomains/access-control/application/use-cases/access-control.use-cases.ts` | 4 |
-| `platform/subdomains/background-job/application/use-cases/ingestion.use-cases.ts` | 3 |
-| `platform/subdomains/team/application/use-cases/team.use-cases.ts` | 3 |
-| `platform/subdomains/account/application/use-cases/account-policy.use-cases.ts` | 3 |
-| `platform/subdomains/notification/application/use-cases/notification.use-cases.ts` | 3 |
-| `platform/subdomains/organization/application/use-cases/organization-policy.use-cases.ts` | 3 |
-| `platform/subdomains/organization/application/use-cases/organization-team.use-cases.ts` | 3 |
-
-**notion 域（11 個文件）**
-
-| 文件 | Class 數 |
-|------|---------|
-| `notion/subdomains/knowledge/application/use-cases/manage-knowledge-collection.use-cases.ts` | 6 |
-| `notion/subdomains/collaboration/application/use-cases/manage-comment.use-cases.ts` | 5 |
-| `notion/subdomains/knowledge/application/use-cases/manage-knowledge-page.use-cases.ts` | 5 |
-| `notion/subdomains/authoring/application/use-cases/manage-article-lifecycle.use-cases.ts` | 4 |
-| `notion/subdomains/authoring/application/use-cases/manage-category.use-cases.ts` | 4 |
-| `notion/subdomains/knowledge-database/application/use-cases/manage-database.use-cases.ts` | 4 |
-| `notion/subdomains/knowledge-database/application/use-cases/manage-record.use-cases.ts` | 3 |
-| `notion/subdomains/knowledge-database/application/use-cases/manage-automation.use-cases.ts` | 3 |
-| `notion/subdomains/taxonomy/application/use-cases/manage-taxonomy.use-cases.ts` | 4 |
-| `notion/subdomains/relations/application/use-cases/manage-relation.use-cases.ts` | 4 |
-| `notion/subdomains/knowledge-database/application/use-cases/manage-view.use-cases.ts` | 3 |
-
-**workspace 域（4 個文件）**
-
-| 文件 | Class 數 |
-|------|---------|
-| `workspace/subdomains/feed/application/use-cases/workspace-feed-interaction.use-cases.ts` | 4 |
-| `workspace/subdomains/scheduling/application/work-demand.use-cases.ts` | 4 |
-| `workspace/subdomains/knowledge/application/use-cases/review-knowledge-page.use-cases.ts` | 4 |
-| `workspace/subdomains/feed/application/use-cases/workspace-feed-post.use-cases.ts` | 3 |
-
-**notebooklm 域（2 個文件）**
-
-| 文件 | Class 數 |
-|------|---------|
-| `notebooklm/subdomains/source/application/use-cases/source-pipeline.use-cases.ts` | 2 |
-
----
-
-### 違規二：命令 use-case 文件 re-export 查詢類別（8 處）
-
-下列 `manage-*.use-cases.ts` 或 `*.use-cases.ts` 文件使用 `export {...} from "../queries/..."` 將查詢類別重新暴露，混淆了命令與查詢責任界線：
-
-| 文件 | Re-export 查詢 |
-|------|--------------|
-| `notion/knowledge/use-cases/manage-knowledge-page.use-cases.ts` | `GetKnowledgePageUseCase`, `ListKnowledgePagesUseCase`, `GetKnowledgePageTreeUseCase` 等 5 個 |
-| `notion/database/use-cases/manage-database.use-cases.ts` | `GetDatabaseUseCase`, `ListDatabasesUseCase` |
-| `notion/database/use-cases/manage-view.use-cases.ts` | `ListViewsUseCase` |
-| `notion/database/use-cases/manage-record.use-cases.ts` | `ListRecordsUseCase` |
-| `notion/database/use-cases/manage-automation.use-cases.ts` | `ListAutomationsUseCase` |
-| `platform/notification/use-cases/notification.use-cases.ts` | `GetNotificationsForRecipientUseCase`, `GetUnreadCountUseCase` |
-| `platform/subscription/use-cases/subscription.use-cases.ts` | `GetActiveSubscriptionUseCase`（混在命令類別中） |
-| `platform/background-job/use-cases/ingestion.use-cases.ts` | `ListWorkspaceIngestionJobsUseCase`（混在命令類別中） |
-
----
-
-### 危害分析
-
-- **可測試性下降**：6 個 class 共用一個 Jest 文件，測試文件也被迫捆綁，coverage 難以追蹤。
-- **單一職責違反**：`manage-comment.use-cases.ts` 同時負責 Create/Update/Resolve/Delete + List，任何需求變更都打開同一文件。
-- **查詢 use-case 暴露路徑不一致**：部分查詢從 `api/` re-export，部分藏在命令文件的 re-export 中，消費方無法依賴一致的 import 路徑。
-- **命名格式違反**：`manage-*.use-cases.ts` 不符合 `verb-noun.use-case.ts` 格式規範（archive、manage 屬於非具體動詞）。
-
-## Decision
-
-確立以下規則：
-
-1. **每個 use-case 文件只含一個 class**，命名格式 `verb-noun.use-case.ts`（例如 `create-workspace.use-case.ts`）。
-2. **命令 use-case 文件禁止 re-export 查詢類別**。查詢類別只從 `application/queries/` 目錄發布，並由 `api/index.ts` 選擇性 re-export。
-3. **查詢類別命名**：`GetXxxUseCase` / `ListXxxUseCase` 若只做純讀取（無業務邏輯），應改為 QueryHandler 並放入 `application/queries/`，命名為 `get-xxx.queries.ts` / `list-xxx.queries.ts`。
-4. **過渡期容忍**：既有 `*.use-cases.ts` 多類別文件允許在當前版本中保留，但新增 use-case 必須遵守一文件一類別規則。
-
-### 分批拆分路徑
-
-| 優先 | 域 | 行動 |
-|------|----|------|
-| 高 | notion/knowledge `manage-knowledge-page.use-cases.ts` (5 classes) | 拆成 5 個獨立文件，queries re-export 移除 |
-| 高 | platform/account `account.use-cases.ts` (6 classes) | 拆成 6 個獨立文件 |
-| 中 | platform/subscription `subscription.use-cases.ts` — `GetActiveSubscriptionUseCase` | 移至 `queries/get-active-subscription.queries.ts` |
-| 中 | platform/background-job `ingestion.use-cases.ts` — `ListWorkspaceIngestionJobsUseCase` | 移至 `queries/list-ingestion-jobs.queries.ts` |
-| 低 | 其餘 manage-*.use-cases.ts | 按功能逐步拆分 |
-
-## Consequences
-
-正面影響：
-
-- 每個文件責任邊界清晰，Git blame / code review 更準確。
-- 命令與查詢可獨立測試、獨立擴展。
-- api/index.ts 可精確控制對外暴露的 use-case 表面積。
-
-代價與限制：
-
-- 拆分 30 個 multi-class 文件需同步更新所有 `import` 路徑（包括 api/index.ts barrel、composition root）。
-- `manage-*.use-cases.ts` 的 backward-compat re-export 路徑需要版本窗口確保消費方無感遷移。
-
-## Conflict Resolution
-
-- 拆分時若舊 `manage-*.use-cases.ts` 已在多個 composition root import，可先保留舊文件作為 re-export barrel（只做 `export {...} from "./split-file"`），待消費方全部切換後再移除。
-- 查詢類別從命令文件移除後，api/index.ts 需直接從 `application/queries/` import，確保對外合約不中斷。
 ````
 
 ## File: docs/decisions/0012-source-to-task-orchestration.md
@@ -10970,105 +10237,6 @@ modules/workspace/interfaces/
 ### 違規二仍開放：`platform/api/infrastructure-api.ts` Firebase SDK
 
 見 ADR 1103（`1103-layer-violation-firebase-sdk-in-api-layer.md`）——違規二已提升為獨立追蹤文件。
-````
-
-## File: docs/decisions/1101-layer-violation-crypto-in-domain.md
-````markdown
-# 1101 Layer Violation — `crypto.randomUUID()` in Domain Layer
-
-- Status: Resolved
-- Date: 2026-04-13
-- Resolved: 2026-04-13
-- Category: Architectural Smells > Layer Violation
-
-## Context
-
-`domain/` 層必須做到「技術無關（runtime-agnostic）」，不能直接依賴 Node.js 內建模組或任何執行環境 API。
-這是 Hexagonal Architecture 的核心要求：Domain 是最內層，所有技術依賴都必須由外層（infrastructure）注入。
-
-掃描後發現 **43 個 domain 聚合根** 與 **6 個 application use-case** 直接呼叫 `crypto.randomUUID()`
-或透過 `import { randomUUID } from "node:crypto"` 引入 Node.js 內建模組，
-而非使用已建立的 `@lib-uuid` 套件別名。
-
-> 對照：`modules/platform/subdomains/team/domain/aggregates/OrganizationTeam.ts:16`
-> 是唯一正確使用 `import { v4 as randomUUID } from "@lib-uuid"` 的聚合根。
-
-### 受影響的 domain 層（`crypto.randomUUID()` 直呼叫）
-
-```
-modules/workspace/domain/aggregates/Workspace.ts:182
-modules/workspace/subdomains/audit/domain/aggregates/AuditEntry.ts:68, 85
-modules/notion/subdomains/authoring/domain/aggregates/Article.ts:72, 102, 114
-modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts:68, 99, 117, 136, 159, 168, 169, 186, 202, 213, 228, 243
-modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts:62, 83, 109, 156
-modules/notion/subdomains/knowledge/domain/aggregates/ContentBlock.ts:52, 69, 84
-modules/platform/subdomains/access-control/domain/aggregates/AccessPolicy.ts:48, 77, 89
-modules/platform/subdomains/account-profile/domain/aggregates/AccountProfileAggregate.ts:67
-modules/platform/subdomains/account/domain/aggregates/Account.ts:50, 85, 106, 130, 220
-modules/platform/subdomains/entitlement/domain/aggregates/EntitlementGrant.ts:43, 68, 82, 93
-modules/platform/subdomains/identity/domain/aggregates/UserIdentity.ts:53, 76, 89, 107, 121, 135
-modules/platform/subdomains/notification/domain/aggregates/NotificationAggregate.ts:45, 66
-modules/platform/subdomains/organization/domain/aggregates/Organization.ts:80, 123, 153, 184, 210, 313, 322, 330
-modules/platform/subdomains/subscription/domain/aggregates/Subscription.ts:49, 79, 99, 117, 128
-```
-
-### 受影響的 application 層（`node:crypto` 直接 import）
-
-```
-modules/notebooklm/subdomains/source/application/use-cases/upload-init-source-file.use-case.ts:11
-  import { randomBytes, randomUUID } from "node:crypto";
-modules/notebooklm/subdomains/source/application/use-cases/upload-complete-source-file.use-case.ts:14
-  import { randomUUID } from "node:crypto";
-modules/notebooklm/subdomains/source/application/use-cases/register-rag-document.use-case.ts:10
-  import { randomUUID } from "node:crypto";
-modules/notebooklm/subdomains/synthesis/application/use-cases/answer-rag-query.use-case.ts:13
-  import { randomUUID } from "node:crypto";
-modules/platform/subdomains/background-job/application/use-cases/ingestion.use-cases.ts:12
-  import { randomUUID } from "node:crypto";
-```
-
-### 問題說明
-
-1. **可攜性**：`crypto` global 在 Web Worker 環境與 Node.js 環境行為不同，domain 直呼叫使 domain 暗中依賴 Node.js 執行環境。
-2. **測試困難**：無法在 Jest/Vitest 的瀏覽器模擬模式下直接 mock `crypto.randomUUID`，需要全域 polyfill。
-3. **一致性**：`@lib-uuid` 已存在並正確用於 `OrganizationTeam`，其他 43 個 aggregates 卻繞過它，造成混亂。
-4. **ADR 規範破壞**：命名慣例記憶（citations: `modules/platform/subdomains/team/domain/aggregates/OrganizationTeam.ts:16`）明確要求使用 `@lib-uuid`，但 43 個地方違反了這條規範。
-
-## Decision
-
-1. **Domain 層禁止直接使用 `crypto` global 或 `node:crypto`**：所有聚合根中的 `crypto.randomUUID()` 必須替換為 `import { v4 as uuid } from "@lib-uuid"` 的 `uuid()`。
-2. **Application 層的 `node:crypto` import**：`randomUUID` 用途同樣替換為 `@lib-uuid`；`randomBytes` 若確實需要加密安全隨機，可保留 `node:crypto` 用於 infrastructure 層，但 application 層的 `randomBytes` 用途應透過 port 注入。
-3. **建議 lint rule**：在 `eslint.config.mjs` 中加入 `no-restricted-imports` 規則，禁止 `modules/*/domain/**` 和 `modules/*/application/**` 從 `node:crypto`、`crypto` 直接 import `randomUUID`。
-
-## Consequences
-
-正面：
-- Domain 層從 Node.js runtime 解耦，可在任意 JS 環境（瀏覽器、Edge、Deno）下執行。
-- UUID 生成策略（v4 → v7 等）只需修改 `@lib-uuid` 一個地方，43 個 aggregates 自動受益（見 ADR 4101）。
-- 測試不需要全域 crypto polyfill。
-
-代價：
-- 需在 14 個 domain 文件和 13 個 application 文件中進行 import 替換（機械性，無邏輯變更）。
-
-## Resolution
-
-**已解決（2026-04-13）**
-
-所有 domain 層和 application 層的 `crypto.randomUUID()` 已替換為 `import { v4 as uuid } from "@lib-uuid"`：
-
-- **14 個 domain aggregate 文件**：Account, UserIdentity, Organization, Subscription, EntitlementGrant, AccessPolicy, NotificationAggregate, AccountProfileAggregate, Workspace, AuditEntry, KnowledgePage, KnowledgeCollection, ContentBlock, Article
-- **13 個 application 文件**：use-case 和 service 文件中的 `crypto.randomUUID()` global 和 `import { randomUUID } from "node:crypto"` 均已替換
-- **7 個 infrastructure/interfaces/api 文件**：service-api, repositories, stores, actions 中的 `crypto.randomUUID()` 也已一併替換
-- **唯一保留**：`upload-init-source-file.use-case.ts` 中的 `import { randomBytes } from "node:crypto"` 保留，因為 `randomBytes` 用途為加密強度隨機（非 UUID），屬基礎設施關注點。
-
-### 原始證據修正
-
-原 ADR 記錄「43 個 domain aggregates」，實際掃描為 **14 個 domain aggregate 文件**。差異來自原始掃描包含了多行匹配（同一文件多次出現）被誤計為不同文件。
-
-## 關聯 ADR
-
-- **2101**：crypto 直接使用是緊耦合的另一表現（同步解決）
-- **4101**：UUID 策略分散導致 Change Amplification（解決後策略集中於 `@lib-uuid`）
 ````
 
 ## File: docs/decisions/1102-layer-violation-ports-in-application.md
@@ -15932,280 +15100,6 @@ flowchart LR
 - 若某 subdomain 很小，允許比本模板更精簡；若更精簡仍能守住邊界，應優先採用更精簡版本。
 ````
 
-## File: docs/bounded-contexts.md
-````markdown
-# Bounded Contexts
-
-本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 hexagonal architecture 原則重建，不主張反映現況實作。
-
-## Strategic Bounded Context Model
-
-系統目前以八個主域 / bounded context 構成。每個主域下可再分成 baseline subdomains 與 recommended gap subdomains。
-
-## Main Domain Map
-
-| Main Domain | Strategic Role | Baseline Focus | Recommended Gap Focus |
-|---|---|---|---|
-| iam | 身份與存取治理 | identity、access-control、tenant、security-policy | session、consent、secret-governance |
-| billing | 商業與權益治理 | billing、subscription、entitlement、referral | pricing、invoice、quota-policy |
-| ai | 共享 AI capability | content-generation、content-distillation、context-assembly、evaluation-policy、memory-context、model-observability、prompt-pipeline、safety-guardrail | provider-routing、model-policy |
-| analytics | 分析與 read model 下游 | reporting、metrics、dashboards、telemetry-projection | experimentation、decision-support |
-| platform | 平台營運支撐 | account、organization、notification、search、audit-log、observability | consent、secret-management、operational-catalog |
-| workspace | 協作容器與 scope | audit、feed、scheduling、workspace-workflow | lifecycle、membership、sharing、presence |
-| notion | 正典知識內容 | knowledge、authoring、collaboration、knowledge-database、templates、knowledge-versioning | taxonomy、relations、publishing |
-| notebooklm | 對話與推理 | conversation、note、notebook、source、synthesis、conversation-versioning | ingestion、retrieval、grounding、evaluation |
-
-## Subdomain Inventory By Main Domain
-
-### iam
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| identity | 已驗證主體與身份信號治理 |
-| access-control | 主體現在能做什麼的授權判定 |
-| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
-| security-policy | 安全規則定義、版本化與發佈 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| session | 將 session 與 token lifecycle 收斂為獨立能力 |
-| consent | 將同意與授權治理從泛用平台設定中切開 |
-| secret-governance | 將 secret access policy 收斂為明確治理邊界 |
-
-### billing
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| billing | 計費狀態、費率與財務證據 |
-| subscription | 方案、配額與續期治理 |
-| entitlement | 有效權益與功能可用性統一解算 |
-| referral | 推薦關係與獎勵追蹤 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| pricing | 價格模型與方案矩陣治理 |
-| invoice | 帳單、請款與對帳流程 |
-| quota-policy | 將可量化商業限制收斂成單一政策語言 |
-
-### ai
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| content-generation | AI 驅動的文本生成與回覆輸出 |
-| content-distillation | AI 驅動的摘要、提煉與結構化壓縮 |
-| context-assembly | 推理前的 context window 組裝與排序 |
-| evaluation-policy | 品質與回歸評估政策 |
-| memory-context | 跨對話記憶與可重用上下文整理 |
-| model-observability | 模型使用量、成本與效能監測 |
-| prompt-pipeline | prompt、template、flow 與 tool calling orchestration |
-| safety-guardrail | 安全護欄、內容保護與限制 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| provider-routing | 模型供應商選擇與路由治理 |
-| model-policy | 模型能力、版本與使用政策 |
-
-### analytics
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| reporting | 報表輸出與查詢整理 |
-| metrics | 指標定義與聚合 |
-| dashboards | 儀表板呈現語義 |
-| telemetry-projection | 事件投影與 read model 匯總 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| experimentation | 實驗分析與對照觀測 |
-| decision-support | 決策輔助與洞察輸出 |
-
-### workspace
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| audit | 工作區操作稽核與證據追蹤 |
-| feed | 工作區活動摘要與事件流呈現 |
-| scheduling | 工作區排程、時序與提醒協調 |
-| workspace-workflow | 工作區流程編排與執行治理 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| lifecycle | 將工作區容器生命週期獨立為正典邊界（建立、封存、復原） |
-| membership | 將工作區參與關係從平台身份治理切開（角色、加入、移除） |
-| sharing | 將共享範圍與可見性規則收斂到單一上下文（對內/對外分享） |
-| presence | 將即時協作存在感、共同編輯訊號收斂為本地語言 |
-
-### platform
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| account | 帳號聚合根與帳號生命週期 |
-| account-profile | 主體屬性、偏好與治理設定 |
-| organization | 組織、成員與角色邊界 |
-| team | Organization 內部成員分組治理 |
-| platform-config | 平台設定輪廓與配置管理 |
-| feature-flag | 功能開關策略與發佈節點 |
-| onboarding | 新主體初始設定與引導流程 |
-| compliance | 資料保留、稽核與法規執行 |
-| integration | 外部系統整合邊界與契約 |
-| workflow | 平台級流程編排與狀態驅動執行 |
-| notification | 通知路由、偏好與投遞 |
-| background-job | 背景任務提交、排程與監控 |
-| content | 平台級內容資產管理與發布 |
-| search | 跨域搜尋路由與查詢協調 |
-| audit-log | 永久稽核軌跡與不可否認證據 |
-| observability | 健康量測、追蹤與告警 |
-| support | 客服工單、支援知識與處理流程 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| consent | 將同意與資料使用授權從 compliance 中切開 |
-| secret-management | 將憑證、token、rotation 從 integration 中切開 |
-| operational-catalog | 將平台營運資產與配置字典收斂成單一邊界 |
-
-### notion
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| knowledge | 頁面建立、組織、版本化與交付 |
-| authoring | 知識庫文章建立、驗證與分類 |
-| collaboration | 協作留言、細粒度權限與版本快照 |
-| knowledge-database | 結構化資料多視圖管理 |
-| knowledge-analytics | 知識使用行為量測 |
-| attachments | 附件與媒體關聯儲存 |
-| automation | 知識事件觸發自動化動作 |
-| knowledge-integration | 知識與外部系統雙向整合 |
-| notes | 個人輕量筆記與正式知識協作 |
-| templates | 頁面範本管理與套用 |
-| knowledge-versioning | 全域版本快照策略管理 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| taxonomy | 建立分類法與語義組織的正典邊界 |
-| relations | 建立內容之間關聯與 backlink 的正典邊界 |
-| publishing | 建立正式發布與對外交付的正典邊界 |
-
-### notebooklm
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| conversation | 對話 Thread 與 Message 生命週期 |
-| note | 輕量筆記與知識連結 |
-| notebook | Notebook 組合與管理 |
-| source | 來源文件追蹤與引用 |
-| synthesis | RAG 合成、摘要與洞察生成 |
-| conversation-versioning | 對話版本與快照策略 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| ingestion | 建立來源匯入、正規化與前處理的正典邊界 |
-| retrieval | 建立查詢召回與排序策略的正典邊界 |
-| grounding | 建立引用對齊與可追溯證據的正典邊界 |
-| evaluation | 建立品質評估與回歸比較的正典邊界 |
-
-## Ownership Rules
-
-- iam 擁有身份、租戶與 access decision，不擁有商業、內容或推理正典。
-- billing 擁有 subscription 與 entitlement，不擁有身份治理或內容正典。
-- ai 擁有 shared AI capability，不擁有內容或 notebook 推理正典。
-- analytics 擁有下游報表與 projection，不擁有上游寫入模型。
-- platform 擁有 account、organization 與 operational service，不再作為所有治理能力的總擁有者。
-- workspace 擁有工作區範疇，不擁有平台治理或正典內容。
-- notion 擁有正典知識內容，不擁有治理或推理流程。
-- notebooklm 擁有推理流程與衍生輸出，不擁有正典知識內容。
-
-## Dependency Direction Guardrail
-
-- bounded context 所有權定義的是語言與規則邊界，不等於可直接穿透的實作邊界。
-- 每個主域內部仍必須遵守 interfaces -> application -> domain <- infrastructure。
-- 跨主域整合一律先經 API boundary、published language、events 或 local DTO。
-
-## Conflict Resolution
-
-- 若某子域同時被多個主域宣稱，依最能維持語言自洽與 context map 方向的主域保留所有權。
-- 若某能力定義 actor、identity、tenant 或 access decision，優先歸 iam。
-- 若某能力定義 subscription、entitlement、pricing 或 referral，優先歸 billing。
-- 若某能力定義 shared model capability、provider routing、safety 或 prompt orchestration，優先歸 ai。
-- 若某能力只消費事件並形成報表或 read model，優先歸 analytics。
-- 若某能力同時像內容又像推理輸出，先問它是否是正典內容狀態；若是，歸 notion，否則歸 notebooklm。
-- `workflow` 作為 generic 名稱只保留在 platform；workspace 使用 `workspace-workflow` 避免跨主域混名。
-
-## Forbidden Ownership Moves
-
-- 不得讓兩個主域同時宣稱同一正典模型所有權。
-- 不得用部署、資料表或 UI 分區來覆蓋 bounded context 所有權。
-- 不得把 gap subdomain 缺口視為可以任意分散到其他主域的理由。
-- 不得讓同一個 generic 子域名稱同時作為多個主域的 canonical ownership。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先決定 owning bounded context，再決定檔案位置、命名與 boundary。
-- 奧卡姆剃刀：若既有 bounded context 可吸收需求，就不要為了命名好看而新增新的上下文。
-- 所有權模糊時，先修正文檔邊界，再寫程式碼。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart TD
-	MainDomain["Main domain"] --> Subdomain["Subdomain"]
-	Subdomain --> Application["Application"]
-	Application --> Domain["Domain"]
-	Infrastructure["Infrastructure"] --> Domain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Requirement["Requirement"] --> Ownership["Choose bounded context"]
-	Ownership --> Boundary["Choose API boundary"]
-	Boundary --> Language["Align local language"]
-	Language --> Code["Generate code"]
-```
-
-## Document Network
-
-- [architecture-overview.md](./architecture-overview.md)
-- [subdomains.md](./subdomains.md)
-- [context-map.md](./context-map.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-- [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
-````
-
 ## File: docs/context-map.md
 ````markdown
 # Context Map
@@ -16906,141 +15800,6 @@ flowchart LR
 - 若某整合指南與 [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md) 衝突，以 ADR 為準。
 ````
 
-## File: docs/module-graph.system-wide.md
-````markdown
-# System-Wide Module Graph
-
-本圖反映 [0014-main-domain-resplit.md](./decisions/0014-main-domain-resplit.md) 確立的八主域重切 baseline。
-
-凡例：
-  subdomain          = Baseline subdomain（已基線化）
-  [subdomain]        = Recommended Gap subdomain（尚未基線化，待 ADR 確認）
-  T0 / T1 / … / SINK = Upstream→Downstream Tier（越小越上游）
-
----
-
-## Upstream → Downstream Dependency Map
-
-  Upstream     │  Downstream
-  ─────────────┼───────────────────────────────────────────────────────────
-  iam          │  billing · platform · workspace · notion · notebooklm
-  billing      │  workspace · notion · notebooklm
-  ai           │  notion · notebooklm
-  platform     │  workspace
-  workspace    │  notion · notebooklm
-  notion       │  notebooklm
-  (all above)  │  analytics  ← 事件 / 投影 sink，不反向寫回任何上游
-
----
-
-## Domain + Subdomain Inventory
-
-─────────────────────────────────────────────────────────────────────────────
-T0  IAM                     BILLING                 AI
-    身份與存取治理上游       商業與權益治理上游       共享 AI Capability 上游
-─────────────────────────────────────────────────────────────────────────────
-
-    identity                billing                 content-generation
-    access-control          subscription            content-distillation
-    tenant                  entitlement             context-assembly
-    security-policy         referral                evaluation-policy
-                                                     memory-context
-                                                     model-observability
-                                                     prompt-pipeline
-                                                     safety-guardrail
-
-    [session]               [pricing]               [provider-routing]
-    [consent]               [invoice]               [model-policy]
-    [secret-governance]     [quota-policy]
-
-─────────────────────────────────────────────────────────────────────────────
-T1  PLATFORM
-    平台營運支撐
-─────────────────────────────────────────────────────────────────────────────
-
-    account                 notification            audit-log
-    account-profile         background-job          observability
-    organization            content                 support
-    team                    search                  workflow
-    platform-config         compliance
-    feature-flag            integration
-    onboarding
-
-    [consent]               [secret-management]     [operational-catalog]
-
-─────────────────────────────────────────────────────────────────────────────
-T2  WORKSPACE
-    協作容器與工作區範疇
-─────────────────────────────────────────────────────────────────────────────
-
-    audit
-    feed
-    scheduling
-    workspace-workflow
-
-    [lifecycle]             [membership]
-    [sharing]               [presence]
-
-─────────────────────────────────────────────────────────────────────────────
-T3  NOTION
-    正典知識內容
-─────────────────────────────────────────────────────────────────────────────
-
-    knowledge               automation
-    authoring               knowledge-integration
-    collaboration           notes
-    database                templates
-    knowledge-analytics     knowledge-versioning
-    attachments
-
-    [taxonomy]              [relations]             [publishing]
-
-─────────────────────────────────────────────────────────────────────────────
-T4  NOTEBOOKLM
-    對話與推理輸出
-─────────────────────────────────────────────────────────────────────────────
-
-    conversation            source
-    note                    synthesis
-    notebook                conversation-versioning
-
-    [ingestion]             [retrieval]
-    [grounding]             [evaluation]
-
-─────────────────────────────────────────────────────────────────────────────
-SINK  ANALYTICS
-      Read model / 事件 sink，下游 only，不反向擁有任何上游正典
-─────────────────────────────────────────────────────────────────────────────
-
-    reporting               telemetry-projection
-    metrics
-    dashboards
-
-    [experimentation]       [decision-support]
-
----
-
-## Ownership Rules（速查）
-
-  iam         → 身份、tenant、access decision；不擁有商業、內容、推理正典
-  billing     → subscription、entitlement；不擁有身份治理或內容正典
-  ai          → shared AI capability；不擁有 notion 或 notebooklm 的語言
-  platform    → account、organization、operational services；不再是所有治理的總擁有者
-  workspace   → 工作區範疇與 membership；不擁有平台治理或正典內容
-  notion      → 正典知識內容；不擁有治理或推理流程
-  notebooklm  → 推理流程與衍生輸出；不擁有正典知識內容
-  analytics   → 下游 read model sink；不反向成為上游 canonical owner
-
----
-
-## Document Network
-
-  architecture-overview.md  — 全域架構與主域關係
-  bounded-contexts.md        — 主域與子域所有權詳目
-  context-map.md             — Upstream/Downstream published language 對照
-  ubiquitous-language.md     — 戰略術語權威
-````
-
 ## File: docs/project-delivery-milestones.md
 ````markdown
 # Project Delivery Milestones
@@ -17367,449 +16126,6 @@ flowchart LR
 - [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
 - [decisions/0003-context-map.md](./decisions/0003-context-map.md)
 - [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/subdomains.md
-````markdown
-# Subdomains
-
-本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 strategic design 原則重建，不主張反映現況實作。
-
-## Main Domain Inventory
-
-| Main Domain | Baseline Subdomains | Recommended Gap Subdomains |
-|---|---|---|
-| iam | identity, access-control, tenant, security-policy | session, consent, secret-governance |
-| billing | billing, subscription, entitlement, referral | pricing, invoice, quota-policy |
-| ai | content-generation, content-distillation, context-assembly, evaluation-policy, memory-context, model-observability, prompt-pipeline, safety-guardrail | provider-routing, model-policy |
-| analytics | reporting, metrics, dashboards, telemetry-projection | experimentation, decision-support |
-| platform | account, account-profile, organization, team, platform-config, feature-flag, onboarding, compliance, integration, workflow, notification, background-job, content, search, audit-log, observability, support | consent, secret-management |
-| workspace | audit, feed, scheduling, workspace-workflow | lifecycle, membership, sharing, presence |
-| notion | knowledge, authoring, collaboration, knowledge-database, knowledge-analytics, attachments, automation, knowledge-integration, notes, templates, knowledge-versioning | taxonomy, relations, publishing |
-| notebooklm | conversation, note, notebook, source, synthesis, conversation-versioning | ingestion, retrieval, grounding, evaluation |
-
-## Detailed Subdomain Catalog
-
-### iam
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| identity | 已驗證主體與身份信號治理 |
-| access-control | 主體現在能做什麼的授權判定 |
-| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
-| security-policy | 安全規則定義、版本化與發佈 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| session | session、token 與 identity lifecycle 收斂 |
-| consent | 同意與資料使用授權治理收斂 |
-| secret-governance | secret 與 credential access policy 收斂 |
-
-### billing
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| billing | 計費狀態、費率與財務證據 |
-| subscription | 方案、配額與續期治理 |
-| entitlement | 有效權益與功能可用性統一解算 |
-| referral | 推薦關係與獎勵追蹤 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| pricing | 價格模型與方案矩陣治理 |
-| invoice | 帳單、請款與對帳流程 |
-| quota-policy | 可量化配額與商業限制規則 |
-
-### ai
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| content-generation | AI 驅動的文本生成與回覆輸出 |
-| content-distillation | AI 驅動的摘要、提煉與結構化壓縮 |
-| context-assembly | 推理前的 context window 組裝與排序 |
-| evaluation-policy | AI 品質與回歸評估政策 |
-| memory-context | 跨對話記憶與可重用上下文整理 |
-| model-observability | 模型使用量、成本與效能監測 |
-| prompt-pipeline | prompt、template、flow 與 tool calling orchestration |
-| safety-guardrail | 安全護欄、內容保護與限制 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| provider-routing | 模型供應商選擇與路由治理 |
-| model-policy | 模型能力、版本與使用政策 |
-
-### analytics
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| reporting | 報表輸出與查詢整理 |
-| metrics | 指標定義與聚合 |
-| dashboards | 儀表板呈現語義 |
-| telemetry-projection | 事件投影與 read model 匯總 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| experimentation | 實驗分析與對照觀測 |
-| decision-support | 決策輔助與洞察輸出 |
-
-### workspace
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| audit | 工作區操作稽核與證據追蹤 |
-| feed | 工作區活動摘要與事件流呈現 |
-| scheduling | 工作區排程、時序與提醒協調 |
-| workspace-workflow | 工作區流程編排與執行治理 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| lifecycle | 將工作區容器生命週期獨立為正典邊界（建立、封存、復原） |
-| membership | 將工作區參與關係從平台身份治理切開（角色、加入、移除） |
-| sharing | 將共享範圍與可見性規則收斂到單一上下文（對內/對外分享） |
-| presence | 將即時協作存在感、共同編輯訊號收斂為本地語言 |
-
-### platform
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| account | 帳號聚合根與帳號生命週期 |
-| account-profile | 主體屬性、偏好與治理設定 |
-| organization | 組織、成員與角色邊界 |
-| team | Organization 內部成員分組治理 |
-| platform-config | 平台設定輪廓與配置管理 |
-| feature-flag | 功能開關策略與發佈節點 |
-| onboarding | 新主體初始設定與引導流程 |
-| compliance | 資料保留、稽核與法規執行 |
-| integration | 外部系統整合邊界與契約 |
-| workflow | 平台級流程編排與狀態驅動執行 |
-| notification | 通知路由、偏好與投遞 |
-| background-job | 背景任務提交、排程與監控 |
-| content | 平台級內容資產管理與發布 |
-| search | 跨域搜尋路由與查詢協調 |
-| audit-log | 永久稽核軌跡與不可否認證據 |
-| observability | 健康量測、追蹤與告警 |
-| support | 客服工單、支援知識與處理流程 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| consent | 將同意與資料使用授權從 compliance 中切開 |
-| secret-management | 將憑證、token、rotation 從 integration 中切開 |
-| operational-catalog | 將平台營運資產與配置字典收斂成單一邊界 |
-
-### notion
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| knowledge | 頁面建立、組織、版本化與交付 |
-| authoring | 知識庫文章建立、驗證與分類 |
-| collaboration | 協作留言、細粒度權限與版本快照 |
-| knowledge-database | 結構化資料多視圖管理 |
-| knowledge-analytics | 知識使用行為量測 |
-| attachments | 附件與媒體關聯儲存 |
-| automation | 知識事件觸發自動化動作 |
-| knowledge-integration | 知識與外部系統雙向整合 |
-| notes | 個人輕量筆記與正式知識協作 |
-| templates | 頁面範本管理與套用 |
-| knowledge-versioning | 全域版本快照策略管理 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| taxonomy | 建立分類法與語義組織的正典邊界 |
-| relations | 建立內容之間關聯與 backlink 的正典邊界 |
-| publishing | 建立正式發布與對外交付的正典邊界 |
-
-### notebooklm
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| conversation | 對話 Thread 與 Message 生命週期 |
-| note | 輕量筆記與知識連結 |
-| notebook | Notebook 組合與管理 |
-| source | 來源文件追蹤與引用 |
-| synthesis | RAG 合成、摘要與洞察生成 |
-| conversation-versioning | 對話版本與快照策略 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| ingestion | 建立來源匯入、正規化與前處理的正典邊界 |
-| retrieval | 建立查詢召回與排序策略的正典邊界 |
-| grounding | 建立引用對齊與可追溯證據的正典邊界 |
-| evaluation | 建立品質評估與回歸比較的正典邊界 |
-
-## Strategic Notes
-
-- baseline subdomains 代表本架構基線中已確立的核心切分。
-- recommended gap subdomains 代表依 Context7 推導出的合理補洞方向。
-- recommended gap subdomains 不等於已驗證現況實作。
-
-## Ownership Summary
-
-- iam 關心身份、租戶與存取治理。
-- billing 關心商業生命週期與有效權益。
-- ai 關心共享 AI capability 與模型政策。
-- analytics 關心下游分析、指標與 read model 投影。
-- platform 關心 account、organization 與 shared operational services。
-- workspace 關心協作範疇。
-- notion 關心正典知識內容。
-- notebooklm 關心推理與衍生輸出。
-
-## Cross-Domain Duplicate Resolution
-
-| Original Term | Resolution |
-|---|---|
-| ai | `ai` context 擁有 generic AI capability；`notion` 與 `notebooklm` 僅為 consumer |
-| analytics | `analytics` context 擁有 generic analytics；`notion` 保留 `knowledge-analytics` |
-| entitlement | `billing` 擁有 entitlement；其他主域只消費 capability signal |
-| identity | `iam` 擁有 identity 與 access-control；其他主域不再各自宣稱 |
-| integration | `platform` 保留 generic `integration`；`notion` 保留 `knowledge-integration` |
-| versioning | `notion` 改為 `knowledge-versioning`；`notebooklm` 改為 `conversation-versioning` |
-| workflow | `platform` 保留 generic `workflow`；`workspace` 使用 `workspace-workflow` |
-
-## Subdomain Anti-Patterns
-
-- 不把 baseline subdomains 與 recommended gap subdomains 混成同一種事實狀態。
-- 不把主域缺口直接分攤到別的主域，造成所有權漂移。
-- 不把子域名稱當成 UI 功能清單，而忽略其邊界責任。
-- 不讓同一個 generic 子域名稱同時被多個主域擁有，造成 Copilot 與團隊語言歧義。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先確認需求屬於哪個主域與子域，再決定實作位置。
-- 奧卡姆剃刀：能放進既有子域就不要創造新子域；能放進既有 use case 就不要新增第二條平行流程。
-- gap subdomain 只表示架構缺口，不表示一定要立刻實作。
-- 遇到 generic 名稱時，先套用本文件的 duplicate resolution，再決定是否新增或改名。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart TD
-	MainDomain["Main domain"] --> Baseline["Baseline subdomains"]
-	MainDomain --> Gap["Recommended gap subdomains"]
-	Baseline --> UseCase["Use case / boundary"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Requirement["Requirement"] --> Domain["Choose main domain"]
-	Domain --> Subdomain["Choose owning subdomain"]
-	Subdomain --> Boundary["Choose boundary"]
-	Boundary --> Code["Generate code"]
-```
-
-## Document Network
-
-- [architecture-overview.md](./architecture-overview.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [contexts/workspace/subdomains.md](./contexts/workspace/subdomains.md)
-- [contexts/platform/subdomains.md](./contexts/platform/subdomains.md)
-- [contexts/notion/subdomains.md](./contexts/notion/subdomains.md)
-- [contexts/notebooklm/subdomains.md](./contexts/notebooklm/subdomains.md)
-````
-
-## File: docs/ubiquitous-language.md
-````markdown
-# Ubiquitous Language
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD ubiquitous language 原則重建，不主張反映現況實作。
-
-## Strategic Terms
-
-| Term | Meaning |
-|---|---|
-| Main Domain | 戰略層級的主要 bounded context 群組 |
-| Bounded Context | 一組高凝聚、可自洽的語言與規則邊界 |
-| Published Language | 跨邊界交換時使用的共同語言 |
-| Upstream | 關係中提供語言或能力的一方 |
-| Downstream | 關係中消費語言或能力的一方 |
-| Anti-Corruption Layer | downstream 用來保護本地語言的轉譯層 |
-| Conformist | downstream 直接接受 upstream 語言的整合選擇 |
-| Shared Kernel | 對稱共用模型關係 |
-| Partnership | 對稱共同成功 / 共同失敗關係 |
-| Account Scope | shell 中由 `accountId` 表示的帳號範疇；代碼中的 `AccountType = "user" | "organization"` 會把它映射成 personal account 或 organization account 語意 |
-| Workspace Scope | 由 `workspaceId` 表示的協作容器範疇，必須從屬於某個 account scope |
-| Canonical Route Contract | 只用來表達 composition surface 的正典 URL 形狀，不取代 published language |
-
-## Domain Terms
-
-| Domain | Key Terms |
-|---|---|
-| iam | Actor, Identity, Tenant, AccessDecision, SecurityPolicy |
-| billing | Subscription, Entitlement, BillingEvent, Referral |
-| ai | AICapability, ModelPolicy, SafetyGuardrail, PromptPipeline |
-| analytics | Metric, Report, Dashboard, Projection |
-| platform | Account, AccountProfile, Organization, NotificationRoute, AuditLog |
-| workspace | Workspace, Membership, ShareScope, ActivityFeed, AuditTrail |
-| notion | KnowledgeArtifact, Taxonomy, Relation, Publication |
-| notebooklm | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
-
-## Route Composition Terms
-
-| Term | Meaning |
-|---|---|
-| accountId | shell route 上的 account scope identifier，不等於 workspaceId，也不直接等於 Tenant 語言 |
-| workspaceId | workspace scope identifier；在 canonical shell URL 中作為 account scope 之下的第二段 |
-| AccountType String Contract | code-level enum `"user" | "organization"`；`"user"` 對應 personal actor account，`"organization"` 對應 organization account |
-| Personal Account | `AccountType = "user"` 對應的 personal actor account 語意 |
-| Organization Account | `AccountType = "organization"` 對應的 organization account 語意 |
-| Canonical Workspace URL | `/{accountId}/{workspaceId}` |
-| Legacy Workspace Redirect Surface | `/{accountId}/workspace/{workspaceId}` |
-| Legacy Organization Redirect Surface | `/{accountId}/organization/*` |
-
-## Identifier Contract Glossary
-
-| Identifier | Canonical Role | Notes |
-|---|---|---|
-| accountId | Account scope identifier | shell composition 的 route id；由 `AccountType = "user" | "organization"` 決定它代表 personal account 或 organization account |
-| workspaceId | Workspace scope identifier | 協作容器錨點；在 canonical workspace URL 中是 account scope 之下的第二段 |
-| organizationId | Organization-local identifier | 用於 organization/team/taxonomy/relations/ingestion 等 organization-scoped domain 或 integration contract；不直接取代 shell route 的 `accountId` |
-| userId | Concrete user identifier | 用於 `createdByUserId`、`verifiedByUserId`、`submittedByUserId`、`assignedUserId`、`creatorUserId` 等具體使用者欄位 |
-| actorId | Acting principal identifier | 用於 audit / event / action initiator；可能是 userId，也可能是 system actor，不應假設一定等於 userId |
-| ownerId | Resource owner identifier | 表示資源所有者；不是 shell route id，也不必然等於 `accountId` |
-| tenantId | Tenant isolation identifier | 用於 storage path、security rules、multi-tenant isolation；不等於 `workspaceId`，也不是 shell route param |
-| fileId | File metadata identifier | 檔案 metadata 主鍵；不取代 owner / workspace / tenant scope |
-
-## Context Map Alignment
-
-| Relationship | Published Language Tokens | Upstream Term Source | Downstream Local Terms |
-|---|---|---|---|
-| iam -> workspace | actor reference, tenant scope, access decision | Actor, Identity, Tenant, AccessDecision | Workspace, Membership, ShareScope |
-| iam -> notion | actor reference, tenant scope, access decision | Actor, Identity, Tenant, AccessDecision | KnowledgeArtifact, Taxonomy, Relation, Publication |
-| iam -> notebooklm | actor reference, tenant scope, access decision | Actor, Identity, Tenant, AccessDecision | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
-| billing -> workspace | entitlement signal, subscription capability signal | Subscription, Entitlement | Workspace, Membership, ShareScope |
-| billing -> notion | entitlement signal, subscription capability signal | Subscription, Entitlement | KnowledgeArtifact, Taxonomy, Relation |
-| billing -> notebooklm | entitlement signal, subscription capability signal | Subscription, Entitlement | Notebook, Retrieval, Grounding, Synthesis |
-| ai -> notion | ai capability signal, model policy, safety result | AICapability, ModelPolicy, SafetyGuardrail | KnowledgeArtifact, Publication |
-| ai -> notebooklm | ai capability signal, model policy, safety result | AICapability, ModelPolicy, SafetyGuardrail | Notebook, Retrieval, Grounding, Synthesis, Evaluation |
-| platform -> workspace | account scope, organization surface, operational service signal | Account, Organization, NotificationRoute | Workspace, Membership, ShareScope |
-| workspace -> notion | workspaceId, membership scope, share scope | Workspace, Membership, ShareScope | KnowledgeArtifact, Taxonomy, Relation |
-| workspace -> notebooklm | workspaceId, membership scope, share scope | Workspace, Membership, ShareScope | Notebook, Retrieval, Grounding, Synthesis |
-| notion -> notebooklm | knowledge artifact reference, attachment reference, taxonomy hint | KnowledgeArtifact, Taxonomy, Relation | Notebook, Retrieval, Grounding, Synthesis, Evaluation |
-| all contexts -> analytics | domain event, usage signal, projection input | Metric, Report, Dashboard, Projection | Metrics, Reporting, Dashboard |
-
-## Published Language Token Glossary
-
-| Token | Canonical Mapping | Notes |
-|---|---|---|
-| actor reference | iam.Actor | 不以 User 泛稱，避免與 Membership 混名 |
-| organization scope | platform.Organization scope | 用於 account 與 organization surface，不等於 Workspace scope |
-| tenant scope | iam.Tenant scope | 用於治理邊界，不等於 Workspace scope |
-| access decision | iam.AccessDecision result | 僅傳遞判定結果，不暴露內部 policy 模型 |
-| entitlement signal | billing.Entitlement / Subscription capability signal | 不混同 feature-flag payload |
-| ai capability signal | ai shared capability signal | notion 與 notebooklm 僅消費，不擁有 generic `ai` 子域 |
-| operational service signal | platform operational capability signal | 只表達 shared platform service，不接管治理語言 |
-| workspaceId | Workspace identifier | 不取代 knowledge/notebook 的本地主鍵 |
-| membership scope | Membership constraint | 不混同 Actor 身份語言 |
-| share scope | ShareScope constraint | 不混同一般 permission 欄位集合 |
-| knowledge artifact reference | KnowledgeArtifact reference | 僅引用，不代表內容所有權轉移 |
-| attachment reference | Attachment reference | 提供可追溯引用，不暴露儲存實作 |
-| taxonomy hint | Taxonomy hint | 作為推理輔助語言，不覆蓋 notion 正典 taxonomy |
-
-## Naming Rules
-
-- 不用 User 混指 Actor 與 Membership。
-- 不用 Plan 混指 Subscription 與 Entitlement。
-- 不用 Wiki 混指 KnowledgeArtifact。
-- 不用 Chat 混指 Conversation。
-- 不用 Search 混指 Retrieval。
-- 不用 AI 混指 platform 的 shared AI capability 與 notion / notebooklm 的本地 use case。
-- 不用 Analytics 混指 platform analytics 與 notion 的 knowledge-analytics。
-- 不用 Integration 混指 platform integration 與 notion 的 knowledge-integration。
-- 不用 Versioning 混指 notion 的 knowledge-versioning 與 notebooklm 的 conversation-versioning。
-- 不用 Workflow 混指 platform workflow 與 workspace-workflow。
-- 不用 accountId 混指 workspaceId。
-- 不用 organizationId 取代 shell route 上的 accountId。
-- 不用 userId 混指 actorId。
-- 不用 `AccountType = "personal"` 取代 `AccountType = "user"`。
-- 不用 `/{accountId}/workspace/{workspaceId}` 當成新的 canonical workspace URL。
-- 不用 `/{accountId}/organization/*` 當成新的 canonical governance route。
-
-## Naming Anti-Patterns
-
-- 用同一個詞同時代表平台治理語言與工作區參與語言。
-- 用內容產品舊名覆蓋 notion 的正典語言。
-- 用 Search 混指 notebooklm 的 Retrieval 與一般搜尋能力。
-- 用同一個 generic 子域名跨主域重複宣稱所有權，再期望 Copilot 自行猜對上下文。
-- 把 route composition contract 誤寫成 cross-context published language。
-- 把 organization-scoped identifier 誤當成 shell composition identifier。
-- 把 actorId、userId、ownerId 三種角色不同的 identifier 混成同一欄位語意。
-- 把 personal account 顯示語言誤當成 code-level `AccountType` literal。
-- 把 legacy redirect surface 誤寫成正典 URL 契約。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先對齊 strategic term，再對齊 context-specific term，最後才命名型別與 API。
-- 奧卡姆剃刀：若一個詞已足夠準確，就不要再加第二個近義詞製造歧義。
-- 名稱衝突時先回到 glossary，而不是直接在程式碼裡各自命名。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Strategic["Strategic terms"] --> Context["Context terms"]
-	Context --> Boundary["Published language / API"]
-	Boundary --> Code["Generated code names"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Requirement["Requirement"] --> Term["Select canonical term"]
-	Term --> Context["Map to owning context"]
-	Context --> Boundary["Expose via boundary"]
-	Boundary --> Code["Generate code"]
-```
-
-## Document Network
-
-- [contexts/workspace/ubiquitous-language.md](./contexts/workspace/ubiquitous-language.md)
-- [contexts/platform/ubiquitous-language.md](./contexts/platform/ubiquitous-language.md)
-- [contexts/notion/ubiquitous-language.md](./contexts/notion/ubiquitous-language.md)
-- [contexts/notebooklm/ubiquitous-language.md](./contexts/notebooklm/ubiquitous-language.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0004-ubiquitous-language.md](./decisions/0004-ubiquitous-language.md)
-
-## Conflict Resolution
-
-- 若 strategic term 與主域 term 衝突，優先維持主域語言不被污染，再回寫 strategic glossary。
-- 若同一個詞在多主域都想擁有，優先看它服務的是治理、協作範疇、正典內容還是推理輸出。
 ````
 
 ## File: modules/ai/api/index.ts
@@ -26494,6 +24810,16 @@ interfaces/ → application/ → domain/ ← infrastructure/
  */
 ````
 
+## File: modules/notion/application/dto/index.ts
+````typescript
+// relations and taxonomy currently expose no DTO barrel.
+````
+
+## File: modules/notion/application/use-cases/index.ts
+````typescript
+// relations/taxonomy are still placeholder-only at the application layer.
+````
+
 ## File: modules/notion/docs/README.md
 ````markdown
 # Notion Documentation
@@ -31653,6 +29979,24 @@ interfaces/ → application/ → domain/ ← infrastructure/
 // UI components are exported from ./ui to keep this barrel semantic-only.
 ````
 
+## File: modules/notion/subdomains/knowledge-database/api/server.ts
+````typescript
+/**
+ * knowledge-database subdomain — server-only API.
+ *
+ * Exports infrastructure implementations and composition helpers that must only
+ * run in Server Actions, route handlers, or other server-side entry points.
+ */
+````
+
+## File: modules/notion/subdomains/knowledge-database/api/ui.ts
+````typescript
+/**
+ * notion/knowledge-database UI surface.
+ * UI consumers should import from this file instead of the semantic api barrel.
+ */
+````
+
 ## File: modules/notion/subdomains/knowledge-database/application/dto/DatabaseDto.ts
 ````typescript
 /**
@@ -31703,6 +30047,14 @@ export type ListViewsDto = z.infer<typeof ListViewsSchema>;
 ## File: modules/notion/subdomains/knowledge-database/application/dto/index.ts
 ````typescript
 
+````
+
+## File: modules/notion/subdomains/knowledge-database/application/dto/knowledge-database.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the knowledge-database subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
 ````
 
 ## File: modules/notion/subdomains/knowledge-database/application/queries/automation.queries.ts
@@ -32160,6 +30512,16 @@ export interface ViewUpdatedEvent extends NotionDomainEvent {
 
 ````
 
+## File: modules/notion/subdomains/knowledge-database/domain/ports/index.ts
+````typescript
+/**
+ * notion/knowledge-database domain/ports — driven port interfaces for the knowledge-database subdomain.
+ *
+ * Re-exports repository contracts from domain/repositories/, making the Ports layer
+ * explicitly visible in the directory structure.
+ */
+````
+
 ## File: modules/notion/subdomains/knowledge-database/domain/repositories/AutomationRepository.ts
 ````typescript
 /**
@@ -32347,6 +30709,24 @@ create(input: CreateViewInput): Promise<ViewSnapshot>;
 update(input: UpdateViewInput): Promise<ViewSnapshot>;
 delete(id: string, accountId: string): Promise<void>;
 listByDatabase(accountId: string, databaseId: string): Promise<ViewSnapshot[]>;
+````
+
+## File: modules/notion/subdomains/knowledge-database/domain/services/index.ts
+````typescript
+/**
+ * Domain services for the knowledge-database subdomain.
+ * Deferred: DatabaseQueryService, FormulaEvaluationService, RollupComputationService
+ * will be defined when filter/sort/formula use cases are scoped.
+ */
+````
+
+## File: modules/notion/subdomains/knowledge-database/domain/value-objects/index.ts
+````typescript
+/**
+ * Value objects for the knowledge-database subdomain.
+ * Deferred: DatabaseId, RecordId, ViewId, FieldId, FieldType, ViewType, FieldValue
+ * will be defined when database record and view use cases are scoped.
+ */
 ````
 
 ## File: modules/notion/subdomains/knowledge-database/domain/index.ts
@@ -40356,9 +38736,175 @@ When implementing, follow inside-out:
  */
 ````
 
+## File: modules/platform/subdomains/background-job/application/use-cases/background-job.use-cases.ts
+````typescript
+/**
+ * Background Job Use Cases — application-layer orchestration for BackgroundJob domain operations.
+ *
+ * Each use case receives its repository dependency via constructor injection,
+ * keeping it testable and decoupled from any specific adapter.
+ *
+ * Return type uses a locally-defined JobResult<T> rather than the
+ * command-only CommandResult, because creation and advancement operations
+ * need to surface the resulting BackgroundJob entity to callers.
+ */
+⋮----
+import { v4 as randomUUID } from "@lib-uuid";
+⋮----
+import type { DomainError } from "@shared-types";
+⋮----
+import type { JobDocument } from "../../domain/entities/JobDocument";
+import { canTransitionJobStatus, type BackgroundJob, type BackgroundJobStatus } from "../../domain/entities/BackgroundJob";
+import type { BackgroundJobRepository } from "../../domain/repositories/BackgroundJobRepository";
+⋮----
+// ── Shared result type ────────────────────────────────────────────────────────
+⋮----
+export type JobResult<T> =
+  | { readonly ok: true; readonly data: T }
+  | { readonly ok: false; readonly error: DomainError };
+⋮----
+function ok<T>(data: T): JobResult<T>
+⋮----
+function fail(code: string, message: string): JobResult<never>
+⋮----
+// ── Register Job Document ───────────────────────────────────────────────
+⋮----
+export interface RegisterJobDocumentInput {
+  readonly organizationId: string;
+  readonly workspaceId: string;
+  readonly sourceFileId: string;
+  readonly title: string;
+  readonly mimeType: string;
+}
+⋮----
+export class RegisterJobDocumentUseCase
+⋮----
+constructor(private readonly repo: BackgroundJobRepository)
+⋮----
+async execute(input: RegisterJobDocumentInput): Promise<JobResult<BackgroundJob>>
+⋮----
+// ── Advance Job Stage ───────────────────────────────────────────────────
+⋮----
+export interface AdvanceJobStageInput {
+  readonly documentId: string;
+  readonly nextStatus: BackgroundJobStatus;
+  readonly statusMessage?: string;
+}
+⋮----
+export class AdvanceJobStageUseCase
+⋮----
+async execute(input: AdvanceJobStageInput): Promise<JobResult<BackgroundJob>>
+⋮----
+// ── List Workspace Background Jobs ─────────────────────────────────────────────
+⋮----
+export interface ListWorkspaceJobsInput {
+  readonly organizationId: string;
+  readonly workspaceId: string;
+}
+⋮----
+export class ListWorkspaceJobsUseCase
+⋮----
+async execute(input: ListWorkspaceJobsInput): Promise<readonly BackgroundJob[]>
+````
+
 ## File: modules/platform/subdomains/background-job/application/index.ts
 ````typescript
 
+````
+
+## File: modules/platform/subdomains/background-job/domain/entities/BackgroundJob.ts
+````typescript
+/**
+ * BackgroundJob — aggregate entity tracking a document through the
+ * document processing pipeline.
+ *
+ * The embedded state machine enforces strict one-way status transitions,
+ * keeping invalid states impossible at the domain level.
+ *
+ * Lifecycle (happy path):
+ *   uploaded → parsing → chunking → embedding → indexed
+ *
+ * Repair paths:
+ *   indexed  → stale → re-indexing → parsing
+ *   failed   → re-indexing → parsing
+ */
+⋮----
+import type { JobDocument } from "./JobDocument";
+⋮----
+// ── Status ────────────────────────────────────────────────────────────────────
+⋮----
+export type BackgroundJobStatus =
+  | "uploaded"
+  | "parsing"
+  | "chunking"
+  | "embedding"
+  | "indexed"
+  | "stale"
+  | "re-indexing"
+  | "failed";
+⋮----
+/**
+ * Domain guard: returns true only when the requested transition is permitted
+ * by the state machine contract.
+ */
+export function canTransitionJobStatus(
+  from: BackgroundJobStatus,
+  to: BackgroundJobStatus,
+): boolean
+⋮----
+// ── Aggregate ─────────────────────────────────────────────────────────────────
+⋮----
+export interface BackgroundJob {
+  /** Unique job identifier (UUID). */
+  readonly id: string;
+  /** Immutable document snapshot attached to this job. */
+  readonly document: JobDocument;
+  /** Current pipeline stage. */
+  readonly status: BackgroundJobStatus;
+  /** Optional human-readable message describing the current stage or failure reason. */
+  readonly statusMessage?: string;
+  /** ISO-8601 timestamp of job creation. */
+  readonly createdAtISO: string;
+  /** ISO-8601 timestamp of last status update. */
+  readonly updatedAtISO: string;
+}
+⋮----
+/** Unique job identifier (UUID). */
+⋮----
+/** Immutable document snapshot attached to this job. */
+⋮----
+/** Current pipeline stage. */
+⋮----
+/** Optional human-readable message describing the current stage or failure reason. */
+⋮----
+/** ISO-8601 timestamp of job creation. */
+⋮----
+/** ISO-8601 timestamp of last status update. */
+````
+
+## File: modules/platform/subdomains/background-job/domain/entities/JobChunk.ts
+````typescript
+/**
+ * JobChunk — value-like entity representing a text segment produced
+ * by the chunking stage of the document processing pipeline.
+ *
+ * Produced downstream from the Python `py_fn` worker; tracked by the
+ * platform layer for audit and retrieval-quality accounting.
+ */
+⋮----
+export interface JobChunkMetadata {
+  readonly sourceDocId: string;
+  readonly section?: string;
+  readonly pageNumber?: number;
+}
+⋮----
+export interface JobChunk {
+  readonly id: string;
+  readonly documentId: string;
+  readonly chunkIndex: number;
+  readonly content: string;
+  readonly metadata: JobChunkMetadata;
+}
 ````
 
 ## File: modules/platform/subdomains/background-job/domain/entities/JobDocument.ts
@@ -40446,6 +38992,60 @@ export type BackgroundJobDomainEventType =
  */
 ````
 
+## File: modules/platform/subdomains/background-job/domain/repositories/BackgroundJobRepository.ts
+````typescript
+/**
+ * BackgroundJobRepository — output port (driven port) for background job persistence.
+ *
+ * Implementations live in the adapters layer (InMemoryBackgroundJobRepository,
+ * FirebaseBackgroundJobRepository, …). The domain core depends only on this interface.
+ */
+⋮----
+import type { BackgroundJob, BackgroundJobStatus } from "../entities/BackgroundJob";
+⋮----
+export interface BackgroundJobRepository {
+  /** Retrieve a job by its associated document id. Returns null if not found. */
+  findByDocumentId(documentId: string): Promise<BackgroundJob | null>;
+
+  /** List all jobs scoped to a specific workspace. */
+  listByWorkspace(input: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+  }): Promise<readonly BackgroundJob[]>;
+
+  /** Persist a new background job. */
+  save(job: BackgroundJob): Promise<void>;
+
+  /** Advance job status; returns the updated job, or null if the document was not found. */
+  updateStatus(input: {
+    readonly documentId: string;
+    readonly status: BackgroundJobStatus;
+    readonly statusMessage?: string;
+    readonly updatedAtISO: string;
+  }): Promise<BackgroundJob | null>;
+}
+⋮----
+/** Retrieve a job by its associated document id. Returns null if not found. */
+findByDocumentId(documentId: string): Promise<BackgroundJob | null>;
+⋮----
+/** List all jobs scoped to a specific workspace. */
+listByWorkspace(input: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+  }): Promise<readonly BackgroundJob[]>;
+⋮----
+/** Persist a new background job. */
+save(job: BackgroundJob): Promise<void>;
+⋮----
+/** Advance job status; returns the updated job, or null if the document was not found. */
+updateStatus(input: {
+    readonly documentId: string;
+    readonly status: BackgroundJobStatus;
+    readonly statusMessage?: string;
+    readonly updatedAtISO: string;
+  }): Promise<BackgroundJob | null>;
+````
+
 ## File: modules/platform/subdomains/background-job/domain/index.ts
 ````typescript
 
@@ -40493,6 +39093,62 @@ async updateStatus(input: {
     readonly statusMessage?: string;
     readonly updatedAtISO: string;
 }): Promise<BackgroundJob | null>
+````
+
+## File: modules/platform/subdomains/background-job/interfaces/composition/background-job-service.ts
+````typescript
+/**
+ * backgroundJobService — Composition root for background job use cases.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
+ *
+ * Wires use cases to the default InMemoryBackgroundJobRepository.
+ * Swap the repository assignment here once a Firebase adapter is in place.
+ *
+ * This module is the single entry point for background job side-effects; adapters
+ * (Server Actions, route handlers) must not reach into use cases directly.
+ */
+⋮----
+import type { BackgroundJob } from "../../domain/entities/BackgroundJob";
+import type { BackgroundJobStatus } from "../../domain/entities/BackgroundJob";
+import {
+  RegisterJobDocumentUseCase,
+  AdvanceJobStageUseCase,
+  ListWorkspaceJobsUseCase,
+  type JobResult,
+  type RegisterJobDocumentInput,
+  type AdvanceJobStageInput,
+} from "../../application/use-cases/background-job.use-cases";
+import { InMemoryBackgroundJobRepository } from "../../infrastructure/InMemoryBackgroundJobRepository";
+⋮----
+// Single shared repository instance for the lifetime of the module.
+⋮----
+/**
+   * Register a newly uploaded document and create an BackgroundJob in
+   * `uploaded` status, ready for the Python worker handoff.
+   */
+registerDocument(input: RegisterJobDocumentInput): Promise<JobResult<BackgroundJob>>
+⋮----
+/**
+   * Advance the job to the given status.
+   * Rejects invalid transitions with `JOB_INVALID_STATUS_TRANSITION`.
+   */
+advanceStage(input: AdvanceJobStageInput): Promise<JobResult<BackgroundJob>>
+⋮----
+/**
+   * Return all background jobs belonging to a workspace.
+   */
+listWorkspaceJobs(input: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+}): Promise<readonly BackgroundJob[]>
+⋮----
+registerDocument(input: RegisterJobDocumentInput): Promise<JobResult<BackgroundJob>>;
+advanceStage(input: AdvanceJobStageInput): Promise<JobResult<BackgroundJob>>;
+⋮----
+// Re-export status type for convenience (callers using `backgroundJobService` should not
+// need to reach into the domain layer directly).
 ````
 
 ## File: modules/platform/subdomains/background-job/README.md
@@ -51951,6 +50607,54 @@ export function canTransitionIssueStatus(from: IssueStatus, to: IssueStatus): bo
 export function isTerminalIssueStatus(status: IssueStatus): boolean
 ````
 
+## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/SourceReference.ts
+````typescript
+/**
+ * @module workspace-flow/domain/value-objects
+ * @file SourceReference.ts
+ * @description Value object representing the origin of a materialized entity (Task or Invoice).
+ *
+ * A SourceReference is attached to Task and Invoice entities that were created
+ * by the KnowledgeToWorkflowMaterializer Process Manager in response to a
+ * `notion.knowledge.page-approved` event. It provides full audit traceability:
+ *
+ *   Task → sourceReference → KnowledgePage → BackgroundJob → source PDF
+ */
+⋮----
+export type SourceReferenceType = "KnowledgePage";
+⋮----
+export interface SourceReference {
+  /** The type of the source aggregate. */
+  readonly type: SourceReferenceType;
+  /** The ID of the source aggregate (e.g. KnowledgePage.id). */
+  readonly id: string;
+  /**
+   * causationId from the `notion.knowledge.page-approved` event that triggered
+   * materialization.  Stored for idempotency checks and audit trails.
+   */
+  readonly causationId: string;
+  /**
+   * correlationId tracing the entire business flow:
+   *   ingestion → human review → approval → materialization.
+   */
+  readonly correlationId: string;
+}
+⋮----
+/** The type of the source aggregate. */
+⋮----
+/** The ID of the source aggregate (e.g. KnowledgePage.id). */
+⋮----
+/**
+   * causationId from the `notion.knowledge.page-approved` event that triggered
+   * materialization.  Stored for idempotency checks and audit trails.
+   */
+⋮----
+/**
+   * correlationId tracing the entire business flow:
+   *   ingestion → human review → approval → materialization.
+   */
+````
+
 ## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/TaskCandidate.ts
 ````typescript
 /**
@@ -59542,6 +58246,1247 @@ import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 ````
 
+## File: docs/contexts/notion/AGENT.md
+````markdown
+# Notion Agent
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Mission
+
+保護 notion 主域作為知識內容生命週期邊界。任何變更都應維持 notion 擁有內容建立、分類、關聯、協作、模板、發布與版本化語言，而不是吸收平台治理或對話推理語言。
+
+## Canonical Ownership
+
+- knowledge
+- authoring
+- collaboration
+- database
+- taxonomy
+- relations
+- knowledge-engagement
+- attachments
+- automation
+- external-knowledge-sync
+- notes
+- templates
+- publishing
+- knowledge-versioning
+
+## Route Here When
+
+- 問題核心是知識頁面、文章、內容結構、分類、關聯、模板與發布。
+- 問題需要把輸入吸收成正式知識內容的正典狀態。
+- 問題需要定義內容版本、內容協作與內容交付。
+
+## Route Elsewhere When
+
+- 身份、租戶與授權治理屬於 iam；權益屬於 billing；憑證與營運服務屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 ai context。
+- 工作區生命週期、共享、存在感與工作區流程屬於 workspace。
+- notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
+
+## Guardrails
+
+- notion 的正典內容不等於 notebooklm 的衍生輸出。
+- taxonomy 與 relations 應作為內容語義邊界，而不是 UI 功能附屬物。
+- publishing 應與 authoring 分離，避免編輯語意與交付語意混用。
+- notion 可以消費 ai context，但不擁有 AI provider / policy 的正典邊界。
+- attachments 是內容資產語言，不是平台 secret 或一般檔案暫存語言。
+- 跨主域互動只經過 published language、API 邊界或事件。
+
+## Dependency Direction
+
+- notion 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
+- authoring、knowledge、database、publishing 對外部能力的依賴只能透過 ports 進入核心。
+- infrastructure 只負責儲存、傳輸、ACL 轉譯，不定義 KnowledgeArtifact 的正典語義。
+
+## Hard Prohibitions
+
+- 不得讓 notebooklm 的 Conversation、Synthesis 直接滲入 notion 作為正典內容模型。
+- 不得讓 domain 或 application 直接依賴 UI、HTTP、資料庫 SDK 或框架語言。
+- 不得讓 notion 直接接管 iam 的 actor、tenant、access 或 billing 的 entitlement 治理責任。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 notion 作為正典內容主域，不讓治理或推理語言滲入核心。
+- 內容輔助若只是支援 knowledge / authoring / publishing use case，先消費 ai context，而不是在 notion 內重建 generic `ai` 子域。
+- 奧卡姆剃刀：若一個既有內容子域與一條清楚 use case 就能承接需求，不要再新增額外 service、mapper 或子域。
+- 只有在外部依賴或跨主域語義污染出現時，才建立 port、ACL 或 local DTO。
+- 對 notebooklm 或 workspace 的互動一律先經 published language / API boundary，再進入 notion 語言。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
+	A --> D["Notion Domain / Invariants"]
+	P["Ports / Domain-fit Contracts"] -. used by .-> A
+	X["Infrastructure / Driven Adapters"] -. implements .-> P
+	X --> D
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform upstream"] -->|Published Language| Boundary["notion API boundary"]
+	Workspace["workspace upstream"] -->|Published Language| Boundary
+	Boundary --> Translation["Local DTO / ACL when needed"]
+	Translation --> App["Application orchestration"]
+	App --> Domain["Knowledge / Authoring / Relations / Publishing"]
+	Domain --> Output["KnowledgeArtifact / Publication / Reference"]
+	Output --> NotebookLM["notebooklm downstream"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+````
+
+## File: docs/contexts/notion/bounded-contexts.md
+````markdown
+# Notion
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Domain Role
+
+notion 是知識內容主域。依 bounded context 原則，它應封裝內容建立、編輯、結構化、分類、關聯、版本化與對外發布的高凝聚規則。
+
+## Baseline Bounded Contexts
+
+| Cluster | Subdomains |
+|---|---|
+| Content Core | knowledge, authoring, knowledge-database |
+| Collaboration and Change | collaboration, knowledge-versioning, templates |
+| Intelligence and Extension | knowledge-engagement, attachments, automation, external-knowledge-sync, notes |
+
+## Recommended Gap Bounded Contexts
+
+| Subdomain | Why It Should Exist | Gap If Missing |
+|---|---|---|
+| taxonomy | 承接標籤、分類、語義樹與主題治理 | authoring 與 knowledge-database 會混入分類責任 |
+| relations | 承接內容之間的引用、backlink 與語義關聯 | 內容關係只能隱藏在欄位或 UI 裡 |
+| publishing | 承接發布流程、受眾可見性與正式交付 | 編輯語意與交付語意無法分離 |
+
+## Domain Invariants
+
+- 知識內容的正典狀態屬於 notion。
+- taxonomy 應獨立於具體 UI 視圖存在。
+- relations 應描述內容對內容的語義關係，而不是臨時連結。
+- ai context 可被 notion use case 消費，但 AI provider / policy ownership 不屬於 notion。
+- publishing 只交付已被 notion 吸收的內容狀態。
+- 任何來自 notebooklm 的輸出，若要成為正典內容，必須先被 notion 吸收。
+
+## Dependency Direction
+
+- notion 子域在存在對應層時必須遵守 interfaces -> application -> domain <- infrastructure；不必為形式完整而預建所有層。
+- content lifecycle 由 knowledge、authoring、knowledge-database、publishing 等上下文在核心內協作，不由外層技術層直接驅動。
+- 外部內容輸入只能先經 API boundary 或 adapter 轉譯，再進入 notion 語言。
+
+## Anti-Patterns
+
+- 把 taxonomy 或 relations 當成純 UI 功能，而不是內容語義邊界。
+- 讓 publishing 直接等同 authoring，混淆編輯與交付責任。
+- 讓 notebooklm 或 platform 的語言直接取代 notion 的 KnowledgeArtifact 模型。
+- 把 ai context 的共享能力提升成 notion 自己的 generic `ai` 子域所有權。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先決定需求屬於 content core、collaboration、還是 extension，再安排具體型別與流程。
+- 奧卡姆剃刀：不要為了看起來完整而新增抽象層；只在現有內容邊界真的失效時才拆更多上下文。
+- 外部能力若不影響正典內容語言，就不要把它抬升成新的內容核心抽象。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Notion bounded contexts"]
+	X["Infrastructure"] --> D
+	X -. adapter / provider .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Input["Governance / scope / author input"] --> Boundary["Notion boundary"]
+	Boundary --> App["Use case orchestration"]
+	App --> Knowledge["Knowledge / Authoring / Database"]
+	Knowledge --> Taxonomy["Taxonomy / Relations"]
+	Taxonomy --> Publishing["Publishing / Knowledge Versioning"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
+````
+
+## File: docs/contexts/notion/README.md
+````markdown
+# Notion Context
+
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+
+## Purpose
+
+notion 是知識內容生命週期主域。它的責任是提供 knowledge artifact、authoring、database、taxonomy、relations、templates、publishing、knowledge-versioning 與 collaboration 等內容語言，承接正式知識內容的正典狀態。
+
+## Why This Context Exists
+
+- 把知識內容正典與平台治理、工作區範疇、對話推理分離。
+- 讓內容建立、分類、關聯、交付與版本規則維持在同一個主域。
+- 提供 notebooklm 可引用、但不可直接改寫的知識來源。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 正典知識內容生命週期 |
+| Upstream Dependency | iam 治理、billing entitlement、ai capability、workspace scope |
+| Downstream Consumer | notebooklm |
+| Core Principle | notion 擁有正式內容，不擁有治理、商業或推理過程 |
+
+## Baseline Subdomains
+
+- knowledge
+- authoring
+- collaboration
+- database
+- knowledge-engagement
+- attachments
+- automation
+- external-knowledge-sync
+- notes
+- templates
+- knowledge-versioning
+
+## Recommended Gap Subdomains
+
+- taxonomy
+- relations
+- publishing
+
+## Key Relationships
+
+- 與 iam：notion 消費 actor、tenant 與 access decision。
+- 與 billing：notion 消費 entitlement 與 subscription capability signal。
+- 與 ai：notion 消費 ai capability、model policy 與 safety result。
+- 與 workspace：notion 消費 workspaceId、membership scope、share scope。
+- 與 notebooklm：notion 向 notebooklm 提供 knowledge artifact reference 與 attachment reference。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENT.md](./AGENT.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- notion 對外只暴露 published language、API boundary、events，不暴露內部內容模型。
+
+## Anti-Pattern Rules
+
+- 不把 notebooklm 的衍生輸出直接當成 notion 正典內容。
+- 不把 taxonomy、relations、publishing 壓回單一 knowledge 編輯流程。
+- 不把 platform 的治理語言混成內容生命週期本身。
+- 不把 ai context 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 notion 的正典內容定位，再安排 authoring、knowledge、taxonomy、publishing 的交互。
+- 內容輔助、摘要與生成若只是內容 use case 的支援能力，優先由 knowledge / authoring use case 消費 ai context，而不是在 notion 再建一個 generic `ai` 子域。
+- 奧卡姆剃刀：不要預先新增第二套內容流程，只在既有內容邊界真的不夠時才補新抽象。
+- 優先讓同一條 input -> translation -> application -> domain -> publication 流程保持單純可追溯。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Boundary["notion boundary"]
+	Workspace["workspace"] --> Boundary
+	Boundary --> Translation["DTO / ACL"]
+	Translation --> App["Application use case"]
+	App --> Domain["Notion domain"]
+	Domain --> Output["KnowledgeArtifact / Publication"]
+	Output --> NotebookLM["notebooklm consumer"]
+```
+
+## Document Network
+
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../README.md](../../README.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
+````
+
+## File: docs/contexts/notion/subdomains.md
+````markdown
+# Notion
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| knowledge | 頁面建立、組織、版本化與交付 |
+| authoring | 知識庫文章建立、驗證與分類 |
+| collaboration | 協作留言、細粒度權限與版本快照 |
+| knowledge-database | 結構化資料多視圖管理 |
+| knowledge-engagement | 知識使用行為量測 |
+| attachments | 附件與媒體關聯儲存 |
+| automation | 知識事件觸發自動化動作 |
+| external-knowledge-sync | 知識與外部系統雙向整合 |
+| notes | 個人輕量筆記與正式知識協作 |
+| templates | 頁面範本管理與套用 |
+| knowledge-versioning | 全域版本快照策略管理 |
+
+## Recommended Gap Subdomains
+
+| Subdomain | Why Needed |
+|---|---|
+| taxonomy | 建立分類法與語義組織的正典邊界 |
+| relations | 建立內容之間關聯與 backlink 的正典邊界 |
+| publishing | 建立正式發布與對外交付的正典邊界 |
+
+## Recommended Order
+
+1. taxonomy
+2. relations
+3. publishing
+
+## Anti-Patterns
+
+- 不把 taxonomy 混成 authoring 裡的附屬設定。
+- 不把 relations 混成單純 hyperlink 功能，失去語義關係邊界。
+- 不把 publishing 混成 UI 上的一個按鈕事件，而忽略正式交付語言。
+- 不把 ai context 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先判斷需求屬於 knowledge、authoring、relations、publishing、knowledge-engagement、external-knowledge-sync、knowledge-versioning 哪一個內容責任。
+- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新建第二個概念接近的子域。
+- 子域命名要反映內容語義，不要退化成頁面或元件名稱。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case"]
+	UseCase --> Subdomain["Owning subdomain domain"]
+	Infra["Infra adapter"] --> Subdomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Authoring["Authoring"] --> Knowledge["Knowledge"]
+	Knowledge --> Taxonomy["Taxonomy"]
+	Knowledge --> Relations["Relations"]
+	Taxonomy --> Publishing["Publishing"]
+	Relations --> Publishing
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
+````
+
+## File: docs/decisions/0006-domain-event-discriminant-format.md
+````markdown
+# 0006 Domain Event Discriminant Format
+
+- Status: Accepted
+- Date: 2026-04-13
+
+## Context
+
+架構指引要求 domain event discriminant 遵守格式 `<module-name>.<subdomain>.<action>`，其中 action 部分必須使用 **kebab-case**（例如 `platform.identity.signed-in`）。但掃描後發現三類格式偏差，影響全庫共 112 處 domain event 類型宣告：
+
+### 偏差一：action 部分使用 snake_case（83 處）
+
+`snake_case` 出現在以下 24 個事件文件中，覆蓋所有四個主域：
+
+| 主域 | 受影響文件 |
+|------|-----------|
+| platform | `access-control/domain/events/AccessPolicyDomainEvent.ts` |
+| platform | `account/domain/events/AccountDomainEvent.ts` |
+| platform | `background-job/domain/events/BackgroundJobDomainEvent.ts` |
+| platform | `identity/domain/events/IdentityDomainEvent.ts` |
+| platform | `notification/domain/events/NotificationDomainEvent.ts` |
+| platform | `organization/domain/events/OrganizationDomainEvent.ts` |
+| platform | `subscription/domain/events/SubscriptionDomainEvent.ts` |
+| workspace | `audit/domain/events/AuditDomainEvent.ts` |
+| workspace | `workspace-workflow/domain/events/InvoiceEvent.ts` |
+| workspace | `workspace-workflow/domain/events/IssueEvent.ts` |
+| workspace | `workspace-workflow/domain/events/TaskEvent.ts` |
+| notion | `authoring/domain/events/AuthoringEvents.ts` |
+| notion | `collaboration/domain/events/CollaborationEvents.ts` |
+| notion | `database/domain/events/DatabaseEvents.ts` |
+| notion | `knowledge/domain/events/KnowledgeBlockEvents.ts` |
+| notion | `knowledge/domain/events/KnowledgeCollectionEvents.ts` |
+| notion | `knowledge/domain/events/KnowledgePageEvents.ts` |
+| notion | `relations/domain/events/RelationEvents.ts` |
+| notion | `taxonomy/domain/events/TaxonomyEvents.ts` |
+| notebooklm | `conversation/domain/events/ConversationEvents.ts` |
+| notebooklm | `notebook/domain/events/NotebookEvents.ts` |
+| notebooklm | `source/domain/events/SourceEvents.ts` |
+| notebooklm | `synthesis/domain/events/EvaluationEvents.ts` |
+| notebooklm | `synthesis/domain/events/SynthesisPipelineDomainEvent.ts` |
+
+範例（snake_case 違規 → 應改為 kebab-case）：
+
+```
+"platform.identity.signed_in"         → "platform.identity.signed-in"
+"platform.account.profile_updated"    → "platform.account.profile-updated"
+"platform.access_policy.created"      → "platform.access-control.created"
+"notion.knowledge.page_created"       → "notion.knowledge.page-created"
+"notebooklm.synthesis.query_submitted" → "notebooklm.synthesis.query-submitted"
+"workspace.audit.entry_recorded"      → "workspace.audit.entry-recorded"
+```
+
+### 偏差二：team 子域事件缺少主域前綴（4 處）
+
+`modules/platform/subdomains/team/domain/events/OrganizationTeamDomainEvent.ts` 中四個事件使用 `team.*` 而非 `platform.team.*`：
+
+```
+"team.created"        → "platform.team.created"
+"team.deleted"        → "platform.team.deleted"
+"team.member-added"   → "platform.team.member-added"
+"team.member-removed" → "platform.team.member-removed"
+```
+
+### 偏差三：workspace-workflow 事件使用 workspace-flow 縮寫前綴（25 處）
+
+`modules/workspace/subdomains/workspace-workflow/domain/events/` 中所有事件使用 `workspace-flow.*` 前綴，與主域路徑 `workspace.workspace-workflow.*` 不一致：
+
+```
+"workspace-flow.task.created"     → "workspace.workspace-workflow.task-created"
+"workspace-flow.invoice.approved" → "workspace.workspace-workflow.invoice-approved"
+"workspace-flow.issue.opened"     → "workspace.workspace-workflow.issue-opened"
+```
+
+## Decision
+
+確立以下全庫 domain event discriminant 格式規則，作為後續修復的唯一基準：
+
+```
+<main-domain>.<subdomain>.<action>
+```
+
+格式約束：
+
+1. **主域前綴**：必須是四個主域之一（`platform`、`workspace`、`notion`、`notebooklm`）。
+2. **子域段**：與 `modules/<main-domain>/subdomains/<subdomain>/` 路徑一致，使用 **kebab-case**。
+3. **action 段**：使用 **kebab-case**，不允許 `snake_case` 或 `PascalCase`。
+4. **三段結構**：格式固定為三段，不允許省略主域前綴或子域段。
+
+正確範例：
+
+```
+platform.identity.signed-in
+platform.team.member-added
+platform.access-control.policy-created
+workspace.workspace-workflow.task-created
+workspace.audit.entry-recorded
+notion.knowledge.page-created
+notebooklm.synthesis.query-submitted
+```
+
+## Consequences
+
+正面影響：
+
+- 所有 domain event 可以透過主域前綴在 event bus 做一致的路由與訂閱過濾。
+- 不再需要用不同命名規則判斷事件來源。
+- 工具自動化（訂閱規則、QStash routing）可以依賴一致格式。
+
+代價與限制：
+
+- 需要同步修改 112 個 discriminant 值，並更新所有消費方的 switch/case 與型別衛語句。
+- `workspace-flow.*` 的修改會觸及 listeners、facades 與測試合約，需要版本協議窗口。
+- 建議以 subdomain 為單位分批遷移，每批修改後執行 `npm run build && npm run lint` 驗證。
+
+## Conflict Resolution
+
+- 若現有消費方（py_fn 訂閱器、QStash 路由）使用 `snake_case` 鍵，遷移期間需同時保留舊值為 alias，在新版確認無消費後才移除。
+- `workspace-flow` 縮寫前綴遷移至 `workspace.workspace-workflow` 為破壞性變更，需事先對齊 py_fn 與任何外部訂閱合約。
+````
+
+## File: docs/decisions/0009-anemic-aggregates.md
+````markdown
+# 0009 Anemic Aggregates
+
+- Status: Accepted
+- Date: 2026-04-13
+
+## Context
+
+架構規範要求 `domain/aggregates/` 目錄只放**聚合根（Aggregate Root）類別**：必須封裝狀態與行為、保護不變數（invariants）、透過工廠方法建立，並在狀態變更時記錄領域事件。
+
+掃描後發現 `domain/aggregates/` 目錄下共有 **11 個文件**只包含 `interface`、`type`、`export type` 宣告，完全沒有 `class` 定義——即典型的**貧血領域模型（Anemic Domain Model）**。這些文件名稱暗示是聚合根，但實際上是純資料結構：
+
+### 違規文件清單
+
+| 文件 | 包含內容 | 應有形態 |
+|------|---------|---------|
+| `modules/platform/domain/aggregates/PlatformContext.ts` | `interface PlatformContextSnapshot`，`type PlatformContextId` | 聚合根 class 封裝平台配置不變數 |
+| `modules/platform/domain/aggregates/SubscriptionAgreement.ts` | `interface SubscriptionAgreementSnapshot` | 聚合根 class 管理訂閱合約生命週期 |
+| `modules/platform/domain/aggregates/IntegrationContract.ts` | `interface IntegrationContractSnapshot` | 聚合根 class 管理整合合約 |
+| `modules/platform/domain/aggregates/PolicyCatalog.ts` | `interface PolicyCatalogSnapshot` | 聚合根 class 管理政策目錄 |
+| `modules/notion/subdomains/knowledge-database/domain/aggregates/Database.ts` | `interface DatabaseSnapshot`, `interface Field`, `type FieldType` | 聚合根 class 封裝資料庫欄位不變數 |
+| `modules/notion/subdomains/knowledge-database/domain/aggregates/DatabaseRecord.ts` | `interface DatabaseRecordSnapshot` | 聚合根 class 管理記錄欄位值型別驗證 |
+| `modules/notion/subdomains/knowledge-database/domain/aggregates/View.ts` | `interface ViewSnapshot`, `interface FilterRule`, `interface SortRule` | 聚合根 class 管理過濾排序規則不變數 |
+| `modules/notion/subdomains/knowledge-database/domain/aggregates/DatabaseAutomation.ts` | `interface DatabaseAutomationSnapshot`, `type AutomationTrigger` | 聚合根 class 管理自動化規則不變數 |
+| `modules/notion/subdomains/collaboration/domain/aggregates/Version.ts` | `interface VersionSnapshot` | 聚合根 class 管理版本生命週期 |
+| `modules/notion/subdomains/collaboration/domain/aggregates/Permission.ts` | `interface PermissionSnapshot`, `type PermissionLevel` | 聚合根 class 管理權限授予不變數 |
+| `modules/notion/subdomains/collaboration/domain/aggregates/Comment.ts` | `interface CommentSnapshot`, `interface SelectionRange` | 聚合根 class 管理留言生命週期 |
+
+### 危害
+
+- Use-case 直接操作裸資料結構，業務邏輯外洩至 application 層。
+- 「新增欄位需有最大欄位數」等不變數無法在 aggregate 內保護，只能在 use-case 重複實作。
+- 缺乏 `pullDomainEvents` → 無法觸發 domain event → 下游訂閱者收不到變更信號。
+- `*Snapshot` interface 與 `*class` 邊界混淆，讀者無法分辨哪個是真正的聚合根。
+
+### 與現有正確實作的對比
+
+正確的聚合根（如 `KnowledgePage`、`OrganizationTeam`、`Subscription`）使用：
+
+```typescript
+export class KnowledgePage {
+  private _domainEvents: DomainEvent[] = [];
+  private constructor(readonly id: string, private _state: KnowledgePageState) {}
+  static create(...): KnowledgePage { ... }
+  static reconstitute(snapshot: KnowledgePageSnapshot): KnowledgePage { ... }
+  rename(title: string): void { /* enforce invariant + emit event */ }
+  pullDomainEvents(): DomainEvent[] { ... }
+  getSnapshot(): Readonly<KnowledgePageState> { ... }
+}
+```
+
+## Decision
+
+確立以下規則：
+
+1. **`domain/aggregates/` 只放 class**：`*.ts` 文件必須 `export class`，不允許只放 `interface` / `type` / `export type`。
+2. **純資料快照（Snapshot）interface 位置**：應放在同一 class 文件中（作為 `export interface XxxSnapshot`），或移入 `domain/entities/` 目錄（若是子實體）。
+3. **class-less 資料結構的遷移路徑**：
+   - 若業務行為確實不存在（例如 `ViewSnapshot` 只是持久化格式）→ 移至 `domain/entities/` 並改名為 entity。
+   - 若業務行為存在但尚未實作 → 新建對應 class，`*Snapshot` interface 保留在同一文件。
+4. **判斷條件**：業務行為包括但不限於：
+   - 狀態轉移（生命週期）
+   - 不變數保護（欄位驗證、數量上限、狀態前置條件）
+   - 事件記錄（`_domainEvents`）
+
+## Consequences
+
+正面影響：
+
+- domain/aggregates/ 目錄的意圖明確：進入此目錄的開發者知道裡面只有含業務行為的聚合根。
+- 不變數集中在 aggregate class，use-case 職責縮減為純 orchestration。
+
+代價與限制：
+
+- 11 個文件需重構，需判斷哪些應成為真正的 aggregate class，哪些應降格為 entity。
+- notion/knowledge-database 的 4 個聚合根（Database、Record、View、Automation）都有對應的 `DatabaseEvents.ts` → 遷移時需同步確認事件觸發路徑。
+- `PermissionLevel`、`ContentType` 等型別目前放在 collaboration/aggregates，遷移後應移入 `domain/value-objects/`。
+
+## Conflict Resolution
+
+- 若現有 infrastructure repository（如 `FirebaseDatabaseRepository`）使用 `*Snapshot` interface 作為 Firestore 序列化格式，snapshot interface 可以保留在 class 文件中作為 `export interface`，但不得取代 class 本身。
+- 遷移期間 use-case 可先繼續使用 snapshot interface 建立實例，逐步改為呼叫 class factory，不需要一次全部替換。
+````
+
+## File: docs/decisions/0011-use-case-bundling.md
+````markdown
+# 0011 Use Case Bundling and Query-Command Mixing
+
+- Status: Accepted
+- Date: 2026-04-13
+
+## Context
+
+架構規範要求 use-case 文件遵守以下兩個原則：
+
+1. **一個文件一個 use-case**：文件名為 `verb-noun.use-case.ts`，只包含一個 `export class`。
+2. **命令與查詢分離（CQS）**：命令 use-case 文件（`VerbNounUseCase`）不包含查詢類別；查詢類別放在 `application/queries/` 目錄。
+
+掃描後發現兩類違規：
+
+### 違規一：多類別 use-case 捆綁（Multi-Class Bundle）— 30 個文件
+
+單一 `.use-cases.ts` 文件包含 3–6 個 use-case class，實際上是「分組容器」而非獨立 use-case：
+
+**platform 域（13 個文件）**
+
+| 文件 | Class 數 |
+|------|---------|
+| `platform/subdomains/account/application/use-cases/account.use-cases.ts` | 6 |
+| `platform/subdomains/identity/application/use-cases/identity.use-cases.ts` | 5 |
+| `platform/subdomains/entitlement/application/use-cases/entitlement.use-cases.ts` | 5 |
+| `platform/subdomains/subscription/application/use-cases/subscription.use-cases.ts` | 5 |
+| `platform/subdomains/organization/application/use-cases/organization-member.use-cases.ts` | 4 |
+| `platform/subdomains/organization/application/use-cases/organization-lifecycle.use-cases.ts` | 4 |
+| `platform/subdomains/access-control/application/use-cases/access-control.use-cases.ts` | 4 |
+| `platform/subdomains/background-job/application/use-cases/background-job.use-cases.ts` | 3 |
+| `platform/subdomains/team/application/use-cases/team.use-cases.ts` | 3 |
+| `platform/subdomains/account/application/use-cases/account-policy.use-cases.ts` | 3 |
+| `platform/subdomains/notification/application/use-cases/notification.use-cases.ts` | 3 |
+| `platform/subdomains/organization/application/use-cases/organization-policy.use-cases.ts` | 3 |
+| `platform/subdomains/organization/application/use-cases/organization-team.use-cases.ts` | 3 |
+
+**notion 域（11 個文件）**
+
+| 文件 | Class 數 |
+|------|---------|
+| `notion/subdomains/knowledge/application/use-cases/manage-knowledge-collection.use-cases.ts` | 6 |
+| `notion/subdomains/collaboration/application/use-cases/manage-comment.use-cases.ts` | 5 |
+| `notion/subdomains/knowledge/application/use-cases/manage-knowledge-page.use-cases.ts` | 5 |
+| `notion/subdomains/authoring/application/use-cases/manage-article-lifecycle.use-cases.ts` | 4 |
+| `notion/subdomains/authoring/application/use-cases/manage-category.use-cases.ts` | 4 |
+| `notion/subdomains/knowledge-database/application/use-cases/manage-database.use-cases.ts` | 4 |
+| `notion/subdomains/knowledge-database/application/use-cases/manage-record.use-cases.ts` | 3 |
+| `notion/subdomains/knowledge-database/application/use-cases/manage-automation.use-cases.ts` | 3 |
+| `notion/subdomains/taxonomy/application/use-cases/manage-taxonomy.use-cases.ts` | 4 |
+| `notion/subdomains/relations/application/use-cases/manage-relation.use-cases.ts` | 4 |
+| `notion/subdomains/knowledge-database/application/use-cases/manage-view.use-cases.ts` | 3 |
+
+**workspace 域（4 個文件）**
+
+| 文件 | Class 數 |
+|------|---------|
+| `workspace/subdomains/feed/application/use-cases/workspace-feed-interaction.use-cases.ts` | 4 |
+| `workspace/subdomains/scheduling/application/work-demand.use-cases.ts` | 4 |
+| `workspace/subdomains/knowledge/application/use-cases/review-knowledge-page.use-cases.ts` | 4 |
+| `workspace/subdomains/feed/application/use-cases/workspace-feed-post.use-cases.ts` | 3 |
+
+**notebooklm 域（2 個文件）**
+
+| 文件 | Class 數 |
+|------|---------|
+| `notebooklm/subdomains/source/application/use-cases/source-pipeline.use-cases.ts` | 2 |
+
+---
+
+### 違規二：命令 use-case 文件 re-export 查詢類別（8 處）
+
+下列 `manage-*.use-cases.ts` 或 `*.use-cases.ts` 文件使用 `export {...} from "../queries/..."` 將查詢類別重新暴露，混淆了命令與查詢責任界線：
+
+| 文件 | Re-export 查詢 |
+|------|--------------|
+| `notion/knowledge/use-cases/manage-knowledge-page.use-cases.ts` | `GetKnowledgePageUseCase`, `ListKnowledgePagesUseCase`, `GetKnowledgePageTreeUseCase` 等 5 個 |
+| `notion/knowledge-database/use-cases/manage-database.use-cases.ts` | `GetDatabaseUseCase`, `ListDatabasesUseCase` |
+| `notion/knowledge-database/use-cases/manage-view.use-cases.ts` | `ListViewsUseCase` |
+| `notion/knowledge-database/use-cases/manage-record.use-cases.ts` | `ListRecordsUseCase` |
+| `notion/knowledge-database/use-cases/manage-automation.use-cases.ts` | `ListAutomationsUseCase` |
+| `platform/notification/use-cases/notification.use-cases.ts` | `GetNotificationsForRecipientUseCase`, `GetUnreadCountUseCase` |
+| `platform/subscription/use-cases/subscription.use-cases.ts` | `GetActiveSubscriptionUseCase`（混在命令類別中） |
+| `platform/background-job/use-cases/background-job.use-cases.ts` | `ListWorkspaceJobsUseCase`（混在命令類別中） |
+
+---
+
+### 危害分析
+
+- **可測試性下降**：6 個 class 共用一個 Jest 文件，測試文件也被迫捆綁，coverage 難以追蹤。
+- **單一職責違反**：`manage-comment.use-cases.ts` 同時負責 Create/Update/Resolve/Delete + List，任何需求變更都打開同一文件。
+- **查詢 use-case 暴露路徑不一致**：部分查詢從 `api/` re-export，部分藏在命令文件的 re-export 中，消費方無法依賴一致的 import 路徑。
+- **命名格式違反**：`manage-*.use-cases.ts` 不符合 `verb-noun.use-case.ts` 格式規範（archive、manage 屬於非具體動詞）。
+
+## Decision
+
+確立以下規則：
+
+1. **每個 use-case 文件只含一個 class**，命名格式 `verb-noun.use-case.ts`（例如 `create-workspace.use-case.ts`）。
+2. **命令 use-case 文件禁止 re-export 查詢類別**。查詢類別只從 `application/queries/` 目錄發布，並由 `api/index.ts` 選擇性 re-export。
+3. **查詢類別命名**：`GetXxxUseCase` / `ListXxxUseCase` 若只做純讀取（無業務邏輯），應改為 QueryHandler 並放入 `application/queries/`，命名為 `get-xxx.queries.ts` / `list-xxx.queries.ts`。
+4. **過渡期容忍**：既有 `*.use-cases.ts` 多類別文件允許在當前版本中保留，但新增 use-case 必須遵守一文件一類別規則。
+
+### 分批拆分路徑
+
+| 優先 | 域 | 行動 |
+|------|----|------|
+| 高 | notion/knowledge `manage-knowledge-page.use-cases.ts` (5 classes) | 拆成 5 個獨立文件，queries re-export 移除 |
+| 高 | platform/account `account.use-cases.ts` (6 classes) | 拆成 6 個獨立文件 |
+| 中 | platform/subscription `subscription.use-cases.ts` — `GetActiveSubscriptionUseCase` | 移至 `queries/get-active-subscription.queries.ts` |
+| 中 | platform/background-job `background-job.use-cases.ts` — `ListWorkspaceJobsUseCase` | 移至 `queries/list-workspace-jobs.queries.ts` |
+| 低 | 其餘 manage-*.use-cases.ts | 按功能逐步拆分 |
+
+## Consequences
+
+正面影響：
+
+- 每個文件責任邊界清晰，Git blame / code review 更準確。
+- 命令與查詢可獨立測試、獨立擴展。
+- api/index.ts 可精確控制對外暴露的 use-case 表面積。
+
+代價與限制：
+
+- 拆分 30 個 multi-class 文件需同步更新所有 `import` 路徑（包括 api/index.ts barrel、composition root）。
+- `manage-*.use-cases.ts` 的 backward-compat re-export 路徑需要版本窗口確保消費方無感遷移。
+
+## Conflict Resolution
+
+- 拆分時若舊 `manage-*.use-cases.ts` 已在多個 composition root import，可先保留舊文件作為 re-export barrel（只做 `export {...} from "./split-file"`），待消費方全部切換後再移除。
+- 查詢類別從命令文件移除後，api/index.ts 需直接從 `application/queries/` import，確保對外合約不中斷。
+````
+
+## File: docs/decisions/1101-layer-violation-crypto-in-domain.md
+````markdown
+# 1101 Layer Violation — `crypto.randomUUID()` in Domain Layer
+
+- Status: Resolved
+- Date: 2026-04-13
+- Resolved: 2026-04-13
+- Category: Architectural Smells > Layer Violation
+
+## Context
+
+`domain/` 層必須做到「技術無關（runtime-agnostic）」，不能直接依賴 Node.js 內建模組或任何執行環境 API。
+這是 Hexagonal Architecture 的核心要求：Domain 是最內層，所有技術依賴都必須由外層（infrastructure）注入。
+
+掃描後發現 **43 個 domain 聚合根** 與 **6 個 application use-case** 直接呼叫 `crypto.randomUUID()`
+或透過 `import { randomUUID } from "node:crypto"` 引入 Node.js 內建模組，
+而非使用已建立的 `@lib-uuid` 套件別名。
+
+> 對照：`modules/platform/subdomains/team/domain/aggregates/OrganizationTeam.ts:16`
+> 是唯一正確使用 `import { v4 as randomUUID } from "@lib-uuid"` 的聚合根。
+
+### 受影響的 domain 層（`crypto.randomUUID()` 直呼叫）
+
+```
+modules/workspace/domain/aggregates/Workspace.ts:182
+modules/workspace/subdomains/audit/domain/aggregates/AuditEntry.ts:68, 85
+modules/notion/subdomains/authoring/domain/aggregates/Article.ts:72, 102, 114
+modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts:68, 99, 117, 136, 159, 168, 169, 186, 202, 213, 228, 243
+modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts:62, 83, 109, 156
+modules/notion/subdomains/knowledge/domain/aggregates/ContentBlock.ts:52, 69, 84
+modules/platform/subdomains/access-control/domain/aggregates/AccessPolicy.ts:48, 77, 89
+modules/platform/subdomains/account-profile/domain/aggregates/AccountProfileAggregate.ts:67
+modules/platform/subdomains/account/domain/aggregates/Account.ts:50, 85, 106, 130, 220
+modules/platform/subdomains/entitlement/domain/aggregates/EntitlementGrant.ts:43, 68, 82, 93
+modules/platform/subdomains/identity/domain/aggregates/UserIdentity.ts:53, 76, 89, 107, 121, 135
+modules/platform/subdomains/notification/domain/aggregates/NotificationAggregate.ts:45, 66
+modules/platform/subdomains/organization/domain/aggregates/Organization.ts:80, 123, 153, 184, 210, 313, 322, 330
+modules/platform/subdomains/subscription/domain/aggregates/Subscription.ts:49, 79, 99, 117, 128
+```
+
+### 受影響的 application 層（`node:crypto` 直接 import）
+
+```
+modules/notebooklm/subdomains/source/application/use-cases/upload-init-source-file.use-case.ts:11
+  import { randomBytes, randomUUID } from "node:crypto";
+modules/notebooklm/subdomains/source/application/use-cases/upload-complete-source-file.use-case.ts:14
+  import { randomUUID } from "node:crypto";
+modules/notebooklm/subdomains/source/application/use-cases/register-rag-document.use-case.ts:10
+  import { randomUUID } from "node:crypto";
+modules/notebooklm/subdomains/synthesis/application/use-cases/answer-rag-query.use-case.ts:13
+  import { randomUUID } from "node:crypto";
+modules/platform/subdomains/background-job/application/use-cases/background-job.use-cases.ts:12
+  import { randomUUID } from "node:crypto";
+```
+
+### 問題說明
+
+1. **可攜性**：`crypto` global 在 Web Worker 環境與 Node.js 環境行為不同，domain 直呼叫使 domain 暗中依賴 Node.js 執行環境。
+2. **測試困難**：無法在 Jest/Vitest 的瀏覽器模擬模式下直接 mock `crypto.randomUUID`，需要全域 polyfill。
+3. **一致性**：`@lib-uuid` 已存在並正確用於 `OrganizationTeam`，其他 43 個 aggregates 卻繞過它，造成混亂。
+4. **ADR 規範破壞**：命名慣例記憶（citations: `modules/platform/subdomains/team/domain/aggregates/OrganizationTeam.ts:16`）明確要求使用 `@lib-uuid`，但 43 個地方違反了這條規範。
+
+## Decision
+
+1. **Domain 層禁止直接使用 `crypto` global 或 `node:crypto`**：所有聚合根中的 `crypto.randomUUID()` 必須替換為 `import { v4 as uuid } from "@lib-uuid"` 的 `uuid()`。
+2. **Application 層的 `node:crypto` import**：`randomUUID` 用途同樣替換為 `@lib-uuid`；`randomBytes` 若確實需要加密安全隨機，可保留 `node:crypto` 用於 infrastructure 層，但 application 層的 `randomBytes` 用途應透過 port 注入。
+3. **建議 lint rule**：在 `eslint.config.mjs` 中加入 `no-restricted-imports` 規則，禁止 `modules/*/domain/**` 和 `modules/*/application/**` 從 `node:crypto`、`crypto` 直接 import `randomUUID`。
+
+## Consequences
+
+正面：
+- Domain 層從 Node.js runtime 解耦，可在任意 JS 環境（瀏覽器、Edge、Deno）下執行。
+- UUID 生成策略（v4 → v7 等）只需修改 `@lib-uuid` 一個地方，43 個 aggregates 自動受益（見 ADR 4101）。
+- 測試不需要全域 crypto polyfill。
+
+代價：
+- 需在 14 個 domain 文件和 13 個 application 文件中進行 import 替換（機械性，無邏輯變更）。
+
+## Resolution
+
+**已解決（2026-04-13）**
+
+所有 domain 層和 application 層的 `crypto.randomUUID()` 已替換為 `import { v4 as uuid } from "@lib-uuid"`：
+
+- **14 個 domain aggregate 文件**：Account, UserIdentity, Organization, Subscription, EntitlementGrant, AccessPolicy, NotificationAggregate, AccountProfileAggregate, Workspace, AuditEntry, KnowledgePage, KnowledgeCollection, ContentBlock, Article
+- **13 個 application 文件**：use-case 和 service 文件中的 `crypto.randomUUID()` global 和 `import { randomUUID } from "node:crypto"` 均已替換
+- **7 個 infrastructure/interfaces/api 文件**：service-api, repositories, stores, actions 中的 `crypto.randomUUID()` 也已一併替換
+- **唯一保留**：`upload-init-source-file.use-case.ts` 中的 `import { randomBytes } from "node:crypto"` 保留，因為 `randomBytes` 用途為加密強度隨機（非 UUID），屬基礎設施關注點。
+
+### 原始證據修正
+
+原 ADR 記錄「43 個 domain aggregates」，實際掃描為 **14 個 domain aggregate 文件**。差異來自原始掃描包含了多行匹配（同一文件多次出現）被誤計為不同文件。
+
+## 關聯 ADR
+
+- **2101**：crypto 直接使用是緊耦合的另一表現（同步解決）
+- **4101**：UUID 策略分散導致 Change Amplification（解決後策略集中於 `@lib-uuid`）
+````
+
+## File: docs/bounded-contexts.md
+````markdown
+# Bounded Contexts
+
+本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 hexagonal architecture 原則重建，不主張反映現況實作。
+
+## Strategic Bounded Context Model
+
+系統目前以八個主域 / bounded context 構成。每個主域下可再分成 baseline subdomains 與 recommended gap subdomains。
+
+## Main Domain Map
+
+| Main Domain | Strategic Role | Baseline Focus | Recommended Gap Focus |
+|---|---|---|---|
+| iam | 身份與存取治理 | identity、access-control、tenant、security-policy | session、consent、secret-governance |
+| billing | 商業與權益治理 | billing、subscription、entitlement、referral | pricing、invoice、quota-policy |
+| ai | 共享 AI capability | content-generation、content-distillation、context-assembly、evaluation-policy、memory-context、model-observability、prompt-pipeline、safety-guardrail | provider-routing、model-policy |
+| analytics | 分析與 read model 下游 | reporting、metrics、dashboards、telemetry-projection | experimentation、decision-support |
+| platform | 平台營運支撐 | account、organization、notification、search、audit-log、observability | consent、secret-management、operational-catalog |
+| workspace | 協作容器與 scope | audit、feed、scheduling、workspace-workflow | lifecycle、membership、sharing、presence |
+| notion | 正典知識內容 | knowledge、authoring、collaboration、knowledge-database、templates、knowledge-versioning | taxonomy、relations、publishing |
+| notebooklm | 對話與推理 | conversation、note、notebook、source、synthesis、conversation-versioning | ingestion、retrieval、grounding、evaluation |
+
+## Subdomain Inventory By Main Domain
+
+### iam
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| identity | 已驗證主體與身份信號治理 |
+| access-control | 主體現在能做什麼的授權判定 |
+| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
+| security-policy | 安全規則定義、版本化與發佈 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| session | 將 session 與 token lifecycle 收斂為獨立能力 |
+| consent | 將同意與授權治理從泛用平台設定中切開 |
+| secret-governance | 將 secret access policy 收斂為明確治理邊界 |
+
+### billing
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| billing | 計費狀態、費率與財務證據 |
+| subscription | 方案、配額與續期治理 |
+| entitlement | 有效權益與功能可用性統一解算 |
+| referral | 推薦關係與獎勵追蹤 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| pricing | 價格模型與方案矩陣治理 |
+| invoice | 帳單、請款與對帳流程 |
+| quota-policy | 將可量化商業限制收斂成單一政策語言 |
+
+### ai
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| content-generation | AI 驅動的文本生成與回覆輸出 |
+| content-distillation | AI 驅動的摘要、提煉與結構化壓縮 |
+| context-assembly | 推理前的 context window 組裝與排序 |
+| evaluation-policy | 品質與回歸評估政策 |
+| memory-context | 跨對話記憶與可重用上下文整理 |
+| model-observability | 模型使用量、成本與效能監測 |
+| prompt-pipeline | prompt、template、flow 與 tool calling orchestration |
+| safety-guardrail | 安全護欄、內容保護與限制 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| provider-routing | 模型供應商選擇與路由治理 |
+| model-policy | 模型能力、版本與使用政策 |
+
+### analytics
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| reporting | 報表輸出與查詢整理 |
+| metrics | 指標定義與聚合 |
+| dashboards | 儀表板呈現語義 |
+| telemetry-projection | 事件投影與 read model 匯總 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| experimentation | 實驗分析與對照觀測 |
+| decision-support | 決策輔助與洞察輸出 |
+
+### workspace
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| audit | 工作區操作稽核與證據追蹤 |
+| feed | 工作區活動摘要與事件流呈現 |
+| scheduling | 工作區排程、時序與提醒協調 |
+| workspace-workflow | 工作區流程編排與執行治理 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| lifecycle | 將工作區容器生命週期獨立為正典邊界（建立、封存、復原） |
+| membership | 將工作區參與關係從平台身份治理切開（角色、加入、移除） |
+| sharing | 將共享範圍與可見性規則收斂到單一上下文（對內/對外分享） |
+| presence | 將即時協作存在感、共同編輯訊號收斂為本地語言 |
+
+### platform
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| account | 帳號聚合根與帳號生命週期 |
+| account-profile | 主體屬性、偏好與治理設定 |
+| organization | 組織、成員與角色邊界 |
+| team | Organization 內部成員分組治理 |
+| platform-config | 平台設定輪廓與配置管理 |
+| feature-flag | 功能開關策略與發佈節點 |
+| onboarding | 新主體初始設定與引導流程 |
+| compliance | 資料保留、稽核與法規執行 |
+| integration | 外部系統整合邊界與契約 |
+| workflow | 平台級流程編排與狀態驅動執行 |
+| notification | 通知路由、偏好與投遞 |
+| background-job | 背景任務提交、排程與監控 |
+| content | 平台級內容資產管理與發布 |
+| search | 跨域搜尋路由與查詢協調 |
+| audit-log | 永久稽核軌跡與不可否認證據 |
+| observability | 健康量測、追蹤與告警 |
+| support | 客服工單、支援知識與處理流程 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| consent | 將同意與資料使用授權從 compliance 中切開 |
+| secret-management | 將憑證、token、rotation 從 integration 中切開 |
+| operational-catalog | 將平台營運資產與配置字典收斂成單一邊界 |
+
+### notion
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| knowledge | 頁面建立、組織、版本化與交付 |
+| authoring | 知識庫文章建立、驗證與分類 |
+| collaboration | 協作留言、細粒度權限與版本快照 |
+| knowledge-database | 結構化資料多視圖管理 |
+| knowledge-engagement | 知識使用行為量測 |
+| attachments | 附件與媒體關聯儲存 |
+| automation | 知識事件觸發自動化動作 |
+| external-knowledge-sync | 知識與外部系統雙向整合 |
+| notes | 個人輕量筆記與正式知識協作 |
+| templates | 頁面範本管理與套用 |
+| knowledge-versioning | 全域版本快照策略管理 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| taxonomy | 建立分類法與語義組織的正典邊界 |
+| relations | 建立內容之間關聯與 backlink 的正典邊界 |
+| publishing | 建立正式發布與對外交付的正典邊界 |
+
+### notebooklm
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| conversation | 對話 Thread 與 Message 生命週期 |
+| note | 輕量筆記與知識連結 |
+| notebook | Notebook 組合與管理 |
+| source | 來源文件追蹤與引用 |
+| synthesis | RAG 合成、摘要與洞察生成 |
+| conversation-versioning | 對話版本與快照策略 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| ingestion | 建立來源匯入、正規化與前處理的正典邊界 |
+| retrieval | 建立查詢召回與排序策略的正典邊界 |
+| grounding | 建立引用對齊與可追溯證據的正典邊界 |
+| evaluation | 建立品質評估與回歸比較的正典邊界 |
+
+## Ownership Rules
+
+- iam 擁有身份、租戶與 access decision，不擁有商業、內容或推理正典。
+- billing 擁有 subscription 與 entitlement，不擁有身份治理或內容正典。
+- ai 擁有 shared AI capability，不擁有內容或 notebook 推理正典。
+- analytics 擁有下游報表與 projection，不擁有上游寫入模型。
+- platform 擁有 account、organization 與 operational service，不再作為所有治理能力的總擁有者。
+- workspace 擁有工作區範疇，不擁有平台治理或正典內容。
+- notion 擁有正典知識內容，不擁有治理或推理流程。
+- notebooklm 擁有推理流程與衍生輸出，不擁有正典知識內容。
+
+## Dependency Direction Guardrail
+
+- bounded context 所有權定義的是語言與規則邊界，不等於可直接穿透的實作邊界。
+- 每個主域內部仍必須遵守 interfaces -> application -> domain <- infrastructure。
+- 跨主域整合一律先經 API boundary、published language、events 或 local DTO。
+
+## Conflict Resolution
+
+- 若某子域同時被多個主域宣稱，依最能維持語言自洽與 context map 方向的主域保留所有權。
+- 若某能力定義 actor、identity、tenant 或 access decision，優先歸 iam。
+- 若某能力定義 subscription、entitlement、pricing 或 referral，優先歸 billing。
+- 若某能力定義 shared model capability、provider routing、safety 或 prompt orchestration，優先歸 ai。
+- 若某能力只消費事件並形成報表或 read model，優先歸 analytics。
+- 若某能力同時像內容又像推理輸出，先問它是否是正典內容狀態；若是，歸 notion，否則歸 notebooklm。
+- `workflow` 作為 generic 名稱只保留在 platform；workspace 使用 `workspace-workflow` 避免跨主域混名。
+
+## Forbidden Ownership Moves
+
+- 不得讓兩個主域同時宣稱同一正典模型所有權。
+- 不得用部署、資料表或 UI 分區來覆蓋 bounded context 所有權。
+- 不得把 gap subdomain 缺口視為可以任意分散到其他主域的理由。
+- 不得讓同一個 generic 子域名稱同時作為多個主域的 canonical ownership。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先決定 owning bounded context，再決定檔案位置、命名與 boundary。
+- 奧卡姆剃刀：若既有 bounded context 可吸收需求，就不要為了命名好看而新增新的上下文。
+- 所有權模糊時，先修正文檔邊界，再寫程式碼。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart TD
+	MainDomain["Main domain"] --> Subdomain["Subdomain"]
+	Subdomain --> Application["Application"]
+	Application --> Domain["Domain"]
+	Infrastructure["Infrastructure"] --> Domain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Requirement["Requirement"] --> Ownership["Choose bounded context"]
+	Ownership --> Boundary["Choose API boundary"]
+	Boundary --> Language["Align local language"]
+	Language --> Code["Generate code"]
+```
+
+## Document Network
+
+- [architecture-overview.md](./architecture-overview.md)
+- [subdomains.md](./subdomains.md)
+- [context-map.md](./context-map.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
+- [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
+````
+
+## File: docs/module-graph.system-wide.md
+````markdown
+# System-Wide Module Graph
+
+本圖反映 [0014-main-domain-resplit.md](./decisions/0014-main-domain-resplit.md) 確立的八主域重切 baseline。
+
+凡例：
+  subdomain          = Baseline subdomain（已基線化）
+  [subdomain]        = Recommended Gap subdomain（尚未基線化，待 ADR 確認）
+  T0 / T1 / … / SINK = Upstream→Downstream Tier（越小越上游）
+
+---
+
+## Upstream → Downstream Dependency Map
+
+  Upstream     │  Downstream
+  ─────────────┼───────────────────────────────────────────────────────────
+  iam          │  billing · platform · workspace · notion · notebooklm
+  billing      │  workspace · notion · notebooklm
+  ai           │  notion · notebooklm
+  platform     │  workspace
+  workspace    │  notion · notebooklm
+  notion       │  notebooklm
+  (all above)  │  analytics  ← 事件 / 投影 sink，不反向寫回任何上游
+
+---
+
+## Domain + Subdomain Inventory
+
+─────────────────────────────────────────────────────────────────────────────
+T0  IAM                     BILLING                 AI
+    身份與存取治理上游       商業與權益治理上游       共享 AI Capability 上游
+─────────────────────────────────────────────────────────────────────────────
+
+    identity                billing                 content-generation
+    access-control          subscription            content-distillation
+    tenant                  entitlement             context-assembly
+    security-policy         referral                evaluation-policy
+                                                     memory-context
+                                                     model-observability
+                                                     prompt-pipeline
+                                                     safety-guardrail
+
+    [session]               [pricing]               [provider-routing]
+    [consent]               [invoice]               [model-policy]
+    [secret-governance]     [quota-policy]
+
+─────────────────────────────────────────────────────────────────────────────
+T1  PLATFORM
+    平台營運支撐
+─────────────────────────────────────────────────────────────────────────────
+
+    account                 notification            audit-log
+    account-profile         background-job          observability
+    organization            content                 support
+    team                    search                  workflow
+    platform-config         compliance
+    feature-flag            integration
+    onboarding
+
+    [consent]               [secret-management]     [operational-catalog]
+
+─────────────────────────────────────────────────────────────────────────────
+T2  WORKSPACE
+    協作容器與工作區範疇
+─────────────────────────────────────────────────────────────────────────────
+
+    audit
+    feed
+    scheduling
+    workspace-workflow
+
+    [lifecycle]             [membership]
+    [sharing]               [presence]
+
+─────────────────────────────────────────────────────────────────────────────
+T3  NOTION
+    正典知識內容
+─────────────────────────────────────────────────────────────────────────────
+
+    knowledge               automation
+    authoring               external-knowledge-sync
+    collaboration           notes
+    knowledge-database      templates
+    knowledge-engagement     knowledge-versioning
+    attachments
+
+    [taxonomy]              [relations]             [publishing]
+
+─────────────────────────────────────────────────────────────────────────────
+T4  NOTEBOOKLM
+    對話與推理輸出
+─────────────────────────────────────────────────────────────────────────────
+
+    conversation            source
+    note                    synthesis
+    notebook                conversation-versioning
+
+    [ingestion]             [retrieval]
+    [grounding]             [evaluation]
+
+─────────────────────────────────────────────────────────────────────────────
+SINK  ANALYTICS
+      Read model / 事件 sink，下游 only，不反向擁有任何上游正典
+─────────────────────────────────────────────────────────────────────────────
+
+    reporting               telemetry-projection
+    metrics
+    dashboards
+
+    [experimentation]       [decision-support]
+
+---
+
+## Ownership Rules（速查）
+
+  iam         → 身份、tenant、access decision；不擁有商業、內容、推理正典
+  billing     → subscription、entitlement；不擁有身份治理或內容正典
+  ai          → shared AI capability；不擁有 notion 或 notebooklm 的語言
+  platform    → account、organization、operational services；不再是所有治理的總擁有者
+  workspace   → 工作區範疇與 membership；不擁有平台治理或正典內容
+  notion      → 正典知識內容；不擁有治理或推理流程
+  notebooklm  → 推理流程與衍生輸出；不擁有正典知識內容
+  analytics   → 下游 read model sink；不反向成為上游 canonical owner
+
+---
+
+## Document Network
+
+  architecture-overview.md  — 全域架構與主域關係
+  bounded-contexts.md        — 主域與子域所有權詳目
+  context-map.md             — Upstream/Downstream published language 對照
+  ubiquitous-language.md     — 戰略術語權威
+````
+
 ## File: docs/semantic-model.md
 ````markdown
 # Semantic Model — Domains & Subdomains
@@ -59682,10 +59627,10 @@ import { defineConfig } from "vitest/config";
 | `knowledge-database` | **Structured Knowledge Database** ✅ | 結構化知識資料庫 | ✅ | 結構化資料多視圖管理；已從 `database` 改名為 `knowledge-database`（移除技術術語） |
 | `taxonomy` | **Knowledge Taxonomy** | 知識分類法 | ✅ | 分類法與語義組織（已從 gap 升為 implemented） |
 | `relations` | **Knowledge Relations** | 知識關聯 | ✅ | 內容關聯與 backlink（已從 gap 升為 implemented） |
-| `knowledge-analytics` | **Knowledge Engagement Analytics** ⚠️ | 知識使用行為量測 | 📋 Baseline | 與 analytics domain 語意重疊；建議改名為 `knowledge-engagement` |
+| `knowledge-engagement` | **Knowledge Engagement Analytics** ✅ | 知識使用行為量測 | 📋 Baseline | ✅ 正典名稱已更新（2026-04-15）：`knowledge-analytics` → `knowledge-engagement`（避免與 analytics domain 語意重疊）；建立時必須使用 `knowledge-engagement` |
 | `attachments` | **Knowledge Attachments** | 知識附件 | 📋 Baseline | 附件與媒體關聯儲存 |
 | `automation` | **Knowledge Automation** | 知識自動化 | 📋 Baseline | 知識事件觸發自動化 |
-| `knowledge-integration` | **External Knowledge Sync** ⚠️ | 知識外部整合 | 📋 Baseline | 與 platform/integration 語意重疊；建議改名為 `external-knowledge-sync` |
+| `external-knowledge-sync` | **External Knowledge Sync** ✅ | 知識外部整合 | 📋 Baseline | ✅ 正典名稱已更新（2026-04-15）：`knowledge-integration` → `external-knowledge-sync`（避免與 platform/integration 語意重疊）；建立時必須使用 `external-knowledge-sync` |
 | `notes` | **Personal Notes** | 個人筆記 | 📋 Baseline | 個人輕量筆記 |
 | `templates` | **Knowledge Templates** | 知識範本 | 📋 Baseline | 頁面範本管理 |
 | `knowledge-versioning` | **Knowledge Version Snapshot** | 知識版本快照 | 📋 Baseline | 保留 domain prefix 以防與 notebooklm conversation-versioning 混名 |
@@ -59717,8 +59662,8 @@ import { defineConfig } from "vitest/config";
 | `notion/knowledge-database` ✅ | ~~技術術語遮蔽業務語意~~ | **Knowledge Database** | ✅ 已完成：`database` → `knowledge-database`（2026-04-15） |
 | `analytics/event-projection` ✅ | ~~技術動詞遮蔽 DDD projection 語意~~ | **Event Projection** | ✅ 已完成：`event-processing` → `event-projection`（2026-04-15） |
 | `platform/background-job` 資料夾 ✅ vs 原內部實體名稱 | ~~資料夾語意（通用）與實體語意（攝取特定）不一致~~ | **Background Job Management** (folder) | ✅ 已完成：實體已通用化 `IngestionJob` → `BackgroundJob`、`IngestionDocument` → `JobDocument`、`IngestionChunk` → `JobChunk`（2026-04-15） |
-| `notion/knowledge-analytics` | 與 `analytics` domain 語意重疊 | **Knowledge Engagement** | analytics domain 擁有指標、投影與報表；notion 此子域只量測知識頁面使用行為，建議改名為 `knowledge-engagement` |
-| `notion/knowledge-integration` | 與 `platform/integration` 語意重疊 | **External Knowledge Sync** | platform integration 擁有外部系統整合契約；notion 此子域只做知識雙向同步，建議改名為 `external-knowledge-sync` |
+| `notion/knowledge-engagement` ✅ (策略文件正典名稱已更新) | ~~與 `analytics` domain 語意重疊~~ | **Knowledge Engagement** | ✅ 已完成（2026-04-15）：所有策略文件中的 `knowledge-analytics` 已更新為 `knowledge-engagement`；建立時使用 `knowledge-engagement` |
+| `notion/external-knowledge-sync` ✅ (策略文件正典名稱已更新) | ~~與 `platform/integration` 語意重疊~~ | **External Knowledge Sync** | ✅ 已完成（2026-04-15）：所有策略文件中的 `knowledge-integration` 已更新為 `external-knowledge-sync`；建立時使用 `external-knowledge-sync` |
 | `platform/workflow` | 與 `workspace/workspace-workflow` 語意重疊 | **Platform Workflow** | platform 只擁有平台級狀態驅動執行；workspace 使用 `workspace-workflow` 作為正典名稱，兩者不得互換；建立時應以 `platform-workflow` 命名 |
 | `notion/knowledge-versioning` vs `notebooklm/conversation-versioning` | 同語意前綴、不同主域 | 各自保留完整名稱 | 兩者都應保留 domain prefix（`knowledge-` / `conversation-`）以防跨域混名 |
 | `ai/content-distillation` vs `notebooklm/synthesis` | 跨主域語意可能重疊 | **Content Distillation** (ai) / **RAG Synthesis** (notebooklm) | `content-distillation` 屬 ai domain（共享 AI 能力）；`synthesis` 屬 notebooklm（消費者，RAG 推理輸出），層級不同 |
@@ -59855,13 +59800,23 @@ import { defineConfig } from "vitest/config";
 
 ### 7.3 計劃中子域 — 建立時使用正典名稱（Create With Canonical Name）
 
-下列子域尚未實作，建立時必須使用此表所列的正典名稱，不得使用現有策略文件中的舊名稱。
+下列子域尚未實作，建立時必須使用此表所列的正典名稱，不得使用舊名稱。
 
-| 舊/策略文件名稱 | 正典建立名稱 | 理由 |
+| 舊/策略文件名稱 | 正典建立名稱 | 理由 | 文件狀態 |
+|---|---|---|---|
+| ~~`notion/knowledge-analytics`~~ | **`knowledge-engagement`** | 與 analytics domain 的 metrics/projection 語意重疊；notion 此子域只量測知識頁面使用行為，`knowledge-engagement` 準確描述業務能力 | ✅ 所有策略文件已更新為 `knowledge-engagement`（2026-04-15） |
+| ~~`notion/knowledge-integration`~~ | **`external-knowledge-sync`** | 與 platform/integration 語意重疊；notion 此子域只做知識雙向同步，`external-knowledge-sync` 準確描述業務能力 | ✅ 所有策略文件已更新為 `external-knowledge-sync`（2026-04-15） |
+| `platform/workflow` | **`platform-workflow`** | 與 workspace/workspace-workflow 語意重疊；加 domain prefix 明確區分平台級流程編排（platform）與工作區流程執行（workspace） | 📋 待實作時使用正典名稱 |
+
+### 7.5 ADR 歷史文件語意同步 ✅
+
+下列 ADR 中的舊路徑與類別名稱已同步更新（2026-04-15）：
+
+| ADR | 舊參考 | 新參考 |
 |---|---|---|
-| `notion/knowledge-analytics` | **`knowledge-engagement`** | 與 analytics domain 的 metrics/projection 語意重疊；notion 此子域只量測知識頁面使用行為，`knowledge-engagement` 準確描述業務能力 |
-| `notion/knowledge-integration` | **`external-knowledge-sync`** | 與 platform/integration 語意重疊；notion 此子域只做知識雙向同步，`external-knowledge-sync` 準確描述業務能力 |
-| `platform/workflow` | **`platform-workflow`** | 與 workspace/workspace-workflow 語意重疊；加 domain prefix 明確區分平台級流程編排（platform）與工作區流程執行（workspace） |
+| `docs/decisions/0006-domain-event-discriminant-format.md` | `background-job/domain/events/IngestionJobDomainEvent.ts` | `background-job/domain/events/BackgroundJobDomainEvent.ts` |
+| `docs/decisions/0009-anemic-aggregates.md` | `notion/database` 路徑 | `notion/knowledge-database` 路徑 |
+| `docs/decisions/0011-use-case-bundling.md` | `notion/database/` paths、`ingestion.use-cases.ts`、`ListWorkspaceIngestionJobsUseCase` | `notion/knowledge-database/` paths、`background-job.use-cases.ts`、`ListWorkspaceJobsUseCase` |
 
 ---
 
@@ -59876,393 +59831,448 @@ import { defineConfig } from "vitest/config";
 | `docs/context-map.md` | Published language token flow between contexts |
 | `docs/semantic-model.md` (this file) | Folder → semantic name mapping, status, drift analysis |
 
-> Last verified: 2026-04-15. Section 7.1 renames completed 2026-04-15. Section 7.2 entity rename completed 2026-04-15. Section 7.4 comment-level semantic cleanup completed 2026-04-15. All implemented subdomain folders and their internal code comments/namespace aliases now match the canonical semantic names in this document. Section 7.3 entries remain as governance rules for future subdomain creation. Section 7 added 2026-04-15 based on Context7 DDD Hexagon evidence (`/sairyss/domain-driven-hexagon`).
+> Last verified: 2026-04-15. Section 7.1 renames completed 2026-04-15. Section 7.2 entity rename completed 2026-04-15. Section 7.4 comment-level semantic cleanup completed 2026-04-15. Section 7.3 docs-level canonical name propagation completed 2026-04-15 (`knowledge-analytics`→`knowledge-engagement`, `knowledge-integration`→`external-knowledge-sync` applied to all 8 strategic docs + stale `database` → `knowledge-database` in notion context docs). Section 7.5 ADR historical doc sync completed 2026-04-15 (ADR 0006, 0009, 0011). All implemented subdomain folders, internal code, comments, namespace aliases, strategic docs, and ADR historical references now match canonical semantic names. Only `platform/workflow`→`platform-workflow` remains as a governance rule for a future unimplemented subdomain. Section 7 added 2026-04-15 based on Context7 DDD Hexagon evidence (`/sairyss/domain-driven-hexagon`).
 ````
 
-## File: modules/notion/application/dto/index.ts
-````typescript
-// relations and taxonomy currently expose no DTO barrel.
+## File: docs/subdomains.md
+````markdown
+# Subdomains
+
+本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 strategic design 原則重建，不主張反映現況實作。
+
+## Main Domain Inventory
+
+| Main Domain | Baseline Subdomains | Recommended Gap Subdomains |
+|---|---|---|
+| iam | identity, access-control, tenant, security-policy | session, consent, secret-governance |
+| billing | billing, subscription, entitlement, referral | pricing, invoice, quota-policy |
+| ai | content-generation, content-distillation, context-assembly, evaluation-policy, memory-context, model-observability, prompt-pipeline, safety-guardrail | provider-routing, model-policy |
+| analytics | reporting, metrics, dashboards, telemetry-projection | experimentation, decision-support |
+| platform | account, account-profile, organization, team, platform-config, feature-flag, onboarding, compliance, integration, workflow, notification, background-job, content, search, audit-log, observability, support | consent, secret-management |
+| workspace | audit, feed, scheduling, workspace-workflow | lifecycle, membership, sharing, presence |
+| notion | knowledge, authoring, collaboration, knowledge-database, knowledge-engagement, attachments, automation, external-knowledge-sync, notes, templates, knowledge-versioning | taxonomy, relations, publishing |
+| notebooklm | conversation, note, notebook, source, synthesis, conversation-versioning | ingestion, retrieval, grounding, evaluation |
+
+## Detailed Subdomain Catalog
+
+### iam
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| identity | 已驗證主體與身份信號治理 |
+| access-control | 主體現在能做什麼的授權判定 |
+| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
+| security-policy | 安全規則定義、版本化與發佈 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| session | session、token 與 identity lifecycle 收斂 |
+| consent | 同意與資料使用授權治理收斂 |
+| secret-governance | secret 與 credential access policy 收斂 |
+
+### billing
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| billing | 計費狀態、費率與財務證據 |
+| subscription | 方案、配額與續期治理 |
+| entitlement | 有效權益與功能可用性統一解算 |
+| referral | 推薦關係與獎勵追蹤 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| pricing | 價格模型與方案矩陣治理 |
+| invoice | 帳單、請款與對帳流程 |
+| quota-policy | 可量化配額與商業限制規則 |
+
+### ai
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| content-generation | AI 驅動的文本生成與回覆輸出 |
+| content-distillation | AI 驅動的摘要、提煉與結構化壓縮 |
+| context-assembly | 推理前的 context window 組裝與排序 |
+| evaluation-policy | AI 品質與回歸評估政策 |
+| memory-context | 跨對話記憶與可重用上下文整理 |
+| model-observability | 模型使用量、成本與效能監測 |
+| prompt-pipeline | prompt、template、flow 與 tool calling orchestration |
+| safety-guardrail | 安全護欄、內容保護與限制 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| provider-routing | 模型供應商選擇與路由治理 |
+| model-policy | 模型能力、版本與使用政策 |
+
+### analytics
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| reporting | 報表輸出與查詢整理 |
+| metrics | 指標定義與聚合 |
+| dashboards | 儀表板呈現語義 |
+| telemetry-projection | 事件投影與 read model 匯總 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| experimentation | 實驗分析與對照觀測 |
+| decision-support | 決策輔助與洞察輸出 |
+
+### workspace
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| audit | 工作區操作稽核與證據追蹤 |
+| feed | 工作區活動摘要與事件流呈現 |
+| scheduling | 工作區排程、時序與提醒協調 |
+| workspace-workflow | 工作區流程編排與執行治理 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| lifecycle | 將工作區容器生命週期獨立為正典邊界（建立、封存、復原） |
+| membership | 將工作區參與關係從平台身份治理切開（角色、加入、移除） |
+| sharing | 將共享範圍與可見性規則收斂到單一上下文（對內/對外分享） |
+| presence | 將即時協作存在感、共同編輯訊號收斂為本地語言 |
+
+### platform
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| account | 帳號聚合根與帳號生命週期 |
+| account-profile | 主體屬性、偏好與治理設定 |
+| organization | 組織、成員與角色邊界 |
+| team | Organization 內部成員分組治理 |
+| platform-config | 平台設定輪廓與配置管理 |
+| feature-flag | 功能開關策略與發佈節點 |
+| onboarding | 新主體初始設定與引導流程 |
+| compliance | 資料保留、稽核與法規執行 |
+| integration | 外部系統整合邊界與契約 |
+| workflow | 平台級流程編排與狀態驅動執行 |
+| notification | 通知路由、偏好與投遞 |
+| background-job | 背景任務提交、排程與監控 |
+| content | 平台級內容資產管理與發布 |
+| search | 跨域搜尋路由與查詢協調 |
+| audit-log | 永久稽核軌跡與不可否認證據 |
+| observability | 健康量測、追蹤與告警 |
+| support | 客服工單、支援知識與處理流程 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| consent | 將同意與資料使用授權從 compliance 中切開 |
+| secret-management | 將憑證、token、rotation 從 integration 中切開 |
+| operational-catalog | 將平台營運資產與配置字典收斂成單一邊界 |
+
+### notion
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| knowledge | 頁面建立、組織、版本化與交付 |
+| authoring | 知識庫文章建立、驗證與分類 |
+| collaboration | 協作留言、細粒度權限與版本快照 |
+| knowledge-database | 結構化資料多視圖管理 |
+| knowledge-engagement | 知識使用行為量測 |
+| attachments | 附件與媒體關聯儲存 |
+| automation | 知識事件觸發自動化動作 |
+| external-knowledge-sync | 知識與外部系統雙向整合 |
+| notes | 個人輕量筆記與正式知識協作 |
+| templates | 頁面範本管理與套用 |
+| knowledge-versioning | 全域版本快照策略管理 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| taxonomy | 建立分類法與語義組織的正典邊界 |
+| relations | 建立內容之間關聯與 backlink 的正典邊界 |
+| publishing | 建立正式發布與對外交付的正典邊界 |
+
+### notebooklm
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| conversation | 對話 Thread 與 Message 生命週期 |
+| note | 輕量筆記與知識連結 |
+| notebook | Notebook 組合與管理 |
+| source | 來源文件追蹤與引用 |
+| synthesis | RAG 合成、摘要與洞察生成 |
+| conversation-versioning | 對話版本與快照策略 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| ingestion | 建立來源匯入、正規化與前處理的正典邊界 |
+| retrieval | 建立查詢召回與排序策略的正典邊界 |
+| grounding | 建立引用對齊與可追溯證據的正典邊界 |
+| evaluation | 建立品質評估與回歸比較的正典邊界 |
+
+## Strategic Notes
+
+- baseline subdomains 代表本架構基線中已確立的核心切分。
+- recommended gap subdomains 代表依 Context7 推導出的合理補洞方向。
+- recommended gap subdomains 不等於已驗證現況實作。
+
+## Ownership Summary
+
+- iam 關心身份、租戶與存取治理。
+- billing 關心商業生命週期與有效權益。
+- ai 關心共享 AI capability 與模型政策。
+- analytics 關心下游分析、指標與 read model 投影。
+- platform 關心 account、organization 與 shared operational services。
+- workspace 關心協作範疇。
+- notion 關心正典知識內容。
+- notebooklm 關心推理與衍生輸出。
+
+## Cross-Domain Duplicate Resolution
+
+| Original Term | Resolution |
+|---|---|
+| ai | `ai` context 擁有 generic AI capability；`notion` 與 `notebooklm` 僅為 consumer |
+| analytics | `analytics` context 擁有 generic analytics；`notion` 保留 `knowledge-engagement` |
+| entitlement | `billing` 擁有 entitlement；其他主域只消費 capability signal |
+| identity | `iam` 擁有 identity 與 access-control；其他主域不再各自宣稱 |
+| integration | `platform` 保留 generic `integration`；`notion` 保留 `external-knowledge-sync` |
+| versioning | `notion` 改為 `knowledge-versioning`；`notebooklm` 改為 `conversation-versioning` |
+| workflow | `platform` 保留 generic `workflow`；`workspace` 使用 `workspace-workflow` |
+
+## Subdomain Anti-Patterns
+
+- 不把 baseline subdomains 與 recommended gap subdomains 混成同一種事實狀態。
+- 不把主域缺口直接分攤到別的主域，造成所有權漂移。
+- 不把子域名稱當成 UI 功能清單，而忽略其邊界責任。
+- 不讓同一個 generic 子域名稱同時被多個主域擁有，造成 Copilot 與團隊語言歧義。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認需求屬於哪個主域與子域，再決定實作位置。
+- 奧卡姆剃刀：能放進既有子域就不要創造新子域；能放進既有 use case 就不要新增第二條平行流程。
+- gap subdomain 只表示架構缺口，不表示一定要立刻實作。
+- 遇到 generic 名稱時，先套用本文件的 duplicate resolution，再決定是否新增或改名。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart TD
+	MainDomain["Main domain"] --> Baseline["Baseline subdomains"]
+	MainDomain --> Gap["Recommended gap subdomains"]
+	Baseline --> UseCase["Use case / boundary"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Requirement["Requirement"] --> Domain["Choose main domain"]
+	Domain --> Subdomain["Choose owning subdomain"]
+	Subdomain --> Boundary["Choose boundary"]
+	Boundary --> Code["Generate code"]
+```
+
+## Document Network
+
+- [architecture-overview.md](./architecture-overview.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [contexts/workspace/subdomains.md](./contexts/workspace/subdomains.md)
+- [contexts/platform/subdomains.md](./contexts/platform/subdomains.md)
+- [contexts/notion/subdomains.md](./contexts/notion/subdomains.md)
+- [contexts/notebooklm/subdomains.md](./contexts/notebooklm/subdomains.md)
 ````
 
-## File: modules/notion/application/use-cases/index.ts
-````typescript
-// relations/taxonomy are still placeholder-only at the application layer.
-````
+## File: docs/ubiquitous-language.md
+````markdown
+# Ubiquitous Language
 
-## File: modules/notion/subdomains/knowledge-database/api/server.ts
-````typescript
-/**
- * knowledge-database subdomain — server-only API.
- *
- * Exports infrastructure implementations and composition helpers that must only
- * run in Server Actions, route handlers, or other server-side entry points.
- */
-````
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD ubiquitous language 原則重建，不主張反映現況實作。
 
-## File: modules/notion/subdomains/knowledge-database/api/ui.ts
-````typescript
-/**
- * notion/knowledge-database UI surface.
- * UI consumers should import from this file instead of the semantic api barrel.
- */
-````
+## Strategic Terms
 
-## File: modules/notion/subdomains/knowledge-database/application/dto/knowledge-database.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the knowledge-database subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-````
+| Term | Meaning |
+|---|---|
+| Main Domain | 戰略層級的主要 bounded context 群組 |
+| Bounded Context | 一組高凝聚、可自洽的語言與規則邊界 |
+| Published Language | 跨邊界交換時使用的共同語言 |
+| Upstream | 關係中提供語言或能力的一方 |
+| Downstream | 關係中消費語言或能力的一方 |
+| Anti-Corruption Layer | downstream 用來保護本地語言的轉譯層 |
+| Conformist | downstream 直接接受 upstream 語言的整合選擇 |
+| Shared Kernel | 對稱共用模型關係 |
+| Partnership | 對稱共同成功 / 共同失敗關係 |
+| Account Scope | shell 中由 `accountId` 表示的帳號範疇；代碼中的 `AccountType = "user" | "organization"` 會把它映射成 personal account 或 organization account 語意 |
+| Workspace Scope | 由 `workspaceId` 表示的協作容器範疇，必須從屬於某個 account scope |
+| Canonical Route Contract | 只用來表達 composition surface 的正典 URL 形狀，不取代 published language |
 
-## File: modules/notion/subdomains/knowledge-database/domain/ports/index.ts
-````typescript
-/**
- * notion/knowledge-database domain/ports — driven port interfaces for the knowledge-database subdomain.
- *
- * Re-exports repository contracts from domain/repositories/, making the Ports layer
- * explicitly visible in the directory structure.
- */
-````
+## Domain Terms
 
-## File: modules/notion/subdomains/knowledge-database/domain/services/index.ts
-````typescript
-/**
- * Domain services for the knowledge-database subdomain.
- * Deferred: DatabaseQueryService, FormulaEvaluationService, RollupComputationService
- * will be defined when filter/sort/formula use cases are scoped.
- */
-````
+| Domain | Key Terms |
+|---|---|
+| iam | Actor, Identity, Tenant, AccessDecision, SecurityPolicy |
+| billing | Subscription, Entitlement, BillingEvent, Referral |
+| ai | AICapability, ModelPolicy, SafetyGuardrail, PromptPipeline |
+| analytics | Metric, Report, Dashboard, Projection |
+| platform | Account, AccountProfile, Organization, NotificationRoute, AuditLog |
+| workspace | Workspace, Membership, ShareScope, ActivityFeed, AuditTrail |
+| notion | KnowledgeArtifact, Taxonomy, Relation, Publication |
+| notebooklm | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
 
-## File: modules/notion/subdomains/knowledge-database/domain/value-objects/index.ts
-````typescript
-/**
- * Value objects for the knowledge-database subdomain.
- * Deferred: DatabaseId, RecordId, ViewId, FieldId, FieldType, ViewType, FieldValue
- * will be defined when database record and view use cases are scoped.
- */
-````
+## Route Composition Terms
 
-## File: modules/platform/subdomains/background-job/application/use-cases/background-job.use-cases.ts
-````typescript
-/**
- * Background Job Use Cases — application-layer orchestration for BackgroundJob domain operations.
- *
- * Each use case receives its repository dependency via constructor injection,
- * keeping it testable and decoupled from any specific adapter.
- *
- * Return type uses a locally-defined JobResult<T> rather than the
- * command-only CommandResult, because creation and advancement operations
- * need to surface the resulting BackgroundJob entity to callers.
- */
-⋮----
-import { v4 as randomUUID } from "@lib-uuid";
-⋮----
-import type { DomainError } from "@shared-types";
-⋮----
-import type { JobDocument } from "../../domain/entities/JobDocument";
-import { canTransitionJobStatus, type BackgroundJob, type BackgroundJobStatus } from "../../domain/entities/BackgroundJob";
-import type { BackgroundJobRepository } from "../../domain/repositories/BackgroundJobRepository";
-⋮----
-// ── Shared result type ────────────────────────────────────────────────────────
-⋮----
-export type JobResult<T> =
-  | { readonly ok: true; readonly data: T }
-  | { readonly ok: false; readonly error: DomainError };
-⋮----
-function ok<T>(data: T): JobResult<T>
-⋮----
-function fail(code: string, message: string): JobResult<never>
-⋮----
-// ── Register Job Document ───────────────────────────────────────────────
-⋮----
-export interface RegisterJobDocumentInput {
-  readonly organizationId: string;
-  readonly workspaceId: string;
-  readonly sourceFileId: string;
-  readonly title: string;
-  readonly mimeType: string;
-}
-⋮----
-export class RegisterJobDocumentUseCase
-⋮----
-constructor(private readonly repo: BackgroundJobRepository)
-⋮----
-async execute(input: RegisterJobDocumentInput): Promise<JobResult<BackgroundJob>>
-⋮----
-// ── Advance Job Stage ───────────────────────────────────────────────────
-⋮----
-export interface AdvanceJobStageInput {
-  readonly documentId: string;
-  readonly nextStatus: BackgroundJobStatus;
-  readonly statusMessage?: string;
-}
-⋮----
-export class AdvanceJobStageUseCase
-⋮----
-async execute(input: AdvanceJobStageInput): Promise<JobResult<BackgroundJob>>
-⋮----
-// ── List Workspace Background Jobs ─────────────────────────────────────────────
-⋮----
-export interface ListWorkspaceJobsInput {
-  readonly organizationId: string;
-  readonly workspaceId: string;
-}
-⋮----
-export class ListWorkspaceJobsUseCase
-⋮----
-async execute(input: ListWorkspaceJobsInput): Promise<readonly BackgroundJob[]>
-````
+| Term | Meaning |
+|---|---|
+| accountId | shell route 上的 account scope identifier，不等於 workspaceId，也不直接等於 Tenant 語言 |
+| workspaceId | workspace scope identifier；在 canonical shell URL 中作為 account scope 之下的第二段 |
+| AccountType String Contract | code-level enum `"user" | "organization"`；`"user"` 對應 personal actor account，`"organization"` 對應 organization account |
+| Personal Account | `AccountType = "user"` 對應的 personal actor account 語意 |
+| Organization Account | `AccountType = "organization"` 對應的 organization account 語意 |
+| Canonical Workspace URL | `/{accountId}/{workspaceId}` |
+| Legacy Workspace Redirect Surface | `/{accountId}/workspace/{workspaceId}` |
+| Legacy Organization Redirect Surface | `/{accountId}/organization/*` |
 
-## File: modules/platform/subdomains/background-job/domain/entities/BackgroundJob.ts
-````typescript
-/**
- * BackgroundJob — aggregate entity tracking a document through the
- * document processing pipeline.
- *
- * The embedded state machine enforces strict one-way status transitions,
- * keeping invalid states impossible at the domain level.
- *
- * Lifecycle (happy path):
- *   uploaded → parsing → chunking → embedding → indexed
- *
- * Repair paths:
- *   indexed  → stale → re-indexing → parsing
- *   failed   → re-indexing → parsing
- */
-⋮----
-import type { JobDocument } from "./JobDocument";
-⋮----
-// ── Status ────────────────────────────────────────────────────────────────────
-⋮----
-export type BackgroundJobStatus =
-  | "uploaded"
-  | "parsing"
-  | "chunking"
-  | "embedding"
-  | "indexed"
-  | "stale"
-  | "re-indexing"
-  | "failed";
-⋮----
-/**
- * Domain guard: returns true only when the requested transition is permitted
- * by the state machine contract.
- */
-export function canTransitionJobStatus(
-  from: BackgroundJobStatus,
-  to: BackgroundJobStatus,
-): boolean
-⋮----
-// ── Aggregate ─────────────────────────────────────────────────────────────────
-⋮----
-export interface BackgroundJob {
-  /** Unique job identifier (UUID). */
-  readonly id: string;
-  /** Immutable document snapshot attached to this job. */
-  readonly document: JobDocument;
-  /** Current pipeline stage. */
-  readonly status: BackgroundJobStatus;
-  /** Optional human-readable message describing the current stage or failure reason. */
-  readonly statusMessage?: string;
-  /** ISO-8601 timestamp of job creation. */
-  readonly createdAtISO: string;
-  /** ISO-8601 timestamp of last status update. */
-  readonly updatedAtISO: string;
-}
-⋮----
-/** Unique job identifier (UUID). */
-⋮----
-/** Immutable document snapshot attached to this job. */
-⋮----
-/** Current pipeline stage. */
-⋮----
-/** Optional human-readable message describing the current stage or failure reason. */
-⋮----
-/** ISO-8601 timestamp of job creation. */
-⋮----
-/** ISO-8601 timestamp of last status update. */
-````
+## Identifier Contract Glossary
 
-## File: modules/platform/subdomains/background-job/domain/entities/JobChunk.ts
-````typescript
-/**
- * JobChunk — value-like entity representing a text segment produced
- * by the chunking stage of the document processing pipeline.
- *
- * Produced downstream from the Python `py_fn` worker; tracked by the
- * platform layer for audit and retrieval-quality accounting.
- */
-⋮----
-export interface JobChunkMetadata {
-  readonly sourceDocId: string;
-  readonly section?: string;
-  readonly pageNumber?: number;
-}
-⋮----
-export interface JobChunk {
-  readonly id: string;
-  readonly documentId: string;
-  readonly chunkIndex: number;
-  readonly content: string;
-  readonly metadata: JobChunkMetadata;
-}
-````
+| Identifier | Canonical Role | Notes |
+|---|---|---|
+| accountId | Account scope identifier | shell composition 的 route id；由 `AccountType = "user" | "organization"` 決定它代表 personal account 或 organization account |
+| workspaceId | Workspace scope identifier | 協作容器錨點；在 canonical workspace URL 中是 account scope 之下的第二段 |
+| organizationId | Organization-local identifier | 用於 organization/team/taxonomy/relations/ingestion 等 organization-scoped domain 或 integration contract；不直接取代 shell route 的 `accountId` |
+| userId | Concrete user identifier | 用於 `createdByUserId`、`verifiedByUserId`、`submittedByUserId`、`assignedUserId`、`creatorUserId` 等具體使用者欄位 |
+| actorId | Acting principal identifier | 用於 audit / event / action initiator；可能是 userId，也可能是 system actor，不應假設一定等於 userId |
+| ownerId | Resource owner identifier | 表示資源所有者；不是 shell route id，也不必然等於 `accountId` |
+| tenantId | Tenant isolation identifier | 用於 storage path、security rules、multi-tenant isolation；不等於 `workspaceId`，也不是 shell route param |
+| fileId | File metadata identifier | 檔案 metadata 主鍵；不取代 owner / workspace / tenant scope |
 
-## File: modules/platform/subdomains/background-job/domain/repositories/BackgroundJobRepository.ts
-````typescript
-/**
- * BackgroundJobRepository — output port (driven port) for background job persistence.
- *
- * Implementations live in the adapters layer (InMemoryBackgroundJobRepository,
- * FirebaseBackgroundJobRepository, …). The domain core depends only on this interface.
- */
-⋮----
-import type { BackgroundJob, BackgroundJobStatus } from "../entities/BackgroundJob";
-⋮----
-export interface BackgroundJobRepository {
-  /** Retrieve a job by its associated document id. Returns null if not found. */
-  findByDocumentId(documentId: string): Promise<BackgroundJob | null>;
+## Context Map Alignment
 
-  /** List all jobs scoped to a specific workspace. */
-  listByWorkspace(input: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-  }): Promise<readonly BackgroundJob[]>;
+| Relationship | Published Language Tokens | Upstream Term Source | Downstream Local Terms |
+|---|---|---|---|
+| iam -> workspace | actor reference, tenant scope, access decision | Actor, Identity, Tenant, AccessDecision | Workspace, Membership, ShareScope |
+| iam -> notion | actor reference, tenant scope, access decision | Actor, Identity, Tenant, AccessDecision | KnowledgeArtifact, Taxonomy, Relation, Publication |
+| iam -> notebooklm | actor reference, tenant scope, access decision | Actor, Identity, Tenant, AccessDecision | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
+| billing -> workspace | entitlement signal, subscription capability signal | Subscription, Entitlement | Workspace, Membership, ShareScope |
+| billing -> notion | entitlement signal, subscription capability signal | Subscription, Entitlement | KnowledgeArtifact, Taxonomy, Relation |
+| billing -> notebooklm | entitlement signal, subscription capability signal | Subscription, Entitlement | Notebook, Retrieval, Grounding, Synthesis |
+| ai -> notion | ai capability signal, model policy, safety result | AICapability, ModelPolicy, SafetyGuardrail | KnowledgeArtifact, Publication |
+| ai -> notebooklm | ai capability signal, model policy, safety result | AICapability, ModelPolicy, SafetyGuardrail | Notebook, Retrieval, Grounding, Synthesis, Evaluation |
+| platform -> workspace | account scope, organization surface, operational service signal | Account, Organization, NotificationRoute | Workspace, Membership, ShareScope |
+| workspace -> notion | workspaceId, membership scope, share scope | Workspace, Membership, ShareScope | KnowledgeArtifact, Taxonomy, Relation |
+| workspace -> notebooklm | workspaceId, membership scope, share scope | Workspace, Membership, ShareScope | Notebook, Retrieval, Grounding, Synthesis |
+| notion -> notebooklm | knowledge artifact reference, attachment reference, taxonomy hint | KnowledgeArtifact, Taxonomy, Relation | Notebook, Retrieval, Grounding, Synthesis, Evaluation |
+| all contexts -> analytics | domain event, usage signal, projection input | Metric, Report, Dashboard, Projection | Metrics, Reporting, Dashboard |
 
-  /** Persist a new background job. */
-  save(job: BackgroundJob): Promise<void>;
+## Published Language Token Glossary
 
-  /** Advance job status; returns the updated job, or null if the document was not found. */
-  updateStatus(input: {
-    readonly documentId: string;
-    readonly status: BackgroundJobStatus;
-    readonly statusMessage?: string;
-    readonly updatedAtISO: string;
-  }): Promise<BackgroundJob | null>;
-}
-⋮----
-/** Retrieve a job by its associated document id. Returns null if not found. */
-findByDocumentId(documentId: string): Promise<BackgroundJob | null>;
-⋮----
-/** List all jobs scoped to a specific workspace. */
-listByWorkspace(input: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-  }): Promise<readonly BackgroundJob[]>;
-⋮----
-/** Persist a new background job. */
-save(job: BackgroundJob): Promise<void>;
-⋮----
-/** Advance job status; returns the updated job, or null if the document was not found. */
-updateStatus(input: {
-    readonly documentId: string;
-    readonly status: BackgroundJobStatus;
-    readonly statusMessage?: string;
-    readonly updatedAtISO: string;
-  }): Promise<BackgroundJob | null>;
-````
+| Token | Canonical Mapping | Notes |
+|---|---|---|
+| actor reference | iam.Actor | 不以 User 泛稱，避免與 Membership 混名 |
+| organization scope | platform.Organization scope | 用於 account 與 organization surface，不等於 Workspace scope |
+| tenant scope | iam.Tenant scope | 用於治理邊界，不等於 Workspace scope |
+| access decision | iam.AccessDecision result | 僅傳遞判定結果，不暴露內部 policy 模型 |
+| entitlement signal | billing.Entitlement / Subscription capability signal | 不混同 feature-flag payload |
+| ai capability signal | ai shared capability signal | notion 與 notebooklm 僅消費，不擁有 generic `ai` 子域 |
+| operational service signal | platform operational capability signal | 只表達 shared platform service，不接管治理語言 |
+| workspaceId | Workspace identifier | 不取代 knowledge/notebook 的本地主鍵 |
+| membership scope | Membership constraint | 不混同 Actor 身份語言 |
+| share scope | ShareScope constraint | 不混同一般 permission 欄位集合 |
+| knowledge artifact reference | KnowledgeArtifact reference | 僅引用，不代表內容所有權轉移 |
+| attachment reference | Attachment reference | 提供可追溯引用，不暴露儲存實作 |
+| taxonomy hint | Taxonomy hint | 作為推理輔助語言，不覆蓋 notion 正典 taxonomy |
 
-## File: modules/platform/subdomains/background-job/interfaces/composition/background-job-service.ts
-````typescript
-/**
- * backgroundJobService — Composition root for background job use cases.
- *
- * Relocated from infrastructure/ to interfaces/composition/ to fix
- * the infrastructure → application dependency direction violation (HX-1-001).
- *
- * Wires use cases to the default InMemoryBackgroundJobRepository.
- * Swap the repository assignment here once a Firebase adapter is in place.
- *
- * This module is the single entry point for background job side-effects; adapters
- * (Server Actions, route handlers) must not reach into use cases directly.
- */
-⋮----
-import type { BackgroundJob } from "../../domain/entities/BackgroundJob";
-import type { BackgroundJobStatus } from "../../domain/entities/BackgroundJob";
-import {
-  RegisterJobDocumentUseCase,
-  AdvanceJobStageUseCase,
-  ListWorkspaceJobsUseCase,
-  type JobResult,
-  type RegisterJobDocumentInput,
-  type AdvanceJobStageInput,
-} from "../../application/use-cases/background-job.use-cases";
-import { InMemoryBackgroundJobRepository } from "../../infrastructure/InMemoryBackgroundJobRepository";
-⋮----
-// Single shared repository instance for the lifetime of the module.
-⋮----
-/**
-   * Register a newly uploaded document and create an BackgroundJob in
-   * `uploaded` status, ready for the Python worker handoff.
-   */
-registerDocument(input: RegisterJobDocumentInput): Promise<JobResult<BackgroundJob>>
-⋮----
-/**
-   * Advance the job to the given status.
-   * Rejects invalid transitions with `JOB_INVALID_STATUS_TRANSITION`.
-   */
-advanceStage(input: AdvanceJobStageInput): Promise<JobResult<BackgroundJob>>
-⋮----
-/**
-   * Return all background jobs belonging to a workspace.
-   */
-listWorkspaceJobs(input: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-}): Promise<readonly BackgroundJob[]>
-⋮----
-registerDocument(input: RegisterJobDocumentInput): Promise<JobResult<BackgroundJob>>;
-advanceStage(input: AdvanceJobStageInput): Promise<JobResult<BackgroundJob>>;
-⋮----
-// Re-export status type for convenience (callers using `backgroundJobService` should not
-// need to reach into the domain layer directly).
-````
+## Naming Rules
 
-## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/SourceReference.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file SourceReference.ts
- * @description Value object representing the origin of a materialized entity (Task or Invoice).
- *
- * A SourceReference is attached to Task and Invoice entities that were created
- * by the KnowledgeToWorkflowMaterializer Process Manager in response to a
- * `notion.knowledge.page-approved` event. It provides full audit traceability:
- *
- *   Task → sourceReference → KnowledgePage → BackgroundJob → source PDF
- */
-⋮----
-export type SourceReferenceType = "KnowledgePage";
-⋮----
-export interface SourceReference {
-  /** The type of the source aggregate. */
-  readonly type: SourceReferenceType;
-  /** The ID of the source aggregate (e.g. KnowledgePage.id). */
-  readonly id: string;
-  /**
-   * causationId from the `notion.knowledge.page-approved` event that triggered
-   * materialization.  Stored for idempotency checks and audit trails.
-   */
-  readonly causationId: string;
-  /**
-   * correlationId tracing the entire business flow:
-   *   ingestion → human review → approval → materialization.
-   */
-  readonly correlationId: string;
-}
-⋮----
-/** The type of the source aggregate. */
-⋮----
-/** The ID of the source aggregate (e.g. KnowledgePage.id). */
-⋮----
-/**
-   * causationId from the `notion.knowledge.page-approved` event that triggered
-   * materialization.  Stored for idempotency checks and audit trails.
-   */
-⋮----
-/**
-   * correlationId tracing the entire business flow:
-   *   ingestion → human review → approval → materialization.
-   */
+- 不用 User 混指 Actor 與 Membership。
+- 不用 Plan 混指 Subscription 與 Entitlement。
+- 不用 Wiki 混指 KnowledgeArtifact。
+- 不用 Chat 混指 Conversation。
+- 不用 Search 混指 Retrieval。
+- 不用 AI 混指 platform 的 shared AI capability 與 notion / notebooklm 的本地 use case。
+- 不用 Analytics 混指 platform analytics 與 notion 的 knowledge-engagement。
+- 不用 Integration 混指 platform integration 與 notion 的 external-knowledge-sync。
+- 不用 Versioning 混指 notion 的 knowledge-versioning 與 notebooklm 的 conversation-versioning。
+- 不用 Workflow 混指 platform workflow 與 workspace-workflow。
+- 不用 accountId 混指 workspaceId。
+- 不用 organizationId 取代 shell route 上的 accountId。
+- 不用 userId 混指 actorId。
+- 不用 `AccountType = "personal"` 取代 `AccountType = "user"`。
+- 不用 `/{accountId}/workspace/{workspaceId}` 當成新的 canonical workspace URL。
+- 不用 `/{accountId}/organization/*` 當成新的 canonical governance route。
+
+## Naming Anti-Patterns
+
+- 用同一個詞同時代表平台治理語言與工作區參與語言。
+- 用內容產品舊名覆蓋 notion 的正典語言。
+- 用 Search 混指 notebooklm 的 Retrieval 與一般搜尋能力。
+- 用同一個 generic 子域名跨主域重複宣稱所有權，再期望 Copilot 自行猜對上下文。
+- 把 route composition contract 誤寫成 cross-context published language。
+- 把 organization-scoped identifier 誤當成 shell composition identifier。
+- 把 actorId、userId、ownerId 三種角色不同的 identifier 混成同一欄位語意。
+- 把 personal account 顯示語言誤當成 code-level `AccountType` literal。
+- 把 legacy redirect surface 誤寫成正典 URL 契約。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先對齊 strategic term，再對齊 context-specific term，最後才命名型別與 API。
+- 奧卡姆剃刀：若一個詞已足夠準確，就不要再加第二個近義詞製造歧義。
+- 名稱衝突時先回到 glossary，而不是直接在程式碼裡各自命名。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Strategic["Strategic terms"] --> Context["Context terms"]
+	Context --> Boundary["Published language / API"]
+	Boundary --> Code["Generated code names"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Requirement["Requirement"] --> Term["Select canonical term"]
+	Term --> Context["Map to owning context"]
+	Context --> Boundary["Expose via boundary"]
+	Boundary --> Code["Generate code"]
+```
+
+## Document Network
+
+- [contexts/workspace/ubiquitous-language.md](./contexts/workspace/ubiquitous-language.md)
+- [contexts/platform/ubiquitous-language.md](./contexts/platform/ubiquitous-language.md)
+- [contexts/notion/ubiquitous-language.md](./contexts/notion/ubiquitous-language.md)
+- [contexts/notebooklm/ubiquitous-language.md](./contexts/notebooklm/ubiquitous-language.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [decisions/0004-ubiquitous-language.md](./decisions/0004-ubiquitous-language.md)
+
+## Conflict Resolution
+
+- 若 strategic term 與主域 term 衝突，優先維持主域語言不被污染，再回寫 strategic glossary。
+- 若同一個詞在多主域都想擁有，優先看它服務的是治理、協作範疇、正典內容還是推理輸出。
 ````
