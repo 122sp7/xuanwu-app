@@ -16,7 +16,6 @@ import {
   type WorkspaceManagedFileVersionItem,
 } from "@/modules/workspace/api/facade";
 import { Card, CardContent } from "@ui-shadcn/ui/card";
-import { Input } from "@ui-shadcn/ui/input";
 import type { WorkspaceEntity } from "../../../../domain/aggregates/Workspace";
 
 const DEFAULT_BUCKET = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || "xuanwu-i-00708880-4e2d8.firebasestorage.app";
