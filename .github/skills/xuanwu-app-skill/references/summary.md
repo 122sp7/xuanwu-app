@@ -42,12 +42,12 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1794 files | 50,819 lines
+1792 files | 50,787 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1187 | 24,200 |
-| Markdown | 327 | 19,430 |
+| TypeScript | 1186 | 24,196 |
+| Markdown | 326 | 19,402 |
 | TypeScript (TSX) | 172 | 4,519 |
 | Python | 61 | 1,404 |
 | No Extension | 30 | 35 |
@@ -62,7 +62,7 @@ This skill contains the following reference files:
 - `docs/hard-rules-consolidated.md` (455 lines)
 - `firestore.indexes.json` (437 lines)
 - `modules/ai/subdomains/subdomains.instructions.md` (313 lines)
-- `AGENTS.md` (305 lines)
+- `AGENTS.md` (306 lines)
 - `docs/bounded-contexts.md` (266 lines)
 - `py_fn/README.md` (265 lines)
 - `docs/subdomains.md` (265 lines)
