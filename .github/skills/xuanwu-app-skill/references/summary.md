@@ -42,12 +42,12 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1759 files | 50,488 lines
+1793 files | 50,704 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1149 | 24,138 |
-| Markdown | 330 | 19,162 |
+| TypeScript | 1182 | 24,154 |
+| Markdown | 331 | 19,362 |
 | TypeScript (TSX) | 172 | 4,518 |
 | Python | 61 | 1,404 |
 | No Extension | 30 | 35 |
@@ -66,6 +66,6 @@ This skill contains the following reference files:
 - `py_fn/README.md` (265 lines)
 - `docs/subdomains.md` (265 lines)
 - `modules/platform/domain/events/DESIGN.md` (257 lines)
-- `modules/platform/api/contracts.ts` (224 lines)
+- `modules/ai/subdomains/subdomains.instructions.md` (230 lines)
+- `modules/platform/api/contracts.ts` (218 lines)
 - `.github/prompts/serena-hexagonal-ddd-refactor.prompt.md` (215 lines)
-- `.github/prompts/enforce-hexagonal-ddd-convergence.prompt.md` (215 lines)
