@@ -42,11 +42,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-415 files | 26,141 lines
+402 files | 26,425 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 415 | 26,141 |
+| Markdown | 402 | 26,425 |
 
 **Largest files:**
 - `docs/hard-rules-consolidated.md` (455 lines)
@@ -55,7 +55,7 @@ This skill contains the following reference files:
 - `modules/ai/subdomains/subdomains.instructions.md` (313 lines)
 - `.github/skills/shadcn/SKILL.md` (296 lines)
 - `.github/skills/zustand-xstate/SKILL.md` (284 lines)
+- `docs/semantic-model.md` (275 lines)
 - `.github/skills/zod-validation/SKILL.md` (274 lines)
 - `.github/skills/genkit-ai/SKILL.md` (271 lines)
 - `docs/bounded-contexts.md` (266 lines)
-- `py_fn/README.md` (265 lines)
