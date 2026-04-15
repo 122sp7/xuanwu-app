@@ -1,6 +1,7 @@
 ---
 name: implement-ui-component
 description: Build or refactor UI components with shadcn patterns and boundary-safe composition.
+applyTo: 'app/**/*.{ts,tsx}'
 agent: Component Agent
 argument-hint: Provide component goal, route scope, and interaction states.
 ---

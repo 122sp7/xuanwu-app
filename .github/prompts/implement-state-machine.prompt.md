@@ -1,6 +1,7 @@
 ---
 name: implement-state-machine
 description: 以 XState 實作有限狀態工作流 machine，放置於 application/machines/，定義業務語意的 state / event / transition，並與 Server Action 正確整合。
+applyTo: 'modules/**/application/machines/**/*.{ts,tsx}'
 agent: State Management Agent
 argument-hint: 提供工作流名稱、所屬模組、初始狀態、所有業務狀態（idle/creating/ready/failed 等）、觸發事件、以及需要呼叫的 Server Action。
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
