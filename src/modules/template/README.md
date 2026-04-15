@@ -13,26 +13,17 @@ src/modules/template/
     TemplateFacade.ts               ← 對外統一 Facade（委派各子域 use case）
     TemplateCoordinator.ts          ← 跨子域流程協調（document→generation→ingestion→workflow）
   shared/
-    domain/
-      index.ts                      ← 跨子域共用 domain 概念（Value Object、Policy）
-    application/
-      index.ts                      ← 跨子域共用 DTO / Port
-    config/
-      index.ts                      ← 模組設定
-    constants/
-      index.ts                      ← 模組常數
-    errors/
-      index.ts                      ← 共用錯誤類型
-    events/
-      index.ts                      ← 跨子域 Published Language Events
-    infrastructure/
-      index.ts                      ← 共用 infrastructure 工具
-    types/
-      index.ts                      ← 共用 TypeScript 型別
-    utils/
-      index.ts                      ← 共用工具函式
+    domain/index.ts                 ← 跨子域共用 domain 概念（Value Object、Policy）
+    application/index.ts            ← 跨子域共用 DTO / Port
+    config/index.ts                 ← 模組設定
+    constants/index.ts              ← 模組常數
+    errors/index.ts                 ← 共用錯誤類型
+    events/index.ts                 ← 跨子域 Published Language Events
+    infrastructure/index.ts         ← 共用 infrastructure 工具
+    types/index.ts                  ← 共用 TypeScript 型別
+    utils/index.ts                  ← 共用工具函式
   subdomains/
-    document/                       ← 核心子域（完整實作）
+    document/                       ← 核心子域（CRUD 完整實作）
       domain/
         entities/Template.ts
         value-objects/TemplateId.ts
@@ -43,9 +34,7 @@ src/modules/template/
         services/TemplateDomainService.ts
         index.ts
       application/
-        use-cases/CreateTemplateUseCase.ts
-        use-cases/UpdateTemplateUseCase.ts
-        use-cases/DeleteTemplateUseCase.ts
+        use-cases/{Create,Update,Delete}TemplateUseCase.ts
         dto/{Create,Update,Response}TemplateDTO.ts
         ports/inbound/CreateTemplatePort.ts
         ports/outbound/{TemplateRepositoryPort,CachePort,ExternalApiPort}.ts
@@ -61,21 +50,120 @@ src/modules/template/
           external-api/TemplateApiClient.ts
           index.ts
         index.ts
-    generation/                     ← 生成子域（stub — 展開時填入）
-      domain/entities/GeneratedTemplate.ts
-      domain/index.ts
-      application/index.ts
-      adapters/index.ts
-    ingestion/                      ← 匯入子域（stub）
-      domain/entities/IngestionJob.ts
-      domain/index.ts
-      application/index.ts
-      adapters/index.ts
-    workflow/                       ← 流程子域（stub）
-      domain/entities/TemplateWorkflow.ts
-      domain/index.ts
-      application/index.ts
-      adapters/index.ts
+    generation/                     ← 生成子域（完整實作）
+      domain/
+        entities/GeneratedTemplate.ts   ← id: GenerationId（VO）
+        value-objects/GenerationId.ts
+        repositories/GenerationRepository.ts
+        services/GenerationDomainService.ts
+        events/GenerationCompletedEvent.ts
+        index.ts
+      application/
+        use-cases/GenerateTemplateUseCase.ts
+        dto/{GenerateTemplate,GenerationResult}DTO.ts
+        ports/inbound/GenerateTemplatePort.ts
+        ports/outbound/{GenerationRepositoryPort,AiGenerationPort}.ts
+        index.ts
+      adapters/
+        inbound/
+          http/{GenerationController,routes}.ts
+          queue/GenerationQueueHandler.ts
+          index.ts
+        outbound/
+          firestore/FirestoreGenerationRepository.ts
+          ai/AiGenerationAdapter.ts             ← stub, TODO: wire Genkit
+          index.ts
+        index.ts
+    ingestion/                      ← 匯入子域（完整實作）
+      domain/
+        entities/IngestionJob.ts        ← id: IngestionId（VO）+ markProcessing()
+        value-objects/IngestionId.ts
+        repositories/IngestionJobRepository.ts
+        services/IngestionDomainService.ts
+        events/IngestionJobEvents.ts
+        index.ts
+      application/
+        use-cases/StartIngestionUseCase.ts
+        dto/{StartIngestion,IngestionJobResponse}DTO.ts
+        ports/inbound/StartIngestionPort.ts
+        ports/outbound/{IngestionRepositoryPort,StoragePort}.ts
+        index.ts
+      adapters/
+        inbound/
+          http/{IngestionController,routes}.ts
+          queue/IngestionQueueHandler.ts
+          index.ts
+        outbound/
+          firestore/FirestoreIngestionJobRepository.ts
+          storage/CloudStorageAdapter.ts        ← stub, TODO: wire Cloud Storage
+          index.ts
+        index.ts
+    workflow/                       ← 流程子域（完整實作）
+      domain/
+        entities/TemplateWorkflow.ts    ← id: WorkflowId（VO）
+        value-objects/WorkflowId.ts
+        repositories/TemplateWorkflowRepository.ts
+        services/WorkflowDomainService.ts
+        events/WorkflowEvents.ts
+        index.ts
+      application/
+        use-cases/InitiateWorkflowUseCase.ts
+        dto/{InitiateWorkflow,WorkflowResponse}DTO.ts
+        ports/inbound/InitiateWorkflowPort.ts
+        ports/outbound/WorkflowRepositoryPort.ts
+        index.ts
+      adapters/
+        inbound/
+          http/{WorkflowController,routes}.ts   ← HTTP only，無 queue handler
+          index.ts
+        outbound/
+          firestore/FirestoreWorkflowRepository.ts
+          index.ts
+        
+        entities/IngestionJob.ts        ← id: IngestionId（VO）+ markProcessing()
+        value-objects/IngestionId.ts
+        repositories/IngestionJobRepository.ts
+        services/IngestionDomainService.ts
+        events/IngestionJobEvents.ts
+        index.ts
+      application/
+        use-cases/StartIngestionUseCase.ts
+        dto/{StartIngestion,IngestionJobResponse}DTO.ts
+        ports/inbound/StartIngestionPort.ts
+        ports/outbound/{IngestionRepositoryPort,StoragePort}.ts
+        index.ts
+      adapters/
+        inbound/
+          http/{IngestionController,routes}.ts
+          queue/IngestionQueueHandler.ts
+          index.ts
+        outbound/
+          firestore/FirestoreIngestionJobRepository.ts
+          storage/CloudStorageAdapter.ts        ← stub, TODO: wire Cloud Storage
+          index.ts
+        index.ts
+    workflow/                       ← 流程子域（完整實作）
+      domain/
+        entities/TemplateWorkflow.ts    ← id: WorkflowId（VO）
+        value-objects/WorkflowId.ts
+        repositories/TemplateWorkflowRepository.ts
+        services/WorkflowDomainService.ts
+        events/WorkflowEvents.ts
+        index.ts
+      application/
+        use-cases/InitiateWorkflowUseCase.ts
+        dto/{InitiateWorkflow,WorkflowResponse}DTO.ts
+        ports/inbound/InitiateWorkflowPort.ts
+        ports/outbound/WorkflowRepositoryPort.ts
+        index.ts
+      adapters/
+        inbound/
+          http/{WorkflowController,routes}.ts   ← HTTP only，無 queue handler
+          index.ts
+        outbound/
+          firestore/FirestoreWorkflowRepository.ts
+          index.ts
+        index.ts
 ```
 
 ## Barrel 結構（具名匯出原則）
@@ -84,11 +172,15 @@ src/modules/template/
 
 | 檔案 | 覆蓋範圍 |
 |---|---|
-| `index.ts` | 模組對外唯一公開入口：主要由 `subdomains/document` 重新匯出 |
+| `index.ts` | 模組對外唯一公開入口：重新匯出全部四個子域的 domain + application 符號 |
 | `subdomains/document/domain/index.ts` | entities、value-objects、events、repositories、services |
 | `subdomains/document/application/index.ts` | use-cases、dto、ports |
-| `subdomains/document/adapters/inbound/index.ts` | http + queue adapters |
-| `subdomains/document/adapters/outbound/index.ts` | firestore、cache、external-api adapters |
+| `subdomains/generation/domain/index.ts` | GeneratedTemplate、GenerationId、events、service、repo |
+| `subdomains/generation/application/index.ts` | GenerateTemplateUseCase、dto、ports（含 AiGenerationPort）|
+| `subdomains/ingestion/domain/index.ts` | IngestionJob、IngestionId、events、service、repo |
+| `subdomains/ingestion/application/index.ts` | StartIngestionUseCase、dto、ports（含 StoragePort）|
+| `subdomains/workflow/domain/index.ts` | TemplateWorkflow、WorkflowId、events、service、repo |
+| `subdomains/workflow/application/index.ts` | InitiateWorkflowUseCase、dto、ports |
 | `shared/*/index.ts` | 各共用層的對外出口 |
 
 ### 根 index.ts 匯出範例
@@ -107,6 +199,24 @@ export type {
   CreateTemplateDTO, UpdateTemplateDTO, TemplateResponseDTO,
   CreateTemplatePort, TemplateRepositoryPort, CachePort, ExternalApiPort,
 } from './subdomains/document/application';
+
+// generation
+export { GeneratedTemplate, GenerationId, GenerationDomainService, GenerationCompletedEvent } from './subdomains/generation/domain';
+export type { GenerationRepository } from './subdomains/generation/domain';
+export { GenerateTemplateUseCase } from './subdomains/generation/application';
+export type { GenerateTemplateDTO, GenerationResultDTO, GenerateTemplatePort, GenerationRepositoryPort, AiGenerationPort } from './subdomains/generation/application';
+
+// ingestion
+export { IngestionJob, IngestionId, IngestionDomainService, IngestionJobStartedEvent, IngestionJobCompletedEvent } from './subdomains/ingestion/domain';
+export type { IngestionJobRepository, IngestionStatus } from './subdomains/ingestion/domain';
+export { StartIngestionUseCase } from './subdomains/ingestion/application';
+export type { StartIngestionDTO, IngestionJobResponseDTO, StartIngestionPort, IngestionRepositoryPort, StoragePort } from './subdomains/ingestion/application';
+
+// workflow
+export { TemplateWorkflow, WorkflowId, WorkflowDomainService, WorkflowInitiatedEvent, WorkflowCompletedEvent } from './subdomains/workflow/domain';
+export type { TemplateWorkflowRepository, WorkflowStatus } from './subdomains/workflow/domain';
+export { InitiateWorkflowUseCase } from './subdomains/workflow/application';
+export type { InitiateWorkflowDTO, WorkflowResponseDTO, InitiateWorkflowPort, WorkflowRepositoryPort } from './subdomains/workflow/application';
 ```
 
 所有 source 檔內部 import 使用**直接相對路徑**，不依賴 barrel index，確保 barrel 可獨立修改。
@@ -126,10 +236,10 @@ subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/doma
 ## 如何複製成新模組
 
 1. 複製整個 `src/modules/template/` 資料夾。
-2. 全域取代 `Template` → `<YourEntity>`（保留大小寫規律）。
-3. 刪除不需要的子域（generation / ingestion / workflow 為 stub，可直接刪）。
+2. 全域取代 `Template` → `<YourEntity>`（保留大小寫規律），各子域實體名稱也一併取代。
+3. 保留實際有業務需求的子域；刪除不需要的子域（generation / ingestion / workflow 可視業務選用）。
 4. 依 DDD 開發順序填入業務規則：Domain → Application → Ports → Adapters → Orchestration。
-5. 舊平坦層 `domain/` `application/` `adapters/` 確認無人依賴後刪除。
+5. 更新根 `index.ts` barrel，僅匯出有實作的子域符號。
 
 ---
 

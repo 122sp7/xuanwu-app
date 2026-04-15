@@ -7,15 +7,15 @@
 ## Structure At a Glance
 
 ```
-index.ts              ← 唯一對外入口（重新匯出 subdomains/document 主要符號）
+index.ts              ← 唯一對外入口（重新匯出全部四個子域的 domain + application 符號）
 orchestration/        ← 跨子域 Facade + Coordinator
 shared/               ← 跨子域共用層（domain / application / config / constants /
                          errors / events / infrastructure / types / utils）
 subdomains/
   document/           ← 核心子域，完整 domain + application + adapters
-  generation/         ← stub，展開時填入
-  ingestion/          ← stub，展開時填入
-  workflow/           ← stub，展開時填入
+  generation/         ← 生成子域，完整 domain + application + adapters
+  ingestion/          ← 匠入子域，完整 domain + application + adapters
+  workflow/           ← 流程子域，完整 domain + application + adapters
 ```
 
 ## Boundary Rules
@@ -37,7 +37,7 @@ subdomains/
 
 - 需要新建一個多子域 DDD module 骨架。
 - 需要查閱正確的 barrel 結構、具名匯出寫法或跨子域協調模式。
-- 需要確認 Hexagonal 依賴方向與多子域邊界的範例。
+- 需要確認 Hexagonal 依賴方向、多子域邂界、VO ID 模式、FirestoreLike 抄象、AI adapter stub 鮣變的範例。
 
 ## Route Elsewhere When
 
@@ -47,17 +47,33 @@ subdomains/
 
 ## Development Order（新子域展開順序）
 
-1. `subdomains/<name>/domain/`：定義 Entity、Value Object、Domain Event、Repository Port。
+1. `subdomains/<name>/domain/`：定義 Entity、Value Object（VO ID）、Domain Event、Repository Port。
 2. `subdomains/<name>/application/`：定義 Use Case、DTO、Inbound / Outbound Port。
-3. `subdomains/<name>/adapters/outbound/`：實作 Repository Port 與其他 outbound adapter。
-4. `subdomains/<name>/adapters/inbound/`：實作 HTTP / Queue adapter（依需要選用）。
+3. `subdomains/<name>/adapters/outbound/`：實作 Repository Port（FirestoreLike 抄象）與其他 outbound adapter。
+4. `subdomains/<name>/adapters/inbound/`：實作 HTTP / Queue adapter（workflow 僅需 HTTP）。
 5. 更新各層 barrel index，確保具名匯出完整。
-6. 若有跨子域流程需求，在 `orchestration/TemplateCoordinator.ts` 注入相關 use case。
+6. 如有跨子域流程需求，在 `orchestration/TemplateCoordinator.ts` 注入相關 use case。
 7. 更新根 `index.ts` 補露新符號。
 
 ## Delivery Style
 
-- 奧卡姆剃刀：stub 子域 `generation / ingestion / workflow` 確認有業務需求才展開，否則保持 stub。
+- 奈卡姆剥刀：本模組四個子域均已完整實作，可直接複製作為新模組起點。
+- 複製時只保留有實際業務需求的子域；generation / ingestion / workflow 可依業務選手。
+- AI adapter（`AiGenerationAdapter`）與 Storage adapter（`CloudStorageAdapter`）為 stub，待雞 Genkit / Cloud Storage 連接時再完善。
+
+---
+
+## 已確立模式（Pattern Reference）
+
+| 模式 | 說明 |
+|---|---|
+| **VO ID** | 每個 Entity 的 `id` 字段使用 Value Object（`FooId`），含 `create(raw)`、`generate()`、`toString()`、`equals()` |
+| **FirestoreLike adapter** | Outbound adapter 內嵌 `FirestoreLike` interface（`get/set/delete`），不直接匯入 Firebase SDK |
+| **Port type alias** | `export type FooRepositoryPort = FooRepository`（type alias，不重新宣告）|
+| **AI adapter stub** | `throw new Error('not yet implemented')` + TODO comment，待 Genkit wiring |
+| **Storage adapter stub** | `throw new Error('not yet implemented')` + TODO comment，待 Cloud Storage wiring |
+| **Adapter import depth** | `adapters/inbound/http/*.ts` 需用 `../../../application/...`（三層上）|
+| **無 queue handler** | workflow 子域為 HTTP-only，`adapters/inbound/` 不包含 queue handler |
 
 ---
 
