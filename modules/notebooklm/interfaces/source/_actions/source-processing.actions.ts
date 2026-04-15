@@ -5,6 +5,12 @@ import type { CommandResult } from "@shared-types";
 import { makeSourceUseCases } from "../composition/use-cases";
 import type { SourceProcessingExecutionSummary } from "../../../subdomains/source/application/dto/source-processing.dto";
 
+interface ConfirmedTaskInput {
+  readonly title: string;
+  readonly description?: string;
+  readonly dueDate?: string;
+}
+
 interface CreateKnowledgeDraftFromSourceDocumentInput {
   readonly accountId: string;
   readonly workspaceId: string;
@@ -13,6 +19,15 @@ interface CreateKnowledgeDraftFromSourceDocumentInput {
   readonly sourceGcsUri: string;
   readonly jsonGcsUri: string;
   readonly pageCount: number;
+}
+
+interface CreateTasksFromParsedSourceDocumentInput extends CreateKnowledgeDraftFromSourceDocumentInput {
+  readonly confirmedTasks?: ReadonlyArray<ConfirmedTaskInput>;
+}
+
+interface PreviewTaskCandidatesFromParsedSourceDocumentInput {
+  readonly knowledgePageId?: string;
+  readonly jsonGcsUri: string;
 }
 
 interface ParseSourceDocumentActionInput {
@@ -83,8 +98,17 @@ export async function createKnowledgeDraftFromSourceDocument(
   return makeSourceUseCases().createKnowledgeDraftFromSource.execute(input);
 }
 
+export async function previewTaskCandidatesFromParsedSourceDocument(
+  input: PreviewTaskCandidatesFromParsedSourceDocumentInput,
+) {
+  return makeSourceUseCases().previewTaskCandidatesFromSource.execute({
+    knowledgePageId: input.knowledgePageId ?? "source-task-preview",
+    jsonGcsUri: input.jsonGcsUri,
+  });
+}
+
 export async function createTasksFromParsedSourceDocument(
-  input: CreateKnowledgeDraftFromSourceDocumentInput,
+  input: CreateTasksFromParsedSourceDocumentInput,
 ): Promise<CommandResult> {
   return makeSourceUseCases().createTasksFromSource.execute(input);
 }

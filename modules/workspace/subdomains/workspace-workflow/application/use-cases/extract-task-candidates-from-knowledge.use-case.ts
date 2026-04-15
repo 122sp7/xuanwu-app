@@ -52,26 +52,34 @@ export class ExtractTaskCandidatesFromKnowledgeUseCase {
     }
 
     const mergedContent = cleanedBlocks.map((block) => block.text).join("\n\n");
-    const aiCandidates = await this.aiPort.extractTaskCandidates({
-      knowledgePageId,
-      content: mergedContent,
-      maxCandidates: 30,
-    });
 
-    const normalizedAiCandidates: ExtractedTaskCandidate[] = aiCandidates
-      .map((item) => ({
-        title: item.title.trim(),
-        description: item.description,
-        dueDate: item.dueDate,
-        source: "ai" as const,
-        confidence: item.confidence ?? 0.72,
-        sourceSnippet: item.sourceSnippet,
-      }))
-      .filter((item) => item.title.length > 0);
+    try {
+      const aiCandidates = await this.aiPort.extractTaskCandidates({
+        knowledgePageId,
+        content: mergedContent,
+        maxCandidates: 30,
+      });
 
-    return {
-      candidates: mergeUnique(normalizedAiCandidates),
-      usedAiFallback: true,
-    };
+      const normalizedAiCandidates: ExtractedTaskCandidate[] = aiCandidates
+        .map((item) => ({
+          title: item.title.trim(),
+          description: item.description,
+          dueDate: item.dueDate,
+          source: "ai" as const,
+          confidence: item.confidence ?? 0.72,
+          sourceSnippet: item.sourceSnippet,
+        }))
+        .filter((item) => item.title.length > 0);
+
+      return {
+        candidates: mergeUnique(normalizedAiCandidates),
+        usedAiFallback: true,
+      };
+    } catch {
+      return {
+        candidates: ruleCandidates,
+        usedAiFallback: false,
+      };
+    }
   }
 }

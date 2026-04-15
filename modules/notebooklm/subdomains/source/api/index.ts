@@ -102,6 +102,7 @@ export {
   parseSourceDocument,
   reindexSourceDocument,
   createKnowledgeDraftFromSourceDocument,
+  previewTaskCandidatesFromParsedSourceDocument,
   createTasksFromParsedSourceDocument,
   processSourceDocumentWorkflow,
 } from "../../../interfaces/source/_actions/source-processing.actions";

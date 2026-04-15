@@ -1,6 +1,7 @@
 import {
   createKnowledgeDraftFromSourceDocument,
   createTasksFromParsedSourceDocument,
+  previewTaskCandidatesFromParsedSourceDocument,
   deleteSourceDocument,
   getParsedSourceDocumentState,
   getSourceFileVersions,
@@ -44,6 +45,17 @@ export interface WorkspaceManagedFileActionResult {
   readonly success: boolean;
   readonly message: string;
   readonly href?: string;
+}
+
+export interface WorkspaceManagedTaskCandidate {
+  readonly title: string;
+  readonly description?: string;
+  readonly dueDate?: string;
+}
+
+export interface WorkspaceManagedTaskPreviewResult extends WorkspaceManagedFileActionResult {
+  readonly candidates: ReadonlyArray<WorkspaceManagedTaskCandidate>;
+  readonly usedAiFallback?: boolean;
 }
 
 function toGsUri(storagePath: string): string {
@@ -249,10 +261,47 @@ export async function createWorkspaceManagedKnowledgePage(
     : { success: false, message: result.error.message };
 }
 
+export async function previewWorkspaceManagedTasks(
+  workspace: WorkspaceEntity,
+  file: WorkspaceManagedFileItem,
+): Promise<WorkspaceManagedTaskPreviewResult> {
+  if (!file.jsonGcsUri) {
+    return {
+      success: false,
+      message: "尚未找到已解析 JSON，請先執行 OCR。",
+      candidates: [],
+    };
+  }
+
+  const result = await previewTaskCandidatesFromParsedSourceDocument({
+    knowledgePageId: `${workspace.id}:${file.id}:preview`,
+    jsonGcsUri: file.jsonGcsUri,
+  });
+
+  if (result.errorMessage) {
+    return {
+      success: false,
+      message: result.errorMessage,
+      candidates: [],
+      usedAiFallback: result.usedAiFallback,
+    };
+  }
+
+  return {
+    success: true,
+    message: result.candidates.length > 0
+      ? `已找到 ${result.candidates.length} 項候選任務，請確認後建立。`
+      : "已完成任務掃描，但未找到可建立的任務。",
+    candidates: result.candidates,
+    usedAiFallback: result.usedAiFallback,
+  };
+}
+
 export async function createWorkspaceManagedTasks(
   workspace: WorkspaceEntity,
   file: WorkspaceManagedFileItem,
   createdByUserId: string,
+  confirmedTasks?: ReadonlyArray<WorkspaceManagedTaskCandidate>,
 ): Promise<WorkspaceManagedFileActionResult> {
   if (!file.jsonGcsUri || !file.storagePath) {
     return { success: false, message: "尚未找到已解析 JSON，請先執行 OCR。" };
@@ -266,12 +315,15 @@ export async function createWorkspaceManagedTasks(
     sourceGcsUri: toGsUri(file.storagePath),
     jsonGcsUri: file.jsonGcsUri,
     pageCount: file.pageCount ?? 0,
+    confirmedTasks,
   });
 
   return result.success
     ? {
       success: true,
-      message: "任務流程已建立，可前往 Tasks 查看。",
+      message: confirmedTasks?.length
+        ? `已建立 ${confirmedTasks.length} 項任務，可前往 Tasks 查看。`
+        : "任務流程已建立，可前往 Tasks 查看。",
       href: `/${encodeURIComponent(workspace.accountId)}/${encodeURIComponent(workspace.id)}?tab=Tasks`,
     }
     : { success: false, message: result.error.message };

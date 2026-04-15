@@ -154,7 +154,7 @@ export function WorkspaceManagedFileCard({
               disabled={isBusy}
               title={promptSummaryByIntent.get("source-task-materialization")}
             >
-              建立 任務
+              建立任務
             </Button>
           </div>
         </div>

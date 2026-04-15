@@ -36,6 +36,7 @@ export {
   runWorkspaceManagedFileOcr,
   runWorkspaceManagedFileRagIndex,
   createWorkspaceManagedKnowledgePage,
+  previewWorkspaceManagedTasks,
   createWorkspaceManagedTasks,
 } from "../interfaces/facades/workspace-file.facade";
 
@@ -43,6 +44,8 @@ export type {
   WorkspaceManagedFileActionResult,
   WorkspaceManagedFileItem,
   WorkspaceManagedFileVersionItem,
+  WorkspaceManagedTaskCandidate,
+  WorkspaceManagedTaskPreviewResult,
 } from "../interfaces/facades/workspace-file.facade";
 
 export {
