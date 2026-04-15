@@ -1,3 +1,3 @@
-// session — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+// session — application layer
+// TODO: Implement CreateSessionUseCase, RevokeSessionUseCase.
+export type {} from "./index";

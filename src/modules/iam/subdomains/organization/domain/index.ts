@@ -1,3 +1,18 @@
-// organization — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-export {};
+export { Organization } from "./aggregates/Organization";
+export type { OrganizationSnapshot, CreateOrganizationInput } from "./aggregates/Organization";
+export { OrganizationTeam } from "./aggregates/OrganizationTeam";
+export type { OrganizationTeamSnapshot } from "./aggregates/OrganizationTeam";
+export type { OrganizationRepository } from "./repositories/OrganizationRepository";
+export type { OrgPolicyRepository } from "./repositories/OrgPolicyRepository";
+export type { OrganizationDomainEventType } from "./events/OrganizationDomainEvent";
+export type { OrganizationTeamDomainEvent } from "./events/OrganizationTeamDomainEvent";
+export type { MemberReference, Team, ThemeConfig, OrgPolicy, CreateOrganizationCommand, UpdateOrganizationSettingsCommand, InviteMemberInput, UpdateMemberRoleInput, CreateTeamInput } from "./entities/Organization";
+export { createOrganizationId } from "./value-objects/OrganizationId";
+export type { OrganizationId } from "./value-objects/OrganizationId";
+export { createMemberRole, canManageRole } from "./value-objects/MemberRole";
+export type { MemberRole } from "./value-objects/MemberRole";
+export { canSuspend, canDissolve, canReactivate } from "./value-objects/OrganizationStatus";
+export type { OrganizationStatus } from "./value-objects/OrganizationStatus";
+export { createTeamId } from "./value-objects/TeamId";
+export type { TeamId } from "./value-objects/TeamId";
+export type { TeamType } from "./value-objects/TeamType";

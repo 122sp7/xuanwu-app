@@ -1,3 +1,3 @@
-// tenant — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+// tenant — application layer
+// TODO: Implement ProvisionTenantUseCase, SuspendTenantUseCase.
+export type {} from "./index";

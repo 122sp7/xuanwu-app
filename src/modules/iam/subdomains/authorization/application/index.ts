@@ -1,3 +1,3 @@
-// authorization — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+// authorization — application layer
+// TODO: Implement EvaluatePermission, CheckEntitlement use cases.
+export type {} from "./index";

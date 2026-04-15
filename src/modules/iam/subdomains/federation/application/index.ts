@@ -1,3 +1,3 @@
-// federation — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+// federation — application layer
+// TODO: Implement LinkProviderUseCase, UnlinkProviderUseCase.
+export type {} from "./index";

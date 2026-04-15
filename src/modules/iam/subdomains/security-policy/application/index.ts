@@ -1,3 +1,3 @@
-// security-policy — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+// security-policy — application layer
+// TODO: Implement UpdateSecurityPolicyUseCase, GetSecurityPolicyUseCase.
+export type {} from "./index";
