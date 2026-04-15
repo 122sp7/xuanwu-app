@@ -4,14 +4,15 @@
  * Use Case: CreateKnowledgeDraftFromSourceUseCase — creates a knowledge page draft from a parsed source document.
  *
  * Actor: logged-in user
- * Goal: read parsed text from storage, create a knowledge page with a text block.
- * Main success: page created, returns aggregateId.
+ * Goal: distil parsed document via Genkit to produce a structured knowledge page draft.
+ * Main success: page created with AI-distilled overview + key points, returns aggregateId.
  * Failure: missing input, storage retrieval failure, or page creation failure.
  */
 
 import type { CommandResult } from "@shared-types";
 import { commandFailureFrom, commandSuccess } from "@shared-types";
 
+import type { ContentDistillationPort } from "../../domain/ports/ContentDistillationPort";
 import type { ParsedDocumentPort } from "../../domain/ports/ParsedDocumentPort";
 import type { KnowledgePageGateway } from "../../domain/ports/KnowledgePageGatewayPort";
 
@@ -22,6 +23,7 @@ export interface CreateKnowledgeDraftInput {
   readonly workspaceId: string;
   readonly createdByUserId: string;
   readonly filename: string;
+  readonly mimeType?: string;
   readonly sourceGcsUri: string;
   readonly jsonGcsUri: string;
   readonly pageCount: number;
@@ -33,10 +35,22 @@ function trimFileExtension(filename: string): string {
   return idx <= 0 ? trimmed : trimmed.slice(0, idx);
 }
 
+function buildPageBodyFromDistillation(
+  overview: string,
+  items: readonly { title: string; summary: string }[],
+): string {
+  const sections = [overview];
+  for (const item of items) {
+    sections.push(`## ${item.title}\n\n${item.summary}`);
+  }
+  return sections.filter(Boolean).join("\n\n");
+}
+
 export class CreateKnowledgeDraftFromSourceUseCase {
   constructor(
     private readonly parsedDocumentPort: ParsedDocumentPort,
     private readonly knowledgeGateway: KnowledgePageGateway,
+    private readonly distillationPort?: ContentDistillationPort,
   ) {}
 
   async execute(input: CreateKnowledgeDraftInput): Promise<CommandResult> {
@@ -56,8 +70,23 @@ export class CreateKnowledgeDraftFromSourceUseCase {
 
     try {
       const parsedText = await this.parsedDocumentPort.loadParsedDocumentText(input.jsonGcsUri);
-      const plainText = parsedText || `[${trimFileExtension(input.filename)}]`;
+      const fallbackText = `[${trimFileExtension(input.filename)}]`;
       const title = `${trimFileExtension(input.filename)}｜匯入草稿`;
+
+      let pageBodyText: string;
+
+      if (this.distillationPort && parsedText) {
+        const distilled = await this.distillationPort.distill({
+          sources: [{ title: trimFileExtension(input.filename), text: parsedText }],
+          objective: "建立可供編輯的知識頁面草稿，提取重點並整理成結構化段落",
+        });
+        pageBodyText = buildPageBodyFromDistillation(
+          distilled.overview,
+          distilled.distilledItems,
+        );
+      } else {
+        pageBodyText = parsedText || fallbackText;
+      }
 
       const TIPTAP_PROPERTY_KEY = "tiptapJson";
 
@@ -77,7 +106,7 @@ export class CreateKnowledgeDraftFromSourceUseCase {
         index: 0,
         content: {
           type: "text",
-          richText: [{ type: "text", plainText }],
+          richText: [{ type: "text", plainText: pageBodyText }],
           properties: { [TIPTAP_PROPERTY_KEY]: null },
         },
       });

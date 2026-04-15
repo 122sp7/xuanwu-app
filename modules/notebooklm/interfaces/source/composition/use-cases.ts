@@ -14,6 +14,8 @@ import type { SourceDocumentCommandPort } from "../../../subdomains/source/domai
 import type { SourcePipelinePort } from "../../../subdomains/source/domain/ports/SourcePipelinePort";
 import type { ParsedDocumentPort } from "../../../subdomains/source/domain/ports/ParsedDocumentPort";
 import type { TaskMaterializationWorkflowPort } from "../../../subdomains/source/domain/ports/TaskMaterializationWorkflowPort";
+import type { ContentDistillationPort } from "../../../subdomains/source/domain/ports/ContentDistillationPort";
+import { AiDistillationAdapter } from "../../../subdomains/source/infrastructure/ai/AiDistillationAdapter";
 import {
   makeSourceFileAdapter,
   makeRagDocumentAdapter,
@@ -60,12 +62,14 @@ export function makeSourceUseCases(
   parsedDocumentPort: ParsedDocumentPort = makeParsedDocumentAdapter(),
   knowledgePageGateway: KnowledgePageGateway = makeKnowledgePageGateway(),
   taskWorkflowPort: TaskMaterializationWorkflowPort = makeTaskMaterializationWorkflowAdapter(),
+  distillationPort: ContentDistillationPort = new AiDistillationAdapter(),
 ): SourceUseCases {
   const parseUseCase = new ParseSourceDocumentUseCase(pipelinePort);
   const reindexUseCase = new ReindexSourceDocumentUseCase(pipelinePort);
   const createDraftUseCase = new CreateKnowledgeDraftFromSourceUseCase(
     parsedDocumentPort,
     knowledgePageGateway,
+    distillationPort,
   );
 
   return {
