@@ -17,5 +17,12 @@ export interface TaskCandidateExtractionAiPort {
     readonly knowledgePageId: string;
     readonly content: string;
     readonly maxCandidates?: number;
+    readonly sourceContext?: {
+      readonly filename?: string;
+      readonly mimeType?: string;
+      readonly pageCount?: number;
+      readonly sourceGcsUri?: string;
+      readonly jsonGcsUri?: string;
+    };
   }): Promise<ReadonlyArray<AIExtractedTaskCandidate>>;
 }

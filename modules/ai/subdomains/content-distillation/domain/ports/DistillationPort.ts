@@ -36,6 +36,8 @@ export interface TaskExtractionPromptContext {
   readonly accountId?: string;
   readonly jsonReady?: boolean;
   readonly pageCount?: number;
+  readonly sourceGcsUri?: string;
+  readonly jsonGcsUri?: string;
 }
 
 export interface TaskExtractionInput {

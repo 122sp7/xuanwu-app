@@ -78,6 +78,12 @@ export class CreateTasksFromSourceUseCase {
         knowledgePageId: pageResult.aggregateId,
         blocks,
         enableAiFallback: true,
+        sourceContext: {
+          filename: input.filename,
+          pageCount: input.pageCount,
+          sourceGcsUri: input.sourceGcsUri,
+          jsonGcsUri: input.jsonGcsUri,
+        },
       });
 
       if (extraction.candidates.length === 0) {

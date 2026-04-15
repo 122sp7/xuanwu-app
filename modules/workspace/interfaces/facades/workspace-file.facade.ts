@@ -276,6 +276,9 @@ export async function previewWorkspaceManagedTasks(
   const result = await previewTaskCandidatesFromParsedSourceDocument({
     knowledgePageId: `${workspace.id}:${file.id}:preview`,
     jsonGcsUri: file.jsonGcsUri,
+    filename: file.name,
+    mimeType: file.mimeType,
+    pageCount: file.pageCount,
   });
 
   if (result.errorMessage) {

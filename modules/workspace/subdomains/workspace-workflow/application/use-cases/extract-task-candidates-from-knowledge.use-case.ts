@@ -1,7 +1,7 @@
 /**
  * @module workspace-flow/application/use-cases
  * @file extract-task-candidates-from-knowledge.use-case.ts
- * @description Extract task candidates from knowledge blocks with rule-first strategy.
+ * @description Extract task candidates from parsed knowledge blocks through the shared AI bounded context.
  */
 
 import type {
@@ -10,7 +10,6 @@ import type {
   ExtractedTaskCandidate,
 } from "../dto/extract-task-candidates-from-knowledge.dto";
 import type { TaskCandidateExtractionAiPort } from "../../domain/ports/TaskCandidateExtractionAiPort";
-import { TaskCandidateRuleExtractor } from "../../domain/services/TaskCandidateRuleExtractor";
 
 function mergeUnique(candidates: ReadonlyArray<ExtractedTaskCandidate>): ReadonlyArray<ExtractedTaskCandidate> {
   const dedup = new Map<string, ExtractedTaskCandidate>();
@@ -26,8 +25,6 @@ function mergeUnique(candidates: ReadonlyArray<ExtractedTaskCandidate>): Readonl
 }
 
 export class ExtractTaskCandidatesFromKnowledgeUseCase {
-  private readonly ruleExtractor = new TaskCandidateRuleExtractor();
-
   constructor(private readonly aiPort?: TaskCandidateExtractionAiPort) {}
 
   async execute(
@@ -46,9 +43,8 @@ export class ExtractTaskCandidatesFromKnowledgeUseCase {
       }))
       .filter((block) => block.blockId && block.text);
 
-    const ruleCandidates = this.ruleExtractor.extract(cleanedBlocks);
-    if (ruleCandidates.length > 0 || dto.enableAiFallback === false || !this.aiPort) {
-      return { candidates: ruleCandidates, usedAiFallback: false };
+    if (cleanedBlocks.length === 0 || dto.enableAiFallback === false || !this.aiPort) {
+      return { candidates: [], usedAiFallback: false };
     }
 
     const mergedContent = cleanedBlocks.map((block) => block.text).join("\n\n");
@@ -58,6 +54,7 @@ export class ExtractTaskCandidatesFromKnowledgeUseCase {
         knowledgePageId,
         content: mergedContent,
         maxCandidates: 30,
+        sourceContext: dto.sourceContext,
       });
 
       const normalizedAiCandidates: ExtractedTaskCandidate[] = aiCandidates
@@ -77,7 +74,7 @@ export class ExtractTaskCandidatesFromKnowledgeUseCase {
       };
     } catch {
       return {
-        candidates: ruleCandidates,
+        candidates: [],
         usedAiFallback: false,
       };
     }

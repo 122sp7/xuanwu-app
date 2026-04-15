@@ -3,9 +3,8 @@
  * @file TaskCandidate.ts
  * @description Domain value types for extracted task candidates from knowledge content.
  *
- * Moved from application/dto to domain so the stateless rule engine
- * (TaskCandidateRuleExtractor) can live in domain/services/ without
- * depending on the application layer.
+ * These remain in the domain layer so workspace-workflow can normalize and
+ * materialize AI-proposed task candidates without depending on application DTOs.
  *
  * @see ADR-5201 Accidental Complexity — workspace-workflow application structure
  */

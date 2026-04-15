@@ -8,6 +8,9 @@ import type { ParsedDocumentPort } from "../../domain/ports/ParsedDocumentPort";
 export interface PreviewTaskCandidatesFromSourceInput {
   readonly knowledgePageId: string;
   readonly jsonGcsUri: string;
+  readonly filename?: string;
+  readonly mimeType?: string;
+  readonly pageCount?: number;
 }
 
 export interface PreviewTaskCandidatesFromSourceResult {
@@ -60,6 +63,12 @@ export class PreviewTaskCandidatesFromSourceUseCase {
         knowledgePageId: input.knowledgePageId.trim() || "task-preview",
         blocks,
         enableAiFallback: true,
+        sourceContext: {
+          filename: input.filename,
+          mimeType: input.mimeType,
+          pageCount: input.pageCount,
+          jsonGcsUri: input.jsonGcsUri,
+        },
       });
 
       return {

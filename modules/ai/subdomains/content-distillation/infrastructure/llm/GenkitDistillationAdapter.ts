@@ -82,7 +82,16 @@ function buildTaskExtractionPrompt(input: TaskExtractionInput): string {
     input.promptContext?.jsonReady ? "preview" : "manual",
   );
 
-  return [resolvedPrompt.system, "", resolvedPrompt.prompt, "", "Content:", input.content.slice(0, 8000)].join("\n");
+  return [
+    resolvedPrompt.system,
+    "",
+    resolvedPrompt.prompt,
+    input.promptContext?.sourceGcsUri ? `Original source URI: ${input.promptContext.sourceGcsUri}` : "",
+    input.promptContext?.jsonGcsUri ? `Parsed JSON URI: ${input.promptContext.jsonGcsUri}` : "",
+    "",
+    "Content:",
+    input.content.slice(0, 8000),
+  ].filter(Boolean).join("\n");
 }
 
 export class GenkitDistillationAdapter implements DistillationPort {

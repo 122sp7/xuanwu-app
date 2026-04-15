@@ -59,7 +59,7 @@ export function TaskCandidateConfirmDialog({
               系統已根據 {filename} 的解析 JSON 抽出 {candidates.length} 項候選任務，請確認後再建立。
             </DialogDescription>
             <div className="flex flex-wrap items-center gap-2 pt-2">
-              <Badge variant="outline">{usedAiFallback ? "含 AI 補強" : "規則抽取"}</Badge>
+              <Badge variant="outline">{usedAiFallback ? "AI 抽取" : "候選結果"}</Badge>
               <Badge variant="secondary">已選 {selectedCandidates.length} 項</Badge>
             </div>
           </DialogHeader>

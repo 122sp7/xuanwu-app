@@ -28,6 +28,9 @@ interface CreateTasksFromParsedSourceDocumentInput extends CreateKnowledgeDraftF
 interface PreviewTaskCandidatesFromParsedSourceDocumentInput {
   readonly knowledgePageId?: string;
   readonly jsonGcsUri: string;
+  readonly filename?: string;
+  readonly mimeType?: string;
+  readonly pageCount?: number;
 }
 
 interface ParseSourceDocumentActionInput {
@@ -104,6 +107,9 @@ export async function previewTaskCandidatesFromParsedSourceDocument(
   return makeSourceUseCases().previewTaskCandidatesFromSource.execute({
     knowledgePageId: input.knowledgePageId ?? "source-task-preview",
     jsonGcsUri: input.jsonGcsUri,
+    filename: input.filename,
+    mimeType: input.mimeType,
+    pageCount: input.pageCount,
   });
 }
 

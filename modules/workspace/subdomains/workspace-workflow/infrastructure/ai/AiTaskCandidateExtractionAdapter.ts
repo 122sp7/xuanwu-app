@@ -17,10 +17,25 @@ export class AiTaskCandidateExtractionAdapter implements TaskCandidateExtraction
     readonly knowledgePageId: string;
     readonly content: string;
     readonly maxCandidates?: number;
+    readonly sourceContext?: {
+      readonly filename?: string;
+      readonly mimeType?: string;
+      readonly pageCount?: number;
+      readonly sourceGcsUri?: string;
+      readonly jsonGcsUri?: string;
+    };
   }): Promise<ReadonlyArray<AIExtractedTaskCandidate>> {
     const result = await extractTasksFromContent({
       content: input.content,
       maxCandidates: input.maxCandidates,
+      promptContext: {
+        filename: input.sourceContext?.filename,
+        mimeType: input.sourceContext?.mimeType,
+        pageCount: input.sourceContext?.pageCount,
+        sourceGcsUri: input.sourceContext?.sourceGcsUri,
+        jsonGcsUri: input.sourceContext?.jsonGcsUri,
+        jsonReady: true,
+      },
     });
 
     return result.tasks.map((task) => ({

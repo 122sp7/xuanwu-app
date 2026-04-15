@@ -16,6 +16,13 @@ export interface ExtractTaskCandidatesInput {
   readonly knowledgePageId: string;
   readonly blocks: ReadonlyArray<ParsedKnowledgeTaskBlock>;
   readonly enableAiFallback?: boolean;
+  readonly sourceContext?: {
+    readonly filename?: string;
+    readonly mimeType?: string;
+    readonly pageCount?: number;
+    readonly sourceGcsUri?: string;
+    readonly jsonGcsUri?: string;
+  };
 }
 
 export interface ExtractTaskCandidatesOutput {

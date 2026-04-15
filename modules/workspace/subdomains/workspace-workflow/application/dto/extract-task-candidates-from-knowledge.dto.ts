@@ -25,6 +25,13 @@ export interface ExtractTaskCandidatesFromKnowledgeDto {
   readonly knowledgePageId: string;
   readonly blocks: ReadonlyArray<KnowledgeTextBlockInput>;
   readonly enableAiFallback?: boolean;
+  readonly sourceContext?: {
+    readonly filename?: string;
+    readonly mimeType?: string;
+    readonly pageCount?: number;
+    readonly sourceGcsUri?: string;
+    readonly jsonGcsUri?: string;
+  };
 }
 
 export interface ExtractTaskCandidatesFromKnowledgeResult {
