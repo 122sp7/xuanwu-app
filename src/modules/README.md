@@ -7,32 +7,33 @@
 
 ---
 
-## 蒸餾作業 — 整體狀態（2026-04-15）
+## 🔨 蒸餾作業進行中（2026-04-15）
 
-本層是從 `modules/` 蒸餾出的**精簡、可交付骨架**。每個子模組僅保留：
+本層正在進行從 `modules/` 到 `src/modules/` 的蒸餾作業。**在蒸餾作業完成前，請遵守以下路由規則，避免衝突混淆：**
 
-- `domain/` → 核心 entity、value object、domain event、repository port
-- `application/` → use case、DTO
-- `adapters/inbound/` → HTTP / Queue 驅動 adapter
-- `adapters/outbound/` → Firestore / Firebase / 外部系統被驅動 adapter
-
-無 `subdomains/` 分層（除非子域邊界壓力明確）；無 `infrastructure/`、`interfaces/` 資料夾。
+| 需要 | 去哪裡 |
+|---|---|
+| 讀取邊界規則 / published language | `modules/<context>/AGENT.md`、`modules/<context>/api/` |
+| 撰寫新 use case / entity / adapter | `src/modules/<context>/`（以 `src/modules/template` 為骨架）|
+| 了解蒸餾進度（跳過哪些）| `src/modules/<context>/README.md` |
+| 跨模組 API boundary | `modules/<context>/api/index.ts`（仍是權威）|
+| 新模組起點 | 複製 `src/modules/template/`（見下方指引）|
 
 ---
 
-## 模組清單與蒸餾狀態
+## 模組清單、蒸餾狀態與子域對照
 
-| 模組 | 蒸餾來源（`modules/`） | 狀態 | 備註 |
+| 模組 | 蒸餾來源（`modules/`）| 狀態 | 子域清單 |
 |---|---|---|---|
-| `template/` | 無（原創骨架） | ✅ 完整骨架，可複製 | **多子域示範模組，從這裡複製** |
-| `iam/` | `modules/iam` + `modules/platform`（account / org） | 🔨 進行中 | account / org 已遷入 |
-| `platform/` | `modules/platform`（notification 等剩餘服務） | 🔨 進行中 | account / org 已移至 iam |
-| `workspace/` | `modules/workspace` | 🔨 進行中 | task、issue、lifecycle 等子域 |
-| `notion/` | `modules/notion` | 📋 待蒸餾 | knowledge、authoring、collaboration |
-| `notebooklm/` | `modules/notebooklm` | 📋 待蒸餾 | conversation、source、synthesis |
-| `ai/` | `modules/ai` | 📋 待蒸餾 | tool-runtime、task-formation |
-| `analytics/` | `modules/analytics` | 📋 待蒸餾 | reporting、metrics |
-| `billing/` | `modules/billing` | 📋 待蒸餾 | subscription、entitlement |
+| `template/` | 無（原創骨架）| ✅ 完整骨架，可複製 | document、generation、ingestion、workflow |
+| `iam/` | `modules/iam/` + platform/account + platform/org | 🔨 進行中 | account、access-control、authentication、authorization、federation、identity、organization、security-policy、session、tenant |
+| `platform/` | `modules/platform/`（notification 等剩餘服務）| 🔨 進行中 | background-job、notification、platform-config、search（account / org 已移至 iam）|
+| `workspace/` | `modules/workspace/` | 🔨 進行中 | approve、audit、feed、issue、lifecycle、membership、orchestration、quality、scheduling、settlement、sharing、task、task-formation |
+| `notion/` | `modules/notion/` | 📋 待蒸餾 | authoring、collaboration、knowledge、knowledge-database、relations、taxonomy |
+| `notebooklm/` | `modules/notebooklm/` | 📋 待蒸餾 | conversation、notebook、source、synthesis |
+| `ai/` | `modules/ai/` | 📋 待蒸餾 | conversations、datasets、embeddings、evaluation-policy、memory-context、messages、model-observability、models、personas、prompt-pipeline、prompts、safety-guardrail、tokens、tools |
+| `analytics/` | `modules/analytics/` | 📋 待蒸餾 | event-contracts、event-ingestion、event-projection、insights、metrics、realtime-insights |
+| `billing/` | `modules/billing/` | 📋 待蒸餾 | entitlement、subscription |
 
 ---
 
@@ -47,7 +48,7 @@
                                         以 src/modules/template 為骨架
 了解蒸餾了哪些內容、跳過哪些            src/modules/<context>/README.md
 需要跨模組 API boundary                 modules/<context>/api/index.ts（仍是權威）
-````
+```
 
 ---
 
@@ -79,8 +80,10 @@ cp -r src/modules/template src/modules/<your-context>
 | 把 `modules/<context>/infrastructure/` 直接複製到 `src/modules/<context>/domain/` | 層次混淆，污染 domain 純度 |
 | 把 `src/modules/` 當成 `modules/` 的別名或同義詞 | 兩層職責不同，互不取代 |
 | 在 barrel 使用 `export *` | 破壞 tree-shaking 與邊界可追蹤性 |
-| 跨 subdomain 直接 import（不經 orchestration/ 或 shared/events/） | 破壞 subdomain 邊界 |
+| 跨 subdomain 直接 import（不經 orchestration/ 或 shared/events/）| 破壞 subdomain 邊界 |
 | 在 `domain/` 中 import React、Firebase SDK、HTTP client、ORM | 破壞 domain 純度 |
+| 在 `src/modules/platform/` 重建 account / org 子域 | 已遷入 iam |
+| 新建或恢復 `workspace-workflow` 子域 | 已拆解（2026-04-15），禁止回歸 |
 
 ---
 
