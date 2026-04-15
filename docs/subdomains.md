@@ -11,7 +11,7 @@
 | ai | content-generation, content-distillation, context-assembly, evaluation-policy, memory-context, model-observability, prompt-pipeline, safety-guardrail | provider-routing, model-policy |
 | analytics | reporting, metrics, dashboards, telemetry-projection | experimentation, decision-support |
 | platform | account, account-profile, organization, team, platform-config, feature-flag, onboarding, compliance, integration, workflow, notification, background-job, content, search, audit-log, observability, support | consent, secret-management |
-| workspace | audit, feed, scheduling, workspace-workflow | lifecycle, membership, sharing, presence |
+| workspace | audit, feed, scheduling, approve, issue, orchestration, quality, settlement, task, task-formation | lifecycle, membership, sharing, presence |
 | notion | knowledge, authoring, collaboration, knowledge-database, knowledge-engagement, attachments, automation, external-knowledge-sync, notes, templates, knowledge-versioning | taxonomy, relations, publishing |
 | notebooklm | conversation, note, notebook, source, synthesis, conversation-versioning | ingestion, retrieval, grounding, evaluation |
 
@@ -104,7 +104,13 @@
 | audit | 工作區操作稽核與證據追蹤 |
 | feed | 工作區活動摘要與事件流呈現 |
 | scheduling | 工作區排程、時序與提醒協調 |
-| workspace-workflow | 工作區流程編排與執行治理 |
+| approve | 任務驗收與問題單覆核審批流程 |
+| issue | 問題單生命週期與追蹤管理 |
+| orchestration | 知識頁面→任務物化批次作業編排 |
+| quality | 任務 QA 審查與質檢流程 |
+| settlement | 請款發票生命週期與財務對帳 |
+| task | 任務建立、指派與狀態轉換 |
+| task-formation | AI 輔助任務候選抽取與批次匯入 |
 
 #### Recommended Gap Subdomains
 
@@ -222,7 +228,7 @@
 | identity | `iam` 擁有 identity 與 access-control；其他主域不再各自宣稱 |
 | integration | `platform` 保留 generic `integration`；`notion` 保留 `external-knowledge-sync` |
 | versioning | `notion` 改為 `knowledge-versioning`；`notebooklm` 改為 `conversation-versioning` |
-| workflow | `platform` 保留 generic `workflow`；`workspace` 使用 `workspace-workflow` |
+| workflow | `platform` 保留 generic `workflow`；workspace 的流程能力已分解為 task、issue、settlement、approve、quality、orchestration 等獨立子域 |
 
 ## Subdomain Anti-Patterns
 

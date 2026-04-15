@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { WorkspaceAuditTab } from "../../../../subdomains/audit/api";
 import { WorkspaceFeedWorkspaceView } from "../../../../subdomains/feed/api";
 import { WorkspaceSchedulingTab } from "../../../../subdomains/scheduling/api";
-import { WorkspaceFlowTab } from "../../../../subdomains/workspace-workflow/api";
+import { WorkspaceFlowTab } from "../../../../subdomains/orchestration/api";
 import { WorkspaceNotificationPreferencesPanel } from "@/modules/platform/subdomains/notification/api";
 import type { WorkspaceEntity } from "../../../../domain/aggregates/Workspace";
 import type { WorkspaceTabValue } from "../../navigation/workspace-tabs";

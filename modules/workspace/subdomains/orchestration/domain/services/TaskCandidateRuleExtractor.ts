@@ -8,7 +8,7 @@
  * contains only domain rules and has no application or infrastructure
  * dependencies.
  *
- * @see ADR-5201 Accidental Complexity — workspace-workflow application structure
+ * @see ADR-5201 Accidental Complexity — workspace flow application structure
  */
 
 import type { ExtractedTaskCandidate, KnowledgeTextBlockInput } from "../../../task/domain/value-objects/TaskCandidate";

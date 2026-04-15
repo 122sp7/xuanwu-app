@@ -7,7 +7,7 @@
  * (TaskCandidateRuleExtractor) can live in domain/services/ without
  * depending on the application layer.
  *
- * @see ADR-5201 Accidental Complexity — workspace-workflow application structure
+ * @see ADR-5201 Accidental Complexity — workspace flow application structure
  */
 
 export type TaskCandidateSource = "rule" | "ai";

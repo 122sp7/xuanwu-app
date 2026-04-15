@@ -7,7 +7,7 @@
  * now live in domain/value-objects/TaskCandidate.ts. They are re-exported here so existing
  * application-layer import paths continue to resolve.
  *
- * @see ADR-5201 Accidental Complexity — workspace-workflow application structure
+ * @see ADR-5201 Accidental Complexity — workspace flow application structure
  */
 
 import type {

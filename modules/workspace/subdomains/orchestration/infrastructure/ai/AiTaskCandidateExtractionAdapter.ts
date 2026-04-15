@@ -5,12 +5,12 @@ import type { TaskCandidateExtractionAiPort } from "../../domain/ports/TaskCandi
 import type { AIExtractedTaskCandidate } from "../../domain/ports/TaskCandidateExtractionAiPort";
 
 /**
- * @module workspace-workflow/infrastructure/ai
+ * @module orchestration/infrastructure/ai
  * @file AiTaskCandidateExtractionAdapter.ts
  * @description Infrastructure adapter implementing TaskCandidateExtractionAiPort.
  *
  * Delegates to the shared AI bounded context (`modules/ai/api/server`) so that
- * the workspace-workflow subdomain never depends on Genkit directly.
+ * the orchestration subdomain never depends on Genkit directly.
  */
 export class AiTaskCandidateExtractionAdapter implements TaskCandidateExtractionAiPort {
   async extractTaskCandidates(input: {
