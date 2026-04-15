@@ -1,5 +1,7 @@
 # App — Next.js App Router Entry
 
+> **⚠ 衝突防護聲明**：本層（`src/app/<context>/`）與 `app/<context>/`（完整 Hexagonal DDD 實作層）是**兩個獨立的實作層，不可互換、不可混用**。
+
 `src/app/` 是 Next.js 16 App Router 的 UI 進入層。負責路由組合與 layout 組裝，不承載任何業務邏輯。
 
 ## 目錄結構
