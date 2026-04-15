@@ -1,6 +1,7 @@
 ---
 name: generate-aggregate
 description: 根據業務需求生成符合 Hexagonal Architecture with Domain-Driven Design 規範的 TypeScript 聚合根骨架，包含值對象、領域事件與 Zod Schema。
+applyTo: 'modules/**/domain/**/*.{ts,tsx}'
 agent: Domain Architect
 argument-hint: 提供聚合名稱、所屬限界上下文（模組）、核心業務規則與狀態欄位。
 ---
