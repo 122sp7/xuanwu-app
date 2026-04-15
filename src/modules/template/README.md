@@ -1,103 +1,132 @@
 # Template Module
 
-`src/modules/template` 是一個可複製的 **Hexagonal Architecture + DDD** 骨架模組，示範標準分層結構與具名匯出規範。
+`src/modules/template` 是一個可複製的 **Hexagonal Architecture + DDD 多子域骨架**，示範多 subdomain 分層結構、具名匯出規範與跨子域協調模式。
 
 ## 目錄結構
 
 ```
 src/modules/template/
-  index.ts                        ← 模組對外唯一入口（具名匯出）
-  domain/
-    index.ts                      ← domain 聚合 barrel
-    entities/
-      Template.ts                 ← 聚合根
-    value-objects/
-      TemplateId.ts
-      TemplateName.ts
+  index.ts                          ← 模組對外唯一入口（具名匯出）
+  README.md
+  AGENT.md
+  orchestration/
+    TemplateFacade.ts               ← 對外統一 Facade（委派各子域 use case）
+    TemplateCoordinator.ts          ← 跨子域流程協調（document→generation→ingestion→workflow）
+  shared/
+    domain/
+      index.ts                      ← 跨子域共用 domain 概念（Value Object、Policy）
+    application/
+      index.ts                      ← 跨子域共用 DTO / Port
+    config/
+      index.ts                      ← 模組設定
+    constants/
+      index.ts                      ← 模組常數
+    errors/
+      index.ts                      ← 共用錯誤類型
     events/
-      TemplateCreatedEvent.ts
-      TemplateUpdatedEvent.ts
-    repositories/
-      TemplateRepository.ts       ← domain port（介面）
-    services/
-      TemplateDomainService.ts
-  application/
-    index.ts                      ← application 聚合 barrel
-    use-cases/
-      CreateTemplateUseCase.ts
-      UpdateTemplateUseCase.ts
-      DeleteTemplateUseCase.ts
-    dto/
-      CreateTemplateDTO.ts
-      UpdateTemplateDTO.ts
-      TemplateResponseDTO.ts
-    ports/
-      inbound/
-        CreateTemplatePort.ts
-      outbound/
-        TemplateRepositoryPort.ts  ← domain repository 別名
-        CachePort.ts
-        ExternalApiPort.ts
-  adapters/
-    inbound/
-      index.ts                     ← inbound 聚合 barrel
-      http/
-        TemplateController.ts
-        routes.ts
-      rpc/
-        TemplateRpcHandler.ts
-      cron/
-        TemplateCronJob.ts
-      queue/
-        TemplateQueueHandler.ts
-    outbound/
-      index.ts                     ← outbound 聚合 barrel
-      firestore/
-        FirestoreTemplateRepository.ts
-        FirestoreMapper.ts
-      cache/
-        TemplateCacheAdapter.ts
-      external-api/
-        TemplateApiClient.ts
+      index.ts                      ← 跨子域 Published Language Events
+    infrastructure/
+      index.ts                      ← 共用 infrastructure 工具
+    types/
+      index.ts                      ← 共用 TypeScript 型別
+    utils/
+      index.ts                      ← 共用工具函式
+  subdomains/
+    document/                       ← 核心子域（完整實作）
+      domain/
+        entities/Template.ts
+        value-objects/TemplateId.ts
+        value-objects/TemplateName.ts
+        events/TemplateCreatedEvent.ts
+        events/TemplateUpdatedEvent.ts
+        repositories/TemplateRepository.ts
+        services/TemplateDomainService.ts
+        index.ts
+      application/
+        use-cases/CreateTemplateUseCase.ts
+        use-cases/UpdateTemplateUseCase.ts
+        use-cases/DeleteTemplateUseCase.ts
+        dto/{Create,Update,Response}TemplateDTO.ts
+        ports/inbound/CreateTemplatePort.ts
+        ports/outbound/{TemplateRepositoryPort,CachePort,ExternalApiPort}.ts
+        index.ts
+      adapters/
+        inbound/
+          http/{TemplateController,routes}.ts
+          queue/TemplateQueueHandler.ts
+          index.ts
+        outbound/
+          firestore/{FirestoreTemplateRepository,FirestoreMapper}.ts
+          cache/TemplateCacheAdapter.ts
+          external-api/TemplateApiClient.ts
+          index.ts
+        index.ts
+    generation/                     ← 生成子域（stub — 展開時填入）
+      domain/entities/GeneratedTemplate.ts
+      domain/index.ts
+      application/index.ts
+      adapters/index.ts
+    ingestion/                      ← 匯入子域（stub）
+      domain/entities/IngestionJob.ts
+      domain/index.ts
+      application/index.ts
+      adapters/index.ts
+    workflow/                       ← 流程子域（stub）
+      domain/entities/TemplateWorkflow.ts
+      domain/index.ts
+      application/index.ts
+      adapters/index.ts
 ```
 
 ## Barrel 結構（具名匯出原則）
 
-本模組使用 **5 個 barrel index**，不使用 `export *`：
+所有 barrel 使用明確的 `export { X }` 與 `export type { X }`，嚴禁 `export *`。
 
 | 檔案 | 覆蓋範圍 |
 |---|---|
-| `index.ts` | 模組對外唯一公開入口：domain + application 重要符號 |
-| `domain/index.ts` | entities、value-objects、events、repositories、services |
-| `application/index.ts` | use-cases、dto、ports/inbound、ports/outbound |
-| `adapters/inbound/index.ts` | http、rpc、cron、queue adapters |
-| `adapters/outbound/index.ts` | firestore、cache、external-api adapters |
+| `index.ts` | 模組對外唯一公開入口：主要由 `subdomains/document` 重新匯出 |
+| `subdomains/document/domain/index.ts` | entities、value-objects、events、repositories、services |
+| `subdomains/document/application/index.ts` | use-cases、dto、ports |
+| `subdomains/document/adapters/inbound/index.ts` | http + queue adapters |
+| `subdomains/document/adapters/outbound/index.ts` | firestore、cache、external-api adapters |
+| `shared/*/index.ts` | 各共用層的對外出口 |
 
-### 具名匯出範例
+### 根 index.ts 匯出範例
 
 ```ts
 // src/modules/template/index.ts
-export { Template, TemplateId, TemplateName, TemplateCreatedEvent, TemplateUpdatedEvent, TemplateDomainService } from './domain';
-export type { TemplateProps, TemplateRepository } from './domain';
-export { CreateTemplateUseCase, UpdateTemplateUseCase, DeleteTemplateUseCase } from './application';
-export type { CreateTemplateDTO, UpdateTemplateDTO, TemplateResponseDTO, CreateTemplatePort, TemplateRepositoryPort, CachePort, ExternalApiPort } from './application';
+export {
+  Template, TemplateId, TemplateName,
+  TemplateCreatedEvent, TemplateUpdatedEvent, TemplateDomainService,
+} from './subdomains/document/domain';
+export type { TemplateProps, TemplateRepository } from './subdomains/document/domain';
+export {
+  CreateTemplateUseCase, UpdateTemplateUseCase, DeleteTemplateUseCase,
+} from './subdomains/document/application';
+export type {
+  CreateTemplateDTO, UpdateTemplateDTO, TemplateResponseDTO,
+  CreateTemplatePort, TemplateRepositoryPort, CachePort, ExternalApiPort,
+} from './subdomains/document/application';
 ```
 
-所有 source 檔內部 import 使用**直接相對路徑**（例如 `'../../domain/value-objects/TemplateId'`），不依賴任何 barrel index，因此子 barrel 可以自由刪改而不破壞內部參照。
+所有 source 檔內部 import 使用**直接相對路徑**，不依賴 barrel index，確保 barrel 可獨立修改。
 
 ## 依賴方向
 
 ```
-adapters/inbound → application → domain ← adapters/outbound
+subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/domain
+                                                                    ↑
+                               subdomains/*/adapters/outbound  ───┘
+                                                    ↑
+                                             shared/domain
 ```
 
-- `domain/` 不依賴任何框架或外部技術。
-- `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
-- adapters 只實作 port，不承載業務規則。
+跨子域協調只能透過 `orchestration/` 或 `shared/events/`，不得直接跨 subdomain import。
 
 ## 如何複製成新模組
 
 1. 複製整個 `src/modules/template/` 資料夾。
 2. 全域取代 `Template` → `<YourEntity>`（保留大小寫規律）。
-3. 刪除不需要的 adapter（cron / queue / cache / external-api 為可選）。
-4. 依 DDD 開發順序填入業務規則：Domain → Application → Ports → Infrastructure → Interface。
+3. 刪除不需要的子域（generation / ingestion / workflow 為 stub，可直接刪）。
+4. 依 DDD 開發順序填入業務規則：Domain → Application → Ports → Adapters → Orchestration。
+5. 舊平坦層 `domain/` `application/` `adapters/` 確認無人依賴後刪除。
