@@ -1,3 +1,1 @@
-// account — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-export {};
+export { FirestoreAccountRepository, type FirestoreLike } from "./firestore/FirestoreAccountRepository";
