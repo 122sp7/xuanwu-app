@@ -1,1 +1,0 @@
-export { TemplateQueueHandler } from './TemplateQueueHandler';

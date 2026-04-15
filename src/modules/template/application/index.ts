@@ -1,17 +1,17 @@
 // use-cases
-export { CreateTemplateUseCase } from './use-cases';
-export { UpdateTemplateUseCase } from './use-cases';
-export { DeleteTemplateUseCase } from './use-cases';
+export { CreateTemplateUseCase } from './use-cases/CreateTemplateUseCase';
+export { UpdateTemplateUseCase } from './use-cases/UpdateTemplateUseCase';
+export { DeleteTemplateUseCase } from './use-cases/DeleteTemplateUseCase';
 
 // dto
-export type { CreateTemplateDTO } from './dto';
-export type { UpdateTemplateDTO } from './dto';
-export type { TemplateResponseDTO } from './dto';
+export type { CreateTemplateDTO } from './dto/CreateTemplateDTO';
+export type { UpdateTemplateDTO } from './dto/UpdateTemplateDTO';
+export type { TemplateResponseDTO } from './dto/TemplateResponseDTO';
 
 // ports inbound
-export type { CreateTemplatePort } from './ports/inbound';
+export type { CreateTemplatePort } from './ports/inbound/CreateTemplatePort';
 
 // ports outbound
-export type { TemplateRepositoryPort } from './ports/outbound';
-export type { CachePort } from './ports/outbound';
-export type { ExternalApiPort } from './ports/outbound';
+export type { TemplateRepositoryPort } from './ports/outbound/TemplateRepositoryPort';
+export type { CachePort } from './ports/outbound/CachePort';
+export type { ExternalApiPort } from './ports/outbound/ExternalApiPort';

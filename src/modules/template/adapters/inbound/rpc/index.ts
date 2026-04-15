@@ -1,1 +1,0 @@
-export { TemplateRpcHandler } from './TemplateRpcHandler';

@@ -1,1 +1,0 @@
-export { TemplateDomainService } from './TemplateDomainService';

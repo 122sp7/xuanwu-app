@@ -1,1 +1,0 @@
-export { TemplateApiClient } from './TemplateApiClient';
