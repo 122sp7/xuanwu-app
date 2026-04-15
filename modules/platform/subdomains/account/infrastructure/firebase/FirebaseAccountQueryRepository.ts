@@ -18,6 +18,7 @@ import {
 import { firebaseClientApp } from "@integration-firebase/client";
 import type { AccountQueryRepository, WalletBalanceSnapshot, Unsubscribe } from "../../domain/repositories/AccountQueryRepository";
 import type { AccountEntity, WalletTransaction, AccountRoleRecord, OrganizationRole } from "../../domain/entities/Account";
+import { accountEntityToProfile, type AccountProfile } from "../../domain/entities/AccountProfile";
 
 function toAccountEntity(id: string, data: Record<string, unknown>): AccountEntity {
   return {
@@ -170,5 +171,16 @@ export class FirebaseAccountQueryRepository implements AccountQueryRepository {
       unsubOwner();
       unsubMember();
     };
+  }
+
+  async getAccountProfile(actorId: string): Promise<AccountProfile | null> {
+    const entity = await this.getUserProfile(actorId);
+    return entity ? accountEntityToProfile(entity) : null;
+  }
+
+  subscribeToAccountProfile(actorId: string, onUpdate: (profile: AccountProfile | null) => void): Unsubscribe {
+    return this.subscribeToUserProfile(actorId, (entity) => {
+      onUpdate(entity ? accountEntityToProfile(entity) : null);
+    });
   }
 }

@@ -26,6 +26,11 @@ export type {
   CreatePolicyInput,
   UpdatePolicyInput,
 } from "../domain/entities/AccountPolicy";
+export type {
+  AccountProfile,
+  AccountProfileTheme,
+  UpdateAccountProfileInput,
+} from "../domain/entities/AccountProfile";
 export type { WalletBalanceSnapshot, Unsubscribe } from "../domain/repositories/AccountQueryRepository";
 export type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
 export * from "../interfaces";

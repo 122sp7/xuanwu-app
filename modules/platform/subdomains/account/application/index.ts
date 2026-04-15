@@ -5,6 +5,9 @@
   DebitWalletUseCase,
   AssignAccountRoleUseCase,
   RevokeAccountRoleUseCase,
+  GetAccountProfileUseCase,
+  SubscribeAccountProfileUseCase,
+  UpdateAccountProfileUseCase,
 } from "./use-cases/account.use-cases";
 
 export {

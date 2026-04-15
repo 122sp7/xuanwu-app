@@ -53,20 +53,6 @@ export * from "../subdomains/account/api";
 export * from "../subdomains/notification/api";
 export * from "../subdomains/platform-config/api";
 
-export {
-  getProfile,
-  subscribeToProfile,
-  updateProfile,
-  getAccountProfile,
-  subscribeToAccountProfile,
-  updateAccountProfile,
-} from "../subdomains/account-profile/api";
-
-export type {
-  AccountProfile,
-  UpdateAccountProfileInput,
-} from "../subdomains/account-profile/api";
-
 // organization — explicit to avoid re-export conflicts with account subdomain
 export type {
   OrganizationEntity,

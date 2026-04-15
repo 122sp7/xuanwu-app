@@ -21,6 +21,19 @@ export type {
   UpdatePolicyInput,
 } from "./entities/AccountPolicy";
 
+export type {
+  AccountProfile,
+  AccountProfileTheme,
+  UpdateAccountProfileInput,
+} from "./entities/AccountProfile";
+export {
+  AccountProfileSchema,
+  AccountProfileThemeSchema,
+  UpdateAccountProfileInputSchema,
+  accountEntityToProfile,
+  createUpdateAccountProfileInput,
+} from "./entities/AccountProfile";
+
 export type { AccountRepository } from "./repositories/AccountRepository";
 export type { AccountQueryRepository, WalletBalanceSnapshot, Unsubscribe } from "./repositories/AccountQueryRepository";
 export type { AccountPolicyRepository } from "./repositories/AccountPolicyRepository";

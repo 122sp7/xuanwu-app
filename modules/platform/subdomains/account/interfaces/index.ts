@@ -4,6 +4,8 @@ export { NavUser } from "./components/NavUser";
 export {
   getUserProfile,
   subscribeToUserProfile,
+  getProfile,
+  subscribeToProfile,
   getWalletBalance,
   subscribeToWalletBalance,
   subscribeToWalletTransactions,
@@ -17,6 +19,7 @@ export {
 export {
   createUserAccount,
   updateUserProfile,
+  updateProfile,
   creditWallet,
   debitWallet,
   assignAccountRole,

@@ -5,8 +5,14 @@
 
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
 import type { AccountRepository } from "../../domain/repositories/AccountRepository";
+import type { AccountQueryRepository, Unsubscribe } from "../../domain/repositories/AccountQueryRepository";
 import type { TokenRefreshPort } from "../../domain/ports/TokenRefreshPort";
 import type { UpdateProfileInput, OrganizationRole } from "../../domain/entities/Account";
+import {
+  createUpdateAccountProfileInput,
+  type AccountProfile,
+  type UpdateAccountProfileInput,
+} from "../../domain/entities/AccountProfile";
 
 // ─── Create User Account ──────────────────────────────────────────────────────
 
@@ -146,6 +152,72 @@ export class RevokeAccountRoleUseCase {
       return commandFailureFrom(
         "REVOKE_ROLE_FAILED",
         err instanceof Error ? err.message : "Failed to revoke role",
+      );
+    }
+  }
+}
+
+// ─── Get Account Profile ──────────────────────────────────────────────────────
+
+/**
+ * Use Case Contract: GetAccountProfile
+ * Actor: Authenticated Actor
+ * Goal: Read the profile view of the target actor for UI rendering.
+ * Main Success Scenario:
+ * 1. Load profile via query repository.
+ * 2. Return profile snapshot or null when not found.
+ * Failure Branches:
+ * - Repository failure -> upstream infrastructure error.
+ */
+export class GetAccountProfileUseCase {
+  constructor(private readonly repo: AccountQueryRepository) {}
+
+  async execute(actorId: string): Promise<AccountProfile | null> {
+    return this.repo.getAccountProfile(actorId);
+  }
+}
+
+// ─── Subscribe Account Profile ────────────────────────────────────────────────
+
+/**
+ * Use Case Contract: SubscribeAccountProfile
+ * Actor: Authenticated Actor / UI session
+ * Goal: Observe profile updates reactively.
+ */
+export class SubscribeAccountProfileUseCase {
+  constructor(private readonly repo: AccountQueryRepository) {}
+
+  execute(actorId: string, onUpdate: (profile: AccountProfile | null) => void): Unsubscribe {
+    return this.repo.subscribeToAccountProfile(actorId, onUpdate);
+  }
+}
+
+// ─── Update Account Profile ───────────────────────────────────────────────────
+
+/**
+ * Use Case Contract: UpdateAccountProfile
+ * Actor: Authenticated Actor
+ * Goal: Update account profile fields (displayName / bio / photoURL / theme).
+ * Main Success Scenario:
+ * 1. Validate update payload at application boundary.
+ * 2. Persist profile update via command repository.
+ * 3. Return command success.
+ * Failure Branches:
+ * - Invalid payload -> Zod validation error.
+ * - Repository failure -> command failure.
+ */
+export class UpdateAccountProfileUseCase {
+  constructor(private readonly accountRepo: AccountRepository) {}
+
+  async execute(actorId: string, input: UpdateAccountProfileInput): Promise<CommandResult> {
+    try {
+      const validatedInput = createUpdateAccountProfileInput(input);
+      await this.accountRepo.updateAccountProfile(actorId, validatedInput);
+      return commandSuccess(actorId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "UPDATE_ACCOUNT_PROFILE_FAILED",
+        err instanceof Error ? err.message : "Failed to update account profile",
       );
     }
   }

@@ -25,6 +25,7 @@ import type {
   AccountRoleRecord,
   OrganizationRole,
 } from "../../domain/entities/Account";
+import type { UpdateAccountProfileInput } from "../../domain/entities/AccountProfile";
 import { Account, type AccountSnapshot } from "../../domain/aggregates/Account";
 
 function toAccountEntity(id: string, data: Record<string, unknown>): AccountEntity {
@@ -111,6 +112,15 @@ export class FirebaseAccountRepository implements AccountRepository {
     if (data.bio !== undefined) updates.bio = data.bio;
     if (data.photoURL !== undefined) updates.photoURL = data.photoURL;
     if (data.theme !== undefined) updates.theme = data.theme;
+    await updateDoc(doc(this.db, "accounts", userId), updates);
+  }
+
+  async updateAccountProfile(userId: string, input: UpdateAccountProfileInput): Promise<void> {
+    const updates: Record<string, unknown> = { updatedAt: serverTimestamp() };
+    if (input.displayName !== undefined) updates.name = input.displayName;
+    if (input.bio !== undefined) updates.bio = input.bio;
+    if (input.photoURL !== undefined) updates.photoURL = input.photoURL;
+    if (input.theme !== undefined) updates.theme = input.theme;
     await updateDoc(doc(this.db, "accounts", userId), updates);
   }
 

@@ -13,6 +13,9 @@ import {
   DebitWalletUseCase,
   AssignAccountRoleUseCase,
   RevokeAccountRoleUseCase,
+  GetAccountProfileUseCase,
+  SubscribeAccountProfileUseCase,
+  UpdateAccountProfileUseCase,
 } from "../../application/use-cases/account.use-cases";
 import {
   CreateAccountPolicyUseCase,
@@ -26,14 +29,22 @@ import { tokenRefreshAdapter } from "../../infrastructure/identity-token-refresh
 import type { UpdateProfileInput, OrganizationRole } from "../../domain/entities/Account";
 import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
 import type { AccountQueryRepository } from "../../domain/repositories/AccountQueryRepository";
+import type { AccountProfile, UpdateAccountProfileInput } from "../../domain/entities/AccountProfile";
+import type { Unsubscribe } from "../../domain/repositories/AccountQueryRepository";
 import type { CommandResult } from "@shared-types";
 
 let _accountRepo: FirebaseAccountRepository | undefined;
+let _queryRepo: FirebaseAccountQueryRepository | undefined;
 let _policyRepo: FirebaseAccountPolicyRepository | undefined;
 
 function getAccountRepo(): FirebaseAccountRepository {
   if (!_accountRepo) _accountRepo = new FirebaseAccountRepository();
   return _accountRepo;
+}
+
+function getQueryRepo(): FirebaseAccountQueryRepository {
+  if (!_queryRepo) _queryRepo = new FirebaseAccountQueryRepository();
+  return _queryRepo;
 }
 
 function getAcctPolicyRepo(): FirebaseAccountPolicyRepository {
@@ -68,6 +79,9 @@ export const accountService = {
 
   deletePolicy: (policyId: string, accountId: string): Promise<CommandResult> =>
     new DeleteAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(policyId, accountId),
+
+  updateAccountProfile: (actorId: string, input: UpdateAccountProfileInput): Promise<CommandResult> =>
+    new UpdateAccountProfileUseCase(getAccountRepo()).execute(actorId, input),
 };
 
 /**
@@ -84,4 +98,34 @@ export function createClientAccountUseCases() {
 /** Factory that returns a wired AccountQueryRepository without leaking the concrete class. */
 export function createAccountQueryRepository(): AccountQueryRepository {
   return new FirebaseAccountQueryRepository();
+}
+
+/** Returns a wired GetAccountProfileUseCase (read path). */
+export function createGetAccountProfileUseCase(): GetAccountProfileUseCase {
+  return new GetAccountProfileUseCase(getQueryRepo());
+}
+
+/** Returns a wired SubscribeAccountProfileUseCase (reactive read path). */
+export function createSubscribeAccountProfileUseCase(): SubscribeAccountProfileUseCase {
+  return new SubscribeAccountProfileUseCase(getQueryRepo());
+}
+
+// ── Profile shortcut helpers (interface-layer entry points) ──────────────────
+
+export async function getAccountProfile(actorId: string): Promise<AccountProfile | null> {
+  return createGetAccountProfileUseCase().execute(actorId);
+}
+
+export function subscribeToAccountProfile(
+  actorId: string,
+  onUpdate: (profile: AccountProfile | null) => void,
+): Unsubscribe {
+  return createSubscribeAccountProfileUseCase().execute(actorId, onUpdate);
+}
+
+export async function updateAccountProfile(
+  actorId: string,
+  input: UpdateAccountProfileInput,
+): Promise<CommandResult> {
+  return accountService.updateAccountProfile(actorId, input);
 }

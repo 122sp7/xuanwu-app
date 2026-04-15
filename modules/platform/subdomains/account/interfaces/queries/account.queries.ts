@@ -3,9 +3,10 @@
  * NOT Server Actions — callable from React components/hooks directly.
  */
 
-import { createAccountQueryRepository } from "../composition/account-service";
+import { createAccountQueryRepository, getAccountProfile as getAccountProfileFromService, subscribeToAccountProfile as subscribeToAccountProfileFromService } from "../composition/account-service";
 import type { AccountQueryRepository } from "../../domain/repositories/AccountQueryRepository";
 import type { AccountEntity, WalletTransaction, AccountRoleRecord, WalletBalanceSnapshot, Unsubscribe, AccountPolicy } from "../../application/dto/account.dto";
+import type { AccountProfile } from "../../application/dto/account.dto";
 
 let _accountQueryRepo: AccountQueryRepository | undefined;
 
@@ -23,6 +24,17 @@ export function subscribeToUserProfile(
   onUpdate: (profile: AccountEntity | null) => void,
 ): Unsubscribe {
   return getAccountQueryRepo().subscribeToUserProfile(userId, onUpdate);
+}
+
+export async function getProfile(actorId: string): Promise<AccountProfile | null> {
+  return getAccountProfileFromService(actorId);
+}
+
+export function subscribeToProfile(
+  actorId: string,
+  onUpdate: (profile: AccountProfile | null) => void,
+): Unsubscribe {
+  return subscribeToAccountProfileFromService(actorId, onUpdate);
 }
 
 export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {

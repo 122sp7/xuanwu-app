@@ -6,7 +6,7 @@
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import { accountService } from "../composition/account-service";
-import type { UpdateProfileInput, OrganizationRole } from "../../application/dto/account.dto";
+import type { UpdateProfileInput, OrganizationRole, UpdateAccountProfileInput } from "../../application/dto/account.dto";
 
 export async function createUserAccount(
   userId: string,
@@ -73,5 +73,19 @@ export async function revokeAccountRole(accountId: string): Promise<CommandResul
     return await accountService.revokeRole(accountId);
   } catch (err) {
     return commandFailureFrom("REVOKE_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateProfile(
+  actorId: string,
+  input: UpdateAccountProfileInput,
+): Promise<CommandResult> {
+  try {
+    return await accountService.updateAccountProfile(actorId, input);
+  } catch (err) {
+    return commandFailureFrom(
+      "UPDATE_ACCOUNT_PROFILE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
   }
 }
