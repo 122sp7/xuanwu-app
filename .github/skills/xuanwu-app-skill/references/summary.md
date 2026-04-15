@@ -42,13 +42,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1949 files | 57,625 lines
+1814 files | 54,091 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1313 | 28,320 |
-| Markdown | 334 | 21,185 |
-| TypeScript (TSX) | 191 | 5,140 |
+| TypeScript | 1191 | 25,208 |
+| Markdown | 328 | 21,029 |
+| TypeScript (TSX) | 184 | 4,874 |
 | Python | 61 | 1,404 |
 | No Extension | 30 | 35 |
 | JSON | 11 | 1,253 |
@@ -63,8 +63,8 @@ This skill contains the following reference files:
 - `firestore.indexes.json` (437 lines)
 - `docs/semantic-model.md` (344 lines)
 - `modules/ai/subdomains/subdomains.instructions.md` (313 lines)
-- `docs/bounded-contexts.md` (270 lines)
-- `docs/subdomains.md` (269 lines)
+- `docs/bounded-contexts.md` (276 lines)
+- `docs/subdomains.md` (275 lines)
 - `py_fn/README.md` (265 lines)
 - `AGENTS.md` (263 lines)
 - `modules/platform/domain/events/DESIGN.md` (257 lines)

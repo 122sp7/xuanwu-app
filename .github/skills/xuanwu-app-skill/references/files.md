@@ -10831,6 +10831,70 @@ function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>, blockId: string)
 function handleInput(e: React.FormEvent<HTMLDivElement>, blockId: string)
 ````
 
+## File: modules/notion/interfaces/knowledge/components/KnowledgeDetailPanel.tsx
+````typescript
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
+⋮----
+import { getKnowledgePage } from "../queries";
+import {
+  renameKnowledgePage,
+  archiveKnowledgePage,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+} from "../_actions/knowledge-page.actions";
+import type { KnowledgePageSnapshot as KnowledgePage } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+import { PageEditorPanel } from "./PageEditorPanel";
+import { CommentPanel } from "../../collaboration/components/CommentPanel";
+import { Button } from "@ui-shadcn/ui/button";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
+⋮----
+// ?? Props ?????????????????????????????????????????????????????????????????????
+⋮----
+export interface KnowledgeDetailPanelProps {
+  accountId: string;
+  activeWorkspaceId: string | null;
+  currentUserId: string;
+}
+⋮----
+// ?? Component ?????????????????????????????????????????????????????????????????
+⋮----
+function handleRename(title: string)
+⋮----
+function handleIconChange(iconUrl: string)
+⋮----
+function handleCoverChange(coverUrl: string)
+⋮----
+function handleArchive()
+⋮----
+// ?? Loading skeleton ????????????????????????????????????????????????????????
+⋮----
+// ?? Not found ???????????????????????????????????????????????????????????????
+⋮----
+<Button variant="ghost" size="sm" onClick=
+⋮----
+// ?? Page view ???????????????????????????????????????????????????????????????
+⋮----
+{/* Cover image */}
+⋮----
+{/* Top bar */}
+⋮----
+onClick=
+⋮----
+{/* Page header */}
+⋮----
+{/* Icon row */}
+⋮----
+{/* Main content + optional comment side panel */}
+⋮----
+{/* Block editor ??connected to Firebase */}
+⋮----
+{/* Comment panel ??slides in from right */}
+````
+
 ## File: modules/notion/interfaces/knowledge/components/KnowledgePageHeaderWidgets.tsx
 ````typescript
 import { useEffect, useRef, useState } from "react";
@@ -16782,6 +16846,36 @@ interface ShellUserAvatarProps {
 export function ShellUserAvatar(
 ````
 
+## File: modules/platform/interfaces/web/shell/search/ShellGlobalSearchDialog.tsx
+````typescript
+import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { FileText, Layout } from "lucide-react";
+import { listShellCommandCatalogItems } from "../../../../subdomains/search/api";
+import { buildShellContextualHref } from "../../../../subdomains/platform-config/api";
+⋮----
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from "@ui-shadcn/ui/command";
+⋮----
+interface ShellGlobalSearchDialogProps {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+}
+⋮----
+function handleSelect(href: string)
+⋮----
+/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
+⋮----
+function onKeyDown(event: KeyboardEvent)
+````
+
 ## File: modules/platform/subdomains/account/application/services/resolve-active-account.ts
 ````typescript
 import type { AccountEntity } from "../../domain/entities/Account";
@@ -18570,6 +18664,91 @@ interfaces/ → application/ → domain/ ← infrastructure/
 // Purpose: Application layer for platform-config subdomain.
 ````
 
+## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
+````typescript
+// ── Types ──────────────────────────────────────────────────────────────────────
+⋮----
+export type ShellNavSection =
+  | "workspace"
+  | "dashboard"
+  | "account"
+  | "organization"
+  | "other";
+⋮----
+export interface ShellNavItem {
+  readonly id: string;
+  readonly label: string;
+  readonly href: string;
+}
+⋮----
+export interface ShellRailCatalogItem {
+  readonly id: string;
+  readonly href: string;
+  readonly label: string;
+  /** If true, this item is only visible to organization accounts. */
+  readonly requiresOrganization: boolean;
+  /** Route prefix for active-state matching. When absent, defaults to href. */
+  readonly activeRoutePrefix?: string;
+}
+⋮----
+/** If true, this item is only visible to organization accounts. */
+⋮----
+/** Route prefix for active-state matching. When absent, defaults to href. */
+⋮----
+export interface ShellContextSectionConfig {
+  readonly title: string;
+  readonly items: readonly { href: string; label: string }[];
+}
+⋮----
+export interface ShellRouteContext {
+  readonly accountId?: string | null;
+  readonly workspaceId?: string | null;
+}
+⋮----
+function parseHref(href: string):
+⋮----
+function joinHref(path: string, query: string): string
+⋮----
+function isAccountScopedWorkspacePath(pathname: string): boolean
+⋮----
+export function normalizeShellRoutePath(pathname: string): string
+⋮----
+export function buildShellContextualHref(
+  href: string,
+  context: ShellRouteContext,
+): string
+⋮----
+// ── Route-matching utility ────────────────────────────────────────────────────
+⋮----
+export function isExactOrChildPath(targetPath: string, pathname: string): boolean
+⋮----
+// ── Account section matchers ──────────────────────────────────────────────────
+⋮----
+// ── Route titles & breadcrumb labels ──────────────────────────────────────────
+⋮----
+// ── Organization management items ─────────────────────────────────────────────
+⋮----
+// ── Account nav items ─────────────────────────────────────────────────────────
+⋮----
+// ── Section labels ────────────────────────────────────────────────────────────
+⋮----
+// ── Rail catalog ──────────────────────────────────────────────────────────────
+⋮----
+export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[]
+⋮----
+// ── Context section config ────────────────────────────────────────────────────
+⋮----
+// ── Mobile & organization nav items ───────────────────────────────────────────
+⋮----
+// ── Section resolvers ─────────────────────────────────────────────────────────
+⋮----
+export function resolveShellNavSection(pathname: string): ShellNavSection
+⋮----
+export function resolveShellPageTitle(pathname: string): string
+⋮----
+export function resolveShellBreadcrumbLabel(segment: string): string
+````
+
 ## File: modules/platform/subdomains/platform-config/README.md
 ````markdown
 # Platform Config
@@ -18953,13 +19132,6 @@ For full reference, align with `.github/instructions/docs-authority-and-language
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
-````
-
-## File: modules/workspace/domain/aggregates/Workspace.test.ts
-````typescript
-import { describe, expect, it } from "vitest";
-⋮----
-import { Workspace } from "./Workspace";
 ````
 
 ## File: modules/workspace/domain/domain-modeling.instructions.md
@@ -19360,19 +19532,6 @@ export function formatAddress(address: Address): string[]
 ## File: modules/workspace/domain/value-objects/index.ts
 ````typescript
 
-````
-
-## File: modules/workspace/domain/value-objects/workspace-value-objects.test.ts
-````typescript
-import { describe, expect, it } from "vitest";
-⋮----
-import { createAddress, formatAddress } from "./Address";
-import {
-  createWorkspaceLifecycleState,
-  isTerminalWorkspaceLifecycleState,
-} from "./WorkspaceLifecycleState";
-import { createWorkspaceName } from "./WorkspaceName";
-import { createWorkspaceVisibility } from "./WorkspaceVisibility";
 ````
 
 ## File: modules/workspace/domain/value-objects/WorkspaceLifecycleState.ts
@@ -19795,6 +19954,35 @@ export function useSidebarLocale(): SidebarLocaleBundle | null
 async function loadSidebarLocale()
 ⋮----
 // Keep fallback labels when localization files are unavailable.
+````
+
+## File: modules/workspace/interfaces/web/navigation/workspace-context-links.ts
+````typescript
+export interface WorkspaceNavigationContext {
+  readonly accountId: string | null;
+  readonly workspaceId: string | null;
+}
+⋮----
+export type WorkspaceOverviewPanel = (typeof WORKSPACE_OVERVIEW_PANELS)[number];
+⋮----
+function tryGetAccountIdFromPath(pathname: string): string | null
+⋮----
+function buildWorkspaceBaseHref(workspaceId: string, accountId?: string | null): string
+⋮----
+export function buildWorkspaceOverviewPanelHref(
+  workspaceId: string,
+  panel?: WorkspaceOverviewPanel,
+  accountId?: string | null,
+): string
+⋮----
+export function supportsWorkspaceSearchContext(_pathname: string): boolean
+⋮----
+export function buildWorkspaceContextHref(pathname: string, workspaceId: string): string
+⋮----
+export function appendWorkspaceContextQuery(
+  href: string,
+  context: WorkspaceNavigationContext,
+): string
 ````
 
 ## File: modules/workspace/interfaces/web/state/workspace-session.ts
@@ -21497,2953 +21685,6 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/api/contracts.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file contracts.ts
- * @description Public contracts exposed through the workspace-flow module boundary.
- *
- * All types, DTOs, and projection helpers that external consumers need are
- * re-exported from this single file.  XState internals (canTransition*, nextStatus,
- * isTerminal*) are intentionally NOT exposed here — status machines are internal.
- *
- * @author workspace-flow
- * @since 2026-03-24
- */
-⋮----
-// ── Entity types ──────────────────────────────────────────────────────────────
-⋮----
-// ── Value objects (enum / list only — no transition helpers) ──────────────────
-⋮----
-// ── Source reference (content → workspace-flow provenance) ────────────────────
-⋮----
-// ── Summary projections ───────────────────────────────────────────────────────
-⋮----
-// ── CRUD / command DTOs ───────────────────────────────────────────────────────
-⋮----
-// ── Query / pagination DTOs ───────────────────────────────────────────────────
-⋮----
-// ── Command / operation result ────────────────────────────────────────────────
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/api/factories.ts
-````typescript
-import { FirebaseInvoiceRepository } from "../infrastructure/repositories/FirebaseInvoiceRepository";
-import { FirebaseIssueRepository } from "../infrastructure/repositories/FirebaseIssueRepository";
-import { FirebaseTaskMaterializationBatchJobRepository } from "../infrastructure/repositories/FirebaseTaskMaterializationBatchJobRepository";
-import { FirebaseTaskRepository } from "../infrastructure/repositories/FirebaseTaskRepository";
-⋮----
-export function makeTaskRepo()
-⋮----
-export function makeIssueRepo()
-⋮----
-export function makeInvoiceRepo()
-⋮----
-export function makeTaskMaterializationBatchJobRepo()
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/api/workspace-flow-invoice.facade.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file workspace-flow-invoice.facade.ts
- * @description Focused facade for Invoice aggregate write and summary-read operations.
- *
- * Consumers that only need Invoice operations should use this class directly
- * instead of the composite {@link WorkspaceFlowFacade}.
- *
- * @author workspace-flow
- * @since 2026-04-06
- */
-⋮----
-import type { InvoiceRepository } from "../domain/repositories/InvoiceRepository";
-⋮----
-import { CreateInvoiceUseCase } from "../application/use-cases/create-invoice.use-case";
-import { AddInvoiceItemUseCase } from "../application/use-cases/add-invoice-item.use-case";
-import { UpdateInvoiceItemUseCase } from "../application/use-cases/update-invoice-item.use-case";
-import { RemoveInvoiceItemUseCase } from "../application/use-cases/remove-invoice-item.use-case";
-import { SubmitInvoiceUseCase } from "../application/use-cases/submit-invoice.use-case";
-import { ReviewInvoiceUseCase } from "../application/use-cases/review-invoice.use-case";
-import { ApproveInvoiceUseCase } from "../application/use-cases/approve-invoice.use-case";
-import { RejectInvoiceUseCase } from "../application/use-cases/reject-invoice.use-case";
-import { PayInvoiceUseCase } from "../application/use-cases/pay-invoice.use-case";
-import { CloseInvoiceUseCase } from "../application/use-cases/close-invoice.use-case";
-⋮----
-import type { AddInvoiceItemDto } from "../application/dto/add-invoice-item.dto";
-import type { UpdateInvoiceItemDto } from "../application/dto/update-invoice-item.dto";
-import type { RemoveInvoiceItemDto } from "../application/dto/remove-invoice-item.dto";
-import type { InvoiceQueryDto } from "../application/dto/invoice-query.dto";
-import type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
-⋮----
-import type { InvoiceSummary } from "../interfaces/contracts/workspace-flow.contract";
-import { toInvoiceSummary } from "../interfaces/contracts/workspace-flow.contract";
-⋮----
-import type { CommandResult } from "@shared-types";
-⋮----
-// ── Pagination helper ─────────────────────────────────────────────────────────
-⋮----
-function toPagedResult<T>(items: T[], pagination?: PaginationDto): PagedResult<T>
-⋮----
-/**
- * WorkspaceFlowInvoiceFacade
- *
- * Single entry point for all Invoice write and summary-read operations.
- * Requires only InvoiceRepository — no cross-aggregate dependencies.
- */
-export class WorkspaceFlowInvoiceFacade {
-⋮----
-constructor(private readonly invoiceRepository: InvoiceRepository)
-⋮----
-// ── Write operations ─────────────────────────────────────────────────────────
-⋮----
-async createInvoice(workspaceId: string): Promise<CommandResult>
-⋮----
-async addInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult>
-⋮----
-async updateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult>
-⋮----
-async removeInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult>
-⋮----
-async submitInvoice(invoiceId: string): Promise<CommandResult>
-⋮----
-async reviewInvoice(invoiceId: string): Promise<CommandResult>
-⋮----
-async approveInvoice(invoiceId: string): Promise<CommandResult>
-⋮----
-async rejectInvoice(invoiceId: string): Promise<CommandResult>
-⋮----
-async payInvoice(invoiceId: string): Promise<CommandResult>
-⋮----
-async closeInvoice(invoiceId: string): Promise<CommandResult>
-⋮----
-// ── Read operations ──────────────────────────────────────────────────────────
-⋮----
-async listInvoices(query: InvoiceQueryDto, pagination?: PaginationDto): Promise<PagedResult<InvoiceSummary>>
-⋮----
-async getInvoiceSummary(invoiceId: string): Promise<InvoiceSummary | null>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/api/workspace-flow-issue.facade.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file workspace-flow-issue.facade.ts
- * @description Focused facade for Issue aggregate write and summary-read operations.
- *
- * Consumers that only need Issue operations should use this class directly
- * instead of the composite {@link WorkspaceFlowFacade}.
- *
- * @author workspace-flow
- * @since 2026-04-06
- */
-⋮----
-import type { IssueRepository } from "../domain/repositories/IssueRepository";
-⋮----
-import { OpenIssueUseCase } from "../application/use-cases/open-issue.use-case";
-import { StartIssueUseCase } from "../application/use-cases/start-issue.use-case";
-import { FixIssueUseCase } from "../application/use-cases/fix-issue.use-case";
-import { SubmitIssueRetestUseCase } from "../application/use-cases/submit-issue-retest.use-case";
-import { PassIssueRetestUseCase } from "../application/use-cases/pass-issue-retest.use-case";
-import { FailIssueRetestUseCase } from "../application/use-cases/fail-issue-retest.use-case";
-import { ResolveIssueUseCase } from "../application/use-cases/resolve-issue.use-case";
-import { CloseIssueUseCase } from "../application/use-cases/close-issue.use-case";
-⋮----
-import type { OpenIssueDto } from "../application/dto/open-issue.dto";
-import type { ResolveIssueDto } from "../application/dto/resolve-issue.dto";
-import type { IssueQueryDto } from "../application/dto/issue-query.dto";
-import type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
-⋮----
-import type { IssueSummary } from "../interfaces/contracts/workspace-flow.contract";
-import { toIssueSummary } from "../interfaces/contracts/workspace-flow.contract";
-⋮----
-import type { CommandResult } from "@shared-types";
-⋮----
-// ── Pagination helper ─────────────────────────────────────────────────────────
-⋮----
-function toPagedResult<T>(items: T[], pagination?: PaginationDto): PagedResult<T>
-⋮----
-/**
- * WorkspaceFlowIssueFacade
- *
- * Single entry point for all Issue write and summary-read operations.
- * Requires only IssueRepository — no cross-aggregate dependencies.
- */
-export class WorkspaceFlowIssueFacade {
-⋮----
-constructor(private readonly issueRepository: IssueRepository)
-⋮----
-// ── Write operations ─────────────────────────────────────────────────────────
-⋮----
-async openIssue(dto: OpenIssueDto): Promise<CommandResult>
-⋮----
-async startIssue(issueId: string): Promise<CommandResult>
-⋮----
-async fixIssue(issueId: string): Promise<CommandResult>
-⋮----
-async submitIssueRetest(issueId: string): Promise<CommandResult>
-⋮----
-async passIssueRetest(issueId: string): Promise<CommandResult>
-⋮----
-async failIssueRetest(issueId: string): Promise<CommandResult>
-⋮----
-async resolveIssue(dto: ResolveIssueDto): Promise<CommandResult>
-⋮----
-async closeIssue(issueId: string): Promise<CommandResult>
-⋮----
-// ── Read operations ──────────────────────────────────────────────────────────
-⋮----
-async listIssues(query: IssueQueryDto, pagination?: PaginationDto): Promise<PagedResult<IssueSummary>>
-⋮----
-async getIssueSummary(issueId: string): Promise<IssueSummary | null>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/api/workspace-flow-task.facade.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file workspace-flow-task.facade.ts
- * @description Focused facade for Task aggregate write and summary-read operations.
- *
- * Consumers that only need Task operations should use this class directly
- * instead of the composite {@link WorkspaceFlowFacade}.
- *
- * Note: `issueRepository` is required because `passTaskQa` and
- * `approveTaskAcceptance` are cross-aggregate operations that create issues
- * as a side-effect of task state transitions.
- *
- * @author workspace-flow
- * @since 2026-04-06
- */
-⋮----
-import type { TaskRepository } from "../domain/repositories/TaskRepository";
-import type { IssueRepository } from "../domain/repositories/IssueRepository";
-⋮----
-import { CreateTaskUseCase } from "../application/use-cases/create-task.use-case";
-import { UpdateTaskUseCase } from "../application/use-cases/update-task.use-case";
-import { AssignTaskUseCase } from "../application/use-cases/assign-task.use-case";
-import { SubmitTaskToQaUseCase } from "../application/use-cases/submit-task-to-qa.use-case";
-import { PassTaskQaUseCase } from "../application/use-cases/pass-task-qa.use-case";
-import { ApproveTaskAcceptanceUseCase } from "../application/use-cases/approve-task-acceptance.use-case";
-import { ArchiveTaskUseCase } from "../application/use-cases/archive-task.use-case";
-⋮----
-import type { CreateTaskDto } from "../application/dto/create-task.dto";
-import type { UpdateTaskDto } from "../application/dto/update-task.dto";
-import type { TaskQueryDto } from "../application/dto/task-query.dto";
-import type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
-⋮----
-import type { TaskSummary } from "../interfaces/contracts/workspace-flow.contract";
-import { toTaskSummary } from "../interfaces/contracts/workspace-flow.contract";
-⋮----
-import type { CommandResult } from "@shared-types";
-⋮----
-// ── Pagination helper ─────────────────────────────────────────────────────────
-⋮----
-function toPagedResult<T>(items: T[], pagination?: PaginationDto): PagedResult<T>
-⋮----
-/**
- * WorkspaceFlowTaskFacade
- *
- * Single entry point for all Task write and summary-read operations.
- * Requires both TaskRepository and IssueRepository because QA pass and
- * acceptance approval are cross-aggregate transitions that produce issues.
- */
-export class WorkspaceFlowTaskFacade {
-⋮----
-constructor(
-⋮----
-// ── Write operations ─────────────────────────────────────────────────────────
-⋮----
-async createTask(dto: CreateTaskDto): Promise<CommandResult>
-⋮----
-async updateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult>
-⋮----
-async assignTask(taskId: string, assigneeId: string): Promise<CommandResult>
-⋮----
-async submitTaskToQa(taskId: string): Promise<CommandResult>
-⋮----
-/** Cross-aggregate: transitions task to qa_passed and creates a linked issue. */
-async passTaskQa(taskId: string): Promise<CommandResult>
-⋮----
-/** Cross-aggregate: transitions task to accepted and closes the linked issue. */
-async approveTaskAcceptance(taskId: string): Promise<CommandResult>
-⋮----
-async archiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult>
-⋮----
-// ── Read operations ──────────────────────────────────────────────────────────
-⋮----
-async listTasks(query: TaskQueryDto, pagination?: PaginationDto): Promise<PagedResult<TaskSummary>>
-⋮----
-async getTaskSummary(taskId: string): Promise<TaskSummary | null>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/api/workspace-flow.facade.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file workspace-flow.facade.ts
- * @description Composite facade aggregating Task, Issue, and Invoice operations.
- *
- * Delegates entirely to the three focused facades:
- *   - {@link WorkspaceFlowTaskFacade}   — Task aggregate
- *   - {@link WorkspaceFlowIssueFacade}  — Issue aggregate
- *   - {@link WorkspaceFlowInvoiceFacade} — Invoice aggregate
- *
- * Prefer the focused facades when only one aggregate is needed.
- * Use this composite facade only when all three aggregates must be
- * available through a single construction point.
- *
- * @author workspace-flow
- * @since 2026-03-24
- */
-⋮----
-import type { TaskRepository } from "../domain/repositories/TaskRepository";
-import type { IssueRepository } from "../domain/repositories/IssueRepository";
-import type { InvoiceRepository } from "../domain/repositories/InvoiceRepository";
-⋮----
-import { WorkspaceFlowTaskFacade } from "./workspace-flow-task.facade";
-import { WorkspaceFlowIssueFacade } from "./workspace-flow-issue.facade";
-import { WorkspaceFlowInvoiceFacade } from "./workspace-flow-invoice.facade";
-⋮----
-import type { CreateTaskDto } from "../application/dto/create-task.dto";
-import type { UpdateTaskDto } from "../application/dto/update-task.dto";
-import type { OpenIssueDto } from "../application/dto/open-issue.dto";
-import type { ResolveIssueDto } from "../application/dto/resolve-issue.dto";
-import type { AddInvoiceItemDto } from "../application/dto/add-invoice-item.dto";
-import type { UpdateInvoiceItemDto } from "../application/dto/update-invoice-item.dto";
-import type { RemoveInvoiceItemDto } from "../application/dto/remove-invoice-item.dto";
-import type { TaskQueryDto } from "../application/dto/task-query.dto";
-import type { IssueQueryDto } from "../application/dto/issue-query.dto";
-import type { InvoiceQueryDto } from "../application/dto/invoice-query.dto";
-import type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
-⋮----
-import type {
-  TaskSummary,
-  IssueSummary,
-  InvoiceSummary,
-} from "../interfaces/contracts/workspace-flow.contract";
-⋮----
-import type { CommandResult } from "@shared-types";
-⋮----
-/**
- * WorkspaceFlowFacade
- *
- * Composite entry point for all workspace-flow write and read-summary operations.
- * Delegates to {@link WorkspaceFlowTaskFacade}, {@link WorkspaceFlowIssueFacade},
- * and {@link WorkspaceFlowInvoiceFacade}.
- *
- * @example
- * ```ts
- * const facade = new WorkspaceFlowFacade(
- *   new FirebaseTaskRepository(),
- *   new FirebaseIssueRepository(),
- *   new FirebaseInvoiceRepository(),
- * );
- * await facade.createTask({ workspaceId, title: "My task" });
- * ```
- */
-export class WorkspaceFlowFacade {
-⋮----
-constructor(
-    taskRepository: TaskRepository,
-    issueRepository: IssueRepository,
-    invoiceRepository: InvoiceRepository,
-)
-⋮----
-// ── Task operations (delegated) ──────────────────────────────────────────────
-⋮----
-createTask(dto: CreateTaskDto): Promise<CommandResult>
-updateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult>
-assignTask(taskId: string, assigneeId: string): Promise<CommandResult>
-submitTaskToQa(taskId: string): Promise<CommandResult>
-passTaskQa(taskId: string): Promise<CommandResult>
-approveTaskAcceptance(taskId: string): Promise<CommandResult>
-archiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult>
-listTasks(query: TaskQueryDto, pagination?: PaginationDto): Promise<PagedResult<TaskSummary>>
-getTaskSummary(taskId: string): Promise<TaskSummary | null>
-⋮----
-// ── Issue operations (delegated) ─────────────────────────────────────────────
-⋮----
-openIssue(dto: OpenIssueDto): Promise<CommandResult>
-startIssue(issueId: string): Promise<CommandResult>
-fixIssue(issueId: string): Promise<CommandResult>
-submitIssueRetest(issueId: string): Promise<CommandResult>
-passIssueRetest(issueId: string): Promise<CommandResult>
-failIssueRetest(issueId: string): Promise<CommandResult>
-resolveIssue(dto: ResolveIssueDto): Promise<CommandResult>
-closeIssue(issueId: string): Promise<CommandResult>
-listIssues(query: IssueQueryDto, pagination?: PaginationDto): Promise<PagedResult<IssueSummary>>
-getIssueSummary(issueId: string): Promise<IssueSummary | null>
-⋮----
-// ── Invoice operations (delegated) ───────────────────────────────────────────
-⋮----
-createInvoice(workspaceId: string): Promise<CommandResult>
-addInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult>
-updateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult>
-removeInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult>
-submitInvoice(invoiceId: string): Promise<CommandResult>
-reviewInvoice(invoiceId: string): Promise<CommandResult>
-approveInvoice(invoiceId: string): Promise<CommandResult>
-rejectInvoice(invoiceId: string): Promise<CommandResult>
-payInvoice(invoiceId: string): Promise<CommandResult>
-closeInvoice(invoiceId: string): Promise<CommandResult>
-listInvoices(query: InvoiceQueryDto, pagination?: PaginationDto): Promise<PagedResult<InvoiceSummary>>
-getInvoiceSummary(invoiceId: string): Promise<InvoiceSummary | null>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/add-invoice-item.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file add-invoice-item.dto.ts
- * @description Command DTO for adding an item to an invoice.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add Zod schema when validation layer is wired in
- */
-⋮----
-export interface AddInvoiceItemDto {
-  readonly invoiceId: string;
-  readonly taskId: string;
-  readonly amount: number;
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/create-task.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file create-task.dto.ts
- * @description Command DTO for creating a new task.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add Zod schema when validation layer is wired in
- */
-⋮----
-export interface CreateTaskDto {
-  readonly workspaceId: string;
-  readonly title: string;
-  readonly description?: string;
-  readonly assigneeId?: string;
-  readonly dueDateISO?: string;
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/invoice-query.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file invoice-query.dto.ts
- * @description Query parameters DTO for listing invoices.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add pagination support when invoice lists grow large
- */
-⋮----
-export interface InvoiceQueryDto {
-  /** Filter invoices by workspace. Required for scoped queries. */
-  readonly workspaceId: string;
-  /** Optional status filter. */
-  readonly status?: string;
-}
-⋮----
-/** Filter invoices by workspace. Required for scoped queries. */
-⋮----
-/** Optional status filter. */
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/issue-query.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file issue-query.dto.ts
- * @description Query parameters DTO for listing issues.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add pagination support when issue lists grow large
- */
-⋮----
-export interface IssueQueryDto {
-  /** Filter issues by task. */
-  readonly taskId: string;
-  /** Optional status filter. */
-  readonly status?: string;
-}
-⋮----
-/** Filter issues by task. */
-⋮----
-/** Optional status filter. */
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/open-issue.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file open-issue.dto.ts
- * @description Command DTO for opening a new issue against a task.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add Zod schema when validation layer is wired in
- */
-⋮----
-import type { IssueStage } from "../../domain/value-objects/IssueStage";
-⋮----
-export interface OpenIssueDto {
-  readonly taskId: string;
-  readonly stage: IssueStage;
-  readonly title: string;
-  readonly description?: string;
-  readonly createdBy: string;
-  readonly assignedTo?: string;
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/pagination.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file pagination.dto.ts
- * @description Shared pagination request / response DTOs for workspace-flow list queries.
- * @author workspace-flow
- * @since 2026-03-24
- */
-⋮----
-export interface PaginationDto {
-  /** 1-based page number. Defaults to 1. */
-  readonly page?: number;
-  /** Items per page. Defaults to 20. */
-  readonly pageSize?: number;
-}
-⋮----
-/** 1-based page number. Defaults to 1. */
-⋮----
-/** Items per page. Defaults to 20. */
-⋮----
-export interface PagedResult<T> {
-  readonly items: T[];
-  readonly total: number;
-  readonly page: number;
-  readonly pageSize: number;
-  readonly hasMore: boolean;
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/remove-invoice-item.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file remove-invoice-item.dto.ts
- * @description Command DTO for removing an item from an invoice.
- * @author workspace-flow
- * @since 2026-03-24
- */
-⋮----
-export interface RemoveInvoiceItemDto {
-  readonly invoiceId: string;
-  readonly invoiceItemId: string;
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/resolve-issue.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file resolve-issue.dto.ts
- * @description Command DTO for resolving an issue (retest passed → resolved).
- * @author workspace-flow
- * @since 2026-03-24
- */
-⋮----
-export interface ResolveIssueDto {
-  readonly issueId: string;
-  readonly resolutionNote?: string;
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/submit-task-materialization-batch-job.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file submit-task-materialization-batch-job.dto.ts
- * @description Command DTO for submitting a task materialization batch job.
- */
-⋮----
-export interface SubmitTaskMaterializationBatchJobDto {
-  readonly workspaceId: string;
-  readonly actorId: string;
-  readonly correlationId?: string;
-  readonly knowledgePageIds: ReadonlyArray<string>;
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/task-query.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file task-query.dto.ts
- * @description Query parameters DTO for listing tasks.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add pagination support when task lists grow large
- */
-⋮----
-export interface TaskQueryDto {
-  /** Filter tasks by workspace. Required for scoped queries. */
-  readonly workspaceId: string;
-  /** Optional status filter. */
-  readonly status?: string;
-  /** Optional assignee filter. */
-  readonly assigneeId?: string;
-}
-⋮----
-/** Filter tasks by workspace. Required for scoped queries. */
-⋮----
-/** Optional status filter. */
-⋮----
-/** Optional assignee filter. */
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/update-invoice-item.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file update-invoice-item.dto.ts
- * @description Command DTO for updating the amount of an existing invoice item.
- * @author workspace-flow
- * @since 2026-03-24
- */
-⋮----
-export interface UpdateInvoiceItemDto {
-  /** Updated billing amount (must be > 0). */
-  readonly amount: number;
-}
-⋮----
-/** Updated billing amount (must be > 0). */
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/update-task.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file update-task.dto.ts
- * @description Command DTO for updating mutable fields on an existing task.
- * @author workspace-flow
- * @since 2026-03-24
- */
-⋮----
-export interface UpdateTaskDto {
-  readonly title?: string;
-  readonly description?: string;
-  readonly assigneeId?: string;
-  readonly dueDateISO?: string;
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/workflow.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the workspace-workflow subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/add-invoice-item.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file add-invoice-item.use-case.ts
- * @description Use case: Add an item to a draft invoice.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Emit InvoiceItemAddedEvent to event bus
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { invoiceIsEditable } from "../../domain/services/invoice-guards";
-import type { AddInvoiceItemDto } from "../dto/add-invoice-item.dto";
-⋮----
-export class AddInvoiceItemUseCase {
-⋮----
-constructor(private readonly invoiceRepository: InvoiceRepository)
-⋮----
-async execute(dto: AddInvoiceItemDto): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/approve-invoice.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file approve-invoice.use-case.ts
- * @description Use case: Approve an invoice in finance review (finance_review → approved).
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Emit InvoiceApprovedEvent to event bus
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { evaluateInvoiceTransition } from "../../domain/services/invoice-transition-policy";
-⋮----
-export class ApproveInvoiceUseCase {
-⋮----
-constructor(private readonly invoiceRepository: InvoiceRepository)
-⋮----
-async execute(invoiceId: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/approve-task-acceptance.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file approve-task-acceptance.use-case.ts
- * @description Use case: Approve a task at acceptance stage (acceptance → accepted). Requires no open issues.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Emit TaskAcceptanceApprovedEvent to event bus
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { evaluateTaskTransition } from "../../domain/services/task-transition-policy";
-import { hasNoOpenIssues } from "../../domain/services/task-guards";
-⋮----
-export class ApproveTaskAcceptanceUseCase {
-⋮----
-constructor(
-⋮----
-async execute(taskId: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/archive-task.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file archive-task.use-case.ts
- * @description Use case: Archive a task (accepted → archived). Requires invoice closed or none.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Emit TaskArchivedEvent to event bus
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import { evaluateTaskTransition } from "../../domain/services/task-transition-policy";
-import { invoiceAllowsArchive } from "../../domain/services/task-guards";
-⋮----
-export class ArchiveTaskUseCase {
-⋮----
-constructor(private readonly taskRepository: TaskRepository)
-⋮----
-/**
-   * @param taskId       - ID of the task to archive
-   * @param invoiceStatus - Status of the linked invoice, or undefined if none
-   */
-async execute(taskId: string, invoiceStatus?: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/assign-task.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file assign-task.use-case.ts
- * @description Use case: Assign a task to a user and transition status to in_progress.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add permission check for assignee
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import { evaluateTaskTransition } from "../../domain/services/task-transition-policy";
-⋮----
-export class AssignTaskUseCase {
-⋮----
-constructor(private readonly taskRepository: TaskRepository)
-⋮----
-async execute(taskId: string, assigneeId: string): Promise<CommandResult>
-⋮----
-// Persist the assignee before transitioning status
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/close-invoice.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file close-invoice.use-case.ts
- * @description Use case: Close a paid invoice (paid → closed).
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Emit InvoiceClosedEvent to event bus
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { evaluateInvoiceTransition } from "../../domain/services/invoice-transition-policy";
-⋮----
-export class CloseInvoiceUseCase {
-⋮----
-constructor(private readonly invoiceRepository: InvoiceRepository)
-⋮----
-async execute(invoiceId: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/close-issue.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file close-issue.use-case.ts
- * @description Use case: Close a resolved issue (resolved → closed).
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Emit IssueClosedEvent to event bus
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
-⋮----
-export class CloseIssueUseCase {
-⋮----
-constructor(private readonly issueRepository: IssueRepository)
-⋮----
-async execute(issueId: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/create-invoice.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file create-invoice.use-case.ts
- * @description Use case: Create a new invoice for a workspace.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Emit InvoiceCreatedEvent to event bus
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-⋮----
-export class CreateInvoiceUseCase {
-⋮----
-constructor(private readonly invoiceRepository: InvoiceRepository)
-⋮----
-async execute(workspaceId: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/create-task.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file create-task.use-case.ts
- * @description Use case: Create a new task in the workspace-flow context.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add input validation with Zod schema
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { CreateTaskDto } from "../dto/create-task.dto";
-⋮----
-export class CreateTaskUseCase {
-⋮----
-constructor(private readonly taskRepository: TaskRepository)
-⋮----
-async execute(dto: CreateTaskDto): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/fail-issue-retest.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file fail-issue-retest.use-case.ts
- * @description Use case: Fail an issue's retest (retest → fixing).
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Emit IssueRetestFailedEvent to event bus
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
-⋮----
-export class FailIssueRetestUseCase {
-⋮----
-constructor(private readonly issueRepository: IssueRepository)
-⋮----
-async execute(issueId: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/fix-issue.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file fix-issue.use-case.ts
- * @description Use case: Mark an issue as being fixed (investigating → fixing).
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Emit IssueFixedEvent to event bus
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
-⋮----
-export class FixIssueUseCase {
-⋮----
-constructor(private readonly issueRepository: IssueRepository)
-⋮----
-async execute(issueId: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/open-issue.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file open-issue.use-case.ts
- * @description Use case: Open a new issue against a task.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Emit IssueOpenedEvent to event bus
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import type { OpenIssueDto } from "../dto/open-issue.dto";
-⋮----
-export class OpenIssueUseCase {
-⋮----
-constructor(private readonly issueRepository: IssueRepository)
-⋮----
-async execute(dto: OpenIssueDto): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/pass-issue-retest.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file pass-issue-retest.use-case.ts
- * @description Use case: Pass an issue's retest (retest → resolved).
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Emit IssueRetestPassedEvent to event bus
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
-⋮----
-export class PassIssueRetestUseCase {
-⋮----
-constructor(private readonly issueRepository: IssueRepository)
-⋮----
-async execute(issueId: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/pass-task-qa.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file pass-task-qa.use-case.ts
- * @description Use case: Pass a task's QA review (qa → acceptance). Requires no open issues.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Emit TaskQaPassedEvent to event bus
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { evaluateTaskTransition } from "../../domain/services/task-transition-policy";
-import { hasNoOpenIssues } from "../../domain/services/task-guards";
-⋮----
-export class PassTaskQaUseCase {
-⋮----
-constructor(
-⋮----
-async execute(taskId: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/pay-invoice.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file pay-invoice.use-case.ts
- * @description Use case: Mark an approved invoice as paid (approved → paid).
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Emit InvoicePaidEvent to event bus
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { evaluateInvoiceTransition } from "../../domain/services/invoice-transition-policy";
-⋮----
-export class PayInvoiceUseCase {
-⋮----
-constructor(private readonly invoiceRepository: InvoiceRepository)
-⋮----
-async execute(invoiceId: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/reject-invoice.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file reject-invoice.use-case.ts
- * @description Use case: Reject an invoice back to submitted (finance_review → submitted).
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Emit InvoiceRejectedEvent to event bus
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { evaluateInvoiceTransition } from "../../domain/services/invoice-transition-policy";
-⋮----
-export class RejectInvoiceUseCase {
-⋮----
-constructor(private readonly invoiceRepository: InvoiceRepository)
-⋮----
-async execute(invoiceId: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/remove-invoice-item.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file remove-invoice-item.use-case.ts
- * @description Use case: Remove an item from a draft invoice.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Emit InvoiceItemRemovedEvent to event bus
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { invoiceIsEditable } from "../../domain/services/invoice-guards";
-⋮----
-export class RemoveInvoiceItemUseCase {
-⋮----
-constructor(private readonly invoiceRepository: InvoiceRepository)
-⋮----
-async execute(invoiceId: string, invoiceItemId: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/resolve-issue.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file resolve-issue.use-case.ts
- * @description Use case: Resolve an issue (retest-pending → resolved).
- * @author workspace-flow
- * @since 2026-03-24
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
-import type { ResolveIssueDto } from "../dto/resolve-issue.dto";
-⋮----
-export class ResolveIssueUseCase {
-⋮----
-constructor(private readonly issueRepository: IssueRepository)
-⋮----
-async execute(dto: ResolveIssueDto): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/review-invoice.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file review-invoice.use-case.ts
- * @description Use case: Move an invoice into finance review (submitted → finance_review).
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Emit InvoiceReviewedEvent to event bus
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { evaluateInvoiceTransition } from "../../domain/services/invoice-transition-policy";
-⋮----
-export class ReviewInvoiceUseCase {
-⋮----
-constructor(private readonly invoiceRepository: InvoiceRepository)
-⋮----
-async execute(invoiceId: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/start-issue.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file start-issue.use-case.ts
- * @description Use case: Start investigating an issue (open → investigating).
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Emit IssueStartedEvent to event bus
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
-⋮----
-export class StartIssueUseCase {
-⋮----
-constructor(private readonly issueRepository: IssueRepository)
-⋮----
-async execute(issueId: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/submit-invoice.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file submit-invoice.use-case.ts
- * @description Use case: Submit an invoice for review (draft → submitted). Requires at least one item.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Emit InvoiceSubmittedEvent to event bus
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { evaluateInvoiceTransition } from "../../domain/services/invoice-transition-policy";
-import { invoiceHasItems } from "../../domain/services/invoice-guards";
-⋮----
-export class SubmitInvoiceUseCase {
-⋮----
-constructor(private readonly invoiceRepository: InvoiceRepository)
-⋮----
-async execute(invoiceId: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/submit-issue-retest.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file submit-issue-retest.use-case.ts
- * @description Use case: Submit an issue for retest (fixing → retest).
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Emit IssueRetestSubmittedEvent to event bus
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
-⋮----
-export class SubmitIssueRetestUseCase {
-⋮----
-constructor(private readonly issueRepository: IssueRepository)
-⋮----
-async execute(issueId: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/submit-task-materialization-batch-job.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file submit-task-materialization-batch-job.use-case.ts
- * @description Submit a task materialization batch job in queued status.
- */
-⋮----
-import { v7 as generateId } from "@lib-uuid";
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskMaterializationBatchJobRepository } from "../../domain/repositories/TaskMaterializationBatchJobRepository";
-import type { SubmitTaskMaterializationBatchJobDto } from "../dto/submit-task-materialization-batch-job.dto";
-⋮----
-export class SubmitTaskMaterializationBatchJobUseCase {
-⋮----
-constructor(
-⋮----
-async execute(dto: SubmitTaskMaterializationBatchJobDto): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/submit-task-to-qa.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file submit-task-to-qa.use-case.ts
- * @description Use case: Submit a task for QA review (in_progress → qa).
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add pre-submission checks (e.g. assignee present)
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import { evaluateTaskTransition } from "../../domain/services/task-transition-policy";
-⋮----
-export class SubmitTaskToQaUseCase {
-⋮----
-constructor(private readonly taskRepository: TaskRepository)
-⋮----
-async execute(taskId: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/update-invoice-item.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file update-invoice-item.use-case.ts
- * @description Use case: Update the amount of an existing invoice item on a draft invoice.
- * @author workspace-flow
- * @since 2026-03-24
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { invoiceIsEditable } from "../../domain/services/invoice-guards";
-import type { UpdateInvoiceItemDto } from "../dto/update-invoice-item.dto";
-⋮----
-export class UpdateInvoiceItemUseCase {
-⋮----
-constructor(private readonly invoiceRepository: InvoiceRepository)
-⋮----
-async execute(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/update-task.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file update-task.use-case.ts
- * @description Use case: Update mutable fields on an existing task.
- * @author workspace-flow
- * @since 2026-03-24
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { UpdateTaskDto } from "../dto/update-task.dto";
-⋮----
-export class UpdateTaskUseCase {
-⋮----
-constructor(private readonly taskRepository: TaskRepository)
-⋮----
-async execute(taskId: string, dto: UpdateTaskDto): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/entities/InvoiceItem.ts
-````typescript
-/**
- * @module workspace-flow/domain/entities
- * @file InvoiceItem.ts
- * @description InvoiceItem entity linking a task to an invoice with an amount.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add domain validation methods as billing rules expand
- */
-⋮----
-// ── Entity ────────────────────────────────────────────────────────────────────
-⋮----
-export interface InvoiceItem {
-  readonly id: string;
-  readonly invoiceId: string;
-  readonly taskId: string;
-  readonly amount: number;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-// ── Inputs ────────────────────────────────────────────────────────────────────
-⋮----
-export interface AddInvoiceItemInput {
-  readonly invoiceId: string;
-  readonly taskId: string;
-  readonly amount: number;
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/entities/Issue.ts
-````typescript
-/**
- * @module workspace-flow/domain/entities
- * @file Issue.ts
- * @description Issue aggregate entity representing a defect or anomaly raised during workflow.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add domain validation methods as business rules expand
- */
-⋮----
-import type { IssueStatus } from "../value-objects/IssueStatus";
-import type { IssueStage } from "../value-objects/IssueStage";
-⋮----
-// ── Aggregate ─────────────────────────────────────────────────────────────────
-⋮----
-export interface Issue {
-  readonly id: string;
-  readonly taskId: string;
-  /** Which stage of the task workflow this issue was raised in. */
-  readonly stage: IssueStage;
-  readonly title: string;
-  readonly description: string;
-  readonly status: IssueStatus;
-  readonly createdBy: string;
-  readonly assignedTo?: string;
-  readonly resolvedAtISO?: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-/** Which stage of the task workflow this issue was raised in. */
-⋮----
-// ── Inputs ────────────────────────────────────────────────────────────────────
-⋮----
-export interface OpenIssueInput {
-  readonly taskId: string;
-  readonly stage: IssueStage;
-  readonly title: string;
-  readonly description?: string;
-  readonly createdBy: string;
-  readonly assignedTo?: string;
-}
-⋮----
-export interface UpdateIssueInput {
-  readonly title?: string;
-  readonly description?: string;
-  readonly assignedTo?: string;
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/entities/TaskMaterializationBatchJob.ts
-````typescript
-/**
- * @module workspace-flow/domain/entities
- * @file TaskMaterializationBatchJob.ts
- * @description Batch job aggregate for task materialization orchestration.
- */
-⋮----
-import type { TaskMaterializationBatchJobStatus } from "../value-objects/TaskMaterializationBatchJobStatus";
-⋮----
-export interface TaskMaterializationBatchJob {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly actorId: string;
-  readonly correlationId: string;
-  readonly knowledgePageIds: ReadonlyArray<string>;
-  readonly totalItems: number;
-  readonly processedItems: number;
-  readonly succeededItems: number;
-  readonly failedItems: number;
-  readonly status: TaskMaterializationBatchJobStatus;
-  readonly startedAtISO?: string;
-  readonly completedAtISO?: string;
-  readonly errorCode?: string;
-  readonly errorMessage?: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateTaskMaterializationBatchJobInput {
-  readonly workspaceId: string;
-  readonly actorId: string;
-  readonly correlationId: string;
-  readonly knowledgePageIds: ReadonlyArray<string>;
-}
-⋮----
-export interface CompleteTaskMaterializationBatchJobInput {
-  readonly processedItems: number;
-  readonly succeededItems: number;
-  readonly failedItems: number;
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/events/InvoiceEvent.ts
-````typescript
-/**
- * @module workspace-flow/domain/events
- * @file InvoiceEvent.ts
- * @description Discriminated-union event types emitted by the Invoice aggregate.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Wire to event bus via @/modules/event IEventBusRepository
- */
-⋮----
-import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
-⋮----
-// ── Individual event shapes ───────────────────────────────────────────────────
-⋮----
-export interface InvoiceCreatedEvent {
-  readonly type: "workspace-flow.invoice.created";
-  readonly invoiceId: string;
-  readonly workspaceId: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface InvoiceItemAddedEvent {
-  readonly type: "workspace-flow.invoice.item_added";
-  readonly invoiceId: string;
-  readonly invoiceItemId: string;
-  readonly taskId: string;
-  readonly amount: number;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface InvoiceItemRemovedEvent {
-  readonly type: "workspace-flow.invoice.item_removed";
-  readonly invoiceId: string;
-  readonly invoiceItemId: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface InvoiceSubmittedEvent {
-  readonly type: "workspace-flow.invoice.submitted";
-  readonly invoiceId: string;
-  readonly workspaceId: string;
-  readonly submittedAtISO: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface InvoiceReviewedEvent {
-  readonly type: "workspace-flow.invoice.reviewed";
-  readonly invoiceId: string;
-  readonly workspaceId: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface InvoiceApprovedEvent {
-  readonly type: "workspace-flow.invoice.approved";
-  readonly invoiceId: string;
-  readonly workspaceId: string;
-  readonly approvedAtISO: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface InvoiceRejectedEvent {
-  readonly type: "workspace-flow.invoice.rejected";
-  readonly invoiceId: string;
-  readonly workspaceId: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface InvoicePaidEvent {
-  readonly type: "workspace-flow.invoice.paid";
-  readonly invoiceId: string;
-  readonly workspaceId: string;
-  readonly paidAtISO: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface InvoiceClosedEvent {
-  readonly type: "workspace-flow.invoice.closed";
-  readonly invoiceId: string;
-  readonly workspaceId: string;
-  readonly closedAtISO: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface InvoiceStatusChangedEvent {
-  readonly type: "workspace-flow.invoice.status_changed";
-  readonly invoiceId: string;
-  readonly workspaceId: string;
-  readonly from: InvoiceStatus;
-  readonly to: InvoiceStatus;
-  readonly occurredAtISO: string;
-}
-⋮----
-// ── Discriminated union ───────────────────────────────────────────────────────
-⋮----
-export type InvoiceEvent =
-  | InvoiceCreatedEvent
-  | InvoiceItemAddedEvent
-  | InvoiceItemRemovedEvent
-  | InvoiceSubmittedEvent
-  | InvoiceReviewedEvent
-  | InvoiceApprovedEvent
-  | InvoiceRejectedEvent
-  | InvoicePaidEvent
-  | InvoiceClosedEvent
-  | InvoiceStatusChangedEvent;
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/events/IssueEvent.ts
-````typescript
-/**
- * @module workspace-flow/domain/events
- * @file IssueEvent.ts
- * @description Discriminated-union event types emitted by the Issue aggregate.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Wire to event bus via @/modules/event IEventBusRepository
- */
-⋮----
-import type { IssueStatus } from "../value-objects/IssueStatus";
-import type { IssueStage } from "../value-objects/IssueStage";
-⋮----
-// ── Individual event shapes ───────────────────────────────────────────────────
-⋮----
-export interface IssueOpenedEvent {
-  readonly type: "workspace-flow.issue.opened";
-  readonly issueId: string;
-  readonly taskId: string;
-  readonly stage: IssueStage;
-  readonly createdBy: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface IssueStartedEvent {
-  readonly type: "workspace-flow.issue.started";
-  readonly issueId: string;
-  readonly taskId: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface IssueFixedEvent {
-  readonly type: "workspace-flow.issue.fixed";
-  readonly issueId: string;
-  readonly taskId: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface IssueRetestSubmittedEvent {
-  readonly type: "workspace-flow.issue.retest_submitted";
-  readonly issueId: string;
-  readonly taskId: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface IssueRetestPassedEvent {
-  readonly type: "workspace-flow.issue.retest_passed";
-  readonly issueId: string;
-  readonly taskId: string;
-  readonly stage: IssueStage;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface IssueRetestFailedEvent {
-  readonly type: "workspace-flow.issue.retest_failed";
-  readonly issueId: string;
-  readonly taskId: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface IssueClosedEvent {
-  readonly type: "workspace-flow.issue.closed";
-  readonly issueId: string;
-  readonly taskId: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface IssueStatusChangedEvent {
-  readonly type: "workspace-flow.issue.status_changed";
-  readonly issueId: string;
-  readonly taskId: string;
-  readonly from: IssueStatus;
-  readonly to: IssueStatus;
-  readonly occurredAtISO: string;
-}
-⋮----
-// ── Discriminated union ───────────────────────────────────────────────────────
-⋮----
-export type IssueEvent =
-  | IssueOpenedEvent
-  | IssueStartedEvent
-  | IssueFixedEvent
-  | IssueRetestSubmittedEvent
-  | IssueRetestPassedEvent
-  | IssueRetestFailedEvent
-  | IssueClosedEvent
-  | IssueStatusChangedEvent;
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/events/TaskEvent.ts
-````typescript
-/**
- * @module workspace-flow/domain/events
- * @file TaskEvent.ts
- * @description Discriminated-union event types emitted by the Task aggregate.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Wire to event bus via @/modules/event IEventBusRepository
- */
-⋮----
-import type { TaskStatus } from "../value-objects/TaskStatus";
-⋮----
-// ── Individual event shapes ───────────────────────────────────────────────────
-⋮----
-export interface TaskCreatedEvent {
-  readonly type: "workspace-flow.task.created";
-  readonly taskId: string;
-  readonly workspaceId: string;
-  readonly title: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface TaskAssignedEvent {
-  readonly type: "workspace-flow.task.assigned";
-  readonly taskId: string;
-  readonly workspaceId: string;
-  readonly assigneeId: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface TaskSubmittedToQaEvent {
-  readonly type: "workspace-flow.task.submitted_to_qa";
-  readonly taskId: string;
-  readonly workspaceId: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface TaskQaPassedEvent {
-  readonly type: "workspace-flow.task.qa_passed";
-  readonly taskId: string;
-  readonly workspaceId: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface TaskAcceptanceApprovedEvent {
-  readonly type: "workspace-flow.task.acceptance_approved";
-  readonly taskId: string;
-  readonly workspaceId: string;
-  readonly acceptedAtISO: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface TaskArchivedEvent {
-  readonly type: "workspace-flow.task.archived";
-  readonly taskId: string;
-  readonly workspaceId: string;
-  readonly archivedAtISO: string;
-  readonly occurredAtISO: string;
-}
-⋮----
-export interface TaskStatusChangedEvent {
-  readonly type: "workspace-flow.task.status_changed";
-  readonly taskId: string;
-  readonly workspaceId: string;
-  readonly from: TaskStatus;
-  readonly to: TaskStatus;
-  readonly occurredAtISO: string;
-}
-⋮----
-// ── Discriminated union ───────────────────────────────────────────────────────
-⋮----
-export type TaskEvent =
-  | TaskCreatedEvent
-  | TaskAssignedEvent
-  | TaskSubmittedToQaEvent
-  | TaskQaPassedEvent
-  | TaskAcceptanceApprovedEvent
-  | TaskArchivedEvent
-  | TaskStatusChangedEvent;
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/index.ts
-````typescript
-/**
- * workspace/workspace-workflow domain — public exports.
- */
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/repositories/InvoiceRepository.ts
-````typescript
-/**
- * @module workspace-flow/domain/repositories
- * @file InvoiceRepository.ts
- * @description Repository port interface for Invoice persistence.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Implement in infrastructure/repositories/FirebaseInvoiceRepository
- */
-⋮----
-import type { Invoice, CreateInvoiceInput } from "../entities/Invoice";
-import type { InvoiceItem, AddInvoiceItemInput } from "../entities/InvoiceItem";
-import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
-⋮----
-export interface InvoiceRepository {
-  /** Persist a new invoice and return the created aggregate. */
-  create(input: CreateInvoiceInput): Promise<Invoice>;
-  /** Hard-delete an invoice by id. */
-  delete(invoiceId: string): Promise<void>;
-  /** Retrieve an invoice by its id. Returns null if not found. */
-  findById(invoiceId: string): Promise<Invoice | null>;
-  /** List all invoices for a given workspace. */
-  findByWorkspaceId(workspaceId: string): Promise<Invoice[]>;
-  /** Persist a lifecycle status transition and stamp relevant timestamp. */
-  transitionStatus(invoiceId: string, to: InvoiceStatus, nowISO: string): Promise<Invoice | null>;
-  /** Add an item to an invoice and recalculate totalAmount. */
-  addItem(input: AddInvoiceItemInput): Promise<InvoiceItem>;
-  /** Retrieve a single invoice item by its id. Returns null if not found. */
-  findItemById(invoiceItemId: string): Promise<InvoiceItem | null>;
-  /** Update the amount of an existing item and recalculate totalAmount. Returns null if not found. */
-  updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null>;
-  /** Remove an item from an invoice and recalculate totalAmount. */
-  removeItem(invoiceItemId: string): Promise<void>;
-  /** List all items for an invoice. */
-  listItems(invoiceId: string): Promise<InvoiceItem[]>;
-}
-⋮----
-/** Persist a new invoice and return the created aggregate. */
-create(input: CreateInvoiceInput): Promise<Invoice>;
-/** Hard-delete an invoice by id. */
-delete(invoiceId: string): Promise<void>;
-/** Retrieve an invoice by its id. Returns null if not found. */
-findById(invoiceId: string): Promise<Invoice | null>;
-/** List all invoices for a given workspace. */
-findByWorkspaceId(workspaceId: string): Promise<Invoice[]>;
-/** Persist a lifecycle status transition and stamp relevant timestamp. */
-transitionStatus(invoiceId: string, to: InvoiceStatus, nowISO: string): Promise<Invoice | null>;
-/** Add an item to an invoice and recalculate totalAmount. */
-addItem(input: AddInvoiceItemInput): Promise<InvoiceItem>;
-/** Retrieve a single invoice item by its id. Returns null if not found. */
-findItemById(invoiceItemId: string): Promise<InvoiceItem | null>;
-/** Update the amount of an existing item and recalculate totalAmount. Returns null if not found. */
-updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null>;
-/** Remove an item from an invoice and recalculate totalAmount. */
-removeItem(invoiceItemId: string): Promise<void>;
-/** List all items for an invoice. */
-listItems(invoiceId: string): Promise<InvoiceItem[]>;
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/repositories/IssueRepository.ts
-````typescript
-/**
- * @module workspace-flow/domain/repositories
- * @file IssueRepository.ts
- * @description Repository port interface for Issue persistence.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Implement in infrastructure/repositories/FirebaseIssueRepository
- */
-⋮----
-import type { Issue, OpenIssueInput, UpdateIssueInput } from "../entities/Issue";
-import type { IssueStatus } from "../value-objects/IssueStatus";
-⋮----
-export interface IssueRepository {
-  /** Persist a new issue and return the created aggregate. */
-  create(input: OpenIssueInput): Promise<Issue>;
-  /** Update mutable fields on an existing issue. Returns null if not found. */
-  update(issueId: string, input: UpdateIssueInput): Promise<Issue | null>;
-  /** Hard-delete an issue by id. */
-  delete(issueId: string): Promise<void>;
-  /** Retrieve an issue by its id. Returns null if not found. */
-  findById(issueId: string): Promise<Issue | null>;
-  /** List all issues for a given task. */
-  findByTaskId(taskId: string): Promise<Issue[]>;
-  /** Count open issues for a given task (used in guard conditions). */
-  countOpenByTaskId(taskId: string): Promise<number>;
-  /** Persist a lifecycle status transition and stamp resolvedAtISO if to==="resolved". */
-  transitionStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<Issue | null>;
-}
-⋮----
-/** Persist a new issue and return the created aggregate. */
-create(input: OpenIssueInput): Promise<Issue>;
-/** Update mutable fields on an existing issue. Returns null if not found. */
-update(issueId: string, input: UpdateIssueInput): Promise<Issue | null>;
-/** Hard-delete an issue by id. */
-delete(issueId: string): Promise<void>;
-/** Retrieve an issue by its id. Returns null if not found. */
-findById(issueId: string): Promise<Issue | null>;
-/** List all issues for a given task. */
-findByTaskId(taskId: string): Promise<Issue[]>;
-/** Count open issues for a given task (used in guard conditions). */
-countOpenByTaskId(taskId: string): Promise<number>;
-/** Persist a lifecycle status transition and stamp resolvedAtISO if to==="resolved". */
-transitionStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<Issue | null>;
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/repositories/TaskMaterializationBatchJobRepository.ts
-````typescript
-/**
- * @module workspace-flow/domain/repositories
- * @file TaskMaterializationBatchJobRepository.ts
- * @description Repository port for task materialization batch jobs.
- */
-⋮----
-import type {
-  CompleteTaskMaterializationBatchJobInput,
-  CreateTaskMaterializationBatchJobInput,
-  TaskMaterializationBatchJob,
-} from "../entities/TaskMaterializationBatchJob";
-⋮----
-export interface TaskMaterializationBatchJobRepository {
-  create(input: CreateTaskMaterializationBatchJobInput): Promise<TaskMaterializationBatchJob>;
-  findById(jobId: string): Promise<TaskMaterializationBatchJob | null>;
-  findByWorkspaceId(workspaceId: string): Promise<TaskMaterializationBatchJob[]>;
-  markRunning(jobId: string): Promise<TaskMaterializationBatchJob | null>;
-  markCompleted(
-    jobId: string,
-    input: CompleteTaskMaterializationBatchJobInput,
-  ): Promise<TaskMaterializationBatchJob | null>;
-  markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<TaskMaterializationBatchJob | null>;
-}
-⋮----
-create(input: CreateTaskMaterializationBatchJobInput): Promise<TaskMaterializationBatchJob>;
-findById(jobId: string): Promise<TaskMaterializationBatchJob | null>;
-findByWorkspaceId(workspaceId: string): Promise<TaskMaterializationBatchJob[]>;
-markRunning(jobId: string): Promise<TaskMaterializationBatchJob | null>;
-markCompleted(
-    jobId: string,
-    input: CompleteTaskMaterializationBatchJobInput,
-  ): Promise<TaskMaterializationBatchJob | null>;
-markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<TaskMaterializationBatchJob | null>;
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/repositories/TaskRepository.ts
-````typescript
-/**
- * @module workspace-flow/domain/repositories
- * @file TaskRepository.ts
- * @description Repository port interface for Task persistence.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Implement in infrastructure/repositories/FirebaseTaskRepository
- */
-⋮----
-import type { Task, CreateTaskInput, UpdateTaskInput } from "../entities/Task";
-import type { TaskStatus } from "../value-objects/TaskStatus";
-⋮----
-export interface TaskRepository {
-  /** Persist a new task and return the created aggregate. */
-  create(input: CreateTaskInput): Promise<Task>;
-  /** Update mutable fields on an existing task. Returns null if not found. */
-  update(taskId: string, input: UpdateTaskInput): Promise<Task | null>;
-  /** Hard-delete a task by id. */
-  delete(taskId: string): Promise<void>;
-  /** Retrieve a task by its id. Returns null if not found. */
-  findById(taskId: string): Promise<Task | null>;
-  /** List all tasks belonging to a workspace, ordered by updatedAtISO desc. */
-  findByWorkspaceId(workspaceId: string): Promise<Task[]>;
-  /** Persist a lifecycle status transition and stamp acceptedAtISO / archivedAtISO as appropriate. */
-  transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null>;
-}
-⋮----
-/** Persist a new task and return the created aggregate. */
-create(input: CreateTaskInput): Promise<Task>;
-/** Update mutable fields on an existing task. Returns null if not found. */
-update(taskId: string, input: UpdateTaskInput): Promise<Task | null>;
-/** Hard-delete a task by id. */
-delete(taskId: string): Promise<void>;
-/** Retrieve a task by its id. Returns null if not found. */
-findById(taskId: string): Promise<Task | null>;
-/** List all tasks belonging to a workspace, ordered by updatedAtISO desc. */
-findByWorkspaceId(workspaceId: string): Promise<Task[]>;
-/** Persist a lifecycle status transition and stamp acceptedAtISO / archivedAtISO as appropriate. */
-transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null>;
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/services/invoice-guards.ts
-````typescript
-/**
- * @module workspace-flow/domain/services
- * @file invoice-guards.ts
- * @description Pure domain guards for invoice lifecycle invariants.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add guards for additional billing invariants as rules evolve
- */
-⋮----
-// ── Guard: item count > 0 before submit ───────────────────────────────────────
-⋮----
-/**
- * Asserts that an invoice has at least one item before allowing submission.
- *
- * @param itemCount - Number of items currently on the invoice
- * @returns true if the invoice may be submitted; false if it has no items
- */
-export function invoiceHasItems(itemCount: number): boolean
-⋮----
-// ── Guard: invoice is in draft before item mutation ───────────────────────────
-⋮----
-/**
- * Asserts that an invoice is in draft status before allowing item add/remove.
- *
- * @param status - Current invoice status
- * @returns true if items may be mutated; false otherwise
- */
-export function invoiceIsEditable(status: string): boolean
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/services/invoice-transition-policy.ts
-````typescript
-/**
- * @module workspace-flow/domain/services
- * @file invoice-transition-policy.ts
- * @description Pure domain service encapsulating allowed Invoice status transitions.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Expand with additional guard conditions as billing rules evolve
- */
-⋮----
-import { canTransitionInvoiceStatus, type InvoiceStatus } from "../value-objects/InvoiceStatus";
-⋮----
-export type InvoiceTransitionResult =
-  | { allowed: true }
-  | { allowed: false; reason: string };
-⋮----
-/**
- * Evaluates whether an invoice lifecycle transition is permitted.
- *
- * @param from - Current invoice status
- * @param to   - Requested next status
- * @returns InvoiceTransitionResult indicating whether the transition is allowed
- */
-export function evaluateInvoiceTransition(
-  from: InvoiceStatus,
-  to: InvoiceStatus,
-): InvoiceTransitionResult
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/services/issue-transition-policy.ts
-````typescript
-/**
- * @module workspace-flow/domain/services
- * @file issue-transition-policy.ts
- * @description Pure domain service encapsulating allowed Issue status transitions.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Expand with additional guard conditions as business rules evolve
- */
-⋮----
-import { canTransitionIssueStatus, type IssueStatus } from "../value-objects/IssueStatus";
-⋮----
-export type IssueTransitionResult =
-  | { allowed: true }
-  | { allowed: false; reason: string };
-⋮----
-/**
- * Evaluates whether an issue lifecycle transition is permitted.
- *
- * @param from - Current issue status
- * @param to   - Requested next status
- * @returns IssueTransitionResult indicating whether the transition is allowed
- */
-export function evaluateIssueTransition(
-  from: IssueStatus,
-  to: IssueStatus,
-): IssueTransitionResult
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/services/task-guards.ts
-````typescript
-/**
- * @module workspace-flow/domain/services
- * @file task-guards.ts
- * @description Pure domain guards for task lifecycle invariants.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add guards for additional business invariants as rules evolve
- */
-⋮----
-// ── Guard: no open issues ─────────────────────────────────────────────────────
-⋮----
-/**
- * Asserts that a task has no open issues before allowing QA-pass or acceptance-approve.
- *
- * @param openIssueCount - The number of open issues currently linked to the task
- * @returns true if the task may proceed; false if blocked by open issues
- */
-export function hasNoOpenIssues(openIssueCount: number): boolean
-⋮----
-// ── Guard: invoice closed or none ─────────────────────────────────────────────
-⋮----
-/**
- * Asserts that any linked invoice is closed (or none exists) before allowing archive.
- *
- * @param invoiceStatus - The status of the linked invoice, or undefined if none
- * @returns true if the task may be archived; false if blocked by an active invoice
- */
-export function invoiceAllowsArchive(
-  invoiceStatus: string | undefined,
-): boolean
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/services/task-transition-policy.ts
-````typescript
-/**
- * @module workspace-flow/domain/services
- * @file task-transition-policy.ts
- * @description Pure domain service encapsulating allowed Task status transitions.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Expand with multi-branch transitions if workflow rules evolve
- */
-⋮----
-import { canTransitionTaskStatus, type TaskStatus } from "../value-objects/TaskStatus";
-⋮----
-export type TaskTransitionResult =
-  | { allowed: true }
-  | { allowed: false; reason: string };
-⋮----
-/**
- * Evaluates whether a task lifecycle transition is permitted.
- *
- * @param from - Current task status
- * @param to   - Requested next status
- * @returns TaskTransitionResult indicating whether the transition is allowed
- */
-export function evaluateTaskTransition(
-  from: TaskStatus,
-  to: TaskStatus,
-): TaskTransitionResult
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/InvoiceId.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file InvoiceId.ts
- * @description Branded string value object for Invoice identifiers.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Consider using a stronger opaque type if ID generation logic is added
- */
-⋮----
-/** Branded string that prevents mixing Invoice IDs with other string IDs. */
-export type InvoiceId = string & { readonly [InvoiceIdBrand]: void };
-⋮----
-/** Creates an InvoiceId from a plain string (e.g. a Firestore document ID). */
-export function invoiceId(raw: string): InvoiceId
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/InvoiceItemId.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file InvoiceItemId.ts
- * @description Branded string value object for InvoiceItem identifiers.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Consider using a stronger opaque type if ID generation logic is added
- */
-⋮----
-/** Branded string that prevents mixing InvoiceItem IDs with other string IDs. */
-export type InvoiceItemId = string & { readonly [InvoiceItemIdBrand]: void };
-⋮----
-/** Creates an InvoiceItemId from a plain string (e.g. a Firestore document ID). */
-export function invoiceItemId(raw: string): InvoiceItemId
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/InvoiceStatus.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file InvoiceStatus.ts
- * @description Invoice lifecycle status union, transition table, and helpers.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add additional transition guards as billing rules evolve
- */
-⋮----
-// ── Status ─────────────────────────────────────────────────────────────────────
-⋮----
-export type InvoiceStatus =
-  | "draft"
-  | "submitted"
-  | "finance_review"
-  | "approved"
-  | "paid"
-  | "closed";
-⋮----
-// ── Transition table ──────────────────────────────────────────────────────────
-⋮----
-/**
- * Multi-successor transition map for invoice lifecycle.
- *
- * draft → submitted (SUBMIT / item_count > 0)
- * submitted → finance_review (REVIEW)
- * finance_review → approved (APPROVE)
- * finance_review → submitted (REJECT — back to submitted for resubmission)
- * approved → paid (PAY)
- * paid → closed (CLOSE)
- */
-⋮----
-/** Returns true if moving from `from` to `to` is a valid transition. */
-export function canTransitionInvoiceStatus(from: InvoiceStatus, to: InvoiceStatus): boolean
-⋮----
-/** Returns true when the invoice has reached a terminal state and cannot progress. */
-export function isTerminalInvoiceStatus(status: InvoiceStatus): boolean
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/IssueId.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file IssueId.ts
- * @description Branded string value object for Issue identifiers.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Consider using a stronger opaque type if ID generation logic is added
- */
-⋮----
-/** Branded string that prevents mixing Issue IDs with other string IDs. */
-export type IssueId = string & { readonly [IssueIdBrand]: void };
-⋮----
-/** Creates an IssueId from a plain string (e.g. a Firestore document ID). */
-export function issueId(raw: string): IssueId
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/IssueStage.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file IssueStage.ts
- * @description Cross-domain stage reference indicating at which task-flow stage an issue was raised.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Extend stage list if workflow introduces additional stages
- */
-⋮----
-// ── IssueStage ─────────────────────────────────────────────────────────────────
-⋮----
-/**
- * Indicates which stage of the task workflow this issue was raised in.
- * Used to route issue resolution back to the originating workflow step.
- */
-export type IssueStage = "task" | "qa" | "acceptance";
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/IssueStatus.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file IssueStatus.ts
- * @description Issue lifecycle status union, multi-successor transition table, and helpers.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add additional transition guards as business rules evolve
- */
-⋮----
-// ── Status ─────────────────────────────────────────────────────────────────────
-⋮----
-export type IssueStatus =
-  | "open"
-  | "investigating"
-  | "fixing"
-  | "retest"
-  | "resolved"
-  | "closed";
-⋮----
-// ── Transition table ──────────────────────────────────────────────────────────
-⋮----
-/**
- * Multi-successor transition map for issue lifecycle.
- *
- * open → investigating (START)
- * investigating → fixing (FIX)
- * fixing → retest (SUBMIT_RETEST)
- * retest → resolved (PASS_RETEST)
- * retest → fixing (FAIL_RETEST — back-edge within the Issue fix cycle)
- * resolved → closed (CLOSE)
- */
-⋮----
-/** Returns true if moving from `from` to `to` is a valid transition. */
-export function canTransitionIssueStatus(from: IssueStatus, to: IssueStatus): boolean
-⋮----
-/** Returns true when the issue has reached a terminal state and cannot progress. */
-export function isTerminalIssueStatus(status: IssueStatus): boolean
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/TaskId.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file TaskId.ts
- * @description Branded string value object for Task identifiers.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Consider using a stronger opaque type if ID generation logic is added
- */
-⋮----
-/** Branded string that prevents mixing Task IDs with other string IDs. */
-export type TaskId = string & { readonly [TaskIdBrand]: void };
-⋮----
-/** Creates a TaskId from a plain string (e.g. a Firestore document ID). */
-export function taskId(raw: string): TaskId
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/TaskMaterializationBatchJobStatus.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file TaskMaterializationBatchJobStatus.ts
- * @description Lifecycle statuses for task materialization batch jobs.
- */
-⋮----
-export type TaskMaterializationBatchJobStatus =
-  (typeof TASK_MATERIALIZATION_BATCH_JOB_STATUSES)[number];
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/TaskStatus.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file TaskStatus.ts
- * @description Task lifecycle status union, transition table, and pure helper functions.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add additional transition guards as business rules evolve
- */
-⋮----
-// ── Status ─────────────────────────────────────────────────────────────────────
-⋮----
-export type TaskStatus =
-  | "draft"
-  | "in_progress"
-  | "qa"
-  | "acceptance"
-  | "accepted"
-  | "archived";
-⋮----
-/** Ordered tuple used by Zod schemas (z.enum needs a const tuple). */
-⋮----
-// ── Transition table ──────────────────────────────────────────────────────────
-⋮----
-/**
- * Maps each status to its single valid successor (null = terminal).
- *
- * The flow is intentionally forward-only.
- * draft → in_progress (ASSIGN)
- * in_progress → qa (SUBMIT_QA)
- * qa → acceptance (PASS_QA)
- * acceptance → accepted (APPROVE_ACCEPTANCE)
- * accepted → archived (ARCHIVE)
- */
-⋮----
-/** Returns true if moving from `from` to `to` is a valid forward transition. */
-export function canTransitionTaskStatus(from: TaskStatus, to: TaskStatus): boolean
-⋮----
-/** Returns the next status in the main flow, or null if already terminal. */
-export function nextTaskStatus(current: TaskStatus): TaskStatus | null
-⋮----
-/** Returns true when the task has reached a terminal state and cannot progress. */
-export function isTerminalTaskStatus(status: TaskStatus): boolean
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/UserId.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file UserId.ts
- * @description Branded string value object for User identifiers.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Consider using a stronger opaque type if ID generation logic is added
- */
-⋮----
-/** Branded string that prevents mixing User IDs with other string IDs. */
-export type UserId = string & { readonly [UserIdBrand]: void };
-⋮----
-/** Creates a UserId from a plain string (e.g. a Firebase Auth UID). */
-export function userId(raw: string): UserId
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/firebase/invoice-item.converter.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/firebase
- * @file invoice-item.converter.ts
- * @description Firestore document-to-entity converter for InvoiceItem.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Harden unknown field handling with stricter runtime validation
- */
-⋮----
-import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
-⋮----
-/**
- * Converts a raw Firestore document data map into a typed InvoiceItem entity.
- *
- * @param id   - Firestore document ID
- * @param data - Raw document fields from Firestore
- */
-export function toInvoiceItem(id: string, data: Record<string, unknown>): InvoiceItem
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/firebase/invoice.converter.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/firebase
- * @file invoice.converter.ts
- * @description Firestore document-to-entity converter for Invoice.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Harden unknown field handling with stricter runtime validation
- */
-⋮----
-import type { Invoice } from "../../domain/entities/Invoice";
-import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-import { toSourceReference } from "./sourceReference.converter";
-⋮----
-/**
- * Converts a raw Firestore document data map into a typed Invoice entity.
- *
- * @param id   - Firestore document ID
- * @param data - Raw document fields from Firestore
- */
-export function toInvoice(id: string, data: Record<string, unknown>): Invoice
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/firebase/issue.converter.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/firebase
- * @file issue.converter.ts
- * @description Firestore document-to-entity converter for Issue.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Harden unknown field handling with stricter runtime validation
- */
-⋮----
-import type { Issue } from "../../domain/entities/Issue";
-import { ISSUE_STATUSES, type IssueStatus } from "../../domain/value-objects/IssueStatus";
-import { ISSUE_STAGES, type IssueStage } from "../../domain/value-objects/IssueStage";
-⋮----
-/**
- * Converts a raw Firestore document data map into a typed Issue entity.
- *
- * @param id   - Firestore document ID
- * @param data - Raw document fields from Firestore
- */
-export function toIssue(id: string, data: Record<string, unknown>): Issue
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/firebase/sourceReference.converter.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/firebase
- * @file sourceReference.converter.ts
- * @description Firestore document-to-value-object converter for SourceReference.
- * Shared by task.converter.ts and invoice.converter.ts.
- */
-⋮----
-import type { SourceReference } from "../../domain/value-objects/SourceReference";
-⋮----
-/**
- * Convert a raw Firestore field value to a typed SourceReference value object.
- * Returns `undefined` if the value is absent or does not conform to the expected shape.
- */
-export function toSourceReference(raw: unknown): SourceReference | undefined
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/firebase/task-materialization-batch-job.converter.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/firebase
- * @file task-materialization-batch-job.converter.ts
- * @description Firestore document-to-entity converter for task materialization batch jobs.
- */
-⋮----
-import type { TaskMaterializationBatchJob } from "../../domain/entities/TaskMaterializationBatchJob";
-import {
-  TASK_MATERIALIZATION_BATCH_JOB_STATUSES,
-  type TaskMaterializationBatchJobStatus,
-} from "../../domain/value-objects/TaskMaterializationBatchJobStatus";
-⋮----
-export function toTaskMaterializationBatchJob(
-  id: string,
-  raw: Record<string, unknown>,
-): TaskMaterializationBatchJob
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/firebase/task.converter.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/firebase
- * @file task.converter.ts
- * @description Firestore document-to-entity converter for Task.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Harden unknown field handling with stricter runtime validation
- */
-⋮----
-import type { Task } from "../../domain/entities/Task";
-import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
-import { toSourceReference } from "./sourceReference.converter";
-⋮----
-/**
- * Converts a raw Firestore document data map into a typed Task entity.
- *
- * @param id   - Firestore document ID
- * @param data - Raw document fields from Firestore
- */
-export function toTask(id: string, data: Record<string, unknown>): Task
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/firebase/workspace-flow.collections.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/firebase
- * @file workspace-flow.collections.ts
- * @description Firestore collection path constants for the workspace-flow module.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Update collection names to match production Firestore schema
- */
-⋮----
-/** Top-level Firestore collection for workspace-flow tasks. */
-⋮----
-/** Top-level Firestore collection for workspace-flow issues. */
-⋮----
-/** Top-level Firestore collection for workspace-flow invoices. */
-⋮----
-/** Top-level Firestore collection for workspace-flow invoice items. */
-⋮----
-/** Top-level Firestore collection for task materialization batch jobs. */
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow-invoice.actions.ts
-````typescript
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow-invoice.actions.ts
- * @description Server Actions for workspace-flow Invoice write operations.
- * Delegates exclusively to WorkspaceFlowFacade.
- */
-⋮----
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { WorkspaceFlowInvoiceFacade } from "../../api/workspace-flow-invoice.facade";
-import { makeInvoiceRepo } from "../../api/factories";
-import type { AddInvoiceItemDto } from "../../application/dto/add-invoice-item.dto";
-import type { UpdateInvoiceItemDto } from "../../application/dto/update-invoice-item.dto";
-import type { RemoveInvoiceItemDto } from "../../application/dto/remove-invoice-item.dto";
-⋮----
-function makeFacade(): WorkspaceFlowInvoiceFacade
-⋮----
-export async function wfCreateInvoice(workspaceId: string): Promise<CommandResult>
-⋮----
-export async function wfAddInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult>
-⋮----
-export async function wfUpdateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult>
-⋮----
-export async function wfRemoveInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult>
-⋮----
-export async function wfSubmitInvoice(invoiceId: string): Promise<CommandResult>
-⋮----
-export async function wfReviewInvoice(invoiceId: string): Promise<CommandResult>
-⋮----
-export async function wfApproveInvoice(invoiceId: string): Promise<CommandResult>
-⋮----
-export async function wfRejectInvoice(invoiceId: string): Promise<CommandResult>
-⋮----
-export async function wfPayInvoice(invoiceId: string): Promise<CommandResult>
-⋮----
-export async function wfCloseInvoice(invoiceId: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow-issue.actions.ts
-````typescript
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow-issue.actions.ts
- * @description Server Actions for workspace-flow Issue write operations.
- * Delegates exclusively to WorkspaceFlowFacade.
- */
-⋮----
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { WorkspaceFlowIssueFacade } from "../../api/workspace-flow-issue.facade";
-import { makeIssueRepo } from "../../api/factories";
-import type { OpenIssueDto } from "../../application/dto/open-issue.dto";
-import type { ResolveIssueDto } from "../../application/dto/resolve-issue.dto";
-⋮----
-function makeFacade(): WorkspaceFlowIssueFacade
-⋮----
-export async function wfOpenIssue(dto: OpenIssueDto): Promise<CommandResult>
-⋮----
-export async function wfStartIssue(issueId: string): Promise<CommandResult>
-⋮----
-export async function wfFixIssue(issueId: string): Promise<CommandResult>
-⋮----
-export async function wfSubmitIssueRetest(issueId: string): Promise<CommandResult>
-⋮----
-export async function wfPassIssueRetest(issueId: string): Promise<CommandResult>
-⋮----
-export async function wfFailIssueRetest(issueId: string): Promise<CommandResult>
-⋮----
-export async function wfResolveIssue(dto: ResolveIssueDto): Promise<CommandResult>
-⋮----
-export async function wfCloseIssue(issueId: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow-task.actions.ts
-````typescript
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow-task.actions.ts
- * @description Server Actions for workspace-flow Task write operations.
- * Delegates exclusively to WorkspaceFlowFacade.
- */
-⋮----
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { WorkspaceFlowTaskFacade } from "../../api/workspace-flow-task.facade";
-import { makeIssueRepo, makeTaskRepo } from "../../api/factories";
-import type { CreateTaskDto } from "../../application/dto/create-task.dto";
-import type { UpdateTaskDto } from "../../application/dto/update-task.dto";
-⋮----
-function makeFacade(): WorkspaceFlowTaskFacade
-⋮----
-export async function wfCreateTask(dto: CreateTaskDto): Promise<CommandResult>
-⋮----
-export async function wfUpdateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult>
-⋮----
-export async function wfAssignTask(taskId: string, assigneeId: string): Promise<CommandResult>
-⋮----
-export async function wfSubmitTaskToQa(taskId: string): Promise<CommandResult>
-⋮----
-export async function wfPassTaskQa(taskId: string): Promise<CommandResult>
-⋮----
-export async function wfApproveTaskAcceptance(taskId: string): Promise<CommandResult>
-⋮----
-export async function wfArchiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow.actions.ts
-````typescript
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow.actions.ts
- * @description Re-export barrel for all workspace-flow Server Actions.
- *              Each sub-file carries its own "use server" directive; this barrel
- *              must NOT repeat it — Turbopack cannot resolve re-exports from a
- *              "use server" barrel that itself re-exports other "use server" files.
- *  - workspace-flow-task.actions.ts    (create, update, assign, qa, approve, archive)
- *  - workspace-flow-issue.actions.ts   (open, start, fix, retest, resolve, close)
- *  - workspace-flow-invoice.actions.ts (create, add/update/remove item, submit, review, approve, reject, pay, close)
- */
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/AssignTaskDialog.tsx
-````typescript
-import { useState } from "react";
-⋮----
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-⋮----
-import { wfAssignTask } from "../_actions/workspace-flow.actions";
-⋮----
-export interface AssignTaskDialogProps {
-  open: boolean;
-  taskId: string;
-  onClose: () => void;
-  onDone: () => void;
-}
-⋮----
-function handleClose()
-⋮----
-async function handleSubmit(e: React.FormEvent)
-⋮----
-onChange=
-⋮----
-// eslint-disable-next-line jsx-a11y/no-autofocus
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/CreateTaskDialog.tsx
-````typescript
-import { useState } from "react";
-⋮----
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-⋮----
-import { wfCreateTask } from "../_actions/workspace-flow.actions";
-⋮----
-export interface CreateTaskDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onCreated: () => void;
-  workspaceId: string;
-}
-⋮----
-function handleClose()
-⋮----
-async function handleSubmit(e: React.FormEvent)
-⋮----
-onChange=
-⋮----
-// eslint-disable-next-line jsx-a11y/no-autofocus
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/InvoiceRow.tsx
-````typescript
-import { useState } from "react";
-⋮----
-import type { CommandResult } from "@shared-types";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-⋮----
-import type { Invoice } from "../../application/dto/workflow.dto";
-import type { InvoiceStatus } from "../../application/dto/workflow.dto";
-import {
-  wfApproveInvoice,
-  wfCloseInvoice,
-  wfPayInvoice,
-  wfRejectInvoice,
-  wfReviewInvoice,
-  wfSubmitInvoice,
-} from "../_actions/workspace-flow.actions";
-⋮----
-function formatShortDate(iso: string | undefined): string
-⋮----
-function formatCurrency(amount: number): string
-⋮----
-export interface InvoiceRowProps {
-  invoice: Invoice;
-  onTransitioned: () => void;
-}
-⋮----
-export function InvoiceRow(
-⋮----
-async function runAction(action: () => Promise<CommandResult>)
-⋮----
-return <Button size="sm" variant="outline" disabled=
-⋮----
-<Button size="sm" variant="outline" disabled=
-⋮----
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/IssueRow.tsx
-````typescript
-import { useState } from "react";
-⋮----
-import type { CommandResult } from "@shared-types";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-⋮----
-import type { Issue } from "../../application/dto/workflow.dto";
-import type { IssueStage } from "../../application/dto/workflow.dto";
-import {
-  wfCloseIssue,
-  wfFailIssueRetest,
-  wfFixIssue,
-  wfPassIssueRetest,
-  wfStartIssue,
-  wfSubmitIssueRetest,
-} from "../_actions/workspace-flow.actions";
-⋮----
-export interface IssueRowProps {
-  issue: Issue;
-  onTransitioned: () => void;
-}
-⋮----
-export function IssueRow(
-⋮----
-async function runAction(action: () => Promise<CommandResult>)
-⋮----
-return <Button size="sm" variant="outline" disabled=
-⋮----
-<Button size="sm" variant="outline" disabled=
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/OpenIssueDialog.tsx
-````typescript
-import { useState } from "react";
-⋮----
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-⋮----
-import type { IssueStage } from "../../application/dto/workflow.dto";
-import { wfOpenIssue } from "../_actions/workspace-flow.actions";
-import { ISSUE_STAGE_LABEL } from "./IssueRow";
-⋮----
-export interface OpenIssueDialogProps {
-  open: boolean;
-  taskId: string;
-  currentUserId: string;
-  onClose: () => void;
-  onCreated: () => void;
-}
-⋮----
-function handleClose()
-⋮----
-async function handleSubmit(e: React.FormEvent)
-⋮----
-onChange=
-⋮----
-// eslint-disable-next-line jsx-a11y/no-autofocus
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx
-````typescript
-/**
- * @module workspace-flow/interfaces/components
- * @file WorkspaceFlowTab.tsx
- * @description Workspace-level tab displaying Tasks, Issues, and Invoices managed by workspace-flow.
- *
- * MVP interactive surface:
- * - Create Task dialog
- * - Task lifecycle transition buttons (assign → QA → acceptance → archive)
- * - Per-task expandable Issue sub-list with transition buttons
- * - Open Issue dialog
- * - Create Invoice button + Invoice lifecycle transitions
- *
- * @author workspace-flow
- * @since 2026-03-27
- */
-⋮----
-import { useCallback, useEffect, useMemo, useState } from "react";
-⋮----
-import { Plus } from "lucide-react";
-⋮----
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Separator } from "@ui-shadcn/ui/separator";
-⋮----
-import type { Invoice } from "../../application/dto/workflow.dto";
-import type { Issue } from "../../application/dto/workflow.dto";
-import type { Task } from "../../application/dto/workflow.dto";
-import { wfCreateInvoice } from "../_actions/workspace-flow.actions";
-import {
-  getWorkspaceFlowIssues,
-  getWorkspaceFlowInvoices,
-  getWorkspaceFlowTasks,
-} from "../queries/workspace-flow.queries";
-import { CreateTaskDialog } from "./CreateTaskDialog";
-import { IssueRow } from "./IssueRow";
-import { InvoiceRow } from "./InvoiceRow";
-import { TaskRow } from "./TaskRow";
-⋮----
-// ── Types ──────────────────────────────────────────────────────────────────────
-⋮----
-type FlowSection = "tasks" | "qa" | "acceptance" | "issues" | "invoices";
-⋮----
-interface WorkspaceFlowTabProps {
-  readonly workspaceId: string;
-  readonly currentUserId?: string;
-  readonly initialSection?: FlowSection;
-}
-⋮----
-// ── Main Component ─────────────────────────────────────────────────────────────
-⋮----
-async function handleCreateInvoice()
-⋮----
-{/* ── Section switcher ─────────────────────────────────────────── */}
-⋮----
-{/* ── Loading state ─────────────────────────────────────────────── */}
-⋮----
-{/* ── Error state ───────────────────────────────────────────────── */}
-⋮----
-{/* ── Tasks section ─────────────────────────────────────────────── */}
-⋮----
-{/* ── QA section ────────────────────────────────────────────────── */}
-⋮----
-{/* ── Acceptance section ────────────────────────────────────────── */}
-⋮----
-{/* ── Issues section ────────────────────────────────────────────── */}
-⋮----
-{/* ── Invoices section ──────────────────────────────────────────── */}
-⋮----
-{/* ── Create Task Dialog ─────────────────────────────────────────── */}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/contracts/workspace-flow.contract.ts
-````typescript
-/**
- * @module workspace-flow/interfaces/contracts
- * @file workspace-flow.contract.ts
- * @description Module-local interface contracts for workspace-flow UI adapters.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Expand with view-model contracts as UI adapters are added
- */
-⋮----
-import type { Task } from "../../application/dto/workflow.dto";
-import type { Issue } from "../../application/dto/workflow.dto";
-import type { Invoice } from "../../application/dto/workflow.dto";
-import type { InvoiceItem } from "../../application/dto/workflow.dto";
-import type { TaskMaterializationBatchJob } from "../../application/dto/workflow.dto";
-⋮----
-// ── Summary read models (lean projections for UI) ─────────────────────────────
-⋮----
-export interface TaskSummary {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly title: string;
-  readonly status: Task["status"];
-  readonly assigneeId?: string;
-}
-⋮----
-export interface IssueSummary {
-  readonly id: string;
-  readonly taskId: string;
-  readonly title: string;
-  readonly status: Issue["status"];
-  readonly stage: Issue["stage"];
-}
-⋮----
-export interface InvoiceSummary {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly status: Invoice["status"];
-  readonly totalAmount: number;
-}
-⋮----
-export interface InvoiceItemSummary {
-  readonly id: string;
-  readonly invoiceId: string;
-  readonly taskId: string;
-  readonly amount: InvoiceItem["amount"];
-}
-⋮----
-export interface TaskMaterializationBatchJobSummary {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly status: TaskMaterializationBatchJob["status"];
-  readonly totalItems: number;
-  readonly processedItems: number;
-  readonly succeededItems: number;
-  readonly failedItems: number;
-  readonly updatedAtISO: string;
-}
-⋮----
-// ── Projection helpers ────────────────────────────────────────────────────────
-⋮----
-export function toTaskSummary(task: Task): TaskSummary
-⋮----
-export function toIssueSummary(issue: Issue): IssueSummary
-⋮----
-export function toInvoiceSummary(invoice: Invoice): InvoiceSummary
-⋮----
-export function toInvoiceItemSummary(item: InvoiceItem): InvoiceItemSummary
-⋮----
-export function toTaskMaterializationBatchJobSummary(
-  job: TaskMaterializationBatchJob,
-): TaskMaterializationBatchJobSummary
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/queries/workspace-flow.queries.ts
-````typescript
-/**
- * @module workspace-flow/interfaces/queries
- * @file workspace-flow.queries.ts
- * @description Server-side read queries for workspace-flow entities.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add pagination support and caching layer
- */
-⋮----
-import type { Task } from "../../application/dto/workflow.dto";
-import type { Issue } from "../../application/dto/workflow.dto";
-import type { Invoice } from "../../application/dto/workflow.dto";
-import type { InvoiceItem } from "../../application/dto/workflow.dto";
-import type { TaskMaterializationBatchJob } from "../../application/dto/workflow.dto";
-import {
-  makeInvoiceRepo,
-  makeIssueRepo,
-  makeTaskMaterializationBatchJobRepo,
-  makeTaskRepo,
-} from "../../api/factories";
-⋮----
-/**
- * List all tasks for a workspace.
- *
- * @param workspaceId - The workspace to query
- */
-export async function getWorkspaceFlowTasks(workspaceId: string): Promise<Task[]>
-⋮----
-/**
- * Get a single task by id.
- *
- * @param taskId - The task identifier
- */
-export async function getWorkspaceFlowTask(taskId: string): Promise<Task | null>
-⋮----
-/**
- * List all issues for a task.
- *
- * @param taskId - The task identifier
- */
-export async function getWorkspaceFlowIssues(taskId: string): Promise<Issue[]>
-⋮----
-/**
- * List all invoices for a workspace.
- *
- * @param workspaceId - The workspace to query
- */
-export async function getWorkspaceFlowInvoices(workspaceId: string): Promise<Invoice[]>
-⋮----
-/**
- * Get items for an invoice.
- *
- * @param invoiceId - The invoice identifier
- */
-export async function getWorkspaceFlowInvoiceItems(invoiceId: string): Promise<InvoiceItem[]>
-⋮----
-/**
- * List task materialization batch jobs for a workspace.
- */
-export async function getWorkspaceFlowTaskMaterializationBatchJobs(
-  workspaceId: string,
-): Promise<TaskMaterializationBatchJob[]>
-⋮----
-/**
- * Get a single task materialization batch job by id.
- */
-export async function getWorkspaceFlowTaskMaterializationBatchJob(
-  jobId: string,
-): Promise<TaskMaterializationBatchJob | null>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/README.md
-````markdown
-# Workspace Workflow
-
-Workflow orchestration for workspace processes.
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Local public boundary for same bounded context access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, events, repositories, and business rules |
-
-> By default, `infrastructure/` and `interfaces/` live at the bounded-context root and are grouped by subdomain. Add local `infrastructure/` or `interfaces/` inside a subdomain only when the mini-module gate is explicitly justified.
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/workspace/workspace.instructions.md
@@ -30284,6 +27525,68 @@ interface ShellContextNavSectionProps {
 }
 ````
 
+## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
+````typescript
+/**
+ * ShellDashboardSidebar — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it composes workspace module components.
+ */
+⋮----
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+⋮----
+import {
+  buildWorkspaceQuickAccessItems,
+  CustomizeNavigationDialog,
+  getWorkspaceIdFromPath,
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  readNavPreferences,
+  supportsWorkspaceSearchContext,
+  type NavPreferences,
+  useRecentWorkspaces,
+  useSidebarLocale,
+  WorkspaceQuickAccessRow,
+} from "@/modules/workspace/api/ui";
+⋮----
+import {
+  type DashboardSidebarProps,
+  ORGANIZATION_MANAGEMENT_ITEMS,
+  ACCOUNT_NAV_ITEMS,
+  SECTION_TITLES,
+  resolveNavSection,
+  isActiveRoute,
+  isActiveOrganizationAccount,
+} from "./ShellSidebarNavData";
+import { ShellSidebarHeader } from "./ShellSidebarHeader";
+import { DashboardSidebarBody } from "./ShellSidebarBody";
+⋮----
+export function ShellDashboardSidebar({
+  pathname,
+  activeAccount,
+  workspaces,
+  activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
+  onSelectWorkspace,
+}: DashboardSidebarProps)
+⋮----
+isActiveRoute={(href) => isActiveRoute(pathname, href)}
+          activeAccountId={activeAccount?.id ?? null}
+          showAccountManagement={showAccountManagement}
+          visibleAccountItems={visibleAccountItems}
+          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
+          workspacePathId={workspacePathId}
+          navPrefs={navPrefs}
+          localeBundle={localeBundle}
+          showRecentWorkspaces={showRecentWorkspaces}
+          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+          hasOverflow={hasOverflow}
+          isExpanded={isExpanded}
+          activeWorkspaceId={activeWorkspaceId}
+          onSelectWorkspace={onSelectWorkspace}
+onToggleExpanded=
+````
+
 ## File: app/(shell)/_shell/ShellSidebarBody.tsx
 ````typescript
 /**
@@ -34142,6 +31445,278 @@ const anyDomain = (type) => (
 // notion/notebooklm interface layers must not read workspace context directly.
 ````
 
+## File: modules/ai/application/use-cases/distill-content.use-case.ts
+````typescript
+import type { DistillContentInput, DistillationPort, DistillationResult } from "../../domain/ports/DistillationPort";
+⋮----
+export class DistillContentUseCase {
+⋮----
+constructor(private readonly distillationPort: DistillationPort)
+⋮----
+async execute(input: DistillContentInput): Promise<DistillationResult>
+````
+
+## File: modules/ai/application/use-cases/extract-tasks-from-content.use-case.ts
+````typescript
+import type {
+  TaskExtractionInput,
+  TaskExtractionOutput,
+  TaskExtractionPort,
+} from "../../domain/ports/DistillationPort";
+⋮----
+export class ExtractTasksFromContentUseCase {
+⋮----
+constructor(private readonly taskExtractionPort: TaskExtractionPort)
+⋮----
+async execute(input: TaskExtractionInput): Promise<TaskExtractionOutput>
+````
+
+## File: modules/ai/application/use-cases/generate-ai-text.use-case.ts
+````typescript
+import type {
+  AiTextGenerationPort,
+  GenerateAiTextInput,
+  GenerateAiTextOutput,
+} from "../../domain/ports/AiTextGenerationPort";
+⋮----
+export class GenerateAiTextUseCase {
+⋮----
+constructor(private readonly generationPort: AiTextGenerationPort)
+⋮----
+execute(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>
+````
+
+## File: modules/ai/application/use-cases/generate-with-tools.use-case.ts
+````typescript
+import type {
+  ToolEnabledGenerationInput,
+  ToolEnabledGenerationOutput,
+  ToolRuntimePort,
+} from "../../domain/ports/ToolRuntimePort";
+⋮----
+export class GenerateWithToolsUseCase {
+⋮----
+constructor(private readonly toolRuntimePort: ToolRuntimePort)
+⋮----
+async execute(
+    input: ToolEnabledGenerationInput,
+): Promise<ToolEnabledGenerationOutput>
+````
+
+## File: modules/ai/domain/ports/AiTextGenerationPort.ts
+````typescript
+export interface GenerateAiTextInput {
+  readonly prompt: string;
+  readonly system?: string;
+  readonly model?: string;
+}
+⋮----
+export interface GenerateAiTextOutput {
+  readonly text: string;
+  readonly model: string;
+  readonly finishReason?: string;
+}
+⋮----
+export interface AiTextGenerationPort {
+  generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
+}
+⋮----
+generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
+````
+
+## File: modules/ai/domain/ports/DistillationPort.ts
+````typescript
+export interface DistillationSource {
+  readonly title?: string | null;
+  readonly text: string;
+}
+⋮----
+export interface DistillContentInput {
+  readonly sources: readonly DistillationSource[];
+  readonly objective?: string;
+  readonly model?: string;
+}
+⋮----
+export interface DistillationItem {
+  readonly title: string;
+  readonly summary: string;
+  readonly sourceTitle?: string | null;
+}
+⋮----
+export interface DistillationResult {
+  readonly overview: string;
+  readonly distilledItems: readonly DistillationItem[];
+  readonly model: string;
+  readonly traceId: string;
+  readonly completedAt: string;
+}
+⋮----
+export interface ExtractedTaskItem {
+  readonly title: string;
+  readonly description?: string;
+  readonly dueDate?: string;
+  /**
+   * Family-specific structured data that does not fit the generic task shape.
+   * Examples: `{ itemNumber, workCategory, quantity, unit, estimatedAmount }` for
+   * procurement documents; `{ obligation, penaltyClause }` for compliance docs.
+   * Consumers should remain agnostic to its shape; use a narrowing guard if needed.
+   */
+  readonly metadata?: Record<string, unknown>;
+}
+⋮----
+/**
+   * Family-specific structured data that does not fit the generic task shape.
+   * Examples: `{ itemNumber, workCategory, quantity, unit, estimatedAmount }` for
+   * procurement documents; `{ obligation, penaltyClause }` for compliance docs.
+   * Consumers should remain agnostic to its shape; use a narrowing guard if needed.
+   */
+⋮----
+export interface TaskExtractionPromptContext {
+  readonly filename?: string;
+  readonly mimeType?: string;
+  readonly workspaceId?: string;
+  readonly accountId?: string;
+  readonly jsonReady?: boolean;
+  readonly pageCount?: number;
+  readonly sourceGcsUri?: string;
+  readonly jsonGcsUri?: string;
+  /**
+   * Optional prompt family override.  When omitted the adapter defaults to
+   * `"task-extraction"`.  Supported values correspond to extraction families:
+   * `"task-extraction"` | `"procurement-extraction"` | `"compliance-extraction"`.
+   */
+  readonly promptFamily?: string;
+}
+⋮----
+/**
+   * Optional prompt family override.  When omitted the adapter defaults to
+   * `"task-extraction"`.  Supported values correspond to extraction families:
+   * `"task-extraction"` | `"procurement-extraction"` | `"compliance-extraction"`.
+   */
+⋮----
+export interface TaskExtractionInput {
+  readonly content: string;
+  readonly maxCandidates?: number;
+  readonly model?: string;
+  readonly promptContext?: TaskExtractionPromptContext;
+}
+⋮----
+export interface TaskExtractionOutput {
+  readonly tasks: readonly ExtractedTaskItem[];
+  readonly model: string;
+  readonly traceId: string;
+  readonly completedAt: string;
+}
+⋮----
+export interface TaskExtractionPort {
+  extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>;
+}
+⋮----
+extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>;
+⋮----
+export interface DistillationPort extends TaskExtractionPort {
+  distill(input: DistillContentInput): Promise<DistillationResult>;
+}
+⋮----
+distill(input: DistillContentInput): Promise<DistillationResult>;
+````
+
+## File: modules/ai/domain/ports/TaskExtractionPort.ts
+````typescript
+/**
+ * Simple task extraction domain port — framework-free contract used by
+ * lightweight task extraction adapters (e.g. workspace-workflow path).
+ *
+ * For the full task extraction contract with prompt context and model routing,
+ * see DistillationPort.ts (TaskExtractionPort / TaskExtractionInput).
+ *
+ * This layer is intentionally framework-agnostic. No Genkit, Firebase, or
+ * HTTP client imports are permitted here.
+ */
+⋮----
+export interface ExtractedTaskItem {
+  readonly title: string;
+  readonly description?: string;
+  readonly dueDate?: string;
+}
+⋮----
+export interface TaskExtractionInput {
+  readonly content: string;
+  readonly maxCandidates?: number;
+}
+⋮----
+export interface TaskExtractionOutput {
+  readonly tasks: ReadonlyArray<ExtractedTaskItem>;
+}
+⋮----
+export interface TaskExtractionPort {
+  extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>;
+}
+⋮----
+extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>;
+````
+
+## File: modules/ai/domain/ports/ToolRuntimePort.ts
+````typescript
+/**
+ * Tool Runtime domain port — framework-free contract for AI tool registration
+ * and tool-enabled generation.
+ *
+ * This layer is intentionally framework-agnostic. No Genkit, Firebase, or
+ * HTTP client imports are permitted here.
+ */
+⋮----
+export interface ToolDescriptor {
+  readonly name: string;
+  readonly description: string;
+}
+⋮----
+export interface ToolEnabledGenerationInput {
+  readonly prompt: string;
+  readonly system?: string;
+  /** Names of registered tools to expose to the model during generation. */
+  readonly toolNames: ReadonlyArray<string>;
+  readonly model?: string;
+}
+⋮----
+/** Names of registered tools to expose to the model during generation. */
+⋮----
+export interface ToolEnabledGenerationOutput {
+  readonly text: string;
+  /** Number of tool invocations that occurred during generation. */
+  readonly toolCallsCount: number;
+  readonly model: string;
+  readonly traceId: string;
+  readonly completedAt: string;
+}
+⋮----
+/** Number of tool invocations that occurred during generation. */
+⋮----
+export interface ToolRuntimePort {
+  /**
+   * Run AI generation with access to the specified registered tools.
+   * The model may invoke zero or more tools during the generation loop.
+   */
+  generateWithTools(
+    input: ToolEnabledGenerationInput,
+  ): Promise<ToolEnabledGenerationOutput>;
+
+  /** Returns metadata for all tools registered in this runtime. */
+  listAvailableTools(): ReadonlyArray<ToolDescriptor>;
+}
+⋮----
+/**
+   * Run AI generation with access to the specified registered tools.
+   * The model may invoke zero or more tools during the generation loop.
+   */
+generateWithTools(
+    input: ToolEnabledGenerationInput,
+  ): Promise<ToolEnabledGenerationOutput>;
+⋮----
+/** Returns metadata for all tools registered in this runtime. */
+listAvailableTools(): ReadonlyArray<ToolDescriptor>;
+````
+
 ## File: modules/ai/domain/shared/DomainError.ts
 ````typescript
 
@@ -34152,63 +31727,49 @@ const anyDomain = (type) => (
 
 ````
 
-## File: modules/ai/infrastructure/llm/built-in-tools.ts
+## File: modules/ai/infrastructure/genkit/GenkitTaskExtractionAdapter.ts
 ````typescript
-/**
- * Built-in Genkit tool definitions for the ai bounded context.
- *
- * All tools are registered on the shared `aiClient` from `genkit-shared.ts`.
- * Adapters that need to use these tools in `aiClient.generate({ tools: [...] })`
- * must import the instances from here — do NOT re-define tools on a separate instance.
- */
+import { genkit, z } from "genkit";
+import { googleAI } from "@genkit-ai/google-genai";
 ⋮----
-import { z } from "genkit";
+import type {
+  TaskExtractionInput,
+  TaskExtractionOutput,
+  TaskExtractionPort,
+} from "../../domain/ports/TaskExtractionPort";
 ⋮----
-import type { ToolDescriptor } from "../../subdomains/tool-runtime/domain/ports/ToolRuntimePort";
+export class GenkitTaskExtractionAdapter implements TaskExtractionPort {
 ⋮----
-import { aiClient } from "./genkit-shared";
+async extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>
+````
+
+## File: modules/ai/infrastructure/genkit/GenkitToolRuntimeAdapter.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
 ⋮----
-// ── Tool definitions ──────────────────────────────────────────────────────────
+import type {
+  ToolDescriptor,
+  ToolEnabledGenerationInput,
+  ToolEnabledGenerationOutput,
+  ToolRuntimePort,
+} from "../../domain/ports/ToolRuntimePort";
+import { BUILT_IN_TOOLS } from "../llm/built-in-tools";
+import { aiClient, configuredModel } from "../llm/genkit-shared";
 ⋮----
-/**
- * Tool: ai.getCurrentDatetime
- *
- * Returns the current date and time in ISO 8601 format together with the
- * server IANA timezone identifier.  Use whenever the prompt involves
- * "today", "now", or any relative date/time calculation.
- */
+// ── Tool registry (delegated to shared built-in-tools) ────────────────────────
 ⋮----
-/**
- * Tool: ai.evaluateMathExpression
- *
- * Safely evaluates an arithmetic expression that contains only digits, spaces,
- * and the operators +, -, *, /, and parentheses. The inputSchema regex
- * enforces this constraint so arbitrary code execution is not possible.
- */
+// ── Adapter ───────────────────────────────────────────────────────────────────
 ⋮----
-// Safe: expression is validated by inputSchema regex to contain only
-// digits, spaces, and arithmetic operators (+, -, *, /, ., ())
-// eslint-disable-next-line @typescript-eslint/no-implied-eval
+export class GenkitToolRuntimeAdapter implements ToolRuntimePort {
 ⋮----
-// ── Registry ──────────────────────────────────────────────────────────────────
+listAvailableTools(): ReadonlyArray<ToolDescriptor>
 ⋮----
-export interface RegisteredBuiltInTool {
-  readonly descriptor: ToolDescriptor;
-  // Tool instance type varies across Genkit versions; typed as unknown to avoid
-  // coupling to Genkit internals while remaining compatible.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly instance: any;
-}
+async generateWithTools(
+    input: ToolEnabledGenerationInput,
+): Promise<ToolEnabledGenerationOutput>
 ⋮----
-// Tool instance type varies across Genkit versions; typed as unknown to avoid
-// coupling to Genkit internals while remaining compatible.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-⋮----
-/**
- * Complete list of built-in tools registered on the shared aiClient.
- * Use `BUILT_IN_TOOLS` to look up tool instances by descriptor name when
- * passing tools to `aiClient.generate()`.
- */
+// Count tool invocations by inspecting conversation messages.
+// Each message with a toolRequest part represents one model-initiated call.
 ````
 
 ## File: modules/ai/infrastructure/llm/genkit-shared.ts
@@ -34237,122 +31798,66 @@ import { googleAI } from "@genkit-ai/google-genai";
  */
 ````
 
+## File: modules/ai/infrastructure/llm/GenkitDistillationAdapter.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import { z } from "genkit";
+⋮----
+import {
+  resolveComplianceExtractionPrompt,
+  resolveProcurementExtractionPrompt,
+  resolveTaskExtractionPrompt,
+} from "../../subdomains/prompt-pipeline/api";
+import { BUILT_IN_TOOLS } from "./built-in-tools";
+import { aiClient, configuredModel } from "./genkit-shared";
+import type {
+  DistillContentInput,
+  DistillationPort,
+  DistillationResult,
+  TaskExtractionInput,
+  TaskExtractionOutput,
+} from "../../domain/ports/DistillationPort";
+⋮----
+// ── Output schemas ────────────────────────────────────────────────────────────
+⋮----
+// ── Extraction family helpers ─────────────────────────────────────────────────
+⋮----
+type ExtractionFamily = "task-extraction" | "procurement-extraction" | "compliance-extraction";
+⋮----
+function resolveExtractionFamily(promptFamily?: string): ExtractionFamily
+⋮----
+interface BuiltPrompt {
+  readonly text: string;
+  readonly family: ExtractionFamily;
+  readonly recommendedTools: readonly string[];
+}
+⋮----
+function buildExtractionPrompt(input: TaskExtractionInput): BuiltPrompt
+⋮----
+// ── Tool selection ────────────────────────────────────────────────────────────
+⋮----
+/** Returns Genkit tool instances for the names present in recommendedTools. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function selectTools(recommendedTools: readonly string[]): any[]
+⋮----
+// ── Distillation prompt ───────────────────────────────────────────────────────
+⋮----
+function buildDistillationPrompt(input: DistillContentInput): string
+⋮----
+// ── Adapter ───────────────────────────────────────────────────────────────────
+⋮----
+export class GenkitDistillationAdapter implements DistillationPort {
+⋮----
+async distill(input: DistillContentInput): Promise<DistillationResult>
+⋮----
+async extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>
+⋮----
+// Default: task-extraction
+````
+
 ## File: modules/ai/interfaces/index.ts
 ````typescript
 /** ai/interfaces — reserved for future AI UI and route composition. */
-````
-
-## File: modules/ai/subdomains/content-distillation/application/use-cases/distill-content.use-case.ts
-````typescript
-import type { DistillContentInput, DistillationPort, DistillationResult } from "../../domain/ports/DistillationPort";
-⋮----
-export class DistillContentUseCase {
-⋮----
-constructor(private readonly distillationPort: DistillationPort)
-⋮----
-async execute(input: DistillContentInput): Promise<DistillationResult>
-````
-
-## File: modules/ai/subdomains/content-distillation/application/use-cases/extract-tasks-from-content.use-case.ts
-````typescript
-import type {
-  TaskExtractionInput,
-  TaskExtractionOutput,
-  TaskExtractionPort,
-} from "../../domain/ports/DistillationPort";
-⋮----
-export class ExtractTasksFromContentUseCase {
-⋮----
-constructor(private readonly taskExtractionPort: TaskExtractionPort)
-⋮----
-async execute(input: TaskExtractionInput): Promise<TaskExtractionOutput>
-````
-
-## File: modules/ai/subdomains/content-distillation/domain/index.ts
-````typescript
-
-````
-
-## File: modules/ai/subdomains/content-generation/api/server.ts
-````typescript
-/**
- * AI generation — server-only API.
- *
- * Composition root + functions that depend on server-only packages such as Genkit.
- * Must only be imported in Server Actions, route handlers, or server-side
- * infrastructure adapters.
- */
-⋮----
-import { GenerateAiTextUseCase } from "../application/use-cases/generate-ai-text.use-case";
-import { GenkitAiTextGenerationAdapter } from "../../../infrastructure/generation/genkit/GenkitAiTextGenerationAdapter";
-import type { GenerateAiTextInput, GenerateAiTextOutput } from "../domain/ports/AiTextGenerationPort";
-⋮----
-function getUseCase(): GenerateAiTextUseCase
-⋮----
-export async function generateAiText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>
-⋮----
-export async function summarize(text: string, model?: string): Promise<string>
-````
-
-## File: modules/ai/subdomains/content-generation/application/index.ts
-````typescript
-
-````
-
-## File: modules/ai/subdomains/content-generation/application/use-cases/generate-ai-text.use-case.ts
-````typescript
-import type {
-  AiTextGenerationPort,
-  GenerateAiTextInput,
-  GenerateAiTextOutput,
-} from "../../domain/ports/AiTextGenerationPort";
-⋮----
-export class GenerateAiTextUseCase {
-⋮----
-constructor(private readonly generationPort: AiTextGenerationPort)
-⋮----
-execute(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>
-````
-
-## File: modules/ai/subdomains/content-generation/domain/index.ts
-````typescript
-
-````
-
-## File: modules/ai/subdomains/content-generation/domain/ports/AiTextGenerationPort.ts
-````typescript
-export interface GenerateAiTextInput {
-  readonly prompt: string;
-  readonly system?: string;
-  readonly model?: string;
-}
-⋮----
-export interface GenerateAiTextOutput {
-  readonly text: string;
-  readonly model: string;
-  readonly finishReason?: string;
-}
-⋮----
-export interface AiTextGenerationPort {
-  generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
-}
-⋮----
-generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
-````
-
-## File: modules/ai/subdomains/context-assembly/api/index.ts
-````typescript
-/** ai/context/api — minimal public boundary stub. */
-````
-
-## File: modules/ai/subdomains/context-assembly/application/index.ts
-````typescript
-/** ai/context/application — minimal orchestration stub. */
-````
-
-## File: modules/ai/subdomains/context-assembly/domain/index.ts
-````typescript
-/** ai/context/domain — minimal domain stub. */
 ````
 
 ## File: modules/ai/subdomains/conversations/README.md
@@ -34928,221 +32433,6 @@ tokens/
 - **PricingWeight**：模型使用的計費倍率（業務概念，非財務計算）
 - **MaxRequests**：API 端點的速率上限，是模型端點的靜態配置
 - **TokenUsageRecord**：不可變的用量事實記錄，不是即時計數器
-````
-
-## File: modules/ai/subdomains/tool-runtime/api/index.ts
-````typescript
-/**
- * Public API boundary for the AI tool-runtime subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * This barrel is client-safe — it exports only types and interfaces.
- * Server-only functions live in ./server.ts.
- */
-⋮----
-export interface ToolRuntimeAPI {
-  generateWithTools(
-    input: import("../domain/ports/ToolRuntimePort").ToolEnabledGenerationInput,
-  ): Promise<import("../domain/ports/ToolRuntimePort").ToolEnabledGenerationOutput>;
-  listAvailableTools(): ReadonlyArray<
-    import("../domain/ports/ToolRuntimePort").ToolDescriptor
-  >;
-}
-⋮----
-generateWithTools(
-    input: import("../domain/ports/ToolRuntimePort").ToolEnabledGenerationInput,
-  ): Promise<import("../domain/ports/ToolRuntimePort").ToolEnabledGenerationOutput>;
-listAvailableTools(): ReadonlyArray<
-````
-
-## File: modules/ai/subdomains/tool-runtime/application/index.ts
-````typescript
-
-````
-
-## File: modules/ai/subdomains/tool-runtime/application/tool-runtime.test.ts
-````typescript
-import { describe, expect, it, vi } from "vitest";
-⋮----
-import { GenerateWithToolsUseCase } from "./use-cases/generate-with-tools.use-case";
-import type { ToolRuntimePort } from "../domain/ports/ToolRuntimePort";
-⋮----
-function buildMockPort(overrides?: Partial<ToolRuntimePort>): ToolRuntimePort
-````
-
-## File: modules/ai/subdomains/tool-runtime/application/use-cases/generate-with-tools.use-case.ts
-````typescript
-import type {
-  ToolEnabledGenerationInput,
-  ToolEnabledGenerationOutput,
-  ToolRuntimePort,
-} from "../../domain/ports/ToolRuntimePort";
-⋮----
-export class GenerateWithToolsUseCase {
-⋮----
-constructor(private readonly toolRuntimePort: ToolRuntimePort)
-⋮----
-async execute(
-    input: ToolEnabledGenerationInput,
-): Promise<ToolEnabledGenerationOutput>
-````
-
-## File: modules/ai/subdomains/tool-runtime/domain/ports/TaskExtractionPort.ts
-````typescript
-/**
- * @module ai/subdomains/tool-runtime
- * @file domain/ports/TaskExtractionPort.ts
- * @description Domain port for AI-powered task extraction from content.
- * Framework-agnostic. No Genkit, Firebase, or HTTP client imports permitted here.
- */
-⋮----
-export interface ExtractedTaskItem {
-  readonly title: string;
-  readonly description?: string;
-  readonly dueDate?: string;
-}
-⋮----
-export interface TaskExtractionInput {
-  readonly content: string;
-  readonly maxCandidates?: number;
-}
-⋮----
-export interface TaskExtractionOutput {
-  readonly tasks: ReadonlyArray<ExtractedTaskItem>;
-}
-⋮----
-export interface TaskExtractionPort {
-  extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>;
-}
-⋮----
-extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>;
-````
-
-## File: modules/ai/subdomains/tool-runtime/domain/ports/ToolRuntimePort.ts
-````typescript
-/**
- * Tool Runtime domain port — framework-free contract for AI tool registration
- * and tool-enabled generation.
- *
- * This layer is intentionally framework-agnostic. No Genkit, Firebase, or
- * HTTP client imports are permitted here.
- */
-⋮----
-export interface ToolDescriptor {
-  readonly name: string;
-  readonly description: string;
-}
-⋮----
-export interface ToolEnabledGenerationInput {
-  readonly prompt: string;
-  readonly system?: string;
-  /** Names of registered tools to expose to the model during generation. */
-  readonly toolNames: ReadonlyArray<string>;
-  readonly model?: string;
-}
-⋮----
-/** Names of registered tools to expose to the model during generation. */
-⋮----
-export interface ToolEnabledGenerationOutput {
-  readonly text: string;
-  /** Number of tool invocations that occurred during generation. */
-  readonly toolCallsCount: number;
-  readonly model: string;
-  readonly traceId: string;
-  readonly completedAt: string;
-}
-⋮----
-/** Number of tool invocations that occurred during generation. */
-⋮----
-export interface ToolRuntimePort {
-  /**
-   * Run AI generation with access to the specified registered tools.
-   * The model may invoke zero or more tools during the generation loop.
-   */
-  generateWithTools(
-    input: ToolEnabledGenerationInput,
-  ): Promise<ToolEnabledGenerationOutput>;
-
-  /** Returns metadata for all tools registered in this runtime. */
-  listAvailableTools(): ReadonlyArray<ToolDescriptor>;
-}
-⋮----
-/**
-   * Run AI generation with access to the specified registered tools.
-   * The model may invoke zero or more tools during the generation loop.
-   */
-generateWithTools(
-    input: ToolEnabledGenerationInput,
-  ): Promise<ToolEnabledGenerationOutput>;
-⋮----
-/** Returns metadata for all tools registered in this runtime. */
-listAvailableTools(): ReadonlyArray<ToolDescriptor>;
-````
-
-## File: modules/ai/subdomains/tool-runtime/infrastructure/genkit/GenkitTaskExtractionAdapter.ts
-````typescript
-import { genkit, z } from "genkit";
-import { googleAI } from "@genkit-ai/google-genai";
-⋮----
-import type {
-  TaskExtractionInput,
-  TaskExtractionOutput,
-  TaskExtractionPort,
-} from "../../domain/ports/TaskExtractionPort";
-⋮----
-export class GenkitTaskExtractionAdapter implements TaskExtractionPort {
-⋮----
-async extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>
-````
-
-## File: modules/ai/subdomains/tool-runtime/README.md
-````markdown
-# tool-runtime subdomain
-
-## Purpose
-
-The tool-runtime subdomain owns the registration and execution of AI tools
-within the `ai` bounded context. It provides tool-enabled generation — the
-ability to run `generate()` with one or more callable tools available to the
-model.
-
-## Responsibility
-
-- define the `ToolRuntimePort` domain contract (framework-free)
-- implement `GenkitToolRuntimeAdapter` with a registry of built-in tools
-- expose `generateWithTools()` for downstream AI flows that need tool access
-- expose `listAvailableTools()` for discovery and validation
-
-## Built-in tools
-
-| Tool name                    | Description                                                        |
-| ---------------------------- | ------------------------------------------------------------------ |
-| `ai.getCurrentDatetime`      | Returns current ISO 8601 datetime and IANA timezone                |
-| `ai.evaluateMathExpression`  | Evaluates a safe arithmetic expression (regex-validated input)     |
-
-## Non-Responsibility
-
-- no flow definitions (`defineFlow`) — tool execution only
-- no prompt registry (see `prompt-pipeline`)
-- no content distillation (see `content-distillation`)
-- no UI composition
-- no cross-domain state mutation
-
-## Extending the tool registry
-
-Add a new tool in `infrastructure/genkit/GenkitToolRuntimeAdapter.ts`:
-
-1. Define the tool with `aiClient.defineTool({ name: 'ai.<action>', ... })`
-2. Add an entry to `REGISTERED_TOOLS` with `descriptor` + `instance`
-3. Update this README's built-in tool table
-
-Tool name convention: `<module>.<action>` in camelCase lower + `.` separator.
-
-## Dependency direction
-
-```
-api → application → domain ← infrastructure
-```
 ````
 
 ## File: modules/ai/subdomains/tools/README.md
@@ -39270,6 +36560,103 @@ async save(node: TaxonomyNode): Promise<void>
 async remove(nodeId: string): Promise<void>
 ````
 
+## File: modules/notion/interfaces/authoring/components/ArticleDetailPanel.tsx
+````typescript
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  Archive,
+  ArrowLeft,
+  BadgeCheck,
+  Edit,
+  FileClock,
+  MessageSquare,
+  History,
+  Globe,
+  Link2,
+} from "lucide-react";
+⋮----
+import { getArticle, getCategories, getBacklinks } from "../queries";
+import {
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+} from "../_actions/article.actions";
+import { ArticleDialog } from "./ArticleDialog";
+import type { ArticleSnapshot as Article } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import { CommentPanel } from "../../collaboration/components/CommentPanel";
+import { VersionHistoryPanel } from "../../collaboration/components/VersionHistoryPanel";
+import { ReactMarkdown } from "@lib-react-markdown";
+import { remarkGfm } from "@lib-remark-gfm";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
+⋮----
+// ── Props ─────────────────────────────────────────────────────────────────────
+⋮----
+export interface ArticleDetailPanelProps {
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+⋮----
+// ── Component ─────────────────────────────────────────────────────────────────
+⋮----
+function buildArticleDetailHref(targetArticleId: string): string
+⋮----
+function handlePublish()
+⋮----
+function handleArchive()
+⋮----
+function handleVerify()
+⋮----
+function handleRequestReview()
+⋮----
+<Button variant="ghost" size="sm" onClick=
+⋮----
+{/* Back + actions bar */}
+⋮----
+{/* Header */}
+⋮----
+{/* Body tabs */}
+````
+
+## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesPanel.tsx
+````typescript
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
+⋮----
+import { useAuth } from "@/modules/iam/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+⋮----
+import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import { getArticles, getCategories } from "../queries";
+import { ArticleDialog } from "./ArticleDialog";
+import { CategoryTreePanel } from "./CategoryTreePanel";
+⋮----
+/**
+ * KnowledgeBaseArticlesPanel
+ * Route-level screen component for /knowledge-base/articles.
+ * Encapsulates data-loading, filtering and layout so the Next.js route
+ * file stays thin (params/context wiring only).
+ */
+export interface KnowledgeBaseArticlesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly currentUserId?: string | null;
+}
+⋮----
+function handleSuccess(articleId?: string)
+````
+
 ## File: modules/notion/interfaces/knowledge-database/_actions/index.ts
 ````typescript
 
@@ -39950,68 +37337,35 @@ export async function updateKnowledgePageIcon(input: UpdatePageIconDto): Promise
 export async function updateKnowledgePageCover(input: UpdatePageCoverDto): Promise<CommandResult>
 ````
 
-## File: modules/notion/interfaces/knowledge/components/KnowledgeDetailPanel.tsx
+## File: modules/notion/interfaces/knowledge/components/KnowledgePagesPanel.tsx
 ````typescript
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 ⋮----
-import { getKnowledgePage } from "../queries";
-import {
-  renameKnowledgePage,
-  archiveKnowledgePage,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-} from "../_actions/knowledge-page.actions";
-import type { KnowledgePageSnapshot as KnowledgePage } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
-import { PageEditorPanel } from "./PageEditorPanel";
-import { CommentPanel } from "../../collaboration/components/CommentPanel";
-import { Button } from "@ui-shadcn/ui/button";
+import { useAuth } from "@/modules/iam/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
 ⋮----
-// ?? Props ?????????????????????????????????????????????????????????????????????
+import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
+import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
+import { PageTreePanel } from "./PageTreePanel";
 ⋮----
-export interface KnowledgeDetailPanelProps {
-  accountId: string;
-  activeWorkspaceId: string | null;
-  currentUserId: string;
+/**
+ * KnowledgePagesPanel
+ * Route-level screen component for /knowledge/pages.
+ * Encapsulates data-loading, scope resolution and layout so that the
+ * Next.js route file stays thin (params/context wiring only).
+ */
+export interface KnowledgePagesPanelProps {
+  readonly accountId: string;
+  readonly workspaceId?: string | null;
+  readonly currentUserId?: string | null;
+  readonly scope?: "workspace" | "account";
 }
 ⋮----
-// ?? Component ?????????????????????????????????????????????????????????????????
+function buildPageDetailHref(pageId: string)
 ⋮----
-function handleRename(title: string)
-⋮----
-function handleIconChange(iconUrl: string)
-⋮----
-function handleCoverChange(coverUrl: string)
-⋮----
-function handleArchive()
-⋮----
-// ?? Loading skeleton ????????????????????????????????????????????????????????
-⋮----
-// ?? Not found ???????????????????????????????????????????????????????????????
-⋮----
-<Button variant="ghost" size="sm" onClick=
-⋮----
-// ?? Page view ???????????????????????????????????????????????????????????????
-⋮----
-{/* Cover image */}
-⋮----
-{/* Top bar */}
-⋮----
-onClick=
-⋮----
-{/* Page header */}
-⋮----
-{/* Icon row */}
-⋮----
-{/* Main content + optional comment side panel */}
-⋮----
-{/* Block editor ??connected to Firebase */}
-⋮----
-{/* Comment panel ??slides in from right */}
+onCreated=
 ````
 
 ## File: modules/notion/interfaces/knowledge/composition/capabilities.ts
@@ -42868,36 +40222,6 @@ import { ShellTranslationSwitcher } from "./ShellTranslationSwitcher";
 export function ShellHeaderControls()
 ````
 
-## File: modules/platform/interfaces/web/shell/search/ShellGlobalSearchDialog.tsx
-````typescript
-import { useEffect, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { FileText, Layout } from "lucide-react";
-import { listShellCommandCatalogItems } from "../../../../subdomains/search/api";
-import { buildShellContextualHref } from "../../../../subdomains/platform-config/api";
-⋮----
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandShortcut,
-} from "@ui-shadcn/ui/command";
-⋮----
-interface ShellGlobalSearchDialogProps {
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-}
-⋮----
-function handleSelect(href: string)
-⋮----
-/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
-⋮----
-function onKeyDown(event: KeyboardEvent)
-````
-
 ## File: modules/platform/subdomains/account/api/index.ts
 ````typescript
 /**
@@ -43779,23 +41103,6 @@ findSubscribersByEventType(
 
 ````
 
-## File: modules/platform/subdomains/notification/domain/value-objects/WorkspaceNotificationEventType.ts
-````typescript
-import { z } from "@lib-zod";
-⋮----
-/**
- * Canonical workspace event types that can trigger a notification.
- * Aligned with discriminants emitted by workspace-workflow domain events.
- */
-⋮----
-export type WorkspaceNotificationEventType =
-  (typeof WORKSPACE_NOTIFICATION_EVENT_TYPES)[number];
-⋮----
-export function createWorkspaceNotificationEventType(
-  raw: string,
-): WorkspaceNotificationEventType
-````
-
 ## File: modules/platform/subdomains/notification/infrastructure/firebase/FirebaseWorkspaceNotificationPreferenceRepository.ts
 ````typescript
 /**
@@ -44458,91 +41765,6 @@ export function getOrganizationTeams(organizationId: string): Promise<Team[]>
 export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]>
 ````
 
-## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
-````typescript
-// ── Types ──────────────────────────────────────────────────────────────────────
-⋮----
-export type ShellNavSection =
-  | "workspace"
-  | "dashboard"
-  | "account"
-  | "organization"
-  | "other";
-⋮----
-export interface ShellNavItem {
-  readonly id: string;
-  readonly label: string;
-  readonly href: string;
-}
-⋮----
-export interface ShellRailCatalogItem {
-  readonly id: string;
-  readonly href: string;
-  readonly label: string;
-  /** If true, this item is only visible to organization accounts. */
-  readonly requiresOrganization: boolean;
-  /** Route prefix for active-state matching. When absent, defaults to href. */
-  readonly activeRoutePrefix?: string;
-}
-⋮----
-/** If true, this item is only visible to organization accounts. */
-⋮----
-/** Route prefix for active-state matching. When absent, defaults to href. */
-⋮----
-export interface ShellContextSectionConfig {
-  readonly title: string;
-  readonly items: readonly { href: string; label: string }[];
-}
-⋮----
-export interface ShellRouteContext {
-  readonly accountId?: string | null;
-  readonly workspaceId?: string | null;
-}
-⋮----
-function parseHref(href: string):
-⋮----
-function joinHref(path: string, query: string): string
-⋮----
-function isAccountScopedWorkspacePath(pathname: string): boolean
-⋮----
-export function normalizeShellRoutePath(pathname: string): string
-⋮----
-export function buildShellContextualHref(
-  href: string,
-  context: ShellRouteContext,
-): string
-⋮----
-// ── Route-matching utility ────────────────────────────────────────────────────
-⋮----
-export function isExactOrChildPath(targetPath: string, pathname: string): boolean
-⋮----
-// ── Account section matchers ──────────────────────────────────────────────────
-⋮----
-// ── Route titles & breadcrumb labels ──────────────────────────────────────────
-⋮----
-// ── Organization management items ─────────────────────────────────────────────
-⋮----
-// ── Account nav items ─────────────────────────────────────────────────────────
-⋮----
-// ── Section labels ────────────────────────────────────────────────────────────
-⋮----
-// ── Rail catalog ──────────────────────────────────────────────────────────────
-⋮----
-export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[]
-⋮----
-// ── Context section config ────────────────────────────────────────────────────
-⋮----
-// ── Mobile & organization nav items ───────────────────────────────────────────
-⋮----
-// ── Section resolvers ─────────────────────────────────────────────────────────
-⋮----
-export function resolveShellNavSection(pathname: string): ShellNavSection
-⋮----
-export function resolveShellPageTitle(pathname: string): string
-⋮----
-export function resolveShellBreadcrumbLabel(segment: string): string
-````
-
 ## File: modules/platform/subdomains/search/application/services/shell-command-catalog.ts
 ````typescript
 export interface ShellCommandCatalogItem {
@@ -45159,6 +42381,27 @@ export function createWorkspaceSessionContext(
 ): WorkspaceSessionContext
 ````
 
+## File: modules/workspace/interfaces/web/components/cards/WorkspaceContextCard.tsx
+````typescript
+/**
+ * WorkspaceContextCard
+ * Purpose: display the active workspace context in notebook/ai-chat sidebar.
+ * Shows workspace name + navigation links when a workspace is active,
+ * otherwise shows an empty-state hint.
+ */
+⋮----
+import Link from "next/link";
+import { FolderKanban } from "lucide-react";
+⋮----
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import type { WorkspaceEntity } from "../../../contracts";
+⋮----
+interface WorkspaceContextCardProps {
+  readonly workspace: WorkspaceEntity | null;
+}
+````
+
 ## File: modules/workspace/interfaces/web/components/cards/WorkspaceOverviewSummaryCard.tsx
 ````typescript
 import type { WorkspaceEntity } from "../../../contracts";
@@ -45245,6 +42488,73 @@ export function formatTimestamp(
 export function trimOrUndefined(value: string): string | undefined
 ````
 
+## File: modules/workspace/interfaces/web/components/layout/WorkspaceSidebarSection.tsx
+````typescript
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+⋮----
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabsByGroup,
+  WORKSPACE_TAB_SIDEBAR_GROUP_ORDER,
+  getWorkspaceTabStatus,
+  resolveWorkspaceTabValue,
+  type WorkspaceTabGroup,
+  type WorkspaceTabValue,
+} from "../../navigation/workspace-tabs";
+⋮----
+export interface WorkspaceSidebarLocaleBundle {
+  workspace?: {
+    tabLabels?: Record<string, string>;
+  };
+}
+⋮----
+export interface WorkspaceNavigationPreferences {
+  pinnedWorkspace: string[];
+  workspaceOrder: string[];
+}
+⋮----
+interface TabLinkItem {
+  value: WorkspaceTabValue;
+  label: string;
+}
+⋮----
+function createWorkspaceLinkItems(group: WorkspaceTabGroup): TabLinkItem[]
+⋮----
+function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue): string
+⋮----
+function tTab(
+  tab: WorkspaceTabValue,
+  fallback: string,
+  localeBundle: WorkspaceSidebarLocaleBundle | null,
+): string
+⋮----
+function tTabWithDevStatus(
+  tab: WorkspaceTabValue,
+  fallback: string,
+  localeBundle: WorkspaceSidebarLocaleBundle | null,
+): string
+⋮----
+function getPrefId(tabValue: string): string
+⋮----
+function isItemEnabled(prefId: string, navPrefs: WorkspaceNavigationPreferences): boolean
+⋮----
+function getItemOrder(prefId: string, navPrefs: WorkspaceNavigationPreferences): number
+⋮----
+function sortByPreferenceOrder<T extends { value: string }>(
+  items: readonly T[],
+  navPrefs: WorkspaceNavigationPreferences,
+): T[]
+⋮----
+interface WorkspaceSidebarSectionProps {
+  workspacePathId: string;
+  navPrefs: WorkspaceNavigationPreferences;
+  localeBundle: WorkspaceSidebarLocaleBundle | null;
+  getItemClassName: (isActive: boolean) => string;
+}
+````
+
 ## File: modules/workspace/interfaces/web/components/rails/CreateWorkspaceDialogRail.tsx
 ````typescript
 import { type FormEvent, useState } from "react";
@@ -45329,6 +42639,79 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>)
 ⋮----
 resetDialog();
 setIsCreateOpen(true);
+````
+
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailRouteScreen.tsx
+````typescript
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+⋮----
+import { WorkspaceDetailScreen } from "./WorkspaceDetailScreen";
+import { resolveWorkspaceTabValue } from "../../navigation/workspace-tabs";
+⋮----
+interface WorkspaceDetailRouteScreenProps {
+  workspaceId: string;
+  accountId: string | null | undefined;
+  accountsHydrated: boolean;
+  initialTab?: string;
+  initialOverviewPanel?: string;
+}
+⋮----
+function buildWorkspaceTabHref(
+  accountId: string,
+  workspaceId: string,
+  tab: string,
+  panel?: string,
+): string
+````
+
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx
+````typescript
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { type FormEvent, useState } from "react";
+⋮----
+import type { WorkspaceEntity } from "../../../contracts";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+⋮----
+import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";
+import { getWorkspaceGovernanceSummary } from "../../view-models/workspace-supporting-records";
+import { CreateWorkspaceDialog } from "../dialogs/CreateWorkspaceDialog";
+⋮----
+interface WorkspaceHubScreenProps {
+  readonly accountId: string | null | undefined;
+  readonly accountName: string | null | undefined;
+  readonly accountType: "user" | "organization";
+  readonly accountsHydrated: boolean;
+  readonly isBootstrapSeeded: boolean;
+  readonly currentUserId?: string | null;
+}
+⋮----
+export function WorkspaceHubScreen({
+  accountId,
+  accountName,
+  accountType,
+  accountsHydrated,
+  isBootstrapSeeded,
+  currentUserId,
+}: WorkspaceHubScreenProps)
+⋮----
+function resetCreateWorkspaceDialog()
+⋮----
+async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>)
+⋮----
+onClick=
+⋮----
+onOpenChange=
+onWorkspaceNameChange=
 ````
 
 ## File: modules/workspace/interfaces/web/components/tabs/workspace-file-tab.utils.ts
@@ -45497,6 +42880,60 @@ interface WorkspaceOverviewSettingsTabProps {
 }
 ````
 
+## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
+````typescript
+import { useEffect, useMemo, useState } from "react";
+⋮----
+import type { WorkspaceEntity } from "../../contracts";
+⋮----
+interface RecentWorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+⋮----
+function getStorageKey(accountId: string)
+⋮----
+function readRecentWorkspaceIds(accountId: string): string[]
+⋮----
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[])
+⋮----
+function trackWorkspaceFromPath(pathname: string, accountId: string)
+⋮----
+function getWorkspaceIdFromPath(pathname: string): string | null
+⋮----
+export function useRecentWorkspaces(
+  accountId: string | undefined,
+  pathname: string,
+  workspaces: WorkspaceEntity[],
+)
+````
+
+## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
+````typescript
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { WorkspaceEntity } from "../../contracts";
+import { getWorkspaceById, getWorkspaceByIdForAccount } from "../../facades";
+⋮----
+export type WorkspaceLoadState = "loading" | "loaded" | "error";
+⋮----
+export interface UseWorkspaceDetailResult {
+  workspace: WorkspaceEntity | null;
+  loadState: WorkspaceLoadState;
+  setWorkspace: (ws: WorkspaceEntity) => void;
+}
+⋮----
+export function useWorkspaceDetail(
+  workspaceId: string,
+  accountId: string | null | undefined,
+  accountsHydrated: boolean,
+  accessibleAccountIds: readonly string[] = [],
+): UseWorkspaceDetailResult
+⋮----
+async function loadWorkspace()
+````
+
 ## File: modules/workspace/interfaces/web/hooks/useWorkspaceHub.ts
 ````typescript
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -45555,35 +42992,6 @@ async function handleSave(
     event: FormEvent<HTMLFormElement>,
     settingsDraft: WorkspaceSettingsDraft | null,
 )
-````
-
-## File: modules/workspace/interfaces/web/navigation/workspace-context-links.ts
-````typescript
-export interface WorkspaceNavigationContext {
-  readonly accountId: string | null;
-  readonly workspaceId: string | null;
-}
-⋮----
-export type WorkspaceOverviewPanel = (typeof WORKSPACE_OVERVIEW_PANELS)[number];
-⋮----
-function tryGetAccountIdFromPath(pathname: string): string | null
-⋮----
-function buildWorkspaceBaseHref(workspaceId: string, accountId?: string | null): string
-⋮----
-export function buildWorkspaceOverviewPanelHref(
-  workspaceId: string,
-  panel?: WorkspaceOverviewPanel,
-  accountId?: string | null,
-): string
-⋮----
-export function supportsWorkspaceSearchContext(_pathname: string): boolean
-⋮----
-export function buildWorkspaceContextHref(pathname: string, workspaceId: string): string
-⋮----
-export function appendWorkspaceContextQuery(
-  href: string,
-  context: WorkspaceNavigationContext,
-): string
 ````
 
 ## File: modules/workspace/interfaces/web/navigation/workspace-nav-items.ts
@@ -46803,42 +44211,6 @@ import { FirebaseTaskMaterializationBatchJobRepository } from "../infrastructure
 export function makeTaskMaterializationBatchJobRepo()
 ````
 
-## File: modules/workspace/subdomains/orchestration/api/index.ts
-````typescript
-
-````
-
-## File: modules/workspace/subdomains/orchestration/application/dto/extract-task-candidates-from-knowledge.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file extract-task-candidates-from-knowledge.dto.ts
- * @description Application-layer DTOs for the ExtractTaskCandidatesFromKnowledge use case.
- *
- * Pure value types (KnowledgeTextBlockInput, ExtractedTaskCandidate, TaskCandidateSource)
- * now live in domain/value-objects/TaskCandidate.ts. They are re-exported here so existing
- * application-layer import paths continue to resolve.
- *
- * @see ADR-5201 Accidental Complexity — workspace-workflow application structure
- */
-⋮----
-import type {
-  KnowledgeTextBlockInput,
-  ExtractedTaskCandidate,
-} from "../../../task/domain/value-objects/TaskCandidate";
-⋮----
-export interface ExtractTaskCandidatesFromKnowledgeDto {
-  readonly knowledgePageId: string;
-  readonly blocks: ReadonlyArray<KnowledgeTextBlockInput>;
-  readonly enableAiFallback?: boolean;
-}
-⋮----
-export interface ExtractTaskCandidatesFromKnowledgeResult {
-  readonly candidates: ReadonlyArray<ExtractedTaskCandidate>;
-  readonly usedAiFallback: boolean;
-}
-````
-
 ## File: modules/workspace/subdomains/orchestration/application/dto/materialize-from-knowledge.dto.ts
 ````typescript
 /**
@@ -47156,34 +44528,6 @@ markCompleted(
 markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<TaskMaterializationBatchJob | null>;
 ````
 
-## File: modules/workspace/subdomains/orchestration/domain/services/TaskCandidateRuleExtractor.ts
-````typescript
-/**
- * @module workspace-flow/domain/services
- * @file TaskCandidateRuleExtractor.ts
- * @description Pure, stateless rule engine that extracts task candidates from
- *   plain-text knowledge blocks using pattern matching.
- *
- * Moved from application/services/ to domain/services/ because the extractor
- * contains only domain rules and has no application or infrastructure
- * dependencies.
- *
- * @see ADR-5201 Accidental Complexity — workspace-workflow application structure
- */
-⋮----
-import type { ExtractedTaskCandidate, KnowledgeTextBlockInput } from "../../../task/domain/value-objects/TaskCandidate";
-⋮----
-function normalizeTitle(value: string): string
-⋮----
-function resolveCandidateText(line: string): string | undefined
-⋮----
-function normalizeDueDate(raw: string | undefined): string | undefined
-⋮----
-export class TaskCandidateRuleExtractor {
-⋮----
-extract(blocks: ReadonlyArray<KnowledgeTextBlockInput>): ReadonlyArray<ExtractedTaskCandidate>
-````
-
 ## File: modules/workspace/subdomains/orchestration/domain/value-objects/TaskMaterializationBatchJobStatus.ts
 ````typescript
 /**
@@ -47194,29 +44538,6 @@ extract(blocks: ReadonlyArray<KnowledgeTextBlockInput>): ReadonlyArray<Extracted
 ⋮----
 export type TaskMaterializationBatchJobStatus =
   (typeof TASK_MATERIALIZATION_BATCH_JOB_STATUSES)[number];
-````
-
-## File: modules/workspace/subdomains/orchestration/infrastructure/ai/AiTaskCandidateExtractionAdapter.ts
-````typescript
-import { extractTasksFromContent } from "@/modules/ai/api/server";
-import type { TaskCandidateExtractionAiPort } from "../../domain/ports/TaskCandidateExtractionAiPort";
-import type { AIExtractedTaskCandidate } from "../../domain/ports/TaskCandidateExtractionAiPort";
-⋮----
-/**
- * @module workspace-workflow/infrastructure/ai
- * @file AiTaskCandidateExtractionAdapter.ts
- * @description Infrastructure adapter implementing TaskCandidateExtractionAiPort.
- *
- * Delegates to the shared AI bounded context (`modules/ai/api/server`) so that
- * the workspace-workflow subdomain never depends on Genkit directly.
- */
-export class AiTaskCandidateExtractionAdapter implements TaskCandidateExtractionAiPort {
-⋮----
-async extractTaskCandidates(input: {
-    readonly knowledgePageId: string;
-    readonly content: string;
-    readonly maxCandidates?: number;
-}): Promise<ReadonlyArray<AIExtractedTaskCandidate>>
 ````
 
 ## File: modules/workspace/subdomains/orchestration/infrastructure/firebase/task-materialization-batch-job.converter.ts
@@ -47298,6 +44619,189 @@ async markCompleted(
 ): Promise<TaskMaterializationBatchJob | null>
 ⋮----
 async markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<TaskMaterializationBatchJob | null>
+````
+
+## File: modules/workspace/subdomains/orchestration/interfaces/_actions/workspace-flow-orchestration.actions.ts
+````typescript
+/**
+ * @module orchestration/interfaces/_actions
+ * @file workspace-flow-orchestration.actions.ts
+ * @description Server Actions for task materialization batch job orchestration.
+ */
+⋮----
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import type {
+  ExtractTaskCandidatesFromKnowledgeDto,
+  ExtractTaskCandidatesFromKnowledgeResult,
+} from "../../application/dto/extract-task-candidates-from-knowledge.dto";
+import type { SubmitTaskMaterializationBatchJobDto } from "../../application/dto/submit-task-materialization-batch-job.dto";
+import type { TaskMaterializationBatchJob } from "../../domain/entities/TaskMaterializationBatchJob";
+import { SubmitTaskMaterializationBatchJobUseCase } from "../../application/use-cases/submit-task-materialization-batch-job.use-case";
+import { ExtractTaskCandidatesFromKnowledgeUseCase } from "../../application/use-cases/extract-task-candidates-from-knowledge.use-case";
+import { makeTaskMaterializationBatchJobRepo } from "../../api/factories";
+import { AiTaskCandidateExtractionAdapter } from "../../infrastructure/ai/AiTaskCandidateExtractionAdapter";
+⋮----
+export async function wfSubmitTaskMaterializationBatchJob(
+  dto: SubmitTaskMaterializationBatchJobDto,
+): Promise<CommandResult>
+⋮----
+export async function wfGetTaskMaterializationBatchJob(
+  jobId: string,
+): Promise<TaskMaterializationBatchJob | null>
+⋮----
+export async function wfListTaskMaterializationBatchJobs(
+  workspaceId: string,
+): Promise<TaskMaterializationBatchJob[]>
+⋮----
+export async function wfExtractTaskCandidatesFromKnowledge(
+  dto: ExtractTaskCandidatesFromKnowledgeDto,
+): Promise<ExtractTaskCandidatesFromKnowledgeResult>
+````
+
+## File: modules/workspace/subdomains/orchestration/interfaces/components/WorkspaceFlowTab.tsx
+````typescript
+/**
+ * @module orchestration/interfaces/components
+ * @file WorkspaceFlowTab.tsx
+ * @description Composite tab rendering Tasks, Issues, and Invoices across all workflow subdomains.
+ *
+ * This component orchestrates read/write surfaces from the task, issue, and settlement
+ * subdomains without owning any domain logic. All mutations route through the respective
+ * subdomain server actions.
+ */
+⋮----
+import { useCallback, useEffect, useMemo, useState } from "react";
+⋮----
+import { Plus } from "lucide-react";
+⋮----
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Separator } from "@ui-shadcn/ui/separator";
+⋮----
+import type { Invoice } from "../../../settlement/api";
+import type { Issue } from "../../../issue/api";
+import type { Task } from "../../../task/api";
+import { wfCreateInvoice } from "../../../settlement/api";
+import { getWorkspaceFlowTasks } from "../../../task/api";
+import { getWorkspaceFlowIssues } from "../../../issue/api";
+import { getWorkspaceFlowInvoices } from "../../../settlement/api";
+import { CreateTaskDialog } from "../../../task/interfaces/components/CreateTaskDialog";
+import { TaskRow } from "../../../task/interfaces/components/TaskRow";
+import { IssueRow } from "../../../issue/interfaces/components/IssueRow";
+import { InvoiceRow } from "../../../settlement/interfaces/components/InvoiceRow";
+⋮----
+// ── Types ──────────────────────────────────────────────────────────────────────
+⋮----
+type FlowSection = "tasks" | "qa" | "acceptance" | "issues" | "invoices";
+⋮----
+interface WorkspaceFlowTabProps {
+  readonly workspaceId: string;
+  readonly currentUserId?: string;
+  readonly initialSection?: FlowSection;
+}
+⋮----
+// ── Main Component ─────────────────────────────────────────────────────────────
+⋮----
+async function handleCreateInvoice()
+⋮----
+{/* ── Section switcher ─────────────────────────────────────────── */}
+````
+
+## File: modules/workspace/subdomains/orchestration/interfaces/contracts/workspace-flow-orchestration.contract.ts
+````typescript
+/**
+ * @module orchestration/interfaces/contracts
+ * @file workspace-flow-orchestration.contract.ts
+ * @description Summary projections for task materialization batch job.
+ */
+⋮----
+import type { TaskMaterializationBatchJob } from "../../domain/entities/TaskMaterializationBatchJob";
+⋮----
+export interface TaskMaterializationBatchJobSummary {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly status: TaskMaterializationBatchJob["status"];
+  readonly totalItems: number;
+  readonly processedItems: number;
+  readonly succeededItems: number;
+  readonly failedItems: number;
+  readonly updatedAtISO: string;
+}
+⋮----
+export function toTaskMaterializationBatchJobSummary(
+  job: TaskMaterializationBatchJob,
+): TaskMaterializationBatchJobSummary
+````
+
+## File: modules/workspace/subdomains/orchestration/interfaces/listeners.ts
+````typescript
+/**
+ * @module orchestration/interfaces
+ * @file listeners.ts
+ * @description Public event listener surface for the orchestration subdomain.
+ *
+ * External modules subscribe through this surface to integrate the
+ * knowledge → workspace-flow materialization path.
+ *
+ * @see knowledge-to-workflow-materializer.ts (process manager)
+ */
+⋮----
+import { getSharedEventBus, type SimpleEventBus } from "@shared-events";
+import { KnowledgeToWorkflowMaterializer } from "../application/process-managers/knowledge-to-workflow-materializer";
+import { makeTaskRepo } from "../../task/api/factories";
+import { makeInvoiceRepo } from "../../settlement/api/factories";
+import type { PageApprovedEvent } from "@/modules/notion/api";
+⋮----
+// ── Public listener factory ───────────────────────────────────────────────────
+⋮----
+/**
+ * Creates a pre-wired `KnowledgeToWorkflowMaterializer` backed by Firebase repos.
+ * Call `handle(event)` from your event bus subscriber.
+ */
+export function createKnowledgeToWorkflowListener(): KnowledgeToWorkflowMaterializer
+⋮----
+/**
+ * Registers the workspace workflow materializer on the shared in-process bus.
+ * Safe to call multiple times; registration happens only once per server runtime.
+ */
+export function registerKnowledgeToWorkflowListener(
+  bus: SimpleEventBus = getSharedEventBus(),
+): void
+⋮----
+// ── Listener type contracts ───────────────────────────────────────────────────
+⋮----
+/** Shape of any handler that can process a `notion.knowledge.page-approved` event. */
+export interface KnowledgePageApprovedHandler {
+  handle(event: PageApprovedEvent, workspaceId?: string): Promise<boolean>;
+}
+⋮----
+handle(event: PageApprovedEvent, workspaceId?: string): Promise<boolean>;
+````
+
+## File: modules/workspace/subdomains/orchestration/interfaces/queries/workspace-flow-orchestration.queries.ts
+````typescript
+/**
+ * @module orchestration/interfaces/queries
+ * @file workspace-flow-orchestration.queries.ts
+ * @description Server-side read queries for task materialization batch jobs.
+ */
+⋮----
+import type { TaskMaterializationBatchJob } from "../../domain/entities/TaskMaterializationBatchJob";
+import { makeTaskMaterializationBatchJobRepo } from "../../api/factories";
+⋮----
+export async function getWorkspaceFlowTaskMaterializationBatchJobs(
+  workspaceId: string,
+): Promise<TaskMaterializationBatchJob[]>
+⋮----
+export async function getWorkspaceFlowTaskMaterializationBatchJob(
+  jobId: string,
+): Promise<TaskMaterializationBatchJob | null>
 ````
 
 ## File: modules/workspace/subdomains/quality/application/use-cases/pass-task-qa.use-case.ts
@@ -49609,39 +47113,6 @@ export interface SourceReference {
    */
 ````
 
-## File: modules/workspace/subdomains/task/domain/value-objects/TaskCandidate.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file TaskCandidate.ts
- * @description Domain value types for extracted task candidates from knowledge content.
- *
- * Moved from application/dto to domain so the stateless rule engine
- * (TaskCandidateRuleExtractor) can live in domain/services/ without
- * depending on the application layer.
- *
- * @see ADR-5201 Accidental Complexity — workspace-workflow application structure
- */
-⋮----
-export type TaskCandidateSource = "rule" | "ai";
-⋮----
-export interface KnowledgeTextBlockInput {
-  readonly blockId: string;
-  readonly text: string;
-  readonly pageIndex?: number;
-}
-⋮----
-export interface ExtractedTaskCandidate {
-  readonly title: string;
-  readonly description?: string;
-  readonly dueDate?: string;
-  readonly source: TaskCandidateSource;
-  readonly confidence: number;
-  readonly sourceBlockId?: string;
-  readonly sourceSnippet?: string;
-}
-````
-
 ## File: modules/workspace/subdomains/task/domain/value-objects/TaskId.ts
 ````typescript
 /**
@@ -49968,742 +47439,6 @@ import { makeTaskRepo } from "../../api/factories";
 export async function getWorkspaceFlowTasks(workspaceId: string): Promise<Task[]>
 ⋮----
 export async function getWorkspaceFlowTask(taskId: string): Promise<Task | null>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/api/index.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file index.ts
- * @description Public cross-module boundary for workspace-flow.
- *
- * External consumers MUST import only from this path:
- *   @/modules/workspace/api
- *
- * Never import from domain/, application/, infrastructure/, or interfaces/ directly.
- * @author workspace-flow
- * @since 2026-03-24
- */
-⋮----
-// ── Facade (write + summary-read surface) ────────────────────────────────────
-⋮----
-// Composite facade (all three aggregates)
-⋮----
-// Focused facades (prefer these when only one aggregate is needed)
-⋮----
-// ── Public contracts ──────────────────────────────────────────────────────────
-⋮----
-// Entities
-⋮----
-// Value objects
-⋮----
-// Summary projections
-⋮----
-// CRUD / command DTOs
-⋮----
-// Query / pagination DTOs
-⋮----
-// Command result
-⋮----
-// Value object lists (enum arrays)
-⋮----
-// Summary projection helpers
-⋮----
-// ── Read queries (server-side) ────────────────────────────────────────────────
-⋮----
-// ── Public write-side commands for knowledge → task flow ────────────────────
-⋮----
-// ── UI components ─────────────────────────────────────────────────────────────
-⋮----
-// ── Event listeners (knowledge → workspace-flow integration) ─────────────────
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/api/workspace-flow-task-batch-job.facade.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file workspace-flow-task-batch-job.facade.ts
- * @description Focused facade for task materialization batch jobs.
- */
-⋮----
-import type { CommandResult } from "@shared-types";
-import type {
-  ExtractTaskCandidatesFromKnowledgeDto,
-  ExtractTaskCandidatesFromKnowledgeResult,
-} from "../application/dto/extract-task-candidates-from-knowledge.dto";
-import type { SubmitTaskMaterializationBatchJobDto } from "../application/dto/submit-task-materialization-batch-job.dto";
-import type { TaskCandidateExtractionAiPort } from "../domain/ports/TaskCandidateExtractionAiPort";
-import { ExtractTaskCandidatesFromKnowledgeUseCase } from "../application/use-cases/extract-task-candidates-from-knowledge.use-case";
-import { SubmitTaskMaterializationBatchJobUseCase } from "../application/use-cases/submit-task-materialization-batch-job.use-case";
-import type { TaskMaterializationBatchJob } from "../domain/entities/TaskMaterializationBatchJob";
-import type { TaskMaterializationBatchJobRepository } from "../domain/repositories/TaskMaterializationBatchJobRepository";
-⋮----
-export class WorkspaceFlowTaskBatchJobFacade {
-⋮----
-constructor(
-⋮----
-async submitBatchJob(dto: SubmitTaskMaterializationBatchJobDto): Promise<CommandResult>
-⋮----
-async getBatchJob(jobId: string): Promise<TaskMaterializationBatchJob | null>
-⋮----
-async listBatchJobs(workspaceId: string): Promise<TaskMaterializationBatchJob[]>
-⋮----
-async extractTaskCandidates(
-    dto: ExtractTaskCandidatesFromKnowledgeDto,
-): Promise<ExtractTaskCandidatesFromKnowledgeResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/materialize-from-knowledge.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file materialize-from-knowledge.dto.ts
- * @description Command DTO for materializing Tasks and Invoices from a
- * `notion.knowledge.page-approved` event payload.
- *
- * This DTO is used by both:
- *  - MaterializeTasksFromKnowledgeUseCase
- *  - KnowledgeToWorkflowMaterializer (Process Manager)
- */
-⋮----
-import type { SourceReference } from "../../domain/value-objects/SourceReference";
-⋮----
-export interface ExtractedTaskItem {
-  readonly title: string;
-  readonly dueDate?: string;
-  readonly description?: string;
-}
-⋮----
-export interface ExtractedInvoiceItem {
-  readonly amount: number;
-  readonly description: string;
-  readonly currency?: string;
-}
-⋮----
-export interface MaterializeFromKnowledgeDto {
-  readonly workspaceId: string;
-  /** ID of the KnowledgePage that was approved (same as sourceReference.id). */
-  readonly knowledgePageId: string;
-  /** Pre-built SourceReference value object to attach to every created entity. */
-  readonly sourceReference: SourceReference;
-  readonly extractedTasks: ReadonlyArray<ExtractedTaskItem>;
-  readonly extractedInvoices: ReadonlyArray<ExtractedInvoiceItem>;
-}
-⋮----
-/** ID of the KnowledgePage that was approved (same as sourceReference.id). */
-⋮----
-/** Pre-built SourceReference value object to attach to every created entity. */
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/ports/InvoiceService.ts
-````typescript
-/**
- * @module workspace-flow/application/ports
- * @file InvoiceService.ts
- * @description Application-layer port interface for Invoice operations.
- *
- * @applicationPort This is an Application-layer Port (not a Domain-layer Port) because
- * its method signatures depend on application DTOs (AddInvoiceItemDto, InvoiceQueryDto)
- * defined in application/dto/. It must remain in application/ports/ and must NOT be
- * moved to domain/ports/. See ADR-1102 §3.
- *
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Wire use cases and implement concrete adapters
- */
-⋮----
-import type { Invoice } from "../../domain/entities/Invoice";
-import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
-import type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-import type { AddInvoiceItemDto } from "../dto/add-invoice-item.dto";
-import type { InvoiceQueryDto } from "../dto/invoice-query.dto";
-⋮----
-export interface InvoiceService {
-  createInvoice(workspaceId: string): Promise<Invoice>;
-  addItem(dto: AddInvoiceItemDto): Promise<InvoiceItem>;
-  removeItem(invoiceItemId: string): Promise<void>;
-  transitionStatus(invoiceId: string, to: InvoiceStatus): Promise<Invoice>;
-  listInvoices(query: InvoiceQueryDto): Promise<Invoice[]>;
-  getInvoice(invoiceId: string): Promise<Invoice | null>;
-}
-⋮----
-createInvoice(workspaceId: string): Promise<Invoice>;
-addItem(dto: AddInvoiceItemDto): Promise<InvoiceItem>;
-removeItem(invoiceItemId: string): Promise<void>;
-transitionStatus(invoiceId: string, to: InvoiceStatus): Promise<Invoice>;
-listInvoices(query: InvoiceQueryDto): Promise<Invoice[]>;
-getInvoice(invoiceId: string): Promise<Invoice | null>;
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/ports/IssueService.ts
-````typescript
-/**
- * @module workspace-flow/application/ports
- * @file IssueService.ts
- * @description Application-layer port interface for Issue operations.
- *
- * @applicationPort This is an Application-layer Port (not a Domain-layer Port) because
- * its method signatures depend on application DTOs (OpenIssueDto, IssueQueryDto) defined
- * in application/dto/. It must remain in application/ports/ and must NOT be moved to
- * domain/ports/. See ADR-1102 §3.
- *
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Wire use cases and implement concrete adapters
- */
-⋮----
-import type { Issue } from "../../domain/entities/Issue";
-import type { IssueStatus } from "../../domain/value-objects/IssueStatus";
-import type { OpenIssueDto } from "../dto/open-issue.dto";
-import type { IssueQueryDto } from "../dto/issue-query.dto";
-⋮----
-export interface IssueService {
-  openIssue(dto: OpenIssueDto): Promise<Issue>;
-  transitionStatus(issueId: string, to: IssueStatus): Promise<Issue>;
-  listIssues(query: IssueQueryDto): Promise<Issue[]>;
-  getIssue(issueId: string): Promise<Issue | null>;
-}
-⋮----
-openIssue(dto: OpenIssueDto): Promise<Issue>;
-transitionStatus(issueId: string, to: IssueStatus): Promise<Issue>;
-listIssues(query: IssueQueryDto): Promise<Issue[]>;
-getIssue(issueId: string): Promise<Issue | null>;
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/ports/TaskService.ts
-````typescript
-/**
- * @module workspace-flow/application/ports
- * @file TaskService.ts
- * @description Application-layer port interface for Task operations.
- *
- * @applicationPort This is an Application-layer Port (not a Domain-layer Port) because
- * its method signatures depend on application DTOs (CreateTaskDto, TaskQueryDto) defined
- * in application/dto/. It must remain in application/ports/ and must NOT be moved to
- * domain/ports/. See ADR-1102 §3.
- *
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Wire use cases and implement concrete adapters
- */
-⋮----
-import type { Task } from "../../domain/entities/Task";
-import type { TaskStatus } from "../../domain/value-objects/TaskStatus";
-import type { CreateTaskDto } from "../dto/create-task.dto";
-import type { TaskQueryDto } from "../dto/task-query.dto";
-⋮----
-export interface TaskService {
-  createTask(dto: CreateTaskDto): Promise<Task>;
-  assignTask(taskId: string, assigneeId: string): Promise<Task>;
-  transitionStatus(taskId: string, to: TaskStatus): Promise<Task>;
-  listTasks(query: TaskQueryDto): Promise<Task[]>;
-  getTask(taskId: string): Promise<Task | null>;
-}
-⋮----
-createTask(dto: CreateTaskDto): Promise<Task>;
-assignTask(taskId: string, assigneeId: string): Promise<Task>;
-transitionStatus(taskId: string, to: TaskStatus): Promise<Task>;
-listTasks(query: TaskQueryDto): Promise<Task[]>;
-getTask(taskId: string): Promise<Task | null>;
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/process-managers/README.md
-````markdown
-# workspace-workflow / application / process-managers
-
-## Purpose
-
-This directory contains **process managers** — long-lived, event-driven
-application services that coordinate cross-module integration flows across
-multiple use-case boundaries.
-
-A process manager is **not** a use case (it does not have a single actor
-goal and a single main-success-scenario). It listens to domain events and
-orchestrates downstream reactions, managing process state across multiple
-aggregates or modules.
-
-## Current Process Managers
-
-| File | Role |
-|------|------|
-| `knowledge-to-workflow-materializer.ts` | Listens to `notion.knowledge.*` events and materialises work-demand entities in the workspace-workflow subdomain. Confirmed process manager — retains application-layer placement. |
-
-## Placement Rationale
-
-`knowledge-to-workflow-materializer.ts` was reviewed against the query
-"read-model projection vs. process manager" in **ADR-5201** and confirmed
-to be a genuine process manager: it owns temporal coordination, multi-step
-side-effects, and cross-module event/command dispatch.  It therefore
-remains here and is **not** moved to `interfaces/` or `infrastructure/`.
-
-> See: `docs/decisions/5201-accidental-complexity-workspace-workflow-application.md`
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/materialize-tasks-from-knowledge.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file materialize-tasks-from-knowledge.use-case.ts
- * @description Use case: Batch-create Tasks (and optionally Invoices) from a
- * `notion.knowledge.page-approved` event payload.
- *
- * Idempotency: callers must ensure the same `sourceReference.causationId` is
- * not processed twice. This use case does NOT check for duplicates itself;
- * that responsibility belongs to the KnowledgeToWorkflowMaterializer process
- * manager which wraps this use case.
- */
-⋮----
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import type { MaterializeFromKnowledgeDto } from "../dto/materialize-from-knowledge.dto";
-⋮----
-export class MaterializeTasksFromKnowledgeUseCase {
-⋮----
-constructor(
-⋮----
-async execute(dto: MaterializeFromKnowledgeDto): Promise<CommandResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/entities/Invoice.ts
-````typescript
-/**
- * @module workspace-flow/domain/entities
- * @file Invoice.ts
- * @description Invoice aggregate entity representing a billing record for accepted tasks.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add domain validation methods as billing rules expand
- */
-⋮----
-import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
-import type { SourceReference } from "../value-objects/SourceReference";
-⋮----
-// ── Aggregate ─────────────────────────────────────────────────────────────────
-⋮----
-export interface Invoice {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly status: InvoiceStatus;
-  readonly totalAmount: number;
-  readonly submittedAtISO?: string;
-  readonly approvedAtISO?: string;
-  readonly paidAtISO?: string;
-  readonly closedAtISO?: string;
-  /**
-   * Present when this Invoice was materialized from a KnowledgePage via the
-   * `notion.knowledge.page-approved` event. Provides full provenance traceability.
-   */
-  readonly sourceReference?: SourceReference;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-/**
-   * Present when this Invoice was materialized from a KnowledgePage via the
-   * `notion.knowledge.page-approved` event. Provides full provenance traceability.
-   */
-⋮----
-// ── Inputs ────────────────────────────────────────────────────────────────────
-⋮----
-export interface CreateInvoiceInput {
-  readonly workspaceId: string;
-  readonly sourceReference?: SourceReference;
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/entities/Task.ts
-````typescript
-/**
- * @module workspace-flow/domain/entities
- * @file Task.ts
- * @description Task aggregate entity representing a work unit and its lifecycle.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add domain validation methods as business rules expand
- */
-⋮----
-import type { TaskStatus } from "../value-objects/TaskStatus";
-import type { SourceReference } from "../value-objects/SourceReference";
-⋮----
-// ── Aggregate ─────────────────────────────────────────────────────────────────
-⋮----
-export interface Task {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly title: string;
-  readonly description: string;
-  readonly status: TaskStatus;
-  readonly assigneeId?: string;
-  readonly dueDateISO?: string;
-  readonly acceptedAtISO?: string;
-  readonly archivedAtISO?: string;
-  /**
-   * Present when this Task was materialized from a KnowledgePage via the
-   * `notion.knowledge.page-approved` event. Provides full provenance traceability.
-   */
-  readonly sourceReference?: SourceReference;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-/**
-   * Present when this Task was materialized from a KnowledgePage via the
-   * `notion.knowledge.page-approved` event. Provides full provenance traceability.
-   */
-⋮----
-// ── Inputs ────────────────────────────────────────────────────────────────────
-⋮----
-export interface CreateTaskInput {
-  readonly workspaceId: string;
-  readonly title: string;
-  readonly description?: string;
-  readonly assigneeId?: string;
-  readonly dueDateISO?: string;
-  readonly sourceReference?: SourceReference;
-}
-⋮----
-export interface UpdateTaskInput {
-  readonly title?: string;
-  readonly description?: string;
-  readonly assigneeId?: string;
-  readonly dueDateISO?: string;
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseInvoiceItemRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseInvoiceItemRepository.ts
- * @description Firebase Firestore repository for InvoiceItem CRUD operations.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add query pagination support
- */
-⋮----
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api/infrastructure";
-import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
-import { toInvoiceItem } from "../firebase/invoice-item.converter";
-import { WF_INVOICE_ITEMS_COLLECTION } from "../firebase/workspace-flow.collections";
-⋮----
-export class FirebaseInvoiceItemRepository {
-⋮----
-private itemPath(itemId: string): string
-⋮----
-async findById(itemId: string): Promise<InvoiceItem | null>
-⋮----
-async findByInvoiceId(invoiceId: string): Promise<InvoiceItem[]>
-⋮----
-async delete(itemId: string): Promise<void>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseInvoiceRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseInvoiceRepository.ts
- * @description Firebase Firestore implementation of InvoiceRepository for workspace-flow.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add query pagination support and composite indexes
- */
-⋮----
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
-import type { Invoice, CreateInvoiceInput } from "../../domain/entities/Invoice";
-import type { InvoiceItem, AddInvoiceItemInput } from "../../domain/entities/InvoiceItem";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-import { toInvoice } from "../firebase/invoice.converter";
-import { toInvoiceItem } from "../firebase/invoice-item.converter";
-import {
-  WF_INVOICES_COLLECTION,
-  WF_INVOICE_ITEMS_COLLECTION,
-} from "../firebase/workspace-flow.collections";
-⋮----
-export class FirebaseInvoiceRepository implements InvoiceRepository {
-⋮----
-private invoicePath(invoiceId: string): string
-⋮----
-private itemPath(itemId: string): string
-⋮----
-async create(input: CreateInvoiceInput): Promise<Invoice>
-⋮----
-async delete(invoiceId: string): Promise<void>
-⋮----
-async findById(invoiceId: string): Promise<Invoice | null>
-⋮----
-async findByWorkspaceId(workspaceId: string): Promise<Invoice[]>
-⋮----
-async transitionStatus(
-    invoiceId: string,
-    to: InvoiceStatus,
-    nowISO: string,
-): Promise<Invoice | null>
-⋮----
-async addItem(input: AddInvoiceItemInput): Promise<InvoiceItem>
-⋮----
-// Update invoice totalAmount
-⋮----
-async findItemById(invoiceItemId: string): Promise<InvoiceItem | null>
-⋮----
-async updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null>
-⋮----
-async removeItem(invoiceItemId: string): Promise<void>
-⋮----
-async listItems(invoiceId: string): Promise<InvoiceItem[]>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseIssueRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseIssueRepository.ts
- * @description Firebase Firestore implementation of IssueRepository for workspace-flow.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add query pagination support and composite indexes
- */
-⋮----
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
-import type { Issue, OpenIssueInput, UpdateIssueInput } from "../../domain/entities/Issue";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { ISSUE_STATUSES, type IssueStatus } from "../../domain/value-objects/IssueStatus";
-import { toIssue } from "../firebase/issue.converter";
-import { WF_ISSUES_COLLECTION } from "../firebase/workspace-flow.collections";
-⋮----
-export class FirebaseIssueRepository implements IssueRepository {
-⋮----
-private issuePath(issueId: string): string
-⋮----
-async create(input: OpenIssueInput): Promise<Issue>
-⋮----
-async update(issueId: string, input: UpdateIssueInput): Promise<Issue | null>
-⋮----
-async delete(issueId: string): Promise<void>
-⋮----
-async findById(issueId: string): Promise<Issue | null>
-⋮----
-async findByTaskId(taskId: string): Promise<Issue[]>
-⋮----
-async countOpenByTaskId(taskId: string): Promise<number>
-⋮----
-async transitionStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<Issue | null>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseTaskMaterializationBatchJobRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseTaskMaterializationBatchJobRepository.ts
- * @description Firestore implementation for TaskMaterializationBatchJobRepository.
- */
-⋮----
-import { v7 as generateId } from "@lib-uuid";
-import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
-import type {
-  CompleteTaskMaterializationBatchJobInput,
-  CreateTaskMaterializationBatchJobInput,
-  TaskMaterializationBatchJob,
-} from "../../domain/entities/TaskMaterializationBatchJob";
-import type { TaskMaterializationBatchJobRepository } from "../../domain/repositories/TaskMaterializationBatchJobRepository";
-import { toTaskMaterializationBatchJob } from "../firebase/task-materialization-batch-job.converter";
-import { WF_TASK_MATERIALIZATION_BATCH_JOBS_COLLECTION } from "../firebase/workspace-flow.collections";
-⋮----
-export class FirebaseTaskMaterializationBatchJobRepository implements TaskMaterializationBatchJobRepository {
-⋮----
-private path(jobId: string): string
-⋮----
-async create(input: CreateTaskMaterializationBatchJobInput): Promise<TaskMaterializationBatchJob>
-⋮----
-async findById(jobId: string): Promise<TaskMaterializationBatchJob | null>
-⋮----
-async findByWorkspaceId(workspaceId: string): Promise<TaskMaterializationBatchJob[]>
-⋮----
-async markRunning(jobId: string): Promise<TaskMaterializationBatchJob | null>
-⋮----
-async markCompleted(
-    jobId: string,
-    input: CompleteTaskMaterializationBatchJobInput,
-): Promise<TaskMaterializationBatchJob | null>
-⋮----
-async markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<TaskMaterializationBatchJob | null>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseTaskRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseTaskRepository.ts
- * @description Firebase Firestore implementation of TaskRepository for workspace-flow.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add query pagination support and composite indexes
- */
-⋮----
-import {
-  firestoreInfrastructureApi,
-} from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
-import type { Task, CreateTaskInput, UpdateTaskInput } from "../../domain/entities/Task";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
-import { toTask } from "../firebase/task.converter";
-import { WF_TASKS_COLLECTION } from "../firebase/workspace-flow.collections";
-⋮----
-export class FirebaseTaskRepository implements TaskRepository {
-⋮----
-private taskPath(taskId: string): string
-⋮----
-async create(input: CreateTaskInput): Promise<Task>
-⋮----
-async update(taskId: string, input: UpdateTaskInput): Promise<Task | null>
-⋮----
-async delete(taskId: string): Promise<void>
-⋮----
-async findById(taskId: string): Promise<Task | null>
-⋮----
-async findByWorkspaceId(workspaceId: string): Promise<Task[]>
-⋮----
-async transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow-task-batch-job.actions.ts
-````typescript
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow-task-batch-job.actions.ts
- * @description Server Actions for task materialization batch job operations.
- */
-⋮----
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { WorkspaceFlowTaskBatchJobFacade } from "../../api/workspace-flow-task-batch-job.facade";
-import { makeTaskMaterializationBatchJobRepo } from "../../api/factories";
-import { AiTaskCandidateExtractionAdapter } from "../../infrastructure/ai/AiTaskCandidateExtractionAdapter";
-import type {
-  ExtractTaskCandidatesFromKnowledgeDto,
-  ExtractTaskCandidatesFromKnowledgeResult,
-} from "../../application/dto/extract-task-candidates-from-knowledge.dto";
-import type { SubmitTaskMaterializationBatchJobDto } from "../../application/dto/submit-task-materialization-batch-job.dto";
-import type { TaskMaterializationBatchJob } from "../../application/dto/workflow.dto";
-⋮----
-function makeFacade(): WorkspaceFlowTaskBatchJobFacade
-⋮----
-export async function wfSubmitTaskMaterializationBatchJob(
-  dto: SubmitTaskMaterializationBatchJobDto,
-): Promise<CommandResult>
-⋮----
-export async function wfGetTaskMaterializationBatchJob(
-  jobId: string,
-): Promise<TaskMaterializationBatchJob | null>
-⋮----
-export async function wfListTaskMaterializationBatchJobs(
-  workspaceId: string,
-): Promise<TaskMaterializationBatchJob[]>
-⋮----
-export async function wfExtractTaskCandidatesFromKnowledge(
-  dto: ExtractTaskCandidatesFromKnowledgeDto,
-): Promise<ExtractTaskCandidatesFromKnowledgeResult>
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/EditTaskDialog.tsx
-````typescript
-import { useEffect, useState } from "react";
-⋮----
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-⋮----
-import type { Task } from "../../application/dto/workflow.dto";
-import { wfUpdateTask } from "../_actions/workspace-flow.actions";
-⋮----
-export interface EditTaskDialogProps {
-  open: boolean;
-  task: Task;
-  onClose: () => void;
-  onUpdated: () => void;
-}
-⋮----
-async function handleSubmit(event: React.FormEvent)
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/TaskRow.tsx
-````typescript
-import { useCallback, useState } from "react";
-⋮----
-import { ChevronDown, ChevronRight, Pencil, Plus } from "lucide-react";
-⋮----
-import type { CommandResult } from "@shared-types";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-⋮----
-import type { Issue } from "../../application/dto/workflow.dto";
-import type { Task } from "../../application/dto/workflow.dto";
-import type { TaskStatus } from "../../application/dto/workflow.dto";
-import {
-  wfApproveTaskAcceptance,
-  wfArchiveTask,
-  wfPassTaskQa,
-  wfSubmitTaskToQa,
-} from "../_actions/workspace-flow.actions";
-import { getWorkspaceFlowIssues } from "../queries/workspace-flow.queries";
-import { AssignTaskDialog } from "./AssignTaskDialog";
-import { EditTaskDialog } from "./EditTaskDialog";
-import { IssueRow } from "./IssueRow";
-import { OpenIssueDialog } from "./OpenIssueDialog";
-⋮----
-function formatShortDate(iso: string | undefined): string
-⋮----
-export interface TaskRowProps {
-  task: Task;
-  currentUserId: string;
-  onTransitioned: () => void;
-}
-⋮----
-export function TaskRow(
-⋮----
-// non-fatal
-⋮----
-async function toggleIssues()
-⋮----
-async function runAction(action: () => Promise<CommandResult>)
-⋮----
-<Button size="sm" variant="outline" disabled=
-⋮----
-return <Button size="sm" variant="outline" disabled=
-⋮----
-{/* ── Task header ─────────────────────── */}
-⋮----
-{/* ── Action row ──────────────────────── */}
-⋮----
-<Button
-⋮----
-{/* ── Issues sub-list ─────────────────── */}
-⋮----
-{/* ── Dialogs ─────────────────────────── */}
-⋮----
-onClose=
-⋮----
-onCreated=
-await loadIssues();
-if (!issuesExpanded) setIssuesExpanded(true);
 ````
 
 ## File: packages/shared-events/index.ts
@@ -51471,66 +48206,95 @@ export function AppProvider(
 // eslint-disable-next-line react-hooks/exhaustive-deps
 ````
 
-## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
+## File: app/(shell)/_shell/ShellAppRail.tsx
 ````typescript
 /**
- * ShellDashboardSidebar — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it composes workspace module components.
+ * ShellAppRail — app/(shell)/_shell composition layer.
+ * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
+ * because it composes downstream modules (workspace).
+ *
+ * Platform is upstream and must not import downstream modules.
+ * app/ is the designated composition layer.
  */
 ⋮----
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-⋮----
+import Link from "next/link";
 import {
-  buildWorkspaceQuickAccessItems,
-  CustomizeNavigationDialog,
-  getWorkspaceIdFromPath,
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  readNavPreferences,
-  supportsWorkspaceSearchContext,
-  type NavPreferences,
-  useRecentWorkspaces,
-  useSidebarLocale,
-  WorkspaceQuickAccessRow,
-} from "@/modules/workspace/api/ui";
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  LayoutDashboard,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 ⋮----
+import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
+import { CreateOrganizationDialog } from "@/modules/platform/api/ui";
 import {
-  type DashboardSidebarProps,
-  ORGANIZATION_MANAGEMENT_ITEMS,
-  ACCOUNT_NAV_ITEMS,
-  SECTION_TITLES,
-  resolveNavSection,
-  isActiveRoute,
-  isActiveOrganizationAccount,
-} from "./ShellSidebarNavData";
-import { ShellSidebarHeader } from "./ShellSidebarHeader";
-import { DashboardSidebarBody } from "./ShellSidebarBody";
+  listShellRailCatalogItems,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  buildShellContextualHref,
+  type ShellRailCatalogItem,
+} from "@/modules/platform/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { CreateWorkspaceDialogRail } from "@/modules/workspace/api/ui";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
 ⋮----
-export function ShellDashboardSidebar({
-  pathname,
-  activeAccount,
-  workspaces,
-  activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
-  onSelectWorkspace,
-}: DashboardSidebarProps)
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
 ⋮----
-isActiveRoute={(href) => isActiveRoute(pathname, href)}
-          activeAccountId={activeAccount?.id ?? null}
-          showAccountManagement={showAccountManagement}
-          visibleAccountItems={visibleAccountItems}
-          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
-          workspacePathId={workspacePathId}
-          navPrefs={navPrefs}
-          localeBundle={localeBundle}
-          showRecentWorkspaces={showRecentWorkspaces}
-          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
-          hasOverflow={hasOverflow}
-          isExpanded={isExpanded}
-          activeWorkspaceId={activeWorkspaceId}
-          onSelectWorkspace={onSelectWorkspace}
-onToggleExpanded=
+interface RailItem {
+  id: string;
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+⋮----
+function getInitial(name: string | undefined | null): string
+⋮----
+function isActive(href: string)
+⋮----
+function buildWorkspaceDetailHref(workspaceId: string): string
+⋮----
+onClick=
+⋮----
+onSelectWorkspace(workspace.id);
+⋮----
+accountType=
 ````
 
 ## File: app/(shell)/_shell/ShellRootLayout.tsx
@@ -51591,6 +48355,54 @@ function handleSelectWorkspace(workspaceId: string | null)
 async function handleLogout()
 ⋮----
 void handleLogout();
+````
+
+## File: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
+````typescript
+import { use, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+⋮----
+import {
+  useAuth,
+} from "@/modules/platform/api";
+import {
+  OrganizationMembersRouteScreen,
+  OrganizationOverviewRouteScreen,
+  OrganizationPermissionsRouteScreen,
+  OrganizationTeamsRouteScreen,
+  SettingsNotificationsRouteScreen,
+  useAccountRouteContext,
+  useApp,
+} from "@/modules/platform/api/ui";
+import {
+  AccountDashboardRouteScreen,
+  OrganizationAuditRouteScreen,
+  OrganizationDailyRouteScreen,
+  OrganizationScheduleRouteScreen,
+  OrganizationWorkspacesRouteScreen,
+  WorkspaceDetailRouteScreen,
+  WorkspaceHubScreen,
+} from "@/modules/workspace/api/ui";
+⋮----
+interface AccountRouteDispatcherPageProps {
+  params: Promise<{
+    accountId: string;
+    slug?: string[];
+  }>;
+}
+⋮----
+interface RedirectingRouteProps {
+  readonly href: string;
+  readonly message: string;
+}
+⋮----
+function RedirectingRoute(
+⋮----
+export default function AccountRouteDispatcherPage({
+  params,
+}: AccountRouteDispatcherPageProps)
+⋮----
+if (accountType === "organization")
 ````
 
 ## File: docs/contexts/analytics/AGENT.md
@@ -52270,6 +49082,130 @@ flowchart LR
 - [ubiquitous-language.md](./ubiquitous-language.md)
 - [../../subdomains.md](../../subdomains.md)
 - [../../bounded-contexts.md](../../bounded-contexts.md)
+````
+
+## File: docs/contexts/workspace/README.md
+````markdown
+# Workspace Context
+
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+
+## Purpose
+
+workspace 是協作容器與工作區範疇主域。它的責任是提供 workspaceId、工作區生命週期、參與關係、共享、存在感、活動投影、稽核、排程與工作流，讓其他主域可以在同一個協作範疇中運作。
+
+## Why This Context Exists
+
+- 把工作區容器語意與平台治理語意分離。
+- 把工作區 scope 作為其他主域可依賴的 published language。
+- 把活動流、稽核、排程與流程協調收斂為同一主域內的高凝聚能力。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 協作容器與 workspace scope |
+| Upstream Dependency | iam 的 actor、tenant、access decision；billing 的 entitlement；platform 的 account 與 organization surface |
+| Downstream Consumers | notion、notebooklm |
+| Core Principle | workspace 暴露 scope，不接管治理、商業或內容正典 |
+
+## Baseline Subdomains
+
+- audit
+- feed
+- scheduling
+- workspace-workflow
+
+## Recommended Gap Subdomains
+
+- lifecycle
+- membership
+- sharing
+- presence
+
+## Key Relationships
+
+- 與 iam：workspace 消費 actor、tenant 與 access decision。
+- 與 billing：workspace 消費 entitlement 與 subscription capability signal。
+- 與 platform：workspace 消費 account scope 與 organization surface。
+- 與 notion：workspace 向 notion 提供 workspaceId、membership scope、share scope。
+- 與 notebooklm：workspace 向 notebooklm 提供 workspaceId、membership scope、share scope。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENT.md](./AGENT.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- workspace 對外只暴露 scope、published language、API boundary、events，不暴露內部實作。
+
+## Route Surface Contract
+
+- workspace 不擁有獨立的 top-level shell route；它被組裝在 account-scoped shell surface 之下。
+- workspace 消費來自 platform account scope 的 `AccountType = "user" | "organization"` 字串契約；其中 `"user"` 代表 personal account context，`"organization"` 代表 organization context。
+- workspace detail 的 canonical route 是 `/{accountId}/{workspaceId}`，表示「先選 account，再進入該 account 底下的 workspace」。
+- workspace tabs 與 overview panels 應維持在同一條 detail route 上，以 query state 表示，例如 `?tab=Overview&panel=knowledge-pages`。
+- `/{accountId}/workspace/{workspaceId}` 只保留為相容 redirect，不是新的文件或 UI 應輸出的 canonical href。
+- UI 可以顯示個人帳號 / 組織帳號，但 workspace aggregate、use case、event metadata 與 validator 的 accountType string contract 不應漂移成 `"personal" | "organization"`。
+- account dashboard、members、teams、permissions、schedule、audit 等 account-level concern 不屬於 workspace route surface。
+- workspace route 只負責協作容器與 workspace-scoped consumption，不承接 platform governance canonical navigation。
+
+## Anti-Pattern Rules
+
+- 不把 workspace scope 寫成平台治理結果本身。
+- 不把 feed、audit、workspace-workflow 互相取代為單一泛用流程層。
+- 不把 notion 或 notebooklm 的內容與推理責任吸回 workspace。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 workspace 的協作 scope 定位，再安排 lifecycle、membership、sharing、workspace-workflow 的交互。
+- 奧卡姆剃刀：不要預先建立第二條平行協作流程；只有既有 scope 邊界不夠時才補新抽象。
+- 優先讓 input -> translation -> application -> domain -> published scope 保持單純可追溯。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Boundary["workspace boundary"]
+	Boundary --> Translation["DTO / ACL"]
+	Translation --> App["Application use case"]
+	App --> Domain["Workspace domain"]
+	Domain --> Scope["workspace scope"]
+	Scope --> Notion["notion"]
+	Scope --> NotebookLM["notebooklm"]
+```
+
+## Document Network
+
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../README.md](../../README.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
 ## File: docs/decisions/0006-domain-event-discriminant-format.md
@@ -53765,6 +50701,122 @@ flowchart LR
 - 不展開跨 context 串接流程。
 ````
 
+## File: docs/integration-guidelines.md
+````markdown
+# Integration Guidelines
+
+本文件在本次任務限制下，僅依 Context7 驗證的 published language、ACL、Conformist 與 hexagonal boundary 原則重建，不主張反映現況實作。
+
+## Boundary Contract
+
+跨主域整合只能使用：
+
+- published language
+- public API boundary
+- domain / integration events
+- local DTO
+- downstream ACL 或 downstream Conformist
+
+## Pattern Selection Rules
+
+| Situation | Pattern |
+|---|---|
+| 下游與上游語義高度一致，且不會扭曲本地語言 | Conformist |
+| 上游語義會污染下游本地語言 | Anti-Corruption Layer |
+| 只是跨主域資料交換 | Published Language + Local DTO |
+
+## Hard Rules
+
+- ACL 與 Conformist 只能由 downstream 選擇。
+- ACL 與 Conformist 互斥。
+- 不可直接傳遞上游 entity / aggregate 作為下游正典模型。
+- 不可把 shared technical package 誤當成 strategic shared kernel。
+- 若需要共同語義，先定 published language，再定 DTO，再評估是否需要 ACL。
+
+## Domain-Specific Guidance
+
+- workspace 消費 iam、billing 或 platform 時，優先保護自己的 membership、sharing、presence 語言。
+- notion 消費 iam、billing、ai 或 workspace 時，優先保護自己的 knowledge artifact 與 taxonomy 語言。
+- notebooklm 消費 notion、iam、billing 或 ai 時，優先保護自己的 retrieval、grounding、synthesis 語言。
+- analytics 消費其他主域時，應以 event projection 與 local read model 為主，不回寫上游 canonical model。
+
+## App Router Boundary Guidance
+
+- App Router path shape 是 composition contract，不是跨主域 published language 的替代品。
+- 即使 path 以 `/{accountId}/{workspaceId}` 呈現，platform 與 workspace 之間的語意交換仍必須走 API boundary、published language 或 events。
+- shell 內所有 workspace detail href 應優先輸出 canonical `/{accountId}/{workspaceId}`，而不是 `/{accountId}/workspace/{workspaceId}`。
+- legacy redirect path 可以短期保留作為 compatibility surface，但文件、設計稿與新程式碼不應再以 legacy path 當作正典契約。
+- route redirect、query-state 正規化與 URL composition 屬於 interfaces / app composition concern，不應回滲為 domain rule 或跨主域契約。
+
+## Identifier Boundary Rules
+
+- `accountId` 只用於 shell / composition 層的 account scope，或 account-scoped downstream input；不要把它直接當成 `workspaceId`、`organizationId` 或 `userId`。
+- `workspaceId` 只表示協作容器 scope；跨主域 published language 若需要 workspace context，應明確傳遞 `workspaceId`，不要讓 notion / notebooklm 猜測 route segment。
+- `organizationId` 只用於 organization-scoped domain 或 integration contract；若某 flow 由 organization account 的 `accountId` 進入，需在 application / mapper 層顯式轉成 `organizationId`。
+- `userId` 用於具體使用者欄位，例如 `createdByUserId`、`verifiedByUserId`、`submittedByUserId`、`assignedUserId`；`actorId` 用於行為主體 metadata，不保證一定是 user。
+- `ownerId` 表示資源所有者；`tenantId` 表示租戶隔離鍵；兩者都不是 canonical route param。
+- `fileId` 是檔案 metadata 主鍵；不能取代 owner / workspace / tenant scope，也不能單獨表示授權邊界。
+
+## Integration Checklist
+
+1. 先確認 upstream / downstream 方向。
+2. 先列出 published language。
+3. 判斷是否語義一致。
+4. 一致則考慮 conformist，不一致則建立 ACL。
+5. 避免把 DTO、entity、policy、UI 狀態混成同一層。
+
+## Integration Anti-Patterns
+
+- 直接傳遞上游 aggregate、entity、repository 給下游使用。
+- 讓 downstream 省略 published language 與 local DTO，直接貼靠上游內部模型。
+- 把 ACL 當成預設樣板卻不判斷是否真的有語義污染。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先決定 upstream、downstream、published language，再決定 DTO、ACL 或 Conformist。
+- 奧卡姆剃刀：若 published language 加 local DTO 已足夠，就不要額外建立雙重 mapper、雙重 ACL 或鏡像 aggregate。
+- 只有在上游語義真的會污染本地語言時，才建立 ACL。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["Upstream"] -->|Published Language| Boundary["Downstream boundary"]
+	Boundary --> Translation["Local DTO / ACL / Conformist"]
+	Translation --> Application["Application"]
+	Application --> Domain["Domain"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Need["Cross-context need"] --> Direction["Identify upstream/downstream"]
+	Direction --> PL["Define published language"]
+	PL --> Decision["Need protection?"]
+	Decision -->|Yes| ACL["ACL"]
+	Decision -->|No| DTO["Local DTO / Conformist"]
+	ACL --> Domain["Downstream domain"]
+	DTO --> Domain
+```
+
+## Document Network
+
+- [context-map.md](./context-map.md)
+- [strategic-patterns.md](./strategic-patterns.md)
+- [architecture-overview.md](./architecture-overview.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
+- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
+- [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
+
+## Conflict Resolution
+
+- 若某整合指南與 [context-map.md](./context-map.md) 的方向衝突，以 context map 為準。
+- 若某整合指南與 [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md) 衝突，以 ADR 為準。
+````
+
 ## File: modules/ai/index.ts
 ````typescript
 /**
@@ -53775,147 +50827,63 @@ flowchart LR
  */
 ````
 
-## File: modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts
-````typescript
-import { genkit } from "genkit";
-import { googleAI } from "@genkit-ai/google-genai";
-⋮----
-import type {
-  AiTextGenerationPort,
-  GenerateAiTextInput,
-  GenerateAiTextOutput,
-} from "../../../subdomains/content-generation/domain/ports/AiTextGenerationPort";
-⋮----
-export class GenkitAiTextGenerationAdapter implements AiTextGenerationPort {
-⋮----
-async generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>
-````
-
-## File: modules/ai/subdomains/content-distillation/api/server.ts
-````typescript
-import { DistillContentUseCase } from "../application/use-cases/distill-content.use-case";
-import { ExtractTasksFromContentUseCase } from "../application/use-cases/extract-tasks-from-content.use-case";
-import { GenkitDistillationAdapter } from "../infrastructure/llm/GenkitDistillationAdapter";
-import type {
-  DistillContentInput,
-  DistillationResult,
-  TaskExtractionInput,
-  TaskExtractionOutput,
-} from "../domain/ports/DistillationPort";
-⋮----
-function getDistillUseCase(): DistillContentUseCase
-⋮----
-function getTaskExtractionUseCase(): ExtractTasksFromContentUseCase
-⋮----
-export async function distillContent(input: DistillContentInput): Promise<DistillationResult>
-⋮----
-export async function extractTasksFromContent(
-  input: TaskExtractionInput,
-): Promise<TaskExtractionOutput>
-````
-
-## File: modules/ai/subdomains/content-distillation/application/index.ts
-````typescript
-
-````
-
-## File: modules/ai/subdomains/content-distillation/README.md
-````markdown
-# content-distillation subdomain
-
-## Purpose
-
-The content-distillation subdomain owns the reduction of large or multi-source content into reusable, structured knowledge fragments.
-It turns noisy or long-form material into concise outputs suitable for downstream AI and product workflows.
-
-## Responsibility
-
-- distill source material into overview and structured items
-- provide schema-oriented output contracts
-- preserve traceability metadata for downstream reuse
-
-## Non-Responsibility
-
-- no raw provider routing ownership
-- no UI composition
-- no cross-domain state mutation
-
-## Dependency direction
-
-`api -> application -> domain`
-````
-
-## File: modules/ai/subdomains/content-generation/api/index.ts
+## File: modules/ai/infrastructure/llm/built-in-tools.ts
 ````typescript
 /**
- * Public API boundary for the AI content-generation subdomain.
- * Cross-module consumers must import through this entry point.
+ * Built-in Genkit tool definitions for the ai bounded context.
  *
- * This barrel is client-safe — it exports only types and interfaces.
- * Server-only functions live in ./server.ts.
+ * All tools are registered on the shared `aiClient` from `genkit-shared.ts`.
+ * Adapters that need to use these tools in `aiClient.generate({ tools: [...] })`
+ * must import the instances from here — do NOT re-define tools on a separate instance.
  */
 ⋮----
-import type { GenerateAiTextInput, GenerateAiTextOutput } from "../domain/ports/AiTextGenerationPort";
+import { z } from "genkit";
 ⋮----
-export interface AIAPI {
-  summarize(text: string, model?: string): Promise<string>;
-  generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
+import type { ToolDescriptor } from "../../domain/ports/ToolRuntimePort";
+⋮----
+import { aiClient } from "./genkit-shared";
+⋮----
+// ── Tool definitions ──────────────────────────────────────────────────────────
+⋮----
+/**
+ * Tool: ai.getCurrentDatetime
+ *
+ * Returns the current date and time in ISO 8601 format together with the
+ * server IANA timezone identifier.  Use whenever the prompt involves
+ * "today", "now", or any relative date/time calculation.
+ */
+⋮----
+/**
+ * Tool: ai.evaluateMathExpression
+ *
+ * Safely evaluates an arithmetic expression that contains only digits, spaces,
+ * and the operators +, -, *, /, and parentheses. The inputSchema regex
+ * enforces this constraint so arbitrary code execution is not possible.
+ */
+⋮----
+// Safe: expression is validated by inputSchema regex to contain only
+// digits, spaces, and arithmetic operators (+, -, *, /, ., ())
+// eslint-disable-next-line @typescript-eslint/no-implied-eval
+⋮----
+// ── Registry ──────────────────────────────────────────────────────────────────
+⋮----
+export interface RegisteredBuiltInTool {
+  readonly descriptor: ToolDescriptor;
+  // Tool instance type varies across Genkit versions; typed as unknown to avoid
+  // coupling to Genkit internals while remaining compatible.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  readonly instance: any;
 }
 ⋮----
-summarize(text: string, model?: string): Promise<string>;
-generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
-````
-
-## File: modules/ai/subdomains/content-generation/README.md
-````markdown
-# content-generation subdomain
-
-## Purpose
-
-The content-generation subdomain owns provider-agnostic text generation capabilities for the AI bounded context.
-It focuses on producing summaries, drafts, and free-form generated output from validated inputs.
-
-## Responsibility
-
-- define content-generation contracts in domain language
-- expose generation use cases through application and api boundaries
-- support summarization and structured text generation inputs
-
-## Non-Responsibility
-
-- no prompt orchestration ownership
-- no safety policy ownership
-- no persistence or UI concerns
-
-## Dependency direction
-
-`api -> application -> domain`
-````
-
-## File: modules/ai/subdomains/context-assembly/README.md
-````markdown
-# context-assembly subdomain
-
-## Purpose
-
-The context-assembly subdomain owns the preparation of ranked, bounded, model-ready context packages.
-It selects and shapes input context so downstream generation and distillation can run with predictable quality and token cost.
-
-## Responsibility
-
-- assemble token-budgeted context inputs
-- rank and combine candidate evidence
-- produce model-ready context payloads for downstream use cases
-
-## Non-Responsibility
-
-- no final content generation ownership
-- no policy evaluation ownership
-- no observability storage responsibilities
-
-## Dependency direction
-
-`api -> application -> domain`
+// Tool instance type varies across Genkit versions; typed as unknown to avoid
+// coupling to Genkit internals while remaining compatible.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+⋮----
+/**
+ * Complete list of built-in tools registered on the shared aiClient.
+ * Use `BUILT_IN_TOOLS` to look up tool instances by descriptor name when
+ * passing tools to `aiClient.generate()`.
+ */
 ````
 
 ## File: modules/ai/subdomains/evaluation-policy/README.md
@@ -54020,40 +50988,6 @@ It ensures downstream AI capabilities remain policy-aligned and risk-aware.
 ## Dependency direction
 
 `api -> application -> domain`
-````
-
-## File: modules/ai/subdomains/tool-runtime/domain/index.ts
-````typescript
-
-````
-
-## File: modules/ai/subdomains/tool-runtime/infrastructure/genkit/GenkitToolRuntimeAdapter.ts
-````typescript
-import { v4 as uuid } from "@lib-uuid";
-⋮----
-import type {
-  ToolDescriptor,
-  ToolEnabledGenerationInput,
-  ToolEnabledGenerationOutput,
-  ToolRuntimePort,
-} from "../../domain/ports/ToolRuntimePort";
-import { BUILT_IN_TOOLS } from "../../../../infrastructure/llm/built-in-tools";
-import { aiClient, configuredModel } from "../../../../infrastructure/llm/genkit-shared";
-⋮----
-// ── Tool registry (delegated to shared built-in-tools) ────────────────────────
-⋮----
-// ── Adapter ───────────────────────────────────────────────────────────────────
-⋮----
-export class GenkitToolRuntimeAdapter implements ToolRuntimePort {
-⋮----
-listAvailableTools(): ReadonlyArray<ToolDescriptor>
-⋮----
-async generateWithTools(
-    input: ToolEnabledGenerationInput,
-): Promise<ToolEnabledGenerationOutput>
-⋮----
-// Count tool invocations by inspecting conversation messages.
-// Each message with a toolRequest part represents one model-initiated call.
 ````
 
 ## File: modules/analytics/AGENT.md
@@ -55406,134 +52340,6 @@ export class SharedAiKnowledgeSummaryAdapter implements KnowledgeSummaryPort, Kn
 async summarizePage(input: KnowledgeSummaryInput): Promise<KnowledgeSummaryResult>
 ⋮----
 async distillPage(input: KnowledgeDistillationInput): Promise<KnowledgeDistillationResult>
-````
-
-## File: modules/notion/interfaces/authoring/components/ArticleDetailPanel.tsx
-````typescript
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import {
-  Archive,
-  ArrowLeft,
-  BadgeCheck,
-  Edit,
-  FileClock,
-  MessageSquare,
-  History,
-  Globe,
-  Link2,
-} from "lucide-react";
-⋮----
-import { getArticle, getCategories, getBacklinks } from "../queries";
-import {
-  publishArticle,
-  archiveArticle,
-  verifyArticle,
-  requestArticleReview,
-} from "../_actions/article.actions";
-import { ArticleDialog } from "./ArticleDialog";
-import type { ArticleSnapshot as Article } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import { CommentPanel } from "../../collaboration/components/CommentPanel";
-import { VersionHistoryPanel } from "../../collaboration/components/VersionHistoryPanel";
-import { ReactMarkdown } from "@lib-react-markdown";
-import { remarkGfm } from "@lib-remark-gfm";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-⋮----
-// ── Props ─────────────────────────────────────────────────────────────────────
-⋮----
-export interface ArticleDetailPanelProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-⋮----
-// ── Component ─────────────────────────────────────────────────────────────────
-⋮----
-function buildArticleDetailHref(targetArticleId: string): string
-⋮----
-function handlePublish()
-⋮----
-function handleArchive()
-⋮----
-function handleVerify()
-⋮----
-function handleRequestReview()
-⋮----
-<Button variant="ghost" size="sm" onClick=
-⋮----
-{/* Back + actions bar */}
-⋮----
-{/* Header */}
-⋮----
-{/* Body tabs */}
-````
-
-## File: modules/notion/interfaces/authoring/components/KnowledgeBaseArticlesPanel.tsx
-````typescript
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
-⋮----
-import { useAuth } from "@/modules/iam/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-⋮----
-import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import { getArticles, getCategories } from "../queries";
-import { ArticleDialog } from "./ArticleDialog";
-import { CategoryTreePanel } from "./CategoryTreePanel";
-⋮----
-/**
- * KnowledgeBaseArticlesPanel
- * Route-level screen component for /knowledge-base/articles.
- * Encapsulates data-loading, filtering and layout so the Next.js route
- * file stays thin (params/context wiring only).
- */
-export interface KnowledgeBaseArticlesPanelProps {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly currentUserId?: string | null;
-}
-⋮----
-function handleSuccess(articleId?: string)
-````
-
-## File: modules/notion/interfaces/knowledge/components/KnowledgePagesPanel.tsx
-````typescript
-import { useCallback, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-⋮----
-import { useAuth } from "@/modules/iam/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-⋮----
-import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
-import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
-import { PageTreePanel } from "./PageTreePanel";
-⋮----
-/**
- * KnowledgePagesPanel
- * Route-level screen component for /knowledge/pages.
- * Encapsulates data-loading, scope resolution and layout so that the
- * Next.js route file stays thin (params/context wiring only).
- */
-export interface KnowledgePagesPanelProps {
-  readonly accountId: string;
-  readonly workspaceId?: string | null;
-  readonly currentUserId?: string | null;
-  readonly scope?: "workspace" | "account";
-}
-⋮----
-function buildPageDetailHref(pageId: string)
-⋮----
-onCreated=
 ````
 
 ## File: modules/notion/README.md
@@ -57186,6 +53992,23 @@ advanceStage(input: AdvanceJobStageInput): Promise<JobResult<BackgroundJob>>;
  */
 ````
 
+## File: modules/platform/subdomains/notification/domain/value-objects/WorkspaceNotificationEventType.ts
+````typescript
+import { z } from "@lib-zod";
+⋮----
+/**
+ * Canonical workspace event types that can trigger a notification.
+ * Aligned with discriminants emitted by workspace flow domain events.
+ */
+⋮----
+export type WorkspaceNotificationEventType =
+  (typeof WORKSPACE_NOTIFICATION_EVENT_TYPES)[number];
+⋮----
+export function createWorkspaceNotificationEventType(
+  raw: string,
+): WorkspaceNotificationEventType
+````
+
 ## File: modules/platform/subdomains/notification/interfaces/_actions/notification.actions.ts
 ````typescript
 /**
@@ -57533,91 +54356,26 @@ export async function createWorkspaceLocation(
 ): Promise<CommandResult>
 ````
 
-## File: modules/workspace/interfaces/web/components/cards/WorkspaceContextCard.tsx
+## File: modules/workspace/interfaces/web/components/cards/WorkspaceProductSpineCard.tsx
 ````typescript
-/**
- * WorkspaceContextCard
- * Purpose: display the active workspace context in notebook/ai-chat sidebar.
- * Shows workspace name + navigation links when a workspace is active,
- * otherwise shows an empty-state hint.
- */
-⋮----
 import Link from "next/link";
-import { FolderKanban } from "lucide-react";
-⋮----
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import type { WorkspaceEntity } from "../../../contracts";
-⋮----
-interface WorkspaceContextCardProps {
-  readonly workspace: WorkspaceEntity | null;
-}
-````
-
-## File: modules/workspace/interfaces/web/components/layout/WorkspaceSidebarSection.tsx
-````typescript
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-⋮----
+import { Button } from "@ui-shadcn/ui/button";
 import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabsByGroup,
-  WORKSPACE_TAB_SIDEBAR_GROUP_ORDER,
-  getWorkspaceTabStatus,
-  resolveWorkspaceTabValue,
-  type WorkspaceTabGroup,
-  type WorkspaceTabValue,
-} from "../../navigation/workspace-tabs";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { WorkspaceInformationCard } from "./WorkspaceInformationCard";
+import {
+  getWorkspaceAddressLines,
+  getWorkspaceRoleAssignments,
+} from "../../view-models/workspace-supporting-records";
 ⋮----
-export interface WorkspaceSidebarLocaleBundle {
-  workspace?: {
-    tabLabels?: Record<string, string>;
-  };
-}
-⋮----
-export interface WorkspaceNavigationPreferences {
-  pinnedWorkspace: string[];
-  workspaceOrder: string[];
-}
-⋮----
-interface TabLinkItem {
-  value: WorkspaceTabValue;
-  label: string;
-}
-⋮----
-function createWorkspaceLinkItems(group: WorkspaceTabGroup): TabLinkItem[]
-⋮----
-function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue): string
-⋮----
-function tTab(
-  tab: WorkspaceTabValue,
-  fallback: string,
-  localeBundle: WorkspaceSidebarLocaleBundle | null,
-): string
-⋮----
-function tTabWithDevStatus(
-  tab: WorkspaceTabValue,
-  fallback: string,
-  localeBundle: WorkspaceSidebarLocaleBundle | null,
-): string
-⋮----
-function getPrefId(tabValue: string): string
-⋮----
-function isItemEnabled(prefId: string, navPrefs: WorkspaceNavigationPreferences): boolean
-⋮----
-function getItemOrder(prefId: string, navPrefs: WorkspaceNavigationPreferences): number
-⋮----
-function sortByPreferenceOrder<T extends { value: string }>(
-  items: readonly T[],
-  navPrefs: WorkspaceNavigationPreferences,
-): T[]
-⋮----
-interface WorkspaceSidebarSectionProps {
-  workspacePathId: string;
-  navPrefs: WorkspaceNavigationPreferences;
-  localeBundle: WorkspaceSidebarLocaleBundle | null;
-  getItemClassName: (isActive: boolean) => string;
+interface WorkspaceProductSpineCardProps {
+  readonly workspace: WorkspaceEntity;
 }
 ````
 
@@ -57635,39 +54393,23 @@ import { AccountDashboardScreen } from "./AccountDashboardScreen";
 export function AccountDashboardRouteScreen()
 ````
 
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailRouteScreen.tsx
-````typescript
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-⋮----
-import { WorkspaceDetailScreen } from "./WorkspaceDetailScreen";
-import { resolveWorkspaceTabValue } from "../../navigation/workspace-tabs";
-⋮----
-interface WorkspaceDetailRouteScreenProps {
-  workspaceId: string;
-  accountId: string | null | undefined;
-  accountsHydrated: boolean;
-  initialTab?: string;
-  initialOverviewPanel?: string;
-}
-⋮----
-function buildWorkspaceTabHref(
-  accountId: string,
-  workspaceId: string,
-  tab: string,
-  panel?: string,
-): string
-````
-
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx
+## File: modules/workspace/interfaces/web/components/screens/AccountDashboardScreen.tsx
 ````typescript
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import {
+  BookOpen,
+  Brain,
+  Database,
+  FileText,
+  FolderOpen,
+  Library,
+  MessageSquare,
+  Notebook,
+  Shield,
+  User,
+  Users,
+} from "lucide-react";
 ⋮----
-import type { WorkspaceEntity } from "../../../contracts";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
   CardContent,
@@ -57675,37 +54417,41 @@ import {
   CardHeader,
   CardTitle,
 } from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
 ⋮----
-import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";
-import { getWorkspaceGovernanceSummary } from "../../view-models/workspace-supporting-records";
-import { CreateWorkspaceDialog } from "../dialogs/CreateWorkspaceDialog";
+import type { WorkspaceEntity } from "../../../contracts";
 ⋮----
-interface WorkspaceHubScreenProps {
-  readonly accountId: string | null | undefined;
-  readonly accountName: string | null | undefined;
+// ── Types ─────────────────────────────────────────────────────────────────────
+⋮----
+interface AccountDashboardScreenProps {
+  readonly accountId: string;
+  readonly accountName: string | null;
   readonly accountType: "user" | "organization";
-  readonly accountsHydrated: boolean;
-  readonly isBootstrapSeeded: boolean;
-  readonly currentUserId?: string | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly currentUserId: string | null;
 }
 ⋮----
-export function WorkspaceHubScreen({
-  accountId,
-  accountName,
-  accountType,
-  accountsHydrated,
-  isBootstrapSeeded,
-  currentUserId,
-}: WorkspaceHubScreenProps)
+// ── Quick-access card definitions ─────────────────────────────────────────────
 ⋮----
-function resetCreateWorkspaceDialog()
+interface QuickAccessCard {
+  readonly key: string;
+  readonly label: string;
+  readonly description: string;
+  readonly icon: React.ReactNode;
+  readonly buildHref: (accountId: string, workspaceId: string) => string;
+}
 ⋮----
-async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>)
+function enc(s: string): string
 ⋮----
-onClick=
+// ── Component ─────────────────────────────────────────────────────────────────
 ⋮----
-onOpenChange=
-onWorkspaceNameChange=
+{/* ── Header ──────────────────────────────────────────────────────── */}
+⋮----
+{/* ── Active workspace quick-access ──────────────────────────────── */}
+⋮----
+{/* ── All workspaces list ─────────────────────────────────────────── */}
 ````
 
 ## File: modules/workspace/interfaces/web/components/tabs/TaskCandidateConfirmDialog.tsx
@@ -57808,60 +54554,6 @@ type WorkspaceOverviewSurface =
   | "profile";
 ⋮----
 function resolveWorkspaceOverviewSurface(panel?: string): WorkspaceOverviewSurface
-````
-
-## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
-````typescript
-import { useEffect, useMemo, useState } from "react";
-⋮----
-import type { WorkspaceEntity } from "../../contracts";
-⋮----
-interface RecentWorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-⋮----
-function getStorageKey(accountId: string)
-⋮----
-function readRecentWorkspaceIds(accountId: string): string[]
-⋮----
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[])
-⋮----
-function trackWorkspaceFromPath(pathname: string, accountId: string)
-⋮----
-function getWorkspaceIdFromPath(pathname: string): string | null
-⋮----
-export function useRecentWorkspaces(
-  accountId: string | undefined,
-  pathname: string,
-  workspaces: WorkspaceEntity[],
-)
-````
-
-## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
-````typescript
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { WorkspaceEntity } from "../../contracts";
-import { getWorkspaceById, getWorkspaceByIdForAccount } from "../../facades";
-⋮----
-export type WorkspaceLoadState = "loading" | "loaded" | "error";
-⋮----
-export interface UseWorkspaceDetailResult {
-  workspace: WorkspaceEntity | null;
-  loadState: WorkspaceLoadState;
-  setWorkspace: (ws: WorkspaceEntity) => void;
-}
-⋮----
-export function useWorkspaceDetail(
-  workspaceId: string,
-  accountId: string | null | undefined,
-  accountsHydrated: boolean,
-  accessibleAccountIds: readonly string[] = [],
-): UseWorkspaceDetailResult
-⋮----
-async function loadWorkspace()
 ````
 
 ## File: modules/workspace/interfaces/web/hooks/useWorkspaceOrchestrationContext.ts
@@ -58352,6 +55044,109 @@ return <Button size="sm" variant="outline" disabled=
 <Button size="sm" variant="outline" disabled=
 ````
 
+## File: modules/workspace/subdomains/orchestration/api/index.ts
+````typescript
+// ── Domain types ──────────────────────────────────────────────────────────────
+⋮----
+// ── Application DTOs ──────────────────────────────────────────────────────────
+⋮----
+// ── Summary projections ───────────────────────────────────────────────────────
+⋮----
+// ── Factories ─────────────────────────────────────────────────────────────────
+⋮----
+// ── Process managers ──────────────────────────────────────────────────────────
+⋮----
+// ── Read queries ──────────────────────────────────────────────────────────────
+⋮----
+// ── Server actions ────────────────────────────────────────────────────────────
+⋮----
+// ── UI components ─────────────────────────────────────────────────────────────
+⋮----
+// ── Event listeners ───────────────────────────────────────────────────────────
+````
+
+## File: modules/workspace/subdomains/orchestration/application/dto/extract-task-candidates-from-knowledge.dto.ts
+````typescript
+/**
+ * @module workspace-flow/application/dto
+ * @file extract-task-candidates-from-knowledge.dto.ts
+ * @description Application-layer DTOs for the ExtractTaskCandidatesFromKnowledge use case.
+ *
+ * Pure value types (KnowledgeTextBlockInput, ExtractedTaskCandidate, TaskCandidateSource)
+ * now live in domain/value-objects/TaskCandidate.ts. They are re-exported here so existing
+ * application-layer import paths continue to resolve.
+ *
+ * @see ADR-5201 Accidental Complexity — workspace flow application structure
+ */
+⋮----
+import type {
+  KnowledgeTextBlockInput,
+  ExtractedTaskCandidate,
+} from "../../../task/domain/value-objects/TaskCandidate";
+⋮----
+export interface ExtractTaskCandidatesFromKnowledgeDto {
+  readonly knowledgePageId: string;
+  readonly blocks: ReadonlyArray<KnowledgeTextBlockInput>;
+  readonly enableAiFallback?: boolean;
+}
+⋮----
+export interface ExtractTaskCandidatesFromKnowledgeResult {
+  readonly candidates: ReadonlyArray<ExtractedTaskCandidate>;
+  readonly usedAiFallback: boolean;
+}
+````
+
+## File: modules/workspace/subdomains/orchestration/domain/services/TaskCandidateRuleExtractor.ts
+````typescript
+/**
+ * @module workspace-flow/domain/services
+ * @file TaskCandidateRuleExtractor.ts
+ * @description Pure, stateless rule engine that extracts task candidates from
+ *   plain-text knowledge blocks using pattern matching.
+ *
+ * Moved from application/services/ to domain/services/ because the extractor
+ * contains only domain rules and has no application or infrastructure
+ * dependencies.
+ *
+ * @see ADR-5201 Accidental Complexity — workspace flow application structure
+ */
+⋮----
+import type { ExtractedTaskCandidate, KnowledgeTextBlockInput } from "../../../task/domain/value-objects/TaskCandidate";
+⋮----
+function normalizeTitle(value: string): string
+⋮----
+function resolveCandidateText(line: string): string | undefined
+⋮----
+function normalizeDueDate(raw: string | undefined): string | undefined
+⋮----
+export class TaskCandidateRuleExtractor {
+⋮----
+extract(blocks: ReadonlyArray<KnowledgeTextBlockInput>): ReadonlyArray<ExtractedTaskCandidate>
+````
+
+## File: modules/workspace/subdomains/orchestration/infrastructure/ai/AiTaskCandidateExtractionAdapter.ts
+````typescript
+import { extractTasksFromContent } from "@/modules/ai/api/server";
+import type { TaskCandidateExtractionAiPort } from "../../domain/ports/TaskCandidateExtractionAiPort";
+import type { AIExtractedTaskCandidate } from "../../domain/ports/TaskCandidateExtractionAiPort";
+⋮----
+/**
+ * @module orchestration/infrastructure/ai
+ * @file AiTaskCandidateExtractionAdapter.ts
+ * @description Infrastructure adapter implementing TaskCandidateExtractionAiPort.
+ *
+ * Delegates to the shared AI bounded context (`modules/ai/api/server`) so that
+ * the orchestration subdomain never depends on Genkit directly.
+ */
+export class AiTaskCandidateExtractionAdapter implements TaskCandidateExtractionAiPort {
+⋮----
+async extractTaskCandidates(input: {
+    readonly knowledgePageId: string;
+    readonly content: string;
+    readonly maxCandidates?: number;
+}): Promise<ReadonlyArray<AIExtractedTaskCandidate>>
+````
+
 ## File: modules/workspace/subdomains/quality/interfaces/_actions/workspace-flow-quality.actions.ts
 ````typescript
 import { commandFailureFrom, type CommandResult } from "@shared-types";
@@ -58363,6 +55158,39 @@ import { PassTaskQaUseCase } from "../../application/use-cases/pass-task-qa.use-
 export async function wfSubmitTaskToQa(taskId: string): Promise<CommandResult>
 ⋮----
 export async function wfPassTaskQa(taskId: string): Promise<CommandResult>
+````
+
+## File: modules/workspace/subdomains/task/domain/value-objects/TaskCandidate.ts
+````typescript
+/**
+ * @module workspace-flow/domain/value-objects
+ * @file TaskCandidate.ts
+ * @description Domain value types for extracted task candidates from knowledge content.
+ *
+ * Moved from application/dto to domain so the stateless rule engine
+ * (TaskCandidateRuleExtractor) can live in domain/services/ without
+ * depending on the application layer.
+ *
+ * @see ADR-5201 Accidental Complexity — workspace flow application structure
+ */
+⋮----
+export type TaskCandidateSource = "rule" | "ai";
+⋮----
+export interface KnowledgeTextBlockInput {
+  readonly blockId: string;
+  readonly text: string;
+  readonly pageIndex?: number;
+}
+⋮----
+export interface ExtractedTaskCandidate {
+  readonly title: string;
+  readonly description?: string;
+  readonly dueDate?: string;
+  readonly source: TaskCandidateSource;
+  readonly confidence: number;
+  readonly sourceBlockId?: string;
+  readonly sourceSnippet?: string;
+}
 ````
 
 ## File: modules/workspace/subdomains/task/interfaces/components/TaskRow.tsx
@@ -58427,472 +55255,118 @@ await loadIssues();
 if (!issuesExpanded) setIssuesExpanded(true);
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/api/listeners.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file listeners.ts
- * @description Public event listener interface for workspace-flow.
- *
- * External modules (primarily the `knowledge` module's event bus) subscribe to
- * workspace-flow through this surface.  The concrete implementation is the
- * `KnowledgeToWorkflowMaterializer` process manager.
- *
- * ## Usage
- * ```ts
- * import { createKnowledgeToWorkflowListener } from "@/modules/workspace/api";
- *
- * const listener = createKnowledgeToWorkflowListener();
- * eventBus.subscribe("notion.knowledge.page-approved", (event) => listener.handle(event));
- * ```
- *
- * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
- */
-⋮----
-import { getSharedEventBus, type SimpleEventBus } from "@shared-events";
-import { KnowledgeToWorkflowMaterializer } from "../application/process-managers/knowledge-to-workflow-materializer";
-import { FirebaseTaskRepository } from "../infrastructure/repositories/FirebaseTaskRepository";
-import { FirebaseInvoiceRepository } from "../infrastructure/repositories/FirebaseInvoiceRepository";
-import type { PageApprovedEvent } from "@/modules/notion/api";
-⋮----
-// ── Public listener factory ───────────────────────────────────────────────────
-⋮----
-/**
- * Creates a pre-wired `KnowledgeToWorkflowMaterializer` backed by Firebase repos.
- * Call `handle(event, workspaceId)` from your event bus subscriber.
- */
-export function createKnowledgeToWorkflowListener(): KnowledgeToWorkflowMaterializer
-⋮----
-/**
- * Registers the workspace workflow materializer on the shared in-process bus.
- * Safe to call multiple times; registration happens only once per server runtime.
- */
-export function registerKnowledgeToWorkflowListener(
-  bus: SimpleEventBus = getSharedEventBus(),
-): void
-⋮----
-// ── Listener type contracts ───────────────────────────────────────────────────
-⋮----
-/** Shape of any handler that can process a `notion.knowledge.page-approved` event. */
-export interface KnowledgePageApprovedHandler {
-  handle(event: PageApprovedEvent, workspaceId?: string): Promise<boolean>;
-}
-⋮----
-handle(event: PageApprovedEvent, workspaceId?: string): Promise<boolean>;
-````
+## File: repomix-markdown.config.json
+````json
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "input": {
+    "maxFileSize": 52428800
+  },
+  "output": {
+    "filePath": "repomix-output.json",
+    "style": "json",
+    "parsableStyle": true,
 
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/extract-task-candidates-from-knowledge.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file extract-task-candidates-from-knowledge.dto.ts
- * @description Application-layer DTOs for the ExtractTaskCandidatesFromKnowledge use case.
- *
- * Pure value types (KnowledgeTextBlockInput, ExtractedTaskCandidate, TaskCandidateSource)
- * now live in domain/value-objects/TaskCandidate.ts. They are re-exported here so existing
- * application-layer import paths continue to resolve.
- *
- * @see ADR-5201 Accidental Complexity — workspace-workflow application structure
- */
-⋮----
-import type {
-  KnowledgeTextBlockInput,
-  ExtractedTaskCandidate,
-} from "../../domain/value-objects/TaskCandidate";
-⋮----
-export interface ExtractTaskCandidatesFromKnowledgeDto {
-  readonly knowledgePageId: string;
-  readonly blocks: ReadonlyArray<KnowledgeTextBlockInput>;
-  readonly enableAiFallback?: boolean;
-  readonly sourceContext?: {
-    readonly filename?: string;
-    readonly mimeType?: string;
-    readonly pageCount?: number;
-    readonly sourceGcsUri?: string;
-    readonly jsonGcsUri?: string;
-  };
-}
-⋮----
-export interface ExtractTaskCandidatesFromKnowledgeResult {
-  readonly candidates: ReadonlyArray<ExtractedTaskCandidate>;
-  readonly usedAiFallback: boolean;
-}
-````
+    "fileSummary": true,
+    "directoryStructure": true,
+    "files": true,
 
-## File: modules/workspace/subdomains/workspace-workflow/application/process-managers/knowledge-to-workflow-materializer.ts
-````typescript
-/**
- * @module workspace-flow/application/process-managers
- * @file knowledge-to-workflow-materializer.ts
- * @description Process Manager (Saga) that listens for `notion.knowledge.page-approved`
- * events and orchestrates the creation of Tasks and Invoices in workspace-flow.
- *
- * ## Responsibility
- * This class is the single entry point for the cross-module event-driven
- * integration between the `knowledge` and `workspace-flow` bounded contexts.
- *
- * ## Idempotency
- * The process manager tracks processed `causationId` values to prevent
- * duplicate materialization if the same event is delivered more than once.
- * The seen-set is in-memory by default; production implementations should
- * persist to Firestore at:
- *   `workspaces/{workspaceId}/materializedEvents/{causationId}`
- * using a Firestore transaction to provide atomic idempotency guarantees.
- *
- * ## Placement
- * - Wired in: Cloud Function trigger (Firestore `onDocumentUpdated`) or
- *   `SimpleEventBus` subscriber registered at application startup.
- * - Alternative: a shared saga registry if cross-module saga coordination is needed.
- *
- * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
- */
-⋮----
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { MaterializeTasksFromKnowledgeUseCase } from "../use-cases/materialize-tasks-from-knowledge.use-case";
-import type { ExtractedInvoiceItem, ExtractedTaskItem } from "../dto/materialize-from-knowledge.dto";
-import type { SourceReference } from "../../domain/value-objects/SourceReference";
-⋮----
-interface PageApprovedEvent {
-  payload: {
-    pageId: string;
-    workspaceId?: string;
-    causationId: string;
-    correlationId: string;
-    extractedTasks: ReadonlyArray<ExtractedTaskItem>;
-    extractedInvoices: ReadonlyArray<ExtractedInvoiceItem>;
-  };
-}
-⋮----
-export class KnowledgeToWorkflowMaterializer {
-⋮----
-/**
-   * In-memory idempotency guard.
-   * Replace with a persistent store in production.
-   */
-⋮----
-constructor(
-⋮----
-/**
-   * Handle a `notion.knowledge.page-approved` event.
-   *
-   * @param event - The full event payload from the knowledge module's public API.
-   * @param workspaceId - Target workspace where Tasks/Invoices will be created.
-   *   Typically resolved from the event's `workspaceId` field if present.
-   * @returns true if materialization succeeded, false if skipped (idempotency) or failed.
-   */
-async handle(event: PageApprovedEvent, workspaceId?: string): Promise<boolean>
-````
+    "removeComments": false,
+    "removeEmptyLines": false,
 
-## File: modules/workspace/subdomains/workspace-workflow/domain/ports/index.ts
-````typescript
-/**
- * workspace/workspace-workflow domain/ports — driven port interfaces for the workflow subdomain.
- *
- * Re-exports repository contracts from domain/repositories/, making the Ports layer
- * explicitly visible in the directory structure.
- *
- * Application-layer ports (contracts whose method signatures depend on application/dto/ types)
- * live in ../application/ports/:
- *   - IssueService   — Issue operations (uses OpenIssueDto, IssueQueryDto)
- *   - InvoiceService — Invoice operations (uses AddInvoiceItemDto, InvoiceQueryDto)
- *   - TaskService    — Task operations (uses CreateTaskDto, TaskQueryDto)
- * These must not be moved here; see ADR-1102 §3.
- */
-````
+    "compress": true,
 
-## File: modules/workspace/subdomains/workspace-workflow/domain/ports/TaskCandidateExtractionAiPort.ts
-````typescript
-/**
- * @module workspace-flow/domain/ports
- * @file TaskCandidateExtractionAiPort.ts
- * @description Driven port interface for AI task candidate extraction.
- */
-⋮----
-export interface AIExtractedTaskCandidate {
-  readonly title: string;
-  readonly description?: string;
-  readonly dueDate?: string;
-  readonly confidence?: number;
-  readonly sourceSnippet?: string;
-}
-⋮----
-export interface TaskCandidateExtractionAiPort {
-  extractTaskCandidates(input: {
-    readonly knowledgePageId: string;
-    readonly content: string;
-    readonly maxCandidates?: number;
-    readonly sourceContext?: {
-      readonly filename?: string;
-      readonly mimeType?: string;
-      readonly pageCount?: number;
-      readonly sourceGcsUri?: string;
-      readonly jsonGcsUri?: string;
-    };
-  }): Promise<ReadonlyArray<AIExtractedTaskCandidate>>;
-}
-⋮----
-extractTaskCandidates(input: {
-    readonly knowledgePageId: string;
-    readonly content: string;
-    readonly maxCandidates?: number;
-    readonly sourceContext?: {
-      readonly filename?: string;
-      readonly mimeType?: string;
-      readonly pageCount?: number;
-      readonly sourceGcsUri?: string;
-      readonly jsonGcsUri?: string;
-    };
-  }): Promise<ReadonlyArray<AIExtractedTaskCandidate>>;
-````
+    "topFilesLength": 10,
 
-## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/SourceReference.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file SourceReference.ts
- * @description Value object representing the origin of a materialized entity (Task or Invoice).
- *
- * A SourceReference is attached to Task and Invoice entities that were created
- * by the KnowledgeToWorkflowMaterializer Process Manager in response to a
- * `notion.knowledge.page-approved` event. It provides full audit traceability:
- *
- *   Task → sourceReference → KnowledgePage → BackgroundJob → source PDF
- */
-⋮----
-export type SourceReferenceType = "KnowledgePage";
-⋮----
-export interface SourceReference {
-  /** The type of the source aggregate. */
-  readonly type: SourceReferenceType;
-  /** The ID of the source aggregate (e.g. KnowledgePage.id). */
-  readonly id: string;
-  /**
-   * causationId from the `notion.knowledge.page-approved` event that triggered
-   * materialization.  Stored for idempotency checks and audit trails.
-   */
-  readonly causationId: string;
-  /**
-   * correlationId tracing the entire business flow:
-   *   ingestion → human review → approval → materialization.
-   */
-  readonly correlationId: string;
-}
-⋮----
-/** The type of the source aggregate. */
-⋮----
-/** The ID of the source aggregate (e.g. KnowledgePage.id). */
-⋮----
-/**
-   * causationId from the `notion.knowledge.page-approved` event that triggered
-   * materialization.  Stored for idempotency checks and audit trails.
-   */
-⋮----
-/**
-   * correlationId tracing the entire business flow:
-   *   ingestion → human review → approval → materialization.
-   */
-````
+    "showLineNumbers": false,
+    "truncateBase64": false,
+    "copyToClipboard": false,
 
-## File: modules/workspace/subdomains/workspace-workflow/domain/value-objects/TaskCandidate.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file TaskCandidate.ts
- * @description Domain value types for extracted task candidates from knowledge content.
- *
- * These remain in the domain layer so workspace-workflow can normalize and
- * materialize AI-proposed task candidates without depending on application DTOs.
- *
- * @see ADR-5201 Accidental Complexity — workspace-workflow application structure
- */
-⋮----
-export type TaskCandidateSource = "rule" | "ai";
-⋮----
-export interface KnowledgeTextBlockInput {
-  readonly blockId: string;
-  readonly text: string;
-  readonly pageIndex?: number;
-}
-⋮----
-export interface ExtractedTaskCandidate {
-  readonly title: string;
-  readonly description?: string;
-  readonly dueDate?: string;
-  readonly source: TaskCandidateSource;
-  readonly confidence: number;
-  readonly sourceBlockId?: string;
-  readonly sourceSnippet?: string;
-}
-````
+    "includeFullDirectoryStructure": false,
+    "tokenCountTree": true,
 
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/ai/AiTaskCandidateExtractionAdapter.ts
-````typescript
-import { extractTasksFromContent } from "@/modules/ai/api/server";
-import type { TaskCandidateExtractionAiPort } from "../../domain/ports/TaskCandidateExtractionAiPort";
-import type { AIExtractedTaskCandidate } from "../../domain/ports/TaskCandidateExtractionAiPort";
-⋮----
-/**
- * @module workspace-workflow/infrastructure/ai
- * @file AiTaskCandidateExtractionAdapter.ts
- * @description Infrastructure adapter implementing TaskCandidateExtractionAiPort.
- *
- * Delegates to the shared AI bounded context (`modules/ai/api/server`) so that
- * the workspace-workflow subdomain never depends on Genkit directly.
- */
-export class AiTaskCandidateExtractionAdapter implements TaskCandidateExtractionAiPort {
-⋮----
-async extractTaskCandidates(input: {
-    readonly knowledgePageId: string;
-    readonly content: string;
-    readonly maxCandidates?: number;
-    readonly sourceContext?: {
-      readonly filename?: string;
-      readonly mimeType?: string;
-      readonly pageCount?: number;
-      readonly sourceGcsUri?: string;
-      readonly jsonGcsUri?: string;
-    };
-}): Promise<ReadonlyArray<AIExtractedTaskCandidate>>
-````
+    "git": {
+      "sortByChanges": true,
+      "sortByChangesMaxCommits": 200,
+      "includeDiffs": false,
+      "includeLogs": false,
+      "includeLogsCount": 50
+    }
+  },
+  "include": [
+    ".serena/**/*.md",
+    ".github/**/*.md",
+    "docs/**/*.md",
+    "app/**/*.md",
+    "modules/**/*.md",
+    "packages/**/*.md",
+    "py_fn/**/*.md"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      ".next/**",
+      ".turbo/**",
+      ".vercel/**",
+      ".firebase/**",
+      ".output/**",
+      ".parcel-cache/**",
 
-## File: app/(shell)/_shell/ShellAppRail.tsx
-````typescript
-/**
- * ShellAppRail — app/(shell)/_shell composition layer.
- * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
- * because it composes downstream modules (workspace).
- *
- * Platform is upstream and must not import downstream modules.
- * app/ is the designated composition layer.
- */
-⋮----
-import Link from "next/link";
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  LayoutDashboard,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-⋮----
-import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
-import { CreateOrganizationDialog } from "@/modules/platform/api/ui";
-import {
-  listShellRailCatalogItems,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  buildShellContextualHref,
-  type ShellRailCatalogItem,
-} from "@/modules/platform/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { CreateWorkspaceDialogRail } from "@/modules/workspace/api/ui";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-⋮----
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-⋮----
-interface RailItem {
-  id: string;
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-⋮----
-function getInitial(name: string | undefined | null): string
-⋮----
-function isActive(href: string)
-⋮----
-function buildWorkspaceDetailHref(workspaceId: string): string
-⋮----
-onClick=
-⋮----
-onSelectWorkspace(workspace.id);
-⋮----
-accountType=
-````
+      ".cursor/**",
+      ".vscode/**",
+      ".serena/**",
+      ".claude/**",
+      ".opencode/**",
+      ".idea/**",
+      ".history/**",
 
-## File: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
-````typescript
-import { use, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-⋮----
-import {
-  useAuth,
-} from "@/modules/platform/api";
-import {
-  OrganizationMembersRouteScreen,
-  OrganizationOverviewRouteScreen,
-  OrganizationPermissionsRouteScreen,
-  OrganizationTeamsRouteScreen,
-  SettingsNotificationsRouteScreen,
-  useAccountRouteContext,
-  useApp,
-} from "@/modules/platform/api/ui";
-import {
-  AccountDashboardRouteScreen,
-  OrganizationAuditRouteScreen,
-  OrganizationDailyRouteScreen,
-  OrganizationScheduleRouteScreen,
-  OrganizationWorkspacesRouteScreen,
-  WorkspaceDetailRouteScreen,
-  WorkspaceHubScreen,
-} from "@/modules/workspace/api/ui";
-⋮----
-interface AccountRouteDispatcherPageProps {
-  params: Promise<{
-    accountId: string;
-    slug?: string[];
-  }>;
+      ".cache/**",
+      ".temp/**",
+      ".tmp/**",
+      "tmp/**",
+      "temp/**",
+
+      "logs/**",
+      "firebase-debug.log",
+      "repomix-output.*",
+
+      ".env*",
+      "*.pem",
+      "*.key",
+      "*.crt",
+
+      "skills-lock.json",
+
+      "docs/architecture/**",
+      "diagrams/**",
+
+      "*.png",
+      "*.jpg",
+      "*.jpeg",
+      "*.gif",
+      "*.webp",
+      "*.mp4",
+      "*.zip",
+      "*.tar",
+      "*.gz",
+
+      "*.sqlite",
+      "*.db",
+      ".github/skills/xuanwu-app-skill/**",
+      ".github/skills/xuanwu-markdown-skill/**",
+      ".github/skills/xuanwu-notebooklm-skill/**",
+      ".github/skills/xuanwu-notion-skill/**"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
 }
-⋮----
-interface RedirectingRouteProps {
-  readonly href: string;
-  readonly message: string;
-}
-⋮----
-function RedirectingRoute(
-⋮----
-export default function AccountRouteDispatcherPage({
-  params,
-}: AccountRouteDispatcherPageProps)
-⋮----
-if (accountType === "organization")
 ````
 
 ## File: app/(shell)/(account)/[accountId]/dev-tools/page.tsx
@@ -59364,52 +55838,75 @@ flowchart LR
 - 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
-## File: docs/contexts/workspace/README.md
+## File: docs/contexts/platform/README.md
 ````markdown
-# Workspace Context
+# Platform Context
 
 本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
 
 ## Purpose
 
-workspace 是協作容器與工作區範疇主域。它的責任是提供 workspaceId、工作區生命週期、參與關係、共享、存在感、活動投影、稽核、排程與工作流，讓其他主域可以在同一個協作範疇中運作。
+platform 是帳號、組織與 shared operational services 主域。它的責任是提供 account、organization、notification、search、audit、observability 與 operational workflow 等跨切面能力，供其他主域穩定消費。
 
 ## Why This Context Exists
 
-- 把工作區容器語意與平台治理語意分離。
-- 把工作區 scope 作為其他主域可依賴的 published language。
-- 把活動流、稽核、排程與流程協調收斂為同一主域內的高凝聚能力。
+- 把治理與營運支撐責任集中，避免滲入其他主域。
+- 讓其他主域只消費治理結果，而不是重建治理模型。
+- 以清楚的 published language 承接身份、權益、政策與營運能力。
 
 ## Context Summary
 
 | Aspect | Summary |
 |---|---|
-| Primary Role | 協作容器與 workspace scope |
-| Upstream Dependency | iam 的 actor、tenant、access decision；billing 的 entitlement；platform 的 account 與 organization surface |
-| Downstream Consumers | notion、notebooklm |
-| Core Principle | workspace 暴露 scope，不接管治理、商業或內容正典 |
+| Primary Role | account、organization 與營運支撐 |
+| Upstream Dependency | iam、billing、ai 的 shared signals 與治理結果 |
+| Downstream Consumers | workspace 與其他需要 operational services 的主域 |
+| Core Principle | platform 提供 account 與營運 surface，不接管治理、商業、內容或推理正典 |
 
 ## Baseline Subdomains
 
-- audit
-- feed
-- scheduling
-- workspace-workflow
+- identity
+- account
+- account-profile
+- organization
+- team
+- tenant
+- access-control
+- security-policy
+- platform-config
+- feature-flag
+- entitlement
+- onboarding
+- compliance
+- consent
+- billing
+- subscription
+- referral
+- ai
+- integration
+- secret-management
+- workflow
+- notification
+- background-job
+- content
+- search
+- audit-log
+- observability
+- analytics
+- support
 
-## Recommended Gap Subdomains
+## Strategic Reinforcement Focus
 
-- lifecycle
-- membership
-- sharing
-- presence
+- consent（資料使用授權語義收斂）
+- secret-management（敏感憑證治理收斂）
+- operational-catalog（平台營運資產語義收斂）
+
 
 ## Key Relationships
 
-- 與 iam：workspace 消費 actor、tenant 與 access decision。
-- 與 billing：workspace 消費 entitlement 與 subscription capability signal。
-- 與 platform：workspace 消費 account scope 與 organization surface。
-- 與 notion：workspace 向 notion 提供 workspaceId、membership scope、share scope。
-- 與 notebooklm：workspace 向 notebooklm 提供 workspaceId、membership scope、share scope。
+- 對 iam、billing、ai：platform 消費它們的治理、商業與 capability signal。
+- 對 workspace：提供 account scope、organization surface 與 shared operational services。
+- 對 notion 與 notebooklm：按需提供 notification、search、audit、observability 等 operational service。
 
 ## Reading Order
 
@@ -59422,30 +55919,28 @@ workspace 是協作容器與工作區範疇主域。它的責任是提供 worksp
 ## Dependency Direction
 
 - 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- workspace 對外只暴露 scope、published language、API boundary、events，不暴露內部實作。
+- platform 對外只輸出治理結果與 published language，不輸出內部治理模型細節。
 
-## Route Surface Contract
+## Account Surface Contract
 
-- workspace 不擁有獨立的 top-level shell route；它被組裝在 account-scoped shell surface 之下。
-- workspace 消費來自 platform account scope 的 `AccountType = "user" | "organization"` 字串契約；其中 `"user"` 代表 personal account context，`"organization"` 代表 organization context。
-- workspace detail 的 canonical route 是 `/{accountId}/{workspaceId}`，表示「先選 account，再進入該 account 底下的 workspace」。
-- workspace tabs 與 overview panels 應維持在同一條 detail route 上，以 query state 表示，例如 `?tab=Overview&panel=knowledge-pages`。
-- `/{accountId}/workspace/{workspaceId}` 只保留為相容 redirect，不是新的文件或 UI 應輸出的 canonical href。
-- UI 可以顯示個人帳號 / 組織帳號，但 workspace aggregate、use case、event metadata 與 validator 的 accountType string contract 不應漂移成 `"personal" | "organization"`。
-- account dashboard、members、teams、permissions、schedule、audit 等 account-level concern 不屬於 workspace route surface。
-- workspace route 只負責協作容器與 workspace-scoped consumption，不承接 platform governance canonical navigation。
+- platform 提供 account scope 的治理語意；shell 的 `accountId` 由這個主域的 account / organization 能力支撐，而不是由 workspace 自行定義。
+- account shell surface 採單一 account catch-all：`/{accountId}/[[...slug]]`；這是 account-scoped composition contract，不是 platform domain model 的直接外露。
+- `AccountType = "user" | "organization"` 是目前 platform account domain、workspace domain、Zod validators 與 route composition 共用的字串契約；`"user"` 表示 personal account scope，`"organization"` 表示 organization account scope。
+- business language 仍使用 personal account / organization account；只有 code-level string contract 才使用 `"user" | "organization"`，避免把 `user` 誤用成平台通用語言名詞。
+- organization governance route 在 shell 內應 flatten 到 account scope，例如 `/{accountId}/members`、`/{accountId}/teams`、`/{accountId}/permissions`；`/{accountId}/organization/*` 只應視為 legacy redirect surface。
+- platform 擁有 account 與 organization 的治理語意，但不擁有 workspace detail route；workspace detail 仍由 workspace module route screen 承接，只是經過 account-scoped shell composition 進入。
 
 ## Anti-Pattern Rules
 
-- 不把 workspace scope 寫成平台治理結果本身。
-- 不把 feed、audit、workspace-workflow 互相取代為單一泛用流程層。
-- 不把 notion 或 notebooklm 的內容與推理責任吸回 workspace。
+- 不把 platform 寫成內容主域或對話主域。
+- 不把 entitlement、consent、secret-management 混成同一個泛用設定區。
+- 不把其他主域對平台的依賴寫成可以直接存取其內部模型。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先保留 workspace 的協作 scope 定位，再安排 lifecycle、membership、sharing、workspace-workflow 的交互。
-- 奧卡姆剃刀：不要預先建立第二條平行協作流程；只有既有 scope 邊界不夠時才補新抽象。
-- 優先讓 input -> translation -> application -> domain -> published scope 保持單純可追溯。
+- 生成程式碼時，先保留 platform 的 operational 定位，再安排 account、organization、notification、search、audit、secret-management 的交互。
+- 奧卡姆剃刀：不要預先建立多餘 facade；能直接由既有治理邊界承接就維持單一路徑。
+- 優先讓 request -> orchestration -> domain decision -> published language 保持單純可追溯。
 
 ## Dependency Direction Flow
 
@@ -59461,13 +55956,11 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-	Platform["platform"] --> Boundary["workspace boundary"]
-	Boundary --> Translation["DTO / ACL"]
-	Translation --> App["Application use case"]
-	App --> Domain["Workspace domain"]
-	Domain --> Scope["workspace scope"]
-	Scope --> Notion["notion"]
-	Scope --> NotebookLM["notebooklm"]
+	Request["Actor / admin request"] --> Boundary["platform boundary"]
+	Boundary --> App["Application use case"]
+	App --> Domain["Platform domain"]
+	Domain --> Published["Published governance language"]
+	Published --> Consumers["workspace / notion / notebooklm"]
 ```
 
 ## Document Network
@@ -60445,161 +56938,25 @@ Each module should have its own constraints section, such as:
 - [modules/notebooklm/AGENT.md](../modules/notebooklm/AGENT.md) — NotebookLM constraints
 ````
 
-## File: docs/integration-guidelines.md
-````markdown
-# Integration Guidelines
-
-本文件在本次任務限制下，僅依 Context7 驗證的 published language、ACL、Conformist 與 hexagonal boundary 原則重建，不主張反映現況實作。
-
-## Boundary Contract
-
-跨主域整合只能使用：
-
-- published language
-- public API boundary
-- domain / integration events
-- local DTO
-- downstream ACL 或 downstream Conformist
-
-## Pattern Selection Rules
-
-| Situation | Pattern |
-|---|---|
-| 下游與上游語義高度一致，且不會扭曲本地語言 | Conformist |
-| 上游語義會污染下游本地語言 | Anti-Corruption Layer |
-| 只是跨主域資料交換 | Published Language + Local DTO |
-
-## Hard Rules
-
-- ACL 與 Conformist 只能由 downstream 選擇。
-- ACL 與 Conformist 互斥。
-- 不可直接傳遞上游 entity / aggregate 作為下游正典模型。
-- 不可把 shared technical package 誤當成 strategic shared kernel。
-- 若需要共同語義，先定 published language，再定 DTO，再評估是否需要 ACL。
-
-## Domain-Specific Guidance
-
-- workspace 消費 iam、billing 或 platform 時，優先保護自己的 membership、sharing、presence 語言。
-- notion 消費 iam、billing、ai 或 workspace 時，優先保護自己的 knowledge artifact 與 taxonomy 語言。
-- notebooklm 消費 notion、iam、billing 或 ai 時，優先保護自己的 retrieval、grounding、synthesis 語言。
-- analytics 消費其他主域時，應以 event projection 與 local read model 為主，不回寫上游 canonical model。
-
-## App Router Boundary Guidance
-
-- App Router path shape 是 composition contract，不是跨主域 published language 的替代品。
-- 即使 path 以 `/{accountId}/{workspaceId}` 呈現，platform 與 workspace 之間的語意交換仍必須走 API boundary、published language 或 events。
-- shell 內所有 workspace detail href 應優先輸出 canonical `/{accountId}/{workspaceId}`，而不是 `/{accountId}/workspace/{workspaceId}`。
-- legacy redirect path 可以短期保留作為 compatibility surface，但文件、設計稿與新程式碼不應再以 legacy path 當作正典契約。
-- route redirect、query-state 正規化與 URL composition 屬於 interfaces / app composition concern，不應回滲為 domain rule 或跨主域契約。
-
-## Identifier Boundary Rules
-
-- `accountId` 只用於 shell / composition 層的 account scope，或 account-scoped downstream input；不要把它直接當成 `workspaceId`、`organizationId` 或 `userId`。
-- `workspaceId` 只表示協作容器 scope；跨主域 published language 若需要 workspace context，應明確傳遞 `workspaceId`，不要讓 notion / notebooklm 猜測 route segment。
-- `organizationId` 只用於 organization-scoped domain 或 integration contract；若某 flow 由 organization account 的 `accountId` 進入，需在 application / mapper 層顯式轉成 `organizationId`。
-- `userId` 用於具體使用者欄位，例如 `createdByUserId`、`verifiedByUserId`、`submittedByUserId`、`assignedUserId`；`actorId` 用於行為主體 metadata，不保證一定是 user。
-- `ownerId` 表示資源所有者；`tenantId` 表示租戶隔離鍵；兩者都不是 canonical route param。
-- `fileId` 是檔案 metadata 主鍵；不能取代 owner / workspace / tenant scope，也不能單獨表示授權邊界。
-
-## Integration Checklist
-
-1. 先確認 upstream / downstream 方向。
-2. 先列出 published language。
-3. 判斷是否語義一致。
-4. 一致則考慮 conformist，不一致則建立 ACL。
-5. 避免把 DTO、entity、policy、UI 狀態混成同一層。
-
-## Integration Anti-Patterns
-
-- 直接傳遞上游 aggregate、entity、repository 給下游使用。
-- 讓 downstream 省略 published language 與 local DTO，直接貼靠上游內部模型。
-- 把 ACL 當成預設樣板卻不判斷是否真的有語義污染。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先決定 upstream、downstream、published language，再決定 DTO、ACL 或 Conformist。
-- 奧卡姆剃刀：若 published language 加 local DTO 已足夠，就不要額外建立雙重 mapper、雙重 ACL 或鏡像 aggregate。
-- 只有在上游語義真的會污染本地語言時，才建立 ACL。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Upstream["Upstream"] -->|Published Language| Boundary["Downstream boundary"]
-	Boundary --> Translation["Local DTO / ACL / Conformist"]
-	Translation --> Application["Application"]
-	Application --> Domain["Domain"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Need["Cross-context need"] --> Direction["Identify upstream/downstream"]
-	Direction --> PL["Define published language"]
-	PL --> Decision["Need protection?"]
-	Decision -->|Yes| ACL["ACL"]
-	Decision -->|No| DTO["Local DTO / Conformist"]
-	ACL --> Domain["Downstream domain"]
-	DTO --> Domain
-```
-
-## Document Network
-
-- [context-map.md](./context-map.md)
-- [strategic-patterns.md](./strategic-patterns.md)
-- [architecture-overview.md](./architecture-overview.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
-- [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
-
-## Conflict Resolution
-
-- 若某整合指南與 [context-map.md](./context-map.md) 的方向衝突，以 context map 為準。
-- 若某整合指南與 [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md) 衝突，以 ADR 為準。
-````
-
-## File: modules/ai/application/index.ts
+## File: modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts
 ````typescript
-/** ai/application — shared AI orchestration use cases. */
-````
-
-## File: modules/ai/domain/index.ts
-````typescript
-/** ai/domain — shared AI domain contracts. */
+import { genkit } from "genkit";
+import { googleAI } from "@genkit-ai/google-genai";
+⋮----
+import type {
+  AiTextGenerationPort,
+  GenerateAiTextInput,
+  GenerateAiTextOutput,
+} from "../../../domain/ports/AiTextGenerationPort";
+⋮----
+export class GenkitAiTextGenerationAdapter implements AiTextGenerationPort {
+⋮----
+async generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>
 ````
 
 ## File: modules/ai/infrastructure/index.ts
 ````typescript
 /** ai/infrastructure — shared AI adapters and Genkit singletons. */
-````
-
-## File: modules/ai/subdomains/content-distillation/api/index.ts
-````typescript
-/**
- * Public API boundary for the AI content-distillation subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * This barrel is client-safe — it exports only types and interfaces.
- * Server-only functions live in ./server.ts.
- */
-⋮----
-import type {
-  DistillContentInput,
-  DistillationResult,
-  TaskExtractionInput,
-  TaskExtractionOutput,
-} from "../domain/ports/DistillationPort";
-⋮----
-export interface DistillationAPI {
-  distillContent(input: DistillContentInput): Promise<DistillationResult>;
-  extractTasksFromContent(input: TaskExtractionInput): Promise<TaskExtractionOutput>;
-}
-⋮----
-distillContent(input: DistillContentInput): Promise<DistillationResult>;
-extractTasksFromContent(input: TaskExtractionInput): Promise<TaskExtractionOutput>;
 ````
 
 ## File: modules/ai/subdomains/prompt-pipeline/README.md
@@ -60641,38 +56998,6 @@ Outer runtimes may consume this prompt-pipeline subdomain through the public API
 
 - workspace UI may read prompt metadata for button hints
 - notebooklm flows may resolve prompt payloads before calling provider adapters
-````
-
-## File: modules/ai/subdomains/tool-runtime/api/server.ts
-````typescript
-import { GenerateWithToolsUseCase } from "../application/use-cases/generate-with-tools.use-case";
-import { GenkitToolRuntimeAdapter } from "../infrastructure/genkit/GenkitToolRuntimeAdapter";
-import { extractTasksFromContent as extractTasksFromDistillation } from "../../content-distillation/api/server";
-import type {
-  ToolDescriptor,
-  ToolEnabledGenerationInput,
-  ToolEnabledGenerationOutput,
-} from "../domain/ports/ToolRuntimePort";
-import type {
-  TaskExtractionInput,
-  TaskExtractionOutput,
-} from "../domain/ports/TaskExtractionPort";
-⋮----
-function getUseCase(): GenerateWithToolsUseCase
-⋮----
-export async function generateWithTools(
-  input: ToolEnabledGenerationInput,
-): Promise<ToolEnabledGenerationOutput>
-⋮----
-export function listAvailableTools(): ReadonlyArray<ToolDescriptor>
-⋮----
-/**
- * @deprecated Task extraction ownership has moved to ai/content-distillation.
- * Keep this wrapper temporarily to preserve the stable server API.
- */
-export async function extractTasksFromContent(
-  input: TaskExtractionInput,
-): Promise<TaskExtractionOutput>
 ````
 
 ## File: modules/iam/AGENT.md
@@ -61020,18 +57345,6 @@ export async function updateProfile(
 ): Promise<CommandResult>
 ````
 
-## File: modules/workspace/api/contracts.ts
-````typescript
-/**
- * workspace api/contracts.ts
- *
- * Canonical public type surface for the workspace bounded context.
- * Cross-module and app-layer consumers should import types from here.
- *
- * Internal source: interfaces/contracts/
- */
-````
-
 ## File: modules/workspace/application/queries/wiki-content-tree.queries.ts
 ````typescript
 /**
@@ -61065,88 +57378,31 @@ export async function buildWikiContentTree(
 ): Promise<WikiAccountContentNode[]>
 ````
 
-## File: modules/workspace/interfaces/web/components/cards/WorkspaceProductSpineCard.tsx
+## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
 ````typescript
-import Link from "next/link";
-import type { WorkspaceEntity } from "../../../contracts";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { WorkspaceInformationCard } from "./WorkspaceInformationCard";
-import {
-  getWorkspaceAddressLines,
-  getWorkspaceRoleAssignments,
-} from "../../view-models/workspace-supporting-records";
+import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Library, MessageSquare, Notebook, Shield, User, Users } from "lucide-react";
+import type { ReactNode } from "react";
 ⋮----
-interface WorkspaceProductSpineCardProps {
-  readonly workspace: WorkspaceEntity;
-}
-````
-
-## File: modules/workspace/interfaces/web/components/screens/AccountDashboardScreen.tsx
-````typescript
-import Link from "next/link";
-import {
-  BookOpen,
-  Brain,
-  Database,
-  FileText,
-  FolderOpen,
-  Library,
-  MessageSquare,
-  Notebook,
-  Shield,
-  User,
-  Users,
-} from "lucide-react";
+import { resolveWorkspaceTabValue } from "../../navigation/workspace-tabs";
 ⋮----
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
+function isWorkspaceScopedPath(pathname: string)
 ⋮----
-import type { WorkspaceEntity } from "../../../contracts";
-⋮----
-// ── Types ─────────────────────────────────────────────────────────────────────
-⋮----
-interface AccountDashboardScreenProps {
-  readonly accountId: string;
-  readonly accountName: string | null;
-  readonly accountType: "user" | "organization";
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly currentUserId: string | null;
+export interface WorkspaceQuickAccessMatcherOptions {
+  panel: string | null;
+  tab: string | null;
 }
 ⋮----
-// ── Quick-access card definitions ─────────────────────────────────────────────
-⋮----
-interface QuickAccessCard {
-  readonly key: string;
-  readonly label: string;
-  readonly description: string;
-  readonly icon: React.ReactNode;
-  readonly buildHref: (accountId: string, workspaceId: string) => string;
+export interface WorkspaceQuickAccessItem {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
 }
 ⋮----
-function enc(s: string): string
-⋮----
-// ── Component ─────────────────────────────────────────────────────────────────
-⋮----
-{/* ── Header ──────────────────────────────────────────────────────── */}
-⋮----
-{/* ── Active workspace quick-access ──────────────────────────────── */}
-⋮----
-{/* ── All workspaces list ─────────────────────────────────────────── */}
+export function buildWorkspaceQuickAccessItems(
+  workspaceId: string,
+  accountId?: string | null,
+): WorkspaceQuickAccessItem[]
 ````
 
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceMembersTab.tsx
@@ -61174,22 +57430,7 @@ async function handleRemoveMember(memberId: string)
 <Button onClick=
 ````
 
-## File: modules/workspace/subdomains/issue/api/index.ts
-````typescript
-
-````
-
 ## File: modules/workspace/subdomains/quality/api/index.ts
-````typescript
-
-````
-
-## File: modules/workspace/subdomains/settlement/api/index.ts
-````typescript
-
-````
-
-## File: modules/workspace/subdomains/task/api/index.ts
 ````typescript
 
 ````
@@ -61429,149 +57670,6 @@ flowchart LR
 - [context-map.md](./context-map.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
 - [../../subdomains.md](../../subdomains.md)
-````
-
-## File: docs/contexts/platform/README.md
-````markdown
-# Platform Context
-
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
-
-## Purpose
-
-platform 是帳號、組織與 shared operational services 主域。它的責任是提供 account、organization、notification、search、audit、observability 與 operational workflow 等跨切面能力，供其他主域穩定消費。
-
-## Why This Context Exists
-
-- 把治理與營運支撐責任集中，避免滲入其他主域。
-- 讓其他主域只消費治理結果，而不是重建治理模型。
-- 以清楚的 published language 承接身份、權益、政策與營運能力。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | account、organization 與營運支撐 |
-| Upstream Dependency | iam、billing、ai 的 shared signals 與治理結果 |
-| Downstream Consumers | workspace 與其他需要 operational services 的主域 |
-| Core Principle | platform 提供 account 與營運 surface，不接管治理、商業、內容或推理正典 |
-
-## Baseline Subdomains
-
-- identity
-- account
-- account-profile
-- organization
-- team
-- tenant
-- access-control
-- security-policy
-- platform-config
-- feature-flag
-- entitlement
-- onboarding
-- compliance
-- consent
-- billing
-- subscription
-- referral
-- ai
-- integration
-- secret-management
-- workflow
-- notification
-- background-job
-- content
-- search
-- audit-log
-- observability
-- analytics
-- support
-
-## Strategic Reinforcement Focus
-
-- consent（資料使用授權語義收斂）
-- secret-management（敏感憑證治理收斂）
-- operational-catalog（平台營運資產語義收斂）
-
-
-## Key Relationships
-
-- 對 iam、billing、ai：platform 消費它們的治理、商業與 capability signal。
-- 對 workspace：提供 account scope、organization surface 與 shared operational services。
-- 對 notion 與 notebooklm：按需提供 notification、search、audit、observability 等 operational service。
-
-## Reading Order
-
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
-
-## Dependency Direction
-
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- platform 對外只輸出治理結果與 published language，不輸出內部治理模型細節。
-
-## Account Surface Contract
-
-- platform 提供 account scope 的治理語意；shell 的 `accountId` 由這個主域的 account / organization 能力支撐，而不是由 workspace 自行定義。
-- account shell surface 採單一 account catch-all：`/{accountId}/[[...slug]]`；這是 account-scoped composition contract，不是 platform domain model 的直接外露。
-- `AccountType = "user" | "organization"` 是目前 platform account domain、workspace domain、Zod validators 與 route composition 共用的字串契約；`"user"` 表示 personal account scope，`"organization"` 表示 organization account scope。
-- business language 仍使用 personal account / organization account；只有 code-level string contract 才使用 `"user" | "organization"`，避免把 `user` 誤用成平台通用語言名詞。
-- organization governance route 在 shell 內應 flatten 到 account scope，例如 `/{accountId}/members`、`/{accountId}/teams`、`/{accountId}/permissions`；`/{accountId}/organization/*` 只應視為 legacy redirect surface。
-- platform 擁有 account 與 organization 的治理語意，但不擁有 workspace detail route；workspace detail 仍由 workspace module route screen 承接，只是經過 account-scoped shell composition 進入。
-
-## Anti-Pattern Rules
-
-- 不把 platform 寫成內容主域或對話主域。
-- 不把 entitlement、consent、secret-management 混成同一個泛用設定區。
-- 不把其他主域對平台的依賴寫成可以直接存取其內部模型。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 platform 的 operational 定位，再安排 account、organization、notification、search、audit、secret-management 的交互。
-- 奧卡姆剃刀：不要預先建立多餘 facade；能直接由既有治理邊界承接就維持單一路徑。
-- 優先讓 request -> orchestration -> domain decision -> published language 保持單純可追溯。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain"]
-	X["Infrastructure"] --> D
-	X -. implements ports .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Request["Actor / admin request"] --> Boundary["platform boundary"]
-	Boundary --> App["Application use case"]
-	App --> Domain["Platform domain"]
-	Domain --> Published["Published governance language"]
-	Published --> Consumers["workspace / notion / notebooklm"]
-```
-
-## Document Network
-
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../README.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-
-## Constraints
-
-- 本文件是 architecture-first 版本。
-- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
-- 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
 ## File: docs/module-graph.system-wide.md
@@ -61839,279 +57937,6 @@ flowchart LR
 - 本文件集沒有檢視任何既有專案內容，因此不應被解讀為 repo-inspected 現況描述。
 ````
 
-## File: docs/subdomains.md
-````markdown
-# Subdomains
-
-本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 strategic design 原則重建，不主張反映現況實作。
-
-## Main Domain Inventory
-
-| Main Domain | Baseline Subdomains | Recommended Gap Subdomains |
-|---|---|---|
-| iam | identity, access-control, tenant, security-policy | session, consent, secret-governance |
-| billing | billing, subscription, entitlement, referral | pricing, invoice, quota-policy |
-| ai | content-generation, content-distillation, context-assembly, evaluation-policy, memory-context, model-observability, prompt-pipeline, safety-guardrail | provider-routing, model-policy |
-| analytics | reporting, metrics, dashboards, telemetry-projection | experimentation, decision-support |
-| platform | account, account-profile, organization, team, platform-config, feature-flag, onboarding, compliance, integration, workflow, notification, background-job, content, search, audit-log, observability, support | consent, secret-management |
-| workspace | audit, feed, scheduling, workspace-workflow | lifecycle, membership, sharing, presence |
-| notion | knowledge, authoring, collaboration, knowledge-database, knowledge-engagement, attachments, automation, external-knowledge-sync, notes, templates, knowledge-versioning | taxonomy, relations, publishing |
-| notebooklm | conversation, note, notebook, source, synthesis, conversation-versioning | ingestion, retrieval, grounding, evaluation |
-
-## Detailed Subdomain Catalog
-
-### iam
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| identity | 已驗證主體與身份信號治理 |
-| access-control | 主體現在能做什麼的授權判定 |
-| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
-| security-policy | 安全規則定義、版本化與發佈 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| session | session、token 與 identity lifecycle 收斂 |
-| consent | 同意與資料使用授權治理收斂 |
-| secret-governance | secret 與 credential access policy 收斂 |
-
-### billing
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| billing | 計費狀態、費率與財務證據 |
-| subscription | 方案、配額與續期治理 |
-| entitlement | 有效權益與功能可用性統一解算 |
-| referral | 推薦關係與獎勵追蹤 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| pricing | 價格模型與方案矩陣治理 |
-| invoice | 帳單、請款與對帳流程 |
-| quota-policy | 可量化配額與商業限制規則 |
-
-### ai
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| content-generation | AI 驅動的文本生成與回覆輸出 |
-| content-distillation | AI 驅動的摘要、提煉與結構化壓縮 |
-| context-assembly | 推理前的 context window 組裝與排序 |
-| evaluation-policy | AI 品質與回歸評估政策 |
-| memory-context | 跨對話記憶與可重用上下文整理 |
-| model-observability | 模型使用量、成本與效能監測 |
-| prompt-pipeline | prompt、template、flow 與 tool calling orchestration |
-| safety-guardrail | 安全護欄、內容保護與限制 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| provider-routing | 模型供應商選擇與路由治理 |
-| model-policy | 模型能力、版本與使用政策 |
-
-### analytics
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| reporting | 報表輸出與查詢整理 |
-| metrics | 指標定義與聚合 |
-| dashboards | 儀表板呈現語義 |
-| telemetry-projection | 事件投影與 read model 匯總 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| experimentation | 實驗分析與對照觀測 |
-| decision-support | 決策輔助與洞察輸出 |
-
-### workspace
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| audit | 工作區操作稽核與證據追蹤 |
-| feed | 工作區活動摘要與事件流呈現 |
-| scheduling | 工作區排程、時序與提醒協調 |
-| workspace-workflow | 工作區流程編排與執行治理 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| lifecycle | 將工作區容器生命週期獨立為正典邊界（建立、封存、復原） |
-| membership | 將工作區參與關係從平台身份治理切開（角色、加入、移除） |
-| sharing | 將共享範圍與可見性規則收斂到單一上下文（對內/對外分享） |
-| presence | 將即時協作存在感、共同編輯訊號收斂為本地語言 |
-
-### platform
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| account | 帳號聚合根與帳號生命週期 |
-| account-profile | 主體屬性、偏好與治理設定 |
-| organization | 組織、成員與角色邊界 |
-| team | Organization 內部成員分組治理 |
-| platform-config | 平台設定輪廓與配置管理 |
-| feature-flag | 功能開關策略與發佈節點 |
-| onboarding | 新主體初始設定與引導流程 |
-| compliance | 資料保留、稽核與法規執行 |
-| integration | 外部系統整合邊界與契約 |
-| workflow | 平台級流程編排與狀態驅動執行 |
-| notification | 通知路由、偏好與投遞 |
-| background-job | 背景任務提交、排程與監控 |
-| content | 平台級內容資產管理與發布 |
-| search | 跨域搜尋路由與查詢協調 |
-| audit-log | 永久稽核軌跡與不可否認證據 |
-| observability | 健康量測、追蹤與告警 |
-| support | 客服工單、支援知識與處理流程 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| consent | 將同意與資料使用授權從 compliance 中切開 |
-| secret-management | 將憑證、token、rotation 從 integration 中切開 |
-| operational-catalog | 將平台營運資產與配置字典收斂成單一邊界 |
-
-### notion
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| knowledge | 頁面建立、組織、版本化與交付 |
-| authoring | 知識庫文章建立、驗證與分類 |
-| collaboration | 協作留言、細粒度權限與版本快照 |
-| knowledge-database | 結構化資料多視圖管理 |
-| knowledge-engagement | 知識使用行為量測 |
-| attachments | 附件與媒體關聯儲存 |
-| automation | 知識事件觸發自動化動作 |
-| external-knowledge-sync | 知識與外部系統雙向整合 |
-| notes | 個人輕量筆記與正式知識協作 |
-| templates | 頁面範本管理與套用 |
-| knowledge-versioning | 全域版本快照策略管理 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| taxonomy | 建立分類法與語義組織的正典邊界 |
-| relations | 建立內容之間關聯與 backlink 的正典邊界 |
-| publishing | 建立正式發布與對外交付的正典邊界 |
-
-### notebooklm
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| conversation | 對話 Thread 與 Message 生命週期 |
-| note | 輕量筆記與知識連結 |
-| notebook | Notebook 組合與管理 |
-| source | 來源文件追蹤與引用 |
-| synthesis | RAG 合成、摘要與洞察生成 |
-| conversation-versioning | 對話版本與快照策略 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| ingestion | 建立來源匯入、正規化與前處理的正典邊界 |
-| retrieval | 建立查詢召回與排序策略的正典邊界 |
-| grounding | 建立引用對齊與可追溯證據的正典邊界 |
-| evaluation | 建立品質評估與回歸比較的正典邊界 |
-
-## Strategic Notes
-
-- baseline subdomains 代表本架構基線中已確立的核心切分。
-- recommended gap subdomains 代表依 Context7 推導出的合理補洞方向。
-- recommended gap subdomains 不等於已驗證現況實作。
-
-## Ownership Summary
-
-- iam 關心身份、租戶與存取治理。
-- billing 關心商業生命週期與有效權益。
-- ai 關心共享 AI capability 與模型政策。
-- analytics 關心下游分析、指標與 read model 投影。
-- platform 關心 account、organization 與 shared operational services。
-- workspace 關心協作範疇。
-- notion 關心正典知識內容。
-- notebooklm 關心推理與衍生輸出。
-
-## Cross-Domain Duplicate Resolution
-
-| Original Term | Resolution |
-|---|---|
-| ai | `ai` context 擁有 generic AI capability；`notion` 與 `notebooklm` 僅為 consumer |
-| analytics | `analytics` context 擁有 generic analytics；`notion` 保留 `knowledge-engagement` |
-| entitlement | `billing` 擁有 entitlement；其他主域只消費 capability signal |
-| identity | `iam` 擁有 identity 與 access-control；其他主域不再各自宣稱 |
-| integration | `platform` 保留 generic `integration`；`notion` 保留 `external-knowledge-sync` |
-| versioning | `notion` 改為 `knowledge-versioning`；`notebooklm` 改為 `conversation-versioning` |
-| workflow | `platform` 保留 generic `workflow`；`workspace` 使用 `workspace-workflow` |
-
-## Subdomain Anti-Patterns
-
-- 不把 baseline subdomains 與 recommended gap subdomains 混成同一種事實狀態。
-- 不把主域缺口直接分攤到別的主域，造成所有權漂移。
-- 不把子域名稱當成 UI 功能清單，而忽略其邊界責任。
-- 不讓同一個 generic 子域名稱同時被多個主域擁有，造成 Copilot 與團隊語言歧義。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先確認需求屬於哪個主域與子域，再決定實作位置。
-- 奧卡姆剃刀：能放進既有子域就不要創造新子域；能放進既有 use case 就不要新增第二條平行流程。
-- gap subdomain 只表示架構缺口，不表示一定要立刻實作。
-- 遇到 generic 名稱時，先套用本文件的 duplicate resolution，再決定是否新增或改名。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart TD
-	MainDomain["Main domain"] --> Baseline["Baseline subdomains"]
-	MainDomain --> Gap["Recommended gap subdomains"]
-	Baseline --> UseCase["Use case / boundary"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Requirement["Requirement"] --> Domain["Choose main domain"]
-	Domain --> Subdomain["Choose owning subdomain"]
-	Subdomain --> Boundary["Choose boundary"]
-	Boundary --> Code["Generate code"]
-```
-
-## Document Network
-
-- [architecture-overview.md](./architecture-overview.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [contexts/workspace/subdomains.md](./contexts/workspace/subdomains.md)
-- [contexts/platform/subdomains.md](./contexts/platform/subdomains.md)
-- [contexts/notion/subdomains.md](./contexts/notion/subdomains.md)
-- [contexts/notebooklm/subdomains.md](./contexts/notebooklm/subdomains.md)
-````
-
 ## File: modules/ai/AGENT.md
 ````markdown
 # AI Module Agent Guide
@@ -62183,158 +58008,14 @@ applyTo: 'modules/ai/**/*.{ts,tsx,js,jsx,md}'
 - 不讓其他模組繞過 api 邊界直接 import subdomain internals。
 ````
 
-## File: modules/ai/subdomains/content-distillation/domain/ports/DistillationPort.ts
+## File: modules/ai/application/index.ts
 ````typescript
-export interface DistillationSource {
-  readonly title?: string | null;
-  readonly text: string;
-}
-⋮----
-export interface DistillContentInput {
-  readonly sources: readonly DistillationSource[];
-  readonly objective?: string;
-  readonly model?: string;
-}
-⋮----
-export interface DistillationItem {
-  readonly title: string;
-  readonly summary: string;
-  readonly sourceTitle?: string | null;
-}
-⋮----
-export interface DistillationResult {
-  readonly overview: string;
-  readonly distilledItems: readonly DistillationItem[];
-  readonly model: string;
-  readonly traceId: string;
-  readonly completedAt: string;
-}
-⋮----
-export interface ExtractedTaskItem {
-  readonly title: string;
-  readonly description?: string;
-  readonly dueDate?: string;
-  /**
-   * Family-specific structured data that does not fit the generic task shape.
-   * Examples: `{ itemNumber, workCategory, quantity, unit, estimatedAmount }` for
-   * procurement documents; `{ obligation, penaltyClause }` for compliance docs.
-   * Consumers should remain agnostic to its shape; use a narrowing guard if needed.
-   */
-  readonly metadata?: Record<string, unknown>;
-}
-⋮----
-/**
-   * Family-specific structured data that does not fit the generic task shape.
-   * Examples: `{ itemNumber, workCategory, quantity, unit, estimatedAmount }` for
-   * procurement documents; `{ obligation, penaltyClause }` for compliance docs.
-   * Consumers should remain agnostic to its shape; use a narrowing guard if needed.
-   */
-⋮----
-export interface TaskExtractionPromptContext {
-  readonly filename?: string;
-  readonly mimeType?: string;
-  readonly workspaceId?: string;
-  readonly accountId?: string;
-  readonly jsonReady?: boolean;
-  readonly pageCount?: number;
-  readonly sourceGcsUri?: string;
-  readonly jsonGcsUri?: string;
-  /**
-   * Optional prompt family override.  When omitted the adapter defaults to
-   * `"task-extraction"`.  Supported values correspond to extraction families:
-   * `"task-extraction"` | `"procurement-extraction"` | `"compliance-extraction"`.
-   */
-  readonly promptFamily?: string;
-}
-⋮----
-/**
-   * Optional prompt family override.  When omitted the adapter defaults to
-   * `"task-extraction"`.  Supported values correspond to extraction families:
-   * `"task-extraction"` | `"procurement-extraction"` | `"compliance-extraction"`.
-   */
-⋮----
-export interface TaskExtractionInput {
-  readonly content: string;
-  readonly maxCandidates?: number;
-  readonly model?: string;
-  readonly promptContext?: TaskExtractionPromptContext;
-}
-⋮----
-export interface TaskExtractionOutput {
-  readonly tasks: readonly ExtractedTaskItem[];
-  readonly model: string;
-  readonly traceId: string;
-  readonly completedAt: string;
-}
-⋮----
-export interface TaskExtractionPort {
-  extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>;
-}
-⋮----
-extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>;
-⋮----
-export interface DistillationPort extends TaskExtractionPort {
-  distill(input: DistillContentInput): Promise<DistillationResult>;
-}
-⋮----
-distill(input: DistillContentInput): Promise<DistillationResult>;
+/** ai/application — AI orchestration use cases. */
 ````
 
-## File: modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts
+## File: modules/ai/domain/index.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
-import { z } from "genkit";
-⋮----
-import {
-  resolveComplianceExtractionPrompt,
-  resolveProcurementExtractionPrompt,
-  resolveTaskExtractionPrompt,
-} from "../../../prompt-pipeline/api";
-import { BUILT_IN_TOOLS } from "../../../../infrastructure/llm/built-in-tools";
-import { aiClient, configuredModel } from "../../../../infrastructure/llm/genkit-shared";
-import type {
-  DistillContentInput,
-  DistillationPort,
-  DistillationResult,
-  TaskExtractionInput,
-  TaskExtractionOutput,
-} from "../../domain/ports/DistillationPort";
-⋮----
-// ── Output schemas ────────────────────────────────────────────────────────────
-⋮----
-// ── Extraction family helpers ─────────────────────────────────────────────────
-⋮----
-type ExtractionFamily = "task-extraction" | "procurement-extraction" | "compliance-extraction";
-⋮----
-function resolveExtractionFamily(promptFamily?: string): ExtractionFamily
-⋮----
-interface BuiltPrompt {
-  readonly text: string;
-  readonly family: ExtractionFamily;
-  readonly recommendedTools: readonly string[];
-}
-⋮----
-function buildExtractionPrompt(input: TaskExtractionInput): BuiltPrompt
-⋮----
-// ── Tool selection ────────────────────────────────────────────────────────────
-⋮----
-/** Returns Genkit tool instances for the names present in recommendedTools. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function selectTools(recommendedTools: readonly string[]): any[]
-⋮----
-// ── Distillation prompt ───────────────────────────────────────────────────────
-⋮----
-function buildDistillationPrompt(input: DistillContentInput): string
-⋮----
-// ── Adapter ───────────────────────────────────────────────────────────────────
-⋮----
-export class GenkitDistillationAdapter implements DistillationPort {
-⋮----
-async distill(input: DistillContentInput): Promise<DistillationResult>
-⋮----
-async extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>
-⋮----
-// Default: task-extraction
+/** ai/domain — AI domain contracts. */
 ````
 
 ## File: modules/ai/subdomains/subdomains.instructions.md
@@ -62725,120 +58406,16 @@ export function makeSourceUseCases(
 ): SourceUseCases
 ````
 
-## File: modules/workspace/api/ui.ts
+## File: modules/workspace/api/contracts.ts
 ````typescript
 /**
- * workspace api/ui.ts
+ * workspace api/contracts.ts
  *
- * Canonical public web UI surface for the workspace bounded context.
- * App-layer consumers that need workspace UI components, hooks, and
- * navigation utilities should import from here.
+ * Canonical public type surface for the workspace bounded context.
+ * Cross-module and app-layer consumers should import types from here.
  *
- * Internal source: interfaces/web/
+ * Internal source: interfaces/contracts/
  */
-⋮----
-// ── Screen components ────────────────────────────────────────────────────────
-⋮----
-// ── Card components ──────────────────────────────────────────────────────────
-⋮----
-// ── Tab components ───────────────────────────────────────────────────────────
-⋮----
-// ── Layout components ────────────────────────────────────────────────────────
-⋮----
-// ── Rail components ──────────────────────────────────────────────────────────
-⋮----
-// ── Navigation ────────────────────────────────────────────────────────────────
-⋮----
-// ── Quick-access navigation ───────────────────────────────────────────────────
-⋮----
-// ── State helpers ─────────────────────────────────────────────────────────────
-⋮----
-// ── Map utilities ─────────────────────────────────────────────────────────────
-⋮----
-// ── Hooks ─────────────────────────────────────────────────────────────────────
-⋮----
-// ── Workspace context provider ────────────────────────────────────────────────
-⋮----
-// ── Navigation preferences ────────────────────────────────────────────────────
-⋮----
-// ── Sidebar locale ────────────────────────────────────────────────────────────
-⋮----
-// ── Navigation customize dialog ───────────────────────────────────────────────
-````
-
-## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
-````typescript
-import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Library, MessageSquare, Notebook, Shield, User, Users } from "lucide-react";
-import type { ReactNode } from "react";
-⋮----
-import { resolveWorkspaceTabValue } from "../../navigation/workspace-tabs";
-⋮----
-function isWorkspaceScopedPath(pathname: string)
-⋮----
-export interface WorkspaceQuickAccessMatcherOptions {
-  panel: string | null;
-  tab: string | null;
-}
-⋮----
-export interface WorkspaceQuickAccessItem {
-  href: string;
-  label: string;
-  icon: ReactNode;
-  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
-}
-⋮----
-export function buildWorkspaceQuickAccessItems(
-  workspaceId: string,
-  accountId?: string | null,
-): WorkspaceQuickAccessItem[]
-````
-
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceDetailTabContent.tsx
-````typescript
-import type { ReactNode } from "react";
-⋮----
-import { WorkspaceAuditTab } from "../../../../subdomains/audit/api";
-import { WorkspaceFeedWorkspaceView } from "../../../../subdomains/feed/api";
-import { WorkspaceSchedulingTab } from "../../../../subdomains/scheduling/api";
-import { WorkspaceFlowTab } from "../../../../subdomains/workspace-workflow/api";
-import { WorkspaceNotificationPreferencesPanel } from "@/modules/platform/subdomains/notification/api";
-import type { WorkspaceEntity } from "../../../../domain/aggregates/Workspace";
-import type { WorkspaceTabValue } from "../../navigation/workspace-tabs";
-import {
-  getWorkspaceAddressLines,
-  getWorkspacePersonnelEntries,
-} from "../../view-models/workspace-supporting-records";
-import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
-import { WorkspaceFilesManagementTab } from "./WorkspaceFilesManagementTab";
-import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
-import { WorkspaceOverviewTab } from "./WorkspaceOverviewTab";
-import { renderWorkspaceCrossModuleTabSurface } from "./WorkspaceCrossModuleTabSurface";
-⋮----
-interface WorkspaceDetailTabContentOptions {
-  readonly tab: WorkspaceTabValue;
-  readonly workspace: WorkspaceEntity;
-  readonly accountId: string | null | undefined;
-  readonly currentUserId: string | undefined;
-  readonly workspaces: Record<string, WorkspaceEntity>;
-  readonly activeWorkspaceId: string | null;
-  readonly initialOverviewPanel?: string;
-  readonly onEditWorkspace: () => void;
-  readonly onSetActiveWorkspace: (workspaceId: string) => void;
-}
-⋮----
-export function renderWorkspaceDetailTabContent({
-  tab,
-  workspace,
-  accountId,
-  currentUserId,
-  workspaces,
-  activeWorkspaceId,
-  initialOverviewPanel,
-  onEditWorkspace,
-  onSetActiveWorkspace,
-}: WorkspaceDetailTabContentOptions): ReactNode
-⋮----
-onSetActiveWorkspace=
 ````
 
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceManagedFileCard.tsx
@@ -62882,142 +58459,133 @@ interface WorkspaceManagedFileCardProps {
 <Badge variant=
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/application/use-cases/extract-task-candidates-from-knowledge.use-case.ts
+## File: modules/workspace/subdomains/issue/api/index.ts
 ````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file extract-task-candidates-from-knowledge.use-case.ts
- * @description Extract task candidates from parsed knowledge blocks through the shared AI bounded context.
- */
-⋮----
-import type {
-  ExtractTaskCandidatesFromKnowledgeDto,
-  ExtractTaskCandidatesFromKnowledgeResult,
-  ExtractedTaskCandidate,
-} from "../dto/extract-task-candidates-from-knowledge.dto";
-import type { TaskCandidateExtractionAiPort } from "../../domain/ports/TaskCandidateExtractionAiPort";
-⋮----
-function mergeUnique(candidates: ReadonlyArray<ExtractedTaskCandidate>): ReadonlyArray<ExtractedTaskCandidate>
-⋮----
-export class ExtractTaskCandidatesFromKnowledgeUseCase {
-⋮----
-constructor(private readonly aiPort?: TaskCandidateExtractionAiPort)
-⋮----
-async execute(
-    dto: ExtractTaskCandidatesFromKnowledgeDto,
-): Promise<ExtractTaskCandidatesFromKnowledgeResult>
+
 ````
 
-## File: repomix-markdown.config.json
+## File: modules/workspace/subdomains/settlement/api/index.ts
+````typescript
+
+````
+
+## File: modules/workspace/subdomains/task/api/index.ts
+````typescript
+
+````
+
+## File: package.json
 ````json
 {
-  "$schema": "https://repomix.com/schemas/latest/schema.json",
-  "input": {
-    "maxFileSize": 52428800
+  "name": "xuanwu-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "deploy:firestore:indexes": "npx firebase deploy --only firestore:indexes",
+    "deploy:firestore:rules": "npx firebase deploy --only firestore:rules",
+    "deploy:storage:rules": "npx firebase deploy --only storage",
+    "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
+    "deploy:apphosting": "npx firebase deploy --only apphosting",
+    "deploy:functions": "npx firebase deploy --only functions:py_fn",
+    "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
+    "deploy:functions:all": "npx firebase deploy --only functions",
+    "deploy:firebase": "npx firebase deploy",
+    "repomix:ai": "npx repomix --config repomix-ai.config.json --skill-generate xuanwu-ai-skill --skill-output .github/skills/xuanwu-ai-skill --force",
+    "repomix:skill": "npx repomix --config repomix.config.json --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
+    "repomix:markdown": "npx repomix --config repomix-markdown.config.json --skill-generate xuanwu-markdown-skill --skill-output .github/skills/xuanwu-markdown-skill --force",
+    "repomix:notebooklm": "npx repomix --config repomix-notebooklm.config.json --skill-generate xuanwu-notebooklm-skill --skill-output .github/skills/xuanwu-notebooklm-skill --force",
+    "repomix:notion": "npx repomix --config repomix-notion.config.json --skill-generate xuanwu-notion-skill --skill-output .github/skills/xuanwu-notion-skill --force",
+    "repomix:explore": "npx repomix --config repomix.config.json",
+    "repomix:remote": "npx repomix --remote",
+    "repomix:local": "npx repomix"
   },
-  "output": {
-    "filePath": "repomix-output.json",
-    "style": "json",
-    "parsableStyle": true,
-
-    "fileSummary": true,
-    "directoryStructure": true,
-    "files": true,
-
-    "removeComments": false,
-    "removeEmptyLines": false,
-
-    "compress": true,
-
-    "topFilesLength": 10,
-
-    "showLineNumbers": false,
-    "truncateBase64": false,
-    "copyToClipboard": false,
-
-    "includeFullDirectoryStructure": false,
-    "tokenCountTree": true,
-
-    "git": {
-      "sortByChanges": true,
-      "sortByChangesMaxCommits": 200,
-      "includeDiffs": false,
-      "includeLogs": false,
-      "includeLogsCount": 50
-    }
+  "engines": {
+    "node": "24"
   },
-  "include": [
-    ".serena/**/*.md",
-    ".github/**/*.md",
-    "docs/**/*.md",
-    "app/**/*.md",
-    "modules/**/*.md",
-    "packages/**/*.md",
-    "py_fn/**/*.md"
-  ],
-  "ignore": {
-    "useGitignore": true,
-    "useDotIgnore": true,
-    "useDefaultPatterns": true,
-    "customPatterns": [
-      ".next/**",
-      ".turbo/**",
-      ".vercel/**",
-      ".firebase/**",
-      ".output/**",
-      ".parcel-cache/**",
-
-      ".cursor/**",
-      ".vscode/**",
-      ".serena/**",
-      ".claude/**",
-      ".opencode/**",
-      ".idea/**",
-      ".history/**",
-
-      ".cache/**",
-      ".temp/**",
-      ".tmp/**",
-      "tmp/**",
-      "temp/**",
-
-      "logs/**",
-      "firebase-debug.log",
-      "repomix-output.*",
-
-      ".env*",
-      "*.pem",
-      "*.key",
-      "*.crt",
-
-      "skills-lock.json",
-
-      "docs/architecture/**",
-      "diagrams/**",
-
-      "*.png",
-      "*.jpg",
-      "*.jpeg",
-      "*.gif",
-      "*.webp",
-      "*.mp4",
-      "*.zip",
-      "*.tar",
-      "*.gz",
-
-      "*.sqlite",
-      "*.db",
-      ".github/skills/xuanwu-app-skill/**",
-      ".github/skills/xuanwu-markdown-skill/**",
-      ".github/skills/xuanwu-notebooklm-skill/**",
-      ".github/skills/xuanwu-notion-skill/**"
-    ]
+  "dependencies": {
+    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
+    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
+    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
+    "@genkit-ai/google-genai": "^1.30.1",
+    "@tanstack/react-form": "^1.28.5",
+    "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.13.23",
+    "@tiptap/extension-color": "^3.22.2",
+    "@tiptap/extension-link": "^3.22.2",
+    "@tiptap/extension-placeholder": "^3.22.2",
+    "@tiptap/extension-text-style": "^3.22.2",
+    "@tiptap/extension-typography": "^3.22.2",
+    "@tiptap/extension-underline": "^3.22.2",
+    "@tiptap/react": "^3.22.2",
+    "@tiptap/starter-kit": "^3.22.2",
+    "@trpc/client": "^11.13.4",
+    "@trpc/next": "^11.13.4",
+    "@trpc/react-query": "^11.13.4",
+    "@trpc/server": "^11.13.4",
+    "@xstate/react": "^6.1.0",
+    "axios": "^1.13.6",
+    "cmdk": "^1.1.1",
+    "date-fns": "^4.1.0",
+    "embla-carousel-react": "^8.6.0",
+    "firebase": "^12.9.0",
+    "genkit": "^1.30.1",
+    "input-otp": "^1.4.2",
+    "lucide-react": "^0.577.0",
+    "next": "16.1.7",
+    "next-themes": "^0.4.6",
+    "radix-ui": "^1.4.3",
+    "react": "19.2.3",
+    "react-day-picker": "^9.14.0",
+    "react-dom": "19.2.3",
+    "react-graph-vis": "^1.0.7",
+    "react-markdown": "^10.1.0",
+    "recharts": "^2.15.4",
+    "remark-gfm": "^4.0.1",
+    "sonner": "^2.0.7",
+    "superjson": "^2.2.6",
+    "uuid": "^13.0.0",
+    "vaul": "^1.1.2",
+    "vis-data": "^8.0.3",
+    "vis-graph3d": "^7.0.2",
+    "vis-network": "^10.0.2",
+    "vis-timeline": "^8.5.0",
+    "xstate": "^5.28.0",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.12"
   },
-  "security": {
-    "enableSecurityCheck": true
-  },
-  "tokenCount": {
-    "encoding": "o200k_base"
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^16.2.2",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20.19.37",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@typescript-eslint/eslint-plugin": "^8.57.1",
+    "@typescript-eslint/parser": "^8.57.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.1.7",
+    "eslint-plugin-boundaries": "^6.0.1",
+    "eslint-plugin-jsdoc": "^62.8.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "repomix": "^1.12.0",
+    "shadcn": "^4.1.0",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4",
+    "tailwindcss-animate": "^1.0.7",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "^5",
+    "typescript-eslint": "^8.58.0",
+    "vitest": "^4.1.2"
   }
 }
 ````
@@ -63062,7 +58630,7 @@ async execute(
 | ai | 共享能力上游 | content-generation、content-distillation、context-assembly、evaluation-policy、memory-context、model-observability、prompt-pipeline、safety-guardrail；provider-routing / model-policy 為後續治理延伸 |
 | analytics | 分析下游 | reporting、metrics、dashboard、projection read model |
 | platform | 平台營運支撐 | account、organization、team、notification、search、audit-log、observability、operational workflow |
-| workspace | 協作範疇 | workspaceId、membership、sharing、presence、feed、audit、scheduling、workspace-workflow |
+| workspace | 協作範疇 | workspaceId、membership、sharing、presence、feed、audit、scheduling、task、issue、settlement、approve、quality、orchestration |
 | notion | 正典內容 | knowledge artifact、taxonomy、relations、publication、knowledge-versioning |
 | notebooklm | 推理輸出 | ingestion、retrieval、grounding、conversation、synthesis、evaluation、conversation-versioning |
 
@@ -63161,280 +58729,6 @@ flowchart LR
 5. [integration-guidelines.md](./integration-guidelines.md)
 6. [strategic-patterns.md](./strategic-patterns.md)
 7. [decisions/README.md](./decisions/README.md)
-````
-
-## File: docs/bounded-contexts.md
-````markdown
-# Bounded Contexts
-
-本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 hexagonal architecture 原則重建，不主張反映現況實作。
-
-## Strategic Bounded Context Model
-
-系統目前以八個主域 / bounded context 構成。每個主域下可再分成 baseline subdomains 與 recommended gap subdomains。
-
-## Main Domain Map
-
-| Main Domain | Strategic Role | Baseline Focus | Recommended Gap Focus |
-|---|---|---|---|
-| iam | 身份與存取治理 | identity、access-control、tenant、security-policy | session、consent、secret-governance |
-| billing | 商業與權益治理 | billing、subscription、entitlement、referral | pricing、invoice、quota-policy |
-| ai | 共享 AI capability | content-generation、content-distillation、context-assembly、evaluation-policy、memory-context、model-observability、prompt-pipeline、safety-guardrail | provider-routing、model-policy |
-| analytics | 分析與 read model 下游 | reporting、metrics、dashboards、telemetry-projection | experimentation、decision-support |
-| platform | 平台營運支撐 | account、organization、notification、search、audit-log、observability | consent、secret-management、operational-catalog |
-| workspace | 協作容器與 scope | audit、feed、scheduling、workspace-workflow | lifecycle、membership、sharing、presence |
-| notion | 正典知識內容 | knowledge、authoring、collaboration、knowledge-database、templates、knowledge-versioning | taxonomy、relations、publishing |
-| notebooklm | 對話與推理 | conversation、note、notebook、source、synthesis、conversation-versioning | ingestion、retrieval、grounding、evaluation |
-
-## Subdomain Inventory By Main Domain
-
-### iam
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| identity | 已驗證主體與身份信號治理 |
-| access-control | 主體現在能做什麼的授權判定 |
-| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
-| security-policy | 安全規則定義、版本化與發佈 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| session | 將 session 與 token lifecycle 收斂為獨立能力 |
-| consent | 將同意與授權治理從泛用平台設定中切開 |
-| secret-governance | 將 secret access policy 收斂為明確治理邊界 |
-
-### billing
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| billing | 計費狀態、費率與財務證據 |
-| subscription | 方案、配額與續期治理 |
-| entitlement | 有效權益與功能可用性統一解算 |
-| referral | 推薦關係與獎勵追蹤 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| pricing | 價格模型與方案矩陣治理 |
-| invoice | 帳單、請款與對帳流程 |
-| quota-policy | 將可量化商業限制收斂成單一政策語言 |
-
-### ai
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| content-generation | AI 驅動的文本生成與回覆輸出 |
-| content-distillation | AI 驅動的摘要、提煉與結構化壓縮 |
-| context-assembly | 推理前的 context window 組裝與排序 |
-| evaluation-policy | 品質與回歸評估政策 |
-| memory-context | 跨對話記憶與可重用上下文整理 |
-| model-observability | 模型使用量、成本與效能監測 |
-| prompt-pipeline | prompt、template、flow 與 tool calling orchestration |
-| safety-guardrail | 安全護欄、內容保護與限制 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| provider-routing | 模型供應商選擇與路由治理 |
-| model-policy | 模型能力、版本與使用政策 |
-
-### analytics
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| reporting | 報表輸出與查詢整理 |
-| metrics | 指標定義與聚合 |
-| dashboards | 儀表板呈現語義 |
-| telemetry-projection | 事件投影與 read model 匯總 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| experimentation | 實驗分析與對照觀測 |
-| decision-support | 決策輔助與洞察輸出 |
-
-### workspace
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| audit | 工作區操作稽核與證據追蹤 |
-| feed | 工作區活動摘要與事件流呈現 |
-| scheduling | 工作區排程、時序與提醒協調 |
-| workspace-workflow | 工作區流程編排與執行治理 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| lifecycle | 將工作區容器生命週期獨立為正典邊界（建立、封存、復原） |
-| membership | 將工作區參與關係從平台身份治理切開（角色、加入、移除） |
-| sharing | 將共享範圍與可見性規則收斂到單一上下文（對內/對外分享） |
-| presence | 將即時協作存在感、共同編輯訊號收斂為本地語言 |
-
-### platform
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| account | 帳號聚合根與帳號生命週期 |
-| account-profile | 主體屬性、偏好與治理設定 |
-| organization | 組織、成員與角色邊界 |
-| team | Organization 內部成員分組治理 |
-| platform-config | 平台設定輪廓與配置管理 |
-| feature-flag | 功能開關策略與發佈節點 |
-| onboarding | 新主體初始設定與引導流程 |
-| compliance | 資料保留、稽核與法規執行 |
-| integration | 外部系統整合邊界與契約 |
-| workflow | 平台級流程編排與狀態驅動執行 |
-| notification | 通知路由、偏好與投遞 |
-| background-job | 背景任務提交、排程與監控 |
-| content | 平台級內容資產管理與發布 |
-| search | 跨域搜尋路由與查詢協調 |
-| audit-log | 永久稽核軌跡與不可否認證據 |
-| observability | 健康量測、追蹤與告警 |
-| support | 客服工單、支援知識與處理流程 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| consent | 將同意與資料使用授權從 compliance 中切開 |
-| secret-management | 將憑證、token、rotation 從 integration 中切開 |
-| operational-catalog | 將平台營運資產與配置字典收斂成單一邊界 |
-
-### notion
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| knowledge | 頁面建立、組織、版本化與交付 |
-| authoring | 知識庫文章建立、驗證與分類 |
-| collaboration | 協作留言、細粒度權限與版本快照 |
-| knowledge-database | 結構化資料多視圖管理 |
-| knowledge-engagement | 知識使用行為量測 |
-| attachments | 附件與媒體關聯儲存 |
-| automation | 知識事件觸發自動化動作 |
-| external-knowledge-sync | 知識與外部系統雙向整合 |
-| notes | 個人輕量筆記與正式知識協作 |
-| templates | 頁面範本管理與套用 |
-| knowledge-versioning | 全域版本快照策略管理 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| taxonomy | 建立分類法與語義組織的正典邊界 |
-| relations | 建立內容之間關聯與 backlink 的正典邊界 |
-| publishing | 建立正式發布與對外交付的正典邊界 |
-
-### notebooklm
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| conversation | 對話 Thread 與 Message 生命週期 |
-| note | 輕量筆記與知識連結 |
-| notebook | Notebook 組合與管理 |
-| source | 來源文件追蹤與引用 |
-| synthesis | RAG 合成、摘要與洞察生成 |
-| conversation-versioning | 對話版本與快照策略 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| ingestion | 建立來源匯入、正規化與前處理的正典邊界 |
-| retrieval | 建立查詢召回與排序策略的正典邊界 |
-| grounding | 建立引用對齊與可追溯證據的正典邊界 |
-| evaluation | 建立品質評估與回歸比較的正典邊界 |
-
-## Ownership Rules
-
-- iam 擁有身份、租戶與 access decision，不擁有商業、內容或推理正典。
-- billing 擁有 subscription 與 entitlement，不擁有身份治理或內容正典。
-- ai 擁有 shared AI capability，不擁有內容或 notebook 推理正典。
-- analytics 擁有下游報表與 projection，不擁有上游寫入模型。
-- platform 擁有 account、organization 與 operational service，不再作為所有治理能力的總擁有者。
-- workspace 擁有工作區範疇，不擁有平台治理或正典內容。
-- notion 擁有正典知識內容，不擁有治理或推理流程。
-- notebooklm 擁有推理流程與衍生輸出，不擁有正典知識內容。
-
-## Dependency Direction Guardrail
-
-- bounded context 所有權定義的是語言與規則邊界，不等於可直接穿透的實作邊界。
-- 每個主域內部仍必須遵守 interfaces -> application -> domain <- infrastructure。
-- 跨主域整合一律先經 API boundary、published language、events 或 local DTO。
-
-## Conflict Resolution
-
-- 若某子域同時被多個主域宣稱，依最能維持語言自洽與 context map 方向的主域保留所有權。
-- 若某能力定義 actor、identity、tenant 或 access decision，優先歸 iam。
-- 若某能力定義 subscription、entitlement、pricing 或 referral，優先歸 billing。
-- 若某能力定義 shared model capability、provider routing、safety 或 prompt orchestration，優先歸 ai。
-- 若某能力只消費事件並形成報表或 read model，優先歸 analytics。
-- 若某能力同時像內容又像推理輸出，先問它是否是正典內容狀態；若是，歸 notion，否則歸 notebooklm。
-- `workflow` 作為 generic 名稱只保留在 platform；workspace 使用 `workspace-workflow` 避免跨主域混名。
-
-## Forbidden Ownership Moves
-
-- 不得讓兩個主域同時宣稱同一正典模型所有權。
-- 不得用部署、資料表或 UI 分區來覆蓋 bounded context 所有權。
-- 不得把 gap subdomain 缺口視為可以任意分散到其他主域的理由。
-- 不得讓同一個 generic 子域名稱同時作為多個主域的 canonical ownership。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先決定 owning bounded context，再決定檔案位置、命名與 boundary。
-- 奧卡姆剃刀：若既有 bounded context 可吸收需求，就不要為了命名好看而新增新的上下文。
-- 所有權模糊時，先修正文檔邊界，再寫程式碼。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart TD
-	MainDomain["Main domain"] --> Subdomain["Subdomain"]
-	Subdomain --> Application["Application"]
-	Application --> Domain["Domain"]
-	Infrastructure["Infrastructure"] --> Domain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Requirement["Requirement"] --> Ownership["Choose bounded context"]
-	Ownership --> Boundary["Choose API boundary"]
-	Boundary --> Language["Align local language"]
-	Language --> Code["Generate code"]
-```
-
-## Document Network
-
-- [architecture-overview.md](./architecture-overview.md)
-- [subdomains.md](./subdomains.md)
-- [context-map.md](./context-map.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-- [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
 ````
 
 ## File: docs/contexts/platform/ubiquitous-language.md
@@ -63579,174 +58873,283 @@ flowchart LR
 - [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
 ````
 
-## File: docs/ubiquitous-language.md
+## File: docs/subdomains.md
 ````markdown
-# Ubiquitous Language
+# Subdomains
 
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD ubiquitous language 原則重建，不主張反映現況實作。
+本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 strategic design 原則重建，不主張反映現況實作。
 
-## Strategic Terms
+## Main Domain Inventory
 
-| Term | Meaning |
-|---|---|
-| Main Domain | 戰略層級的主要 bounded context 群組 |
-| Bounded Context | 一組高凝聚、可自洽的語言與規則邊界 |
-| Published Language | 跨邊界交換時使用的共同語言 |
-| Upstream | 關係中提供語言或能力的一方 |
-| Downstream | 關係中消費語言或能力的一方 |
-| Anti-Corruption Layer | downstream 用來保護本地語言的轉譯層 |
-| Conformist | downstream 直接接受 upstream 語言的整合選擇 |
-| Shared Kernel | 對稱共用模型關係 |
-| Partnership | 對稱共同成功 / 共同失敗關係 |
-| Account Scope | shell 中由 `accountId` 表示的帳號範疇；代碼中的 `AccountType = "user" | "organization"` 會把它映射成 personal account 或 organization account 語意 |
-| Workspace Scope | 由 `workspaceId` 表示的協作容器範疇，必須從屬於某個 account scope |
-| Canonical Route Contract | 只用來表達 composition surface 的正典 URL 形狀，不取代 published language |
-
-## Domain Terms
-
-| Domain | Key Terms |
-|---|---|
-| iam | Actor, Identity, Tenant, AccessDecision, SecurityPolicy |
-| billing | Subscription, Entitlement, BillingEvent, Referral |
-| ai | AICapability, ModelPolicy, SafetyGuardrail, PromptPipeline |
-| analytics | Metric, Report, Dashboard, Projection |
-| platform | Account, AccountProfile, Organization, NotificationRoute, AuditLog |
-| workspace | Workspace, Membership, ShareScope, ActivityFeed, AuditTrail |
-| notion | KnowledgeArtifact, Taxonomy, Relation, Publication |
-| notebooklm | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
-
-## Route Composition Terms
-
-| Term | Meaning |
-|---|---|
-| accountId | shell route 上的 account scope identifier，不等於 workspaceId，也不直接等於 Tenant 語言 |
-| workspaceId | workspace scope identifier；在 canonical shell URL 中作為 account scope 之下的第二段 |
-| AccountType String Contract | code-level enum `"user" | "organization"`；`"user"` 對應 personal actor account，`"organization"` 對應 organization account |
-| Personal Account | `AccountType = "user"` 對應的 personal actor account 語意 |
-| Organization Account | `AccountType = "organization"` 對應的 organization account 語意 |
-| Canonical Workspace URL | `/{accountId}/{workspaceId}` |
-| Legacy Workspace Redirect Surface | `/{accountId}/workspace/{workspaceId}` |
-| Legacy Organization Redirect Surface | `/{accountId}/organization/*` |
-
-## Identifier Contract Glossary
-
-| Identifier | Canonical Role | Notes |
+| Main Domain | Baseline Subdomains | Recommended Gap Subdomains |
 |---|---|---|
-| accountId | Account scope identifier | shell composition 的 route id；由 `AccountType = "user" | "organization"` 決定它代表 personal account 或 organization account |
-| workspaceId | Workspace scope identifier | 協作容器錨點；在 canonical workspace URL 中是 account scope 之下的第二段 |
-| organizationId | Organization-local identifier | 用於 organization/team/taxonomy/relations/ingestion 等 organization-scoped domain 或 integration contract；不直接取代 shell route 的 `accountId` |
-| userId | Concrete user identifier | 用於 `createdByUserId`、`verifiedByUserId`、`submittedByUserId`、`assignedUserId`、`creatorUserId` 等具體使用者欄位 |
-| actorId | Acting principal identifier | 用於 audit / event / action initiator；可能是 userId，也可能是 system actor，不應假設一定等於 userId |
-| ownerId | Resource owner identifier | 表示資源所有者；不是 shell route id，也不必然等於 `accountId` |
-| tenantId | Tenant isolation identifier | 用於 storage path、security rules、multi-tenant isolation；不等於 `workspaceId`，也不是 shell route param |
-| fileId | File metadata identifier | 檔案 metadata 主鍵；不取代 owner / workspace / tenant scope |
+| iam | identity, access-control, tenant, security-policy | session, consent, secret-governance |
+| billing | billing, subscription, entitlement, referral | pricing, invoice, quota-policy |
+| ai | content-generation, content-distillation, context-assembly, evaluation-policy, memory-context, model-observability, prompt-pipeline, safety-guardrail | provider-routing, model-policy |
+| analytics | reporting, metrics, dashboards, telemetry-projection | experimentation, decision-support |
+| platform | account, account-profile, organization, team, platform-config, feature-flag, onboarding, compliance, integration, workflow, notification, background-job, content, search, audit-log, observability, support | consent, secret-management |
+| workspace | audit, feed, scheduling, approve, issue, orchestration, quality, settlement, task, task-formation | lifecycle, membership, sharing, presence |
+| notion | knowledge, authoring, collaboration, knowledge-database, knowledge-engagement, attachments, automation, external-knowledge-sync, notes, templates, knowledge-versioning | taxonomy, relations, publishing |
+| notebooklm | conversation, note, notebook, source, synthesis, conversation-versioning | ingestion, retrieval, grounding, evaluation |
 
-## Context Map Alignment
+## Detailed Subdomain Catalog
 
-| Relationship | Published Language Tokens | Upstream Term Source | Downstream Local Terms |
-|---|---|---|---|
-| iam -> workspace | actor reference, tenant scope, access decision | Actor, Identity, Tenant, AccessDecision | Workspace, Membership, ShareScope |
-| iam -> notion | actor reference, tenant scope, access decision | Actor, Identity, Tenant, AccessDecision | KnowledgeArtifact, Taxonomy, Relation, Publication |
-| iam -> notebooklm | actor reference, tenant scope, access decision | Actor, Identity, Tenant, AccessDecision | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
-| billing -> workspace | entitlement signal, subscription capability signal | Subscription, Entitlement | Workspace, Membership, ShareScope |
-| billing -> notion | entitlement signal, subscription capability signal | Subscription, Entitlement | KnowledgeArtifact, Taxonomy, Relation |
-| billing -> notebooklm | entitlement signal, subscription capability signal | Subscription, Entitlement | Notebook, Retrieval, Grounding, Synthesis |
-| ai -> notion | ai capability signal, model policy, safety result | AICapability, ModelPolicy, SafetyGuardrail | KnowledgeArtifact, Publication |
-| ai -> notebooklm | ai capability signal, model policy, safety result | AICapability, ModelPolicy, SafetyGuardrail | Notebook, Retrieval, Grounding, Synthesis, Evaluation |
-| platform -> workspace | account scope, organization surface, operational service signal | Account, Organization, NotificationRoute | Workspace, Membership, ShareScope |
-| workspace -> notion | workspaceId, membership scope, share scope | Workspace, Membership, ShareScope | KnowledgeArtifact, Taxonomy, Relation |
-| workspace -> notebooklm | workspaceId, membership scope, share scope | Workspace, Membership, ShareScope | Notebook, Retrieval, Grounding, Synthesis |
-| notion -> notebooklm | knowledge artifact reference, attachment reference, taxonomy hint | KnowledgeArtifact, Taxonomy, Relation | Notebook, Retrieval, Grounding, Synthesis, Evaluation |
-| all contexts -> analytics | domain event, usage signal, projection input | Metric, Report, Dashboard, Projection | Metrics, Reporting, Dashboard |
+### iam
 
-## Published Language Token Glossary
+#### Baseline Subdomains
 
-| Token | Canonical Mapping | Notes |
-|---|---|---|
-| actor reference | iam.Actor | 不以 User 泛稱，避免與 Membership 混名 |
-| organization scope | platform.Organization scope | 用於 account 與 organization surface，不等於 Workspace scope |
-| tenant scope | iam.Tenant scope | 用於治理邊界，不等於 Workspace scope |
-| access decision | iam.AccessDecision result | 僅傳遞判定結果，不暴露內部 policy 模型 |
-| entitlement signal | billing.Entitlement / Subscription capability signal | 不混同 feature-flag payload |
-| ai capability signal | ai shared capability signal | notion 與 notebooklm 僅消費，不擁有 generic `ai` 子域 |
-| operational service signal | platform operational capability signal | 只表達 shared platform service，不接管治理語言 |
-| workspaceId | Workspace identifier | 不取代 knowledge/notebook 的本地主鍵 |
-| membership scope | Membership constraint | 不混同 Actor 身份語言 |
-| share scope | ShareScope constraint | 不混同一般 permission 欄位集合 |
-| knowledge artifact reference | KnowledgeArtifact reference | 僅引用，不代表內容所有權轉移 |
-| attachment reference | Attachment reference | 提供可追溯引用，不暴露儲存實作 |
-| taxonomy hint | Taxonomy hint | 作為推理輔助語言，不覆蓋 notion 正典 taxonomy |
+| Subdomain | 功能註解 |
+|---|---|
+| identity | 已驗證主體與身份信號治理 |
+| access-control | 主體現在能做什麼的授權判定 |
+| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
+| security-policy | 安全規則定義、版本化與發佈 |
 
-## Naming Rules
+#### Recommended Gap Subdomains
 
-- 不用 User 混指 Actor 與 Membership。
-- 不用 Plan 混指 Subscription 與 Entitlement。
-- 不用 Wiki 混指 KnowledgeArtifact。
-- 不用 Chat 混指 Conversation。
-- 不用 Search 混指 Retrieval。
-- 不用 AI 混指 platform 的 shared AI capability 與 notion / notebooklm 的本地 use case。
-- 不用 Analytics 混指 platform analytics 與 notion 的 knowledge-engagement。
-- 不用 Integration 混指 platform integration 與 notion 的 external-knowledge-sync。
-- 不用 Versioning 混指 notion 的 knowledge-versioning 與 notebooklm 的 conversation-versioning。
-- 不用 Workflow 混指 platform workflow 與 workspace-workflow。
-- 不用 accountId 混指 workspaceId。
-- 不用 organizationId 取代 shell route 上的 accountId。
-- 不用 userId 混指 actorId。
-- 不用 `AccountType = "personal"` 取代 `AccountType = "user"`。
-- 不用 `/{accountId}/workspace/{workspaceId}` 當成新的 canonical workspace URL。
-- 不用 `/{accountId}/organization/*` 當成新的 canonical governance route。
+| Subdomain | 功能註解 |
+|---|---|
+| session | session、token 與 identity lifecycle 收斂 |
+| consent | 同意與資料使用授權治理收斂 |
+| secret-governance | secret 與 credential access policy 收斂 |
 
-## Naming Anti-Patterns
+### billing
 
-- 用同一個詞同時代表平台治理語言與工作區參與語言。
-- 用內容產品舊名覆蓋 notion 的正典語言。
-- 用 Search 混指 notebooklm 的 Retrieval 與一般搜尋能力。
-- 用同一個 generic 子域名跨主域重複宣稱所有權，再期望 Copilot 自行猜對上下文。
-- 把 route composition contract 誤寫成 cross-context published language。
-- 把 organization-scoped identifier 誤當成 shell composition identifier。
-- 把 actorId、userId、ownerId 三種角色不同的 identifier 混成同一欄位語意。
-- 把 personal account 顯示語言誤當成 code-level `AccountType` literal。
-- 把 legacy redirect surface 誤寫成正典 URL 契約。
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| billing | 計費狀態、費率與財務證據 |
+| subscription | 方案、配額與續期治理 |
+| entitlement | 有效權益與功能可用性統一解算 |
+| referral | 推薦關係與獎勵追蹤 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| pricing | 價格模型與方案矩陣治理 |
+| invoice | 帳單、請款與對帳流程 |
+| quota-policy | 可量化配額與商業限制規則 |
+
+### ai
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| content-generation | AI 驅動的文本生成與回覆輸出 |
+| content-distillation | AI 驅動的摘要、提煉與結構化壓縮 |
+| context-assembly | 推理前的 context window 組裝與排序 |
+| evaluation-policy | AI 品質與回歸評估政策 |
+| memory-context | 跨對話記憶與可重用上下文整理 |
+| model-observability | 模型使用量、成本與效能監測 |
+| prompt-pipeline | prompt、template、flow 與 tool calling orchestration |
+| safety-guardrail | 安全護欄、內容保護與限制 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| provider-routing | 模型供應商選擇與路由治理 |
+| model-policy | 模型能力、版本與使用政策 |
+
+### analytics
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| reporting | 報表輸出與查詢整理 |
+| metrics | 指標定義與聚合 |
+| dashboards | 儀表板呈現語義 |
+| telemetry-projection | 事件投影與 read model 匯總 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| experimentation | 實驗分析與對照觀測 |
+| decision-support | 決策輔助與洞察輸出 |
+
+### workspace
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| audit | 工作區操作稽核與證據追蹤 |
+| feed | 工作區活動摘要與事件流呈現 |
+| scheduling | 工作區排程、時序與提醒協調 |
+| approve | 任務驗收與問題單覆核審批流程 |
+| issue | 問題單生命週期與追蹤管理 |
+| orchestration | 知識頁面→任務物化批次作業編排 |
+| quality | 任務 QA 審查與質檢流程 |
+| settlement | 請款發票生命週期與財務對帳 |
+| task | 任務建立、指派與狀態轉換 |
+| task-formation | AI 輔助任務候選抽取與批次匯入 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| lifecycle | 將工作區容器生命週期獨立為正典邊界（建立、封存、復原） |
+| membership | 將工作區參與關係從平台身份治理切開（角色、加入、移除） |
+| sharing | 將共享範圍與可見性規則收斂到單一上下文（對內/對外分享） |
+| presence | 將即時協作存在感、共同編輯訊號收斂為本地語言 |
+
+### platform
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| account | 帳號聚合根與帳號生命週期 |
+| account-profile | 主體屬性、偏好與治理設定 |
+| organization | 組織、成員與角色邊界 |
+| team | Organization 內部成員分組治理 |
+| platform-config | 平台設定輪廓與配置管理 |
+| feature-flag | 功能開關策略與發佈節點 |
+| onboarding | 新主體初始設定與引導流程 |
+| compliance | 資料保留、稽核與法規執行 |
+| integration | 外部系統整合邊界與契約 |
+| workflow | 平台級流程編排與狀態驅動執行 |
+| notification | 通知路由、偏好與投遞 |
+| background-job | 背景任務提交、排程與監控 |
+| content | 平台級內容資產管理與發布 |
+| search | 跨域搜尋路由與查詢協調 |
+| audit-log | 永久稽核軌跡與不可否認證據 |
+| observability | 健康量測、追蹤與告警 |
+| support | 客服工單、支援知識與處理流程 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| consent | 將同意與資料使用授權從 compliance 中切開 |
+| secret-management | 將憑證、token、rotation 從 integration 中切開 |
+| operational-catalog | 將平台營運資產與配置字典收斂成單一邊界 |
+
+### notion
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| knowledge | 頁面建立、組織、版本化與交付 |
+| authoring | 知識庫文章建立、驗證與分類 |
+| collaboration | 協作留言、細粒度權限與版本快照 |
+| knowledge-database | 結構化資料多視圖管理 |
+| knowledge-engagement | 知識使用行為量測 |
+| attachments | 附件與媒體關聯儲存 |
+| automation | 知識事件觸發自動化動作 |
+| external-knowledge-sync | 知識與外部系統雙向整合 |
+| notes | 個人輕量筆記與正式知識協作 |
+| templates | 頁面範本管理與套用 |
+| knowledge-versioning | 全域版本快照策略管理 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| taxonomy | 建立分類法與語義組織的正典邊界 |
+| relations | 建立內容之間關聯與 backlink 的正典邊界 |
+| publishing | 建立正式發布與對外交付的正典邊界 |
+
+### notebooklm
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| conversation | 對話 Thread 與 Message 生命週期 |
+| note | 輕量筆記與知識連結 |
+| notebook | Notebook 組合與管理 |
+| source | 來源文件追蹤與引用 |
+| synthesis | RAG 合成、摘要與洞察生成 |
+| conversation-versioning | 對話版本與快照策略 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| ingestion | 建立來源匯入、正規化與前處理的正典邊界 |
+| retrieval | 建立查詢召回與排序策略的正典邊界 |
+| grounding | 建立引用對齊與可追溯證據的正典邊界 |
+| evaluation | 建立品質評估與回歸比較的正典邊界 |
+
+## Strategic Notes
+
+- baseline subdomains 代表本架構基線中已確立的核心切分。
+- recommended gap subdomains 代表依 Context7 推導出的合理補洞方向。
+- recommended gap subdomains 不等於已驗證現況實作。
+
+## Ownership Summary
+
+- iam 關心身份、租戶與存取治理。
+- billing 關心商業生命週期與有效權益。
+- ai 關心共享 AI capability 與模型政策。
+- analytics 關心下游分析、指標與 read model 投影。
+- platform 關心 account、organization 與 shared operational services。
+- workspace 關心協作範疇。
+- notion 關心正典知識內容。
+- notebooklm 關心推理與衍生輸出。
+
+## Cross-Domain Duplicate Resolution
+
+| Original Term | Resolution |
+|---|---|
+| ai | `ai` context 擁有 generic AI capability；`notion` 與 `notebooklm` 僅為 consumer |
+| analytics | `analytics` context 擁有 generic analytics；`notion` 保留 `knowledge-engagement` |
+| entitlement | `billing` 擁有 entitlement；其他主域只消費 capability signal |
+| identity | `iam` 擁有 identity 與 access-control；其他主域不再各自宣稱 |
+| integration | `platform` 保留 generic `integration`；`notion` 保留 `external-knowledge-sync` |
+| versioning | `notion` 改為 `knowledge-versioning`；`notebooklm` 改為 `conversation-versioning` |
+| workflow | `platform` 保留 generic `workflow`；workspace 的流程能力已分解為 task、issue、settlement、approve、quality、orchestration 等獨立子域 |
+
+## Subdomain Anti-Patterns
+
+- 不把 baseline subdomains 與 recommended gap subdomains 混成同一種事實狀態。
+- 不把主域缺口直接分攤到別的主域，造成所有權漂移。
+- 不把子域名稱當成 UI 功能清單，而忽略其邊界責任。
+- 不讓同一個 generic 子域名稱同時被多個主域擁有，造成 Copilot 與團隊語言歧義。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先對齊 strategic term，再對齊 context-specific term，最後才命名型別與 API。
-- 奧卡姆剃刀：若一個詞已足夠準確，就不要再加第二個近義詞製造歧義。
-- 名稱衝突時先回到 glossary，而不是直接在程式碼裡各自命名。
+- 生成程式碼時，先確認需求屬於哪個主域與子域，再決定實作位置。
+- 奧卡姆剃刀：能放進既有子域就不要創造新子域；能放進既有 use case 就不要新增第二條平行流程。
+- gap subdomain 只表示架構缺口，不表示一定要立刻實作。
+- 遇到 generic 名稱時，先套用本文件的 duplicate resolution，再決定是否新增或改名。
 
 ## Dependency Direction Flow
 
 ```mermaid
-flowchart LR
-	Strategic["Strategic terms"] --> Context["Context terms"]
-	Context --> Boundary["Published language / API"]
-	Boundary --> Code["Generated code names"]
+flowchart TD
+	MainDomain["Main domain"] --> Baseline["Baseline subdomains"]
+	MainDomain --> Gap["Recommended gap subdomains"]
+	Baseline --> UseCase["Use case / boundary"]
 ```
 
 ## Correct Interaction Flow
 
 ```mermaid
 flowchart LR
-	Requirement["Requirement"] --> Term["Select canonical term"]
-	Term --> Context["Map to owning context"]
-	Context --> Boundary["Expose via boundary"]
+	Requirement["Requirement"] --> Domain["Choose main domain"]
+	Domain --> Subdomain["Choose owning subdomain"]
+	Subdomain --> Boundary["Choose boundary"]
 	Boundary --> Code["Generate code"]
 ```
 
 ## Document Network
 
-- [contexts/workspace/ubiquitous-language.md](./contexts/workspace/ubiquitous-language.md)
-- [contexts/platform/ubiquitous-language.md](./contexts/platform/ubiquitous-language.md)
-- [contexts/notion/ubiquitous-language.md](./contexts/notion/ubiquitous-language.md)
-- [contexts/notebooklm/ubiquitous-language.md](./contexts/notebooklm/ubiquitous-language.md)
+- [architecture-overview.md](./architecture-overview.md)
+- [bounded-contexts.md](./bounded-contexts.md)
 - [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
 - [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0004-ubiquitous-language.md](./decisions/0004-ubiquitous-language.md)
-
-## Conflict Resolution
-
-- 若 strategic term 與主域 term 衝突，優先維持主域語言不被污染，再回寫 strategic glossary。
-- 若同一個詞在多主域都想擁有，優先看它服務的是治理、協作範疇、正典內容還是推理輸出。
+- [contexts/workspace/subdomains.md](./contexts/workspace/subdomains.md)
+- [contexts/platform/subdomains.md](./contexts/platform/subdomains.md)
+- [contexts/notion/subdomains.md](./contexts/notion/subdomains.md)
+- [contexts/notebooklm/subdomains.md](./contexts/notebooklm/subdomains.md)
 ````
 
 ## File: modules/ai/subdomains/prompt-pipeline/application/index.ts
@@ -64011,6 +59414,95 @@ export async function getKnowledgePageDistillation(
 ): Promise<KnowledgePageDistillation | null>
 ````
 
+## File: modules/workspace/api/ui.ts
+````typescript
+/**
+ * workspace api/ui.ts
+ *
+ * Canonical public web UI surface for the workspace bounded context.
+ * App-layer consumers that need workspace UI components, hooks, and
+ * navigation utilities should import from here.
+ *
+ * Internal source: interfaces/web/
+ */
+⋮----
+// ── Screen components ────────────────────────────────────────────────────────
+⋮----
+// ── Card components ──────────────────────────────────────────────────────────
+⋮----
+// ── Tab components ───────────────────────────────────────────────────────────
+⋮----
+// ── Layout components ────────────────────────────────────────────────────────
+⋮----
+// ── Rail components ──────────────────────────────────────────────────────────
+⋮----
+// ── Navigation ────────────────────────────────────────────────────────────────
+⋮----
+// ── Quick-access navigation ───────────────────────────────────────────────────
+⋮----
+// ── State helpers ─────────────────────────────────────────────────────────────
+⋮----
+// ── Map utilities ─────────────────────────────────────────────────────────────
+⋮----
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+⋮----
+// ── Workspace context provider ────────────────────────────────────────────────
+⋮----
+// ── Navigation preferences ────────────────────────────────────────────────────
+⋮----
+// ── Sidebar locale ────────────────────────────────────────────────────────────
+⋮----
+// ── Navigation customize dialog ───────────────────────────────────────────────
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceDetailTabContent.tsx
+````typescript
+import type { ReactNode } from "react";
+⋮----
+import { WorkspaceAuditTab } from "../../../../subdomains/audit/api";
+import { WorkspaceFeedWorkspaceView } from "../../../../subdomains/feed/api";
+import { WorkspaceSchedulingTab } from "../../../../subdomains/scheduling/api";
+import { WorkspaceFlowTab } from "../../../../subdomains/orchestration/api";
+import { WorkspaceNotificationPreferencesPanel } from "@/modules/platform/subdomains/notification/api";
+import type { WorkspaceEntity } from "../../../../domain/aggregates/Workspace";
+import type { WorkspaceTabValue } from "../../navigation/workspace-tabs";
+import {
+  getWorkspaceAddressLines,
+  getWorkspacePersonnelEntries,
+} from "../../view-models/workspace-supporting-records";
+import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
+import { WorkspaceFilesManagementTab } from "./WorkspaceFilesManagementTab";
+import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
+import { WorkspaceOverviewTab } from "./WorkspaceOverviewTab";
+import { renderWorkspaceCrossModuleTabSurface } from "./WorkspaceCrossModuleTabSurface";
+⋮----
+interface WorkspaceDetailTabContentOptions {
+  readonly tab: WorkspaceTabValue;
+  readonly workspace: WorkspaceEntity;
+  readonly accountId: string | null | undefined;
+  readonly currentUserId: string | undefined;
+  readonly workspaces: Record<string, WorkspaceEntity>;
+  readonly activeWorkspaceId: string | null;
+  readonly initialOverviewPanel?: string;
+  readonly onEditWorkspace: () => void;
+  readonly onSetActiveWorkspace: (workspaceId: string) => void;
+}
+⋮----
+export function renderWorkspaceDetailTabContent({
+  tab,
+  workspace,
+  accountId,
+  currentUserId,
+  workspaces,
+  activeWorkspaceId,
+  initialOverviewPanel,
+  onEditWorkspace,
+  onSetActiveWorkspace,
+}: WorkspaceDetailTabContentOptions): ReactNode
+⋮----
+onSetActiveWorkspace=
+````
+
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceFilesManagementTab.tsx
 ````typescript
 import { useRouter } from "next/navigation";
@@ -64094,6 +59586,456 @@ setTaskPreviewUsedAiFallback(false);
 setTaskPreviewError(null);
 ⋮----
 onClose=
+````
+
+## File: docs/bounded-contexts.md
+````markdown
+# Bounded Contexts
+
+本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 hexagonal architecture 原則重建，不主張反映現況實作。
+
+## Strategic Bounded Context Model
+
+系統目前以八個主域 / bounded context 構成。每個主域下可再分成 baseline subdomains 與 recommended gap subdomains。
+
+## Main Domain Map
+
+| Main Domain | Strategic Role | Baseline Focus | Recommended Gap Focus |
+|---|---|---|---|
+| iam | 身份與存取治理 | identity、access-control、tenant、security-policy | session、consent、secret-governance |
+| billing | 商業與權益治理 | billing、subscription、entitlement、referral | pricing、invoice、quota-policy |
+| ai | 共享 AI capability | content-generation、content-distillation、context-assembly、evaluation-policy、memory-context、model-observability、prompt-pipeline、safety-guardrail | provider-routing、model-policy |
+| analytics | 分析與 read model 下游 | reporting、metrics、dashboards、telemetry-projection | experimentation、decision-support |
+| platform | 平台營運支撐 | account、organization、notification、search、audit-log、observability | consent、secret-management、operational-catalog |
+| workspace | 協作容器與 scope | audit、feed、scheduling、approve、issue、orchestration、quality、settlement、task、task-formation | lifecycle、membership、sharing、presence |
+| notion | 正典知識內容 | knowledge、authoring、collaboration、knowledge-database、templates、knowledge-versioning | taxonomy、relations、publishing |
+| notebooklm | 對話與推理 | conversation、note、notebook、source、synthesis、conversation-versioning | ingestion、retrieval、grounding、evaluation |
+
+## Subdomain Inventory By Main Domain
+
+### iam
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| identity | 已驗證主體與身份信號治理 |
+| access-control | 主體現在能做什麼的授權判定 |
+| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
+| security-policy | 安全規則定義、版本化與發佈 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| session | 將 session 與 token lifecycle 收斂為獨立能力 |
+| consent | 將同意與授權治理從泛用平台設定中切開 |
+| secret-governance | 將 secret access policy 收斂為明確治理邊界 |
+
+### billing
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| billing | 計費狀態、費率與財務證據 |
+| subscription | 方案、配額與續期治理 |
+| entitlement | 有效權益與功能可用性統一解算 |
+| referral | 推薦關係與獎勵追蹤 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| pricing | 價格模型與方案矩陣治理 |
+| invoice | 帳單、請款與對帳流程 |
+| quota-policy | 將可量化商業限制收斂成單一政策語言 |
+
+### ai
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| content-generation | AI 驅動的文本生成與回覆輸出 |
+| content-distillation | AI 驅動的摘要、提煉與結構化壓縮 |
+| context-assembly | 推理前的 context window 組裝與排序 |
+| evaluation-policy | 品質與回歸評估政策 |
+| memory-context | 跨對話記憶與可重用上下文整理 |
+| model-observability | 模型使用量、成本與效能監測 |
+| prompt-pipeline | prompt、template、flow 與 tool calling orchestration |
+| safety-guardrail | 安全護欄、內容保護與限制 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| provider-routing | 模型供應商選擇與路由治理 |
+| model-policy | 模型能力、版本與使用政策 |
+
+### analytics
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| reporting | 報表輸出與查詢整理 |
+| metrics | 指標定義與聚合 |
+| dashboards | 儀表板呈現語義 |
+| telemetry-projection | 事件投影與 read model 匯總 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| experimentation | 實驗分析與對照觀測 |
+| decision-support | 決策輔助與洞察輸出 |
+
+### workspace
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| audit | 工作區操作稽核與證據追蹤 |
+| feed | 工作區活動摘要與事件流呈現 |
+| scheduling | 工作區排程、時序與提醒協調 |
+| approve | 任務驗收與問題單覆核審批流程 |
+| issue | 問題單生命週期與追蹤管理 |
+| orchestration | 知識頁面→任務物化批次作業編排 |
+| quality | 任務 QA 審查與質檢流程 |
+| settlement | 請款發票生命週期與財務對帳 |
+| task | 任務建立、指派與狀態轉換 |
+| task-formation | AI 輔助任務候選抽取與批次匯入 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| lifecycle | 將工作區容器生命週期獨立為正典邊界（建立、封存、復原） |
+| membership | 將工作區參與關係從平台身份治理切開（角色、加入、移除） |
+| sharing | 將共享範圍與可見性規則收斂到單一上下文（對內/對外分享） |
+| presence | 將即時協作存在感、共同編輯訊號收斂為本地語言 |
+
+### platform
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| account | 帳號聚合根與帳號生命週期 |
+| account-profile | 主體屬性、偏好與治理設定 |
+| organization | 組織、成員與角色邊界 |
+| team | Organization 內部成員分組治理 |
+| platform-config | 平台設定輪廓與配置管理 |
+| feature-flag | 功能開關策略與發佈節點 |
+| onboarding | 新主體初始設定與引導流程 |
+| compliance | 資料保留、稽核與法規執行 |
+| integration | 外部系統整合邊界與契約 |
+| workflow | 平台級流程編排與狀態驅動執行 |
+| notification | 通知路由、偏好與投遞 |
+| background-job | 背景任務提交、排程與監控 |
+| content | 平台級內容資產管理與發布 |
+| search | 跨域搜尋路由與查詢協調 |
+| audit-log | 永久稽核軌跡與不可否認證據 |
+| observability | 健康量測、追蹤與告警 |
+| support | 客服工單、支援知識與處理流程 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| consent | 將同意與資料使用授權從 compliance 中切開 |
+| secret-management | 將憑證、token、rotation 從 integration 中切開 |
+| operational-catalog | 將平台營運資產與配置字典收斂成單一邊界 |
+
+### notion
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| knowledge | 頁面建立、組織、版本化與交付 |
+| authoring | 知識庫文章建立、驗證與分類 |
+| collaboration | 協作留言、細粒度權限與版本快照 |
+| knowledge-database | 結構化資料多視圖管理 |
+| knowledge-engagement | 知識使用行為量測 |
+| attachments | 附件與媒體關聯儲存 |
+| automation | 知識事件觸發自動化動作 |
+| external-knowledge-sync | 知識與外部系統雙向整合 |
+| notes | 個人輕量筆記與正式知識協作 |
+| templates | 頁面範本管理與套用 |
+| knowledge-versioning | 全域版本快照策略管理 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| taxonomy | 建立分類法與語義組織的正典邊界 |
+| relations | 建立內容之間關聯與 backlink 的正典邊界 |
+| publishing | 建立正式發布與對外交付的正典邊界 |
+
+### notebooklm
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| conversation | 對話 Thread 與 Message 生命週期 |
+| note | 輕量筆記與知識連結 |
+| notebook | Notebook 組合與管理 |
+| source | 來源文件追蹤與引用 |
+| synthesis | RAG 合成、摘要與洞察生成 |
+| conversation-versioning | 對話版本與快照策略 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| ingestion | 建立來源匯入、正規化與前處理的正典邊界 |
+| retrieval | 建立查詢召回與排序策略的正典邊界 |
+| grounding | 建立引用對齊與可追溯證據的正典邊界 |
+| evaluation | 建立品質評估與回歸比較的正典邊界 |
+
+## Ownership Rules
+
+- iam 擁有身份、租戶與 access decision，不擁有商業、內容或推理正典。
+- billing 擁有 subscription 與 entitlement，不擁有身份治理或內容正典。
+- ai 擁有 shared AI capability，不擁有內容或 notebook 推理正典。
+- analytics 擁有下游報表與 projection，不擁有上游寫入模型。
+- platform 擁有 account、organization 與 operational service，不再作為所有治理能力的總擁有者。
+- workspace 擁有工作區範疇，不擁有平台治理或正典內容。
+- notion 擁有正典知識內容，不擁有治理或推理流程。
+- notebooklm 擁有推理流程與衍生輸出，不擁有正典知識內容。
+
+## Dependency Direction Guardrail
+
+- bounded context 所有權定義的是語言與規則邊界，不等於可直接穿透的實作邊界。
+- 每個主域內部仍必須遵守 interfaces -> application -> domain <- infrastructure。
+- 跨主域整合一律先經 API boundary、published language、events 或 local DTO。
+
+## Conflict Resolution
+
+- 若某子域同時被多個主域宣稱，依最能維持語言自洽與 context map 方向的主域保留所有權。
+- 若某能力定義 actor、identity、tenant 或 access decision，優先歸 iam。
+- 若某能力定義 subscription、entitlement、pricing 或 referral，優先歸 billing。
+- 若某能力定義 shared model capability、provider routing、safety 或 prompt orchestration，優先歸 ai。
+- 若某能力只消費事件並形成報表或 read model，優先歸 analytics。
+- 若某能力同時像內容又像推理輸出，先問它是否是正典內容狀態；若是，歸 notion，否則歸 notebooklm。
+- `workflow` 作為 generic 名稱只保留在 platform；workspace 的流程能力已分解為 task、issue、settlement、approve、quality、orchestration 等獨立子域。
+
+## Forbidden Ownership Moves
+
+- 不得讓兩個主域同時宣稱同一正典模型所有權。
+- 不得用部署、資料表或 UI 分區來覆蓋 bounded context 所有權。
+- 不得把 gap subdomain 缺口視為可以任意分散到其他主域的理由。
+- 不得讓同一個 generic 子域名稱同時作為多個主域的 canonical ownership。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先決定 owning bounded context，再決定檔案位置、命名與 boundary。
+- 奧卡姆剃刀：若既有 bounded context 可吸收需求，就不要為了命名好看而新增新的上下文。
+- 所有權模糊時，先修正文檔邊界，再寫程式碼。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart TD
+	MainDomain["Main domain"] --> Subdomain["Subdomain"]
+	Subdomain --> Application["Application"]
+	Application --> Domain["Domain"]
+	Infrastructure["Infrastructure"] --> Domain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Requirement["Requirement"] --> Ownership["Choose bounded context"]
+	Ownership --> Boundary["Choose API boundary"]
+	Boundary --> Language["Align local language"]
+	Language --> Code["Generate code"]
+```
+
+## Document Network
+
+- [architecture-overview.md](./architecture-overview.md)
+- [subdomains.md](./subdomains.md)
+- [context-map.md](./context-map.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
+- [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
+````
+
+## File: docs/ubiquitous-language.md
+````markdown
+# Ubiquitous Language
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD ubiquitous language 原則重建，不主張反映現況實作。
+
+## Strategic Terms
+
+| Term | Meaning |
+|---|---|
+| Main Domain | 戰略層級的主要 bounded context 群組 |
+| Bounded Context | 一組高凝聚、可自洽的語言與規則邊界 |
+| Published Language | 跨邊界交換時使用的共同語言 |
+| Upstream | 關係中提供語言或能力的一方 |
+| Downstream | 關係中消費語言或能力的一方 |
+| Anti-Corruption Layer | downstream 用來保護本地語言的轉譯層 |
+| Conformist | downstream 直接接受 upstream 語言的整合選擇 |
+| Shared Kernel | 對稱共用模型關係 |
+| Partnership | 對稱共同成功 / 共同失敗關係 |
+| Account Scope | shell 中由 `accountId` 表示的帳號範疇；代碼中的 `AccountType = "user" | "organization"` 會把它映射成 personal account 或 organization account 語意 |
+| Workspace Scope | 由 `workspaceId` 表示的協作容器範疇，必須從屬於某個 account scope |
+| Canonical Route Contract | 只用來表達 composition surface 的正典 URL 形狀，不取代 published language |
+
+## Domain Terms
+
+| Domain | Key Terms |
+|---|---|
+| iam | Actor, Identity, Tenant, AccessDecision, SecurityPolicy |
+| billing | Subscription, Entitlement, BillingEvent, Referral |
+| ai | AICapability, ModelPolicy, SafetyGuardrail, PromptPipeline |
+| analytics | Metric, Report, Dashboard, Projection |
+| platform | Account, AccountProfile, Organization, NotificationRoute, AuditLog |
+| workspace | Workspace, Membership, ShareScope, ActivityFeed, AuditTrail |
+| notion | KnowledgeArtifact, Taxonomy, Relation, Publication |
+| notebooklm | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
+
+## Route Composition Terms
+
+| Term | Meaning |
+|---|---|
+| accountId | shell route 上的 account scope identifier，不等於 workspaceId，也不直接等於 Tenant 語言 |
+| workspaceId | workspace scope identifier；在 canonical shell URL 中作為 account scope 之下的第二段 |
+| AccountType String Contract | code-level enum `"user" | "organization"`；`"user"` 對應 personal actor account，`"organization"` 對應 organization account |
+| Personal Account | `AccountType = "user"` 對應的 personal actor account 語意 |
+| Organization Account | `AccountType = "organization"` 對應的 organization account 語意 |
+| Canonical Workspace URL | `/{accountId}/{workspaceId}` |
+| Legacy Workspace Redirect Surface | `/{accountId}/workspace/{workspaceId}` |
+| Legacy Organization Redirect Surface | `/{accountId}/organization/*` |
+
+## Identifier Contract Glossary
+
+| Identifier | Canonical Role | Notes |
+|---|---|---|
+| accountId | Account scope identifier | shell composition 的 route id；由 `AccountType = "user" | "organization"` 決定它代表 personal account 或 organization account |
+| workspaceId | Workspace scope identifier | 協作容器錨點；在 canonical workspace URL 中是 account scope 之下的第二段 |
+| organizationId | Organization-local identifier | 用於 organization/team/taxonomy/relations/ingestion 等 organization-scoped domain 或 integration contract；不直接取代 shell route 的 `accountId` |
+| userId | Concrete user identifier | 用於 `createdByUserId`、`verifiedByUserId`、`submittedByUserId`、`assignedUserId`、`creatorUserId` 等具體使用者欄位 |
+| actorId | Acting principal identifier | 用於 audit / event / action initiator；可能是 userId，也可能是 system actor，不應假設一定等於 userId |
+| ownerId | Resource owner identifier | 表示資源所有者；不是 shell route id，也不必然等於 `accountId` |
+| tenantId | Tenant isolation identifier | 用於 storage path、security rules、multi-tenant isolation；不等於 `workspaceId`，也不是 shell route param |
+| fileId | File metadata identifier | 檔案 metadata 主鍵；不取代 owner / workspace / tenant scope |
+
+## Context Map Alignment
+
+| Relationship | Published Language Tokens | Upstream Term Source | Downstream Local Terms |
+|---|---|---|---|
+| iam -> workspace | actor reference, tenant scope, access decision | Actor, Identity, Tenant, AccessDecision | Workspace, Membership, ShareScope |
+| iam -> notion | actor reference, tenant scope, access decision | Actor, Identity, Tenant, AccessDecision | KnowledgeArtifact, Taxonomy, Relation, Publication |
+| iam -> notebooklm | actor reference, tenant scope, access decision | Actor, Identity, Tenant, AccessDecision | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
+| billing -> workspace | entitlement signal, subscription capability signal | Subscription, Entitlement | Workspace, Membership, ShareScope |
+| billing -> notion | entitlement signal, subscription capability signal | Subscription, Entitlement | KnowledgeArtifact, Taxonomy, Relation |
+| billing -> notebooklm | entitlement signal, subscription capability signal | Subscription, Entitlement | Notebook, Retrieval, Grounding, Synthesis |
+| ai -> notion | ai capability signal, model policy, safety result | AICapability, ModelPolicy, SafetyGuardrail | KnowledgeArtifact, Publication |
+| ai -> notebooklm | ai capability signal, model policy, safety result | AICapability, ModelPolicy, SafetyGuardrail | Notebook, Retrieval, Grounding, Synthesis, Evaluation |
+| platform -> workspace | account scope, organization surface, operational service signal | Account, Organization, NotificationRoute | Workspace, Membership, ShareScope |
+| workspace -> notion | workspaceId, membership scope, share scope | Workspace, Membership, ShareScope | KnowledgeArtifact, Taxonomy, Relation |
+| workspace -> notebooklm | workspaceId, membership scope, share scope | Workspace, Membership, ShareScope | Notebook, Retrieval, Grounding, Synthesis |
+| notion -> notebooklm | knowledge artifact reference, attachment reference, taxonomy hint | KnowledgeArtifact, Taxonomy, Relation | Notebook, Retrieval, Grounding, Synthesis, Evaluation |
+| all contexts -> analytics | domain event, usage signal, projection input | Metric, Report, Dashboard, Projection | Metrics, Reporting, Dashboard |
+
+## Published Language Token Glossary
+
+| Token | Canonical Mapping | Notes |
+|---|---|---|
+| actor reference | iam.Actor | 不以 User 泛稱，避免與 Membership 混名 |
+| organization scope | platform.Organization scope | 用於 account 與 organization surface，不等於 Workspace scope |
+| tenant scope | iam.Tenant scope | 用於治理邊界，不等於 Workspace scope |
+| access decision | iam.AccessDecision result | 僅傳遞判定結果，不暴露內部 policy 模型 |
+| entitlement signal | billing.Entitlement / Subscription capability signal | 不混同 feature-flag payload |
+| ai capability signal | ai shared capability signal | notion 與 notebooklm 僅消費，不擁有 generic `ai` 子域 |
+| operational service signal | platform operational capability signal | 只表達 shared platform service，不接管治理語言 |
+| workspaceId | Workspace identifier | 不取代 knowledge/notebook 的本地主鍵 |
+| membership scope | Membership constraint | 不混同 Actor 身份語言 |
+| share scope | ShareScope constraint | 不混同一般 permission 欄位集合 |
+| knowledge artifact reference | KnowledgeArtifact reference | 僅引用，不代表內容所有權轉移 |
+| attachment reference | Attachment reference | 提供可追溯引用，不暴露儲存實作 |
+| taxonomy hint | Taxonomy hint | 作為推理輔助語言，不覆蓋 notion 正典 taxonomy |
+
+## Naming Rules
+
+- 不用 User 混指 Actor 與 Membership。
+- 不用 Plan 混指 Subscription 與 Entitlement。
+- 不用 Wiki 混指 KnowledgeArtifact。
+- 不用 Chat 混指 Conversation。
+- 不用 Search 混指 Retrieval。
+- 不用 AI 混指 platform 的 shared AI capability 與 notion / notebooklm 的本地 use case。
+- 不用 Analytics 混指 platform analytics 與 notion 的 knowledge-engagement。
+- 不用 Integration 混指 platform integration 與 notion 的 external-knowledge-sync。
+- 不用 Versioning 混指 notion 的 knowledge-versioning 與 notebooklm 的 conversation-versioning。
+- 不用 Workflow 混指 platform workflow 與 workspace 內的 task/issue/settlement 流程子域。
+- 不用 accountId 混指 workspaceId。
+- 不用 organizationId 取代 shell route 上的 accountId。
+- 不用 userId 混指 actorId。
+- 不用 `AccountType = "personal"` 取代 `AccountType = "user"`。
+- 不用 `/{accountId}/workspace/{workspaceId}` 當成新的 canonical workspace URL。
+- 不用 `/{accountId}/organization/*` 當成新的 canonical governance route。
+
+## Naming Anti-Patterns
+
+- 用同一個詞同時代表平台治理語言與工作區參與語言。
+- 用內容產品舊名覆蓋 notion 的正典語言。
+- 用 Search 混指 notebooklm 的 Retrieval 與一般搜尋能力。
+- 用同一個 generic 子域名跨主域重複宣稱所有權，再期望 Copilot 自行猜對上下文。
+- 把 route composition contract 誤寫成 cross-context published language。
+- 把 organization-scoped identifier 誤當成 shell composition identifier。
+- 把 actorId、userId、ownerId 三種角色不同的 identifier 混成同一欄位語意。
+- 把 personal account 顯示語言誤當成 code-level `AccountType` literal。
+- 把 legacy redirect surface 誤寫成正典 URL 契約。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先對齊 strategic term，再對齊 context-specific term，最後才命名型別與 API。
+- 奧卡姆剃刀：若一個詞已足夠準確，就不要再加第二個近義詞製造歧義。
+- 名稱衝突時先回到 glossary，而不是直接在程式碼裡各自命名。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Strategic["Strategic terms"] --> Context["Context terms"]
+	Context --> Boundary["Published language / API"]
+	Boundary --> Code["Generated code names"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Requirement["Requirement"] --> Term["Select canonical term"]
+	Term --> Context["Map to owning context"]
+	Context --> Boundary["Expose via boundary"]
+	Boundary --> Code["Generate code"]
+```
+
+## Document Network
+
+- [contexts/workspace/ubiquitous-language.md](./contexts/workspace/ubiquitous-language.md)
+- [contexts/platform/ubiquitous-language.md](./contexts/platform/ubiquitous-language.md)
+- [contexts/notion/ubiquitous-language.md](./contexts/notion/ubiquitous-language.md)
+- [contexts/notebooklm/ubiquitous-language.md](./contexts/notebooklm/ubiquitous-language.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [decisions/0004-ubiquitous-language.md](./decisions/0004-ubiquitous-language.md)
+
+## Conflict Resolution
+
+- 若 strategic term 與主域 term 衝突，優先維持主域語言不被污染，再回寫 strategic glossary。
+- 若同一個詞在多主域都想擁有，優先看它服務的是治理、協作範疇、正典內容還是推理輸出。
 ````
 
 ## File: modules/ai/subdomains/prompt-pipeline/api/index.ts
@@ -64514,6 +60456,57 @@ export async function createWorkspaceManagedTasks(
 ): Promise<WorkspaceManagedFileActionResult>
 ````
 
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
+````typescript
+import Link from "next/link";
+import { useMemo, useState } from "react";
+⋮----
+import {
+  Card,
+  CardContent,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { useAuth } from "@/modules/iam/api";
+import { useApp } from "@/modules/platform/api/ui";
+import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
+⋮----
+import {
+  createSettingsDraft,
+  type WorkspaceSettingsDraft,
+} from "../../state/workspace-settings";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  resolveWorkspaceTabValue,
+  type WorkspaceTabValue,
+} from "../../navigation/workspace-tabs";
+import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
+import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
+import { renderWorkspaceDetailTabContent } from "../tabs/WorkspaceDetailTabContent";
+import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
+import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
+⋮----
+interface WorkspaceDetailScreenProps {
+  readonly workspaceId: string;
+  readonly accountId: string | null | undefined;
+  readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
+  readonly initialOverviewPanel?: string;
+}
+⋮----
+/** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+⋮----
+function renderTabContent(tab: WorkspaceTabValue)
+⋮----
+{/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+⋮----
+<Badge variant="outline">
+⋮----
+setIsEditWorkspaceOpen(open);
+````
+
 ## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
 ````typescript
 export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
@@ -64546,122 +60539,6 @@ export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string
 export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[]
 ⋮----
 export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[]
-````
-
-## File: package.json
-````json
-{
-  "name": "xuanwu-app",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "deploy:firestore:indexes": "npx firebase deploy --only firestore:indexes",
-    "deploy:firestore:rules": "npx firebase deploy --only firestore:rules",
-    "deploy:storage:rules": "npx firebase deploy --only storage",
-    "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
-    "deploy:apphosting": "npx firebase deploy --only apphosting",
-    "deploy:functions": "npx firebase deploy --only functions:py_fn",
-    "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
-    "deploy:functions:all": "npx firebase deploy --only functions",
-    "deploy:firebase": "npx firebase deploy",
-    "repomix:ai": "npx repomix --config repomix-ai.config.json --skill-generate xuanwu-ai-skill --skill-output .github/skills/xuanwu-ai-skill --force",
-    "repomix:skill": "npx repomix --config repomix.config.json --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
-    "repomix:markdown": "npx repomix --config repomix-markdown.config.json --skill-generate xuanwu-markdown-skill --skill-output .github/skills/xuanwu-markdown-skill --force",
-    "repomix:notebooklm": "npx repomix --config repomix-notebooklm.config.json --skill-generate xuanwu-notebooklm-skill --skill-output .github/skills/xuanwu-notebooklm-skill --force",
-    "repomix:notion": "npx repomix --config repomix-notion.config.json --skill-generate xuanwu-notion-skill --skill-output .github/skills/xuanwu-notion-skill --force",
-    "repomix:explore": "npx repomix --config repomix.config.json",
-    "repomix:remote": "npx repomix --remote",
-    "repomix:local": "npx repomix"
-  },
-  "engines": {
-    "node": "24"
-  },
-  "dependencies": {
-    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
-    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
-    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
-    "@genkit-ai/google-genai": "^1.30.1",
-    "@tanstack/react-form": "^1.28.5",
-    "@tanstack/react-query": "^5.90.21",
-    "@tanstack/react-table": "^8.21.3",
-    "@tanstack/react-virtual": "^3.13.23",
-    "@tiptap/extension-color": "^3.22.2",
-    "@tiptap/extension-link": "^3.22.2",
-    "@tiptap/extension-placeholder": "^3.22.2",
-    "@tiptap/extension-text-style": "^3.22.2",
-    "@tiptap/extension-typography": "^3.22.2",
-    "@tiptap/extension-underline": "^3.22.2",
-    "@tiptap/react": "^3.22.2",
-    "@tiptap/starter-kit": "^3.22.2",
-    "@trpc/client": "^11.13.4",
-    "@trpc/next": "^11.13.4",
-    "@trpc/react-query": "^11.13.4",
-    "@trpc/server": "^11.13.4",
-    "@xstate/react": "^6.1.0",
-    "axios": "^1.13.6",
-    "cmdk": "^1.1.1",
-    "date-fns": "^4.1.0",
-    "embla-carousel-react": "^8.6.0",
-    "firebase": "^12.9.0",
-    "genkit": "^1.30.1",
-    "input-otp": "^1.4.2",
-    "lucide-react": "^0.577.0",
-    "next": "16.1.7",
-    "next-themes": "^0.4.6",
-    "radix-ui": "^1.4.3",
-    "react": "19.2.3",
-    "react-day-picker": "^9.14.0",
-    "react-dom": "19.2.3",
-    "react-graph-vis": "^1.0.7",
-    "react-markdown": "^10.1.0",
-    "recharts": "^2.15.4",
-    "remark-gfm": "^4.0.1",
-    "sonner": "^2.0.7",
-    "superjson": "^2.2.6",
-    "uuid": "^13.0.0",
-    "vaul": "^1.1.2",
-    "vis-data": "^8.0.3",
-    "vis-graph3d": "^7.0.2",
-    "vis-network": "^10.0.2",
-    "vis-timeline": "^8.5.0",
-    "xstate": "^5.28.0",
-    "zod": "^4.3.6",
-    "zustand": "^5.0.12"
-  },
-  "devDependencies": {
-    "@next/eslint-plugin-next": "^16.2.2",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20.19.37",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@typescript-eslint/eslint-plugin": "^8.57.1",
-    "@typescript-eslint/parser": "^8.57.1",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "eslint": "^9.39.4",
-    "eslint-config-next": "^16.1.7",
-    "eslint-plugin-boundaries": "^6.0.1",
-    "eslint-plugin-jsdoc": "^62.8.0",
-    "eslint-plugin-jsx-a11y": "^6.10.2",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "repomix": "^1.12.0",
-    "shadcn": "^4.1.0",
-    "tailwind-merge": "^3.5.0",
-    "tailwindcss": "^4",
-    "tailwindcss-animate": "^1.0.7",
-    "tw-animate-css": "^1.4.0",
-    "typescript": "^5",
-    "typescript-eslint": "^8.58.0",
-    "vitest": "^4.1.2"
-  }
-}
 ````
 
 ## File: docs/decisions/SMELL-INDEX.md
@@ -64789,17 +60666,6 @@ export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[]
 4. 若 smell 尚未記錄，按此編號體系新增文件。
 ````
 
-## File: modules/ai/api/server.ts
-````typescript
-/**
- * ai — server-only API barrel.
- *
- * Exports that depend on server-only packages such as Genkit.
- * Must only be imported in Server Actions, route handlers, or server-side
- * infrastructure adapters.
- */
-````
-
 ## File: modules/ai/docs/README.md
 ````markdown
 # AI Module Docs
@@ -64886,55 +60752,67 @@ import { distillContent, generateAiText, summarize } from "@/modules/ai/api/serv
 - [docs/contexts/ai/ubiquitous-language.md](docs/contexts/ai/ubiquitous-language.md)
 ````
 
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
+## File: modules/ai/api/server.ts
 ````typescript
-import Link from "next/link";
-import { useMemo, useState } from "react";
+/**
+ * AI bounded context — server-only API composition root.
+ *
+ * This is the single composition point that wires use-cases to infrastructure
+ * adapters.  Only import this in Server Actions, route handlers, or
+ * server-side infrastructure adapters; never in client bundles.
+ */
 ⋮----
-import {
-  Card,
-  CardContent,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { useAuth } from "@/modules/iam/api";
-import { useApp } from "@/modules/platform/api/ui";
-import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
+import { GenerateAiTextUseCase } from "../application/use-cases/generate-ai-text.use-case";
+import { DistillContentUseCase } from "../application/use-cases/distill-content.use-case";
+import { ExtractTasksFromContentUseCase } from "../application/use-cases/extract-tasks-from-content.use-case";
+import { GenerateWithToolsUseCase } from "../application/use-cases/generate-with-tools.use-case";
+import { GenkitAiTextGenerationAdapter } from "../infrastructure/generation/genkit/GenkitAiTextGenerationAdapter";
+import { GenkitDistillationAdapter } from "../infrastructure/llm/GenkitDistillationAdapter";
+import { GenkitToolRuntimeAdapter } from "../infrastructure/genkit/GenkitToolRuntimeAdapter";
+import type { GenerateAiTextInput, GenerateAiTextOutput } from "../domain/ports/AiTextGenerationPort";
+import type {
+  DistillContentInput,
+  DistillationResult,
+  TaskExtractionInput,
+  TaskExtractionOutput,
+} from "../domain/ports/DistillationPort";
+import type {
+  ToolDescriptor,
+  ToolEnabledGenerationInput,
+  ToolEnabledGenerationOutput,
+} from "../domain/ports/ToolRuntimePort";
 ⋮----
-import {
-  createSettingsDraft,
-  type WorkspaceSettingsDraft,
-} from "../../state/workspace-settings";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  resolveWorkspaceTabValue,
-  type WorkspaceTabValue,
-} from "../../navigation/workspace-tabs";
-import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
-import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
-import { renderWorkspaceDetailTabContent } from "../tabs/WorkspaceDetailTabContent";
-import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
-import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
+// ── Singletons ────────────────────────────────────────────────────────────────
 ⋮----
-interface WorkspaceDetailScreenProps {
-  readonly workspaceId: string;
-  readonly accountId: string | null | undefined;
-  readonly accountsHydrated: boolean;
-  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-  readonly initialTab?: string;
-  readonly initialOverviewPanel?: string;
-}
+function getGenerateAiTextUseCase(): GenerateAiTextUseCase
 ⋮----
-/** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+function getDistillUseCase(): DistillContentUseCase
 ⋮----
-function renderTabContent(tab: WorkspaceTabValue)
+function getTaskExtractionUseCase(): ExtractTasksFromContentUseCase
 ⋮----
-{/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+function getGenerateWithToolsUseCase(): GenerateWithToolsUseCase
 ⋮----
-<Badge variant="outline">
+// ── Public server functions ───────────────────────────────────────────────────
 ⋮----
-setIsEditWorkspaceOpen(open);
+export async function generateAiText(
+  input: GenerateAiTextInput,
+): Promise<GenerateAiTextOutput>
+⋮----
+export async function summarize(text: string, model?: string): Promise<string>
+⋮----
+export async function distillContent(
+  input: DistillContentInput,
+): Promise<DistillationResult>
+⋮----
+export async function extractTasksFromContent(
+  input: TaskExtractionInput,
+): Promise<TaskExtractionOutput>
+⋮----
+export async function generateWithTools(
+  input: ToolEnabledGenerationInput,
+): Promise<ToolEnabledGenerationOutput>
+⋮----
+export function listAvailableTools(): ReadonlyArray<ToolDescriptor>
 ````
 
 ## File: modules/ai/README.md
@@ -65049,18 +60927,6 @@ function renderWorkspacePlaceholder(title: string, description: string): ReactNo
 export function renderWorkspaceCrossModuleTabSurface(
   options: WorkspaceCrossModuleTabSurfaceOptions,
 ): ReactNode | null
-````
-
-## File: modules/workspace/api/facade.ts
-````typescript
-/**
- * workspace api/facade.ts
- *
- * Canonical public behavior surface for the workspace bounded context.
- * Cross-module and app-layer consumers invoke commands and queries from here.
- *
- * Internal source: interfaces/facades/
- */
 ````
 
 ## File: docs/semantic-model.md
@@ -65411,6 +61277,18 @@ export function renderWorkspaceCrossModuleTabSurface(
 > Last verified: 2026-04-15. Section 7.1 renames completed 2026-04-15. Section 7.2 entity rename completed 2026-04-15. Section 7.4 comment-level semantic cleanup completed 2026-04-15. Section 7.3 docs-level canonical name propagation completed 2026-04-15 (`knowledge-analytics`→`knowledge-engagement`, `knowledge-integration`→`external-knowledge-sync` applied to all 8 strategic docs + stale `database` → `knowledge-database` in notion context docs). Section 7.5 ADR historical doc sync completed 2026-04-15 (ADR 0006, 0009, 0011). All implemented subdomain folders, internal code, comments, namespace aliases, strategic docs, and ADR historical references now match canonical semantic names. Only `platform/workflow`→`platform-workflow` remains as a governance rule for a future unimplemented subdomain. Section 7 added 2026-04-15 based on Context7 DDD Hexagon evidence (`/sairyss/domain-driven-hexagon`).
 ````
 
+## File: modules/workspace/api/facade.ts
+````typescript
+/**
+ * workspace api/facade.ts
+ *
+ * Canonical public behavior surface for the workspace bounded context.
+ * Cross-module and app-layer consumers invoke commands and queries from here.
+ *
+ * Internal source: interfaces/facades/
+ */
+````
+
 ## File: modules/ai/api/index.ts
 ````typescript
 /**
@@ -65419,4 +61297,52 @@ export function renderWorkspaceCrossModuleTabSurface(
  * Cross-module consumers must import shared AI contracts through this entry point.
  * Server-only helpers live in ./server.ts.
  */
+⋮----
+// ── Cross-module capability contracts ─────────────────────────────────────────
+// These interfaces let downstream modules (workspace, notebooklm) receive an
+// opaque capability bag without importing concrete adapters.
+⋮----
+export interface AIAPI {
+  summarize(text: string, model?: string): Promise<string>;
+  generateText(
+    input: import("../domain/ports/AiTextGenerationPort").GenerateAiTextInput,
+  ): Promise<import("../domain/ports/AiTextGenerationPort").GenerateAiTextOutput>;
+}
+⋮----
+summarize(text: string, model?: string): Promise<string>;
+generateText(
+    input: import("../domain/ports/AiTextGenerationPort").GenerateAiTextInput,
+  ): Promise<import("../domain/ports/AiTextGenerationPort").GenerateAiTextOutput>;
+⋮----
+export interface DistillationAPI {
+  distillContent(
+    input: import("../domain/ports/DistillationPort").DistillContentInput,
+  ): Promise<import("../domain/ports/DistillationPort").DistillationResult>;
+  extractTasksFromContent(
+    input: import("../domain/ports/DistillationPort").TaskExtractionInput,
+  ): Promise<import("../domain/ports/DistillationPort").TaskExtractionOutput>;
+}
+⋮----
+distillContent(
+    input: import("../domain/ports/DistillationPort").DistillContentInput,
+  ): Promise<import("../domain/ports/DistillationPort").DistillationResult>;
+extractTasksFromContent(
+    input: import("../domain/ports/DistillationPort").TaskExtractionInput,
+  ): Promise<import("../domain/ports/DistillationPort").TaskExtractionOutput>;
+⋮----
+export interface ToolRuntimeAPI {
+  generateWithTools(
+    input: import("../domain/ports/ToolRuntimePort").ToolEnabledGenerationInput,
+  ): Promise<import("../domain/ports/ToolRuntimePort").ToolEnabledGenerationOutput>;
+  listAvailableTools(): ReadonlyArray<
+    import("../domain/ports/ToolRuntimePort").ToolDescriptor
+  >;
+}
+⋮----
+generateWithTools(
+    input: import("../domain/ports/ToolRuntimePort").ToolEnabledGenerationInput,
+  ): Promise<import("../domain/ports/ToolRuntimePort").ToolEnabledGenerationOutput>;
+listAvailableTools(): ReadonlyArray<
+⋮----
+// ── prompt-pipeline — noun subdomain, kept as-is ─────────────────────────────
 ````
