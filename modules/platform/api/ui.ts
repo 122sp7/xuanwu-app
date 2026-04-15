@@ -40,18 +40,18 @@ export {
 } from "../interfaces/web/providers/ShellAppContext";
 
 // ── Organisation UI components ────────────────────────────────────────────────
-export { AccountSwitcher } from "../subdomains/organization/interfaces/components/AccountSwitcher";
-export { CreateOrganizationDialog } from "../subdomains/organization/interfaces/components/CreateOrganizationDialog";
-export { OrganizationOverviewRouteScreen } from "../subdomains/organization/interfaces/components/screens/OrganizationOverviewRouteScreen";
-export { MembersPage, type MembersPageProps } from "../subdomains/organization/interfaces/components/MembersPage";
-export { OrganizationMembersRouteScreen } from "../subdomains/organization/interfaces/components/screens/OrganizationMembersRouteScreen";
-export { TeamsPage, type TeamsPageProps } from "../subdomains/organization/interfaces/components/TeamsPage";
-export { OrganizationTeamsRouteScreen } from "../subdomains/organization/interfaces/components/screens/OrganizationTeamsRouteScreen";
+export { AccountSwitcher } from "../../iam/subdomains/organization/interfaces/components/AccountSwitcher";
+export { CreateOrganizationDialog } from "../../iam/subdomains/organization/interfaces/components/CreateOrganizationDialog";
+export { OrganizationOverviewRouteScreen } from "../../iam/subdomains/organization/interfaces/components/screens/OrganizationOverviewRouteScreen";
+export { MembersPage, type MembersPageProps } from "../../iam/subdomains/organization/interfaces/components/MembersPage";
+export { OrganizationMembersRouteScreen } from "../../iam/subdomains/organization/interfaces/components/screens/OrganizationMembersRouteScreen";
+export { TeamsPage, type TeamsPageProps } from "../../iam/subdomains/organization/interfaces/components/TeamsPage";
+export { OrganizationTeamsRouteScreen } from "../../iam/subdomains/organization/interfaces/components/screens/OrganizationTeamsRouteScreen";
 export {
   PermissionsPage,
   type PermissionsPageProps,
-} from "../subdomains/organization/interfaces/components/PermissionsPage";
-export { OrganizationPermissionsRouteScreen } from "../subdomains/organization/interfaces/components/screens/OrganizationPermissionsRouteScreen";
+} from "../../iam/subdomains/organization/interfaces/components/PermissionsPage";
+export { OrganizationPermissionsRouteScreen } from "../../iam/subdomains/organization/interfaces/components/screens/OrganizationPermissionsRouteScreen";
 
 // ── Notification UI components ────────────────────────────────────────────────
 // TODO(ADR-1400): notification/api/index.ts still uses export * from "../application"

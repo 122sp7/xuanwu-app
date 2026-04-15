@@ -1,8 +1,8 @@
 "use client";
 
-import { useAccountRouteContext } from "../../../../../interfaces/web/hooks/useAccountRouteContext";
+import { useAccountRouteContext } from "@/modules/platform/interfaces/web/hooks/useAccountRouteContext";
 
-import { MembersPage } from "@/modules/iam/subdomains/organization/interfaces/components/MembersPage";
+import { MembersPage } from "../MembersPage";
 
 export function OrganizationMembersRouteScreen() {
   const { organizationId, isResolvingOrganizationRoute } = useAccountRouteContext();

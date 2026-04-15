@@ -1,8 +1,8 @@
 "use client";
 
-import { useAccountRouteContext } from "../../../../../interfaces/web/hooks/useAccountRouteContext";
+import { useAccountRouteContext } from "@/modules/platform/interfaces/web/hooks/useAccountRouteContext";
 
-import { TeamsPage } from "@/modules/iam/subdomains/organization/interfaces/components/TeamsPage";
+import { TeamsPage } from "../TeamsPage";
 
 export function OrganizationTeamsRouteScreen() {
   const { organizationId, isResolvingOrganizationRoute } = useAccountRouteContext();
