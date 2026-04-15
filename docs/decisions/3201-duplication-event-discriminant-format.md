@@ -25,17 +25,18 @@ export const BACKGROUND_JOB_ENQUEUED_EVENT_TYPE      = "background-job.enqueued"
 
 格式：`<context-kebab>.<action_underscore>`（混合：context 用 kebab，action 用 underscore）
 
-### 格式二：`<context>.<subdomain>.<action-with-kebab>`（workspace / team subdomains）
+### 格式二：`<context>.<subdomain>.<action-with-kebab>`（workspace / organization subdomains）
 
 ```typescript
 // modules/workspace/subdomains/feed/domain/events/workspace-feed.events.ts（ADR 記憶引用）
 export const POST_CREATED_EVENT_TYPE = "workspace.feed.post-created" as const;
 export const POST_REPLIED_EVENT_TYPE = "workspace.feed.post-replied" as const;
 
-// modules/platform/subdomains/team/domain/events/
-export const TEAM_CREATED_EVENT_TYPE        = "team.created"        as const;
-export const TEAM_MEMBER_ADDED_EVENT_TYPE   = "team.member-added"   as const;
-export const TEAM_MEMBER_REMOVED_EVENT_TYPE = "team.member-removed" as const;
+// modules/platform/subdomains/organization/domain/events/OrganizationTeamDomainEvent.ts
+// （已從 team 子域整併入 organization；discriminant 已修正為含完整主域前綴）
+export const TEAM_CREATED_EVENT_TYPE        = "platform.organization.team_created"        as const;
+export const TEAM_MEMBER_ADDED_EVENT_TYPE   = "platform.organization.team_member_added"   as const;
+export const TEAM_MEMBER_REMOVED_EVENT_TYPE = "platform.organization.team_member_removed" as const;
 ```
 
 格式：`<context>.<action-full-kebab>` 或 `<context>.<subdomain>.<action-full-kebab>`

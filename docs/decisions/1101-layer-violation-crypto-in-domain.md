@@ -14,7 +14,7 @@
 或透過 `import { randomUUID } from "node:crypto"` 引入 Node.js 內建模組，
 而非使用已建立的 `@lib-uuid` 套件別名。
 
-> 對照：`modules/platform/subdomains/team/domain/aggregates/OrganizationTeam.ts:16`
+> 對照：`modules/platform/subdomains/organization/domain/aggregates/OrganizationTeam.ts`
 > 是唯一正確使用 `import { v4 as randomUUID } from "@lib-uuid"` 的聚合根。
 
 ### 受影響的 domain 層（`crypto.randomUUID()` 直呼叫）
@@ -56,7 +56,7 @@ modules/platform/subdomains/background-job/application/use-cases/background-job.
 1. **可攜性**：`crypto` global 在 Web Worker 環境與 Node.js 環境行為不同，domain 直呼叫使 domain 暗中依賴 Node.js 執行環境。
 2. **測試困難**：無法在 Jest/Vitest 的瀏覽器模擬模式下直接 mock `crypto.randomUUID`，需要全域 polyfill。
 3. **一致性**：`@lib-uuid` 已存在並正確用於 `OrganizationTeam`，其他 43 個 aggregates 卻繞過它，造成混亂。
-4. **ADR 規範破壞**：命名慣例記憶（citations: `modules/platform/subdomains/team/domain/aggregates/OrganizationTeam.ts:16`）明確要求使用 `@lib-uuid`，但 43 個地方違反了這條規範。
+4. **ADR 規範破壞**：命名慣例記憶（citations: `modules/platform/subdomains/organization/domain/aggregates/OrganizationTeam.ts`）明確要求使用 `@lib-uuid`，但 43 個地方違反了這條規範。
 
 ## Decision
 

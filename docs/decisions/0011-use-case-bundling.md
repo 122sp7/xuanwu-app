@@ -28,7 +28,7 @@
 | `platform/subdomains/organization/application/use-cases/organization-lifecycle.use-cases.ts` | 4 |
 | `platform/subdomains/access-control/application/use-cases/access-control.use-cases.ts` | 4 |
 | `platform/subdomains/background-job/application/use-cases/background-job.use-cases.ts` | 3 |
-| `platform/subdomains/team/application/use-cases/team.use-cases.ts` | 3 |
+| `platform/subdomains/organization/application/use-cases/organization-team.use-cases.ts` | 3 (merged from team) |
 | `platform/subdomains/account/application/use-cases/account-policy.use-cases.ts` | 3 |
 | `platform/subdomains/notification/application/use-cases/notification.use-cases.ts` | 3 |
 | `platform/subdomains/organization/application/use-cases/organization-policy.use-cases.ts` | 3 |

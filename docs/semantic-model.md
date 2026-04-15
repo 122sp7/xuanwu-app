@@ -236,8 +236,7 @@
 | `modules/platform` | Platform Operational Services |
 | `modules/platform/subdomains/account` | Account Lifecycle |
 | `modules/platform/subdomains/account-profile` | Account Profile |
-| `modules/platform/subdomains/organization` | Organization Management |
-| `modules/platform/subdomains/team` | Team Management |
+| `modules/platform/subdomains/organization` | Organization Management (incl. OrganizationTeam) |
 | `modules/platform/subdomains/notification` | Notification Routing & Preferences |
 | `modules/platform/subdomains/platform-config` | Platform Configuration |
 | `modules/platform/subdomains/background-job` | Background Job Management |
