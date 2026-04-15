@@ -13,10 +13,10 @@ import type { Task } from "../../application/dto/workflow.dto";
 import type { TaskStatus } from "../../application/dto/workflow.dto";
 import { wfArchiveTask } from "../_actions/workspace-flow-task.actions";
 import {
-  wfApproveTaskAcceptance,
   wfPassTaskQa,
   wfSubmitTaskToQa,
 } from "../../../quality/interfaces/_actions/workspace-flow-quality.actions";
+import { wfApproveTaskAcceptance } from "../../../approve/interfaces/_actions/workspace-flow-approve.actions";
 import { getWorkspaceFlowIssues } from "../../../issue/interfaces/queries/workspace-flow-issue.queries";
 import { AssignTaskDialog } from "./AssignTaskDialog";
 import { EditTaskDialog } from "./EditTaskDialog";
