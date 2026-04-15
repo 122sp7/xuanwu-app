@@ -1,3 +1,3 @@
 // entitlement — inbound adapters placeholder
 // TODO: export server actions / route handlers
-export {};
+export { EntitlementController } from './http/EntitlementController';
