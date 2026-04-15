@@ -17,7 +17,7 @@ import {
   wfFailIssueRetest,
   wfPassIssueRetest,
   wfSubmitIssueRetest,
-} from "../../../validation/interfaces/_actions/workspace-flow-validation.actions";
+} from "../../../approve/interfaces/_actions/workspace-flow-approve.actions";
 
 export const ISSUE_STAGE_LABEL: Record<IssueStage, string> = {
   task: "任務",
