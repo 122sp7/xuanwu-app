@@ -14,14 +14,18 @@
 
 | 子域 | 蒸餾來源（modules/workspace/subdomains/）| 狀態 | 說明 |
 |---|---|---|---|
+| `activity` | 新增（使用者操作歷程）| 📋 待蒸餾 | 活動記錄實體 |
+| `api-key` | 新增（API 金鑰管理）| 📋 待蒸餾 | API 金鑰生命週期 |
 | `approval` | `approve` | 📋 待蒸餾 | 審批實體（審批流程與決策記錄）|
 | `audit` | `audit` | 📋 待蒸餾 | 稽核紀錄實體 |
 | `feed` | `feed` | 📋 待蒸餾 | 活動動態實體 |
+| `invitation` | 新增（工作區邀請）| 📋 待蒸餾 | 邀請實體（邀請連結、邀請狀態）|
 | `issue` | `issue` | 🔨 進行中 | 議題實體（議題管理）|
 | `lifecycle` | `lifecycle` | 🔨 進行中 | 生命週期實體（工作區生命週期）|
 | `membership` | `membership` | 🔨 進行中 | 成員資格實體（Membership）|
 | `orchestration` | `orchestration` | 🔨 進行中 | 跨子域編排（原 workspace-workflow）|
 | `quality` | `quality` | 📋 待蒸餾 | 品質管控實體 |
+| `resource` | 新增（資源配額）| 📋 待蒸餾 | 資源實體（工作區資源配額與管理）|
 | `schedule` | `scheduling` | 📋 待蒸餾 | 排程實體 |
 | `settlement` | `settlement` | 📋 待蒸餾 | 結算實體 |
 | `share` | `sharing` | 📋 待蒸餾 | 分享實體（對外發布）|
@@ -53,7 +57,11 @@ src/modules/workspace/
     issue/                      ← 優先蒸餾
     membership/                 ← 優先蒸餾
     orchestration/              ← 優先蒸餾（WorkspaceFlowTab 等）
+    activity/
+    api-key/
     approval/
+    invitation/
+    resource/
     settlement/
     quality/
     task-formation/

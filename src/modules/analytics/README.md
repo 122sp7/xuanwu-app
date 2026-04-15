@@ -13,6 +13,7 @@
 | `event-contracts` | `modules/analytics/subdomains/event-contracts/` | 📋 待蒸餾 | 事件契約定義 |
 | `event-ingestion` | `modules/analytics/subdomains/event-ingestion/` | 📋 待蒸餾 | 事件接收 / 攝取 |
 | `event-projection` | `modules/analytics/subdomains/event-projection/` | 📋 待蒸餾 | 事件投影（讀模型）|
+| `experimentation` | 新增（A/B 測試功能）| 📋 待蒸餾 | A/B 測試與功能實驗管理 |
 | `insights` | `modules/analytics/subdomains/insights/` | 📋 待蒸餾 | 洞察報表 |
 | `metrics` | `modules/analytics/subdomains/metrics/` | 📋 待蒸餾 | 指標計算 |
 | `realtime-insights` | `modules/analytics/subdomains/realtime-insights/` | 📋 待蒸餾 | 即時洞察 |
@@ -38,6 +39,7 @@ src/modules/analytics/
     metrics/
     event-ingestion/
     event-contracts/
+    experimentation/
     insights/
     realtime-insights/
 ```

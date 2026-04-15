@@ -13,6 +13,8 @@
 | 子域 | 蒸餾來源 | 狀態 | 說明 |
 |---|---|---|---|
 | `background-job` | `modules/platform/subdomains/background-job/` | 📋 待蒸餾 | 背景工作排程 |
+| `cache` | 新增（快取管理）| 📋 待蒸餾 | 鍵值快取、TTL 設定 |
+| `file-storage` | 新增（檔案儲存服務）| 📋 待蒸餾 | 上傳、下載、檔案生命週期 |
 | `notification` | `modules/platform/subdomains/notification/` | 📋 待蒸餾 | 通知發送 |
 | `platform-config` | `modules/platform/subdomains/platform-config/` | 📋 待蒸餾 | 平台設定 |
 | `search` | `modules/platform/subdomains/search/` | 📋 待蒸餾 | 跨域搜尋 |
@@ -48,6 +50,8 @@ src/modules/platform/
       domain/                   ← BackgroundJob / JobDocument / JobChunk
       application/
       adapters/outbound/
+    cache/
+    file-storage/
     platform-config/
     search/
 ```

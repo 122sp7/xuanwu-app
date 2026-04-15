@@ -16,6 +16,7 @@
 | `event-contracts` | 事件契約定義（Published Language）| 📋 待蒸餾 |
 | `event-ingestion` | 事件接收 / 攝取 | 📋 待蒸餾 |
 | `event-projection` | 事件投影（讀模型計算）| 📋 待蒸餾 |
+| `experimentation` | A/B 測試與功能實驗管理 | 📋 待蒸餾 |
 | `insights` | 洞察報表 | 📋 待蒸餾 |
 | `metrics` | 指標計算 | 📋 待蒸餾 |
 | `realtime-insights` | 即時洞察 | 📋 待蒸餾 |

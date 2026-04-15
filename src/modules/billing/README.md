@@ -12,6 +12,7 @@
 |---|---|---|---|
 | `entitlement` | `modules/billing/subdomains/entitlement/` | 📋 待蒸餾 | 授權配額信號（能力准入）|
 | `subscription` | `modules/billing/subdomains/subscription/` | 📋 待蒸餾 | 訂閱計劃管理 |
+| `usage-metering` | 新增（用量計量）| 📋 待蒸餾 | API 呼叫、Token 消耗等用量計量 |
 
 **術語提醒：**
 - `Subscription` = 計費計劃（billing plan）
@@ -35,6 +36,10 @@ src/modules/billing/
       application/
       adapters/outbound/
     subscription/
+      domain/
+      application/
+      adapters/outbound/
+    usage-metering/
       domain/
       application/
       adapters/outbound/

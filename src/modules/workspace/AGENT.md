@@ -13,14 +13,18 @@
 
 | 子域 | 說明 | 對應 modules/ 來源 | 蒸餾狀態 |
 |---|---|---|---|
+| `activity` | 活動記錄實體（使用者操作歷程）| 新增 | 📋 待蒸餾 |
+| `api-key` | API 金鑰管理實體 | 新增 | 📋 待蒸餾 |
 | `approval` | 審批實體（審批流程與決策）| `approve` | 📋 待蒸餾 |
 | `audit` | 稽核紀錄實體 | `audit` | 📋 待蒸餾 |
 | `feed` | 活動動態實體 | `feed` | 📋 待蒸餾 |
+| `invitation` | 邀請實體（工作區邀請管理）| 新增 | 📋 待蒸餾 |
 | `issue` | 議題實體（議題管理）| `issue` | 🔨 進行中 |
 | `lifecycle` | 生命週期實體（工作區生命週期）| `lifecycle` | 🔨 進行中 |
 | `membership` | 成員資格實體（Membership）| `membership` | 🔨 進行中 |
 | `orchestration` | 跨子域編排（原 workspace-workflow）| `orchestration` | 🔨 進行中 |
 | `quality` | 品質管控實體 | `quality` | 📋 待蒸餾 |
+| `resource` | 資源實體（工作區資源配額與管理）| 新增 | 📋 待蒸餾 |
 | `schedule` | 排程實體 | `scheduling` | 📋 待蒸餾 |
 | `settlement` | 結算實體 | `settlement` | 📋 待蒸餾 |
 | `share` | 分享實體（對外發布）| `sharing` | 📋 待蒸餾 |

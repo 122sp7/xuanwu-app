@@ -13,6 +13,7 @@
 |---|---|---|
 | `entitlement` | 授權配額信號（能力准入）| 📋 待蒸餾 |
 | `subscription` | 訂閱計劃管理 | 📋 待蒸餾 |
+| `usage-metering` | 用量計量（API 呼叫、Token 消耗等）| 📋 待蒸餾 |
 
 ## Boundary Rules
 

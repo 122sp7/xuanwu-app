@@ -14,6 +14,8 @@
 | 子域 | 說明 | 蒸餾狀態 |
 |---|---|---|
 | `background-job` | 背景工作排程（BackgroundJob / JobDocument / JobChunk）| 📋 待蒸餾 |
+| `cache` | 快取管理（鍵值快取、TTL 設定）| 📋 待蒸餾 |
+| `file-storage` | 檔案儲存服務（上傳、下載、生命週期）| 📋 待蒸餾 |
 | `notification` | 通知發送 | 📋 待蒸餾 |
 | `platform-config` | 平台設定 | 📋 待蒸餾 |
 | `search` | 跨域搜尋 | 📋 待蒸餾 |

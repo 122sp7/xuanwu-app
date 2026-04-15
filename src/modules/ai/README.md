@@ -17,13 +17,15 @@
 | 子域 | 蒸餾來源（modules/ai/subdomains/）| 狀態 | 說明 |
 |---|---|---|---|
 | `chunk` | `tokens` + 分塊邏輯 | 📋 待蒸餾 | 文字分塊實體（分塊策略、Token 計量、Chunk ID）|
-| `embedding` | `embeddings` | 📋 待蒸餾 | 向量嵌入實體（Embedding 生成與向量儲存）|
-| `retrieval` | `tools` / `context`（分散）| 📋 待蒸餾 | 語意檢索實體（向量相似度搜尋、TopK 結果）|
-| `context` | `memory-context` + `messages` + `conversations` + `personas` | 📋 待蒸餾 | AI 上下文實體（記憶體、對話歷程、人格設定）|
-| `generation` | `models` + `tools` | 📋 待蒸餾 | AI 生成實體（模型選擇、Tool calling、生成結果）|
 | `citation` | 新增（無舊對應）| 📋 待蒸餾 | 引用實體（生成內容對應的來源 Chunk 溯源）|
+| `context` | `memory-context` + `messages` + `conversations` + `personas` | 📋 待蒸餾 | AI 上下文實體（記憶體、對話歷程、人格設定）|
+| `embedding` | `embeddings` | 📋 待蒸餾 | 向量嵌入實體（Embedding 生成與向量儲存）|
 | `evaluation` | `evaluation-policy` + `safety-guardrail` + `datasets` + `model-observability` | 📋 待蒸餾 | 評估實體（品質評分、安全過濾、模型可觀測性）|
+| `generation` | `models` + `tools` | 📋 待蒸餾 | AI 生成實體（模型選擇、Tool calling、生成結果）|
+| `memory` | `memory-context`（萃取長期記憶部分）| 📋 待蒸餾 | AI 記憶實體（長期記憶、跨會話持久化）|
 | `pipeline` | `prompt-pipeline` + `prompts` | 📋 待蒸餾 | 提示管線實體（Prompt 模板、多步驟 Pipeline 定義）|
+| `retrieval` | `tools` / `context`（分散）| 📋 待蒸餾 | 語意檢索實體（向量相似度搜尋、TopK 結果）|
+| `tool-calling` | `tools` + `tool-runtime` | 📋 待蒸餾 | 工具呼叫實體（Tool 定義、執行、結果處理）|
 
 ---
 
@@ -68,6 +70,8 @@ src/modules/ai/
     retrieval/
     context/
     citation/
+    memory/
+    tool-calling/
 ```
 
 ---
