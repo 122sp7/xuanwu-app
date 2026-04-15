@@ -1,3 +1,2 @@
-// cache — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-export {};
+export type { CacheEntry } from "./entities/CacheEntry";
+export type { CacheRepository } from "./repositories/CacheRepository";

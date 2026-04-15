@@ -1,3 +1,2 @@
-// notification — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-export {};
+export { InMemoryNotificationRepository } from "./memory/InMemoryNotificationRepository";
+export { InMemoryWorkspaceNotificationPreferenceRepository } from "./memory/InMemoryWorkspaceNotificationPreferenceRepository";

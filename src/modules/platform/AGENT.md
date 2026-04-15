@@ -5,7 +5,7 @@
 `src/modules/platform` 是 **Platform 橫切治理能力蒸餾骨架**，為 Xuanwu 系統提供通知（Notification）、背景工作（Background Job）、平台設定（Platform Config）、搜尋（Search）等橫切服務能力的新實作落點。
 
 **蒸餾來源：** `modules/platform/`（account / organization 子域已遷入 `modules/iam/`）  
-**蒸餾狀態：** 🔨 進行中（account / org 已移至 iam；notification、background-job 等待蒸餾）
+**蒸餾狀態：** ✅ 完成（platform 子域已蒸餾至 `src/modules/platform/`）
 
 > **注意：** `platform/subdomains/account` 與 `platform/subdomains/organization` 已**完全遷入** `modules/iam/`。在 `src/modules/platform/` 中**不得**重建這些子域。
 
@@ -13,12 +13,12 @@
 
 | 子域 | 說明 | 蒸餾狀態 |
 |---|---|---|
-| `background-job` | 背景工作排程（BackgroundJob / JobDocument / JobChunk）| 📋 待蒸餾 |
-| `cache` | 快取管理（鍵值快取、TTL 設定）| 📋 待蒸餾 |
-| `file-storage` | 檔案儲存服務（上傳、下載、生命週期）| 📋 待蒸餾 |
-| `notification` | 通知發送 | 📋 待蒸餾 |
-| `platform-config` | 平台設定 | 📋 待蒸餾 |
-| `search` | 跨域搜尋 | 📋 待蒸餾 |
+| `background-job` | 背景工作排程（BackgroundJob / JobDocument / JobChunk）| ✅ 已蒸餾 |
+| `cache` | 快取管理（鍵值快取、TTL 設定）| ✅ 已蒸餾 |
+| `file-storage` | 檔案儲存服務（上傳、下載、生命週期）| ✅ 已蒸餾 |
+| `notification` | 通知發送 | ✅ 已蒸餾 |
+| `platform-config` | 平台設定 | ✅ 已蒸餾 |
+| `search` | 跨域搜尋 | ✅ 已蒸餾 |
 
 **已遷移子域（不在 platform）：**
 - `account` → `modules/iam/subdomains/account/`

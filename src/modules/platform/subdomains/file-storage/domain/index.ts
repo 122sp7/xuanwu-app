@@ -1,3 +1,2 @@
-// file-storage — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-export {};
+export type { StoredFile } from "./entities/StoredFile";
+export type { FileStorageRepository } from "./repositories/FileStorageRepository";

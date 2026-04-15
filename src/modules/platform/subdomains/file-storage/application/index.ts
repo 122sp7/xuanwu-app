@@ -1,3 +1,12 @@
-// file-storage — application layer placeholder
-// TODO: export use-cases, DTOs, application services
-export {};
+export {
+  CreateStoredFileUseCase,
+  GetStoredFileUseCase,
+  ListStoredFilesUseCase,
+  DeleteStoredFileUseCase,
+} from "./use-cases/FileStorageUseCases";
+export type {
+  CreateStoredFileInput,
+  GetStoredFileInput,
+  ListStoredFilesInput,
+  DeleteStoredFileInput,
+} from "./use-cases/FileStorageUseCases";

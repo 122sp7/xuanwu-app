@@ -1,3 +1,25 @@
-// platform-config — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export {
+  SHELL_ACCOUNT_SECTION_MATCHERS,
+  SHELL_ACCOUNT_NAV_ITEMS,
+  SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
+  SHELL_SECTION_LABELS,
+  SHELL_RAIL_CATALOG_ITEMS,
+  SHELL_CONTEXT_SECTION_CONFIG,
+  SHELL_MOBILE_NAV_ITEMS,
+  SHELL_ORG_PRIMARY_NAV_ITEMS,
+  SHELL_ORG_SECONDARY_NAV_ITEMS,
+  buildShellContextualHref,
+  normalizeShellRoutePath,
+  isExactOrChildPath,
+  listShellRailCatalogItems,
+  resolveShellBreadcrumbLabel,
+  resolveShellNavSection,
+  resolveShellPageTitle,
+} from "./services/shell-navigation-catalog";
+export type {
+  ShellNavItem,
+  ShellNavSection,
+  ShellRailCatalogItem,
+  ShellContextSectionConfig,
+  ShellRouteContext,
+} from "./services/shell-navigation-catalog";
