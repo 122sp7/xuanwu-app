@@ -1,9 +1,9 @@
+import { WorkflowId } from '../value-objects/WorkflowId';
+
 /**
- * TemplateWorkflow — Aggregate Root (stub)
- *
+ * TemplateWorkflow — Aggregate Root
  * Represents a lifecycle workflow bound to a Template aggregate
- * (e.g. draft → review → approved → published).
- * Expand this aggregate when the workflow subdomain is activated.
+ * (e.g. pending → active → completed).
  */
 export type WorkflowStatus =
   | 'pending'
@@ -13,7 +13,7 @@ export type WorkflowStatus =
   | 'cancelled';
 
 export interface TemplateWorkflowProps {
-  id: string;
+  id: WorkflowId;
   templateId: string;
   status: WorkflowStatus;
   startedAt: Date;
@@ -33,7 +33,7 @@ export class TemplateWorkflow {
     });
   }
 
-  get id(): string {
+  get id(): WorkflowId {
     return this.props.id;
   }
 
@@ -71,3 +71,4 @@ export class TemplateWorkflow {
     this.props.completedAt = new Date();
   }
 }
+

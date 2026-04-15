@@ -1,4 +1,4 @@
-import type { StartIngestionPort } from '../../application/ports/inbound/StartIngestionPort';
+import type { StartIngestionPort } from '../../../application/ports/inbound/StartIngestionPort';
 
 /**
  * IngestionController — Inbound HTTP Adapter (stub)

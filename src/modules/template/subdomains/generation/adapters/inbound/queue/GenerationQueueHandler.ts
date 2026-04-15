@@ -1,4 +1,4 @@
-import type { GenerateTemplatePort } from '../../application/ports/inbound/GenerateTemplatePort';
+import type { GenerateTemplatePort } from '../../../application/ports/inbound/GenerateTemplatePort';
 
 /**
  * GenerationQueueHandler — Inbound Queue Adapter (stub)

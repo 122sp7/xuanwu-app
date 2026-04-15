@@ -37,7 +37,6 @@ export type {
   ExternalApiPort,
 } from './subdomains/document/application';
 
-// ── orchestration ─────────────────────────────────────────────────────────────
 export { TemplateFacade } from './orchestration/TemplateFacade';
 export { TemplateCoordinator } from './orchestration/TemplateCoordinator';
 
@@ -57,3 +56,55 @@ export {
 } from './shared/constants';
 export type { TemplateModuleConfig } from './shared/config';
 export { defaultTemplateModuleConfig } from './shared/config';
+
+// ── generation subdomain ──────────────────────────────────────────────────────
+export {
+  GeneratedTemplate,
+  GenerationId,
+  GenerationDomainService,
+  GenerationCompletedEvent,
+} from './subdomains/generation/domain';
+export type { GenerationRepository } from './subdomains/generation/domain';
+export { GenerateTemplateUseCase } from './subdomains/generation/application';
+export type {
+  GenerateTemplateDTO,
+  GenerationResultDTO,
+  GenerateTemplatePort,
+  GenerationRepositoryPort,
+  AiGenerationPort,
+} from './subdomains/generation/application';
+
+// ── ingestion subdomain ───────────────────────────────────────────────────────
+export {
+  IngestionJob,
+  IngestionId,
+  IngestionDomainService,
+  IngestionJobStartedEvent,
+  IngestionJobCompletedEvent,
+} from './subdomains/ingestion/domain';
+export type { IngestionJobRepository, IngestionStatus } from './subdomains/ingestion/domain';
+export { StartIngestionUseCase } from './subdomains/ingestion/application';
+export type {
+  StartIngestionDTO,
+  IngestionJobResponseDTO,
+  StartIngestionPort,
+  IngestionRepositoryPort,
+  StoragePort,
+} from './subdomains/ingestion/application';
+
+// ── workflow subdomain ────────────────────────────────────────────────────────
+export {
+  TemplateWorkflow,
+  WorkflowId,
+  WorkflowDomainService,
+  WorkflowInitiatedEvent,
+  WorkflowCompletedEvent,
+} from './subdomains/workflow/domain';
+export type { TemplateWorkflowRepository, WorkflowStatus } from './subdomains/workflow/domain';
+export { InitiateWorkflowUseCase } from './subdomains/workflow/application';
+export type {
+  InitiateWorkflowDTO,
+  WorkflowResponseDTO,
+  InitiateWorkflowPort,
+  WorkflowRepositoryPort,
+} from './subdomains/workflow/application';
