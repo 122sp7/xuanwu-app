@@ -56,7 +56,7 @@ export function renderWorkspaceCrossModuleTabSurface(
       return (
         <Card className="border border-border/50">
           <CardHeader>
-            <CardTitle>Notion Authoring</CardTitle>
+            <CardTitle>Notion Article</CardTitle>
             <CardDescription>Workspace orchestration view for article authoring and lifecycle.</CardDescription>
           </CardHeader>
           <CardContent>
