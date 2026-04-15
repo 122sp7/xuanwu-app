@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { Pencil, Trash2, Wand2 } from "lucide-react";
 
-import { listSourceFollowUpPrompts } from "@/modules/ai/api";
 import type {
   WorkspaceManagedFileItem,
   WorkspaceManagedFileVersionItem,
@@ -36,10 +35,6 @@ interface WorkspaceManagedFileCardProps {
   readonly getStatusTone: (status: string) => "default" | "secondary" | "outline";
   readonly formatFileSize: (sizeBytes: number) => string;
 }
-
-const promptSummaryByIntent = new Map(
-  listSourceFollowUpPrompts("manual").map((prompt) => [prompt.intent, prompt.summary] as const),
-);
 
 export function WorkspaceManagedFileCard({
   doc,
@@ -92,7 +87,7 @@ export function WorkspaceManagedFileCard({
             variant="outline"
             disabled={!doc.storagePath || isBusy}
             onClick={onRunOcr}
-            title={promptSummaryByIntent.get("source-ocr")}
+            title="呼叫 Document AI 進行 OCR 與結構化解析"
           >
             <Wand2 className="mr-1.5 h-4 w-4" />
             OCR
@@ -134,7 +129,7 @@ export function WorkspaceManagedFileCard({
               variant="secondary"
               onClick={onCreateRagIndex}
               disabled={isBusy}
-              title={promptSummaryByIntent.get("source-rag-index")}
+              title="使用既有 parsed JSON 建立檢索索引"
             >
               建立 RAG 索引
             </Button>
@@ -143,7 +138,7 @@ export function WorkspaceManagedFileCard({
               variant="secondary"
               onClick={onCreateKnowledgePage}
               disabled={isBusy}
-              title={promptSummaryByIntent.get("source-knowledge-page")}
+              title="根據已解析內容建立 Knowledge Page 草稿"
             >
               建立 Knowledge Page
             </Button>
@@ -152,7 +147,7 @@ export function WorkspaceManagedFileCard({
               variant="secondary"
               onClick={onCreateTasks}
               disabled={isBusy}
-              title={promptSummaryByIntent.get("source-task-materialization")}
+              title="根據已解析內容抽取任務候選並請使用者確認"
             >
               建立任務
             </Button>

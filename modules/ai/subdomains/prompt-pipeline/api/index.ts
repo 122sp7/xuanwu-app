@@ -10,18 +10,13 @@ export type {
   PromptTemplateDescriptor,
   PromptTemplateFamily,
   ResolvedPrompt,
-  SourceFollowUpPromptInput,
-  SourceFollowUpPromptIntent,
   TaskExtractionPromptInput,
   TaskExtractionPromptIntent,
 } from "../domain";
 
 export {
   listPromptFamilies,
-  listSourceFollowUpPrompts,
   listTaskExtractionPrompts,
-  resolveSourceFollowUpPrompt,
   resolveTaskExtractionPrompt,
   promptRegistryService,
-  sourceFollowUpPromptService,
 } from "../application";

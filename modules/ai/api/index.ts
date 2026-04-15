@@ -30,20 +30,15 @@ export type {
   PromptTemplateDescriptor,
   PromptTemplateFamily,
   ResolvedPrompt,
-  SourceFollowUpPromptInput,
-  SourceFollowUpPromptIntent,
   TaskExtractionPromptInput,
   TaskExtractionPromptIntent,
 } from "../subdomains/prompt-pipeline/api";
 
 export {
   listPromptFamilies,
-  listSourceFollowUpPrompts,
   listTaskExtractionPrompts,
-  resolveSourceFollowUpPrompt,
   resolveTaskExtractionPrompt,
   promptRegistryService,
-  sourceFollowUpPromptService,
 } from "../subdomains/prompt-pipeline/api";
 
 export type {

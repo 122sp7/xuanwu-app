@@ -76,7 +76,7 @@ export class ProcessSourceDocumentWorkflowUseCase {
         }
         : { status: "skipped", detail: "使用者未勾選 Knowledge Page" },
       task: input.shouldCreateTasks
-        ? { status: "idle", detail: "等待抽取候選任務並送入 Workspace Flow" }
+        ? { status: "idle", detail: "等待 AI 抽取候選任務並送入 Workspace Flow" }
         : { status: "skipped", detail: "使用者未勾選任務流程" },
     };
 
@@ -209,6 +209,13 @@ export class ProcessSourceDocumentWorkflowUseCase {
           knowledgePageId: createdPageId,
           blocks,
           enableAiFallback: true,
+          sourceContext: {
+            filename: input.filename,
+            mimeType: input.mimeType,
+            pageCount: parsedDocument.pageCount,
+            sourceGcsUri: input.gcsUri,
+            jsonGcsUri: parsedDocument.jsonGcsUri,
+          },
         });
 
         if (extraction.candidates.length === 0) {
@@ -220,7 +227,7 @@ export class ProcessSourceDocumentWorkflowUseCase {
               status: "success",
               detail: extraction.usedAiFallback
                 ? "已完成任務掃描，但未找到可建立的任務。"
-                : "規則掃描完成，未偵測到待辦任務。",
+                : "已完成任務掃描，未偵測到待辦任務。",
             },
           };
         } else {
