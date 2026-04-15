@@ -22,7 +22,6 @@ export type {
 export type {
   AccountPolicy,
   PolicyRule,
-  PolicyEffect,
   CreatePolicyInput,
   UpdatePolicyInput,
 } from "../domain/entities/AccountPolicy";
