@@ -1,13 +1,13 @@
+import { IngestionId } from '../value-objects/IngestionId';
+
 /**
- * IngestionJob — Aggregate Root (stub)
- *
+ * IngestionJob — Aggregate Root
  * Tracks the lifecycle of a single source-document ingestion run.
- * Expand this aggregate when the ingestion subdomain is activated.
  */
 export type IngestionStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
 export interface IngestionJobProps {
-  id: string;
+  id: IngestionId;
   sourceUrl: string;
   status: IngestionStatus;
   createdAt: Date;
@@ -27,7 +27,7 @@ export class IngestionJob {
     });
   }
 
-  get id(): string {
+  get id(): IngestionId {
     return this.props.id;
   }
 
@@ -45,6 +45,10 @@ export class IngestionJob {
 
   get completedAt(): Date | undefined {
     return this.props.completedAt;
+  }
+
+  markProcessing(): void {
+    this.props.status = 'processing';
   }
 
   markCompleted(): void {

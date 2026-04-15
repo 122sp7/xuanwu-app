@@ -1,27 +1,28 @@
+import { GenerationId } from '../value-objects/GenerationId';
+
 /**
- * GeneratedTemplate — Aggregate Root (stub)
+ * GeneratedTemplate — Aggregate Root
  *
  * Represents the output artefact produced by an AI / rule-based
  * template generation run.
- * Expand this aggregate when the generation subdomain is activated.
  */
 export interface GeneratedTemplateProps {
-  id: string;
+  id: GenerationId;
   sourceTemplateId: string;
   content: string;
-  generatedAt: Date;
+  createdAt: Date;
 }
 
 export class GeneratedTemplate {
   private constructor(private readonly props: GeneratedTemplateProps) {}
 
   static create(
-    params: Omit<GeneratedTemplateProps, 'generatedAt'>,
+    params: Omit<GeneratedTemplateProps, 'createdAt'>,
   ): GeneratedTemplate {
-    return new GeneratedTemplate({ ...params, generatedAt: new Date() });
+    return new GeneratedTemplate({ ...params, createdAt: new Date() });
   }
 
-  get id(): string {
+  get id(): GenerationId {
     return this.props.id;
   }
 
@@ -33,7 +34,7 @@ export class GeneratedTemplate {
     return this.props.content;
   }
 
-  get generatedAt(): Date {
-    return this.props.generatedAt;
+  get createdAt(): Date {
+    return this.props.createdAt;
   }
 }
