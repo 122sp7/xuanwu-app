@@ -1,3 +1,1 @@
-// database — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export { CreateDatabaseUseCase, AddPropertyUseCase } from "./use-cases/DatabaseUseCases";

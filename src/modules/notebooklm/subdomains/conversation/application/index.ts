@@ -1,3 +1,5 @@
-// conversation — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export {
+  StartConversationUseCase,
+  AddMessageToConversationUseCase,
+  LoadConversationUseCase,
+} from "./use-cases/ConversationUseCases";

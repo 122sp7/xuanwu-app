@@ -1,3 +1,14 @@
-// generation — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-export {};
+export type {
+  GenerateTextInput,
+  GenerateTextOutput,
+  TextGenerationPort,
+  DistillationSource,
+  DistillContentInput,
+  DistillationItem,
+  DistillationOutput,
+  ContentDistillationPort,
+  TaskExtractionItem,
+  TaskExtractionInput,
+  TaskExtractionOutput,
+  TaskExtractionPort,
+} from "./ports/GenerationPorts";

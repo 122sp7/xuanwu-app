@@ -1,0 +1,110 @@
+/**
+ * Document — distilled from modules/notebooklm/subdomains/source
+ * Represents a workspace-scoped ingested document (formerly SourceFile).
+ */
+import { v4 as uuid } from "@lib-uuid";
+
+export type DocumentStatus = "active" | "processing" | "archived" | "deleted";
+export type DocumentClassification = "image" | "manifest" | "record" | "other";
+
+export interface DocumentSnapshot {
+  readonly id: string;
+  readonly notebookId?: string;
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly accountId: string;
+  readonly name: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly classification: DocumentClassification;
+  readonly tags: readonly string[];
+  readonly status: DocumentStatus;
+  readonly storageUrl?: string;
+  readonly source?: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+  readonly deletedAtISO?: string;
+}
+
+export interface CreateDocumentInput {
+  readonly notebookId?: string;
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly accountId: string;
+  readonly name: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly classification?: DocumentClassification;
+  readonly tags?: string[];
+  readonly storageUrl?: string;
+  readonly source?: string;
+}
+
+export class Document {
+  private _domainEvents: Array<{ type: string; eventId: string; occurredAt: string; payload: Record<string, unknown> }> = [];
+
+  private constructor(private _props: DocumentSnapshot) {}
+
+  static create(input: CreateDocumentInput): Document {
+    const now = new Date().toISOString();
+    const doc = new Document({
+      id: uuid(),
+      notebookId: input.notebookId,
+      workspaceId: input.workspaceId,
+      organizationId: input.organizationId,
+      accountId: input.accountId,
+      name: input.name,
+      mimeType: input.mimeType,
+      sizeBytes: input.sizeBytes,
+      classification: input.classification ?? "other",
+      tags: input.tags ?? [],
+      status: "active",
+      storageUrl: input.storageUrl,
+      source: input.source,
+      createdAtISO: now,
+      updatedAtISO: now,
+    });
+    doc._domainEvents.push({
+      type: "notebooklm.document.created",
+      eventId: uuid(),
+      occurredAt: now,
+      payload: { documentId: doc._props.id, workspaceId: input.workspaceId },
+    });
+    return doc;
+  }
+
+  static reconstitute(snapshot: DocumentSnapshot): Document {
+    return new Document(snapshot);
+  }
+
+  archive(): void {
+    if (this._props.status === "deleted") throw new Error("Cannot archive a deleted document");
+    this._props = { ...this._props, status: "archived", updatedAtISO: new Date().toISOString() };
+    this._domainEvents.push({
+      type: "notebooklm.document.archived",
+      eventId: uuid(),
+      occurredAt: new Date().toISOString(),
+      payload: { documentId: this._props.id },
+    });
+  }
+
+  delete(): void {
+    const now = new Date().toISOString();
+    this._props = { ...this._props, status: "deleted", deletedAtISO: now, updatedAtISO: now };
+  }
+
+  get id(): string { return this._props.id; }
+  get name(): string { return this._props.name; }
+  get status(): DocumentStatus { return this._props.status; }
+  get workspaceId(): string { return this._props.workspaceId; }
+
+  getSnapshot(): Readonly<DocumentSnapshot> {
+    return Object.freeze({ ...this._props });
+  }
+
+  pullDomainEvents() {
+    const events = [...this._domainEvents];
+    this._domainEvents = [];
+    return events;
+  }
+}

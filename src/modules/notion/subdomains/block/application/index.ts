@@ -1,3 +1,1 @@
-// block — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export { CreateBlockUseCase, UpdateBlockUseCase, GetPageBlocksUseCase } from "./use-cases/BlockUseCases";

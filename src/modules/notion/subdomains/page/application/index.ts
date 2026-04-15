@@ -1,3 +1,1 @@
-// page — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export { CreatePageUseCase, RenamePageUseCase, ArchivePageUseCase, QueryPagesUseCase } from "./use-cases/PageUseCases";

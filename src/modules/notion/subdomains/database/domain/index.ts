@@ -1,3 +1,3 @@
-// database — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-export {};
+export type { DatabaseSnapshot, CreateDatabaseInput, DatabaseProperty, DatabaseStatus, PropertyType } from "./entities/Database";
+export { Database } from "./entities/Database";
+export type { DatabaseRepository } from "./repositories/DatabaseRepository";

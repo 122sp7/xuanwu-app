@@ -1,3 +1,1 @@
-// document — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export { AddDocumentUseCase, ArchiveDocumentUseCase, QueryDocumentsUseCase } from "./use-cases/DocumentUseCases";
