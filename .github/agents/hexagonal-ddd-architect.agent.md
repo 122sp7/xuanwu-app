@@ -1,7 +1,8 @@
 ---
 name: Hexagonal DDD Architect
 description: Design and refactor modules with Hexagonal Architecture with Domain-Driven Design ownership, layer direction, and API-only cross-module boundaries.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+argument-hint: Provide module name, operation type (create/refactor/split/merge), and migration constraints.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'repomix/*']
 model: 'GPT-5.3-Codex'
 handoffs:
   - label: Confirm Domain Ownership

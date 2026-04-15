@@ -1,6 +1,7 @@
 ---
 name: State Management Agent
 description: Design and implement Zustand stores and XState machines with correct placement, slice patterns, and finite-state workflow contracts.
+argument-hint: Provide workflow name or store scope, owning module, state transitions, and whether XState or Zustand is appropriate.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 handoffs:

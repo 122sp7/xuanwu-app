@@ -1,6 +1,7 @@
 ---
 name: RAG Lead
 description: Lead RAG ingest and retrieval contracts, runtime boundaries, and quality gates for chunk and vector pipelines.
+argument-hint: Provide document sources, retrieval goal, runtime context (Next.js/py_fn), and quality constraints.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
 model: 'GPT-5.3-Codex'
 handoffs:

@@ -1,3 +1,6 @@
-// subscription — adapters aggregate
-export * from './inbound';
-export * from './outbound';
+// outbound
+export { FirestoreSubscriptionRepository } from './outbound';
+export type { FirestoreLike } from './outbound';
+
+// inbound
+export { SubscriptionController } from './inbound';

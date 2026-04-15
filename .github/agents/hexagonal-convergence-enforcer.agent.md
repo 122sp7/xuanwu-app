@@ -2,7 +2,7 @@
 name: Hexagonal Convergence Enforcer
 description: Drive repo-wide architecture smell detection and complexity reduction with root-cause refactors and anti-regression safeguards.
 argument-hint: Provide target scope (default full-repo), risk constraints, and optional priority contexts.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'todo', 'shadcn/*', 'next-devtools/*']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'todo', 'shadcn/*', 'next-devtools/*', 'repomix/*']
 model: 'GPT-5.3-Codex'
 handoffs:
   - label: Verify App Router Impact

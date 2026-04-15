@@ -1,3 +1,1 @@
-// subscription — inbound adapters placeholder
-// TODO: export server actions / route handlers
-export {};
+export { SubscriptionController } from './http/SubscriptionController';

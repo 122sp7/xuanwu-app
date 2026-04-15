@@ -1,3 +1,6 @@
-// entitlement — adapters aggregate
-export * from './inbound';
-export * from './outbound';
+// outbound
+export { FirestoreEntitlementGrantRepository } from './outbound';
+export type { FirestoreLike } from './outbound';
+
+// inbound
+export { EntitlementController } from './inbound';

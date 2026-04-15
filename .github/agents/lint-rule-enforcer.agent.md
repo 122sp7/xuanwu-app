@@ -1,6 +1,7 @@
 ---
 name: Lint Rule Enforcer
 description: Enforce lint and boundary rules, identify violation causes, and propose minimal fixes without broad refactors.
+argument-hint: Provide violation source (file path or npm run lint output), root cause hypothesis, and scope boundary.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 handoffs:

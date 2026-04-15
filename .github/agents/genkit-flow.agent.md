@@ -1,6 +1,7 @@
 ---
 name: Genkit Flow Agent
 description: Design and refine Genkit flow definitions, boundaries, and contract-safe integration with retrieval and worker pipelines.
+argument-hint: Provide flow name, runtime target (Next.js/py_fn), inputs/outputs, and orchestration concern.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
 handoffs:

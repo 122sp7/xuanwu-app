@@ -1,6 +1,7 @@
 ---
 name: implement-zustand-store
 description: 實作 Zustand client state store，採用 State/Actions slice 模式，正確命名與放置，並確保不存放 server state 或 domain 資料。
+applyTo: 'modules/**/interfaces/stores/**/*.{ts,tsx}'
 agent: State Management Agent
 argument-hint: 提供 store 名稱、所屬模組、要管理的 UI 狀態欄位，以及觸發 state 變更的操作清單。
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']

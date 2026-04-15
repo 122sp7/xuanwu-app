@@ -1,6 +1,7 @@
 ---
 name: KB Architect
 description: Plan and optimize knowledge-base documentation structure, deduplication, and retrieval-friendly formatting.
+argument-hint: Provide doc scope or target area, restructuring goal, and deduplication constraints.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
 handoffs:

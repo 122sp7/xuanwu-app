@@ -1,6 +1,7 @@
 ---
 name: Zod Validator Agent
 description: Enforce Zod validation at all three system boundaries — external input, domain value objects, and infrastructure output — without leaking validation responsibility across layers.
+argument-hint: Provide validation target (Server Action/value object/Firestore adapter), owning module, and schema requirements.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 handoffs:

@@ -1,6 +1,7 @@
 ---
 name: playwright-mcp-inspect
 description: 以用戶視角巡覽目標路由，自動偵測 UI 功能缺口、反直覺設計、空狀態引導缺失與 Console 錯誤。
+applyTo: '{app,modules,debug}/**/*.{ts,tsx}'
 agent: E2E QA Agent
 argument-hint: "<route-or-section> [--account user|organization] [--deep]"
 ---

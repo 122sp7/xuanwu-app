@@ -1,6 +1,7 @@
 ---
 name: generate-value-object
 description: 生成符合 DDD 規範的值對象（Value Object），採用 Zod brand type 確保型別安全，並放置於正確的 domain/value-objects/ 路徑。
+applyTo: 'modules/**/domain/value-objects/**/*.{ts,tsx}'
 agent: Domain Architect
 argument-hint: 提供值對象名稱、所屬模組、型別基礎（string/number/object）、驗證規則（長度限制、格式、範圍）。
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']

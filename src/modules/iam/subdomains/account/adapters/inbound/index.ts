@@ -1,3 +1,1 @@
-// account — inbound adapters placeholder
-// TODO: export server actions / route handlers
-export {};
+export { AccountController } from "./http/AccountController";

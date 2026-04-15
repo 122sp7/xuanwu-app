@@ -1,6 +1,7 @@
 ---
 name: AI Genkit Lead
 description: Lead Genkit-oriented AI orchestration with boundary-safe runtime split across Next.js and py_fn pipelines.
+argument-hint: Provide AI flow name, target runtime (Next.js/py_fn), orchestration goal, and any retrieval or grounding concerns.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
 handoffs:
