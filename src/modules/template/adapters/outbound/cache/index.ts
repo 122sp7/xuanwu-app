@@ -1,0 +1,1 @@
+export { TemplateCacheAdapter } from './TemplateCacheAdapter';

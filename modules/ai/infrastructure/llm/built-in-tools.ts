@@ -8,7 +8,7 @@
 
 import { z } from "genkit";
 
-import type { ToolDescriptor } from "../../subdomains/tool-runtime/domain/ports/ToolRuntimePort";
+import type { ToolDescriptor } from "../../domain/ports/ToolRuntimePort";
 
 import { aiClient } from "./genkit-shared";
 

@@ -1,0 +1,1 @@
+export { TemplateRpcHandler } from './TemplateRpcHandler';
