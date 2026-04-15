@@ -2,7 +2,7 @@ import "server-only";
 
 import { GenerateWithToolsUseCase } from "../application/use-cases/generate-with-tools.use-case";
 import { GenkitToolRuntimeAdapter } from "../infrastructure/genkit/GenkitToolRuntimeAdapter";
-import { GenkitTaskExtractionAdapter } from "../infrastructure/genkit/GenkitTaskExtractionAdapter";
+import { extractTasksFromContent as extractTasksFromDistillation } from "../../content-distillation/api/server";
 import type {
   ToolDescriptor,
   ToolEnabledGenerationInput,
@@ -31,8 +31,12 @@ export function listAvailableTools(): ReadonlyArray<ToolDescriptor> {
   return new GenkitToolRuntimeAdapter().listAvailableTools();
 }
 
+/**
+ * @deprecated Task extraction ownership has moved to ai/content-distillation.
+ * Keep this wrapper temporarily to preserve the stable server API.
+ */
 export async function extractTasksFromContent(
   input: TaskExtractionInput,
 ): Promise<TaskExtractionOutput> {
-  return new GenkitTaskExtractionAdapter().extractTasks(input);
+  return extractTasksFromDistillation(input);
 }

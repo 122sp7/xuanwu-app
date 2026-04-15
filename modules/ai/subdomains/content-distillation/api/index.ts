@@ -6,7 +6,12 @@
  * Server-only functions live in ./server.ts.
  */
 
-import type { DistillContentInput, DistillationResult } from "../domain/ports/DistillationPort";
+import type {
+  DistillContentInput,
+  DistillationResult,
+  TaskExtractionInput,
+  TaskExtractionOutput,
+} from "../domain/ports/DistillationPort";
 
 export type {
   DistillContentInput,
@@ -14,8 +19,14 @@ export type {
   DistillationPort,
   DistillationResult,
   DistillationSource,
+  ExtractedTaskItem,
+  TaskExtractionInput,
+  TaskExtractionOutput,
+  TaskExtractionPort,
+  TaskExtractionPromptContext,
 } from "../domain/ports/DistillationPort";
 
 export interface DistillationAPI {
   distillContent(input: DistillContentInput): Promise<DistillationResult>;
+  extractTasksFromContent(input: TaskExtractionInput): Promise<TaskExtractionOutput>;
 }

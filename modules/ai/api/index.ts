@@ -18,6 +18,11 @@ export type {
   DistillationPort,
   DistillationResult,
   DistillationSource,
+  ExtractedTaskItem,
+  TaskExtractionInput,
+  TaskExtractionOutput,
+  TaskExtractionPort,
+  TaskExtractionPromptContext,
 } from "../subdomains/content-distillation/api";
 
 export type {
@@ -27,12 +32,17 @@ export type {
   ResolvedPrompt,
   SourceFollowUpPromptInput,
   SourceFollowUpPromptIntent,
+  TaskExtractionPromptInput,
+  TaskExtractionPromptIntent,
 } from "../subdomains/prompt-pipeline/api";
 
 export {
   listPromptFamilies,
   listSourceFollowUpPrompts,
+  listTaskExtractionPrompts,
   resolveSourceFollowUpPrompt,
+  resolveTaskExtractionPrompt,
+  promptRegistryService,
   sourceFollowUpPromptService,
 } from "../subdomains/prompt-pipeline/api";
 

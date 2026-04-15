@@ -8,7 +8,7 @@
  * multiple templates per family without changing bounded-context ownership.
  */
 
-export type PromptTemplateFamily = "source-follow-up";
+export type PromptTemplateFamily = "source-follow-up" | "task-extraction";
 
 export type SourceFollowUpPromptIntent =
   | "source-ocr"
@@ -16,7 +16,11 @@ export type SourceFollowUpPromptIntent =
   | "source-knowledge-page"
   | "source-task-materialization";
 
-export type PromptExecutionMode = "manual" | "workflow";
+export type TaskExtractionPromptIntent = "document-task-candidates";
+
+export type PromptTemplateKey = SourceFollowUpPromptIntent | TaskExtractionPromptIntent;
+
+export type PromptExecutionMode = "manual" | "workflow" | "preview";
 
 export interface SourceFollowUpPromptInput {
   readonly filename: string;
@@ -27,24 +31,33 @@ export interface SourceFollowUpPromptInput {
   readonly pageCount?: number;
 }
 
+export interface TaskExtractionPromptInput extends SourceFollowUpPromptInput {
+  readonly contentPreview?: string;
+  readonly maxCandidates?: number;
+}
+
 export interface PromptTemplateDescriptor {
   readonly family: PromptTemplateFamily;
-  readonly templateKey: SourceFollowUpPromptIntent;
-  readonly intent: SourceFollowUpPromptIntent;
+  readonly templateKey: PromptTemplateKey;
+  readonly intent: PromptTemplateKey;
   readonly mode: PromptExecutionMode;
   readonly label: string;
   readonly summary: string;
   readonly outcome: string;
+  readonly version: string;
+  readonly scenario: string;
 }
 
 export interface ResolvedPrompt {
   readonly family: PromptTemplateFamily;
-  readonly templateKey: SourceFollowUpPromptIntent;
-  readonly intent: SourceFollowUpPromptIntent;
+  readonly templateKey: PromptTemplateKey;
+  readonly intent: PromptTemplateKey;
   readonly mode: PromptExecutionMode;
   readonly label: string;
   readonly summary: string;
   readonly outcome: string;
+  readonly version: string;
+  readonly scenario: string;
   readonly system: string;
   readonly prompt: string;
 }
@@ -55,6 +68,12 @@ export interface PromptRegistryPort {
   resolveSourceFollowUpPrompt(
     intent: SourceFollowUpPromptIntent,
     input: SourceFollowUpPromptInput,
+    mode?: PromptExecutionMode,
+  ): ResolvedPrompt;
+  listTaskExtractionPrompts(mode?: PromptExecutionMode): ReadonlyArray<PromptTemplateDescriptor>;
+  resolveTaskExtractionPrompt(
+    intent: TaskExtractionPromptIntent,
+    input: TaskExtractionPromptInput,
     mode?: PromptExecutionMode,
   ): ResolvedPrompt;
 }
