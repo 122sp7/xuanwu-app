@@ -27,6 +27,13 @@ export interface ExtractedTaskItem {
   readonly title: string;
   readonly description?: string;
   readonly dueDate?: string;
+  /**
+   * Family-specific structured data that does not fit the generic task shape.
+   * Examples: `{ itemNumber, workCategory, quantity, unit, estimatedAmount }` for
+   * procurement documents; `{ obligation, penaltyClause }` for compliance docs.
+   * Consumers should remain agnostic to its shape; use a narrowing guard if needed.
+   */
+  readonly metadata?: Record<string, unknown>;
 }
 
 export interface TaskExtractionPromptContext {
@@ -38,6 +45,12 @@ export interface TaskExtractionPromptContext {
   readonly pageCount?: number;
   readonly sourceGcsUri?: string;
   readonly jsonGcsUri?: string;
+  /**
+   * Optional prompt family override.  When omitted the adapter defaults to
+   * `"task-extraction"`.  Supported values correspond to extraction families:
+   * `"task-extraction"` | `"procurement-extraction"` | `"compliance-extraction"`.
+   */
+  readonly promptFamily?: string;
 }
 
 export interface TaskExtractionInput {
