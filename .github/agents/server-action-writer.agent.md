@@ -1,6 +1,7 @@
 ---
 name: Server Action Writer
 description: Write Next.js server actions that validate input, delegate to use cases, and return stable command results.
+argument-hint: Provide action intent, input shape, target use case, and validation requirements.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
 model: 'GPT-5.3-Codex'
 handoffs:

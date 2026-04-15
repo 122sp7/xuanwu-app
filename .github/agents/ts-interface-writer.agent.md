@@ -1,6 +1,7 @@
 ---
 name: TS Interface Writer
 description: Write and refactor TypeScript interfaces, DTOs, and contracts with stable naming and compatibility-aware changes.
+argument-hint: Provide interface or DTO name, owning module, field changes, and consumer compatibility requirements.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
 model: 'GPT-5.3-Codex'
 handoffs:

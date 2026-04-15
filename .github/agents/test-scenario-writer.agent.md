@@ -1,6 +1,7 @@
 ---
 name: Test Scenario Writer
 description: Write risk-based scenario suites for unit, integration, and E2E coverage with clear acceptance criteria.
+argument-hint: Provide module or feature scope, happy path, known risk areas, and test coverage targets.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
 handoffs:

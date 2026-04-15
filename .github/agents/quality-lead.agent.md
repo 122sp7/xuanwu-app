@@ -1,6 +1,7 @@
 ---
 name: Quality Lead
 description: Drive risk-first review and QA evidence, including regression detection, coverage gaps, and release recommendation.
+argument-hint: Provide changed files or PR diff, risk areas, and release criteria.
 tools: ['serena/*', 'context7/*', 'read', 'search', 'execute', 'todo']
 model: 'GPT-5.3-Codex'
 handoffs:

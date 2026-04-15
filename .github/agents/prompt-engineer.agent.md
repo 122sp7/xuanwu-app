@@ -1,6 +1,7 @@
 ---
 name: Prompt Engineer
 description: Create and refine high-signal prompts, templates, and prompt contracts for repeatable delivery workflows.
+argument-hint: Provide prompt goal, target agent or workflow, and required input/output contract.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
 handoffs:
