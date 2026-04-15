@@ -99,6 +99,15 @@
 			],
 			"gallery": "https://api.mcp.github.com",
 			"version": "0.3.6"
+		},
+		"repomix": {
+			"command": "npx",
+			"args": [
+				"-y",
+				"repomix",
+				"--mcp"
+			],
+			"type": "stdio"
 		}
 	},
 	"inputs": [
