@@ -38,10 +38,17 @@ knowledge（頁面生命週期）、authoring（建立/分類）、collaboration
 - 帳號、組織 → `src/modules/platform`。
 - AI 生成內容 → `src/modules/ai`（先生成，再存 KnowledgePage）。
 
+## 子域資料夾設計
+
+每個子域 = **`domain/`（名詞：知識內容元素）** + **`application/`（動詞：內容操作）**。
+Notion 子域：`knowledge/`（頁面生命週期）、`authoring/`（內容節點）、`collaboration/`（留言）、`knowledge-database/`（結構化視圖）。
+
 ## Development Order
 
 ```
-domain/entities/ + repositories/ → application/use-cases/ → adapters/outbound/ → adapters/inbound/ → 更新 barrel
+<subdomain>/domain/ (名詞域：entity / VO / service / port)
+→ <subdomain>/application/ (動詞域：use-case / DTO)
+→ adapters/outbound/firestore/ → adapters/inbound/ → 更新 barrel
 ```
 
 ## Delivery Style

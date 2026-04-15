@@ -40,10 +40,17 @@ content-generation、content-distillation、tool-runtime。
 - 帳號、組織、通知 → `src/modules/platform`。
 - 工作區生命週期、任務管理 → `src/modules/workspace`。
 
+## 子域資料夾設計
+
+每個子域 = **`domain/`（名詞：能力類型 + port）** + **`application/`（動詞：use-case）**。
+新增 AI 能力時先確認子域資料夾（`content-generation/`、`content-distillation/`、`tool-runtime/`），避免直接落入頂層目錄。
+
 ## Development Order
 
 ```
-domain/ports/ → application/use-cases/ → adapters/outbound/ → adapters/inbound/ → 更新 barrel
+<subdomain>/domain/ (名詞域：capability VO + port)
+→ <subdomain>/application/ (動詞域：use-case / DTO)
+→ adapters/outbound/genkit/ → adapters/inbound/ → 更新 barrel
 ```
 
 ## Delivery Style

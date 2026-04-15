@@ -40,10 +40,17 @@ notebook（容器）、conversation（對話生命週期）、source（來源管
 - 工作區範疇、task → `src/modules/workspace`。
 - 帳號、組織 → `src/modules/platform`。
 
+## 子域資料夾設計
+
+每個子域 = **`domain/`（名詞：知識 / 推理元素）** + **`application/`（動詞：RAG 操作）**。
+NotebookLM 子域：`notebook/`、`source/`（RAG chunk）、`conversation/`（問答）、`synthesis/`（domain rules）。
+
 ## Development Order
 
 ```
-domain/entities/ + repositories/ → application/use-cases/ → adapters/outbound/ → adapters/inbound/ → 更新 barrel
+<subdomain>/domain/ (名詞域：entity / VO / port / domain service)
+→ <subdomain>/application/ (動詞域：use-case / DTO)
+→ adapters/outbound/(firestore|genkit) → adapters/inbound/ → 更新 barrel
 ```
 
 ## Delivery Style
