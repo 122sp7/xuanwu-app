@@ -1,5 +1,8 @@
 export { AccountSwitcher } from "./components/AccountSwitcher";
 export { CreateOrganizationDialog } from "./components/CreateOrganizationDialog";
+export { MembersPage } from "./components/MembersPage";
+export { TeamsPage } from "./components/TeamsPage";
+export { PermissionsPage } from "./components/PermissionsPage";
 export { getOrganizationMembers, getOrganizationTeams, getOrgPolicies } from "./queries/organization.queries";
 export {
   createOrganization,

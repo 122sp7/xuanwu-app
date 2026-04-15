@@ -2,7 +2,7 @@
 
 import { useAccountRouteContext } from "../../../../../interfaces/web/hooks/useAccountRouteContext";
 
-import { TeamsPage } from "../TeamsPage";
+import { TeamsPage } from "@/modules/iam/subdomains/organization/interfaces/components/TeamsPage";
 
 export function OrganizationTeamsRouteScreen() {
   const { organizationId, isResolvingOrganizationRoute } = useAccountRouteContext();
