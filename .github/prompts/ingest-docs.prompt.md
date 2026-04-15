@@ -1,7 +1,8 @@
 ---
 name: ingest-docs
 description: Ingest and normalize documents for downstream chunking and embedding workflows.
-agent: doc-ingest
+applyTo: 'py_fn/**/*.py'
+agent: Doc Ingest Agent
 argument-hint: Provide source format, target pipeline, and quality constraints.
 ---
 

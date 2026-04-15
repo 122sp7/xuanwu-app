@@ -1,7 +1,8 @@
 ---
 name: embedding-docs
 description: Generate embeddings from normalized docs with traceable metadata and retrieval compatibility checks.
-agent: embedding-writer
+applyTo: 'py_fn/**/*.py'
+agent: Embedding Writer
 argument-hint: Provide doc sources, embedding model/runtime, and storage target.
 ---
 

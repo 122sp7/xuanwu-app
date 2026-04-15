@@ -1,6 +1,7 @@
 ---
 name: write-docs
 description: Write or optimize documentation using structured, deduplicated, and index-driven markdown patterns.
+applyTo: 'docs/**/*.md'
 agent: KB Architect
 argument-hint: Provide target docs scope and expected documentation outcome.
 ---
