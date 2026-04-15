@@ -49,7 +49,7 @@ export type {
   TokenRefreshSignal,
   ShellAccountActor,
 } from "../../iam/api";
-export * from "../subdomains/account/api";
+export * from "../../iam/subdomains/account/api";
 export * from "../subdomains/notification/api";
 export * from "../subdomains/platform-config/api";
 
@@ -73,7 +73,7 @@ export type {
   UpdateOrgPolicyInput,
   OrganizationRepository,
   OrgPolicyRepository,
-} from "../subdomains/organization/api";
+} from "../../iam/subdomains/organization/api";
 export {
   organizationService,
   getOrganizationMembers,
@@ -97,7 +97,7 @@ export {
   updateOrgPolicy,
   deleteOrgPolicy,
   // UI components belong in api/ui.ts — see ADR-1200
-} from "../subdomains/organization/api";
+} from "../../iam/subdomains/organization/api";
 
 // background-job — knowledge ingestion pipeline management
 export * from "../subdomains/background-job/api";

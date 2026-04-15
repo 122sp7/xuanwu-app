@@ -2,7 +2,7 @@
 
 import { useAccountRouteContext } from "../../../../../interfaces/web/hooks/useAccountRouteContext";
 
-import { PermissionsPage } from "../PermissionsPage";
+import { PermissionsPage } from "@/modules/iam/subdomains/organization/interfaces/components/PermissionsPage";
 
 export function OrganizationPermissionsRouteScreen() {
   const { organizationId, isResolvingOrganizationRoute } = useAccountRouteContext();
