@@ -1,6 +1,7 @@
 ---
 name: Chunk Strategist
 description: Design chunking strategies for retrieval quality, context efficiency, and stable document traceability.
+argument-hint: Provide source document format, target chunk policy (size/overlap/metadata), and downstream retrieval constraints.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
 handoffs:

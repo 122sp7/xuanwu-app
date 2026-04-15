@@ -1,6 +1,7 @@
 ---
 name: E2E QA Agent
 description: Execute browser-level verification with Playwright MCP and report reproducible release-readiness evidence.
+argument-hint: Provide target URL or route, user flow, and acceptance criteria.
 tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'microsoft/playwright-mcp/*']
 model: 'GPT-5.3-Codex'
 handoffs:

@@ -1,6 +1,7 @@
 ---
 name: Doc Ingest Agent
 description: Implement document ingestion flows from source conversion to normalized artifacts for downstream chunking and indexing.
+argument-hint: Provide source format, file paths or collection, and normalization quality constraints.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
 model: 'GPT-5.3-Codex'
 handoffs:

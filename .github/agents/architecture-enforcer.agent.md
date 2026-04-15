@@ -2,7 +2,7 @@
 name: Architecture Enforcer
 description: 架構總裁／規則審核器：全域掃描 Hexagonal + DDD 規則是否被破壞，驗證 dependency direction、import boundary，防止 domain 污染與層級跳越。
 argument-hint: 提供審查範圍（預設全 repo）、已知風險點、或特定 PR diff 路徑。
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'todo']
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'todo', 'repomix/*']
 model: 'GPT-5.3-Codex'
 handoffs:
   - label: Fix Domain Purity

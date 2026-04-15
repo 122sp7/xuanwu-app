@@ -1,6 +1,7 @@
 ---
 name: Embedding Writer
 description: Implement embedding generation and vector-write workflows with deterministic metadata and quality checks.
+argument-hint: Provide chunk source, embedding model, storage target, and retrieval compatibility requirements.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 handoffs:

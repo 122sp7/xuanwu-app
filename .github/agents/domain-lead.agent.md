@@ -1,6 +1,7 @@
 ---
 name: Domain Lead
 description: Lead domain ownership decisions and enforce module boundaries, dependency direction, and API-only collaboration.
+argument-hint: Provide module scope, ownership question or file to place, and any known boundary risks.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 handoffs:
