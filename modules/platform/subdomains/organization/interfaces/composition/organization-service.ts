@@ -9,6 +9,7 @@
 
 import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
 import { FirebaseOrgPolicyRepository } from "../../infrastructure/firebase/FirebaseOrgPolicyRepository";
+import { FirebaseTeamRepository } from "../../infrastructure/firebase/FirebaseTeamRepository";
 import {
   CreateOrganizationUseCase,
   CreateOrganizationWithTeamUseCase,
@@ -26,7 +27,6 @@ import {
   DeleteTeamUseCase,
   UpdateTeamMembersUseCase,
 } from "../../application/use-cases/organization-team.use-cases";
-import type { OrganizationTeamPort } from "../../domain/ports/OrganizationTeamPort";
 import {
   CreatePartnerGroupUseCase,
   SendPartnerInviteUseCase,
@@ -50,19 +50,7 @@ import type { CommandResult } from "@shared-types";
 
 let _orgRepo: FirebaseOrganizationRepository | undefined;
 let _policyRepo: FirebaseOrgPolicyRepository | undefined;
-let _teamPort: OrganizationTeamPort | undefined;
-let _teamPortFactory: (() => OrganizationTeamPort) | undefined;
-
-/**
- * Override the default team port factory. Call before first use of
- * team-related use cases if a custom factory is needed.
- */
-export function configureOrganizationTeamPortFactory(
-  factory: () => OrganizationTeamPort,
-): void {
-  _teamPortFactory = factory;
-  _teamPort = undefined;
-}
+let _teamRepo: FirebaseTeamRepository | undefined;
 
 function getOrgRepo(): FirebaseOrganizationRepository {
   if (!_orgRepo) _orgRepo = new FirebaseOrganizationRepository();
@@ -74,31 +62,9 @@ function getPolicyRepo(): FirebaseOrgPolicyRepository {
   return _policyRepo;
 }
 
-function getTeamPort(): OrganizationTeamPort {
-  if (!_teamPort) {
-    if (!_teamPortFactory) {
-      // TODO(ADR-1300): This require() breaks a circular dependency — Chain C:
-      //   organization/interfaces/composition/organization-service
-      //   → team/infrastructure/team-composition → team/api → team/interfaces
-      //   → organization (via team-member org validation wiring).
-      //
-      // The lazy require() is intentional and must remain until team factory
-      // wiring is migrated to constructor injection (DI composition root).
-      // Auto-configure: lazy-require team factory from sibling subdomain
-      // (platform/team/infrastructure/team-composition.ts) to avoid
-      // import-time side effects in the organization api boundary.
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const mod = require("../../../team/infrastructure/team-composition") as {
-        createTeamRepository?: () => OrganizationTeamPort;
-      };
-      if (typeof mod.createTeamRepository !== "function") {
-        throw new Error("platform/subdomains/team/infrastructure/team-composition missing createTeamRepository export");
-      }
-      _teamPortFactory = mod.createTeamRepository;
-    }
-    _teamPort = _teamPortFactory();
-  }
-  return _teamPort;
+function getTeamRepo(): FirebaseTeamRepository {
+  if (!_teamRepo) _teamRepo = new FirebaseTeamRepository();
+  return _teamRepo;
 }
 
 export const organizationService = {
@@ -131,13 +97,13 @@ export const organizationService = {
     new UpdateMemberRoleUseCase(getOrgRepo()).execute(input),
 
   createTeam: (input: CreateTeamInput): Promise<CommandResult> =>
-    new CreateTeamUseCase(getTeamPort()).execute(input),
+    new CreateTeamUseCase(getTeamRepo()).execute(input),
 
   deleteTeam: (orgId: string, teamId: string): Promise<CommandResult> =>
-    new DeleteTeamUseCase(getTeamPort()).execute(orgId, teamId),
+    new DeleteTeamUseCase(getTeamRepo()).execute(orgId, teamId),
 
   updateTeamMembers: (orgId: string, teamId: string, memberId: string, action: "add" | "remove"): Promise<CommandResult> =>
-    new UpdateTeamMembersUseCase(getTeamPort()).execute(orgId, teamId, memberId, action),
+    new UpdateTeamMembersUseCase(getTeamRepo()).execute(orgId, teamId, memberId, action),
 
   createPartnerGroup: (orgId: string, groupName: string): Promise<CommandResult> =>
     new CreatePartnerGroupUseCase(getOrgRepo()).execute(orgId, groupName),

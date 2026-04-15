@@ -2,7 +2,7 @@
  * OrganizationTeam — Aggregate Root
  *
  * Represents a named grouping of members within an Organization boundary.
- * OrganizationTeam is a subdomain concept of platform/team; it is NOT an
+ * OrganizationTeam belongs to the organization subdomain; it is NOT an
  * independent Tenant. Teams may be internal (org-only members) or external
  * (partner/guest actors included).
  *
@@ -51,7 +51,7 @@ export class OrganizationTeam {
       memberIds: [],
     });
     team._domainEvents.push({
-      type: "team.created",
+      type: "platform.organization.team_created",
       eventId: randomUUID(),
       occurredAt: new Date().toISOString(),
       payload: {
@@ -78,13 +78,13 @@ export class OrganizationTeam {
    * no domain event is emitted, so callers may safely call this multiple times.
    */
   addMember(memberId: string): void {
-    if (this._props.memberIds.includes(memberId)) return; // idempotent, no event emitted
+    if (this._props.memberIds.includes(memberId)) return;
     this._props = {
       ...this._props,
       memberIds: [...this._props.memberIds, memberId],
     };
     this._domainEvents.push({
-      type: "team.member-added",
+      type: "platform.organization.team_member_added",
       eventId: randomUUID(),
       occurredAt: new Date().toISOString(),
       payload: {
@@ -101,13 +101,13 @@ export class OrganizationTeam {
    * no domain event is emitted, supporting at-least-once removal semantics.
    */
   removeMember(memberId: string): void {
-    if (!this._props.memberIds.includes(memberId)) return; // idempotent, no event emitted
+    if (!this._props.memberIds.includes(memberId)) return;
     this._props = {
       ...this._props,
       memberIds: this._props.memberIds.filter((id) => id !== memberId),
     };
     this._domainEvents.push({
-      type: "team.member-removed",
+      type: "platform.organization.team_member_removed",
       eventId: randomUUID(),
       occurredAt: new Date().toISOString(),
       payload: {
@@ -120,7 +120,7 @@ export class OrganizationTeam {
 
   delete(): void {
     this._domainEvents.push({
-      type: "team.deleted",
+      type: "platform.organization.team_deleted",
       eventId: randomUUID(),
       occurredAt: new Date().toISOString(),
       payload: {

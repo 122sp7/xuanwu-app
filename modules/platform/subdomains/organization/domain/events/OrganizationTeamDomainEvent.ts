@@ -1,7 +1,7 @@
 /**
  * OrganizationTeamDomainEvent — domain events produced by the OrganizationTeam aggregate.
  *
- * Naming: past-tense, format `<module>.<action>`.
+ * Naming: past-tense, format `platform.organization.<action>`.
  * occurredAt: ISO 8601 string (not Date) per platform event convention.
  */
 import { z } from "@lib-zod";
@@ -9,7 +9,7 @@ import { z } from "@lib-zod";
 // ── OrganizationTeamCreated ──────────────────────────────────────────────────
 
 export const OrganizationTeamCreatedEventSchema = z.object({
-  type: z.literal("team.created"),
+  type: z.literal("platform.organization.team_created"),
   eventId: z.string().uuid(),
   occurredAt: z.string().datetime(),
   payload: z.object({
@@ -24,7 +24,7 @@ export type OrganizationTeamCreatedEvent = z.infer<typeof OrganizationTeamCreate
 // ── OrganizationTeamDeleted ──────────────────────────────────────────────────
 
 export const OrganizationTeamDeletedEventSchema = z.object({
-  type: z.literal("team.deleted"),
+  type: z.literal("platform.organization.team_deleted"),
   eventId: z.string().uuid(),
   occurredAt: z.string().datetime(),
   payload: z.object({
@@ -37,7 +37,7 @@ export type OrganizationTeamDeletedEvent = z.infer<typeof OrganizationTeamDelete
 // ── OrganizationTeamMemberAdded ──────────────────────────────────────────────
 
 export const OrganizationTeamMemberAddedEventSchema = z.object({
-  type: z.literal("team.member-added"),
+  type: z.literal("platform.organization.team_member_added"),
   eventId: z.string().uuid(),
   occurredAt: z.string().datetime(),
   payload: z.object({
@@ -51,7 +51,7 @@ export type OrganizationTeamMemberAddedEvent = z.infer<typeof OrganizationTeamMe
 // ── OrganizationTeamMemberRemoved ────────────────────────────────────────────
 
 export const OrganizationTeamMemberRemovedEventSchema = z.object({
-  type: z.literal("team.member-removed"),
+  type: z.literal("platform.organization.team_member_removed"),
   eventId: z.string().uuid(),
   occurredAt: z.string().datetime(),
   payload: z.object({

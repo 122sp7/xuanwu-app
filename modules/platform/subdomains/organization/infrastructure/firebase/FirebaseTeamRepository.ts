@@ -1,8 +1,8 @@
 /**
- * Module: platform/subdomains/team
+ * Module: platform/subdomains/organization
  * Layer: infrastructure/firebase
- * Purpose: Firebase implementation of TeamRepository.
- *          Directly accesses the organizations/{orgId}/teams sub-collection.
+ * Purpose: Firebase implementation of OrganizationTeamPort.
+ *          Accesses the organizations/{orgId}/teams sub-collection.
  */
 
 import {
@@ -18,8 +18,8 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
-import type { TeamRepository } from "../../domain/repositories/TeamRepository";
-import type { Team, CreateTeamInput } from "../../domain/entities/Team";
+import type { OrganizationTeamPort } from "../../domain/ports/OrganizationTeamPort";
+import type { Team, CreateTeamInput } from "../../domain/entities/Organization";
 
 function toTeam(id: string, data: Record<string, unknown>): Team {
   return {
@@ -31,7 +31,7 @@ function toTeam(id: string, data: Record<string, unknown>): Team {
   };
 }
 
-export class FirebaseTeamRepository implements TeamRepository {
+export class FirebaseTeamRepository implements OrganizationTeamPort {
   private get db() {
     return getFirestore(firebaseClientApp);
   }
