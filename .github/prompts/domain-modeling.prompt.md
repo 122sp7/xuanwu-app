@@ -1,6 +1,7 @@
 ---
 name: domain-modeling
 description: 純 Domain 模型建構器（DDD 核心）：設計 Entity / Value Object / Aggregate Root，建立或擴展 bounded context，將業務語言映射至 domain model。
+applyTo: 'modules/**/domain/**/*.{ts,tsx}'
 agent: Domain Architect
 argument-hint: 提供業務概念名稱、所屬模組與子域、核心業務規則（不變數）、狀態欄位、與其他 Aggregate 的關係。
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']

@@ -1,6 +1,7 @@
 ---
 name: implement-firestore-schema
 description: Implement Firestore schema/index updates with backward-safe migration and validation evidence.
+applyTo: '{modules/**/infrastructure/**,firestore.indexes.json,firestore.rules}'
 agent: firestore-schema
 argument-hint: Provide collections, fields, query patterns, and migration constraints.
 ---

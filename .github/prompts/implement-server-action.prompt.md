@@ -1,6 +1,7 @@
 ---
 name: implement-server-action
 description: Implement Next.js server actions as thin orchestrators that delegate to use cases.
+applyTo: '{app,modules}/**/*.{ts,tsx}'
 agent: server-action-writer
 argument-hint: Provide action intent, input schema, and target use case.
 ---

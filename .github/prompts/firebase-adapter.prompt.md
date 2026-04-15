@@ -1,6 +1,7 @@
 ---
 name: firebase-adapter
 description: 將 Domain Ports 轉成 Firebase 基礎設施實作，生成 repository / gateway adapter，嚴格遵守 Hexagonal Architecture 的 infrastructure 層職責。
+applyTo: 'modules/**/infrastructure/**/*.{ts,tsx}'
 agent: Hexagonal DDD Architect
 argument-hint: 提供 Port 介面名稱、所屬模組 / 子域、需對應的 Firebase 服務（Firestore / Auth / Storage / Functions），以及必要的 Firestore 集合路徑或 schema 限制。
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
