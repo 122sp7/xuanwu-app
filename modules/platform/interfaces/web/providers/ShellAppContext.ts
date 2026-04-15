@@ -17,7 +17,7 @@ import {
   type Dispatch,
 } from "react";
 
-import type { AccountEntity } from "../../../subdomains/account/api";
+import type { AccountEntity } from "@/modules/iam/api";
 import type { ActiveAccount } from "../../../api/contracts";
 
 // ── State ────────────────────────────────────────────────────────────────────
