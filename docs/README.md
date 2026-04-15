@@ -78,6 +78,28 @@
 - [decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md)
 - [contexts/_template.md](./contexts/_template.md)
 
+## Module Layer Map（兩層結構，避免混淆）
+
+本 repo 有兩個平行的 modules 層，職責不同，**不可互換**：
+
+| 路徑 | 角色 | 結構特徵 | 使用時機 |
+|---|---|---|---|
+| `modules/<context>/` | 完整 Hexagonal DDD 實作（現況） | 有 `subdomains/`、`infrastructure/`、`interfaces/`、`api/` | 閱讀戰略邊界、現有領域規則、跨模組 API 合約 |
+| `src/modules/<context>/` | 精簡蒸餾骨架（實作目標） | 僅 `domain/`、`application/`、`adapters/inbound/`、`adapters/outbound/`；無 `subdomains/` | 撰寫新 use case、adapter、domain entity |
+
+### 路由規則
+
+- 讀取邊界規則、published language、context map → `modules/<context>/AGENT.md`、`modules/<context>/api/`
+- 撰寫新實作程式碼 → `src/modules/<context>/`，以 `src/modules/template` 為骨架基線
+- `src/modules/<context>/README.md` 是蒸餾指南，說明哪些概念從 `modules/` 移入、哪些跳過
+- 若需要知道某概念「應放在哪個 src module」，查 `src/modules/<context>/AGENT.md`
+
+### 嚴禁混淆
+
+- 不得把 `modules/<context>/infrastructure/` 的實作直接複製到 `src/modules/<context>/domain/`。
+- 不得把 `src/modules/` 當成 `modules/` 的別名或 alias；它們是兩個獨立的實作層。
+- 生成程式碼時，先確認目標路徑是 `modules/` 還是 `src/modules/`，再決定結構與命名。
+
 ## Conflict Resolution Rules
 
 - ADR 與戰略敘事衝突時，以 ADR 為準。
