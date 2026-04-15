@@ -7,25 +7,34 @@
 **蒸餾來源：** `modules/workspace/`  
 **蒸餾狀態：** 🔨 進行中（task、issue、lifecycle 等子域蒸餾中）
 
-> **注意：** `workspace-workflow` 子域已移除（2026-04-15）。其能力已分散至 task、issue、settlement、approve、quality、orchestration、task-formation 七個子域。
+> **注意：** `workspace-workflow` 子域已移除（2026-04-15）。其能力已分散至 task、issue、settlement、approval、quality、orchestration、task-formation 七個子域。
 
-## 蒸餾子域清單
+## 子域清單（名詞域）
 
-| 子域 | 說明 | 蒸餾狀態 |
-|---|---|---|
-| `approve` | 審批流程 | 📋 待蒸餾 |
-| `audit` | 稽核紀錄 | 📋 待蒸餾 |
-| `feed` | 活動動態 | 📋 待蒸餾 |
-| `issue` | 議題管理 | 🔨 進行中 |
-| `lifecycle` | 工作區生命週期 | 🔨 進行中 |
-| `membership` | 成員資格（Membership）| 🔨 進行中 |
-| `orchestration` | 跨子域流程編排（原 workspace-workflow）| 🔨 進行中 |
-| `quality` | 品質管控 | 📋 待蒸餾 |
-| `scheduling` | 排程 | 📋 待蒸餾 |
-| `settlement` | 結算 / 交割 | 📋 待蒸餾 |
-| `sharing` | 分享 / 對外發布 | 📋 待蒸餾 |
-| `task` | 任務管理 | 🔨 進行中 |
-| `task-formation` | AI 輔助任務生成 | 📋 待蒸餾 |
+| 子域 | 說明 | 對應 modules/ 來源 | 蒸餾狀態 |
+|---|---|---|---|
+| `approval` | 審批實體（審批流程與決策）| `approve` | 📋 待蒸餾 |
+| `audit` | 稽核紀錄實體 | `audit` | 📋 待蒸餾 |
+| `feed` | 活動動態實體 | `feed` | 📋 待蒸餾 |
+| `issue` | 議題實體（議題管理）| `issue` | 🔨 進行中 |
+| `lifecycle` | 生命週期實體（工作區生命週期）| `lifecycle` | 🔨 進行中 |
+| `membership` | 成員資格實體（Membership）| `membership` | 🔨 進行中 |
+| `orchestration` | 跨子域編排（原 workspace-workflow）| `orchestration` | 🔨 進行中 |
+| `quality` | 品質管控實體 | `quality` | 📋 待蒸餾 |
+| `schedule` | 排程實體 | `scheduling` | 📋 待蒸餾 |
+| `settlement` | 結算實體 | `settlement` | 📋 待蒸餾 |
+| `share` | 分享實體（對外發布）| `sharing` | 📋 待蒸餾 |
+| `task` | 任務實體（任務管理）| `task` | 🔨 進行中 |
+| `task-formation` | 任務生成實體（AI 輔助任務生成）| `task-formation` | 📋 待蒸餾 |
+
+## task-formation 歸屬決策
+
+`task-formation` 屬於 **`workspace`** 子域，理由：
+- 輸出物（Task entities）是 workspace 的領域物件
+- 業務流程（使用者確認候選任務）是 workspace 層關注點
+- AI 生成能力由 `ai/generation` Port 注入（`modules/ai/api/`），workspace 消費
+
+> `modules/ai/subdomains/task-formation`（空骨架）未來整合至此子域，不在 ai 模組擴展。
 
 ## Boundary Rules
 
@@ -43,7 +52,7 @@
 
 - 讀取邊界規則 → `modules/workspace/AGENT.md`、`modules/workspace/api/`
 - 跨模組 API boundary → `modules/workspace/api/index.ts`
-- AI 任務提取 → `modules/ai/api/`（tool-runtime）
+- AI 任務提取能力 → `modules/ai/api/`（generation）
 - 成員身份驗證 → `modules/iam/api/`
 
 ## 衝突防護（src/modules vs modules/）
@@ -58,6 +67,7 @@
 - ❌ 新建或恢復 `workspace-workflow` 子域（已拆解）
 - ❌ 把 `modules/workspace/infrastructure/` 直接搬到 `src/modules/workspace/domain/`
 - ❌ 在 workspace 直接呼叫 Firestore（透過 platform/api）
+- ❌ 使用 `approve` 作為子域名（已更正為名詞 `approval`）
 - ❌ 在 barrel 使用 `export *`
 
 ## 文件網絡
