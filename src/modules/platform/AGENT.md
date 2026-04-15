@@ -39,17 +39,10 @@ notification（通知路由與投遞）。
 - AI capability → `src/modules/ai`。
 - 知識內容 → `src/modules/notion`。
 
-## 子域資料夾設計
-
-每個子域 = **`domain/`（名詞：通知端點）** + **`application/`（動詞：發送 / 設定）**。
-Platform 目前只有 `notification/` 子域，日後 feature-flags、audit-log 等可依相同模式加入。
-
 ## Development Order
 
 ```
-notification/domain/ (名詞域：entity / VO / port)
-→ notification/application/ (動詞域：use-case / DTO)
-→ adapters/outbound/(firestore|fcm) → adapters/inbound/ → 更新 barrel
+domain/entities/ + repositories/ → application/use-cases/ → adapters/outbound/ → adapters/inbound/ → 更新 barrel
 ```
 
 ## Delivery Style

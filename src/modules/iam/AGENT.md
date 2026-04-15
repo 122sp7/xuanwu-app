@@ -55,17 +55,10 @@ identity（主體）、access-control（授權判定）、session（token lifecy
 - AI 能力 → `src/modules/ai`。
 - 知識內容 → `src/modules/notion`。
 
-## 子域資料夾設計
-
-每個子域 = **`domain/`（名詞：身份系統元素）** + **`application/`（動詞：身份操作）**。
-IAM 子域：`identity/`、`access-control/`、`session/`、`account/`、`organization/`。
-
 ## Development Order
 
 ```
-<subdomain>/domain/ (名詞域：entity / VO / service / port)
-→ <subdomain>/application/ (動詞域：use-case / DTO)
-→ adapters/outbound/(firebase-auth|firestore) → adapters/inbound/ → 更新 barrel
+domain/entities/ + services/ + repositories/ → application/use-cases/ → adapters/outbound/ → adapters/inbound/ → 更新 barrel
 ```
 
 ## Delivery Style

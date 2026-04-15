@@ -37,17 +37,10 @@
 - 工作區 activity feed / 稽核 → `src/modules/workspace`（local concerns）。
 - AI 能力 → `src/modules/ai`。
 
-## 子域資料夾設計
-
-每個子域 = **`domain/`（名詞：指標類型 + port）** + **`application/`（動詞：query）**。
-Analytics 目前只有 `metrics/` 子域，待具體需求出現再展開其他子域資料夾。
-
 ## Development Order
 
 ```
-metrics/domain/ (名詞域：Metric / port)
-→ metrics/application/ (動詞域：query / DTO)
-→ adapters/outbound/ → adapters/inbound/ → 更新 barrel
+domain/ports/ → application/queries/ → adapters/outbound/ → adapters/inbound/ → 更新 barrel
 ```
 
 ## Delivery Style
