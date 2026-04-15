@@ -5,6 +5,8 @@
 `src/modules/analytics` 等價蒸餾 `modules/analytics` 的 read-model 與指標查詢能力。
 主要職責：跨主域事件的 read projection、指標查詢與 dashboard 資料供應。
 
+> **DDD 分類**: Supporting / Generic ｜ **角色**: 系統行為觀測層 — event tracking、funnel/usage analytics、AI 成本追蹤、dashboard metrics
+
 ## Boundary Rules
 
 - `domain/` 禁止依賴 Firestore SDK、React 或任何外部框架。

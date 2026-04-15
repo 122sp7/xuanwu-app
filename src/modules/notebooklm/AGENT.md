@@ -5,6 +5,8 @@
 `src/modules/notebooklm` 等價蒸餾 `modules/notebooklm` 的推理輸出能力：
 notebook（容器）、conversation（對話生命週期）、source（來源管理）、synthesis（RAG pipeline）。
 
+> **DDD 分類**: Core / Productized AI ｜ **角色**: AI 知識推理域 — document ingestion、chunking/embedding、RAG Q&A、source citation
+
 ## Boundary Rules
 
 - `domain/` 禁止依賴 Genkit、Firestore SDK、React 或任何外部框架。

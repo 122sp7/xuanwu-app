@@ -3,6 +3,16 @@
 `src/modules/ai` 是蒸餾自 `modules/ai` 的精簡等價版，以 `src/modules/template` 骨架為基線。
 僅保留 **active** 子域的 domain 概念（content-generation、content-distillation、tool-runtime），略過所有 stub-only 子域。
 
+## 領域定位
+
+| 項目 | 內容 |
+|---|---|
+| **DDD 分類** | Core Domain |
+| **定位** | AI 能力中樞（所有智慧行為來源）|
+| **核心價值** | 把「語言模型能力」產品化；提供 workspace / notion / notebooklm 可復用的 AI 能力 |
+| **不做** | UI、商業規則（billing / plan）、使用者身份管理 |
+| **依賴方向** | 被 workspace / notion / notebooklm 使用；不依賴其他 domain |
+
 ## 蒸餾來源
 
 `modules/ai`（完整六邊形 + 14 個 subdomains）→ `src/modules/ai`（精簡骨架，3 active ports）

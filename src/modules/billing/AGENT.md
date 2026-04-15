@@ -5,6 +5,8 @@
 `src/modules/billing` 等價蒸餾 `modules/billing` 的商業生命週期能力：
 subscription（方案、配額、續期）與 entitlement（有效功能可用性解算）。
 
+> **DDD 分類**: Core / Supporting ｜ **角色**: 收入系統 — subscription / usage billing / quota control / Stripe integration
+
 ## Boundary Rules
 
 - `domain/` 禁止依賴 Stripe SDK、Firestore SDK、React 或任何外部框架。

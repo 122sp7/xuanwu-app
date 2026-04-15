@@ -6,6 +6,8 @@
 identity（主體）、access-control（授權判定）、session（token lifecycle）、authentication（驗證流程）、account（帳號聚合根）、organization（組織 + team）。
 **Account 與 Organization 從 `src/modules/platform` 遷入此模組。**
 
+> **DDD 分類**: Core Domain ｜ **角色**: 入口與安全層 — auth / session / RBAC / ABAC / Account / Organization / Team
+
 ## Boundary Rules
 
 - `domain/` 禁止依賴 Firebase Auth SDK、Firestore SDK、React 或任何外部框架。

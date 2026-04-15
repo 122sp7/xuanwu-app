@@ -3,6 +3,16 @@
 `src/modules/billing` 是蒸餾自 `modules/billing` 的精簡等價版，以 `src/modules/template` 骨架為基線。
 保留兩個 **active** 子域：**subscription**（方案、配額、續期）與 **entitlement**（有效權益解算），略過 pricing、invoice、quota-policy 等 gap subdomains。
 
+## 領域定位
+
+| 項目 | 內容 |
+|---|---|
+| **DDD 分類** | Core / Supporting |
+| **定位** | 收入系統（貨幣流動中樞）|
+| **核心價值** | SaaS 收費模型核心：subscription + usage-based billing + quota control |
+| **不做** | 身份治理（IAM 負責）、AI 邏輯 |
+| **依賴方向** | 依賴 IAM；驅動 access limit 訊號；不被其他 domain 依賴 |
+
 ## 蒸餾來源
 
 `modules/billing`（2 完整子域：subscription、entitlement）→ `src/modules/billing`（精簡骨架）

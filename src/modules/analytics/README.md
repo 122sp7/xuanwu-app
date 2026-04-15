@@ -3,6 +3,16 @@
 `src/modules/analytics` 是蒸餾自 `modules/analytics` 的精簡等價版，以 `src/modules/template` 骨架為基線。
 Analytics 為 **read-oriented**：所有子域目前均為 stub（README only），因此 src 版本採最小骨架，查詢邏輯走 `application/queries/`，待有具體 analytics use case 時才展開。
 
+## 領域定位
+
+| 項目 | 內容 |
+|---|---|
+| **DDD 分類** | Supporting / Generic |
+| **定位** | 系統行為觀測層（全域被動接收，不主動驅動業務）|
+| **核心價值** | 系統可觀測性；AI token / latency 成本控制依據 |
+| **不做** | 業務決策邏輯、權限控制、任何寫入 domain state |
+| **依賴方向** | 全域被動接收 event；不依賴其他 domain |
+
 ## 蒸餾來源
 
 `modules/analytics`（6 個 stub subdomains：event-contracts、event-ingestion、event-projection、insights、metrics、realtime-insights）

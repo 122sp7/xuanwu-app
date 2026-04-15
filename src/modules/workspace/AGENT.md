@@ -5,6 +5,8 @@
 `src/modules/workspace` 等價蒸餾 `modules/workspace` 的協作容器能力：
 lifecycle（工作區建立/封存）、membership（成員角色）、task（任務生命週期）、issue（問題單追蹤）。
 
+> **DDD 分類**: Core Domain / Orchestration Layer ｜ **角色**: 產品組合域 — workspace container、membership、task/issue 生命週期、UI composition owner
+
 ## Boundary Rules
 
 - `domain/` 禁止依賴 Firestore SDK、React 或任何外部框架。

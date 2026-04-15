@@ -3,6 +3,16 @@
 `src/modules/notebooklm` 是蒸餾自 `modules/notebooklm` 的精簡等價版，以 `src/modules/template` 骨架為基線。
 保留 4 個 **Tier 1 active** 子域：**notebook**、**conversation**、**source**（含 RAG ingestion）、**synthesis**（RAG pipeline）。
 
+## 領域定位
+
+| 項目 | 內容 |
+|---|---|
+| **DDD 分類** | Core / Productized AI |
+| **定位** | 文件 / knowledge AI workspace（類 NotebookLM）|
+| **核心價值** | 「知識 → AI 問答」產品化：document ingestion + RAG + source citation |
+| **不做** | 通用 AI 能力（由 `ai` module 負責）、workspace governance |
+| **依賴方向** | 強依賴 ai + workspace；是 AI 應用型 domain |
+
 ## 蒸餾來源
 
 `modules/notebooklm`（4 個 Tier 1 子域，source 已有 infrastructure）→ `src/modules/notebooklm`

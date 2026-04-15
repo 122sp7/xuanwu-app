@@ -3,6 +3,16 @@
 `src/modules/workspace` 是蒸餾自 `modules/workspace` 的精簡等價版，以 `src/modules/template` 骨架為基線。
 保留 4 個 **core** 子域：**lifecycle**（工作區容器建立/封存）、**membership**（成員角色）、**task**（任務生命週期）、**issue**（問題單追蹤）。orchestration、settlement、approve、quality 等為 secondary subdomains，可後補。
 
+## 領域定位
+
+| 項目 | 內容 |
+|---|---|
+| **DDD 分類** | Core Domain / Orchestration Layer |
+| **定位** | SaaS 最上層「產品體驗整合層」|
+| **核心價值** | 「產品長什麼樣」的決策層；將 ai / notion / notebooklm 組裝成使用者看得到的產品 |
+| **不做** | deep AI logic、low-level content engine |
+| **依賴方向** | 依賴所有 domain；不被其他 domain 依賴（或最少被依賴）|
+
 ## 蒸餾來源
 
 `modules/workspace`（13 個子域）→ `src/modules/workspace`（4 core 精簡骨架）

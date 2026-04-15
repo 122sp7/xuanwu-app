@@ -5,6 +5,16 @@
 **Account 與 Organization 已遷至 `src/modules/iam`。**
 略過 background-job、search、platform-config、observability 等 stub/secondary 子域。
 
+## 領域定位
+
+| 項目 | 內容 |
+|---|---|
+| **DDD 分類** | Generic / Supporting |
+| **定位** | 系統級能力抽象層（notification routing）|
+| **核心價值** | 讓其他 domain 不碰 infra 細節（FCM 投遞、通知路由、偏好管理）|
+| **不做** | business logic、user model；Account / Organization 已遷至 `src/modules/iam` |
+| **依賴方向** | 被所有 domain 使用；不依賴 domain logic |
+
 ## 蒸餾來源
 
 `modules/platform`（7 個已實作子域）→ `src/modules/platform`（notification core）

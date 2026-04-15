@@ -5,6 +5,8 @@
 `src/modules/notion` 等價蒸餾 `modules/notion` 的正典知識內容能力：
 knowledge（頁面生命週期）、authoring（建立/分類）、collaboration（留言/權限快照）、knowledge-database（結構化多視圖）。
 
+> **DDD 分類**: Core Product Domain ｜ **角色**: 結構化內容域 — block-based editor、pages/database/relations、document graph、協作內容模型
+
 ## Boundary Rules
 
 - `domain/` 禁止依賴 Firestore SDK、React 或任何外部框架。

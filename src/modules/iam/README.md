@@ -3,6 +3,16 @@
 `src/modules/iam` 是蒸餾自 `modules/iam` + `modules/platform`（account / organization）的精簡等價版，以 `src/modules/template` 骨架為基線。
 保留 6 個 **core** 子域概念：**identity**（已驗證主體）、**access-control**（授權判定）、**session**（token / session lifecycle）、**authentication**（驗證流程）、**account**（帳號聚合根）、**organization**（組織 + Team）。略過 federation、consent、secret-governance 等 gap subdomains。
 
+## 領域定位
+
+| 項目 | 內容 |
+|---|---|
+| **DDD 分類** | Core Domain |
+| **定位** | 整個系統的「入口與安全層」|
+| **核心價值** | 誰可以做什麼（Firebase Auth + RBAC/ABAC + Account + Organization）|
+| **不做** | business logic、AI 邏輯、billing |
+| **依賴方向** | 所有 domain 都依賴 IAM；IAM 不依賴其他 domain |
+
 ## 蒸餾來源
 
 - `modules/iam`（identity + access-control + session + authentication）→ 核心身份治理

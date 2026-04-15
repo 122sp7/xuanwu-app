@@ -6,6 +6,8 @@
 notification（通知路由與投遞）。
 **Account 與 Organization 已遷至 `src/modules/iam`。**
 
+> **DDD 分類**: Generic / Supporting ｜ **角色**: 平台基礎設施抽象層 — notification routing / FCM 投遞 / 通知偏好（feature flags / rate limiting 等為未來擴展）
+
 ## Boundary Rules
 
 - `domain/` 禁止依賴 Firestore SDK、FCM SDK、React 或任何外部框架。

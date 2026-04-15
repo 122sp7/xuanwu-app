@@ -6,6 +6,8 @@
 content-generation、content-distillation、tool-runtime。
 向下游模組輸出 LLM 生成、內容蒸餾與工具呼叫能力。
 
+> **DDD 分類**: Core Domain ｜ **角色**: AI 能力中樞 — LLM / Genkit Flow 編排、prompt pipeline、embeddings / RAG、tool calling
+
 ## Boundary Rules
 
 - `domain/` 禁止依賴 Genkit、OpenAI SDK、Firebase、React 或任何外部 SDK。

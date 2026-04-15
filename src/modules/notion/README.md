@@ -3,6 +3,16 @@
 `src/modules/notion` 是蒸餾自 `modules/notion` 的精簡等價版，以 `src/modules/template` 骨架為基線。
 保留 **4 個 core** 子域：**knowledge**（頁面生命週期）、**authoring**（建立/驗證/分類）、**collaboration**（留言/權限快照）、**knowledge-database**（結構化多視圖）。taxonomy 與 relations 為近期 Tier 2，可後補。
 
+## 領域定位
+
+| 項目 | 內容 |
+|---|---|
+| **DDD 分類** | Core Product Domain |
+| **定位** | 通用內容操作系統（類 Notion）|
+| **核心價值** | 內容建模能力：block-based editor + 結構化資料 + 協作 + 版本 |
+| **不做** | AI inference（交給 `ai`）、knowledge RAG（交給 `notebooklm`）|
+| **依賴方向** | 被 workspace 組裝；可被 notebooklm ingest；下游只能 reference，不可寫入 |
+
 ## 蒸餾來源
 
 `modules/notion`（6 個 core-first 子域）→ `src/modules/notion`（4 core + 2 near-term）
