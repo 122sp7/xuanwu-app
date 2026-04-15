@@ -29,7 +29,7 @@ function getEmitFn(): EmitTokenRefreshSignal {
     // Auto-configure: lazy-require the IAM api boundary to avoid import-time
     // side effects in the account api boundary.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require("../../../../api") as {
+    const mod = require("../../../api") as {
       identityApi?: { emitTokenRefreshSignal?: EmitTokenRefreshSignal };
     };
     if (typeof mod.identityApi?.emitTokenRefreshSignal !== "function") {
