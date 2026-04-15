@@ -2,7 +2,7 @@
 name: implement-security-rules
 description: Implement Firestore/Storage security rules with least privilege and tenancy isolation.
 applyTo: '{firestore.rules,storage.rules}'
-agent: security-rules
+agent: Security Rules Agent
 argument-hint: Provide access scenarios, actor roles, and constrained resources.
 ---
 
