@@ -1,5 +1,5 @@
 /**
- * notion/database UI surface.
+ * notion/knowledge-database UI surface.
  * UI consumers should import from this file instead of the semantic api barrel.
  */
 

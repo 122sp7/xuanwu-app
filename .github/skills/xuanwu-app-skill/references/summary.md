@@ -42,16 +42,16 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1852 files | 52,632 lines
+1810 files | 53,959 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1230 | 25,039 |
-| Markdown | 331 | 19,949 |
-| TypeScript (TSX) | 181 | 4,770 |
+| TypeScript | 1190 | 25,101 |
+| Markdown | 325 | 21,018 |
+| TypeScript (TSX) | 184 | 4,860 |
 | Python | 61 | 1,404 |
 | No Extension | 30 | 35 |
-| JSON | 10 | 1,147 |
+| JSON | 11 | 1,253 |
 | Text | 3 | 107 |
 | RULES | 2 | 18 |
 | JavaScript (ESM) | 2 | 52 |
@@ -61,11 +61,11 @@ This skill contains the following reference files:
 **Largest files:**
 - `docs/hard-rules-consolidated.md` (455 lines)
 - `firestore.indexes.json` (437 lines)
+- `docs/semantic-model.md` (344 lines)
 - `modules/ai/subdomains/subdomains.instructions.md` (313 lines)
-- `docs/bounded-contexts.md` (266 lines)
+- `docs/bounded-contexts.md` (276 lines)
+- `docs/subdomains.md` (275 lines)
 - `py_fn/README.md` (265 lines)
-- `docs/subdomains.md` (265 lines)
 - `AGENTS.md` (263 lines)
 - `modules/platform/domain/events/DESIGN.md` (257 lines)
-- `modules/platform/api/contracts.ts` (218 lines)
-- `.github/prompts/serena-hexagonal-ddd-refactor.prompt.md` (215 lines)
+- `modules/ai/subdomains/prompt-pipeline/domain/index.ts` (224 lines)

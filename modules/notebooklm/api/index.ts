@@ -66,6 +66,7 @@ export {
   parseSourceDocument,
   reindexSourceDocument,
   createKnowledgeDraftFromSourceDocument,
+  previewTaskCandidatesFromParsedSourceDocument,
   createTasksFromParsedSourceDocument,
   processSourceDocumentWorkflow,
 } from "../subdomains/source/api";

@@ -36,7 +36,7 @@
 | ai | 共享能力上游 | content-generation、content-distillation、context-assembly、evaluation-policy、memory-context、model-observability、prompt-pipeline、safety-guardrail；provider-routing / model-policy 為後續治理延伸 |
 | analytics | 分析下游 | reporting、metrics、dashboard、projection read model |
 | platform | 平台營運支撐 | account、organization、team、notification、search、audit-log、observability、operational workflow |
-| workspace | 協作範疇 | workspaceId、membership、sharing、presence、feed、audit、scheduling、workspace-workflow |
+| workspace | 協作範疇 | workspaceId、membership、sharing、presence、feed、audit、scheduling、task、issue、settlement、approve、quality、orchestration |
 | notion | 正典內容 | knowledge artifact、taxonomy、relations、publication、knowledge-versioning |
 | notebooklm | 推理輸出 | ingestion、retrieval、grounding、conversation、synthesis、evaluation、conversation-versioning |
 

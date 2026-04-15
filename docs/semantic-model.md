@@ -69,6 +69,7 @@
 | `content-generation` | **Content Generation** | 內容生成 | ✅ | AI 驅動的文本生成 |
 | `context-assembly` | **Context Assembly** | 上下文組裝 | ✅ | 為 AI 推理組裝 context window |
 | `memory-context` | **Memory Context** | 記憶上下文 | ✅ | 跨對話記憶與持久化 context |
+| `tool-runtime` | **Tool Runtime** | 工具執行環境 | ✅ | AI tool 的註冊、選擇與執行；提供 `generateWithTools()` 讓下游流程在生成時擁有工具呼叫能力 |
 | `provider-routing` | **Provider Routing** | 供應商路由 | 📋 Baseline | 模型供應商選擇與路由 |
 | `model-policy` | **Model Policy** | 模型政策 | 📋 Baseline | 模型版本、能力與使用政策 |
 
@@ -136,10 +137,10 @@
 | `knowledge-database` | **Structured Knowledge Database** ✅ | 結構化知識資料庫 | ✅ | 結構化資料多視圖管理；已從 `database` 改名為 `knowledge-database`（移除技術術語） |
 | `taxonomy` | **Knowledge Taxonomy** | 知識分類法 | ✅ | 分類法與語義組織（已從 gap 升為 implemented） |
 | `relations` | **Knowledge Relations** | 知識關聯 | ✅ | 內容關聯與 backlink（已從 gap 升為 implemented） |
-| `knowledge-analytics` | **Knowledge Engagement Analytics** ⚠️ | 知識使用行為量測 | 📋 Baseline | 與 analytics domain 語意重疊；建議改名為 `knowledge-engagement` |
+| `knowledge-engagement` | **Knowledge Engagement Analytics** ✅ | 知識使用行為量測 | 📋 Baseline | ✅ 正典名稱已更新（2026-04-15）：`knowledge-analytics` → `knowledge-engagement`（避免與 analytics domain 語意重疊）；建立時必須使用 `knowledge-engagement` |
 | `attachments` | **Knowledge Attachments** | 知識附件 | 📋 Baseline | 附件與媒體關聯儲存 |
 | `automation` | **Knowledge Automation** | 知識自動化 | 📋 Baseline | 知識事件觸發自動化 |
-| `knowledge-integration` | **External Knowledge Sync** ⚠️ | 知識外部整合 | 📋 Baseline | 與 platform/integration 語意重疊；建議改名為 `external-knowledge-sync` |
+| `external-knowledge-sync` | **External Knowledge Sync** ✅ | 知識外部整合 | 📋 Baseline | ✅ 正典名稱已更新（2026-04-15）：`knowledge-integration` → `external-knowledge-sync`（避免與 platform/integration 語意重疊）；建立時必須使用 `external-knowledge-sync` |
 | `notes` | **Personal Notes** | 個人筆記 | 📋 Baseline | 個人輕量筆記 |
 | `templates` | **Knowledge Templates** | 知識範本 | 📋 Baseline | 頁面範本管理 |
 | `knowledge-versioning` | **Knowledge Version Snapshot** | 知識版本快照 | 📋 Baseline | 保留 domain prefix 以防與 notebooklm conversation-versioning 混名 |
@@ -170,9 +171,9 @@
 |---|---|---|---|
 | `notion/knowledge-database` ✅ | ~~技術術語遮蔽業務語意~~ | **Knowledge Database** | ✅ 已完成：`database` → `knowledge-database`（2026-04-15） |
 | `analytics/event-projection` ✅ | ~~技術動詞遮蔽 DDD projection 語意~~ | **Event Projection** | ✅ 已完成：`event-processing` → `event-projection`（2026-04-15） |
-| `platform/background-job` 資料夾 vs 內部實體名稱 | 資料夾語意（通用）與實體語意（攝取特定）不一致 | **Background Job Management** (folder) / 實體需通用化 | 資料夾名稱 `background-job` 正確表達通用背景任務能力，但內部實體全以 `Ingestion*` 命名（IngestionDocument、IngestionChunk、IngestionJob）；實作時應將實體通用化為 `Job*` 或將子域改名為 `ingestion-tracking` |
-| `notion/knowledge-analytics` | 與 `analytics` domain 語意重疊 | **Knowledge Engagement** | analytics domain 擁有指標、投影與報表；notion 此子域只量測知識頁面使用行為，建議改名為 `knowledge-engagement` |
-| `notion/knowledge-integration` | 與 `platform/integration` 語意重疊 | **External Knowledge Sync** | platform integration 擁有外部系統整合契約；notion 此子域只做知識雙向同步，建議改名為 `external-knowledge-sync` |
+| `platform/background-job` 資料夾 ✅ vs 原內部實體名稱 | ~~資料夾語意（通用）與實體語意（攝取特定）不一致~~ | **Background Job Management** (folder) | ✅ 已完成：實體已通用化 `IngestionJob` → `BackgroundJob`、`IngestionDocument` → `JobDocument`、`IngestionChunk` → `JobChunk`（2026-04-15） |
+| `notion/knowledge-engagement` ✅ (策略文件正典名稱已更新) | ~~與 `analytics` domain 語意重疊~~ | **Knowledge Engagement** | ✅ 已完成（2026-04-15）：所有策略文件中的 `knowledge-analytics` 已更新為 `knowledge-engagement`；建立時使用 `knowledge-engagement` |
+| `notion/external-knowledge-sync` ✅ (策略文件正典名稱已更新) | ~~與 `platform/integration` 語意重疊~~ | **External Knowledge Sync** | ✅ 已完成（2026-04-15）：所有策略文件中的 `knowledge-integration` 已更新為 `external-knowledge-sync`；建立時使用 `external-knowledge-sync` |
 | `platform/workflow` | 與 `workspace/workspace-workflow` 語意重疊 | **Platform Workflow** | platform 只擁有平台級狀態驅動執行；workspace 使用 `workspace-workflow` 作為正典名稱，兩者不得互換；建立時應以 `platform-workflow` 命名 |
 | `notion/knowledge-versioning` vs `notebooklm/conversation-versioning` | 同語意前綴、不同主域 | 各自保留完整名稱 | 兩者都應保留 domain prefix（`knowledge-` / `conversation-`）以防跨域混名 |
 | `ai/content-distillation` vs `notebooklm/synthesis` | 跨主域語意可能重疊 | **Content Distillation** (ai) / **RAG Synthesis** (notebooklm) | `content-distillation` 屬 ai domain（共享 AI 能力）；`synthesis` 屬 notebooklm（消費者，RAG 推理輸出），層級不同 |
@@ -224,6 +225,7 @@
 | `modules/ai/subdomains/content-generation` | Content Generation |
 | `modules/ai/subdomains/context-assembly` | Context Assembly |
 | `modules/ai/subdomains/memory-context` | Memory Context |
+| `modules/ai/subdomains/tool-runtime` | Tool Runtime |
 | `modules/analytics` | Analytics & Read-Model |
 | `modules/analytics/subdomains/metrics` | Metrics Aggregation |
 | `modules/analytics/subdomains/event-ingestion` | Event Ingestion |
@@ -234,8 +236,7 @@
 | `modules/platform` | Platform Operational Services |
 | `modules/platform/subdomains/account` | Account Lifecycle |
 | `modules/platform/subdomains/account-profile` | Account Profile |
-| `modules/platform/subdomains/organization` | Organization Management |
-| `modules/platform/subdomains/team` | Team Management |
+| `modules/platform/subdomains/organization` | Organization Management (incl. OrganizationTeam) |
 | `modules/platform/subdomains/notification` | Notification Routing & Preferences |
 | `modules/platform/subdomains/platform-config` | Platform Configuration |
 | `modules/platform/subdomains/background-job` | Background Job Management |
@@ -278,23 +279,54 @@
 | ~~`modules/notion/subdomains/database`~~ → **`modules/notion/subdomains/knowledge-database`** ✅ | **`knowledge-database`** | `database` 是技術術語；notion 所有其他子域以業務概念命名（knowledge、authoring、taxonomy、relations、collaboration）。此子域管理「結構化知識多視圖」，Domain aggregates 為 Database、DatabaseRecord、View、DatabaseAutomation，語意上是 knowledge database，應加 domain prefix 與兄弟子域一致 | **已完成 2026-04-15**：所有 import path、api/index.ts barrel、interfaces/ 元件均已更新 |
 | ~~`modules/analytics/subdomains/event-processing`~~ → **`modules/analytics/subdomains/event-projection`** ✅ | **`event-projection`** | DDD Event Sourcing 中將 domain events 轉換為 read model 的能力稱為 **projection**；`event-processing` 是通用技術動詞，遮蔽了業務語意。此子域的職責是事件→read model 的投影轉換，`event-projection` 精確反映 DDD 術語 | **已完成 2026-04-15**：資料夾已改名，無 import path 受影響（stub 子域） |
 
-### 7.2 已實作資料夾 — 內部語意不一致（Refactor Entities）
+### 7.2 已實作資料夾 — 內部語意不一致（Refactor Entities ✅）
 
-下列子域資料夾名稱正確，但內部實體命名與資料夾語意衝突，需在下次實作前解決。
+下列子域已完成實體通用化（2026-04-15）：
 
-| 資料夾 | 問題描述 | 建議解法 |
+| 資料夾 | 問題描述 | 已執行解法 |
 |---|---|---|
-| `modules/platform/subdomains/background-job` | 資料夾名稱 `background-job` 表達通用背景任務管理，但目前唯一的 domain entities 全以 `Ingestion*` 命名（IngestionDocument、IngestionChunk、IngestionJob）。README 標示為 Stub，但 IngestionJob 已在 Firestore 中使用 | A. 將實體通用化：`IngestionJob` → `BackgroundJob`、`IngestionDocument` → `JobDocument`、`IngestionChunk` → `JobChunk`（推薦，保持資料夾名稱）；或 B. 將子域改名為 `ingestion-tracking` 以精確反映目前職責 |
+| `modules/platform/subdomains/background-job` ✅ | 資料夾名稱 `background-job` 表達通用背景任務管理，原內部 domain entities 全以 `Ingestion*` 命名（IngestionDocument、IngestionChunk、IngestionJob），與資料夾語意不一致 | **已完成 2026-04-15**（Option A）：`IngestionJob` → `BackgroundJob`、`IngestionDocument` → `JobDocument`、`IngestionChunk` → `JobChunk`；`IngestionStatus` → `BackgroundJobStatus`；`IngestionJobRepository` → `BackgroundJobRepository`；`canTransitionIngestionStatus` → `canTransitionJobStatus`；`ingestionService` → `backgroundJobService`；所有 domain event discriminant、error code、use-case 類別名稱、composition service 全部同步更新。資料夾名稱保持 `background-job`。**2026-04-15（補完）**：所有 JSDoc 注釋中殘留的 `ingestion`（如 "ingestion pipeline"、"Ingestion document not found"）全部通用化為 `background job`/`document processing pipeline`；`SourceReference.ts` 中 `IngestionJob` 稽核鏈描述更新為 `BackgroundJob`。 |
+
+### 7.4 Comment-Level Semantic Cleanup ✅
+
+下列 comment header 與 namespace alias 已完成語意更新（2026-04-15）：
+
+| 位置 | 舊語意 | 新語意 |
+|---|---|---|
+| `notion/subdomains/knowledge-database/domain/services/index.ts` | `the database subdomain` | `the knowledge-database subdomain` |
+| `notion/subdomains/knowledge-database/domain/ports/index.ts` | `notion/database domain/ports … database subdomain` | `notion/knowledge-database domain/ports … knowledge-database subdomain` |
+| `notion/subdomains/knowledge-database/domain/value-objects/index.ts` | `the database subdomain` | `the knowledge-database subdomain` |
+| `notion/subdomains/knowledge-database/application/dto/knowledge-database.dto.ts` | `the database subdomain` | `the knowledge-database subdomain` |
+| `notion/subdomains/knowledge-database/api/server.ts` | `database subdomain — server-only API` | `knowledge-database subdomain — server-only API` |
+| `notion/subdomains/knowledge-database/api/ui.ts` | `notion/database UI surface` | `notion/knowledge-database UI surface` |
+| `notion/application/dto/index.ts` | `export * as databaseDtos` | `export * as knowledgeDatabaseDtos` |
+| `notion/application/use-cases/index.ts` | `export * as databaseUseCases` | `export * as knowledgeDatabaseUseCases` |
+| `workspace-workflow/domain/value-objects/SourceReference.ts` | `IngestionJob → source PDF` (audit chain) | `BackgroundJob → source PDF` |
+| `platform/background-job/domain/entities/BackgroundJob.ts` | `RAG ingestion pipeline` | `document processing pipeline` |
+| `platform/background-job/domain/entities/JobChunk.ts` | `ingestion pipeline` | `document processing pipeline` |
+| `platform/background-job/domain/repositories/BackgroundJobRepository.ts` | `ingestion job persistence`, `Persist a new ingestion job` | `background job persistence`, `Persist a new background job` |
+| `platform/background-job/application/use-cases/background-job.use-cases.ts` | `Ingestion Use Cases`, `Register Ingestion Document`, `Advance Ingestion Stage`, user-facing messages with `ingestion` | `Background Job Use Cases`, `Register Job Document`, `Advance Job Stage`, messages updated to `job` |
+| `platform/background-job/interfaces/composition/background-job-service.ts` | `knowledge ingestion use cases`, `ingestion side-effects`, `ingestion pipeline`, `ingestion jobs` | `background job use cases`, `background job side-effects`, job-level descriptions |
 
 ### 7.3 計劃中子域 — 建立時使用正典名稱（Create With Canonical Name）
 
-下列子域尚未實作，建立時必須使用此表所列的正典名稱，不得使用現有策略文件中的舊名稱。
+下列子域尚未實作，建立時必須使用此表所列的正典名稱，不得使用舊名稱。
 
-| 舊/策略文件名稱 | 正典建立名稱 | 理由 |
+| 舊/策略文件名稱 | 正典建立名稱 | 理由 | 文件狀態 |
+|---|---|---|---|
+| ~~`notion/knowledge-analytics`~~ | **`knowledge-engagement`** | 與 analytics domain 的 metrics/projection 語意重疊；notion 此子域只量測知識頁面使用行為，`knowledge-engagement` 準確描述業務能力 | ✅ 所有策略文件已更新為 `knowledge-engagement`（2026-04-15） |
+| ~~`notion/knowledge-integration`~~ | **`external-knowledge-sync`** | 與 platform/integration 語意重疊；notion 此子域只做知識雙向同步，`external-knowledge-sync` 準確描述業務能力 | ✅ 所有策略文件已更新為 `external-knowledge-sync`（2026-04-15） |
+| `platform/workflow` | **`platform-workflow`** | 與 workspace/workspace-workflow 語意重疊；加 domain prefix 明確區分平台級流程編排（platform）與工作區流程執行（workspace） | 📋 待實作時使用正典名稱 |
+
+### 7.5 ADR 歷史文件語意同步 ✅
+
+下列 ADR 中的舊路徑與類別名稱已同步更新（2026-04-15）：
+
+| ADR | 舊參考 | 新參考 |
 |---|---|---|
-| `notion/knowledge-analytics` | **`knowledge-engagement`** | 與 analytics domain 的 metrics/projection 語意重疊；notion 此子域只量測知識頁面使用行為，`knowledge-engagement` 準確描述業務能力 |
-| `notion/knowledge-integration` | **`external-knowledge-sync`** | 與 platform/integration 語意重疊；notion 此子域只做知識雙向同步，`external-knowledge-sync` 準確描述業務能力 |
-| `platform/workflow` | **`platform-workflow`** | 與 workspace/workspace-workflow 語意重疊；加 domain prefix 明確區分平台級流程編排（platform）與工作區流程執行（workspace） |
+| `docs/decisions/0006-domain-event-discriminant-format.md` | `background-job/domain/events/IngestionJobDomainEvent.ts` | `background-job/domain/events/BackgroundJobDomainEvent.ts` |
+| `docs/decisions/0009-anemic-aggregates.md` | `notion/database` 路徑 | `notion/knowledge-database` 路徑 |
+| `docs/decisions/0011-use-case-bundling.md` | `notion/database/` paths、`ingestion.use-cases.ts`、`ListWorkspaceIngestionJobsUseCase` | `notion/knowledge-database/` paths、`background-job.use-cases.ts`、`ListWorkspaceJobsUseCase` |
 
 ---
 
@@ -309,4 +341,4 @@
 | `docs/context-map.md` | Published language token flow between contexts |
 | `docs/semantic-model.md` (this file) | Folder → semantic name mapping, status, drift analysis |
 
-> Last verified: 2026-04-15. Section 7.1 renames completed 2026-04-15. Section 7 added 2026-04-15 based on Context7 DDD Hexagon evidence (`/sairyss/domain-driven-hexagon`).
+> Last verified: 2026-04-15. Section 7.1 renames completed 2026-04-15. Section 7.2 entity rename completed 2026-04-15. Section 7.4 comment-level semantic cleanup completed 2026-04-15. Section 7.3 docs-level canonical name propagation completed 2026-04-15 (`knowledge-analytics`→`knowledge-engagement`, `knowledge-integration`→`external-knowledge-sync` applied to all 8 strategic docs + stale `database` → `knowledge-database` in notion context docs). Section 7.5 ADR historical doc sync completed 2026-04-15 (ADR 0006, 0009, 0011). All implemented subdomain folders, internal code, comments, namespace aliases, strategic docs, and ADR historical references now match canonical semantic names. Only `platform/workflow`→`platform-workflow` remains as a governance rule for a future unimplemented subdomain. Section 7 added 2026-04-15 based on Context7 DDD Hexagon evidence (`/sairyss/domain-driven-hexagon`).

@@ -15,3 +15,51 @@ export * from "../subdomains/federation/api/index";
 export * from "../subdomains/session/api/index";
 export * from "../subdomains/tenant/api/index";
 export * from "../subdomains/security-policy/api/index";
+
+// account subdomain — canonical definitions (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe)
+export * from "../subdomains/account/api";
+
+// organization subdomain — explicit to avoid re-export conflicts with account
+export type {
+  OrganizationEntity,
+  Presence,
+  InviteState,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  OrgPolicy,
+  OrgPolicyRule,
+  OrgPolicyScope,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+  OrganizationRepository,
+  OrgPolicyRepository,
+} from "../subdomains/organization/api";
+export {
+  organizationService,
+  getOrganizationMembers,
+  getOrganizationTeams,
+  getOrgPolicies,
+  createOrganization,
+  createOrganizationWithTeam,
+  updateOrganizationSettings,
+  deleteOrganization,
+  inviteMember,
+  recruitMember,
+  dismissMember,
+  updateMemberRole,
+  createTeam,
+  deleteTeam,
+  updateTeamMembers,
+  createPartnerGroup,
+  sendPartnerInvite,
+  dismissPartnerMember,
+  createOrgPolicy,
+  updateOrgPolicy,
+  deleteOrgPolicy,
+} from "../subdomains/organization/api";

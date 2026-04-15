@@ -17,17 +17,29 @@ Before writing any code, read these documents in order:
 
 ```
 app/                  Next.js App Router (UI entry points)
-modules/
-  platform/           治理、身份、權益、AI capability
+modules/              完整 Hexagonal DDD 實作（邊界規則 / published language 的策略權威）
+  platform/           治理、通知
+  iam/                身份、存取、帳號、組織
   workspace/          協作容器、工作區範疇
   notion/             正典知識內容
   notebooklm/         對話、來源、推理輸出
+  ai / analytics / billing / ...
+src/modules/          精簡蒸餾骨架（新實作程式碼的目標層）
+  template/           骨架基線（複製此結構開始新模組）
+  iam/                identity + access-control + account + organization
+  platform/           notification
+  workspace/          lifecycle + membership + task + issue
+  notion / notebooklm / ai / analytics / billing
 docs/                 架構文件（DDD、Context Map、ADR）
 py_fn/                Python Cloud Functions（ingestion、embedding）
 packages/             Shared packages
 ```
 
-Each module follows Hexagonal Architecture:
+> **重要：`modules/` ≠ `src/modules/`**
+> - `modules/<context>/` — 讀取邊界規則、跨模組 API 合約、現有 domain model
+> - `src/modules/<context>/` — 撰寫新 use case、adapter、entity（以 `src/modules/template` 為骨架）
+
+`modules/<context>/` follows full Hexagonal Architecture:
 
 ```
 modules/<context>/
@@ -38,6 +50,17 @@ modules/<context>/
   interfaces/         UI, route/action wiring, input-output translation
   subdomains/         Sub-domain groupings
   index.ts            Aggregate export only
+```
+
+`src/modules/<context>/` follows lean distilled skeleton:
+
+```
+src/modules/<context>/
+  index.ts            Aggregate named export
+  domain/             Entities, value objects, services, repositories, events
+  application/        Use cases + DTOs
+  adapters/inbound/   HTTP / RPC driving adapters
+  adapters/outbound/  Firestore / Firebase / external driven adapters
 ```
 
 ## Commands

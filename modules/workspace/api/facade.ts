@@ -36,6 +36,7 @@ export {
   runWorkspaceManagedFileOcr,
   runWorkspaceManagedFileRagIndex,
   createWorkspaceManagedKnowledgePage,
+  previewWorkspaceManagedTasks,
   createWorkspaceManagedTasks,
 } from "../interfaces/facades/workspace-file.facade";
 
@@ -43,6 +44,8 @@ export type {
   WorkspaceManagedFileActionResult,
   WorkspaceManagedFileItem,
   WorkspaceManagedFileVersionItem,
+  WorkspaceManagedTaskCandidate,
+  WorkspaceManagedTaskPreviewResult,
 } from "../interfaces/facades/workspace-file.facade";
 
 export {
@@ -85,26 +88,50 @@ export type {
 } from "../subdomains/scheduling/api";
 
 export {
-  WorkspaceFlowFacade,
-  WorkspaceFlowTaskFacade,
-  WorkspaceFlowTaskBatchJobFacade,
-  WorkspaceFlowIssueFacade,
-  WorkspaceFlowInvoiceFacade,
   getWorkspaceFlowTasks,
   getWorkspaceFlowTask,
+  wfCreateTask,
+  wfUpdateTask,
+  wfAssignTask,
+  wfArchiveTask,
+} from "../subdomains/task/api";
+
+export {
   getWorkspaceFlowIssues,
+  getWorkspaceFlowIssue,
+  wfOpenIssue,
+  wfStartIssue,
+  wfFixIssue,
+  wfResolveIssue,
+  wfCloseIssue,
+} from "../subdomains/issue/api";
+
+export {
   getWorkspaceFlowInvoices,
   getWorkspaceFlowInvoiceItems,
+  wfCreateInvoice,
+  wfAddInvoiceItem,
+  wfUpdateInvoiceItem,
+  wfRemoveInvoiceItem,
+  wfSubmitInvoice,
+  wfReviewInvoice,
+  wfApproveInvoice,
+  wfRejectInvoice,
+  wfPayInvoice,
+  wfCloseInvoice,
+} from "../subdomains/settlement/api";
+
+export {
   getWorkspaceFlowTaskMaterializationBatchJobs,
   getWorkspaceFlowTaskMaterializationBatchJob,
+  wfSubmitTaskMaterializationBatchJob as submitTaskMaterializationBatchJob,
+  wfExtractTaskCandidatesFromKnowledge as extractTaskCandidatesFromKnowledge,
   createKnowledgeToWorkflowListener,
-  extractTaskCandidatesFromKnowledge,
-  submitTaskMaterializationBatchJob,
-} from "../subdomains/workspace-workflow/api";
+} from "../subdomains/orchestration/api";
 
 export type {
   KnowledgePageApprovedHandler,
-} from "../subdomains/workspace-workflow/api";
+} from "../subdomains/orchestration/api";
 
 export {
   updateWorkspaceNotificationPreferences,

@@ -78,10 +78,10 @@ T3  NOTION
 ─────────────────────────────────────────────────────────────────────────────
 
     knowledge               automation
-    authoring               knowledge-integration
+    authoring               external-knowledge-sync
     collaboration           notes
-    database                templates
-    knowledge-analytics     knowledge-versioning
+    knowledge-database      templates
+    knowledge-engagement     knowledge-versioning
     attachments
 
     [taxonomy]              [relations]             [publishing]

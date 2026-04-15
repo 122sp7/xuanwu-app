@@ -102,10 +102,10 @@
 - 不用 Chat 混指 Conversation。
 - 不用 Search 混指 Retrieval。
 - 不用 AI 混指 platform 的 shared AI capability 與 notion / notebooklm 的本地 use case。
-- 不用 Analytics 混指 platform analytics 與 notion 的 knowledge-analytics。
-- 不用 Integration 混指 platform integration 與 notion 的 knowledge-integration。
+- 不用 Analytics 混指 platform analytics 與 notion 的 knowledge-engagement。
+- 不用 Integration 混指 platform integration 與 notion 的 external-knowledge-sync。
 - 不用 Versioning 混指 notion 的 knowledge-versioning 與 notebooklm 的 conversation-versioning。
-- 不用 Workflow 混指 platform workflow 與 workspace-workflow。
+- 不用 Workflow 混指 platform workflow 與 workspace 內的 task/issue/settlement 流程子域。
 - 不用 accountId 混指 workspaceId。
 - 不用 organizationId 取代 shell route 上的 accountId。
 - 不用 userId 混指 actorId。

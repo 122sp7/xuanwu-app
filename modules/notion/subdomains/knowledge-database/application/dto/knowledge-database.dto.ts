@@ -1,5 +1,5 @@
 /**
- * Application-layer DTO re-exports for the database subdomain.
+ * Application-layer DTO re-exports for the knowledge-database subdomain.
  * Interfaces must import from here, not from domain/ directly.
  */
 export type { DatabaseSnapshot, Field, FieldType } from "../../domain/aggregates/Database";

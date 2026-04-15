@@ -82,7 +82,7 @@ export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
   KnowledgePages: { label: "Knowledge Pages", prefId: "knowledge-pages", group: "modules", status: "🏗️" },
   WorkspaceSettings: { label: "Workspace Settings", prefId: "workspace-settings", group: "modules", status: "✅" },
   Notifications: { label: "通知偏好", prefId: "notifications", group: "modules", status: "✅" },
-  NotionAuthoring: { label: "Notion Authoring", prefId: "notion-authoring", group: "modules", status: "🏗️" },
+  NotionAuthoring: { label: "Notion Article", prefId: "notion-authoring", group: "modules", status: "🏗️" },
   NotionDatabase: { label: "Notion Database", prefId: "notion-database", group: "modules", status: "🏗️" },
   NotionCollaboration: { label: "Notion Collaboration", prefId: "notion-collaboration", group: "modules", status: "🏗️" },
   NotionRelations: { label: "Notion Relations", prefId: "notion-relations", group: "modules", status: "🏗️" },

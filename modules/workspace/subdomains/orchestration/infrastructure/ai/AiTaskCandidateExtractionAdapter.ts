@@ -1,0 +1,33 @@
+import "server-only";
+
+import { extractTasksFromContent } from "@/modules/ai/api/server";
+import type { TaskCandidateExtractionAiPort } from "../../domain/ports/TaskCandidateExtractionAiPort";
+import type { AIExtractedTaskCandidate } from "../../domain/ports/TaskCandidateExtractionAiPort";
+
+/**
+ * @module orchestration/infrastructure/ai
+ * @file AiTaskCandidateExtractionAdapter.ts
+ * @description Infrastructure adapter implementing TaskCandidateExtractionAiPort.
+ *
+ * Delegates to the shared AI bounded context (`modules/ai/api/server`) so that
+ * the orchestration subdomain never depends on Genkit directly.
+ */
+export class AiTaskCandidateExtractionAdapter implements TaskCandidateExtractionAiPort {
+  async extractTaskCandidates(input: {
+    readonly knowledgePageId: string;
+    readonly content: string;
+    readonly maxCandidates?: number;
+  }): Promise<ReadonlyArray<AIExtractedTaskCandidate>> {
+    const result = await extractTasksFromContent({
+      content: input.content,
+      maxCandidates: input.maxCandidates,
+    });
+
+    return result.tasks.map((task) => ({
+      title: task.title,
+      description: task.description,
+      dueDate: task.dueDate,
+      confidence: 0.8,
+    }));
+  }
+}

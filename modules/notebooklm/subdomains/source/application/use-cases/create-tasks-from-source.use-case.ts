@@ -3,6 +3,7 @@ import { commandFailureFrom, commandSuccess } from "@shared-types";
 
 import type { ParsedDocumentPort } from "../../domain/ports/ParsedDocumentPort";
 import type {
+  ExtractedKnowledgeTask,
   ParsedKnowledgeTaskBlock,
   TaskMaterializationWorkflowPort,
 } from "../../domain/ports/TaskMaterializationWorkflowPort";
@@ -22,6 +23,10 @@ function toTaskBlocks(parsedText: string): ReadonlyArray<ParsedKnowledgeTaskBloc
     .filter((block) => block.text.length > 0);
 }
 
+export interface CreateTasksFromSourceInput extends CreateKnowledgeDraftInput {
+  readonly confirmedTasks?: ReadonlyArray<ExtractedKnowledgeTask>;
+}
+
 export class CreateTasksFromSourceUseCase {
   constructor(
     private readonly createDraftUseCase: CreateKnowledgeDraftFromSourceUseCase,
@@ -29,7 +34,7 @@ export class CreateTasksFromSourceUseCase {
     private readonly taskWorkflowPort: TaskMaterializationWorkflowPort,
   ) {}
 
-  async execute(input: CreateKnowledgeDraftInput): Promise<CommandResult> {
+  async execute(input: CreateTasksFromSourceInput): Promise<CommandResult> {
     if (!input.accountId.trim() || !input.workspaceId.trim() || !input.createdByUserId.trim()) {
       return commandFailureFrom(
         "SOURCE_TASK_CREATE_INVALID_SCOPE",
@@ -50,6 +55,18 @@ export class CreateTasksFromSourceUseCase {
     }
 
     try {
+      const confirmedTasks = input.confirmedTasks?.filter((task) => task.title.trim()) ?? [];
+
+      if (confirmedTasks.length > 0) {
+        return this.taskWorkflowPort.materializeKnowledgeTasks({
+          accountId: input.accountId,
+          workspaceId: input.workspaceId,
+          pageId: pageResult.aggregateId,
+          actorId: input.createdByUserId,
+          extractedTasks: confirmedTasks,
+        });
+      }
+
       const parsedText = await this.parsedDocumentPort.loadParsedDocumentText(input.jsonGcsUri);
       const blocks = toTaskBlocks(parsedText);
 
@@ -61,6 +78,12 @@ export class CreateTasksFromSourceUseCase {
         knowledgePageId: pageResult.aggregateId,
         blocks,
         enableAiFallback: true,
+        sourceContext: {
+          filename: input.filename,
+          pageCount: input.pageCount,
+          sourceGcsUri: input.sourceGcsUri,
+          jsonGcsUri: input.jsonGcsUri,
+        },
       });
 
       if (extraction.candidates.length === 0) {

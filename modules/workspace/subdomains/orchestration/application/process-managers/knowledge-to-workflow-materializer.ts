@@ -1,0 +1,100 @@
+/**
+ * @module workspace-flow/application/process-managers
+ * @file knowledge-to-workflow-materializer.ts
+ * @description Process Manager (Saga) that listens for `notion.knowledge.page-approved`
+ * events and orchestrates the creation of Tasks and Invoices in workspace-flow.
+ *
+ * ## Responsibility
+ * This class is the single entry point for the cross-module event-driven
+ * integration between the `knowledge` and `workspace-flow` bounded contexts.
+ *
+ * ## Idempotency
+ * The process manager tracks processed `causationId` values to prevent
+ * duplicate materialization if the same event is delivered more than once.
+ * The seen-set is in-memory by default; production implementations should
+ * persist to Firestore at:
+ *   `workspaces/{workspaceId}/materializedEvents/{causationId}`
+ * using a Firestore transaction to provide atomic idempotency guarantees.
+ *
+ * ## Placement
+ * - Wired in: Cloud Function trigger (Firestore `onDocumentUpdated`) or
+ *   `SimpleEventBus` subscriber registered at application startup.
+ * - Alternative: a shared saga registry if cross-module saga coordination is needed.
+ *
+ * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
+ */
+
+import type { TaskRepository } from "../../../task/domain/repositories/TaskRepository";
+import type { InvoiceRepository } from "../../../settlement/domain/repositories/InvoiceRepository";
+import { MaterializeTasksFromKnowledgeUseCase } from "../use-cases/materialize-tasks-from-knowledge.use-case";
+import type { ExtractedInvoiceItem, ExtractedTaskItem } from "../dto/materialize-from-knowledge.dto";
+import type { SourceReference } from "../../../task/domain/value-objects/SourceReference";
+
+interface PageApprovedEvent {
+  payload: {
+    pageId: string;
+    workspaceId?: string;
+    causationId: string;
+    correlationId: string;
+    extractedTasks: ReadonlyArray<ExtractedTaskItem>;
+    extractedInvoices: ReadonlyArray<ExtractedInvoiceItem>;
+  };
+}
+
+export class KnowledgeToWorkflowMaterializer {
+  /**
+   * In-memory idempotency guard.
+   * Replace with a persistent store in production.
+   */
+  private readonly processedCausationIds = new Set<string>();
+
+  constructor(
+    private readonly taskRepository: TaskRepository,
+    private readonly invoiceRepository: InvoiceRepository,
+  ) {}
+
+  /**
+   * Handle a `notion.knowledge.page-approved` event.
+   *
+   * @param event - The full event payload from the knowledge module's public API.
+   * @param workspaceId - Target workspace where Tasks/Invoices will be created.
+   *   Typically resolved from the event's `workspaceId` field if present.
+   * @returns true if materialization succeeded, false if skipped (idempotency) or failed.
+   */
+  async handle(event: PageApprovedEvent, workspaceId?: string): Promise<boolean> {
+    if (this.processedCausationIds.has(event.payload.causationId)) {
+      return false;
+    }
+
+    const resolvedWorkspaceId = workspaceId?.trim() || event.payload.workspaceId?.trim() || "";
+    if (!resolvedWorkspaceId) return false;
+
+    const sourceReference: SourceReference = {
+      type: "KnowledgePage",
+      id: event.payload.pageId,
+      causationId: event.payload.causationId,
+      correlationId: event.payload.correlationId,
+    };
+
+    const useCase = new MaterializeTasksFromKnowledgeUseCase(
+      this.taskRepository,
+      this.invoiceRepository,
+    );
+
+    const result = await useCase.execute({
+      workspaceId: resolvedWorkspaceId,
+      knowledgePageId: event.payload.pageId,
+      sourceReference,
+      extractedTasks: event.payload.extractedTasks,
+      extractedInvoices: event.payload.extractedInvoices,
+    });
+
+    if (result.success) {
+      this.processedCausationIds.add(event.payload.causationId);
+      return true;
+    }
+
+    return false;
+  }
+}
+ 

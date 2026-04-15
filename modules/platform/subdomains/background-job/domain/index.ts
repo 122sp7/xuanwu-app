@@ -1,6 +1,6 @@
-﻿export type { IngestionDocument } from "./entities/IngestionDocument";
-export type { IngestionChunk, IngestionChunkMetadata } from "./entities/IngestionChunk";
-export type { IngestionJob, IngestionStatus } from "./entities/IngestionJob";
-export { canTransitionIngestionStatus } from "./entities/IngestionJob";
-export type { IngestionJobRepository } from "./repositories/IngestionJobRepository";
+﻿export type { JobDocument } from "./entities/JobDocument";
+export type { JobChunk, JobChunkMetadata } from "./entities/JobChunk";
+export type { BackgroundJob, BackgroundJobStatus } from "./entities/BackgroundJob";
+export { canTransitionJobStatus } from "./entities/BackgroundJob";
+export type { BackgroundJobRepository } from "./repositories/BackgroundJobRepository";
 export * from "./events";

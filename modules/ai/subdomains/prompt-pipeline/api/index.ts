@@ -6,17 +6,33 @@
  */
 
 export type {
+  ComplianceExtractionPromptInput,
+  ComplianceExtractionPromptIntent,
+  KnowledgeSynthesisPromptInput,
+  KnowledgeSynthesisPromptIntent,
+  ProcurementExtractionPromptInput,
+  ProcurementExtractionPromptIntent,
   PromptExecutionMode,
   PromptTemplateDescriptor,
   PromptTemplateFamily,
+  RagPreparationPromptInput,
+  RagPreparationPromptIntent,
   ResolvedPrompt,
-  SourceFollowUpPromptInput,
-  SourceFollowUpPromptIntent,
+  TaskExtractionPromptInput,
+  TaskExtractionPromptIntent,
 } from "../domain";
 
 export {
+  listComplianceExtractionPrompts,
+  listKnowledgeSynthesisPrompts,
+  listProcurementExtractionPrompts,
   listPromptFamilies,
-  listSourceFollowUpPrompts,
-  resolveSourceFollowUpPrompt,
-  sourceFollowUpPromptService,
+  listRagPreparationPrompts,
+  listTaskExtractionPrompts,
+  promptRegistryService,
+  resolveComplianceExtractionPrompt,
+  resolveKnowledgeSynthesisPrompt,
+  resolveProcurementExtractionPrompt,
+  resolveRagPreparationPrompt,
+  resolveTaskExtractionPrompt,
 } from "../application";

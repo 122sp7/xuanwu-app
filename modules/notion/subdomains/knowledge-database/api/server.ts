@@ -1,5 +1,5 @@
 /**
- * database subdomain — server-only API.
+ * knowledge-database subdomain — server-only API.
  *
  * Exports infrastructure implementations and composition helpers that must only
  * run in Server Actions, route handlers, or other server-side entry points.

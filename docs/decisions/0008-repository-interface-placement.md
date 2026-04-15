@@ -27,7 +27,7 @@ notion/subdomains/knowledge/domain/repositories/...
 較新的子域使用 Hexagonal Architecture 的 port 術語，將所有端口（包括 repository、gateway、event publisher）放在 `domain/ports/`：
 
 ```
-platform/subdomains/team/domain/ports/TeamRepository.ts
+platform/subdomains/organization/domain/ports/OrganizationTeamPort.ts
 platform/subdomains/organization/domain/ports/OrganizationTeamPort.ts
 notebooklm/subdomains/source/domain/ports/KnowledgePageGatewayPort.ts
 workspace/subdomains/workspace-workflow/domain/ports/...

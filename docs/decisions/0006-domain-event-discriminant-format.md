@@ -15,7 +15,7 @@
 |------|-----------|
 | platform | `access-control/domain/events/AccessPolicyDomainEvent.ts` |
 | platform | `account/domain/events/AccountDomainEvent.ts` |
-| platform | `background-job/domain/events/IngestionJobDomainEvent.ts` |
+| platform | `background-job/domain/events/BackgroundJobDomainEvent.ts` |
 | platform | `identity/domain/events/IdentityDomainEvent.ts` |
 | platform | `notification/domain/events/NotificationDomainEvent.ts` |
 | platform | `organization/domain/events/OrganizationDomainEvent.ts` |
@@ -49,15 +49,15 @@
 "workspace.audit.entry_recorded"      → "workspace.audit.entry-recorded"
 ```
 
-### 偏差二：team 子域事件缺少主域前綴（4 處）
+### 偏差二：organization.team 事件缺少完整主域前綴（已修復）
 
-`modules/platform/subdomains/team/domain/events/OrganizationTeamDomainEvent.ts` 中四個事件使用 `team.*` 而非 `platform.team.*`：
+`modules/platform/subdomains/organization/domain/events/OrganizationTeamDomainEvent.ts` 中四個事件原使用 `team.*`，已整併後修正為 `platform.organization.team_*`：
 
 ```
-"team.created"        → "platform.team.created"
-"team.deleted"        → "platform.team.deleted"
-"team.member-added"   → "platform.team.member-added"
-"team.member-removed" → "platform.team.member-removed"
+"team.created"        → "platform.organization.team_created"
+"team.deleted"        → "platform.organization.team_deleted"
+"team.member-added"   → "platform.organization.team_member_added"
+"team.member-removed" → "platform.organization.team_member_removed"
 ```
 
 ### 偏差三：workspace-workflow 事件使用 workspace-flow 縮寫前綴（25 處）

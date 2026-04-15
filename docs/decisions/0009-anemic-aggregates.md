@@ -72,7 +72,7 @@ export class KnowledgePage {
 代價與限制：
 
 - 11 個文件需重構，需判斷哪些應成為真正的 aggregate class，哪些應降格為 entity。
-- notion/database 的 4 個聚合根（Database、Record、View、Automation）都有對應的 `DatabaseEvents.ts` → 遷移時需同步確認事件觸發路徑。
+- notion/knowledge-database 的 4 個聚合根（Database、Record、View、Automation）都有對應的 `DatabaseEvents.ts` → 遷移時需同步確認事件觸發路徑。
 - `PermissionLevel`、`ContentType` 等型別目前放在 collaboration/aggregates，遷移後應移入 `domain/value-objects/`。
 
 ## Conflict Resolution

@@ -14,10 +14,10 @@
 - database
 - taxonomy
 - relations
-- knowledge-analytics
+- knowledge-engagement
 - attachments
 - automation
-- knowledge-integration
+- external-knowledge-sync
 - notes
 - templates
 - publishing

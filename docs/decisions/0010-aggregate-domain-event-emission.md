@@ -40,13 +40,13 @@ WorkspaceCreatedEvent, WorkspaceLifecycleTransitionedEvent, WorkspaceVisibilityC
 ### 正確範例（已有的實作）
 
 ```typescript
-// modules/platform/subdomains/team/domain/aggregates/OrganizationTeam.ts
+// modules/platform/subdomains/organization/domain/aggregates/OrganizationTeam.ts
 export class OrganizationTeam {
   private _domainEvents: OrganizationTeamDomainEvent[] = [];
 
   static create(id: string, input: CreateTeamInput): OrganizationTeam {
     const team = new OrganizationTeam(id, { ... });
-    team._domainEvents.push({ type: "platform.team.created", ... });
+    team._domainEvents.push({ type: "platform.organization.team_created", ... });
     return team;
   }
 

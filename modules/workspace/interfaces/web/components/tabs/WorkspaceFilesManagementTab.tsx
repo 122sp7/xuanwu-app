@@ -1,16 +1,19 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { WorkspaceFilesFilterPanel, type FileStatusFilter } from "./WorkspaceFilesFilterPanel";
 import { WorkspaceFilesSummaryCard } from "./WorkspaceFilesSummaryCard";
 import { WorkspaceManagedFileCard } from "./WorkspaceManagedFileCard";
+import { TaskCandidateConfirmDialog } from "./TaskCandidateConfirmDialog";
 import { formatFileSize, getStatusTone, toGsUri } from "./workspace-file-tab.utils";
 import { useAuth } from "@/modules/iam/api";
 import { FileProcessingDialog } from "@/modules/notebooklm/api/ui";
 import {
   createWorkspaceManagedKnowledgePage,
   createWorkspaceManagedTasks,
+  previewWorkspaceManagedTasks,
   deleteWorkspaceManagedFile,
   getWorkspaceManagedFileVersions,
   getWorkspaceManagedFiles,
@@ -20,6 +23,7 @@ import {
   uploadWorkspaceManagedFile,
   type WorkspaceManagedFileItem,
   type WorkspaceManagedFileVersionItem,
+  type WorkspaceManagedTaskCandidate,
 } from "@/modules/workspace/api/facade";
 import { Card, CardContent } from "@ui-shadcn/ui/card";
 import type { WorkspaceEntity } from "../../../../domain/aggregates/Workspace";
@@ -35,6 +39,7 @@ interface ProcessingTarget {
 type FileWithRelativePath = File & { readonly webkitRelativePath?: string };
 export function WorkspaceFilesManagementTab({ workspace }: { readonly workspace: WorkspaceEntity }) {
   const { state } = useAuth();
+  const router = useRouter();
   const user = state.user;
   const [documents, setDocuments] = useState<readonly WorkspaceManagedFileItem[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
@@ -46,6 +51,11 @@ export function WorkspaceFilesManagementTab({ workspace }: { readonly workspace:
   const [draftName, setDraftName] = useState("");
   const [busyDocId, setBusyDocId] = useState<string | null>(null);
   const [processingTarget, setProcessingTarget] = useState<ProcessingTarget | null>(null);
+  const [taskPreviewTarget, setTaskPreviewTarget] = useState<WorkspaceManagedFileItem | null>(null);
+  const [taskPreviewCandidates, setTaskPreviewCandidates] = useState<readonly WorkspaceManagedTaskCandidate[]>([]);
+  const [taskPreviewError, setTaskPreviewError] = useState<string | null>(null);
+  const [taskPreviewUsedAiFallback, setTaskPreviewUsedAiFallback] = useState(false);
+  const [submittingPreviewTasks, setSubmittingPreviewTasks] = useState(false);
   const [expandedVersionIds, setExpandedVersionIds] = useState<Record<string, boolean>>({});
   const [versionsByDocumentId, setVersionsByDocumentId] = useState<Record<string, readonly WorkspaceManagedFileVersionItem[]>>({});
   const [versionStateByDocumentId, setVersionStateByDocumentId] = useState<Record<string, "idle" | "loading" | "loaded" | "error">>({});
@@ -209,7 +219,11 @@ export function WorkspaceFilesManagementTab({ workspace }: { readonly workspace:
       if (result.success) {
         await reloadLibrary();
         if (result.href) {
-          window.open(result.href, "_blank", "noopener,noreferrer");
+          if (result.href.startsWith("/")) {
+            router.push(result.href);
+          } else {
+            window.open(result.href, "_blank", "noopener,noreferrer");
+          }
         }
       }
     } finally {
@@ -224,6 +238,69 @@ export function WorkspaceFilesManagementTab({ workspace }: { readonly workspace:
   ) {
     if (!user?.id) return setUploadMessage(missingMessage);
     await handleManagedFileAction(doc, () => runner(user.id));
+  }
+
+  async function handlePreviewTasks(doc: WorkspaceManagedFileItem) {
+    if (!user?.id) {
+      setUploadMessage("請先登入後再建立任務。");
+      return;
+    }
+
+    setBusyDocId(doc.id);
+    setTaskPreviewTarget(null);
+    setTaskPreviewCandidates([]);
+    setTaskPreviewUsedAiFallback(false);
+    setTaskPreviewError(null);
+
+    try {
+      const result = await previewWorkspaceManagedTasks(workspace, doc);
+      setUploadMessage(result.message);
+      setTaskPreviewTarget(doc);
+      setTaskPreviewCandidates(result.candidates);
+      setTaskPreviewUsedAiFallback(Boolean(result.usedAiFallback));
+
+      if (!result.success) {
+        setTaskPreviewError(result.message);
+      }
+    } finally {
+      setBusyDocId(null);
+    }
+  }
+
+  async function handleConfirmPreviewTasks(selectedCandidates: ReadonlyArray<WorkspaceManagedTaskCandidate>) {
+    if (!taskPreviewTarget || !user?.id) {
+      setTaskPreviewError("請先登入後再建立任務。");
+      return;
+    }
+
+    setSubmittingPreviewTasks(true);
+    setTaskPreviewError(null);
+
+    try {
+      const result = await createWorkspaceManagedTasks(
+        workspace,
+        taskPreviewTarget,
+        user.id,
+        selectedCandidates,
+      );
+
+      setUploadMessage(result.message);
+
+      if (!result.success) {
+        setTaskPreviewError(result.message);
+        return;
+      }
+
+      setTaskPreviewTarget(null);
+      setTaskPreviewCandidates([]);
+      await reloadLibrary();
+
+      if (result.href) {
+        router.push(result.href);
+      }
+    } finally {
+      setSubmittingPreviewTasks(false);
+    }
   }
 
   return (
@@ -288,11 +365,7 @@ export function WorkspaceFilesManagementTab({ workspace }: { readonly workspace:
                   "請先登入後再建立 Knowledge Page。",
                   (actorId) => createWorkspaceManagedKnowledgePage(workspace, doc, actorId),
                 )}
-                onCreateTasks={() => void handleActorBoundAction(
-                  doc,
-                  "請先登入後再建立任務。",
-                  (actorId) => createWorkspaceManagedTasks(workspace, doc, actorId),
-                )}
+                onCreateTasks={() => void handlePreviewTasks(doc)}
                 onToggleVersionHistory={() => void toggleVersionHistory(doc.id)}
                 onDelete={() => void handleDeleteDocument(doc)}
                 getStatusTone={getStatusTone}
@@ -302,6 +375,24 @@ export function WorkspaceFilesManagementTab({ workspace }: { readonly workspace:
           </div>
         </CardContent>
       </Card>
+
+      <TaskCandidateConfirmDialog
+        key={taskPreviewTarget?.id ?? "task-preview-closed"}
+        open={Boolean(taskPreviewTarget)}
+        filename={taskPreviewTarget?.name ?? "來源文件"}
+        candidates={taskPreviewCandidates}
+        usedAiFallback={taskPreviewUsedAiFallback}
+        submitting={submittingPreviewTasks}
+        error={taskPreviewError}
+        onClose={() => {
+          if (submittingPreviewTasks) return;
+          setTaskPreviewTarget(null);
+          setTaskPreviewCandidates([]);
+          setTaskPreviewUsedAiFallback(false);
+          setTaskPreviewError(null);
+        }}
+        onConfirm={(selectedCandidates) => void handleConfirmPreviewTasks(selectedCandidates)}
+      />
 
       {processingTarget ? (
         <FileProcessingDialog
