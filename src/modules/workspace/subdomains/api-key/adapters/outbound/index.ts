@@ -1,3 +1,2 @@
-// api-key — adapters/outbound placeholder
-// TODO: export outbound adapters (repository implementations, external services)
-export {};
+export type { FirestoreLike } from "./firestore/FirestoreApiKeyRepository";
+export { FirestoreApiKeyRepository } from "./firestore/FirestoreApiKeyRepository";

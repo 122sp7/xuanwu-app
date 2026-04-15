@@ -1,3 +1,3 @@
-// task-formation — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export type { CreateTaskFormationJobDTO } from "./dto/TaskFormationDTO";
+export { CreateTaskFormationJobSchema } from "./dto/TaskFormationDTO";
+export { CreateTaskFormationJobUseCase, CompleteTaskFormationJobUseCase } from "./use-cases/TaskFormationUseCases";

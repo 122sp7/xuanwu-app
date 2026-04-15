@@ -1,3 +1,4 @@
-// activity — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-export {};
+export type { ActivityEventSnapshot, RecordActivityInput, ActivityEventType } from "./entities/ActivityEvent";
+export { ActivityEvent } from "./entities/ActivityEvent";
+export type { ActivityDomainEventType, ActivityRecordedEvent } from "./events/ActivityDomainEvent";
+export type { ActivityRepository } from "./repositories/ActivityRepository";

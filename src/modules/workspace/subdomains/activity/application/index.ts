@@ -1,3 +1,3 @@
-// activity — application layer placeholder
-// TODO: export use-cases, DTOs, application services
-export {};
+export type { RecordActivityDTO } from "./dto/ActivityDTO";
+export { RecordActivitySchema } from "./dto/ActivityDTO";
+export { RecordActivityUseCase } from "./use-cases/ActivityUseCases";

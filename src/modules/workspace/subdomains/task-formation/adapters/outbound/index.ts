@@ -1,3 +1,2 @@
-// task-formation — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-export {};
+export type { FirestoreLike } from "./firestore/FirestoreTaskFormationJobRepository";
+export { FirestoreTaskFormationJobRepository } from "./firestore/FirestoreTaskFormationJobRepository";

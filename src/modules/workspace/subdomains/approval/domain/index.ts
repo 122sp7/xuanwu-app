@@ -1,3 +1,1 @@
-// approval — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-export {};
+export type { ApprovalTaskRepository, ApprovalIssueRepository } from "./repositories/ApprovalRepository";

@@ -1,3 +1,1 @@
-// approval — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export { ApproveTaskAcceptanceUseCase, SubmitIssueRetestUseCase, PassIssueRetestUseCase, FailIssueRetestUseCase } from "./use-cases/ApprovalUseCases";

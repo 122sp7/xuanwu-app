@@ -1,3 +1,2 @@
-// schedule — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-export {};
+export type { FirestoreLike } from "./firestore/FirestoreDemandRepository";
+export { FirestoreDemandRepository } from "./firestore/FirestoreDemandRepository";

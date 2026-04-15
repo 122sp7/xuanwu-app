@@ -1,3 +1,3 @@
-// feed — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export type { CreateFeedPostDTO } from "./dto/FeedDTO";
+export { CreateFeedPostSchema } from "./dto/FeedDTO";
+export { CreateFeedPostUseCase } from "./use-cases/FeedUseCases";

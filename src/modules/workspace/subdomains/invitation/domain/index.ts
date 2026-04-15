@@ -1,3 +1,4 @@
-// invitation — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-export {};
+export type { WorkspaceInvitationSnapshot, CreateInvitationInput, InvitationStatus } from "./entities/WorkspaceInvitation";
+export { WorkspaceInvitation, INVITATION_STATUSES } from "./entities/WorkspaceInvitation";
+export type { InvitationDomainEventType, InvitationCreatedEvent, InvitationAcceptedEvent } from "./events/InvitationDomainEvent";
+export type { InvitationRepository } from "./repositories/InvitationRepository";

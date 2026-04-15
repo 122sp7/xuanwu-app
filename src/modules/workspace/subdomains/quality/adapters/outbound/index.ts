@@ -1,3 +1,2 @@
-// quality — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
+// Quality subdomain delegates persistence to task subdomain
 export {};

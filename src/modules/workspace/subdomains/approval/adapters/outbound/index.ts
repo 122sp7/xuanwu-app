@@ -1,3 +1,2 @@
-// approval — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
+// Approval subdomain delegates persistence to task/issue subdomains
 export {};
