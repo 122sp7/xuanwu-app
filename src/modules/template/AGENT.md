@@ -1,4 +1,4 @@
-# Template Module — Agent Guide
+﻿# Template Module — Agent Guide
 
 ## Purpose
 
