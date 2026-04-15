@@ -1,3 +1,4 @@
-// task — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export type { CreateTaskDTO, UpdateTaskDTO, TransitionTaskDTO } from "./dto/TaskDTO";
+export { CreateTaskInputSchema, UpdateTaskInputSchema, TransitionTaskInputSchema } from "./dto/TaskDTO";
+export { CreateTaskUseCase, UpdateTaskUseCase, TransitionTaskStatusUseCase, DeleteTaskUseCase } from "./use-cases/TaskUseCases";
+

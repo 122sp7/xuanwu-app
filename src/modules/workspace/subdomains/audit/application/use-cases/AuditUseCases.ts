@@ -1,0 +1,19 @@
+import { v4 as uuid } from "@lib-uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { AuditRepository } from "../../domain/repositories/AuditRepository";
+import { AuditEntry } from "../../domain/entities/AuditEntry";
+import type { RecordAuditEntryInput } from "../../domain/entities/AuditEntry";
+
+export class RecordAuditEntryUseCase {
+  constructor(private readonly auditRepo: AuditRepository) {}
+
+  async execute(input: RecordAuditEntryInput): Promise<CommandResult> {
+    try {
+      const entry = AuditEntry.record(uuid(), input);
+      await this.auditRepo.save(entry.getSnapshot());
+      return commandSuccess(entry.id, Date.now());
+    } catch (err) {
+      return commandFailureFrom("AUDIT_RECORD_FAILED", err instanceof Error ? err.message : "Failed to record audit entry.");
+    }
+  }
+}

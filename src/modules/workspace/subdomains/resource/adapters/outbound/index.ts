@@ -1,3 +1,2 @@
-// resource — adapters/outbound placeholder
-// TODO: export outbound adapters (repository implementations, external services)
-export {};
+export type { FirestoreLike } from "./firestore/FirestoreQuotaRepository";
+export { FirestoreQuotaRepository } from "./firestore/FirestoreQuotaRepository";

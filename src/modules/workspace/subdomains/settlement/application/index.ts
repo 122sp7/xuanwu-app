@@ -1,3 +1,3 @@
-// settlement — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export type { CreateInvoiceDTO, TransitionInvoiceDTO } from "./dto/SettlementDTO";
+export { CreateInvoiceSchema, TransitionInvoiceSchema } from "./dto/SettlementDTO";
+export { CreateInvoiceUseCase, TransitionInvoiceStatusUseCase } from "./use-cases/SettlementUseCases";

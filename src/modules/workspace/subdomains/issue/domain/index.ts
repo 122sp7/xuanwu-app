@@ -1,3 +1,10 @@
-// issue — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-export {};
+export type { IssueSnapshot, OpenIssueInput } from "./entities/Issue";
+export { Issue } from "./entities/Issue";
+export type { IssueStatus } from "./value-objects/IssueStatus";
+export { ISSUE_STATUSES, canTransitionIssueStatus, isTerminalIssueStatus } from "./value-objects/IssueStatus";
+export type { IssueStage } from "./value-objects/IssueStage";
+export { ISSUE_STAGES } from "./value-objects/IssueStage";
+export type { IssueId } from "./value-objects/IssueId";
+export { createIssueId } from "./value-objects/IssueId";
+export type { IssueDomainEventType, IssueOpenedEvent, IssueStatusChangedEvent } from "./events/IssueDomainEvent";
+export type { IssueRepository } from "./repositories/IssueRepository";

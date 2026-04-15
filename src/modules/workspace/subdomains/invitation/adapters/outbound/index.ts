@@ -1,3 +1,2 @@
-// invitation — adapters/outbound placeholder
-// TODO: export outbound adapters (repository implementations, external services)
-export {};
+export type { FirestoreLike } from "./firestore/FirestoreInvitationRepository";
+export { FirestoreInvitationRepository } from "./firestore/FirestoreInvitationRepository";

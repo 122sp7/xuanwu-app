@@ -1,3 +1,1 @@
-// quality — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export { SubmitTaskToQaUseCase, PassTaskQaUseCase } from "./use-cases/QualityUseCases";

@@ -1,3 +1,3 @@
-// resource — application layer placeholder
-// TODO: export use-cases, DTOs, application services
-export {};
+export type { ProvisionQuotaDTO, ConsumeQuotaDTO } from "./dto/ResourceDTO";
+export { ProvisionQuotaSchema, ConsumeQuotaSchema } from "./dto/ResourceDTO";
+export { ProvisionResourceQuotaUseCase, ConsumeResourceQuotaUseCase } from "./use-cases/ResourceUseCases";

@@ -1,3 +1,1 @@
-// orchestration — inbound adapters placeholder
-// TODO: export server actions / route handlers
-export {};
+export { OrchestrationController } from "./http/OrchestrationController";

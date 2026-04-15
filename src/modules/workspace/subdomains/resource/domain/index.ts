@@ -1,3 +1,4 @@
-// resource — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-export {};
+export type { ResourceQuotaSnapshot, ProvisionResourceQuotaInput, ResourceKind } from "./entities/ResourceQuota";
+export { ResourceQuota, RESOURCE_KINDS } from "./entities/ResourceQuota";
+export type { ResourceQuotaDomainEventType, QuotaProvisionedEvent, QuotaExceededEvent } from "./events/ResourceQuotaDomainEvent";
+export type { ResourceQuotaRepository } from "./repositories/ResourceQuotaRepository";

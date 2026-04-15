@@ -1,3 +1,1 @@
-// lifecycle — inbound adapters placeholder
-// TODO: export server actions / route handlers
-export {};
+export { WorkspaceController } from "./http/WorkspaceController";

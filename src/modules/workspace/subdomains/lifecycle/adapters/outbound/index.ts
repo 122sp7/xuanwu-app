@@ -1,3 +1,2 @@
-// lifecycle — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-export {};
+export type { FirestoreLike } from "./firestore/FirestoreWorkspaceRepository";
+export { FirestoreWorkspaceRepository } from "./firestore/FirestoreWorkspaceRepository";
