@@ -14,7 +14,6 @@ import { describeGrant } from "../../view-models/workspace-grants";
 import { WorkspaceOverviewSettingsTab } from "./WorkspaceOverviewSettingsTab";
 import { WorkspaceOverviewSummaryCard } from "../cards/WorkspaceOverviewSummaryCard";
 import { WorkspaceProductSpineCard } from "../cards/WorkspaceProductSpineCard";
-import { WorkspaceQuickstartCard } from "../cards/WorkspaceQuickstartCard";
 import { WorkspaceOverviewKnowledgePanels } from "./WorkspaceOverviewKnowledgePanels";
 
 interface WorkspaceOverviewTabProps {
@@ -129,9 +128,6 @@ export function WorkspaceOverviewTab({
               </Card>
             </div>
 
-            {workspace.lifecycleState === "preparatory" && workspace.capabilities.length === 0 && (
-              <WorkspaceQuickstartCard workspaceId={workspace.id} />
-            )}
           </div>
         )}
 
