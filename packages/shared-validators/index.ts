@@ -1,7 +1,22 @@
+/**
+ * shared-validators
+ *
+ * Generic utility validation schemas with no business semantics.
+ * Only infrastructure/utility schemas belong here.
+ *
+ * Rules (Discussion 07):
+ * - Business domain schemas (taskSchema, createWorkspaceSchema) belong in
+ *   src/modules/<context>/domain/ — not in packages/
+ * - Auth input schemas (signInSchema, registerSchema) belong in
+ *   src/modules/iam/subdomains/authentication/application/
+ * - This package must remain independent of any application module
+ */
+
 import { z } from "zod";
 
 export const idSchema = z.string().uuid();
 
+// Generic pagination utility — no business semantics, safe in packages/
 // Note: .default() fills missing fields during .parse(). Use .optional() instead
 // if you need strict validation without automatic default injection.
 export const paginationSchema = z.object({
@@ -9,39 +24,8 @@ export const paginationSchema = z.object({
   limit: z.number().int().positive().max(100).default(20),
 });
 
-export const taskSchema = z.object({
-  id: z.string().uuid(),
-  title: z.string().min(1).max(255),
-  description: z.string().optional(),
-  status: z.enum(["todo", "in_progress", "done"]),
-  createdAt: z.date(),
-  updatedAt: z.date(),
-});
-
-export type TaskSchemaType = z.infer<typeof taskSchema>;
-
-// ─── Identity schemas ─────────────────────────────────────────────────────────
-
-export const signInSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-});
-
-export const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  name: z.string().min(1).max(100),
-});
-
-export type SignInInput = z.infer<typeof signInSchema>;
-export type RegisterInput = z.infer<typeof registerSchema>;
-
-// ─── Workspace schemas ────────────────────────────────────────────────────────
-
-export const createWorkspaceSchema = z.object({
-  name: z.string().min(1).max(100),
-  accountId: z.string().min(1),
-  accountType: z.enum(["user", "organization"]),
-});
-
-export type CreateWorkspaceInput = z.infer<typeof createWorkspaceSchema>;
+// Domain schemas previously misplaced here have been removed:
+//   taskSchema          → src/modules/workspace/subdomains/task/domain/
+//   createWorkspaceSchema → src/modules/workspace/subdomains/lifecycle/domain/
+//   signInSchema        → src/modules/iam/subdomains/authentication/application/
+//   registerSchema      → src/modules/iam/subdomains/authentication/application/

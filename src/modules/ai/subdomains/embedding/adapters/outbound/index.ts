@@ -1,3 +1,2 @@
-// embedding — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-export {};
+// embedding — outbound adapters
+export { EmbeddingJobPayloadSchema, type EmbeddingJobPayload } from "./dto/embedding-job-payload";
