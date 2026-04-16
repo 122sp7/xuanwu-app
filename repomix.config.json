@@ -68,6 +68,7 @@
     "useDotIgnore": true,
     "useDefaultPatterns": true,
     "customPatterns": [
+      "*.md",
       ".next/**",
       ".turbo/**",
       ".vercel/**",

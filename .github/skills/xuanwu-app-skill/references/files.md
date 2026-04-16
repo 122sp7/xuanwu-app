@@ -10201,6 +10201,1046 @@ When adding or changing docs:
 Start every session with Serena MCP. If a question spans modules or architecture, consult the DDD reference authority (ubiquitous-language, bounded-contexts, context-map) before implementation.
 ````
 
+## File: modules/ai/interfaces/index.ts
+````typescript
+/** ai/interfaces — reserved for future AI UI and route composition. */
+````
+
+## File: modules/analytics/AGENT.md
+````markdown
+# Analytics Module Agent Guide
+
+## Purpose
+
+`modules/analytics` owns reporting, metrics, and read-model analytics surfaces.
+
+## Boundary Rules
+
+- Keep analytics read-oriented by default.
+- Do not place billing, entitlement, or subscription policy here.
+- Cross-module collaboration must go through public `api/` boundaries.
+- Preserve `interfaces -> application -> domain <- infrastructure`.
+
+## Delivery Style
+
+- Prefer small query-oriented increments.
+- Add subdomains only when a real analytics capability emerges.
+````
+
+## File: modules/analytics/analytics.instructions.md
+````markdown
+---
+description: Minimal rules for the analytics bounded context.
+applyTo: 'modules/analytics/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Analytics Instructions
+
+- `modules/analytics` owns analytics and reporting concerns only.
+- Keep this module query-first and integration-light until concrete use cases arrive.
+- Do not import peer module internals; use public `api/` contracts only.
+- Keep domain logic framework-free.
+````
+
+## File: modules/analytics/api/index.ts
+````typescript
+/**
+ * Public API boundary for the analytics bounded context.
+ * Keep exports minimal until concrete analytics capabilities are implemented.
+ */
+````
+
+## File: modules/analytics/application/index.ts
+````typescript
+/** analytics/application — reserved for future analytics use cases. */
+````
+
+## File: modules/analytics/docs/README.md
+````markdown
+
+````
+
+## File: modules/analytics/domain/index.ts
+````typescript
+/** analytics/domain — reserved for future analytics domain models. */
+````
+
+## File: modules/analytics/index.ts
+````typescript
+
+````
+
+## File: modules/analytics/infrastructure/index.ts
+````typescript
+/** analytics/infrastructure — reserved for future analytics adapters. */
+````
+
+## File: modules/analytics/interfaces/index.ts
+````typescript
+/** analytics/interfaces — reserved for future analytics UI and route composition. */
+````
+
+## File: modules/analytics/README.md
+````markdown
+# Analytics
+
+Minimal bounded-context skeleton for analytics and reporting capabilities.
+
+## Intended ownership
+
+- reporting
+- metrics
+- dashboards
+- aggregated read models
+
+This module is intentionally minimal until a concrete analytics use case is implemented.
+````
+
+## File: modules/analytics/subdomains/subdomains.instructions.md
+````markdown
+---
+description: 'Analytics subdomains structural rules: read-model orientation, hexagonal shape per subdomain, cross-subdomain collaboration, and stub promotion criteria.'
+applyTo: 'modules/analytics/subdomains/**/*.{ts,tsx}'
+---
+
+# Analytics Subdomains Layer (Local)
+
+Use this file as execution guardrails for `modules/analytics/subdomains/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/analytics/subdomains.md`.
+
+## Core Rules
+
+- Every subdomain must maintain the core-first default shape: `api/`, `domain/`, `application/`, optional `ports/`, and `README.md`.
+- `infrastructure/` and `interfaces/` belong at the bounded-context root by default and should be grouped by subdomain there unless the mini-module gate is explicitly justified.
+- Stub subdomains (`domain/index.ts` only) must not be promoted to Active without a corresponding ADR and `README.md` update.
+- Cross-subdomain collaboration within analytics goes through the **subdomain's own `api/`** — never import a sibling subdomain's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
+- Analytics is read-model oriented by default; avoid placing write or mutation logic inside analytics subdomains.
+- Do not add `GetXxxUseCase` wrappers for pure reads without business logic — route these to query handlers instead.
+- Analytics subdomains must never own billing, entitlement, or subscription policy; they may consume usage signals published by other bounded contexts.
+- Metrics and reporting models are derived read projections; do not treat them as authoritative state — the owning bounded context remains the source of truth.
+- Domain events emitted by a subdomain must use the discriminant format `analytics.<subdomain>.<action>` (e.g. `analytics.reporting.snapshot-generated`).
+- Dependency direction inside each subdomain mirrors the module-level rule: `interfaces → application → domain ← infrastructure`.
+- New subdomains should only be introduced when a real analytics capability with independent domain language emerges — prefer query handlers and infrastructure projections for simple read surfaces.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
+## File: modules/billing/AGENT.md
+````markdown
+# Billing Module Agent Guide
+
+## Purpose
+
+`modules/billing` owns commercial capability concerns, including subscription and entitlement.
+
+## Boundary Rules
+
+- Place billing policy and commercial lifecycle here.
+- Do not put storage, auth, or generic governance logic here.
+- Cross-module consumers must use `modules/billing/api`.
+- Preserve `interfaces -> application -> domain <- infrastructure`.
+
+## Current subdomains
+
+- subscription
+- entitlement
+````
+
+## File: modules/billing/api/index.ts
+````typescript
+/**
+ * Public API boundary for the billing bounded context.
+ */
+````
+
+## File: modules/billing/application/index.ts
+````typescript
+/** billing/application — context-wide orchestration entry for billing. */
+````
+
+## File: modules/billing/billing.instructions.md
+````markdown
+---
+description: Minimal rules for the billing bounded context.
+applyTo: 'modules/billing/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Billing Instructions
+
+- `modules/billing` owns subscription and entitlement concerns.
+- Keep commercial policy inside billing, not platform UI or transport layers.
+- Expose only semantic capabilities from `api/`.
+- Keep infrastructure adapters isolated from domain logic.
+````
+
+## File: modules/billing/docs/README.md
+````markdown
+
+````
+
+## File: modules/billing/domain/index.ts
+````typescript
+/** billing/domain — context-wide billing concepts live here when needed. */
+````
+
+## File: modules/billing/index.ts
+````typescript
+
+````
+
+## File: modules/billing/infrastructure/index.ts
+````typescript
+/** billing/infrastructure — context-wide billing adapters live here when needed. */
+````
+
+## File: modules/billing/interfaces/index.ts
+````typescript
+/** billing/interfaces — context-wide billing UI and transport entrypoints. */
+````
+
+## File: modules/billing/README.md
+````markdown
+# Billing
+
+Minimal bounded-context skeleton for billing capabilities.
+
+## Owned subdomains
+
+- subscription
+- entitlement
+
+This module now hosts the migrated subscription and entitlement implementations under `subdomains/`.
+````
+
+## File: modules/billing/subdomains/entitlement/api/index.ts
+````typescript
+/**
+ * Public API boundary for the entitlement subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+````
+
+## File: modules/billing/subdomains/entitlement/application/dto/entitlement.dto.ts
+````typescript
+import type { EntitlementGrantSnapshot } from "../../domain/aggregates/EntitlementGrant";
+⋮----
+export type EntitlementGrantView = Readonly<EntitlementGrantSnapshot>;
+⋮----
+export interface EntitlementSignal {
+  readonly contextId: string;
+  readonly activeFeatures: string[];
+  readonly grants: EntitlementGrantView[];
+}
+````
+
+## File: modules/billing/subdomains/entitlement/application/dto/index.ts
+````typescript
+
+````
+
+## File: modules/billing/subdomains/entitlement/application/index.ts
+````typescript
+
+````
+
+## File: modules/billing/subdomains/entitlement/application/use-cases/entitlement.use-cases.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+/**
+ * Entitlement Use Cases — pure application logic.
+ * All cross-domain dependencies are injected via ports.
+ */
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { EntitlementGrant } from "../../domain/aggregates/EntitlementGrant";
+import type { EntitlementGrantRepository } from "../../domain/repositories/EntitlementGrantRepository";
+⋮----
+// ─── Grant Entitlement ────────────────────────────────────────────────────────
+⋮----
+export class GrantEntitlementUseCase {
+⋮----
+constructor(private readonly repo: EntitlementGrantRepository)
+⋮----
+async execute(input: {
+    contextId: string;
+    featureKey: string;
+    quota?: number | null;
+    expiresAt?: string | null;
+}): Promise<CommandResult>
+⋮----
+// ─── Suspend Entitlement ──────────────────────────────────────────────────────
+⋮----
+export class SuspendEntitlementUseCase {
+⋮----
+async execute(entitlementId: string): Promise<CommandResult>
+⋮----
+// ─── Revoke Entitlement ───────────────────────────────────────────────────────
+⋮----
+export class RevokeEntitlementUseCase {
+⋮----
+// ─── Resolve Entitlements (query-style) ───────────────────────────────────────
+⋮----
+export class ResolveEntitlementsUseCase {
+⋮----
+async execute(contextId: string): Promise<CommandResult>
+⋮----
+// ─── Check Feature Entitlement ────────────────────────────────────────────────
+⋮----
+export class CheckFeatureEntitlementUseCase {
+⋮----
+async execute(contextId: string, featureKey: string): Promise<CommandResult>
+````
+
+## File: modules/billing/subdomains/entitlement/application/use-cases/index.ts
+````typescript
+
+````
+
+## File: modules/billing/subdomains/entitlement/domain/aggregates/EntitlementGrant.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import type { EntitlementGrantDomainEventType } from "../events/EntitlementGrantDomainEvent";
+import { createEntitlementId, canSuspend, canRevoke } from "../value-objects";
+import type { EntitlementStatus } from "../value-objects";
+⋮----
+export interface EntitlementGrantSnapshot {
+  readonly id: string;
+  readonly contextId: string;
+  readonly featureKey: string;
+  readonly quota: number | null;
+  readonly status: EntitlementStatus;
+  readonly grantedAt: string;
+  readonly expiresAt: string | null;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateEntitlementGrantInput {
+  readonly contextId: string;
+  readonly featureKey: string;
+  readonly quota?: number | null;
+  readonly expiresAt?: string | null;
+}
+⋮----
+export class EntitlementGrant {
+⋮----
+private constructor(private _props: EntitlementGrantSnapshot)
+⋮----
+static create(id: string, input: CreateEntitlementGrantInput): EntitlementGrant
+⋮----
+static reconstitute(snapshot: EntitlementGrantSnapshot): EntitlementGrant
+⋮----
+suspend(): void
+⋮----
+revoke(): void
+⋮----
+expire(): void
+⋮----
+get id(): string
+get contextId(): string
+get featureKey(): string
+get quota(): number | null
+get status(): EntitlementStatus
+get grantedAt(): string
+get expiresAt(): string | null
+get isActive(): boolean
+⋮----
+getSnapshot(): Readonly<EntitlementGrantSnapshot>
+⋮----
+pullDomainEvents(): EntitlementGrantDomainEventType[]
+````
+
+## File: modules/billing/subdomains/entitlement/domain/aggregates/index.ts
+````typescript
+
+````
+
+## File: modules/billing/subdomains/entitlement/domain/events/EntitlementGrantDomainEvent.ts
+````typescript
+export interface EntitlementGrantDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
+}
+⋮----
+export interface EntitlementGrantedEvent extends EntitlementGrantDomainEvent {
+  readonly type: "platform.entitlement.granted";
+  readonly payload: {
+    readonly entitlementId: string;
+    readonly contextId: string;
+    readonly featureKey: string;
+    readonly quota: number | null;
+  };
+}
+⋮----
+export interface EntitlementSuspendedEvent extends EntitlementGrantDomainEvent {
+  readonly type: "platform.entitlement.suspended";
+  readonly payload: {
+    readonly entitlementId: string;
+    readonly contextId: string;
+  };
+}
+⋮----
+export interface EntitlementRevokedEvent extends EntitlementGrantDomainEvent {
+  readonly type: "platform.entitlement.revoked";
+  readonly payload: {
+    readonly entitlementId: string;
+    readonly contextId: string;
+  };
+}
+⋮----
+export interface EntitlementExpiredEvent extends EntitlementGrantDomainEvent {
+  readonly type: "platform.entitlement.expired";
+  readonly payload: {
+    readonly entitlementId: string;
+    readonly contextId: string;
+  };
+}
+⋮----
+export type EntitlementGrantDomainEventType =
+  | EntitlementGrantedEvent
+  | EntitlementSuspendedEvent
+  | EntitlementRevokedEvent
+  | EntitlementExpiredEvent;
+````
+
+## File: modules/billing/subdomains/entitlement/domain/events/index.ts
+````typescript
+
+````
+
+## File: modules/billing/subdomains/entitlement/domain/index.ts
+````typescript
+
+````
+
+## File: modules/billing/subdomains/entitlement/domain/repositories/EntitlementGrantRepository.ts
+````typescript
+/**
+ * EntitlementGrantRepository — Write-side persistence port (CQRS).
+ * Domain owns the contract; Infrastructure implements it.
+ */
+import type { EntitlementGrantSnapshot } from "../aggregates/EntitlementGrant";
+⋮----
+export interface EntitlementGrantRepository {
+  findById(id: string): Promise<EntitlementGrantSnapshot | null>;
+  findByContextId(contextId: string): Promise<EntitlementGrantSnapshot[]>;
+  findActiveByContextAndFeature(
+    contextId: string,
+    featureKey: string,
+  ): Promise<EntitlementGrantSnapshot | null>;
+  save(snapshot: EntitlementGrantSnapshot): Promise<void>;
+  update(snapshot: EntitlementGrantSnapshot): Promise<void>;
+}
+⋮----
+findById(id: string): Promise<EntitlementGrantSnapshot | null>;
+findByContextId(contextId: string): Promise<EntitlementGrantSnapshot[]>;
+findActiveByContextAndFeature(
+    contextId: string,
+    featureKey: string,
+  ): Promise<EntitlementGrantSnapshot | null>;
+save(snapshot: EntitlementGrantSnapshot): Promise<void>;
+update(snapshot: EntitlementGrantSnapshot): Promise<void>;
+````
+
+## File: modules/billing/subdomains/entitlement/domain/repositories/index.ts
+````typescript
+
+````
+
+## File: modules/billing/subdomains/entitlement/domain/value-objects/EntitlementId.ts
+````typescript
+import { z } from "@lib-zod";
+⋮----
+export type EntitlementId = z.infer<typeof EntitlementIdSchema>;
+⋮----
+export function createEntitlementId(raw: string): EntitlementId
+````
+
+## File: modules/billing/subdomains/entitlement/domain/value-objects/EntitlementStatus.ts
+````typescript
+export type EntitlementStatus = (typeof ENTITLEMENT_STATUSES)[number];
+⋮----
+export function canSuspend(status: EntitlementStatus): boolean
+⋮----
+export function canRevoke(status: EntitlementStatus): boolean
+⋮----
+export function isActiveStatus(status: EntitlementStatus): boolean
+````
+
+## File: modules/billing/subdomains/entitlement/domain/value-objects/FeatureKey.ts
+````typescript
+import { z } from "@lib-zod";
+⋮----
+export type FeatureKey = z.infer<typeof FeatureKeySchema>;
+⋮----
+export function createFeatureKey(raw: string): FeatureKey
+````
+
+## File: modules/billing/subdomains/entitlement/domain/value-objects/index.ts
+````typescript
+
+````
+
+## File: modules/billing/subdomains/entitlement/infrastructure/firebase/FirebaseEntitlementGrantRepository.ts
+````typescript
+/**
+ * FirebaseEntitlementGrantRepository — Infrastructure adapter for entitlement persistence.
+ * Firebase SDK only exists in this file.
+ */
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { EntitlementGrantRepository } from "../../domain/repositories/EntitlementGrantRepository";
+import type { EntitlementGrantSnapshot } from "../../domain/aggregates/EntitlementGrant";
+⋮----
+function toSnapshot(id: string, data: Record<string, unknown>): EntitlementGrantSnapshot
+⋮----
+export class FirebaseEntitlementGrantRepository implements EntitlementGrantRepository {
+⋮----
+private get db()
+⋮----
+async findById(id: string): Promise<EntitlementGrantSnapshot | null>
+⋮----
+async findByContextId(contextId: string): Promise<EntitlementGrantSnapshot[]>
+⋮----
+async findActiveByContextAndFeature(
+    contextId: string,
+    featureKey: string,
+): Promise<EntitlementGrantSnapshot | null>
+⋮----
+async save(snapshot: EntitlementGrantSnapshot): Promise<void>
+⋮----
+async update(snapshot: EntitlementGrantSnapshot): Promise<void>
+````
+
+## File: modules/billing/subdomains/entitlement/infrastructure/index.ts
+````typescript
+/**
+ * Entitlement infrastructure barrel — adapter exports only.
+ *
+ * Composition logic lives in interfaces/composition/entitlement-service.ts.
+ */
+````
+
+## File: modules/billing/subdomains/entitlement/interfaces/composition/entitlement-service.ts
+````typescript
+/**
+ * EntitlementService — Composition root for entitlement use cases.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
+ * Wires repositories; provides a unified service interface.
+ */
+import {
+  GrantEntitlementUseCase,
+  SuspendEntitlementUseCase,
+  RevokeEntitlementUseCase,
+  ResolveEntitlementsUseCase,
+  CheckFeatureEntitlementUseCase,
+} from "../../application/use-cases/entitlement.use-cases";
+import { FirebaseEntitlementGrantRepository } from "../../infrastructure/firebase/FirebaseEntitlementGrantRepository";
+import type { CommandResult } from "@shared-types";
+⋮----
+function getRepo(): FirebaseEntitlementGrantRepository
+````
+
+## File: modules/billing/subdomains/entitlement/README.md
+````markdown
+# Entitlement
+
+建立有效權益與功能可用性的統一解算上下文。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/billing/subdomains/subdomains.instructions.md
+````markdown
+---
+description: 'Billing subdomains structural rules: hexagonal shape per subdomain, entitlement vs subscription separation, cross-subdomain collaboration, and stub promotion criteria.'
+applyTo: 'modules/billing/subdomains/**/*.{ts,tsx}'
+---
+
+# Billing Subdomains Layer (Local)
+
+Use this file as execution guardrails for `modules/billing/subdomains/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/billing/subdomains.md`.
+
+## Core Rules
+
+- Every subdomain must maintain the core-first default shape: `api/`, `domain/`, `application/`, optional `ports/`, and `README.md`.
+- `infrastructure/` and `interfaces/` belong at the bounded-context root by default and should be grouped by subdomain there unless the mini-module gate is explicitly justified.
+- Stub subdomains (`domain/index.ts` only) must not be promoted to Active without a corresponding ADR and `README.md` update.
+- Cross-subdomain collaboration within billing goes through the **subdomain's own `api/`** — never import a sibling subdomain's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
+- Each subdomain owns its Firestore collection(s); no subdomain reads or writes another subdomain's data directly.
+- Domain events emitted by a subdomain must use the discriminant format `billing.<subdomain>.<action>` (e.g. `billing.subscription.plan-changed`, `billing.entitlement.capability-granted`).
+- Dependency direction inside each subdomain mirrors the module-level rule: `interfaces → application → domain ← infrastructure`.
+- `entitlement` owns the capability signal (what an actor is allowed to do); `subscription` owns the billing contract lifecycle (plan, billing period, payment state) — never conflate the two.
+- `Entitlement` is a capability signal published to downstream contexts; it must not embed subscription billing details.
+- `Subscription` manages the commercial lifecycle (creation, renewal, cancellation, upgrade); it must not directly enforce product feature gates — that belongs to `entitlement`.
+- Do not place authentication, identity, or workspace product behaviour inside billing subdomains.
+- Payment provider SDK details must never appear in `domain/` — they belong in `infrastructure/` adapters only.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
+## File: modules/billing/subdomains/subscription/api/index.ts
+````typescript
+/**
+ * Public API boundary for the subscription subdomain.
+ */
+````
+
+## File: modules/billing/subdomains/subscription/application/dto/index.ts
+````typescript
+
+````
+
+## File: modules/billing/subdomains/subscription/application/dto/subscription.dto.ts
+````typescript
+import type { SubscriptionSnapshot } from "../../domain/aggregates/Subscription";
+⋮----
+export type SubscriptionView = Readonly<SubscriptionSnapshot>;
+⋮----
+export interface SubscriptionSummary {
+  readonly contextId: string;
+  readonly planCode: string;
+  readonly status: string;
+  readonly isActive: boolean;
+  readonly currentPeriodEnd: string | null;
+}
+````
+
+## File: modules/billing/subdomains/subscription/application/index.ts
+````typescript
+
+````
+
+## File: modules/billing/subdomains/subscription/application/use-cases/index.ts
+````typescript
+
+````
+
+## File: modules/billing/subdomains/subscription/application/use-cases/subscription.use-cases.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+/**
+ * Subscription Use Cases — pure application logic.
+ */
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { Subscription } from "../../domain/aggregates/Subscription";
+import type { SubscriptionRepository } from "../../domain/repositories/SubscriptionRepository";
+import type { BillingCycle } from "../../domain/value-objects/BillingCycle";
+⋮----
+// ─── Activate Subscription ────────────────────────────────────────────────────
+⋮----
+export class ActivateSubscriptionUseCase {
+⋮----
+constructor(private readonly repo: SubscriptionRepository)
+⋮----
+async execute(input: {
+    contextId: string;
+    planCode: string;
+    billingCycle: BillingCycle;
+    currentPeriodEnd?: string | null;
+}): Promise<CommandResult>
+⋮----
+// ─── Cancel Subscription ──────────────────────────────────────────────────────
+⋮----
+export class CancelSubscriptionUseCase {
+⋮----
+async execute(subscriptionId: string): Promise<CommandResult>
+⋮----
+// ─── Renew Subscription ───────────────────────────────────────────────────────
+⋮----
+export class RenewSubscriptionUseCase {
+⋮----
+async execute(subscriptionId: string, newPeriodEnd: string): Promise<CommandResult>
+⋮----
+// ─── Get Active Subscription (query-style) ───────────────────────────────────
+⋮----
+export class GetActiveSubscriptionUseCase {
+⋮----
+async execute(contextId: string): Promise<CommandResult>
+⋮----
+// ─── Mark Past Due ────────────────────────────────────────────────────────────
+⋮----
+export class MarkSubscriptionPastDueUseCase {
+````
+
+## File: modules/billing/subdomains/subscription/domain/aggregates/index.ts
+````typescript
+
+````
+
+## File: modules/billing/subdomains/subscription/domain/aggregates/Subscription.ts
+````typescript
+import { v4 as uuid } from "@lib-uuid";
+import type { SubscriptionDomainEventType } from "../events/SubscriptionDomainEvent";
+import { createSubscriptionId, canCancel, canRenew } from "../value-objects";
+import type { SubscriptionStatus } from "../value-objects";
+import type { BillingCycle } from "../value-objects/BillingCycle";
+⋮----
+export interface SubscriptionSnapshot {
+  readonly id: string;
+  readonly contextId: string;
+  readonly planCode: string;
+  readonly billingCycle: BillingCycle;
+  readonly status: SubscriptionStatus;
+  readonly currentPeriodStart: string;
+  readonly currentPeriodEnd: string | null;
+  readonly cancelledAt: string | null;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateSubscriptionInput {
+  readonly contextId: string;
+  readonly planCode: string;
+  readonly billingCycle: BillingCycle;
+  readonly currentPeriodStart?: string;
+  readonly currentPeriodEnd?: string | null;
+}
+⋮----
+export class Subscription {
+⋮----
+private constructor(private _props: SubscriptionSnapshot)
+⋮----
+static create(id: string, input: CreateSubscriptionInput): Subscription
+⋮----
+static reconstitute(snapshot: SubscriptionSnapshot): Subscription
+⋮----
+cancel(): void
+⋮----
+renew(newPeriodEnd: string): void
+⋮----
+markPastDue(): void
+⋮----
+expire(): void
+⋮----
+get id(): string
+get contextId(): string
+get planCode(): string
+get billingCycle(): BillingCycle
+get status(): SubscriptionStatus
+get currentPeriodEnd(): string | null
+get cancelledAt(): string | null
+get isActive(): boolean
+⋮----
+getSnapshot(): Readonly<SubscriptionSnapshot>
+⋮----
+pullDomainEvents(): SubscriptionDomainEventType[]
+````
+
+## File: modules/billing/subdomains/subscription/domain/events/index.ts
+````typescript
+
+````
+
+## File: modules/billing/subdomains/subscription/domain/events/SubscriptionDomainEvent.ts
+````typescript
+import type { BillingCycle } from "../value-objects/BillingCycle";
+⋮----
+export interface SubscriptionDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
+}
+⋮----
+export interface SubscriptionActivatedEvent extends SubscriptionDomainEvent {
+  readonly type: "platform.subscription.activated";
+  readonly payload: {
+    readonly subscriptionId: string;
+    readonly contextId: string;
+    readonly planCode: string;
+    readonly billingCycle: BillingCycle;
+  };
+}
+⋮----
+export interface SubscriptionCancelledEvent extends SubscriptionDomainEvent {
+  readonly type: "platform.subscription.cancelled";
+  readonly payload: { readonly subscriptionId: string; readonly contextId: string };
+}
+⋮----
+export interface SubscriptionRenewedEvent extends SubscriptionDomainEvent {
+  readonly type: "platform.subscription.renewed";
+  readonly payload: {
+    readonly subscriptionId: string;
+    readonly contextId: string;
+    readonly newPeriodEnd: string;
+  };
+}
+⋮----
+export interface SubscriptionPastDueEvent extends SubscriptionDomainEvent {
+  readonly type: "platform.subscription.past_due";
+  readonly payload: { readonly subscriptionId: string; readonly contextId: string };
+}
+⋮----
+export interface SubscriptionExpiredEvent extends SubscriptionDomainEvent {
+  readonly type: "platform.subscription.expired";
+  readonly payload: { readonly subscriptionId: string; readonly contextId: string };
+}
+⋮----
+export type SubscriptionDomainEventType =
+  | SubscriptionActivatedEvent
+  | SubscriptionCancelledEvent
+  | SubscriptionRenewedEvent
+  | SubscriptionPastDueEvent
+  | SubscriptionExpiredEvent;
+````
+
+## File: modules/billing/subdomains/subscription/domain/index.ts
+````typescript
+
+````
+
+## File: modules/billing/subdomains/subscription/domain/repositories/index.ts
+````typescript
+
+````
+
+## File: modules/billing/subdomains/subscription/domain/repositories/SubscriptionRepository.ts
+````typescript
+/**
+ * SubscriptionRepository — Write-side persistence port (CQRS).
+ */
+import type { SubscriptionSnapshot } from "../aggregates/Subscription";
+⋮----
+export interface SubscriptionRepository {
+  findById(id: string): Promise<SubscriptionSnapshot | null>;
+  findActiveByContextId(contextId: string): Promise<SubscriptionSnapshot | null>;
+  findByContextId(contextId: string): Promise<SubscriptionSnapshot[]>;
+  save(snapshot: SubscriptionSnapshot): Promise<void>;
+  update(snapshot: SubscriptionSnapshot): Promise<void>;
+}
+⋮----
+findById(id: string): Promise<SubscriptionSnapshot | null>;
+findActiveByContextId(contextId: string): Promise<SubscriptionSnapshot | null>;
+findByContextId(contextId: string): Promise<SubscriptionSnapshot[]>;
+save(snapshot: SubscriptionSnapshot): Promise<void>;
+update(snapshot: SubscriptionSnapshot): Promise<void>;
+````
+
+## File: modules/billing/subdomains/subscription/domain/value-objects/BillingCycle.ts
+````typescript
+export type BillingCycle = "monthly" | "annual" | "lifetime";
+⋮----
+export function cycleMonths(cycle: BillingCycle): number | null
+⋮----
+return null; // lifetime
+````
+
+## File: modules/billing/subdomains/subscription/domain/value-objects/index.ts
+````typescript
+
+````
+
+## File: modules/billing/subdomains/subscription/domain/value-objects/PlanCode.ts
+````typescript
+import { z } from "@lib-zod";
+⋮----
+export type PlanCodeLiteral = (typeof PLAN_CODES)[number];
+⋮----
+export type PlanCode = z.infer<typeof PlanCodeSchema>;
+⋮----
+export function createPlanCode(raw: string): PlanCode
+````
+
+## File: modules/billing/subdomains/subscription/domain/value-objects/SubscriptionId.ts
+````typescript
+import { z } from "@lib-zod";
+⋮----
+export type SubscriptionId = z.infer<typeof SubscriptionIdSchema>;
+⋮----
+export function createSubscriptionId(raw: string): SubscriptionId
+````
+
+## File: modules/billing/subdomains/subscription/domain/value-objects/SubscriptionStatus.ts
+````typescript
+export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
+⋮----
+export function canCancel(status: SubscriptionStatus): boolean
+⋮----
+export function canRenew(status: SubscriptionStatus): boolean
+⋮----
+export function isActive(status: SubscriptionStatus): boolean
+````
+
+## File: modules/billing/subdomains/subscription/infrastructure/firebase/FirebaseSubscriptionRepository.ts
+````typescript
+/**
+ * FirebaseSubscriptionRepository — Infrastructure adapter for subscription persistence.
+ * Firebase SDK only exists in this file.
+ */
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  orderBy,
+  limit,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { SubscriptionRepository } from "../../domain/repositories/SubscriptionRepository";
+import type { SubscriptionSnapshot } from "../../domain/aggregates/Subscription";
+⋮----
+function toSnapshot(id: string, data: Record<string, unknown>): SubscriptionSnapshot
+⋮----
+export class FirebaseSubscriptionRepository implements SubscriptionRepository {
+⋮----
+private get db()
+⋮----
+async findById(id: string): Promise<SubscriptionSnapshot | null>
+⋮----
+async findActiveByContextId(contextId: string): Promise<SubscriptionSnapshot | null>
+⋮----
+async findByContextId(contextId: string): Promise<SubscriptionSnapshot[]>
+⋮----
+async save(snapshot: SubscriptionSnapshot): Promise<void>
+⋮----
+async update(snapshot: SubscriptionSnapshot): Promise<void>
+````
+
+## File: modules/billing/subdomains/subscription/infrastructure/index.ts
+````typescript
+/**
+ * Subscription infrastructure barrel — adapter exports only.
+ *
+ * Composition logic lives in interfaces/composition/subscription-service.ts.
+ */
+````
+
+## File: modules/billing/subdomains/subscription/interfaces/composition/subscription-service.ts
+````typescript
+/**
+ * SubscriptionService — Composition root for subscription use cases.
+ *
+ * Relocated from infrastructure/ to interfaces/composition/ to fix
+ * the infrastructure → application dependency direction violation (HX-1-001).
+ */
+import {
+  ActivateSubscriptionUseCase,
+  CancelSubscriptionUseCase,
+  RenewSubscriptionUseCase,
+  GetActiveSubscriptionUseCase,
+  MarkSubscriptionPastDueUseCase,
+} from "../../application/use-cases/subscription.use-cases";
+import { FirebaseSubscriptionRepository } from "../../infrastructure/firebase/FirebaseSubscriptionRepository";
+import type { BillingCycle } from "../../domain/value-objects/BillingCycle";
+import type { CommandResult } from "@shared-types";
+⋮----
+function getRepo(): FirebaseSubscriptionRepository
+````
+
+## File: modules/billing/subdomains/subscription/README.md
+````markdown
+# Subscription
+
+Subscription plan management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/iam/application/index.ts
+````typescript
+/** iam/application — reserved for future IAM use cases. */
+````
+
+## File: modules/iam/docs/README.md
+````markdown
+# IAM Docs
+
+This folder will hold module-local architecture notes for the IAM bounded context when concrete capabilities are added.
+````
+
+## File: modules/iam/index.ts
+````typescript
+
+````
+
+## File: modules/iam/infrastructure/index.ts
+````typescript
+/** iam/infrastructure — reserved for future IAM adapters. */
+````
+
+## File: modules/iam/interfaces/index.ts
+````typescript
+/** iam/interfaces — reserved for future IAM UI and transport entrypoints. */
+````
+
+## File: modules/iam/subdomains/identity/README.md
+````markdown
+
+````
+
+## File: modules/iam/subdomains/subdomains.instructions.md
+````markdown
+---
+description: 'IAM subdomains structural rules: hexagonal shape per subdomain, identity/access-control/tenant separation, cross-subdomain collaboration, and stub promotion criteria.'
+applyTo: 'modules/iam/subdomains/**/*.{ts,tsx}'
+---
+
+# IAM Subdomains Layer (Local)
+
+Use this file as execution guardrails for `modules/iam/subdomains/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/iam/subdomains.md`.
+
+## Core Rules
+
+- Every subdomain must maintain the core-first default shape: `api/`, `domain/`, `application/`, optional `ports/`, and `README.md`.
+- `infrastructure/` and `interfaces/` belong at the bounded-context root by default and should be grouped by subdomain there unless the mini-module gate is explicitly justified.
+- Stub subdomains (`domain/index.ts` only) must not be promoted to Active without a corresponding ADR and `README.md` update.
+- Cross-subdomain collaboration within iam goes through the **subdomain's own `api/`** — never import a sibling subdomain's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
+- Each subdomain owns its Firestore collection(s); no subdomain reads or writes another subdomain's data directly.
+- Domain events emitted by a subdomain must use the discriminant format `iam.<subdomain>.<action>` (e.g. `iam.identity.subject-authenticated`, `iam.access-control.permission-denied`, `iam.tenant.tenant-provisioned`).
+- Dependency direction inside each subdomain mirrors the module-level rule: `interfaces → application → domain ← infrastructure`.
+- `identity` owns who the Actor is (authentication, credential lifecycle, session) — it must not own access decisions.
+- `access-control` owns what the Actor is allowed to do (permission evaluation, role assignment, policy enforcement) — it must not own authentication or credential details.
+- `tenant` owns organisation-level isolation and provisioning; it must not duplicate identity or access-control logic.
+- Authentication (AuthN) and authorisation (AuthZ) are strictly separate concerns — do not merge identity and access-control subdomain logic.
+- Auth provider SDK details (Firebase Auth, OAuth, etc.) must never appear in `domain/` — they belong in `infrastructure/` adapters only.
+- Do not place billing, AI orchestration, or workspace product behaviour inside IAM subdomains.
+- Use `Actor` (not `User`) as the canonical identity term across all subdomain published language.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
 ## File: modules/notebooklm/api/ui.ts
 ````typescript
 /**
@@ -33114,6 +34154,7 @@ def test_handleParseDocument_WithoutDocId_KeepsDefaultRagBehavior(monkeypatch) -
     "useDotIgnore": true,
     "useDefaultPatterns": true,
     "customPatterns": [
+      "*.md",
       ".next/**",
       ".turbo/**",
       ".vercel/**",
@@ -35865,185 +36906,6 @@ export function AppProvider(
 // eslint-disable-next-line react-hooks/exhaustive-deps
 ````
 
-## File: CLAUDE.md
-````markdown
-# Xuanwu App — Claude Instructions
-
-Knowledge-management and AI-assisted workspace platform built with Next.js 16 + React 19.
-
-## Essential Reading Order
-
-Before writing any code, read these documents in order:
-
-1. `docs/README.md` — 架構文件索引
-2. `docs/architecture-overview.md` — 全域架構與主域關係
-3. `docs/bounded-contexts.md` — 主域與子域所有權
-4. `docs/ubiquitous-language.md` — 戰略術語權威
-5. `docs/decisions/README.md` — ADR 決策日誌
-6. `modules/<context>/AGENT.md` — 目標主域的任務定義
-
-## Project Structure
-
-```
-app/                  Next.js App Router (UI entry points)
-modules/              完整 Hexagonal DDD 實作（邊界規則 / published language 的策略權威）
-  platform/           治理、通知
-  iam/                身份、存取、帳號、組織
-  workspace/          協作容器、工作區範疇
-  notion/             正典知識內容
-  notebooklm/         對話、來源、推理輸出
-  ai / analytics / billing / ...
-src/modules/          精簡蒸餾骨架（新實作程式碼的目標層）
-  template/           骨架基線（複製此結構開始新模組）
-  iam/                identity + access-control + account + organization
-  platform/           notification
-  workspace/          lifecycle + membership + task + issue
-  notion / notebooklm / ai / analytics / billing
-docs/                 架構文件（DDD、Context Map、ADR）
-py_fn/                Python Cloud Functions（ingestion、embedding）
-packages/             Shared packages
-```
-
-> **重要：`modules/` ≠ `src/modules/`**
-> - `modules/<context>/` — 讀取邊界規則、跨模組 API 合約、現有 domain model
-> - `src/modules/<context>/` — 撰寫新 use case、adapter、entity（以 `src/modules/template` 為骨架）
-
-`modules/<context>/` follows full Hexagonal Architecture:
-
-```
-modules/<context>/
-  api/                Cross-module entry surface only
-  domain/             Entities, value objects, aggregates, domain events, ports
-  application/        Use cases, command/query contracts, application services
-  infrastructure/     Repository and adapter implementations
-  interfaces/         UI, route/action wiring, input-output translation
-  subdomains/         Sub-domain groupings
-  index.ts            Aggregate export only
-```
-
-`src/modules/<context>/` follows lean distilled skeleton:
-
-```
-src/modules/<context>/
-  index.ts            Aggregate named export
-  domain/             Entities, value objects, services, repositories, events
-  application/        Use cases + DTOs
-  adapters/inbound/   HTTP / RPC driving adapters
-  adapters/outbound/  Firestore / Firebase / external driven adapters
-```
-
-## Commands
-
-```bash
-npm run dev              # Start dev server (port 3000)
-npm run build            # Production build + TypeScript check
-npm run lint             # ESLint
-npm run test             # Vitest unit tests
-```
-
-Firebase deployment:
-
-```bash
-npm run deploy:firebase               # Deploy everything
-npm run deploy:firestore:rules        # Firestore rules only
-npm run deploy:functions:py-fn        # Python functions only
-```
-
-## Architecture Rules
-
-### Dependency Direction (immutable)
-
-```
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `domain/` must be framework-free and runtime-agnostic.
-- Never import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- Cross-module collaboration must go through `modules/<target>/api/` only.
-
-### Main Domain Relationships (upstream → downstream)
-
-```
-platform → workspace → notion → notebooklm
-platform → notion
-platform → notebooklm
-workspace → notebooklm
-```
-
-platform is governance upstream. Do not invert this.
-
-### Layer Ownership
-
-| Layer | Owns |
-|---|---|
-| `domain/` | Business rules, entities, value objects, aggregates, domain events, repository interfaces |
-| `application/` | Use-case orchestration, command/query contracts |
-| `infrastructure/` | Repository and adapter implementations |
-| `interfaces/` | UI, route/action wiring, input-output translation |
-| `api/` | Cross-module entry surface only |
-
-### Development Order for New Features
-
-1. Define domain (entities, value objects, aggregates, events)
-2. Define application (use cases, DTOs)
-3. Define ports (only if boundary isolation is needed)
-4. Implement infrastructure (adapters, persistence)
-5. Implement interfaces (UI, actions, hooks)
-
-Do not build UI first and backfill domain later.
-
-## Naming Conventions
-
-| Element | Pattern |
-|---|---|
-| Use case file | `verb-noun.use-case.ts` |
-| Repository interface | `PascalCaseRepository` |
-| Repository implementation | `TechnologyPascalCaseRepository` |
-| Domain event discriminant | `module-name.action` |
-
-## Ubiquitous Language — Do Not Mix
-
-| Use | Not |
-|---|---|
-| `Actor` | `User` (when referring to identity) |
-| `Membership` | `User` (when referring to workspace participant) |
-| `KnowledgeArtifact` | `Wiki`, `Doc` |
-| `Conversation` | `Chat` |
-| `Entitlement` | `Plan` (when referring to capability signal) |
-| `Subscription` | `Plan` (when referring to billing plan) |
-
-Cross-domain tokens use published language: `actor reference`, `workspaceId`, `entitlement signal`, `knowledge artifact reference`. Never pass upstream aggregates directly to downstream.
-
-## Tech Stack
-
-- **Framework**: Next.js 16, React 19, TypeScript
-- **Backend**: Firebase (Firestore, Storage, App Hosting), Python Cloud Functions
-- **API**: tRPC
-- **State**: Zustand, XState
-- **Data fetching**: TanStack Query
-- **UI**: Tailwind CSS 4, shadcn/ui, TipTap (rich text)
-- **Validation**: Zod
-- **Testing**: Vitest
-- **Node.js**: v24 required
-
-## Anti-Patterns to Avoid
-
-- Putting framework, transport, storage, or SDK details into `domain/` core
-- Sharing internal models across module boundaries instead of using published language
-- Adding `GetXxxUseCase` — pure reads without business logic belong in query handlers
-- Calling repositories directly from `interfaces/`
-- Creating a new top-level main domain (system has exactly 4: platform, workspace, notion, notebooklm)
-- Using `Shared Kernel` or `Partnership` patterns at main-domain level
-- Mixing ACL and Conformist in the same integration
-
-## Cross-Module Integration Checklist
-
-1. Identify upstream / downstream direction
-2. Define published language tokens
-3. Decide: semantics compatible → Conformist; semantics would pollute local language → Anti-Corruption Layer
-4. Never pass upstream entity or aggregate as downstream canonical model
-````
-
 ## File: docs/context-map.md
 ````markdown
 # Context Map
@@ -36290,6 +37152,295 @@ Generic Domain（可外包／第三方替換）
 - [ubiquitous-language.md](./ubiquitous-language.md) — 通用語言詞彙表
 - [../../bounded-contexts.md](../../bounded-contexts.md) — 全域主域所有權地圖
 - [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md) — ADR：界限上下文決策
+````
+
+## File: docs/contexts/analytics/AGENT.md
+````markdown
+# Analytics Context Agent Guide
+
+## Purpose
+
+The Analytics context owns reporting, metrics, dashboards, and downstream projections.
+
+## Rules
+
+- Keep analytics downstream and read-model oriented.
+- Do not make analytics the canonical owner of upstream business rules.
+- Prefer event projection and query models over write-side ownership.
+````
+
+## File: docs/contexts/analytics/bounded-contexts.md
+````markdown
+# Analytics
+
+## Domain Role
+
+analytics 是下游 bounded context。它以 projection、metric 與 report 為主，不持有上游主域的寫入正典模型。
+
+## Ownership Rules
+
+- 擁有 reporting、metrics、dashboards、telemetry projections。
+- 消費事件，不直接改寫上游 aggregate。
+- 只在需要查詢與分析時建立 local read model。
+````
+
+## File: docs/contexts/analytics/context-map.md
+````markdown
+# Analytics
+
+## Relationships
+
+| Upstream | Downstream | Published Language |
+|---|---|---|
+| iam | analytics | access event、identity signal |
+| billing | analytics | billing event、entitlement usage signal |
+| platform | analytics | operational event、notification event |
+| workspace | analytics | activity feed、audit signal |
+| notion | analytics | knowledge usage signal |
+| notebooklm | analytics | retrieval and synthesis usage signal |
+
+## Notes
+
+- analytics consumes events and projections only.
+````
+
+## File: docs/contexts/analytics/README.md
+````markdown
+# Analytics Context
+
+本 README 在本次重切作業下，定義 analytics 作為下游 read-model 主域的邊界。
+
+## Purpose
+
+analytics 是報表、指標與儀表板主域。它主要消費其他主域的事件、usage signal 與 projection input，形成可查詢的分析視圖。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | reporting、metrics、dashboard、projection |
+| Upstream Dependency | iam、billing、platform、workspace、notion、notebooklm 的事件與訊號 |
+| Downstream Consumers | 產品與營運分析使用者 |
+| Core Principle | analytics 是下游投影，不反向成為 canonical owner |
+````
+
+## File: docs/contexts/analytics/subdomains.md
+````markdown
+# Analytics
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| reporting | 報表輸出與查詢整理 |
+| metrics | 指標定義與聚合 |
+| dashboards | 儀表板呈現語義 |
+| telemetry-projection | 事件投影與 read model 匯總 |
+
+## Recommended Gap Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| experimentation | 實驗分析與對照觀測 |
+| decision-support | 決策輔助與洞察輸出 |
+````
+
+## File: docs/contexts/analytics/ubiquitous-language.md
+````markdown
+# Analytics
+
+## Canonical Terms
+
+| Term | Meaning |
+|---|---|
+| Metric | 可重複計算與追蹤的指標 |
+| Report | 對分析結果的輸出整理 |
+| Dashboard | 視覺化分析面板 |
+| Projection | 由上游事件形成的下游 read model |
+
+## Avoid
+
+- 不把 analytics 當成上游寫入語言。
+- 不把 projection 當成原始 aggregate。
+````
+
+## File: docs/contexts/billing/AGENT.md
+````markdown
+# Billing Context Agent Guide
+
+## Purpose
+
+The Billing context owns commercial lifecycle concerns, including subscription and entitlement.
+
+## Rules
+
+- Keep billing, subscription, entitlement, and referral ownership here.
+- Do not move identity governance or content ownership into billing.
+- Downstream consumers receive capability signals, not internal billing aggregates.
+````
+
+## File: docs/contexts/billing/bounded-contexts.md
+````markdown
+# Billing
+
+## Domain Role
+
+billing 是 commercial bounded context。它擁有 subscription 與 entitlement 的商業語義，並把結果輸出為 capability signal。
+
+## Ownership Rules
+
+- 擁有 billing、subscription、entitlement、referral。
+- 不擁有 identity 與 access decision 正典語言。
+- 不擁有 workspace、knowledge 或 notebook aggregate。
+````
+
+## File: docs/contexts/billing/context-map.md
+````markdown
+# Billing
+
+## Relationships
+
+| Upstream | Downstream | Published Language |
+|---|---|---|
+| iam | billing | actor reference、tenant scope、access policy baseline |
+| billing | workspace | entitlement signal、subscription capability signal |
+| billing | notion | entitlement signal、subscription capability signal |
+| billing | notebooklm | entitlement signal、subscription capability signal |
+
+## Notes
+
+- billing 向下游提供 capability signal，不暴露內部商業 aggregate。
+````
+
+## File: docs/contexts/billing/README.md
+````markdown
+# Billing Context
+
+本 README 在本次重切作業下，定義 commercial lifecycle 的主域邊界。
+
+## Purpose
+
+billing 是商業與權益治理主域。它負責 billing event、subscription、entitlement 與 referral，為 workspace、notion、notebooklm 等主域提供 capability signal。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 商業生命週期與有效權益解算 |
+| Upstream Dependency | iam 的 actor、tenant、access policy |
+| Downstream Consumers | workspace、notion、notebooklm |
+| Core Principle | 提供商業能力訊號，不接管內容或協作正典 |
+````
+
+## File: docs/contexts/billing/subdomains.md
+````markdown
+# Billing
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| billing | 計費狀態、費率與財務證據 |
+| subscription | 方案、配額與續期治理 |
+| entitlement | 有效權益與功能可用性統一解算 |
+| referral | 推薦關係與獎勵追蹤 |
+
+## Recommended Gap Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| pricing | 價格模型與方案矩陣治理 |
+| invoice | 帳單、請款與對帳流程 |
+| quota-policy | 可量化配額與商業限制規則 |
+````
+
+## File: docs/contexts/billing/ubiquitous-language.md
+````markdown
+# Billing
+
+## Canonical Terms
+
+| Term | Meaning |
+|---|---|
+| Subscription | 方案、配額與續期狀態 |
+| Entitlement | 綜合商業規則後的有效權益 |
+| BillingEvent | 財務計價或收費事實 |
+| Referral | 推薦關係與獎勵追蹤 |
+
+## Avoid
+
+- 不用 Plan 混稱 Subscription 與 Entitlement。
+- 不把 feature flag 當成 entitlement 正典語義。
+````
+
+## File: docs/contexts/iam/AGENT.md
+````markdown
+# IAM Context Agent Guide
+
+## Purpose
+
+The IAM context owns identity, access control, tenant isolation, and security policy.
+
+## Rules
+
+- Keep actor, identity, tenant, and access language here.
+- Do not move billing or AI policy into IAM unless the concern is truly governance.
+- Downstream contexts consume decisions and signals, not internal aggregates.
+````
+
+## File: docs/contexts/iam/bounded-contexts.md
+````markdown
+# IAM
+
+## Domain Role
+
+iam 是 governance bounded context。它是身份、tenant 與 access decision 的 canonical owner。
+
+## Ownership Rules
+
+- 擁有 identity、access-control、tenant、security-policy。
+- 向下游輸出 actor reference、tenant scope、access decision。
+- 不擁有 workspace、knowledge、notebook 或 billing aggregate。
+````
+
+## File: docs/contexts/iam/context-map.md
+````markdown
+# IAM
+
+## Relationships
+
+| Upstream | Downstream | Published Language |
+|---|---|---|
+| iam | billing | actor reference、tenant scope、access policy baseline |
+| iam | platform | actor reference、tenant scope、access decision |
+| iam | workspace | actor reference、tenant scope、access decision |
+| iam | notion | actor reference、tenant scope、access decision |
+| iam | notebooklm | actor reference、tenant scope、access decision |
+
+## Notes
+
+- iam 是治理上游，不擁有商業、內容或推理正典模型。
+````
+
+## File: docs/contexts/iam/ubiquitous-language.md
+````markdown
+# IAM
+
+## Canonical Terms
+
+| Term | Meaning |
+|---|---|
+| Actor | 被識別與治理的主體 |
+| Identity | 證明 Actor 是誰的訊號集合 |
+| Tenant | 租戶隔離與 tenant-scoped 規則邊界 |
+| AccessDecision | 對 actor 當下能否執行某行為的判定 |
+| SecurityPolicy | 可版本化的安全規則集合 |
+
+## Avoid
+
+- 不用 User 混稱 Actor。
+- 不用 Organization 取代 Tenant。
+- 不把 access decision 寫成 UI flag。
 ````
 
 ## File: docs/contexts/notebooklm/AGENT.md
@@ -38666,6 +39817,16 @@ listAvailableTools(): ReadonlyArray<ToolDescriptor>;
 
 ````
 
+## File: modules/ai/index.ts
+````typescript
+/**
+ * modules/ai — public barrel.
+ *
+ * Client-safe types only. Server-only functions live in ./api/server.ts.
+ * Cross-module consumers must import through this entry point.
+ */
+````
+
 ## File: modules/ai/infrastructure/genkit/GenkitTaskExtractionAdapter.ts
 ````typescript
 import { genkit, z } from "genkit";
@@ -38792,11 +39953,6 @@ async distill(input: DistillContentInput): Promise<DistillationResult>
 async extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>
 ⋮----
 // Default: task-extraction
-````
-
-## File: modules/ai/interfaces/index.ts
-````typescript
-/** ai/interfaces — reserved for future AI UI and route composition. */
 ````
 
 ## File: modules/ai/subdomains/conversations/README.md
@@ -39444,96 +40600,6 @@ tools/
 - **DeprecatedTool**：已標記棄用但可能仍在執行中的工具狀態
 ````
 
-## File: modules/analytics/AGENT.md
-````markdown
-# Analytics Module Agent Guide
-
-## Purpose
-
-`modules/analytics` owns reporting, metrics, and read-model analytics surfaces.
-
-## Boundary Rules
-
-- Keep analytics read-oriented by default.
-- Do not place billing, entitlement, or subscription policy here.
-- Cross-module collaboration must go through public `api/` boundaries.
-- Preserve `interfaces -> application -> domain <- infrastructure`.
-
-## Delivery Style
-
-- Prefer small query-oriented increments.
-- Add subdomains only when a real analytics capability emerges.
-````
-
-## File: modules/analytics/analytics.instructions.md
-````markdown
----
-description: Minimal rules for the analytics bounded context.
-applyTo: 'modules/analytics/**/*.{ts,tsx,js,jsx,md}'
----
-
-# Analytics Instructions
-
-- `modules/analytics` owns analytics and reporting concerns only.
-- Keep this module query-first and integration-light until concrete use cases arrive.
-- Do not import peer module internals; use public `api/` contracts only.
-- Keep domain logic framework-free.
-````
-
-## File: modules/analytics/api/index.ts
-````typescript
-/**
- * Public API boundary for the analytics bounded context.
- * Keep exports minimal until concrete analytics capabilities are implemented.
- */
-````
-
-## File: modules/analytics/application/index.ts
-````typescript
-/** analytics/application — reserved for future analytics use cases. */
-````
-
-## File: modules/analytics/docs/README.md
-````markdown
-
-````
-
-## File: modules/analytics/domain/index.ts
-````typescript
-/** analytics/domain — reserved for future analytics domain models. */
-````
-
-## File: modules/analytics/index.ts
-````typescript
-
-````
-
-## File: modules/analytics/infrastructure/index.ts
-````typescript
-/** analytics/infrastructure — reserved for future analytics adapters. */
-````
-
-## File: modules/analytics/interfaces/index.ts
-````typescript
-/** analytics/interfaces — reserved for future analytics UI and route composition. */
-````
-
-## File: modules/analytics/README.md
-````markdown
-# Analytics
-
-Minimal bounded-context skeleton for analytics and reporting capabilities.
-
-## Intended ownership
-
-- reporting
-- metrics
-- dashboards
-- aggregated read models
-
-This module is intentionally minimal until a concrete analytics use case is implemented.
-````
-
 ## File: modules/analytics/subdomains/event-contracts/README.md
 ````markdown
 
@@ -39564,828 +40630,37 @@ This module is intentionally minimal until a concrete analytics use case is impl
 
 ````
 
-## File: modules/billing/AGENT.md
+## File: modules/iam/AGENT.md
 ````markdown
-# Billing Module Agent Guide
+# IAM Module Agent Guide
 
 ## Purpose
 
-`modules/billing` owns commercial capability concerns, including subscription and entitlement.
+This bounded context owns identity, authentication, authorization, access control, federation, session, tenant-scoped governance, and security-policy concerns.
 
 ## Boundary Rules
 
-- Place billing policy and commercial lifecycle here.
-- Do not put storage, auth, or generic governance logic here.
-- Cross-module consumers must use `modules/billing/api`.
-- Preserve `interfaces -> application -> domain <- infrastructure`.
+- Keep sign-in, actor identity, access decisions, session lifecycle, federation, and tenant isolation here.
+- Do not place billing, AI orchestration, or workspace product behavior here.
+- Cross-module consumers must use the public API boundary.
+- Preserve the dependency direction of interfaces to application to domain, with infrastructure depending inward.
+- During migration, prefer IAM-owned bridges over direct imports from Platform internals.
 
 ## Current subdomains
 
-- subscription
-- entitlement
+- identity
+- authentication
+- authorization
+- access-control
+- federation
+- session
+- tenant
+- security-policy
 ````
 
-## File: modules/billing/api/index.ts
+## File: modules/iam/domain/index.ts
 ````typescript
-/**
- * Public API boundary for the billing bounded context.
- */
-````
-
-## File: modules/billing/application/index.ts
-````typescript
-/** billing/application — context-wide orchestration entry for billing. */
-````
-
-## File: modules/billing/billing.instructions.md
-````markdown
----
-description: Minimal rules for the billing bounded context.
-applyTo: 'modules/billing/**/*.{ts,tsx,js,jsx,md}'
----
-
-# Billing Instructions
-
-- `modules/billing` owns subscription and entitlement concerns.
-- Keep commercial policy inside billing, not platform UI or transport layers.
-- Expose only semantic capabilities from `api/`.
-- Keep infrastructure adapters isolated from domain logic.
-````
-
-## File: modules/billing/docs/README.md
-````markdown
-
-````
-
-## File: modules/billing/domain/index.ts
-````typescript
-/** billing/domain — context-wide billing concepts live here when needed. */
-````
-
-## File: modules/billing/index.ts
-````typescript
-
-````
-
-## File: modules/billing/infrastructure/index.ts
-````typescript
-/** billing/infrastructure — context-wide billing adapters live here when needed. */
-````
-
-## File: modules/billing/interfaces/index.ts
-````typescript
-/** billing/interfaces — context-wide billing UI and transport entrypoints. */
-````
-
-## File: modules/billing/README.md
-````markdown
-# Billing
-
-Minimal bounded-context skeleton for billing capabilities.
-
-## Owned subdomains
-
-- subscription
-- entitlement
-
-This module now hosts the migrated subscription and entitlement implementations under `subdomains/`.
-````
-
-## File: modules/billing/subdomains/entitlement/api/index.ts
-````typescript
-/**
- * Public API boundary for the entitlement subdomain.
- * Cross-module consumers must import through this entry point.
- */
-````
-
-## File: modules/billing/subdomains/entitlement/application/dto/entitlement.dto.ts
-````typescript
-import type { EntitlementGrantSnapshot } from "../../domain/aggregates/EntitlementGrant";
-⋮----
-export type EntitlementGrantView = Readonly<EntitlementGrantSnapshot>;
-⋮----
-export interface EntitlementSignal {
-  readonly contextId: string;
-  readonly activeFeatures: string[];
-  readonly grants: EntitlementGrantView[];
-}
-````
-
-## File: modules/billing/subdomains/entitlement/application/dto/index.ts
-````typescript
-
-````
-
-## File: modules/billing/subdomains/entitlement/application/index.ts
-````typescript
-
-````
-
-## File: modules/billing/subdomains/entitlement/application/use-cases/entitlement.use-cases.ts
-````typescript
-import { v4 as uuid } from "@lib-uuid";
-/**
- * Entitlement Use Cases — pure application logic.
- * All cross-domain dependencies are injected via ports.
- */
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import { EntitlementGrant } from "../../domain/aggregates/EntitlementGrant";
-import type { EntitlementGrantRepository } from "../../domain/repositories/EntitlementGrantRepository";
-⋮----
-// ─── Grant Entitlement ────────────────────────────────────────────────────────
-⋮----
-export class GrantEntitlementUseCase {
-⋮----
-constructor(private readonly repo: EntitlementGrantRepository)
-⋮----
-async execute(input: {
-    contextId: string;
-    featureKey: string;
-    quota?: number | null;
-    expiresAt?: string | null;
-}): Promise<CommandResult>
-⋮----
-// ─── Suspend Entitlement ──────────────────────────────────────────────────────
-⋮----
-export class SuspendEntitlementUseCase {
-⋮----
-async execute(entitlementId: string): Promise<CommandResult>
-⋮----
-// ─── Revoke Entitlement ───────────────────────────────────────────────────────
-⋮----
-export class RevokeEntitlementUseCase {
-⋮----
-// ─── Resolve Entitlements (query-style) ───────────────────────────────────────
-⋮----
-export class ResolveEntitlementsUseCase {
-⋮----
-async execute(contextId: string): Promise<CommandResult>
-⋮----
-// ─── Check Feature Entitlement ────────────────────────────────────────────────
-⋮----
-export class CheckFeatureEntitlementUseCase {
-⋮----
-async execute(contextId: string, featureKey: string): Promise<CommandResult>
-````
-
-## File: modules/billing/subdomains/entitlement/application/use-cases/index.ts
-````typescript
-
-````
-
-## File: modules/billing/subdomains/entitlement/domain/aggregates/EntitlementGrant.ts
-````typescript
-import { v4 as uuid } from "@lib-uuid";
-import type { EntitlementGrantDomainEventType } from "../events/EntitlementGrantDomainEvent";
-import { createEntitlementId, canSuspend, canRevoke } from "../value-objects";
-import type { EntitlementStatus } from "../value-objects";
-⋮----
-export interface EntitlementGrantSnapshot {
-  readonly id: string;
-  readonly contextId: string;
-  readonly featureKey: string;
-  readonly quota: number | null;
-  readonly status: EntitlementStatus;
-  readonly grantedAt: string;
-  readonly expiresAt: string | null;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateEntitlementGrantInput {
-  readonly contextId: string;
-  readonly featureKey: string;
-  readonly quota?: number | null;
-  readonly expiresAt?: string | null;
-}
-⋮----
-export class EntitlementGrant {
-⋮----
-private constructor(private _props: EntitlementGrantSnapshot)
-⋮----
-static create(id: string, input: CreateEntitlementGrantInput): EntitlementGrant
-⋮----
-static reconstitute(snapshot: EntitlementGrantSnapshot): EntitlementGrant
-⋮----
-suspend(): void
-⋮----
-revoke(): void
-⋮----
-expire(): void
-⋮----
-get id(): string
-get contextId(): string
-get featureKey(): string
-get quota(): number | null
-get status(): EntitlementStatus
-get grantedAt(): string
-get expiresAt(): string | null
-get isActive(): boolean
-⋮----
-getSnapshot(): Readonly<EntitlementGrantSnapshot>
-⋮----
-pullDomainEvents(): EntitlementGrantDomainEventType[]
-````
-
-## File: modules/billing/subdomains/entitlement/domain/aggregates/index.ts
-````typescript
-
-````
-
-## File: modules/billing/subdomains/entitlement/domain/events/EntitlementGrantDomainEvent.ts
-````typescript
-export interface EntitlementGrantDomainEvent {
-  readonly eventId: string;
-  readonly occurredAt: string;
-  readonly type: string;
-  readonly payload: object;
-}
-⋮----
-export interface EntitlementGrantedEvent extends EntitlementGrantDomainEvent {
-  readonly type: "platform.entitlement.granted";
-  readonly payload: {
-    readonly entitlementId: string;
-    readonly contextId: string;
-    readonly featureKey: string;
-    readonly quota: number | null;
-  };
-}
-⋮----
-export interface EntitlementSuspendedEvent extends EntitlementGrantDomainEvent {
-  readonly type: "platform.entitlement.suspended";
-  readonly payload: {
-    readonly entitlementId: string;
-    readonly contextId: string;
-  };
-}
-⋮----
-export interface EntitlementRevokedEvent extends EntitlementGrantDomainEvent {
-  readonly type: "platform.entitlement.revoked";
-  readonly payload: {
-    readonly entitlementId: string;
-    readonly contextId: string;
-  };
-}
-⋮----
-export interface EntitlementExpiredEvent extends EntitlementGrantDomainEvent {
-  readonly type: "platform.entitlement.expired";
-  readonly payload: {
-    readonly entitlementId: string;
-    readonly contextId: string;
-  };
-}
-⋮----
-export type EntitlementGrantDomainEventType =
-  | EntitlementGrantedEvent
-  | EntitlementSuspendedEvent
-  | EntitlementRevokedEvent
-  | EntitlementExpiredEvent;
-````
-
-## File: modules/billing/subdomains/entitlement/domain/events/index.ts
-````typescript
-
-````
-
-## File: modules/billing/subdomains/entitlement/domain/index.ts
-````typescript
-
-````
-
-## File: modules/billing/subdomains/entitlement/domain/repositories/EntitlementGrantRepository.ts
-````typescript
-/**
- * EntitlementGrantRepository — Write-side persistence port (CQRS).
- * Domain owns the contract; Infrastructure implements it.
- */
-import type { EntitlementGrantSnapshot } from "../aggregates/EntitlementGrant";
-⋮----
-export interface EntitlementGrantRepository {
-  findById(id: string): Promise<EntitlementGrantSnapshot | null>;
-  findByContextId(contextId: string): Promise<EntitlementGrantSnapshot[]>;
-  findActiveByContextAndFeature(
-    contextId: string,
-    featureKey: string,
-  ): Promise<EntitlementGrantSnapshot | null>;
-  save(snapshot: EntitlementGrantSnapshot): Promise<void>;
-  update(snapshot: EntitlementGrantSnapshot): Promise<void>;
-}
-⋮----
-findById(id: string): Promise<EntitlementGrantSnapshot | null>;
-findByContextId(contextId: string): Promise<EntitlementGrantSnapshot[]>;
-findActiveByContextAndFeature(
-    contextId: string,
-    featureKey: string,
-  ): Promise<EntitlementGrantSnapshot | null>;
-save(snapshot: EntitlementGrantSnapshot): Promise<void>;
-update(snapshot: EntitlementGrantSnapshot): Promise<void>;
-````
-
-## File: modules/billing/subdomains/entitlement/domain/repositories/index.ts
-````typescript
-
-````
-
-## File: modules/billing/subdomains/entitlement/domain/value-objects/EntitlementId.ts
-````typescript
-import { z } from "@lib-zod";
-⋮----
-export type EntitlementId = z.infer<typeof EntitlementIdSchema>;
-⋮----
-export function createEntitlementId(raw: string): EntitlementId
-````
-
-## File: modules/billing/subdomains/entitlement/domain/value-objects/EntitlementStatus.ts
-````typescript
-export type EntitlementStatus = (typeof ENTITLEMENT_STATUSES)[number];
-⋮----
-export function canSuspend(status: EntitlementStatus): boolean
-⋮----
-export function canRevoke(status: EntitlementStatus): boolean
-⋮----
-export function isActiveStatus(status: EntitlementStatus): boolean
-````
-
-## File: modules/billing/subdomains/entitlement/domain/value-objects/FeatureKey.ts
-````typescript
-import { z } from "@lib-zod";
-⋮----
-export type FeatureKey = z.infer<typeof FeatureKeySchema>;
-⋮----
-export function createFeatureKey(raw: string): FeatureKey
-````
-
-## File: modules/billing/subdomains/entitlement/domain/value-objects/index.ts
-````typescript
-
-````
-
-## File: modules/billing/subdomains/entitlement/infrastructure/firebase/FirebaseEntitlementGrantRepository.ts
-````typescript
-/**
- * FirebaseEntitlementGrantRepository — Infrastructure adapter for entitlement persistence.
- * Firebase SDK only exists in this file.
- */
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { EntitlementGrantRepository } from "../../domain/repositories/EntitlementGrantRepository";
-import type { EntitlementGrantSnapshot } from "../../domain/aggregates/EntitlementGrant";
-⋮----
-function toSnapshot(id: string, data: Record<string, unknown>): EntitlementGrantSnapshot
-⋮----
-export class FirebaseEntitlementGrantRepository implements EntitlementGrantRepository {
-⋮----
-private get db()
-⋮----
-async findById(id: string): Promise<EntitlementGrantSnapshot | null>
-⋮----
-async findByContextId(contextId: string): Promise<EntitlementGrantSnapshot[]>
-⋮----
-async findActiveByContextAndFeature(
-    contextId: string,
-    featureKey: string,
-): Promise<EntitlementGrantSnapshot | null>
-⋮----
-async save(snapshot: EntitlementGrantSnapshot): Promise<void>
-⋮----
-async update(snapshot: EntitlementGrantSnapshot): Promise<void>
-````
-
-## File: modules/billing/subdomains/entitlement/infrastructure/index.ts
-````typescript
-/**
- * Entitlement infrastructure barrel — adapter exports only.
- *
- * Composition logic lives in interfaces/composition/entitlement-service.ts.
- */
-````
-
-## File: modules/billing/subdomains/entitlement/interfaces/composition/entitlement-service.ts
-````typescript
-/**
- * EntitlementService — Composition root for entitlement use cases.
- *
- * Relocated from infrastructure/ to interfaces/composition/ to fix
- * the infrastructure → application dependency direction violation (HX-1-001).
- * Wires repositories; provides a unified service interface.
- */
-import {
-  GrantEntitlementUseCase,
-  SuspendEntitlementUseCase,
-  RevokeEntitlementUseCase,
-  ResolveEntitlementsUseCase,
-  CheckFeatureEntitlementUseCase,
-} from "../../application/use-cases/entitlement.use-cases";
-import { FirebaseEntitlementGrantRepository } from "../../infrastructure/firebase/FirebaseEntitlementGrantRepository";
-import type { CommandResult } from "@shared-types";
-⋮----
-function getRepo(): FirebaseEntitlementGrantRepository
-````
-
-## File: modules/billing/subdomains/entitlement/README.md
-````markdown
-# Entitlement
-
-建立有效權益與功能可用性的統一解算上下文。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/billing/subdomains/subscription/api/index.ts
-````typescript
-/**
- * Public API boundary for the subscription subdomain.
- */
-````
-
-## File: modules/billing/subdomains/subscription/application/dto/index.ts
-````typescript
-
-````
-
-## File: modules/billing/subdomains/subscription/application/dto/subscription.dto.ts
-````typescript
-import type { SubscriptionSnapshot } from "../../domain/aggregates/Subscription";
-⋮----
-export type SubscriptionView = Readonly<SubscriptionSnapshot>;
-⋮----
-export interface SubscriptionSummary {
-  readonly contextId: string;
-  readonly planCode: string;
-  readonly status: string;
-  readonly isActive: boolean;
-  readonly currentPeriodEnd: string | null;
-}
-````
-
-## File: modules/billing/subdomains/subscription/application/index.ts
-````typescript
-
-````
-
-## File: modules/billing/subdomains/subscription/application/use-cases/index.ts
-````typescript
-
-````
-
-## File: modules/billing/subdomains/subscription/application/use-cases/subscription.use-cases.ts
-````typescript
-import { v4 as uuid } from "@lib-uuid";
-/**
- * Subscription Use Cases — pure application logic.
- */
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import { Subscription } from "../../domain/aggregates/Subscription";
-import type { SubscriptionRepository } from "../../domain/repositories/SubscriptionRepository";
-import type { BillingCycle } from "../../domain/value-objects/BillingCycle";
-⋮----
-// ─── Activate Subscription ────────────────────────────────────────────────────
-⋮----
-export class ActivateSubscriptionUseCase {
-⋮----
-constructor(private readonly repo: SubscriptionRepository)
-⋮----
-async execute(input: {
-    contextId: string;
-    planCode: string;
-    billingCycle: BillingCycle;
-    currentPeriodEnd?: string | null;
-}): Promise<CommandResult>
-⋮----
-// ─── Cancel Subscription ──────────────────────────────────────────────────────
-⋮----
-export class CancelSubscriptionUseCase {
-⋮----
-async execute(subscriptionId: string): Promise<CommandResult>
-⋮----
-// ─── Renew Subscription ───────────────────────────────────────────────────────
-⋮----
-export class RenewSubscriptionUseCase {
-⋮----
-async execute(subscriptionId: string, newPeriodEnd: string): Promise<CommandResult>
-⋮----
-// ─── Get Active Subscription (query-style) ───────────────────────────────────
-⋮----
-export class GetActiveSubscriptionUseCase {
-⋮----
-async execute(contextId: string): Promise<CommandResult>
-⋮----
-// ─── Mark Past Due ────────────────────────────────────────────────────────────
-⋮----
-export class MarkSubscriptionPastDueUseCase {
-````
-
-## File: modules/billing/subdomains/subscription/domain/aggregates/index.ts
-````typescript
-
-````
-
-## File: modules/billing/subdomains/subscription/domain/aggregates/Subscription.ts
-````typescript
-import { v4 as uuid } from "@lib-uuid";
-import type { SubscriptionDomainEventType } from "../events/SubscriptionDomainEvent";
-import { createSubscriptionId, canCancel, canRenew } from "../value-objects";
-import type { SubscriptionStatus } from "../value-objects";
-import type { BillingCycle } from "../value-objects/BillingCycle";
-⋮----
-export interface SubscriptionSnapshot {
-  readonly id: string;
-  readonly contextId: string;
-  readonly planCode: string;
-  readonly billingCycle: BillingCycle;
-  readonly status: SubscriptionStatus;
-  readonly currentPeriodStart: string;
-  readonly currentPeriodEnd: string | null;
-  readonly cancelledAt: string | null;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateSubscriptionInput {
-  readonly contextId: string;
-  readonly planCode: string;
-  readonly billingCycle: BillingCycle;
-  readonly currentPeriodStart?: string;
-  readonly currentPeriodEnd?: string | null;
-}
-⋮----
-export class Subscription {
-⋮----
-private constructor(private _props: SubscriptionSnapshot)
-⋮----
-static create(id: string, input: CreateSubscriptionInput): Subscription
-⋮----
-static reconstitute(snapshot: SubscriptionSnapshot): Subscription
-⋮----
-cancel(): void
-⋮----
-renew(newPeriodEnd: string): void
-⋮----
-markPastDue(): void
-⋮----
-expire(): void
-⋮----
-get id(): string
-get contextId(): string
-get planCode(): string
-get billingCycle(): BillingCycle
-get status(): SubscriptionStatus
-get currentPeriodEnd(): string | null
-get cancelledAt(): string | null
-get isActive(): boolean
-⋮----
-getSnapshot(): Readonly<SubscriptionSnapshot>
-⋮----
-pullDomainEvents(): SubscriptionDomainEventType[]
-````
-
-## File: modules/billing/subdomains/subscription/domain/events/index.ts
-````typescript
-
-````
-
-## File: modules/billing/subdomains/subscription/domain/events/SubscriptionDomainEvent.ts
-````typescript
-import type { BillingCycle } from "../value-objects/BillingCycle";
-⋮----
-export interface SubscriptionDomainEvent {
-  readonly eventId: string;
-  readonly occurredAt: string;
-  readonly type: string;
-  readonly payload: object;
-}
-⋮----
-export interface SubscriptionActivatedEvent extends SubscriptionDomainEvent {
-  readonly type: "platform.subscription.activated";
-  readonly payload: {
-    readonly subscriptionId: string;
-    readonly contextId: string;
-    readonly planCode: string;
-    readonly billingCycle: BillingCycle;
-  };
-}
-⋮----
-export interface SubscriptionCancelledEvent extends SubscriptionDomainEvent {
-  readonly type: "platform.subscription.cancelled";
-  readonly payload: { readonly subscriptionId: string; readonly contextId: string };
-}
-⋮----
-export interface SubscriptionRenewedEvent extends SubscriptionDomainEvent {
-  readonly type: "platform.subscription.renewed";
-  readonly payload: {
-    readonly subscriptionId: string;
-    readonly contextId: string;
-    readonly newPeriodEnd: string;
-  };
-}
-⋮----
-export interface SubscriptionPastDueEvent extends SubscriptionDomainEvent {
-  readonly type: "platform.subscription.past_due";
-  readonly payload: { readonly subscriptionId: string; readonly contextId: string };
-}
-⋮----
-export interface SubscriptionExpiredEvent extends SubscriptionDomainEvent {
-  readonly type: "platform.subscription.expired";
-  readonly payload: { readonly subscriptionId: string; readonly contextId: string };
-}
-⋮----
-export type SubscriptionDomainEventType =
-  | SubscriptionActivatedEvent
-  | SubscriptionCancelledEvent
-  | SubscriptionRenewedEvent
-  | SubscriptionPastDueEvent
-  | SubscriptionExpiredEvent;
-````
-
-## File: modules/billing/subdomains/subscription/domain/index.ts
-````typescript
-
-````
-
-## File: modules/billing/subdomains/subscription/domain/repositories/index.ts
-````typescript
-
-````
-
-## File: modules/billing/subdomains/subscription/domain/repositories/SubscriptionRepository.ts
-````typescript
-/**
- * SubscriptionRepository — Write-side persistence port (CQRS).
- */
-import type { SubscriptionSnapshot } from "../aggregates/Subscription";
-⋮----
-export interface SubscriptionRepository {
-  findById(id: string): Promise<SubscriptionSnapshot | null>;
-  findActiveByContextId(contextId: string): Promise<SubscriptionSnapshot | null>;
-  findByContextId(contextId: string): Promise<SubscriptionSnapshot[]>;
-  save(snapshot: SubscriptionSnapshot): Promise<void>;
-  update(snapshot: SubscriptionSnapshot): Promise<void>;
-}
-⋮----
-findById(id: string): Promise<SubscriptionSnapshot | null>;
-findActiveByContextId(contextId: string): Promise<SubscriptionSnapshot | null>;
-findByContextId(contextId: string): Promise<SubscriptionSnapshot[]>;
-save(snapshot: SubscriptionSnapshot): Promise<void>;
-update(snapshot: SubscriptionSnapshot): Promise<void>;
-````
-
-## File: modules/billing/subdomains/subscription/domain/value-objects/BillingCycle.ts
-````typescript
-export type BillingCycle = "monthly" | "annual" | "lifetime";
-⋮----
-export function cycleMonths(cycle: BillingCycle): number | null
-⋮----
-return null; // lifetime
-````
-
-## File: modules/billing/subdomains/subscription/domain/value-objects/index.ts
-````typescript
-
-````
-
-## File: modules/billing/subdomains/subscription/domain/value-objects/PlanCode.ts
-````typescript
-import { z } from "@lib-zod";
-⋮----
-export type PlanCodeLiteral = (typeof PLAN_CODES)[number];
-⋮----
-export type PlanCode = z.infer<typeof PlanCodeSchema>;
-⋮----
-export function createPlanCode(raw: string): PlanCode
-````
-
-## File: modules/billing/subdomains/subscription/domain/value-objects/SubscriptionId.ts
-````typescript
-import { z } from "@lib-zod";
-⋮----
-export type SubscriptionId = z.infer<typeof SubscriptionIdSchema>;
-⋮----
-export function createSubscriptionId(raw: string): SubscriptionId
-````
-
-## File: modules/billing/subdomains/subscription/domain/value-objects/SubscriptionStatus.ts
-````typescript
-export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
-⋮----
-export function canCancel(status: SubscriptionStatus): boolean
-⋮----
-export function canRenew(status: SubscriptionStatus): boolean
-⋮----
-export function isActive(status: SubscriptionStatus): boolean
-````
-
-## File: modules/billing/subdomains/subscription/infrastructure/firebase/FirebaseSubscriptionRepository.ts
-````typescript
-/**
- * FirebaseSubscriptionRepository — Infrastructure adapter for subscription persistence.
- * Firebase SDK only exists in this file.
- */
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  orderBy,
-  limit,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { SubscriptionRepository } from "../../domain/repositories/SubscriptionRepository";
-import type { SubscriptionSnapshot } from "../../domain/aggregates/Subscription";
-⋮----
-function toSnapshot(id: string, data: Record<string, unknown>): SubscriptionSnapshot
-⋮----
-export class FirebaseSubscriptionRepository implements SubscriptionRepository {
-⋮----
-private get db()
-⋮----
-async findById(id: string): Promise<SubscriptionSnapshot | null>
-⋮----
-async findActiveByContextId(contextId: string): Promise<SubscriptionSnapshot | null>
-⋮----
-async findByContextId(contextId: string): Promise<SubscriptionSnapshot[]>
-⋮----
-async save(snapshot: SubscriptionSnapshot): Promise<void>
-⋮----
-async update(snapshot: SubscriptionSnapshot): Promise<void>
-````
-
-## File: modules/billing/subdomains/subscription/infrastructure/index.ts
-````typescript
-/**
- * Subscription infrastructure barrel — adapter exports only.
- *
- * Composition logic lives in interfaces/composition/subscription-service.ts.
- */
-````
-
-## File: modules/billing/subdomains/subscription/interfaces/composition/subscription-service.ts
-````typescript
-/**
- * SubscriptionService — Composition root for subscription use cases.
- *
- * Relocated from infrastructure/ to interfaces/composition/ to fix
- * the infrastructure → application dependency direction violation (HX-1-001).
- */
-import {
-  ActivateSubscriptionUseCase,
-  CancelSubscriptionUseCase,
-  RenewSubscriptionUseCase,
-  GetActiveSubscriptionUseCase,
-  MarkSubscriptionPastDueUseCase,
-} from "../../application/use-cases/subscription.use-cases";
-import { FirebaseSubscriptionRepository } from "../../infrastructure/firebase/FirebaseSubscriptionRepository";
-import type { BillingCycle } from "../../domain/value-objects/BillingCycle";
-import type { CommandResult } from "@shared-types";
-⋮----
-function getRepo(): FirebaseSubscriptionRepository
-````
-
-## File: modules/billing/subdomains/subscription/README.md
-````markdown
-# Subscription
-
-Subscription plan management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/iam/application/index.ts
-````typescript
-/** iam/application — reserved for future IAM use cases. */
+/** iam/domain — shared IAM domain models and value objects. */
 ````
 
 ## File: modules/iam/domain/value-objects/PermissionDecision.ts
@@ -40420,19 +40695,44 @@ export function escalateDecision(reason: string): PermissionDecision
 export function isAllowed(decision: PermissionDecision): boolean
 ````
 
-## File: modules/iam/index.ts
-````typescript
+## File: modules/iam/iam.instructions.md
+````markdown
+---
+description: Minimal rules for the IAM bounded context.
+applyTo: 'modules/iam/**/*.{ts,tsx,js,jsx,md}'
+---
 
+# IAM Instructions
+
+- modules/iam owns identity, authentication, authorization, access-control, federation, session, tenant, and security-policy concerns.
+- Keep governance and access policy semantic here, not in UI composition.
+- Expose stable capability contracts from the public API only.
+- Keep domain logic framework-free and keep infrastructure adapters isolated.
+- Use migration-safe bridges when extracting legacy IAM behavior out of Platform and other bounded contexts.
 ````
 
-## File: modules/iam/infrastructure/index.ts
-````typescript
-/** iam/infrastructure — reserved for future IAM adapters. */
-````
+## File: modules/iam/README.md
+````markdown
+# IAM
 
-## File: modules/iam/interfaces/index.ts
-````typescript
-/** iam/interfaces — reserved for future IAM UI and transport entrypoints. */
+Migration-safe bounded-context foundation for identity and access management.
+
+## Canonical subdomains
+
+- identity
+- authentication
+- authorization
+- access-control
+- federation
+- session
+- tenant
+- security-policy
+
+This module is the semantic home for actor identity, sign-in lifecycle, authorization decisions, federated provider integration, tenant isolation, and security governance.
+
+## Migration note
+
+Platform may still host some legacy implementation details during convergence, but new cross-context consumers should depend on the IAM public boundary first.
 ````
 
 ## File: modules/iam/subdomains/access-control/application/dto/access-control.dto.ts
@@ -40805,6 +41105,23 @@ import type { PolicyEffect } from "../../domain/value-objects/PolicyEffect";
 import type { CommandResult } from "@shared-types";
 ⋮----
 function getRepo(): FirebaseAccessPolicyRepository
+````
+
+## File: modules/iam/subdomains/access-control/README.md
+````markdown
+# Access Control
+
+Access control policies and permission resolution.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/iam/subdomains/account/application/dto/account.dto.ts
@@ -42588,11 +42905,6 @@ const logout = async () =>
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 ⋮----
 export function useAuth()
-````
-
-## File: modules/iam/subdomains/identity/README.md
-````markdown
-
 ````
 
 ## File: modules/iam/subdomains/organization/api/index.ts
@@ -47108,6 +47420,43 @@ summarizePage(input: KnowledgeSummaryInput): Promise<KnowledgeSummaryResult>;
 ⋮----
 // Note: server-only composition and infrastructure adapters are exported from
 // `./server` to keep the default boundary runtime-safe.
+````
+
+## File: modules/notion/subdomains/subdomains.instructions.md
+````markdown
+---
+description: 'Notion subdomains structural rules: hexagonal shape per subdomain, canonical content ownership, knowledge vs authoring separation, cross-subdomain collaboration, and stub promotion criteria.'
+applyTo: 'modules/notion/subdomains/**/*.{ts,tsx}'
+---
+
+# Notion Subdomains Layer (Local)
+
+Use this file as execution guardrails for `modules/notion/subdomains/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notion/subdomains.md`.
+
+## Core Rules
+
+- Every subdomain must maintain the core-first default shape: `api/`, `domain/`, `application/`, optional `ports/`, and `README.md`.
+- `infrastructure/` and `interfaces/` belong at the bounded-context root by default and should be grouped by subdomain there unless the mini-module gate is explicitly justified.
+- Stub subdomains (`domain/index.ts` only) must not be promoted to Active without a corresponding ADR and `README.md` update.
+- Cross-subdomain collaboration within notion goes through the **subdomain's own `api/`** — never import a sibling subdomain's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
+- Each subdomain owns its Firestore collection(s); no subdomain reads or writes another subdomain's data directly.
+- Domain events emitted by a subdomain must use the discriminant format `notion.<subdomain>.<action>` (e.g. `notion.knowledge.page-published`, `notion.authoring.article-approved`, `notion.collaboration.comment-created`).
+- Dependency direction inside each subdomain mirrors the module-level rule: `interfaces → application → domain ← infrastructure`.
+- notion owns **canonical content state** — notebooklm may only consume knowledge artifact references; any notebooklm output that should become canonical content must be explicitly absorbed by notion.
+- `knowledge` owns KnowledgePage, ContentBlock, KnowledgeCollection, and BacklinkIndex (block-based free-form wiki pages).
+- `authoring` owns Article and Category (structured knowledge-base articles with authoring workflow) — do not conflate KnowledgePage (knowledge) with Article (authoring).
+- `collaboration` owns Comment, Permission, and Version (per-change edit history snapshots) — it must not own global checkpoint policy.
+- `database` owns Database, DatabaseView, DatabaseRecord, and DatabaseAutomation — do not duplicate structured data or view logic in other subdomains.
+- `BacklinkIndex` (automatic reverse-link index) and `Relation` (explicit typed semantic graph) are distinct — do not conflate them.
+- `collaboration.Version` (per-edit snapshot) and `knowledge-versioning` (workspace-level checkpoint policy) are distinct concerns — do not merge them.
+- `taxonomy` is the global semantic organisation network; `authoring.Category` is article-local classification — they are separate and must not replace each other.
+- Premature stubs (automation, knowledge-analytics, knowledge-integration, notes, templates) must not be expanded without an ADR documenting why the active subdomains cannot absorb the need.
+- Do not place identity, tenant, AI provider policy, or workspace lifecycle logic inside notion subdomains.
+- Use `KnowledgeArtifact` (not `Wiki` or `Doc`), `KnowledgePage` (not `Page`), and `Article` (not `Post` or `Content`) in all subdomain published language.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: modules/platform/api/api.instructions.md
@@ -53146,560 +53495,261 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-development-contracts
 ````
 
-## File: AGENTS.md
+## File: docs/contexts/ai/AGENT.md
 ````markdown
-# API Architecture Rules
+# AI Context Agent Guide
 
-## NotionAPI & NotebookLMAPI
+## Mission
 
-platform 是跨域能力中樞，must expose two API layers:
+保護 ai 主域作為共享 AI capability 邊界。任何變更都應維持 ai 擁有 generation、orchestration、distillation、retrieval、safety 與 provider policy 語言，而不是吸收內容正典或推理輸出語義。
 
-### 1. Infrastructure API (低階 / 模組內用)
+## Canonical Ownership
 
-**所有權**: platform  
-**消費者**: notion、notebooklm (only)  
-**用途**: Runtime capability contracts（不含業務決策）  
+- generation
+- orchestration
+- distillation
+- retrieval
+- memory
+- context
+- safety
+- tool-calling
+- reasoning
+- conversation
+- evaluation
+- tracing
 
-```typescript
-// Firestore access contract
-export interface FirestoreAPI {
-  get<T>(path: string): Promise<T | null>;
-  set<T>(path: string, data: T): Promise<void>;
-  query<T>(collection: string, where: Query[]): Promise<T[]>;
-}
+## Route Here When
 
-// Cloud Storage access contract
-export interface StorageAPI {
-  upload(file: File, path: string): Promise<string>;
-  getUrl(path: string): Promise<string>;
-  delete(path: string): Promise<void>;
-}
+- 問題核心是 LLM 呼叫、模型選擇、provider routing。
+- 問題需要 prompt 組裝、flow 執行或 tool calling 協調。
+- 問題需要將長輸出濃縮（distillation）或進行向量搜尋（retrieval）。
+- 問題需要安全護欄、配額或 AI 執行觀測。
 
-// Genkit AI flow orchestration contract
-export interface GenkitAPI {
-  runFlow<TInput, TOutput>(
-    flow: string,
-    input: TInput
-  ): Promise<TOutput>;
-}
+## Route Elsewhere When
+
+- 身份與存取治理屬於 iam。
+- 訂閱、配額商業政策屬於 billing。
+- 正典知識內容屬於 notion。
+- 對話推理輸出、grounding、notebook synthesis 屬於 notebooklm。
+
+## Guardrails
+
+- ai 的 distillation 是通用蒸餾能力，不是 notebooklm 的推理輸出語言。
+- ai 的 retrieval 是通用向量搜尋能力，不是 notion 的知識查詢正典。
+- ai 的 conversation 管理 AI 輪次，不等同 notebooklm 的 Conversation aggregate。
+- 下游消費只能透過 `modules/ai/api` 公開邊界，不能直接存取 subdomain internals。
+- Genkit 與 LLM SDK 只能存在於 infrastructure 層。
+
+## Hard Prohibitions
+
+- 不得讓 domain 或 application 直接依賴 Genkit、Firebase SDK 或框架語言。
+- 不得讓其他模組直接 import ai 的 infrastructure 或 subdomain domain 層。
+- 不得在 ai 內定義 KnowledgeArtifact、Notebook、Membership 等他域正典型別。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認需求屬於哪個 ai subdomain，再決定 port 定義與 adapter 位置。
+- 新能力若已有對應子域，先在該子域擴展，不要新建平行子域。
+- 奧卡姆剃刀：若一個 port + use case 就能承接需求，不要再新增 service 或 manager。
+- distillation 若只是摘要變體，先確認 generation 子域的 summarize 是否已足夠，再決定是否升級為 distillation use case。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces / Driving Adapters"] --> A["Application / Use Cases"]
+	A --> D["AI Domain / Ports"]
+	P["Ports"] -. used by .-> A
+	X["Infrastructure / Adapters"] -. implements .-> P
+	X --> D
 ```
 
-**Rule**: notion、notebooklm use these for **data persistence and external tool invocation only**. No business logic should hide inside adapter calls.
+## Correct Interaction Flow
 
----
-
-### 2. Platform Service API (高階 / 系統級用)
-
-**所有權**: platform  
-**消費者**: workspace、notion、notebooklm (all)  
-**用途**: Cross-domain capability contracts（含governance、auth、entitlement）  
-
-```typescript
-// Authentication & Session
-export interface AuthAPI {
-  getSession(): Promise<AuthSession>;
-  requireAuth(): Promise<User>;
-}
-
-// Access Control & Entitlement
-export interface PermissionAPI {
-  can(userId: string, action: string, resource: string): Promise<boolean>;
-}
-
-// Semantic File Lifecycle (not raw storage)
-export interface FileAPI {
-  uploadUserFile(input: {
-    file: File;
-    ownerId: string;
-  }): Promise<{ url: string; fileId: string }>;
-  deleteFile(fileId: string): Promise<void>;
-}
-
-// AI capability coordination (routing & safety)
-export interface AIAPI {
-  summarize(text: string): Promise<string>;
-  // More methods as capabilities expand
-}
+```mermaid
+flowchart LR
+	IAM["iam upstream"] -->|actor / access| Boundary["ai API boundary"]
+	Billing["billing upstream"] -->|entitlement| Boundary
+	Boundary --> App["Application orchestration"]
+	App --> Generation["generation"]
+	App --> Distillation["distillation"]
+	App --> Retrieval["retrieval"]
+	App --> Safety["safety"]
+	Generation --> Output["AI capability signal"]
+	Distillation --> Output
+	Retrieval --> Output
+	Output --> Notion["notion consumer"]
+	Output --> NotebookLM["notebooklm consumer"]
 ```
 
-**Rule**: All modules (including notion、notebooklm) must go through Service APIs for cross-domain operations.
+## Document Network
 
----
-
-## API Call Rules
-
-| Caller | Firestore | Storage | Genkit | Auth | Permission | File | AI |
-|--------|-----------|---------|--------|------|------------|------|-----|
-| workspace | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| notion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅* | ✅ |
-| notebooklm | ✅ | ✅ | ✅ | ✅ | ✅ | ✅* | ✅ |
-
-**\* File API**: notion、notebooklm must use `FileAPI` (not raw `StorageAPI`) when files involve ownership, entitlement, or multi-tenant isolation.
-
----
-
-## Example Flow: File Upload with Entitlement Check
-
-```text
-workspace (UI)
-  → FileAPI.uploadUserFile({ file, ownerId })
-  ↓
-platform (FileAPI)
-  → PermissionAPI.can(ownerId, "create:file", context)
-  ↓
-notion.createDocument(with fileId)
-  → Storage.upload(...) via Infrastructure API
-  ↓
-Firebase Storage
-```
-
-**Key**: uploadUserFile ≠ Storage.upload
-- `uploadUserFile`: semantic contract (ownership, entitlement, audit)
-- `Storage.upload`: mechanism contract (how bytes move)
-
----
-
-## Governance Rules
-
-1. **platform is the unique infra gateway** — all Firebase, Genkit, external AI routing flows through platform adapters.
-2. **notion、notebooklm use Infrastructure APIs for local concerns only** — persistence, embedding, synthesis.
-3. **workspace never touches Infrastructure APIs** — always goes through Platform Service APIs.
-4. **All cross-domain behavior routes through Platform Service APIs** — auth, permission, entitlement, file ownership, AI safety.
-5. **Published Language is upstream boundary** — concepts like `Actor`, `Tenant`, `Entitlement`, `fileId` are defined in platform ubiquitous language; downstream contexts translate as needed.
-
----
-
-# Strategic Domain Overview
-
-## Strategic Overview
-
-This repo now follows the eight-context baseline defined in the root docs:
-- `iam` — identity, authentication, authorization, tenant isolation
-- `billing` — subscription and entitlement governance
-- `ai` — shared AI capability, routing, policy, safety
-- `analytics` — metrics, dashboards, projections
-- `platform` — account, organization, shared operational services
-- `workspace` — collaboration scope and lifecycle
-- `notion` — canonical knowledge content
-- `notebooklm` — retrieval, grounding, synthesis, evaluation
-
-Use `docs/README.md`, `docs/bounded-contexts.md`, and `docs/ubiquitous-language.md` as the strategic authority when ownership is ambiguous.
-
----
-
-## Dependency Direction Rules
-
-### Fixed Upstream → Downstream Flow
-
-```
-platform
-  ↓
-workspace, notion, notebooklm (all consume platform governance APIs)
-  ↓
-workspace ↓ notion ↓ notebooklm
-(sequential consumption allowed; never reverse upstream)
-```
-
-### Anti-Patterns
-
-- ❌ workspace calling notion.api directly (must go through published language)
-- ❌ notion calling platform.domain internal models (must use Service API boundary)
-- ❌ notebooklm defining its own `ai` subdomain (belongs exclusively to ai)
-- ❌ Mixing Actor + Membership terminology (Actor = identity, Membership = workspace participation)
-- ❌ Treating notion's KnowledgeArtifact as writable by other domains (reference only)
-
----
-
-## Module Ownership Guardrails
-
-| Concern | Owner | Never Owned By |
-|---|---|---|
-| Identity, authentication, session | iam | workspace, notion, notebooklm |
-| Permission, access control | iam | workspace, notion, notebooklm |
-| Tenant isolation | iam | workspace, notion, notebooklm |
-| Organization scope | platform | workspace, notion, notebooklm |
-| AI capability routing, model policy, safety | ai | notion, notebooklm (consumers only) |
-| Workspace creation, archival, lifecycle | workspace | notion, notebooklm, platform |
-| Knowledge artifact authoring, versioning | notion | platform, workspace, notebooklm |
-| Conversation, retrieval, synthesis | notebooklm | platform, workspace, notion (notion→notebooklm: reference only) |
-| Cross-module security rules, audit | platform | all others apply, never contradict |
-
----
-
-# 🚫 Hard Rules (Will Cause Refactors If Violated)
-
-## Strategic Ownership Rules (Non-Negotiable)
-
-### Rule 1: Platform is Unique Infrastructure Gateway
-- ✅ platform owns Firebase, Genkit, external AI routing, cross-domain auth
-- ❌ notion, notebooklm NEVER own infra (except local read-only access)
-- ❌ workspace NEVER touches Firebase/Storage/Genkit directly
-
-### Rule 5: Workspace is Orchestration Only
-- ✅ workspace composes module APIs and next.js routing
-- ❌ workspace NEVER contains domain business logic
-- ❌ workspace NEVER makes direct DB/permission decisions
-
-### Rule 6: Cross-Module Access Prohibition
-- ✅ module A imports module B only via `@/modules/b/api`
-- ❌ NO direct imports of domain/, application/, infrastructure/, interfaces/
-- ✅ ALL data sharing via events or published language tokens
-
-### Rule 7: Mandatory Single Entry Point (API Boundary)
-- ✅ Every module must export `api/index.ts`
-- ✅ `api/` exposes only public surface; hides internals
-- ❌ NO imports from internal module paths outside module
-
-### Rule 8: Platform is Only Infrastructure Layer
-- ✅ Firebase, Genkit, Auth, File Storage, Queue: platform owns
-- ✅ Cross-domain coordination, routing, governance: platform owns
-- ❌ Notion NEVER owns persistence (uses platform.infrastructure APIs)
-- ❌ Notebooklm NEVER owns embedding infra (uses platform.infrastructure APIs)
-
-### Rule 9: Cross-Module Data Flow MUST Use Events or API
-- ✅ When module A needs data from module B: A calls B.api or subscribes to B.event
-- ❌ NO shared in-memory state
-- ❌ NO direct repository access across module boundaries
-- ✅ All state mutations via transaction-protected API calls
-
-### Rule 10: Domain Layer is Externally Independent
-- ✅ domain/ contains entities, value objects, rules; NO framework deps
-- ❌ domain/ NEVER imports: React, Firebase SDK, HTTP client, ORM
-- ❌ domain/ NEVER depends on other modules (even platform)
-- ✅ All external deps injected via ports/adapters
-
-### Rule 28: Platform Cannot Depend on Downstream
-- ✅ platform → workspace | notion | notebooklm (one direction only)
-- ❌ platform NEVER imports from workspace, notion, notebooklm
-- ✅ If platform needs semantic data from notion/notebooklm: notion/notebooklm emit event to platform
-
-## Anti-Patterns (Will Require Refactors)
-
-### Rule 46: ❌ workspace directly calls Firestore
-- **Wrong**: `firestore.collection('documents').get()`
-- **Correct**: Use `@/modules/platform/api` (FileAPI, PermissionAPI, etc.)
-
-### Rule 47: ❌ notebooklm implements its own permission logic
-- **Wrong**: notebooklm checking `user.role === 'admin'`
-- **Correct**: Call `@/modules/platform/api → PermissionAPI.can()`
-
-### Rule 48: ❌ notion directly invokes AI/Genkit
-- **Wrong**: `notion/application/ imports Genkit`
-- **Correct**: Notion emits event; platform routes to notebooklm via AI API
-
-### Rule 49: ❌ Module imports another module's internal
-- **Wrong**: `import { SomeEntity } from '@/modules/notion/domain/entities'`
-- **Correct**: Use `import { api } from '@/modules/notion/api'` only
-
-### Rule 50: ❌ Business logic written in React component (workspace UI)
-- **Wrong**: `if (user.role === 'admin') { ... }` in .tsx
-- **Correct**: Move to application/ use-case; UI only composes and calls
-
-### Rule 51: ❌ Cross-module route components read foreign context providers
-- **Wrong**: notion/notebooklm route components call workspace providers directly (e.g. `useWorkspaceContext()`)
-- **Correct**: workspace is the composition owner and must pass explicit scope props (`accountId`, `workspaceId`, optional `currentUserId`) through module `api/` boundaries
-
----
-
-## Full Enforcement & Reference
-
-See `docs/hard-rules-consolidated.md` for:
-- All 51 rules with detailed explanations
-- Document placement strategy (7 homes)
-- Enforcement checklist
-- Layer responsibility rules (11-13, 21-23)
-- Event bus & async rules (4, 34-36)
-- File/data/permission rules (3, 29-32, 37-40)
-- Cross-module contract rules (24-27)
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
 ````
 
-## File: docs/contexts/analytics/AGENT.md
+## File: docs/contexts/ai/context-map.md
 ````markdown
-# Analytics Context Agent Guide
+# AI Context Map
 
-## Purpose
+## Context Role
 
-The Analytics context owns reporting, metrics, dashboards, and downstream projections.
-
-## Rules
-
-- Keep analytics downstream and read-model oriented.
-- Do not make analytics the canonical owner of upstream business rules.
-- Prefer event projection and query models over write-side ownership.
-````
-
-## File: docs/contexts/analytics/bounded-contexts.md
-````markdown
-# Analytics
-
-## Domain Role
-
-analytics 是下游 bounded context。它以 projection、metric 與 report 為主，不持有上游主域的寫入正典模型。
-
-## Ownership Rules
-
-- 擁有 reporting、metrics、dashboards、telemetry projections。
-- 消費事件，不直接改寫上游 aggregate。
-- 只在需要查詢與分析時建立 local read model。
-````
-
-## File: docs/contexts/analytics/context-map.md
-````markdown
-# Analytics
+ai 對其他主域提供共享 AI capability signal。它消費 iam 的 access decision 與 billing 的 entitlement signal，向 notion 與 notebooklm 輸出 generation、distillation、retrieval 等能力。
 
 ## Relationships
 
-| Upstream | Downstream | Published Language |
-|---|---|---|
-| iam | analytics | access event、identity signal |
-| billing | analytics | billing event、entitlement usage signal |
-| platform | analytics | operational event、notification event |
-| workspace | analytics | activity feed、audit signal |
-| notion | analytics | knowledge usage signal |
-| notebooklm | analytics | retrieval and synthesis usage signal |
+| Upstream | Downstream | Relationship Type | Published Language |
+|---|---|---|---|
+| iam | ai | Upstream/Downstream | actor reference、access decision |
+| billing | ai | Upstream/Downstream | entitlement signal、quota capability |
+| ai | notion | Upstream/Downstream | ai capability signal、distillation result、safety result |
+| ai | notebooklm | Upstream/Downstream | ai capability signal、distillation result、retrieval result、safety result |
 
-## Notes
+## Mapping Rules
 
-- analytics consumes events and projections only.
+- ai 消費 iam 的結果，但不重建 actor 或 tenant 模型。
+- ai 消費 billing 的 entitlement signal 決定配額，但不擁有訂閱或計費語義。
+- notion 消費 ai capability，但 AI provider / policy 所有權不屬於 notion。
+- notebooklm 消費 ai 的 generation、distillation、retrieval，但推理輸出的正典語義屬於 notebooklm 自己。
+- ai 不回寫任何下游主域的正典模型。
+
+## Integration Pattern
+
+- ai 作為下游消費 iam 與 billing 時，採用 Conformist 或 ACL，視語義相容性決定。
+- notion 與 notebooklm 消費 ai 時，ai 的 published language 是 capability signal，不是 aggregate。
+
+## Dependency Direction
+
+- ai 對 iam、billing 屬 downstream。
+- ai 對 notion、notebooklm 屬 upstream 的能力供應者。
+
+## Anti-Patterns
+
+- 把 ai 與 notebooklm 寫成 Shared Kernel，同時擁有推理輸出語義。
+- 讓 notion 或 notebooklm 直接 import ai 的 infrastructure 或 subdomain domain。
+- 把 iam 的 actor model 直接帶入 ai domain，而非只消費 access decision。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	IAM["iam upstream"] -->|access decision| Boundary["ai API boundary"]
+	Billing["billing upstream"] -->|entitlement signal| Boundary
+	Boundary --> App["ai Application"]
+	App --> Capability["AI capability signal / distillation result"]
+	Capability --> Notion["notion consumer"]
+	Capability --> NotebookLM["notebooklm consumer"]
+```
 ````
 
-## File: docs/contexts/analytics/README.md
+## File: docs/contexts/ai/ubiquitous-language.md
 ````markdown
-# Analytics Context
+# AI Ubiquitous Language
 
-本 README 在本次重切作業下，定義 analytics 作為下游 read-model 主域的邊界。
+## Canonical Terms
+
+| Term | Meaning |
+|---|---|
+| AICapabilitySignal | ai 向下游輸出的能力結果，不是具體 aggregate |
+| GenerationResult | 單次文字生成的輸出，包含 text、model、finishReason |
+| DistillationResult | 從多段內容或長輸出濃縮出的精煉知識片段 |
+| RetrievalResult | 向量搜尋後回傳的相關內容片段與分數 |
+| PromptContext | 組裝後準備送入 LLM 的完整上下文物件 |
+| SafetyResult | 安全護欄對輸入或輸出的檢查結果（pass / block） |
+| ModelPolicy | 模型選擇、版本鎖定與使用限制規則 |
+| OrchestrationFlow | 多步驟 AI 執行圖，由 orchestration 子域控制 |
+| ToolCall | 外部工具的調用請求與結果 |
+| MemoryEntry | 對話歷史或跨輪次狀態的單筆記錄 |
+| EvaluationScore | 針對 AI 輸出的品質量測結果 |
+| TraceSpan | AI 執行流程中的單一可觀測片段 |
+
+## Language Rules
+
+- 使用 DistillationResult 表示蒸餾輸出，不用 Summary 混稱精煉過程與摘要功能。
+- 使用 GenerationResult 表示生成輸出，不用 Response 泛稱所有 LLM 回傳。
+- 使用 PromptContext 表示組裝後的上下文，不用 Prompt 直接傳遞原始字串。
+- 使用 SafetyResult 表示護欄結果，不用 Filter 混指檢查流程。
+- 使用 AICapabilitySignal 作為跨主域 published language，不暴露內部 aggregate。
+
+## Avoid
+
+| Avoid | Use Instead |
+|---|---|
+| Summary（跨域泛稱） | DistillationResult（ai 精煉輸出）或 GenerationResult（生成摘要） |
+| Response | GenerationResult |
+| Filter | SafetyResult |
+| Prompt（跨域傳遞） | PromptContext |
+| Chat | conversation（ai 輪次管理）或 Conversation（notebooklm 正典） |
+
+## Naming Anti-Patterns
+
+- 不用 Summary 混指 distillation 的精煉結果與 generation 的摘要功能。
+- 不用 Chat 混指 ai 的 conversation 管理與 notebooklm 的 Conversation aggregate。
+- 不用 Prompt 作為跨域傳遞型別，必須先組裝成 PromptContext。
+- 不用 Filter 表示 safety 的護欄判定，SafetyResult 已含通過或攔截語義。
+
+## Copilot Generation Rules
+
+- 命名先對齊上表 Canonical Terms，再決定類別與檔名。
+- distillation 子域的輸出型別命名用 DistillationResult，不要退化為 SummarizedText。
+- 奧卡姆剃刀：若一個正確名詞已能表達邊界，不要再堆疊近義抽象。
+````
+
+## File: docs/contexts/iam/README.md
+````markdown
+# IAM Context
+
+本 README 在本次重切作業下，定義 identity and access management 的主域邊界。
 
 ## Purpose
 
-analytics 是報表、指標與儀表板主域。它主要消費其他主域的事件、usage signal 與 projection input，形成可查詢的分析視圖。
+iam 是身份、驗證、授權、federation、session、租戶與存取治理主域。它提供 actor、identity、tenant、access decision 與 security policy 語言，作為其他主域的治理上游。
 
 ## Context Summary
 
 | Aspect | Summary |
 |---|---|
-| Primary Role | reporting、metrics、dashboard、projection |
-| Upstream Dependency | iam、billing、platform、workspace、notion、notebooklm 的事件與訊號 |
-| Downstream Consumers | 產品與營運分析使用者 |
-| Core Principle | analytics 是下游投影，不反向成為 canonical owner |
+| Primary Role | 身份、租戶與 access governance |
+| Upstream Dependency | 無主域級上游 |
+| Downstream Consumers | billing、platform、workspace、notion、notebooklm |
+| Core Principle | 提供治理判定，不接管商業、內容或推理正典 |
 ````
 
-## File: docs/contexts/analytics/subdomains.md
+## File: docs/contexts/iam/subdomains.md
 ````markdown
-# Analytics
+# IAM
 
 ## Baseline Subdomains
 
 | Subdomain | Responsibility |
 |---|---|
-| reporting | 報表輸出與查詢整理 |
-| metrics | 指標定義與聚合 |
-| dashboards | 儀表板呈現語義 |
-| telemetry-projection | 事件投影與 read model 匯總 |
+| identity | 已驗證主體與身份信號治理 |
+| access-control | 主體現在能做什麼的授權判定 |
+| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
+| security-policy | 安全規則定義、版本化與發佈 |
 
 ## Recommended Gap Subdomains
 
 | Subdomain | Responsibility |
 |---|---|
-| experimentation | 實驗分析與對照觀測 |
-| decision-support | 決策輔助與洞察輸出 |
-````
+| session | session、token 與 identity lifecycle 收斂 |
+| consent | 同意與資料使用授權治理收斂 |
+| secret-governance | secret 與 credential access policy 收斂 |
 
-## File: docs/contexts/analytics/ubiquitous-language.md
-````markdown
-# Analytics
-
-## Canonical Terms
-
-| Term | Meaning |
-|---|---|
-| Metric | 可重複計算與追蹤的指標 |
-| Report | 對分析結果的輸出整理 |
-| Dashboard | 視覺化分析面板 |
-| Projection | 由上游事件形成的下游 read model |
-
-## Avoid
-
-- 不把 analytics 當成上游寫入語言。
-- 不把 projection 當成原始 aggregate。
-````
-
-## File: docs/contexts/billing/AGENT.md
-````markdown
-# Billing Context Agent Guide
-
-## Purpose
-
-The Billing context owns commercial lifecycle concerns, including subscription and entitlement.
-
-## Rules
-
-- Keep billing, subscription, entitlement, and referral ownership here.
-- Do not move identity governance or content ownership into billing.
-- Downstream consumers receive capability signals, not internal billing aggregates.
-````
-
-## File: docs/contexts/billing/bounded-contexts.md
-````markdown
-# Billing
-
-## Domain Role
-
-billing 是 commercial bounded context。它擁有 subscription 與 entitlement 的商業語義，並把結果輸出為 capability signal。
-
-## Ownership Rules
-
-- 擁有 billing、subscription、entitlement、referral。
-- 不擁有 identity 與 access decision 正典語言。
-- 不擁有 workspace、knowledge 或 notebook aggregate。
-````
-
-## File: docs/contexts/billing/context-map.md
-````markdown
-# Billing
-
-## Relationships
-
-| Upstream | Downstream | Published Language |
-|---|---|---|
-| iam | billing | actor reference、tenant scope、access policy baseline |
-| billing | workspace | entitlement signal、subscription capability signal |
-| billing | notion | entitlement signal、subscription capability signal |
-| billing | notebooklm | entitlement signal、subscription capability signal |
-
-## Notes
-
-- billing 向下游提供 capability signal，不暴露內部商業 aggregate。
-````
-
-## File: docs/contexts/billing/README.md
-````markdown
-# Billing Context
-
-本 README 在本次重切作業下，定義 commercial lifecycle 的主域邊界。
-
-## Purpose
-
-billing 是商業與權益治理主域。它負責 billing event、subscription、entitlement 與 referral，為 workspace、notion、notebooklm 等主域提供 capability signal。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 商業生命週期與有效權益解算 |
-| Upstream Dependency | iam 的 actor、tenant、access policy |
-| Downstream Consumers | workspace、notion、notebooklm |
-| Core Principle | 提供商業能力訊號，不接管內容或協作正典 |
-````
-
-## File: docs/contexts/billing/subdomains.md
-````markdown
-# Billing
-
-## Baseline Subdomains
+## Migration-Safe Operational Subdomains
 
 | Subdomain | Responsibility |
 |---|---|
-| billing | 計費狀態、費率與財務證據 |
-| subscription | 方案、配額與續期治理 |
-| entitlement | 有效權益與功能可用性統一解算 |
-| referral | 推薦關係與獎勵追蹤 |
-
-## Recommended Gap Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| pricing | 價格模型與方案矩陣治理 |
-| invoice | 帳單、請款與對帳流程 |
-| quota-policy | 可量化配額與商業限制規則 |
-````
-
-## File: docs/contexts/billing/ubiquitous-language.md
-````markdown
-# Billing
-
-## Canonical Terms
-
-| Term | Meaning |
-|---|---|
-| Subscription | 方案、配額與續期狀態 |
-| Entitlement | 綜合商業規則後的有效權益 |
-| BillingEvent | 財務計價或收費事實 |
-| Referral | 推薦關係與獎勵追蹤 |
-
-## Avoid
-
-- 不用 Plan 混稱 Subscription 與 Entitlement。
-- 不把 feature flag 當成 entitlement 正典語義。
-````
-
-## File: docs/contexts/iam/AGENT.md
-````markdown
-# IAM Context Agent Guide
-
-## Purpose
-
-The IAM context owns identity, access control, tenant isolation, and security policy.
-
-## Rules
-
-- Keep actor, identity, tenant, and access language here.
-- Do not move billing or AI policy into IAM unless the concern is truly governance.
-- Downstream contexts consume decisions and signals, not internal aggregates.
-````
-
-## File: docs/contexts/iam/bounded-contexts.md
-````markdown
-# IAM
-
-## Domain Role
-
-iam 是 governance bounded context。它是身份、tenant 與 access decision 的 canonical owner。
-
-## Ownership Rules
-
-- 擁有 identity、access-control、tenant、security-policy。
-- 向下游輸出 actor reference、tenant scope、access decision。
-- 不擁有 workspace、knowledge、notebook 或 billing aggregate。
-````
-
-## File: docs/contexts/iam/context-map.md
-````markdown
-# IAM
-
-## Relationships
-
-| Upstream | Downstream | Published Language |
-|---|---|---|
-| iam | billing | actor reference、tenant scope、access policy baseline |
-| iam | platform | actor reference、tenant scope、access decision |
-| iam | workspace | actor reference、tenant scope、access decision |
-| iam | notion | actor reference、tenant scope、access decision |
-| iam | notebooklm | actor reference、tenant scope、access decision |
-
-## Notes
-
-- iam 是治理上游，不擁有商業、內容或推理正典模型。
-````
-
-## File: docs/contexts/iam/ubiquitous-language.md
-````markdown
-# IAM
-
-## Canonical Terms
-
-| Term | Meaning |
-|---|---|
-| Actor | 被識別與治理的主體 |
-| Identity | 證明 Actor 是誰的訊號集合 |
-| Tenant | 租戶隔離與 tenant-scoped 規則邊界 |
-| AccessDecision | 對 actor 當下能否執行某行為的判定 |
-| SecurityPolicy | 可版本化的安全規則集合 |
-
-## Avoid
-
-- 不用 User 混稱 Actor。
-- 不用 Organization 取代 Tenant。
-- 不把 access decision 寫成 UI flag。
+| authentication | sign-in、registration、credential recovery、provider bootstrap |
+| authorization | higher-level policy orchestration and decision semantics |
+| federation | external identity provider linking, SSO, and trust delegation |
+| session | token refresh, revocation, and server-side session lifecycle |
 ````
 
 ## File: docs/contexts/notebooklm/README.md
@@ -55293,14 +55343,80 @@ flowchart LR
 - 本文件集沒有檢視任何既有專案內容，因此不應被解讀為 repo-inspected 現況描述。
 ````
 
-## File: modules/ai/index.ts
+## File: modules/ai/AGENT.md
+````markdown
+# AI Module Agent Guide
+
+## Purpose
+
+modules/ai 是共享 AI capability 的唯一邊界。它擁有 content-generation、content-distillation、context-assembly、evaluation-policy、memory-context、model-observability、prompt-pipeline、safety-guardrail 與 provider policy，向下游模組輸出能力接縫。
+
+## Boundary Rules
+
+- 把 provider routing、model policy、safety-guardrail 與 prompt-pipeline 放在這裡。
+- content-distillation（長輸出蒸餾）與 context-assembly（上下文組裝）的通用能力屬於此模組。
+- 不放 workspace UI 組合、billing policy、identity governance。
+- 跨模組消費者只能透過 `modules/ai/api`（types）或 `modules/ai/api/server`（functions）存取。
+- Genkit 與 LLM SDK 只能在 `infrastructure/` 層，domain 層必須框架無關。
+
+## Route Here When
+
+- 需要呼叫 LLM、選擇模型、路由 provider。
+- 需要 content-distillation 長輸出或多來源內容為精煉片段。
+- 需要 context-assembly、多步驟 prompt flow 或 memory-context。
+- 需要 safety-guardrail 護欄或 model-observability 觀測。
+
+## Route Elsewhere When
+
+- 身份與存取治理 → iam。
+- 訂閱、配額商業政策 → billing。
+- 正典知識內容 → notion。
+- 推理輸出、notebook synthesis → notebooklm。
+
+## Delivery Style
+
+- 優先擴展 content-generation 與 content-distillation 子域（已有實作），再決定是否需要補強 context-assembly、prompt-pipeline 或 memory-context。
+- 新子域只有在業務語義真的不同時才建立；骨架存在不代表需要立即實作。
+- 奧卡姆剃刀：一個 port + use case 能解決就不要新增 service。
+````
+
+## File: modules/ai/ai.instructions.md
+````markdown
+---
+description: Rules for the AI bounded context.
+applyTo: 'modules/ai/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# AI Instructions
+
+## Ownership
+
+- modules/ai 擁有共享 AI capability：generation、orchestration、distillation、retrieval、memory、context、safety、tool-calling、reasoning、conversation、evaluation、tracing。
+- provider routing 與 model policy 在此模組定義，不在下游模組重建。
+
+## Dependency Rules
+
+- Genkit 與 provider SDK import 只能出現在 `modules/ai/infrastructure/`。
+- 下游消費者只能透過 `modules/ai/api`（client-safe types）或 `modules/ai/api/server`（server functions）存取。
+- domain 層不得依賴任何框架、SDK 或傳輸層。
+- 子域之間透過 ports 或 orchestration application 協調，不直接互相 import domain 層。
+
+## Naming
+
+- 生成輸出型別用 `GenerationResult` 或 `GenerateAiTextOutput`，不用 `Response`。
+- 蒸餾輸出型別用 `DistillationResult`，不用 `SummarizedText` 或 `Summary`。
+- 搜尋輸出型別用 `RetrievalResult`，不用 `SearchResult` 泛稱。
+
+## Anti-Patterns
+
+- 不在 ai 內定義 KnowledgeArtifact、Notebook、Conversation（notebooklm 正典）等他域型別。
+- 不混入 identity governance 或 billing policy。
+- 不讓其他模組繞過 api 邊界直接 import subdomain internals。
+````
+
+## File: modules/ai/infrastructure/index.ts
 ````typescript
-/**
- * modules/ai — public barrel.
- *
- * Client-safe types only. Server-only functions live in ./api/server.ts.
- * Cross-module consumers must import through this entry point.
- */
+/** ai/infrastructure — shared AI adapters and Genkit singletons. */
 ````
 
 ## File: modules/ai/infrastructure/llm/built-in-tools.ts
@@ -55466,77 +55582,321 @@ It ensures downstream AI capabilities remain policy-aligned and risk-aware.
 `api -> application -> domain`
 ````
 
-## File: modules/analytics/subdomains/subdomains.instructions.md
+## File: modules/ai/subdomains/subdomains.instructions.md
 ````markdown
 ---
-description: 'Analytics subdomains structural rules: read-model orientation, hexagonal shape per subdomain, cross-subdomain collaboration, and stub promotion criteria.'
-applyTo: 'modules/analytics/subdomains/**/*.{ts,tsx}'
+description: "AI subdomains architecture rules: capability-based subdomains, strict hexagonal boundaries, orchestration as application kernel, and infrastructure isolation."
+applyTo: "modules/ai/subdomains/**/*.{ts,tsx,md}"
+---
+```
+
+# AI Subdomains Layer (Canonical)
+
+This document defines structural rules for `modules/ai/subdomains/*`.
+
+It must align with AI execution architecture principles and remain consistent with DDD + Hexagonal + AI pipeline separation.
+
 ---
 
-# Analytics Subdomains Layer (Local)
+# 1️⃣ Core Principle
 
-Use this file as execution guardrails for `modules/analytics/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/analytics/subdomains.md`.
+Subdomains represent **capabilities inside a single AI execution engine**, NOT services.
 
-## Core Rules
+* ❌ NOT microservices
+* ❌ NOT independent APIs
+* ❌ NOT cross-service bus participants
+* ✔ ARE internal capability modules
 
-- Every subdomain must maintain the core-first default shape: `api/`, `domain/`, `application/`, optional `ports/`, and `README.md`.
-- `infrastructure/` and `interfaces/` belong at the bounded-context root by default and should be grouped by subdomain there unless the mini-module gate is explicitly justified.
-- Stub subdomains (`domain/index.ts` only) must not be promoted to Active without a corresponding ADR and `README.md` update.
-- Cross-subdomain collaboration within analytics goes through the **subdomain's own `api/`** — never import a sibling subdomain's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- Analytics is read-model oriented by default; avoid placing write or mutation logic inside analytics subdomains.
-- Do not add `GetXxxUseCase` wrappers for pure reads without business logic — route these to query handlers instead.
-- Analytics subdomains must never own billing, entitlement, or subscription policy; they may consume usage signals published by other bounded contexts.
-- Metrics and reporting models are derived read projections; do not treat them as authoritative state — the owning bounded context remains the source of truth.
-- Domain events emitted by a subdomain must use the discriminant format `analytics.<subdomain>.<action>` (e.g. `analytics.reporting.snapshot-generated`).
-- Dependency direction inside each subdomain mirrors the module-level rule: `interfaces → application → domain ← infrastructure`.
-- New subdomains should only be introduced when a real analytics capability with independent domain language emerges — prefer query handlers and infrastructure projections for simple read surfaces.
+---
+
+# 2️⃣ Standard Subdomain Structure (Hexagonal Capability Module)
+
+Each subdomain MUST follow this structure:
+
+```
+api/
+application/
+domain/
+infrastructure/
+interfaces/
+ports/        (preferred for external contracts)
+README.md
+```
+
+---
+
+## Layer Responsibilities
+
+### domain/
+
+* Pure business logic
+* No SDKs, no LLM calls, no Firebase
+* Deterministic rules only
+
+### application/
+
+* Use cases
+* Coordination logic within the subdomain
+* Can call ports/interfaces
+
+### interfaces/
+
+* DTOs
+* Input/output contracts
+* Boundary definitions
+
+### ports/
+
+* Abstract external dependencies
+* LLM, DB, retrieval, tools, etc.
+
+### infrastructure/
+
+* Implements ports
+* Firebase / LLM SDK / vector DB / APIs
+
+### api/
+
+* External entry point ONLY
+* HTTP / Firebase Functions / Edge endpoints
+
+---
+
+# 3️⃣ System-Level Architecture Rule
+
+## 3.1 API is NOT internal bus
+
+* ❌ subdomain-to-subdomain MUST NOT communicate via `api/`
+* ✔ api is ONLY external boundary
+
+---
+
+## 3.2 Internal communication model
+
+Subdomains communicate via:
+
+```
+application → ports → application
+```
+
+or via orchestration kernel:
+
+```
+orchestration (application) → subdomain application
+```
+
+---
+
+# 4️⃣ Dependency Rules (Strict Direction)
+
+Inside each subdomain:
+
+```
+interfaces → application → domain ← infrastructure
+```
+
+Rules:
+
+* domain is pure and independent
+* application depends only on domain + ports
+* infrastructure implements ports only
+* interfaces define contracts only
+
+---
+
+# 5️⃣ Cross-Subdomain Communication Rule
+
+### Allowed:
+
+* orchestration application calls other subdomain application via interfaces/ports
+
+### Forbidden:
+
+* ❌ direct domain-to-domain coupling
+* ❌ infrastructure-to-infrastructure coupling
+* ❌ api-to-api internal routing
+
+---
+
+# 6️⃣ AI Capability Subdomain Definitions
+
+## 6.1 orchestration (system kernel)
+
+* Owns execution graph
+* Controls workflow sequencing
+* Calls subdomains via application layer
+* Does NOT perform inference itself
+
+---
+
+## 6.2 context
+
+* Builds request-time context
+* Stateless per execution
+* No persistence logic
+
+---
+
+## 6.3 memory
+
+* Persistent state across sessions
+* Read/write via ports only
+* No prompt construction logic
+
+---
+
+## 6.4 retrieval
+
+* Fetches and ranks candidates
+* No final answer generation
+* May use scoring models but no synthesis
+
+---
+
+## 6.5 reasoning
+
+* Structured inference logic
+* Operates on prepared inputs only
+* No data fetching responsibility
+
+---
+
+## 6.6 generation
+
+* Produces final output
+* Consumes reasoning + context
+* No retrieval or orchestration logic
+
+---
+
+## 6.7 tool-calling
+
+* Defines tool schemas and invocation contracts
+* Execution is handled in infrastructure/adapters
+* Stateless logic only
+
+---
+
+## 6.8 safety
+
+* Policy enforcement layer
+* Pre/post generation guardrails
+* Cannot modify domain logic
+
+---
+
+## 6.9 evaluation
+
+* Quality scoring and regression checks
+* Offline/online evaluation logic
+* No telemetry aggregation
+
+---
+
+## 6.10 distillation
+
+* Produces training datasets
+* Downstream-only from evaluation/generation
+
+---
+
+## 6.11 tracing
+
+* Observability only
+* Execution logs, latency, graph tracing
+* Must NOT affect decisions
+
+---
+
+# 7️⃣ AI Execution Flow (Canonical Model)
+
+```
+context
+   ↓
+retrieval
+   ↓
+reasoning
+   ↓
+tool-calling (optional)
+   ↓
+generation
+   ↓
+evaluation (async)
+```
+
+Controlled by:
+
+```
+orchestration (application kernel)
+```
+
+---
+
+# 8️⃣ Event Convention
+
+```
+ai.<subdomain>.<event>
+```
+
+Examples:
+
+* ai.orchestration.started
+* ai.retrieval.completed
+* ai.reasoning.finished
+* ai.generation.completed
+* ai.evaluation.scored
+
+Rules:
+
+* domain/application emit events
+* infrastructure publishes events
+* events are immutable contracts
+
+---
+
+# 9️⃣ Subdomain Activation Rule
+
+A subdomain is ACTIVE only if:
+
+* README defines responsibility
+* application layer contains real use cases
+* at least one port is implemented
+* infrastructure integration exists
+
+Otherwise:
+
+* treated as capability stub
+* cannot be referenced by orchestration
+
+---
+
+# 🔟 Critical Semantic Constraints (Non-Negotiable)
+
+* context ≠ memory
+* retrieval ≠ generation
+* reasoning ≠ orchestration
+* evaluation ≠ telemetry
+* tool-calling ≠ execution engine
+* api ≠ internal communication layer
+
+---
+
+# 🧠 Final Model
+
+This architecture represents:
+
+> AI Execution Engine with Capability-Based Modular Subdomains
+
+NOT:
+
+* microservices
+* API mesh
+* distributed services system
+
+---
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
-````
-
-## File: modules/billing/subdomains/subdomains.instructions.md
-````markdown
----
-description: 'Billing subdomains structural rules: hexagonal shape per subdomain, entitlement vs subscription separation, cross-subdomain collaboration, and stub promotion criteria.'
-applyTo: 'modules/billing/subdomains/**/*.{ts,tsx}'
----
-
-# Billing Subdomains Layer (Local)
-
-Use this file as execution guardrails for `modules/billing/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/billing/subdomains.md`.
-
-## Core Rules
-
-- Every subdomain must maintain the core-first default shape: `api/`, `domain/`, `application/`, optional `ports/`, and `README.md`.
-- `infrastructure/` and `interfaces/` belong at the bounded-context root by default and should be grouped by subdomain there unless the mini-module gate is explicitly justified.
-- Stub subdomains (`domain/index.ts` only) must not be promoted to Active without a corresponding ADR and `README.md` update.
-- Cross-subdomain collaboration within billing goes through the **subdomain's own `api/`** — never import a sibling subdomain's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- Each subdomain owns its Firestore collection(s); no subdomain reads or writes another subdomain's data directly.
-- Domain events emitted by a subdomain must use the discriminant format `billing.<subdomain>.<action>` (e.g. `billing.subscription.plan-changed`, `billing.entitlement.capability-granted`).
-- Dependency direction inside each subdomain mirrors the module-level rule: `interfaces → application → domain ← infrastructure`.
-- `entitlement` owns the capability signal (what an actor is allowed to do); `subscription` owns the billing contract lifecycle (plan, billing period, payment state) — never conflate the two.
-- `Entitlement` is a capability signal published to downstream contexts; it must not embed subscription billing details.
-- `Subscription` manages the commercial lifecycle (creation, renewal, cancellation, upgrade); it must not directly enforce product feature gates — that belongs to `entitlement`.
-- Do not place authentication, identity, or workspace product behaviour inside billing subdomains.
-- Payment provider SDK details must never appear in `domain/` — they belong in `infrastructure/` adapters only.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
-## File: modules/iam/docs/README.md
-````markdown
-# IAM Docs
-
-This folder will hold module-local architecture notes for the IAM bounded context when concrete capabilities are added.
-````
-
-## File: modules/iam/domain/index.ts
-````typescript
-/** iam/domain — shared IAM domain models and value objects. */
 ````
 
 ## File: modules/iam/subdomains/access-control/api/index.ts
@@ -55545,23 +55905,6 @@ This folder will hold module-local architecture notes for the IAM bounded contex
  * IAM access-control public API.
  * Canonical owner boundary for permission evaluation and policy lifecycle.
  */
-````
-
-## File: modules/iam/subdomains/access-control/README.md
-````markdown
-# Access Control
-
-Access control policies and permission resolution.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/iam/subdomains/account/api/index.ts
@@ -55609,39 +55952,6 @@ function getEmitFn(): EmitTokenRefreshSignal
 export class IdentityTokenRefreshAdapter implements TokenRefreshPort {
 ⋮----
 async emitTokenRefreshSignal(input: TokenRefreshSignalInput): Promise<void>
-````
-
-## File: modules/iam/subdomains/subdomains.instructions.md
-````markdown
----
-description: 'IAM subdomains structural rules: hexagonal shape per subdomain, identity/access-control/tenant separation, cross-subdomain collaboration, and stub promotion criteria.'
-applyTo: 'modules/iam/subdomains/**/*.{ts,tsx}'
----
-
-# IAM Subdomains Layer (Local)
-
-Use this file as execution guardrails for `modules/iam/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/iam/subdomains.md`.
-
-## Core Rules
-
-- Every subdomain must maintain the core-first default shape: `api/`, `domain/`, `application/`, optional `ports/`, and `README.md`.
-- `infrastructure/` and `interfaces/` belong at the bounded-context root by default and should be grouped by subdomain there unless the mini-module gate is explicitly justified.
-- Stub subdomains (`domain/index.ts` only) must not be promoted to Active without a corresponding ADR and `README.md` update.
-- Cross-subdomain collaboration within iam goes through the **subdomain's own `api/`** — never import a sibling subdomain's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- Each subdomain owns its Firestore collection(s); no subdomain reads or writes another subdomain's data directly.
-- Domain events emitted by a subdomain must use the discriminant format `iam.<subdomain>.<action>` (e.g. `iam.identity.subject-authenticated`, `iam.access-control.permission-denied`, `iam.tenant.tenant-provisioned`).
-- Dependency direction inside each subdomain mirrors the module-level rule: `interfaces → application → domain ← infrastructure`.
-- `identity` owns who the Actor is (authentication, credential lifecycle, session) — it must not own access decisions.
-- `access-control` owns what the Actor is allowed to do (permission evaluation, role assignment, policy enforcement) — it must not own authentication or credential details.
-- `tenant` owns organisation-level isolation and provisioning; it must not duplicate identity or access-control logic.
-- Authentication (AuthN) and authorisation (AuthZ) are strictly separate concerns — do not merge identity and access-control subdomain logic.
-- Auth provider SDK details (Firebase Auth, OAuth, etc.) must never appear in `domain/` — they belong in `infrastructure/` adapters only.
-- Do not place billing, AI orchestration, or workspace product behaviour inside IAM subdomains.
-- Use `Actor` (not `User`) as the canonical identity term across all subdomain published language.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
 ````
 
 ## File: modules/notebooklm/interfaces/source/queries/source-file.queries.ts
@@ -55703,6 +56013,42 @@ constructor(
 async execute(
     input: PreviewTaskCandidatesFromSourceInput,
 ): Promise<PreviewTaskCandidatesFromSourceResult>
+````
+
+## File: modules/notebooklm/subdomains/subdomains.instructions.md
+````markdown
+---
+description: 'NotebookLM subdomains structural rules: hexagonal shape per subdomain, derived-output ownership, RAG pipeline boundaries, cross-subdomain collaboration, and stub promotion criteria.'
+applyTo: 'modules/notebooklm/subdomains/**/*.{ts,tsx}'
+---
+
+# NotebookLM Subdomains Layer (Local)
+
+Use this file as execution guardrails for `modules/notebooklm/subdomains/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notebooklm/subdomains.md`.
+
+## Core Rules
+
+- Every subdomain must maintain the core-first default shape: `api/`, `domain/`, `application/`, optional `ports/`, and `README.md`.
+- `infrastructure/` and `interfaces/` belong at the bounded-context root by default and should be grouped by subdomain there unless the mini-module gate is explicitly justified.
+- Stub subdomains (`domain/index.ts` only) must not be promoted to Active without a corresponding ADR and `README.md` update.
+- Cross-subdomain collaboration within notebooklm goes through the **subdomain's own `api/`** — never import a sibling subdomain's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
+- Each subdomain owns its Firestore collection(s); no subdomain reads or writes another subdomain's data directly.
+- Domain events emitted by a subdomain must use the discriminant format `notebooklm.<subdomain>.<action>` (e.g. `notebooklm.conversation.thread-created`, `notebooklm.source.ingestion-completed`, `notebooklm.synthesis.answer-generated`).
+- Dependency direction inside each subdomain mirrors the module-level rule: `interfaces → application → domain ← infrastructure`.
+- notebooklm only owns **derived reasoning outputs** — it must never directly modify canonical content belonging to `notion`.
+- `conversation` owns Thread and Message lifecycle; it must not own source ingestion or RAG pipeline logic.
+- `notebook` owns the aggregate container combining conversation, source, and derived notes; GenKit response generation is scoped here.
+- `source` owns the ingestion lifecycle, RagDocument state machine, WikiLibrary, and SourceRetentionPolicy — it must not own retrieval ranking or generation.
+- `synthesis` owns the complete RAG pipeline (retrieval → grounding → generation → evaluation) as internal facets; do not split these facets into separate subdomains unless an explicit split trigger is documented in an ADR.
+- Retrieval is upstream of generation; grounding aligns output to source evidence — do not reverse this dependency.
+- `evaluation` describes output quality and grounding confidence; it must not emit billing signals or usage metrics.
+- Shared AI provider capability (model routing, quota, safety) is supplied by the `ai` bounded context — do not replicate provider policy inside notebooklm subdomains.
+- Use `organizationId` only as an internal storage scope identifier derived after boundary translation; do not treat it as a shell route parameter.
+- Use `Conversation` (not `Chat` or `Session`) and `Ingestion` (not `File Import` or `Upload`) in all subdomain published language.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: modules/notion/api/server.ts
@@ -55900,43 +56246,6 @@ async execute(accountId: string, pageId: string): Promise<KnowledgePageDistillat
  * Re-exports repository contracts from domain/repositories/, making the Ports layer
  * explicitly visible in the directory structure.
  */
-````
-
-## File: modules/notion/subdomains/subdomains.instructions.md
-````markdown
----
-description: 'Notion subdomains structural rules: hexagonal shape per subdomain, canonical content ownership, knowledge vs authoring separation, cross-subdomain collaboration, and stub promotion criteria.'
-applyTo: 'modules/notion/subdomains/**/*.{ts,tsx}'
----
-
-# Notion Subdomains Layer (Local)
-
-Use this file as execution guardrails for `modules/notion/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notion/subdomains.md`.
-
-## Core Rules
-
-- Every subdomain must maintain the core-first default shape: `api/`, `domain/`, `application/`, optional `ports/`, and `README.md`.
-- `infrastructure/` and `interfaces/` belong at the bounded-context root by default and should be grouped by subdomain there unless the mini-module gate is explicitly justified.
-- Stub subdomains (`domain/index.ts` only) must not be promoted to Active without a corresponding ADR and `README.md` update.
-- Cross-subdomain collaboration within notion goes through the **subdomain's own `api/`** — never import a sibling subdomain's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- Each subdomain owns its Firestore collection(s); no subdomain reads or writes another subdomain's data directly.
-- Domain events emitted by a subdomain must use the discriminant format `notion.<subdomain>.<action>` (e.g. `notion.knowledge.page-published`, `notion.authoring.article-approved`, `notion.collaboration.comment-created`).
-- Dependency direction inside each subdomain mirrors the module-level rule: `interfaces → application → domain ← infrastructure`.
-- notion owns **canonical content state** — notebooklm may only consume knowledge artifact references; any notebooklm output that should become canonical content must be explicitly absorbed by notion.
-- `knowledge` owns KnowledgePage, ContentBlock, KnowledgeCollection, and BacklinkIndex (block-based free-form wiki pages).
-- `authoring` owns Article and Category (structured knowledge-base articles with authoring workflow) — do not conflate KnowledgePage (knowledge) with Article (authoring).
-- `collaboration` owns Comment, Permission, and Version (per-change edit history snapshots) — it must not own global checkpoint policy.
-- `database` owns Database, DatabaseView, DatabaseRecord, and DatabaseAutomation — do not duplicate structured data or view logic in other subdomains.
-- `BacklinkIndex` (automatic reverse-link index) and `Relation` (explicit typed semantic graph) are distinct — do not conflate them.
-- `collaboration.Version` (per-edit snapshot) and `knowledge-versioning` (workspace-level checkpoint policy) are distinct concerns — do not merge them.
-- `taxonomy` is the global semantic organisation network; `authoring.Category` is article-local classification — they are separate and must not replace each other.
-- Premature stubs (automation, knowledge-analytics, knowledge-integration, notes, templates) must not be expanded without an ADR documenting why the active subdomains cannot absorb the need.
-- Do not place identity, tenant, AI provider policy, or workspace lifecycle logic inside notion subdomains.
-- Use `KnowledgeArtifact` (not `Wiki` or `Doc`), `KnowledgePage` (not `Page`), and `Article` (not `Post` or `Content`) in all subdomain published language.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
 ````
 
 ## File: modules/platform/api/contracts.ts
@@ -57068,91 +57377,289 @@ if (!issuesExpanded) setIssuesExpanded(true);
 }
 ````
 
-## File: docs/contexts/ai/AGENT.md
+## File: repomix-src.config.json
+````json
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "input": {
+    "maxFileSize": 52428800
+  },
+  "output": {
+    "filePath": "repomix-output.json",
+    "style": "json",
+    "parsableStyle": true,
+
+    "fileSummary": true,
+    "directoryStructure": true,
+    "files": true,
+
+    "removeComments": false,
+    "removeEmptyLines": false,
+
+    "compress": true,
+
+    "topFilesLength": 10,
+
+    "showLineNumbers": false,
+    "truncateBase64": false,
+    "copyToClipboard": false,
+
+    "includeFullDirectoryStructure": false,
+    "tokenCountTree": true,
+
+    "git": {
+      "sortByChanges": true,
+      "sortByChangesMaxCommits": 200,
+      "includeDiffs": false,
+      "includeLogs": false,
+      "includeLogsCount": 50
+    }
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}
+````
+
+## File: docs/contexts/ai/bounded-contexts.md
 ````markdown
-# AI Context Agent Guide
+# AI Bounded Contexts
 
-## Mission
+## Domain Role
 
-保護 ai 主域作為共享 AI capability 邊界。任何變更都應維持 ai 擁有 generation、orchestration、distillation、retrieval、safety 與 provider policy 語言，而不是吸收內容正典或推理輸出語義。
+ai 是共享能力 bounded context。它封裝所有 AI 執行能力——從 generation、distillation 到 safety——讓下游主域穩定消費，而不需要了解 LLM provider 細節。
 
-## Canonical Ownership
+## Baseline Bounded Contexts
 
-- generation
-- orchestration
-- distillation
-- retrieval
-- memory
-- context
-- safety
-- tool-calling
-- reasoning
-- conversation
-- evaluation
-- tracing
+| Cluster | Subdomains |
+|---|---|
+| Core Execution | generation、orchestration、distillation |
+| Knowledge Access | retrieval、memory、context |
+| Quality & Safety | safety、evaluation、tracing |
+| Extended Capability | tool-calling、reasoning、conversation |
 
-## Route Here When
+## Recommended Gap Bounded Contexts
 
-- 問題核心是 LLM 呼叫、模型選擇、provider routing。
-- 問題需要 prompt 組裝、flow 執行或 tool calling 協調。
-- 問題需要將長輸出濃縮（distillation）或進行向量搜尋（retrieval）。
-- 問題需要安全護欄、配額或 AI 執行觀測。
+| Subdomain | Why Needed | Gap If Missing |
+|---|---|---|
+| evaluation | 建立 AI 輸出品質的正式評估邊界 | 輸出品質只能靠人工驗收，無回歸基準 |
+| tracing | 建立 AI 執行成本與 span 的觀測邊界 | 無法量測 LLM 使用量與偵錯 AI 流程 |
 
-## Route Elsewhere When
+## Domain Invariants
 
-- 身份與存取治理屬於 iam。
-- 訂閱、配額商業政策屬於 billing。
-- 正典知識內容屬於 notion。
-- 對話推理輸出、grounding、notebook synthesis 屬於 notebooklm。
+- generation 是唯一直接呼叫 LLM provider 的子域，其他子域透過 ports 間接使用。
+- distillation 輸出的是「精煉知識片段」，不是 KnowledgeArtifact；語義屬於 ai，不屬於 notion。
+- memory 若需要長期保存內容，應優先保存 distilled knowledge，而不是無限制保留 raw content。
+- retrieval 若存在可選資料來源，應優先索引 distilled chunks 或結構化 knowledge signal。
+- evaluation 必須覆蓋 distillation，至少檢查 compression、retention 與 hallucination risk。
+- safety 的結果可以終止任何 AI 執行流程。
+- orchestration 是執行圖的主控，不直接持有業務資料。
+- tracing 只負責觀測與 debug，不得改變執行決策。
+- 所有子域的 domain 層必須框架無關。
 
-## Guardrails
+## Dependency Direction
 
-- ai 的 distillation 是通用蒸餾能力，不是 notebooklm 的推理輸出語言。
-- ai 的 retrieval 是通用向量搜尋能力，不是 notion 的知識查詢正典。
-- ai 的 conversation 管理 AI 輪次，不等同 notebooklm 的 Conversation aggregate。
-- 下游消費只能透過 `modules/ai/api` 公開邊界，不能直接存取 subdomain internals。
-- Genkit 與 LLM SDK 只能存在於 infrastructure 層。
+- ai 子域在存在對應層時遵守 interfaces -> application -> domain <- infrastructure。
+- 子域之間透過 ports 或 orchestration application 協調，不直接依賴彼此 domain。
+- 外部輸入只能先經 API boundary，再進入 ai 內部執行流程。
 
-## Hard Prohibitions
+## Anti-Patterns
 
-- 不得讓 domain 或 application 直接依賴 Genkit、Firebase SDK 或框架語言。
-- 不得讓其他模組直接 import ai 的 infrastructure 或 subdomain domain 層。
-- 不得在 ai 內定義 KnowledgeArtifact、Notebook、Membership 等他域正典型別。
+- 讓 generation 子域直接依賴 notion 或 notebooklm 的業務型別。
+- 把 distillation 當成 notebooklm synthesis 的 alias，混淆輸出語義。
+- 讓下游模組繞過 ai API 邊界，直接 import ai infrastructure。
+- 在 ai domain 層 import Genkit、Firebase 或任何 SDK。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先確認需求屬於哪個 ai subdomain，再決定 port 定義與 adapter 位置。
-- 新能力若已有對應子域，先在該子域擴展，不要新建平行子域。
-- 奧卡姆剃刀：若一個 port + use case 就能承接需求，不要再新增 service 或 manager。
-- distillation 若只是摘要變體，先確認 generation 子域的 summarize 是否已足夠，再決定是否升級為 distillation use case。
+- 生成程式碼時，先確認能力屬於哪個 cluster，再決定子域與層。
+- 跨子域協調一律交給 orchestration application，不讓子域直接相互呼叫。
+- 奧卡姆剃刀：能在現有子域加一個 port + use case 解決，就不要新建子域。
 
 ## Dependency Direction Flow
 
 ```mermaid
 flowchart LR
-	I["Interfaces / Driving Adapters"] --> A["Application / Use Cases"]
-	A --> D["AI Domain / Ports"]
-	P["Ports"] -. used by .-> A
-	X["Infrastructure / Adapters"] -. implements .-> P
-	X --> D
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain / Ports"]
+	X["Infrastructure"] -. implements .-> D
 ```
+````
 
-## Correct Interaction Flow
+## File: docs/contexts/ai/README.md
+````markdown
+# AI Context
+
+## Purpose
+
+ai 是共享 AI capability 主域。它負責 generation、orchestration、distillation、retrieval、memory、safety 與 provider routing，供 notion、notebooklm 等主域穩定消費。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 共享 AI capability orchestration |
+| Upstream Dependency | iam access policy、billing entitlement |
+| Downstream Consumers | notion、notebooklm |
+| Core Principle | 提供 AI 能力，不接管內容正典或推理輸出語義 |
+
+## Baseline Subdomains
+
+- generation — 文字生成，Genkit 接縫
+- orchestration — 執行圖與工作流協調
+- distillation — 將長輸出濃縮為精煉知識片段
+- retrieval — 向量搜尋與上下文抓取
+- memory — 對話歷史與狀態保存
+- context — prompt 上下文組裝
+- safety — 安全護欄與內容保護
+- tool-calling — 外部工具調用協調
+- reasoning — 推理步驟管理
+- conversation — AI 互動輪次管理
+- evaluation — 輸出品質評估
+- tracing — AI 執行觀測與追蹤
+
+## Key Relationships
+
+- 與 iam：消費 actor reference 與 access decision。
+- 與 billing：消費 entitlement signal 決定 AI 配額。
+- 與 notion：向 notion 提供 generate、summarize、distill 能力。
+- 與 notebooklm：向 notebooklm 提供 generation、retrieval、distillation 能力。
+
+## Strategic Rules
+
+- Context 應先做 token budgeting、ranking 與壓縮，再把結果交給 generation 或 distillation。
+- Distillation 應被視為 knowledge compiler，而不是單純摘要工具。
+- Retrieval、memory、evaluation 都應明確接收並檢查 distillation 的輸出，而不是各自重新定義相同語義。
+- 大型蒸餾或多來源蒸餾應優先走 async pipeline，避免同步入口承擔過高成本與延遲。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENT.md](./AGENT.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- Genkit、LLM SDK 等 provider 細節只能停留在 infrastructure 層。
+- 下游消費者只透過 `modules/ai/api` 或 `modules/ai/api/server` 存取。
+
+## Anti-Pattern Rules
+
+- 不把 notion 的 KnowledgeArtifact 或 notebooklm 的 Conversation 語義拉進 ai domain。
+- 不在 ai 內重建 identity 或 billing 邏輯。
+- 不讓下游模組直接呼叫 ai 的 infrastructure 或 subdomain internals。
+
+## Document Network
+
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+````
+
+## File: docs/contexts/ai/subdomains.md
+````markdown
+# AI Subdomains
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| generation | 文字生成；Genkit 接縫；`generateText`、`summarize` |
+| orchestration | 執行圖與多步驟 AI workflow 協調 |
+| distillation | 將長輸出或多來源濃縮為精煉知識片段 |
+| retrieval | 向量搜尋、相似度查詢與上下文抓取 |
+| memory | 對話歷史與跨輪次狀態保存 |
+| context | prompt 上下文組裝與 token 預算管理 |
+| safety | 安全護欄、有害內容過濾與合規保護 |
+| tool-calling | 外部工具調用協調與結果回注 |
+| reasoning | 推理步驟管理（chain-of-thought、反思） |
+| conversation | AI 互動輪次追蹤與歷史管理 |
+| evaluation | 輸出品質評估與回歸基準 |
+| tracing | AI 執行觀測、span 紀錄與成本追蹤 |
+
+## Subdomain Groupings
+
+| Group | Subdomains |
+|---|---|
+| Core Execution | generation、orchestration、distillation |
+| Knowledge Access | retrieval、memory、context |
+| Quality & Safety | safety、evaluation、tracing |
+| Extended Capability | tool-calling、reasoning、conversation |
+
+## Active Baseline
+
+- generation 子域已有 Genkit 實作（`GenkitAiTextGenerationAdapter`）。
+- 其餘子域為骨架狀態，依需求逐步實作。
+
+## Distillation 說明
+
+distillation 將多段 AI 輸出或長文濃縮為精煉、可引用的知識片段，與 generation 的差異在於：
+
+- generation：輸入 prompt → 輸出文字。
+- distillation：輸入多段內容 → 輸出 overview、highlights 與其他 schema-ready knowledge fragments。
+
+下游（如 notebooklm）消費 distillation 能力，但 distillation 的輸出語義屬於 ai，不屬於 notebooklm 的推理輸出。
+
+### Distilled Rules
+
+- distillation 應被視為 knowledge compiler，而不是只做單一 summary 字串回傳。
+- memory 應優先吸收 distilled output，避免 raw content 直接放大 token 與成本。
+- retrieval 若可選擇資料來源，應優先使用 distilled chunks 或 structured knowledge signal。
+- evaluation 應把 distillation 視為正式品質對象，至少檢查 compression、retention 與 hallucination 風險。
+- 大型蒸餾流程應優先走 async pipeline，而不是把重工作壓在同步入口。
+
+## Anti-Patterns
+
+- 不把 distillation 子域當成 notebooklm 的 synthesis 子域的替代品；兩者語義不同。
+- 不把 retrieval 混成 notion 的知識查詢；ai retrieval 是通用向量能力。
+- 不把 conversation 子域等同 notebooklm 的 Conversation aggregate。
+- 不在 subdomain domain 層 import 任何 LLM SDK 或 Firebase 相關依賴。
+
+## Copilot Generation Rules
+
+- 新 AI use case 先對應到上表某個子域，再決定 port 位置與 adapter 實作。
+- 若 distillation 只是 summarize 的變體，先在 generation 子域新增 use case，確認不夠後才升至 distillation 子域。
+- 奧卡姆剃刀：子域骨架存在不代表需要立即填滿所有層；按需實作。
+
+## Dependency Direction Flow
 
 ```mermaid
 flowchart LR
-	IAM["iam upstream"] -->|actor / access| Boundary["ai API boundary"]
-	Billing["billing upstream"] -->|entitlement| Boundary
-	Boundary --> App["Application orchestration"]
-	App --> Generation["generation"]
-	App --> Distillation["distillation"]
-	App --> Retrieval["retrieval"]
-	App --> Safety["safety"]
-	Generation --> Output["AI capability signal"]
-	Distillation --> Output
-	Retrieval --> Output
-	Output --> Notion["notion consumer"]
-	Output --> NotebookLM["notebooklm consumer"]
+	UI["Interfaces"] --> UseCase["Use case (application)"]
+	UseCase --> Port["Port (domain)"]
+	Infra["Infrastructure adapter"] -. implements .-> Port
+```
+
+## Correct Subdomain Interaction
+
+```mermaid
+flowchart LR
+	Orchestration["orchestration"] --> Generation["generation"]
+	Orchestration --> Distillation["distillation"]
+	Orchestration --> Retrieval["retrieval"]
+	Context["context"] --> Orchestration
+	Memory["memory"] --> Context
+	Safety["safety"] --> Orchestration
 ```
 
 ## Document Network
@@ -57160,169 +57667,8 @@ flowchart LR
 - [README.md](./README.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-````
-
-## File: docs/contexts/ai/context-map.md
-````markdown
-# AI Context Map
-
-## Context Role
-
-ai 對其他主域提供共享 AI capability signal。它消費 iam 的 access decision 與 billing 的 entitlement signal，向 notion 與 notebooklm 輸出 generation、distillation、retrieval 等能力。
-
-## Relationships
-
-| Upstream | Downstream | Relationship Type | Published Language |
-|---|---|---|---|
-| iam | ai | Upstream/Downstream | actor reference、access decision |
-| billing | ai | Upstream/Downstream | entitlement signal、quota capability |
-| ai | notion | Upstream/Downstream | ai capability signal、distillation result、safety result |
-| ai | notebooklm | Upstream/Downstream | ai capability signal、distillation result、retrieval result、safety result |
-
-## Mapping Rules
-
-- ai 消費 iam 的結果，但不重建 actor 或 tenant 模型。
-- ai 消費 billing 的 entitlement signal 決定配額，但不擁有訂閱或計費語義。
-- notion 消費 ai capability，但 AI provider / policy 所有權不屬於 notion。
-- notebooklm 消費 ai 的 generation、distillation、retrieval，但推理輸出的正典語義屬於 notebooklm 自己。
-- ai 不回寫任何下游主域的正典模型。
-
-## Integration Pattern
-
-- ai 作為下游消費 iam 與 billing 時，採用 Conformist 或 ACL，視語義相容性決定。
-- notion 與 notebooklm 消費 ai 時，ai 的 published language 是 capability signal，不是 aggregate。
-
-## Dependency Direction
-
-- ai 對 iam、billing 屬 downstream。
-- ai 對 notion、notebooklm 屬 upstream 的能力供應者。
-
-## Anti-Patterns
-
-- 把 ai 與 notebooklm 寫成 Shared Kernel，同時擁有推理輸出語義。
-- 讓 notion 或 notebooklm 直接 import ai 的 infrastructure 或 subdomain domain。
-- 把 iam 的 actor model 直接帶入 ai domain，而非只消費 access decision。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	IAM["iam upstream"] -->|access decision| Boundary["ai API boundary"]
-	Billing["billing upstream"] -->|entitlement signal| Boundary
-	Boundary --> App["ai Application"]
-	App --> Capability["AI capability signal / distillation result"]
-	Capability --> Notion["notion consumer"]
-	Capability --> NotebookLM["notebooklm consumer"]
-```
-````
-
-## File: docs/contexts/ai/ubiquitous-language.md
-````markdown
-# AI Ubiquitous Language
-
-## Canonical Terms
-
-| Term | Meaning |
-|---|---|
-| AICapabilitySignal | ai 向下游輸出的能力結果，不是具體 aggregate |
-| GenerationResult | 單次文字生成的輸出，包含 text、model、finishReason |
-| DistillationResult | 從多段內容或長輸出濃縮出的精煉知識片段 |
-| RetrievalResult | 向量搜尋後回傳的相關內容片段與分數 |
-| PromptContext | 組裝後準備送入 LLM 的完整上下文物件 |
-| SafetyResult | 安全護欄對輸入或輸出的檢查結果（pass / block） |
-| ModelPolicy | 模型選擇、版本鎖定與使用限制規則 |
-| OrchestrationFlow | 多步驟 AI 執行圖，由 orchestration 子域控制 |
-| ToolCall | 外部工具的調用請求與結果 |
-| MemoryEntry | 對話歷史或跨輪次狀態的單筆記錄 |
-| EvaluationScore | 針對 AI 輸出的品質量測結果 |
-| TraceSpan | AI 執行流程中的單一可觀測片段 |
-
-## Language Rules
-
-- 使用 DistillationResult 表示蒸餾輸出，不用 Summary 混稱精煉過程與摘要功能。
-- 使用 GenerationResult 表示生成輸出，不用 Response 泛稱所有 LLM 回傳。
-- 使用 PromptContext 表示組裝後的上下文，不用 Prompt 直接傳遞原始字串。
-- 使用 SafetyResult 表示護欄結果，不用 Filter 混指檢查流程。
-- 使用 AICapabilitySignal 作為跨主域 published language，不暴露內部 aggregate。
-
-## Avoid
-
-| Avoid | Use Instead |
-|---|---|
-| Summary（跨域泛稱） | DistillationResult（ai 精煉輸出）或 GenerationResult（生成摘要） |
-| Response | GenerationResult |
-| Filter | SafetyResult |
-| Prompt（跨域傳遞） | PromptContext |
-| Chat | conversation（ai 輪次管理）或 Conversation（notebooklm 正典） |
-
-## Naming Anti-Patterns
-
-- 不用 Summary 混指 distillation 的精煉結果與 generation 的摘要功能。
-- 不用 Chat 混指 ai 的 conversation 管理與 notebooklm 的 Conversation aggregate。
-- 不用 Prompt 作為跨域傳遞型別，必須先組裝成 PromptContext。
-- 不用 Filter 表示 safety 的護欄判定，SafetyResult 已含通過或攔截語義。
-
-## Copilot Generation Rules
-
-- 命名先對齊上表 Canonical Terms，再決定類別與檔名。
-- distillation 子域的輸出型別命名用 DistillationResult，不要退化為 SummarizedText。
-- 奧卡姆剃刀：若一個正確名詞已能表達邊界，不要再堆疊近義抽象。
-````
-
-## File: docs/contexts/iam/README.md
-````markdown
-# IAM Context
-
-本 README 在本次重切作業下，定義 identity and access management 的主域邊界。
-
-## Purpose
-
-iam 是身份、驗證、授權、federation、session、租戶與存取治理主域。它提供 actor、identity、tenant、access decision 與 security policy 語言，作為其他主域的治理上游。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 身份、租戶與 access governance |
-| Upstream Dependency | 無主域級上游 |
-| Downstream Consumers | billing、platform、workspace、notion、notebooklm |
-| Core Principle | 提供治理判定，不接管商業、內容或推理正典 |
-````
-
-## File: docs/contexts/iam/subdomains.md
-````markdown
-# IAM
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| identity | 已驗證主體與身份信號治理 |
-| access-control | 主體現在能做什麼的授權判定 |
-| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
-| security-policy | 安全規則定義、版本化與發佈 |
-
-## Recommended Gap Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| session | session、token 與 identity lifecycle 收斂 |
-| consent | 同意與資料使用授權治理收斂 |
-| secret-governance | secret 與 credential access policy 收斂 |
-
-## Migration-Safe Operational Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| authentication | sign-in、registration、credential recovery、provider bootstrap |
-| authorization | higher-level policy orchestration and decision semantics |
-| federation | external identity provider linking, SSO, and trust delegation |
-| session | token refresh, revocation, and server-side session lifecycle |
+- [../../subdomains.md](../../subdomains.md)
 ````
 
 ## File: docs/contexts/notion/README.md
@@ -57749,6 +58095,16 @@ flowchart LR
 - 若同一個詞在多主域都想擁有，優先看它服務的是治理、協作範疇、正典內容還是推理輸出。
 ````
 
+## File: modules/ai/application/index.ts
+````typescript
+/** ai/application — AI orchestration use cases. */
+````
+
+## File: modules/ai/domain/index.ts
+````typescript
+/** ai/domain — AI domain contracts. */
+````
+
 ## File: modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts
 ````typescript
 import { genkit } from "genkit";
@@ -57763,11 +58119,6 @@ import type {
 export class GenkitAiTextGenerationAdapter implements AiTextGenerationPort {
 ⋮----
 async generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>
-````
-
-## File: modules/ai/infrastructure/index.ts
-````typescript
-/** ai/infrastructure — shared AI adapters and Genkit singletons. */
 ````
 
 ## File: modules/ai/subdomains/prompt-pipeline/README.md
@@ -57811,72 +58162,20 @@ Outer runtimes may consume this prompt-pipeline subdomain through the public API
 - notebooklm flows may resolve prompt payloads before calling provider adapters
 ````
 
-## File: modules/iam/AGENT.md
-````markdown
-# IAM Module Agent Guide
-
-## Purpose
-
-This bounded context owns identity, authentication, authorization, access control, federation, session, tenant-scoped governance, and security-policy concerns.
-
-## Boundary Rules
-
-- Keep sign-in, actor identity, access decisions, session lifecycle, federation, and tenant isolation here.
-- Do not place billing, AI orchestration, or workspace product behavior here.
-- Cross-module consumers must use the public API boundary.
-- Preserve the dependency direction of interfaces to application to domain, with infrastructure depending inward.
-- During migration, prefer IAM-owned bridges over direct imports from Platform internals.
-
-## Current subdomains
-
-- identity
-- authentication
-- authorization
-- access-control
-- federation
-- session
-- tenant
-- security-policy
-````
-
-## File: modules/iam/iam.instructions.md
-````markdown
----
-description: Minimal rules for the IAM bounded context.
-applyTo: 'modules/iam/**/*.{ts,tsx,js,jsx,md}'
----
-
-# IAM Instructions
-
-- modules/iam owns identity, authentication, authorization, access-control, federation, session, tenant, and security-policy concerns.
-- Keep governance and access policy semantic here, not in UI composition.
-- Expose stable capability contracts from the public API only.
-- Keep domain logic framework-free and keep infrastructure adapters isolated.
-- Use migration-safe bridges when extracting legacy IAM behavior out of Platform and other bounded contexts.
-````
-
-## File: modules/iam/README.md
-````markdown
-# IAM
-
-Migration-safe bounded-context foundation for identity and access management.
-
-## Canonical subdomains
-
-- identity
-- authentication
-- authorization
-- access-control
-- federation
-- session
-- tenant
-- security-policy
-
-This module is the semantic home for actor identity, sign-in lifecycle, authorization decisions, federated provider integration, tenant isolation, and security governance.
-
-## Migration note
-
-Platform may still host some legacy implementation details during convergence, but new cross-context consumers should depend on the IAM public boundary first.
+## File: modules/iam/api/index.ts
+````typescript
+/**
+ * Public API boundary for the IAM bounded context.
+ *
+ * This barrel is the canonical migration target for identity, authentication,
+ * authorization, session, federation, tenant, and security-policy concerns.
+ * Legacy Platform-owned implementations may still back some exports while the
+ * repo converges on IAM as the single owner.
+ */
+⋮----
+// account subdomain — canonical definitions (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe)
+⋮----
+// organization subdomain — explicit to avoid re-export conflicts with account
 ````
 
 ## File: modules/iam/subdomains/federation/api/index.ts
@@ -58162,42 +58461,6 @@ constructor(
 async execute(input: CreateTasksFromSourceInput): Promise<CommandResult>
 ````
 
-## File: modules/notebooklm/subdomains/subdomains.instructions.md
-````markdown
----
-description: 'NotebookLM subdomains structural rules: hexagonal shape per subdomain, derived-output ownership, RAG pipeline boundaries, cross-subdomain collaboration, and stub promotion criteria.'
-applyTo: 'modules/notebooklm/subdomains/**/*.{ts,tsx}'
----
-
-# NotebookLM Subdomains Layer (Local)
-
-Use this file as execution guardrails for `modules/notebooklm/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notebooklm/subdomains.md`.
-
-## Core Rules
-
-- Every subdomain must maintain the core-first default shape: `api/`, `domain/`, `application/`, optional `ports/`, and `README.md`.
-- `infrastructure/` and `interfaces/` belong at the bounded-context root by default and should be grouped by subdomain there unless the mini-module gate is explicitly justified.
-- Stub subdomains (`domain/index.ts` only) must not be promoted to Active without a corresponding ADR and `README.md` update.
-- Cross-subdomain collaboration within notebooklm goes through the **subdomain's own `api/`** — never import a sibling subdomain's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- Each subdomain owns its Firestore collection(s); no subdomain reads or writes another subdomain's data directly.
-- Domain events emitted by a subdomain must use the discriminant format `notebooklm.<subdomain>.<action>` (e.g. `notebooklm.conversation.thread-created`, `notebooklm.source.ingestion-completed`, `notebooklm.synthesis.answer-generated`).
-- Dependency direction inside each subdomain mirrors the module-level rule: `interfaces → application → domain ← infrastructure`.
-- notebooklm only owns **derived reasoning outputs** — it must never directly modify canonical content belonging to `notion`.
-- `conversation` owns Thread and Message lifecycle; it must not own source ingestion or RAG pipeline logic.
-- `notebook` owns the aggregate container combining conversation, source, and derived notes; GenKit response generation is scoped here.
-- `source` owns the ingestion lifecycle, RagDocument state machine, WikiLibrary, and SourceRetentionPolicy — it must not own retrieval ranking or generation.
-- `synthesis` owns the complete RAG pipeline (retrieval → grounding → generation → evaluation) as internal facets; do not split these facets into separate subdomains unless an explicit split trigger is documented in an ADR.
-- Retrieval is upstream of generation; grounding aligns output to source evidence — do not reverse this dependency.
-- `evaluation` describes output quality and grounding confidence; it must not emit billing signals or usage metrics.
-- Shared AI provider capability (model routing, quota, safety) is supplied by the `ai` bounded context — do not replicate provider policy inside notebooklm subdomains.
-- Use `organizationId` only as an internal storage scope identifier derived after boundary translation; do not treat it as a shell route parameter.
-- Use `Conversation` (not `Chat` or `Session`) and `Ingestion` (not `File Import` or `Upload`) in all subdomain published language.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
 ## File: modules/workspace/api/contracts.ts
 ````typescript
 /**
@@ -58397,243 +58660,6 @@ flowchart LR
 7. [decisions/README.md](./decisions/README.md)
 ````
 
-## File: docs/contexts/ai/bounded-contexts.md
-````markdown
-# AI Bounded Contexts
-
-## Domain Role
-
-ai 是共享能力 bounded context。它封裝所有 AI 執行能力——從 generation、distillation 到 safety——讓下游主域穩定消費，而不需要了解 LLM provider 細節。
-
-## Baseline Bounded Contexts
-
-| Cluster | Subdomains |
-|---|---|
-| Core Execution | generation、orchestration、distillation |
-| Knowledge Access | retrieval、memory、context |
-| Quality & Safety | safety、evaluation、tracing |
-| Extended Capability | tool-calling、reasoning、conversation |
-
-## Recommended Gap Bounded Contexts
-
-| Subdomain | Why Needed | Gap If Missing |
-|---|---|---|
-| evaluation | 建立 AI 輸出品質的正式評估邊界 | 輸出品質只能靠人工驗收，無回歸基準 |
-| tracing | 建立 AI 執行成本與 span 的觀測邊界 | 無法量測 LLM 使用量與偵錯 AI 流程 |
-
-## Domain Invariants
-
-- generation 是唯一直接呼叫 LLM provider 的子域，其他子域透過 ports 間接使用。
-- distillation 輸出的是「精煉知識片段」，不是 KnowledgeArtifact；語義屬於 ai，不屬於 notion。
-- memory 若需要長期保存內容，應優先保存 distilled knowledge，而不是無限制保留 raw content。
-- retrieval 若存在可選資料來源，應優先索引 distilled chunks 或結構化 knowledge signal。
-- evaluation 必須覆蓋 distillation，至少檢查 compression、retention 與 hallucination risk。
-- safety 的結果可以終止任何 AI 執行流程。
-- orchestration 是執行圖的主控，不直接持有業務資料。
-- tracing 只負責觀測與 debug，不得改變執行決策。
-- 所有子域的 domain 層必須框架無關。
-
-## Dependency Direction
-
-- ai 子域在存在對應層時遵守 interfaces -> application -> domain <- infrastructure。
-- 子域之間透過 ports 或 orchestration application 協調，不直接依賴彼此 domain。
-- 外部輸入只能先經 API boundary，再進入 ai 內部執行流程。
-
-## Anti-Patterns
-
-- 讓 generation 子域直接依賴 notion 或 notebooklm 的業務型別。
-- 把 distillation 當成 notebooklm synthesis 的 alias，混淆輸出語義。
-- 讓下游模組繞過 ai API 邊界，直接 import ai infrastructure。
-- 在 ai domain 層 import Genkit、Firebase 或任何 SDK。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先確認能力屬於哪個 cluster，再決定子域與層。
-- 跨子域協調一律交給 orchestration application，不讓子域直接相互呼叫。
-- 奧卡姆剃刀：能在現有子域加一個 port + use case 解決，就不要新建子域。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain / Ports"]
-	X["Infrastructure"] -. implements .-> D
-```
-````
-
-## File: docs/contexts/ai/README.md
-````markdown
-# AI Context
-
-## Purpose
-
-ai 是共享 AI capability 主域。它負責 generation、orchestration、distillation、retrieval、memory、safety 與 provider routing，供 notion、notebooklm 等主域穩定消費。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 共享 AI capability orchestration |
-| Upstream Dependency | iam access policy、billing entitlement |
-| Downstream Consumers | notion、notebooklm |
-| Core Principle | 提供 AI 能力，不接管內容正典或推理輸出語義 |
-
-## Baseline Subdomains
-
-- generation — 文字生成，Genkit 接縫
-- orchestration — 執行圖與工作流協調
-- distillation — 將長輸出濃縮為精煉知識片段
-- retrieval — 向量搜尋與上下文抓取
-- memory — 對話歷史與狀態保存
-- context — prompt 上下文組裝
-- safety — 安全護欄與內容保護
-- tool-calling — 外部工具調用協調
-- reasoning — 推理步驟管理
-- conversation — AI 互動輪次管理
-- evaluation — 輸出品質評估
-- tracing — AI 執行觀測與追蹤
-
-## Key Relationships
-
-- 與 iam：消費 actor reference 與 access decision。
-- 與 billing：消費 entitlement signal 決定 AI 配額。
-- 與 notion：向 notion 提供 generate、summarize、distill 能力。
-- 與 notebooklm：向 notebooklm 提供 generation、retrieval、distillation 能力。
-
-## Strategic Rules
-
-- Context 應先做 token budgeting、ranking 與壓縮，再把結果交給 generation 或 distillation。
-- Distillation 應被視為 knowledge compiler，而不是單純摘要工具。
-- Retrieval、memory、evaluation 都應明確接收並檢查 distillation 的輸出，而不是各自重新定義相同語義。
-- 大型蒸餾或多來源蒸餾應優先走 async pipeline，避免同步入口承擔過高成本與延遲。
-
-## Reading Order
-
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
-
-## Dependency Direction
-
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- Genkit、LLM SDK 等 provider 細節只能停留在 infrastructure 層。
-- 下游消費者只透過 `modules/ai/api` 或 `modules/ai/api/server` 存取。
-
-## Anti-Pattern Rules
-
-- 不把 notion 的 KnowledgeArtifact 或 notebooklm 的 Conversation 語義拉進 ai domain。
-- 不在 ai 內重建 identity 或 billing 邏輯。
-- 不讓下游模組直接呼叫 ai 的 infrastructure 或 subdomain internals。
-
-## Document Network
-
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-````
-
-## File: docs/contexts/ai/subdomains.md
-````markdown
-# AI Subdomains
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| generation | 文字生成；Genkit 接縫；`generateText`、`summarize` |
-| orchestration | 執行圖與多步驟 AI workflow 協調 |
-| distillation | 將長輸出或多來源濃縮為精煉知識片段 |
-| retrieval | 向量搜尋、相似度查詢與上下文抓取 |
-| memory | 對話歷史與跨輪次狀態保存 |
-| context | prompt 上下文組裝與 token 預算管理 |
-| safety | 安全護欄、有害內容過濾與合規保護 |
-| tool-calling | 外部工具調用協調與結果回注 |
-| reasoning | 推理步驟管理（chain-of-thought、反思） |
-| conversation | AI 互動輪次追蹤與歷史管理 |
-| evaluation | 輸出品質評估與回歸基準 |
-| tracing | AI 執行觀測、span 紀錄與成本追蹤 |
-
-## Subdomain Groupings
-
-| Group | Subdomains |
-|---|---|
-| Core Execution | generation、orchestration、distillation |
-| Knowledge Access | retrieval、memory、context |
-| Quality & Safety | safety、evaluation、tracing |
-| Extended Capability | tool-calling、reasoning、conversation |
-
-## Active Baseline
-
-- generation 子域已有 Genkit 實作（`GenkitAiTextGenerationAdapter`）。
-- 其餘子域為骨架狀態，依需求逐步實作。
-
-## Distillation 說明
-
-distillation 將多段 AI 輸出或長文濃縮為精煉、可引用的知識片段，與 generation 的差異在於：
-
-- generation：輸入 prompt → 輸出文字。
-- distillation：輸入多段內容 → 輸出 overview、highlights 與其他 schema-ready knowledge fragments。
-
-下游（如 notebooklm）消費 distillation 能力，但 distillation 的輸出語義屬於 ai，不屬於 notebooklm 的推理輸出。
-
-### Distilled Rules
-
-- distillation 應被視為 knowledge compiler，而不是只做單一 summary 字串回傳。
-- memory 應優先吸收 distilled output，避免 raw content 直接放大 token 與成本。
-- retrieval 若可選擇資料來源，應優先使用 distilled chunks 或 structured knowledge signal。
-- evaluation 應把 distillation 視為正式品質對象，至少檢查 compression、retention 與 hallucination 風險。
-- 大型蒸餾流程應優先走 async pipeline，而不是把重工作壓在同步入口。
-
-## Anti-Patterns
-
-- 不把 distillation 子域當成 notebooklm 的 synthesis 子域的替代品；兩者語義不同。
-- 不把 retrieval 混成 notion 的知識查詢；ai retrieval 是通用向量能力。
-- 不把 conversation 子域等同 notebooklm 的 Conversation aggregate。
-- 不在 subdomain domain 層 import 任何 LLM SDK 或 Firebase 相關依賴。
-
-## Copilot Generation Rules
-
-- 新 AI use case 先對應到上表某個子域，再決定 port 位置與 adapter 實作。
-- 若 distillation 只是 summarize 的變體，先在 generation 子域新增 use case，確認不夠後才升至 distillation 子域。
-- 奧卡姆剃刀：子域骨架存在不代表需要立即填滿所有層；按需實作。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case (application)"]
-	UseCase --> Port["Port (domain)"]
-	Infra["Infrastructure adapter"] -. implements .-> Port
-```
-
-## Correct Subdomain Interaction
-
-```mermaid
-flowchart LR
-	Orchestration["orchestration"] --> Generation["generation"]
-	Orchestration --> Distillation["distillation"]
-	Orchestration --> Retrieval["retrieval"]
-	Context["context"] --> Orchestration
-	Memory["memory"] --> Context
-	Safety["safety"] --> Orchestration
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../subdomains.md](../../subdomains.md)
-````
-
 ## File: docs/module-graph.system-wide.md
 ````markdown
 # System-Wide Module Graph
@@ -58767,420 +58793,6 @@ SINK  ANALYTICS
   bounded-contexts.md        — 主域與子域所有權詳目
   context-map.md             — Upstream/Downstream published language 對照
   ubiquitous-language.md     — 戰略術語權威
-````
-
-## File: modules/ai/AGENT.md
-````markdown
-# AI Module Agent Guide
-
-## Purpose
-
-modules/ai 是共享 AI capability 的唯一邊界。它擁有 content-generation、content-distillation、context-assembly、evaluation-policy、memory-context、model-observability、prompt-pipeline、safety-guardrail 與 provider policy，向下游模組輸出能力接縫。
-
-## Boundary Rules
-
-- 把 provider routing、model policy、safety-guardrail 與 prompt-pipeline 放在這裡。
-- content-distillation（長輸出蒸餾）與 context-assembly（上下文組裝）的通用能力屬於此模組。
-- 不放 workspace UI 組合、billing policy、identity governance。
-- 跨模組消費者只能透過 `modules/ai/api`（types）或 `modules/ai/api/server`（functions）存取。
-- Genkit 與 LLM SDK 只能在 `infrastructure/` 層，domain 層必須框架無關。
-
-## Route Here When
-
-- 需要呼叫 LLM、選擇模型、路由 provider。
-- 需要 content-distillation 長輸出或多來源內容為精煉片段。
-- 需要 context-assembly、多步驟 prompt flow 或 memory-context。
-- 需要 safety-guardrail 護欄或 model-observability 觀測。
-
-## Route Elsewhere When
-
-- 身份與存取治理 → iam。
-- 訂閱、配額商業政策 → billing。
-- 正典知識內容 → notion。
-- 推理輸出、notebook synthesis → notebooklm。
-
-## Delivery Style
-
-- 優先擴展 content-generation 與 content-distillation 子域（已有實作），再決定是否需要補強 context-assembly、prompt-pipeline 或 memory-context。
-- 新子域只有在業務語義真的不同時才建立；骨架存在不代表需要立即實作。
-- 奧卡姆剃刀：一個 port + use case 能解決就不要新增 service。
-````
-
-## File: modules/ai/ai.instructions.md
-````markdown
----
-description: Rules for the AI bounded context.
-applyTo: 'modules/ai/**/*.{ts,tsx,js,jsx,md}'
----
-
-# AI Instructions
-
-## Ownership
-
-- modules/ai 擁有共享 AI capability：generation、orchestration、distillation、retrieval、memory、context、safety、tool-calling、reasoning、conversation、evaluation、tracing。
-- provider routing 與 model policy 在此模組定義，不在下游模組重建。
-
-## Dependency Rules
-
-- Genkit 與 provider SDK import 只能出現在 `modules/ai/infrastructure/`。
-- 下游消費者只能透過 `modules/ai/api`（client-safe types）或 `modules/ai/api/server`（server functions）存取。
-- domain 層不得依賴任何框架、SDK 或傳輸層。
-- 子域之間透過 ports 或 orchestration application 協調，不直接互相 import domain 層。
-
-## Naming
-
-- 生成輸出型別用 `GenerationResult` 或 `GenerateAiTextOutput`，不用 `Response`。
-- 蒸餾輸出型別用 `DistillationResult`，不用 `SummarizedText` 或 `Summary`。
-- 搜尋輸出型別用 `RetrievalResult`，不用 `SearchResult` 泛稱。
-
-## Anti-Patterns
-
-- 不在 ai 內定義 KnowledgeArtifact、Notebook、Conversation（notebooklm 正典）等他域型別。
-- 不混入 identity governance 或 billing policy。
-- 不讓其他模組繞過 api 邊界直接 import subdomain internals。
-````
-
-## File: modules/ai/application/index.ts
-````typescript
-/** ai/application — AI orchestration use cases. */
-````
-
-## File: modules/ai/domain/index.ts
-````typescript
-/** ai/domain — AI domain contracts. */
-````
-
-## File: modules/ai/subdomains/subdomains.instructions.md
-````markdown
----
-description: "AI subdomains architecture rules: capability-based subdomains, strict hexagonal boundaries, orchestration as application kernel, and infrastructure isolation."
-applyTo: "modules/ai/subdomains/**/*.{ts,tsx,md}"
----
-```
-
-# AI Subdomains Layer (Canonical)
-
-This document defines structural rules for `modules/ai/subdomains/*`.
-
-It must align with AI execution architecture principles and remain consistent with DDD + Hexagonal + AI pipeline separation.
-
----
-
-# 1️⃣ Core Principle
-
-Subdomains represent **capabilities inside a single AI execution engine**, NOT services.
-
-* ❌ NOT microservices
-* ❌ NOT independent APIs
-* ❌ NOT cross-service bus participants
-* ✔ ARE internal capability modules
-
----
-
-# 2️⃣ Standard Subdomain Structure (Hexagonal Capability Module)
-
-Each subdomain MUST follow this structure:
-
-```
-api/
-application/
-domain/
-infrastructure/
-interfaces/
-ports/        (preferred for external contracts)
-README.md
-```
-
----
-
-## Layer Responsibilities
-
-### domain/
-
-* Pure business logic
-* No SDKs, no LLM calls, no Firebase
-* Deterministic rules only
-
-### application/
-
-* Use cases
-* Coordination logic within the subdomain
-* Can call ports/interfaces
-
-### interfaces/
-
-* DTOs
-* Input/output contracts
-* Boundary definitions
-
-### ports/
-
-* Abstract external dependencies
-* LLM, DB, retrieval, tools, etc.
-
-### infrastructure/
-
-* Implements ports
-* Firebase / LLM SDK / vector DB / APIs
-
-### api/
-
-* External entry point ONLY
-* HTTP / Firebase Functions / Edge endpoints
-
----
-
-# 3️⃣ System-Level Architecture Rule
-
-## 3.1 API is NOT internal bus
-
-* ❌ subdomain-to-subdomain MUST NOT communicate via `api/`
-* ✔ api is ONLY external boundary
-
----
-
-## 3.2 Internal communication model
-
-Subdomains communicate via:
-
-```
-application → ports → application
-```
-
-or via orchestration kernel:
-
-```
-orchestration (application) → subdomain application
-```
-
----
-
-# 4️⃣ Dependency Rules (Strict Direction)
-
-Inside each subdomain:
-
-```
-interfaces → application → domain ← infrastructure
-```
-
-Rules:
-
-* domain is pure and independent
-* application depends only on domain + ports
-* infrastructure implements ports only
-* interfaces define contracts only
-
----
-
-# 5️⃣ Cross-Subdomain Communication Rule
-
-### Allowed:
-
-* orchestration application calls other subdomain application via interfaces/ports
-
-### Forbidden:
-
-* ❌ direct domain-to-domain coupling
-* ❌ infrastructure-to-infrastructure coupling
-* ❌ api-to-api internal routing
-
----
-
-# 6️⃣ AI Capability Subdomain Definitions
-
-## 6.1 orchestration (system kernel)
-
-* Owns execution graph
-* Controls workflow sequencing
-* Calls subdomains via application layer
-* Does NOT perform inference itself
-
----
-
-## 6.2 context
-
-* Builds request-time context
-* Stateless per execution
-* No persistence logic
-
----
-
-## 6.3 memory
-
-* Persistent state across sessions
-* Read/write via ports only
-* No prompt construction logic
-
----
-
-## 6.4 retrieval
-
-* Fetches and ranks candidates
-* No final answer generation
-* May use scoring models but no synthesis
-
----
-
-## 6.5 reasoning
-
-* Structured inference logic
-* Operates on prepared inputs only
-* No data fetching responsibility
-
----
-
-## 6.6 generation
-
-* Produces final output
-* Consumes reasoning + context
-* No retrieval or orchestration logic
-
----
-
-## 6.7 tool-calling
-
-* Defines tool schemas and invocation contracts
-* Execution is handled in infrastructure/adapters
-* Stateless logic only
-
----
-
-## 6.8 safety
-
-* Policy enforcement layer
-* Pre/post generation guardrails
-* Cannot modify domain logic
-
----
-
-## 6.9 evaluation
-
-* Quality scoring and regression checks
-* Offline/online evaluation logic
-* No telemetry aggregation
-
----
-
-## 6.10 distillation
-
-* Produces training datasets
-* Downstream-only from evaluation/generation
-
----
-
-## 6.11 tracing
-
-* Observability only
-* Execution logs, latency, graph tracing
-* Must NOT affect decisions
-
----
-
-# 7️⃣ AI Execution Flow (Canonical Model)
-
-```
-context
-   ↓
-retrieval
-   ↓
-reasoning
-   ↓
-tool-calling (optional)
-   ↓
-generation
-   ↓
-evaluation (async)
-```
-
-Controlled by:
-
-```
-orchestration (application kernel)
-```
-
----
-
-# 8️⃣ Event Convention
-
-```
-ai.<subdomain>.<event>
-```
-
-Examples:
-
-* ai.orchestration.started
-* ai.retrieval.completed
-* ai.reasoning.finished
-* ai.generation.completed
-* ai.evaluation.scored
-
-Rules:
-
-* domain/application emit events
-* infrastructure publishes events
-* events are immutable contracts
-
----
-
-# 9️⃣ Subdomain Activation Rule
-
-A subdomain is ACTIVE only if:
-
-* README defines responsibility
-* application layer contains real use cases
-* at least one port is implemented
-* infrastructure integration exists
-
-Otherwise:
-
-* treated as capability stub
-* cannot be referenced by orchestration
-
----
-
-# 🔟 Critical Semantic Constraints (Non-Negotiable)
-
-* context ≠ memory
-* retrieval ≠ generation
-* reasoning ≠ orchestration
-* evaluation ≠ telemetry
-* tool-calling ≠ execution engine
-* api ≠ internal communication layer
-
----
-
-# 🧠 Final Model
-
-This architecture represents:
-
-> AI Execution Engine with Capability-Based Modular Subdomains
-
-NOT:
-
-* microservices
-* API mesh
-* distributed services system
-
----
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
-## File: modules/iam/api/index.ts
-````typescript
-/**
- * Public API boundary for the IAM bounded context.
- *
- * This barrel is the canonical migration target for identity, authentication,
- * authorization, session, federation, tenant, and security-policy concerns.
- * Legacy Platform-owned implementations may still back some exports while the
- * repo converges on IAM as the single owner.
- */
-⋮----
-// account subdomain — canonical definitions (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe)
-⋮----
-// organization subdomain — explicit to avoid re-export conflicts with account
 ````
 
 ## File: modules/workspace/interfaces/facades/workspace-file.facade.ts
@@ -59440,122 +59052,6 @@ interface WorkspaceManagedFileCardProps {
 ## File: modules/workspace/subdomains/task/api/index.ts
 ````typescript
 
-````
-
-## File: package.json
-````json
-{
-  "name": "xuanwu-app",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "deploy:firestore:indexes": "npx firebase deploy --only firestore:indexes",
-    "deploy:firestore:rules": "npx firebase deploy --only firestore:rules",
-    "deploy:storage:rules": "npx firebase deploy --only storage",
-    "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
-    "deploy:apphosting": "npx firebase deploy --only apphosting",
-    "deploy:functions": "npx firebase deploy --only functions:py_fn",
-    "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
-    "deploy:functions:all": "npx firebase deploy --only functions",
-    "deploy:firebase": "npx firebase deploy",
-    "repomix:ai": "npx repomix --config repomix-ai.config.json --skill-generate xuanwu-ai-skill --skill-output .github/skills/xuanwu-ai-skill --force",
-    "repomix:skill": "npx repomix --config repomix.config.json --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
-    "repomix:markdown": "npx repomix --config repomix-markdown.config.json --skill-generate xuanwu-markdown-skill --skill-output .github/skills/xuanwu-markdown-skill --force",
-    "repomix:notebooklm": "npx repomix --config repomix-notebooklm.config.json --skill-generate xuanwu-notebooklm-skill --skill-output .github/skills/xuanwu-notebooklm-skill --force",
-    "repomix:notion": "npx repomix --config repomix-notion.config.json --skill-generate xuanwu-notion-skill --skill-output .github/skills/xuanwu-notion-skill --force",
-    "repomix:explore": "npx repomix --config repomix.config.json",
-    "repomix:remote": "npx repomix --remote",
-    "repomix:local": "npx repomix"
-  },
-  "engines": {
-    "node": "24"
-  },
-  "dependencies": {
-    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
-    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
-    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
-    "@genkit-ai/google-genai": "^1.30.1",
-    "@tanstack/react-form": "^1.28.5",
-    "@tanstack/react-query": "^5.90.21",
-    "@tanstack/react-table": "^8.21.3",
-    "@tanstack/react-virtual": "^3.13.23",
-    "@tiptap/extension-color": "^3.22.2",
-    "@tiptap/extension-link": "^3.22.2",
-    "@tiptap/extension-placeholder": "^3.22.2",
-    "@tiptap/extension-text-style": "^3.22.2",
-    "@tiptap/extension-typography": "^3.22.2",
-    "@tiptap/extension-underline": "^3.22.2",
-    "@tiptap/react": "^3.22.2",
-    "@tiptap/starter-kit": "^3.22.2",
-    "@trpc/client": "^11.13.4",
-    "@trpc/next": "^11.13.4",
-    "@trpc/react-query": "^11.13.4",
-    "@trpc/server": "^11.13.4",
-    "@xstate/react": "^6.1.0",
-    "axios": "^1.13.6",
-    "cmdk": "^1.1.1",
-    "date-fns": "^4.1.0",
-    "embla-carousel-react": "^8.6.0",
-    "firebase": "^12.9.0",
-    "genkit": "^1.30.1",
-    "input-otp": "^1.4.2",
-    "lucide-react": "^0.577.0",
-    "next": "16.1.7",
-    "next-themes": "^0.4.6",
-    "radix-ui": "^1.4.3",
-    "react": "19.2.3",
-    "react-day-picker": "^9.14.0",
-    "react-dom": "19.2.3",
-    "react-graph-vis": "^1.0.7",
-    "react-markdown": "^10.1.0",
-    "recharts": "^2.15.4",
-    "remark-gfm": "^4.0.1",
-    "sonner": "^2.0.7",
-    "superjson": "^2.2.6",
-    "uuid": "^13.0.0",
-    "vaul": "^1.1.2",
-    "vis-data": "^8.0.3",
-    "vis-graph3d": "^7.0.2",
-    "vis-network": "^10.0.2",
-    "vis-timeline": "^8.5.0",
-    "xstate": "^5.28.0",
-    "zod": "^4.3.6",
-    "zustand": "^5.0.12"
-  },
-  "devDependencies": {
-    "@next/eslint-plugin-next": "^16.2.2",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20.19.37",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@typescript-eslint/eslint-plugin": "^8.57.1",
-    "@typescript-eslint/parser": "^8.57.1",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "eslint": "^9.39.4",
-    "eslint-config-next": "^16.1.7",
-    "eslint-plugin-boundaries": "^6.0.1",
-    "eslint-plugin-jsdoc": "^62.8.0",
-    "eslint-plugin-jsx-a11y": "^6.10.2",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "repomix": "^1.12.0",
-    "shadcn": "^4.1.0",
-    "tailwind-merge": "^3.5.0",
-    "tailwindcss": "^4",
-    "tailwindcss-animate": "^1.0.7",
-    "tw-animate-css": "^1.4.0",
-    "typescript": "^5",
-    "typescript-eslint": "^8.58.0",
-    "vitest": "^4.1.2"
-  }
-}
 ````
 
 ## File: docs/subdomains.md
@@ -59837,6 +59333,92 @@ flowchart LR
 - [contexts/notebooklm/subdomains.md](./contexts/notebooklm/subdomains.md)
 ````
 
+## File: modules/ai/docs/README.md
+````markdown
+# AI Module Docs
+
+模組本地架構筆記。此文件描述 **目前已落地的 infrastructure baseline**，並用 Context7 驗證過的 Genkit 模式補齊本地說明。
+
+## Current Baseline
+
+- content-generation 子域持有 Genkit-backed 文字生成接縫，實作位於 [modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts](modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts)。
+- content-distillation 子域已提供結構化蒸餾能力，實作位於 [modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts](modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts)。
+- `generateAiText`、`summarize`、`distillContent` 是目前對外可用的 server functions。
+- Notion 與 NotebookLM 都只能透過 AI 公開邊界消費能力，不擁有 provider 或 Genkit runtime。
+
+## Infrastructure Layout
+
+| Path | Responsibility |
+|---|---|
+| [modules/ai/api/index.ts](modules/ai/api/index.ts) | client-safe types 與 capability contracts |
+| [modules/ai/api/server.ts](modules/ai/api/server.ts) | server-only public functions |
+| [modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts](modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts) | content-generation 與 summarization |
+| [modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts](modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts) | schema-validated content-distillation |
+
+## Content Distillation
+
+content-distillation 子域負責將長輸出或多段內容濃縮為精煉知識片段（`DistillationResult`）。
+
+它與 content-generation 的 `summarize` 差異如下：
+
+- content-generation/summarize：回傳單一摘要字串，偏向快速文字結果。
+- content-distillation：接收 `objective + sources[]`，回傳 `overview + distilledItems[] + trace metadata`，適合下游主域重用。
+
+目前實作的輸出欄位包含：
+- `overview`
+- `distilledItems`
+- `model`
+- `traceId`
+- `completedAt`
+
+根據 Context7 驗證的官方 Genkit 文件，這個能力使用了：
+- `generate()` 作為標準模型呼叫入口
+- 結構化輸出 schema 驗證
+- prompt/flow 作為可觀測、可調試的執行單位
+
+## Public API Surface
+
+```ts
+// client-safe types
+import type {
+  AIAPI,
+  DistillationAPI,
+  DistillContentInput,
+  DistillationResult,
+  GenerateAiTextInput,
+  GenerateAiTextOutput,
+  AiTextGenerationPort,
+} from "@/modules/ai/api";
+
+// server-only functions
+import { distillContent, generateAiText, summarize } from "@/modules/ai/api/server";
+```
+
+## Architecture Notes
+
+- provider plugin 與 Genkit client 只能存在於 infrastructure adapter。
+- 預設模型為 `googleai/gemini-2.5-flash`，可透過 `GENKIT_MODEL` 覆蓋。
+- distillation 輸出屬於 **AI capability signal**，不是 KnowledgeArtifact 或 Notebook 的正典模型。
+- 子域之間的協調仍由 application / orchestration 控制，不直接跨子域 domain 依賴。
+
+## Distilled Rule Sentences
+
+- context-assembly 應提供 token-budgeted、ranked、可直接送入模型的輸入，而不是把所有 raw 資料直接交給 content-generation。
+- content-distillation 不等於單純 summary；它應優先產出可重用的 overview、highlights 與其他 schema-ready knowledge fragments。
+- memory-context 若需要長期保存內容，應優先保存 distilled output，避免 raw content 無限制膨脹成本。
+- context-assembly 若可選擇資料來源，應優先組裝 distilled chunks 或 structured knowledge，而不是直接倚賴未整理的 raw text。
+- evaluation-policy 應把 content-distillation 視為正式質量對象，至少檢查 compression ratio、information retention 與 hallucination risk。
+- 大文件或多來源蒸餾應優先走 async pipeline，避免同步請求承擔過高延遲與成本。
+- model-observability 應記錄 traceId、model、latency、token usage 與 errors，讓 flow 可觀測但不干預決策。
+
+## References
+
+- [modules/ai/README.md](modules/ai/README.md)
+- [docs/contexts/ai/README.md](docs/contexts/ai/README.md)
+- [docs/contexts/ai/subdomains.md](docs/contexts/ai/subdomains.md)
+- [docs/contexts/ai/ubiquitous-language.md](docs/contexts/ai/ubiquitous-language.md)
+````
+
 ## File: modules/ai/subdomains/prompt-pipeline/application/index.ts
 ````typescript
 import type {
@@ -60079,6 +59661,123 @@ export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string
 export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[]
 ⋮----
 export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[]
+````
+
+## File: package.json
+````json
+{
+  "name": "xuanwu-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "deploy:firestore:indexes": "npx firebase deploy --only firestore:indexes",
+    "deploy:firestore:rules": "npx firebase deploy --only firestore:rules",
+    "deploy:storage:rules": "npx firebase deploy --only storage",
+    "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
+    "deploy:apphosting": "npx firebase deploy --only apphosting",
+    "deploy:functions": "npx firebase deploy --only functions:py_fn",
+    "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
+    "deploy:functions:all": "npx firebase deploy --only functions",
+    "deploy:firebase": "npx firebase deploy",
+    "repomix:ai": "npx repomix --config repomix-ai.config.json --skill-generate xuanwu-ai-skill --skill-output .github/skills/xuanwu-ai-skill --force",
+    "repomix:src": "npx repomix --config repomix-src.config.json --skill-generate xuanwu-src-skill --skill-output .github/skills/xuanwu-src-skill --force",
+    "repomix:skill": "npx repomix --config repomix.config.json --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
+    "repomix:markdown": "npx repomix --config repomix-markdown.config.json --skill-generate xuanwu-markdown-skill --skill-output .github/skills/xuanwu-markdown-skill --force",
+    "repomix:notebooklm": "npx repomix --config repomix-notebooklm.config.json --skill-generate xuanwu-notebooklm-skill --skill-output .github/skills/xuanwu-notebooklm-skill --force",
+    "repomix:notion": "npx repomix --config repomix-notion.config.json --skill-generate xuanwu-notion-skill --skill-output .github/skills/xuanwu-notion-skill --force",
+    "repomix:explore": "npx repomix --config repomix.config.json",
+    "repomix:remote": "npx repomix --remote",
+    "repomix:local": "npx repomix"
+  },
+  "engines": {
+    "node": "24"
+  },
+  "dependencies": {
+    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
+    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
+    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
+    "@genkit-ai/google-genai": "^1.30.1",
+    "@tanstack/react-form": "^1.28.5",
+    "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.13.23",
+    "@tiptap/extension-color": "^3.22.2",
+    "@tiptap/extension-link": "^3.22.2",
+    "@tiptap/extension-placeholder": "^3.22.2",
+    "@tiptap/extension-text-style": "^3.22.2",
+    "@tiptap/extension-typography": "^3.22.2",
+    "@tiptap/extension-underline": "^3.22.2",
+    "@tiptap/react": "^3.22.2",
+    "@tiptap/starter-kit": "^3.22.2",
+    "@trpc/client": "^11.13.4",
+    "@trpc/next": "^11.13.4",
+    "@trpc/react-query": "^11.13.4",
+    "@trpc/server": "^11.13.4",
+    "@xstate/react": "^6.1.0",
+    "axios": "^1.13.6",
+    "cmdk": "^1.1.1",
+    "date-fns": "^4.1.0",
+    "embla-carousel-react": "^8.6.0",
+    "firebase": "^12.9.0",
+    "genkit": "^1.30.1",
+    "input-otp": "^1.4.2",
+    "lucide-react": "^0.577.0",
+    "next": "16.1.7",
+    "next-themes": "^0.4.6",
+    "radix-ui": "^1.4.3",
+    "react": "19.2.3",
+    "react-day-picker": "^9.14.0",
+    "react-dom": "19.2.3",
+    "react-graph-vis": "^1.0.7",
+    "react-markdown": "^10.1.0",
+    "recharts": "^2.15.4",
+    "remark-gfm": "^4.0.1",
+    "sonner": "^2.0.7",
+    "superjson": "^2.2.6",
+    "uuid": "^13.0.0",
+    "vaul": "^1.1.2",
+    "vis-data": "^8.0.3",
+    "vis-graph3d": "^7.0.2",
+    "vis-network": "^10.0.2",
+    "vis-timeline": "^8.5.0",
+    "xstate": "^5.28.0",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^16.2.2",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20.19.37",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@typescript-eslint/eslint-plugin": "^8.57.1",
+    "@typescript-eslint/parser": "^8.57.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.1.7",
+    "eslint-plugin-boundaries": "^6.0.1",
+    "eslint-plugin-jsdoc": "^62.8.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "repomix": "^1.12.0",
+    "shadcn": "^4.1.0",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4",
+    "tailwindcss-animate": "^1.0.7",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "^5",
+    "typescript-eslint": "^8.58.0",
+    "vitest": "^4.1.2"
+  }
+}
 ````
 
 ## File: docs/bounded-contexts.md
@@ -60361,6 +60060,83 @@ flowchart LR
 - [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
 ````
 
+## File: modules/ai/README.md
+````markdown
+# AI
+
+共享 AI capability bounded context：content-generation、content-distillation、context-assembly、evaluation-policy、memory-context、model-observability、prompt-pipeline、safety-guardrail。
+
+## Intended Ownership
+
+- provider routing 與 model policy
+- safety-guardrail：風險限制與安全護欄
+- prompt-pipeline：prompt、flow 與 tool-calling orchestration
+- content-generation：共享文字生成與 summarization 能力
+- content-distillation：將長輸出濃縮為精煉知識片段
+- context-assembly：組裝 token-budgeted、模型可用的上下文
+- evaluation-policy：輸出品質與回歸評估規則
+- model-observability：AI 執行觀測與 trace metadata
+- memory-context：可重用的 AI 記憶與脈絡保留
+
+## Active Baseline
+
+- content-generation 子域持有 Genkit-backed 文字生成接縫（`generateAiText`、`summarize`）
+- content-distillation 子域現在提供結構化蒸餾能力（`distillContent`）
+- 下游模組透過 `modules/ai/api`（client-safe types）與 `modules/ai/api/server`（server-only functions）消費
+- 其餘子域為語意骨架，依需求逐步實作
+
+## Capability Rules
+
+- context-assembly 應先聚合、排序並壓縮上下文，再把可用輸入交給 content-generation 或 content-distillation。
+- content-generation 應透過 provider-agnostic adapter 產生最終文字或結構化輸出，且輸出必須先經 schema 驗證。
+- memory-context 應優先保存 distilled knowledge，而不是無限制累積 raw content。
+- content-distillation 應作為 AI domain 的 knowledge compiler，把 raw 或多來源內容轉為低 token、可重用、可結構化的知識訊號。
+- prompt-pipeline 應控制多步 flow、retry、fallback 與 tool-calling orchestration，不承載下游業務語義。
+- evaluation-policy 應覆蓋 content-generation 與 content-distillation，至少量測 compression、retention 與 hallucination 風險。
+- safety-guardrail 可以在任何步驟阻斷執行；model-observability 只負責觀測，不得改變業務決策。
+
+## Subdomains
+
+| Subdomain | Status | Notes |
+|---|---|---|
+| content-generation | active | GenkitAiTextGenerationAdapter 已實作 |
+| content-distillation | active | GenkitDistillationAdapter 已實作 |
+| context-assembly | semantic skeleton | 模型上下文組裝 |
+| evaluation-policy | semantic skeleton | 輸出品質評估規則 |
+| memory-context | semantic skeleton | 可重用 AI 記憶脈絡 |
+| model-observability | semantic skeleton | 執行觀測與 trace metadata |
+| prompt-pipeline | active baseline | prompt、flow、tool-calling orchestration |
+| safety-guardrail | semantic skeleton | 安全護欄與限制 |
+
+## Public API
+
+```ts
+// client-safe types
+import type {
+  AIAPI,
+  DistillationAPI,
+  DistillContentInput,
+  DistillationResult,
+  GenerateAiTextInput,
+  GenerateAiTextOutput,
+  AiTextGenerationPort,
+} from "@/modules/ai/api";
+
+// server-only functions
+import { distillContent, generateAiText, summarize } from "@/modules/ai/api/server";
+```
+
+## Dependency Direction
+
+```
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- domain 不得依賴任何 SDK 或框架。
+- Genkit 與 provider SDK 只能在 `infrastructure/` 層。
+- 跨模組消費只能透過 `api/` 邊界。
+````
+
 ## File: modules/ai/subdomains/prompt-pipeline/api/index.ts
 ````typescript
 /**
@@ -60611,92 +60387,6 @@ resolveComplianceExtractionPrompt(
  */
 ````
 
-## File: modules/ai/docs/README.md
-````markdown
-# AI Module Docs
-
-模組本地架構筆記。此文件描述 **目前已落地的 infrastructure baseline**，並用 Context7 驗證過的 Genkit 模式補齊本地說明。
-
-## Current Baseline
-
-- content-generation 子域持有 Genkit-backed 文字生成接縫，實作位於 [modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts](modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts)。
-- content-distillation 子域已提供結構化蒸餾能力，實作位於 [modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts](modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts)。
-- `generateAiText`、`summarize`、`distillContent` 是目前對外可用的 server functions。
-- Notion 與 NotebookLM 都只能透過 AI 公開邊界消費能力，不擁有 provider 或 Genkit runtime。
-
-## Infrastructure Layout
-
-| Path | Responsibility |
-|---|---|
-| [modules/ai/api/index.ts](modules/ai/api/index.ts) | client-safe types 與 capability contracts |
-| [modules/ai/api/server.ts](modules/ai/api/server.ts) | server-only public functions |
-| [modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts](modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts) | content-generation 與 summarization |
-| [modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts](modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts) | schema-validated content-distillation |
-
-## Content Distillation
-
-content-distillation 子域負責將長輸出或多段內容濃縮為精煉知識片段（`DistillationResult`）。
-
-它與 content-generation 的 `summarize` 差異如下：
-
-- content-generation/summarize：回傳單一摘要字串，偏向快速文字結果。
-- content-distillation：接收 `objective + sources[]`，回傳 `overview + distilledItems[] + trace metadata`，適合下游主域重用。
-
-目前實作的輸出欄位包含：
-- `overview`
-- `distilledItems`
-- `model`
-- `traceId`
-- `completedAt`
-
-根據 Context7 驗證的官方 Genkit 文件，這個能力使用了：
-- `generate()` 作為標準模型呼叫入口
-- 結構化輸出 schema 驗證
-- prompt/flow 作為可觀測、可調試的執行單位
-
-## Public API Surface
-
-```ts
-// client-safe types
-import type {
-  AIAPI,
-  DistillationAPI,
-  DistillContentInput,
-  DistillationResult,
-  GenerateAiTextInput,
-  GenerateAiTextOutput,
-  AiTextGenerationPort,
-} from "@/modules/ai/api";
-
-// server-only functions
-import { distillContent, generateAiText, summarize } from "@/modules/ai/api/server";
-```
-
-## Architecture Notes
-
-- provider plugin 與 Genkit client 只能存在於 infrastructure adapter。
-- 預設模型為 `googleai/gemini-2.5-flash`，可透過 `GENKIT_MODEL` 覆蓋。
-- distillation 輸出屬於 **AI capability signal**，不是 KnowledgeArtifact 或 Notebook 的正典模型。
-- 子域之間的協調仍由 application / orchestration 控制，不直接跨子域 domain 依賴。
-
-## Distilled Rule Sentences
-
-- context-assembly 應提供 token-budgeted、ranked、可直接送入模型的輸入，而不是把所有 raw 資料直接交給 content-generation。
-- content-distillation 不等於單純 summary；它應優先產出可重用的 overview、highlights 與其他 schema-ready knowledge fragments。
-- memory-context 若需要長期保存內容，應優先保存 distilled output，避免 raw content 無限制膨脹成本。
-- context-assembly 若可選擇資料來源，應優先組裝 distilled chunks 或 structured knowledge，而不是直接倚賴未整理的 raw text。
-- evaluation-policy 應把 content-distillation 視為正式質量對象，至少檢查 compression ratio、information retention 與 hallucination risk。
-- 大文件或多來源蒸餾應優先走 async pipeline，避免同步請求承擔過高延遲與成本。
-- model-observability 應記錄 traceId、model、latency、token usage 與 errors，讓 flow 可觀測但不干預決策。
-
-## References
-
-- [modules/ai/README.md](modules/ai/README.md)
-- [docs/contexts/ai/README.md](docs/contexts/ai/README.md)
-- [docs/contexts/ai/subdomains.md](docs/contexts/ai/subdomains.md)
-- [docs/contexts/ai/ubiquitous-language.md](docs/contexts/ai/ubiquitous-language.md)
-````
-
 ## File: modules/ai/api/server.ts
 ````typescript
 /**
@@ -60758,83 +60448,6 @@ export async function generateWithTools(
 ): Promise<ToolEnabledGenerationOutput>
 ⋮----
 export function listAvailableTools(): ReadonlyArray<ToolDescriptor>
-````
-
-## File: modules/ai/README.md
-````markdown
-# AI
-
-共享 AI capability bounded context：content-generation、content-distillation、context-assembly、evaluation-policy、memory-context、model-observability、prompt-pipeline、safety-guardrail。
-
-## Intended Ownership
-
-- provider routing 與 model policy
-- safety-guardrail：風險限制與安全護欄
-- prompt-pipeline：prompt、flow 與 tool-calling orchestration
-- content-generation：共享文字生成與 summarization 能力
-- content-distillation：將長輸出濃縮為精煉知識片段
-- context-assembly：組裝 token-budgeted、模型可用的上下文
-- evaluation-policy：輸出品質與回歸評估規則
-- model-observability：AI 執行觀測與 trace metadata
-- memory-context：可重用的 AI 記憶與脈絡保留
-
-## Active Baseline
-
-- content-generation 子域持有 Genkit-backed 文字生成接縫（`generateAiText`、`summarize`）
-- content-distillation 子域現在提供結構化蒸餾能力（`distillContent`）
-- 下游模組透過 `modules/ai/api`（client-safe types）與 `modules/ai/api/server`（server-only functions）消費
-- 其餘子域為語意骨架，依需求逐步實作
-
-## Capability Rules
-
-- context-assembly 應先聚合、排序並壓縮上下文，再把可用輸入交給 content-generation 或 content-distillation。
-- content-generation 應透過 provider-agnostic adapter 產生最終文字或結構化輸出，且輸出必須先經 schema 驗證。
-- memory-context 應優先保存 distilled knowledge，而不是無限制累積 raw content。
-- content-distillation 應作為 AI domain 的 knowledge compiler，把 raw 或多來源內容轉為低 token、可重用、可結構化的知識訊號。
-- prompt-pipeline 應控制多步 flow、retry、fallback 與 tool-calling orchestration，不承載下游業務語義。
-- evaluation-policy 應覆蓋 content-generation 與 content-distillation，至少量測 compression、retention 與 hallucination 風險。
-- safety-guardrail 可以在任何步驟阻斷執行；model-observability 只負責觀測，不得改變業務決策。
-
-## Subdomains
-
-| Subdomain | Status | Notes |
-|---|---|---|
-| content-generation | active | GenkitAiTextGenerationAdapter 已實作 |
-| content-distillation | active | GenkitDistillationAdapter 已實作 |
-| context-assembly | semantic skeleton | 模型上下文組裝 |
-| evaluation-policy | semantic skeleton | 輸出品質評估規則 |
-| memory-context | semantic skeleton | 可重用 AI 記憶脈絡 |
-| model-observability | semantic skeleton | 執行觀測與 trace metadata |
-| prompt-pipeline | active baseline | prompt、flow、tool-calling orchestration |
-| safety-guardrail | semantic skeleton | 安全護欄與限制 |
-
-## Public API
-
-```ts
-// client-safe types
-import type {
-  AIAPI,
-  DistillationAPI,
-  DistillContentInput,
-  DistillationResult,
-  GenerateAiTextInput,
-  GenerateAiTextOutput,
-  AiTextGenerationPort,
-} from "@/modules/ai/api";
-
-// server-only functions
-import { distillContent, generateAiText, summarize } from "@/modules/ai/api/server";
-```
-
-## Dependency Direction
-
-```
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- domain 不得依賴任何 SDK 或框架。
-- Genkit 與 provider SDK 只能在 `infrastructure/` 層。
-- 跨模組消費只能透過 `api/` 邊界。
 ````
 
 ## File: docs/semantic-model.md

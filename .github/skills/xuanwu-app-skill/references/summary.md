@@ -33,7 +33,7 @@ This skill contains the following reference files:
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
 - Only files matching these patterns are included: .github/copilot-instructions.md, .github/agents/**, .github/instructions/**/*.md, .github/prompts/**, docs/**, app/**, modules/**, packages/**, py_fn/**, AGENTS.md, CLAUDE.md, apphosting.yaml, components.json, eslint.config.mjs, firebase.apphosting.json, firebase.json, firestore.indexes.json, firestore.rules, llms.txt, next.config.ts, package.json, postcss.config.mjs, storage.rules, tailwind.config.ts, tsconfig.json, vitest.config.ts, repomix*.config.json
-- Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
+- Files matching these patterns are excluded: *.md, .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Content has been formatted for parsing in markdown style
@@ -42,16 +42,16 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1810 files | 54,003 lines
+1809 files | 53,620 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 1190 | 25,101 |
-| Markdown | 325 | 21,062 |
+| Markdown | 323 | 20,624 |
 | TypeScript (TSX) | 184 | 4,860 |
 | Python | 61 | 1,404 |
 | No Extension | 30 | 35 |
-| JSON | 11 | 1,253 |
+| JSON | 12 | 1,308 |
 | Text | 3 | 107 |
 | RULES | 2 | 18 |
 | JavaScript (ESM) | 2 | 52 |
@@ -66,6 +66,6 @@ This skill contains the following reference files:
 - `docs/bounded-contexts.md` (276 lines)
 - `docs/subdomains.md` (275 lines)
 - `py_fn/README.md` (265 lines)
-- `AGENTS.md` (263 lines)
 - `modules/platform/domain/events/DESIGN.md` (257 lines)
 - `modules/ai/subdomains/prompt-pipeline/domain/index.ts` (224 lines)
+- `modules/platform/api/contracts.ts` (218 lines)
