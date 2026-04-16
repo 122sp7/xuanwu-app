@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { cn } from "@shared-utils";
 import { PlatformBootstrap } from "@/src/modules/platform/adapters/inbound/react";
-import "../../app/globals.css";
+import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
