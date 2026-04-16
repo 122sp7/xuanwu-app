@@ -1,7 +1,7 @@
-import type { AccountRepository } from "../../domain/repositories/AccountRepository";
-import type { AccountQueryRepository } from "../../domain/repositories/AccountQueryRepository";
-import type { AccountPolicyRepository } from "../../domain/repositories/AccountPolicyRepository";
-import type { TokenRefreshPort } from "../../domain/ports/TokenRefreshPort";
+import type { AccountRepository } from "../../../domain/repositories/AccountRepository";
+import type { AccountQueryRepository } from "../../../domain/repositories/AccountQueryRepository";
+import type { AccountPolicyRepository } from "../../../domain/repositories/AccountPolicyRepository";
+import type { TokenRefreshPort } from "../../../domain/ports/TokenRefreshPort";
 
 /** Outbound port contract for account persistence — mirrors AccountRepository. */
 export type { AccountRepository as AccountRepositoryPort };
