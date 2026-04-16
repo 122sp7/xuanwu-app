@@ -1,4 +1,4 @@
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 import type { TaskFormationJobStatus } from "../value-objects/TaskFormationJobStatus";
 import type { TaskFormationDomainEventType } from "../events/TaskFormationDomainEvent";
 

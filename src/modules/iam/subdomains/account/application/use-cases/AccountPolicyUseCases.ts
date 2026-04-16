@@ -1,4 +1,4 @@
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { AccountPolicyRepository } from "../../domain/repositories/AccountPolicyRepository";
 import type { TokenRefreshPort } from "../../domain/ports/TokenRefreshPort";
 import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";

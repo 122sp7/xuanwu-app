@@ -1,5 +1,5 @@
-import { v4 as randomUUID } from "@lib-uuid";
-import type { DomainError } from "@shared-types";
+import { v4 as randomUUID } from "uuid";
+import type { DomainError } from "../../../../../shared";
 import type { JobDocument } from "../../domain/entities/JobDocument";
 import {
   canTransitionJobStatus,

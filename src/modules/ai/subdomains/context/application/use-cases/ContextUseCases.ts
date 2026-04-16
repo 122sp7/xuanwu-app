@@ -1,4 +1,4 @@
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import { ContextSession } from "../../domain/entities/ContextSession";
 import type { ContextSessionRepository } from "../../domain/repositories/ContextSessionRepository";
 

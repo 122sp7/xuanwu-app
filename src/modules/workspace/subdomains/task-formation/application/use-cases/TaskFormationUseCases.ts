@@ -1,5 +1,5 @@
-import { v4 as uuid } from "@lib-uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { TaskFormationJobRepository } from "../../domain/repositories/TaskFormationJobRepository";
 import { TaskFormationJob } from "../../domain/entities/TaskFormationJob";
 import type { CreateTaskFormationJobInput, CompleteTaskFormationJobInput } from "../../domain/entities/TaskFormationJob";

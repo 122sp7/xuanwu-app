@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 import { MEMBER_ROLES } from "../../domain/entities/WorkspaceMember";
 
 export const AddMemberInputSchema = z.object({

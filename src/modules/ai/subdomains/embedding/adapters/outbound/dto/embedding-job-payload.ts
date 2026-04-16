@@ -15,7 +15,7 @@
  * @see docs/contexts/ai/cross-runtime-contracts.md
  */
 
-import { z } from "@lib-zod";
+import { z } from "zod";
 
 export const EmbeddingJobPayloadSchema = z.object({
   /** Unique identifier for this job (used for idempotency) */

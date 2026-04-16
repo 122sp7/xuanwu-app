@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 import { ISSUE_STATUSES } from "../../domain/value-objects/IssueStatus";
 import { ISSUE_STAGES } from "../../domain/value-objects/IssueStage";
 

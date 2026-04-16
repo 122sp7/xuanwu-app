@@ -1,7 +1,7 @@
 /**
  * Page — distilled from modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts
  */
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 
 export type PageStatus = "active" | "archived";
 

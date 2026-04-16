@@ -1,5 +1,5 @@
-import { v4 as uuid } from '@lib-uuid';
-import { commandSuccess, commandFailureFrom, type CommandResult } from '@shared-types';
+import { v4 as uuid } from 'uuid';
+import { commandSuccess, commandFailureFrom, type CommandResult } from '../../../../../shared';
 import { Subscription } from '../../domain/entities/Subscription';
 import type { SubscriptionRepository } from '../../domain/repositories/SubscriptionRepository';
 import type { BillingCycle } from '../../domain/value-objects/BillingCycle';

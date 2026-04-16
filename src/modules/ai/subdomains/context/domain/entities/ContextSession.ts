@@ -1,5 +1,5 @@
-import { z } from "@lib-zod";
-import { v4 as uuid } from "@lib-uuid";
+import { z } from "zod";
+import { v4 as uuid } from "uuid";
 
 export const ContextSessionIdSchema = z.string().uuid().brand("ContextSessionId");
 export type ContextSessionId = z.infer<typeof ContextSessionIdSchema>;

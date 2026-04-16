@@ -1,4 +1,4 @@
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 import type { OrganizationDomainEventType } from "../events/OrganizationDomainEvent";
 import type { ThemeConfig } from "../entities/Organization";
 import { createOrganizationId } from "../value-objects/OrganizationId";

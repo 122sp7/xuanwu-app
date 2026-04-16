@@ -1,4 +1,4 @@
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import { Conversation, type StartConversationInput } from "../../domain/entities/Conversation";
 import type { ConversationRepository } from "../../domain/repositories/ConversationRepository";
 

@@ -1,4 +1,4 @@
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import { Database, type CreateDatabaseInput, type DatabaseProperty } from "../../domain/entities/Database";
 import type { DatabaseRepository } from "../../domain/repositories/DatabaseRepository";
 

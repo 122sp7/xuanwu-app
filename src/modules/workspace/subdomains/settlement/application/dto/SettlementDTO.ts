@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 import { INVOICE_STATUSES } from "../../domain/value-objects/InvoiceStatus";
 
 export const CreateInvoiceSchema = z.object({

@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 
 export const MEMBER_ROLES = ["Owner", "Admin", "Member", "Guest"] as const;
 export const MemberRoleSchema = z.enum(MEMBER_ROLES);

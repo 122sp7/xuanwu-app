@@ -1,4 +1,4 @@
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import { Page, type CreatePageInput } from "../../domain/entities/Page";
 import type { PageRepository, PageQuery } from "../../domain/repositories/PageRepository";
 

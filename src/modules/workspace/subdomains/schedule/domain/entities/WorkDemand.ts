@@ -1,4 +1,4 @@
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 import type { ScheduleDomainEventType } from "../events/ScheduleDomainEvent";
 
 export type DemandStatus = "draft" | "open" | "in_progress" | "completed";

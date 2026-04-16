@@ -1,7 +1,7 @@
 /**
  * Block — distilled from modules/notion/subdomains/knowledge/domain/aggregates/ContentBlock.ts
  */
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 
 export type BlockType =
   | "paragraph"

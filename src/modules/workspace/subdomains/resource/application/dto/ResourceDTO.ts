@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 import { RESOURCE_KINDS } from "../../domain/entities/ResourceQuota";
 
 export const ProvisionQuotaSchema = z.object({

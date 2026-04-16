@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 import { DEMAND_PRIORITIES } from "../../domain/entities/WorkDemand";
 
 export const CreateWorkDemandSchema = z.object({

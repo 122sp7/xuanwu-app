@@ -1,5 +1,5 @@
-import { z } from "@lib-zod";
-import { v4 as uuid } from "@lib-uuid";
+import { z } from "zod";
+import { v4 as uuid } from "uuid";
 
 export const MetricIdSchema = z.string().uuid().brand("MetricId");
 export type MetricId = z.infer<typeof MetricIdSchema>;

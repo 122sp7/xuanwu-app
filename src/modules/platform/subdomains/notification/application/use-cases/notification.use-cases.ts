@@ -1,4 +1,4 @@
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { NotificationRepository } from "../../domain/repositories/NotificationRepository";
 import type { DispatchNotificationInput } from "../../domain/entities/Notification";
 

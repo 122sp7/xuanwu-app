@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 import { TASK_STATUSES } from "../../domain/value-objects/TaskStatus";
 
 export const CreateTaskInputSchema = z.object({

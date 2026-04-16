@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 
 export const ApiKeyIdSchema = z.string().uuid().brand("ApiKeyId");
 export type ApiKeyId = z.infer<typeof ApiKeyIdSchema>;

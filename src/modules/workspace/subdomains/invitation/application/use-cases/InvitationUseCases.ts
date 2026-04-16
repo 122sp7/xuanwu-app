@@ -1,5 +1,5 @@
-import { v4 as uuid } from "@lib-uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { InvitationRepository } from "../../domain/repositories/InvitationRepository";
 import { WorkspaceInvitation } from "../../domain/entities/WorkspaceInvitation";
 import type { CreateInvitationInput } from "../../domain/entities/WorkspaceInvitation";

@@ -1,4 +1,4 @@
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { AccountRepository, OrganizationRole, UpdateProfileInput } from "../../domain/repositories/AccountRepository";
 import type { AccountQueryRepository, Unsubscribe } from "../../domain/repositories/AccountQueryRepository";
 import type { TokenRefreshPort } from "../../domain/ports/TokenRefreshPort";

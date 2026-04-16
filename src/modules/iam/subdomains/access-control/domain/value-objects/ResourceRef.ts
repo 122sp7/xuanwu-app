@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 
 export const ResourceRefSchema = z.object({
   resourceType: z.string().min(1),

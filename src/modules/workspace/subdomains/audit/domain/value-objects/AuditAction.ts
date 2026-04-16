@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 
 export const AUDIT_ACTIONS = ["create", "update", "delete", "login", "export"] as const;
 

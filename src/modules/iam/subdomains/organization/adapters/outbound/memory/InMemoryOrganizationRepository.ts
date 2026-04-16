@@ -3,7 +3,7 @@ import type {
   OrganizationSnapshot,
 } from "../../../domain/aggregates/Organization";
 import type { MemberReference, Team, PartnerInvite, CreateOrganizationCommand, UpdateOrganizationSettingsCommand, InviteMemberInput, UpdateMemberRoleInput, CreateTeamInput } from "../../../domain/entities/Organization";
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 
 export class InMemoryOrganizationRepository implements OrganizationRepository {
   private readonly orgs = new Map<string, OrganizationSnapshot>();

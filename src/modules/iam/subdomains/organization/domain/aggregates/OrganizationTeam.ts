@@ -1,4 +1,4 @@
-import { v4 as randomUUID } from "@lib-uuid";
+import { v4 as randomUUID } from "uuid";
 import type { TeamId } from "../value-objects/TeamId";
 import type { TeamType } from "../value-objects/TeamType";
 import type { OrganizationTeamDomainEvent } from "../events/OrganizationTeamDomainEvent";

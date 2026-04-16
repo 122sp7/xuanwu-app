@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 
 export const TaskIdSchema = z.string().uuid().brand("TaskId");
 export type TaskId = z.infer<typeof TaskIdSchema>;

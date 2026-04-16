@@ -1,5 +1,5 @@
-import { v4 as uuid } from "@lib-uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { AuditRepository } from "../../domain/repositories/AuditRepository";
 import { AuditEntry } from "../../domain/entities/AuditEntry";
 import type { RecordAuditEntryInput } from "../../domain/entities/AuditEntry";

@@ -1,4 +1,4 @@
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 import type { DispatchNotificationInput, NotificationEntity } from "../../../domain/entities/Notification";
 import type { NotificationRepository } from "../../../domain/repositories/NotificationRepository";
 

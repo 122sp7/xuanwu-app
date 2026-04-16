@@ -2,7 +2,7 @@
  * Database — distilled from modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts
  * Represents a structured collection of pages with typed properties (Notion-style database).
  */
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 
 export type PropertyType = "text" | "number" | "select" | "multi_select" | "date" | "checkbox" | "url" | "email" | "file" | "relation";
 

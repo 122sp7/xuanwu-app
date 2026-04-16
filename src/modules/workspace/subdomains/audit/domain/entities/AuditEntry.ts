@@ -1,4 +1,4 @@
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 import type { AuditAction } from "../value-objects/AuditAction";
 import type { AuditSeverity } from "../value-objects/AuditSeverity";
 import type { AuditDomainEventType } from "../events/AuditDomainEvent";

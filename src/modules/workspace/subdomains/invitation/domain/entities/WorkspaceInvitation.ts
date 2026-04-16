@@ -1,4 +1,4 @@
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 import type { InvitationDomainEventType } from "../events/InvitationDomainEvent";
 
 export type InvitationStatus = "pending" | "accepted" | "rejected" | "expired" | "cancelled";

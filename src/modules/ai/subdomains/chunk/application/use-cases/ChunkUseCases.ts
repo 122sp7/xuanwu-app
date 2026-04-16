@@ -1,4 +1,4 @@
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import { Chunk, type CreateChunkInput } from "../../domain/entities/Chunk";
 import type { ChunkRepository } from "../../domain/repositories/ChunkRepository";
 

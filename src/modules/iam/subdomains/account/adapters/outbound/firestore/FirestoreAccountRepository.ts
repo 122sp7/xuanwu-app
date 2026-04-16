@@ -1,4 +1,4 @@
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 import type { AccountRepository, OrganizationRole, UpdateProfileInput, WalletTransaction, AccountRoleRecord } from "../../../domain/repositories/AccountRepository";
 import type { UpdateAccountProfileInput } from "../../../domain/entities/AccountProfile";
 import type { AccountSnapshot } from "../../../domain/entities/Account";

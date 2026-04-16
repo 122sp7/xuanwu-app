@@ -1,4 +1,4 @@
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import { Embedding } from "../../domain/entities/Embedding";
 import type { EmbeddingGenerationPort } from "../../domain/entities/Embedding";
 import type { EmbeddingRepository } from "../../domain/repositories/EmbeddingRepository";

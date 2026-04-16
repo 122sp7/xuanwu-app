@@ -1,6 +1,6 @@
 // tenant — domain layer
 // Owns multi-tenant data isolation: TenantId brand type and repository port.
-import { z } from "@lib-zod";
+import { z } from "zod";
 
 export const TenantIdSchema = z.string().min(1).brand("TenantId");
 export type TenantId = z.infer<typeof TenantIdSchema>;

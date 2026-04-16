@@ -1,4 +1,4 @@
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import { AnalyticsEvent, type TrackEventInput } from "../../domain/entities/AnalyticsEvent";
 import type { AnalyticsEventRepository } from "../../domain/repositories/AnalyticsEventRepository";
 

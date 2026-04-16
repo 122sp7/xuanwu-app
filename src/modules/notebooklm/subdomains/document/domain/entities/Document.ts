@@ -2,7 +2,7 @@
  * Document — distilled from modules/notebooklm/subdomains/source
  * Represents a workspace-scoped ingested document (formerly SourceFile).
  */
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 
 export type DocumentStatus = "active" | "processing" | "archived" | "deleted";
 export type DocumentClassification = "image" | "manifest" | "record" | "other";

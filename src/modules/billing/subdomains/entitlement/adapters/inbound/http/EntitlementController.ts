@@ -1,4 +1,4 @@
-import type { CommandResult } from '@shared-types';
+import type { CommandResult } from '../../../../../../shared';
 import {
   GrantEntitlementUseCase,
   SuspendEntitlementUseCase,

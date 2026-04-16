@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 
 export const WalletAmountSchema = z.number().positive().brand("WalletAmount");
 export type WalletAmount = z.infer<typeof WalletAmountSchema>;

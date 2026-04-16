@@ -1,5 +1,5 @@
-import { v4 as uuid } from "@lib-uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { TaskMaterializationJobRepository } from "../../domain/repositories/TaskMaterializationJobRepository";
 import { TaskMaterializationJob } from "../../domain/entities/TaskMaterializationJob";
 import type { CreateJobInput } from "../../domain/entities/TaskMaterializationJob";

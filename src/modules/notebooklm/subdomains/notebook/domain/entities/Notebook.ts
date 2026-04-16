@@ -2,7 +2,7 @@
  * Notebook — distilled from modules/notebooklm/subdomains/notebook
  * Represents an AI-assisted notebook backed by documents.
  */
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 
 export type NotebookStatus = "active" | "archived";
 

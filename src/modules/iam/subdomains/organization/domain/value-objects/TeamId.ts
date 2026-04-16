@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 
 export const TeamIdSchema = z.string().uuid().brand("TeamId");
 export type TeamId = z.infer<typeof TeamIdSchema>;

@@ -1,4 +1,4 @@
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import { Metric, type RecordMetricInput } from "../../domain/entities/Metric";
 import type { MetricRepository, MetricQuery } from "../../domain/repositories/MetricRepository";
 

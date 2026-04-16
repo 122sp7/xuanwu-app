@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 
 export const IssueIdSchema = z.string().uuid().brand("IssueId");
 export type IssueId = z.infer<typeof IssueIdSchema>;

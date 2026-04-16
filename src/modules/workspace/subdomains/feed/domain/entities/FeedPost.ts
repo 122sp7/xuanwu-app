@@ -1,4 +1,4 @@
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 import type { FeedDomainEventType } from "../events/FeedDomainEvent";
 
 export type FeedPostType = "post" | "reply" | "repost";

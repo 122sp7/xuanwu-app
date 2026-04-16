@@ -1,4 +1,4 @@
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { QualityTaskRepository, QualityTaskStatus } from "../../domain/repositories/QualityTaskRepository";
 
 function canTransition(from: QualityTaskStatus, to: QualityTaskStatus): boolean {

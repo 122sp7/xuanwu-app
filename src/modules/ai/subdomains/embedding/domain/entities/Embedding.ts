@@ -1,5 +1,5 @@
-import { z } from "@lib-zod";
-import { v4 as uuid } from "@lib-uuid";
+import { z } from "zod";
+import { v4 as uuid } from "uuid";
 
 export const EmbeddingIdSchema = z.string().uuid().brand("EmbeddingId");
 export type EmbeddingId = z.infer<typeof EmbeddingIdSchema>;

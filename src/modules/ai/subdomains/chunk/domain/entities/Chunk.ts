@@ -1,5 +1,5 @@
-import { z } from "@lib-zod";
-import { v4 as uuid } from "@lib-uuid";
+import { z } from "zod";
+import { v4 as uuid } from "uuid";
 
 export const ChunkIdSchema = z.string().uuid().brand("ChunkId");
 export type ChunkId = z.infer<typeof ChunkIdSchema>;

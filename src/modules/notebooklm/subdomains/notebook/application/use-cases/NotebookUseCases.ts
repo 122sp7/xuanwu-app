@@ -1,4 +1,4 @@
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import { Notebook, type CreateNotebookInput } from "../../domain/entities/Notebook";
 import type { NotebookRepository } from "../../domain/repositories/NotebookRepository";
 import type { NotebookGenerationPort } from "../../domain/ports/NotebookGenerationPort";

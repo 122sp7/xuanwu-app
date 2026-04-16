@@ -1,4 +1,4 @@
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 import type { AccessPolicyDomainEventType } from "../events/AccessPolicyDomainEvent";
 import type { SubjectRef } from "../value-objects/SubjectRef";
 import type { ResourceRef } from "../value-objects/ResourceRef";

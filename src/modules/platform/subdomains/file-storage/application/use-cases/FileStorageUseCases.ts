@@ -1,4 +1,4 @@
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 import type { StoredFile } from "../../domain/entities/StoredFile";
 import type { FileStorageRepository } from "../../domain/repositories/FileStorageRepository";
 

@@ -1,4 +1,4 @@
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import { Block, type CreateBlockInput, type BlockContent } from "../../domain/entities/Block";
 import type { BlockRepository } from "../../domain/repositories/BlockRepository";
 

@@ -1,5 +1,5 @@
-import { v4 as uuid } from "@lib-uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { TaskRepository } from "../../domain/repositories/TaskRepository";
 import { Task } from "../../domain/entities/Task";
 import type { CreateTaskInput, UpdateTaskInput } from "../../domain/entities/Task";

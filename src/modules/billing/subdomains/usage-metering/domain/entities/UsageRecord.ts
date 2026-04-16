@@ -1,5 +1,5 @@
-import { z } from "@lib-zod";
-import { v4 as uuid } from "@lib-uuid";
+import { z } from "zod";
+import { v4 as uuid } from "uuid";
 
 export const UsageRecordIdSchema = z.string().uuid().brand("UsageRecordId");
 export type UsageRecordId = z.infer<typeof UsageRecordIdSchema>;

@@ -1,5 +1,5 @@
-import { v4 as uuid } from "@lib-uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { FeedPostRepository } from "../../domain/repositories/FeedPostRepository";
 import { FeedPost } from "../../domain/entities/FeedPost";
 import type { CreateFeedPostInput } from "../../domain/entities/FeedPost";

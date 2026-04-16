@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 
 export const WORKSPACE_NOTIFICATION_EVENT_TYPES = [
   "workspace-flow.task.assigned",

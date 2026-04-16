@@ -1,5 +1,5 @@
-import { v4 as uuid } from '@lib-uuid';
-import { commandSuccess, commandFailureFrom, type CommandResult } from '@shared-types';
+import { v4 as uuid } from 'uuid';
+import { commandSuccess, commandFailureFrom, type CommandResult } from '../../../../../shared';
 import { EntitlementGrant } from '../../domain/entities/EntitlementGrant';
 import type { EntitlementGrantRepository } from '../../domain/repositories/EntitlementGrantRepository';
 

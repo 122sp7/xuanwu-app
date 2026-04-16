@@ -1,4 +1,4 @@
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { WorkspaceNotificationPreferenceRepository } from "../../domain/repositories/WorkspaceNotificationPreferenceRepository";
 import type { NotificationRepository } from "../../domain/repositories/NotificationRepository";
 import { WorkspaceNotificationPreference } from "../../domain/entities/WorkspaceNotificationPreference";

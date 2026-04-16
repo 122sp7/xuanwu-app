@@ -2,7 +2,7 @@
  * Conversation — distilled from modules/notebooklm/subdomains/conversation
  * Owns thread-based AI conversations linked to a notebook.
  */
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 
 export type MessageRole = "user" | "assistant" | "system";
 
