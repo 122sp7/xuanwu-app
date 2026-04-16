@@ -106,18 +106,15 @@ py_fn/ = Python Worker Runtime
 
 ### 邊界契約定義（需補充）
 
-**現在缺失的**：`src/modules/ai/` 需要定義 QStash payload 的 published language：
+**現在缺失的**：`src/modules/ai/` 需要在 **outbound adapter** 定義 QStash payload DTO。
+
+> ⚠️ 注意：QStash payload 是 **outbound dispatcher 的輸出 DTO**，不是 `api/` 層的合約。  
+> `api/` 只存在 `modules/<context>/`（完整六邊形），`src/modules/` lean skeleton 的 subdomain 沒有 `api/`。  
+> 詳見 → `docs/discussions/2026-04-16/08-ai-subdomain-api-correction.md`
 
 ```typescript
-// src/modules/ai/subdomains/embedding/api/index.ts
-export interface EmbeddingJobPayload {
-  jobId: string;            // UUID
-  documentId: string;       // notion page reference
-  workspaceId: string;
-  chunkIds: string[];       // 等待 embedding 的 chunk IDs
-  modelHint?: string;       // optional provider hint
-  requestedAt: string;      // ISO 8601
-}
+// src/modules/ai/subdomains/embedding/adapters/outbound/dto/embedding-job-payload.ts
+import { z } from 'zod';
 
 export const EmbeddingJobPayloadSchema = z.object({
   jobId: z.string().uuid(),
@@ -127,6 +124,8 @@ export const EmbeddingJobPayloadSchema = z.object({
   modelHint: z.string().optional(),
   requestedAt: z.string().datetime(),
 });
+
+export type EmbeddingJobPayload = z.infer<typeof EmbeddingJobPayloadSchema>;
 ```
 
 `py_fn` 的 `interface/handlers/rag_ingestion.py` 在接收 QStash message 時，用 Python Pydantic 實作相同 schema 的鏡像驗證。
@@ -157,8 +156,8 @@ export const EmbeddingJobPayloadSchema = z.object({
 ## 跨 runtime 契約地圖
 
 ```
-src/modules/ai/subdomains/embedding/api/
-  EmbeddingJobPayload         ← QStash message payload（TypeScript定義）
+src/modules/ai/subdomains/embedding/adapters/outbound/dto/
+  embedding-job-payload.ts    ← QStash message payload（TypeScript定義，outbound DTO）
 
 py_fn/src/application/dto/
   rag.py: RagIngestionInput   ← QStash message payload（Python鏡像，Pydantic）
@@ -186,10 +185,12 @@ py_fn/src/interface/handlers/
 
 | 優先級 | 動作 |
 |---|---|
-| P0 | 在 `src/modules/ai/subdomains/embedding/api/` 定義 `EmbeddingJobPayload` schema |
-| P0 | 在 `src/modules/ai/subdomains/chunk/api/` 定義 `ChunkJobPayload` schema |
+| P0 | 在 `src/modules/ai/subdomains/embedding/adapters/outbound/dto/` 定義 `EmbeddingJobPayload` schema |
+| P0 | 在 `src/modules/ai/subdomains/chunk/adapters/outbound/dto/` 定義 `ChunkJobPayload` schema |
 | P1 | `shared-hooks` 中的業務 store 遷移到 `src/modules/platform/adapters/inbound/react/` |
 | P1 | `shared-validators` 中的業務 schema 遷移到對應 domain/ |
-| P2 | `api-contracts` published language tokens 遷移到 `src/modules/*/api/` |
+| P2 | `api-contracts` published language tokens 遷移到 `src/modules/*/api/`（完整六邊形層） |
 | P2 | `eslint.config.mjs` 加入 integration-* 只允許 adapters/outbound 引用的規則 |
 | P3 | py_fn `application/dto/rag.py` 更新以鏡像 TypeScript published language |
+
+> ⚠️ P0 修正：原文件建議的 `subdomains/*/api/` 路徑已在問題八中修正為 `adapters/outbound/dto/`。
