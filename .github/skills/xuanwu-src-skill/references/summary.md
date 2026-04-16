@@ -41,13 +41,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-799 files | 10,839 lines
+813 files | 11,097 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 774 | 9,004 |
+| TypeScript | 781 | 9,102 |
 | Markdown | 21 | 1,819 |
-| TypeScript (TSX) | 4 | 16 |
+| TypeScript (TSX) | 11 | 176 |
 
 **Largest files:**
 - `src/modules/template/README.md` (285 lines)

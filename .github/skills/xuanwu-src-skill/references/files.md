@@ -1,37 +1,5 @@
 # Files
 
-## File: src/app/(public)/page.tsx
-````typescript
-export default function PublicPage()
-````
-
-## File: src/app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
-````typescript
-interface AccountSlugPageProps {
-  params: Promise<{ accountId: string; slug?: string[] }>;
-}
-⋮----
-export default async function AccountSlugPage({
-  params,
-}: AccountSlugPageProps)
-````
-
-## File: src/app/(shell)/layout.tsx
-````typescript
-export default function ShellLayout({
-  children,
-}: Readonly<
-````
-
-## File: src/app/layout.tsx
-````typescript
-import type { Metadata } from "next";
-⋮----
-export default function RootLayout({
-  children,
-}: Readonly<
-````
-
 ## File: src/modules/ai/orchestration/index.ts
 ````typescript
 // ai — orchestration layer
@@ -70,10 +38,42 @@ export default function RootLayout({
 // chunk — adapters aggregate
 ````
 
-## File: src/modules/ai/subdomains/chunk/adapters/outbound/index.ts
+## File: src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payload.ts
 ````typescript
-// chunk — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
+/**
+ * chunk-job-payload.ts
+ *
+ * Outbound DTO: QStash message payload for dispatching chunking jobs
+ * to py_fn workers. This is an outbound contract (dispatcher → worker),
+ * NOT a provider API contract.
+ *
+ * Discussion 08 — cross-runtime contract:
+ * - TypeScript side (this file): Zod schema defining the payload shape
+ * - Python side (py_fn/src/application/dto/chunk_job.py): Pydantic mirror
+ *
+ * Both sides must stay semantically aligned. Changes here require
+ * corresponding updates to the py_fn Pydantic model.
+ *
+ * @see docs/contexts/ai/cross-runtime-contracts.md
+ */
+⋮----
+import { z } from "@lib-zod";
+⋮----
+/** Unique identifier for this job (used for idempotency) */
+⋮----
+/** The raw document content to be chunked */
+⋮----
+/** Workspace scope for multi-tenant isolation */
+⋮----
+/** Source type (e.g. "notion-page", "uploaded-file") */
+⋮----
+/** Optional hint for chunking strategy */
+⋮----
+/** Max token count per chunk; py_fn uses default if omitted */
+⋮----
+/** ISO 8601 timestamp when the job was requested */
+⋮----
+export type ChunkJobPayload = z.infer<typeof ChunkJobPayloadSchema>;
 ````
 
 ## File: src/modules/ai/subdomains/chunk/adapters/outbound/memory/InMemoryChunkRepository.ts
@@ -386,10 +386,40 @@ delete(id: string): Promise<void>;
 // embedding — adapters aggregate
 ````
 
-## File: src/modules/ai/subdomains/embedding/adapters/outbound/index.ts
+## File: src/modules/ai/subdomains/embedding/adapters/outbound/dto/embedding-job-payload.ts
 ````typescript
-// embedding — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
+/**
+ * embedding-job-payload.ts
+ *
+ * Outbound DTO: QStash message payload for dispatching embedding generation
+ * jobs to py_fn workers. This is an outbound contract (dispatcher → worker),
+ * NOT a provider API contract.
+ *
+ * Discussion 08 — cross-runtime contract:
+ * - TypeScript side (this file): Zod schema defining the payload shape
+ * - Python side (py_fn/src/application/dto/embedding_job.py): Pydantic mirror
+ *
+ * Both sides must stay semantically aligned. Changes here require
+ * corresponding updates to the py_fn Pydantic model.
+ *
+ * @see docs/contexts/ai/cross-runtime-contracts.md
+ */
+⋮----
+import { z } from "@lib-zod";
+⋮----
+/** Unique identifier for this job (used for idempotency) */
+⋮----
+/** The document/artifact that sourced these chunks */
+⋮----
+/** Workspace scope for multi-tenant isolation */
+⋮----
+/** Chunk IDs to generate embeddings for (at least one required) */
+⋮----
+/** Optional model hint; py_fn selects default if omitted */
+⋮----
+/** ISO 8601 timestamp when the job was requested */
+⋮----
+export type EmbeddingJobPayload = z.infer<typeof EmbeddingJobPayloadSchema>;
 ````
 
 ## File: src/modules/ai/subdomains/embedding/application/use-cases/EmbeddingUseCases.ts
@@ -2363,6 +2393,61 @@ save(snapshot: UsageRecordSnapshot): Promise<void>;
 findById(id: string): Promise<UsageRecordSnapshot | null>;
 query(params: UsageQuery): Promise<UsageRecordSnapshot[]>;
 sumQuantity(featureKey: string, contextId: string, fromDate?: string, toDate?: string): Promise<number>;
+````
+
+## File: src/modules/iam/adapters/inbound/react/IamSessionProvider.tsx
+````typescript
+/**
+ * IamSessionProvider — iam inbound adapter (React).
+ *
+ * Canonical mount point for IAM authentication session state.
+ * Wraps the identity-layer AuthProvider and exposes the useIamSession() hook
+ * so the rest of the src/ tree never imports directly from the old interfaces/.
+ *
+ * Internal source: modules/iam/subdomains/identity/interfaces/providers/auth-provider.tsx
+ */
+````
+
+## File: src/modules/iam/adapters/inbound/react/index.ts
+````typescript
+/**
+ * iam inbound React adapter — barrel.
+ *
+ * Public surface for all IAM React inbound adapters.
+ * Consumed by src/app/ route shims and platform/adapters/inbound/react/.
+ */
+````
+
+## File: src/modules/iam/adapters/inbound/react/PublicLandingView.tsx
+````typescript
+/**
+ * PublicLandingView — iam inbound adapter (React).
+ *
+ * Self-contained public landing + auth panel component.
+ * Manages login / register / guest state internally.
+ * Consumed by src/app/(public)/page.tsx as a pure Server Component shim.
+ *
+ * Ported from: app/(public)/page.tsx
+ */
+⋮----
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, ShieldCheck } from "lucide-react";
+⋮----
+import { useAuth, createClientAuthUseCases } from "@/modules/platform/api";
+import { createClientAccountUseCases } from "@/modules/platform/api";
+⋮----
+type Tab = "login" | "register";
+⋮----
+async function handleSubmit(e: React.FormEvent)
+⋮----
+async function handleGuestAccess()
+⋮----
+async function handlePasswordReset()
+⋮----
+setError(null);
+setResetSent(false);
+setIsAuthPanelOpen((prev)
 ````
 
 ## File: src/modules/iam/orchestration/index.ts
@@ -5571,6 +5656,80 @@ delete(id: string): Promise<void>;
 // TODO: export entities, value-objects, repositories, events, services
 ````
 
+## File: src/modules/platform/adapters/inbound/react/AccountScopeProvider.tsx
+````typescript
+/**
+ * AccountScopeProvider — platform inbound adapter (React).
+ *
+ * Manages platform-owned account lifecycle: auth → accounts → activeAccount.
+ * Canonical replacement for app/(shell)/_providers/AppProvider.tsx in the
+ * src/ migration layer.
+ *
+ * Consumers use useAccountScope() to read account state.
+ * Ported from: app/(shell)/_providers/AppProvider.tsx
+ */
+````
+
+## File: src/modules/platform/adapters/inbound/react/index.ts
+````typescript
+/**
+ * platform inbound React adapter — barrel.
+ *
+ * Public surface for all platform React inbound adapters.
+ * Consumed by src/app/ route shims.
+ */
+````
+
+## File: src/modules/platform/adapters/inbound/react/PlatformBootstrap.tsx
+````typescript
+/**
+ * PlatformBootstrap — platform inbound adapter (React).
+ *
+ * Self-contained provider tree for the src/ migration layer.
+ * Assembles: IamSessionProvider → AccountScopeProvider → WorkspaceScopeProvider + Toaster.
+ *
+ * src/app/layout.tsx mounts this as the single composition root.
+ * After this point, the rest of the tree can use:
+ *   - useIamSession()     (iam)
+ *   - useAccountScope()   (platform)
+ *   - useWorkspaceScope() (workspace)
+ */
+⋮----
+import type { ReactNode } from "react";
+import { Toaster } from "@ui-shadcn/ui/sonner";
+⋮----
+import { IamSessionProvider } from "@/src/modules/iam/adapters/inbound/react";
+import { AccountScopeProvider } from "./AccountScopeProvider";
+import { WorkspaceScopeProvider } from "@/src/modules/workspace/adapters/inbound/react";
+⋮----
+export function PlatformBootstrap(
+````
+
+## File: src/modules/platform/adapters/inbound/react/ShellFrame.tsx
+````typescript
+/**
+ * ShellFrame — platform inbound adapter (React).
+ *
+ * Shell chrome wrapper: app-rail, sidebar, top header, and main content slot.
+ * Canonical replacement for app/(shell)/_shell/ShellRootLayout.tsx in the
+ * src/ migration layer.
+ *
+ * Ported from: app/(shell)/_shell/ShellRootLayout.tsx
+ */
+````
+
+## File: src/modules/platform/adapters/inbound/react/useAccountScope.ts
+````typescript
+/**
+ * useAccountScope — platform inbound adapter (React).
+ *
+ * Canonical hook for reading the active account scope in the src/ layer.
+ * Aliases useApp() from the platform module.
+ *
+ * Returns: { state: AppState, dispatch: Dispatch<AppAction> }
+ */
+````
+
 ## File: src/modules/platform/shared/index.ts
 ````typescript
 
@@ -7763,6 +7922,114 @@ static generate(): WorkflowId
 toString(): string
 ⋮----
 equals(other: WorkflowId): boolean
+````
+
+## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx
+````typescript
+/**
+ * AccountRouteDispatcher — workspace inbound adapter (React).
+ *
+ * Receives accountId + slug props from the Server Component shim and
+ * dispatches to the appropriate route screen.
+ *
+ * Ported from: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
+ */
+⋮----
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+⋮----
+import { useAuth } from "@/modules/platform/api";
+import {
+  useAccountRouteContext,
+  useApp,
+  OrganizationMembersRouteScreen,
+  OrganizationOverviewRouteScreen,
+  OrganizationPermissionsRouteScreen,
+} from "@/modules/platform/api/ui";
+import {
+  AccountDashboardRouteScreen,
+  OrganizationWorkspacesRouteScreen,
+  WorkspaceDetailRouteScreen,
+  WorkspaceHubScreen,
+} from "@/modules/workspace/api/ui";
+⋮----
+// Lazy imports to avoid hard-coupling modules that may not yet be available
+⋮----
+// These screens live in workspace/platform apis — import dynamically to
+// allow partial availability during incremental migration.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+⋮----
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+⋮----
+// Gracefully degrade if screens are not yet available
+⋮----
+export interface AccountRouteDispatcherProps {
+  accountId: string;
+  slug: string[];
+}
+⋮----
+interface RedirectingRouteProps {
+  readonly href: string;
+  readonly message: string;
+}
+⋮----
+function RedirectingRoute(
+⋮----
+function NotFound()
+⋮----
+export function AccountRouteDispatcher({
+  accountId: accountIdFromParams,
+  slug,
+}: AccountRouteDispatcherProps)
+⋮----
+// Legacy redirect: /organization/... → /<accountId>/...
+⋮----
+// Legacy redirect: /workspace/... → /<accountId>/...
+⋮----
+// Root: /<accountId>
+⋮----
+if (accountType === "organization")
+⋮----
+// Single-segment routes: /<accountId>/<segment>
+⋮----
+// Two-segment routes
+⋮----
+// Fallback
+````
+
+## File: src/modules/workspace/adapters/inbound/react/index.ts
+````typescript
+/**
+ * workspace inbound React adapter — barrel.
+ *
+ * Public surface for all workspace React inbound adapters.
+ * Consumed by src/app/ route shims and platform/adapters/inbound/react/.
+ */
+````
+
+## File: src/modules/workspace/adapters/inbound/react/useWorkspaceScope.ts
+````typescript
+/**
+ * useWorkspaceScope — workspace inbound adapter (React).
+ *
+ * Canonical hook for reading the active workspace scope in the src/ layer.
+ * Aliases useWorkspaceContext() from the workspace module.
+ *
+ * Returns: { state: WorkspaceContextState, dispatch: Dispatch<WorkspaceContextAction> }
+ */
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceScopeProvider.tsx
+````typescript
+/**
+ * WorkspaceScopeProvider — workspace inbound adapter (React).
+ *
+ * Canonical workspace scope provider for the src/ migration layer.
+ * Aliases WorkspaceContextProvider from the workspace module.
+ *
+ * Consumers use useWorkspaceScope() to read workspace state.
+ * Ported from: modules/workspace/interfaces/web/providers/WorkspaceContextProvider.tsx
+ */
 ````
 
 ## File: src/modules/workspace/shared/index.ts
@@ -10394,6 +10661,31 @@ export function nextTaskStatus(current: TaskStatus): TaskStatus | null
 export function isTerminalTaskStatus(status: TaskStatus): boolean
 ````
 
+## File: src/app/(public)/page.tsx
+````typescript
+import { PublicLandingView } from "@/src/modules/iam/adapters/inbound/react";
+⋮----
+export default function PublicPage()
+````
+
+## File: src/app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
+````typescript
+import { AccountRouteDispatcher } from "@/src/modules/workspace/adapters/inbound/react";
+⋮----
+interface AccountSlugPageProps {
+  params: Promise<{ accountId: string; slug?: string[] }>;
+}
+````
+
+## File: src/app/(shell)/layout.tsx
+````typescript
+import { ShellFrame } from "@/src/modules/platform/adapters/inbound/react";
+⋮----
+export default function ShellLayout({
+  children,
+}: Readonly<
+````
+
 ## File: src/app/AGENT.md
 ````markdown
 # App — Agent Guide
@@ -10438,6 +10730,18 @@ export function isTerminalTaskStatus(status: TaskStatus): boolean
 - 奧卡姆剃刀：能用既有 route group 的就不要新開 group。
 ````
 
+## File: src/app/layout.tsx
+````typescript
+import type { Metadata } from "next";
+import { Geist } from "next/font/google";
+import { cn } from "@shared-utils";
+import { PlatformBootstrap } from "@/src/modules/platform/adapters/inbound/react";
+⋮----
+export default function RootLayout({
+  children,
+}: Readonly<
+````
+
 ## File: src/modules/ai/index.ts
 ````typescript
 /**
@@ -10466,6 +10770,11 @@ export function isTerminalTaskStatus(status: TaskStatus): boolean
 // tool-calling
 ````
 
+## File: src/modules/ai/subdomains/chunk/adapters/outbound/index.ts
+````typescript
+// chunk — outbound adapters
+````
+
 ## File: src/modules/ai/subdomains/chunk/application/index.ts
 ````typescript
 
@@ -10474,6 +10783,11 @@ export function isTerminalTaskStatus(status: TaskStatus): boolean
 ## File: src/modules/ai/subdomains/chunk/domain/index.ts
 ````typescript
 
+````
+
+## File: src/modules/ai/subdomains/embedding/adapters/outbound/index.ts
+````typescript
+// embedding — outbound adapters
 ````
 
 ## File: src/modules/ai/subdomains/embedding/application/index.ts

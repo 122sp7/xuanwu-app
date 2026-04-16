@@ -42,19 +42,19 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1809 files | 53,620 lines
+1823 files | 54,946 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1190 | 25,101 |
-| Markdown | 323 | 20,624 |
+| TypeScript | 1191 | 25,169 |
+| Markdown | 332 | 21,701 |
 | TypeScript (TSX) | 184 | 4,860 |
-| Python | 61 | 1,404 |
+| Python | 63 | 1,459 |
 | No Extension | 30 | 35 |
-| JSON | 12 | 1,308 |
+| JSON | 14 | 1,424 |
 | Text | 3 | 107 |
 | RULES | 2 | 18 |
-| JavaScript (ESM) | 2 | 52 |
+| JavaScript (ESM) | 2 | 62 |
 | CSS | 1 | 47 |
 | Other | 1 | 64 |
 
