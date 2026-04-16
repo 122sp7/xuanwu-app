@@ -1,3 +1,4 @@
-// authorization — application layer
-// TODO: Implement EvaluatePermission, CheckEntitlement use cases.
-export type {} from "./index";
+export {
+  CheckPermissionUseCase,
+  BatchCheckPermissionsUseCase,
+} from "./use-cases/AuthorizationUseCases";

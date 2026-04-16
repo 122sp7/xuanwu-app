@@ -1,3 +1,6 @@
-// tenant — application layer
-// TODO: Implement ProvisionTenantUseCase, SuspendTenantUseCase.
-export type {} from "./index";
+export {
+  ProvisionTenantUseCase,
+  SuspendTenantUseCase,
+  GetTenantUseCase,
+} from "./use-cases/TenantUseCases";
+export { InMemoryTenantRepository } from "../adapters/outbound/memory/InMemoryTenantRepository";

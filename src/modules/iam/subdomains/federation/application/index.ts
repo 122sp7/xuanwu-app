@@ -1,3 +1,5 @@
-// federation — application layer
-// TODO: Implement LinkProviderUseCase, UnlinkProviderUseCase.
-export type {} from "./index";
+export {
+  LinkProviderUseCase,
+  UnlinkProviderUseCase,
+  GetLinkedProvidersUseCase,
+} from "./use-cases/FederationUseCases";

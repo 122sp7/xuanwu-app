@@ -1,3 +1,7 @@
-// session — application layer
-// TODO: Implement CreateSessionUseCase, RevokeSessionUseCase.
-export type {} from "./index";
+export {
+  CreateSessionUseCase,
+  GetSessionUseCase,
+  RevokeSessionUseCase,
+  RevokeAllSessionsUseCase,
+} from "./use-cases/SessionUseCases";
+export { InMemorySessionRepository } from "../adapters/outbound/memory/InMemorySessionRepository";

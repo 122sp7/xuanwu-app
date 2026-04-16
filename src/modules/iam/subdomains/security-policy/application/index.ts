@@ -1,3 +1,5 @@
-// security-policy — application layer
-// TODO: Implement UpdateSecurityPolicyUseCase, GetSecurityPolicyUseCase.
-export type {} from "./index";
+export {
+  GetSecurityPolicyUseCase,
+  UpdateSecurityPolicyUseCase,
+} from "./use-cases/SecurityPolicyUseCases";
+export { InMemorySecurityPolicyRepository } from "../adapters/outbound/memory/InMemorySecurityPolicyRepository";

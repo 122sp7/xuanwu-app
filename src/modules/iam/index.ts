@@ -66,10 +66,69 @@ export {
 // authorization — permission decision helpers
 export { allowDecision, denyDecision } from "./subdomains/authorization/domain/index";
 export type { PermissionDecision, PermissionCheckPort } from "./subdomains/authorization/domain/index";
+export {
+  CheckPermissionUseCase,
+  BatchCheckPermissionsUseCase,
+} from "./subdomains/authorization/application/index";
+
+// authentication
+export type {
+  AuthCredential,
+  AuthenticationPort,
+  AuthenticationDomainEvent,
+} from "./subdomains/authentication/domain/index";
+export {
+  SignInWithEmailUseCase,
+  SignOutUseCase,
+  SendPasswordResetEmailUseCase,
+} from "./subdomains/authentication/application/index";
+
+// federation
+export type {
+  FederationProvider,
+  FederatedIdentity,
+  FederationPort,
+} from "./subdomains/federation/domain/index";
+export {
+  LinkProviderUseCase,
+  UnlinkProviderUseCase,
+  GetLinkedProvidersUseCase,
+} from "./subdomains/federation/application/index";
+
+// security-policy
+export type {
+  MfaRequirement,
+  SecurityPolicySnapshot,
+  SecurityPolicyRepository,
+} from "./subdomains/security-policy/domain/index";
+export {
+  GetSecurityPolicyUseCase,
+  UpdateSecurityPolicyUseCase,
+  InMemorySecurityPolicyRepository,
+} from "./subdomains/security-policy/application/index";
+
+// session
+export type {
+  SessionSnapshot,
+  SessionRepository,
+} from "./subdomains/session/domain/index";
+export {
+  CreateSessionUseCase,
+  GetSessionUseCase,
+  RevokeSessionUseCase,
+  RevokeAllSessionsUseCase,
+  InMemorySessionRepository,
+} from "./subdomains/session/application/index";
 
 // tenant
 export { createTenantId } from "./subdomains/tenant/domain/index";
 export type { TenantId, TenantSnapshot, TenantStatus } from "./subdomains/tenant/domain/index";
+export {
+  ProvisionTenantUseCase,
+  SuspendTenantUseCase,
+  GetTenantUseCase,
+  InMemoryTenantRepository,
+} from "./subdomains/tenant/application/index";
 
 // shared errors
 export { IamError, IamNotFoundError, IamPermissionDeniedError } from "./shared/errors/index";
