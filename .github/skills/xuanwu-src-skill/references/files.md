@@ -1,5 +1,318 @@
 # Files
 
+## File: src/app/(shell)/(account)/[accountId]/dev-tools/dev-tools-badges.tsx
+````typescript
+import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+⋮----
+export function StatusBadge(
+⋮----
+export function RagBadge(
+````
+
+## File: src/app/(shell)/(account)/[accountId]/dev-tools/dev-tools-helpers.ts
+````typescript
+// ── Types ─────────────────────────────────────────────────────────────────────
+⋮----
+export interface ParseResult {
+  doc_id: string;
+  status: "processing" | "completed" | "error";
+  page_count?: number;
+  json_gcs_uri?: string;
+  error_message?: string;
+}
+⋮----
+export interface DocRecord {
+  id: string;
+  status: "processing" | "completed" | "error" | string;
+  filename: string;
+  gcs_uri: string;
+  uploaded_at: Date | null;
+  page_count?: number;
+  json_gcs_uri?: string;
+  error_message?: string;
+  rag_status?: string;
+  rag_chunk_count?: number;
+  rag_vector_count?: number;
+  rag_raw_chars?: number;
+  rag_normalized_chars?: number;
+  rag_normalization_version?: string;
+  rag_language_hint?: string;
+  rag_error?: string;
+}
+⋮----
+export type UploadStatus = "idle" | "uploading" | "waiting" | "done" | "error";
+⋮----
+// ── Constants ─────────────────────────────────────────────────────────────────
+⋮----
+// ── Data-mapping helpers ──────────────────────────────────────────────────────
+⋮----
+export function formatDateTime(value: Date | null): string
+⋮----
+/**
+ * Extract the storage object path from a `gs://bucket/path` URI.
+ * Returns the path portion only (e.g. `uploads/abc/file.pdf`).
+ */
+export function gcsUriToPath(gcsUri: string): string
+⋮----
+function deriveJsonUri(gcsUri: string): string
+⋮----
+export function asRecord(value: unknown): Record<string, unknown>
+⋮----
+export function asString(value: unknown, fallback = ""): string
+⋮----
+export function asNumber(value: unknown): number | undefined
+⋮----
+function asDate(value: unknown): Date | null
+⋮----
+/**
+ * Map a plain data record (from platform infrastructure API) to DocRecord.
+ * Accepts `{ id, data }` where data is an already-resolved object —
+ * NOT a Firestore DocumentSnapshot with a `data()` method.
+ */
+export function mapDocRecord(doc:
+````
+
+## File: src/app/(shell)/(account)/[accountId]/dev-tools/dev-tools-parsed-docs-section.tsx
+````typescript
+/**
+ * DevToolsParsedDocsSection.tsx
+ * Owns: the "已解析檔案" (completed-only) table section in the Dev Tools page.
+ * Receives all doc data and handlers as props; contains no state.
+ */
+⋮----
+import { CheckCircle2, FlaskConical, Loader2 } from "lucide-react";
+⋮----
+import { type DocRecord } from "./dev-tools-helpers";
+import { RagBadge } from "./dev-tools-badges";
+import { formatDateTime } from "./use-dev-tools-doc-list";
+⋮----
+interface DevToolsParsedDocsSectionProps {
+  parsedDocs: DocRecord[];
+  reindexingId: string | null;
+  onViewJson: (doc: DocRecord) => void;
+  onManualProcess: (doc: DocRecord) => void;
+  formatNormalizationRatio: (doc: DocRecord) => string;
+}
+⋮----
+onClick=
+````
+
+## File: src/app/(shell)/(account)/[accountId]/dev-tools/page.tsx
+````typescript
+/**
+ * Module: dev-tools page — /dev-tools
+ * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
+ * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
+ * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
+ *   Doc-list state and operations → useDevToolsDocList hook.
+ *   Parsed-docs table → DevToolsParsedDocsSection component.
+ */
+⋮----
+import { useRef, useState, useEffect } from "react";
+import {
+  FlaskConical,
+  FileUp,
+  AlertCircle,
+  FileText,
+  Trash2,
+  Code2,
+  ExternalLink,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
+⋮----
+import {
+  firestoreInfrastructureApi,
+  storageInfrastructureApi,
+} from "@/modules/platform/api/infrastructure";
+import { useApp } from "@/modules/platform/api/ui";
+import { useWorkspaceContext } from "@/modules/workspace/api/ui";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  WATCH_PATH,
+  ACCEPTED_MIME,
+  ACCEPTED_EXTS,
+  asRecord,
+  asString,
+  asNumber,
+  type ParseResult,
+  type UploadStatus,
+} from "./dev-tools-helpers";
+import { StatusBadge, RagBadge } from "./dev-tools-badges";
+import { useDevToolsDocList, formatDateTime } from "./use-dev-tools-doc-list";
+import { DevToolsParsedDocsSection } from "./dev-tools-parsed-docs-section";
+⋮----
+// ── Page component ─────────────────────────────────────────────────────────
+⋮----
+// ── Upload state ──────────────────────────────────────────────────────────
+⋮----
+// ── Doc list + operations (extracted hook) ────────────────────────────────
+⋮----
+// Cleanup upload subscription on unmount
+⋮----
+function appendLog(msg: string)
+⋮----
+function handleFileChange(e: React.ChangeEvent<HTMLInputElement>)
+⋮----
+function buildUuidUploadPath(accountId: string, file: File)
+⋮----
+function watchDocument(docId: string)
+⋮----
+async function handleUploadAndParse()
+⋮----
+// Step 1: Upload to GCS via platform infrastructure API
+⋮----
+// Step 2: Watch Firestore for status updates
+⋮----
+function reset()
+⋮----
+{/* ── Header ─────────────────────────────────────────────────── */}
+⋮----
+{/* ── Stats ──────────────────────────────────────────────────── */}
+⋮----
+{/* ── File picker ────────────────────────────────────────────── */}
+⋮----
+{/* ── Actions ────────────────────────────────────────────────── */}
+⋮----
+{/* ── Result ─────────────────────────────────────────────────── */}
+⋮----
+{/* ── All uploaded docs table ─────────────────────────────────── */}
+⋮----
+onClick=
+⋮----
+{/* JSON preview panel */}
+⋮----
+{/* ── Parsed docs table (extracted component) ─────────────────── */}
+⋮----
+{/* ── Console log ────────────────────────────────────────────── */}
+````
+
+## File: src/app/(shell)/(account)/[accountId]/dev-tools/use-dev-tools-doc-list.ts
+````typescript
+/**
+ * useDevToolsDocList.ts
+ * Owns: Firestore subscription for the document list, JSON-preview state,
+ *   and all per-document async operations (view, delete, reindex).
+ *
+ * All Firebase access routes through platform infrastructure APIs
+ * (firestoreInfrastructureApi, storageInfrastructureApi, functionsInfrastructureApi)
+ * per AGENTS.md Rule 46 — app/ NEVER touches Firebase SDK directly.
+ */
+⋮----
+import { useEffect, useRef, useState } from "react";
+⋮----
+import {
+  firestoreInfrastructureApi,
+  storageInfrastructureApi,
+  functionsInfrastructureApi,
+} from "@/modules/platform/api/infrastructure";
+⋮----
+import {
+  gcsUriToPath,
+  mapDocRecord,
+  formatDateTime,
+  type DocRecord,
+} from "./dev-tools-helpers";
+⋮----
+// ── Public state ───────────────────────────────────────────────────────────
+⋮----
+export interface DocListState {
+  allDocs: DocRecord[];
+  selectedDocId: string | null;
+  selectedDoc: DocRecord | undefined;
+  jsonContent: string | null;
+  jsonLoading: boolean;
+  deletingId: string | null;
+  reindexingId: string | null;
+}
+⋮----
+export interface DocListHandlers {
+  handleViewOriginal: (doc: DocRecord) => Promise<void>;
+  handleViewJson: (doc: DocRecord) => Promise<void>;
+  handleDeleteDoc: (doc: DocRecord) => Promise<void>;
+  handleManualProcess: (doc: DocRecord, appendLog: (msg: string) => void) => Promise<void>;
+  closeJsonPreview: () => void;
+  formatNormalizationRatio: (doc: DocRecord) => string;
+}
+⋮----
+// ── Hook ───────────────────────────────────────────────────────────────────
+⋮----
+export function useDevToolsDocList(activeAccountId: string): DocListState & DocListHandlers
+⋮----
+// Subscribe to all documents for this account
+⋮----
+function closeJsonPreview()
+⋮----
+async function handleViewOriginal(doc: DocRecord)
+⋮----
+async function handleViewJson(doc: DocRecord)
+⋮----
+async function handleDeleteDoc(doc: DocRecord)
+⋮----
+async function handleManualProcess(
+    doc: DocRecord,
+    appendLog: (msg: string) => void,
+)
+⋮----
+function formatNormalizationRatio(doc: DocRecord): string
+⋮----
+// re-export for table columns
+⋮----
+// Re-export for convenience in table components
+````
+
+## File: src/app/globals.css
+````css
+@theme inline {
+⋮----
+:root {
+⋮----
+.dark {
+⋮----
+@layer base {
+⋮----
+* {
+body {
+html {
+⋮----
+@apply font-sans;
+⋮----
+/* ── Tiptap / ProseMirror editor styles ───────────────────────────────────── */
+.tiptap-editor .ProseMirror {
+.tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
+.tiptap-editor .ProseMirror h1 { @apply text-3xl font-bold mb-3 mt-5; }
+.tiptap-editor .ProseMirror h2 { @apply text-2xl font-semibold mb-2 mt-4; }
+.tiptap-editor .ProseMirror h3 { @apply text-xl font-medium mb-2 mt-3; }
+.tiptap-editor .ProseMirror p  { @apply mb-2 leading-relaxed; }
+.tiptap-editor .ProseMirror ul { @apply list-disc pl-5 mb-2 space-y-0.5; }
+.tiptap-editor .ProseMirror ol { @apply list-decimal pl-5 mb-2 space-y-0.5; }
+.tiptap-editor .ProseMirror li { @apply leading-relaxed; }
+.tiptap-editor .ProseMirror blockquote {
+.tiptap-editor .ProseMirror hr {
+.tiptap-editor .ProseMirror code {
+.tiptap-editor .ProseMirror a {
+.tiptap-editor .ProseMirror strong { @apply font-bold; }
+.tiptap-editor .ProseMirror em { @apply italic; }
+.tiptap-editor .ProseMirror u  { @apply underline; }
+.tiptap-editor .ProseMirror s  { @apply line-through; }
+/* ── Callout block ──────────────────────────────────────────────────────────── */
+.tiptap-editor .ProseMirror .callout-block {
+.tiptap-editor .ProseMirror .callout-emoji {
+.tiptap-editor .ProseMirror .callout-content {
+.tiptap-editor .ProseMirror .callout-content p { @apply mb-1; }
+⋮----
+/* ── Toggle (collapsible) block ─────────────────────────────────────────────── */
+.tiptap-editor .ProseMirror .toggle-block {
+.tiptap-editor .ProseMirror .toggle-block > summary {
+.tiptap-editor .ProseMirror .toggle-block > summary::-webkit-details-marker { display: none; }
+.tiptap-editor .ProseMirror .toggle-block > :not(summary) {
+⋮----
+/* ── Table of Contents block ─────────────────────────────────────────────────── */
+.tiptap-editor .ProseMirror .toc-block {
+.tiptap-editor .ProseMirror .toc-block::before {
+````
+
 ## File: src/modules/ai/orchestration/index.ts
 ````typescript
 // ai — orchestration layer
@@ -10730,18 +11043,6 @@ export default function ShellLayout({
 - 奧卡姆剃刀：能用既有 route group 的就不要新開 group。
 ````
 
-## File: src/app/layout.tsx
-````typescript
-import type { Metadata } from "next";
-import { Geist } from "next/font/google";
-import { cn } from "@shared-utils";
-import { PlatformBootstrap } from "@/src/modules/platform/adapters/inbound/react";
-⋮----
-export default function RootLayout({
-  children,
-}: Readonly<
-````
-
 ## File: src/modules/ai/index.ts
 ````typescript
 /**
@@ -12362,6 +12663,18 @@ export interface WorkspaceScopeProps {
 ## File: src/modules/workspace/subdomains/task/domain/index.ts
 ````typescript
 
+````
+
+## File: src/app/layout.tsx
+````typescript
+import type { Metadata } from "next";
+import { Geist } from "next/font/google";
+import { cn } from "@shared-utils";
+import { PlatformBootstrap } from "@/src/modules/platform/adapters/inbound/react";
+⋮----
+export default function RootLayout({
+  children,
+}: Readonly<
 ````
 
 ## File: src/app/README.md

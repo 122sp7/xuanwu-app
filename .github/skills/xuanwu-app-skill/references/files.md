@@ -3554,97 +3554,6 @@ interface DevToolsParsedDocsSectionProps {
 onClick=
 ````
 
-## File: app/(shell)/(account)/[accountId]/dev-tools/page.tsx
-````typescript
-/**
- * Module: dev-tools page — /dev-tools
- * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
- * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
- * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
- *   Doc-list state and operations → useDevToolsDocList hook.
- *   Parsed-docs table → DevToolsParsedDocsSection component.
- */
-⋮----
-import { useRef, useState, useEffect } from "react";
-import {
-  FlaskConical,
-  FileUp,
-  AlertCircle,
-  FileText,
-  Trash2,
-  Code2,
-  ExternalLink,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-} from "lucide-react";
-⋮----
-import {
-  firestoreInfrastructureApi,
-  storageInfrastructureApi,
-} from "@/modules/platform/api/infrastructure";
-import { useApp } from "@/modules/platform/api/ui";
-import { useWorkspaceContext } from "@/modules/workspace/api/ui";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  WATCH_PATH,
-  ACCEPTED_MIME,
-  ACCEPTED_EXTS,
-  asRecord,
-  asString,
-  asNumber,
-  type ParseResult,
-  type UploadStatus,
-} from "./dev-tools-helpers";
-import { StatusBadge, RagBadge } from "./dev-tools-badges";
-import { useDevToolsDocList, formatDateTime } from "./use-dev-tools-doc-list";
-import { DevToolsParsedDocsSection } from "./dev-tools-parsed-docs-section";
-⋮----
-// ── Page component ─────────────────────────────────────────────────────────
-⋮----
-// ── Upload state ──────────────────────────────────────────────────────────
-⋮----
-// ── Doc list + operations (extracted hook) ────────────────────────────────
-⋮----
-// Cleanup upload subscription on unmount
-⋮----
-function appendLog(msg: string)
-⋮----
-function handleFileChange(e: React.ChangeEvent<HTMLInputElement>)
-⋮----
-function buildUuidUploadPath(accountId: string, file: File)
-⋮----
-function watchDocument(docId: string)
-⋮----
-async function handleUploadAndParse()
-⋮----
-// Step 1: Upload to GCS via platform infrastructure API
-⋮----
-// Step 2: Watch Firestore for status updates
-⋮----
-function reset()
-⋮----
-{/* ── Header ─────────────────────────────────────────────────── */}
-⋮----
-{/* ── Stats ──────────────────────────────────────────────────── */}
-⋮----
-{/* ── File picker ────────────────────────────────────────────── */}
-⋮----
-{/* ── Actions ────────────────────────────────────────────────── */}
-⋮----
-{/* ── Result ─────────────────────────────────────────────────── */}
-⋮----
-{/* ── All uploaded docs table ─────────────────────────────────── */}
-⋮----
-onClick=
-⋮----
-{/* JSON preview panel */}
-⋮----
-{/* ── Parsed docs table (extracted component) ─────────────────── */}
-⋮----
-{/* ── Console log ────────────────────────────────────────────── */}
-````
-
 ## File: app/(shell)/(account)/[accountId]/dev-tools/use-dev-tools-doc-list.ts
 ````typescript
 /**
@@ -3719,18 +3628,6 @@ function formatNormalizationRatio(doc: DocRecord): string
 // Re-export for convenience in table components
 ````
 
-## File: app/(shell)/layout.tsx
-````typescript
-/**
- * app/(shell)/layout.tsx — Next.js route layout shim.
- * Canonical implementation: app/(shell)/_shell/ShellRootLayout.tsx
- */
-⋮----
-import { ShellLayout } from "./_shell/ShellRootLayout";
-⋮----
-export default function Layout(
-````
-
 ## File: app/globals.css
 ````css
 @theme inline {
@@ -3780,21 +3677,6 @@ html {
 /* ── Table of Contents block ─────────────────────────────────────────────────── */
 .tiptap-editor .ProseMirror .toc-block {
 .tiptap-editor .ProseMirror .toc-block::before {
-````
-
-## File: app/layout.tsx
-````typescript
-import type { Metadata } from "next";
-⋮----
-import { Geist } from "next/font/google";
-import { cn } from "@shared-utils";
-import { Providers } from "./_providers";
-⋮----
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>)
 ````
 
 ## File: apphosting.yaml
@@ -15164,6 +15046,11 @@ export async function runKnowledgeRagQueryAction(
 ): Promise<KnowledgeRagQueryResult>
 ````
 
+## File: modules/notebooklm/notebooklm.instructions.md
+````markdown
+
+````
+
 ## File: modules/notebooklm/subdomains/conversation/api/index.ts
 ````typescript
 /**
@@ -19427,6 +19314,11 @@ export interface TaxonomyUseCases {
 export function makeTaxonomyUseCases(
   repo: TaxonomyRepository = makeTaxonomyRepo(),
 ): TaxonomyUseCases
+````
+
+## File: modules/notion/notion.instructions.md
+````markdown
+
 ````
 
 ## File: modules/notion/subdomains/authoring/api/index.ts
@@ -39260,40 +39152,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vscode-typescript-workbench
 ````
 
-## File: app/(public)/page.tsx
-````typescript
-/**
- * app/(public)/page.tsx
- * Public landing page with top-right auth entry and inline auth panel.
- * Uses identity module use cases directly on the client so Firebase auth state
- * actually updates AuthProvider via onAuthStateChanged.
- */
-⋮----
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck } from "lucide-react";
-⋮----
-import {
-  useAuth,
-  createClientAuthUseCases,
-} from "@/modules/iam/api";
-import {
-  createClientAccountUseCases,
-} from "@/modules/platform/api";
-⋮----
-type Tab = "login" | "register";
-⋮----
-async function handleSubmit(e: React.FormEvent)
-⋮----
-async function handleGuestAccess()
-⋮----
-async function handlePasswordReset()
-⋮----
-setError(null);
-setResetSent(false);
-setIsAuthPanelOpen((prev)
-````
-
 ## File: app/(shell)/_providers/AppProvider.tsx
 ````typescript
 /**
@@ -39325,54 +39183,6 @@ function appReducer(state: AppState, action: AppAction): AppState
 export function AppProvider(
 ⋮----
 // eslint-disable-next-line react-hooks/exhaustive-deps
-````
-
-## File: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
-````typescript
-import { use, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-⋮----
-import {
-  useAuth,
-} from "@/modules/platform/api";
-import {
-  OrganizationMembersRouteScreen,
-  OrganizationOverviewRouteScreen,
-  OrganizationPermissionsRouteScreen,
-  SettingsNotificationsRouteScreen,
-  useAccountRouteContext,
-  useApp,
-} from "@/modules/platform/api/ui";
-import { OrganizationTeamsRouteScreen } from "@/modules/iam/api/ui";
-import {
-  AccountDashboardRouteScreen,
-  OrganizationAuditRouteScreen,
-  OrganizationDailyRouteScreen,
-  OrganizationScheduleRouteScreen,
-  OrganizationWorkspacesRouteScreen,
-  WorkspaceDetailRouteScreen,
-  WorkspaceHubScreen,
-} from "@/modules/workspace/api/ui";
-⋮----
-interface AccountRouteDispatcherPageProps {
-  params: Promise<{
-    accountId: string;
-    slug?: string[];
-  }>;
-}
-⋮----
-interface RedirectingRouteProps {
-  readonly href: string;
-  readonly message: string;
-}
-⋮----
-function RedirectingRoute(
-⋮----
-export default function AccountRouteDispatcherPage({
-  params,
-}: AccountRouteDispatcherPageProps)
-⋮----
-if (accountType === "organization")
 ````
 
 ## File: docs/contexts/ai/AGENT.md
@@ -47169,11 +46979,6 @@ async function handleSubmit()
 onClick=
 ````
 
-## File: modules/notebooklm/notebooklm.instructions.md
-````markdown
-
-````
-
 ## File: modules/notebooklm/README.md
 ````markdown
 # NotebookLM
@@ -48730,11 +48535,6 @@ onCreated=
 import { SharedAiKnowledgeSummaryAdapter } from "../../../infrastructure/knowledge/ai";
 ⋮----
 export function makeKnowledgeSummaryPort()
-````
-
-## File: modules/notion/notion.instructions.md
-````markdown
-
 ````
 
 ## File: modules/notion/README.md

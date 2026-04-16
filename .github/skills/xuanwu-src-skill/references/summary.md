@@ -41,13 +41,14 @@ This skill contains the following reference files:
 
 ## Statistics
 
-813 files | 11,097 lines
+819 files | 11,386 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 781 | 9,102 |
+| TypeScript | 783 | 9,231 |
 | Markdown | 21 | 1,819 |
-| TypeScript (TSX) | 11 | 176 |
+| TypeScript (TSX) | 14 | 289 |
+| CSS | 1 | 47 |
 
 **Largest files:**
 - `src/modules/template/README.md` (285 lines)
@@ -58,5 +59,5 @@ This skill contains the following reference files:
 - `src/modules/iam/README.md` (93 lines)
 - `src/modules/workspace/README.md` (92 lines)
 - `src/modules/platform/README.md` (90 lines)
+- `src/app/(shell)/(account)/[accountId]/dev-tools/page.tsx` (87 lines)
 - `src/modules/iam/subdomains/account/domain/entities/Account.ts` (87 lines)
-- `src/modules/ai/AGENT.md` (86 lines)
