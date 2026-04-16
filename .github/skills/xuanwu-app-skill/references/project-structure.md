@@ -1,7 +1,7 @@
 # Directory Structure
 
 ```
-.github/agents/ai-genkit-lead.agent.md (42 lines)
+.github/agents/ai-genkit-lead.agent.md (43 lines)
 .github/agents/app-router.agent.md (48 lines)
 .github/agents/architecture-enforcer.agent.md (77 lines)
 .github/agents/chunk-strategist.agent.md (36 lines)
