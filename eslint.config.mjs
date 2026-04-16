@@ -14,6 +14,13 @@ const moduleApiGlobs = ["modules/*/api/**/*.{js,jsx,ts,tsx}", "modules/*/subdoma
 const interfaceScreenGlobs = ["modules/*/**/interfaces/**/components/screens/**/*.{ts,tsx}"];
 const outerAdapterGlobs = ["app/**/*.{ts,tsx,js,jsx}", "providers/**/*.{ts,tsx,js,jsx}", "debug/**/*.{ts,tsx,js,jsx}"];
 const packageGlobs = ["packages/**/*.{ts,tsx,js,jsx}"];
+
+// src/modules/ adapter boundary globs
+const srcModuleCodeGlobs = ["src/modules/**/*.{js,jsx,ts,tsx}"];
+const srcModuleOutboundAdapterGlobs = ["src/modules/*/adapters/outbound/**/*.{ts,tsx,js,jsx}"];
+const srcModuleInboundReactAdapterGlobs = ["src/modules/*/adapters/inbound/react/**/*.{ts,tsx,tsx}"];
+// src/modules files that are NOT adapters/outbound — integration-* must stay out
+const srcModuleNonOutboundGlobs = ["src/modules/**/*.{ts,tsx,js,jsx}"];
 const downstreamInterfaceGlobs = [
   "modules/notebooklm/**/interfaces/**/*.{ts,tsx,js,jsx}",
   "modules/notion/**/interfaces/**/*.{ts,tsx,js,jsx}",
@@ -339,6 +346,36 @@ export default defineConfig([
       "no-restricted-imports": restrictedImportsRule(workspaceConsumerPatterns, {
         paths: [restrictedWorkspaceContextApiPath],
       }),
+    },
+  },
+
+  // src/modules: @integration-* packages must only appear in adapters/outbound/.
+  // Domain, application, and inbound adapters must remain infrastructure-agnostic.
+  {
+    files: srcModuleNonOutboundGlobs,
+    ignores: srcModuleOutboundAdapterGlobs,
+    rules: {
+      "no-restricted-imports": restrictedImportsRule([
+        {
+          group: ["@integration-*", "@integration-firebase", "@integration-firebase/*", "@integration-upstash", "@integration-upstash/*"],
+          message: "Integration packages (@integration-*) are only allowed in adapters/outbound/. Domain, application, and inbound adapter layers must remain infrastructure-agnostic.",
+        },
+      ]),
+    },
+  },
+
+  // src/modules: @ui-shadcn and @ui-vis must only appear in adapters/inbound/react/.
+  // Domain, application, and outbound adapter layers must be UI-framework-agnostic.
+  {
+    files: srcModuleNonOutboundGlobs,
+    ignores: srcModuleInboundReactAdapterGlobs,
+    rules: {
+      "no-restricted-imports": restrictedImportsRule([
+        {
+          group: ["@ui-shadcn", "@ui-shadcn/*", "@ui-vis", "@ui-vis/*"],
+          message: "@ui-shadcn and @ui-vis are only allowed in adapters/inbound/react/. Keep UI framework dependencies out of domain, application, and outbound layers.",
+        },
+      ]),
     },
   },
 

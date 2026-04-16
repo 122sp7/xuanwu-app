@@ -10,11 +10,11 @@ import {
   OrganizationMembersRouteScreen,
   OrganizationOverviewRouteScreen,
   OrganizationPermissionsRouteScreen,
-  OrganizationTeamsRouteScreen,
   SettingsNotificationsRouteScreen,
   useAccountRouteContext,
   useApp,
 } from "@/modules/platform/api/ui";
+import { OrganizationTeamsRouteScreen } from "@/modules/iam/api/ui";
 import {
   AccountDashboardRouteScreen,
   OrganizationAuditRouteScreen,

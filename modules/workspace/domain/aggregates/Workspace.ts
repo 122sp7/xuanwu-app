@@ -34,6 +34,12 @@ import type {
   WorkspaceVisibilityInput,
 } from "../value-objects/WorkspaceVisibility";
 import { createWorkspaceVisibility } from "../value-objects/WorkspaceVisibility";
+import {
+  createWorkspaceCreatedEvent,
+  createWorkspaceLifecycleTransitionedEvent,
+  createWorkspaceVisibilityChangedEvent,
+  type WorkspaceDomainEvent,
+} from "../events/workspace.events";
 
 export interface WorkspaceEntity {
   id: string;
@@ -156,6 +162,8 @@ export class Workspace implements WorkspaceEntity {
 
   personnel?: WorkspacePersonnel;
 
+  private readonly _domainEvents: WorkspaceDomainEvent[] = [];
+
   private constructor(snapshot: WorkspaceEntity) {
     this.id = snapshot.id;
     this.name = snapshot.name;
@@ -179,7 +187,7 @@ export class Workspace implements WorkspaceEntity {
         ? [{ userId: command.creatorUserId.trim(), role: "owner" }]
         : [];
 
-    return new Workspace({
+    const workspace = new Workspace({
       id: uuid(),
       name: createWorkspaceName(command.name),
       accountId: normalizeAccountId(command.accountId),
@@ -191,6 +199,17 @@ export class Workspace implements WorkspaceEntity {
       teamIds: [],
       createdAt: createWorkspaceTimestamp(),
     });
+
+    workspace._domainEvents.push(
+      createWorkspaceCreatedEvent({
+        workspaceId: workspace.id,
+        accountId: workspace.accountId,
+        accountType: workspace.accountType,
+        name: workspace.name,
+      }),
+    );
+
+    return workspace;
   }
 
   static reconstitute(snapshot: WorkspaceEntity): Workspace {
@@ -202,7 +221,18 @@ export class Workspace implements WorkspaceEntity {
   }
 
   changeVisibility(nextVisibility: WorkspaceVisibilityInput): void {
+    const prev = this.visibility;
     this.visibility = createWorkspaceVisibility(nextVisibility);
+    if (prev !== this.visibility) {
+      this._domainEvents.push(
+        createWorkspaceVisibilityChangedEvent({
+          workspaceId: this.id,
+          accountId: this.accountId,
+          fromVisibility: prev,
+          toVisibility: this.visibility,
+        }),
+      );
+    }
   }
 
   activate(): void {
@@ -230,7 +260,16 @@ export class Workspace implements WorkspaceEntity {
       );
     }
 
+    const prev = this.lifecycleState;
     this.lifecycleState = normalizedNextState;
+    this._domainEvents.push(
+      createWorkspaceLifecycleTransitionedEvent({
+        workspaceId: this.id,
+        accountId: this.accountId,
+        fromState: prev,
+        toState: this.lifecycleState,
+      }),
+    );
   }
 
   updateAddress(nextAddress: AddressInput): void {
@@ -261,6 +300,12 @@ export class Workspace implements WorkspaceEntity {
     if (patch.personnel !== undefined) {
       this.updatePersonnel(patch.personnel);
     }
+  }
+
+  pullDomainEvents(): WorkspaceDomainEvent[] {
+    const events = [...this._domainEvents];
+    this._domainEvents.length = 0;
+    return events;
   }
 
   toSnapshot(): WorkspaceEntity {
