@@ -31,6 +31,18 @@ import {
   StopWorkspaceUseCase,
 } from "../../subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases";
 
+type FirestoreWhereOperator =
+  | "<"
+  | "<="
+  | "=="
+  | "!="
+  | ">="
+  | ">"
+  | "array-contains"
+  | "in"
+  | "array-contains-any"
+  | "not-in";
+
 // ── Singleton repository ───────────────────────────────────────────────────────
 
 let _workspaceQueryRepo: FirebaseWorkspaceQueryRepository | undefined;
@@ -81,7 +93,7 @@ function createFirestoreLikeAdapter(): FirestoreLike {
       const constraints = filters.map((filter) =>
         where(
           filter.field,
-          filter.op as "<" | "<=" | "==" | "!=" | ">=" | ">" | "array-contains" | "in" | "array-contains-any" | "not-in",
+          filter.op as FirestoreWhereOperator,
           filter.value,
         ));
       const snap = await getDocs(query(collection(db, collectionName), ...constraints));

@@ -377,18 +377,7 @@ export function useSidebarLocale(): SidebarLocaleBundle | null {
   return null;
 }
 
-async function createWorkspaceForAccount(input: {
-  accountId: string;
-  accountType: "user" | "organization";
-  name: string;
-}) {
-  const { createWorkspaceUseCase } = createClientWorkspaceLifecycleUseCases();
-  return createWorkspaceUseCase.execute({
-    accountId: input.accountId,
-    accountType: input.accountType,
-    name: input.name,
-  });
-}
+const workspaceLifecycleUseCases = createClientWorkspaceLifecycleUseCases();
 
 interface WorkspaceQuickAccessRowProps {
   items: WorkspaceQuickAccessItem[];
@@ -661,9 +650,10 @@ export function CreateWorkspaceDialogRail({
   onOpenChange,
   accountId,
   accountType,
-  creatorUserId: _creatorUserId,
+  creatorUserId,
   onNavigate,
 }: CreateWorkspaceDialogRailProps): React.ReactElement {
+  const { createWorkspaceUseCase } = workspaceLifecycleUseCases;
   const [workspaceName, setWorkspaceName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -677,8 +667,13 @@ export function CreateWorkspaceDialogRail({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const name = workspaceName.trim();
+    const creatorActorId = creatorUserId ?? accountId;
     if (!name) {
       setError("請輸入工作區名稱。");
+      return;
+    }
+    if (!creatorActorId) {
+      setError("建立者資訊缺失，請重新登入後再試。");
       return;
     }
     if (!accountId || !accountType) {
@@ -688,7 +683,11 @@ export function CreateWorkspaceDialogRail({
 
     setIsCreating(true);
     setError(null);
-    const result = await createWorkspaceForAccount({ accountId, accountType, name });
+    const result = await createWorkspaceUseCase.execute({
+      accountId,
+      accountType,
+      name,
+    });
     if (!result.success) {
       setError(result.error.message);
       setIsCreating(false);
@@ -728,8 +727,6 @@ export function CreateWorkspaceDialogRail({
                 if (error) setError(null);
               }}
               placeholder="例如：Project Alpha"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
               disabled={isCreating}
               maxLength={80}
             />
