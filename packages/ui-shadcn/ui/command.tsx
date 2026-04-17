@@ -10,11 +10,11 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/src/ui/shadcn/dialog"
+} from "@/packages/ui-shadcn/ui/dialog"
 import {
   InputGroup,
   InputGroupAddon,
-} from "@/src/ui/shadcn/input-group"
+} from "@/packages/ui-shadcn/ui/input-group"
 import { SearchIcon, CheckIcon } from "lucide-react"
 
 function Command({

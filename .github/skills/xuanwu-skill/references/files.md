@@ -27002,7 +27002,7 @@ function AccordionContent({
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
 ⋮----
 import { cn } from "@shared-utils"
-import { Button } from "@/src/ui/shadcn/button"
+import { Button } from "@/packages/ui-shadcn/ui/button"
 ⋮----
 function AlertDialog(
 ⋮----
@@ -27070,7 +27070,7 @@ import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"
 ⋮----
 import { cn } from "@shared-utils"
-import { Separator } from "@/src/ui/shadcn/separator"
+import { Separator } from "@/packages/ui-shadcn/ui/separator"
 ⋮----
 className=
 ````
@@ -27095,7 +27095,7 @@ import {
 } from "react-day-picker"
 ⋮----
 import { cn } from "@shared-utils"
-import { Button, buttonVariants } from "@/src/ui/shadcn/button"
+import { Button, buttonVariants } from "@/packages/ui-shadcn/ui/button"
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react"
 ⋮----
 className=
@@ -27115,7 +27115,7 @@ import useEmblaCarousel, {
 } from "embla-carousel-react"
 ⋮----
 import { cn } from "@shared-utils"
-import { Button } from "@/src/ui/shadcn/button"
+import { Button } from "@/packages/ui-shadcn/ui/button"
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 ⋮----
 type CarouselApi = UseEmblaCarouselType[1]
@@ -27210,13 +27210,13 @@ function Checkbox(
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
 ⋮----
 import { cn } from "@shared-utils"
-import { Button } from "@/src/ui/shadcn/button"
+import { Button } from "@/packages/ui-shadcn/ui/button"
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
-} from "@/src/ui/shadcn/input-group"
+} from "@/packages/ui-shadcn/ui/input-group"
 import { ChevronDownIcon, XIcon, CheckIcon } from "lucide-react"
 ⋮----
 function ComboboxValue(
@@ -27243,11 +27243,11 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/src/ui/shadcn/dialog"
+} from "@/packages/ui-shadcn/ui/dialog"
 import {
   InputGroup,
   InputGroupAddon,
-} from "@/src/ui/shadcn/input-group"
+} from "@/packages/ui-shadcn/ui/input-group"
 import { SearchIcon, CheckIcon } from "lucide-react"
 ⋮----
 className=
@@ -27275,7 +27275,7 @@ function ContextMenuSeparator({
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 ⋮----
 import { cn } from "@shared-utils"
-import { Button } from "@/src/ui/shadcn/button"
+import { Button } from "@/packages/ui-shadcn/ui/button"
 import { XIcon } from "lucide-react"
 ⋮----
 function Dialog(
@@ -27334,8 +27334,8 @@ import { useMemo } from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 ⋮----
 import { cn } from "@shared-utils"
-import { Label } from "@/src/ui/shadcn/label"
-import { Separator } from "@/src/ui/shadcn/separator"
+import { Label } from "@/packages/ui-shadcn/ui/label"
+import { Separator } from "@/packages/ui-shadcn/ui/separator"
 ⋮----
 className=
 ````
@@ -27354,9 +27354,9 @@ function HoverCard(
 import { cva, type VariantProps } from "class-variance-authority"
 ⋮----
 import { cn } from "@shared-utils"
-import { Button } from "@/src/ui/shadcn/button"
-import { Input } from "@/src/ui/shadcn/input"
-import { Textarea } from "@/src/ui/shadcn/textarea"
+import { Button } from "@/packages/ui-shadcn/ui/button"
+import { Input } from "@/packages/ui-shadcn/ui/input"
+import { Textarea } from "@/packages/ui-shadcn/ui/textarea"
 ⋮----
 className=
 ⋮----
@@ -27392,7 +27392,7 @@ import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"
 ⋮----
 import { cn } from "@shared-utils"
-import { Separator } from "@/src/ui/shadcn/separator"
+import { Separator } from "@/packages/ui-shadcn/ui/separator"
 ⋮----
 function ItemGroup(
 ⋮----
@@ -27441,7 +27441,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/src/ui/shadcn/dropdown-menu"
+} from "@/packages/ui-shadcn/ui/dropdown-menu"
 import { CheckIcon } from "lucide-react"
 ⋮----
 className=
@@ -27495,7 +27495,7 @@ function NavigationMenuLink({
 ## File: packages/ui-shadcn/ui/pagination.tsx
 ````typescript
 import { cn } from "@shared-utils"
-import { Button } from "@/src/ui/shadcn/button"
+import { Button } from "@/packages/ui-shadcn/ui/button"
 import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
 ⋮----
 className=
@@ -27650,7 +27650,7 @@ className=
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
 ⋮----
 import { cn } from "@shared-utils"
-import { Button } from "@/src/ui/shadcn/button"
+import { Button } from "@/packages/ui-shadcn/ui/button"
 import { XIcon } from "lucide-react"
 ⋮----
 function Sheet(
@@ -27672,22 +27672,22 @@ import { cva, type VariantProps } from "class-variance-authority"
 ⋮----
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@shared-utils"
-import { Button } from "@/src/ui/shadcn/button"
-import { Input } from "@/src/ui/shadcn/input"
-import { Separator } from "@/src/ui/shadcn/separator"
+import { Button } from "@/packages/ui-shadcn/ui/button"
+import { Input } from "@/packages/ui-shadcn/ui/input"
+import { Separator } from "@/packages/ui-shadcn/ui/separator"
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@/src/ui/shadcn/sheet"
-import { Skeleton } from "@/src/ui/shadcn/skeleton"
+} from "@/packages/ui-shadcn/ui/sheet"
+import { Skeleton } from "@/packages/ui-shadcn/ui/skeleton"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/src/ui/shadcn/tooltip"
+} from "@/packages/ui-shadcn/ui/tooltip"
 import { PanelLeftIcon } from "lucide-react"
 ⋮----
 type SidebarContextProps = {
@@ -27827,7 +27827,7 @@ import { ToggleGroup as ToggleGroupPrimitive } from "@base-ui/react/toggle-group
 import { type VariantProps } from "class-variance-authority"
 ⋮----
 import { cn } from "@shared-utils"
-import { toggleVariants } from "@/src/ui/shadcn/toggle"
+import { toggleVariants } from "@/packages/ui-shadcn/ui/toggle"
 ⋮----
 function ToggleGroup({
   className,
