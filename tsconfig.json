@@ -24,7 +24,7 @@
     ],
     "paths": {
       "@/*": ["./*"],
-      "@shared-utils": ["./src/ui/shadcn/lib/utils.ts"],
+      "@shared-utils": ["./packages/ui-shadcn/index.ts"],
       "@ui-shadcn": ["./packages/ui-shadcn/index.ts"],
       "@ui-shadcn/*": ["./packages/ui-shadcn/*"],
       "@integration-firebase": ["./packages/integration-firebase/index.ts"],

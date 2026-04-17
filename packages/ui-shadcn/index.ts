@@ -11,3 +11,6 @@ export { cn } from "./lib/utils";
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 export { useIsMobile } from "./hooks/use-mobile";
+
+// ─── Provider ─────────────────────────────────────────────────────────────────
+export { ThemeProvider } from "./provider/theme-provider";
