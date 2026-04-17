@@ -54,15 +54,16 @@ src/modules/platform/
 
 ## 依賴方向
 
-Platform 是治理上游，方向固定：
+Platform 是 T1 operational support，依賴方向固定：
 
 ```
-platform → workspace → notion → notebooklm
-platform → notion
-platform → notebooklm
+iam     → platform
+billing → platform (entitlement governance)
+platform → workspace
+(platform 也被 notion, notebooklm 以 Service API 形式消費)
 ```
 
-Platform 不可依賴下游模組。
+Platform 不可依賴下游模組（workspace、notion、notebooklm、analytics）。
 
 ---
 

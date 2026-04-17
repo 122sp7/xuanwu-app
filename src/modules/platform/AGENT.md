@@ -24,7 +24,7 @@
 ## Boundary Rules
 
 - `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
-- Platform 是上游治理層（platform → workspace → notion → notebooklm），不可依賴下游模組。
+- Platform 是 T1 operational support（iam/billing 為其上游），不可依賴下游模組（workspace、notion、notebooklm、analytics）。
 - `background-job` 使用泛化命名（BackgroundJob / JobDocument / JobChunk），不使用已棄用的 Ingestion* 命名。
 
 ## Route Here When
