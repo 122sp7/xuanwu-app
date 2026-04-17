@@ -39,6 +39,7 @@ import { CreateWorkspaceDialogRail } from "../../../../../workspace/adapters/inb
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -184,24 +185,26 @@ export function AppRail({
           </Tooltip>
 
           <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
-            {user && (
-              <DropdownMenuItem
-                onClick={onSelectPersonal}
-                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{user.name} (Personal)</span>
-              </DropdownMenuItem>
-            )}
-            {organizationAccounts.map((account) => (
-              <DropdownMenuItem
-                key={account.id}
-                onClick={() => { onSelectOrganization(account); }}
-                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{account.name}</span>
-              </DropdownMenuItem>
-            ))}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
+              {user && (
+                <DropdownMenuItem
+                  onClick={onSelectPersonal}
+                  className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
+                >
+                  <span className="truncate">{user.name} (Personal)</span>
+                </DropdownMenuItem>
+              )}
+              {organizationAccounts.map((account) => (
+                <DropdownMenuItem
+                  key={account.id}
+                  onClick={() => { onSelectOrganization(account); }}
+                  className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
+                >
+                  <span className="truncate">{account.name}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => { setIsCreateOrgOpen(true); }}
@@ -244,17 +247,19 @@ export function AppRail({
                   </Tooltip>
 
                   <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => { router.push(workspaceHubHref); }}
-                      className={
-                        resolveShellNavSection(pathname) === "workspace" && !activeWorkspaceId
-                          ? "bg-primary/10 text-primary"
-                          : ""
-                      }
-                    >
-                      工作區中心
-                    </DropdownMenuItem>
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onClick={() => { router.push(workspaceHubHref); }}
+                        className={
+                          resolveShellNavSection(pathname) === "workspace" && !activeWorkspaceId
+                            ? "bg-primary/10 text-primary"
+                            : ""
+                        }
+                      >
+                        工作區中心
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
                     <DropdownMenuSeparator />
                     {!workspacesHydrated ? (
                       <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
