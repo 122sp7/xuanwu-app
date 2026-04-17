@@ -55,5 +55,5 @@ export type {EventName} = z.infer<typeof {EventName}Schema>;
 - 確認事件 `type` discriminant 格式為 `<module>.<action>`，與模組命名一致。
 - `npm run lint` — 確認無邊界違規。
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd

@@ -11,7 +11,7 @@
 - No schema-breaking diagnostics in .github/agents or .github/instructions.
 - All instruction files contain frontmatter with description/applyTo.
 - Agent files include supported custom-agent keys (name/description/tools/model/target/handoffs/user-invocable/disable-model-invocation where applicable).
-- Remaining stale hits are in generated repomix snapshot files under .github/skills/xuanwu-app-skill/references/, not active source docs.
+- Remaining stale hits are in generated repomix snapshot files under .github/skills/xuanwu-skill/references/, not active source docs.
 
 ### Validation / Evidence
 - get_errors on .github/agents and .github/instructions: no errors.

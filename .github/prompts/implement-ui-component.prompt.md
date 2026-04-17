@@ -15,7 +15,7 @@ argument-hint: Provide component goal, route scope, and interaction states.
 3. Implement states: loading, empty, error, success.
 4. Validate accessibility and interaction behavior.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill shadcn
 #use skill web-design-guidelines
 #use skill vercel-react-best-practices

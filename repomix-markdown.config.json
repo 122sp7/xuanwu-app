@@ -95,7 +95,7 @@
 
       "*.sqlite",
       "*.db",
-      ".github/skills/xuanwu-app-skill/**",
+      ".github/skills/xuanwu-skill/**",
       ".github/skills/xuanwu-markdown-skill/**",
       ".github/skills/xuanwu-notebooklm-skill/**",
       ".github/skills/xuanwu-notion-skill/**"

@@ -53,6 +53,6 @@ handoffs:
 
 `#use skill zod-validation`
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill zod-validation
 #use skill hexagonal-ddd

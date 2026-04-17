@@ -44,4 +44,4 @@ handoffs:
 - Run lint for boundary and import changes.
 - Run build when public types or exports are touched.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 

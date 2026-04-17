@@ -31,4 +31,4 @@ handoffs:
 2. Plan compatibility and cutover phases.
 3. Validate reads and writes before and after migration.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 

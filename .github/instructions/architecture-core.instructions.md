@@ -133,5 +133,5 @@ return raw as WorkspaceSnapshot;
 - Re-check changed imports under `@/modules/` for API-only access.
 - Keep dependency flow acyclic unless an explicit event contract documents an exception.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd

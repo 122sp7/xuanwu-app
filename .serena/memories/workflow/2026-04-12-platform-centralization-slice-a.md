@@ -25,7 +25,7 @@
   - source interfaces direct firebase patterns: no matches.
   - app imports from platform subdomains: no matches.
   - remaining direct @integration-firebase usage exists only under downstream infrastructure layers (34 matches).
-- Ran npm run repomix:skill to refresh xuanwu-app-skill references.
+- Ran npm run repomix:skill to refresh xuanwu-skill references.
 
 # Risks / Remaining Debt
 - Remaining architecture debt: downstream infrastructure still directly imports @integration-firebase (notion/workspace/notebooklm infra adapters). Next slices must route these through platform infrastructure APIs.

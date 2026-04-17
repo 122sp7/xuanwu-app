@@ -16,6 +16,6 @@ argument-hint: Provide URL/route, target user flow, and acceptance criteria.
 
 Collect evidence for failures and include clear reproduction steps.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill vscode-testing-debugging-browser
 #use skill next-devtools-mcp

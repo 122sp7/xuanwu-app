@@ -98,5 +98,5 @@ export const <name>Machine = createMachine({
 - `npm run lint` — 確認 machine 不在 `interfaces/` 定義（應在 `application/machines/`）
 - `npm run build` — 確認型別一致
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill zustand-xstate

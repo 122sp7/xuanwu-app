@@ -34,4 +34,4 @@ handoffs:
 - Flag notable format-loss risk when source conversion may affect downstream retrieval.
 - Treat `notion` as the canonical content source and `notebooklm` as the owner of ingestion / retrieval pipeline semantics.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 

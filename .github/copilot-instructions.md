@@ -9,7 +9,7 @@ name: Xuanwu Copilot Workspace Instructions
 #use skill hexagonal-ddd
 #use skill occams-razor
 #use skill context7
-#use skill xuanwu-app-skill
+#use skill xuanwu-skill
 
 # Xuanwu Copilot Workspace Instructions
 
@@ -67,7 +67,7 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 
 - Keep this file thin. Put detailed, file-scoped behavior in `.github/instructions/` and reuse docs instead of copying architecture content into customization files.
 - Use [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for Serena workflow details, [skills/context7/SKILL.md](skills/context7/SKILL.md) for documentation verification, and [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) for boundary-safe module design.
-- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) and [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill.md) for implementation lookup only; they are not strategic authority.
+- Use [skills/xuanwu-skill/SKILL.md](skills/xuanwu-skill/SKILL.md) and [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill.md) for implementation lookup only; they are not strategic authority.
 - `.claude/` may exist as a compatibility surface, but `.github/*` remains the primary Copilot governance surface.
 
 ## Terminology

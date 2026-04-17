@@ -15,6 +15,6 @@ argument-hint: Provide doc sources, embedding model/runtime, and storage target.
 3. Write vectors and verify retrieval compatibility.
 4. Report failures, retries, and quality risks.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill xuanwu-rag-runtime-boundary
 #use skill llamaparse

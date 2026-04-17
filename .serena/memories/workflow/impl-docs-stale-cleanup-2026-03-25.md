@@ -20,7 +20,7 @@
 
 ### Deviations / Risks
 - Did not modify CODE_OF_CONDUCT.md because no stale/invalid project-specific content found.
-- .github/skills/xuanwu-app-skill reference artifacts contain many historical snapshots and may still include stale strings by design; not cleaned in this pass.
+- .github/skills/xuanwu-skill reference artifacts contain many historical snapshots and may still include stale strings by design; not cleaned in this pass.
 
 ### Open Questions
-- Should we run an additional cleanup pass for generated skill reference artifacts under .github/skills/xuanwu-app-skill/references/ after next repomix refresh?
+- Should we run an additional cleanup pass for generated skill reference artifacts under .github/skills/xuanwu-skill/references/ after next repomix refresh?

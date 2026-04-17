@@ -3,11 +3,11 @@
 ## Date: 2026-03-25
 
 ### Scope
-- Re-ran repomix skill generation to refresh .github/skills/xuanwu-app-skill generated references.
+- Re-ran repomix skill generation to refresh .github/skills/xuanwu-skill generated references.
 - Verified stale string cleanup in .github/docs/root docs after regeneration.
 
 ### Decisions / Findings
-- Generated reference files under .github/skills/xuanwu-app-skill had stale snapshots before regeneration.
+- Generated reference files under .github/skills/xuanwu-skill had stale snapshots before regeneration.
 - Running `npm run repomix:skill` synchronized generated content with updated source docs.
 
 ### Validation / Evidence

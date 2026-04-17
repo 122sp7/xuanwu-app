@@ -21,7 +21,7 @@ argument-hint: Provide approved plan reference and tasks to execute.
 - Documentation updated
 - Deviations or blockers
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices

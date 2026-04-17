@@ -52,14 +52,14 @@ Skill declarations are centralized in:
 
 ### 0.8) Repomix Explorer Bootstrap
 
-- 優先使用 `.github/skills/xuanwu-app-skill/references/` 作為分析來源。
+- 優先使用 `.github/skills/xuanwu-skill/references/` 作為分析來源。
 - 若來源缺失或過期，先執行 `npm run repomix:skill` 進行刷新。
 - 分析順序固定：`summary.md` -> `project-structure.md` -> `files.md`。
 - 採 search-first：先搜尋 pattern，再讀完整檔案。
 
 ### 1) Global Scan
 
-- 使用 `xuanwu-app-skill`（或 fresh-generated repomix skill）建立全域違規索引
+- 使用 `xuanwu-skill`（或 fresh-generated repomix skill）建立全域違規索引
 - 掃描範圍必須覆蓋整個 repo
 
 輸出 `violation_list`：
@@ -177,7 +177,7 @@ Skill declarations are centralized in:
 - `new_violations`
 - `total_smells_before`
 - `total_smells_after`
-- `repomix_source_used`（`xuanwu-app-skill|fresh-generated`）
+- `repomix_source_used`（`xuanwu-skill|fresh-generated`）
 - `complexity_delta`（files / call-chain / cognitive-load）
 
 必填覆蓋證據：

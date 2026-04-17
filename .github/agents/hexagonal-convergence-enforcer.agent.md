@@ -31,7 +31,7 @@ handoffs:
 - `serena-mcp`
 - `hexagonal-ddd`
 - `occams-razor`
-- `xuanwu-app-skill`
+- `xuanwu-skill`
 - `repomix`
 
 ## Context7 Certainty Gate
@@ -42,8 +42,8 @@ handoffs:
 
 ## Repomix Explorer Source Policy
 
-- 優先使用 `.github/skills/xuanwu-app-skill/references/` 作為第一層索引來源。
-- 若 `xuanwu-app-skill` 缺失或疑似過期，先執行 `npm run repomix:skill` 再分析。
+- 優先使用 `.github/skills/xuanwu-skill/references/` 作為第一層索引來源。
+- 若 `xuanwu-skill` 缺失或疑似過期，先執行 `npm run repomix:skill` 再分析。
 - 分析順序固定：`summary.md` -> `project-structure.md` -> `files.md`。
 - 採 search-first：先 pattern search，再讀完整檔案。
 - `--skill-generate` 工作流採非互動模式（`--skill-output` + `--force`），避免互動阻塞。
@@ -57,7 +57,7 @@ handoffs:
 ## Workflow
 
 1. Bootstrap Serena, activate project, load memories.
-2. Bootstrap Repomix evidence source via `xuanwu-app-skill` (refresh if stale).
+2. Bootstrap Repomix evidence source via `xuanwu-skill` (refresh if stale).
 3. Build violation and smell index for full repo.
 4. Classify issues by architecture, layer, dependency inversion, boundary, and convention.
 5. Identify root causes and reject symptom patches.
@@ -100,7 +100,7 @@ handoffs:
 
 - `violations_before` / `violations_after`
 - `smells_before` / `smells_after`
-- `repomix_source_used`（`xuanwu-app-skill|fresh-generated`）
+- `repomix_source_used`（`xuanwu-skill|fresh-generated`）
 - `complexity_delta`（`file_count`, `call_chain_depth`, `cognitive_surface`）
 - `tech_debt_removed`（per fix item）
 - `residual_risk`（if any）
@@ -108,5 +108,5 @@ handoffs:
 - `semantic_audit_status`（`completed|blocked`）
 
 Tags: #use skill context7 #use skill shadcn #use skill next-devtools-mcp
-#use skill serena-mcp #use skill hexagonal-ddd #use skill occams-razor #use skill xuanwu-app-skill
+#use skill serena-mcp #use skill hexagonal-ddd #use skill occams-razor #use skill xuanwu-skill
 #use skill repomix

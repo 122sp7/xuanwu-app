@@ -13,6 +13,6 @@ argument-hint: Provide change summary, touched files, and known risk areas.
 - Include why it matters and blocking status.
 - State residual risks and testing gaps explicitly.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd
 #use skill vscode-typescript-workbench

@@ -19,7 +19,7 @@
 - Confirmed no stale `update-customizations.md` entry remains under `.github/prompts/**`.
 
 ### Deviations / Risks
-- Did not bulk-edit unrelated `.github/skills/xuanwu-app-skill/references/*` generated snapshots in this pass.
+- Did not bulk-edit unrelated `.github/skills/xuanwu-skill/references/*` generated snapshots in this pass.
 
 ### Open Questions
 - None.

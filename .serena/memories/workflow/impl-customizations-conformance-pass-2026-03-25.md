@@ -21,7 +21,7 @@
 
 ### Deviations / Risks
 - Serena summarize_changes tool was not available in the current tool set, so only write_memory was completed
-- Repomix-generated reference snapshots under .github/skills/xuanwu-app-skill/references still contain historical text and were not regenerated in this pass
+- Repomix-generated reference snapshots under .github/skills/xuanwu-skill/references still contain historical text and were not regenerated in this pass
 
 ### Open Questions
 - Whether repo maintainers want prompt files beyond the directly related delivery chain normalized in the same naming style

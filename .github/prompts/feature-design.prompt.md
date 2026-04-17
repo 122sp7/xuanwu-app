@@ -93,7 +93,7 @@ tools: ['serena/*', 'context7/*', 'read', 'search']
 4. `implement-server-action` — 實作 Interface Layer
 5. `implement-ui-component` — 實作 UI
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd
 #use skill alistair-cockburn
 #use skill occams-razor

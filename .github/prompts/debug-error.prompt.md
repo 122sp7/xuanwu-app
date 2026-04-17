@@ -20,6 +20,6 @@ argument-hint: Provide error message, route/module, and reproduction steps.
 3. Propose minimal fix plus regression checks.
 4. State validation commands to confirm resolution.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill next-devtools-mcp
 #use skill vscode-testing-debugging-browser

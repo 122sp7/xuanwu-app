@@ -207,6 +207,6 @@ When ambiguity exists, apply in this order:
 
 Never sacrifice domain purity for implementation simplicity.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd
 

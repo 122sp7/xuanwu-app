@@ -30,5 +30,5 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 - 確認跨 Context 通訊使用 API boundary 或 event contract。
 - 確認不存在跨 Context 的 Domain Model 重用。
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd

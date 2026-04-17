@@ -1,5 +1,5 @@
 ---
-name: xuanwu-app-skill
+name: xuanwu-skill
 description: Reference codebase for Xuanwu App. Use this skill when you need to understand the structure, implementation patterns, or code details of the Xuanwu App project.
 ---
 

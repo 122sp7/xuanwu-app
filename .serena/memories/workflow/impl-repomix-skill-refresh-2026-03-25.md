@@ -4,7 +4,7 @@
 
 ### Scope
 - Executed `npm run repomix:skill` in repository root.
-- Refreshed generated Xuanwu skill artifacts under `.github/skills/xuanwu-app-skill/`.
+- Refreshed generated Xuanwu skill artifacts under `.github/skills/xuanwu-skill/`.
 
 ### Decisions / Findings
 - Command completed successfully with Repomix v1.12.0.
@@ -14,10 +14,10 @@
 ### Validation / Evidence
 - Terminal output reported: "Packing completed successfully" and "Security: No suspicious files detected".
 - Git changed files include:
-  - `.github/skills/xuanwu-app-skill/SKILL.md`
-  - `.github/skills/xuanwu-app-skill/references/summary.md`
-  - `.github/skills/xuanwu-app-skill/references/project-structure.md`
-  - `.github/skills/xuanwu-app-skill/references/files.md`
+  - `.github/skills/xuanwu-skill/SKILL.md`
+  - `.github/skills/xuanwu-skill/references/summary.md`
+  - `.github/skills/xuanwu-skill/references/project-structure.md`
+  - `.github/skills/xuanwu-skill/references/files.md`
 
 ### Deviations / Risks
 - No runtime lint/build/test executed because task scope was skill artifact generation only.

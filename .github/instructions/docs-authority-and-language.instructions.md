@@ -36,5 +36,5 @@ applyTo: '{docs,modules,packages}/**/*.{ts,tsx,js,jsx,md}'
 - Verify behavioral rules are not restating full strategic docs content.
 - If docs changes affect `.github/skills/` repomix references, regenerate with existing scripts.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd

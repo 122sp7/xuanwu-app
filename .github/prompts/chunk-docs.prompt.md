@@ -21,7 +21,7 @@ argument-hint: Provide source docs, target chunk policy, and constraints.
 3. Check chunk quality for retrieval relevance.
 4. Report chunk statistics and edge cases.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill xuanwu-rag-runtime-boundary
 #use skill liteparse
 #use skill llamaparse

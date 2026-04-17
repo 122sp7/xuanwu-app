@@ -72,6 +72,6 @@ handoffs:
 3. **修正建議**：具體檔案移動 / 重構步驟
 4. **修正後驗證**：`npm run lint` + `npm run build` 結果
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd
 #use skill occams-razor

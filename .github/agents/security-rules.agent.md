@@ -35,4 +35,4 @@ Prevent unauthorized access while preserving required product flows.
 - Prefer explicit allow conditions with clear actor checks.
 - Pair rule changes with validation scenarios.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 

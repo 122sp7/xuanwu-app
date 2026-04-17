@@ -97,6 +97,6 @@ export type Address = z.infer<typeof AddressSchema>;
 - `npm run lint` — 確認無 framework import 在 `domain/`
 - `npm run build` — 確認型別一致
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd
 #use skill zod-validation

@@ -107,5 +107,5 @@ Log before sending to AI, log after receiving from AI. Never lose the pair.
 - ❌ Magic string prompts inside use-case files
 - ❌ Skipping traceability logging for any AI request
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd

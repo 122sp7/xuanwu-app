@@ -10,7 +10,7 @@
 - `README.md`, `docs/getting-started.md`, `docs/hooks.md`, and `scripts/init-framework.sh` all treat `.claude/` as installed framework content and hook runtime.
 - `.claude/settings.json` wires lifecycle hooks to `.claude/hooks/*.sh` and enables project MCP servers.
 - `.claude/skills/skill-rules.json` is the registry consumed by the skill activation hook.
-- `.github/` is the primary Copilot customization surface; repomix-generated `xuanwu-app-skill` excludes `.claude/**`.
+- `.github/` is the primary Copilot customization surface; repomix-generated `xuanwu-skill` excludes `.claude/**`.
 - Search across app/modules/packages/py_fn/build configs found no `.claude/` references.
 
 ### Validation / Evidence

@@ -68,5 +68,5 @@ export const use<Name>Store = create<<Name>State & <Name>Actions>((set) => ({
 - `npm run lint` — 確認無 layer 違規（store 不得出現在 `domain/` 或 `application/`）
 - `npm run build` — 確認型別一致
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill zustand-xstate
