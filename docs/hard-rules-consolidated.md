@@ -81,16 +81,16 @@
 ### Hard Anti-Patterns (Will Cause Refactors)
 
 - ❌ **Rule 46**: workspace directly calls Firestore (`firestore.collection().get()`)
-  - Fix: Use `@/modules/platform/api` (FileAPI, PermissionAPI, etc.)
+  - Fix: Use `@/modules/platform` (FileAPI, PermissionAPI, etc. via module `index.ts`)
 
 - ❌ **Rule 47**: notebooklm implements its own permission logic
-  - Fix: Call `@/modules/platform/api → PermissionAPI.can()`
+  - Fix: Call `@/modules/platform` → `PermissionAPI.can()`
 
 - ❌ **Rule 48**: notion directly invokes AI/Genkit
   - Fix: Notion emits event; platform routes to notebooklm via AI API
 
 - ❌ **Rule 49**: Module imports another module's internal (domain/application/infrastructure)
-  - Fix: Use `@/modules/<target>/api` only
+  - Fix: Use `@/modules/<target>` (`index.ts` public boundary) only
 
 - ❌ **Rule 50**: Business logic written in React component (workspace UI)
   - Fix: Move to application/ use-case; UI only composes and calls
@@ -275,12 +275,12 @@
 ## Cross-Module Data Flow Rules (Hard Constraints)
 
 ### Rule 24: Notebooklm Cannot Direct-Read Firestore
-- ✅ notebooklm reads knowledge artifacts via `@/modules/notion/api`
+- ✅ notebooklm reads knowledge artifacts via `@/modules/notion` (`index.ts` public boundary)
 - ❌ NEVER: `firestore.collection('notion_pages').get()`
 - ✅ Decouples notebooklm from notion's persistence model
 
 ### Rule 25: Notebooklm Data Requests = Via Notion API
-- ✅ If notebooklm.retrieval needs knowledge: calls `notion.api.getKnowledgeArtifacts()`
+- ✅ If notebooklm.retrieval needs knowledge: calls exported capability from `@/modules/notion`
 - ✅ Notion controls schema; notebooklm consumes contract only
 - ❌ NEVER notebooklm queries notion's Firestore directly
 

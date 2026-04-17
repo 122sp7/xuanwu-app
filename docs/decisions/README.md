@@ -19,6 +19,7 @@
 | [0011-use-case-bundling.md](./0011-use-case-bundling.md) | Use Case Bundling and Query-Command Mixing | Accepted | 30 個多類別 use-case 捆綁文件；8 處命令文件 re-export 查詢類別 |
 | [0012-source-to-task-orchestration.md](./0012-source-to-task-orchestration.md) | Source-To-Task Orchestration | Accepted | upload → parse → Knowledge Page → task 的跨 context 邊界與 orchestration 決策 |
 | [0014-main-domain-resplit.md](./0014-main-domain-resplit.md) | Main Domain Resplit | Accepted | 八主域重切與 ownership baseline 更新 |
+| [0015-api-layer-removal.md](./0015-api-layer-removal.md) | Module `api/` Layer Removal | Accepted | `api/` 層移除；`index.ts` 為唯一公開邊界 |
 
 ## Design Smell Taxonomy (1000–5200)
 
@@ -88,7 +89,8 @@
 - 4200 禁止不一致的目錄命名（dto/dtos）和 queries/ 歸屬；統一規則記錄於模組 instructions 中。
 - 4300 禁止 interfaces/ 內嵌 api/ 子目錄；禁止 application/ 持有 event-mappers/（屬 infrastructure）；handlers/ 必須有明確語意名稱。
 - 5100 禁止在 api/ 層製造超過必要數量的文件；workspace/api contracts.ts 與 facade.ts 應合併；infrastructure-api.ts 長期移至 infrastructure/。
-- 5200 路徑深度上限 10 層；platform/application/ 子目錄控制在 4 個以內；platform/api/ 文件精簡至 3 個。
+- 5200 路徑深度上限 10 層；platform/application/ 子目錄控制在 4 個以內。
+- 0015 `api/` 層已移除；跨模組 import 一律使用 `@/modules/<target>`（不再加 `/api`）；ESLint glob `modules/**/api/**` 已应更新或移除。
 
 ## Copilot Generation Rules
 
