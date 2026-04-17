@@ -33,7 +33,3 @@ All 3 stub subdomains (generation, ingestion, workflow) in `src/modules/template
 5. **Port alias pattern**: `export type FooRepositoryPort = FooRepository` (type alias, not re-declaration)
 6. **Relative import depth**: adapters/inbound/http/*.ts needs `../../../application/...` (3 levels up)
 
-## Pre-existing (non-template) TS Errors
-- `modules/iam/api/index.ts`: PolicyEffect ambiguous re-export
-- `modules/platform/api/contracts.ts`: missing account subdomain  
-These are pre-existing and unrelated to the template work.

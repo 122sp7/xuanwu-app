@@ -45,11 +45,6 @@ src/app / src/modules  →  packages  →  third-party libraries
 
 ---
 
-### ✍️ editor-*
-Complex UI subsystems
-
----
-
 ## 硬性規則
 
 ### 1. modules 不得直接使用第三方 library
