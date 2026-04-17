@@ -6,6 +6,7 @@ import type { InvoiceDomainEventType } from "../events/InvoiceDomainEvent";
 export interface InvoiceSnapshot {
   readonly id: string;
   readonly workspaceId: string;
+  readonly taskIds: ReadonlyArray<string>;
   readonly status: InvoiceStatus;
   readonly totalAmount: number;
   readonly submittedAtISO: string | null;
@@ -18,6 +19,12 @@ export interface InvoiceSnapshot {
 
 export interface CreateInvoiceInput {
   readonly workspaceId: string;
+  readonly taskIds?: ReadonlyArray<string>;
+}
+
+export interface CreateInvoiceFromAcceptedTasksInput {
+  readonly workspaceId: string;
+  readonly taskIds: ReadonlyArray<string>;
 }
 
 export class Invoice {
@@ -30,6 +37,7 @@ export class Invoice {
     const invoice = new Invoice({
       id,
       workspaceId: input.workspaceId,
+      taskIds: input.taskIds ?? [],
       status: "draft",
       totalAmount: 0,
       submittedAtISO: null,

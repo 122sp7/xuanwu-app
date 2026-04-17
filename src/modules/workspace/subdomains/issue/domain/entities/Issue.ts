@@ -77,6 +77,33 @@ export class Issue {
       occurredAt: now,
       payload: { issueId: this._props.id, taskId: this._props.taskId, to },
     });
+    if (to === "resolved") {
+      this._domainEvents.push({
+        type: "workspace.issue.resolved",
+        eventId: uuid(),
+        occurredAt: now,
+        payload: {
+          issueId: this._props.id,
+          taskId: this._props.taskId,
+          stage: this._props.stage,
+          resolvedAtISO: now,
+        },
+      });
+    }
+  }
+
+  close(): void {
+    if (!canTransitionIssueStatus(this._props.status, "closed")) {
+      throw new Error(`Cannot close issue from '${this._props.status}'.`);
+    }
+    const now = new Date().toISOString();
+    this._props = { ...this._props, status: "closed", updatedAtISO: now };
+    this._domainEvents.push({
+      type: "workspace.issue.closed",
+      eventId: uuid(),
+      occurredAt: now,
+      payload: { issueId: this._props.id, taskId: this._props.taskId },
+    });
   }
 
   get id(): string { return this._props.id; }

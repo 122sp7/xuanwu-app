@@ -27,6 +27,16 @@ export interface IssueStatusChangedEvent extends IssueDomainEvent {
   };
 }
 
+export interface IssueResolvedEvent extends IssueDomainEvent {
+  readonly type: "workspace.issue.resolved";
+  readonly payload: {
+    readonly issueId: string;
+    readonly taskId: string;
+    readonly stage: IssueStage;
+    readonly resolvedAtISO: string;
+  };
+}
+
 export interface IssueClosedEvent extends IssueDomainEvent {
   readonly type: "workspace.issue.closed";
   readonly payload: {
@@ -38,4 +48,5 @@ export interface IssueClosedEvent extends IssueDomainEvent {
 export type IssueDomainEventType =
   | IssueOpenedEvent
   | IssueStatusChangedEvent
+  | IssueResolvedEvent
   | IssueClosedEvent;

@@ -3,13 +3,19 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  AlertCircle,
+  BadgeCheck,
   Brain,
   CalendarDays,
+  ClipboardCheck,
   FileText,
   FolderOpen,
   Home,
+  Inbox,
+  ListTodo,
   MessageSquare,
   Notebook,
+  Receipt,
   Settings,
   Shield,
   Users,
@@ -50,7 +56,13 @@ type WorkspaceTabValue =
   | "Knowledge"
   | "Notebook"
   | "AiChat"
-  | "WorkspaceSettings";
+  | "WorkspaceSettings"
+  | "TaskFormation"
+  | "Tasks"
+  | "Quality"
+  | "Approval"
+  | "Settlement"
+  | "Issues";
 
 type WorkspaceDomainGroup = "workspace" | "notion" | "notebooklm";
 
@@ -72,6 +84,13 @@ const WORKSPACE_TAB_ITEMS: readonly WorkspaceTabItem[] = [
   { id: "knowledge", value: "Knowledge", label: "知識", domainGroup: "notion" },
   { id: "notebook", value: "Notebook", label: "RAG 查詢", domainGroup: "notebooklm" },
   { id: "ai-chat", value: "AiChat", label: "AI 對話", domainGroup: "notebooklm" },
+  // Task lifecycle subdomains
+  { id: "task-formation", value: "TaskFormation", label: "任務形成", domainGroup: "workspace" },
+  { id: "tasks", value: "Tasks", label: "任務", domainGroup: "workspace" },
+  { id: "quality", value: "Quality", label: "質檢", domainGroup: "workspace" },
+  { id: "approval", value: "Approval", label: "驗收", domainGroup: "workspace" },
+  { id: "settlement", value: "Settlement", label: "結算", domainGroup: "workspace" },
+  { id: "issues", value: "Issues", label: "問題單", domainGroup: "workspace" },
 ] as const;
 
 const WORKSPACE_DOMAIN_GROUP_LABELS: Record<WorkspaceDomainGroup, string> = {
@@ -278,6 +297,49 @@ const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
     label: "治理",
     icon: <Shield className="size-3.5" />,
     isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Overview" && options?.panel === "governance",
+  },
+  // Task lifecycle quick access
+  {
+    id: "task-formation",
+    href: "{workspaceBaseHref}?tab=TaskFormation",
+    label: "任務形成",
+    icon: <Inbox className="size-3.5" />,
+    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "TaskFormation",
+  },
+  {
+    id: "tasks",
+    href: "{workspaceBaseHref}?tab=Tasks",
+    label: "任務",
+    icon: <ListTodo className="size-3.5" />,
+    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Tasks",
+  },
+  {
+    id: "quality",
+    href: "{workspaceBaseHref}?tab=Quality",
+    label: "質檢",
+    icon: <ClipboardCheck className="size-3.5" />,
+    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Quality",
+  },
+  {
+    id: "approval",
+    href: "{workspaceBaseHref}?tab=Approval",
+    label: "驗收",
+    icon: <BadgeCheck className="size-3.5" />,
+    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Approval",
+  },
+  {
+    id: "settlement",
+    href: "{workspaceBaseHref}?tab=Settlement",
+    label: "結算",
+    icon: <Receipt className="size-3.5" />,
+    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Settlement",
+  },
+  {
+    id: "issues",
+    href: "{workspaceBaseHref}?tab=Issues",
+    label: "問題單",
+    icon: <AlertCircle className="size-3.5" />,
+    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Issues",
   },
 ];
 

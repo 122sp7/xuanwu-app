@@ -214,6 +214,13 @@ const ROUTE_TITLES: Record<string, string> = {
   "/audit": "帳號 · 稽核",
   "/workspace": "工作區中心",
   "/dashboard": "儀表板",
+  // Workspace task-lifecycle tabs (query-param based, resolved in resolveShellPageTitle)
+  "workspace:TaskFormation": "工作區 · 任務形成",
+  "workspace:Tasks": "工作區 · 任務",
+  "workspace:Quality": "工作區 · 質檢",
+  "workspace:Approval": "工作區 · 驗收",
+  "workspace:Settlement": "工作區 · 結算",
+  "workspace:Issues": "工作區 · 問題單",
 };
 
 const BREADCRUMB_LABELS: Record<string, string> = {
@@ -231,6 +238,12 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   schedule: "排程",
   daily: "每日",
   audit: "稽核",
+  "task-formation": "任務形成",
+  tasks: "任務",
+  quality: "質檢",
+  approval: "驗收",
+  settlement: "結算",
+  issues: "問題單",
 };
 
 // ── Organization management items ─────────────────────────────────────────────
@@ -285,7 +298,19 @@ export function listShellRailCatalogItems(isOrganization: boolean): readonly She
 
 export const SHELL_CONTEXT_SECTION_CONFIG: Partial<
   Record<ShellNavSection, ShellContextSectionConfig>
-> = {};
+> = {
+  workspace: {
+    title: "任務流程",
+    items: [
+      { href: "/workspace?tab=TaskFormation", label: "任務形成" },
+      { href: "/workspace?tab=Tasks", label: "任務" },
+      { href: "/workspace?tab=Quality", label: "質檢" },
+      { href: "/workspace?tab=Approval", label: "驗收" },
+      { href: "/workspace?tab=Settlement", label: "結算" },
+      { href: "/workspace?tab=Issues", label: "問題單" },
+    ],
+  },
+};
 
 // ── Mobile & organization nav items ───────────────────────────────────────────
 
@@ -335,7 +360,11 @@ export function resolveShellNavSection(pathname: string): ShellNavSection {
   return "other";
 }
 
-export function resolveShellPageTitle(pathname: string): string {
+export function resolveShellPageTitle(pathname: string, tab?: string | null): string {
+  if (tab) {
+    const tabKey = `workspace:${tab}`;
+    if (ROUTE_TITLES[tabKey]) return ROUTE_TITLES[tabKey];
+  }
   if (isAccountScopedWorkspacePath(pathname)) {
     return "工作區中心";
   }
