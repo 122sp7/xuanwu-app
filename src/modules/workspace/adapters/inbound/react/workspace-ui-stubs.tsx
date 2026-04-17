@@ -118,7 +118,9 @@ function resolveWorkspaceTabValue(value: string | null | undefined): WorkspaceTa
   return WORKSPACE_TAB_ALIASES[value] ?? null;
 }
 
-const NAV_PREFS_STORAGE_KEY = "xuanwu:nav-preferences";
+// Bump version suffix whenever new default tab IDs are added so stale
+// localStorage entries are discarded and users see the updated defaults.
+const NAV_PREFS_STORAGE_KEY = "xuanwu:nav-preferences-v2";
 
 const DEFAULT_NAV_PREFS: NavPreferences = {
   pinnedWorkspace: [
@@ -142,9 +144,17 @@ const DEFAULT_NAV_PREFS: NavPreferences = {
 export const MAX_VISIBLE_RECENT_WORKSPACES = 8;
 
 function sanitizeNavPreferences(input: Partial<NavPreferences> | null | undefined): NavPreferences {
-  const pinnedWorkspace = Array.isArray(input?.pinnedWorkspace)
+  const storedPinned = Array.isArray(input?.pinnedWorkspace)
     ? input.pinnedWorkspace.filter((item): item is string => typeof item === "string")
     : DEFAULT_NAV_PREFS.pinnedWorkspace;
+
+  // Additive merge: always include every default tab ID so that new domain
+  // sections added to WORKSPACE_TAB_ITEMS remain visible even when an older
+  // version of stored preferences is present.
+  const pinnedWorkspace = Array.from(
+    new Set([...storedPinned, ...DEFAULT_NAV_PREFS.pinnedWorkspace]),
+  );
+
   const pinnedPersonal = Array.isArray(input?.pinnedPersonal)
     ? input.pinnedPersonal.filter((item): item is string => typeof item === "string")
     : DEFAULT_NAV_PREFS.pinnedPersonal;
@@ -153,7 +163,7 @@ function sanitizeNavPreferences(input: Partial<NavPreferences> | null | undefine
     : DEFAULT_NAV_PREFS.maxWorkspaces;
 
   return {
-    pinnedWorkspace: pinnedWorkspace.length > 0 ? Array.from(new Set(pinnedWorkspace)) : DEFAULT_NAV_PREFS.pinnedWorkspace,
+    pinnedWorkspace: pinnedWorkspace.length > 0 ? pinnedWorkspace : DEFAULT_NAV_PREFS.pinnedWorkspace,
     pinnedPersonal: pinnedPersonal.length > 0 ? Array.from(new Set(pinnedPersonal)) : DEFAULT_NAV_PREFS.pinnedPersonal,
     showLimitedWorkspaces: input?.showLimitedWorkspaces ?? DEFAULT_NAV_PREFS.showLimitedWorkspaces,
     maxWorkspaces,
