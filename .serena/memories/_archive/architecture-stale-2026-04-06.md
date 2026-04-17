@@ -1,9 +1,0 @@
-- Architecture style: Module-Driven Domain Design (bounded contexts in `modules/*`).
-- Dependency direction: `interfaces -> application -> domain <- infrastructure`.
-- Cross-module rule: import only via target module `index.ts` public barrel.
-- In-module rule: use relative imports (avoid self-import via module barrel).
-- Shared boundaries are in `packages/*` with tsconfig aliases (`@shared-*`, `@integration-*`, `@ui-*`, `@lib-*`).
-- ESLint enforces restricted legacy import paths (`@/shared/*`, `@/libs/*`, etc.).
-- Runtime split:
-  - Next.js owns product-facing UX/auth/route orchestration.
-  - py_fn owns heavy worker ingestion pipeline and retryable processing.
