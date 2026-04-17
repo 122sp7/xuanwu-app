@@ -1,6 +1,11 @@
 # 6106 Migration Gap — notion `knowledge` 子域
 
-- Status: Recorded — Pending Implementation
+
+> ⚠️ **本文件為「僅記錄」文件 — 不執行實施**
+> 此 ADR 的唯一目的是記錄遷移缺口，作為未來蒸餾工作的基線參考。
+> **任何 agent 或開發者不得依據本文件直接新增、修改或刪除任何程式碼。**
+
+- Status: ⛔ 僅記錄 — 不實施（Record Only — Do Not Implement）
 - Date: 2026-04-17
 - Category: Migration Gap > notion
 

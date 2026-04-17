@@ -1,6 +1,11 @@
 # 6100 Migration Gap Registry
 
-- Status: Active
+
+> ⚠️ **6100 系列為「僅記錄」文件系列 — 不執行實施**
+> 所有 6101–6121 文件的唯一目的是記錄遷移缺口與新增能力，作為未來蒸餾工作的基線參考。
+> **任何 agent 或開發者不得依據這些文件直接修改任何程式碼。**
+
+- Status: ⛔ 僅記錄系列 — 不實施（Record Only — Do Not Implement）
 - Date: 2026-04-17
 - Category: Migration Gap Registry
 

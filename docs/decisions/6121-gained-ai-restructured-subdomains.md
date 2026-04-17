@@ -1,6 +1,11 @@
 # 6121 Migration Gain — ai 重組後子域
 
-- Status: Recorded
+
+> ✅ **本文件為「僅記錄」文件 — 描述新技能已新增的能力**
+> 此 ADR 的目的是記錄蒸餾後新增的能力，作為對比基線。
+> **任何 agent 或開發者不得依據本文件直接修改現有程式碼。**
+
+- Status: ✅ 僅記錄 — 已存在於新技能（Recorded — Present in New Skill）
 - Date: 2026-04-17
 - Category: Migration Gain > ai
 
