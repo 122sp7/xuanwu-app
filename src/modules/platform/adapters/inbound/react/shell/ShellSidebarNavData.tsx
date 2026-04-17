@@ -10,6 +10,8 @@ import {
   type ActiveAccount,
   isOrganizationActor,
   isActiveOrganizationAccount,
+} from "../AppContext";
+import {
   SHELL_ACCOUNT_SECTION_MATCHERS,
   SHELL_ACCOUNT_NAV_ITEMS,
   SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
@@ -17,8 +19,8 @@ import {
   isExactOrChildPath,
   resolveShellNavSection,
   type ShellNavSection,
-} from "@/modules/platform/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+} from "../../../../index";
+import type { WorkspaceEntity } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

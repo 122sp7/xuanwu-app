@@ -11,10 +11,10 @@
 
 export {
   useWorkspaceContext as useWorkspaceScope,
-} from "@/modules/workspace/api/ui";
+} from "./WorkspaceContext";
 
 export type {
   WorkspaceContextState,
   WorkspaceContextAction,
   WorkspaceContextValue,
-} from "@/modules/workspace/api/ui";
+} from "./WorkspaceContext";

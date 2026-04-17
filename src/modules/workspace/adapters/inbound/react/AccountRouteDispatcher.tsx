@@ -12,20 +12,20 @@
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { useAuth } from "@/modules/platform/api";
+import { useAuth } from "../../../../iam/adapters/inbound/react/AuthContext";
 import {
   useAccountRouteContext,
-  useApp,
   OrganizationMembersRouteScreen,
   OrganizationOverviewRouteScreen,
   OrganizationPermissionsRouteScreen,
-} from "@/modules/platform/api/ui";
+} from "../../../../platform/adapters/inbound/react/platform-ui-stubs";
+import { useApp } from "../../../../platform/adapters/inbound/react/AppContext";
 import {
   AccountDashboardRouteScreen,
   OrganizationWorkspacesRouteScreen,
   WorkspaceDetailRouteScreen,
   WorkspaceHubScreen,
-} from "@/modules/workspace/api/ui";
+} from "./workspace-ui-stubs";
 
 // Lazy imports to avoid hard-coupling modules that may not yet be available
 let OrganizationTeamsRouteScreen: React.ComponentType | null = null;
@@ -35,10 +35,10 @@ let OrganizationAuditRouteScreen: React.ComponentType | null = null;
 let SettingsNotificationsRouteScreen: React.ComponentType | null = null;
 
 try {
-  // These screens live in workspace/platform apis — import dynamically to
+  // These screens live in workspace/platform stubs — import dynamically to
   // allow partial availability during incremental migration.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const wsUi = require("@/modules/workspace/api/ui") as Record<
+  const wsUi = require("./workspace-ui-stubs") as Record<
     string,
     React.ComponentType
   >;
@@ -51,7 +51,7 @@ try {
   OrganizationAuditRouteScreen =
     wsUi["OrganizationAuditRouteScreen"] ?? null;
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const platformUi = require("@/modules/platform/api/ui") as Record<
+  const platformUi = require("../../../../platform/adapters/inbound/react/platform-ui-stubs") as Record<
     string,
     React.ComponentType
   >;

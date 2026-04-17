@@ -6,8 +6,8 @@
  */
 
 import Link from "next/link";
-import { appendWorkspaceContextQuery } from "@/modules/workspace/api/ui";
-import { buildShellContextualHref } from "@/modules/platform/api";
+import { appendWorkspaceContextQuery } from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
+import { buildShellContextualHref } from "../../../../index";
 
 interface ContextScopedNavItem {
   href: string;

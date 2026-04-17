@@ -9,10 +9,10 @@
  * Returns: { state: AppState, dispatch: Dispatch<AppAction> }
  */
 
-export { useApp as useAccountScope } from "@/modules/platform/api/ui";
+export { useApp as useAccountScope } from "./AppContext";
 
 export type {
   AppState,
   AppAction,
   AppContextValue,
-} from "@/modules/platform/api/ui";
+} from "./AppContext";

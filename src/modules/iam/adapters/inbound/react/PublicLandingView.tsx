@@ -14,8 +14,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, ShieldCheck } from "lucide-react";
 
-import { useAuth, createClientAuthUseCases } from "@/modules/platform/api";
-import { createClientAccountUseCases } from "@/modules/platform/api";
+import { useAuth, createClientAuthUseCases } from "./AuthContext";
+import { createClientAccountUseCases } from "./AuthContext";
 
 type Tab = "login" | "register";
 

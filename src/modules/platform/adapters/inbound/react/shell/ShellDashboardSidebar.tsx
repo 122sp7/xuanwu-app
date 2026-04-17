@@ -19,7 +19,7 @@ import {
   useRecentWorkspaces,
   useSidebarLocale,
   WorkspaceQuickAccessRow,
-} from "@/modules/workspace/api/ui";
+} from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
 
 import {
   type DashboardSidebarProps,

@@ -13,32 +13,34 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PanelLeftOpen, Search } from "lucide-react";
 
+import { useAuth } from "../../../../../iam/adapters/inbound/react/AuthContext";
 import {
-  useAuth,
-  ShellGuard,
-  type AccountEntity,
-  subscribeToProfile,
   type AccountProfile,
   isOrganizationActor,
   resolveOrganizationRouteFallback,
-  resolveShellPageTitle,
-  isExactOrChildPath,
-  buildShellContextualHref,
-  SHELL_MOBILE_NAV_ITEMS,
-  SHELL_ORG_PRIMARY_NAV_ITEMS,
-  SHELL_ORG_SECONDARY_NAV_ITEMS,
-} from "@/modules/platform/api";
-import {
+  subscribeToProfile,
+  type AccountEntity,
   useApp,
+} from "../AppContext";
+import {
+  ShellGuard,
   AccountSwitcher,
   ShellAppBreadcrumbs,
   ShellGlobalSearchDialog,
   useShellGlobalSearch,
   ShellHeaderControls,
   ShellUserAvatar,
-} from "@/modules/platform/api/ui";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { useWorkspaceContext } from "@/modules/workspace/api/ui";
+} from "../platform-ui-stubs";
+import {
+  resolveShellPageTitle,
+  isExactOrChildPath,
+  buildShellContextualHref,
+  SHELL_MOBILE_NAV_ITEMS,
+  SHELL_ORG_PRIMARY_NAV_ITEMS,
+  SHELL_ORG_SECONDARY_NAV_ITEMS,
+} from "../../../../index";
+import type { WorkspaceEntity } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
+import { useWorkspaceContext } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
 
 import { AppRail } from "./ShellAppRail";
 import { ShellDashboardSidebar } from "./ShellDashboardSidebar";

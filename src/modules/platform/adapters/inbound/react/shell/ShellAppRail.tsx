@@ -25,17 +25,17 @@ import {
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
-import { CreateOrganizationDialog } from "@/modules/platform/api/ui";
+import type { AuthUser, ActiveAccount, AccountEntity } from "../AppContext";
+import { CreateOrganizationDialog } from "../platform-ui-stubs";
 import {
   listShellRailCatalogItems,
   isExactOrChildPath,
   resolveShellNavSection,
   buildShellContextualHref,
   type ShellRailCatalogItem,
-} from "@/modules/platform/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { CreateWorkspaceDialogRail } from "@/modules/workspace/api/ui";
+} from "../../../../index";
+import type { WorkspaceEntity } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
+import { CreateWorkspaceDialogRail } from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
 import {
   DropdownMenu,
   DropdownMenuContent,

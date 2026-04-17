@@ -13,6 +13,6 @@
 export {
   AuthProvider as IamSessionProvider,
   useAuth as useIamSession,
-} from "@/modules/platform/api";
+} from "./AuthContext";
 
-export type { AuthState, AuthUser, AuthStatus } from "@/modules/platform/api";
+export type { AuthState, AuthUser, AuthStatus } from "./AuthContext";

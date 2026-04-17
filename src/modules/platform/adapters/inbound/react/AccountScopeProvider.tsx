@@ -16,12 +16,12 @@ import {
   APP_INITIAL_STATE,
   type AppState,
   type AppAction,
-} from "@/modules/platform/api/ui";
+} from "./AppContext";
 import {
   resolveActiveAccount,
   subscribeToAccountsForUser,
-} from "@/modules/platform/api";
-import { useAuth } from "@/modules/iam/api";
+} from "./AppContext";
+import { useAuth } from "../../../../iam/adapters/inbound/react/AuthContext";
 
 const LAST_ACTIVE_ACCOUNT_STORAGE_KEY = "xuanwu_last_active_account";
 

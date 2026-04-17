@@ -12,4 +12,4 @@
 
 export {
   WorkspaceContextProvider as WorkspaceScopeProvider,
-} from "@/modules/workspace/api/ui";
+} from "./WorkspaceContext";
