@@ -41,24 +41,24 @@ This skill contains the following reference files:
 
 ## Statistics
 
-899 files | 12,724 lines
+900 files | 12,947 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 788 | 9,373 |
-| TypeScript (TSX) | 77 | 1,419 |
+| TypeScript | 787 | 9,269 |
+| TypeScript (TSX) | 79 | 1,746 |
 | Markdown | 31 | 1,883 |
 | No Extension | 2 | 2 |
 | CSS | 1 | 47 |
 
 **Largest files:**
 - `src/modules/template/README.md` (285 lines)
+- `src/modules/workspace/adapters/inbound/react/workspace-ui-stubs.tsx` (154 lines)
 - `src/modules/ai/README.md` (134 lines)
 - `src/modules/iam/subdomains/organization/domain/entities/Organization.ts` (111 lines)
 - `src/modules/shared/index.ts` (107 lines)
 - `src/modules/template/AGENT.md` (106 lines)
+- `src/modules/platform/adapters/inbound/react/AppContext.tsx` (103 lines)
 - `src/modules/README.md` (100 lines)
+- `src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx` (93 lines)
 - `src/modules/iam/README.md` (93 lines)
-- `src/modules/workspace/README.md` (92 lines)
-- `src/modules/platform/README.md` (90 lines)
-- `src/app/(shell)/(account)/[accountId]/dev-tools/page.tsx` (87 lines)

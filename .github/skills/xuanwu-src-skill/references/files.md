@@ -1,267 +1,5 @@
 # Files
 
-## File: src/app/(shell)/(account)/[accountId]/dev-tools/dev-tools-badges.tsx
-````typescript
-import { CheckCircle2, Loader2, XCircle } from "lucide-react";
-⋮----
-export function StatusBadge(
-⋮----
-export function RagBadge(
-````
-
-## File: src/app/(shell)/(account)/[accountId]/dev-tools/dev-tools-helpers.ts
-````typescript
-// ── Types ─────────────────────────────────────────────────────────────────────
-⋮----
-export interface ParseResult {
-  doc_id: string;
-  status: "processing" | "completed" | "error";
-  page_count?: number;
-  json_gcs_uri?: string;
-  error_message?: string;
-}
-⋮----
-export interface DocRecord {
-  id: string;
-  status: "processing" | "completed" | "error" | string;
-  filename: string;
-  gcs_uri: string;
-  uploaded_at: Date | null;
-  page_count?: number;
-  json_gcs_uri?: string;
-  error_message?: string;
-  rag_status?: string;
-  rag_chunk_count?: number;
-  rag_vector_count?: number;
-  rag_raw_chars?: number;
-  rag_normalized_chars?: number;
-  rag_normalization_version?: string;
-  rag_language_hint?: string;
-  rag_error?: string;
-}
-⋮----
-export type UploadStatus = "idle" | "uploading" | "waiting" | "done" | "error";
-⋮----
-// ── Constants ─────────────────────────────────────────────────────────────────
-⋮----
-// ── Data-mapping helpers ──────────────────────────────────────────────────────
-⋮----
-export function formatDateTime(value: Date | null): string
-⋮----
-/**
- * Extract the storage object path from a `gs://bucket/path` URI.
- * Returns the path portion only (e.g. `uploads/abc/file.pdf`).
- */
-export function gcsUriToPath(gcsUri: string): string
-⋮----
-function deriveJsonUri(gcsUri: string): string
-⋮----
-export function asRecord(value: unknown): Record<string, unknown>
-⋮----
-export function asString(value: unknown, fallback = ""): string
-⋮----
-export function asNumber(value: unknown): number | undefined
-⋮----
-function asDate(value: unknown): Date | null
-⋮----
-/**
- * Map a plain data record (from platform infrastructure API) to DocRecord.
- * Accepts `{ id, data }` where data is an already-resolved object —
- * NOT a Firestore DocumentSnapshot with a `data()` method.
- */
-export function mapDocRecord(doc:
-````
-
-## File: src/app/(shell)/(account)/[accountId]/dev-tools/dev-tools-parsed-docs-section.tsx
-````typescript
-/**
- * DevToolsParsedDocsSection.tsx
- * Owns: the "已解析檔案" (completed-only) table section in the Dev Tools page.
- * Receives all doc data and handlers as props; contains no state.
- */
-⋮----
-import { CheckCircle2, FlaskConical, Loader2 } from "lucide-react";
-⋮----
-import { type DocRecord } from "./dev-tools-helpers";
-import { RagBadge } from "./dev-tools-badges";
-import { formatDateTime } from "./use-dev-tools-doc-list";
-⋮----
-interface DevToolsParsedDocsSectionProps {
-  parsedDocs: DocRecord[];
-  reindexingId: string | null;
-  onViewJson: (doc: DocRecord) => void;
-  onManualProcess: (doc: DocRecord) => void;
-  formatNormalizationRatio: (doc: DocRecord) => string;
-}
-⋮----
-onClick=
-````
-
-## File: src/app/(shell)/(account)/[accountId]/dev-tools/page.tsx
-````typescript
-/**
- * Module: dev-tools page — /dev-tools
- * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
- * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
- * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
- *   Doc-list state and operations → useDevToolsDocList hook.
- *   Parsed-docs table → DevToolsParsedDocsSection component.
- */
-⋮----
-import { useRef, useState, useEffect } from "react";
-import {
-  FlaskConical,
-  FileUp,
-  AlertCircle,
-  FileText,
-  Trash2,
-  Code2,
-  ExternalLink,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-} from "lucide-react";
-⋮----
-import {
-  firestoreInfrastructureApi,
-  storageInfrastructureApi,
-} from "@/modules/platform/api/infrastructure";
-import { useApp } from "@/modules/platform/api/ui";
-import { useWorkspaceContext } from "@/modules/workspace/api/ui";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  WATCH_PATH,
-  ACCEPTED_MIME,
-  ACCEPTED_EXTS,
-  asRecord,
-  asString,
-  asNumber,
-  type ParseResult,
-  type UploadStatus,
-} from "./dev-tools-helpers";
-import { StatusBadge, RagBadge } from "./dev-tools-badges";
-import { useDevToolsDocList, formatDateTime } from "./use-dev-tools-doc-list";
-import { DevToolsParsedDocsSection } from "./dev-tools-parsed-docs-section";
-⋮----
-// ── Page component ─────────────────────────────────────────────────────────
-⋮----
-// ── Upload state ──────────────────────────────────────────────────────────
-⋮----
-// ── Doc list + operations (extracted hook) ────────────────────────────────
-⋮----
-// Cleanup upload subscription on unmount
-⋮----
-function appendLog(msg: string)
-⋮----
-function handleFileChange(e: React.ChangeEvent<HTMLInputElement>)
-⋮----
-function buildUuidUploadPath(accountId: string, file: File)
-⋮----
-function watchDocument(docId: string)
-⋮----
-async function handleUploadAndParse()
-⋮----
-// Step 1: Upload to GCS via platform infrastructure API
-⋮----
-// Step 2: Watch Firestore for status updates
-⋮----
-function reset()
-⋮----
-{/* ── Header ─────────────────────────────────────────────────── */}
-⋮----
-{/* ── Stats ──────────────────────────────────────────────────── */}
-⋮----
-{/* ── File picker ────────────────────────────────────────────── */}
-⋮----
-{/* ── Actions ────────────────────────────────────────────────── */}
-⋮----
-{/* ── Result ─────────────────────────────────────────────────── */}
-⋮----
-{/* ── All uploaded docs table ─────────────────────────────────── */}
-⋮----
-onClick=
-⋮----
-{/* JSON preview panel */}
-⋮----
-{/* ── Parsed docs table (extracted component) ─────────────────── */}
-⋮----
-{/* ── Console log ────────────────────────────────────────────── */}
-````
-
-## File: src/app/(shell)/(account)/[accountId]/dev-tools/use-dev-tools-doc-list.ts
-````typescript
-/**
- * useDevToolsDocList.ts
- * Owns: Firestore subscription for the document list, JSON-preview state,
- *   and all per-document async operations (view, delete, reindex).
- *
- * All Firebase access routes through platform infrastructure APIs
- * (firestoreInfrastructureApi, storageInfrastructureApi, functionsInfrastructureApi)
- * per AGENTS.md Rule 46 — app/ NEVER touches Firebase SDK directly.
- */
-⋮----
-import { useEffect, useRef, useState } from "react";
-⋮----
-import {
-  firestoreInfrastructureApi,
-  storageInfrastructureApi,
-  functionsInfrastructureApi,
-} from "@/modules/platform/api/infrastructure";
-⋮----
-import {
-  gcsUriToPath,
-  mapDocRecord,
-  formatDateTime,
-  type DocRecord,
-} from "./dev-tools-helpers";
-⋮----
-// ── Public state ───────────────────────────────────────────────────────────
-⋮----
-export interface DocListState {
-  allDocs: DocRecord[];
-  selectedDocId: string | null;
-  selectedDoc: DocRecord | undefined;
-  jsonContent: string | null;
-  jsonLoading: boolean;
-  deletingId: string | null;
-  reindexingId: string | null;
-}
-⋮----
-export interface DocListHandlers {
-  handleViewOriginal: (doc: DocRecord) => Promise<void>;
-  handleViewJson: (doc: DocRecord) => Promise<void>;
-  handleDeleteDoc: (doc: DocRecord) => Promise<void>;
-  handleManualProcess: (doc: DocRecord, appendLog: (msg: string) => void) => Promise<void>;
-  closeJsonPreview: () => void;
-  formatNormalizationRatio: (doc: DocRecord) => string;
-}
-⋮----
-// ── Hook ───────────────────────────────────────────────────────────────────
-⋮----
-export function useDevToolsDocList(activeAccountId: string): DocListState & DocListHandlers
-⋮----
-// Subscribe to all documents for this account
-⋮----
-function closeJsonPreview()
-⋮----
-async function handleViewOriginal(doc: DocRecord)
-⋮----
-async function handleViewJson(doc: DocRecord)
-⋮----
-async function handleDeleteDoc(doc: DocRecord)
-⋮----
-async function handleManualProcess(
-    doc: DocRecord,
-    appendLog: (msg: string) => void,
-)
-⋮----
-function formatNormalizationRatio(doc: DocRecord): string
-⋮----
-// re-export for table columns
-⋮----
-// Re-export for convenience in table components
-````
-
 ## File: src/app/globals.css
 ````css
 @theme inline {
@@ -1958,19 +1696,6 @@ query(params: UsageQuery): Promise<UsageRecordSnapshot[]>;
 sumQuantity(featureKey: string, contextId: string, fromDate?: string, toDate?: string): Promise<number>;
 ````
 
-## File: src/modules/iam/adapters/inbound/react/IamSessionProvider.tsx
-````typescript
-/**
- * IamSessionProvider — iam inbound adapter (React).
- *
- * Canonical mount point for IAM authentication session state.
- * Wraps the identity-layer AuthProvider and exposes the useIamSession() hook
- * so the rest of the src/ tree never imports directly from the old interfaces/.
- *
- * Internal source: modules/iam/subdomains/identity/interfaces/providers/auth-provider.tsx
- */
-````
-
 ## File: src/modules/iam/adapters/inbound/react/index.ts
 ````typescript
 /**
@@ -1979,38 +1704,6 @@ sumQuantity(featureKey: string, contextId: string, fromDate?: string, toDate?: s
  * Public surface for all IAM React inbound adapters.
  * Consumed by src/app/ route shims and platform/adapters/inbound/react/.
  */
-````
-
-## File: src/modules/iam/adapters/inbound/react/PublicLandingView.tsx
-````typescript
-/**
- * PublicLandingView — iam inbound adapter (React).
- *
- * Self-contained public landing + auth panel component.
- * Manages login / register / guest state internally.
- * Consumed by src/app/(public)/page.tsx as a pure Server Component shim.
- *
- * Ported from: app/(public)/page.tsx
- */
-⋮----
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck } from "lucide-react";
-⋮----
-import { useAuth, createClientAuthUseCases } from "@/modules/platform/api";
-import { createClientAccountUseCases } from "@/modules/platform/api";
-⋮----
-type Tab = "login" | "register";
-⋮----
-async function handleSubmit(e: React.FormEvent)
-⋮----
-async function handleGuestAccess()
-⋮----
-async function handlePasswordReset()
-⋮----
-setError(null);
-setResetSent(false);
-setIsAuthPanelOpen((prev)
 ````
 
 ## File: src/modules/iam/iam.instructions.md
@@ -3411,6 +3104,35 @@ findByAccountId(accountId: string): Promise<NotebookSnapshot[]>;
 delete(id: string): Promise<void>;
 ````
 
+## File: src/modules/notion/adapters/outbound/notion-page-stub.ts
+````typescript
+/**
+ * notion-page-stub — notion outbound adapter stub.
+ *
+ * Stub implementation of createKnowledgePage. Replace with a real
+ * Firestore-backed implementation when the notion infrastructure layer
+ * is available.
+ */
+⋮----
+export interface CreateKnowledgePageInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly title: string;
+  readonly parentPageId: string | null;
+  readonly createdByUserId: string;
+}
+⋮----
+export interface CreateKnowledgePageResult {
+  readonly success: boolean;
+  readonly error?: { message: string };
+}
+⋮----
+/** Stub — replace with real Firestore implementation when available. */
+export async function createKnowledgePage(
+  _input: CreateKnowledgePageInput,
+): Promise<CreateKnowledgePageResult>
+````
+
 ## File: src/modules/notion/notion.instructions.md
 ````markdown
 
@@ -3851,6 +3573,113 @@ delete(id: string): Promise<void>;
 // TODO: export entities, value-objects, repositories, events, services
 ````
 
+## File: src/modules/platform/adapters/inbound/react/AppContext.tsx
+````typescript
+/**
+ * AppContext — platform inbound adapter (React).
+ *
+ * Defines app-level account state, context, and helper stubs for the src/ migration layer.
+ * Replace stub implementations (subscribeToAccountsForUser, subscribeToProfile) with real
+ * Firebase-backed versions when available.
+ */
+⋮----
+import { createContext, useContext, type Dispatch } from "react";
+⋮----
+import type { AuthUser } from "../../../../iam/adapters/inbound/react/AuthContext";
+⋮----
+// ── Account types ─────────────────────────────────────────────────────────────
+⋮----
+export type AccountType = "user" | "organization";
+⋮----
+export interface AccountEntity {
+  readonly id: string;
+  readonly name: string;
+  readonly accountType: AccountType;
+  readonly email?: string;
+  readonly photoURL?: string;
+}
+⋮----
+export type ActiveAccount = AccountEntity | AuthUser;
+⋮----
+export type BootstrapPhase = "idle" | "seeded" | "hydrated";
+⋮----
+// ── AccountProfile (read-model) ───────────────────────────────────────────────
+⋮----
+export interface AccountProfile {
+  readonly id: string;
+  readonly displayName: string;
+  readonly email?: string;
+  readonly photoURL?: string;
+  readonly bio?: string;
+}
+⋮----
+// ── App state & actions ───────────────────────────────────────────────────────
+⋮----
+export interface AppState {
+  readonly accounts: Record<string, AccountEntity>;
+  readonly accountsHydrated: boolean;
+  readonly activeAccount: ActiveAccount | null;
+  readonly bootstrapPhase: BootstrapPhase;
+}
+⋮----
+export type AppAction =
+  | { type: "SEED_ACTIVE_ACCOUNT"; payload: { user: AuthUser } }
+  | {
+      type: "SET_ACCOUNTS";
+      payload: {
+        accounts: Record<string, AccountEntity>;
+        user: AuthUser;
+        preferredActiveAccountId: string | null;
+      };
+    }
+  | { type: "SET_ACTIVE_ACCOUNT"; payload: ActiveAccount | null }
+  | { type: "RESET_STATE" };
+⋮----
+export interface AppContextValue {
+  readonly state: AppState;
+  readonly dispatch: Dispatch<AppAction>;
+}
+⋮----
+export function useApp(): AppContextValue
+⋮----
+// ── Account helpers ───────────────────────────────────────────────────────────
+⋮----
+export function isOrganizationActor(
+  account: ActiveAccount | null | undefined,
+): boolean
+⋮----
+export function isActiveOrganizationAccount(
+  account: ActiveAccount | null | undefined,
+): boolean
+⋮----
+export function resolveOrganizationRouteFallback(
+  _pathname: string,
+  _account: ActiveAccount | null | undefined,
+): string | null
+⋮----
+export function resolveActiveAccount(opts: {
+  currentActiveAccount: ActiveAccount | null;
+  accounts: Record<string, AccountEntity>;
+  personalAccount: AuthUser;
+  preferredActiveAccountId: string | null;
+  bootstrapPhase: BootstrapPhase;
+}): ActiveAccount
+⋮----
+// ── Stub subscriptions ────────────────────────────────────────────────────────
+⋮----
+/** Stub — replace with Firestore subscription when available. */
+export function subscribeToAccountsForUser(
+  _userId: string,
+  _onUpdate: (accounts: Record<string, AccountEntity>) => void,
+): () => void
+⋮----
+/** Stub — replace with Firestore profile subscription when available. */
+export function subscribeToProfile(
+  _actorId: string,
+  _onUpdate: (profile: AccountProfile | null) => void,
+): () => void
+````
+
 ## File: src/modules/platform/adapters/inbound/react/index.ts
 ````typescript
 /**
@@ -3859,6 +3688,103 @@ delete(id: string): Promise<void>;
  * Public surface for all platform React inbound adapters.
  * Consumed by src/app/ route shims.
  */
+````
+
+## File: src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx
+````typescript
+/**
+ * platform-ui-stubs — platform inbound adapter (React).
+ *
+ * Stub components and hooks for platform UI elements that were previously
+ * sourced from @/modules/platform/api/ui. Replace with real implementations
+ * when the platform UI layer is available.
+ */
+⋮----
+import type { ReactNode } from "react";
+⋮----
+import type { AuthUser } from "../../../../iam/adapters/inbound/react/AuthContext";
+import type { AccountEntity, ActiveAccount } from "./AppContext";
+⋮----
+// ── Auth guard ────────────────────────────────────────────────────────────────
+⋮----
+export function ShellGuard(
+⋮----
+// ── Account switcher ──────────────────────────────────────────────────────────
+⋮----
+interface AccountSwitcherProps {
+  personalAccount: AuthUser | null;
+  organizationAccounts: AccountEntity[];
+  activeAccountId: string | null;
+  onSelectPersonal: () => void;
+  onSelectOrganization: (account: AccountEntity) => void;
+  onOrganizationCreated?: (account: AccountEntity) => void;
+}
+⋮----
+export function AccountSwitcher(_props: AccountSwitcherProps): null
+⋮----
+// ── Shell breadcrumbs & header controls ───────────────────────────────────────
+⋮----
+export function ShellAppBreadcrumbs(): null
+⋮----
+export function ShellHeaderControls(): null
+⋮----
+interface ShellUserAvatarProps {
+  name: string;
+  email: string;
+  onSignOut: () => void;
+}
+⋮----
+export function ShellUserAvatar(_props: ShellUserAvatarProps): null
+⋮----
+// ── Global search ─────────────────────────────────────────────────────────────
+⋮----
+interface ShellGlobalSearchDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+⋮----
+export function ShellGlobalSearchDialog(
+  _props: ShellGlobalSearchDialogProps,
+): null
+⋮----
+export function useShellGlobalSearch():
+⋮----
+// ── Organization dialogs ──────────────────────────────────────────────────────
+⋮----
+interface CreateOrganizationDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  user: AuthUser | null;
+  onOrganizationCreated?: (account: AccountEntity) => void;
+  onNavigate?: (href: string) => void;
+}
+⋮----
+export function CreateOrganizationDialog(
+  _props: CreateOrganizationDialogProps,
+): null
+⋮----
+// ── Account route context ─────────────────────────────────────────────────────
+⋮----
+export interface AccountRouteContextValue {
+  readonly routeAccountId: string;
+  readonly resolvedAccountId: string;
+  readonly currentUserId: string | null;
+  readonly accountType: "organization" | "user" | null;
+  readonly accountsHydrated: boolean;
+  readonly activeAccount: ActiveAccount | null;
+}
+⋮----
+export function useAccountRouteContext(): AccountRouteContextValue
+⋮----
+// ── Stub route screens ────────────────────────────────────────────────────────
+⋮----
+export function OrganizationMembersRouteScreen(): React.ReactElement
+⋮----
+export function OrganizationOverviewRouteScreen(): React.ReactElement
+⋮----
+export function OrganizationPermissionsRouteScreen(): React.ReactElement
+⋮----
+export function SettingsNotificationsRouteScreen(): React.ReactElement
 ````
 
 ## File: src/modules/platform/adapters/inbound/react/PlatformBootstrap.tsx
@@ -3896,328 +3822,6 @@ export function PlatformBootstrap(
  */
 ````
 
-## File: src/modules/platform/adapters/inbound/react/shell/shell-quick-create.ts
-````typescript
-/**
- * shell-quick-create — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it imports notion's createKnowledgePage.
- * Kept as a composition adapter at the app boundary.
- */
-⋮----
-import { createKnowledgePage } from "@/modules/notion/api";
-⋮----
-export interface QuickCreatePageInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly createdByUserId: string;
-}
-⋮----
-export interface QuickCreatePageResult {
-  readonly success: boolean;
-  readonly error?: { message: string };
-}
-⋮----
-export async function quickCreateKnowledgePage(
-  input: QuickCreatePageInput,
-): Promise<QuickCreatePageResult>
-````
-
-## File: src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx
-````typescript
-/**
- * ShellAppRail — app/(shell)/_shell composition layer.
- * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
- * because it composes downstream modules (workspace).
- *
- * Platform is upstream and must not import downstream modules.
- * app/ is the designated composition layer.
- */
-⋮----
-import Link from "next/link";
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  LayoutDashboard,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-⋮----
-import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
-import { CreateOrganizationDialog } from "@/modules/platform/api/ui";
-import {
-  listShellRailCatalogItems,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  buildShellContextualHref,
-  type ShellRailCatalogItem,
-} from "@/modules/platform/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { CreateWorkspaceDialogRail } from "@/modules/workspace/api/ui";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-⋮----
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-⋮----
-interface RailItem {
-  id: string;
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-⋮----
-function getInitial(name: string | undefined | null): string
-⋮----
-function isActive(href: string)
-⋮----
-function buildWorkspaceDetailHref(workspaceId: string): string
-⋮----
-onClick=
-⋮----
-onSelectWorkspace(workspace.id);
-⋮----
-accountType=
-````
-
-## File: src/modules/platform/adapters/inbound/react/shell/ShellContextNavSection.tsx
-````typescript
-/**
- * ShellContextNavSection — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it imports from workspace module.
- */
-⋮----
-import Link from "next/link";
-import { appendWorkspaceContextQuery } from "@/modules/workspace/api/ui";
-import { buildShellContextualHref } from "@/modules/platform/api";
-⋮----
-interface ContextScopedNavItem {
-  href: string;
-  label: string;
-}
-⋮----
-interface ShellContextNavSectionProps {
-  title: string;
-  items: readonly ContextScopedNavItem[];
-  isActiveRoute: (href: string) => boolean;
-  activeAccountId: string | null;
-  activeWorkspaceId: string | null;
-}
-````
-
-## File: src/modules/platform/adapters/inbound/react/shell/ShellDashboardSidebar.tsx
-````typescript
-/**
- * ShellDashboardSidebar — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it composes workspace module components.
- */
-⋮----
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-⋮----
-import {
-  buildWorkspaceQuickAccessItems,
-  CustomizeNavigationDialog,
-  getWorkspaceIdFromPath,
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  readNavPreferences,
-  supportsWorkspaceSearchContext,
-  type NavPreferences,
-  useRecentWorkspaces,
-  useSidebarLocale,
-  WorkspaceQuickAccessRow,
-} from "@/modules/workspace/api/ui";
-⋮----
-import {
-  type DashboardSidebarProps,
-  ORGANIZATION_MANAGEMENT_ITEMS,
-  ACCOUNT_NAV_ITEMS,
-  SECTION_TITLES,
-  resolveNavSection,
-  isActiveRoute,
-  isActiveOrganizationAccount,
-} from "./ShellSidebarNavData";
-import { ShellSidebarHeader } from "./ShellSidebarHeader";
-import { DashboardSidebarBody } from "./ShellSidebarBody";
-⋮----
-export function ShellDashboardSidebar({
-  pathname,
-  activeAccount,
-  workspaces,
-  activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
-  onSelectWorkspace,
-}: DashboardSidebarProps)
-⋮----
-isActiveRoute={(href) => isActiveRoute(pathname, href)}
-          activeAccountId={activeAccount?.id ?? null}
-          showAccountManagement={showAccountManagement}
-          visibleAccountItems={visibleAccountItems}
-          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
-          workspacePathId={workspacePathId}
-          navPrefs={navPrefs}
-          localeBundle={localeBundle}
-          showRecentWorkspaces={showRecentWorkspaces}
-          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
-          hasOverflow={hasOverflow}
-          isExpanded={isExpanded}
-          activeWorkspaceId={activeWorkspaceId}
-          onSelectWorkspace={onSelectWorkspace}
-onToggleExpanded=
-````
-
-## File: src/modules/platform/adapters/inbound/react/shell/ShellRootLayout.tsx
-````typescript
-/**
- * ShellRootLayout — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it composes downstream modules.
- *
- * Uses useApp() from platform (accounts/auth) and useWorkspaceContext()
- * from workspace (workspaces/activeWorkspaceId).
- */
-⋮----
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { PanelLeftOpen, Search } from "lucide-react";
-⋮----
-import {
-  useAuth,
-  ShellGuard,
-  type AccountEntity,
-  subscribeToProfile,
-  type AccountProfile,
-  isOrganizationActor,
-  resolveOrganizationRouteFallback,
-  resolveShellPageTitle,
-  isExactOrChildPath,
-  buildShellContextualHref,
-  SHELL_MOBILE_NAV_ITEMS,
-  SHELL_ORG_PRIMARY_NAV_ITEMS,
-  SHELL_ORG_SECONDARY_NAV_ITEMS,
-} from "@/modules/platform/api";
-import {
-  useApp,
-  AccountSwitcher,
-  ShellAppBreadcrumbs,
-  ShellGlobalSearchDialog,
-  useShellGlobalSearch,
-  ShellHeaderControls,
-  ShellUserAvatar,
-} from "@/modules/platform/api/ui";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { useWorkspaceContext } from "@/modules/workspace/api/ui";
-⋮----
-import { AppRail } from "./ShellAppRail";
-import { ShellDashboardSidebar } from "./ShellDashboardSidebar";
-⋮----
-function toggleSidebar()
-⋮----
-function handleSelectOrganization(account: AccountEntity)
-⋮----
-function handleSelectPersonal()
-⋮----
-function handleOrganizationCreated(account: AccountEntity)
-⋮----
-function handleSelectWorkspace(workspaceId: string | null)
-⋮----
-async function handleLogout()
-⋮----
-void handleLogout();
-````
-
-## File: src/modules/platform/adapters/inbound/react/shell/ShellSidebarBody.tsx
-````typescript
-/**
- * ShellSidebarBody — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it imports from workspace and notion modules.
- */
-⋮----
-import Link from "next/link";
-⋮----
-import {
-  WorkspaceSectionContent,
-  type NavPreferences,
-  type SidebarLocaleBundle,
-} from "@/modules/workspace/api/ui";
-import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "@/modules/platform/api";
-⋮----
-import {
-  type NavSection,
-  sidebarItemClass,
-  sidebarSectionTitleClass,
-} from "./ShellSidebarNavData";
-import { ShellContextNavSection } from "./ShellContextNavSection";
-⋮----
-interface NavItem {
-  id: string;
-  label: string;
-  href: string;
-}
-⋮----
-interface WorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-⋮----
-interface ShellSidebarBodyProps {
-  section: NavSection;
-  isActiveRoute: (href: string) => boolean;
-  activeAccountId: string | null;
-  showAccountManagement: boolean;
-  visibleAccountItems: readonly NavItem[];
-  visibleOrganizationManagementItems: readonly NavItem[];
-  workspacePathId: string | null;
-  navPrefs: NavPreferences;
-  localeBundle: SidebarLocaleBundle | null;
-  showRecentWorkspaces: boolean;
-  visibleRecentWorkspaceLinks: WorkspaceLink[];
-  hasOverflow: boolean;
-  isExpanded: boolean;
-  activeWorkspaceId: string | null;
-  onSelectWorkspace: (workspaceId: string | null) => void;
-  onToggleExpanded: () => void;
-  currentSearchWorkspaceId: string;
-}
-⋮----
-className=
-````
-
 ## File: src/modules/platform/adapters/inbound/react/shell/ShellSidebarHeader.tsx
 ````typescript
 /**
@@ -4241,73 +3845,6 @@ export function ShellSidebarHeader({
   onOpenCustomize,
   onToggleCollapsed,
 }: ShellSidebarHeaderProps)
-````
-
-## File: src/modules/platform/adapters/inbound/react/shell/ShellSidebarNavData.tsx
-````typescript
-import {
-  Building2,
-  LayoutDashboard,
-  UserRound,
-  Users,
-} from "lucide-react";
-import Link from "next/link";
-⋮----
-import {
-  type ActiveAccount,
-  isOrganizationActor,
-  isActiveOrganizationAccount,
-  SHELL_ACCOUNT_SECTION_MATCHERS,
-  SHELL_ACCOUNT_NAV_ITEMS,
-  SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
-  SHELL_SECTION_LABELS,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  type ShellNavSection,
-} from "@/modules/platform/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-⋮----
-// ── Types ─────────────────────────────────────────────────────────────────────
-⋮----
-export interface DashboardSidebarProps {
-  readonly pathname: string;
-  readonly userId: string | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-}
-⋮----
-export type NavSection = ShellNavSection;
-⋮----
-// ── Static nav constants ──────────────────────────────────────────────────────
-⋮----
-// ── CSS class helpers ─────────────────────────────────────────────────────────
-⋮----
-export function sidebarItemClass(active: boolean)
-⋮----
-// ── Pure section helpers ──────────────────────────────────────────────────────
-⋮----
-export function resolveNavSection(pathname: string): NavSection
-⋮----
-export function isActiveRoute(pathname: string, href: string)
-⋮----
-// ── Simple section nav component ──────────────────────────────────────────────
-````
-
-## File: src/modules/platform/adapters/inbound/react/useAccountScope.ts
-````typescript
-/**
- * useAccountScope — platform inbound adapter (React).
- *
- * Canonical hook for reading the active account scope in the src/ layer.
- * Aliases useApp() from the platform module.
- *
- * Returns: { state: AppState, dispatch: Dispatch<AppAction> }
- */
 ````
 
 ## File: src/modules/platform/platform.instructions.md
@@ -6398,79 +5935,6 @@ toString(): string
 equals(other: WorkflowId): boolean
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx
-````typescript
-/**
- * AccountRouteDispatcher — workspace inbound adapter (React).
- *
- * Receives accountId + slug props from the Server Component shim and
- * dispatches to the appropriate route screen.
- *
- * Ported from: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
- */
-⋮----
-import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-⋮----
-import { useAuth } from "@/modules/platform/api";
-import {
-  useAccountRouteContext,
-  useApp,
-  OrganizationMembersRouteScreen,
-  OrganizationOverviewRouteScreen,
-  OrganizationPermissionsRouteScreen,
-} from "@/modules/platform/api/ui";
-import {
-  AccountDashboardRouteScreen,
-  OrganizationWorkspacesRouteScreen,
-  WorkspaceDetailRouteScreen,
-  WorkspaceHubScreen,
-} from "@/modules/workspace/api/ui";
-⋮----
-// Lazy imports to avoid hard-coupling modules that may not yet be available
-⋮----
-// These screens live in workspace/platform apis — import dynamically to
-// allow partial availability during incremental migration.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-⋮----
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-⋮----
-// Gracefully degrade if screens are not yet available
-⋮----
-export interface AccountRouteDispatcherProps {
-  accountId: string;
-  slug: string[];
-}
-⋮----
-interface RedirectingRouteProps {
-  readonly href: string;
-  readonly message: string;
-}
-⋮----
-function RedirectingRoute(
-⋮----
-function NotFound()
-⋮----
-export function AccountRouteDispatcher({
-  accountId: accountIdFromParams,
-  slug,
-}: AccountRouteDispatcherProps)
-⋮----
-// Legacy redirect: /organization/... → /<accountId>/...
-⋮----
-// Legacy redirect: /workspace/... → /<accountId>/...
-⋮----
-// Root: /<accountId>
-⋮----
-if (accountType === "organization")
-⋮----
-// Single-segment routes: /<accountId>/<segment>
-⋮----
-// Two-segment routes
-⋮----
-// Fallback
-````
-
 ## File: src/modules/workspace/adapters/inbound/react/index.ts
 ````typescript
 /**
@@ -6481,29 +5945,213 @@ if (accountType === "organization")
  */
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/useWorkspaceScope.ts
+## File: src/modules/workspace/adapters/inbound/react/workspace-ui-stubs.tsx
 ````typescript
 /**
- * useWorkspaceScope — workspace inbound adapter (React).
+ * workspace-ui-stubs — workspace inbound adapter (React).
  *
- * Canonical hook for reading the active workspace scope in the src/ layer.
- * Aliases useWorkspaceContext() from the workspace module.
- *
- * Returns: { state: WorkspaceContextState, dispatch: Dispatch<WorkspaceContextAction> }
+ * Stub components and helpers for workspace UI elements that were previously
+ * sourced from @/modules/workspace/api/ui. Replace with real implementations
+ * when the workspace UI layer is available.
  */
+⋮----
+import type { ReactNode } from "react";
+import type { WorkspaceEntity } from "./WorkspaceContext";
+⋮----
+// ── Nav preference types ──────────────────────────────────────────────────────
+⋮----
+export interface NavPreferences {
+  readonly pinnedWorkspace: string[];
+  readonly pinnedPersonal: string[];
+  readonly showLimitedWorkspaces: boolean;
+  readonly maxWorkspaces: number;
+}
+⋮----
+export type SidebarLocaleBundle = Record<string, string>;
+⋮----
+// ── Nav preference helpers ────────────────────────────────────────────────────
+⋮----
+export function readNavPreferences(): NavPreferences
+⋮----
+export function supportsWorkspaceSearchContext(_pathname: string): boolean
+⋮----
+export function getWorkspaceIdFromPath(_pathname: string): string | null
+⋮----
+export function appendWorkspaceContextQuery(
+  href: string,
+  _context: { accountId: string | null; workspaceId: string | null },
+): string
+⋮----
+export function buildWorkspaceQuickAccessItems(
+  _workspaceId: string,
+  _accountId: string | undefined,
+):
+⋮----
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+⋮----
+interface WorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+⋮----
+export function useRecentWorkspaces(
+  _accountId: string | undefined,
+  _pathname: string,
+  _workspaces: WorkspaceEntity[],
+):
+⋮----
+export function useSidebarLocale(): SidebarLocaleBundle | null
+⋮----
+// ── Stub components ───────────────────────────────────────────────────────────
+⋮----
+interface WorkspaceQuickAccessRowProps {
+  items: { id: string; label: string; href: string }[];
+  pathname: string;
+  currentPanel: string | null;
+  currentWorkspaceTab: string | null;
+  workspaceSettingsHref: string;
+  isActiveRoute: (href: string) => boolean;
+}
+⋮----
+export function WorkspaceQuickAccessRow(
+  _props: WorkspaceQuickAccessRowProps,
+): null
+⋮----
+interface WorkspaceSectionContentProps {
+  workspacePathId: string | null;
+  navPrefs: NavPreferences;
+  localeBundle: SidebarLocaleBundle | null;
+  showRecentWorkspaces: boolean;
+  visibleRecentWorkspaceLinks: WorkspaceLink[];
+  hasOverflow: boolean;
+  isExpanded: boolean;
+  activeWorkspaceId: string | null;
+  isActiveRoute: (href: string) => boolean;
+  onSelectWorkspace: (id: string | null) => void;
+  onToggleExpanded: () => void;
+  getItemClassName: (active: boolean) => string;
+  sectionTitleClassName: string;
+}
+⋮----
+export function WorkspaceSectionContent(
+  _props: WorkspaceSectionContentProps,
+): null
+⋮----
+interface CustomizeNavigationDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onPreferencesChange: (prefs: NavPreferences) => void;
+}
+⋮----
+export function CustomizeNavigationDialog(
+  _props: CustomizeNavigationDialogProps,
+): null
+⋮----
+interface CreateWorkspaceDialogRailProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  accountId: string | null;
+  accountType: "user" | "organization" | null;
+  creatorUserId?: string;
+  onNavigate: (href: string) => void;
+}
+⋮----
+export function CreateWorkspaceDialogRail(
+  _props: CreateWorkspaceDialogRailProps,
+): null
+⋮----
+// ── Stub route screens ────────────────────────────────────────────────────────
+⋮----
+export function AccountDashboardRouteScreen(): React.ReactElement
+⋮----
+export function OrganizationWorkspacesRouteScreen(): React.ReactElement
+⋮----
+interface WorkspaceDetailRouteScreenProps {
+  workspaceId: string;
+  accountId: string;
+  accountsHydrated: boolean;
+  initialTab?: string;
+  initialOverviewPanel?: string;
+}
+⋮----
+export function WorkspaceDetailRouteScreen(
+  _props: WorkspaceDetailRouteScreenProps,
+): React.ReactElement
+⋮----
+interface WorkspaceHubScreenProps {
+  accountId: string | null;
+  accountName: string | null;
+  accountType: "organization" | "user" | null;
+  accountsHydrated: boolean;
+  isBootstrapSeeded: boolean;
+  currentUserId: string | null;
+}
+⋮----
+export function WorkspaceHubScreen(
+  _props: WorkspaceHubScreenProps,
+): React.ReactElement
+⋮----
+export function OrganizationTeamsRouteScreen(): React.ReactElement
+⋮----
+export function OrganizationScheduleRouteScreen(): React.ReactElement
+⋮----
+export function OrganizationDailyRouteScreen(): React.ReactElement
+⋮----
+export function OrganizationAuditRouteScreen(): React.ReactElement
+⋮----
+// ── Re-export type for consumers ──────────────────────────────────────────────
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceScopeProvider.tsx
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceContext.tsx
 ````typescript
 /**
- * WorkspaceScopeProvider — workspace inbound adapter (React).
+ * WorkspaceContext — workspace inbound adapter (React).
  *
- * Canonical workspace scope provider for the src/ migration layer.
- * Aliases WorkspaceContextProvider from the workspace module.
- *
- * Consumers use useWorkspaceScope() to read workspace state.
- * Ported from: modules/workspace/interfaces/web/providers/WorkspaceContextProvider.tsx
+ * Defines workspace scope state, context, and the WorkspaceContextProvider.
+ * Consumed by WorkspaceScopeProvider and useWorkspaceScope in this adapter layer.
  */
+⋮----
+import {
+  createContext,
+  useContext,
+  useReducer,
+  type Dispatch,
+  type ReactNode,
+} from "react";
+⋮----
+import type { WorkspaceSnapshot } from "../../../subdomains/lifecycle/domain/entities/Workspace";
+⋮----
+export type WorkspaceEntity = WorkspaceSnapshot;
+⋮----
+export interface WorkspaceContextState {
+  readonly workspaces: Record<string, WorkspaceEntity>;
+  readonly activeWorkspaceId: string | null;
+  readonly workspacesHydrated: boolean;
+}
+⋮----
+export type WorkspaceContextAction =
+  | { type: "SET_ACTIVE_WORKSPACE"; payload: string | null }
+  | { type: "SET_WORKSPACES"; payload: Record<string, WorkspaceEntity> }
+  | { type: "RESET" };
+⋮----
+export interface WorkspaceContextValue {
+  readonly state: WorkspaceContextState;
+  readonly dispatch: Dispatch<WorkspaceContextAction>;
+}
+⋮----
+function reducer(
+  state: WorkspaceContextState,
+  action: WorkspaceContextAction,
+): WorkspaceContextState
+⋮----
+export function WorkspaceContextProvider({
+  children,
+}: {
+  children: ReactNode;
+})
+⋮----
+export function useWorkspaceContext(): WorkspaceContextValue
 ````
 
 ## File: src/modules/workspace/shared/index.ts
@@ -9713,6 +9361,94 @@ get recordedAtISO(): string
 getSnapshot(): Readonly<UsageRecordSnapshot>
 ````
 
+## File: src/modules/iam/adapters/inbound/react/AuthContext.tsx
+````typescript
+/**
+ * AuthContext — iam inbound adapter (React).
+ *
+ * Defines auth types and a minimal stub AuthProvider for the src/ migration layer.
+ * Replace the stub body with a real Firebase auth implementation when available.
+ */
+⋮----
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+⋮----
+export interface AuthUser {
+  readonly id: string;
+  readonly name: string;
+  readonly email: string;
+}
+⋮----
+export type AuthStatus = "initializing" | "authenticated" | "unauthenticated" | "anonymous";
+⋮----
+export interface AuthState {
+  readonly user: AuthUser | null;
+  readonly status: AuthStatus;
+}
+⋮----
+export interface AuthContextValue {
+  readonly state: AuthState;
+  readonly logout: () => Promise<void>;
+}
+⋮----
+/** Stub auth provider — replace with Firebase auth when available. */
+export function AuthProvider(
+⋮----
+// Reserved for Firebase auth subscription wiring
+⋮----
+async function logout()
+⋮----
+/** Stub — replace with real Firebase auth use-cases when available. */
+export function createClientAuthUseCases()
+⋮----
+/** Stub — replace with real account use-cases when available. */
+export function createClientAccountUseCases()
+````
+
+## File: src/modules/iam/adapters/inbound/react/IamSessionProvider.tsx
+````typescript
+/**
+ * IamSessionProvider — iam inbound adapter (React).
+ *
+ * Canonical mount point for IAM authentication session state.
+ * Wraps the identity-layer AuthProvider and exposes the useIamSession() hook
+ * so the rest of the src/ tree never imports directly from the old interfaces/.
+ *
+ * Internal source: modules/iam/subdomains/identity/interfaces/providers/auth-provider.tsx
+ */
+````
+
+## File: src/modules/iam/adapters/inbound/react/PublicLandingView.tsx
+````typescript
+/**
+ * PublicLandingView — iam inbound adapter (React).
+ *
+ * Self-contained public landing + auth panel component.
+ * Manages login / register / guest state internally.
+ * Consumed by src/app/(public)/page.tsx as a pure Server Component shim.
+ *
+ * Ported from: app/(public)/page.tsx
+ */
+⋮----
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, ShieldCheck } from "lucide-react";
+⋮----
+import { useAuth, createClientAuthUseCases } from "./AuthContext";
+import { createClientAccountUseCases } from "./AuthContext";
+⋮----
+type Tab = "login" | "register";
+⋮----
+async function handleSubmit(e: React.FormEvent)
+⋮----
+async function handleGuestAccess()
+⋮----
+async function handlePasswordReset()
+⋮----
+setError(null);
+setResetSent(false);
+setIsAuthPanelOpen((prev)
+````
+
 ## File: src/modules/iam/shared/errors/index.ts
 ````typescript
 // iam shared errors
@@ -11548,36 +11284,397 @@ pullDomainEvents()
 
 ````
 
-## File: src/modules/platform/adapters/inbound/react/AccountScopeProvider.tsx
+## File: src/modules/platform/adapters/inbound/react/shell/shell-quick-create.ts
 ````typescript
 /**
- * AccountScopeProvider — platform inbound adapter (React).
- *
- * Manages platform-owned account lifecycle: auth → accounts → activeAccount.
- * Ported from: app/(shell)/_providers/AppProvider.tsx
- *
- * Consumers use useAccountScope() to read account state.
+ * shell-quick-create — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it imports notion's createKnowledgePage.
+ * Kept as a composition adapter at the app boundary.
  */
 ⋮----
-import { useReducer, useEffect, type ReactNode } from "react";
+import { createKnowledgePage } from "../../../../../notion/adapters/outbound/notion-page-stub";
+⋮----
+export interface QuickCreatePageInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly createdByUserId: string;
+}
+⋮----
+export interface QuickCreatePageResult {
+  readonly success: boolean;
+  readonly error?: { message: string };
+}
+⋮----
+export async function quickCreateKnowledgePage(
+  input: QuickCreatePageInput,
+): Promise<QuickCreatePageResult>
+````
+
+## File: src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx
+````typescript
+/**
+ * ShellAppRail — app/(shell)/_shell composition layer.
+ * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
+ * because it composes downstream modules (workspace).
+ *
+ * Platform is upstream and must not import downstream modules.
+ * app/ is the designated composition layer.
+ */
+⋮----
+import Link from "next/link";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  LayoutDashboard,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+⋮----
+import type { AuthUser, ActiveAccount, AccountEntity } from "../AppContext";
+import { CreateOrganizationDialog } from "../platform-ui-stubs";
+import {
+  listShellRailCatalogItems,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  buildShellContextualHref,
+  type ShellRailCatalogItem,
+} from "../../../../index";
+import type { WorkspaceEntity } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
+import { CreateWorkspaceDialogRail } from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+⋮----
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+⋮----
+interface RailItem {
+  id: string;
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+⋮----
+function getInitial(name: string | undefined | null): string
+⋮----
+function isActive(href: string)
+⋮----
+function buildWorkspaceDetailHref(workspaceId: string): string
+⋮----
+onClick=
+⋮----
+onSelectWorkspace(workspace.id);
+⋮----
+accountType=
+````
+
+## File: src/modules/platform/adapters/inbound/react/shell/ShellContextNavSection.tsx
+````typescript
+/**
+ * ShellContextNavSection — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it imports from workspace module.
+ */
+⋮----
+import Link from "next/link";
+import { appendWorkspaceContextQuery } from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
+import { buildShellContextualHref } from "../../../../index";
+⋮----
+interface ContextScopedNavItem {
+  href: string;
+  label: string;
+}
+⋮----
+interface ShellContextNavSectionProps {
+  title: string;
+  items: readonly ContextScopedNavItem[];
+  isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
+  activeWorkspaceId: string | null;
+}
+````
+
+## File: src/modules/platform/adapters/inbound/react/shell/ShellDashboardSidebar.tsx
+````typescript
+/**
+ * ShellDashboardSidebar — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it composes workspace module components.
+ */
+⋮----
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 ⋮----
 import {
-  AppContext,
-  APP_INITIAL_STATE,
-  type AppState,
-  type AppAction,
-} from "@/modules/platform/api/ui";
+  buildWorkspaceQuickAccessItems,
+  CustomizeNavigationDialog,
+  getWorkspaceIdFromPath,
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  readNavPreferences,
+  supportsWorkspaceSearchContext,
+  type NavPreferences,
+  useRecentWorkspaces,
+  useSidebarLocale,
+  WorkspaceQuickAccessRow,
+} from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
+⋮----
 import {
-  resolveActiveAccount,
-  subscribeToAccountsForUser,
-} from "@/modules/platform/api";
-import { useAuth } from "@/modules/iam/api";
+  type DashboardSidebarProps,
+  ORGANIZATION_MANAGEMENT_ITEMS,
+  ACCOUNT_NAV_ITEMS,
+  SECTION_TITLES,
+  resolveNavSection,
+  isActiveRoute,
+  isActiveOrganizationAccount,
+} from "./ShellSidebarNavData";
+import { ShellSidebarHeader } from "./ShellSidebarHeader";
+import { DashboardSidebarBody } from "./ShellSidebarBody";
 ⋮----
-function appReducer(state: AppState, action: AppAction): AppState
+export function ShellDashboardSidebar({
+  pathname,
+  activeAccount,
+  workspaces,
+  activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
+  onSelectWorkspace,
+}: DashboardSidebarProps)
 ⋮----
-export function AccountScopeProvider(
+isActiveRoute={(href) => isActiveRoute(pathname, href)}
+          activeAccountId={activeAccount?.id ?? null}
+          showAccountManagement={showAccountManagement}
+          visibleAccountItems={visibleAccountItems}
+          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
+          workspacePathId={workspacePathId}
+          navPrefs={navPrefs}
+          localeBundle={localeBundle}
+          showRecentWorkspaces={showRecentWorkspaces}
+          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+          hasOverflow={hasOverflow}
+          isExpanded={isExpanded}
+          activeWorkspaceId={activeWorkspaceId}
+          onSelectWorkspace={onSelectWorkspace}
+onToggleExpanded=
+````
+
+## File: src/modules/platform/adapters/inbound/react/shell/ShellRootLayout.tsx
+````typescript
+/**
+ * ShellRootLayout — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it composes downstream modules.
+ *
+ * Uses useApp() from platform (accounts/auth) and useWorkspaceContext()
+ * from workspace (workspaces/activeWorkspaceId).
+ */
 ⋮----
-// eslint-disable-next-line react-hooks/exhaustive-deps
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { PanelLeftOpen, Search } from "lucide-react";
+⋮----
+import { useAuth } from "../../../../../iam/adapters/inbound/react/AuthContext";
+import {
+  type AccountProfile,
+  isOrganizationActor,
+  resolveOrganizationRouteFallback,
+  subscribeToProfile,
+  type AccountEntity,
+  useApp,
+} from "../AppContext";
+import {
+  ShellGuard,
+  AccountSwitcher,
+  ShellAppBreadcrumbs,
+  ShellGlobalSearchDialog,
+  useShellGlobalSearch,
+  ShellHeaderControls,
+  ShellUserAvatar,
+} from "../platform-ui-stubs";
+import {
+  resolveShellPageTitle,
+  isExactOrChildPath,
+  buildShellContextualHref,
+  SHELL_MOBILE_NAV_ITEMS,
+  SHELL_ORG_PRIMARY_NAV_ITEMS,
+  SHELL_ORG_SECONDARY_NAV_ITEMS,
+} from "../../../../index";
+import type { WorkspaceEntity } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
+import { useWorkspaceContext } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
+⋮----
+import { AppRail } from "./ShellAppRail";
+import { ShellDashboardSidebar } from "./ShellDashboardSidebar";
+⋮----
+function toggleSidebar()
+⋮----
+function handleSelectOrganization(account: AccountEntity)
+⋮----
+function handleSelectPersonal()
+⋮----
+function handleOrganizationCreated(account: AccountEntity)
+⋮----
+function handleSelectWorkspace(workspaceId: string | null)
+⋮----
+async function handleLogout()
+⋮----
+void handleLogout();
+````
+
+## File: src/modules/platform/adapters/inbound/react/shell/ShellSidebarBody.tsx
+````typescript
+/**
+ * ShellSidebarBody — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it imports from workspace and notion modules.
+ */
+⋮----
+import Link from "next/link";
+⋮----
+import {
+  WorkspaceSectionContent,
+  type NavPreferences,
+  type SidebarLocaleBundle,
+} from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
+import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "../../../../index";
+⋮----
+import {
+  type NavSection,
+  sidebarItemClass,
+  sidebarSectionTitleClass,
+} from "./ShellSidebarNavData";
+import { ShellContextNavSection } from "./ShellContextNavSection";
+⋮----
+interface NavItem {
+  id: string;
+  label: string;
+  href: string;
+}
+⋮----
+interface WorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+⋮----
+interface ShellSidebarBodyProps {
+  section: NavSection;
+  isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
+  showAccountManagement: boolean;
+  visibleAccountItems: readonly NavItem[];
+  visibleOrganizationManagementItems: readonly NavItem[];
+  workspacePathId: string | null;
+  navPrefs: NavPreferences;
+  localeBundle: SidebarLocaleBundle | null;
+  showRecentWorkspaces: boolean;
+  visibleRecentWorkspaceLinks: WorkspaceLink[];
+  hasOverflow: boolean;
+  isExpanded: boolean;
+  activeWorkspaceId: string | null;
+  onSelectWorkspace: (workspaceId: string | null) => void;
+  onToggleExpanded: () => void;
+  currentSearchWorkspaceId: string;
+}
+⋮----
+className=
+````
+
+## File: src/modules/platform/adapters/inbound/react/shell/ShellSidebarNavData.tsx
+````typescript
+import {
+  Building2,
+  LayoutDashboard,
+  UserRound,
+  Users,
+} from "lucide-react";
+import Link from "next/link";
+⋮----
+import {
+  type ActiveAccount,
+  isOrganizationActor,
+  isActiveOrganizationAccount,
+} from "../AppContext";
+import {
+  SHELL_ACCOUNT_SECTION_MATCHERS,
+  SHELL_ACCOUNT_NAV_ITEMS,
+  SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
+  SHELL_SECTION_LABELS,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  type ShellNavSection,
+} from "../../../../index";
+import type { WorkspaceEntity } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
+⋮----
+// ── Types ─────────────────────────────────────────────────────────────────────
+⋮----
+export interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly userId: string | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+}
+⋮----
+export type NavSection = ShellNavSection;
+⋮----
+// ── Static nav constants ──────────────────────────────────────────────────────
+⋮----
+// ── CSS class helpers ─────────────────────────────────────────────────────────
+⋮----
+export function sidebarItemClass(active: boolean)
+⋮----
+// ── Pure section helpers ──────────────────────────────────────────────────────
+⋮----
+export function resolveNavSection(pathname: string): NavSection
+⋮----
+export function isActiveRoute(pathname: string, href: string)
+⋮----
+// ── Simple section nav component ──────────────────────────────────────────────
+````
+
+## File: src/modules/platform/adapters/inbound/react/useAccountScope.ts
+````typescript
+/**
+ * useAccountScope — platform inbound adapter (React).
+ *
+ * Canonical hook for reading the active account scope in the src/ layer.
+ * Aliases useApp() from the platform module.
+ *
+ * Returns: { state: AppState, dispatch: Dispatch<AppAction> }
+ */
 ````
 
 ## File: src/modules/platform/index.ts
@@ -12243,6 +12340,104 @@ cancel(): void
 ## File: src/modules/template/subdomains/workflow/domain/index.ts
 ````typescript
 
+````
+
+## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx
+````typescript
+/**
+ * AccountRouteDispatcher — workspace inbound adapter (React).
+ *
+ * Receives accountId + slug props from the Server Component shim and
+ * dispatches to the appropriate route screen.
+ *
+ * Ported from: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
+ */
+⋮----
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+⋮----
+import { useAuth } from "../../../../iam/adapters/inbound/react/AuthContext";
+import {
+  useAccountRouteContext,
+  OrganizationMembersRouteScreen,
+  OrganizationOverviewRouteScreen,
+  OrganizationPermissionsRouteScreen,
+} from "../../../../platform/adapters/inbound/react/platform-ui-stubs";
+import { useApp } from "../../../../platform/adapters/inbound/react/AppContext";
+import {
+  AccountDashboardRouteScreen,
+  OrganizationWorkspacesRouteScreen,
+  WorkspaceDetailRouteScreen,
+  WorkspaceHubScreen,
+} from "./workspace-ui-stubs";
+⋮----
+// Lazy imports to avoid hard-coupling modules that may not yet be available
+⋮----
+// These screens live in workspace/platform stubs — import dynamically to
+// allow partial availability during incremental migration.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+⋮----
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+⋮----
+// Gracefully degrade if screens are not yet available
+⋮----
+export interface AccountRouteDispatcherProps {
+  accountId: string;
+  slug: string[];
+}
+⋮----
+interface RedirectingRouteProps {
+  readonly href: string;
+  readonly message: string;
+}
+⋮----
+function RedirectingRoute(
+⋮----
+function NotFound()
+⋮----
+export function AccountRouteDispatcher({
+  accountId: accountIdFromParams,
+  slug,
+}: AccountRouteDispatcherProps)
+⋮----
+// Legacy redirect: /organization/... → /<accountId>/...
+⋮----
+// Legacy redirect: /workspace/... → /<accountId>/...
+⋮----
+// Root: /<accountId>
+⋮----
+if (accountType === "organization")
+⋮----
+// Single-segment routes: /<accountId>/<segment>
+⋮----
+// Two-segment routes
+⋮----
+// Fallback
+````
+
+## File: src/modules/workspace/adapters/inbound/react/useWorkspaceScope.ts
+````typescript
+/**
+ * useWorkspaceScope — workspace inbound adapter (React).
+ *
+ * Canonical hook for reading the active workspace scope in the src/ layer.
+ * Aliases useWorkspaceContext() from the workspace module.
+ *
+ * Returns: { state: WorkspaceContextState, dispatch: Dispatch<WorkspaceContextAction> }
+ */
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceScopeProvider.tsx
+````typescript
+/**
+ * WorkspaceScopeProvider — workspace inbound adapter (React).
+ *
+ * Canonical workspace scope provider for the src/ migration layer.
+ * Aliases WorkspaceContextProvider from the workspace module.
+ *
+ * Consumers use useWorkspaceScope() to read workspace state.
+ * Ported from: modules/workspace/interfaces/web/providers/WorkspaceContextProvider.tsx
+ */
 ````
 
 ## File: src/modules/workspace/index.ts
@@ -14442,6 +14637,38 @@ export interface TenantRepository {
 ⋮----
 findByOrgId(orgId: string): Promise<TenantSnapshot | null>;
 save(tenant: TenantSnapshot): Promise<void>;
+````
+
+## File: src/modules/platform/adapters/inbound/react/AccountScopeProvider.tsx
+````typescript
+/**
+ * AccountScopeProvider — platform inbound adapter (React).
+ *
+ * Manages platform-owned account lifecycle: auth → accounts → activeAccount.
+ * Ported from: app/(shell)/_providers/AppProvider.tsx
+ *
+ * Consumers use useAccountScope() to read account state.
+ */
+⋮----
+import { useReducer, useEffect, type ReactNode } from "react";
+⋮----
+import {
+  AppContext,
+  APP_INITIAL_STATE,
+  type AppState,
+  type AppAction,
+} from "./AppContext";
+import {
+  resolveActiveAccount,
+  subscribeToAccountsForUser,
+} from "./AppContext";
+import { useAuth } from "../../../../iam/adapters/inbound/react/AuthContext";
+⋮----
+function appReducer(state: AppState, action: AppAction): AppState
+⋮----
+export function AccountScopeProvider(
+⋮----
+// eslint-disable-next-line react-hooks/exhaustive-deps
 ````
 
 ## File: src/modules/platform/adapters/inbound/react/ShellFrame.tsx
