@@ -1,6 +1,6 @@
 ---
 description: 'End-to-end testing rules for browser flows, evidence capture, and release confidence.'
-applyTo: '{app,modules,debug}/**/*.{ts,tsx}'
+applyTo: '{src/app,src/modules,debug}/**/*.{ts,tsx}'
 ---
 
 # Testing E2E

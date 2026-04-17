@@ -1,6 +1,6 @@
 ---
 description: 'Zustand client state and XState finite-state workflow rules: placement, slice pattern, naming, decision boundary, and TanStack Query separation.'
-applyTo: '{modules/**/interfaces/stores/**,modules/**/application/machines/**,app/**/*.{ts,tsx}}'
+applyTo: '{src/modules/**/interfaces/stores/**,src/modules/**/application/machines/**,src/app/**/*.{ts,tsx}}'
 ---
 
 # State Management
@@ -11,9 +11,9 @@ Before writing any state code, apply this rule:
 
 | State type | Tool | Location |
 |---|---|---|
-| Cross-component UI preference (panel, modal, theme) | **Zustand** | `modules/<context>/interfaces/stores/<name>.store.ts` |
-| Multi-step workflow (wizard, approval, async lifecycle) | **XState** | `modules/<context>/application/machines/<noun>-<flow>.machine.ts` |
-| Server-fetched async data | **TanStack Query** | `modules/<context>/interfaces/queries/<name>.query.ts` |
+| Cross-component UI preference (panel, modal, theme) | **Zustand** | `src/modules/<context>/interfaces/stores/<name>.store.ts` |
+| Multi-step workflow (wizard, approval, async lifecycle) | **XState** | `src/modules/<context>/application/machines/<noun>-<flow>.machine.ts` |
+| Server-fetched async data | **TanStack Query** | `src/modules/<context>/interfaces/queries/<name>.query.ts` |
 | Domain aggregate / entity state | **Firestore via use case** | Never persist in frontend store |
 
 Never use Zustand for server data and never use XState for simple UI toggles.
@@ -25,18 +25,18 @@ Never use Zustand for server data and never use XState for simple UI toggles.
 ### Store Placement
 
 ```
-modules/<context>/interfaces/stores/<name>.store.ts   ← module-owned store
-app/(shell)/stores/<name>.store.ts                    ← shell-only store
+src/modules/<context>/interfaces/stores/<name>.store.ts   ← module-owned store
+src/app/(shell)/stores/<name>.store.ts                    ← shell-only store
 ```
 
-One module must not import another module's store directly. If two modules share UI state, lift it to `app/(shell)/stores/`.
+One module must not import another module's store directly. If two modules share UI state, lift it to `src/app/(shell)/stores/`.
 
 ### Slice Pattern (Mandatory)
 
 Every store must split **state** and **actions** into two slices to minimise re-renders:
 
 ```typescript
-// modules/workspace/interfaces/stores/panel.store.ts
+// src/modules/workspace/interfaces/stores/panel.store.ts
 import { create } from 'zustand';
 
 interface PanelState {
@@ -80,7 +80,7 @@ export const usePanelStore = create<PanelState & PanelActions>((set) => ({
 ### Machine Placement
 
 ```
-modules/<context>/application/machines/<noun>-<flow>.machine.ts
+src/modules/<context>/application/machines/<noun>-<flow>.machine.ts
 ```
 
 Machine definitions are **application layer** concerns — they model business workflow transitions, not UI rendering. Components consume machines via `useMachine()` but do not define them.
@@ -102,7 +102,7 @@ Name states with business semantics, not technical or UI language:
 Machine `invoke.src` actors call Server Actions; results map back via `onDone` / `onError`:
 
 ```typescript
-// modules/workspace/application/machines/workspace-creation.machine.ts
+// src/modules/workspace/application/machines/workspace-creation.machine.ts
 import { createMachine, assign } from 'xstate';
 
 export const workspaceCreationMachine = createMachine({

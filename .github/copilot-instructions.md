@@ -39,18 +39,17 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 - Use [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) as the consolidated docs authority and terminology rule set.
 - Legacy instruction files marked DEPRECATED remain transition-only and should not be expanded.
 
-## Module Layer Routing（modules vs src/modules）
+## Module Layer Routing（src-only）
 
-本 repo 有兩個平行的 modules 層，**不可互換**：
+本 repo 已全面改為 `src/modules/` 單一模組層：
 
 | 路徑 | 職責 | 撰寫時機 |
 |---|---|---|
-| `modules/<context>/` | 完整 Hexagonal DDD 實作；有 `subdomains/`、`infrastructure/`、`interfaces/`、`api/` | 修改現有邊界規則、domain model、跨模組 API |
-| `src/modules/<context>/` | 精簡蒸餾骨架；僅 `domain/`、`application/`、`adapters/inbound/`、`adapters/outbound/` | 撰寫新 use case、adapter、entity 實作 |
+| `src/modules/<context>/` | 主域模組實作層（Hexagonal DDD） | 修改邊界規則、domain model、跨模組 API、use case 與 adapters |
 
 - 不確定放在哪一層 → 讀 `src/modules/<context>/AGENT.md` 的 **Route Here / Route Elsewhere** 段落。
-- 新實作一律以 `src/modules/template` 骨架為基線，不要直接在 `modules/` 內部新增。
-- 閱讀 strategic boundary / published language → `modules/<context>/api/` 與 `modules/<context>/AGENT.md`。
+- 新實作一律以 `src/modules/template` 骨架為基線。
+- 閱讀 strategic boundary / published language → `src/modules/<context>/api/` 與 `src/modules/<context>/AGENT.md`。
 
 ## Operating Rules
 
@@ -59,7 +58,7 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 - Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
 - `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
 - If a team adds `core/`, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.
-- Keep business logic in `domain/` and `application`; keep UI, transport, and composition in `interfaces/` and `app/`.
+- Keep business logic in `domain/` and `application`; keep UI, transport, and composition in `interfaces/` and `src/app/`.
 - Preserve the runtime split: Next.js owns browser-facing UX and orchestration; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
 - Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy alias patterns.
 

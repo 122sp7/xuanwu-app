@@ -1,6 +1,6 @@
 ---
 description: 'Consolidated documentation authority and ubiquitous language rules for docs governance and naming discipline.'
-applyTo: '{docs,modules,packages}/**/*.{ts,tsx,js,jsx,md}'
+applyTo: '{docs,src/modules,packages}/**/*.{ts,tsx,js,jsx,md}'
 ---
 
 # Docs Authority And Language
@@ -10,14 +10,14 @@ applyTo: '{docs,modules,packages}/**/*.{ts,tsx,js,jsx,md}'
 - `docs/**/*` is the strategic authority for bounded-context ownership, terminology, and context map.
 - Before adding or editing docs, start from `docs/README.md` and update the owning authority document.
 - `.github/instructions/*` defines behavior rules only; do not duplicate architecture inventory or glossary content.
-- `modules/<context>/docs/*` may describe implementation detail only and must not override root docs decisions.
+- `src/modules/<context>/docs/*` may describe implementation detail only and must not override root docs decisions.
 
 ## Ubiquitous Language Rules
 
 1. Before naming classes, interfaces, types, variables, or domain events, check `docs/ubiquitous-language.md` and context-local glossary docs.
 2. Do not replace canonical terms with synonyms once defined.
 3. Domain events must use past-tense naming.
-4. Bounded-context names must align with `modules/<context>/` folder names.
+4. Bounded-context names must align with `src/modules/<context>/` folder names.
 5. If a necessary term is missing, update glossary docs first, then implement.
 
 ## Naming Rules

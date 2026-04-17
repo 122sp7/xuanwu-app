@@ -1,6 +1,6 @@
 ---
 description: 'shadcn/ui usage rules for consistent component composition and accessibility.'
-applyTo: '{app,modules,packages}/**/*.{ts,tsx}'
+applyTo: '{src/app,src/modules,packages}/**/*.{ts,tsx}'
 ---
 
 # Shadcn UI

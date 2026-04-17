@@ -1,6 +1,6 @@
 ---
 description: 'Parallel-route UI block composition rules with isolated local state and API-only module access.'
-applyTo: 'app/**/*.{ts,tsx}'
+applyTo: 'src/app/**/*.{ts,tsx}'
 ---
 
 # Nextjs Parallel Routes

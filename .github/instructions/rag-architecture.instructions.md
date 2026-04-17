@@ -1,6 +1,6 @@
 ---
 description: 'RAG architecture boundaries for conversion, chunking, embedding, and retrieval workflows.'
-applyTo: '{modules/notebooklm/**/*.{ts,tsx,js,jsx},modules/notion/**/*.{ts,tsx,js,jsx},py_fn/**/*.py,docs/**/*.md}'
+applyTo: '{src/modules/notebooklm/**/*.{ts,tsx,js,jsx},src/modules/notion/**/*.{ts,tsx,js,jsx},py_fn/**/*.py,docs/**/*.md}'
 ---
 
 # RAG Architecture

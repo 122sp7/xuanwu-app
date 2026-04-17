@@ -1,6 +1,6 @@
 ---
 description: 'Consolidated Hexagonal DDD architecture rules: layer ownership, API-only boundaries, module shape, and bounded-context dependency direction.'
-applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+applyTo: 'src/modules/**/*.{ts,tsx,js,jsx,md}'
 ---
 
 # Architecture Core
@@ -8,7 +8,7 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 ## Core Boundary Rules
 
 - Determine owning bounded context and subdomain from `docs/**/*` before choosing file placement.
-- Cross-module collaboration must go through `modules/<target>/api` or explicit events.
+- Cross-module collaboration must go through `src/modules/<target>/api` or explicit events.
 - Cross-module route components must be props-scoped (`accountId`, `workspaceId`, optional `currentUserId`) from the composition owner; do not consume another module's context provider directly.
 - Do not import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
 - Replace any boundary bypass in the same change with API contracts or events.

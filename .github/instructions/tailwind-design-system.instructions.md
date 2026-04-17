@@ -1,6 +1,6 @@
 ---
 description: 'Tailwind design-system consistency rules for tokens, spacing, and responsive behavior.'
-applyTo: '{app,modules,packages}/**/*.{ts,tsx,css}'
+applyTo: '{src/app,src/modules,packages}/**/*.{ts,tsx,css}'
 ---
 
 # Tailwind Design System

@@ -1,7 +1,7 @@
 ---
 name: implement-genkit-flow
 description: Implement or refactor Genkit flow with explicit contracts, runtime boundaries, and validation.
-applyTo: '{modules/platform/**,modules/notebooklm/**}/**/*.{ts,tsx}'
+applyTo: '{src/modules/platform/**,src/modules/notebooklm/**}/**/*.{ts,tsx}'
 agent: genkit-flow
 argument-hint: Provide flow intent, inputs/outputs, and target runtime.
 ---

@@ -1,7 +1,7 @@
 ---
 name: implement-state-machine
 description: 以 XState 實作有限狀態工作流 machine，放置於 application/machines/，定義業務語意的 state / event / transition，並與 Server Action 正確整合。
-applyTo: 'modules/**/application/machines/**/*.{ts,tsx}'
+applyTo: 'src/modules/**/application/machines/**/*.{ts,tsx}'
 agent: State Management Agent
 argument-hint: 提供工作流名稱、所屬模組、初始狀態、所有業務狀態（idle/creating/ready/failed 等）、觸發事件、以及需要呼叫的 Server Action。
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
@@ -34,7 +34,7 @@ XState machine 只適用於以下情境：
 1. 讀取 `.github/instructions/state-management.instructions.md`，確認命名與放置規則。
 2. 讀取 `.github/instructions/event-driven-state.instructions.md`，確認 Server Action 整合模式。
 3. 建立 machine 檔案：
-   - 路徑：`modules/<context>/application/machines/<noun>-<flow>.machine.ts`
+   - 路徑：`src/modules/<context>/application/machines/<noun>-<flow>.machine.ts`
 4. 定義 machine 結構：
    - `id`：`<noun><Flow>` (camelCase)
    - `initial`：第一個業務狀態（通常是 `idle`）
@@ -43,7 +43,7 @@ XState machine 只適用於以下情境：
    - async invoke：用 `invoke.src` 呼叫 Server Action actor
 
 ```typescript
-// modules/<context>/application/machines/<noun>-<flow>.machine.ts
+// src/modules/<context>/application/machines/<noun>-<flow>.machine.ts
 import { createMachine, assign } from 'xstate';
 
 interface <Name>Context {
@@ -79,7 +79,7 @@ export const <name>Machine = createMachine({
 ```
 
 5. 若需要 React 整合，在 `interfaces/` 中建立對應的 hook：
-   - 路徑：`modules/<context>/interfaces/hooks/use-<name>-machine.ts`
+   - 路徑：`src/modules/<context>/interfaces/hooks/use-<name>-machine.ts`
    - hook 以 `useMachine` 包裝，注入 Server Action actor
 
 6. 確認 machine 不含任何：
