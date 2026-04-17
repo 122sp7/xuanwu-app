@@ -48,84 +48,41 @@ src/app / src/modules  →  packages  →  third-party libraries
 ### ✍️ editor-*
 Complex UI subsystems
 
-Examples:
-- `editor-tiptap`
-
-Responsibility:
-- Encapsulate heavy editors
-- Provide controlled extension APIs
-
 ---
 
-## ⚠️ Hard Rules
+## 硬性規則
 
-### 1. No Direct Third-Party Usage in Modules
-
-❌ WRONG:
-```ts
-import { useQuery } from '@tanstack/react-query'
-````
-
-✅ CORRECT:
+### 1. modules 不得直接使用第三方 library
 
 ```ts
-import { useAppQuery } from 'core-data'
+// ❌ 錯誤：在 modules 直接 import Firebase
+import { getFirestore } from 'firebase/firestore'
+
+// ✅ 正確：透過 packages 套件
+import { firestoreApi } from '@integration-firebase'
 ```
 
----
+### 2. 每個套件必須有穩定公開介面
 
-### 2. Packages Must Expose Stable APIs
+- `index.ts` 是唯一公開入口
+- 隱藏實作細節，不洩漏 SDK 型別
+- 不洩漏第三方 API 至消費端
 
-Each package must:
+### 3. 不得加入業務邏輯
 
-* Export a clear public interface
-* Hide implementation details
-* Prevent leaking third-party APIs
-
----
-
-### 3. No Cross-Package Chaos
-
-❌ Avoid:
-
-* Circular dependencies
-* Deep imports (`package/internal/...`)
-
-✅ Only:
-
-```ts
-import { something } from 'core-data'
-```
+套件不得：
+- 包含 domain rule 或 use case 邏輯
+- 直接 import `src/modules/*`
+- 對特定功能或模組有感知
 
 ---
 
-### 4. No Business Logic
+## 判斷原則
 
-Packages must NOT:
+| 問題 | 結果 |
+|---|---|
+| 可跨多個 modules 重用？ | → 放 `packages/` |
+| 是業務邏輯或 domain rule？ | → 放 `src/modules/` |
+| 是第三方 SDK 封裝？ | → 放 `packages/integration-*/` |
+| 是 UI 組件（自訂）？ | → 放 `packages/ui-shadcn/ui-custom/` |
 
-* Contain domain logic
-* Reference specific modules
-* Know about features
-
----
-
-## 🧩 Design Principle
-
-A package is:
-
-> A **controlled boundary** that converts unstable third-party APIs
-> into stable, composable platform capabilities
-
----
-
-## 📌 If Unsure
-
-Ask:
-
-* Is this reusable across modules? → YES → package
-* Is this business logic? → YES → module
-* Is this a third-party wrapper? → YES → package
-
-````
-
----
