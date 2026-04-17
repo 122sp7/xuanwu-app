@@ -4,6 +4,9 @@ export type ShellNavSection =
   | "workspace"
   | "dashboard"
   | "account"
+  | "schedule"
+  | "daily"
+  | "audit"
   | "organization"
   | "other";
 
@@ -246,6 +249,9 @@ export const SHELL_SECTION_LABELS: Record<ShellNavSection, string> = {
   workspace: "工作區",
   dashboard: "儀表板",
   account: "帳號",
+  schedule: "排程",
+  daily: "每日",
+  audit: "稽核",
   organization: "組織",
   other: "導覽",
 };
@@ -310,13 +316,9 @@ export function resolveShellNavSection(pathname: string): ShellNavSection {
 
   if (normalizedPathname.startsWith("/workspace")) return "workspace";
   if (normalizedPathname.startsWith("/dashboard")) return "dashboard";
-  if (
-    SHELL_ACCOUNT_SECTION_MATCHERS.some(
-      (prefix) => normalizedPathname === prefix || normalizedPathname.startsWith(`${prefix}/`),
-    )
-  ) {
-    return "account";
-  }
+  if (normalizedPathname === "/schedule" || normalizedPathname.startsWith("/schedule/")) return "schedule";
+  if (normalizedPathname === "/daily" || normalizedPathname.startsWith("/daily/")) return "daily";
+  if (normalizedPathname === "/audit" || normalizedPathname.startsWith("/audit/")) return "audit";
   if (normalizedPathname.startsWith("/organization") || isOrganizationManagementPath) {
     return "organization";
   }

@@ -133,6 +133,63 @@ export function DashboardSidebarBody({
         </div>
       )}
 
+      {section === "schedule" && (
+        <div className="space-y-2">
+          {showAccountManagement && (
+            <ManagedNavGroup
+              title="排程"
+              ariaLabel="排程導覽"
+              items={visibleAccountItems.filter((i) => i.id === "schedule" || i.id === "dispatcher")}
+              isActiveRoute={isActiveRoute}
+              activeAccountId={activeAccountId}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看排程選項。
+            </p>
+          )}
+        </div>
+      )}
+
+      {section === "daily" && (
+        <div className="space-y-2">
+          {showAccountManagement && (
+            <ManagedNavGroup
+              title="每日"
+              ariaLabel="每日導覽"
+              items={visibleAccountItems.filter((i) => i.id === "daily")}
+              isActiveRoute={isActiveRoute}
+              activeAccountId={activeAccountId}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看每日選項。
+            </p>
+          )}
+        </div>
+      )}
+
+      {section === "audit" && (
+        <div className="space-y-2">
+          {showAccountManagement && (
+            <ManagedNavGroup
+              title="稽核"
+              ariaLabel="稽核導覽"
+              items={visibleAccountItems.filter((i) => i.id === "audit")}
+              isActiveRoute={isActiveRoute}
+              activeAccountId={activeAccountId}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看稽核選項。
+            </p>
+          )}
+        </div>
+      )}
+
       {section === "organization" && (
         <div className="space-y-2">
           {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
