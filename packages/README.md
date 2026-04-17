@@ -1,80 +1,47 @@
 # Packages Layer
 
-This directory contains all **shared platform capabilities**.
-
-## 🎯 Purpose
-
-Packages are NOT feature code.
-
-They exist to:
-- Wrap third-party libraries
-- Provide stable APIs
-- Enforce architecture boundaries
-- Prevent duplication across modules
+此目錄是所有**共享平台能力**的唯一存放層。`src/modules/` 與 `src/app/` 不得直接依賴第三方 library，必須透過此層的套件存取外部能力。
 
 ---
 
-## 🧱 Layer Position
+## 層次位置
 
 ```
+src/app / src/modules  →  packages  →  third-party libraries
+```
 
-app / modules  →  packages  →  third-party libraries
-
-````
-
-Rules:
-- `modules` MUST NOT import third-party libraries directly
-- `modules` MUST ONLY import from `packages`
-- `packages` are the ONLY layer allowed to depend on external libraries
+規則：
+- `src/modules/` 不得直接 import 第三方 library
+- `src/modules/` 只能 import `packages/` 提供的套件
+- `packages/` 是唯一允許直接依賴外部 library 的層
 
 ---
 
-## 📦 Package Types
+## 現有套件清單
 
-### 🔌 integration-*
-External services / infrastructure
+### 🔌 integration-* — 外部服務封裝層
 
-Examples:
-- `integration-firebase`
-- `integration-ai-genkit`
-- `integration-trpc`
-- `integration-http`
+| 套件 | 封裝目標 | 文件 |
+|---|---|---|
+| `integration-firebase` | Firebase App / Auth / Firestore | [README](./integration-firebase/README.md) |
+| `integration-ai` | Genkit / Google AI SDK | [README](./integration-ai/README.md) |
+| `integration-http` | HTTP 用戶端（fetch / ky） | [README](./integration-http/README.md) |
+| `integration-trpc` | tRPC 客戶端與 Provider | [README](./integration-trpc/README.md) |
 
-Responsibility:
-- Wrap SDKs
-- Handle configuration
-- Normalize API usage
+職責：封裝 SDK、標準化設定、normalize API 介面。
 
 ---
 
-### 🧠 core-*
-Cross-domain runtime logic
+### 🎨 ui-* — 設計系統與 UI 原語層
 
-Examples:
-- `core-state`
-- `core-data`
-- `core-schema`
+| 套件 | 說明 | 文件 |
+|---|---|---|
+| `ui-shadcn` | 官方 shadcn/ui 組件（CLI 管理，禁止修改）| [README](./ui-shadcn/README.md) |
 
-Responsibility:
-- State management
-- Data fetching & caching
-- Validation & contracts
+> **自訂 UI 組件唯一存放位置**：`packages/ui-shadcn/ui-custom/`  
+> 任何對官方組件的 wrap、設計系統擴充、業務語意層一律放入 `ui-custom/`，不放在 `src/modules/` 或 `src/app/`。
 
----
-
-### 🎨 ui-*
-Design system & UI primitives
-
-Examples:
-- `ui-system`
-- `ui-shadcn`
-- `ui-feedback`
-- `ui-command`
-
-Responsibility:
-- Shared UI components
-- Interaction patterns
-- Design tokens
+職責：共享 UI 組件、互動模式、設計 token。
 
 ---
 
