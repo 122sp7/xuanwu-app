@@ -52,24 +52,33 @@ type WorkspaceTabValue =
   | "AiChat"
   | "WorkspaceSettings";
 
+type WorkspaceDomainGroup = "workspace" | "notion" | "notebooklm";
+
 interface WorkspaceTabItem {
   id: string;
   value: WorkspaceTabValue;
   label: string;
+  domainGroup: WorkspaceDomainGroup;
 }
 
 const WORKSPACE_TAB_ITEMS: readonly WorkspaceTabItem[] = [
-  { id: "overview", value: "Overview", label: "首頁" },
-  { id: "daily", value: "Daily", label: "每日" },
-  { id: "schedule", value: "Schedule", label: "排程" },
-  { id: "audit", value: "Audit", label: "稽核" },
-  { id: "knowledge", value: "Knowledge", label: "知識" },
-  { id: "files", value: "Files", label: "檔案" },
-  { id: "members", value: "Members", label: "成員" },
-  { id: "notebook", value: "Notebook", label: "RAG 查詢" },
-  { id: "ai-chat", value: "AiChat", label: "AI 對話" },
-  { id: "workspace-settings", value: "WorkspaceSettings", label: "工作區設定" },
+  { id: "overview", value: "Overview", label: "首頁", domainGroup: "workspace" },
+  { id: "daily", value: "Daily", label: "每日", domainGroup: "workspace" },
+  { id: "schedule", value: "Schedule", label: "排程", domainGroup: "workspace" },
+  { id: "audit", value: "Audit", label: "稽核", domainGroup: "workspace" },
+  { id: "files", value: "Files", label: "檔案", domainGroup: "workspace" },
+  { id: "members", value: "Members", label: "成員", domainGroup: "workspace" },
+  { id: "workspace-settings", value: "WorkspaceSettings", label: "工作區設定", domainGroup: "workspace" },
+  { id: "knowledge", value: "Knowledge", label: "知識", domainGroup: "notion" },
+  { id: "notebook", value: "Notebook", label: "RAG 查詢", domainGroup: "notebooklm" },
+  { id: "ai-chat", value: "AiChat", label: "AI 對話", domainGroup: "notebooklm" },
 ] as const;
+
+const WORKSPACE_DOMAIN_GROUP_LABELS: Record<WorkspaceDomainGroup, string> = {
+  workspace: "Workspace",
+  notion: "Notion",
+  notebooklm: "NotebookLM",
+};
 
 const WORKSPACE_TAB_VALUE_SET = new Set<WorkspaceTabValue>(
   WORKSPACE_TAB_ITEMS.map((item) => item.value),
@@ -485,21 +494,31 @@ export function WorkspaceSectionContent({
       return navPrefs.pinnedWorkspace.includes(tab.id);
     });
 
+    const domainOrder: WorkspaceDomainGroup[] = ["workspace", "notion", "notebooklm"];
+
     return (
-      <nav className="space-y-0.5" aria-label="Workspace navigation">
-        <p className={sectionTitleClassName}>工作區</p>
-        {enabledTabs.map((tab) => {
-          const href = `?tab=${encodeURIComponent(tab.value)}`;
-          const active = activeTab === tab.value;
+      <nav className="space-y-3" aria-label="Workspace navigation">
+        {domainOrder.map((group) => {
+          const groupTabs = enabledTabs.filter((tab) => tab.domainGroup === group);
+          if (groupTabs.length === 0) return null;
           return (
-            <Link
-              key={tab.id}
-              href={href}
-              aria-current={active ? "page" : undefined}
-              className={getItemClassName(active)}
-            >
-              {tab.label}
-            </Link>
+            <div key={group} className="space-y-0.5">
+              <p className={sectionTitleClassName}>{WORKSPACE_DOMAIN_GROUP_LABELS[group]}</p>
+              {groupTabs.map((tab) => {
+                const href = `?tab=${encodeURIComponent(tab.value)}`;
+                const active = activeTab === tab.value;
+                return (
+                  <Link
+                    key={tab.id}
+                    href={href}
+                    aria-current={active ? "page" : undefined}
+                    className={getItemClassName(active)}
+                  >
+                    {tab.label}
+                  </Link>
+                );
+              })}
+            </div>
           );
         })}
       </nav>
