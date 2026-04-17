@@ -44,7 +44,7 @@ Not every module needs every folder, and local details may live inside a subdoma
 
 ## Import Rules
 
-- Prefer package aliases such as `@integration-firebase`, `@ui-shadcn`, and `@shared-utils`; shared domain types live in `src/modules/shared/`.
+- Prefer package aliases such as `@integration-firebase`, `@ui-shadcn`, and `@/packages/ui-shadcn`; shared domain types live in `src/modules/shared/`.
 - Do not use legacy aliases such as `@/shared/*`, `@/libs/*`, or similar paths blocked by lint rules.
 - Inside one module, prefer relative imports over self-importing the module barrel.
 - Across modules, import only from the target module `api/` boundary.

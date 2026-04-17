@@ -38,7 +38,7 @@ const restrictedImportsRule = (patterns, extraOptions = {}) => [WARN, { patterns
 
 // ─── Restricted import patterns ───────────────────────────────────────────────
 const legacyAliases = [
-  { group: ["@/shared/*"], message: "Use @shared-types / @shared-utils / … instead." },
+  { group: ["@/shared/*"], message: "Use @shared-types / @/packages/ui-shadcn / … instead." },
   { group: ["@/infrastructure/*"], message: "Use @integration-firebase / @integration-upstash / … instead." },
   { group: ["@/libs/*"], message: "Use the corresponding @lib-* or @integration-* alias." },
   { group: ["@/ui/shadcn/*"], message: "Use @ui-shadcn/* instead." },

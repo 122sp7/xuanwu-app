@@ -96,7 +96,7 @@ Generic Domain（可外包／第三方替換）
 | 整合模式 | 適用場景 |
 |----------|---------|
 | Anti-Corruption Layer | `ai` 接入外部 LLM provider（OpenAI、Gemini）時保護內部語意 |
-| Open Host Service | `ai/api/` 提供穩定公開契約供 `notion`、`notebooklm` 消費 |
+| Open Host Service | `ai` 模組的 `index.ts` 提供穩定公開契約供 `notion`、`notebooklm` 消費 |
 | Published Language | `AICapabilitySignal`、`ModelPolicy`、`SafetyGuardrail` 等跨域 token |
 | Conformist | `notion`、`notebooklm` 直接接受 `ai` 的能力語意，不轉換 |
 | Customer-Supplier | `platform.ai` → `notion`、`notebooklm`（upstream 定義，downstream 消費）|

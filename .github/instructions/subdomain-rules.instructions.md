@@ -28,7 +28,6 @@ applyTo: 'src/modules/**/subdomains/**/*.{ts,tsx,js,jsx,md}'
 ## 層級約束（Hard Rules）
 
 子域預設形狀（default）採 core-first：
-- `api/`
 - `domain/`
 - `application/`
 - `ports/`（optional）
@@ -37,7 +36,7 @@ applyTo: 'src/modules/**/subdomains/**/*.{ts,tsx,js,jsx,md}'
 1. 該子域存在明確且持續的外部整合壓力（runtime / process / provider boundary）。
 2. 需要由子域本身承接本地 I/O 或 transport 組裝，而非 bounded context 根層共享能力。
 3. 仍維持 `interfaces -> application -> domain <- infrastructure`，且 business rule 不外溢到 adapter/UI。
-4. 跨子域與跨 bounded context 協作仍只能經由 `api/` 或事件契約，不得直接依賴他域內部。
+4. 跨子域與跨 bounded context 協作仍只能經由 `index.ts` 公開入口或事件契約，不得直接依賴他域內部。
 
 若不符合上述 gate，`infrastructure/` 與 `interfaces/` 應維持在 bounded context 根層，由 context-wide adapter/composition 承接。
 

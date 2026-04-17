@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Command as CommandPrimitive } from "cmdk"
 
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import {
   Dialog,
   DialogContent,

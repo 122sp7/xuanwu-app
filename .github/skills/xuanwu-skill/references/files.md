@@ -106,7 +106,7 @@ Not every module needs every folder, and local details may live inside a subdoma
 
 ## Import Rules
 
-- Prefer package aliases such as `@shared-types`, `@shared-utils`, `@integration-firebase`, `@ui-shadcn`, and `@lib-*`.
+- Prefer package aliases such as `@shared-types`, `@/packages/ui-shadcn`, `@integration-firebase`, `@ui-shadcn`, and `@lib-*`.
 - Do not use legacy aliases such as `@/shared/*`, `@/libs/*`, or similar paths blocked by lint rules.
 - Inside one module, prefer relative imports over self-importing the module barrel.
 - Across modules, import only from the target module `api/` boundary.
@@ -27372,7 +27372,7 @@ export function getFirebaseFirestore(): Firestore
 ````typescript
 import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 ⋮----
 function Accordion(
@@ -27396,14 +27396,14 @@ function AccordionContent({
 ````typescript
 import { cva, type VariantProps } from "class-variance-authority"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 className=
 ````
 
 ## File: packages/ui-shadcn/ui/aspect-ratio.tsx
 ````typescript
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 className=
 ````
@@ -27412,7 +27412,7 @@ className=
 ````typescript
 import { Avatar as AvatarPrimitive } from "@base-ui/react/avatar"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 className=
 ````
@@ -27423,7 +27423,7 @@ import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 function Badge({
   className,
@@ -27438,7 +27438,7 @@ function Badge({
 import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
 ⋮----
 function Breadcrumb(
@@ -27451,14 +27451,14 @@ className=
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 className=
 ````
 
 ## File: packages/ui-shadcn/ui/card.tsx
 ````typescript
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 className=
 ````
@@ -27467,7 +27467,7 @@ className=
 ````typescript
 import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { CheckIcon } from "lucide-react"
 ⋮----
 function Checkbox(
@@ -27477,7 +27477,7 @@ function Checkbox(
 ````typescript
 import { ContextMenu as ContextMenuPrimitive } from "@base-ui/react/context-menu"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { ChevronRightIcon, CheckIcon } from "lucide-react"
 ⋮----
 function ContextMenu(
@@ -27494,7 +27494,7 @@ function ContextMenuSeparator({
 ````typescript
 import { Drawer as DrawerPrimitive } from "vaul"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 function Drawer({
   ...props
@@ -27524,7 +27524,7 @@ className=
 ````typescript
 import { cva, type VariantProps } from "class-variance-authority"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 className=
 ````
@@ -27533,7 +27533,7 @@ className=
 ````typescript
 import { PreviewCard as PreviewCardPrimitive } from "@base-ui/react/preview-card"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 function HoverCard(
 ````
@@ -27542,7 +27542,7 @@ function HoverCard(
 ````typescript
 import { OTPInput, OTPInputContext } from "input-otp"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { MinusIcon } from "lucide-react"
 ⋮----
 containerClassName=
@@ -27553,7 +27553,7 @@ className=
 ````typescript
 import { Input as InputPrimitive } from "@base-ui/react/input"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 function Input(
 ⋮----
@@ -27562,21 +27562,21 @@ className=
 
 ## File: packages/ui-shadcn/ui/kbd.tsx
 ````typescript
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 className=
 ````
 
 ## File: packages/ui-shadcn/ui/label.tsx
 ````typescript
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 className=
 ````
 
 ## File: packages/ui-shadcn/ui/native-select.tsx
 ````typescript
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { ChevronDownIcon } from "lucide-react"
 ⋮----
 type NativeSelectProps = Omit<React.ComponentProps<"select">, "size"> & {
@@ -27597,7 +27597,7 @@ className=
 import { NavigationMenu as NavigationMenuPrimitive } from "@base-ui/react/navigation-menu"
 import { cva } from "class-variance-authority"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { ChevronDownIcon } from "lucide-react"
 ⋮----
 className=
@@ -27623,7 +27623,7 @@ function NavigationMenuLink({
 ````typescript
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 function Popover(
 ⋮----
@@ -27636,7 +27636,7 @@ className=
 ````typescript
 import { Progress as ProgressPrimitive } from "@base-ui/react/progress"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 function Progress({
   className,
@@ -27655,7 +27655,7 @@ className=
 import { Radio as RadioPrimitive } from "@base-ui/react/radio"
 import { RadioGroup as RadioGroupPrimitive } from "@base-ui/react/radio-group"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 function RadioGroup(
 ⋮----
@@ -27664,14 +27664,14 @@ className=
 
 ## File: packages/ui-shadcn/ui/resizable.tsx
 ````typescript
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ````
 
 ## File: packages/ui-shadcn/ui/scroll-area.tsx
 ````typescript
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 function ScrollArea({
   className,
@@ -27690,7 +27690,7 @@ function ScrollBar({
 ````typescript
 import { Select as SelectPrimitive } from "@base-ui/react/select"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
 ⋮----
 function SelectGroup(
@@ -27734,14 +27734,14 @@ function SelectScrollUpButton({
 ````typescript
 import { Separator as SeparatorPrimitive } from "@base-ui/react/separator"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 className=
 ````
 
 ## File: packages/ui-shadcn/ui/skeleton.tsx
 ````typescript
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 className=
 ````
@@ -27750,14 +27750,14 @@ className=
 ````typescript
 import { Slider as SliderPrimitive } from "@base-ui/react/slider"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 className=
 ````
 
 ## File: packages/ui-shadcn/ui/spinner.tsx
 ````typescript
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { Loader2Icon } from "lucide-react"
 ⋮----
 function Spinner(
@@ -27769,7 +27769,7 @@ function Spinner(
 ````typescript
 import { Switch as SwitchPrimitive } from "@base-ui/react/switch"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 function Switch({
   className,
@@ -27784,7 +27784,7 @@ className=
 
 ## File: packages/ui-shadcn/ui/table.tsx
 ````typescript
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 className=
 ````
@@ -27794,7 +27794,7 @@ className=
 import { Tabs as TabsPrimitive } from "@base-ui/react/tabs"
 import { cva, type VariantProps } from "class-variance-authority"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 className=
 ⋮----
@@ -27813,7 +27813,7 @@ function TabsTrigger(
 
 ## File: packages/ui-shadcn/ui/textarea.tsx
 ````typescript
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 className=
 ````
@@ -27823,7 +27823,7 @@ className=
 import { Toggle as TogglePrimitive } from "@base-ui/react/toggle"
 import { cva, type VariantProps } from "class-variance-authority"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 className=
 ````
@@ -35702,7 +35702,7 @@ import { getFirestore } from 'firebase/firestore'
 ````typescript
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { Button } from "@/packages/ui-shadcn/ui/button"
 ⋮----
 function AlertDialog(
@@ -35716,7 +35716,7 @@ import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { Separator } from "@/packages/ui-shadcn/ui/separator"
 ⋮----
 className=
@@ -35731,7 +35731,7 @@ import {
   type Locale,
 } from "react-day-picker"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { Button, buttonVariants } from "@/packages/ui-shadcn/ui/button"
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react"
 ⋮----
@@ -35744,7 +35744,7 @@ import useEmblaCarousel, {
   type UseEmblaCarouselType,
 } from "embla-carousel-react"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { Button } from "@/packages/ui-shadcn/ui/button"
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 ⋮----
@@ -35795,7 +35795,7 @@ function CarouselNext({
 ````typescript
 type TooltipValueType = number | string | Array<number | string>
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 // Format: { THEME_NAME: CSS_SELECTOR }
 ⋮----
@@ -35829,7 +35829,7 @@ return <div className=
 ````typescript
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { Button } from "@/packages/ui-shadcn/ui/button"
 import {
   InputGroup,
@@ -35856,7 +35856,7 @@ className=
 ````typescript
 import { Command as CommandPrimitive } from "cmdk"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import {
   Dialog,
   DialogContent,
@@ -35877,7 +35877,7 @@ className=
 ````typescript
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { Button } from "@/packages/ui-shadcn/ui/button"
 import { XIcon } from "lucide-react"
 ⋮----
@@ -35896,7 +35896,7 @@ className=
 ````typescript
 import { Menu as MenuPrimitive } from "@base-ui/react/menu"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { ChevronRightIcon, CheckIcon } from "lucide-react"
 ⋮----
 function DropdownMenu(
@@ -35939,7 +35939,7 @@ function DropdownMenuSeparator({
 import { useMemo } from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { Label } from "@/packages/ui-shadcn/ui/label"
 import { Separator } from "@/packages/ui-shadcn/ui/separator"
 ⋮----
@@ -35950,7 +35950,7 @@ className=
 ````typescript
 import { cva, type VariantProps } from "class-variance-authority"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { Button } from "@/packages/ui-shadcn/ui/button"
 import { Input } from "@/packages/ui-shadcn/ui/input"
 import { Textarea } from "@/packages/ui-shadcn/ui/textarea"
@@ -35966,7 +35966,7 @@ import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { Separator } from "@/packages/ui-shadcn/ui/separator"
 ⋮----
 function ItemGroup(
@@ -35987,7 +35987,7 @@ className=
 import { Menu as MenuPrimitive } from "@base-ui/react/menu"
 import { Menubar as MenubarPrimitive } from "@base-ui/react/menubar"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36010,7 +36010,7 @@ className=
 
 ## File: packages/ui-shadcn/ui/pagination.tsx
 ````typescript
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { Button } from "@/packages/ui-shadcn/ui/button"
 import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
 ⋮----
@@ -36045,7 +36045,7 @@ function PaginationEllipsis({
 ````typescript
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { Button } from "@/packages/ui-shadcn/ui/button"
 import { XIcon } from "lucide-react"
 ⋮----
@@ -36066,7 +36066,7 @@ import { Toggle as TogglePrimitive } from "@base-ui/react/toggle"
 import { ToggleGroup as ToggleGroupPrimitive } from "@base-ui/react/toggle-group"
 import { type VariantProps } from "class-variance-authority"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { toggleVariants } from "@/packages/ui-shadcn/ui/toggle"
 ⋮----
 function ToggleGroup({
@@ -36098,7 +36098,7 @@ function ToggleGroupItem({
 ````typescript
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip"
 ⋮----
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 ⋮----
 function TooltipContent({
   className,
@@ -37519,7 +37519,7 @@ import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"
 ⋮----
 import { useIsMobile } from "@/packages/ui-shadcn/hooks/use-mobile"
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { Button } from "@/packages/ui-shadcn/ui/button"
 import { Input } from "@/packages/ui-shadcn/ui/input"
 import { Separator } from "@/packages/ui-shadcn/ui/separator"
@@ -37593,7 +37593,7 @@ function SidebarMenuAction({
 ````typescript
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
-import { cn } from "@shared-utils";
+import { cn } from "@/packages/ui-shadcn";
 import { ThemeProvider } from "@ui-shadcn/provider/theme-provider";
 import { PlatformBootstrap } from "@/src/modules/platform/adapters/inbound/react";
 ⋮----
@@ -37630,7 +37630,7 @@ export default function RootLayout({
     ],
     "paths": {
       "@/*": ["./*"],
-      "@shared-utils": ["./packages/ui-shadcn/index.ts"],
+      "@/packages/ui-shadcn": ["./packages/ui-shadcn/index.ts"],
       "@ui-shadcn": ["./packages/ui-shadcn/index.ts"],
       "@ui-shadcn/*": ["./packages/ui-shadcn/*"],
       "@integration-firebase": ["./packages/integration-firebase/index.ts"],

@@ -419,7 +419,7 @@ Not every module needs every folder, and local details may live inside a subdoma
 
 ## Import Rules
 
-- Prefer package aliases such as `@shared-types`, `@shared-utils`, `@integration-firebase`, `@ui-shadcn`, and `@lib-*`.
+- Prefer package aliases such as `@shared-types`, `@/packages/ui-shadcn`, `@integration-firebase`, `@ui-shadcn`, and `@lib-*`.
 - Do not use legacy aliases such as `@/shared/*`, `@/libs/*`, or similar paths blocked by lint rules.
 - Inside one module, prefer relative imports over self-importing the module barrel.
 - Across modules, import only from the target module `api/` boundary.
@@ -13526,7 +13526,7 @@ import { Bot, BookOpen, Brain, FileText, Lightbulb, Loader2, Plus, SendHorizonal
 ⋮----
 import type { WorkspaceEntity } from "@/modules/workspace/api";
 import { resolveWorkspaceFromMap, WorkspaceContextCard } from "@/modules/workspace/api/ui";
-import { cn } from "@shared-utils";
+import { cn } from "@/packages/ui-shadcn";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 ⋮----
@@ -29279,7 +29279,7 @@ interface WorkspaceSettingsInformationFieldsProps {
 ## File: modules/workspace/interfaces/web/components/layout/workspace-detail-helpers.ts
 ````typescript
 import type { WorkspaceEntity } from "../../../contracts";
-import { formatDate } from "@shared-utils";
+import { formatDate } from "@/packages/ui-shadcn";
 import type { WorkspaceTabGroup } from "../../navigation/workspace-tabs";
 ⋮----
 export function getWorkspaceInitials(name: string): string
@@ -36504,7 +36504,7 @@ import tailwindcssAnimate from 'tailwindcss-animate';
       "@/*": ["./*"],
       "@shared-types": ["./packages/shared-types/index.ts"],
       "@shared-events": ["./packages/shared-events/index.ts"],
-      "@shared-utils": ["./packages/shared-utils/index.ts"],
+      "@/packages/ui-shadcn": ["./packages/shared-utils/index.ts"],
       "@shared-validators": ["./packages/shared-validators/index.ts"],
       "@shared-constants": ["./packages/shared-constants/index.ts"],
       "@shared-hooks": ["./packages/shared-hooks/index.ts"],
@@ -40941,7 +40941,7 @@ export function ShellFrame({ children }: { children: ReactNode }) {
 // Server Component — 字型、metadata、全域 CSS
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
-import { cn } from "@shared-utils";
+import { cn } from "@/packages/ui-shadcn";
 import { PlatformBootstrap } from "@src/modules/platform/adapters/inbound/react";
 import "./globals.css";
 
@@ -46901,7 +46901,7 @@ async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRec
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
-import { generateId } from "@shared-utils";
+import { generateId } from "@/packages/ui-shadcn";
 import type { DatabaseRepository, CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../../../subdomains/knowledge-database/domain/repositories/DatabaseRepository";
 import type { DatabaseSnapshot, Field } from "../../../subdomains/knowledge-database/domain/aggregates/Database";
 ⋮----

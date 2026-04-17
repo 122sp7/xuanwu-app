@@ -1,4 +1,4 @@
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 
 function AspectRatio({
   ratio,

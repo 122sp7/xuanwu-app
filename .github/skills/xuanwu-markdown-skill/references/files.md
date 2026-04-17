@@ -58,65 +58,6 @@
 - Firebase CLI: `npx firebase` (no global install required)
 ````
 
-## File: .github/agents/knowledge-base.md
-````markdown
-# Knowledge Base — Implementation Navigation
-
-This file is an implementation-oriented supplement for repository navigation. Strategic bounded-context ownership, canonical vocabulary, and duplicate-name resolution are owned by `docs/**/*` and must not be redefined here.
-
-## Use This File For
-
-- locating implementation surfaces quickly
-- recalling boundary-safe import patterns
-- checking the high-level code layout before reading concrete files
-
-## Docs Authority
-
-- Strategic ownership, terminology, and duplicate-name resolution: `docs/subdomains.md`, `docs/bounded-contexts.md`, `docs/ubiquitous-language.md`, `docs/contexts/<context>/*`
-- Bounded-context scaffolding and root-layer rules: `docs/bounded-context-subdomain-template.md`
-- Delivery sequencing and validation entrypoint: `docs/README.md` and `.github/agents/commands.md`
-
-## Boundary Summary
-
-- Cross-module imports go through `modules/<target>/api` only.
-- Dependency direction is `interfaces/` → `application/` → `domain/` ← `infrastructure/`.
-- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; subdomains own local concerns.
-- If a team adds `core/`, treat it as an optional inner wrapper only; do not put `infrastructure/` or `interfaces/` inside it.
-
-## Repository Surfaces
-
-- `app/`: Next.js route composition, shell UX, providers, and orchestration
-- `modules/`: bounded-context and subdomain implementations
-- `packages/`: stable shared boundaries exposed through `@shared-*`, `@lib-*`, `@integration-*`, `@ui-*`
-- `py_fn/`: worker-side ingestion, parsing, chunking, embedding, and job execution
-
-## Typical Module Shape
-
-```text
-modules/<context>/
-├── api/
-├── application/
-├── domain/
-├── infrastructure/
-├── interfaces/
-└── subdomains/<name>/
-```
-
-Not every module needs every folder, and local details may live inside a subdomain rather than the bounded-context root.
-
-## Import Rules
-
-- Prefer package aliases such as `@shared-types`, `@shared-utils`, `@integration-firebase`, `@ui-shadcn`, and `@lib-*`.
-- Do not use legacy aliases such as `@/shared/*`, `@/libs/*`, or similar paths blocked by lint rules.
-- Inside one module, prefer relative imports over self-importing the module barrel.
-- Across modules, import only from the target module `api/` boundary.
-
-## Validation
-
-- Use `.github/agents/commands.md` for lint, build, test, and deployment commands.
-- When strategic naming or ownership seems unclear, stop using this file and return to `docs/**/*`.
-````
-
 ## File: .github/skills/alistair-cockburn/SKILL.md
 ````markdown
 ---
@@ -13968,361 +13909,63 @@ HTTP Request
 看完整路徑判斷層級，不看資料夾名稱猜責任。
 ````
 
-## File: .github/agents/app-router.agent.md
+## File: .github/agents/knowledge-base.md
 ````markdown
----
-name: App Router Agent
-description: Diagnose and implement Next.js App Router behavior using runtime evidence and boundary-safe edits.
-argument-hint: Provide route segment, expected behavior, and failing symptoms.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'io.github.vercel/next-devtools-mcp/*']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Refine Parallel Routes
-    agent: Parallel Routes Agent
-    prompt: Refine the parallel-route composition, slot isolation, and one-way data flow for this route scope.
-  - label: Write Server Action
-    agent: Server Action Writer
-    prompt: Implement or review the server action orchestration and validation boundary used by this route.
-  - label: Verify End-to-End
-    agent: E2E QA Agent
-    prompt: Verify the affected route in a browser and collect runtime evidence for this change.
-
----
-
-# App Router Agent
-
-## Target Scope
-
-- `app/**`
-- `modules/**/interfaces/**`
-- `providers/**`
-
-## Workflow
-
-1. Identify the target segment and rendering/data path.
-2. Use Next runtime evidence when symptoms are ambiguous.
-3. Apply least-change fixes in route composition or local route UI.
-4. Validate only the affected route behavior and related module API usage.
-
-## Guardrails
-
-- Keep business logic in modules.
-- Use runtime evidence when route behavior is unclear.
-- Keep route slices composition-focused.
-
-## Output
-
-- Route scope and failure mode
-- Changes applied
-- Evidence checked
-- Residual route risk
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-````
-
-## File: .github/agents/domain-enforcer.agent.md
-````markdown
----
-name: Domain Enforcer
-description: DDD 純度守門員：保護 domain layer 純淨性，檢查 business logic 外洩，驗證 aggregate / entity 設計正確性，強制 domain 不依賴任何外部框架。
-argument-hint: 提供需審查的 module / subdomain 路徑，或特定 domain 問題描述。
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Refactor Module Boundary
-    agent: Hexagonal DDD Architect
-    prompt: 根據此次 domain 純度問題重構模組邊界、層依賴方向與公開 API 形狀。
-  - label: Update Ubiquitous Language
-    agent: KB Architect
-    prompt: 將此次 domain 建模新增或變更的術語同步更新至 docs/ubiquitous-language.md。
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: 審查 domain 修正的行為風險、邊界回歸，確認符合 Hexagonal DDD 規範後才可合入。
-
----
-
-# Domain Enforcer
-
-## 目標範圍 (Target Scope)
-
-- `modules/**/domain/**`
-- `modules/**/application/use-cases/**`
-- `modules/**/application/dto/**`
-
-## 使命 (Mission)
-
-以 zero-tolerance 原則保護 domain 層的純淨性：domain 只能包含業務規則，任何技術框架依賴都是違規，任何貧血模型都是設計缺陷。
-
-## 必讀來源
-
-- `.github/instructions/domain-modeling.instructions.md`
-- `.github/instructions/domain-layer-rules.instructions.md`
-- `.github/instructions/event-driven-state.instructions.md`
-- `docs/ubiquitous-language.md`
-- `docs/contexts/<context>/README.md`
-
-## 禁止事項（Hard Violations）
-
-以下任一出現即為 CRITICAL 違規，必須立即修正：
-
-- `domain/` 匯入 Firebase / Firestore / Firebase Admin SDK
-- `domain/` 匯入 React / React hooks / Next.js
-- `domain/` 匯入 HTTP client（axios / fetch wrapper / tRPC）
-- `domain/` 匯入 ORM / database client
-- `domain/` 直接呼叫 `node:crypto`（必須用 `@lib-uuid`）
-- Aggregate 只有 getter/setter，無任何業務方法（貧血模型）
-- Use Case 內含業務 invariant 判斷（應移至 Aggregate）
-- Domain Event 使用現在式命名
-
-## 審查清單
-
-### Aggregate 設計
-- [ ] 使用私有 constructor + 靜態 `create()` / `reconstitute()`？
-- [ ] 業務不變數在 Aggregate method 內強制，違規時拋 `Error`？
-- [ ] 狀態修改透過封裝 method，不暴露可變屬性？
-- [ ] `_domainEvents` 私有陣列 + `pullDomainEvents()` + `getSnapshot()`？
-- [ ] 識別碼使用 `z.string().uuid().brand()` 品牌型別？
-
-### Value Object 設計
-- [ ] 不可變（Immutable）？
-- [ ] 無識別碼欄位？
-- [ ] 以值內容判斷相等性？
-
-### Domain Event 設計
-- [ ] 過去式命名（例如 `WorkspaceCreated`）？
-- [ ] discriminant 格式 `<module>.<action>`（例如 `workspace.created`）？
-- [ ] `occurredAt` 為 ISO string，不是 `Date` 物件？
-- [ ] 使用 Zod schema 嚴格定義 payload？
-
-### Repository / Port 介面
-- [ ] 只有介面定義，無實作細節？
-- [ ] 命名為 `PascalCaseRepository`（無 `I` 前綴）？
-
-## 輸出格式
-
-1. **Domain 純度評估**：通過 / 需修正
-2. **違規清單**：`[CRITICAL|HIGH]` + 檔案路徑 + 違規描述
-3. **修正後的程式碼**：提供完整修正實作
-4. **驗證結果**：`npm run lint` + `npm run build`
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-#use skill hexagonal-ddd
-````
-
-## File: .github/agents/firebase-guardian.agent.md
-````markdown
----
-name: Firebase Guardian
-description: Firebase 使用安全層：防止 Firebase SDK 被錯誤層級引用，檢查 Firestore schema / Security Rules 思維正確性，驗證 Cloud Functions 不污染 domain。
-argument-hint: 提供需審查的 module 路徑、具體 Firebase 使用問題，或 Firestore security rules 片段。
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Fix Firebase Adapter
-    agent: Hexagonal DDD Architect
-    prompt: 將被錯誤放置的 Firebase 程式碼移至正確的 infrastructure adapter 層，並確認 Port 介面定義完整。
-  - label: Review Security Rules
-    agent: Security Rules Agent
-    prompt: 審查此次發現的 Firestore / Storage security rules 問題，確保 tenant isolation 與 least-privilege 合規。
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: 審查 Firebase 修正的邊界安全性與回歸風險。
-
----
-
-# Firebase Guardian
-
-## 目標範圍 (Target Scope)
-
-- `modules/**` — 掃描所有 Firebase import
-- `firestore.rules`
-- `storage.rules`
-- `firestore.indexes.json`
-- `py_fn/**/*.py` — Cloud Functions 邊界
-
-## 使命 (Mission)
-
-作為 Firebase 使用安全層，確保 Firebase SDK 只存在於 `infrastructure/` adapter 層。任何在 `domain/` 或 `application/` 直接引用 Firebase 都是架構違規，必須立即修正。
-
-## 必讀來源
-
-- `.github/instructions/architecture.instructions.md`（§2 Backend Architecture）
-- `.github/instructions/firestore-schema.instructions.md`
-- `.github/instructions/security-rules.instructions.md`
-- `.github/instructions/cloud-functions.instructions.md`
-
-## 核心防線（Hard Rules）
-
-1. **Firebase 只能在 `infrastructure/` adapter 層** — `domain/` 與 `application/` 嚴禁直接 import Firebase SDK
-2. **Firestore 必須透過 repository access** — 不允許在 use case 或 route 直接呼叫 `firestore.collection()`
-3. **Cloud Functions 不含 domain logic** — `py_fn/` 函式只負責 I/O 協調；業務規則在 Next.js domain layer
-4. **workspace 不直接呼叫 Firestore** — 必須透過 `platform/api` 的 FileAPI / PermissionAPI 等 Service API
-5. **Security Rules 必須含 tenant isolation** — `orgId` / `workspaceId` 必須在規則中強制隔離
-
-## 審查清單
-
-### Firebase Import 位置
-- [ ] `modules/**/domain/` 無任何 `firebase` import？
-- [ ] `modules/**/application/` 無任何 `firebase` import？
-- [ ] `app/` route files 無直接 Firestore / Storage import？
-- [ ] Firebase import 集中在 `modules/**/infrastructure/` 與 `modules/platform/`？
-
-### Firestore Schema
-- [ ] Collection 所有權歸屬 bounded context 明確？
-- [ ] Breaking schema change 有 migration 步驟？
-- [ ] 新 query pattern 有對應 index 更新？
-
-### Security Rules
-- [ ] Firestore rules 包含 `request.auth != null` 驗證？
-- [ ] 每個 collection 有 organization / workspace isolation 條件？
-- [ ] 無寬泛 wildcard allow（`allow read, write: if true`）？
-
-### Cloud Functions（py_fn）
-- [ ] `py_fn/` 函式不包含 browser-facing auth / session logic？
-- [ ] `py_fn/` 的 Firestore 寫入使用 Admin SDK（非 client SDK）？
-
-## 輸出格式
-
-1. **Firebase 使用安全評估**：通過 / 需修正
-2. **違規清單**：`[CRITICAL|HIGH|MEDIUM]` + 檔案路徑 + 違規描述
-3. **修正建議**：移動至正確層的步驟
-4. **Security Rules 建議**（如有）
-5. **驗證結果**：`npm run lint` + `npm run build`
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-#use skill hexagonal-ddd
-#use skill firebase-rules
-````
-
-## File: .github/agents/genkit-orchestrator.agent.md
-````markdown
----
-name: Genkit Orchestrator
-description: AI Flow 控制器（Genkit 專屬）：管理 AI flow 設計、tool calling / prompt pipeline，驗證 AI output 安全性，控制 AI 與 domain interaction 邊界。
-argument-hint: 提供 AI flow 名稱、業務目標、inputs/outputs、目標 runtime（Next.js / py_fn），以及是否涉及 retrieval / grounding。
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'todo']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Refine Flow Contract
-    agent: Genkit Flow Agent
-    prompt: 根據此次 AI flow 設計細化 flow 合約、tool orchestration 邊界與 fallback 行為。
-  - label: Review RAG Boundary
-    agent: RAG Lead
-    prompt: 審查此 AI flow 對 retrieval / worker 邊界的影響，確認 ingestion 與 grounding 合約安全。
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: 對此 Genkit flow 變更進行最終品質把關，確認 fallback 安全、contract 穩定、驗證覆蓋完整。
-
----
-
-# Genkit Orchestrator
-
-## 目標範圍 (Target Scope)
-
-- `modules/platform/subdomains/ai/**`
-- `modules/notebooklm/**` — reasoning / synthesis / retrieval flows
-- `app/**` — Next.js 端 AI orchestration
-- `py_fn/**` — worker-side ingestion / embedding pipeline
-
-## 使命 (Mission)
-
-管理並守護全系統的 Genkit AI Flow 設計，確保 AI 作為「外部不可信任 actor」正確接入，AI output 必須通過 Zod 驗證閘道後才能影響 domain state，AI 不得直接寫入資料庫或 bypass 任何驗證邊界。
-
-## 必讀來源
-
-- `.github/instructions/genkit-flow.instructions.md`
-- `.github/instructions/rag-architecture.instructions.md`
-- `.github/instructions/embedding-pipeline.instructions.md`
-- `.github/instructions/architecture-runtime.instructions.md`
-
-## 禁止事項（Hard Rules）
-
-- ❌ AI flow 直接寫入 Firestore（必須透過 domain use case）
-- ❌ AI output 未經 Zod 驗證就進入 system
-- ❌ AI flow 直接修改 domain state（必須透過 application layer）
-- ❌ `notion` 或 `notebooklm` 自行定義 `ai` subdomain（AI capability 屬 `platform.ai`，下游只消費）
-- ❌ 重 AI 計算邏輯放在 Next.js（應移至 `py_fn/` worker）
-- ❌ Genkit flow 繞過 `platform.ai` 的 quota / safety policy
-
-## AI Flow 設計審查清單
-
-### Flow Contract
-- [ ] Flow input / output 型別明確？（使用 Zod schema 定義）
-- [ ] Failure modes 與 fallback behavior 已定義？
-- [ ] Flow 不修改 domain state，只回傳 output？
-
-### Runtime Boundary
-- [ ] User-facing orchestration（chat / routing）在 Next.js？
-- [ ] Heavy computation（parsing / chunking / embedding）在 `py_fn/`？
-- [ ] Cross-runtime handoff 有明確 QStash / event contract？
-
-### AI Output Validation Gate
-- [ ] AI output 通過 Zod 驗證後才進入 use case？
-- [ ] Validation 失敗時有 graceful fallback（不 crash domain）？
-
-### Platform.AI 消費路徑
-- [ ] `notion` / `notebooklm` 消費 `platform.ai` 的 AIAPI？
-- [ ] 無 notion / notebooklm 直接呼叫 Genkit SDK？
-
-### Tool Definitions
-- [ ] Tool 職責單一，無跨業務邊界的 god tool？
-- [ ] Tool 名稱使用業務語言，非技術名稱？
-
-## 輸出格式
-
-1. **AI Flow 安全性評估**：通過 / 需修正
-2. **違規清單**：`[CRITICAL|HIGH|MEDIUM]` + 描述 + 修正建議
-3. **Flow 設計建議**（如需新建）：含 input/output contract、tool list、fallback 路徑
-4. **驗證結果**：`npm run lint` + `npm run build`
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-#use skill genkit-ai
-#use skill xuanwu-rag-runtime-boundary
-#use skill next-devtools-mcp
-````
-
-## File: .github/agents/shadcn-composer.agent.md
-````markdown
----
-name: Shadcn Composer
-description: Compose and refactor UI components using shadcn patterns while preserving route and module ownership boundaries.
-argument-hint: Describe component goal, target route, and required interaction states.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'shadcn/*']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Review Frontend Ownership
-    agent: Frontend Lead
-    prompt: Review the route ownership, composition boundary, and data-flow assumptions behind this UI work.
-  - label: Refine Parallel Routes
-    agent: Parallel Routes Agent
-    prompt: Refine the slot composition, state isolation, and route-level integration for this UI work.
-  - label: Verify End-to-End
-    agent: E2E QA Agent
-    prompt: Verify the interaction states and browser behavior for this UI change.
-
----
-
-# Shadcn Composer
-
-## Target Scope
-
-- `app/**`
-- `modules/**/interfaces/components/**`
-- `packages/ui-shadcn/**`
-
-## Workflow
-
-1. Confirm route ownership and API data shape before composing UI.
-2. Reuse existing primitives and tokens first.
-3. Validate interaction states and accessibility basics.
-
-## Rules
-
-- Reuse existing component primitives before adding new ones.
-- Keep styling and behavior consistent with app composition boundaries.
-- Validate interactive states and accessibility basics.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+# Knowledge Base — Implementation Navigation
+
+This file is an implementation-oriented supplement for repository navigation. Strategic bounded-context ownership, canonical vocabulary, and duplicate-name resolution are owned by `docs/**/*` and must not be redefined here.
+
+## Use This File For
+
+- locating implementation surfaces quickly
+- recalling boundary-safe import patterns
+- checking the high-level code layout before reading concrete files
+
+## Docs Authority
+
+- Strategic ownership, terminology, and duplicate-name resolution: `docs/subdomains.md`, `docs/bounded-contexts.md`, `docs/ubiquitous-language.md`, `docs/contexts/<context>/*`
+- Bounded-context scaffolding and root-layer rules: `docs/bounded-context-subdomain-template.md`
+- Delivery sequencing and validation entrypoint: `docs/README.md` and `.github/agents/commands.md`
+
+## Boundary Summary
+
+- Cross-module imports go through `src/modules/<target>/api` only.
+- Dependency direction is `interfaces/` → `application/` → `domain/` ← `infrastructure/`.
+- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; subdomains own local concerns.
+- If a team adds `core/`, treat it as an optional inner wrapper only; do not put `infrastructure/` or `interfaces/` inside it.
+
+## Repository Surfaces
+
+- `src/app/`: Next.js route composition, shell UX, providers, and orchestration
+- `src/modules/`: bounded-context and subdomain implementations
+- `packages/`: stable shared boundaries exposed through `@shared-*`, `@lib-*`, `@integration-*`, `@ui-*`
+- `py_fn/`: worker-side ingestion, parsing, chunking, embedding, and job execution
+
+## Typical Module Shape
+
+```text
+src/modules/<context>/
+├── api/
+├── application/
+├── domain/
+├── infrastructure/
+├── interfaces/
+└── subdomains/<name>/
+```
+
+Not every module needs every folder, and local details may live inside a subdomain rather than the bounded-context root.
+
+## Import Rules
+
+- Prefer package aliases such as `@integration-firebase`, `@ui-shadcn`, and `@/packages/ui-shadcn`; shared domain types live in `src/modules/shared/`.
+- Do not use legacy aliases such as `@/shared/*`, `@/libs/*`, or similar paths blocked by lint rules.
+- Inside one module, prefer relative imports over self-importing the module barrel.
+- Across modules, import only from the target module `api/` boundary.
+
+## Validation
+
+- Use `.github/agents/commands.md` for lint, build, test, and deployment commands.
+- When strategic naming or ownership seems unclear, stop using this file and return to `docs/**/*`.
 ````
 
 ## File: .github/instructions/ci-cd.instructions.md
@@ -25215,216 +24858,6 @@ When a user provides a file or pattern argument:
 If no files specified, ask the user which files to review.
 ````
 
-## File: docs/bounded-context-subdomain-template.md
-````markdown
-# Bounded Context Subdomain Template
-
-本文件在本次任務限制下，僅依 Context7 驗證的 Hexagonal Architecture、DDD、Context Map 與 ADR 參考建立，作為 `src/modules/<bounded-context>/subdomains/*` 的交付標準模板，不主張反映現況實作。
-
-## Purpose
-
-這份模板定義新的 bounded context 與其 subdomains 應以什麼結構交付，讓 Copilot 在建立模組樹、層次與邊界時，先遵守 Hexagonal Architecture with Domain-Driven Design，再決定實作細節。
-
-## Development Order Contract (Domain-First)
-
-- 每個需求都必須先有 use case contract（actor、goal、main success scenario、failure branches），再進入程式碼實作。
-- 新功能一律遵循：Domain -> Application -> Ports -> Infrastructure -> Interface。
-- Domain 先定義「系統是什麼」：聚合、不變條件、值對象與領域事件，不依賴任何框架或外部技術。
-- Application 再定義「系統做什麼」：use case 流程協調、DTO 轉換、交易與事件發布時序。
-- Ports 定義內外協作契約；Infrastructure 只負責實作契約並接入 Firebase、AI 或其他外部系統。
-- Interface（UI / API / Server Action）只做輸入輸出與組裝，不承載領域決策。
-- UI 永遠只能呼叫同 bounded context 的 `application/` 或該 subdomain 的 `api/`，不可直接呼叫 `domain/` 或 `infrastructure/`。
-- `domain/` 不可匯入 React、Firebase SDK、HTTP client、ORM model 或 runtime-specific adapter。
-
-## Standard Structure Tree
-
-```text
-src/modules/                                    # 系統所有業務模組（bounded contexts）集合
-└── <bounded-context>/                          # 單一業務邊界（高內聚、低耦合）
-    ├── README.md                               # 說明此 bounded context 的目的、範圍、核心能力
-    ├── AGENT.md                                # 開發規範：命名、分層規則、不可違反設計約束
-    ├── api/                                    # 對其他 bounded context 的公開 API 邊界（ACL 入口）
-    │   └── index.ts                            # 只匯出安全能力，隱藏內部結構與實作細節
-    ├── application/                            # 應用層：負責 use case orchestration
-    │   ├── dtos/                                # 輸入/輸出資料契約，僅資料不含業務邏輯
-    │   ├── use-cases/                          # 一檔一用例，承擔流程控制與副作用協調
-    │   └── services/                           # Application Service：流程共用輔助，不承載核心業務規則
-    ├── domain/                                 # 領域層：核心商業邏輯與不變條件
-    │   ├── entities/                           # Entity：有 identity，封裝狀態與行為
-    │   ├── value-objects/                      # Value Object：無 identity，以值相等，通常 immutable
-    │   ├── services/                           # Domain Service：不屬於單一 entity 的業務規則
-    │   ├── repositories/                       # Repository 介面（Domain Port）：只定義契約不含實作
-    │   ├── events/                             # Domain Events：已發生的業務事實，用於解耦
-    │   └── ports/                              # 外部依賴抽象（非資料庫），由 infrastructure 實作
-    ├── docs/                                   # 架構文件與治理規範（長期可維護關鍵）
-    │   ├── README.md                           # 文件總覽
-    │   ├── bounded-context.md                  # 邊界責任（負責/不負責）
-    │   ├── context-map.md                      # context 關係圖（ACL/Shared Kernel/Partnership）
-    │   ├── subdomains.md                       # 子域拆分（core/supporting/generic）
-    │   ├── ubiquitous-language.md              # 統一語言與命名詞彙表
-    │   ├── aggregates.md                       # Aggregate 設計（邊界與 root）
-    │   ├── domain-events.md                    # 事件設計規範
-    │   ├── repositories.md                     # repository 設計準則
-    │   ├── application-services.md             # application 層規範
-    │   └── domain-services.md                  # domain 層規範
-    ├── infrastructure/                         # Driven Adapters：實作 domain ports 與外部整合
-    │   ├── <subdomain-a>/                      # 依子域分組的 adapters / persistence / repositories
-    │   └── <subdomain-b>/                      # 只有 context-wide concern 才直接放 root
-    ├── interfaces/                             # Driving Adapters：從 UI/HTTP/Action 進入系統
-    │   ├── <subdomain-a>/                      # 依子域分組的 actions / queries / components / routes
-    │   └── <subdomain-b>/                      # 只有 context-wide composition 才直接放 root
-    └── subdomains/                             # 子域：bounded context 內部能力拆分
-        ├── <subdomain-a>/                      # 單一能力模組（可獨立演化）
-        │   ├── README.md                       # 子域說明（責任與邊界）
-        │   ├── api/                            # 子域對外 API（限同 context 內使用）
-        │   │   └── index.ts                    # 匯出子域能力，避免直接跨層呼叫
-        │   ├── application/                    # 子域應用層（局部 use-case orchestration）
-        │   │   ├── dto/                        # 子域 DTO（input/output）
-        │   │   ├── use-cases/                  # 子域 use-cases（局部流程）
-        │   │   └── services/                   # 子域 Application Services：只有在共享流程壓力存在時才建立
-        │   ├── domain/                         # 子域領域模型（局部業務核心）
-        │   │   ├── entities/                   # 子域 entity
-        │   │   ├── value-objects/              # 子域 value object
-        │   │   ├── services/                   # 子域 Domain Services（規則）
-        │   │   ├── repositories/               # 子域 repository 介面
-        │   │   ├── events/                     # 子域事件
-        │   │   └── ports/                      # optional：真的需要隔離外部依賴時才建立
-        │   └── infrastructure|interfaces/      # optional：只有符合 mini-module gate 時才在子域內建立
-        └── <subdomain-b>/                      # 另一個子域（相同結構，獨立演化）
-```
-
-## Duplicate Folder Name Notes
-
-- `application` 與 `domain` 在 root 與 subdomain 都可能出現，屬於**刻意重名**。
-- `infrastructure` 與 `interfaces` 預設放在 bounded context 根層，並依 subdomain 名分組；只有符合 mini-module gate 時才會在特定 subdomain 內再出現。
-- 判斷責任時，先看父路徑：`<bounded-context>/...` 代表 context-wide；`subdomains/<name>/...` 代表 subdomain-local。
-- 同名的下一層目錄（如 `dto`、`use-cases`、`services`、`repositories`、`adapters`、`components`、`hooks`、`queries`、`_actions`）也遵循同一條父路徑判斷規則。
-- 重名不代表可互相直接 import；跨 subdomain 或跨 bounded context 仍必須走 `api/` 邊界或事件契約。
-
-## Layer Responsibilities
-
-| Layer | Responsibility |
-|---|---|
-| `api/` | bounded context 或 subdomain 對外唯一公開邊界 |
-| `application/` | 協調 use cases、轉換 DTO、執行流程但不承載核心業務規則；若在 bounded context 根層，代表跨 subdomain 的 context-wide orchestration |
-| `domain/` | 聚合根、實體、值對象、領域服務、領域事件與核心規則；若在 bounded context 根層，代表跨 subdomain 的 shared policy、published language 或 context-wide domain concept |
-| `infrastructure/` | repository / adapter 實作、持久化、外部系統整合；預設在 bounded context 根層，並依 subdomain 名分組 |
-| `interfaces/` | UI、route handler、server action、query hooks 等 driving adapters；預設在 bounded context 根層，並依 subdomain 名分組 |
-
-## Service Folder Semantics
-
-- `application/services/`：Application Service，負責流程協調、交易邊界、跨聚合編排與 use case 共用流程；不承載核心業務不變條件。
-- `domain/services/`：Domain Service，負責無法自然落在單一 Entity/Value Object 的領域規則與政策；可承載核心業務邏輯與不變條件。
-
-## Core Clarification
-
-- `<bounded-context>` 本身也應該維持 Hexagonal Architecture with DDD 的依賴方向，而不只是 `subdomains/<name>/` 內部才有六邊形分層。
-- 但 Hexagonal Architecture 的關鍵是**依賴方向與內外邊界**，不是資料夾一定要叫 `core/`。
-- 依 Context7 驗證的參考，Application Core 是概念上的核心，外層依賴向內；ports 可放在 application 或 domain，取決於規則真正屬於哪一層。
-- 因此本模板的預設寫法是用顯式的 `application/`、`domain/`、`infrastructure/`、`interfaces/` 來表達六邊形邊界，而不是再包一層泛用 `core/`；其中 subdomain 預設只保留 core-first 形狀。
-- 如果團隊真的要使用 `core/`，較合理的變體應是 `<bounded-context>/core/application`、`<bounded-context>/core/domain`，必要時加 `core/ports`；**不應**把 `infrastructure/` 或 `interfaces/` 也放進 `core/`，因為它們本來就是外層。
-- 只有當某段邏輯明確屬於整個 bounded context，而不是單一 subdomain 時，才應放在 `<bounded-context>/application|domain|infrastructure|interfaces`；否則優先放回擁有它的 subdomain。
-
-## Template Rules
-
-- `<bounded-context>` 根層允許有自己的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，用來承接 context-wide concern；不要把整個 bounded context 簡化成只剩 `docs/` 與 `subdomains/` 的外殼。
-- 每個 subdomain 都必須能獨立表達自己的 use case 與 domain model；adapter/UI 預設由 bounded context 根層承接，並依 subdomain 名分組。
-- subdomain 預設採 core-first：`api/`、`application/`、`domain/`，`ports/` 視需要建立。
-- subdomain 的 `infrastructure/` 與 `interfaces/` 不是預設必建，只有在存在明確且持續的本地 I/O、runtime、process 或 provider boundary 壓力時才建立。
-- `api/` 是 cross-module collaboration 的唯一入口，`index.ts` 不是跨模組公開邊界。
-- adapter 只實作 port，不直接被其他層呼叫。
-- port 只在真的需要隔離 I/O、外部系統、侵入式 library 或 legacy model 時建立。
-- 若 domain 核心不需要某個抽象，就不要為了形式完整而先建空的 `service`、`port` 或 `repository`。
-- 不預設建立泛用 `core/` 包裝資料夾來混合內外層；若沒有非常明確的遷移理由，優先使用顯式層次名稱。
-
-## Delivery Checklist
-
-1. 建立 bounded context 的 `README.md`、`AGENT.md`、`api/`、`docs/`，以及必要時的根層 `application/`、`domain/`、`infrastructure/`、`interfaces/` 入口。
-2. 先判斷需求是屬於 bounded context 根層還是特定 subdomain；只有 context-wide concern 才進根層，其餘一律先落到 `subdomains/<name>/`。
-3. 先建立 use case contract（actor / goal / success scenario / failure branches），再建立對應檔案 `application/use-cases/<verb-noun>.use-case.ts`。
-4. 對擁有該責任的 subdomain 先落 `domain/` 核心模型，再收斂 `application/` 流程；`ports/` 視需要補齊，`infrastructure/` 與 `interfaces/` 預設落在 bounded context 根層並依 subdomain 名分組。
-5. 先放入 aggregate、domain event、published language 與 context map，再補 adapter 與 persistence 實作。
-6. 只有在交付需要時才建立 `ports/`、`hooks/`、`queries/`、`_actions/` 等細分資料夾。
-
-## Legacy Strangler Pattern Workflow (Outside-In Convergence)
-
-- 舊功能若已 outside-in 成形，不做一次性大改，採用 use case 為單位的漸進式收斂。
-- 每次只選一條 use case 進行重構，並保留舊路徑可回退。
-
-1. 找一條高價值且邊界清楚的 use case，先寫最小 use case contract。
-2. 針對該 use case 重新建 Domain（聚合、不變條件、值對象、事件），先讓核心規則可測。
-3. 在 Application 收斂流程，讓舊 UI 與舊 API 都改由新的 use case 進入。
-4. 以 Ports 隔離舊系統與舊資料模型，避免 legacy 細節回滲到 Domain。
-5. 由 Infrastructure 實作新 Ports，逐步替換舊 adapter。
-6. 確認新路徑穩定後，再移除對應的舊路徑與臨時轉接層。
-
-- 退出條件：該 use case 已滿足 `interfaces -> application -> domain <- infrastructure` 方向，且 UI 不再直連舊 service。
-
-## Anti-Pattern Rules
-
-- 不得把 `infrastructure/` 直接匯入 `domain/` 或 `application/`。
-- 不得把別的 bounded context 的 `domain/`、`application/`、`infrastructure/` 或 `interfaces/` 當成可直接 import 的依賴。
-- 不得在還沒有 use case contract 的情況下直接新增 UI 與 adapter。
-- 不得讓 UI 或 route handler 直接呼叫 `domain/` 或 `infrastructure/`。
-- 不得讓 `domain/` 匯入任何 runtime 或 framework 專用套件。
-- 不得把所有子域都預設長成同一個巨型骨架，卻沒有對應的 use case 與業務責任。
-- 不得把 `infrastructure/`、`interfaces/` 放進一個泛用 `core/` 目錄，讓六邊形的內外層語義失真。
-- 不得因為「看起來完整」而過度建立 repository port、ACL、DTO、facade 或 service。
-- 不得讓 `interfaces/` 承載業務決策，也不得讓 `application/` 重寫 domain 規則。
-
-## Copilot Generation Rules
-
-- 生成新模組前，先決定 bounded context、subdomain、public API boundary 與依賴方向，再建立資料夾。
-- 若需求屬於 bounded context shared policy、published language、跨 subdomain orchestration，再使用 `<bounded-context>` 根層的 hexagonal layers；否則優先放進擁有責任的 subdomain。
-- 奧卡姆剃刀：若較少的層級、port 或 adapter 已能保護邊界與可測試性，就不要額外新增抽象。
-- 每個子域只建立當前交付需要的最小骨架，不要先把所有可選資料夾填滿。
-- 若需求只是新增一個 use case，優先放進現有 subdomain，而不是新開第二個平行 subdomain。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-    Interfaces["Interfaces"] --> Application["Application"]
-    Application --> Domain["Domain"]
-    Infrastructure["Infrastructure"] --> Domain
-    API["Public API boundary"] --> Application
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-    Requirement["Requirement"] --> Context["Choose bounded context"]
-    Context --> Subdomain["Choose owning subdomain"]
-    Subdomain --> UseCase["Write use case contract first"]
-    UseCase --> Domain["Define domain model and invariants"]
-    Domain --> Application["Orchestrate in use case"]
-    Application --> Ports["Define required ports"]
-    Ports --> Infra["Implement infrastructure adapters"]
-    Infra --> Interface["Wire UI and API at boundary"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [architecture-overview.md](./architecture-overview.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [subdomains.md](./subdomains.md)
-- [context-map.md](./context-map.md)
-- [integration-guidelines.md](./integration-guidelines.md)
-- [strategic-patterns.md](./strategic-patterns.md)
-- [contexts/_template.md](./contexts/_template.md)
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-- [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
-- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
-
-## Constraints
-
-- 本模板是 architecture-first 的交付模板，不代表任何既有模組已完全符合此形狀。
-- `ports/`、`queries/`、`_actions/`、`hooks/`、subdomain-local `infrastructure/`、subdomain-local `interfaces/` 都是按需要建立的可選骨架，不是強制清單。
-- 若某 subdomain 很小，允許比本模板更精簡；若更精簡仍能守住邊界，應優先採用更精簡版本。
-````
-
 ## File: docs/contexts/ai/AGENT.md
 ````markdown
 # AI Context Agent Guide
@@ -26754,465 +26187,6 @@ application/use-cases/ → 全部複數 ✅（僅 scheduling 例外，見 ADR 32
 - **ADR 4200** (Inconsistency)：這是命名一致性問題的延伸
 ````
 
-## File: docs/hard-rules-consolidated.md
-````markdown
-# 50 Hard Rules — Consolidated Architecture Guardrails
-
-**Status**: Consolidated from user request (2026-04-12)  
-**Authority**: AGENTS.md (strategic) + module AGENT.md (tactical)  
-**Purpose**: Prevent late-stage architectural breakage; enforce non-negotiable boundaries
-
----
-
-## 🗂️ Document Placement Strategy
-
-| Rule Category | Count | Primary Location | Secondary Location |
-|---|---|---|---|
-| **Strategic Ownership** (1, 5-10, 28) | 9 | `AGENTS.md` § Module Ownership | — |
-| **Dependency Direction** (2, 6-7, 49) | 4 | `AGENTS.md` § Anti-Patterns | `eslint.config.mjs` |
-| **Layer Responsibility** (11-13, 21-23) | 7 | `.github/instructions/architecture-core.instructions.md` | Module AGENT.md |
-| **Data Flow & Events** (4, 9, 34-36) | 5 | `.github/instructions/event-driven-state.instructions.md` | RAG docs |
-| **File / Storage / IO** (3, 29-32, 39) | 6 | `.github/instructions/security-rules.instructions.md` | Firestore schema docs |
-| **Permission / Security** (37-38, 40) | 3 | `.github/instructions/security-rules.instructions.md` | Platform docs |
-| **Cross-Module Contracts** (24-27) | 4 | `docs/context-map.md` | Module AGENT.md |
-| **Feature Toggles / Independence** (17) | 1 | Platform feature-flag docs | — |
-| **Anti-Patterns** (46-50) | 5 | `AGENTS.md` § Anti-Patterns | Module AGENT.md |
-
-**Total**: 50 rules consolidated into 8 homes
-
----
-
-## 📍 LOCATION 1: `AGENTS.md` (Strategic Rules)
-
-### Add to § "Module Ownership Guardrails"
-
-```markdown
-## Strategic Ownership Rules (Hard Constraints)
-
-### Rule 1: Platform is Unique Infrastructure Gateway
-- ✅ platform owns Firebase, Genkit, external AI routing, cross-domain auth
-- ❌ notion, notebooklm NEVER own infra (except local read-only access)
-- ✅ workspace NEVER touches Firebase/Storage/Genkit directly
-
-### Rule 5: Workspace is Orchestration Only
-- ✅ workspace composes module APIs and next.js routing
-- ❌ workspace NEVER contains domain business logic
-- ❌ workspace NEVER makes direct DB/permission decisions
-
-### Rule 6: Cross-Module Access Prohibition
-- ✅ module A imports module B only via `@/modules/b/api`
-- ❌ NO direct imports of domain/, application/, infrastructure/, interfaces/
-- ✅ ALL data sharing via events or published language tokens
-
-### Rule 7: Mandatory Single Entry Point (API Boundary)
-- ✅ Every module must export `api/index.ts` 
-- ✅ `api/` exposes only public surface; hides internals
-- ❌ NO imports from internal module paths outside module
-
-### Rule 8: Platform is Only Infrastructure Layer
-- ✅ Firebase, Genkit, Auth, File Storage, Queue: platform owns
-- ✅ Cross-domain coordination, routing, governance: platform owns
-- ❌ Notion NEVER owns persistence (uses platform.infrastructure APIs)
-- ❌ Notebooklm NEVER owns embedding infra (uses platform.infrastructure APIs)
-
-### Rule 9: Cross-Module Data Flow MUST Use Events or API
-- ✅ When module A needs data from module B: A calls B.api or subscribes to B.event
-- ❌ NO shared in-memory state
-- ❌ NO direct repository access across module boundaries
-- ✅ All state mutations via transaction-protected API calls
-
-### Rule 10: Domain Layer is Externally Independent
-- ✅ domain/ contains entities, value objects, rules; NO framework deps
-- ❌ domain/ NEVER imports: React, Firebase SDK, HTTP client, ORM
-- ❌ domain/ NEVER depends on other modules (even platform)
-- ✅ All external deps injected via ports/adapters
-
-### Rule 28: Upstream Contexts Cannot Depend on Their Downstreams
-- ✅ iam / billing / ai / platform keep one-way dependency direction toward their downstream consumers
-- ❌ upstream contexts NEVER import downstream domain internals directly
-- ✅ If an upstream context needs semantic data from downstreams, use events or public APIs only
-```
-
-### Add to § "Anti-Patterns"
-
-```markdown
-### Hard Anti-Patterns (Will Cause Refactors)
-
-- ❌ **Rule 46**: workspace directly calls Firestore (`firestore.collection().get()`)
-  - Fix: Use `@/modules/platform/api` (FileAPI, PermissionAPI, etc.)
-
-- ❌ **Rule 47**: notebooklm implements its own permission logic
-  - Fix: Call `@/modules/platform/api → PermissionAPI.can()`
-
-- ❌ **Rule 48**: notion directly invokes AI/Genkit
-  - Fix: Notion emits event; platform routes to notebooklm via AI API
-
-- ❌ **Rule 49**: Module imports another module's internal (domain/application/infrastructure)
-  - Fix: Use `@/modules/<target>/api` only
-
-- ❌ **Rule 50**: Business logic written in React component (workspace UI)
-  - Fix: Move to application/ use-case; UI only composes and calls
-```
-
----
-
-## 📍 LOCATION 2: `.github/instructions/architecture-core.instructions.md`
-
-### Add Section: "Layer Responsibility Rules"
-
-```markdown
-## Layer Responsibility Rules (Hard Constraints)
-
-### Rule 11: Application Layer = Transaction Boundary + Use Case Orchestration
-- ✅ application/ coordinates domain behavior + transaction boundaries
-- ✅ application/ handles command/query DTO translation
-- ✅ application/ publishes domain events
-- ❌ application/ NEVER contains business rules (write in domain/)
-- ❌ application/ NEVER directly calls UI frameworks
-- ✅ Use cases orchestrate only; rules stay in domain
-
-### Rule 12: Repositories Hidden Behind Module Boundary
-- ✅ Repository interface defined in domain/repositories/
-- ✅ Repository implementation hidden in infrastructure/
-- ❌ NO other module calls a module's repository directly
-- ✅ If another module needs aggregate data: call module.api or use events
-
-### Rule 13: DTO ≠ Domain Model
-- ✅ DTO lives in application/dtos/ (structural change contract)
-- ✅ Domain model lives in domain/entities/, domain/aggregates/ (business rules)
-- ❌ NEVER return domain model directly in API response
-- ✅ Map domain → DTO before crossing module boundary
-
-### Rule 16: Firestore Schema Driven by Domain, Not UI
-- ✅ domain/entities define what data exists (invariants, validation)
-- ✅ infrastructure/persistence maps domain → Firestore
-- ❌ UI changes NEVER drive schema changes directly
-- ✅ If UI needs new data: propose to domain; domain approves; schema follows
-
-### Rule 21: UI Layer (workspace + interfaces/) = Zero Business Logic
-- ✅ interfaces/ composes routes, actions, UI components
-- ✅ interfaces/ calls application/ use-cases or services
-- ❌ NO if (business rule) in UI
-- ❌ NO NO permission judgment in UI
-- ❌ NO NO transaction logic in UI
-- ✅ All decisions made server-side; UI only displays result
-
-### Rule 22: Application Layer = Use-Case Driven, Testable
-- ✅ Every use-case has: actor, goal, main scenario, extensions
-- ✅ Use-case can be tested without UI/framework
-- ✅ Use-case has no database import (uses injected repository)
-- ❌ NO generic utility classes masquerading as use-cases
-
-### Rule 23: Domain Layer = Pure, Side-Effect Free
-- ✅ domain/ contains rules, validation, state transitions
-- ✅ domain/ can be tested in isolation with no async
-- ❌ domain/ NEVER makes I/O calls
-- ❌ domain/ NEVER calls external services
-- ✅ domain events emitted; orchestration in application/
-```
-
----
-
-## 📍 LOCATION 3: `.github/instructions/event-driven-state.instructions.md`
-
-### Add Section: "Event Bus Requirement & Data Flow"
-
-```markdown
-## Event Bus Requirement & Async Data Flow (Hard Constraints)
-
-### Rule 4: Event Bus is Mandatory (Not Optional)
-- ✅ Platform.event-bus/ subdomain must exist and be fully implemented
-- ✅ All cross-module async flows go through event bus
-- ✅ All domain events emitted with: id, timestamp, source, payload schema
-- ❌ NEVER use Queue/RabbitMQ without event schema registry
-
-### Rule 34: Ingestion & Embedding Must Be Async
-- ✅ File upload triggers event; worker processes async
-- ✅ Embedding generation async; client polls or subscribes
-- ❌ NEVER block request until embedding complete
-- ✅ Store job ID; allow client to check status later
-
-### Rule 35: Long Tasks Must Use Queue/Event
-- ✅ AI orchestration, embedding, chunking: async with queue
-- ✅ Non-blocking request → store task ID → return immediately
-- ❌ NEVER setTimeout/promise without proper queue
-- ✅ Task must be retryable and idempotent
-
-### Rule 36: Event Schema is Non-Negotiable
-- ✅ Every event has: id (UUID), timestamp (ISO), source (module), payload
-- ✅ Event schema registered before emission
-- ✅ Event can be replayed from audit log
-- ❌ NO unstructured event payload (use discriminant + payload schema)
-
-### Rule 9: Cross-Module Data Flow = Events or API
-- ✅ When B needs to know about A's change: A emits event; B subscribes
-- ✅ When B needs data from A: B calls A.api (synchronous)
-- ❌ NO B reading A's Firestore collection directly
-- ✅ Events enable loose coupling; API enables strongcontract
-```
-
----
-
-## 📍 LOCATION 4: `.github/instructions/security-rules.instructions.md`
-
-### Add Section: "File Lifecycle, Metadata, Ownership"
-
-```markdown
-## File & Data Ownership Rules (Hard Constraints)
-
-### Rule 3: File Metadata is Non-Negotiable
-- ✅ EVERY file in Storage has metadata in Firestore
-- ✅ Metadata includes: ownerId, workspaceId, createdAt, lifecycle (active/archived/deleted)
-- ✅ `ownerId` = resource owner identifier；`workspaceId` = collaboration scope identifier；兩者都不等於 shell route 的 `accountId`
-- ❌ NEVER store-only URL without DB entry
-- ✅ Firestore entry is source of truth for permissions & lifecycle
-
-### Rule 29: File Lifecycle is Explicit
-- ✅ File states: upload → used → archived → deleted
-- ✅ Transitions logged; each state has timestamp
-- ✅ Archived files not deleted immediately (async cleanup after retention)
-- ❌ NO orphaned files (every file must be referenced)
-
-### Rule 30: File Metadata in Database, Not Storage Headers Only
-- ✅ Firestore/Storage both contain metadata; DB is canonical
-- ✅ If Storage Object's custom metadata lost, DB entry remains
-- ❌ NEVER rely on Storage object metadata alone
-- ✅ Schema: collections/files/{fileId} → {ownerId, workspaceId, path, size, ...}
-
-### Rule 31: AI Input Traceability
-- ✅ Every AI request logged: [timestamp, source, input, model, params]
-- ✅ Logging in application/ service before sending to the ai context
-- ❌ NEVER lose context (prompt + source + groundings)
-- ✅ Can replay prompts; deterministic when possible
-
-### Rule 32: AI Output Reconstructibility
-- ✅ AI output + input + timestamp + model version all stored
-- ✅ Deterministic flow: same input + params → same output (for embedding)
-- ✅ Snapshot stored so rerank/re-retrieval uses same data
-- ❌ NEVER lose ability to rewind/re-generate
-
-### Rule 33: Embedding & Index Reconstructibility
-- ✅ Embeddings stored with source chunk ID + hash
-- ✅ Vector index can be rebuilt from source + embedding service
-- ❌ Vector index is NOT source of truth
-- ✅ Source of truth: Firestore (chunks) + embedding service (vectors)
-
-### Rule 37: Every Resource Has an Owner
-- ✅ Every knowledge artifact, conversation, notebook: {ownerId, workspaceId}
-- ✅ Permission check before access: does request.user == resource.owner | member
-- ❌ NEVER expose resource without owner scope
-- ✅ Cross-workspace access: explicit ACL check
-
-### Rule 38: Permission NEVER Hard-Coded in UI
-- ✅ All permission checks happen server-side
-- ✅ UI conditionally rendered based on server permission response
-- ❌ NEVER hide UI element expecting client-side security
-- ✅ always fallback: permission denied → error message
-
-### Rule 39: Storage Path Contains Scope (Leak Prevention)
-- ✅ Storage paths: `{tenantId}/{workspaceId}/{ownerId}/{fileId}`
-- ✅ `tenantId` = tenant isolation key；不是 `workspaceId`、`accountId` 或 `ownerId` 的別名
-- ✅ Firestore rules prevent cross-tenant access
-- ❌ NEVER path like `storage/uploads/{random}.pdf` (breaks isolation)
-- ✅ Scope visible in path; admins can audit
-
-### Rule 40: All Queries Must Include Scope
-- ✅ Firestore query: `collection.where('workspaceId', '==', workspace).get()`
-- ✅ Database query: `select * from resources where workspace_id = ?`
-- ❌ NEVER query without workspace/tenant filter
-- ✅ Scope enforced in both application and Firestore rules
-```
-
----
-
-## 📍 LOCATION 5: `docs/context-map.md`
-
-### Add or Extend Section: "Cross-Module Data Contracts"
-
-```markdown
-## Cross-Module Data Flow Rules (Hard Constraints)
-
-### Rule 24: Notebooklm Cannot Direct-Read Firestore
-- ✅ notebooklm reads knowledge artifacts via `@/modules/notion/api`
-- ❌ NEVER: `firestore.collection('notion_pages').get()`
-- ✅ Decouples notebooklm from notion's persistence model
-
-### Rule 25: Notebooklm Data Requests = Via Notion API
-- ✅ If notebooklm.retrieval needs knowledge: calls `notion.api.getKnowledgeArtifacts()`
-- ✅ Notion controls schema; notebooklm consumes contract only
-- ❌ NEVER notebooklm queries notion's Firestore directly
-
-### Rule 26: Notion is Completely Unaware of AI
-- ✅ notion/ has zero imports from notebooklm/
-- ✅ notion/ does not know AI exists
-- ✅ If AI needs notion data: calls notion.api
-- ❌ NO coupling from notion to AI/notebooklm
-
-### Rule 27: Workspace Cannot Direct-Call AI
-- ✅ workspace orchestrates; notebooklm synthesizes
-- ✅ workspace calls notebooklm.api; notebooklm handles AI routing
-- ❌ NEVER workspace imports the ai context or genkit directly
-- ✅ Decouples UI from AI complexity
-```
-
----
-
-## 📍 LOCATION 6: Module-Level `AGENT.md` Files
-
-Each module should have its own constraints section, such as:
-
-### **`src/modules/platform/AGENT.md`** (Add Section)
-
-```markdown
-## Platform-Specific Hard Rules
-
-1. **Rule 1**: Platform infra (Firebase, Genkit, Auth) never directly exposed; wrapped in semantic APIs
-2. **Rule 2**: All consumers access platform via Service API layer only (FileAPI, AIAPI, PermissionAPI, AuthAPI)
-3. **Rule 8**: Platform is only module allowed to import Firebase SDK, Genkit SDK, external AI APIs
-4. **Rule 28**: Platform.api can emit events to downstream; platform.domain never imports downstream modules
-```
-
-### **`src/modules/workspace/AGENT.md`** (Add Section)
-
-```markdown
-## Workspace-Specific Hard Rules
-
-1. **Rule 5**: Workspace is pure orchestration (routes, actions); zero domain business logic
-2. **Rule 21**: UI components in workspace.interfaces/ NEVER contain business decision logic
-3. **Rule 27**: Workspace never directly calls AI; always goes through notebooklm or platform
-4. **Rule 17**: Workspace feature toggles ensure modules can be disabled; no hard dependencies
-```
-
-### **`src/modules/notion/AGENT.md`** (Add Section)
-
-```markdown
-## Notion-Specific Hard Rules
-
-1. **Rule 26**: Notion is agnostic of AI systems; zero imports from notebooklm or the ai context
-2. **Rule 24-25**: Notion owns knowledge artifact authoring; others access via notion.api only
-3. **Rule 24**: Notion controls persistence schema; downstream modules don't query Firestore
-```
-
-### **`src/modules/notebooklm/AGENT.md`** (Add Section)
-
-```markdown
-## NotebookLM-Specific Hard Rules
-
-1. **Rule 24-25**: All knowledge data requests via notion.api; never direct Firestore
-2. **Rule 27**: Workspace calls notebooklm.api; notebooklm routes to the ai context internally
-3. **Rule 31-32**: All AI prompts/outputs logged with full traceability metadata
-4. **Rule 34**: Retrieval + synthesis always async; non-blocking to request
-```
-
----
-
-## 📍 LOCATION 7: ESLint Config (`eslint.config.mjs`)
-
-### Add Custom Rule Enforcement
-
-```javascript
-// Enforce hard rule 2, 6, 49: No cross-module internal imports
-{
-  rules: {
-    "@custom/no-cross-module-internal-import": {
-      enabled: true,
-      allowedPaths: ["api/", "index.ts"],  // Only api/ and root exports allowed
-      blockedPaths: ["domain/", "application/", "infrastructure/", "interfaces/"]
-    },
-    
-    // Enforce hard rule 1, 8: No direct Firebase/Genkit imports outside platform
-    "@custom/no-direct-firebase-outside-platform": {
-      enabled: true,
-      allowedModules: ["platform"],
-      blockedImports: ["firebase", "@google-cloud/genkit"]
-    }
-  }
-}
-```
-
-### Design Smell Guardrails
-
-以下 guardrails 用來把 design smell 變成持續可見的 warning signal，而不是等到大型 convergence 才發現。
-
-#### 1300 Cyclic Dependency
-
-- 禁止把 `require()` 當成正常的 composition 模式。
-- 若真的因既有循環鏈暫時保留 lazy require，必須把它侷限在單點並標明循環來源。
-- lint signal: `no-restricted-syntax` on `CallExpression[callee.name='require']`。
-
-#### 1400 Dependency Leakage
-
-- `api/index.ts` 不得用 `export * from "../application"` 或 `export * from "../interfaces"` 洩漏內層。
-- API boundary 應只精確 export 穩定 capability、service facade 與必要 DTO / type contract。
-- lint signal: `no-restricted-syntax` on `ExportAllDeclaration` selectors。
-
-#### 3100 Low Cohesion
-
-- `api/` 檔案若同時混入 infrastructure、service、subdomain business API、UI hooks/components，視為低內聚風險。
-- 優先拆分為 capability boundary，而不是繼續把 root barrel 做大。
-- lint signal: `max-lines` on module `api/` files as early warning.
-
-#### 5200 Cognitive Load
-
-- fat screen 不是單純行數問題，而是單一畫面同時承接 cross-module orchestration、panel wiring 與流程判斷。
-- 超過閾值時先檢查是否可以抽出 focused composition、helper 或 facade。
-- lint signal: `max-lines` on `interfaces/**/components/screens/**`.
-
-#### Enforcement Posture
-
-- lint 使用 warning 等級，目的是持續暴露 smell 壓力，不是把既有技術債一次性升級成 build blocker。
-- smell 是否成立，以對應 ADR 的 context、decision、conflict resolution 為準；lint 只是入口訊號。
-
----
-
-## 🎯 Summary: Where Each Rule Lives
-
-| Rules | Location | File |
-|---|---|---|
-| 1, 5-10, 28 | AGENTS.md | Strategic ownership |
-| 2, 6-7, 49 | AGENTS.md + eslint | Dependency direction |
-| 11-13, 21-23 | architecture-core.instructions.md | Layer responsibility |
-| 4, 9, 34-36 | event-driven-state.instructions.md | Event bus & async |
-| 3, 29-32, 37-40 | security-rules.instructions.md | File/data/permission |
-| 24-27 | context-map.md | Cross-module contracts |
-| 17 | Platform feature-flag docs | Feature independence |
-| 46-50 | AGENTS.md | Anti-patterns |
-| All | Module AGENT.md | Tactical enforcement |
-
----
-
-## ✅ Enforcement Checklist
-
-### Before Each Merge:
-- [ ] No cross-module imports outside `api/`
-- [ ] No Firebase/Genkit outside platform
-- [ ] All async flows use event bus with schema
-- [ ] File metadata in Firestore
-- [ ] Permission checks server-side only
-- [ ] Domain layer has zero external deps
-- [ ] Application layer orchestrates, not rules
-
-### Before Each Release:
-- [ ] All rules reviewed in relevant AGENT.md
-- [ ] ESLint boundary checks passing
-- [ ] Zero anti-pattern violations (46-50)
-- [ ] Event schemas registered & consistent
-
----
-
-## 📚 Document Network
-
-- [AGENTS.md](../AGENTS.md) — Strategic ownership & anti-patterns
-- [.github/instructions/architecture-core.instructions.md](../.github/instructions/architecture-core.instructions.md) — Layer responsibility
-- [.github/instructions/event-driven-state.instructions.md](../.github/instructions/event-driven-state.instructions.md) — Event bus & async
-- [.github/instructions/security-rules.instructions.md](../.github/instructions/security-rules.instructions.md) — File/data/permission
-- [docs/context-map.md](./context-map.md) — Cross-module contracts
-- [src/modules/platform/AGENT.md](../src/modules/platform/AGENT.md) — Platform constraints
-- [src/modules/workspace/AGENT.md](../src/modules/workspace/AGENT.md) — Workspace constraints
-- [src/modules/notion/AGENT.md](../src/modules/notion/AGENT.md) — Notion constraints
-- [src/modules/notebooklm/AGENT.md](../src/modules/notebooklm/AGENT.md) — NotebookLM constraints
-````
-
 ## File: packages/integration-firebase/AGENTS.md
 ````markdown
 # integration-firebase — Agent Rules
@@ -27525,555 +26499,317 @@ packages/ui-shadcn/
 
 ````
 
-## File: .github/agents/ai-genkit-lead.agent.md
+## File: .github/agents/app-router.agent.md
 ````markdown
 ---
-name: AI Genkit Lead
-description: Lead Genkit-oriented AI orchestration with boundary-safe runtime split across Next.js and py_fn pipelines.
-argument-hint: Provide AI flow name, target runtime (Next.js/py_fn), orchestration goal, and any retrieval or grounding concerns.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+name: App Router Agent
+description: Diagnose and implement Next.js App Router behavior using runtime evidence and boundary-safe edits.
+argument-hint: Provide route segment, expected behavior, and failing symptoms.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'io.github.vercel/next-devtools-mcp/*']
 model: 'GPT-5.3-Codex'
 handoffs:
-  - label: Refine Genkit Flow
-    agent: Genkit Flow Agent
-    prompt: Refine the Genkit flow contract, tool orchestration boundaries, and fallback behavior for this scope.
-  - label: Review RAG Boundary
-    agent: RAG Lead
-    prompt: Review the retrieval and worker-runtime contract impact for this AI scope.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this AI and Genkit change for regression risk, boundary safety, and validation gaps.
+  - label: Refine Parallel Routes
+    agent: Parallel Routes Agent
+    prompt: Refine the parallel-route composition, slot isolation, and one-way data flow for this route scope.
+  - label: Write Server Action
+    agent: Server Action Writer
+    prompt: Implement or review the server action orchestration and validation boundary used by this route.
+  - label: Verify End-to-End
+    agent: E2E QA Agent
+    prompt: Verify the affected route in a browser and collect runtime evidence for this change.
 
 ---
 
-# AI Genkit Lead
+# App Router Agent
 
 ## Target Scope
 
-- `app/**`
-- `modules/platform/**`
-- `modules/notebooklm/**`
-- `modules/notion/**` when content use cases consume shared AI capability
-- `py_fn/**` when coordinating runtime boundaries and worker handoff contracts
+- `src/app/**`
+- `src/modules/**/interfaces/**`
+- `providers/**`
 
-## Focus
+## Workflow
 
-- Shared `platform.ai` capability ownership and app-side orchestration
-- Contract-safe integration with `notebooklm` reasoning flows and worker-side ingestion / retrieval layers
+1. Identify the target segment and rendering/data path.
+2. Use Next runtime evidence when symptoms are ambiguous.
+3. Apply least-change fixes in route composition or local route UI.
+4. Validate only the affected route behavior and related module API usage.
 
 ## Guardrails
 
-- Keep shared provider, quota, and safety policy in `platform.ai`.
-- Keep auth and chat orchestration in Next.js.
-- Keep parsing, chunking, embedding in py_fn workers.
-- Do not model `notion` or `notebooklm` as owning a generic `ai` bounded-context surface.
+- Keep business logic in modules.
+- Use runtime evidence when route behavior is unclear.
+- Keep route slices composition-focused.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-#use skill genkit-ai
-````
+## Output
 
-## File: .github/agents/architecture-enforcer.agent.md
-````markdown
----
-name: Architecture Enforcer
-description: 架構總裁／規則審核器：全域掃描 Hexagonal + DDD 規則是否被破壞，驗證 dependency direction、import boundary，防止 domain 污染與層級跳越。
-argument-hint: 提供審查範圍（預設全 repo）、已知風險點、或特定 PR diff 路徑。
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'todo', 'repomix/*']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Fix Domain Purity
-    agent: Domain Enforcer
-    prompt: 修正此次掃描中發現的 domain layer 污染或貧血模型問題，確保 domain 純度符合 Hexagonal DDD 規範。
-  - label: Fix Firebase Misuse
-    agent: Firebase Guardian
-    prompt: 修正此次掃描中發現的 Firebase 被錯誤層級引用問題，確保 Firebase 只存在於 infrastructure adapter。
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: 對此次架構審查的修正結果進行最終品質把關，確認邊界回歸風險與驗證覆蓋度。
-
----
-
-# Architecture Enforcer
-
-## 目標範圍 (Target Scope)
-
-- `modules/**`
-- `app/**`
-- `packages/**`
-- `py_fn/**`
-
-## 使命 (Mission)
-
-作為架構總裁，以全域視角審查並強制執行 Hexagonal Architecture + DDD 的核心不變規則。發現任何違規必須修正，不允許以「技術負債標注」代替修復。
-
-## 必讀來源
-
-- `.github/instructions/architecture.instructions.md`
-- `.github/instructions/architecture-core.instructions.md`
-- `.github/instructions/architecture-runtime.instructions.md`
-- `.github/instructions/hexagonal-rules.instructions.md`
-- `.github/instructions/bounded-context-rules.instructions.md`
-- `docs/bounded-contexts.md`
-- `docs/subdomains.md`
-
-## 審查清單
-
-### Dependency Direction（依賴方向）
-- [ ] `interfaces/` 不直接呼叫 `infrastructure/` 或 `domain/` 內部？
-- [ ] `application/` 只依賴 `domain/` abstraction，不依賴 infrastructure 實作？
-- [ ] `domain/` 完全不匯入 Firebase / React / HTTP client / ORM？
-- [ ] `api/` 僅暴露 cross-module 公開表面，不含 repository factory 或 container wiring？
-
-### Import Boundary（匯入邊界）
-- [ ] 跨模組呼叫一律經由 `modules/<target>/api/`，無直接內部路徑匯入？
-- [ ] Route components 使用 props 傳遞 scope（`accountId`, `workspaceId`），不呼叫外部模組 context provider？
-
-### Module Shape（模組形狀）
-- [ ] Bounded context root 包含 `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`？
-- [ ] Subdomain 採 core-first 形狀（`api/`, `domain/`, `application/`），`infrastructure/` 和 `interfaces/` 為 gate-based？
-
-### Layer Coupling Smells（層耦合怪味道）
-- [ ] 無 God Use Case（包含 business rule 與 infrastructure logic 混合）？
-- [ ] 無貧血模型（Aggregate 只有 getters/setters，無業務方法）？
-- [ ] 無 Layer Skipping（interfaces 直接呼叫 repository）？
-
-### Runtime Boundary（執行時邊界）
-- [ ] Next.js 不直接執行 parsing / chunking / embedding pipeline？
-- [ ] `py_fn/` 不包含 browser-facing auth / session / chat logic？
-
-## 輸出格式
-
-1. **違規項目清單**：每項附 `[SEVERITY: CRITICAL|HIGH|MEDIUM]`、檔案路徑與行號、具體說明
-2. **根因分析**：非症狀描述，而是造成違規的設計決策
-3. **修正建議**：具體檔案移動 / 重構步驟
-4. **修正後驗證**：`npm run lint` + `npm run build` 結果
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-#use skill hexagonal-ddd
-#use skill occams-razor
-````
-
-## File: .github/agents/chunk-strategist.agent.md
-````markdown
----
-name: Chunk Strategist
-description: Design chunking strategies for retrieval quality, context efficiency, and stable document traceability.
-argument-hint: Provide source document format, target chunk policy (size/overlap/metadata), and downstream retrieval constraints.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Align Ingestion Inputs
-    agent: Doc Ingest Agent
-    prompt: Align document normalization and source attribution with the chunking strategy described above.
-  - label: Configure Embeddings
-    agent: Embedding Writer
-    prompt: Implement or review embedding payloads and metadata that match this chunking strategy.
-  - label: Review RAG Contract
-    agent: RAG Lead
-    prompt: Review this chunking strategy against retrieval quality, runtime boundaries, and indexing contracts.
-
----
-
-# Chunk Strategist
-
-## Target Scope
-
-- `py_fn/**`
-- `modules/notebooklm/**`
-- `modules/notion/**` when source segmentation depends on canonical content structure
-- `modules/platform/**` when chunk metadata or model constraints depend on shared `platform.ai` capability
-
-## Focus
-
-- Chunk size and overlap policy
-- Metadata fields for retrieval and attribution
-- Domain-specific segmentation rules
-- Ownership alignment across `notion` source contracts, `notebooklm` retrieval semantics, and shared `platform.ai` constraints
+- Route scope and failure mode
+- Changes applied
+- Evidence checked
+- Residual route risk
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 ````
 
-## File: .github/agents/doc-ingest.agent.md
+## File: .github/agents/domain-enforcer.agent.md
 ````markdown
 ---
-name: Doc Ingest Agent
-description: Implement document ingestion flows from source conversion to normalized artifacts for downstream chunking and indexing.
-argument-hint: Provide source format, file paths or collection, and normalization quality constraints.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Design Chunk Strategy
-    agent: Chunk Strategist
-    prompt: Design the chunking policy and metadata boundaries for the normalized artifacts described above.
-  - label: Write Embeddings
-    agent: Embedding Writer
-    prompt: Implement or review embedding generation and metadata writes for this ingestion output.
-  - label: Review RAG Flow
-    agent: RAG Lead
-    prompt: Review this ingestion change for retrieval quality, runtime boundaries, and contract alignment.
-
----
-
-# Doc Ingest Agent
-
-## Target Scope
-
-- `py_fn/**`
-- `modules/notebooklm/**`
-- `modules/notion/**` when normalized artifacts depend on canonical source/reference shape
-- `modules/platform/**` when ingestion constraints depend on shared `platform.ai` capability or entitlement policy
-
-## Rules
-
-- Keep conversion and normalization deterministic.
-- Preserve source attribution fields.
-- Align outputs with chunk and embedding contracts.
-- Flag notable format-loss risk when source conversion may affect downstream retrieval.
-- Treat `notion` as the canonical content source and `notebooklm` as the owner of ingestion / retrieval pipeline semantics.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-````
-
-## File: .github/agents/domain-architect.agent.md
-````markdown
----
-name: Domain Architect
-description: Hexagonal Architecture with Domain-Driven Design 領域架構審查 Agent，專注確保聚合根、限界上下文、通用語言與事件驅動設計符合邊界與依賴方向規範。
-argument-hint: 提供 bounded context 名稱、目標子域、要設計或審查的 domain model，以及已知業務不變數。
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Boundary Review 審查模組邊界
-    agent: Hexagonal DDD Architect
-    prompt: 審查或重構此領域決策涉及的模組邊界、層依賴方向與公開 API 形狀。
-  - label: Glossary Update 更新通用語言術語
-    agent: KB Architect
-    prompt: 將本次領域建模新增或變更的術語同步更新至 docs/ubiquitous-language.md 與對應 context 文件。
-  - label: Quality Review 品質審查
-    agent: Quality Lead
-    prompt: 審查此領域變更的行為風險、邊界回歸與遺漏驗證，確認符合 Hexagonal DDD 規範。
-
----
-
-# Domain Architect
-
-## 目標範圍 (Target Scope)
-
-- `modules/**/domain/**`
-- `modules/**/application/use-cases/**`
-- `modules/**/application/machines/**`
-- `docs/ubiquitous-language.md`
-- `docs/contexts/*/**`
-- `.github/instructions/docs-authority-and-language.instructions.md`
-- `.github/instructions/architecture-core.instructions.md`
-- `.github/instructions/domain-modeling.instructions.md`
-- `.github/instructions/event-driven-state.instructions.md`
-
-## 使命 (Mission)
-
-以 docs-first authority 審查與修正領域模型設計，確保聚合、限界上下文、通用語言與領域事件符合 Hexagonal Architecture with Domain-Driven Design 規則。
-
-## 必讀來源
-
-- `docs/README.md`
-- `docs/ubiquitous-language.md`
-- `docs/subdomains.md`
-- `docs/bounded-contexts.md`
-- `docs/contexts/<context>/*`
-- `.github/instructions/docs-authority-and-language.instructions.md`
-- `.github/instructions/architecture-core.instructions.md`
-- `.github/instructions/domain-modeling.instructions.md`
-- `.github/instructions/event-driven-state.instructions.md`
-
-## 審查清單
-
-- [ ] 命名是否已先對齊 `docs/ubiquitous-language.md` 與對應 context 文件？
-- [ ] 程式碼是否位於正確的 bounded context / subdomain？
-- [ ] 跨模組互動是否只透過 `api/` 邊界或領域事件？
-- [ ] 上下游關係、ACL 與依賴方向是否與 `docs/contexts/<context>/context-map.md` 一致？
-- [ ] 聚合根是否保護不變數、避免貧血模型，且狀態修改透過封裝方法進行？
-- [ ] 值對象是否保持不可變，必要時使用 Zod / brand 型別保護？
-- [ ] 領域事件是否使用過去式命名、穩定 discriminant、ISO 時間欄位，並在持久化成功後發布？
-- [ ] 外部系統模型是否透過 `infrastructure/` 或 ACL adapter 轉譯，而未污染 `domain/`？
-
-## 輸出格式
-
-1. **Hexagonal DDD 合規性評估**：通過 / 需修正
-2. **問題項目清單**：每項附檔案路徑與具體說明
-3. **修正建議**：附程式碼範例
-4. **驗證指令執行結果**：`npm run lint` 與 `npm run build` 結果
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-#use skill hexagonal-ddd
-````
-
-## File: .github/agents/domain-lead.agent.md
-````markdown
----
-name: Domain Lead
-description: Lead domain ownership decisions and enforce module boundaries, dependency direction, and API-only collaboration.
-argument-hint: Provide module scope, ownership question or file to place, and any known boundary risks.
+name: Domain Enforcer
+description: DDD 純度守門員：保護 domain layer 純淨性，檢查 business logic 外洩，驗證 aggregate / entity 設計正確性，強制 domain 不依賴任何外部框架。
+argument-hint: 提供需審查的 module / subdomain 路徑，或特定 domain 問題描述。
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 handoffs:
   - label: Refactor Module Boundary
     agent: Hexagonal DDD Architect
-    prompt: Refactor or review module boundaries, layer direction, and public API shape for this domain decision.
-  - label: Update Contracts
-    agent: TS Interface Writer
-    prompt: Update the DTO, interface, or API contract surface that follows from this domain decision.
+    prompt: 根據此次 domain 純度問題重構模組邊界、層依賴方向與公開 API 形狀。
+  - label: Update Ubiquitous Language
+    agent: KB Architect
+    prompt: 將此次 domain 建模新增或變更的術語同步更新至 docs/ubiquitous-language.md。
   - label: Run Quality Review
     agent: Quality Lead
-    prompt: Review this domain change for behavioral risk, boundary regressions, and missing validation.
+    prompt: 審查 domain 修正的行為風險、邊界回歸，確認符合 Hexagonal DDD 規範後才可合入。
 
 ---
 
-# Domain Lead
+# Domain Enforcer
 
-## Target Scope
+## 目標範圍 (Target Scope)
 
-- `modules/**`
-- `packages/shared-types/**`
-- `packages/api-contracts/**`
+- `src/modules/**/domain/**`
+- `src/modules/**/application/use-cases/**`
+- `src/modules/**/application/dto/**`
 
-## Responsibilities
+## 使命 (Mission)
 
-- Confirm owning bounded context before edits.
-- Place logic in the correct layer.
-- Prevent internal cross-module imports.
+以 zero-tolerance 原則保護 domain 層的純淨性：domain 只能包含業務規則，任何技術框架依賴都是違規，任何貧血模型都是設計缺陷。
 
-## Layer Placement Guide
+## 必讀來源
 
-- `domain`: business rules, entities, value objects, repository interfaces
-- `application`: use cases and DTO orchestration
-- `infrastructure`: external adapters and implementations
-- `interfaces`: UI, hooks, queries, contracts, server actions
-- `api`: only public cross-module boundary
+- `.github/instructions/domain-modeling.instructions.md`
+- `.github/instructions/domain-layer-rules.instructions.md`
+- `.github/instructions/event-driven-state.instructions.md`
+- `docs/ubiquitous-language.md`
+- `docs/contexts/<context>/README.md`
 
-## Validation
+## 禁止事項（Hard Violations）
 
-- Run lint for boundary and import changes.
-- Run build when public types or exports are touched.
+以下任一出現即為 CRITICAL 違規，必須立即修正：
+
+- `domain/` 匯入 Firebase / Firestore / Firebase Admin SDK
+- `domain/` 匯入 React / React hooks / Next.js
+- `domain/` 匯入 HTTP client（axios / fetch wrapper / tRPC）
+- `domain/` 匯入 ORM / database client
+- `domain/` 直接呼叫 `node:crypto`（必須用 `@lib-uuid`）
+- Aggregate 只有 getter/setter，無任何業務方法（貧血模型）
+- Use Case 內含業務 invariant 判斷（應移至 Aggregate）
+- Domain Event 使用現在式命名
+
+## 審查清單
+
+### Aggregate 設計
+- [ ] 使用私有 constructor + 靜態 `create()` / `reconstitute()`？
+- [ ] 業務不變數在 Aggregate method 內強制，違規時拋 `Error`？
+- [ ] 狀態修改透過封裝 method，不暴露可變屬性？
+- [ ] `_domainEvents` 私有陣列 + `pullDomainEvents()` + `getSnapshot()`？
+- [ ] 識別碼使用 `z.string().uuid().brand()` 品牌型別？
+
+### Value Object 設計
+- [ ] 不可變（Immutable）？
+- [ ] 無識別碼欄位？
+- [ ] 以值內容判斷相等性？
+
+### Domain Event 設計
+- [ ] 過去式命名（例如 `WorkspaceCreated`）？
+- [ ] discriminant 格式 `<module>.<action>`（例如 `workspace.created`）？
+- [ ] `occurredAt` 為 ISO string，不是 `Date` 物件？
+- [ ] 使用 Zod schema 嚴格定義 payload？
+
+### Repository / Port 介面
+- [ ] 只有介面定義，無實作細節？
+- [ ] 命名為 `PascalCaseRepository`（無 `I` 前綴）？
+
+## 輸出格式
+
+1. **Domain 純度評估**：通過 / 需修正
+2. **違規清單**：`[CRITICAL|HIGH]` + 檔案路徑 + 違規描述
+3. **修正後的程式碼**：提供完整修正實作
+4. **驗證結果**：`npm run lint` + `npm run build`
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+#use skill hexagonal-ddd
 ````
 
-## File: .github/agents/e2e-qa.agent.md
+## File: .github/agents/firebase-guardian.agent.md
 ````markdown
 ---
-name: E2E QA Agent
-description: Execute browser-level verification with Playwright MCP and report reproducible release-readiness evidence.
-argument-hint: Provide target URL or route, user flow, and acceptance criteria.
-tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'microsoft/playwright-mcp/*']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Summarize Quality Risk
-    agent: Quality Lead
-    prompt: Summarize the confirmed failures, residual risks, and release recommendation from this browser verification.
-  - label: Expand Test Coverage
-    agent: Test Scenario Writer
-    prompt: Turn the executed browser paths and gaps into explicit scenario coverage recommendations.
-  - label: Capture Support Follow-up
-    agent: Support Architect
-    prompt: Convert the confirmed failures and evidence into bounded support and follow-up actions.
-
----
-
-# E2E QA Agent
-
-## Target Scope
-
-- `app/**`
-- `modules/**/interfaces/**`
-- `debug/**`
-
-## Workflow
-
-1. Build scenarios from acceptance criteria and user paths.
-2. Execute browser interactions and capture runtime evidence.
-3. Separate confirmed failures from improvement suggestions.
-
-## Rules
-
-- Capture clear reproduction steps.
-- Separate confirmed failures from improvement ideas.
-- Report console and network evidence when relevant.
-
-## Output
-
-- Scenarios executed
-- Evidence collected
-- Confirmed failures
-- Release recommendation: ready | ready-with-risk | blocked
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-````
-
-## File: .github/agents/embedding-writer.agent.md
-````markdown
----
-name: Embedding Writer
-description: Implement embedding generation and vector-write workflows with deterministic metadata and quality checks.
-argument-hint: Provide chunk source, embedding model, storage target, and retrieval compatibility requirements.
+name: Firebase Guardian
+description: Firebase 使用安全層：防止 Firebase SDK 被錯誤層級引用，檢查 Firestore schema / Security Rules 思維正確性，驗證 Cloud Functions 不污染 domain。
+argument-hint: 提供需審查的 module 路徑、具體 Firebase 使用問題，或 Firestore security rules 片段。
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 handoffs:
-  - label: Review Chunk Inputs
-    agent: Chunk Strategist
-    prompt: Review the upstream chunking policy and metadata assumptions for this embedding workflow.
-  - label: Refine Flow Integration
-    agent: Genkit Flow Agent
-    prompt: Refine the orchestration contract that consumes or coordinates this embedding workflow.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this embedding change for deterministic metadata, compatibility, and regression risk.
-
----
-
-# Embedding Writer
-
-## Target Scope
-
-- `py_fn/**`
-- `modules/notebooklm/**`
-- `modules/notion/**` when vector metadata depends on canonical source/reference contracts
-- `modules/platform/**` when embedding provider, quota, or policy constraints come from shared `platform.ai`
-
-## Responsibilities
-
-- Define embedding payload shape.
-- Ensure consistent vector metadata.
-- Validate write path and retrieval compatibility.
-- Keep ownership aligned: `notebooklm` owns retrieval-facing semantics, while shared provider capability is consumed from `platform.ai`.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-````
-
-## File: .github/agents/firestore-schema.agent.md
-````markdown
----
-name: Firestore Schema Agent
-description: Design Firestore document models, indexes, and access patterns aligned with module ownership and query workloads.
-argument-hint: Provide collection name, document fields, query access patterns, and migration constraints.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Plan Migration
-    agent: Schema Migration Agent
-    prompt: Plan the compatibility window, rollout path, and rollback strategy for this schema change.
+  - label: Fix Firebase Adapter
+    agent: Hexagonal DDD Architect
+    prompt: 將被錯誤放置的 Firebase 程式碼移至正確的 infrastructure adapter 層，並確認 Port 介面定義完整。
   - label: Review Security Rules
     agent: Security Rules Agent
-    prompt: Review the security-rule implications of this Firestore schema and access-pattern change.
+    prompt: 審查此次發現的 Firestore / Storage security rules 問題，確保 tenant isolation 與 least-privilege 合規。
   - label: Run Quality Review
     agent: Quality Lead
-    prompt: Review this schema change for compatibility risk, query correctness, and missing validation.
+    prompt: 審查 Firebase 修正的邊界安全性與回歸風險。
 
 ---
 
-# Firestore Schema Agent
+# Firebase Guardian
 
-## Target Scope
+## 目標範圍 (Target Scope)
 
-- `modules/**/infrastructure/**`
-- `firestore.indexes.json`
+- `src/modules/**` — 掃描所有 Firebase import
 - `firestore.rules`
+- `storage.rules`
+- `firestore.indexes.json`
+- `py_fn/**/*.py` — Cloud Functions 邊界
 
-## Responsibilities
+## 使命 (Mission)
 
-- Model collections and documents for bounded contexts.
-- Keep schema and index plans aligned with read and write paths.
-- Track migration impact and backward compatibility.
+作為 Firebase 使用安全層，確保 Firebase SDK 只存在於 `infrastructure/` adapter 層。任何在 `domain/` 或 `application/` 直接引用 Firebase 都是架構違規，必須立即修正。
+
+## 必讀來源
+
+- `.github/instructions/architecture.instructions.md`（§2 Backend Architecture）
+- `.github/instructions/firestore-schema.instructions.md`
+- `.github/instructions/security-rules.instructions.md`
+- `.github/instructions/cloud-functions.instructions.md`
+
+## 核心防線（Hard Rules）
+
+1. **Firebase 只能在 `infrastructure/` adapter 層** — `domain/` 與 `application/` 嚴禁直接 import Firebase SDK
+2. **Firestore 必須透過 repository access** — 不允許在 use case 或 route 直接呼叫 `firestore.collection()`
+3. **Cloud Functions 不含 domain logic** — `py_fn/` 函式只負責 I/O 協調；業務規則在 Next.js domain layer
+4. **workspace 不直接呼叫 Firestore** — 必須透過 `platform/api` 的 FileAPI / PermissionAPI 等 Service API
+5. **Security Rules 必須含 tenant isolation** — `orgId` / `workspaceId` 必須在規則中強制隔離
+
+## 審查清單
+
+### Firebase Import 位置
+- [ ] `src/modules/**/domain/` 無任何 `firebase` import？
+- [ ] `src/modules/**/application/` 無任何 `firebase` import？
+- [ ] `src/app/` route files 無直接 Firestore / Storage import？
+- [ ] Firebase import 集中在 `src/modules/**/infrastructure/` 與 `src/modules/platform/`？
+
+### Firestore Schema
+- [ ] Collection 所有權歸屬 bounded context 明確？
+- [ ] Breaking schema change 有 migration 步驟？
+- [ ] 新 query pattern 有對應 index 更新？
+
+### Security Rules
+- [ ] Firestore rules 包含 `request.auth != null` 驗證？
+- [ ] 每個 collection 有 organization / workspace isolation 條件？
+- [ ] 無寬泛 wildcard allow（`allow read, write: if true`）？
+
+### Cloud Functions（py_fn）
+- [ ] `py_fn/` 函式不包含 browser-facing auth / session logic？
+- [ ] `py_fn/` 的 Firestore 寫入使用 Admin SDK（非 client SDK）？
+
+## 輸出格式
+
+1. **Firebase 使用安全評估**：通過 / 需修正
+2. **違規清單**：`[CRITICAL|HIGH|MEDIUM]` + 檔案路徑 + 違規描述
+3. **修正建議**：移動至正確層的步驟
+4. **Security Rules 建議**（如有）
+5. **驗證結果**：`npm run lint` + `npm run build`
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+#use skill hexagonal-ddd
+#use skill firebase-rules
 ````
 
-## File: .github/agents/frontend-lead.agent.md
+## File: .github/agents/genkit-orchestrator.agent.md
 ````markdown
 ---
-name: Frontend Lead
-description: Lead app route composition and component architecture while keeping business logic in modules and APIs.
-argument-hint: Provide route or feature scope, composition goal, and boundary constraints.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'shadcn/*']
+name: Genkit Orchestrator
+description: AI Flow 控制器（Genkit 專屬）：管理 AI flow 設計、tool calling / prompt pipeline，驗證 AI output 安全性，控制 AI 與 domain interaction 邊界。
+argument-hint: 提供 AI flow 名稱、業務目標、inputs/outputs、目標 runtime（Next.js / py_fn），以及是否涉及 retrieval / grounding。
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'todo']
 model: 'GPT-5.3-Codex'
 handoffs:
-  - label: Diagnose Route Behavior
-    agent: App Router Agent
-    prompt: Diagnose the App Router composition, rendering behavior, and runtime boundary impact for this frontend scope.
-  - label: Compose UI Primitives
-    agent: Shadcn Composer
-    prompt: Compose or refactor the UI primitives and interaction states needed for this route-level frontend change.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this frontend change for UX regressions, ownership boundaries, and missing validation.
-
----
-
-# Frontend Lead
-
-## Target Scope
-
-- `app/**`
-- `modules/**/interfaces/**`
-- `packages/ui-*/**`
-
-## Mission
-
-Deliver route-level UI slices with clear ownership and predictable data flow.
-
-## Guardrails
-
-- Keep app routes thin and composition-focused.
-- Consume module behavior via module api only.
-- Prefer server components unless client interactivity is required.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-````
-
-## File: .github/agents/genkit-flow.agent.md
-````markdown
----
-name: Genkit Flow Agent
-description: Design and refine Genkit flow definitions, boundaries, and contract-safe integration with retrieval and worker pipelines.
-argument-hint: Provide flow name, runtime target (Next.js/py_fn), inputs/outputs, and orchestration concern.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Review AI Ownership
-    agent: AI Genkit Lead
-    prompt: Review the Genkit orchestration ownership, runtime split, and app-side integration for this flow.
-  - label: Review RAG Contract
+  - label: Refine Flow Contract
+    agent: Genkit Flow Agent
+    prompt: 根據此次 AI flow 設計細化 flow 合約、tool orchestration 邊界與 fallback 行為。
+  - label: Review RAG Boundary
     agent: RAG Lead
-    prompt: Review this Genkit flow against retrieval contracts, worker boundaries, and indexing expectations.
+    prompt: 審查此 AI flow 對 retrieval / worker 邊界的影響，確認 ingestion 與 grounding 合約安全。
   - label: Run Quality Review
     agent: Quality Lead
-    prompt: Review this Genkit flow change for fallback behavior, contract safety, and validation gaps.
+    prompt: 對此 Genkit flow 變更進行最終品質把關，確認 fallback 安全、contract 穩定、驗證覆蓋完整。
 
 ---
 
-# Genkit Flow Agent
+# Genkit Orchestrator
 
-## Target Scope
+## 目標範圍 (Target Scope)
 
-- `app/**`
-- `modules/platform/**`
-- `modules/notebooklm/**`
-- `modules/notion/**` when content-side orchestration consumes shared AI capability
+- `src/modules/platform/subdomains/ai/**`
+- `src/modules/notebooklm/**` — reasoning / synthesis / retrieval flows
+- `src/app/**` — Next.js 端 AI orchestration
+- `py_fn/**` — worker-side ingestion / embedding pipeline
 
-## Focus
+## 使命 (Mission)
 
-- Flow inputs and outputs
-- Prompt and tool orchestration boundaries
-- Error handling and fallback behavior
-- Separation between shared `platform.ai` governance and `notebooklm` reasoning / retrieval semantics
+管理並守護全系統的 Genkit AI Flow 設計，確保 AI 作為「外部不可信任 actor」正確接入，AI output 必須通過 Zod 驗證閘道後才能影響 domain state，AI 不得直接寫入資料庫或 bypass 任何驗證邊界。
 
-## Guardrails
+## 必讀來源
 
-- Keep flow contracts explicit.
-- Avoid leaking worker-only logic into app orchestration.
-- Keep generic AI ownership in `platform.ai`; downstream contexts consume capability rather than redefining ownership.
+- `.github/instructions/genkit-flow.instructions.md`
+- `.github/instructions/rag-architecture.instructions.md`
+- `.github/instructions/embedding-pipeline.instructions.md`
+- `.github/instructions/architecture-runtime.instructions.md`
+
+## 禁止事項（Hard Rules）
+
+- ❌ AI flow 直接寫入 Firestore（必須透過 domain use case）
+- ❌ AI output 未經 Zod 驗證就進入 system
+- ❌ AI flow 直接修改 domain state（必須透過 application layer）
+- ❌ `notion` 或 `notebooklm` 自行定義 `ai` subdomain（AI capability 屬 `platform.ai`，下游只消費）
+- ❌ 重 AI 計算邏輯放在 Next.js（應移至 `py_fn/` worker）
+- ❌ Genkit flow 繞過 `platform.ai` 的 quota / safety policy
+
+## AI Flow 設計審查清單
+
+### Flow Contract
+- [ ] Flow input / output 型別明確？（使用 Zod schema 定義）
+- [ ] Failure modes 與 fallback behavior 已定義？
+- [ ] Flow 不修改 domain state，只回傳 output？
+
+### Runtime Boundary
+- [ ] User-facing orchestration（chat / routing）在 Next.js？
+- [ ] Heavy computation（parsing / chunking / embedding）在 `py_fn/`？
+- [ ] Cross-runtime handoff 有明確 QStash / event contract？
+
+### AI Output Validation Gate
+- [ ] AI output 通過 Zod 驗證後才進入 use case？
+- [ ] Validation 失敗時有 graceful fallback（不 crash domain）？
+
+### Platform.AI 消費路徑
+- [ ] `notion` / `notebooklm` 消費 `platform.ai` 的 AIAPI？
+- [ ] 無 notion / notebooklm 直接呼叫 Genkit SDK？
+
+### Tool Definitions
+- [ ] Tool 職責單一，無跨業務邊界的 god tool？
+- [ ] Tool 名稱使用業務語言，非技術名稱？
+
+## 輸出格式
+
+1. **AI Flow 安全性評估**：通過 / 需修正
+2. **違規清單**：`[CRITICAL|HIGH|MEDIUM]` + 描述 + 修正建議
+3. **Flow 設計建議**（如需新建）：含 input/output contract、tool list、fallback 路徑
+4. **驗證結果**：`npm run lint` + `npm run build`
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill genkit-ai
+#use skill xuanwu-rag-runtime-boundary
+#use skill next-devtools-mcp
 ````
 
 ## File: .github/agents/hexagonal-convergence-enforcer.agent.md
@@ -28192,62 +26928,6 @@ Tags: #use skill context7 #use skill shadcn #use skill next-devtools-mcp
 #use skill repomix
 ````
 
-## File: .github/agents/hexagonal-ddd-architect.agent.md
-````markdown
----
-name: Hexagonal DDD Architect
-description: Design and refactor modules with Hexagonal Architecture with Domain-Driven Design ownership, layer direction, and API-only cross-module boundaries.
-argument-hint: Provide module name, operation type (create/refactor/split/merge), and migration constraints.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'repomix/*']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Confirm Domain Ownership
-    agent: Domain Lead
-    prompt: Confirm the owning bounded context and the required public API boundary for this module refactor.
-  - label: Update Contracts
-    agent: TS Interface Writer
-    prompt: Update or review the public DTO and contract surface affected by this module refactor.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this module refactor for boundary regressions, compatibility risk, and missing validation.
-
----
-
-# Hexagonal DDD Architect
-
-## Target Scope
-
-- `modules/**`
-- `packages/shared-types/**`
-- `packages/api-contracts/**`
-
-## Mission
-
-Shape module structures without breaking bounded contexts.
-
-## Rules
-
-- Keep dependency direction: interfaces -> application -> domain <- infrastructure.
-- Cross-module access must go through modules target api only.
-- Keep domain framework-free.
-- Run lint and build when boundaries or exports move.
-
-## Module Lifecycle Operations
-
-- Support create/refactor/split/merge/delete with explicit ownership mapping.
-- Preserve public API compatibility or document migration steps in the same change.
-- Replace internal cross-module imports with API contracts or event-driven collaboration.
-
-## Output
-
-- Ownership decision
-- Boundary impact
-- Files changed
-- Validation evidence
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-````
-
 ## File: .github/agents/kb-architect.agent.md
 ````markdown
 ---
@@ -28297,49 +26977,6 @@ handoffs:
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 ````
 
-## File: .github/agents/lint-rule-enforcer.agent.md
-````markdown
----
-name: Lint Rule Enforcer
-description: Enforce lint and boundary rules, identify violation causes, and propose minimal fixes without broad refactors.
-argument-hint: Provide violation source (file path or npm run lint output), root cause hypothesis, and scope boundary.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Check Domain Boundary
-    agent: Domain Lead
-    prompt: Confirm whether this lint or boundary issue indicates a domain ownership or layer-placement problem.
-  - label: Review Frontend Impact
-    agent: Frontend Lead
-    prompt: Review the frontend or route-composition impact of the lint and boundary issues identified above.
-  - label: Summarize Quality Risk
-    agent: Quality Lead
-    prompt: Summarize the confirmed issues, fix status, and residual release risk after lint enforcement.
-
----
-
-# Lint Rule Enforcer
-
-## Target Scope
-
-- `app/**`
-- `modules/**`
-- `packages/**`
-- `providers/**`
-- `py_fn/**`
-
-## Mission
-
-Keep rule compliance high while minimizing churn.
-
-## Guardrails
-
-- Fix root causes, not symptoms.
-- Preserve existing architecture boundaries.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-````
-
 ## File: .github/agents/prompt-engineer.agent.md
 ````markdown
 ---
@@ -28383,573 +27020,48 @@ handoffs:
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 ````
 
-## File: .github/agents/quality-lead.agent.md
+## File: .github/agents/shadcn-composer.agent.md
 ````markdown
 ---
-name: Quality Lead
-description: Drive risk-first review and QA evidence, including regression detection, coverage gaps, and release recommendation.
-argument-hint: Provide changed files or PR diff, risk areas, and release criteria.
-tools: ['serena/*', 'context7/*', 'read', 'search', 'execute', 'todo']
+name: Shadcn Composer
+description: Compose and refactor UI components using shadcn patterns while preserving route and module ownership boundaries.
+argument-hint: Describe component goal, target route, and required interaction states.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'shadcn/*']
 model: 'GPT-5.3-Codex'
 handoffs:
-  - label: Enforce Lint Rules
-    agent: Lint Rule Enforcer
-    prompt: Enforce the relevant lint and boundary rules and report the root causes for any remaining violations.
-  - label: Verify Browser Flows
+  - label: Review Frontend Ownership
+    agent: Frontend Lead
+    prompt: Review the route ownership, composition boundary, and data-flow assumptions behind this UI work.
+  - label: Refine Parallel Routes
+    agent: Parallel Routes Agent
+    prompt: Refine the slot composition, state isolation, and route-level integration for this UI work.
+  - label: Verify End-to-End
     agent: E2E QA Agent
-    prompt: Execute the highest-risk browser scenarios and collect runtime evidence for this change.
-  - label: Expand Test Scenarios
-    agent: Test Scenario Writer
-    prompt: Turn the residual risks and gaps into explicit unit, integration, or E2E scenario coverage.
+    prompt: Verify the interaction states and browser behavior for this UI change.
 
 ---
 
-# Quality Lead
+# Shadcn Composer
 
 ## Target Scope
 
-- `app/**`
-- `modules/**`
-- `packages/**`
-- `providers/**`
-- `py_fn/**`
-
-## Mission
-
-Verify correctness, boundary safety, and release readiness.
-
-## Review Lenses
-
-1. Correctness and behavioral regression risk
-2. Ownership and boundary integrity
-3. Validation completeness
-4. Documentation completeness for changed behavior
+- `src/app/**`
+- `src/modules/**/interfaces/components/**`
+- `packages/ui-shadcn/**`
 
 ## Workflow
 
-1. Build scenario list from requirements and change scope.
-2. Execute happy path, boundary, negative, and error scenarios.
-3. Report findings by severity before summaries.
+1. Confirm route ownership and API data shape before composing UI.
+2. Reuse existing primitives and tokens first.
+3. Validate interaction states and accessibility basics.
 
-## Output
+## Rules
 
-- Findings ordered by severity
-- Evidence and reproduction details
-- Residual risks and recommendation: ready, ready-with-risk, blocked
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-````
-
-## File: .github/agents/rag-lead.agent.md
-````markdown
----
-name: RAG Lead
-description: Lead RAG ingest and retrieval contracts, runtime boundaries, and quality gates for chunk and vector pipelines.
-argument-hint: Provide document sources, retrieval goal, runtime context (Next.js/py_fn), and quality constraints.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Normalize Ingestion
-    agent: Doc Ingest Agent
-    prompt: Normalize the ingestion inputs, attribution fields, and source-conversion flow for this RAG scope.
-  - label: Design Chunk Strategy
-    agent: Chunk Strategist
-    prompt: Design the chunking policy, overlap, and metadata boundaries for this RAG scope.
-  - label: Write Embeddings
-    agent: Embedding Writer
-    prompt: Implement or review the embedding payload, metadata writes, and compatibility guarantees for this RAG scope.
-
----
-
-# RAG Lead
-
-## Target Scope
-
-- `py_fn/**`
-- `modules/notebooklm/**`
-- `modules/notion/**` when canonical source contracts or source references change
-- `modules/platform/**` when shared `platform.ai` capability, entitlement, or policy constraints affect retrieval flows
-
-## Focus
-
-- Ingestion contract alignment
-- Retrieval quality and index consistency
-- Runtime split between app orchestration and worker processing
-- Ownership alignment: `notebooklm` owns ingestion / retrieval / grounding / evaluation semantics, `notion` provides canonical sources, and shared model/provider capability is consumed from `platform.ai`
-
-## Guardrails
-
-- Validate contract alignment before changing ingestion shape.
-- Keep Next.js orchestration and `py_fn` ingestion responsibilities separated.
-- Do not reintroduce generic `ai` or `retrieval` ownership into `notion`; keep retrieval semantics in `notebooklm` and consume shared AI capability from `platform.ai`.
+- Reuse existing component primitives before adding new ones.
+- Keep styling and behavior consistent with app composition boundaries.
+- Validate interactive states and accessibility basics.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-````
-
-## File: .github/agents/schema-migration.agent.md
-````markdown
----
-name: Schema Migration Agent
-description: Plan and implement schema evolution with compatibility windows, data backfill steps, and rollback considerations.
-argument-hint: Provide source schema, target schema, rollout timeline, and rollback constraints.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Review Firestore Model
-    agent: Firestore Schema Agent
-    prompt: Review the source and target schema shape, query impact, and index needs for this migration plan.
-  - label: Review Security Rules
-    agent: Security Rules Agent
-    prompt: Review the security-rule impact and access-policy compatibility for this migration plan.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this migration plan for rollout risk, rollback gaps, and validation completeness.
-
----
-
-# Schema Migration Agent
-
-## Target Scope
-
-- `modules/**/infrastructure/**`
-- `firestore.indexes.json`
-- `firestore.rules`
-
-## Workflow
-
-1. Define source and target schema.
-2. Plan compatibility and cutover phases.
-3. Validate reads and writes before and after migration.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-````
-
-## File: .github/agents/security-rules.agent.md
-````markdown
----
-name: Security Rules Agent
-description: Author and review Firestore and Storage security rules with least-privilege, tenancy isolation, and testable access policies.
-argument-hint: Provide actor roles, access scenarios, constrained collections/paths, and tenancy isolation requirements.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Review Firestore Schema
-    agent: Firestore Schema Agent
-    prompt: Review the data model and access paths that this security-rules change must protect.
-  - label: Verify Browser Impact
-    agent: E2E QA Agent
-    prompt: Verify the product flows affected by this rules change and capture evidence for any access regressions.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this security-rules change for least-privilege coverage, regression risk, and validation gaps.
-
----
-
-# Security Rules Agent
-
-## Target Scope
-
-- `firestore.rules`
-- `storage.rules`
-- `modules/**/infrastructure/**`
-
-## Mission
-
-Prevent unauthorized access while preserving required product flows.
-
-## Guardrails
-
-- Enforce organization and workspace isolation.
-- Prefer explicit allow conditions with clear actor checks.
-- Pair rule changes with validation scenarios.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-````
-
-## File: .github/agents/server-action-writer.agent.md
-````markdown
----
-name: Server Action Writer
-description: Write Next.js server actions that validate input, delegate to use cases, and return stable command results.
-argument-hint: Provide action intent, input shape, target use case, and validation requirements.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Update Contracts
-    agent: TS Interface Writer
-    prompt: Update or review the DTO and command-result contracts used by this server action.
-  - label: Review Domain Boundary
-    agent: Domain Lead
-    prompt: Confirm the use-case boundary, layer placement, and API ownership for this server action.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this server action change for validation gaps, orchestration drift, and regression risk.
-
----
-
-# Server Action Writer
-
-## Target Scope
-
-- `app/**`
-- `modules/**/interfaces/**`
-- `modules/**/application/**`
-
-## Guardrails
-
-- Keep actions thin and orchestration-only.
-- Place business rules in module use cases.
-- Preserve consistent command-result response shape.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-````
-
-## File: .github/agents/state-management.agent.md
-````markdown
----
-name: State Management Agent
-description: Design and implement Zustand stores and XState machines with correct placement, slice patterns, and finite-state workflow contracts.
-argument-hint: Provide workflow name or store scope, owning module, state transitions, and whether XState or Zustand is appropriate.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Wire to Server Action
-    agent: Server Action Writer
-    prompt: Wire the state machine or store to the corresponding server action and return stable command results.
-  - label: Confirm Domain Boundary
-    agent: Domain Lead
-    prompt: Confirm that the state transition logic stays in XState machines and does not leak business rules into the store or component.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this state management change for store isolation, machine correctness, and regression risk.
-
----
-
-# State Management Agent
-
-## Target Scope
-
-- `modules/**/interfaces/stores/**`
-- `modules/**/application/machines/**`
-- `app/(shell)/stores/**`
-- `app/**` (client components using Zustand / XState hooks)
-
-## Responsibilities
-
-- Decide between Zustand and XState based on responsibility
-- Design Zustand store slice patterns with correct naming and placement
-- Design XState machines for finite-state workflows aligned to use-case transitions
-- Enforce separation of server state (TanStack Query), client UI state (Zustand), and workflow state (XState)
-
-## Decision Rule
-
-| Is it... | Use |
-|---|---|
-| Cross-component UI preference or toggle? | **Zustand** (`interfaces/stores/`) |
-| Multi-step workflow with defined state transitions? | **XState** (`application/machines/`) |
-| Server data (async fetch result)? | **TanStack Query** — never store in Zustand |
-| Domain aggregate state? | **Firestore via use case** — never cache in frontend store |
-
-## Guardrails
-
-- Zustand stores must not hold server-fetched data or domain aggregates.
-- XState machines must not import Firebase SDK or call repositories directly.
-- Machine definitions belong in `application/machines/`, never inline in components.
-- Business rules stay in `domain/`; machines orchestrate transitions only.
-- Store naming: `use<Name>Store`, file: `<name>.store.ts`.
-- Machine naming: `<noun>-<flow>.machine.ts`.
-
-## Skills Required
-
-`#use skill zustand-xstate`
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-#use skill zustand-xstate
-````
-
-## File: .github/agents/test-scenario-writer.agent.md
-````markdown
----
-name: Test Scenario Writer
-description: Write risk-based scenario suites for unit, integration, and E2E coverage with clear acceptance criteria.
-argument-hint: Provide module or feature scope, happy path, known risk areas, and test coverage targets.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Review Quality Risk
-    agent: Quality Lead
-    prompt: Review these scenarios against the highest-risk behaviors, missing coverage, and release concerns.
-  - label: Verify Browser Flows
-    agent: E2E QA Agent
-    prompt: Execute the E2E scenarios from this suite in the browser and collect runtime evidence.
-  - label: Check Lint And Rules
-    agent: Lint Rule Enforcer
-    prompt: Check whether any structural or lint rule changes are needed to support the scenarios described above.
-
----
-
-# Test Scenario Writer
-
-## Target Scope
-
-- `app/**`
-- `modules/**`
-- `py_fn/tests/**`
-
-## Scope
-
-- Happy path
-- Boundary and negative paths
-- Error handling and regression-sensitive paths
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-````
-
-## File: .github/agents/ts-interface-writer.agent.md
-````markdown
----
-name: TS Interface Writer
-description: Write and refactor TypeScript interfaces, DTOs, and contracts with stable naming and compatibility-aware changes.
-argument-hint: Provide interface or DTO name, owning module, field changes, and consumer compatibility requirements.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Review Domain Ownership
-    agent: Domain Lead
-    prompt: Confirm the owning bounded context and public API boundary for these contract changes.
-  - label: Write Server Action
-    agent: Server Action Writer
-    prompt: Update the server action orchestration that consumes or returns these contract changes.
-  - label: Review Firestore Shape
-    agent: Firestore Schema Agent
-    prompt: Review the persistence and index implications of these contract changes.
-
----
-
-# TS Interface Writer
-
-## Target Scope
-
-- `modules/**/api/**`
-- `modules/**/application/dto/**`
-- `packages/shared-types/**`
-
-## Focus
-
-- Domain and application DTO contracts
-- Backward-safe type evolution
-- Explicit optional and required field transitions
-
-## Guardrails
-
-- Keep module interface and API contracts explicit and minimal.
-- Do not leak private infrastructure/entity internals into public API contracts.
-- Coordinate contract changes with consumer updates in the same change.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-````
-
-## File: .github/agents/zod-validator.agent.md
-````markdown
----
-name: Zod Validator Agent
-description: Enforce Zod validation at all three system boundaries — external input, domain value objects, and infrastructure output — without leaking validation responsibility across layers.
-argument-hint: Provide validation target (Server Action/value object/Firestore adapter), owning module, and schema requirements.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Fix Domain Model
-    agent: Domain Lead
-    prompt: Update or review domain value object and aggregate schema definitions to align with the corrected Zod validation boundary.
-  - label: Fix Infrastructure Adapter
-    agent: Hexagonal DDD Architect
-    prompt: Add or correct Zod validation in the infrastructure adapter for external system output before it reaches the application layer.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this validation change for missing boundary checks, schema drift, and regression risk.
-
----
-
-# Zod Validator Agent
-
-## Target Scope
-
-- `modules/**/interfaces/**` (Server Actions, route handlers — Level 1 boundary)
-- `modules/**/domain/value-objects/**` (brand types — Level 2)
-- `modules/**/domain/events/**` (event payload schemas — Level 2)
-- `modules/**/infrastructure/**` (Firestore/AI output validation — Level 3)
-
-## Three Validation Levels
-
-| Level | Location | Purpose |
-|---|---|---|
-| 1 — External Input | `interfaces/` Server Action / route | Parse and reject invalid input before use case |
-| 2 — Domain Types | `domain/value-objects/`, `domain/events/` | Brand types and event payload schemas |
-| 3 — External Output | `infrastructure/` adapters | Validate Firestore reads and AI responses |
-
-## Hard Rules
-
-- Every Server Action must call `ZodSchema.parse(rawInput)` before delegating to a use case.
-- `domain/` may only use Zod for schema and brand-type definitions — no I/O, no framework calls.
-- Every Firestore document read must pass through a Zod schema before being mapped to a domain entity.
-- Every AI flow output must be validated before entering a use case.
-- Never use `as SomeType` to cast external data without validation.
-
-## Guardrails
-
-- Zod schemas must NOT contain business logic — that belongs in domain aggregates.
-- Do not duplicate the same schema in both `domain/` and `application/` — pick one canonical location.
-- `z.object().passthrough()` is forbidden for production data paths (use strict schemas).
-- `z.any()` and `z.unknown()` without subsequent `.parse()` are validation gaps.
-
-## Skills Required
-
-`#use skill zod-validation`
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-#use skill zod-validation
-#use skill hexagonal-ddd
-````
-
-## File: .github/instructions/architecture-core.instructions.md
-````markdown
----
-description: 'Consolidated Hexagonal DDD architecture rules: layer ownership, API-only boundaries, module shape, and bounded-context dependency direction.'
-applyTo: 'src/modules/**/*.{ts,tsx,js,jsx,md}'
----
-
-# Architecture Core
-
-## Core Boundary Rules
-
-- Determine owning bounded context and subdomain from `docs/**/*` before choosing file placement.
-- Cross-module collaboration must go through `src/modules/<target>/api` or explicit events.
-- Cross-module route components must be props-scoped (`accountId`, `workspaceId`, optional `currentUserId`) from the composition owner; do not consume another module's context provider directly.
-- Do not import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- Replace any boundary bypass in the same change with API contracts or events.
-
-## Layer Direction
-
-- Dependency direction is fixed: `interfaces -> application -> domain <- infrastructure`.
-- Keep `domain/` framework-free and runtime-agnostic.
-- `infrastructure/` and `interfaces/` are outer layers; do not place them inside generic `core/`.
-
-## Layer Ownership
-
-- `domain/`: business rules, invariants, aggregates, entities, value objects, domain events, repository/port interfaces.
-- `application/`: use-case orchestration, transaction boundaries, command/query contracts, application services.
-- `infrastructure/`: repository and adapter implementations only.
-- `interfaces/`: input/output translation, route/action/UI wiring.
-- `api/`: only cross-module entry surface with stable semantic capability contracts.
-- `api/` must not expose repository factories, container wiring, or other internal composition helpers as public contracts.
-- Internal composition helpers belong under module-local `interfaces/` or `infrastructure/` paths unless a real cross-module semantic boundary requires promotion.
-
-## Use Case Decision Rules
-
-- Use a use case only for business behavior.
-- Pure reads without business logic go to query handlers.
-- Keep UI state and interaction logic in `interfaces/`.
-- Use cases orchestrate flow; complex business rules stay in `domain/`.
-- `GetXxxUseCase` is usually a query smell.
-
-## Development Order
-
-- Use-case contract first: actor, goal, main success scenario, failure branches.
-- Recommended order: `Use Case -> Domain -> (Application <-> Ports iterate as needed) -> Infrastructure -> Interface`.
-- Do not build UI first and backfill domain later.
-- Do not call repositories directly from `interfaces/`.
-- Do not force domain design from storage schema first.
-
-## Module Shape and Naming
-
-- Bounded-context root required shape: `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`, `index.ts`.
-- Subdomain default shape follows core-first (`api/`, `domain/`, `application/`, optional `ports/`); subdomain `infrastructure/` and `interfaces/` are gate-based, not always required.
-- Public boundary is `api/`; `index.ts` is aggregate export only.
-- Use case file: `verb-noun.use-case.ts`.
-- Repository interface: `PascalCaseRepository`.
-- Repository implementation: `TechnologyPascalCaseRepository`.
-- Domain event discriminant: `module-name.action`.
-
-## Refactor and Lifecycle Rules
-
-1. Confirm ownership first.
-2. Map API consumers.
-3. Create or update the target use-case contract before adapter/UI edits.
-4. Preserve boundaries during split/merge/delete.
-5. Update docs and imports in the same change.
-6. Migrate public API and event contracts before removing old paths.
-
-## Zod — System-Level Validation Layer
-
-Zod is the system's runtime validation baseline. It is applied at three distinct levels with different purposes:
-
-### Level 1 — External Input Boundary (interfaces / Server Action)
-
-All external input (Server Action args, tRPC input, API route body) must pass through a Zod schema **before** reaching the application layer. If parsing fails, return a structured error immediately — do not let unparsed data propagate.
-
-```typescript
-// ✅ Correct: parse at Server Action boundary
-const CreateWorkspaceInputSchema = z.object({
-  name: z.string().min(1).max(100).trim(),
-  organizationId: z.string().uuid(),
-});
-
-export async function createWorkspaceAction(rawInput: unknown) {
-  const input = CreateWorkspaceInputSchema.parse(rawInput);  // throws ZodError if invalid
-  return createWorkspaceUseCase.execute(input);
-}
-```
-
-### Level 2 — Domain Value Objects (domain layer)
-
-Value objects in `domain/` use Zod brand types to enforce type safety at compile time and runtime. This is the only place Zod is permitted inside `domain/`.
-
-```typescript
-// ✅ Correct: brand type in domain
-export const WorkspaceIdSchema = z.string().uuid().brand('WorkspaceId');
-export type WorkspaceId = z.infer<typeof WorkspaceIdSchema>;
-```
-
-`domain/` must not import Zod for anything other than schema definitions and brand types. No I/O, no HTTP, no Firebase.
-
-### Level 3 — External System Output (infrastructure / AI adapters)
-
-Any data arriving from external systems (Firestore reads, AI flow outputs, third-party APIs) must be validated with a Zod schema in the infrastructure/adapter layer before the typed result is returned to the application layer.
-
-```typescript
-// ✅ Correct: validate Firestore result before returning to use case
-const raw = (await docRef.get()).data();
-return FirestoreWorkspaceSchema.parse(raw);  // throws if schema drifted
-
-// ❌ Wrong: cast without validation
-return raw as WorkspaceSnapshot;
-```
-
-### Zod Placement Rules
-
-| Where | Use Zod for |
-|---|---|
-| `interfaces/` (Server Action, route) | External input parsing before use-case call |
-| `domain/value-objects/` | Brand type definitions only |
-| `domain/events/` | Domain event payload schemas |
-| `infrastructure/` adapters | External system output validation |
-| `application/` DTOs | Command/query input schemas (optional, defer to boundary) |
-
-### Anti-Patterns
-
-- ❌ Passing `rawInput: unknown` into a use case without Zod parsing at the boundary
-- ❌ Using `as SomeType` to cast Firestore or AI output without validation
-- ❌ Importing Zod in `domain/` for anything other than schema and brand-type definitions
-- ❌ Duplicating the same schema in both `domain/` and `application/` — keep it in one place
-
-## Validation
-
-- Use `eslint.config.mjs` restricted-import and boundary rules as enforcement source.
-- Re-check changed imports under `@/modules/` for API-only access.
-- Keep dependency flow acyclic unless an explicit event contract documents an exception.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-#use skill hexagonal-ddd
 ````
 
 ## File: .github/instructions/architecture-runtime.instructions.md
@@ -28994,221 +27106,6 @@ applyTo: '{src/app,src/modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,j
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd
 #use skill next-devtools-mcp
-````
-
-## File: .github/instructions/architecture.instructions.md
-````markdown
----
-description: >
-  Consolidated architecture standard: Hexagonal Architecture + DDD + Firebase + Genkit + Frontend State + Validation.
-  Incorporates layer ownership, API-only boundaries, module shape, runtime split, Bounded Context rules, and subdomain design constraints.
-applyTo: "**"
----
-
-# Architecture Standard
-
-System is designed under a combined architecture model:
-
-Hexagonal Architecture (Ports and Adapters) + Domain-Driven Design (DDD)
-with semantic-first (business-language-aligned domain modeling)
-and Firebase Serverless Backend Architecture (Authentication, Firestore, Cloud Functions, Hosting)
-and Genkit AI Orchestration Layer (AI Flows, Tool Calling, Prompt Pipelines)
-and Frontend State Management Layer (Zustand for client state, XState for finite-state workflows)
-and Schema Validation Layer (Zod for runtime type safety and domain validation)
-
-> **Detailed file-scoped rules** are in `.github/instructions/` siblings (e.g. `domain-modeling`, `firestore-schema`, `nextjs-app-router`).
-> This file is the **global system contract** that applies to every file in the repo.
-
----
-
-# 1. Hexagonal Architecture (Ports and Adapters)
-
-## 1.1 Dependency Direction (Fixed, Non-Negotiable)
-
-```
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `domain/` must be framework-free and runtime-agnostic.
-- `application/` depends only on `domain/` abstractions — never on infrastructure implementations.
-- `infrastructure/` implements ports defined in `domain/`; it never depends on UI.
-- `interfaces/` and `infrastructure/` are outer layers; do not nest them inside a generic `core/`.
-
-Strict rule: `domain/` must never import Firebase, Genkit, React, Node.js `crypto`, HTTP clients, or ORMs.
-Use `@lib-uuid` for UUID generation in domain layers.
-
-## 1.2 Port Design
-
-- Ports are **requirement-driven**, not technology-driven (e.g. `UserRepository`, not `FirestoreUserClient`).
-- Port interfaces are defined in `domain/`; implementations live in `infrastructure/`.
-- Every port must be mockable, swappable, and independently testable.
-
-## 1.3 Adapter Rules
-
-- Adapters implement ports only; they never contain business rules.
-- All external SDKs (Firebase, Genkit, HTTP) exist only inside adapter implementations.
-- Adapters translate I/O; they do not make business decisions.
-
----
-
-# 2. Domain-Driven Design (DDD)
-
-## 2.1 Layer Ownership
-
-| Layer | Owns |
-|---|---|
-| `domain/` | Business rules, invariants, aggregates, entities, value objects, domain events, repository/port interfaces |
-| `application/` | Use-case orchestration, transaction boundaries, command/query contracts |
-| `infrastructure/` | Repository and adapter implementations only |
-| `interfaces/` | Input/output translation, route/action/UI wiring |
-| `api/` | Cross-module entry surface only — stable semantic capability contracts |
-
-`api/` must NOT expose repository factories, container wiring, or internal composition helpers as public contracts.
-Internal composition helpers belong under module-local `interfaces/` or `infrastructure/` paths.
-
-## 2.2 Bounded Context Rules
-
-- Bounded Context is a **semantic consistency boundary**, not just a folder.
-- Every Bounded Context has its own Ubiquitous Language — do not mix models across contexts.
-- Cross-context model translation must be explicit (Translator / ACL Mapper).
-- Domain models must not be reused across contexts; use Published Language tokens instead.
-- Bounded Context names must align with `src/modules/<context>/` folder names.
-
-## 2.3 Subdomain Rules
-
-- Subdomains represent **business capability boundaries** — split by business concern, not technical function.
-- Default subdomain shape is **core-first**: `api/`, `domain/`, `application/`, optional `ports/`.
-- Subdomain `infrastructure/` and `interfaces/` are gate-based: only add them when there is clear, sustained external integration pressure that the bounded context root cannot absorb.
-- One subdomain = one business capability. Never mix responsibilities.
-- Subdomains communicate only through the parent module's `api/` boundary or domain events.
-
-## 2.4 Main Domain Relationships (Upstream → Downstream)
-
-```
-platform → workspace → notion → notebooklm
-platform → notion
-platform → notebooklm
-workspace → notebooklm
-```
-
-`platform` is governance upstream. Never invert this direction.
-
-## 2.5 Use Case Decision Rules
-
-- Use a use case only for **business behavior** (orchestration + invariant flow).
-- Pure reads without business logic go to query handlers — `GetXxxUseCase` is a query smell.
-- Complex business rules stay in `domain/`; use cases orchestrate flow only.
-- Do not call repositories directly from `interfaces/`.
-
-## 2.6 Development Order
-
-1. Use-case contract first (actor, goal, main success scenario, failure branches).
-2. `Use Case → Domain → (Application ↔ Ports, iterate) → Infrastructure → Interface`.
-3. Do not build UI first and backfill domain later.
-4. Do not force domain design from storage schema first.
-
----
-
-# 3. Module Shape and Naming
-
-## 3.1 Required Shape (Bounded Context Root)
-
-```
-src/modules/<context>/
-  api/            ← cross-module entry surface only
-  domain/
-  application/
-  infrastructure/
-  interfaces/
-  README.md
-  index.ts        ← aggregate export only
-```
-
-## 3.2 Naming Conventions
-
-| Element | Pattern |
-|---|---|
-| Use case file | `verb-noun.use-case.ts` |
-| Repository interface | `PascalCaseRepository` (no `I` prefix) |
-| Repository implementation | `TechnologyPascalCaseRepository` |
-| Domain event discriminant | `module-name.action` (kebab-case) |
-| Domain event naming | Past tense PascalCase (e.g. `WorkspaceCreated`) |
-
-## 3.3 Cross-Module Boundary Rules
-
-- Cross-module collaboration must go through `src/modules/<target>/api/` or explicit domain events.
-- Do not import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- Cross-module route components must use props-scoped scope (`accountId`, `workspaceId`); do not consume another module's context provider directly.
-
----
-
-# 4. Runtime Boundary (Next.js / py_fn)
-
-- **Next.js** owns: browser-facing interactions, auth/session, server actions, route orchestration, user-facing AI chat.
-- **`py_fn/`** owns: parsing, cleaning, taxonomy, chunking, embedding, and background/retryable jobs.
-- Do not run heavy ingestion/embedding pipelines inside Next.js server actions.
-- Do not add browser-facing auth/session/chat logic inside `py_fn/`.
-- Cross-runtime handoff must use an explicit contract (QStash message, Firestore trigger, or event).
-
----
-
-# 5. Backend Architecture (Firebase)
-
-Firebase is the only backend runtime platform.
-
-- Firestore accessed only via `infrastructure/` repository implementations.
-- Cloud Functions must not contain domain logic.
-- Authentication state must be mapped into domain identity before crossing into `domain/`.
-- `workspace` must not call Firestore directly; it must use `platform/api` Service APIs (FileAPI, PermissionAPI, etc.).
-
----
-
-# 6. AI Architecture (Genkit)
-
-Genkit is the AI orchestration layer.
-
-- AI is treated as an **external untrusted actor**.
-- AI output must be validated via Zod before entering any use case or domain.
-- AI must not directly mutate domain state or write to Firestore.
-- Shared AI capability ownership (provider, quota, safety policy) belongs to `platform.ai`.
-- `notion` and `notebooklm` **consume** `platform.ai` capability — they do not own an `ai` subdomain.
-
----
-
-# 7. Frontend State Management
-
-- **Zustand**: lightweight client state; no domain logic, no business rule persistence.
-- **XState**: complex finite-state workflows aligned with use case transitions; must represent explicit states and events.
-- UI state ≠ domain state. Never let UI interaction drive domain model design.
-
----
-
-# 8. Validation (Zod)
-
-- Zod is the only runtime validation tool.
-- All external inputs must be validated via Zod before reaching use cases.
-- Domain invariants are enforced **after** Zod validation, inside aggregates.
-- Zod schemas must NOT contain business logic.
-
-```
-External Input → Zod Validation → Application Use Case → Domain
-```
-
----
-
-# 9. Enforcement Priority
-
-When ambiguity exists, apply in this order:
-
-1. Domain integrity (never compromise)
-2. Bounded context isolation
-3. Dependency direction
-4. Infrastructure convenience
-
-Never sacrifice domain purity for implementation simplicity.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-#use skill hexagonal-ddd
 ````
 
 ## File: .github/instructions/bounded-context-rules.instructions.md
@@ -30681,6 +28578,213 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill documentation-writer
 ````
 
+## File: docs/bounded-context-subdomain-template.md
+````markdown
+# Bounded Context Subdomain Template
+
+本文件在本次任務限制下，僅依 Context7 驗證的 Hexagonal Architecture、DDD、Context Map 與 ADR 參考建立，作為 `src/modules/<bounded-context>/subdomains/*` 的交付標準模板，不主張反映現況實作。
+
+## Purpose
+
+這份模板定義新的 bounded context 與其 subdomains 應以什麼結構交付，讓 Copilot 在建立模組樹、層次與邊界時，先遵守 Hexagonal Architecture with Domain-Driven Design，再決定實作細節。
+
+## Development Order Contract (Domain-First)
+
+- 每個需求都必須先有 use case contract（actor、goal、main success scenario、failure branches），再進入程式碼實作。
+- 新功能一律遵循：Domain -> Application -> Ports -> Infrastructure -> Interface。
+- Domain 先定義「系統是什麼」：聚合、不變條件、值對象與領域事件，不依賴任何框架或外部技術。
+- Application 再定義「系統做什麼」：use case 流程協調、DTO 轉換、交易與事件發布時序。
+- Ports 定義內外協作契約；Infrastructure 只負責實作契約並接入 Firebase、AI 或其他外部系統。
+- Interface（UI / API / Server Action）只做輸入輸出與組裝，不承載領域決策。
+- UI 永遠只能呼叫同 bounded context 的 `application/` 或該 bounded context 的 `index.ts`，不可直接呼叫 `domain/` 或 `infrastructure/`。
+- `domain/` 不可匯入 React、Firebase SDK、HTTP client、ORM model 或 runtime-specific adapter。
+
+## Standard Structure Tree
+
+```text
+src/modules/                                    # 系統所有業務模組（bounded contexts）集合
+└── <bounded-context>/                          # 單一業務邊界（高內聚、低耦合）
+    ├── README.md                               # 說明此 bounded context 的目的、範圍、核心能力
+    ├── AGENT.md                                # 開發規範：命名、分層規則、不可違反設計約束
+    ├── index.ts                                # 跨模組公開入口（cross-module entry surface）
+    ├── application/                            # 應用層：負責 use case orchestration
+    │   ├── dtos/                                # 輸入/輸出資料契約，僅資料不含業務邏輯
+    │   ├── use-cases/                          # 一檔一用例，承擔流程控制與副作用協調
+    │   └── services/                           # Application Service：流程共用輔助，不承載核心業務規則
+    ├── domain/                                 # 領域層：核心商業邏輯與不變條件
+    │   ├── entities/                           # Entity：有 identity，封裝狀態與行為
+    │   ├── value-objects/                      # Value Object：無 identity，以值相等，通常 immutable
+    │   ├── services/                           # Domain Service：不屬於單一 entity 的業務規則
+    │   ├── repositories/                       # Repository 介面（Domain Port）：只定義契約不含實作
+    │   ├── events/                             # Domain Events：已發生的業務事實，用於解耦
+    │   └── ports/                              # 外部依賴抽象（非資料庫），由 infrastructure 實作
+    ├── docs/                                   # 架構文件與治理規範（長期可維護關鍵）
+    │   ├── README.md                           # 文件總覽
+    │   ├── bounded-context.md                  # 邊界責任（負責/不負責）
+    │   ├── context-map.md                      # context 關係圖（ACL/Shared Kernel/Partnership）
+    │   ├── subdomains.md                       # 子域拆分（core/supporting/generic）
+    │   ├── ubiquitous-language.md              # 統一語言與命名詞彙表
+    │   ├── aggregates.md                       # Aggregate 設計（邊界與 root）
+    │   ├── domain-events.md                    # 事件設計規範
+    │   ├── repositories.md                     # repository 設計準則
+    │   ├── application-services.md             # application 層規範
+    │   └── domain-services.md                  # domain 層規範
+    ├── infrastructure/                         # Driven Adapters：實作 domain ports 與外部整合
+    │   ├── <subdomain-a>/                      # 依子域分組的 adapters / persistence / repositories
+    │   └── <subdomain-b>/                      # 只有 context-wide concern 才直接放 root
+    ├── interfaces/                             # Driving Adapters：從 UI/HTTP/Action 進入系統
+    │   ├── <subdomain-a>/                      # 依子域分組的 actions / queries / components / routes
+    │   └── <subdomain-b>/                      # 只有 context-wide composition 才直接放 root
+    └── subdomains/                             # 子域：bounded context 內部能力拆分
+        ├── <subdomain-a>/                      # 單一能力模組（可獨立演化）
+            ├── README.md                       # 子域說明（責任與邊界）
+        │   ├── application/                    # 子域應用層（局部 use-case orchestration）
+        │   │   ├── dto/                        # 子域 DTO（input/output）
+        │   │   ├── use-cases/                  # 子域 use-cases（局部流程）
+        │   │   └── services/                   # 子域 Application Services：只有在共享流程壓力存在時才建立
+        │   ├── domain/                         # 子域領域模型（局部業務核心）
+        │   │   ├── entities/                   # 子域 entity
+        │   │   ├── value-objects/              # 子域 value object
+        │   │   ├── services/                   # 子域 Domain Services（規則）
+        │   │   ├── repositories/               # 子域 repository 介面
+        │   │   ├── events/                     # 子域事件
+        │   │   └── ports/                      # optional：真的需要隔離外部依賴時才建立
+        │   └── infrastructure|interfaces/      # optional：只有符合 mini-module gate 時才在子域內建立
+        └── <subdomain-b>/                      # 另一個子域（相同結構，獨立演化）
+```
+
+## Duplicate Folder Name Notes
+
+- `application` 與 `domain` 在 root 與 subdomain 都可能出現，屬於**刻意重名**。
+- `infrastructure` 與 `interfaces` 預設放在 bounded context 根層，並依 subdomain 名分組；只有符合 mini-module gate 時才會在特定 subdomain 內再出現。
+- 判斷責任時，先看父路徑：`<bounded-context>/...` 代表 context-wide；`subdomains/<name>/...` 代表 subdomain-local。
+- 同名的下一層目錄（如 `dto`、`use-cases`、`services`、`repositories`、`adapters`、`components`、`hooks`、`queries`、`_actions`）也遵循同一條父路徑判斷規則。
+- 重名不代表可互相直接 import；跨 subdomain 或跨 bounded context 仍必須走 `index.ts` 邊界或事件契約。
+
+## Layer Responsibilities
+
+| Layer | Responsibility |
+|---|---|
+| `index.ts` | bounded context 對外唯一公開邊界 |
+| `application/` | 協調 use cases、轉換 DTO、執行流程但不承載核心業務規則；若在 bounded context 根層，代表跨 subdomain 的 context-wide orchestration |
+| `domain/` | 聚合根、實體、值對象、領域服務、領域事件與核心規則；若在 bounded context 根層，代表跨 subdomain 的 shared policy、published language 或 context-wide domain concept |
+| `infrastructure/` | repository / adapter 實作、持久化、外部系統整合；預設在 bounded context 根層，並依 subdomain 名分組 |
+| `interfaces/` | UI、route handler、server action、query hooks 等 driving adapters；預設在 bounded context 根層，並依 subdomain 名分組 |
+
+## Service Folder Semantics
+
+- `application/services/`：Application Service，負責流程協調、交易邊界、跨聚合編排與 use case 共用流程；不承載核心業務不變條件。
+- `domain/services/`：Domain Service，負責無法自然落在單一 Entity/Value Object 的領域規則與政策；可承載核心業務邏輯與不變條件。
+
+## Core Clarification
+
+- `<bounded-context>` 本身也應該維持 Hexagonal Architecture with DDD 的依賴方向，而不只是 `subdomains/<name>/` 內部才有六邊形分層。
+- 但 Hexagonal Architecture 的關鍵是**依賴方向與內外邊界**，不是資料夾一定要叫 `core/`。
+- 依 Context7 驗證的參考，Application Core 是概念上的核心，外層依賴向內；ports 可放在 application 或 domain，取決於規則真正屬於哪一層。
+- 因此本模板的預設寫法是用顯式的 `application/`、`domain/`、`infrastructure/`、`interfaces/` 來表達六邊形邊界，而不是再包一層泛用 `core/`；其中 subdomain 預設只保留 core-first 形狀。
+- 如果團隊真的要使用 `core/`，較合理的變體應是 `<bounded-context>/core/application`、`<bounded-context>/core/domain`，必要時加 `core/ports`；**不應**把 `infrastructure/` 或 `interfaces/` 也放進 `core/`，因為它們本來就是外層。
+- 只有當某段邏輯明確屬於整個 bounded context，而不是單一 subdomain 時，才應放在 `<bounded-context>/application|domain|infrastructure|interfaces`；否則優先放回擁有它的 subdomain。
+
+## Template Rules
+
+- `<bounded-context>` 根層允許有自己的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，用來承接 context-wide concern；不要把整個 bounded context 簡化成只剩 `docs/` 與 `subdomains/` 的外殼。
+- 每個 subdomain 都必須能獨立表達自己的 use case 與 domain model；adapter/UI 預設由 bounded context 根層承接，並依 subdomain 名分組。
+- subdomain 預設採 core-first：`application/`、`domain/`，`ports/` 視需要建立。
+- subdomain 的 `infrastructure/` 與 `interfaces/` 不是預設必建，只有在存在明確且持續的本地 I/O、runtime、process 或 provider boundary 壓力時才建立。
+- `index.ts` 是 cross-module collaboration 的唯一公開入口，不得暴露內部結構。
+- adapter 只實作 port，不直接被其他層呼叫。
+- port 只在真的需要隔離 I/O、外部系統、侵入式 library 或 legacy model 時建立。
+- 若 domain 核心不需要某個抽象，就不要為了形式完整而先建空的 `service`、`port` 或 `repository`。
+- 不預設建立泛用 `core/` 包裝資料夾來混合內外層；若沒有非常明確的遷移理由，優先使用顯式層次名稱。
+
+## Delivery Checklist
+
+1. 建立 bounded context 的 `README.md`、`AGENT.md`、`index.ts`、`docs/`，以及必要時的根層 `application/`、`domain/`、`infrastructure/`、`interfaces/` 入口。
+2. 先判斷需求是屬於 bounded context 根層還是特定 subdomain；只有 context-wide concern 才進根層，其餘一律先落到 `subdomains/<name>/`。
+3. 先建立 use case contract（actor / goal / success scenario / failure branches），再建立對應檔案 `application/use-cases/<verb-noun>.use-case.ts`。
+4. 對擁有該責任的 subdomain 先落 `domain/` 核心模型，再收斂 `application/` 流程；`ports/` 視需要補齊，`infrastructure/` 與 `interfaces/` 預設落在 bounded context 根層並依 subdomain 名分組。
+5. 先放入 aggregate、domain event、published language 與 context map，再補 adapter 與 persistence 實作。
+6. 只有在交付需要時才建立 `ports/`、`hooks/`、`queries/`、`_actions/` 等細分資料夾。
+
+## Legacy Strangler Pattern Workflow (Outside-In Convergence)
+
+- 舊功能若已 outside-in 成形，不做一次性大改，採用 use case 為單位的漸進式收斂。
+- 每次只選一條 use case 進行重構，並保留舊路徑可回退。
+
+1. 找一條高價值且邊界清楚的 use case，先寫最小 use case contract。
+2. 針對該 use case 重新建 Domain（聚合、不變條件、值對象、事件），先讓核心規則可測。
+3. 在 Application 收斂流程，讓舊 UI 與舊 API 都改由新的 use case 進入。
+4. 以 Ports 隔離舊系統與舊資料模型，避免 legacy 細節回滲到 Domain。
+5. 由 Infrastructure 實作新 Ports，逐步替換舊 adapter。
+6. 確認新路徑穩定後，再移除對應的舊路徑與臨時轉接層。
+
+- 退出條件：該 use case 已滿足 `interfaces -> application -> domain <- infrastructure` 方向，且 UI 不再直連舊 service。
+
+## Anti-Pattern Rules
+
+- 不得把 `infrastructure/` 直接匯入 `domain/` 或 `application/`。
+- 不得把別的 bounded context 的 `domain/`、`application/`、`infrastructure/` 或 `interfaces/` 當成可直接 import 的依賴。
+- 不得在還沒有 use case contract 的情況下直接新增 UI 與 adapter。
+- 不得讓 UI 或 route handler 直接呼叫 `domain/` 或 `infrastructure/`。
+- 不得讓 `domain/` 匯入任何 runtime 或 framework 專用套件。
+- 不得把所有子域都預設長成同一個巨型骨架，卻沒有對應的 use case 與業務責任。
+- 不得把 `infrastructure/`、`interfaces/` 放進一個泛用 `core/` 目錄，讓六邊形的內外層語義失真。
+- 不得因為「看起來完整」而過度建立 repository port、ACL、DTO、facade 或 service。
+- 不得讓 `interfaces/` 承載業務決策，也不得讓 `application/` 重寫 domain 規則。
+
+## Copilot Generation Rules
+
+- 生成新模組前，先決定 bounded context、subdomain、public API boundary 與依賴方向，再建立資料夾。
+- 若需求屬於 bounded context shared policy、published language、跨 subdomain orchestration，再使用 `<bounded-context>` 根層的 hexagonal layers；否則優先放進擁有責任的 subdomain。
+- 奧卡姆剃刀：若較少的層級、port 或 adapter 已能保護邊界與可測試性，就不要額外新增抽象。
+- 每個子域只建立當前交付需要的最小骨架，不要先把所有可選資料夾填滿。
+- 若需求只是新增一個 use case，優先放進現有 subdomain，而不是新開第二個平行 subdomain。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+    Interfaces["Interfaces"] --> Application["Application"]
+    Application --> Domain["Domain"]
+    Infrastructure["Infrastructure"] --> Domain
+    API["Public API boundary"] --> Application
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+    Requirement["Requirement"] --> Context["Choose bounded context"]
+    Context --> Subdomain["Choose owning subdomain"]
+    Subdomain --> UseCase["Write use case contract first"]
+    UseCase --> Domain["Define domain model and invariants"]
+    Domain --> Application["Orchestrate in use case"]
+    Application --> Ports["Define required ports"]
+    Ports --> Infra["Implement infrastructure adapters"]
+    Infra --> Interface["Wire UI and API at boundary"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [architecture-overview.md](./architecture-overview.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [subdomains.md](./subdomains.md)
+- [context-map.md](./context-map.md)
+- [integration-guidelines.md](./integration-guidelines.md)
+- [strategic-patterns.md](./strategic-patterns.md)
+- [contexts/_template.md](./contexts/_template.md)
+- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
+- [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
+- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
+
+## Constraints
+
+- 本模板是 architecture-first 的交付模板，不代表任何既有模組已完全符合此形狀。
+- `ports/`、`queries/`、`_actions/`、`hooks/`、subdomain-local `infrastructure/`、subdomain-local `interfaces/` 都是按需要建立的可選骨架，不是強制清單。
+- 若某 subdomain 很小，允許比本模板更精簡；若更精簡仍能守住邊界，應優先採用更精簡版本。
+````
+
 ## File: docs/contexts/platform/ubiquitous-language.md
 ````markdown
 # Platform
@@ -31126,6 +29230,465 @@ modules/platform/subdomains/background-job/application/use-cases/background-job.
 
 - **2101**：crypto 直接使用是緊耦合的另一表現（同步解決）
 - **4101**：UUID 策略分散導致 Change Amplification（解決後策略集中於 `@lib-uuid`）
+````
+
+## File: docs/hard-rules-consolidated.md
+````markdown
+# 50 Hard Rules — Consolidated Architecture Guardrails
+
+**Status**: Consolidated from user request (2026-04-12)  
+**Authority**: AGENTS.md (strategic) + module AGENT.md (tactical)  
+**Purpose**: Prevent late-stage architectural breakage; enforce non-negotiable boundaries
+
+---
+
+## 🗂️ Document Placement Strategy
+
+| Rule Category | Count | Primary Location | Secondary Location |
+|---|---|---|---|
+| **Strategic Ownership** (1, 5-10, 28) | 9 | `AGENTS.md` § Module Ownership | — |
+| **Dependency Direction** (2, 6-7, 49) | 4 | `AGENTS.md` § Anti-Patterns | `eslint.config.mjs` |
+| **Layer Responsibility** (11-13, 21-23) | 7 | `.github/instructions/architecture-core.instructions.md` | Module AGENT.md |
+| **Data Flow & Events** (4, 9, 34-36) | 5 | `.github/instructions/event-driven-state.instructions.md` | RAG docs |
+| **File / Storage / IO** (3, 29-32, 39) | 6 | `.github/instructions/security-rules.instructions.md` | Firestore schema docs |
+| **Permission / Security** (37-38, 40) | 3 | `.github/instructions/security-rules.instructions.md` | Platform docs |
+| **Cross-Module Contracts** (24-27) | 4 | `docs/context-map.md` | Module AGENT.md |
+| **Feature Toggles / Independence** (17) | 1 | Platform feature-flag docs | — |
+| **Anti-Patterns** (46-50) | 5 | `AGENTS.md` § Anti-Patterns | Module AGENT.md |
+
+**Total**: 50 rules consolidated into 8 homes
+
+---
+
+## 📍 LOCATION 1: `AGENTS.md` (Strategic Rules)
+
+### Add to § "Module Ownership Guardrails"
+
+```markdown
+## Strategic Ownership Rules (Hard Constraints)
+
+### Rule 1: Platform is Unique Infrastructure Gateway
+- ✅ platform owns Firebase, Genkit, external AI routing, cross-domain auth
+- ❌ notion, notebooklm NEVER own infra (except local read-only access)
+- ✅ workspace NEVER touches Firebase/Storage/Genkit directly
+
+### Rule 5: Workspace is Orchestration Only
+- ✅ workspace composes module APIs and next.js routing
+- ❌ workspace NEVER contains domain business logic
+- ❌ workspace NEVER makes direct DB/permission decisions
+
+### Rule 6: Cross-Module Access Prohibition
+- ✅ module A imports module B only via `@/modules/b/index.ts`
+- ❌ NO direct imports of domain/, application/, infrastructure/, interfaces/
+- ✅ ALL data sharing via events or published language tokens
+
+### Rule 7: Mandatory Single Entry Point (Public Boundary)
+- ✅ Every module must export via `index.ts` at the module root
+- ✅ `index.ts` exposes only public surface; hides internals
+- ❌ NO imports from internal module paths outside module
+
+### Rule 8: Platform is Only Infrastructure Layer
+- ✅ Firebase, Genkit, Auth, File Storage, Queue: platform owns
+- ✅ Cross-domain coordination, routing, governance: platform owns
+- ❌ Notion NEVER owns persistence (uses platform.infrastructure APIs)
+- ❌ Notebooklm NEVER owns embedding infra (uses platform.infrastructure APIs)
+
+### Rule 9: Cross-Module Data Flow MUST Use Events or API
+- ✅ When module A needs data from module B: A calls B.api or subscribes to B.event
+- ❌ NO shared in-memory state
+- ❌ NO direct repository access across module boundaries
+- ✅ All state mutations via transaction-protected API calls
+
+### Rule 10: Domain Layer is Externally Independent
+- ✅ domain/ contains entities, value objects, rules; NO framework deps
+- ❌ domain/ NEVER imports: React, Firebase SDK, HTTP client, ORM
+- ❌ domain/ NEVER depends on other modules (even platform)
+- ✅ All external deps injected via ports/adapters
+
+### Rule 28: Upstream Contexts Cannot Depend on Their Downstreams
+- ✅ iam / billing / ai / platform keep one-way dependency direction toward their downstream consumers
+- ❌ upstream contexts NEVER import downstream domain internals directly
+- ✅ If an upstream context needs semantic data from downstreams, use events or public APIs only
+```
+
+### Add to § "Anti-Patterns"
+
+```markdown
+### Hard Anti-Patterns (Will Cause Refactors)
+
+- ❌ **Rule 46**: workspace directly calls Firestore (`firestore.collection().get()`)
+  - Fix: Use `@/modules/platform/api` (FileAPI, PermissionAPI, etc.)
+
+- ❌ **Rule 47**: notebooklm implements its own permission logic
+  - Fix: Call `@/modules/platform/api → PermissionAPI.can()`
+
+- ❌ **Rule 48**: notion directly invokes AI/Genkit
+  - Fix: Notion emits event; platform routes to notebooklm via AI API
+
+- ❌ **Rule 49**: Module imports another module's internal (domain/application/infrastructure)
+  - Fix: Use `@/modules/<target>/api` only
+
+- ❌ **Rule 50**: Business logic written in React component (workspace UI)
+  - Fix: Move to application/ use-case; UI only composes and calls
+```
+
+---
+
+## 📍 LOCATION 2: `.github/instructions/architecture-core.instructions.md`
+
+### Add Section: "Layer Responsibility Rules"
+
+```markdown
+## Layer Responsibility Rules (Hard Constraints)
+
+### Rule 11: Application Layer = Transaction Boundary + Use Case Orchestration
+- ✅ application/ coordinates domain behavior + transaction boundaries
+- ✅ application/ handles command/query DTO translation
+- ✅ application/ publishes domain events
+- ❌ application/ NEVER contains business rules (write in domain/)
+- ❌ application/ NEVER directly calls UI frameworks
+- ✅ Use cases orchestrate only; rules stay in domain
+
+### Rule 12: Repositories Hidden Behind Module Boundary
+- ✅ Repository interface defined in domain/repositories/
+- ✅ Repository implementation hidden in infrastructure/
+- ❌ NO other module calls a module's repository directly
+- ✅ If another module needs aggregate data: call module.api or use events
+
+### Rule 13: DTO ≠ Domain Model
+- ✅ DTO lives in application/dtos/ (structural change contract)
+- ✅ Domain model lives in domain/entities/, domain/aggregates/ (business rules)
+- ❌ NEVER return domain model directly in API response
+- ✅ Map domain → DTO before crossing module boundary
+
+### Rule 16: Firestore Schema Driven by Domain, Not UI
+- ✅ domain/entities define what data exists (invariants, validation)
+- ✅ infrastructure/persistence maps domain → Firestore
+- ❌ UI changes NEVER drive schema changes directly
+- ✅ If UI needs new data: propose to domain; domain approves; schema follows
+
+### Rule 21: UI Layer (workspace + interfaces/) = Zero Business Logic
+- ✅ interfaces/ composes routes, actions, UI components
+- ✅ interfaces/ calls application/ use-cases or services
+- ❌ NO if (business rule) in UI
+- ❌ NO NO permission judgment in UI
+- ❌ NO NO transaction logic in UI
+- ✅ All decisions made server-side; UI only displays result
+
+### Rule 22: Application Layer = Use-Case Driven, Testable
+- ✅ Every use-case has: actor, goal, main scenario, extensions
+- ✅ Use-case can be tested without UI/framework
+- ✅ Use-case has no database import (uses injected repository)
+- ❌ NO generic utility classes masquerading as use-cases
+
+### Rule 23: Domain Layer = Pure, Side-Effect Free
+- ✅ domain/ contains rules, validation, state transitions
+- ✅ domain/ can be tested in isolation with no async
+- ❌ domain/ NEVER makes I/O calls
+- ❌ domain/ NEVER calls external services
+- ✅ domain events emitted; orchestration in application/
+```
+
+---
+
+## 📍 LOCATION 3: `.github/instructions/event-driven-state.instructions.md`
+
+### Add Section: "Event Bus Requirement & Data Flow"
+
+```markdown
+## Event Bus Requirement & Async Data Flow (Hard Constraints)
+
+### Rule 4: Event Bus is Mandatory (Not Optional)
+- ✅ Platform.event-bus/ subdomain must exist and be fully implemented
+- ✅ All cross-module async flows go through event bus
+- ✅ All domain events emitted with: id, timestamp, source, payload schema
+- ❌ NEVER use Queue/RabbitMQ without event schema registry
+
+### Rule 34: Ingestion & Embedding Must Be Async
+- ✅ File upload triggers event; worker processes async
+- ✅ Embedding generation async; client polls or subscribes
+- ❌ NEVER block request until embedding complete
+- ✅ Store job ID; allow client to check status later
+
+### Rule 35: Long Tasks Must Use Queue/Event
+- ✅ AI orchestration, embedding, chunking: async with queue
+- ✅ Non-blocking request → store task ID → return immediately
+- ❌ NEVER setTimeout/promise without proper queue
+- ✅ Task must be retryable and idempotent
+
+### Rule 36: Event Schema is Non-Negotiable
+- ✅ Every event has: id (UUID), timestamp (ISO), source (module), payload
+- ✅ Event schema registered before emission
+- ✅ Event can be replayed from audit log
+- ❌ NO unstructured event payload (use discriminant + payload schema)
+
+### Rule 9: Cross-Module Data Flow = Events or API
+- ✅ When B needs to know about A's change: A emits event; B subscribes
+- ✅ When B needs data from A: B calls A.api (synchronous)
+- ❌ NO B reading A's Firestore collection directly
+- ✅ Events enable loose coupling; API enables strongcontract
+```
+
+---
+
+## 📍 LOCATION 4: `.github/instructions/security-rules.instructions.md`
+
+### Add Section: "File Lifecycle, Metadata, Ownership"
+
+```markdown
+## File & Data Ownership Rules (Hard Constraints)
+
+### Rule 3: File Metadata is Non-Negotiable
+- ✅ EVERY file in Storage has metadata in Firestore
+- ✅ Metadata includes: ownerId, workspaceId, createdAt, lifecycle (active/archived/deleted)
+- ✅ `ownerId` = resource owner identifier；`workspaceId` = collaboration scope identifier；兩者都不等於 shell route 的 `accountId`
+- ❌ NEVER store-only URL without DB entry
+- ✅ Firestore entry is source of truth for permissions & lifecycle
+
+### Rule 29: File Lifecycle is Explicit
+- ✅ File states: upload → used → archived → deleted
+- ✅ Transitions logged; each state has timestamp
+- ✅ Archived files not deleted immediately (async cleanup after retention)
+- ❌ NO orphaned files (every file must be referenced)
+
+### Rule 30: File Metadata in Database, Not Storage Headers Only
+- ✅ Firestore/Storage both contain metadata; DB is canonical
+- ✅ If Storage Object's custom metadata lost, DB entry remains
+- ❌ NEVER rely on Storage object metadata alone
+- ✅ Schema: collections/files/{fileId} → {ownerId, workspaceId, path, size, ...}
+
+### Rule 31: AI Input Traceability
+- ✅ Every AI request logged: [timestamp, source, input, model, params]
+- ✅ Logging in application/ service before sending to the ai context
+- ❌ NEVER lose context (prompt + source + groundings)
+- ✅ Can replay prompts; deterministic when possible
+
+### Rule 32: AI Output Reconstructibility
+- ✅ AI output + input + timestamp + model version all stored
+- ✅ Deterministic flow: same input + params → same output (for embedding)
+- ✅ Snapshot stored so rerank/re-retrieval uses same data
+- ❌ NEVER lose ability to rewind/re-generate
+
+### Rule 33: Embedding & Index Reconstructibility
+- ✅ Embeddings stored with source chunk ID + hash
+- ✅ Vector index can be rebuilt from source + embedding service
+- ❌ Vector index is NOT source of truth
+- ✅ Source of truth: Firestore (chunks) + embedding service (vectors)
+
+### Rule 37: Every Resource Has an Owner
+- ✅ Every knowledge artifact, conversation, notebook: {ownerId, workspaceId}
+- ✅ Permission check before access: does request.user == resource.owner | member
+- ❌ NEVER expose resource without owner scope
+- ✅ Cross-workspace access: explicit ACL check
+
+### Rule 38: Permission NEVER Hard-Coded in UI
+- ✅ All permission checks happen server-side
+- ✅ UI conditionally rendered based on server permission response
+- ❌ NEVER hide UI element expecting client-side security
+- ✅ always fallback: permission denied → error message
+
+### Rule 39: Storage Path Contains Scope (Leak Prevention)
+- ✅ Storage paths: `{tenantId}/{workspaceId}/{ownerId}/{fileId}`
+- ✅ `tenantId` = tenant isolation key；不是 `workspaceId`、`accountId` 或 `ownerId` 的別名
+- ✅ Firestore rules prevent cross-tenant access
+- ❌ NEVER path like `storage/uploads/{random}.pdf` (breaks isolation)
+- ✅ Scope visible in path; admins can audit
+
+### Rule 40: All Queries Must Include Scope
+- ✅ Firestore query: `collection.where('workspaceId', '==', workspace).get()`
+- ✅ Database query: `select * from resources where workspace_id = ?`
+- ❌ NEVER query without workspace/tenant filter
+- ✅ Scope enforced in both application and Firestore rules
+```
+
+---
+
+## 📍 LOCATION 5: `docs/context-map.md`
+
+### Add or Extend Section: "Cross-Module Data Contracts"
+
+```markdown
+## Cross-Module Data Flow Rules (Hard Constraints)
+
+### Rule 24: Notebooklm Cannot Direct-Read Firestore
+- ✅ notebooklm reads knowledge artifacts via `@/modules/notion/api`
+- ❌ NEVER: `firestore.collection('notion_pages').get()`
+- ✅ Decouples notebooklm from notion's persistence model
+
+### Rule 25: Notebooklm Data Requests = Via Notion API
+- ✅ If notebooklm.retrieval needs knowledge: calls `notion.api.getKnowledgeArtifacts()`
+- ✅ Notion controls schema; notebooklm consumes contract only
+- ❌ NEVER notebooklm queries notion's Firestore directly
+
+### Rule 26: Notion is Completely Unaware of AI
+- ✅ notion/ has zero imports from notebooklm/
+- ✅ notion/ does not know AI exists
+- ✅ If AI needs notion data: calls notion.api
+- ❌ NO coupling from notion to AI/notebooklm
+
+### Rule 27: Workspace Cannot Direct-Call AI
+- ✅ workspace orchestrates; notebooklm synthesizes
+- ✅ workspace calls notebooklm.api; notebooklm handles AI routing
+- ❌ NEVER workspace imports the ai context or genkit directly
+- ✅ Decouples UI from AI complexity
+```
+
+---
+
+## 📍 LOCATION 6: Module-Level `AGENT.md` Files
+
+Each module should have its own constraints section, such as:
+
+### **`src/modules/platform/AGENT.md`** (Add Section)
+
+```markdown
+## Platform-Specific Hard Rules
+
+1. **Rule 1**: Platform infra (Firebase, Genkit, Auth) never directly exposed; wrapped in semantic APIs
+2. **Rule 2**: All consumers access platform via Service API layer only (FileAPI, AIAPI, PermissionAPI, AuthAPI)
+3. **Rule 8**: Platform is only module allowed to import Firebase SDK, Genkit SDK, external AI APIs
+4. **Rule 28**: Platform.api can emit events to downstream; platform.domain never imports downstream modules
+```
+
+### **`src/modules/workspace/AGENT.md`** (Add Section)
+
+```markdown
+## Workspace-Specific Hard Rules
+
+1. **Rule 5**: Workspace is pure orchestration (routes, actions); zero domain business logic
+2. **Rule 21**: UI components in workspace.interfaces/ NEVER contain business decision logic
+3. **Rule 27**: Workspace never directly calls AI; always goes through notebooklm or platform
+4. **Rule 17**: Workspace feature toggles ensure modules can be disabled; no hard dependencies
+```
+
+### **`src/modules/notion/AGENT.md`** (Add Section)
+
+```markdown
+## Notion-Specific Hard Rules
+
+1. **Rule 26**: Notion is agnostic of AI systems; zero imports from notebooklm or the ai context
+2. **Rule 24-25**: Notion owns knowledge artifact authoring; others access via notion.api only
+3. **Rule 24**: Notion controls persistence schema; downstream modules don't query Firestore
+```
+
+### **`src/modules/notebooklm/AGENT.md`** (Add Section)
+
+```markdown
+## NotebookLM-Specific Hard Rules
+
+1. **Rule 24-25**: All knowledge data requests via notion.api; never direct Firestore
+2. **Rule 27**: Workspace calls notebooklm.api; notebooklm routes to the ai context internally
+3. **Rule 31-32**: All AI prompts/outputs logged with full traceability metadata
+4. **Rule 34**: Retrieval + synthesis always async; non-blocking to request
+```
+
+---
+
+## 📍 LOCATION 7: ESLint Config (`eslint.config.mjs`)
+
+### Add Custom Rule Enforcement
+
+```javascript
+// Enforce hard rule 2, 6, 49: No cross-module internal imports
+{
+  rules: {
+    "@custom/no-cross-module-internal-import": {
+      enabled: true,
+      allowedPaths: ["index.ts"],  // Only module root index.ts exports allowed
+      blockedPaths: ["domain/", "application/", "infrastructure/", "interfaces/"]
+    },
+    
+    // Enforce hard rule 1, 8: No direct Firebase/Genkit imports outside platform
+    "@custom/no-direct-firebase-outside-platform": {
+      enabled: true,
+      allowedModules: ["platform"],
+      blockedImports: ["firebase", "@google-cloud/genkit"]
+    }
+  }
+}
+```
+
+### Design Smell Guardrails
+
+以下 guardrails 用來把 design smell 變成持續可見的 warning signal，而不是等到大型 convergence 才發現。
+
+#### 1300 Cyclic Dependency
+
+- 禁止把 `require()` 當成正常的 composition 模式。
+- 若真的因既有循環鏈暫時保留 lazy require，必須把它侷限在單點並標明循環來源。
+- lint signal: `no-restricted-syntax` on `CallExpression[callee.name='require']`。
+
+#### 1400 Dependency Leakage
+
+- `index.ts` 不得用 `export * from "./application"` 或 `export * from "./interfaces"` 洩漏內層。
+- 公開邊界應只精確 export 穩定 capability、service facade 與必要 DTO / type contract。
+- lint signal: `no-restricted-syntax` on `ExportAllDeclaration` selectors。
+
+#### 3100 Low Cohesion
+
+- `index.ts` 若同時混入 infrastructure、service、subdomain business API、UI hooks/components，視為低內聚風險。
+- 優先拆分為 capability boundary，而不是繼續把 root barrel 做大。
+- lint signal: `max-lines` on module `index.ts` files as early warning.
+
+#### 5200 Cognitive Load
+
+- fat screen 不是單純行數問題，而是單一畫面同時承接 cross-module orchestration、panel wiring 與流程判斷。
+- 超過閾值時先檢查是否可以抽出 focused composition、helper 或 facade。
+- lint signal: `max-lines` on `interfaces/**/components/screens/**`.
+
+#### Enforcement Posture
+
+- lint 使用 warning 等級，目的是持續暴露 smell 壓力，不是把既有技術債一次性升級成 build blocker。
+- smell 是否成立，以對應 ADR 的 context、decision、conflict resolution 為準；lint 只是入口訊號。
+
+---
+
+## 🎯 Summary: Where Each Rule Lives
+
+| Rules | Location | File |
+|---|---|---|
+| 1, 5-10, 28 | AGENTS.md | Strategic ownership |
+| 2, 6-7, 49 | AGENTS.md + eslint | Dependency direction |
+| 11-13, 21-23 | architecture-core.instructions.md | Layer responsibility |
+| 4, 9, 34-36 | event-driven-state.instructions.md | Event bus & async |
+| 3, 29-32, 37-40 | security-rules.instructions.md | File/data/permission |
+| 24-27 | context-map.md | Cross-module contracts |
+| 17 | Platform feature-flag docs | Feature independence |
+| 46-50 | AGENTS.md | Anti-patterns |
+| All | Module AGENT.md | Tactical enforcement |
+
+---
+
+## ✅ Enforcement Checklist
+
+### Before Each Merge:
+- [ ] No cross-module imports outside `index.ts` (module root)
+- [ ] No Firebase/Genkit outside platform
+- [ ] All async flows use event bus with schema
+- [ ] File metadata in Firestore
+- [ ] Permission checks server-side only
+- [ ] Domain layer has zero external deps
+- [ ] Application layer orchestrates, not rules
+
+### Before Each Release:
+- [ ] All rules reviewed in relevant AGENT.md
+- [ ] ESLint boundary checks passing
+- [ ] Zero anti-pattern violations (46-50)
+- [ ] Event schemas registered & consistent
+
+---
+
+## 📚 Document Network
+
+- [AGENTS.md](../AGENTS.md) — Strategic ownership & anti-patterns
+- [.github/instructions/architecture-core.instructions.md](../.github/instructions/architecture-core.instructions.md) — Layer responsibility
+- [.github/instructions/event-driven-state.instructions.md](../.github/instructions/event-driven-state.instructions.md) — Event bus & async
+- [.github/instructions/security-rules.instructions.md](../.github/instructions/security-rules.instructions.md) — File/data/permission
+- [docs/context-map.md](./context-map.md) — Cross-module contracts
+- [src/modules/platform/AGENT.md](../src/modules/platform/AGENT.md) — Platform constraints
+- [src/modules/workspace/AGENT.md](../src/modules/workspace/AGENT.md) — Workspace constraints
+- [src/modules/notion/AGENT.md](../src/modules/notion/AGENT.md) — Notion constraints
+- [src/modules/notebooklm/AGENT.md](../src/modules/notebooklm/AGENT.md) — NotebookLM constraints
 ````
 
 ## File: docs/module-graph.system-wide.md
@@ -31626,90 +30189,1357 @@ flowchart LR
 - 奧卡姆剃刀：能用既有 route group 的就不要新開 group。
 ````
 
-## File: .github/copilot-instructions.md
+## File: .github/agents/ai-genkit-lead.agent.md
 ````markdown
 ---
-applyTo: **
-description: Xuanwu Copilot Workspace Instructions
-name: Xuanwu Copilot Workspace Instructions
+name: AI Genkit Lead
+description: Lead Genkit-oriented AI orchestration with boundary-safe runtime split across Next.js and py_fn pipelines.
+argument-hint: Provide AI flow name, target runtime (Next.js/py_fn), orchestration goal, and any retrieval or grounding concerns.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Refine Genkit Flow
+    agent: Genkit Flow Agent
+    prompt: Refine the Genkit flow contract, tool orchestration boundaries, and fallback behavior for this scope.
+  - label: Review RAG Boundary
+    agent: RAG Lead
+    prompt: Review the retrieval and worker-runtime contract impact for this AI scope.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this AI and Genkit change for regression risk, boundary safety, and validation gaps.
+
 ---
 
-#use skill serena-mcp
-#use skill alistair-cockburn
+# AI Genkit Lead
+
+## Target Scope
+
+- `src/app/**`
+- `src/modules/platform/**`
+- `src/modules/notebooklm/**`
+- `src/modules/notion/**` when content use cases consume shared AI capability
+- `py_fn/**` when coordinating runtime boundaries and worker handoff contracts
+
+## Focus
+
+- Shared `platform.ai` capability ownership and app-side orchestration
+- Contract-safe integration with `notebooklm` reasoning flows and worker-side ingestion / retrieval layers
+
+## Guardrails
+
+- Keep shared provider, quota, and safety policy in `platform.ai`.
+- Keep auth and chat orchestration in Next.js.
+- Keep parsing, chunking, embedding in py_fn workers.
+- Do not model `notion` or `notebooklm` as owning a generic `ai` bounded-context surface.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+#use skill genkit-ai
+````
+
+## File: .github/agents/chunk-strategist.agent.md
+````markdown
+---
+name: Chunk Strategist
+description: Design chunking strategies for retrieval quality, context efficiency, and stable document traceability.
+argument-hint: Provide source document format, target chunk policy (size/overlap/metadata), and downstream retrieval constraints.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Align Ingestion Inputs
+    agent: Doc Ingest Agent
+    prompt: Align document normalization and source attribution with the chunking strategy described above.
+  - label: Configure Embeddings
+    agent: Embedding Writer
+    prompt: Implement or review embedding payloads and metadata that match this chunking strategy.
+  - label: Review RAG Contract
+    agent: RAG Lead
+    prompt: Review this chunking strategy against retrieval quality, runtime boundaries, and indexing contracts.
+
+---
+
+# Chunk Strategist
+
+## Target Scope
+
+- `py_fn/**`
+- `src/modules/notebooklm/**`
+- `src/modules/notion/**` when source segmentation depends on canonical content structure
+- `src/modules/platform/**` when chunk metadata or model constraints depend on shared `platform.ai` capability
+
+## Focus
+
+- Chunk size and overlap policy
+- Metadata fields for retrieval and attribution
+- Domain-specific segmentation rules
+- Ownership alignment across `notion` source contracts, `notebooklm` retrieval semantics, and shared `platform.ai` constraints
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+````
+
+## File: .github/agents/doc-ingest.agent.md
+````markdown
+---
+name: Doc Ingest Agent
+description: Implement document ingestion flows from source conversion to normalized artifacts for downstream chunking and indexing.
+argument-hint: Provide source format, file paths or collection, and normalization quality constraints.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Design Chunk Strategy
+    agent: Chunk Strategist
+    prompt: Design the chunking policy and metadata boundaries for the normalized artifacts described above.
+  - label: Write Embeddings
+    agent: Embedding Writer
+    prompt: Implement or review embedding generation and metadata writes for this ingestion output.
+  - label: Review RAG Flow
+    agent: RAG Lead
+    prompt: Review this ingestion change for retrieval quality, runtime boundaries, and contract alignment.
+
+---
+
+# Doc Ingest Agent
+
+## Target Scope
+
+- `py_fn/**`
+- `src/modules/notebooklm/**`
+- `src/modules/notion/**` when normalized artifacts depend on canonical source/reference shape
+- `src/modules/platform/**` when ingestion constraints depend on shared `platform.ai` capability or entitlement policy
+
+## Rules
+
+- Keep conversion and normalization deterministic.
+- Preserve source attribution fields.
+- Align outputs with chunk and embedding contracts.
+- Flag notable format-loss risk when source conversion may affect downstream retrieval.
+- Treat `notion` as the canonical content source and `notebooklm` as the owner of ingestion / retrieval pipeline semantics.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+````
+
+## File: .github/agents/domain-architect.agent.md
+````markdown
+---
+name: Domain Architect
+description: Hexagonal Architecture with Domain-Driven Design 領域架構審查 Agent，專注確保聚合根、限界上下文、通用語言與事件驅動設計符合邊界與依賴方向規範。
+argument-hint: 提供 bounded context 名稱、目標子域、要設計或審查的 domain model，以及已知業務不變數。
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Boundary Review 審查模組邊界
+    agent: Hexagonal DDD Architect
+    prompt: 審查或重構此領域決策涉及的模組邊界、層依賴方向與公開 API 形狀。
+  - label: Glossary Update 更新通用語言術語
+    agent: KB Architect
+    prompt: 將本次領域建模新增或變更的術語同步更新至 docs/ubiquitous-language.md 與對應 context 文件。
+  - label: Quality Review 品質審查
+    agent: Quality Lead
+    prompt: 審查此領域變更的行為風險、邊界回歸與遺漏驗證，確認符合 Hexagonal DDD 規範。
+
+---
+
+# Domain Architect
+
+## 目標範圍 (Target Scope)
+
+- `src/modules/**/domain/**`
+- `src/modules/**/application/use-cases/**`
+- `src/modules/**/application/machines/**`
+- `docs/ubiquitous-language.md`
+- `docs/contexts/*/**`
+- `.github/instructions/docs-authority-and-language.instructions.md`
+- `.github/instructions/architecture-core.instructions.md`
+- `.github/instructions/domain-modeling.instructions.md`
+- `.github/instructions/event-driven-state.instructions.md`
+
+## 使命 (Mission)
+
+以 docs-first authority 審查與修正領域模型設計，確保聚合、限界上下文、通用語言與領域事件符合 Hexagonal Architecture with Domain-Driven Design 規則。
+
+## 必讀來源
+
+- `docs/README.md`
+- `docs/ubiquitous-language.md`
+- `docs/subdomains.md`
+- `docs/bounded-contexts.md`
+- `docs/contexts/<context>/*`
+- `.github/instructions/docs-authority-and-language.instructions.md`
+- `.github/instructions/architecture-core.instructions.md`
+- `.github/instructions/domain-modeling.instructions.md`
+- `.github/instructions/event-driven-state.instructions.md`
+
+## 審查清單
+
+- [ ] 命名是否已先對齊 `docs/ubiquitous-language.md` 與對應 context 文件？
+- [ ] 程式碼是否位於正確的 bounded context / subdomain？
+- [ ] 跨模組互動是否只透過 `api/` 邊界或領域事件？
+- [ ] 上下游關係、ACL 與依賴方向是否與 `docs/contexts/<context>/context-map.md` 一致？
+- [ ] 聚合根是否保護不變數、避免貧血模型，且狀態修改透過封裝方法進行？
+- [ ] 值對象是否保持不可變，必要時使用 Zod / brand 型別保護？
+- [ ] 領域事件是否使用過去式命名、穩定 discriminant、ISO 時間欄位，並在持久化成功後發布？
+- [ ] 外部系統模型是否透過 `infrastructure/` 或 ACL adapter 轉譯，而未污染 `domain/`？
+
+## 輸出格式
+
+1. **Hexagonal DDD 合規性評估**：通過 / 需修正
+2. **問題項目清單**：每項附檔案路徑與具體說明
+3. **修正建議**：附程式碼範例
+4. **驗證指令執行結果**：`npm run lint` 與 `npm run build` 結果
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd
-#use skill occams-razor
-#use skill context7
-#use skill xuanwu-skill
+````
 
-# Xuanwu Copilot Workspace Instructions
+## File: .github/agents/domain-lead.agent.md
+````markdown
+---
+name: Domain Lead
+description: Lead domain ownership decisions and enforce module boundaries, dependency direction, and API-only collaboration.
+argument-hint: Provide module scope, ownership question or file to place, and any known boundary risks.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Refactor Module Boundary
+    agent: Hexagonal DDD Architect
+    prompt: Refactor or review module boundaries, layer direction, and public API shape for this domain decision.
+  - label: Update Contracts
+    agent: TS Interface Writer
+    prompt: Update the DTO, interface, or API contract surface that follows from this domain decision.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this domain change for behavioral risk, boundary regressions, and missing validation.
 
-Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put detailed architecture truth in [docs/README.md](../docs/README.md), scoped behavior in [.github/instructions](./instructions), reusable workflows in prompts, and tool-specific procedure in skills.
+---
 
-## Session Contract
+# Domain Lead
 
-- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it first, activate `xuanwu-app`, and use Serena for project memory/index work.
-- If confidence in any library API, framework, or config schema detail is below 99.99%, verify it through Context7 before writing or suggesting code.
-- Treat `docs/**/*` as the authority for DDD routing, bounded-context ownership, terminology, and strategic duplicate-name resolution. `.github/*` defines Copilot behavior and must not compete with docs.
-- Run the matching validation from [agents/commands.md](./agents/commands.md) before closing non-trivial changes.
+## Target Scope
 
-## Read Order
+- `src/modules/**`
+- `src/modules/shared/**`
+- `src/modules/shared/**`
 
-1. Start with [docs/README.md](../docs/README.md).
-2. Use [docs/ubiquitous-language.md](../docs/ubiquitous-language.md) for terminology and duplicate-name guardrails.
-3. Use [docs/subdomains.md](../docs/subdomains.md) and [docs/bounded-contexts.md](../docs/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
-4. Use `docs/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
-5. Use [docs/bounded-context-subdomain-template.md](../docs/bounded-context-subdomain-template.md) and [docs/project-delivery-milestones.md](../docs/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
-6. Use [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment validation.
+## Responsibilities
 
-## Instruction Series (Phase 1)
+- Confirm owning bounded context before edits.
+- Place logic in the correct layer.
+- Prevent internal cross-module imports.
 
-- Use [instructions/architecture-core.instructions.md](./instructions/architecture-core.instructions.md) as the consolidated module architecture rule set.
-- Use [instructions/architecture-runtime.instructions.md](./instructions/architecture-runtime.instructions.md) as the consolidated runtime split rule set.
-- Use [instructions/process-framework.instructions.md](./instructions/process-framework.instructions.md) as the consolidated delivery/decision framework.
-- Use [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) as the consolidated docs authority and terminology rule set.
-- Legacy instruction files marked DEPRECATED remain transition-only and should not be expanded.
+## Layer Placement Guide
 
-## Module Layer Routing（src-only）
+- `domain`: business rules, entities, value objects, repository interfaces
+- `application`: use cases and DTO orchestration
+- `infrastructure`: external adapters and implementations
+- `interfaces`: UI, hooks, queries, contracts, server actions
+- `api`: only public cross-module boundary
 
-本 repo 已全面改為 `src/modules/` 單一模組層：
+## Validation
 
-| 路徑 | 職責 | 撰寫時機 |
+- Run lint for boundary and import changes.
+- Run build when public types or exports are touched.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+````
+
+## File: .github/agents/e2e-qa.agent.md
+````markdown
+---
+name: E2E QA Agent
+description: Execute browser-level verification with Playwright MCP and report reproducible release-readiness evidence.
+argument-hint: Provide target URL or route, user flow, and acceptance criteria.
+tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'microsoft/playwright-mcp/*']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Summarize Quality Risk
+    agent: Quality Lead
+    prompt: Summarize the confirmed failures, residual risks, and release recommendation from this browser verification.
+  - label: Expand Test Coverage
+    agent: Test Scenario Writer
+    prompt: Turn the executed browser paths and gaps into explicit scenario coverage recommendations.
+  - label: Capture Support Follow-up
+    agent: Support Architect
+    prompt: Convert the confirmed failures and evidence into bounded support and follow-up actions.
+
+---
+
+# E2E QA Agent
+
+## Target Scope
+
+- `src/app/**`
+- `src/modules/**/interfaces/**`
+- `debug/**`
+
+## Workflow
+
+1. Build scenarios from acceptance criteria and user paths.
+2. Execute browser interactions and capture runtime evidence.
+3. Separate confirmed failures from improvement suggestions.
+
+## Rules
+
+- Capture clear reproduction steps.
+- Separate confirmed failures from improvement ideas.
+- Report console and network evidence when relevant.
+
+## Output
+
+- Scenarios executed
+- Evidence collected
+- Confirmed failures
+- Release recommendation: ready | ready-with-risk | blocked
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+````
+
+## File: .github/agents/embedding-writer.agent.md
+````markdown
+---
+name: Embedding Writer
+description: Implement embedding generation and vector-write workflows with deterministic metadata and quality checks.
+argument-hint: Provide chunk source, embedding model, storage target, and retrieval compatibility requirements.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Review Chunk Inputs
+    agent: Chunk Strategist
+    prompt: Review the upstream chunking policy and metadata assumptions for this embedding workflow.
+  - label: Refine Flow Integration
+    agent: Genkit Flow Agent
+    prompt: Refine the orchestration contract that consumes or coordinates this embedding workflow.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this embedding change for deterministic metadata, compatibility, and regression risk.
+
+---
+
+# Embedding Writer
+
+## Target Scope
+
+- `py_fn/**`
+- `src/modules/notebooklm/**`
+- `src/modules/notion/**` when vector metadata depends on canonical source/reference contracts
+- `src/modules/platform/**` when embedding provider, quota, or policy constraints come from shared `platform.ai`
+
+## Responsibilities
+
+- Define embedding payload shape.
+- Ensure consistent vector metadata.
+- Validate write path and retrieval compatibility.
+- Keep ownership aligned: `notebooklm` owns retrieval-facing semantics, while shared provider capability is consumed from `platform.ai`.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+````
+
+## File: .github/agents/firestore-schema.agent.md
+````markdown
+---
+name: Firestore Schema Agent
+description: Design Firestore document models, indexes, and access patterns aligned with module ownership and query workloads.
+argument-hint: Provide collection name, document fields, query access patterns, and migration constraints.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Plan Migration
+    agent: Schema Migration Agent
+    prompt: Plan the compatibility window, rollout path, and rollback strategy for this schema change.
+  - label: Review Security Rules
+    agent: Security Rules Agent
+    prompt: Review the security-rule implications of this Firestore schema and access-pattern change.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this schema change for compatibility risk, query correctness, and missing validation.
+
+---
+
+# Firestore Schema Agent
+
+## Target Scope
+
+- `src/modules/**/infrastructure/**`
+- `firestore.indexes.json`
+- `firestore.rules`
+
+## Responsibilities
+
+- Model collections and documents for bounded contexts.
+- Keep schema and index plans aligned with read and write paths.
+- Track migration impact and backward compatibility.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+````
+
+## File: .github/agents/frontend-lead.agent.md
+````markdown
+---
+name: Frontend Lead
+description: Lead app route composition and component architecture while keeping business logic in modules and APIs.
+argument-hint: Provide route or feature scope, composition goal, and boundary constraints.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'shadcn/*']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Diagnose Route Behavior
+    agent: App Router Agent
+    prompt: Diagnose the App Router composition, rendering behavior, and runtime boundary impact for this frontend scope.
+  - label: Compose UI Primitives
+    agent: Shadcn Composer
+    prompt: Compose or refactor the UI primitives and interaction states needed for this route-level frontend change.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this frontend change for UX regressions, ownership boundaries, and missing validation.
+
+---
+
+# Frontend Lead
+
+## Target Scope
+
+- `src/app/**`
+- `src/modules/**/interfaces/**`
+- `packages/ui-*/**`
+
+## Mission
+
+Deliver route-level UI slices with clear ownership and predictable data flow.
+
+## Guardrails
+
+- Keep app routes thin and composition-focused.
+- Consume module behavior via module api only.
+- Prefer server components unless client interactivity is required.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+````
+
+## File: .github/agents/genkit-flow.agent.md
+````markdown
+---
+name: Genkit Flow Agent
+description: Design and refine Genkit flow definitions, boundaries, and contract-safe integration with retrieval and worker pipelines.
+argument-hint: Provide flow name, runtime target (Next.js/py_fn), inputs/outputs, and orchestration concern.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Review AI Ownership
+    agent: AI Genkit Lead
+    prompt: Review the Genkit orchestration ownership, runtime split, and app-side integration for this flow.
+  - label: Review RAG Contract
+    agent: RAG Lead
+    prompt: Review this Genkit flow against retrieval contracts, worker boundaries, and indexing expectations.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this Genkit flow change for fallback behavior, contract safety, and validation gaps.
+
+---
+
+# Genkit Flow Agent
+
+## Target Scope
+
+- `src/app/**`
+- `src/modules/platform/**`
+- `src/modules/notebooklm/**`
+- `src/modules/notion/**` when content-side orchestration consumes shared AI capability
+
+## Focus
+
+- Flow inputs and outputs
+- Prompt and tool orchestration boundaries
+- Error handling and fallback behavior
+- Separation between shared `platform.ai` governance and `notebooklm` reasoning / retrieval semantics
+
+## Guardrails
+
+- Keep flow contracts explicit.
+- Avoid leaking worker-only logic into app orchestration.
+- Keep generic AI ownership in `platform.ai`; downstream contexts consume capability rather than redefining ownership.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+#use skill genkit-ai
+````
+
+## File: .github/agents/hexagonal-ddd-architect.agent.md
+````markdown
+---
+name: Hexagonal DDD Architect
+description: Design and refactor modules with Hexagonal Architecture with Domain-Driven Design ownership, layer direction, and API-only cross-module boundaries.
+argument-hint: Provide module name, operation type (create/refactor/split/merge), and migration constraints.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'repomix/*']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Confirm Domain Ownership
+    agent: Domain Lead
+    prompt: Confirm the owning bounded context and the required public API boundary for this module refactor.
+  - label: Update Contracts
+    agent: TS Interface Writer
+    prompt: Update or review the public DTO and contract surface affected by this module refactor.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this module refactor for boundary regressions, compatibility risk, and missing validation.
+
+---
+
+# Hexagonal DDD Architect
+
+## Target Scope
+
+- `src/modules/**`
+- `src/modules/shared/**`
+- `src/modules/shared/**`
+
+## Mission
+
+Shape module structures without breaking bounded contexts.
+
+## Rules
+
+- Keep dependency direction: interfaces -> application -> domain <- infrastructure.
+- Cross-module access must go through modules target api only.
+- Keep domain framework-free.
+- Run lint and build when boundaries or exports move.
+
+## Module Lifecycle Operations
+
+- Support create/refactor/split/merge/delete with explicit ownership mapping.
+- Preserve public API compatibility or document migration steps in the same change.
+- Replace internal cross-module imports with API contracts or event-driven collaboration.
+
+## Output
+
+- Ownership decision
+- Boundary impact
+- Files changed
+- Validation evidence
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+````
+
+## File: .github/agents/lint-rule-enforcer.agent.md
+````markdown
+---
+name: Lint Rule Enforcer
+description: Enforce lint and boundary rules, identify violation causes, and propose minimal fixes without broad refactors.
+argument-hint: Provide violation source (file path or npm run lint output), root cause hypothesis, and scope boundary.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Check Domain Boundary
+    agent: Domain Lead
+    prompt: Confirm whether this lint or boundary issue indicates a domain ownership or layer-placement problem.
+  - label: Review Frontend Impact
+    agent: Frontend Lead
+    prompt: Review the frontend or route-composition impact of the lint and boundary issues identified above.
+  - label: Summarize Quality Risk
+    agent: Quality Lead
+    prompt: Summarize the confirmed issues, fix status, and residual release risk after lint enforcement.
+
+---
+
+# Lint Rule Enforcer
+
+## Target Scope
+
+- `src/app/**`
+- `src/modules/**`
+- `packages/**`
+- `providers/**`
+- `py_fn/**`
+
+## Mission
+
+Keep rule compliance high while minimizing churn.
+
+## Guardrails
+
+- Fix root causes, not symptoms.
+- Preserve existing architecture boundaries.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+````
+
+## File: .github/agents/quality-lead.agent.md
+````markdown
+---
+name: Quality Lead
+description: Drive risk-first review and QA evidence, including regression detection, coverage gaps, and release recommendation.
+argument-hint: Provide changed files or PR diff, risk areas, and release criteria.
+tools: ['serena/*', 'context7/*', 'read', 'search', 'execute', 'todo']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Enforce Lint Rules
+    agent: Lint Rule Enforcer
+    prompt: Enforce the relevant lint and boundary rules and report the root causes for any remaining violations.
+  - label: Verify Browser Flows
+    agent: E2E QA Agent
+    prompt: Execute the highest-risk browser scenarios and collect runtime evidence for this change.
+  - label: Expand Test Scenarios
+    agent: Test Scenario Writer
+    prompt: Turn the residual risks and gaps into explicit unit, integration, or E2E scenario coverage.
+
+---
+
+# Quality Lead
+
+## Target Scope
+
+- `src/app/**`
+- `src/modules/**`
+- `packages/**`
+- `providers/**`
+- `py_fn/**`
+
+## Mission
+
+Verify correctness, boundary safety, and release readiness.
+
+## Review Lenses
+
+1. Correctness and behavioral regression risk
+2. Ownership and boundary integrity
+3. Validation completeness
+4. Documentation completeness for changed behavior
+
+## Workflow
+
+1. Build scenario list from requirements and change scope.
+2. Execute happy path, boundary, negative, and error scenarios.
+3. Report findings by severity before summaries.
+
+## Output
+
+- Findings ordered by severity
+- Evidence and reproduction details
+- Residual risks and recommendation: ready, ready-with-risk, blocked
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+````
+
+## File: .github/agents/rag-lead.agent.md
+````markdown
+---
+name: RAG Lead
+description: Lead RAG ingest and retrieval contracts, runtime boundaries, and quality gates for chunk and vector pipelines.
+argument-hint: Provide document sources, retrieval goal, runtime context (Next.js/py_fn), and quality constraints.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Normalize Ingestion
+    agent: Doc Ingest Agent
+    prompt: Normalize the ingestion inputs, attribution fields, and source-conversion flow for this RAG scope.
+  - label: Design Chunk Strategy
+    agent: Chunk Strategist
+    prompt: Design the chunking policy, overlap, and metadata boundaries for this RAG scope.
+  - label: Write Embeddings
+    agent: Embedding Writer
+    prompt: Implement or review the embedding payload, metadata writes, and compatibility guarantees for this RAG scope.
+
+---
+
+# RAG Lead
+
+## Target Scope
+
+- `py_fn/**`
+- `src/modules/notebooklm/**`
+- `src/modules/notion/**` when canonical source contracts or source references change
+- `src/modules/platform/**` when shared `platform.ai` capability, entitlement, or policy constraints affect retrieval flows
+
+## Focus
+
+- Ingestion contract alignment
+- Retrieval quality and index consistency
+- Runtime split between app orchestration and worker processing
+- Ownership alignment: `notebooklm` owns ingestion / retrieval / grounding / evaluation semantics, `notion` provides canonical sources, and shared model/provider capability is consumed from `platform.ai`
+
+## Guardrails
+
+- Validate contract alignment before changing ingestion shape.
+- Keep Next.js orchestration and `py_fn` ingestion responsibilities separated.
+- Do not reintroduce generic `ai` or `retrieval` ownership into `notion`; keep retrieval semantics in `notebooklm` and consume shared AI capability from `platform.ai`.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+````
+
+## File: .github/agents/schema-migration.agent.md
+````markdown
+---
+name: Schema Migration Agent
+description: Plan and implement schema evolution with compatibility windows, data backfill steps, and rollback considerations.
+argument-hint: Provide source schema, target schema, rollout timeline, and rollback constraints.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Review Firestore Model
+    agent: Firestore Schema Agent
+    prompt: Review the source and target schema shape, query impact, and index needs for this migration plan.
+  - label: Review Security Rules
+    agent: Security Rules Agent
+    prompt: Review the security-rule impact and access-policy compatibility for this migration plan.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this migration plan for rollout risk, rollback gaps, and validation completeness.
+
+---
+
+# Schema Migration Agent
+
+## Target Scope
+
+- `src/modules/**/infrastructure/**`
+- `firestore.indexes.json`
+- `firestore.rules`
+
+## Workflow
+
+1. Define source and target schema.
+2. Plan compatibility and cutover phases.
+3. Validate reads and writes before and after migration.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+````
+
+## File: .github/agents/security-rules.agent.md
+````markdown
+---
+name: Security Rules Agent
+description: Author and review Firestore and Storage security rules with least-privilege, tenancy isolation, and testable access policies.
+argument-hint: Provide actor roles, access scenarios, constrained collections/paths, and tenancy isolation requirements.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Review Firestore Schema
+    agent: Firestore Schema Agent
+    prompt: Review the data model and access paths that this security-rules change must protect.
+  - label: Verify Browser Impact
+    agent: E2E QA Agent
+    prompt: Verify the product flows affected by this rules change and capture evidence for any access regressions.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this security-rules change for least-privilege coverage, regression risk, and validation gaps.
+
+---
+
+# Security Rules Agent
+
+## Target Scope
+
+- `firestore.rules`
+- `storage.rules`
+- `src/modules/**/infrastructure/**`
+
+## Mission
+
+Prevent unauthorized access while preserving required product flows.
+
+## Guardrails
+
+- Enforce organization and workspace isolation.
+- Prefer explicit allow conditions with clear actor checks.
+- Pair rule changes with validation scenarios.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+````
+
+## File: .github/agents/server-action-writer.agent.md
+````markdown
+---
+name: Server Action Writer
+description: Write Next.js server actions that validate input, delegate to use cases, and return stable command results.
+argument-hint: Provide action intent, input shape, target use case, and validation requirements.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Update Contracts
+    agent: TS Interface Writer
+    prompt: Update or review the DTO and command-result contracts used by this server action.
+  - label: Review Domain Boundary
+    agent: Domain Lead
+    prompt: Confirm the use-case boundary, layer placement, and API ownership for this server action.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this server action change for validation gaps, orchestration drift, and regression risk.
+
+---
+
+# Server Action Writer
+
+## Target Scope
+
+- `src/app/**`
+- `src/modules/**/interfaces/**`
+- `src/modules/**/application/**`
+
+## Guardrails
+
+- Keep actions thin and orchestration-only.
+- Place business rules in module use cases.
+- Preserve consistent command-result response shape.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+````
+
+## File: .github/agents/state-management.agent.md
+````markdown
+---
+name: State Management Agent
+description: Design and implement Zustand stores and XState machines with correct placement, slice patterns, and finite-state workflow contracts.
+argument-hint: Provide workflow name or store scope, owning module, state transitions, and whether XState or Zustand is appropriate.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Wire to Server Action
+    agent: Server Action Writer
+    prompt: Wire the state machine or store to the corresponding server action and return stable command results.
+  - label: Confirm Domain Boundary
+    agent: Domain Lead
+    prompt: Confirm that the state transition logic stays in XState machines and does not leak business rules into the store or component.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this state management change for store isolation, machine correctness, and regression risk.
+
+---
+
+# State Management Agent
+
+## Target Scope
+
+- `src/modules/**/interfaces/stores/**`
+- `src/modules/**/application/machines/**`
+- `src/app/(shell)/stores/**`
+- `src/app/**` (client components using Zustand / XState hooks)
+
+## Responsibilities
+
+- Decide between Zustand and XState based on responsibility
+- Design Zustand store slice patterns with correct naming and placement
+- Design XState machines for finite-state workflows aligned to use-case transitions
+- Enforce separation of server state (TanStack Query), client UI state (Zustand), and workflow state (XState)
+
+## Decision Rule
+
+| Is it... | Use |
+|---|---|
+| Cross-component UI preference or toggle? | **Zustand** (`interfaces/stores/`) |
+| Multi-step workflow with defined state transitions? | **XState** (`application/machines/`) |
+| Server data (async fetch result)? | **TanStack Query** — never store in Zustand |
+| Domain aggregate state? | **Firestore via use case** — never cache in frontend store |
+
+## Guardrails
+
+- Zustand stores must not hold server-fetched data or domain aggregates.
+- XState machines must not import Firebase SDK or call repositories directly.
+- Machine definitions belong in `application/machines/`, never inline in components.
+- Business rules stay in `domain/`; machines orchestrate transitions only.
+- Store naming: `use<Name>Store`, file: `<name>.store.ts`.
+- Machine naming: `<noun>-<flow>.machine.ts`.
+
+## Skills Required
+
+`#use skill zustand-xstate`
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+#use skill zustand-xstate
+````
+
+## File: .github/agents/test-scenario-writer.agent.md
+````markdown
+---
+name: Test Scenario Writer
+description: Write risk-based scenario suites for unit, integration, and E2E coverage with clear acceptance criteria.
+argument-hint: Provide module or feature scope, happy path, known risk areas, and test coverage targets.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Review Quality Risk
+    agent: Quality Lead
+    prompt: Review these scenarios against the highest-risk behaviors, missing coverage, and release concerns.
+  - label: Verify Browser Flows
+    agent: E2E QA Agent
+    prompt: Execute the E2E scenarios from this suite in the browser and collect runtime evidence.
+  - label: Check Lint And Rules
+    agent: Lint Rule Enforcer
+    prompt: Check whether any structural or lint rule changes are needed to support the scenarios described above.
+
+---
+
+# Test Scenario Writer
+
+## Target Scope
+
+- `src/app/**`
+- `src/modules/**`
+- `py_fn/tests/**`
+
+## Scope
+
+- Happy path
+- Boundary and negative paths
+- Error handling and regression-sensitive paths
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+````
+
+## File: .github/agents/ts-interface-writer.agent.md
+````markdown
+---
+name: TS Interface Writer
+description: Write and refactor TypeScript interfaces, DTOs, and contracts with stable naming and compatibility-aware changes.
+argument-hint: Provide interface or DTO name, owning module, field changes, and consumer compatibility requirements.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Review Domain Ownership
+    agent: Domain Lead
+    prompt: Confirm the owning bounded context and public API boundary for these contract changes.
+  - label: Write Server Action
+    agent: Server Action Writer
+    prompt: Update the server action orchestration that consumes or returns these contract changes.
+  - label: Review Firestore Shape
+    agent: Firestore Schema Agent
+    prompt: Review the persistence and index implications of these contract changes.
+
+---
+
+# TS Interface Writer
+
+## Target Scope
+
+- `src/modules/**/api/**`
+- `src/modules/**/application/dto/**`
+- `src/modules/shared/**`
+
+## Focus
+
+- Domain and application DTO contracts
+- Backward-safe type evolution
+- Explicit optional and required field transitions
+
+## Guardrails
+
+- Keep module interface and API contracts explicit and minimal.
+- Do not leak private infrastructure/entity internals into public API contracts.
+- Coordinate contract changes with consumer updates in the same change.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+````
+
+## File: .github/agents/zod-validator.agent.md
+````markdown
+---
+name: Zod Validator Agent
+description: Enforce Zod validation at all three system boundaries — external input, domain value objects, and infrastructure output — without leaking validation responsibility across layers.
+argument-hint: Provide validation target (Server Action/value object/Firestore adapter), owning module, and schema requirements.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Fix Domain Model
+    agent: Domain Lead
+    prompt: Update or review domain value object and aggregate schema definitions to align with the corrected Zod validation boundary.
+  - label: Fix Infrastructure Adapter
+    agent: Hexagonal DDD Architect
+    prompt: Add or correct Zod validation in the infrastructure adapter for external system output before it reaches the application layer.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this validation change for missing boundary checks, schema drift, and regression risk.
+
+---
+
+# Zod Validator Agent
+
+## Target Scope
+
+- `src/modules/**/interfaces/**` (Server Actions, route handlers — Level 1 boundary)
+- `src/modules/**/domain/value-objects/**` (brand types — Level 2)
+- `src/modules/**/domain/events/**` (event payload schemas — Level 2)
+- `src/modules/**/infrastructure/**` (Firestore/AI output validation — Level 3)
+
+## Three Validation Levels
+
+| Level | Location | Purpose |
 |---|---|---|
-| `src/modules/<context>/` | 主域模組實作層（Hexagonal DDD） | 修改邊界規則、domain model、跨模組 API、use case 與 adapters |
+| 1 — External Input | `interfaces/` Server Action / route | Parse and reject invalid input before use case |
+| 2 — Domain Types | `domain/value-objects/`, `domain/events/` | Brand types and event payload schemas |
+| 3 — External Output | `infrastructure/` adapters | Validate Firestore reads and AI responses |
 
-- 不確定放在哪一層 → 讀 `src/modules/<context>/AGENT.md` 的 **Route Here / Route Elsewhere** 段落。
-- 新實作一律以 `src/modules/template` 骨架為基線。
-- 閱讀 strategic boundary / published language → `src/modules/<context>/api/` 與 `src/modules/<context>/AGENT.md`。
+## Hard Rules
 
-## Operating Rules
+- Every Server Action must call `ZodSchema.parse(rawInput)` before delegating to a use case.
+- `domain/` may only use Zod for schema and brand-type definitions — no I/O, no framework calls.
+- Every Firestore document read must pass through a Zod schema before being mapped to a domain entity.
+- Every AI flow output must be validated before entering a use case.
+- Never use `as SomeType` to cast external data without validation.
 
-- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
-- Cross-module collaboration goes through the target module `api/` boundary only.
-- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
-- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
-- If a team adds `core/`, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.
-- Keep business logic in `domain/` and `application`; keep UI, transport, and composition in `interfaces/` and `src/app/`.
-- Preserve the runtime split: Next.js owns browser-facing UX and orchestration; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
-- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy alias patterns.
+## Guardrails
 
-## Governance Rules
+- Zod schemas must NOT contain business logic — that belongs in domain aggregates.
+- Do not duplicate the same schema in both `domain/` and `application/` — pick one canonical location.
+- `z.object().passthrough()` is forbidden for production data paths (use strict schemas).
+- `z.any()` and `z.unknown()` without subsequent `.parse()` are validation gaps.
 
-- Keep this file thin. Put detailed, file-scoped behavior in `.github/instructions/` and reuse docs instead of copying architecture content into customization files.
-- Use [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for Serena workflow details, [skills/context7/SKILL.md](skills/context7/SKILL.md) for documentation verification, and [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) for boundary-safe module design.
-- Use [skills/xuanwu-skill/SKILL.md](skills/xuanwu-skill/SKILL.md) and [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill.md) for implementation lookup only; they are not strategic authority.
-- `.claude/` may exist as a compatibility surface, but `.github/*` remains the primary Copilot governance surface.
+## Skills Required
 
-## Terminology
+`#use skill zod-validation`
 
-- Follow [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) and the docs it routes to.
-- Normalize to canonical glossary terms before naming code, prompts, instructions, agents, skills, or documentation.
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+#use skill zod-validation
+#use skill hexagonal-ddd
+````
 
-## DDD Strategic Rules (Phase 1)
+## File: .github/instructions/architecture-core.instructions.md
+````markdown
+---
+description: 'Consolidated Hexagonal DDD architecture rules: layer ownership, API-only boundaries, module shape, and bounded-context dependency direction.'
+applyTo: 'src/modules/**/*.{ts,tsx,js,jsx,md}'
+---
 
-- Use [instructions/subdomain-rules.instructions.md](./instructions/subdomain-rules.instructions.md) for subdomain design rules.
-- Use [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for Bounded Context design rules.
-- Use [instructions/domain-layer-rules.instructions.md](./instructions/domain-layer-rules.instructions.md) for Domain Layer design rules.
-- Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
+# Architecture Core
+
+## Core Boundary Rules
+
+- Determine owning bounded context and subdomain from `docs/**/*` before choosing file placement.
+- Cross-module collaboration must go through `src/modules/<target>/index.ts` or explicit events.
+- Cross-module route components must be props-scoped (`accountId`, `workspaceId`, optional `currentUserId`) from the composition owner; do not consume another module's context provider directly.
+- Do not import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
+- Replace any boundary bypass in the same change with API contracts or events.
+
+## Layer Direction
+
+- Dependency direction is fixed: `interfaces -> application -> domain <- infrastructure`.
+- Keep `domain/` framework-free and runtime-agnostic.
+- `infrastructure/` and `interfaces/` are outer layers; do not place them inside generic `core/`.
+
+## Layer Ownership
+
+- `domain/`: business rules, invariants, aggregates, entities, value objects, domain events, repository/port interfaces.
+- `application/`: use-case orchestration, transaction boundaries, command/query contracts, application services.
+- `infrastructure/`: repository and adapter implementations only.
+- `interfaces/`: input/output translation, route/action/UI wiring.
+- `index.ts`: cross-module entry surface with stable semantic capability contracts.
+- `index.ts` must not expose repository factories, container wiring, or other internal composition helpers as public contracts.
+- Internal composition helpers belong under module-local `interfaces/` or `infrastructure/` paths unless a real cross-module semantic boundary requires promotion.
+
+## Use Case Decision Rules
+
+- Use a use case only for business behavior.
+- Pure reads without business logic go to query handlers.
+- Keep UI state and interaction logic in `interfaces/`.
+- Use cases orchestrate flow; complex business rules stay in `domain/`.
+- `GetXxxUseCase` is usually a query smell.
+
+## Development Order
+
+- Use-case contract first: actor, goal, main success scenario, failure branches.
+- Recommended order: `Use Case -> Domain -> (Application <-> Ports iterate as needed) -> Infrastructure -> Interface`.
+- Do not build UI first and backfill domain later.
+- Do not call repositories directly from `interfaces/`.
+- Do not force domain design from storage schema first.
+
+## Module Shape and Naming
+
+- Bounded-context root required shape: `index.ts`, `adapters/`, `subdomains/`, `shared/`, `orchestration/`, `README.md`, `AGENT.md`.
+- Subdomain default shape follows core-first (`domain/`, `application/`, optional `ports/`); subdomain `infrastructure/` and `interfaces/` are gate-based, not always required.
+- Public boundary is `index.ts`; cross-module consumers import only from module root `index.ts`.
+- Use case file: `verb-noun.use-case.ts`.
+- Repository interface: `PascalCaseRepository`.
+- Repository implementation: `TechnologyPascalCaseRepository`.
+- Domain event discriminant: `module-name.action`.
+
+## Refactor and Lifecycle Rules
+
+1. Confirm ownership first.
+2. Map API consumers.
+3. Create or update the target use-case contract before adapter/UI edits.
+4. Preserve boundaries during split/merge/delete.
+5. Update docs and imports in the same change.
+6. Migrate public API and event contracts before removing old paths.
+
+## Zod — System-Level Validation Layer
+
+Zod is the system's runtime validation baseline. It is applied at three distinct levels with different purposes:
+
+### Level 1 — External Input Boundary (interfaces / Server Action)
+
+All external input (Server Action args, tRPC input, API route body) must pass through a Zod schema **before** reaching the application layer. If parsing fails, return a structured error immediately — do not let unparsed data propagate.
+
+```typescript
+// ✅ Correct: parse at Server Action boundary
+const CreateWorkspaceInputSchema = z.object({
+  name: z.string().min(1).max(100).trim(),
+  organizationId: z.string().uuid(),
+});
+
+export async function createWorkspaceAction(rawInput: unknown) {
+  const input = CreateWorkspaceInputSchema.parse(rawInput);  // throws ZodError if invalid
+  return createWorkspaceUseCase.execute(input);
+}
+```
+
+### Level 2 — Domain Value Objects (domain layer)
+
+Value objects in `domain/` use Zod brand types to enforce type safety at compile time and runtime. This is the only place Zod is permitted inside `domain/`.
+
+```typescript
+// ✅ Correct: brand type in domain
+export const WorkspaceIdSchema = z.string().uuid().brand('WorkspaceId');
+export type WorkspaceId = z.infer<typeof WorkspaceIdSchema>;
+```
+
+`domain/` must not import Zod for anything other than schema definitions and brand types. No I/O, no HTTP, no Firebase.
+
+### Level 3 — External System Output (infrastructure / AI adapters)
+
+Any data arriving from external systems (Firestore reads, AI flow outputs, third-party APIs) must be validated with a Zod schema in the infrastructure/adapter layer before the typed result is returned to the application layer.
+
+```typescript
+// ✅ Correct: validate Firestore result before returning to use case
+const raw = (await docRef.get()).data();
+return FirestoreWorkspaceSchema.parse(raw);  // throws if schema drifted
+
+// ❌ Wrong: cast without validation
+return raw as WorkspaceSnapshot;
+```
+
+### Zod Placement Rules
+
+| Where | Use Zod for |
+|---|---|
+| `interfaces/` (Server Action, route) | External input parsing before use-case call |
+| `domain/value-objects/` | Brand type definitions only |
+| `domain/events/` | Domain event payload schemas |
+| `infrastructure/` adapters | External system output validation |
+| `application/` DTOs | Command/query input schemas (optional, defer to boundary) |
+
+### Anti-Patterns
+
+- ❌ Passing `rawInput: unknown` into a use case without Zod parsing at the boundary
+- ❌ Using `as SomeType` to cast Firestore or AI output without validation
+- ❌ Importing Zod in `domain/` for anything other than schema and brand-type definitions
+- ❌ Duplicating the same schema in both `domain/` and `application/` — keep it in one place
+
+## Validation
+
+- Use `eslint.config.mjs` restricted-import and boundary rules as enforcement source.
+- Re-check changed imports under `@/modules/` for API-only access.
+- Keep dependency flow acyclic unless an explicit event contract documents an exception.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+#use skill hexagonal-ddd
+````
+
+## File: .github/instructions/architecture.instructions.md
+````markdown
+---
+description: >
+  Consolidated architecture standard: Hexagonal Architecture + DDD + Firebase + Genkit + Frontend State + Validation.
+  Incorporates layer ownership, API-only boundaries, module shape, runtime split, Bounded Context rules, and subdomain design constraints.
+applyTo: "**"
+---
+
+# Architecture Standard
+
+System is designed under a combined architecture model:
+
+Hexagonal Architecture (Ports and Adapters) + Domain-Driven Design (DDD)
+with semantic-first (business-language-aligned domain modeling)
+and Firebase Serverless Backend Architecture (Authentication, Firestore, Cloud Functions, Hosting)
+and Genkit AI Orchestration Layer (AI Flows, Tool Calling, Prompt Pipelines)
+and Frontend State Management Layer (Zustand for client state, XState for finite-state workflows)
+and Schema Validation Layer (Zod for runtime type safety and domain validation)
+
+> **Detailed file-scoped rules** are in `.github/instructions/` siblings (e.g. `domain-modeling`, `firestore-schema`, `nextjs-app-router`).
+> This file is the **global system contract** that applies to every file in the repo.
+
+---
+
+# 1. Hexagonal Architecture (Ports and Adapters)
+
+## 1.1 Dependency Direction (Fixed, Non-Negotiable)
+
+```
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `domain/` must be framework-free and runtime-agnostic.
+- `application/` depends only on `domain/` abstractions — never on infrastructure implementations.
+- `infrastructure/` implements ports defined in `domain/`; it never depends on UI.
+- `interfaces/` and `infrastructure/` are outer layers; do not nest them inside a generic `core/`.
+
+Strict rule: `domain/` must never import Firebase, Genkit, React, Node.js `crypto`, HTTP clients, or ORMs.
+Use `@lib-uuid` for UUID generation in domain layers.
+
+## 1.2 Port Design
+
+- Ports are **requirement-driven**, not technology-driven (e.g. `UserRepository`, not `FirestoreUserClient`).
+- Port interfaces are defined in `domain/`; implementations live in `infrastructure/`.
+- Every port must be mockable, swappable, and independently testable.
+
+## 1.3 Adapter Rules
+
+- Adapters implement ports only; they never contain business rules.
+- All external SDKs (Firebase, Genkit, HTTP) exist only inside adapter implementations.
+- Adapters translate I/O; they do not make business decisions.
+
+---
+
+# 2. Domain-Driven Design (DDD)
+
+## 2.1 Layer Ownership
+
+| Layer | Owns |
+|---|---|
+| `domain/` | Business rules, invariants, aggregates, entities, value objects, domain events, repository/port interfaces |
+| `application/` | Use-case orchestration, transaction boundaries, command/query contracts |
+| `infrastructure/` | Repository and adapter implementations only |
+| `interfaces/` | Input/output translation, route/action/UI wiring |
+| `index.ts` | Cross-module entry surface only — stable semantic capability contracts |
+
+`index.ts` must NOT expose repository factories, container wiring, or internal composition helpers as public contracts.
+Internal composition helpers belong under module-local `interfaces/` or `infrastructure/` paths.
+
+## 2.2 Bounded Context Rules
+
+- Bounded Context is a **semantic consistency boundary**, not just a folder.
+- Every Bounded Context has its own Ubiquitous Language — do not mix models across contexts.
+- Cross-context model translation must be explicit (Translator / ACL Mapper).
+- Domain models must not be reused across contexts; use Published Language tokens instead.
+- Bounded Context names must align with `src/modules/<context>/` folder names.
+
+## 2.3 Subdomain Rules
+
+- Subdomains represent **business capability boundaries** — split by business concern, not technical function.
+- Default subdomain shape is **core-first**: `domain/`, `application/`, optional `ports/`.
+- Subdomain `infrastructure/` and `interfaces/` are gate-based: only add them when there is clear, sustained external integration pressure that the bounded context root cannot absorb.
+- One subdomain = one business capability. Never mix responsibilities.
+- Subdomains communicate only through the parent module's `index.ts` boundary or domain events.
+
+## 2.4 Main Domain Relationships (Upstream → Downstream)
+
+```
+platform → workspace → notion → notebooklm
+platform → notion
+platform → notebooklm
+workspace → notebooklm
+```
+
+`platform` is governance upstream. Never invert this direction.
+
+## 2.5 Use Case Decision Rules
+
+- Use a use case only for **business behavior** (orchestration + invariant flow).
+- Pure reads without business logic go to query handlers — `GetXxxUseCase` is a query smell.
+- Complex business rules stay in `domain/`; use cases orchestrate flow only.
+- Do not call repositories directly from `interfaces/`.
+
+## 2.6 Development Order
+
+1. Use-case contract first (actor, goal, main success scenario, failure branches).
+2. `Use Case → Domain → (Application ↔ Ports, iterate) → Infrastructure → Interface`.
+3. Do not build UI first and backfill domain later.
+4. Do not force domain design from storage schema first.
+
+---
+
+# 3. Module Shape and Naming
+
+## 3.1 Required Shape (Bounded Context Root)
+
+```
+src/modules/<context>/
+  index.ts        ← cross-module entry surface only
+  domain/
+  application/
+  infrastructure/
+  interfaces/
+  README.md
+  AGENT.md
+```
+
+## 3.2 Naming Conventions
+
+| Element | Pattern |
+|---|---|
+| Use case file | `verb-noun.use-case.ts` |
+| Repository interface | `PascalCaseRepository` (no `I` prefix) |
+| Repository implementation | `TechnologyPascalCaseRepository` |
+| Domain event discriminant | `module-name.action` (kebab-case) |
+| Domain event naming | Past tense PascalCase (e.g. `WorkspaceCreated`) |
+
+## 3.3 Cross-Module Boundary Rules
+
+- Cross-module collaboration must go through `src/modules/<target>/index.ts` or explicit domain events.
+- Do not import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
+- Cross-module route components must use props-scoped scope (`accountId`, `workspaceId`); do not consume another module's context provider directly.
+
+---
+
+# 4. Runtime Boundary (Next.js / py_fn)
+
+- **Next.js** owns: browser-facing interactions, auth/session, server actions, route orchestration, user-facing AI chat.
+- **`py_fn/`** owns: parsing, cleaning, taxonomy, chunking, embedding, and background/retryable jobs.
+- Do not run heavy ingestion/embedding pipelines inside Next.js server actions.
+- Do not add browser-facing auth/session/chat logic inside `py_fn/`.
+- Cross-runtime handoff must use an explicit contract (QStash message, Firestore trigger, or event).
+
+---
+
+# 5. Backend Architecture (Firebase)
+
+Firebase is the only backend runtime platform.
+
+- Firestore accessed only via `infrastructure/` repository implementations.
+- Cloud Functions must not contain domain logic.
+- Authentication state must be mapped into domain identity before crossing into `domain/`.
+- `workspace` must not call Firestore directly; it must use `platform/api` Service APIs (FileAPI, PermissionAPI, etc.).
+
+---
+
+# 6. AI Architecture (Genkit)
+
+Genkit is the AI orchestration layer.
+
+- AI is treated as an **external untrusted actor**.
+- AI output must be validated via Zod before entering any use case or domain.
+- AI must not directly mutate domain state or write to Firestore.
+- Shared AI capability ownership (provider, quota, safety policy) belongs to `platform.ai`.
+- `notion` and `notebooklm` **consume** `platform.ai` capability — they do not own an `ai` subdomain.
+
+---
+
+# 7. Frontend State Management
+
+- **Zustand**: lightweight client state; no domain logic, no business rule persistence.
+- **XState**: complex finite-state workflows aligned with use case transitions; must represent explicit states and events.
+- UI state ≠ domain state. Never let UI interaction drive domain model design.
+
+---
+
+# 8. Validation (Zod)
+
+- Zod is the only runtime validation tool.
+- All external inputs must be validated via Zod before reaching use cases.
+- Domain invariants are enforced **after** Zod validation, inside aggregates.
+- Zod schemas must NOT contain business logic.
+
+```
+External Input → Zod Validation → Application Use Case → Domain
+```
+
+---
+
+# 9. Enforcement Priority
+
+When ambiguity exists, apply in this order:
+
+1. Domain integrity (never compromise)
+2. Bounded context isolation
+3. Dependency direction
+4. Infrastructure convenience
+
+Never sacrifice domain purity for implementation simplicity.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: .github/prompts/domain-modeling.prompt.md
@@ -33072,6 +32902,87 @@ cp -r src/modules/template src/modules/<your-context>
 - [docs/ubiquitous-language.md](../../docs/ubiquitous-language.md) — 術語權威
 ````
 
+## File: .github/agents/architecture-enforcer.agent.md
+````markdown
+---
+name: Architecture Enforcer
+description: 架構總裁／規則審核器：全域掃描 Hexagonal + DDD 規則是否被破壞，驗證 dependency direction、import boundary，防止 domain 污染與層級跳越。
+argument-hint: 提供審查範圍（預設全 repo）、已知風險點、或特定 PR diff 路徑。
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'todo', 'repomix/*']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Fix Domain Purity
+    agent: Domain Enforcer
+    prompt: 修正此次掃描中發現的 domain layer 污染或貧血模型問題，確保 domain 純度符合 Hexagonal DDD 規範。
+  - label: Fix Firebase Misuse
+    agent: Firebase Guardian
+    prompt: 修正此次掃描中發現的 Firebase 被錯誤層級引用問題，確保 Firebase 只存在於 infrastructure adapter。
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: 對此次架構審查的修正結果進行最終品質把關，確認邊界回歸風險與驗證覆蓋度。
+
+---
+
+# Architecture Enforcer
+
+## 目標範圍 (Target Scope)
+
+- `src/modules/**`
+- `src/app/**`
+- `packages/**`
+- `py_fn/**`
+
+## 使命 (Mission)
+
+作為架構總裁，以全域視角審查並強制執行 Hexagonal Architecture + DDD 的核心不變規則。發現任何違規必須修正，不允許以「技術負債標注」代替修復。
+
+## 必讀來源
+
+- `.github/instructions/architecture.instructions.md`
+- `.github/instructions/architecture-core.instructions.md`
+- `.github/instructions/architecture-runtime.instructions.md`
+- `.github/instructions/hexagonal-rules.instructions.md`
+- `.github/instructions/bounded-context-rules.instructions.md`
+- `docs/bounded-contexts.md`
+- `docs/subdomains.md`
+
+## 審查清單
+
+### Dependency Direction（依賴方向）
+- [ ] `interfaces/` 不直接呼叫 `infrastructure/` 或 `domain/` 內部？
+- [ ] `application/` 只依賴 `domain/` abstraction，不依賴 infrastructure 實作？
+- [ ] `domain/` 完全不匯入 Firebase / React / HTTP client / ORM？
+- [ ] `index.ts` 僅暴露 cross-module 公開表面，不含 repository factory 或 container wiring？
+
+### Import Boundary（匯入邊界）
+- [ ] 跨模組呼叫一律經由 `src/modules/<target>/index.ts`，無直接內部路徑匯入？
+- [ ] Route components 使用 props 傳遞 scope（`accountId`, `workspaceId`），不呼叫外部模組 context provider？
+
+### Module Shape（模組形狀）
+- [ ] Bounded context root 包含 `index.ts`, `domain/`, `application/`, `infrastructure/`, `interfaces/`？
+- [ ] Subdomain 採 core-first 形狀（`api/`, `domain/`, `application/`），`infrastructure/` 和 `interfaces/` 為 gate-based？
+
+### Layer Coupling Smells（層耦合怪味道）
+- [ ] 無 God Use Case（包含 business rule 與 infrastructure logic 混合）？
+- [ ] 無貧血模型（Aggregate 只有 getters/setters，無業務方法）？
+- [ ] 無 Layer Skipping（interfaces 直接呼叫 repository）？
+
+### Runtime Boundary（執行時邊界）
+- [ ] Next.js 不直接執行 parsing / chunking / embedding pipeline？
+- [ ] `py_fn/` 不包含 browser-facing auth / session / chat logic？
+
+## 輸出格式
+
+1. **違規項目清單**：每項附 `[SEVERITY: CRITICAL|HIGH|MEDIUM]`、檔案路徑與行號、具體說明
+2. **根因分析**：非症狀描述，而是造成違規的設計決策
+3. **修正建議**：具體檔案移動 / 重構步驟
+4. **修正後驗證**：`npm run lint` + `npm run build` 結果
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+#use skill hexagonal-ddd
+#use skill occams-razor
+````
+
 ## File: .github/prompts/implement-ui-component.prompt.md
 ````markdown
 ---
@@ -34030,6 +33941,93 @@ subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/doma
 - [modules/](../../../modules/) — 完整 HEX+DDD 實作層（邊界規則權威）
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 - [docs/bounded-context-subdomain-template.md](../../../docs/bounded-context-subdomain-template.md) — 蒸餾設計藍圖
+````
+
+## File: .github/copilot-instructions.md
+````markdown
+---
+applyTo: **
+description: Xuanwu Copilot Workspace Instructions
+name: Xuanwu Copilot Workspace Instructions
+---
+
+#use skill xuanwu-skill
+#use skill context7
+#use skill serena-mcp
+#use skill hexagonal-ddd
+#use skill xuanwu-app-markdown-skill
+#use skill occams-razor
+#use skill alistair-cockburn
+
+# Xuanwu Copilot Workspace Instructions
+
+Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put detailed architecture truth in [docs/README.md](../docs/README.md), scoped behavior in [.github/instructions](./instructions), reusable workflows in prompts, and tool-specific procedure in skills.
+
+## Session Contract
+
+- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it first, activate `xuanwu-app`, and use Serena for project memory/index work.
+- If confidence in any library API, framework, or config schema detail is below 99.99%, verify it through Context7 before writing or suggesting code.
+- Treat `docs/**/*` as the authority for DDD routing, bounded-context ownership, terminology, and strategic duplicate-name resolution. `.github/*` defines Copilot behavior and must not compete with docs.
+- Run the matching validation from [agents/commands.md](./agents/commands.md) before closing non-trivial changes.
+
+## Read Order
+
+1. Start with [docs/README.md](../docs/README.md).
+2. Use [docs/ubiquitous-language.md](../docs/ubiquitous-language.md) for terminology and duplicate-name guardrails.
+3. Use [docs/subdomains.md](../docs/subdomains.md) and [docs/bounded-contexts.md](../docs/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
+4. Use `docs/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
+5. Use [docs/bounded-context-subdomain-template.md](../docs/bounded-context-subdomain-template.md) and [docs/project-delivery-milestones.md](../docs/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
+6. Use [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment validation.
+
+## Instruction Series (Phase 1)
+
+- Use [instructions/architecture-core.instructions.md](./instructions/architecture-core.instructions.md) as the consolidated module architecture rule set.
+- Use [instructions/architecture-runtime.instructions.md](./instructions/architecture-runtime.instructions.md) as the consolidated runtime split rule set.
+- Use [instructions/process-framework.instructions.md](./instructions/process-framework.instructions.md) as the consolidated delivery/decision framework.
+- Use [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) as the consolidated docs authority and terminology rule set.
+- Legacy instruction files marked DEPRECATED remain transition-only and should not be expanded.
+
+## Module Layer Routing（src-only）
+
+本 repo 已全面改為 `src/modules/` 單一模組層：
+
+| 路徑 | 職責 | 撰寫時機 |
+|---|---|---|
+| `src/modules/<context>/` | 主域模組實作層（Hexagonal DDD） | 修改邊界規則、domain model、跨模組 API、use case 與 adapters |
+
+- 不確定放在哪一層 → 讀 `src/modules/<context>/AGENT.md` 的 **Route Here / Route Elsewhere** 段落。
+- 新實作一律以 `src/modules/template` 骨架為基線。
+- 阅讀 strategic boundary / published language → `src/modules/<context>/index.ts` 與 `src/modules/<context>/AGENT.md`。
+
+## Operating Rules
+
+- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
+- Cross-module collaboration goes through the target module `index.ts` boundary only.
+- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
+- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
+- If a team adds `core/`, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.
+- Keep business logic in `domain/` and `application`; keep UI, transport, and composition in `interfaces/` and `src/app/`.
+- Preserve the runtime split: Next.js owns browser-facing UX and orchestration; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
+- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy alias patterns.
+
+## Governance Rules
+
+- Keep this file thin. Put detailed, file-scoped behavior in `.github/instructions/` and reuse docs instead of copying architecture content into customization files.
+- Use [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for Serena workflow details, [skills/context7/SKILL.md](skills/context7/SKILL.md) for documentation verification, and [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) for boundary-safe module design.
+- Use [skills/xuanwu-skill/SKILL.md](skills/xuanwu-skill/SKILL.md) and [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill.md) for implementation lookup only; they are not strategic authority.
+- `.claude/` may exist as a compatibility surface, but `.github/*` remains the primary Copilot governance surface.
+
+## Terminology
+
+- Follow [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) and the docs it routes to.
+- Normalize to canonical glossary terms before naming code, prompts, instructions, agents, skills, or documentation.
+
+## DDD Strategic Rules (Phase 1)
+
+- Use [instructions/subdomain-rules.instructions.md](./instructions/subdomain-rules.instructions.md) for subdomain design rules.
+- Use [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for Bounded Context design rules.
+- Use [instructions/domain-layer-rules.instructions.md](./instructions/domain-layer-rules.instructions.md) for Domain Layer design rules.
+- Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
 ````
 
 ## File: src/modules/analytics/README.md

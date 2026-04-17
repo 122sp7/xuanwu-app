@@ -16,8 +16,8 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 **Xuanwu Enforcement**:
 - ESLint boundary rules: no infrastructure/domain imports; no main-domain-api imports from infrastructure
-- Public API entry: `api/index.ts` only
-- Cross-module: use target module's `api/` boundary or events
+- Public API entry: `index.ts` at module root only
+- Cross-module: use target module's `index.ts` boundary or events
 
 ---
 

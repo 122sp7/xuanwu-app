@@ -34,16 +34,16 @@
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `modules/analytics/AGENT.md`、`modules/analytics/api/`
-- 跨模組 API boundary → `modules/analytics/api/index.ts`
+- 讀取邊界規則 → `src/modules/analytics/AGENT.md`
+- 跨模組 API boundary → `src/modules/analytics/index.ts`
 
 ## 衝突防護（src/modules vs modules/）
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `modules/analytics/AGENT.md`、`modules/analytics/api/` |
+| 讀取邊界規則 / published language | `src/modules/analytics/AGENT.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/analytics/`（本層） |
-| 跨模組 API boundary | `modules/analytics/api/index.ts` |
+| 跨模組 API boundary | `src/modules/analytics/index.ts` |
 
 **⚠ 蒸餾作業進行中 — 嚴禁事項：**
 - ❌ 把 `modules/analytics/infrastructure/` 的實作直接搬到 `src/modules/analytics/domain/`

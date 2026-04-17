@@ -1,6 +1,6 @@
 - Architecture style: Hexagonal DDD; each `modules/<context>/` directory is a bounded context.
 - Dependency direction: `interfaces -> application -> domain <- infrastructure`.
-- Cross-module rule: synchronous collaboration must go through the target module's public `api/` surface; do not reach into peer internals directly.
+- Cross-module rule: synchronous collaboration must go through the target module's `index.ts` public boundary; do not reach into peer internals directly.
 - In-module rule: use relative imports within a module; avoid self-import through the module's own public surface unless intentionally consuming an external contract.
 - Shared boundaries live in `packages/*` behind `@shared-*`, `@integration-*`, `@ui-*`, and `@lib-*` aliases; legacy `@/shared/*`, `@/libs/*`, and similar paths are blocked.
 - Runtime split: Next.js owns browser-facing UX, auth/session, and orchestration; `py_fn` owns ingestion, parsing, chunking, embedding, and worker jobs.

@@ -191,13 +191,13 @@ workspace ↓ notion ↓ notebooklm
 - ❌ workspace NEVER makes direct DB/permission decisions
 
 ### Rule 6: Cross-Module Access Prohibition
-- ✅ module A imports module B only via `@/modules/b/api`
+- ✅ module A imports module B only via `@/modules/b/index.ts`
 - ❌ NO direct imports of domain/, application/, infrastructure/, interfaces/
 - ✅ ALL data sharing via events or published language tokens
 
-### Rule 7: Mandatory Single Entry Point (API Boundary)
-- ✅ Every module must export `api/index.ts`
-- ✅ `api/` exposes only public surface; hides internals
+### Rule 7: Mandatory Single Entry Point (Public Boundary)
+- ✅ Every module must export through `index.ts` at module root
+- ✅ `index.ts` exposes only public surface; hides internals
 - ❌ NO imports from internal module paths outside module
 
 ### Rule 8: Platform is Only Infrastructure Layer
@@ -239,7 +239,7 @@ workspace ↓ notion ↓ notebooklm
 
 ### Rule 49: ❌ Module imports another module's internal
 - **Wrong**: `import { SomeEntity } from '@/modules/notion/domain/entities'`
-- **Correct**: Use `import { api } from '@/modules/notion/api'` only
+- **Correct**: Use `import { ... } from '@/modules/notion'` (module root `index.ts`) only
 
 ### Rule 50: ❌ Business logic written in React component (workspace UI)
 - **Wrong**: `if (user.role === 'admin') { ... }` in .tsx
@@ -247,7 +247,7 @@ workspace ↓ notion ↓ notebooklm
 
 ### Rule 51: ❌ Cross-module route components read foreign context providers
 - **Wrong**: notion/notebooklm route components call workspace providers directly (e.g. `useWorkspaceContext()`)
-- **Correct**: workspace is the composition owner and must pass explicit scope props (`accountId`, `workspaceId`, optional `currentUserId`) through module `api/` boundaries
+- **Correct**: workspace is the composition owner and must pass explicit scope props (`accountId`, `workspaceId`, optional `currentUserId`) through module `index.ts` boundaries
 
 ---
 
