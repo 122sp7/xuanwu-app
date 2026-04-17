@@ -46,14 +46,14 @@ handoffs:
 - [ ] `interfaces/` 不直接呼叫 `infrastructure/` 或 `domain/` 內部？
 - [ ] `application/` 只依賴 `domain/` abstraction，不依賴 infrastructure 實作？
 - [ ] `domain/` 完全不匯入 Firebase / React / HTTP client / ORM？
-- [ ] `api/` 僅暴露 cross-module 公開表面，不含 repository factory 或 container wiring？
+- [ ] `index.ts` 僅暴露 cross-module 公開表面，不含 repository factory 或 container wiring？
 
 ### Import Boundary（匯入邊界）
-- [ ] 跨模組呼叫一律經由 `src/modules/<target>/api/`，無直接內部路徑匯入？
+- [ ] 跨模組呼叫一律經由 `src/modules/<target>/index.ts`，無直接內部路徑匯入？
 - [ ] Route components 使用 props 傳遞 scope（`accountId`, `workspaceId`），不呼叫外部模組 context provider？
 
 ### Module Shape（模組形狀）
-- [ ] Bounded context root 包含 `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`？
+- [ ] Bounded context root 包含 `index.ts`, `domain/`, `application/`, `infrastructure/`, `interfaces/`？
 - [ ] Subdomain 採 core-first 形狀（`api/`, `domain/`, `application/`），`infrastructure/` 和 `interfaces/` 為 gate-based？
 
 ### Layer Coupling Smells（層耦合怪味道）
