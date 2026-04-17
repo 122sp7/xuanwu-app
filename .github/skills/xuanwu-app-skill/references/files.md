@@ -3024,661 +3024,6 @@ Framework
 ```
 ````
 
-## File: app/_providers/index.tsx
-````typescript
-/**
- * Root providers composition — app/_providers
- *
- * Assembles the full provider tree for the application:
- *   AuthProvider (platform) → AppProvider (platform accounts) → WorkspaceContextProvider (workspace)
- *
- * Lives in app/ because it composes providers from multiple bounded contexts.
- */
-⋮----
-import type { ReactNode } from "react";
-import { Toaster } from "@ui-shadcn/ui/sonner";
-import { AuthProvider } from "@/modules/platform/api";
-import { WorkspaceContextProvider } from "@/modules/workspace/api/ui";
-import { AppProvider } from "../(shell)/_providers/AppProvider";
-⋮----
-export function Providers(
-````
-
-## File: app/(shell)/_shell/index.ts
-````typescript
-/**
- * Shell composition barrel — app/(shell)/_shell
- *
- * Cross-module shell layout components that compose platform, workspace,
- * and notion modules. Lives in app/ (the composition layer) instead of
- * inside any single module to respect upstream/downstream boundaries.
- */
-````
-
-## File: app/(shell)/_shell/shell-quick-create.ts
-````typescript
-/**
- * shell-quick-create — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it imports notion's createKnowledgePage.
- * Kept as a composition adapter at the app boundary.
- */
-⋮----
-import { createKnowledgePage } from "@/modules/notion/api";
-⋮----
-export interface QuickCreatePageInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly createdByUserId: string;
-}
-⋮----
-export interface QuickCreatePageResult {
-  readonly success: boolean;
-  readonly error?: { message: string };
-}
-⋮----
-export async function quickCreateKnowledgePage(
-  input: QuickCreatePageInput,
-): Promise<QuickCreatePageResult>
-````
-
-## File: app/(shell)/_shell/ShellAppRail.tsx
-````typescript
-/**
- * ShellAppRail — app/(shell)/_shell composition layer.
- * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
- * because it composes downstream modules (workspace).
- *
- * Platform is upstream and must not import downstream modules.
- * app/ is the designated composition layer.
- */
-⋮----
-import Link from "next/link";
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  LayoutDashboard,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-⋮----
-import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
-import { CreateOrganizationDialog } from "@/modules/platform/api/ui";
-import {
-  listShellRailCatalogItems,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  buildShellContextualHref,
-  type ShellRailCatalogItem,
-} from "@/modules/platform/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { CreateWorkspaceDialogRail } from "@/modules/workspace/api/ui";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-⋮----
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-⋮----
-interface RailItem {
-  id: string;
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-⋮----
-function getInitial(name: string | undefined | null): string
-⋮----
-function isActive(href: string)
-⋮----
-function buildWorkspaceDetailHref(workspaceId: string): string
-⋮----
-onClick=
-⋮----
-onSelectWorkspace(workspace.id);
-⋮----
-accountType=
-````
-
-## File: app/(shell)/_shell/ShellContextNavSection.tsx
-````typescript
-/**
- * ShellContextNavSection — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it imports from workspace module.
- */
-⋮----
-import Link from "next/link";
-import { appendWorkspaceContextQuery } from "@/modules/workspace/api/ui";
-import { buildShellContextualHref } from "@/modules/platform/api";
-⋮----
-interface ContextScopedNavItem {
-  href: string;
-  label: string;
-}
-⋮----
-interface ShellContextNavSectionProps {
-  title: string;
-  items: readonly ContextScopedNavItem[];
-  isActiveRoute: (href: string) => boolean;
-  activeAccountId: string | null;
-  activeWorkspaceId: string | null;
-}
-````
-
-## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
-````typescript
-/**
- * ShellDashboardSidebar — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it composes workspace module components.
- */
-⋮----
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-⋮----
-import {
-  buildWorkspaceQuickAccessItems,
-  CustomizeNavigationDialog,
-  getWorkspaceIdFromPath,
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  readNavPreferences,
-  supportsWorkspaceSearchContext,
-  type NavPreferences,
-  useRecentWorkspaces,
-  useSidebarLocale,
-  WorkspaceQuickAccessRow,
-} from "@/modules/workspace/api/ui";
-⋮----
-import {
-  type DashboardSidebarProps,
-  ORGANIZATION_MANAGEMENT_ITEMS,
-  ACCOUNT_NAV_ITEMS,
-  SECTION_TITLES,
-  resolveNavSection,
-  isActiveRoute,
-  isActiveOrganizationAccount,
-} from "./ShellSidebarNavData";
-import { ShellSidebarHeader } from "./ShellSidebarHeader";
-import { DashboardSidebarBody } from "./ShellSidebarBody";
-⋮----
-export function ShellDashboardSidebar({
-  pathname,
-  activeAccount,
-  workspaces,
-  activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
-  onSelectWorkspace,
-}: DashboardSidebarProps)
-⋮----
-isActiveRoute={(href) => isActiveRoute(pathname, href)}
-          activeAccountId={activeAccount?.id ?? null}
-          showAccountManagement={showAccountManagement}
-          visibleAccountItems={visibleAccountItems}
-          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
-          workspacePathId={workspacePathId}
-          navPrefs={navPrefs}
-          localeBundle={localeBundle}
-          showRecentWorkspaces={showRecentWorkspaces}
-          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
-          hasOverflow={hasOverflow}
-          isExpanded={isExpanded}
-          activeWorkspaceId={activeWorkspaceId}
-          onSelectWorkspace={onSelectWorkspace}
-onToggleExpanded=
-````
-
-## File: app/(shell)/_shell/ShellRootLayout.tsx
-````typescript
-/**
- * ShellRootLayout — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it composes downstream modules.
- *
- * Uses useApp() from platform (accounts/auth) and useWorkspaceContext()
- * from workspace (workspaces/activeWorkspaceId).
- */
-⋮----
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { PanelLeftOpen, Search } from "lucide-react";
-⋮----
-import {
-  useAuth,
-  ShellGuard,
-  type AccountEntity,
-  subscribeToProfile,
-  type AccountProfile,
-  isOrganizationActor,
-  resolveOrganizationRouteFallback,
-  resolveShellPageTitle,
-  isExactOrChildPath,
-  buildShellContextualHref,
-  SHELL_MOBILE_NAV_ITEMS,
-  SHELL_ORG_PRIMARY_NAV_ITEMS,
-  SHELL_ORG_SECONDARY_NAV_ITEMS,
-} from "@/modules/platform/api";
-import {
-  useApp,
-  AccountSwitcher,
-  ShellAppBreadcrumbs,
-  ShellGlobalSearchDialog,
-  useShellGlobalSearch,
-  ShellHeaderControls,
-  ShellUserAvatar,
-} from "@/modules/platform/api/ui";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { useWorkspaceContext } from "@/modules/workspace/api/ui";
-⋮----
-import { AppRail } from "./ShellAppRail";
-import { ShellDashboardSidebar } from "./ShellDashboardSidebar";
-⋮----
-function toggleSidebar()
-⋮----
-function handleSelectOrganization(account: AccountEntity)
-⋮----
-function handleSelectPersonal()
-⋮----
-function handleOrganizationCreated(account: AccountEntity)
-⋮----
-function handleSelectWorkspace(workspaceId: string | null)
-⋮----
-async function handleLogout()
-⋮----
-void handleLogout();
-````
-
-## File: app/(shell)/_shell/ShellSidebarBody.tsx
-````typescript
-/**
- * ShellSidebarBody — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it imports from workspace and notion modules.
- */
-⋮----
-import Link from "next/link";
-⋮----
-import {
-  WorkspaceSectionContent,
-  type NavPreferences,
-  type SidebarLocaleBundle,
-} from "@/modules/workspace/api/ui";
-import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "@/modules/platform/api";
-⋮----
-import {
-  type NavSection,
-  sidebarItemClass,
-  sidebarSectionTitleClass,
-} from "./ShellSidebarNavData";
-import { ShellContextNavSection } from "./ShellContextNavSection";
-⋮----
-interface NavItem {
-  id: string;
-  label: string;
-  href: string;
-}
-⋮----
-interface WorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-⋮----
-interface ShellSidebarBodyProps {
-  section: NavSection;
-  isActiveRoute: (href: string) => boolean;
-  activeAccountId: string | null;
-  showAccountManagement: boolean;
-  visibleAccountItems: readonly NavItem[];
-  visibleOrganizationManagementItems: readonly NavItem[];
-  workspacePathId: string | null;
-  navPrefs: NavPreferences;
-  localeBundle: SidebarLocaleBundle | null;
-  showRecentWorkspaces: boolean;
-  visibleRecentWorkspaceLinks: WorkspaceLink[];
-  hasOverflow: boolean;
-  isExpanded: boolean;
-  activeWorkspaceId: string | null;
-  onSelectWorkspace: (workspaceId: string | null) => void;
-  onToggleExpanded: () => void;
-  currentSearchWorkspaceId: string;
-}
-⋮----
-className=
-````
-
-## File: app/(shell)/_shell/ShellSidebarHeader.tsx
-````typescript
-/**
- * ShellSidebarHeader — app/(shell)/_shell composition layer.
- * Moved from modules/platform alongside sibling shell files.
- * Pure UI component with no downstream imports.
- */
-⋮----
-import { PanelLeftClose, SlidersHorizontal } from "lucide-react";
-⋮----
-interface ShellSidebarHeaderProps {
-  sectionLabel: string;
-  sectionIcon: React.ReactNode;
-  onOpenCustomize: () => void;
-  onToggleCollapsed: () => void;
-}
-⋮----
-export function ShellSidebarHeader({
-  sectionLabel,
-  sectionIcon,
-  onOpenCustomize,
-  onToggleCollapsed,
-}: ShellSidebarHeaderProps)
-````
-
-## File: app/(shell)/_shell/ShellSidebarNavData.tsx
-````typescript
-import {
-  Building2,
-  LayoutDashboard,
-  UserRound,
-  Users,
-} from "lucide-react";
-import Link from "next/link";
-⋮----
-import {
-  type ActiveAccount,
-  isOrganizationActor,
-  isActiveOrganizationAccount,
-  SHELL_ACCOUNT_SECTION_MATCHERS,
-  SHELL_ACCOUNT_NAV_ITEMS,
-  SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
-  SHELL_SECTION_LABELS,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  type ShellNavSection,
-} from "@/modules/platform/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-⋮----
-// ── Types ─────────────────────────────────────────────────────────────────────
-⋮----
-export interface DashboardSidebarProps {
-  readonly pathname: string;
-  readonly userId: string | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-}
-⋮----
-export type NavSection = ShellNavSection;
-⋮----
-// ── Static nav constants ──────────────────────────────────────────────────────
-⋮----
-// ── CSS class helpers ─────────────────────────────────────────────────────────
-⋮----
-export function sidebarItemClass(active: boolean)
-⋮----
-// ── Pure section helpers ──────────────────────────────────────────────────────
-⋮----
-export function resolveNavSection(pathname: string): NavSection
-⋮----
-export function isActiveRoute(pathname: string, href: string)
-⋮----
-// ── Simple section nav component ──────────────────────────────────────────────
-````
-
-## File: app/(shell)/(account)/[accountId]/dev-tools/dev-tools-badges.tsx
-````typescript
-import { CheckCircle2, Loader2, XCircle } from "lucide-react";
-⋮----
-export function StatusBadge(
-⋮----
-export function RagBadge(
-````
-
-## File: app/(shell)/(account)/[accountId]/dev-tools/dev-tools-helpers.ts
-````typescript
-// ── Types ─────────────────────────────────────────────────────────────────────
-⋮----
-export interface ParseResult {
-  doc_id: string;
-  status: "processing" | "completed" | "error";
-  page_count?: number;
-  json_gcs_uri?: string;
-  error_message?: string;
-}
-⋮----
-export interface DocRecord {
-  id: string;
-  status: "processing" | "completed" | "error" | string;
-  filename: string;
-  gcs_uri: string;
-  uploaded_at: Date | null;
-  page_count?: number;
-  json_gcs_uri?: string;
-  error_message?: string;
-  rag_status?: string;
-  rag_chunk_count?: number;
-  rag_vector_count?: number;
-  rag_raw_chars?: number;
-  rag_normalized_chars?: number;
-  rag_normalization_version?: string;
-  rag_language_hint?: string;
-  rag_error?: string;
-}
-⋮----
-export type UploadStatus = "idle" | "uploading" | "waiting" | "done" | "error";
-⋮----
-// ── Constants ─────────────────────────────────────────────────────────────────
-⋮----
-// ── Data-mapping helpers ──────────────────────────────────────────────────────
-⋮----
-export function formatDateTime(value: Date | null): string
-⋮----
-/**
- * Extract the storage object path from a `gs://bucket/path` URI.
- * Returns the path portion only (e.g. `uploads/abc/file.pdf`).
- */
-export function gcsUriToPath(gcsUri: string): string
-⋮----
-function deriveJsonUri(gcsUri: string): string
-⋮----
-export function asRecord(value: unknown): Record<string, unknown>
-⋮----
-export function asString(value: unknown, fallback = ""): string
-⋮----
-export function asNumber(value: unknown): number | undefined
-⋮----
-function asDate(value: unknown): Date | null
-⋮----
-/**
- * Map a plain data record (from platform infrastructure API) to DocRecord.
- * Accepts `{ id, data }` where data is an already-resolved object —
- * NOT a Firestore DocumentSnapshot with a `data()` method.
- */
-export function mapDocRecord(doc:
-````
-
-## File: app/(shell)/(account)/[accountId]/dev-tools/dev-tools-parsed-docs-section.tsx
-````typescript
-/**
- * DevToolsParsedDocsSection.tsx
- * Owns: the "已解析檔案" (completed-only) table section in the Dev Tools page.
- * Receives all doc data and handlers as props; contains no state.
- */
-⋮----
-import { CheckCircle2, FlaskConical, Loader2 } from "lucide-react";
-⋮----
-import { type DocRecord } from "./dev-tools-helpers";
-import { RagBadge } from "./dev-tools-badges";
-import { formatDateTime } from "./use-dev-tools-doc-list";
-⋮----
-interface DevToolsParsedDocsSectionProps {
-  parsedDocs: DocRecord[];
-  reindexingId: string | null;
-  onViewJson: (doc: DocRecord) => void;
-  onManualProcess: (doc: DocRecord) => void;
-  formatNormalizationRatio: (doc: DocRecord) => string;
-}
-⋮----
-onClick=
-````
-
-## File: app/(shell)/(account)/[accountId]/dev-tools/use-dev-tools-doc-list.ts
-````typescript
-/**
- * useDevToolsDocList.ts
- * Owns: Firestore subscription for the document list, JSON-preview state,
- *   and all per-document async operations (view, delete, reindex).
- *
- * All Firebase access routes through platform infrastructure APIs
- * (firestoreInfrastructureApi, storageInfrastructureApi, functionsInfrastructureApi)
- * per AGENTS.md Rule 46 — app/ NEVER touches Firebase SDK directly.
- */
-⋮----
-import { useEffect, useRef, useState } from "react";
-⋮----
-import {
-  firestoreInfrastructureApi,
-  storageInfrastructureApi,
-  functionsInfrastructureApi,
-} from "@/modules/platform/api/infrastructure";
-⋮----
-import {
-  gcsUriToPath,
-  mapDocRecord,
-  formatDateTime,
-  type DocRecord,
-} from "./dev-tools-helpers";
-⋮----
-// ── Public state ───────────────────────────────────────────────────────────
-⋮----
-export interface DocListState {
-  allDocs: DocRecord[];
-  selectedDocId: string | null;
-  selectedDoc: DocRecord | undefined;
-  jsonContent: string | null;
-  jsonLoading: boolean;
-  deletingId: string | null;
-  reindexingId: string | null;
-}
-⋮----
-export interface DocListHandlers {
-  handleViewOriginal: (doc: DocRecord) => Promise<void>;
-  handleViewJson: (doc: DocRecord) => Promise<void>;
-  handleDeleteDoc: (doc: DocRecord) => Promise<void>;
-  handleManualProcess: (doc: DocRecord, appendLog: (msg: string) => void) => Promise<void>;
-  closeJsonPreview: () => void;
-  formatNormalizationRatio: (doc: DocRecord) => string;
-}
-⋮----
-// ── Hook ───────────────────────────────────────────────────────────────────
-⋮----
-export function useDevToolsDocList(activeAccountId: string): DocListState & DocListHandlers
-⋮----
-// Subscribe to all documents for this account
-⋮----
-function closeJsonPreview()
-⋮----
-async function handleViewOriginal(doc: DocRecord)
-⋮----
-async function handleViewJson(doc: DocRecord)
-⋮----
-async function handleDeleteDoc(doc: DocRecord)
-⋮----
-async function handleManualProcess(
-    doc: DocRecord,
-    appendLog: (msg: string) => void,
-)
-⋮----
-function formatNormalizationRatio(doc: DocRecord): string
-⋮----
-// re-export for table columns
-⋮----
-// Re-export for convenience in table components
-````
-
-## File: app/globals.css
-````css
-@theme inline {
-⋮----
-:root {
-⋮----
-.dark {
-⋮----
-@layer base {
-⋮----
-* {
-body {
-html {
-⋮----
-@apply font-sans;
-⋮----
-/* ── Tiptap / ProseMirror editor styles ───────────────────────────────────── */
-.tiptap-editor .ProseMirror {
-.tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
-.tiptap-editor .ProseMirror h1 { @apply text-3xl font-bold mb-3 mt-5; }
-.tiptap-editor .ProseMirror h2 { @apply text-2xl font-semibold mb-2 mt-4; }
-.tiptap-editor .ProseMirror h3 { @apply text-xl font-medium mb-2 mt-3; }
-.tiptap-editor .ProseMirror p  { @apply mb-2 leading-relaxed; }
-.tiptap-editor .ProseMirror ul { @apply list-disc pl-5 mb-2 space-y-0.5; }
-.tiptap-editor .ProseMirror ol { @apply list-decimal pl-5 mb-2 space-y-0.5; }
-.tiptap-editor .ProseMirror li { @apply leading-relaxed; }
-.tiptap-editor .ProseMirror blockquote {
-.tiptap-editor .ProseMirror hr {
-.tiptap-editor .ProseMirror code {
-.tiptap-editor .ProseMirror a {
-.tiptap-editor .ProseMirror strong { @apply font-bold; }
-.tiptap-editor .ProseMirror em { @apply italic; }
-.tiptap-editor .ProseMirror u  { @apply underline; }
-.tiptap-editor .ProseMirror s  { @apply line-through; }
-/* ── Callout block ──────────────────────────────────────────────────────────── */
-.tiptap-editor .ProseMirror .callout-block {
-.tiptap-editor .ProseMirror .callout-emoji {
-.tiptap-editor .ProseMirror .callout-content {
-.tiptap-editor .ProseMirror .callout-content p { @apply mb-1; }
-⋮----
-/* ── Toggle (collapsible) block ─────────────────────────────────────────────── */
-.tiptap-editor .ProseMirror .toggle-block {
-.tiptap-editor .ProseMirror .toggle-block > summary {
-.tiptap-editor .ProseMirror .toggle-block > summary::-webkit-details-marker { display: none; }
-.tiptap-editor .ProseMirror .toggle-block > :not(summary) {
-⋮----
-/* ── Table of Contents block ─────────────────────────────────────────────────── */
-.tiptap-editor .ProseMirror .toc-block {
-.tiptap-editor .ProseMirror .toc-block::before {
-````
-
 ## File: apphosting.yaml
 ````yaml
 # Settings for Backend (on Cloud Run).
@@ -13717,6 +13062,147 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
+## File: modules/notebooklm/AGENT.md
+````markdown
+# NotebookLM Agent
+
+> Strategic agent documentation: [docs/contexts/notebooklm/AGENT.md](../../docs/contexts/notebooklm/AGENT.md)
+
+## Mission
+
+保護 notebooklm 主域作為對話、來源處理與推理輸出的邊界。notebooklm 擁有衍生推理流程，不擁有正典知識內容。任何變更都應維持 notebooklm 擁有對話生命週期、來源管理與 RAG pipeline 語言，而不是吸收平台治理或正典知識語言。
+
+## Bounded Context Summary
+
+| Aspect | Description |
+|--------|-------------|
+| Primary role | 對話、來源處理與推理輸出 |
+| Upstream | platform（治理）、ai（shared AI capability）、workspace（scope）、notion（knowledge artifact reference） |
+| Downstream | 無固定主域級下游；輸出可被其他主域吸收 |
+| Core invariant | notebooklm 只能持有衍生推理輸出，不得直接修改 notion 的正典內容 |
+| Published language | Notebook reference、Conversation reference、SourceReference、GroundedAnswer |
+
+## Bounded Contexts
+
+| Cluster | Subdomains | Responsibility |
+|---------|------------|----------------|
+| Interaction Core | notebook, conversation | 對話容器與互動生命週期 |
+| Source & RAG Pipeline | source, synthesis | 來源管理與完整 RAG pipeline（retrieval → grounding → synthesis → evaluation） |
+
+## Route Here When
+
+- 問題核心是 notebook、conversation、source、synthesis（RAG pipeline）。
+- 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
+- 問題要把知識來源（notion artifact、uploaded file）轉成可對話與可綜合的推理材料。
+- 問題涉及 RAG 問答、向量檢索、chunks 召回、generation 品質。
+- 問題涉及 evaluation、品質評估、回歸比較或 grounding 可信度。
+
+## Route Elsewhere When
+
+- 正典知識頁面、文章、分類、正式發布屬於 notion。
+- 身份、授權、權益、憑證治理屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 ai。
+- 工作區生命週期、成員管理、共享範圍屬於 workspace。
+- browser-facing shell composition、tab orchestration、panel assembly 屬於 workspace；notebooklm 提供下游能力，不擁有外層 UI orchestration。
+
+## Subdomains
+
+| Subdomain | Purpose | Key Aggregates / Entities |
+|-----------|---------|---------------------------|
+| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
+| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration, NotebookRepository |
+| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary, SourceRetentionPolicy |
+| synthesis | 完整 RAG pipeline：retrieval、grounding、synthesis、evaluation | AnswerRagQueryUseCase, RagScoringService, RagCitationBuilder, RagPromptBuilder |
+
+### Future Split Triggers
+
+`synthesis` 子域將四個 RAG 關注點作為內部 facets 持有。只有當以下觸發條件成立時，才拆分為獨立子域：
+
+| Facet | Split Trigger |
+|-------|---------------|
+| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
+| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
+| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
+| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
+
+### Domain Invariants
+
+- notebooklm 只擁有衍生推理流程，不擁有正典知識內容。
+- shared AI capability 由 ai 提供；notebooklm 在 synthesis 擁有 retrieval、grounding、generation、evaluation 的本地語義。
+- grounding 應能把輸出對齊到來源證據。
+- retrieval 是 generation 的上游能力。
+- evaluation 應描述品質，而不是單純使用量。
+- 任何要成為正式知識內容的輸出，都必須交由 notion 吸收。
+
+## Ubiquitous Language
+
+| Term | Meaning | Owning Subdomain | Do Not Use |
+|------|---------|------------------|------------|
+| Notebook | 聚合對話、來源與衍生筆記的工作單位 | notebook | Project, Workspace |
+| AgentGeneration | GenKit 代理回應生成 | notebook | - |
+| Conversation | Notebook 內的對話執行邊界 | conversation | Chat, Session |
+| Thread | 一段對話的容器 | conversation | - |
+| Message | 一則輸入或輸出對話項 | conversation | Turn, Exchange |
+| Source | 被引用與推理的來源材料 | source | File, Document (generic) |
+| SourceFile | 使用者上傳的原始檔案 | source | - |
+| RagDocument | 來源文件在 RAG pipeline 中的表示 | source | - |
+| WikiLibrary | 結構化知識來源庫 | source | - |
+| Ingestion | 來源匯入、正規化與前處理流程 | source | File Import, Upload |
+| Retrieval | 從來源中召回候選片段的查詢能力 | synthesis | Search, Lookup |
+| Grounding | 把輸出對齊到來源證據的能力 | synthesis | Verification, Factcheck |
+| Citation | 輸出指回來源證據的引用關係 | synthesis | Reference, Link |
+| Synthesis | 綜合多來源後生成的衍生輸出 | synthesis | Answer, Response (generic) |
+| Evaluation | 對輸出品質、回歸結果與效果的評估 | synthesis | Analytics, Metrics (generic) |
+| RelevanceScore | 檢索結果的相關性分數 | synthesis | - |
+
+### Avoid
+
+| Avoid | Use Instead |
+|-------|-------------|
+| Chat | Conversation |
+| File Import | Ingestion |
+| Search Step | Retrieval |
+| Verified Answer | Grounded Synthesis |
+| Knowledge / Wiki | Synthesis output（正典知識屬 notion） |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+api/ ← 唯一跨模組入口
+```
+
+## Scope And Identifier Contract
+
+- Treat `accountId` as account scope and `workspaceId` as workspace scope supplied by workspace-owned composition; notebooklm does not own top-level shell routing.
+- Canonical shell navigation remains `/{accountId}/{workspaceId}` when notebooklm panels are composed inside workspace flows.
+- `organizationId` belongs to notebooklm source/synthesis internal organization-scoped storage and retrieval contracts; it is derived after boundary translation and must not be treated as a shell route param.
+- `actorAccountId` or `createdByUserId` remain distinct from `organizationId`; do not collapse account scope, acting user, and internal org-scoped storage identity into one identifier.
+
+## Development Order (Domain-First)
+
+1. Define Domain (entities, value objects, aggregates, events)
+2. Define Application (use cases, DTOs)
+3. Define Ports (only if boundary isolation needed)
+4. Implement Infrastructure (adapters, persistence)
+5. Implement Interfaces (UI, actions, hooks)
+````
+
+## File: modules/notebooklm/api/server.ts
+````typescript
+/**
+ * modules/notebooklm — server-only API barrel.
+ *
+ * Exports concrete notebook implementations that depend on server-only
+ * packages or infrastructure wiring. Must only be imported in Server Actions,
+ * route handlers, or server-side infrastructure.
+ * This surface exists for server-side orchestrators; browser-facing
+ * composition still goes through workspace/api when workspace owns the flow.
+ */
+⋮----
+// Q&A subdomain — AnswerRagQueryUseCase factory (now in synthesis subdomain)
+````
+
 ## File: modules/notebooklm/api/ui.ts
 ````typescript
 /**
@@ -13870,6 +13356,26 @@ export class FirebaseThreadRepository implements ThreadRepository {
 async save(accountId: string, thread: Thread): Promise<void>
 ⋮----
 async getById(accountId: string, threadId: string): Promise<Thread | null>
+````
+
+## File: modules/notebooklm/infrastructure/notebook/ai/AiTextGenerationAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/notebook
+ * Layer: infrastructure/ai
+ * Purpose: Delegates shared text generation to the AI bounded-context API.
+ */
+⋮----
+import { generateAiText } from "@/modules/ai/api/server";
+import type {
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "../../../subdomains/notebook/domain/entities/AgentGeneration";
+import type { NotebookRepository } from "../../../subdomains/notebook/domain/repositories/NotebookRepository";
+⋮----
+export class AiTextGenerationAdapter implements NotebookRepository {
+⋮----
+async generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>
 ````
 
 ## File: modules/notebooklm/infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter.ts
@@ -14270,6 +13776,36 @@ async upload(
 toGsUri(path: string): string
 ````
 
+## File: modules/notebooklm/infrastructure/synthesis/ai/AiRagGenerationAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: infrastructure/ai
+ * Purpose: Implements RagGenerationRepository by delegating shared model invocation
+ *          to the AI bounded-context API. Prompt construction and citation building stay
+ *          local to NotebookLM synthesis semantics.
+ */
+⋮----
+import { generateAiText } from "@/modules/ai/api/server";
+import type { RagGenerationRepository } from "../../../subdomains/synthesis/domain/repositories/RagGenerationRepository";
+import type {
+  GenerateRagAnswerInput,
+  GenerateRagAnswerResult,
+  GenerateRagAnswerOutput,
+  GenerationCitation,
+} from "../../../subdomains/synthesis/domain/entities/generation.entities";
+⋮----
+function formatChunkForPrompt(chunk: GenerateRagAnswerInput["chunks"][number]): string
+⋮----
+function buildGenerationPrompt(input: GenerateRagAnswerInput): string
+⋮----
+function buildCitations(input: GenerateRagAnswerInput): readonly GenerationCitation[]
+⋮----
+export class AiRagGenerationAdapter implements RagGenerationRepository {
+⋮----
+async generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult>
+````
+
 ## File: modules/notebooklm/infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter.ts
 ````typescript
 /**
@@ -14439,6 +13975,31 @@ async retrieve(input: RetrieveChunksInput): Promise<readonly RagRetrievedChunk[]
 // Step 3 — score, filter, sort, slice
 ````
 
+## File: modules/notebooklm/infrastructure/synthesis/index.ts
+````typescript
+/**
+ * Infrastructure layer for notebooklm subdomain 'synthesis'.
+ * Contains Firebase adapters and platform-delegating adapters for the RAG pipeline.
+ */
+````
+
+## File: modules/notebooklm/interfaces/conversation/_actions/chat.actions.ts
+````typescript
+import type {
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "../../../subdomains/notebook/api";
+import {
+  GenerateNotebookResponseUseCase,
+  AiTextGenerationAdapter,
+} from "../../../subdomains/notebook/api/server";
+import { saveThread, loadThread } from "./thread.actions";
+⋮----
+export async function sendChatMessage(
+  input: GenerateNotebookResponseInput,
+): Promise<GenerateNotebookResponseResult>
+````
+
 ## File: modules/notebooklm/interfaces/conversation/_actions/thread.actions.ts
 ````typescript
 import type { Thread } from "../../../subdomains/conversation/application/dto/conversation.dto";
@@ -14605,6 +14166,13 @@ import { makeNotebookRepo } from "../composition/adapters";
 export async function generateNotebookResponse(
   input: GenerateNotebookResponseInput,
 ): Promise<GenerateNotebookResponseResult>
+````
+
+## File: modules/notebooklm/interfaces/notebook/composition/adapters.ts
+````typescript
+import { AiTextGenerationAdapter } from "../../../infrastructure/notebook/ai/AiTextGenerationAdapter";
+⋮----
+export function makeNotebookRepo()
 ````
 
 ## File: modules/notebooklm/interfaces/source/_actions/source-file.actions.ts
@@ -15051,6 +14619,101 @@ export async function runKnowledgeRagQueryAction(
 
 ````
 
+## File: modules/notebooklm/README.md
+````markdown
+# NotebookLM
+
+對話、來源處理與推理主域
+
+## Bounded Context
+
+| Aspect | Description |
+|--------|-------------|
+| Primary role | 對話、來源處理、檢索與推理輸出 |
+| Upstream | platform（治理）、ai（shared AI capability）、workspace（scope）、notion（knowledge artifact, attachment reference） |
+| Downstream | 無固定主域級下游；GroundedAnswer 可被其他主域消費 |
+| Core principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容 |
+| Cross-module boundary | `api/` only — no direct import of notion/platform/workspace internals |
+
+## Ubiquitous Language
+
+| Term | Meaning |
+|------|---------|
+| Notebook | 聚合對話、來源與衍生筆記的工作單位 |
+| Conversation | Notebook 內的對話執行邊界（Thread + Messages） |
+| Message | 一則輸入或輸出對話項 |
+| Source | 被引用與推理的來源材料 |
+| Ingestion | 來源匯入、正規化與前處理流程（TypeScript 側協調 py_fn） |
+| Retrieval | 從來源中召回候選 Chunk 的查詢能力（向量搜尋） |
+| Grounding | 把輸出對齊到來源證據、建立 Citation 的能力 |
+| Citation | 輸出指回來源證據的引用關係 |
+| Synthesis | 綜合多來源後生成的衍生輸出（RAG generation） |
+| Evaluation | 對輸出品質、feedback 與回歸結果的評估 |
+
+## Implementation Structure
+
+```text
+modules/notebooklm/
+├── api/              # Public API boundary — cross-module entry point only
+├── application/      # Context-wide orchestration
+├── domain/           # Context-wide domain concepts (events, published-language)
+├── infrastructure/   # Context-wide driven adapters, grouped by subdomain when needed
+├── interfaces/       # Context-wide driving adapters, grouped by subdomain when needed
+├── docs/             # Links to strategic documentation
+└── subdomains/
+    ├── conversation/  # Tier 1 — 對話 Thread 與 Message
+    ├── notebook/      # Tier 1 — Notebook 容器與 GenKit 生成
+    ├── source/        # Tier 1 — 來源文件與 ingestion 編排
+    └── synthesis/     # Tier 1 — 完整 RAG pipeline（retrieval → grounding → synthesis → evaluation）
+```
+
+## Subdomains
+
+| Subdomain | Purpose | Key Aggregates / Entities |
+|-----------|---------|--------------------------|
+| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
+| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration |
+| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary |
+| synthesis | 完整 RAG pipeline：retrieval、grounding、answer generation、evaluation/feedback | AnswerRagQueryUseCase, SubmitRagQueryFeedbackUseCase, RagScoringService, RagCitationBuilder, RagPromptBuilder |
+
+### Future Split Triggers
+
+`synthesis` 子域將四個 RAG 關注點作為內部 facets 持有。只有當以下觸發條件成立時，才拆分為獨立子域：
+
+| Facet | Split Trigger |
+|-------|---------------|
+| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
+| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
+| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
+| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `api/` is the only cross-module public boundary.
+- `domain/` must not import infrastructure, interfaces, React, Firebase SDK, or any runtime framework.
+- Cross-module collaboration goes through `api/` only.
+
+## Current Contract Alignment
+
+- NotebookLM consumes `accountId` and `workspaceId` from workspace-owned shell composition; it does not own top-level shell routes and any browser-facing links should remain anchored to canonical `/{accountId}/{workspaceId}` workspace navigation.
+- Source and synthesis internals may derive an `organizationId` for organization-scoped storage and retrieval, but that identifier is an internal domain/infrastructure scope token, not a shell route param.
+- For personal-account scope, source workflows currently derive a synthetic internal organization scope token from `accountId`; this is an implementation detail for org-scoped storage isolation, not an alternate accountType contract.
+- This bounded context follows the repo baseline: Hexagonal Architecture + DDD, Firebase adapters outside the core, shared AI capability consumed through upstream ai boundaries, Zustand/XState only in interface workflows, and Zod at runtime validation boundaries.
+
+## Strategic Documentation
+
+- [Context README](../../docs/contexts/notebooklm/README.md)
+- [Subdomains](../../docs/contexts/notebooklm/subdomains.md)
+- [Bounded Context](../../docs/contexts/notebooklm/bounded-contexts.md)
+- [Context Map](../../docs/contexts/notebooklm/context-map.md)
+- [Ubiquitous Language](../../docs/contexts/notebooklm/ubiquitous-language.md)
+- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
+````
+
 ## File: modules/notebooklm/subdomains/conversation/api/index.ts
 ````typescript
 /**
@@ -15288,6 +14951,16 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 ````
 
+## File: modules/notebooklm/subdomains/notebook/api/server.ts
+````typescript
+/**
+ * notebook subdomain — server-only API.
+ *
+ * Exports infrastructure implementations that depend on server-only packages.
+ * Must only be imported in Server Actions, route handlers, or server-side infrastructure.
+ */
+````
+
 ## File: modules/notebooklm/subdomains/notebook/application/dto/notebook.dto.ts
 ````typescript
 /**
@@ -15393,6 +15066,23 @@ export interface NotebookRepository {
 }
 ⋮----
 generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>;
+````
+
+## File: modules/notebooklm/subdomains/notebook/README.md
+````markdown
+# Notebook
+
+Notebook container and organization.
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Status**: Active — GenerateNotebookResponseUseCase + AiTextGenerationAdapter + Server Actions wired
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notebooklm/subdomains/source/api/server.ts
@@ -16649,6 +16339,42 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - `actorAccountId` tracks the calling account scope for source workflows and remains distinct from concrete user identifiers such as `createdByUserId`.
 ````
 
+## File: modules/notebooklm/subdomains/subdomains.instructions.md
+````markdown
+---
+description: 'NotebookLM subdomains structural rules: hexagonal shape per subdomain, derived-output ownership, RAG pipeline boundaries, cross-subdomain collaboration, and stub promotion criteria.'
+applyTo: 'modules/notebooklm/subdomains/**/*.{ts,tsx}'
+---
+
+# NotebookLM Subdomains Layer (Local)
+
+Use this file as execution guardrails for `modules/notebooklm/subdomains/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notebooklm/subdomains.md`.
+
+## Core Rules
+
+- Every subdomain must maintain the core-first default shape: `api/`, `domain/`, `application/`, optional `ports/`, and `README.md`.
+- `infrastructure/` and `interfaces/` belong at the bounded-context root by default and should be grouped by subdomain there unless the mini-module gate is explicitly justified.
+- Stub subdomains (`domain/index.ts` only) must not be promoted to Active without a corresponding ADR and `README.md` update.
+- Cross-subdomain collaboration within notebooklm goes through the **subdomain's own `api/`** — never import a sibling subdomain's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
+- Each subdomain owns its Firestore collection(s); no subdomain reads or writes another subdomain's data directly.
+- Domain events emitted by a subdomain must use the discriminant format `notebooklm.<subdomain>.<action>` (e.g. `notebooklm.conversation.thread-created`, `notebooklm.source.ingestion-completed`, `notebooklm.synthesis.answer-generated`).
+- Dependency direction inside each subdomain mirrors the module-level rule: `interfaces → application → domain ← infrastructure`.
+- notebooklm only owns **derived reasoning outputs** — it must never directly modify canonical content belonging to `notion`.
+- `conversation` owns Thread and Message lifecycle; it must not own source ingestion or RAG pipeline logic.
+- `notebook` owns the aggregate container combining conversation, source, and derived notes; GenKit response generation is scoped here.
+- `source` owns the ingestion lifecycle, RagDocument state machine, WikiLibrary, and SourceRetentionPolicy — it must not own retrieval ranking or generation.
+- `synthesis` owns the complete RAG pipeline (retrieval → grounding → generation → evaluation) as internal facets; do not split these facets into separate subdomains unless an explicit split trigger is documented in an ADR.
+- Retrieval is upstream of generation; grounding aligns output to source evidence — do not reverse this dependency.
+- `evaluation` describes output quality and grounding confidence; it must not emit billing signals or usage metrics.
+- Shared AI provider capability (model routing, quota, safety) is supplied by the `ai` bounded context — do not replicate provider policy inside notebooklm subdomains.
+- Use `organizationId` only as an internal storage scope identifier derived after boundary translation; do not treat it as a shell route parameter.
+- Use `Conversation` (not `Chat` or `Session`) and `Ingestion` (not `File Import` or `Upload`) in all subdomain published language.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
 ## File: modules/notebooklm/subdomains/synthesis/api/index.ts
 ````typescript
 /**
@@ -16675,6 +16401,43 @@ interfaces/ → application/ → domain/ ← infrastructure/
 // ── Use-case classes (for DI composition within synthesis subdomain) ──────────
 ⋮----
 // UI components are exported from ./ui to keep this barrel semantic-only.
+````
+
+## File: modules/notebooklm/subdomains/synthesis/api/server.ts
+````typescript
+/**
+ * synthesis subdomain — server-only API.
+ *
+ * Factory functions and infrastructure adapters that depend on server-only
+ * packages. Must only be imported in Server Actions, route handlers, or
+ * server-side infrastructure.
+ */
+⋮----
+import { FirebaseRagRetrievalAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseRagRetrievalAdapter";
+import { FirebaseKnowledgeContentAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter";
+import { AiRagGenerationAdapter } from "../../../infrastructure/synthesis/ai/AiRagGenerationAdapter";
+import { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
+import type {
+  KnowledgeParsedDocument,
+  KnowledgeRagQueryResult,
+  KnowledgeReindexInput,
+} from "../domain/repositories/KnowledgeContentRepository";
+⋮----
+function getKnowledgeContentRepository(): FirebaseKnowledgeContentAdapter
+⋮----
+export function createAnswerRagQueryUseCase(): AnswerRagQueryUseCase
+⋮----
+export function runKnowledgeRagQuery(
+  query: string,
+  accountId: string,
+  workspaceId: string,
+  topK = 4,
+  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
+): Promise<KnowledgeRagQueryResult>
+⋮----
+export function reindexKnowledgeDocument(input: KnowledgeReindexInput): Promise<void>
+⋮----
+export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20): Promise<KnowledgeParsedDocument[]>
 ````
 
 ## File: modules/notebooklm/subdomains/synthesis/api/ui.ts
@@ -17318,6 +17081,25 @@ save(input: SubmitFeedbackInput): Promise<QualityFeedback>;
 listByOrganization(organizationId: string, limitCount: number): Promise<QualityFeedback[]>;
 ````
 
+## File: modules/notebooklm/subdomains/synthesis/domain/ports/GenerationPort.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/ports
+ * Purpose: GenerationPort — output port for AI answer generation.
+ *
+ * The AI bounded-context adapter (infrastructure) implements this port.
+ */
+⋮----
+import type { GenerateAnswerInput, GenerateAnswerResult } from "../entities/SynthesisResult";
+⋮----
+export interface GenerationPort {
+  generate(input: GenerateAnswerInput): Promise<GenerateAnswerResult>;
+}
+⋮----
+generate(input: GenerateAnswerInput): Promise<GenerateAnswerResult>;
+````
+
 ## File: modules/notebooklm/subdomains/synthesis/domain/ports/VectorStore.ts
 ````typescript
 /**
@@ -17724,6 +17506,172 @@ The RAG pipeline is organized as internal domain facets within this single subdo
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/AGENT.md
+````markdown
+# Notion Agent
+
+> Strategic agent documentation: [docs/contexts/notion/AGENT.md](../../docs/contexts/notion/AGENT.md)
+
+## Mission
+
+保護 notion 主域作為知識內容生命週期邊界。notion 擁有正式知識內容（KnowledgePage、Article、Database），不擁有治理、工作區範疇或推理輸出。任何變更都應維持 notion 擁有內容建立、結構化、協作、版本化與交付語言。
+
+## Bounded Context Summary
+
+| Aspect | Description |
+|--------|-------------|
+| Primary role | 正典知識內容生命週期 |
+| Upstream | platform（治理）、ai（shared AI capability）、workspace（workspaceId、membership scope、share scope） |
+| Downstream | notebooklm（knowledge artifact reference、attachment reference、taxonomy hint） |
+| Core invariant | notion 只能修改自己的正典內容，不可直接呼叫 notebooklm 的推理流程 |
+| Published language | KnowledgeArtifact reference、attachment reference、taxonomy hint |
+
+## Bounded Contexts
+
+| Cluster | Subdomains | Responsibility |
+|---------|------------|----------------|
+| Content Core | knowledge, authoring | 知識頁面與文章生命週期、分類、內容區塊 |
+| Collaboration & Change | collaboration | 協作留言、細粒度權限與版本快照 |
+| Structured Data | database | 結構化資料多視圖管理與自動化 |
+| Semantic Organization | taxonomy, relations | 分類法與語義關聯圖 |
+| Future Extensions | publishing, attachments | 正式發布流程、附件管理 |
+
+## Route Here When
+
+- 問題核心是知識頁面（KnowledgePage）、內容區塊（ContentBlock）、知識集合（KnowledgeCollection）。
+- 問題需要把內容建立、編輯、分類、關聯、版本或交付收斂到正典狀態。
+- 問題涉及知識庫文章（Article）、分類（Category）、樣板（Template）。
+- 問題涉及結構化資料視圖（Database、DatabaseView、Record）。
+- 問題涉及協作留言（Comment）、細粒度權限（Permission）或版本快照（Version）。
+- 問題涉及分類法（Taxonomy）或語義關聯（Relation）。
+
+## Route Elsewhere When
+
+- 身份、租戶、授權、權益、憑證治理屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 ai。
+- 工作區生命週期、成員管理、共享範圍屬於 workspace。
+- notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
+- browser-facing shell composition、tab orchestration、panel assembly 屬於 workspace；notion 提供下游能力，不擁有外層 UI orchestration。
+
+## Subdomain Delivery Tiers
+
+### Tier 1 — Core (Active)
+
+| Subdomain | Purpose | Key Aggregates |
+|-----------|---------|----------------|
+| knowledge | KnowledgePage 生命週期、ContentBlock 編輯、BacklinkIndex | KnowledgePage, ContentBlock, KnowledgeCollection, BacklinkIndex |
+| authoring | 知識庫文章建立、驗證、分類與發布工作流程 | Article, Category |
+| collaboration | 協作留言、細粒度權限與版本快照 | Comment, Permission, Version |
+| database | 結構化資料多視圖（Table/Board/Calendar/Gallery） | Database, DatabaseRecord, View, DatabaseAutomation |
+
+### Tier 2 — Near-Term (Domain Contracts — High Business Value)
+
+| Subdomain | Purpose | Note |
+|-----------|---------|------|
+| taxonomy | 分類法、標籤樹與語義組織（跨頁面分類的正典邊界） | ≠ authoring.Category（局部文章分類）；taxonomy 是全域語義網 |
+| relations | 內容之間的正式語義關聯與 backlink 管理 | ≠ knowledge.BacklinkIndex（自動反向索引）；relations 是明確語義圖（有類型、有方向） |
+| attachments | 附件與媒體關聯儲存 | 檔案儲存整合的正典邊界。待附件需要獨立於頁面的保留策略時充實 |
+
+### Tier 3 — Medium-Term (Stubs)
+
+| Subdomain | Purpose | Note |
+|-----------|---------|------|
+| publishing | 正式發布與對外交付（Publication 狀態邊界） | authoring 的 `ArticlePublicationUseCases` 是前置邊界 |
+| knowledge-versioning | 全域版本快照策略（workspace-level checkpoint、保留政策） | ≠ collaboration.Version（逐次編輯歷史）；是策略量，不是操作量 |
+
+### Premature Stubs（目錄保留，不建議擴充）
+
+| Subdomain | Reason |
+|-----------|--------|
+| automation | database 子域已涵蓋 DatabaseAutomation；跨內容類型事件自動化目前無獨立領域需求 |
+| knowledge-analytics | 知識使用行為量測是讀模型關注，非獨立領域模型。可由 infrastructure 查詢層處理 |
+| knowledge-integration | 外部系統整合是 infrastructure adapter 關注，非獨立子域 |
+| notes | 輕量筆記可作為 KnowledgePage 的頁面類型處理，不需獨立子域 |
+| templates | 頁面範本是 authoring 的內部關注（內容結構起點），非獨立子域 |
+
+### Domain Invariants
+
+- 知識內容的正典狀態屬於 notion。
+- taxonomy 應獨立於具體 UI 視圖存在（目前由 Category 承載部分）。
+- BacklinkIndex 描述自動反向連結；Relation 描述主動宣告的語義關係。兩者不互相取代。
+- ai 可被 notion use case 消費，但 AI provider / policy ownership 不屬於 notion。
+- 任何來自 notebooklm 的輸出，若要成為正典內容，必須先被 notion 吸收。
+
+## Subdomain Analysis — 子域數量合理性
+
+**14 個目錄（4 Active + 2 Domain Contracts + 1 Stub + 3 Medium-Term Stubs + 5 Premature = 15 分類，共 14 目錄），分析如下：**
+
+1. **`knowledge` 與 `authoring` 不重疊**：`knowledge` 是 KnowledgePage + ContentBlock（自由形式的 wiki 頁面）；`authoring` 是 Article + Category（有工作流程的結構化 KB 文章）。
+2. **`collaboration.Version` 與 `knowledge-versioning` 不重疊**：`collaboration.Version` 是逐次編輯快照（per-change history）；`knowledge-versioning` 是全域 checkpoint 策略（workspace-level snapshot policy）。
+3. **`relations` 與 `knowledge.BacklinkIndex` 不重疊**：`BacklinkIndex` 是自動反向連結索引；`relations` 是明確的語義關係圖（有類型、有方向的關聯）。
+4. **5 個 premature stubs** 有明確理由：每個都已被現有 active 子域或 infrastructure 層吸收。
+
+## Ubiquitous Language
+
+| Term | Meaning | Owning Subdomain | Do Not Use |
+|------|---------|------------------|------------|
+| KnowledgeArtifact | notion 主域擁有的知識內容總稱 | （跨子域概念） | Doc, Wiki (混指) |
+| KnowledgePage | 正典頁面型知識單位（block-based） | knowledge | Wiki, Page (generic) |
+| ContentBlock | 知識頁面的最小可組合內容單位 | knowledge | Block (generic) |
+| KnowledgeCollection | 頁面集合容器（非 Database） | knowledge | Folder, Section |
+| BacklinkIndex | 自動反向連結索引 | knowledge | - |
+| PageStatus | 頁面生命週期狀態（draft, published, archived） | knowledge | - |
+| Article | 經過撰寫與驗證流程的知識庫文章 | authoring | Post, Content |
+| Category | 文章分類樹結構 | authoring | Tag System |
+| Template | 可重複套用的內容結構起點 | authoring | Preset, Layout |
+| Comment | 內容附著的協作討論 | collaboration | Chat, Discussion |
+| Permission | 內容的細粒度存取權限 | collaboration | - |
+| Version | 內容某一時點的不可變快照（逐次編輯歷史） | collaboration | - |
+| Database | 結構化知識集合 | database | Table, Spreadsheet |
+| DatabaseView | 對 Database 的投影與檢視配置 | database | View (generic) |
+| DatabaseRecord | Database 中的一筆記錄 | database | - |
+| DatabaseAutomation | Database 事件觸發的自動化動作 | database | - |
+| Taxonomy | 分類法、標籤樹等語義組織結構 | taxonomy | Tag System, Category (混稱全域分類) |
+| Relation | 內容對內容之間的正式語義關聯 | relations | Link, Connection |
+| Publication | 對外可見且可交付的內容狀態 | publishing (stub) | Published, Public |
+| Attachment | 綁定於知識內容的檔案或媒體 | attachments | File, Upload |
+| VersionSnapshot | 全域版本 checkpoint 策略的不可變快照 | knowledge-versioning (stub) | Backup, History |
+
+### Avoid
+
+| Avoid | Use Instead |
+|-------|-------------|
+| Wiki | KnowledgePage 或 Article |
+| Table | Database 或 DatabaseView |
+| Tag System | Category (current) or Taxonomy (Tier 2) |
+| Content Link | BacklinkIndex (automatic) or Relation (explicit semantic) |
+| Publish Action | Publication 或 ArticlePublication |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+api/ ← 唯一跨模組入口
+```
+
+## Scope Contract
+
+- Treat `accountId` as account scope and `workspaceId` as workspace scope supplied by workspace-owned composition; notion does not own top-level shell routing.
+- Canonical shell navigation remains `/{accountId}/{workspaceId}` when notion panels or detail links are composed inside workspace flows.
+- Use concrete user identifiers such as `currentUserId` and `createdByUserId` for acting users; do not drift into using `accountId` as a user identifier.
+
+## Development Order (Domain-First)
+
+New features:
+1. Define Domain (entities, value objects, aggregates, events)
+2. Define Application (use cases, DTOs)
+3. Define Ports (only if boundary isolation needed)
+4. Implement Infrastructure (adapters, persistence)
+5. Implement Interfaces (UI, actions, hooks)
+
+Legacy migration (Strangler Pattern):
+1. Find a Use Case to extract
+2. Build Domain model in the owning subdomain
+3. Converge Application layer
+4. Isolate legacy via Ports
+5. Replace Infrastructure adapter; remove old path when stable
 ````
 
 ## File: modules/notion/docs/README.md
@@ -19319,6 +19267,145 @@ export function makeTaxonomyUseCases(
 ## File: modules/notion/notion.instructions.md
 ````markdown
 
+````
+
+## File: modules/notion/README.md
+````markdown
+# Notion
+
+知識內容生命週期主域
+
+## Bounded Context
+
+| Aspect | Description |
+|--------|-------------|
+| Primary role | 正典知識內容生命週期（頁面、文章、資料庫、協作、版本） |
+| Upstream | platform（治理）、ai（shared AI capability）、workspace（workspaceId、membership scope、share scope） |
+| Downstream | notebooklm（knowledge artifact reference、attachment reference、taxonomy hint） |
+| Core principle | notion 擁有正典知識內容，不擁有治理或推理過程 |
+| Cross-module boundary | `api/` only — no direct import of platform/workspace/notebooklm internals |
+
+## Ubiquitous Language
+
+| Term | Meaning |
+|------|---------|
+| KnowledgeArtifact | notion 主域擁有的知識內容總稱 |
+| KnowledgePage | 正典頁面型知識單位（block-based 自由頁面） |
+| ContentBlock | 知識頁面的最小可組合內容單位（段落、標題、程式碼等） |
+| KnowledgeCollection | 頁面集合容器（分組 KnowledgePage，非 Database） |
+| BacklinkIndex | 自動反向連結索引（哪些頁面引用了此頁面） |
+| Article | 經過撰寫與驗證工作流程的知識庫文章 |
+| Database | 結構化知識集合（可投影多種視圖） |
+| DatabaseView | 對 Database 的投影配置（Table/Board/Calendar/Gallery/Form） |
+| DatabaseRecord | Database 中的一筆記錄 |
+| Taxonomy | 跨頁面的分類法與語義組織結構 |
+| Relation | 內容對內容之間的正式語義關聯（有類型、有方向） |
+| Publication | 對外可見且可交付的內容狀態 |
+| VersionSnapshot | 全域版本 checkpoint 策略的不可變快照（≠ 逐次編輯 Version） |
+| Template | 可重複套用的內容結構起點 |
+| Attachment | 綁定於知識內容的檔案或媒體 |
+
+## Implementation Structure
+
+```text
+modules/notion/
+├── api/              # Public API boundary — cross-module entry point only
+├── application/      # Context-wide orchestration
+├── domain/           # Context-wide domain concepts (events, published-language)
+├── infrastructure/   # Context-wide driven adapters, grouped by subdomain when needed
+├── interfaces/       # Context-wide driving adapters, grouped by subdomain when needed
+├── docs/             # Links to strategic documentation
+└── subdomains/
+    ├── knowledge/             # Tier 1 — Active (KnowledgePage, ContentBlock)
+    ├── authoring/             # Tier 1 — Active (Article, Category)
+    ├── collaboration/         # Tier 1 — Active (Comment, Permission, Version)
+    ├── database/              # Tier 1 — Active (Database, Record, View)
+    ├── taxonomy/              # Tier 2 — Domain contracts (semantic classification)
+    ├── relations/             # Tier 2 — Domain contracts (explicit semantic graph)
+    ├── attachments/           # Tier 2 — Stub (file/media association)
+    ├── publishing/            # Tier 3 — Stub (external delivery boundary)
+    ├── knowledge-versioning/  # Tier 3 — Stub (global snapshot policy)
+    ├── notes/                 # Premature — absorbed by KnowledgePage
+    ├── templates/             # Premature — absorbed by authoring
+    ├── automation/            # Premature — absorbed by database
+    ├── knowledge-analytics/   # Premature — read model concern
+    └── knowledge-integration/ # Premature — infrastructure adapter concern
+```
+
+> **Premature stubs** — `notes/`, `templates/`, `automation/`, `knowledge-analytics/`, `knowledge-integration/` 目錄存在但不建議擴充。見 [Premature Stubs](#premature-stubs) 段落。
+
+## Subdomains
+
+### Tier 1 — Core (Active)
+
+| Subdomain | Purpose | Key Aggregates / Entities |
+|-----------|---------|--------------------------|
+| knowledge | KnowledgePage 生命週期、ContentBlock 編輯、BacklinkIndex、版本查詢 | KnowledgePage, ContentBlock, KnowledgeCollection, BacklinkIndex |
+| authoring | 知識庫文章建立、驗證工作流程與分類目錄 | Article, Category |
+| collaboration | 協作留言、細粒度權限與版本快照（逐次編輯歷史） | Comment, Permission, Version |
+| database | 結構化資料視圖（Table/Board/Calendar/Gallery/Form）、記錄、自動化 | Database, DatabaseRecord, View, DatabaseAutomation |
+
+### Tier 2 — Near-Term (Domain Contracts — High Business Value)
+
+| Subdomain | Purpose | Distinction |
+|-----------|---------|------------|
+| taxonomy | 跨頁面分類法與語義組織（全域標籤樹、主題分類） | ≠ authoring.Category（局部文章分類）；taxonomy 是全域語義網 |
+| relations | 內容對內容的明確語義關聯（有類型、方向） | ≠ knowledge.BacklinkIndex（自動反向連結）；relations 是主動宣告的語義圖 |
+| attachments | 附件與媒體關聯儲存（Storage 整合正典邊界） | 獨立於知識頁面內容模型。待附件需要獨立保留策略時充實 |
+
+### Tier 3 — Medium-Term (Stubs)
+
+| Subdomain | Purpose | Note |
+|-----------|---------|------|
+| publishing | 正式對外交付的 Publication 狀態邊界 | authoring 的 `ArticlePublicationUseCases` 是前置邊界 |
+| knowledge-versioning | 全域版本 checkpoint 策略（workspace-level, 保留政策） | ≠ collaboration.Version（per-edit 歷史）；是策略量，不是操作量 |
+
+### Premature Stubs（目錄保留，不建議擴充）
+
+| Subdomain | Reason |
+|-----------|--------|
+| notes | 輕量筆記可作為 KnowledgePage 的頁面類型處理，不需獨立子域 |
+| templates | 頁面範本是 authoring 的內部關注（內容結構起點），非獨立子域 |
+| automation | database 子域已涵蓋 DatabaseAutomation；跨內容類型事件自動化目前無獨立領域需求 |
+| knowledge-analytics | 知識使用行為量測是讀模型關注，非獨立領域模型。可由 infrastructure 查詢層處理 |
+| knowledge-integration | 外部系統整合是 infrastructure adapter 關注，非獨立子域 |
+
+## Subdomain Analysis
+
+**14 個目錄（4 Active + 2 Domain Contracts + 1 Stub + 2 Medium-Term + 5 Premature），分析如下：**
+
+- ✅ `knowledge` 與 `authoring` 分工正確：自由頁面（block-based wiki）vs. 結構化文章（KB article workflow）。
+- ✅ `collaboration.Version`（逐次編輯快照）與 `knowledge-versioning`（全域 checkpoint 策略）是不同責任，分開正確。
+- ✅ `knowledge.BacklinkIndex`（自動反向索引）與 `relations`（明確語義圖）不重疊。
+- ✅ `taxonomy` 是全域語義組織核心，與 `authoring.Category`（局部文章分類）不重疊，維持 Tier 2。
+- ✅ 5 個 premature stubs 有明確理由：每個都已被現有 active 子域或 infrastructure 層吸收。
+- ⚠️ `knowledge-versioning` 需持續明確與 `collaboration.Version` 的分界，避免實作者混淆。
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `api/` is the only cross-module public boundary.
+- `domain/` must not import infrastructure, interfaces, React, Firebase SDK, or any runtime framework.
+- Cross-module collaboration goes through `api/` only.
+
+## Current Contract Alignment
+
+- Notion consumes `accountId` and `workspaceId` as downstream scope tokens from workspace-owned shell composition; it does not own top-level shell routes.
+- Browser-facing notion links rendered inside shell flows must stay anchored to the canonical workspace route `/{accountId}/{workspaceId}` chosen by workspace composition, not reintroduce legacy `/workspace/*` URL shapes.
+- Use `currentUserId`, `createdByUserId`, and similar concrete user identifiers for acting users; do not collapse them into `accountId` or `workspaceId`.
+- This bounded context follows the repo baseline: Hexagonal Architecture + DDD, Firebase adapters outside the core, shared AI capability consumed through upstream ai boundaries, Zustand/XState only in interface workflows, and Zod at runtime validation boundaries.
+
+## Strategic Documentation
+
+- [Context README](../../docs/contexts/notion/README.md)
+- [Subdomains](../../docs/contexts/notion/subdomains.md)
+- [Bounded Context](../../docs/contexts/notion/bounded-contexts.md)
+- [Context Map](../../docs/contexts/notion/context-map.md)
+- [Ubiquitous Language](../../docs/contexts/notion/ubiquitous-language.md)
+- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
 ## File: modules/notion/subdomains/authoring/api/index.ts
@@ -22335,6 +22422,111 @@ getSubscriptionEntitlements(input)
 getWorkflowPolicyView(input)
 ````
 
+## File: modules/platform/api/infrastructure-api.ts
+````typescript
+import {
+	functionsApi,
+	firestoreApi,
+	getFirebaseFirestore,
+	getFirebaseFunctions,
+	getFirebaseStorage,
+	storageApi,
+} from "@integration-firebase";
+import { collectionGroup } from "firebase/firestore";
+⋮----
+import type {
+	FirestoreAPI,
+	FunctionsAPI,
+	FunctionsCallOptions,
+	FirestoreQueryOptions,
+	FirestoreWhereClause,
+	StorageAPI,
+	StorageUploadOptions,
+} from "./contracts";
+⋮----
+function splitPath(path: string): string[]
+⋮----
+function resolveDocumentPath(path: string): string[]
+⋮----
+function resolveCollectionPath(path: string): string[]
+⋮----
+function resolveStorageBucket(): string
+⋮----
+function resolveStoragePath(path: string): string
+⋮----
+function toUploadMetadata(options?: StorageUploadOptions)
+⋮----
+function applyQueryConstraints(
+	baseQuery: ReturnType<typeof firestoreApi.query>,
+	where: readonly FirestoreWhereClause[],
+	options?: FirestoreQueryOptions,
+)
+⋮----
+async get<T>(path: string): Promise<T | null>
+⋮----
+async set<T>(path: string, data: T): Promise<void>
+⋮----
+async setMany<T>(inputs: readonly
+⋮----
+async update(path: string, data: Record<string, unknown>): Promise<void>
+⋮----
+async delete(path: string): Promise<void>
+⋮----
+async query<T>(
+		collectionPath: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+): Promise<T[]>
+⋮----
+async queryDocuments<T>(
+		collectionPath: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+): Promise<readonly
+⋮----
+async queryCollectionGroup<T>(
+		collectionId: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+): Promise<readonly
+⋮----
+watchCollection<T>(
+		collectionPath: string,
+		handlers: {
+onNext: (documents: readonly
+⋮----
+watchDocument<T>(
+		path: string,
+		handlers: {
+onNext: (document:
+⋮----
+async upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string>
+⋮----
+async getUrl(path: string): Promise<string>
+⋮----
+toGsUri(path: string): string
+⋮----
+async call<TInput, TOutput>(
+		functionName: string,
+		input: TInput,
+		options?: FunctionsCallOptions,
+): Promise<TOutput>
+````
+
+## File: modules/platform/api/infrastructure.ts
+````typescript
+/**
+ * platform infrastructure API — for infrastructure adapters only.
+ *
+ * This file is NOT part of the platform capability-contract boundary.
+ * Cross-module infrastructure adapters (Firestore repos, Storage adapters, etc.)
+ * must import Firebase primitives from here, not from the main api/index.ts.
+ *
+ * @see ADR-1401 Dependency Leakage — Infrastructure API symbols removed from platform/api/index.ts
+ * @see modules/platform/api/index.ts — capability contracts only
+ */
+````
+
 ## File: modules/platform/api/platform-service.ts
 ````typescript
 /**
@@ -22383,6 +22575,37 @@ export function createPlatformService(): PlatformFacade
 // Output ports — infrastructure adapters
 ⋮----
 // Input ports — application dispatchers wired to use cases
+````
+
+## File: modules/platform/api/server.ts
+````typescript
+/**
+ * platform — server-only API barrel.
+ *
+ * Exports that depend on server-only infrastructure packages or event-bus wiring.
+ * Must only be imported in Server Actions, route handlers, or server-side
+ * infrastructure adapters.
+ */
+⋮----
+import {
+  CompositeEventBusRepository,
+  InMemoryEventStoreRepository,
+  InProcessEventBusRepository,
+  QStashEventBusRepository,
+  type IEventBusRepository,
+  type IEventStoreRepository,
+} from "@shared-events";
+⋮----
+export interface PlatformEventInfrastructure {
+  readonly eventStore: IEventStoreRepository;
+  readonly eventBus: IEventBusRepository;
+}
+⋮----
+/**
+ * Creates the canonical server-side event infrastructure owned by platform.
+ * Downstream modules should consume this instead of creating local stub buses.
+ */
+export function createPlatformEventInfrastructure(): PlatformEventInfrastructure
 ````
 
 ## File: modules/platform/application/application.instructions.md
@@ -27184,6 +27407,114 @@ function handleSelect(href: string)
 function onKeyDown(event: KeyboardEvent)
 ````
 
+## File: modules/platform/README.md
+````markdown
+# Platform
+
+治理與營運支撐主域
+
+## Implementation Structure
+
+```text
+modules/platform/
+├── api/              # Public API boundary
+├── application/      # Context-wide orchestration
+├── domain/           # Context-wide domain concepts
+├── infrastructure/   # Context-wide driven adapters
+├── interfaces/       # Context-wide driving adapters
+├── docs/             # Links to strategic documentation
+└── subdomains/
+    ├── account/
+    ├── account-profile/
+    ├── access-control/
+    ├── ai/
+    ├── analytics/
+    ├── audit-log/
+    ├── background-job/
+    ├── billing/
+    ├── compliance/
+    ├── consent/
+    ├── content/
+    ├── entitlement/
+    ├── feature-flag/
+    ├── identity/
+    ├── integration/
+    ├── notification/
+    ├── observability/
+    ├── onboarding/
+    ├── organization/
+    ├── platform-config/
+    ├── referral/
+    ├── search/
+    ├── secret-management/
+    ├── security-policy/
+    ├── subscription/
+    ├── support/
+    ├── tenant/
+    ├── team/
+    └── workflow/
+```
+
+## Subdomains
+
+| Subdomain | Status | Purpose |
+|-----------|--------|---------|
+| account | Active | 帳號管理與帳號生命週期 |
+| identity | Active | 身份驗證與身份聯邦 |
+| notification | Active | 通知治理與遞送 |
+| organization | Active | 組織管理與租戶結構 |
+| team | Active | 團隊管理與成員關係 |
+| account-profile | Stub | 帳號個人檔案與偏好 |
+| access-control | Stub | 存取控制與權限策略 |
+| ai | Stub | 共享 AI provider 路由與能力治理 |
+| analytics | Stub | 平台級分析與指標 |
+| audit-log | Stub | 平台稽核日誌 |
+| background-job | Stub | 背景任務排程與管理 |
+| billing | Stub | 計費與支付管理 |
+| compliance | Stub | 合規與法遵管理 |
+| consent | Stub | 同意與資料使用授權治理 |
+| content | Stub | 平台內容管理 |
+| entitlement | Stub | 權益解算與功能可用性治理 |
+| feature-flag | Stub | 功能旗標與漸進式發布 |
+| integration | Stub | 外部系統整合 |
+| observability | Stub | 觀測與監控 |
+| onboarding | Stub | 使用者引導流程 |
+| platform-config | Stub | 平台組態管理 |
+| referral | Stub | 推薦與邀請機制 |
+| search | Stub | 平台級搜尋能力 |
+| secret-management | Stub | 憑證與 token 生命週期治理 |
+| security-policy | Stub | 安全策略管理 |
+| subscription | Stub | 訂閱與方案管理 |
+| support | Stub | 客戶支援管理 |
+| tenant | Stub | 多租戶隔離與 tenant-scoped 規則 |
+| workflow | Stub | 平台級工作流引擎 |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `api/` is the only cross-module public boundary.
+- Domain must not import infrastructure, interfaces, or external frameworks.
+- Cross-module collaboration goes through `api/` only.
+
+## Current Contract Alignment
+
+- Shell composition remains account-scoped under `/{accountId}/[[...slug]]`; flattened governance routes such as `/{accountId}/members` and `/{accountId}/teams` are canonical, while `/{accountId}/organization/*` is legacy redirect-only surface.
+- Platform-owned account scope string contract remains `"user" | "organization"`; business language may say personal account / organization account, but code-level contracts must not drift to `"personal"`.
+- Identifier boundaries stay explicit: `accountId` for shell account scope, `organizationId` for organization-scoped domain or integration contracts, `userId` for concrete users, `actorId` for acting principals, and `tenantId` for tenant isolation.
+- This bounded context anchors the repo baseline: Hexagonal Architecture + DDD, Firebase serverless adapters outside the core, shared AI capability consumed from the upstream ai bounded context, Zustand/XState only in interface workflows, and Zod at runtime validation boundaries.
+
+## Strategic Documentation
+
+- [Context README](../../docs/contexts/platform/README.md)
+- [Subdomains](../../docs/contexts/platform/subdomains.md)
+- [Context Map](../../docs/contexts/platform/context-map.md)
+- [Ubiquitous Language](../../docs/contexts/platform/ubiquitous-language.md)
+- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
+````
+
 ## File: modules/platform/subdomains/notification/application/queries/notification.queries.ts
 ````typescript
 import type { NotificationRepository } from "../../domain/repositories/NotificationRepository";
@@ -30167,6 +30498,103 @@ export function getWorkspacePersonnelEntries(
 export function getWorkspaceGovernanceSummary(
   workspace: Pick<WorkspaceEntity, "capabilities" | "teamIds" | "locations" | "grants">,
 ): WorkspaceGovernanceSummary
+````
+
+## File: modules/workspace/README.md
+````markdown
+# Workspace
+
+協作容器與工作區範疇主域
+
+## Implementation Structure
+
+```text
+modules/workspace/
+├── api/              # Public API boundary
+├── application/      # Context-wide orchestration (delegates to subdomains)
+│   ├── queries/      # Read query handlers (pure reads, no business logic)
+│   ├── use-cases/    # Command use cases remaining at root level
+│   └── services/     # Application services (composite orchestrators)
+├── domain/           # Context-wide domain concepts (Workspace aggregate root)
+├── infrastructure/   # Context-wide driven adapters
+├── interfaces/       # Context-wide driving adapters
+├── docs/             # Links to strategic documentation
+└── subdomains/
+    ├── audit/             # Active — append-only audit trail
+    ├── feed/              # Active — workspace activity projection
+    ├── lifecycle/         # Active — workspace create/update/delete/transitions
+    ├── membership/        # Active — member view model and participation queries
+    ├── presence/          # Stub — real-time presence and activity
+    ├── scheduling/        # Active — workspace scheduling management
+    ├── sharing/           # Active — team and individual access grants
+    └── workspace-workflow/ # Active — task/issue/invoice state machines
+```
+
+## Subdomains
+
+| Subdomain | Status | Purpose |
+|-----------|--------|---------|
+| audit | Active | 不可否認稽核追蹤 |
+| feed | Active | 工作區活動投影 |
+| lifecycle | Active | 工作區容器生命週期（建立/修改/刪除/狀態轉換）|
+| membership | Active | 工作區參與者視圖模型與查詢 |
+| presence | Stub | 即時在線狀態 |
+| scheduling | Active | 工作區排程管理 |
+| sharing | Active | 工作區存取授權（團隊/個人）|
+| workspace-workflow | Active | 工作區流程協調 |
+
+## Application Layer Architecture
+
+The root application services act as **composite orchestrators** that delegate to subdomain services:
+
+| Operation | Delegated To |
+|-----------|-------------|
+| Create/Update/Delete workspace | `lifecycle` subdomain |
+| Team/Individual access grants | `sharing` subdomain |
+| Member view queries | `membership` subdomain |
+| Mount capabilities | Root use-case (pending subdomain assignment) |
+| Create workspace location | Root use-case (Workspace operational profile) |
+| Workspace read queries | Root query handlers |
+| Wiki content tree projection | Root query handler |
+
+### DDD Rules Applied
+
+- **Rule 5/13/16**: Pure reads → query handlers in `queries/`, not use cases
+- **Rule 12**: Commands → `use-cases/` or subdomain use cases
+- **Rule 18**: Single-call wrappers eliminated; functions instead of classes for queries
+- **Rule 8**: Each use case = one business intent (verb-first naming)
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `api/` is the only cross-module public boundary.
+- Domain must not import infrastructure, interfaces, or external frameworks.
+- Cross-module collaboration goes through `api/` only.
+- Subdomain cross-collaboration goes through subdomain `api/` only.
+
+## UI Orchestration Boundary
+
+- App-layer browser composition should prefer `modules/workspace/api/ui` and `modules/workspace/api/facade`.
+- workspace is the composition owner for notion/notebooklm panels, commands, and navigation flows rendered in the shell.
+- notion and notebooklm root `api/` surfaces provide downstream semantic capabilities for orchestrators; they are not the preferred browser-facing import path for app routes when workspace owns the flow.
+
+## Current Contract Alignment
+
+- Shell composition remains account-scoped: the canonical workspace detail route is `/{accountId}/{workspaceId}` and `/{accountId}/workspace/{workspaceId}` is redirect-only legacy surface.
+- Workspace read models, DTOs, events, and validators use the code-level account scope contract `"user" | "organization"`; UI copy may say 個人帳號 / 組織帳號, but local type literals must not drift back to `"personal"`.
+- The wiki content tree projection is a read-model concern owned by root query handlers and must emit canonical account-scoped workspace hrefs instead of legacy `/workspace/*` links.
+- This bounded context follows the repo baseline: Hexagonal Architecture + DDD, Firebase serverless adapters outside the core, shared AI capability consumed through upstream ai boundaries, Zustand/XState only in interface workflows, and Zod at runtime validation boundaries.
+
+## Strategic Documentation
+
+- [Context README](../../docs/contexts/workspace/README.md)
+- [Subdomains](../../docs/contexts/workspace/subdomains.md)
+- [Context Map](../../docs/contexts/workspace/context-map.md)
+- [Ubiquitous Language](../../docs/contexts/workspace/ubiquitous-language.md)
+- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
 ## File: modules/workspace/subdomains/audit/application/dto/audit.dto.ts
@@ -39152,39 +39580,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vscode-typescript-workbench
 ````
 
-## File: app/(shell)/_providers/AppProvider.tsx
-````typescript
-/**
- * AppProvider — app/(shell)/ composition layer
- *
- * Manages the platform-owned account lifecycle (auth → accounts → activeAccount).
- * Lives in app/ because the cross-module composition root is the correct owner
- * of account-state wiring that reads from platform subdomain queries.
- *
- * Workspace state is managed by WorkspaceContextProvider from workspace module.
- */
-⋮----
-import { useReducer, useEffect, type ReactNode } from "react";
-⋮----
-import {
-  AppContext,
-  APP_INITIAL_STATE,
-  type AppState,
-  type AppAction,
-} from "@/modules/platform/api/ui";
-import {
-  resolveActiveAccount,
-  subscribeToAccountsForUser,
-} from "@/modules/platform/api";
-import { useAuth } from "@/modules/iam/api";
-⋮----
-function appReducer(state: AppState, action: AppAction): AppState
-⋮----
-export function AppProvider(
-⋮----
-// eslint-disable-next-line react-hooks/exhaustive-deps
-````
-
 ## File: docs/contexts/ai/AGENT.md
 ````markdown
 # AI Context Agent Guide
@@ -41699,6 +42094,40 @@ flowchart LR
 - 本文件集沒有檢視任何既有專案內容，因此不應被解讀為 repo-inspected 現況描述。
 ````
 
+## File: modules/ai/ai.instructions.md
+````markdown
+---
+description: Rules for the AI bounded context.
+applyTo: 'modules/ai/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# AI Instructions
+
+## Ownership
+
+- modules/ai 擁有共享 AI capability：generation、orchestration、distillation、retrieval、memory、context、safety、tool-calling、reasoning、conversation、evaluation、tracing。
+- provider routing 與 model policy 在此模組定義，不在下游模組重建。
+
+## Dependency Rules
+
+- Genkit 與 provider SDK import 只能出現在 `modules/ai/infrastructure/`。
+- 下游消費者只能透過 `modules/ai/api`（client-safe types）或 `modules/ai/api/server`（server functions）存取。
+- domain 層不得依賴任何框架、SDK 或傳輸層。
+- 子域之間透過 ports 或 orchestration application 協調，不直接互相 import domain 層。
+
+## Naming
+
+- 生成輸出型別用 `GenerationResult` 或 `GenerateAiTextOutput`，不用 `Response`。
+- 蒸餾輸出型別用 `DistillationResult`，不用 `SummarizedText` 或 `Summary`。
+- 搜尋輸出型別用 `RetrievalResult`，不用 `SearchResult` 泛稱。
+
+## Anti-Patterns
+
+- 不在 ai 內定義 KnowledgeArtifact、Notebook、Conversation（notebooklm 正典）等他域型別。
+- 不混入 identity governance 或 billing policy。
+- 不讓其他模組繞過 api 邊界直接 import subdomain internals。
+````
+
 ## File: modules/ai/application/use-cases/distill-content.use-case.ts
 ````typescript
 import type { DistillContentInput, DistillationPort, DistillationResult } from "../../domain/ports/DistillationPort";
@@ -42630,6 +43059,323 @@ prompts/
 ## File: modules/ai/subdomains/safety-guardrail/domain/index.ts
 ````typescript
 /** ai/safety/domain — minimal domain stub. */
+````
+
+## File: modules/ai/subdomains/subdomains.instructions.md
+````markdown
+---
+description: "AI subdomains architecture rules: capability-based subdomains, strict hexagonal boundaries, orchestration as application kernel, and infrastructure isolation."
+applyTo: "modules/ai/subdomains/**/*.{ts,tsx,md}"
+---
+```
+
+# AI Subdomains Layer (Canonical)
+
+This document defines structural rules for `modules/ai/subdomains/*`.
+
+It must align with AI execution architecture principles and remain consistent with DDD + Hexagonal + AI pipeline separation.
+
+---
+
+# 1️⃣ Core Principle
+
+Subdomains represent **capabilities inside a single AI execution engine**, NOT services.
+
+* ❌ NOT microservices
+* ❌ NOT independent APIs
+* ❌ NOT cross-service bus participants
+* ✔ ARE internal capability modules
+
+---
+
+# 2️⃣ Standard Subdomain Structure (Hexagonal Capability Module)
+
+Each subdomain MUST follow this structure:
+
+```
+api/
+application/
+domain/
+infrastructure/
+interfaces/
+ports/        (preferred for external contracts)
+README.md
+```
+
+---
+
+## Layer Responsibilities
+
+### domain/
+
+* Pure business logic
+* No SDKs, no LLM calls, no Firebase
+* Deterministic rules only
+
+### application/
+
+* Use cases
+* Coordination logic within the subdomain
+* Can call ports/interfaces
+
+### interfaces/
+
+* DTOs
+* Input/output contracts
+* Boundary definitions
+
+### ports/
+
+* Abstract external dependencies
+* LLM, DB, retrieval, tools, etc.
+
+### infrastructure/
+
+* Implements ports
+* Firebase / LLM SDK / vector DB / APIs
+
+### api/
+
+* External entry point ONLY
+* HTTP / Firebase Functions / Edge endpoints
+
+---
+
+# 3️⃣ System-Level Architecture Rule
+
+## 3.1 API is NOT internal bus
+
+* ❌ subdomain-to-subdomain MUST NOT communicate via `api/`
+* ✔ api is ONLY external boundary
+
+---
+
+## 3.2 Internal communication model
+
+Subdomains communicate via:
+
+```
+application → ports → application
+```
+
+or via orchestration kernel:
+
+```
+orchestration (application) → subdomain application
+```
+
+---
+
+# 4️⃣ Dependency Rules (Strict Direction)
+
+Inside each subdomain:
+
+```
+interfaces → application → domain ← infrastructure
+```
+
+Rules:
+
+* domain is pure and independent
+* application depends only on domain + ports
+* infrastructure implements ports only
+* interfaces define contracts only
+
+---
+
+# 5️⃣ Cross-Subdomain Communication Rule
+
+### Allowed:
+
+* orchestration application calls other subdomain application via interfaces/ports
+
+### Forbidden:
+
+* ❌ direct domain-to-domain coupling
+* ❌ infrastructure-to-infrastructure coupling
+* ❌ api-to-api internal routing
+
+---
+
+# 6️⃣ AI Capability Subdomain Definitions
+
+## 6.1 orchestration (system kernel)
+
+* Owns execution graph
+* Controls workflow sequencing
+* Calls subdomains via application layer
+* Does NOT perform inference itself
+
+---
+
+## 6.2 context
+
+* Builds request-time context
+* Stateless per execution
+* No persistence logic
+
+---
+
+## 6.3 memory
+
+* Persistent state across sessions
+* Read/write via ports only
+* No prompt construction logic
+
+---
+
+## 6.4 retrieval
+
+* Fetches and ranks candidates
+* No final answer generation
+* May use scoring models but no synthesis
+
+---
+
+## 6.5 reasoning
+
+* Structured inference logic
+* Operates on prepared inputs only
+* No data fetching responsibility
+
+---
+
+## 6.6 generation
+
+* Produces final output
+* Consumes reasoning + context
+* No retrieval or orchestration logic
+
+---
+
+## 6.7 tool-calling
+
+* Defines tool schemas and invocation contracts
+* Execution is handled in infrastructure/adapters
+* Stateless logic only
+
+---
+
+## 6.8 safety
+
+* Policy enforcement layer
+* Pre/post generation guardrails
+* Cannot modify domain logic
+
+---
+
+## 6.9 evaluation
+
+* Quality scoring and regression checks
+* Offline/online evaluation logic
+* No telemetry aggregation
+
+---
+
+## 6.10 distillation
+
+* Produces training datasets
+* Downstream-only from evaluation/generation
+
+---
+
+## 6.11 tracing
+
+* Observability only
+* Execution logs, latency, graph tracing
+* Must NOT affect decisions
+
+---
+
+# 7️⃣ AI Execution Flow (Canonical Model)
+
+```
+context
+   ↓
+retrieval
+   ↓
+reasoning
+   ↓
+tool-calling (optional)
+   ↓
+generation
+   ↓
+evaluation (async)
+```
+
+Controlled by:
+
+```
+orchestration (application kernel)
+```
+
+---
+
+# 8️⃣ Event Convention
+
+```
+ai.<subdomain>.<event>
+```
+
+Examples:
+
+* ai.orchestration.started
+* ai.retrieval.completed
+* ai.reasoning.finished
+* ai.generation.completed
+* ai.evaluation.scored
+
+Rules:
+
+* domain/application emit events
+* infrastructure publishes events
+* events are immutable contracts
+
+---
+
+# 9️⃣ Subdomain Activation Rule
+
+A subdomain is ACTIVE only if:
+
+* README defines responsibility
+* application layer contains real use cases
+* at least one port is implemented
+* infrastructure integration exists
+
+Otherwise:
+
+* treated as capability stub
+* cannot be referenced by orchestration
+
+---
+
+# 🔟 Critical Semantic Constraints (Non-Negotiable)
+
+* context ≠ memory
+* retrieval ≠ generation
+* reasoning ≠ orchestration
+* evaluation ≠ telemetry
+* tool-calling ≠ execution engine
+* api ≠ internal communication layer
+
+---
+
+# 🧠 Final Model
+
+This architecture represents:
+
+> AI Execution Engine with Capability-Based Modular Subdomains
+
+NOT:
+
+* microservices
+* API mesh
+* distributed services system
+
+---
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: modules/ai/subdomains/tokens/README.md
@@ -46514,167 +47260,6 @@ Owns security-policy publication, rule versioning, and governance contracts for 
  */
 ````
 
-## File: modules/notebooklm/AGENT.md
-````markdown
-# NotebookLM Agent
-
-> Strategic agent documentation: [docs/contexts/notebooklm/AGENT.md](../../docs/contexts/notebooklm/AGENT.md)
-
-## Mission
-
-保護 notebooklm 主域作為對話、來源處理與推理輸出的邊界。notebooklm 擁有衍生推理流程，不擁有正典知識內容。任何變更都應維持 notebooklm 擁有對話生命週期、來源管理與 RAG pipeline 語言，而不是吸收平台治理或正典知識語言。
-
-## Bounded Context Summary
-
-| Aspect | Description |
-|--------|-------------|
-| Primary role | 對話、來源處理與推理輸出 |
-| Upstream | platform（治理）、ai（shared AI capability）、workspace（scope）、notion（knowledge artifact reference） |
-| Downstream | 無固定主域級下游；輸出可被其他主域吸收 |
-| Core invariant | notebooklm 只能持有衍生推理輸出，不得直接修改 notion 的正典內容 |
-| Published language | Notebook reference、Conversation reference、SourceReference、GroundedAnswer |
-
-## Bounded Contexts
-
-| Cluster | Subdomains | Responsibility |
-|---------|------------|----------------|
-| Interaction Core | notebook, conversation | 對話容器與互動生命週期 |
-| Source & RAG Pipeline | source, synthesis | 來源管理與完整 RAG pipeline（retrieval → grounding → synthesis → evaluation） |
-
-## Route Here When
-
-- 問題核心是 notebook、conversation、source、synthesis（RAG pipeline）。
-- 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
-- 問題要把知識來源（notion artifact、uploaded file）轉成可對話與可綜合的推理材料。
-- 問題涉及 RAG 問答、向量檢索、chunks 召回、generation 品質。
-- 問題涉及 evaluation、品質評估、回歸比較或 grounding 可信度。
-
-## Route Elsewhere When
-
-- 正典知識頁面、文章、分類、正式發布屬於 notion。
-- 身份、授權、權益、憑證治理屬於 platform。
-- 共享 AI provider、模型政策、配額與安全護欄屬於 ai。
-- 工作區生命週期、成員管理、共享範圍屬於 workspace。
-- browser-facing shell composition、tab orchestration、panel assembly 屬於 workspace；notebooklm 提供下游能力，不擁有外層 UI orchestration。
-
-## Subdomains
-
-| Subdomain | Purpose | Key Aggregates / Entities |
-|-----------|---------|---------------------------|
-| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
-| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration, NotebookRepository |
-| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary, SourceRetentionPolicy |
-| synthesis | 完整 RAG pipeline：retrieval、grounding、synthesis、evaluation | AnswerRagQueryUseCase, RagScoringService, RagCitationBuilder, RagPromptBuilder |
-
-### Future Split Triggers
-
-`synthesis` 子域將四個 RAG 關注點作為內部 facets 持有。只有當以下觸發條件成立時，才拆分為獨立子域：
-
-| Facet | Split Trigger |
-|-------|---------------|
-| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
-| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
-| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
-| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
-
-### Domain Invariants
-
-- notebooklm 只擁有衍生推理流程，不擁有正典知識內容。
-- shared AI capability 由 ai 提供；notebooklm 在 synthesis 擁有 retrieval、grounding、generation、evaluation 的本地語義。
-- grounding 應能把輸出對齊到來源證據。
-- retrieval 是 generation 的上游能力。
-- evaluation 應描述品質，而不是單純使用量。
-- 任何要成為正式知識內容的輸出，都必須交由 notion 吸收。
-
-## Ubiquitous Language
-
-| Term | Meaning | Owning Subdomain | Do Not Use |
-|------|---------|------------------|------------|
-| Notebook | 聚合對話、來源與衍生筆記的工作單位 | notebook | Project, Workspace |
-| AgentGeneration | GenKit 代理回應生成 | notebook | - |
-| Conversation | Notebook 內的對話執行邊界 | conversation | Chat, Session |
-| Thread | 一段對話的容器 | conversation | - |
-| Message | 一則輸入或輸出對話項 | conversation | Turn, Exchange |
-| Source | 被引用與推理的來源材料 | source | File, Document (generic) |
-| SourceFile | 使用者上傳的原始檔案 | source | - |
-| RagDocument | 來源文件在 RAG pipeline 中的表示 | source | - |
-| WikiLibrary | 結構化知識來源庫 | source | - |
-| Ingestion | 來源匯入、正規化與前處理流程 | source | File Import, Upload |
-| Retrieval | 從來源中召回候選片段的查詢能力 | synthesis | Search, Lookup |
-| Grounding | 把輸出對齊到來源證據的能力 | synthesis | Verification, Factcheck |
-| Citation | 輸出指回來源證據的引用關係 | synthesis | Reference, Link |
-| Synthesis | 綜合多來源後生成的衍生輸出 | synthesis | Answer, Response (generic) |
-| Evaluation | 對輸出品質、回歸結果與效果的評估 | synthesis | Analytics, Metrics (generic) |
-| RelevanceScore | 檢索結果的相關性分數 | synthesis | - |
-
-### Avoid
-
-| Avoid | Use Instead |
-|-------|-------------|
-| Chat | Conversation |
-| File Import | Ingestion |
-| Search Step | Retrieval |
-| Verified Answer | Grounded Synthesis |
-| Knowledge / Wiki | Synthesis output（正典知識屬 notion） |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-api/ ← 唯一跨模組入口
-```
-
-## Scope And Identifier Contract
-
-- Treat `accountId` as account scope and `workspaceId` as workspace scope supplied by workspace-owned composition; notebooklm does not own top-level shell routing.
-- Canonical shell navigation remains `/{accountId}/{workspaceId}` when notebooklm panels are composed inside workspace flows.
-- `organizationId` belongs to notebooklm source/synthesis internal organization-scoped storage and retrieval contracts; it is derived after boundary translation and must not be treated as a shell route param.
-- `actorAccountId` or `createdByUserId` remain distinct from `organizationId`; do not collapse account scope, acting user, and internal org-scoped storage identity into one identifier.
-
-## Development Order (Domain-First)
-
-1. Define Domain (entities, value objects, aggregates, events)
-2. Define Application (use cases, DTOs)
-3. Define Ports (only if boundary isolation needed)
-4. Implement Infrastructure (adapters, persistence)
-5. Implement Interfaces (UI, actions, hooks)
-````
-
-## File: modules/notebooklm/api/server.ts
-````typescript
-/**
- * modules/notebooklm — server-only API barrel.
- *
- * Exports concrete notebook implementations that depend on server-only
- * packages or infrastructure wiring. Must only be imported in Server Actions,
- * route handlers, or server-side infrastructure.
- * This surface exists for server-side orchestrators; browser-facing
- * composition still goes through workspace/api when workspace owns the flow.
- */
-⋮----
-// Q&A subdomain — AnswerRagQueryUseCase factory (now in synthesis subdomain)
-````
-
-## File: modules/notebooklm/infrastructure/notebook/ai/AiTextGenerationAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/notebook
- * Layer: infrastructure/ai
- * Purpose: Delegates shared text generation to the AI bounded-context API.
- */
-⋮----
-import { generateAiText } from "@/modules/ai/api/server";
-import type {
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-} from "../../../subdomains/notebook/domain/entities/AgentGeneration";
-import type { NotebookRepository } from "../../../subdomains/notebook/domain/repositories/NotebookRepository";
-⋮----
-export class AiTextGenerationAdapter implements NotebookRepository {
-⋮----
-async generateResponse(input: GenerateNotebookResponseInput): Promise<GenerateNotebookResponseResult>
-````
-
 ## File: modules/notebooklm/infrastructure/source/firebase/FirebaseDocumentStatusAdapter.ts
 ````typescript
 /**
@@ -46745,68 +47330,6 @@ async listVersions(fileId: string): Promise<readonly SourceFileVersion[]>
 async listByWorkspace(scope: ListSourceFilesScope): Promise<readonly SourceFile[]>
 ⋮----
 async save(file: SourceFile, versions: readonly SourceFileVersion[] = []): Promise<void>
-````
-
-## File: modules/notebooklm/infrastructure/synthesis/ai/AiRagGenerationAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: infrastructure/ai
- * Purpose: Implements RagGenerationRepository by delegating shared model invocation
- *          to the AI bounded-context API. Prompt construction and citation building stay
- *          local to NotebookLM synthesis semantics.
- */
-⋮----
-import { generateAiText } from "@/modules/ai/api/server";
-import type { RagGenerationRepository } from "../../../subdomains/synthesis/domain/repositories/RagGenerationRepository";
-import type {
-  GenerateRagAnswerInput,
-  GenerateRagAnswerResult,
-  GenerateRagAnswerOutput,
-  GenerationCitation,
-} from "../../../subdomains/synthesis/domain/entities/generation.entities";
-⋮----
-function formatChunkForPrompt(chunk: GenerateRagAnswerInput["chunks"][number]): string
-⋮----
-function buildGenerationPrompt(input: GenerateRagAnswerInput): string
-⋮----
-function buildCitations(input: GenerateRagAnswerInput): readonly GenerationCitation[]
-⋮----
-export class AiRagGenerationAdapter implements RagGenerationRepository {
-⋮----
-async generate(input: GenerateRagAnswerInput): Promise<GenerateRagAnswerResult>
-````
-
-## File: modules/notebooklm/infrastructure/synthesis/index.ts
-````typescript
-/**
- * Infrastructure layer for notebooklm subdomain 'synthesis'.
- * Contains Firebase adapters and platform-delegating adapters for the RAG pipeline.
- */
-````
-
-## File: modules/notebooklm/interfaces/conversation/_actions/chat.actions.ts
-````typescript
-import type {
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-} from "../../../subdomains/notebook/api";
-import {
-  GenerateNotebookResponseUseCase,
-  AiTextGenerationAdapter,
-} from "../../../subdomains/notebook/api/server";
-import { saveThread, loadThread } from "./thread.actions";
-⋮----
-export async function sendChatMessage(
-  input: GenerateNotebookResponseInput,
-): Promise<GenerateNotebookResponseResult>
-````
-
-## File: modules/notebooklm/interfaces/notebook/composition/adapters.ts
-````typescript
-import { AiTextGenerationAdapter } from "../../../infrastructure/notebook/ai/AiTextGenerationAdapter";
-⋮----
-export function makeNotebookRepo()
 ````
 
 ## File: modules/notebooklm/interfaces/source/components/FileProcessingDialog.tsx
@@ -46982,128 +47505,6 @@ async function handleSubmit()
 {/* Query input */}
 ⋮----
 onClick=
-````
-
-## File: modules/notebooklm/README.md
-````markdown
-# NotebookLM
-
-對話、來源處理與推理主域
-
-## Bounded Context
-
-| Aspect | Description |
-|--------|-------------|
-| Primary role | 對話、來源處理、檢索與推理輸出 |
-| Upstream | platform（治理）、ai（shared AI capability）、workspace（scope）、notion（knowledge artifact, attachment reference） |
-| Downstream | 無固定主域級下游；GroundedAnswer 可被其他主域消費 |
-| Core principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容 |
-| Cross-module boundary | `api/` only — no direct import of notion/platform/workspace internals |
-
-## Ubiquitous Language
-
-| Term | Meaning |
-|------|---------|
-| Notebook | 聚合對話、來源與衍生筆記的工作單位 |
-| Conversation | Notebook 內的對話執行邊界（Thread + Messages） |
-| Message | 一則輸入或輸出對話項 |
-| Source | 被引用與推理的來源材料 |
-| Ingestion | 來源匯入、正規化與前處理流程（TypeScript 側協調 py_fn） |
-| Retrieval | 從來源中召回候選 Chunk 的查詢能力（向量搜尋） |
-| Grounding | 把輸出對齊到來源證據、建立 Citation 的能力 |
-| Citation | 輸出指回來源證據的引用關係 |
-| Synthesis | 綜合多來源後生成的衍生輸出（RAG generation） |
-| Evaluation | 對輸出品質、feedback 與回歸結果的評估 |
-
-## Implementation Structure
-
-```text
-modules/notebooklm/
-├── api/              # Public API boundary — cross-module entry point only
-├── application/      # Context-wide orchestration
-├── domain/           # Context-wide domain concepts (events, published-language)
-├── infrastructure/   # Context-wide driven adapters, grouped by subdomain when needed
-├── interfaces/       # Context-wide driving adapters, grouped by subdomain when needed
-├── docs/             # Links to strategic documentation
-└── subdomains/
-    ├── conversation/  # Tier 1 — 對話 Thread 與 Message
-    ├── notebook/      # Tier 1 — Notebook 容器與 GenKit 生成
-    ├── source/        # Tier 1 — 來源文件與 ingestion 編排
-    └── synthesis/     # Tier 1 — 完整 RAG pipeline（retrieval → grounding → synthesis → evaluation）
-```
-
-## Subdomains
-
-| Subdomain | Purpose | Key Aggregates / Entities |
-|-----------|---------|--------------------------|
-| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
-| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration |
-| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary |
-| synthesis | 完整 RAG pipeline：retrieval、grounding、answer generation、evaluation/feedback | AnswerRagQueryUseCase, SubmitRagQueryFeedbackUseCase, RagScoringService, RagCitationBuilder, RagPromptBuilder |
-
-### Future Split Triggers
-
-`synthesis` 子域將四個 RAG 關注點作為內部 facets 持有。只有當以下觸發條件成立時，才拆分為獨立子域：
-
-| Facet | Split Trigger |
-|-------|---------------|
-| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
-| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
-| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
-| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `api/` is the only cross-module public boundary.
-- `domain/` must not import infrastructure, interfaces, React, Firebase SDK, or any runtime framework.
-- Cross-module collaboration goes through `api/` only.
-
-## Current Contract Alignment
-
-- NotebookLM consumes `accountId` and `workspaceId` from workspace-owned shell composition; it does not own top-level shell routes and any browser-facing links should remain anchored to canonical `/{accountId}/{workspaceId}` workspace navigation.
-- Source and synthesis internals may derive an `organizationId` for organization-scoped storage and retrieval, but that identifier is an internal domain/infrastructure scope token, not a shell route param.
-- For personal-account scope, source workflows currently derive a synthetic internal organization scope token from `accountId`; this is an implementation detail for org-scoped storage isolation, not an alternate accountType contract.
-- This bounded context follows the repo baseline: Hexagonal Architecture + DDD, Firebase adapters outside the core, shared AI capability consumed through upstream ai boundaries, Zustand/XState only in interface workflows, and Zod at runtime validation boundaries.
-
-## Strategic Documentation
-
-- [Context README](../../docs/contexts/notebooklm/README.md)
-- [Subdomains](../../docs/contexts/notebooklm/subdomains.md)
-- [Bounded Context](../../docs/contexts/notebooklm/bounded-contexts.md)
-- [Context Map](../../docs/contexts/notebooklm/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/notebooklm/ubiquitous-language.md)
-- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
-````
-
-## File: modules/notebooklm/subdomains/notebook/api/server.ts
-````typescript
-/**
- * notebook subdomain — server-only API.
- *
- * Exports infrastructure implementations that depend on server-only packages.
- * Must only be imported in Server Actions, route handlers, or server-side infrastructure.
- */
-````
-
-## File: modules/notebooklm/subdomains/notebook/README.md
-````markdown
-# Notebook
-
-Notebook container and organization.
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Status**: Active — GenerateNotebookResponseUseCase + AiTextGenerationAdapter + Server Actions wired
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case.ts
@@ -47347,264 +47748,6 @@ import type {
 export class AiDistillationAdapter implements ContentDistillationPort {
 ⋮----
 async distill(input: DistillSourcesInput): Promise<DistilledContent>
-````
-
-## File: modules/notebooklm/subdomains/subdomains.instructions.md
-````markdown
----
-description: 'NotebookLM subdomains structural rules: hexagonal shape per subdomain, derived-output ownership, RAG pipeline boundaries, cross-subdomain collaboration, and stub promotion criteria.'
-applyTo: 'modules/notebooklm/subdomains/**/*.{ts,tsx}'
----
-
-# NotebookLM Subdomains Layer (Local)
-
-Use this file as execution guardrails for `modules/notebooklm/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notebooklm/subdomains.md`.
-
-## Core Rules
-
-- Every subdomain must maintain the core-first default shape: `api/`, `domain/`, `application/`, optional `ports/`, and `README.md`.
-- `infrastructure/` and `interfaces/` belong at the bounded-context root by default and should be grouped by subdomain there unless the mini-module gate is explicitly justified.
-- Stub subdomains (`domain/index.ts` only) must not be promoted to Active without a corresponding ADR and `README.md` update.
-- Cross-subdomain collaboration within notebooklm goes through the **subdomain's own `api/`** — never import a sibling subdomain's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- Each subdomain owns its Firestore collection(s); no subdomain reads or writes another subdomain's data directly.
-- Domain events emitted by a subdomain must use the discriminant format `notebooklm.<subdomain>.<action>` (e.g. `notebooklm.conversation.thread-created`, `notebooklm.source.ingestion-completed`, `notebooklm.synthesis.answer-generated`).
-- Dependency direction inside each subdomain mirrors the module-level rule: `interfaces → application → domain ← infrastructure`.
-- notebooklm only owns **derived reasoning outputs** — it must never directly modify canonical content belonging to `notion`.
-- `conversation` owns Thread and Message lifecycle; it must not own source ingestion or RAG pipeline logic.
-- `notebook` owns the aggregate container combining conversation, source, and derived notes; GenKit response generation is scoped here.
-- `source` owns the ingestion lifecycle, RagDocument state machine, WikiLibrary, and SourceRetentionPolicy — it must not own retrieval ranking or generation.
-- `synthesis` owns the complete RAG pipeline (retrieval → grounding → generation → evaluation) as internal facets; do not split these facets into separate subdomains unless an explicit split trigger is documented in an ADR.
-- Retrieval is upstream of generation; grounding aligns output to source evidence — do not reverse this dependency.
-- `evaluation` describes output quality and grounding confidence; it must not emit billing signals or usage metrics.
-- Shared AI provider capability (model routing, quota, safety) is supplied by the `ai` bounded context — do not replicate provider policy inside notebooklm subdomains.
-- Use `organizationId` only as an internal storage scope identifier derived after boundary translation; do not treat it as a shell route parameter.
-- Use `Conversation` (not `Chat` or `Session`) and `Ingestion` (not `File Import` or `Upload`) in all subdomain published language.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
-## File: modules/notebooklm/subdomains/synthesis/api/server.ts
-````typescript
-/**
- * synthesis subdomain — server-only API.
- *
- * Factory functions and infrastructure adapters that depend on server-only
- * packages. Must only be imported in Server Actions, route handlers, or
- * server-side infrastructure.
- */
-⋮----
-import { FirebaseRagRetrievalAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseRagRetrievalAdapter";
-import { FirebaseKnowledgeContentAdapter } from "../../../infrastructure/synthesis/firebase/FirebaseKnowledgeContentAdapter";
-import { AiRagGenerationAdapter } from "../../../infrastructure/synthesis/ai/AiRagGenerationAdapter";
-import { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
-import type {
-  KnowledgeParsedDocument,
-  KnowledgeRagQueryResult,
-  KnowledgeReindexInput,
-} from "../domain/repositories/KnowledgeContentRepository";
-⋮----
-function getKnowledgeContentRepository(): FirebaseKnowledgeContentAdapter
-⋮----
-export function createAnswerRagQueryUseCase(): AnswerRagQueryUseCase
-⋮----
-export function runKnowledgeRagQuery(
-  query: string,
-  accountId: string,
-  workspaceId: string,
-  topK = 4,
-  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
-): Promise<KnowledgeRagQueryResult>
-⋮----
-export function reindexKnowledgeDocument(input: KnowledgeReindexInput): Promise<void>
-⋮----
-export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20): Promise<KnowledgeParsedDocument[]>
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/ports/GenerationPort.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/synthesis
- * Layer: domain/ports
- * Purpose: GenerationPort — output port for AI answer generation.
- *
- * The AI bounded-context adapter (infrastructure) implements this port.
- */
-⋮----
-import type { GenerateAnswerInput, GenerateAnswerResult } from "../entities/SynthesisResult";
-⋮----
-export interface GenerationPort {
-  generate(input: GenerateAnswerInput): Promise<GenerateAnswerResult>;
-}
-⋮----
-generate(input: GenerateAnswerInput): Promise<GenerateAnswerResult>;
-````
-
-## File: modules/notion/AGENT.md
-````markdown
-# Notion Agent
-
-> Strategic agent documentation: [docs/contexts/notion/AGENT.md](../../docs/contexts/notion/AGENT.md)
-
-## Mission
-
-保護 notion 主域作為知識內容生命週期邊界。notion 擁有正式知識內容（KnowledgePage、Article、Database），不擁有治理、工作區範疇或推理輸出。任何變更都應維持 notion 擁有內容建立、結構化、協作、版本化與交付語言。
-
-## Bounded Context Summary
-
-| Aspect | Description |
-|--------|-------------|
-| Primary role | 正典知識內容生命週期 |
-| Upstream | platform（治理）、ai（shared AI capability）、workspace（workspaceId、membership scope、share scope） |
-| Downstream | notebooklm（knowledge artifact reference、attachment reference、taxonomy hint） |
-| Core invariant | notion 只能修改自己的正典內容，不可直接呼叫 notebooklm 的推理流程 |
-| Published language | KnowledgeArtifact reference、attachment reference、taxonomy hint |
-
-## Bounded Contexts
-
-| Cluster | Subdomains | Responsibility |
-|---------|------------|----------------|
-| Content Core | knowledge, authoring | 知識頁面與文章生命週期、分類、內容區塊 |
-| Collaboration & Change | collaboration | 協作留言、細粒度權限與版本快照 |
-| Structured Data | database | 結構化資料多視圖管理與自動化 |
-| Semantic Organization | taxonomy, relations | 分類法與語義關聯圖 |
-| Future Extensions | publishing, attachments | 正式發布流程、附件管理 |
-
-## Route Here When
-
-- 問題核心是知識頁面（KnowledgePage）、內容區塊（ContentBlock）、知識集合（KnowledgeCollection）。
-- 問題需要把內容建立、編輯、分類、關聯、版本或交付收斂到正典狀態。
-- 問題涉及知識庫文章（Article）、分類（Category）、樣板（Template）。
-- 問題涉及結構化資料視圖（Database、DatabaseView、Record）。
-- 問題涉及協作留言（Comment）、細粒度權限（Permission）或版本快照（Version）。
-- 問題涉及分類法（Taxonomy）或語義關聯（Relation）。
-
-## Route Elsewhere When
-
-- 身份、租戶、授權、權益、憑證治理屬於 platform。
-- 共享 AI provider、模型政策、配額與安全護欄屬於 ai。
-- 工作區生命週期、成員管理、共享範圍屬於 workspace。
-- notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
-- browser-facing shell composition、tab orchestration、panel assembly 屬於 workspace；notion 提供下游能力，不擁有外層 UI orchestration。
-
-## Subdomain Delivery Tiers
-
-### Tier 1 — Core (Active)
-
-| Subdomain | Purpose | Key Aggregates |
-|-----------|---------|----------------|
-| knowledge | KnowledgePage 生命週期、ContentBlock 編輯、BacklinkIndex | KnowledgePage, ContentBlock, KnowledgeCollection, BacklinkIndex |
-| authoring | 知識庫文章建立、驗證、分類與發布工作流程 | Article, Category |
-| collaboration | 協作留言、細粒度權限與版本快照 | Comment, Permission, Version |
-| database | 結構化資料多視圖（Table/Board/Calendar/Gallery） | Database, DatabaseRecord, View, DatabaseAutomation |
-
-### Tier 2 — Near-Term (Domain Contracts — High Business Value)
-
-| Subdomain | Purpose | Note |
-|-----------|---------|------|
-| taxonomy | 分類法、標籤樹與語義組織（跨頁面分類的正典邊界） | ≠ authoring.Category（局部文章分類）；taxonomy 是全域語義網 |
-| relations | 內容之間的正式語義關聯與 backlink 管理 | ≠ knowledge.BacklinkIndex（自動反向索引）；relations 是明確語義圖（有類型、有方向） |
-| attachments | 附件與媒體關聯儲存 | 檔案儲存整合的正典邊界。待附件需要獨立於頁面的保留策略時充實 |
-
-### Tier 3 — Medium-Term (Stubs)
-
-| Subdomain | Purpose | Note |
-|-----------|---------|------|
-| publishing | 正式發布與對外交付（Publication 狀態邊界） | authoring 的 `ArticlePublicationUseCases` 是前置邊界 |
-| knowledge-versioning | 全域版本快照策略（workspace-level checkpoint、保留政策） | ≠ collaboration.Version（逐次編輯歷史）；是策略量，不是操作量 |
-
-### Premature Stubs（目錄保留，不建議擴充）
-
-| Subdomain | Reason |
-|-----------|--------|
-| automation | database 子域已涵蓋 DatabaseAutomation；跨內容類型事件自動化目前無獨立領域需求 |
-| knowledge-analytics | 知識使用行為量測是讀模型關注，非獨立領域模型。可由 infrastructure 查詢層處理 |
-| knowledge-integration | 外部系統整合是 infrastructure adapter 關注，非獨立子域 |
-| notes | 輕量筆記可作為 KnowledgePage 的頁面類型處理，不需獨立子域 |
-| templates | 頁面範本是 authoring 的內部關注（內容結構起點），非獨立子域 |
-
-### Domain Invariants
-
-- 知識內容的正典狀態屬於 notion。
-- taxonomy 應獨立於具體 UI 視圖存在（目前由 Category 承載部分）。
-- BacklinkIndex 描述自動反向連結；Relation 描述主動宣告的語義關係。兩者不互相取代。
-- ai 可被 notion use case 消費，但 AI provider / policy ownership 不屬於 notion。
-- 任何來自 notebooklm 的輸出，若要成為正典內容，必須先被 notion 吸收。
-
-## Subdomain Analysis — 子域數量合理性
-
-**14 個目錄（4 Active + 2 Domain Contracts + 1 Stub + 3 Medium-Term Stubs + 5 Premature = 15 分類，共 14 目錄），分析如下：**
-
-1. **`knowledge` 與 `authoring` 不重疊**：`knowledge` 是 KnowledgePage + ContentBlock（自由形式的 wiki 頁面）；`authoring` 是 Article + Category（有工作流程的結構化 KB 文章）。
-2. **`collaboration.Version` 與 `knowledge-versioning` 不重疊**：`collaboration.Version` 是逐次編輯快照（per-change history）；`knowledge-versioning` 是全域 checkpoint 策略（workspace-level snapshot policy）。
-3. **`relations` 與 `knowledge.BacklinkIndex` 不重疊**：`BacklinkIndex` 是自動反向連結索引；`relations` 是明確的語義關係圖（有類型、有方向的關聯）。
-4. **5 個 premature stubs** 有明確理由：每個都已被現有 active 子域或 infrastructure 層吸收。
-
-## Ubiquitous Language
-
-| Term | Meaning | Owning Subdomain | Do Not Use |
-|------|---------|------------------|------------|
-| KnowledgeArtifact | notion 主域擁有的知識內容總稱 | （跨子域概念） | Doc, Wiki (混指) |
-| KnowledgePage | 正典頁面型知識單位（block-based） | knowledge | Wiki, Page (generic) |
-| ContentBlock | 知識頁面的最小可組合內容單位 | knowledge | Block (generic) |
-| KnowledgeCollection | 頁面集合容器（非 Database） | knowledge | Folder, Section |
-| BacklinkIndex | 自動反向連結索引 | knowledge | - |
-| PageStatus | 頁面生命週期狀態（draft, published, archived） | knowledge | - |
-| Article | 經過撰寫與驗證流程的知識庫文章 | authoring | Post, Content |
-| Category | 文章分類樹結構 | authoring | Tag System |
-| Template | 可重複套用的內容結構起點 | authoring | Preset, Layout |
-| Comment | 內容附著的協作討論 | collaboration | Chat, Discussion |
-| Permission | 內容的細粒度存取權限 | collaboration | - |
-| Version | 內容某一時點的不可變快照（逐次編輯歷史） | collaboration | - |
-| Database | 結構化知識集合 | database | Table, Spreadsheet |
-| DatabaseView | 對 Database 的投影與檢視配置 | database | View (generic) |
-| DatabaseRecord | Database 中的一筆記錄 | database | - |
-| DatabaseAutomation | Database 事件觸發的自動化動作 | database | - |
-| Taxonomy | 分類法、標籤樹等語義組織結構 | taxonomy | Tag System, Category (混稱全域分類) |
-| Relation | 內容對內容之間的正式語義關聯 | relations | Link, Connection |
-| Publication | 對外可見且可交付的內容狀態 | publishing (stub) | Published, Public |
-| Attachment | 綁定於知識內容的檔案或媒體 | attachments | File, Upload |
-| VersionSnapshot | 全域版本 checkpoint 策略的不可變快照 | knowledge-versioning (stub) | Backup, History |
-
-### Avoid
-
-| Avoid | Use Instead |
-|-------|-------------|
-| Wiki | KnowledgePage 或 Article |
-| Table | Database 或 DatabaseView |
-| Tag System | Category (current) or Taxonomy (Tier 2) |
-| Content Link | BacklinkIndex (automatic) or Relation (explicit semantic) |
-| Publish Action | Publication 或 ArticlePublication |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-api/ ← 唯一跨模組入口
-```
-
-## Scope Contract
-
-- Treat `accountId` as account scope and `workspaceId` as workspace scope supplied by workspace-owned composition; notion does not own top-level shell routing.
-- Canonical shell navigation remains `/{accountId}/{workspaceId}` when notion panels or detail links are composed inside workspace flows.
-- Use concrete user identifiers such as `currentUserId` and `createdByUserId` for acting users; do not drift into using `accountId` as a user identifier.
-
-## Development Order (Domain-First)
-
-New features:
-1. Define Domain (entities, value objects, aggregates, events)
-2. Define Application (use cases, DTOs)
-3. Define Ports (only if boundary isolation needed)
-4. Implement Infrastructure (adapters, persistence)
-5. Implement Interfaces (UI, actions, hooks)
-
-Legacy migration (Strangler Pattern):
-1. Find a Use Case to extract
-2. Build Domain model in the owning subdomain
-3. Converge Application layer
-4. Isolate legacy via Ports
-5. Replace Infrastructure adapter; remove old path when stable
 ````
 
 ## File: modules/notion/api/index.ts
@@ -48542,145 +48685,6 @@ import { SharedAiKnowledgeSummaryAdapter } from "../../../infrastructure/knowled
 export function makeKnowledgeSummaryPort()
 ````
 
-## File: modules/notion/README.md
-````markdown
-# Notion
-
-知識內容生命週期主域
-
-## Bounded Context
-
-| Aspect | Description |
-|--------|-------------|
-| Primary role | 正典知識內容生命週期（頁面、文章、資料庫、協作、版本） |
-| Upstream | platform（治理）、ai（shared AI capability）、workspace（workspaceId、membership scope、share scope） |
-| Downstream | notebooklm（knowledge artifact reference、attachment reference、taxonomy hint） |
-| Core principle | notion 擁有正典知識內容，不擁有治理或推理過程 |
-| Cross-module boundary | `api/` only — no direct import of platform/workspace/notebooklm internals |
-
-## Ubiquitous Language
-
-| Term | Meaning |
-|------|---------|
-| KnowledgeArtifact | notion 主域擁有的知識內容總稱 |
-| KnowledgePage | 正典頁面型知識單位（block-based 自由頁面） |
-| ContentBlock | 知識頁面的最小可組合內容單位（段落、標題、程式碼等） |
-| KnowledgeCollection | 頁面集合容器（分組 KnowledgePage，非 Database） |
-| BacklinkIndex | 自動反向連結索引（哪些頁面引用了此頁面） |
-| Article | 經過撰寫與驗證工作流程的知識庫文章 |
-| Database | 結構化知識集合（可投影多種視圖） |
-| DatabaseView | 對 Database 的投影配置（Table/Board/Calendar/Gallery/Form） |
-| DatabaseRecord | Database 中的一筆記錄 |
-| Taxonomy | 跨頁面的分類法與語義組織結構 |
-| Relation | 內容對內容之間的正式語義關聯（有類型、有方向） |
-| Publication | 對外可見且可交付的內容狀態 |
-| VersionSnapshot | 全域版本 checkpoint 策略的不可變快照（≠ 逐次編輯 Version） |
-| Template | 可重複套用的內容結構起點 |
-| Attachment | 綁定於知識內容的檔案或媒體 |
-
-## Implementation Structure
-
-```text
-modules/notion/
-├── api/              # Public API boundary — cross-module entry point only
-├── application/      # Context-wide orchestration
-├── domain/           # Context-wide domain concepts (events, published-language)
-├── infrastructure/   # Context-wide driven adapters, grouped by subdomain when needed
-├── interfaces/       # Context-wide driving adapters, grouped by subdomain when needed
-├── docs/             # Links to strategic documentation
-└── subdomains/
-    ├── knowledge/             # Tier 1 — Active (KnowledgePage, ContentBlock)
-    ├── authoring/             # Tier 1 — Active (Article, Category)
-    ├── collaboration/         # Tier 1 — Active (Comment, Permission, Version)
-    ├── database/              # Tier 1 — Active (Database, Record, View)
-    ├── taxonomy/              # Tier 2 — Domain contracts (semantic classification)
-    ├── relations/             # Tier 2 — Domain contracts (explicit semantic graph)
-    ├── attachments/           # Tier 2 — Stub (file/media association)
-    ├── publishing/            # Tier 3 — Stub (external delivery boundary)
-    ├── knowledge-versioning/  # Tier 3 — Stub (global snapshot policy)
-    ├── notes/                 # Premature — absorbed by KnowledgePage
-    ├── templates/             # Premature — absorbed by authoring
-    ├── automation/            # Premature — absorbed by database
-    ├── knowledge-analytics/   # Premature — read model concern
-    └── knowledge-integration/ # Premature — infrastructure adapter concern
-```
-
-> **Premature stubs** — `notes/`, `templates/`, `automation/`, `knowledge-analytics/`, `knowledge-integration/` 目錄存在但不建議擴充。見 [Premature Stubs](#premature-stubs) 段落。
-
-## Subdomains
-
-### Tier 1 — Core (Active)
-
-| Subdomain | Purpose | Key Aggregates / Entities |
-|-----------|---------|--------------------------|
-| knowledge | KnowledgePage 生命週期、ContentBlock 編輯、BacklinkIndex、版本查詢 | KnowledgePage, ContentBlock, KnowledgeCollection, BacklinkIndex |
-| authoring | 知識庫文章建立、驗證工作流程與分類目錄 | Article, Category |
-| collaboration | 協作留言、細粒度權限與版本快照（逐次編輯歷史） | Comment, Permission, Version |
-| database | 結構化資料視圖（Table/Board/Calendar/Gallery/Form）、記錄、自動化 | Database, DatabaseRecord, View, DatabaseAutomation |
-
-### Tier 2 — Near-Term (Domain Contracts — High Business Value)
-
-| Subdomain | Purpose | Distinction |
-|-----------|---------|------------|
-| taxonomy | 跨頁面分類法與語義組織（全域標籤樹、主題分類） | ≠ authoring.Category（局部文章分類）；taxonomy 是全域語義網 |
-| relations | 內容對內容的明確語義關聯（有類型、方向） | ≠ knowledge.BacklinkIndex（自動反向連結）；relations 是主動宣告的語義圖 |
-| attachments | 附件與媒體關聯儲存（Storage 整合正典邊界） | 獨立於知識頁面內容模型。待附件需要獨立保留策略時充實 |
-
-### Tier 3 — Medium-Term (Stubs)
-
-| Subdomain | Purpose | Note |
-|-----------|---------|------|
-| publishing | 正式對外交付的 Publication 狀態邊界 | authoring 的 `ArticlePublicationUseCases` 是前置邊界 |
-| knowledge-versioning | 全域版本 checkpoint 策略（workspace-level, 保留政策） | ≠ collaboration.Version（per-edit 歷史）；是策略量，不是操作量 |
-
-### Premature Stubs（目錄保留，不建議擴充）
-
-| Subdomain | Reason |
-|-----------|--------|
-| notes | 輕量筆記可作為 KnowledgePage 的頁面類型處理，不需獨立子域 |
-| templates | 頁面範本是 authoring 的內部關注（內容結構起點），非獨立子域 |
-| automation | database 子域已涵蓋 DatabaseAutomation；跨內容類型事件自動化目前無獨立領域需求 |
-| knowledge-analytics | 知識使用行為量測是讀模型關注，非獨立領域模型。可由 infrastructure 查詢層處理 |
-| knowledge-integration | 外部系統整合是 infrastructure adapter 關注，非獨立子域 |
-
-## Subdomain Analysis
-
-**14 個目錄（4 Active + 2 Domain Contracts + 1 Stub + 2 Medium-Term + 5 Premature），分析如下：**
-
-- ✅ `knowledge` 與 `authoring` 分工正確：自由頁面（block-based wiki）vs. 結構化文章（KB article workflow）。
-- ✅ `collaboration.Version`（逐次編輯快照）與 `knowledge-versioning`（全域 checkpoint 策略）是不同責任，分開正確。
-- ✅ `knowledge.BacklinkIndex`（自動反向索引）與 `relations`（明確語義圖）不重疊。
-- ✅ `taxonomy` 是全域語義組織核心，與 `authoring.Category`（局部文章分類）不重疊，維持 Tier 2。
-- ✅ 5 個 premature stubs 有明確理由：每個都已被現有 active 子域或 infrastructure 層吸收。
-- ⚠️ `knowledge-versioning` 需持續明確與 `collaboration.Version` 的分界，避免實作者混淆。
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `api/` is the only cross-module public boundary.
-- `domain/` must not import infrastructure, interfaces, React, Firebase SDK, or any runtime framework.
-- Cross-module collaboration goes through `api/` only.
-
-## Current Contract Alignment
-
-- Notion consumes `accountId` and `workspaceId` as downstream scope tokens from workspace-owned shell composition; it does not own top-level shell routes.
-- Browser-facing notion links rendered inside shell flows must stay anchored to the canonical workspace route `/{accountId}/{workspaceId}` chosen by workspace composition, not reintroduce legacy `/workspace/*` URL shapes.
-- Use `currentUserId`, `createdByUserId`, and similar concrete user identifiers for acting users; do not collapse them into `accountId` or `workspaceId`.
-- This bounded context follows the repo baseline: Hexagonal Architecture + DDD, Firebase adapters outside the core, shared AI capability consumed through upstream ai boundaries, Zustand/XState only in interface workflows, and Zod at runtime validation boundaries.
-
-## Strategic Documentation
-
-- [Context README](../../docs/contexts/notion/README.md)
-- [Subdomains](../../docs/contexts/notion/subdomains.md)
-- [Bounded Context](../../docs/contexts/notion/bounded-contexts.md)
-- [Context Map](../../docs/contexts/notion/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/notion/ubiquitous-language.md)
-- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
-````
-
 ## File: modules/notion/subdomains/authoring/domain/events/NotionDomainEvent.ts
 ````typescript
 /**
@@ -49594,140 +49598,226 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/platform/api/infrastructure-api.ts
+## File: modules/platform/api/contracts.ts
 ````typescript
-import {
-	functionsApi,
-	firestoreApi,
-	getFirebaseFirestore,
-	getFirebaseFunctions,
-	getFirebaseStorage,
-	storageApi,
-} from "@integration-firebase";
-import { collectionGroup } from "firebase/firestore";
+/**
+ * platform API contracts boundary.
+ *
+ * Keep the source of truth in application/domain and re-export here for API consumers.
+ */
 ⋮----
-import type {
-	FirestoreAPI,
-	FunctionsAPI,
-	FunctionsCallOptions,
-	FirestoreQueryOptions,
-	FirestoreWhereClause,
-	StorageAPI,
-	StorageUploadOptions,
-} from "./contracts";
+// ── Platform domain event published language ─────────────────────────────────
+// Explicit re-exports of the event interface and catalogue types.
+// Event type constants are intentionally NOT re-exported; downstream contexts
+// should subscribe to events by string discriminant, not import constant values.
 ⋮----
-function splitPath(path: string): string[]
+// ── Identity session types ────────────────────────────────────────────────────
+// AuthUser is the canonical projection of an authenticated identity subject.
+// Platform/Identity BC owns this DTO; app/providers/auth-context re-exports it.
 ⋮----
-function resolveDocumentPath(path: string): string[]
+/** Minimal authenticated user record surfaced from identity auth state. */
+export interface AuthUser {
+	readonly id: string;
+	readonly name: string;
+	readonly email: string;
+}
 ⋮----
-function resolveCollectionPath(path: string): string[]
+// ── Infrastructure API contracts (platform-owned) ───────────────────────────
 ⋮----
-function resolveStorageBucket(): string
+export type FirestoreWhereOperator =
+	| "<"
+	| "<="
+	| "=="
+	| "!="
+	| ">="
+	| ">"
+	| "array-contains"
+	| "array-contains-any"
+	| "in"
+	| "not-in";
 ⋮----
-function resolveStoragePath(path: string): string
+export interface FirestoreWhereClause {
+	readonly field: string;
+	readonly op: FirestoreWhereOperator;
+	readonly value: unknown;
+}
 ⋮----
-function toUploadMetadata(options?: StorageUploadOptions)
+export type FirestoreOrderDirection = "asc" | "desc";
 ⋮----
-function applyQueryConstraints(
-	baseQuery: ReturnType<typeof firestoreApi.query>,
-	where: readonly FirestoreWhereClause[],
-	options?: FirestoreQueryOptions,
-)
+export interface FirestoreOrderByClause {
+	readonly field: string;
+	readonly direction?: FirestoreOrderDirection;
+}
 ⋮----
-async get<T>(path: string): Promise<T | null>
+export interface FirestoreQueryOptions {
+	readonly limit?: number;
+	readonly orderBy?: readonly FirestoreOrderByClause[];
+}
 ⋮----
-async set<T>(path: string, data: T): Promise<void>
+export interface FirestoreCollectionDocument<T> {
+	readonly id: string;
+	readonly path: string;
+	readonly data: T;
+}
 ⋮----
-async setMany<T>(inputs: readonly
+export interface FirestoreCollectionWatchHandlers<T> {
+	readonly onNext: (documents: readonly FirestoreCollectionDocument<T>[]) => void;
+	readonly onError?: (error: unknown) => void;
+}
 ⋮----
-async update(path: string, data: Record<string, unknown>): Promise<void>
+export interface FirestoreDocumentWatchHandlers<T> {
+	readonly onNext: (document: FirestoreCollectionDocument<T> | null) => void;
+	readonly onError?: (error: unknown) => void;
+}
 ⋮----
-async delete(path: string): Promise<void>
+export interface FirestoreSetDocumentInput<T> {
+	readonly path: string;
+	readonly data: T;
+}
 ⋮----
-async query<T>(
+export interface FirestoreAPI {
+	get<T>(path: string): Promise<T | null>;
+	set<T>(path: string, data: T): Promise<void>;
+	setMany<T>(inputs: readonly FirestoreSetDocumentInput<T>[]): Promise<void>;
+	update(path: string, data: Record<string, unknown>): Promise<void>;
+	delete(path: string): Promise<void>;
+	query<T>(
 		collectionPath: string,
-		where: readonly FirestoreWhereClause[] = [],
+		where?: readonly FirestoreWhereClause[],
 		options?: FirestoreQueryOptions,
-): Promise<T[]>
-⋮----
-async queryDocuments<T>(
+	): Promise<T[]>;
+	queryDocuments<T>(
 		collectionPath: string,
-		where: readonly FirestoreWhereClause[] = [],
+		where?: readonly FirestoreWhereClause[],
 		options?: FirestoreQueryOptions,
-): Promise<readonly
-⋮----
-async queryCollectionGroup<T>(
+	): Promise<readonly FirestoreCollectionDocument<T>[]>;
+	queryCollectionGroup<T>(
 		collectionId: string,
-		where: readonly FirestoreWhereClause[] = [],
+		where?: readonly FirestoreWhereClause[],
 		options?: FirestoreQueryOptions,
-): Promise<readonly
+	): Promise<readonly FirestoreCollectionDocument<T>[]>;
+	watchCollection<T>(
+		collectionPath: string,
+		handlers: FirestoreCollectionWatchHandlers<T>,
+		where?: readonly FirestoreWhereClause[],
+	): () => void;
+	watchDocument<T>(path: string, handlers: FirestoreDocumentWatchHandlers<T>): () => void;
+}
 ⋮----
+get<T>(path: string): Promise<T | null>;
+set<T>(path: string, data: T): Promise<void>;
+setMany<T>(inputs: readonly FirestoreSetDocumentInput<T>[]): Promise<void>;
+update(path: string, data: Record<string, unknown>): Promise<void>;
+delete(path: string): Promise<void>;
+query<T>(
+		collectionPath: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<T[]>;
+queryDocuments<T>(
+		collectionPath: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly FirestoreCollectionDocument<T>[]>;
+queryCollectionGroup<T>(
+		collectionId: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly FirestoreCollectionDocument<T>[]>;
 watchCollection<T>(
 		collectionPath: string,
-		handlers: {
-onNext: (documents: readonly
+		handlers: FirestoreCollectionWatchHandlers<T>,
+		where?: readonly FirestoreWhereClause[],
+): ()
+watchDocument<T>(path: string, handlers: FirestoreDocumentWatchHandlers<T>): ()
 ⋮----
-watchDocument<T>(
-		path: string,
-		handlers: {
-onNext: (document:
+export interface StorageUploadOptions {
+	readonly contentType?: string;
+	readonly customMetadata?: Record<string, string>;
+}
 ⋮----
-async upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string>
+export interface StorageAPI {
+	upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string>;
+	getUrl(path: string): Promise<string>;
+	delete(path: string): Promise<void>;
+	toGsUri(path: string): string;
+}
 ⋮----
-async getUrl(path: string): Promise<string>
+upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string>;
+getUrl(path: string): Promise<string>;
 ⋮----
-toGsUri(path: string): string
+toGsUri(path: string): string;
 ⋮----
-async call<TInput, TOutput>(
+export interface FunctionsCallOptions {
+	readonly region?: string;
+}
+⋮----
+export interface FunctionsAPI {
+	call<TInput, TOutput>(
 		functionName: string,
 		input: TInput,
 		options?: FunctionsCallOptions,
-): Promise<TOutput>
-````
-
-## File: modules/platform/api/infrastructure.ts
-````typescript
-/**
- * platform infrastructure API — for infrastructure adapters only.
- *
- * This file is NOT part of the platform capability-contract boundary.
- * Cross-module infrastructure adapters (Firestore repos, Storage adapters, etc.)
- * must import Firebase primitives from here, not from the main api/index.ts.
- *
- * @see ADR-1401 Dependency Leakage — Infrastructure API symbols removed from platform/api/index.ts
- * @see modules/platform/api/index.ts — capability contracts only
- */
-````
-
-## File: modules/platform/api/server.ts
-````typescript
-/**
- * platform — server-only API barrel.
- *
- * Exports that depend on server-only infrastructure packages or event-bus wiring.
- * Must only be imported in Server Actions, route handlers, or server-side
- * infrastructure adapters.
- */
-⋮----
-import {
-  CompositeEventBusRepository,
-  InMemoryEventStoreRepository,
-  InProcessEventBusRepository,
-  QStashEventBusRepository,
-  type IEventBusRepository,
-  type IEventStoreRepository,
-} from "@shared-events";
-⋮----
-export interface PlatformEventInfrastructure {
-  readonly eventStore: IEventStoreRepository;
-  readonly eventBus: IEventBusRepository;
+	): Promise<TOutput>;
 }
 ⋮----
-/**
- * Creates the canonical server-side event infrastructure owned by platform.
- * Downstream modules should consume this instead of creating local stub buses.
- */
-export function createPlatformEventInfrastructure(): PlatformEventInfrastructure
+call<TInput, TOutput>(
+		functionName: string,
+		input: TInput,
+		options?: FunctionsCallOptions,
+	): Promise<TOutput>;
+⋮----
+// ── Platform Service API contracts (cross-domain) ───────────────────────────
+⋮----
+export interface AuthSession {
+	readonly userId: string;
+	readonly email: string | null;
+	readonly displayName: string | null;
+	readonly isAnonymous: boolean;
+}
+⋮----
+export interface AuthAPI {
+	getSession(): Promise<AuthSession | null>;
+	requireAuth(): Promise<AuthSession>;
+}
+⋮----
+getSession(): Promise<AuthSession | null>;
+requireAuth(): Promise<AuthSession>;
+⋮----
+export interface PermissionAPI {
+	can(userId: string, action: string, resource: string): Promise<boolean>;
+}
+⋮----
+can(userId: string, action: string, resource: string): Promise<boolean>;
+⋮----
+export interface UploadUserFileInput {
+	readonly file: Blob;
+	readonly ownerId: string;
+	readonly fileName?: string;
+	readonly contentType?: string;
+	readonly metadata?: Record<string, string>;
+	readonly pathHint?: string;
+}
+⋮----
+export interface UploadUserFileOutput {
+	readonly url: string;
+	readonly fileId: string;
+	readonly storagePath: string;
+	readonly gcsUri: string;
+}
+⋮----
+export interface FileAPI {
+	uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>;
+	deleteFile(fileId: string): Promise<void>;
+}
+⋮----
+uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>;
+deleteFile(fileId: string): Promise<void>;
+⋮----
+// ── Cross-cutting account context type ───────────────────────────────────────
+// ActiveAccount is the union of an organization AccountEntity or a personal
+// AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
+import type { AccountEntity } from "@/modules/iam/api";
+export type ActiveAccount = AccountEntity | AuthUser;
 ````
 
 ## File: modules/platform/interfaces/web/hooks/useAccountRouteContext.ts
@@ -49849,114 +49939,6 @@ interface ShellUserAvatarProps {
 }
 ⋮----
 export function ShellUserAvatar(
-````
-
-## File: modules/platform/README.md
-````markdown
-# Platform
-
-治理與營運支撐主域
-
-## Implementation Structure
-
-```text
-modules/platform/
-├── api/              # Public API boundary
-├── application/      # Context-wide orchestration
-├── domain/           # Context-wide domain concepts
-├── infrastructure/   # Context-wide driven adapters
-├── interfaces/       # Context-wide driving adapters
-├── docs/             # Links to strategic documentation
-└── subdomains/
-    ├── account/
-    ├── account-profile/
-    ├── access-control/
-    ├── ai/
-    ├── analytics/
-    ├── audit-log/
-    ├── background-job/
-    ├── billing/
-    ├── compliance/
-    ├── consent/
-    ├── content/
-    ├── entitlement/
-    ├── feature-flag/
-    ├── identity/
-    ├── integration/
-    ├── notification/
-    ├── observability/
-    ├── onboarding/
-    ├── organization/
-    ├── platform-config/
-    ├── referral/
-    ├── search/
-    ├── secret-management/
-    ├── security-policy/
-    ├── subscription/
-    ├── support/
-    ├── tenant/
-    ├── team/
-    └── workflow/
-```
-
-## Subdomains
-
-| Subdomain | Status | Purpose |
-|-----------|--------|---------|
-| account | Active | 帳號管理與帳號生命週期 |
-| identity | Active | 身份驗證與身份聯邦 |
-| notification | Active | 通知治理與遞送 |
-| organization | Active | 組織管理與租戶結構 |
-| team | Active | 團隊管理與成員關係 |
-| account-profile | Stub | 帳號個人檔案與偏好 |
-| access-control | Stub | 存取控制與權限策略 |
-| ai | Stub | 共享 AI provider 路由與能力治理 |
-| analytics | Stub | 平台級分析與指標 |
-| audit-log | Stub | 平台稽核日誌 |
-| background-job | Stub | 背景任務排程與管理 |
-| billing | Stub | 計費與支付管理 |
-| compliance | Stub | 合規與法遵管理 |
-| consent | Stub | 同意與資料使用授權治理 |
-| content | Stub | 平台內容管理 |
-| entitlement | Stub | 權益解算與功能可用性治理 |
-| feature-flag | Stub | 功能旗標與漸進式發布 |
-| integration | Stub | 外部系統整合 |
-| observability | Stub | 觀測與監控 |
-| onboarding | Stub | 使用者引導流程 |
-| platform-config | Stub | 平台組態管理 |
-| referral | Stub | 推薦與邀請機制 |
-| search | Stub | 平台級搜尋能力 |
-| secret-management | Stub | 憑證與 token 生命週期治理 |
-| security-policy | Stub | 安全策略管理 |
-| subscription | Stub | 訂閱與方案管理 |
-| support | Stub | 客戶支援管理 |
-| tenant | Stub | 多租戶隔離與 tenant-scoped 規則 |
-| workflow | Stub | 平台級工作流引擎 |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `api/` is the only cross-module public boundary.
-- Domain must not import infrastructure, interfaces, or external frameworks.
-- Cross-module collaboration goes through `api/` only.
-
-## Current Contract Alignment
-
-- Shell composition remains account-scoped under `/{accountId}/[[...slug]]`; flattened governance routes such as `/{accountId}/members` and `/{accountId}/teams` are canonical, while `/{accountId}/organization/*` is legacy redirect-only surface.
-- Platform-owned account scope string contract remains `"user" | "organization"`; business language may say personal account / organization account, but code-level contracts must not drift to `"personal"`.
-- Identifier boundaries stay explicit: `accountId` for shell account scope, `organizationId` for organization-scoped domain or integration contracts, `userId` for concrete users, `actorId` for acting principals, and `tenantId` for tenant isolation.
-- This bounded context anchors the repo baseline: Hexagonal Architecture + DDD, Firebase serverless adapters outside the core, shared AI capability consumed from the upstream ai bounded context, Zustand/XState only in interface workflows, and Zod at runtime validation boundaries.
-
-## Strategic Documentation
-
-- [Context README](../../docs/contexts/platform/README.md)
-- [Subdomains](../../docs/contexts/platform/subdomains.md)
-- [Context Map](../../docs/contexts/platform/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/platform/ubiquitous-language.md)
-- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
 ## File: modules/platform/subdomains/background-job/application/index.ts
@@ -51165,103 +51147,6 @@ function migrateWorkspaceOrder(order: string[]): string[]
 export function readNavPreferences(): NavPreferences
 ⋮----
 export function writeNavPreferences(prefs: NavPreferences): void
-````
-
-## File: modules/workspace/README.md
-````markdown
-# Workspace
-
-協作容器與工作區範疇主域
-
-## Implementation Structure
-
-```text
-modules/workspace/
-├── api/              # Public API boundary
-├── application/      # Context-wide orchestration (delegates to subdomains)
-│   ├── queries/      # Read query handlers (pure reads, no business logic)
-│   ├── use-cases/    # Command use cases remaining at root level
-│   └── services/     # Application services (composite orchestrators)
-├── domain/           # Context-wide domain concepts (Workspace aggregate root)
-├── infrastructure/   # Context-wide driven adapters
-├── interfaces/       # Context-wide driving adapters
-├── docs/             # Links to strategic documentation
-└── subdomains/
-    ├── audit/             # Active — append-only audit trail
-    ├── feed/              # Active — workspace activity projection
-    ├── lifecycle/         # Active — workspace create/update/delete/transitions
-    ├── membership/        # Active — member view model and participation queries
-    ├── presence/          # Stub — real-time presence and activity
-    ├── scheduling/        # Active — workspace scheduling management
-    ├── sharing/           # Active — team and individual access grants
-    └── workspace-workflow/ # Active — task/issue/invoice state machines
-```
-
-## Subdomains
-
-| Subdomain | Status | Purpose |
-|-----------|--------|---------|
-| audit | Active | 不可否認稽核追蹤 |
-| feed | Active | 工作區活動投影 |
-| lifecycle | Active | 工作區容器生命週期（建立/修改/刪除/狀態轉換）|
-| membership | Active | 工作區參與者視圖模型與查詢 |
-| presence | Stub | 即時在線狀態 |
-| scheduling | Active | 工作區排程管理 |
-| sharing | Active | 工作區存取授權（團隊/個人）|
-| workspace-workflow | Active | 工作區流程協調 |
-
-## Application Layer Architecture
-
-The root application services act as **composite orchestrators** that delegate to subdomain services:
-
-| Operation | Delegated To |
-|-----------|-------------|
-| Create/Update/Delete workspace | `lifecycle` subdomain |
-| Team/Individual access grants | `sharing` subdomain |
-| Member view queries | `membership` subdomain |
-| Mount capabilities | Root use-case (pending subdomain assignment) |
-| Create workspace location | Root use-case (Workspace operational profile) |
-| Workspace read queries | Root query handlers |
-| Wiki content tree projection | Root query handler |
-
-### DDD Rules Applied
-
-- **Rule 5/13/16**: Pure reads → query handlers in `queries/`, not use cases
-- **Rule 12**: Commands → `use-cases/` or subdomain use cases
-- **Rule 18**: Single-call wrappers eliminated; functions instead of classes for queries
-- **Rule 8**: Each use case = one business intent (verb-first naming)
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `api/` is the only cross-module public boundary.
-- Domain must not import infrastructure, interfaces, or external frameworks.
-- Cross-module collaboration goes through `api/` only.
-- Subdomain cross-collaboration goes through subdomain `api/` only.
-
-## UI Orchestration Boundary
-
-- App-layer browser composition should prefer `modules/workspace/api/ui` and `modules/workspace/api/facade`.
-- workspace is the composition owner for notion/notebooklm panels, commands, and navigation flows rendered in the shell.
-- notion and notebooklm root `api/` surfaces provide downstream semantic capabilities for orchestrators; they are not the preferred browser-facing import path for app routes when workspace owns the flow.
-
-## Current Contract Alignment
-
-- Shell composition remains account-scoped: the canonical workspace detail route is `/{accountId}/{workspaceId}` and `/{accountId}/workspace/{workspaceId}` is redirect-only legacy surface.
-- Workspace read models, DTOs, events, and validators use the code-level account scope contract `"user" | "organization"`; UI copy may say 個人帳號 / 組織帳號, but local type literals must not drift back to `"personal"`.
-- The wiki content tree projection is a read-model concern owned by root query handlers and must emit canonical account-scoped workspace hrefs instead of legacy `/workspace/*` links.
-- This bounded context follows the repo baseline: Hexagonal Architecture + DDD, Firebase serverless adapters outside the core, shared AI capability consumed through upstream ai boundaries, Zustand/XState only in interface workflows, and Zod at runtime validation boundaries.
-
-## Strategic Documentation
-
-- [Context README](../../docs/contexts/workspace/README.md)
-- [Subdomains](../../docs/contexts/workspace/subdomains.md)
-- [Context Map](../../docs/contexts/workspace/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/workspace/ubiquitous-language.md)
-- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
 ## File: modules/workspace/subdomains/approve/application/use-cases/approve-task-acceptance.use-case.ts
@@ -57331,40 +57216,6 @@ modules/ai 是共享 AI capability 的唯一邊界。它擁有 content-generatio
 - 奧卡姆剃刀：一個 port + use case 能解決就不要新增 service。
 ````
 
-## File: modules/ai/ai.instructions.md
-````markdown
----
-description: Rules for the AI bounded context.
-applyTo: 'modules/ai/**/*.{ts,tsx,js,jsx,md}'
----
-
-# AI Instructions
-
-## Ownership
-
-- modules/ai 擁有共享 AI capability：generation、orchestration、distillation、retrieval、memory、context、safety、tool-calling、reasoning、conversation、evaluation、tracing。
-- provider routing 與 model policy 在此模組定義，不在下游模組重建。
-
-## Dependency Rules
-
-- Genkit 與 provider SDK import 只能出現在 `modules/ai/infrastructure/`。
-- 下游消費者只能透過 `modules/ai/api`（client-safe types）或 `modules/ai/api/server`（server functions）存取。
-- domain 層不得依賴任何框架、SDK 或傳輸層。
-- 子域之間透過 ports 或 orchestration application 協調，不直接互相 import domain 層。
-
-## Naming
-
-- 生成輸出型別用 `GenerationResult` 或 `GenerateAiTextOutput`，不用 `Response`。
-- 蒸餾輸出型別用 `DistillationResult`，不用 `SummarizedText` 或 `Summary`。
-- 搜尋輸出型別用 `RetrievalResult`，不用 `SearchResult` 泛稱。
-
-## Anti-Patterns
-
-- 不在 ai 內定義 KnowledgeArtifact、Notebook、Conversation（notebooklm 正典）等他域型別。
-- 不混入 identity governance 或 billing policy。
-- 不讓其他模組繞過 api 邊界直接 import subdomain internals。
-````
-
 ## File: modules/ai/application/index.ts
 ````typescript
 /** ai/application — AI orchestration use cases. */
@@ -57552,323 +57403,6 @@ It ensures downstream AI capabilities remain policy-aligned and risk-aware.
 ## Dependency direction
 
 `api -> application -> domain`
-````
-
-## File: modules/ai/subdomains/subdomains.instructions.md
-````markdown
----
-description: "AI subdomains architecture rules: capability-based subdomains, strict hexagonal boundaries, orchestration as application kernel, and infrastructure isolation."
-applyTo: "modules/ai/subdomains/**/*.{ts,tsx,md}"
----
-```
-
-# AI Subdomains Layer (Canonical)
-
-This document defines structural rules for `modules/ai/subdomains/*`.
-
-It must align with AI execution architecture principles and remain consistent with DDD + Hexagonal + AI pipeline separation.
-
----
-
-# 1️⃣ Core Principle
-
-Subdomains represent **capabilities inside a single AI execution engine**, NOT services.
-
-* ❌ NOT microservices
-* ❌ NOT independent APIs
-* ❌ NOT cross-service bus participants
-* ✔ ARE internal capability modules
-
----
-
-# 2️⃣ Standard Subdomain Structure (Hexagonal Capability Module)
-
-Each subdomain MUST follow this structure:
-
-```
-api/
-application/
-domain/
-infrastructure/
-interfaces/
-ports/        (preferred for external contracts)
-README.md
-```
-
----
-
-## Layer Responsibilities
-
-### domain/
-
-* Pure business logic
-* No SDKs, no LLM calls, no Firebase
-* Deterministic rules only
-
-### application/
-
-* Use cases
-* Coordination logic within the subdomain
-* Can call ports/interfaces
-
-### interfaces/
-
-* DTOs
-* Input/output contracts
-* Boundary definitions
-
-### ports/
-
-* Abstract external dependencies
-* LLM, DB, retrieval, tools, etc.
-
-### infrastructure/
-
-* Implements ports
-* Firebase / LLM SDK / vector DB / APIs
-
-### api/
-
-* External entry point ONLY
-* HTTP / Firebase Functions / Edge endpoints
-
----
-
-# 3️⃣ System-Level Architecture Rule
-
-## 3.1 API is NOT internal bus
-
-* ❌ subdomain-to-subdomain MUST NOT communicate via `api/`
-* ✔ api is ONLY external boundary
-
----
-
-## 3.2 Internal communication model
-
-Subdomains communicate via:
-
-```
-application → ports → application
-```
-
-or via orchestration kernel:
-
-```
-orchestration (application) → subdomain application
-```
-
----
-
-# 4️⃣ Dependency Rules (Strict Direction)
-
-Inside each subdomain:
-
-```
-interfaces → application → domain ← infrastructure
-```
-
-Rules:
-
-* domain is pure and independent
-* application depends only on domain + ports
-* infrastructure implements ports only
-* interfaces define contracts only
-
----
-
-# 5️⃣ Cross-Subdomain Communication Rule
-
-### Allowed:
-
-* orchestration application calls other subdomain application via interfaces/ports
-
-### Forbidden:
-
-* ❌ direct domain-to-domain coupling
-* ❌ infrastructure-to-infrastructure coupling
-* ❌ api-to-api internal routing
-
----
-
-# 6️⃣ AI Capability Subdomain Definitions
-
-## 6.1 orchestration (system kernel)
-
-* Owns execution graph
-* Controls workflow sequencing
-* Calls subdomains via application layer
-* Does NOT perform inference itself
-
----
-
-## 6.2 context
-
-* Builds request-time context
-* Stateless per execution
-* No persistence logic
-
----
-
-## 6.3 memory
-
-* Persistent state across sessions
-* Read/write via ports only
-* No prompt construction logic
-
----
-
-## 6.4 retrieval
-
-* Fetches and ranks candidates
-* No final answer generation
-* May use scoring models but no synthesis
-
----
-
-## 6.5 reasoning
-
-* Structured inference logic
-* Operates on prepared inputs only
-* No data fetching responsibility
-
----
-
-## 6.6 generation
-
-* Produces final output
-* Consumes reasoning + context
-* No retrieval or orchestration logic
-
----
-
-## 6.7 tool-calling
-
-* Defines tool schemas and invocation contracts
-* Execution is handled in infrastructure/adapters
-* Stateless logic only
-
----
-
-## 6.8 safety
-
-* Policy enforcement layer
-* Pre/post generation guardrails
-* Cannot modify domain logic
-
----
-
-## 6.9 evaluation
-
-* Quality scoring and regression checks
-* Offline/online evaluation logic
-* No telemetry aggregation
-
----
-
-## 6.10 distillation
-
-* Produces training datasets
-* Downstream-only from evaluation/generation
-
----
-
-## 6.11 tracing
-
-* Observability only
-* Execution logs, latency, graph tracing
-* Must NOT affect decisions
-
----
-
-# 7️⃣ AI Execution Flow (Canonical Model)
-
-```
-context
-   ↓
-retrieval
-   ↓
-reasoning
-   ↓
-tool-calling (optional)
-   ↓
-generation
-   ↓
-evaluation (async)
-```
-
-Controlled by:
-
-```
-orchestration (application kernel)
-```
-
----
-
-# 8️⃣ Event Convention
-
-```
-ai.<subdomain>.<event>
-```
-
-Examples:
-
-* ai.orchestration.started
-* ai.retrieval.completed
-* ai.reasoning.finished
-* ai.generation.completed
-* ai.evaluation.scored
-
-Rules:
-
-* domain/application emit events
-* infrastructure publishes events
-* events are immutable contracts
-
----
-
-# 9️⃣ Subdomain Activation Rule
-
-A subdomain is ACTIVE only if:
-
-* README defines responsibility
-* application layer contains real use cases
-* at least one port is implemented
-* infrastructure integration exists
-
-Otherwise:
-
-* treated as capability stub
-* cannot be referenced by orchestration
-
----
-
-# 🔟 Critical Semantic Constraints (Non-Negotiable)
-
-* context ≠ memory
-* retrieval ≠ generation
-* reasoning ≠ orchestration
-* evaluation ≠ telemetry
-* tool-calling ≠ execution engine
-* api ≠ internal communication layer
-
----
-
-# 🧠 Final Model
-
-This architecture represents:
-
-> AI Execution Engine with Capability-Based Modular Subdomains
-
-NOT:
-
-* microservices
-* API mesh
-* distributed services system
-
----
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
 ````
 
 ## File: modules/iam/subdomains/access-control/api/index.ts
@@ -58182,228 +57716,6 @@ async execute(accountId: string, pageId: string): Promise<KnowledgePageDistillat
  * Re-exports repository contracts from domain/repositories/, making the Ports layer
  * explicitly visible in the directory structure.
  */
-````
-
-## File: modules/platform/api/contracts.ts
-````typescript
-/**
- * platform API contracts boundary.
- *
- * Keep the source of truth in application/domain and re-export here for API consumers.
- */
-⋮----
-// ── Platform domain event published language ─────────────────────────────────
-// Explicit re-exports of the event interface and catalogue types.
-// Event type constants are intentionally NOT re-exported; downstream contexts
-// should subscribe to events by string discriminant, not import constant values.
-⋮----
-// ── Identity session types ────────────────────────────────────────────────────
-// AuthUser is the canonical projection of an authenticated identity subject.
-// Platform/Identity BC owns this DTO; app/providers/auth-context re-exports it.
-⋮----
-/** Minimal authenticated user record surfaced from identity auth state. */
-export interface AuthUser {
-	readonly id: string;
-	readonly name: string;
-	readonly email: string;
-}
-⋮----
-// ── Infrastructure API contracts (platform-owned) ───────────────────────────
-⋮----
-export type FirestoreWhereOperator =
-	| "<"
-	| "<="
-	| "=="
-	| "!="
-	| ">="
-	| ">"
-	| "array-contains"
-	| "array-contains-any"
-	| "in"
-	| "not-in";
-⋮----
-export interface FirestoreWhereClause {
-	readonly field: string;
-	readonly op: FirestoreWhereOperator;
-	readonly value: unknown;
-}
-⋮----
-export type FirestoreOrderDirection = "asc" | "desc";
-⋮----
-export interface FirestoreOrderByClause {
-	readonly field: string;
-	readonly direction?: FirestoreOrderDirection;
-}
-⋮----
-export interface FirestoreQueryOptions {
-	readonly limit?: number;
-	readonly orderBy?: readonly FirestoreOrderByClause[];
-}
-⋮----
-export interface FirestoreCollectionDocument<T> {
-	readonly id: string;
-	readonly path: string;
-	readonly data: T;
-}
-⋮----
-export interface FirestoreCollectionWatchHandlers<T> {
-	readonly onNext: (documents: readonly FirestoreCollectionDocument<T>[]) => void;
-	readonly onError?: (error: unknown) => void;
-}
-⋮----
-export interface FirestoreDocumentWatchHandlers<T> {
-	readonly onNext: (document: FirestoreCollectionDocument<T> | null) => void;
-	readonly onError?: (error: unknown) => void;
-}
-⋮----
-export interface FirestoreSetDocumentInput<T> {
-	readonly path: string;
-	readonly data: T;
-}
-⋮----
-export interface FirestoreAPI {
-	get<T>(path: string): Promise<T | null>;
-	set<T>(path: string, data: T): Promise<void>;
-	setMany<T>(inputs: readonly FirestoreSetDocumentInput<T>[]): Promise<void>;
-	update(path: string, data: Record<string, unknown>): Promise<void>;
-	delete(path: string): Promise<void>;
-	query<T>(
-		collectionPath: string,
-		where?: readonly FirestoreWhereClause[],
-		options?: FirestoreQueryOptions,
-	): Promise<T[]>;
-	queryDocuments<T>(
-		collectionPath: string,
-		where?: readonly FirestoreWhereClause[],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly FirestoreCollectionDocument<T>[]>;
-	queryCollectionGroup<T>(
-		collectionId: string,
-		where?: readonly FirestoreWhereClause[],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly FirestoreCollectionDocument<T>[]>;
-	watchCollection<T>(
-		collectionPath: string,
-		handlers: FirestoreCollectionWatchHandlers<T>,
-		where?: readonly FirestoreWhereClause[],
-	): () => void;
-	watchDocument<T>(path: string, handlers: FirestoreDocumentWatchHandlers<T>): () => void;
-}
-⋮----
-get<T>(path: string): Promise<T | null>;
-set<T>(path: string, data: T): Promise<void>;
-setMany<T>(inputs: readonly FirestoreSetDocumentInput<T>[]): Promise<void>;
-update(path: string, data: Record<string, unknown>): Promise<void>;
-delete(path: string): Promise<void>;
-query<T>(
-		collectionPath: string,
-		where?: readonly FirestoreWhereClause[],
-		options?: FirestoreQueryOptions,
-	): Promise<T[]>;
-queryDocuments<T>(
-		collectionPath: string,
-		where?: readonly FirestoreWhereClause[],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly FirestoreCollectionDocument<T>[]>;
-queryCollectionGroup<T>(
-		collectionId: string,
-		where?: readonly FirestoreWhereClause[],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly FirestoreCollectionDocument<T>[]>;
-watchCollection<T>(
-		collectionPath: string,
-		handlers: FirestoreCollectionWatchHandlers<T>,
-		where?: readonly FirestoreWhereClause[],
-): ()
-watchDocument<T>(path: string, handlers: FirestoreDocumentWatchHandlers<T>): ()
-⋮----
-export interface StorageUploadOptions {
-	readonly contentType?: string;
-	readonly customMetadata?: Record<string, string>;
-}
-⋮----
-export interface StorageAPI {
-	upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string>;
-	getUrl(path: string): Promise<string>;
-	delete(path: string): Promise<void>;
-	toGsUri(path: string): string;
-}
-⋮----
-upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string>;
-getUrl(path: string): Promise<string>;
-⋮----
-toGsUri(path: string): string;
-⋮----
-export interface FunctionsCallOptions {
-	readonly region?: string;
-}
-⋮----
-export interface FunctionsAPI {
-	call<TInput, TOutput>(
-		functionName: string,
-		input: TInput,
-		options?: FunctionsCallOptions,
-	): Promise<TOutput>;
-}
-⋮----
-call<TInput, TOutput>(
-		functionName: string,
-		input: TInput,
-		options?: FunctionsCallOptions,
-	): Promise<TOutput>;
-⋮----
-// ── Platform Service API contracts (cross-domain) ───────────────────────────
-⋮----
-export interface AuthSession {
-	readonly userId: string;
-	readonly email: string | null;
-	readonly displayName: string | null;
-	readonly isAnonymous: boolean;
-}
-⋮----
-export interface AuthAPI {
-	getSession(): Promise<AuthSession | null>;
-	requireAuth(): Promise<AuthSession>;
-}
-⋮----
-getSession(): Promise<AuthSession | null>;
-requireAuth(): Promise<AuthSession>;
-⋮----
-export interface PermissionAPI {
-	can(userId: string, action: string, resource: string): Promise<boolean>;
-}
-⋮----
-can(userId: string, action: string, resource: string): Promise<boolean>;
-⋮----
-export interface UploadUserFileInput {
-	readonly file: Blob;
-	readonly ownerId: string;
-	readonly fileName?: string;
-	readonly contentType?: string;
-	readonly metadata?: Record<string, string>;
-	readonly pathHint?: string;
-}
-⋮----
-export interface UploadUserFileOutput {
-	readonly url: string;
-	readonly fileId: string;
-	readonly storagePath: string;
-	readonly gcsUri: string;
-}
-⋮----
-export interface FileAPI {
-	uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>;
-	deleteFile(fileId: string): Promise<void>;
-}
-⋮----
-uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>;
-deleteFile(fileId: string): Promise<void>;
-⋮----
-// ── Cross-cutting account context type ───────────────────────────────────────
-// ActiveAccount is the union of an organization AccountEntity or a personal
-// AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
-import type { AccountEntity } from "@/modules/iam/api";
-export type ActiveAccount = AccountEntity | AuthUser;
 ````
 
 ## File: modules/platform/api/service-api.ts
@@ -60534,6 +59846,118 @@ flowchart LR
 - [contexts/notebooklm/subdomains.md](./contexts/notebooklm/subdomains.md)
 ````
 
+## File: modules/ai/docs/README.md
+````markdown
+# AI Module Docs
+
+模組本地架構筆記。此文件描述 **目前已落地的 infrastructure baseline**，並用 Context7 驗證過的 Genkit 模式補齊本地說明。
+
+## Current Baseline
+
+- content-generation 子域持有 Genkit-backed 文字生成接縫，實作位於 [modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts](modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts)。
+- content-distillation 子域已提供結構化蒸餾能力，實作位於 [modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts](modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts)。
+- `generateAiText`、`summarize`、`distillContent` 是目前對外可用的 server functions。
+- Notion 與 NotebookLM 都只能透過 AI 公開邊界消費能力，不擁有 provider 或 Genkit runtime。
+
+## Infrastructure Layout
+
+| Path | Responsibility |
+|---|---|
+| [modules/ai/api/index.ts](modules/ai/api/index.ts) | client-safe types 與 capability contracts |
+| [modules/ai/api/server.ts](modules/ai/api/server.ts) | server-only public functions |
+| [modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts](modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts) | content-generation 與 summarization |
+| [modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts](modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts) | schema-validated content-distillation |
+
+## Content Distillation
+
+content-distillation 子域負責將長輸出或多段內容濃縮為精煉知識片段（`DistillationResult`）。
+
+它與 content-generation 的 `summarize` 差異如下：
+
+- content-generation/summarize：回傳單一摘要字串，偏向快速文字結果。
+- content-distillation：接收 `objective + sources[]`，回傳 `overview + distilledItems[] + trace metadata`，適合下游主域重用。
+
+目前實作的輸出欄位包含：
+- `overview`
+- `distilledItems`
+- `model`
+- `traceId`
+- `completedAt`
+
+根據 Context7 驗證的官方 Genkit 文件，這個能力使用了：
+- `generate()` 作為標準模型呼叫入口
+- 結構化輸出 schema 驗證
+- prompt/flow 作為可觀測、可調試的執行單位
+
+## Public API Surface
+
+```ts
+// client-safe types
+import type {
+  AIAPI,
+  DistillationAPI,
+  DistillContentInput,
+  DistillationResult,
+  GenerateAiTextInput,
+  GenerateAiTextOutput,
+  AiTextGenerationPort,
+} from "@/modules/ai/api";
+
+// server-only functions
+import { distillContent, generateAiText, summarize } from "@/modules/ai/api/server";
+```
+
+## Architecture Notes
+
+- provider plugin 與 Genkit client 只能存在於 infrastructure adapter。
+- 預設模型為 `googleai/gemini-2.5-flash`，可透過 `GENKIT_MODEL` 覆蓋。
+- distillation 輸出屬於 **AI capability signal**，不是 KnowledgeArtifact 或 Notebook 的正典模型。
+- 子域之間的協調仍由 application / orchestration 控制，不直接跨子域 domain 依賴。
+
+## Distilled Rule Sentences
+
+- context-assembly 應提供 token-budgeted、ranked、可直接送入模型的輸入，而不是把所有 raw 資料直接交給 content-generation。
+- content-distillation 不等於單純 summary；它應優先產出可重用的 overview、highlights 與其他 schema-ready knowledge fragments。
+- memory-context 若需要長期保存內容，應優先保存 distilled output，避免 raw content 無限制膨脹成本。
+- context-assembly 若可選擇資料來源，應優先組裝 distilled chunks 或 structured knowledge，而不是直接倚賴未整理的 raw text。
+- evaluation-policy 應把 content-distillation 視為正式質量對象，至少檢查 compression ratio、information retention 與 hallucination risk。
+- 大文件或多來源蒸餾應優先走 async pipeline，避免同步請求承擔過高延遲與成本。
+- model-observability 應記錄 traceId、model、latency、token usage 與 errors，讓 flow 可觀測但不干預決策。
+
+## References
+
+- [modules/ai/README.md](modules/ai/README.md)
+- [docs/contexts/ai/README.md](docs/contexts/ai/README.md)
+- [docs/contexts/ai/subdomains.md](docs/contexts/ai/subdomains.md)
+- [docs/contexts/ai/ubiquitous-language.md](docs/contexts/ai/ubiquitous-language.md)
+````
+
+## File: modules/platform/api/index.ts
+````typescript
+/**
+ * platform public API boundary — semantic capability contracts only.
+ *
+ * account is listed before organization to establish canonical definitions for
+ * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
+ * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
+ *
+ * Shell UI components, React hooks, and app-context types live in api/ui.ts.
+ * @see ADR-1200 Boundary Violation — UI components separated from capability contracts.
+ */
+⋮----
+// organization — explicit to avoid re-export conflicts with account subdomain
+⋮----
+// UI components belong in api/ui.ts — see ADR-1200
+⋮----
+// background-job — knowledge ingestion pipeline management
+⋮----
+// Shell UI components, React hooks, and app-context types are in api/ui.ts.
+// @see ADR-1200 — UI components removed from capability-contract boundary.
+⋮----
+// IAM-owned access and identity exports are re-exposed from ../../iam/api
+// for backward compatibility while consumers migrate to the IAM boundary.
+````
+
 ## File: modules/workspace/interfaces/facades/workspace-file.facade.ts
 ````typescript
 import {
@@ -60793,92 +60217,6 @@ interface WorkspaceManagedFileCardProps {
 
 ````
 
-## File: modules/ai/docs/README.md
-````markdown
-# AI Module Docs
-
-模組本地架構筆記。此文件描述 **目前已落地的 infrastructure baseline**，並用 Context7 驗證過的 Genkit 模式補齊本地說明。
-
-## Current Baseline
-
-- content-generation 子域持有 Genkit-backed 文字生成接縫，實作位於 [modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts](modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts)。
-- content-distillation 子域已提供結構化蒸餾能力，實作位於 [modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts](modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts)。
-- `generateAiText`、`summarize`、`distillContent` 是目前對外可用的 server functions。
-- Notion 與 NotebookLM 都只能透過 AI 公開邊界消費能力，不擁有 provider 或 Genkit runtime。
-
-## Infrastructure Layout
-
-| Path | Responsibility |
-|---|---|
-| [modules/ai/api/index.ts](modules/ai/api/index.ts) | client-safe types 與 capability contracts |
-| [modules/ai/api/server.ts](modules/ai/api/server.ts) | server-only public functions |
-| [modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts](modules/ai/infrastructure/generation/genkit/GenkitAiTextGenerationAdapter.ts) | content-generation 與 summarization |
-| [modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts](modules/ai/subdomains/content-distillation/infrastructure/llm/GenkitDistillationAdapter.ts) | schema-validated content-distillation |
-
-## Content Distillation
-
-content-distillation 子域負責將長輸出或多段內容濃縮為精煉知識片段（`DistillationResult`）。
-
-它與 content-generation 的 `summarize` 差異如下：
-
-- content-generation/summarize：回傳單一摘要字串，偏向快速文字結果。
-- content-distillation：接收 `objective + sources[]`，回傳 `overview + distilledItems[] + trace metadata`，適合下游主域重用。
-
-目前實作的輸出欄位包含：
-- `overview`
-- `distilledItems`
-- `model`
-- `traceId`
-- `completedAt`
-
-根據 Context7 驗證的官方 Genkit 文件，這個能力使用了：
-- `generate()` 作為標準模型呼叫入口
-- 結構化輸出 schema 驗證
-- prompt/flow 作為可觀測、可調試的執行單位
-
-## Public API Surface
-
-```ts
-// client-safe types
-import type {
-  AIAPI,
-  DistillationAPI,
-  DistillContentInput,
-  DistillationResult,
-  GenerateAiTextInput,
-  GenerateAiTextOutput,
-  AiTextGenerationPort,
-} from "@/modules/ai/api";
-
-// server-only functions
-import { distillContent, generateAiText, summarize } from "@/modules/ai/api/server";
-```
-
-## Architecture Notes
-
-- provider plugin 與 Genkit client 只能存在於 infrastructure adapter。
-- 預設模型為 `googleai/gemini-2.5-flash`，可透過 `GENKIT_MODEL` 覆蓋。
-- distillation 輸出屬於 **AI capability signal**，不是 KnowledgeArtifact 或 Notebook 的正典模型。
-- 子域之間的協調仍由 application / orchestration 控制，不直接跨子域 domain 依賴。
-
-## Distilled Rule Sentences
-
-- context-assembly 應提供 token-budgeted、ranked、可直接送入模型的輸入，而不是把所有 raw 資料直接交給 content-generation。
-- content-distillation 不等於單純 summary；它應優先產出可重用的 overview、highlights 與其他 schema-ready knowledge fragments。
-- memory-context 若需要長期保存內容，應優先保存 distilled output，避免 raw content 無限制膨脹成本。
-- context-assembly 若可選擇資料來源，應優先組裝 distilled chunks 或 structured knowledge，而不是直接倚賴未整理的 raw text。
-- evaluation-policy 應把 content-distillation 視為正式質量對象，至少檢查 compression ratio、information retention 與 hallucination risk。
-- 大文件或多來源蒸餾應優先走 async pipeline，避免同步請求承擔過高延遲與成本。
-- model-observability 應記錄 traceId、model、latency、token usage 與 errors，讓 flow 可觀測但不干預決策。
-
-## References
-
-- [modules/ai/README.md](modules/ai/README.md)
-- [docs/contexts/ai/README.md](docs/contexts/ai/README.md)
-- [docs/contexts/ai/subdomains.md](docs/contexts/ai/subdomains.md)
-- [docs/contexts/ai/ubiquitous-language.md](docs/contexts/ai/ubiquitous-language.md)
-````
-
 ## File: modules/ai/README.md
 ````markdown
 # AI
@@ -61090,32 +60428,6 @@ export async function getKnowledgePageDistillation(
   accountId: string,
   pageId: string,
 ): Promise<KnowledgePageDistillation | null>
-````
-
-## File: modules/platform/api/index.ts
-````typescript
-/**
- * platform public API boundary — semantic capability contracts only.
- *
- * account is listed before organization to establish canonical definitions for
- * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
- * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
- *
- * Shell UI components, React hooks, and app-context types live in api/ui.ts.
- * @see ADR-1200 Boundary Violation — UI components separated from capability contracts.
- */
-⋮----
-// organization — explicit to avoid re-export conflicts with account subdomain
-⋮----
-// UI components belong in api/ui.ts — see ADR-1200
-⋮----
-// background-job — knowledge ingestion pipeline management
-⋮----
-// Shell UI components, React hooks, and app-context types are in api/ui.ts.
-// @see ADR-1200 — UI components removed from capability-contract boundary.
-⋮----
-// IAM-owned access and identity exports are re-exposed from ../../iam/api
-// for backward compatibility while consumers migrate to the IAM boundary.
 ````
 
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceDetailTabContent.tsx

@@ -42,21 +42,20 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1818 files | 54,766 lines
+1802 files | 54,142 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1191 | 25,169 |
+| TypeScript | 1187 | 25,011 |
 | Markdown | 332 | 21,701 |
-| TypeScript (TSX) | 179 | 4,680 |
+| TypeScript (TSX) | 168 | 4,261 |
 | Python | 63 | 1,459 |
 | No Extension | 30 | 35 |
 | JSON | 14 | 1,424 |
 | Text | 3 | 107 |
 | RULES | 2 | 18 |
 | JavaScript (ESM) | 2 | 62 |
-| CSS | 1 | 47 |
-| Other | 1 | 64 |
+| YAML | 1 | 64 |
 
 **Largest files:**
 - `docs/hard-rules-consolidated.md` (455 lines)
