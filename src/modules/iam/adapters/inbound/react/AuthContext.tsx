@@ -3,11 +3,25 @@
 /**
  * AuthContext — iam inbound adapter (React).
  *
- * Defines auth types and a minimal stub AuthProvider for the src/ migration layer.
- * Replace the stub body with a real Firebase auth implementation when available.
+ * Provides the AuthProvider component and useAuth hook.
+ * Uses the firebase-composition outbound adapter for all Firebase operations
+ * so this file remains free of direct Firebase SDK imports.
  */
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import {
+  subscribeToAuthState,
+  firebaseSignOut,
+  createClientAuthUseCases as buildAuthUseCases,
+  createClientAccountUseCases as buildAccountUseCases,
+} from "../../outbound/firebase-composition";
+
+// ─── Auth bootstrapping timeout ───────────────────────────────────────────────
+// If Firebase hasn't resolved the auth state within this window, treat the
+// session as unauthenticated so the UI isn't blocked indefinitely.
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 6_000;
+
+// ─── Public types ─────────────────────────────────────────────────────────────
 
 export interface AuthUser {
   readonly id: string;
@@ -27,23 +41,57 @@ export interface AuthContextValue {
   readonly logout: () => Promise<void>;
 }
 
+// ─── Context ──────────────────────────────────────────────────────────────────
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// ─── Provider ─────────────────────────────────────────────────────────────────
 
-/** Stub auth provider — replace with Firebase auth when available. */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({ user: null, status: "unauthenticated" });
+  const [state, setState] = useState<AuthState>({ user: null, status: "initializing" });
 
   useEffect(() => {
-    // Reserved for Firebase auth subscription wiring
+    // Bootstrap timeout: if Firebase doesn't resolve within the window,
+    // fall back to unauthenticated so the UI is never permanently blocked.
+    const bootstrapTimer = setTimeout(() => {
+      setState((prev) =>
+        prev.status === "initializing"
+          ? { user: null, status: "unauthenticated" }
+          : prev,
+      );
+    }, AUTH_BOOTSTRAP_TIMEOUT_MS);
+
+    const unsubscribe = subscribeToAuthState((firebaseUser) => {
+      clearTimeout(bootstrapTimer);
+      if (firebaseUser) {
+        setState({
+          user: {
+            id: firebaseUser.uid,
+            name: firebaseUser.displayName ?? "Member",
+            email: firebaseUser.email ?? "",
+          },
+          status: firebaseUser.isAnonymous ? "anonymous" : "authenticated",
+        });
+      } else {
+        setState({ user: null, status: "unauthenticated" });
+      }
+    });
+
+    return () => {
+      clearTimeout(bootstrapTimer);
+      unsubscribe();
+    };
   }, []);
 
   async function logout() {
-    setState({ user: null, status: "unauthenticated" });
+    await firebaseSignOut();
+    // State will be updated by the onAuthStateChanged listener above.
   }
 
   return <AuthContext.Provider value={{ state, logout }}>{children}</AuthContext.Provider>;
 }
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
@@ -51,34 +99,15 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
-/** Stub — replace with real Firebase auth use-cases when available. */
-export function createClientAuthUseCases() {
-  return {
-    signInUseCase: {
-      execute: async (_input: { email: string; password: string }): Promise<{ success: true; aggregateId: string } | { success: false; error: { message: string } }> =>
-        ({ success: false as const, error: { message: "Not implemented" } }),
-    },
-    signInAnonymouslyUseCase: {
-      execute: async (): Promise<{ success: true; aggregateId: string } | { success: false; error: { message: string } }> =>
-        ({ success: false as const, error: { message: "Not implemented" } }),
-    },
-    registerUseCase: {
-      execute: async (_input: { email: string; password: string; name: string }): Promise<{ success: true; aggregateId: string } | { success: false; error: { message: string } }> =>
-        ({ success: false as const, error: { message: "Not implemented" } }),
-    },
-    sendPasswordResetEmailUseCase: {
-      execute: async (_email: string): Promise<{ success: true; aggregateId: string } | { success: false; error: { message: string } }> =>
-        ({ success: false as const, error: { message: "Not implemented" } }),
-    },
-  };
-}
+// ─── Use-case factories (re-exported from outbound composition) ───────────────
 
-/** Stub — replace with real account use-cases when available. */
-export function createClientAccountUseCases() {
-  return {
-    createUserAccountUseCase: {
-      execute: async (_aggregateId: string, _name: string, _email: string) =>
-        ({ success: false as const, error: { message: "Not implemented" } }),
-    },
-  };
-}
+/**
+ * Returns Firebase-backed auth use cases.
+ * Calling this in a component is safe: each call shares singleton repositories.
+ */
+export const createClientAuthUseCases = buildAuthUseCases;
+
+/**
+ * Returns Firebase-backed account use cases.
+ */
+export const createClientAccountUseCases = buildAccountUseCases;

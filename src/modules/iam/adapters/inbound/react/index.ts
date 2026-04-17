@@ -14,3 +14,6 @@ export {
 } from "./IamSessionProvider";
 
 export { PublicLandingView } from "./PublicLandingView";
+
+// Re-export account subscription for consumers that don't go through AppContext.
+export { subscribeToAccountsForUser } from "../../outbound/firebase-composition";

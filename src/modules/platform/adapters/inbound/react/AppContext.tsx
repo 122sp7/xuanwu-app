@@ -3,12 +3,17 @@
 /**
  * AppContext — platform inbound adapter (React).
  *
- * Defines app-level account state, context, and helper stubs for the src/ migration layer.
- * Replace stub implementations (subscribeToAccountsForUser, subscribeToProfile) with real
- * Firebase-backed versions when available.
+ * Defines app-level account state, context, and subscription helpers.
+ * Firebase-backed implementations are consumed via the iam module's
+ * outbound composition to preserve boundary direction.
  */
 
 import { createContext, useContext, type Dispatch } from "react";
+import {
+  subscribeToAccountsForUser as iamSubscribeToAccountsForUser,
+} from "../../../../iam/adapters/outbound/firebase-composition";
+import type { AccountSnapshot } from "../../../../iam/subdomains/account/domain/entities/Account";
+import type { AccountProfile } from "../../../../iam/subdomains/account/domain/entities/AccountProfile";
 
 import type { AuthUser } from "../../../../iam/adapters/inbound/react/AuthContext";
 export type { AuthUser } from "../../../../iam/adapters/inbound/react/AuthContext";
@@ -31,13 +36,7 @@ export type BootstrapPhase = "idle" | "seeded" | "hydrated";
 
 // ── AccountProfile (read-model) ───────────────────────────────────────────────
 
-export interface AccountProfile {
-  readonly id: string;
-  readonly displayName: string;
-  readonly email?: string;
-  readonly photoURL?: string;
-  readonly bio?: string;
-}
+export type { AccountProfile };
 
 // ── App state & actions ───────────────────────────────────────────────────────
 
@@ -123,17 +122,35 @@ export function resolveActiveAccount(opts: {
   return personalAccount;
 }
 
-// ── Stub subscriptions ────────────────────────────────────────────────────────
+// ── Subscriptions ─────────────────────────────────────────────────────────────
 
-/** Stub — replace with Firestore subscription when available. */
+/**
+ * Subscribes to real-time organisation account updates for the given userId.
+ * Maps iam AccountSnapshot → platform AccountEntity (view model).
+ */
 export function subscribeToAccountsForUser(
-  _userId: string,
-  _onUpdate: (accounts: Record<string, AccountEntity>) => void,
+  userId: string,
+  onUpdate: (accounts: Record<string, AccountEntity>) => void,
 ): () => void {
-  return () => {};
+  return iamSubscribeToAccountsForUser(userId, (snapshots: Record<string, AccountSnapshot>) => {
+    const entities: Record<string, AccountEntity> = {};
+    for (const [id, snap] of Object.entries(snapshots)) {
+      entities[id] = {
+        id: snap.id,
+        name: snap.name,
+        accountType: snap.accountType,
+        email: snap.email ?? undefined,
+        photoURL: snap.photoURL ?? undefined,
+      };
+    }
+    onUpdate(entities);
+  });
 }
 
-/** Stub — replace with Firestore profile subscription when available. */
+/**
+ * Stub — profile subscriptions are available via the iam AccountQueryRepository
+ * when a profile panel requires them. Wire from firebase-composition if needed.
+ */
 export function subscribeToProfile(
   _actorId: string,
   _onUpdate: (profile: AccountProfile | null) => void,

@@ -26,7 +26,9 @@
       "@/*": ["./*"],
       "@shared-utils": ["./src/ui/shadcn/lib/utils.ts"],
       "@ui-shadcn": ["./packages/ui-shadcn/index.ts"],
-      "@ui-shadcn/*": ["./packages/ui-shadcn/*"]
+      "@ui-shadcn/*": ["./packages/ui-shadcn/*"],
+      "@integration-firebase": ["./packages/integration-firebase/index.ts"],
+      "@integration-firebase/*": ["./packages/integration-firebase/*"]
     }
   },
   "include": [
