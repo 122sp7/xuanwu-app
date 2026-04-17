@@ -3,36 +3,26 @@
 /**
  * platform-ui-stubs — platform inbound adapter (React).
  *
- * Stub components and hooks for platform UI elements that were previously
- * sourced from @/modules/platform/api/ui. Replace with real implementations
- * when the platform UI layer is available.
+ * Remaining stubs for platform UI elements not yet implemented as real
+ * components.  Items that have been promoted to real implementations are
+ * re-exported from their canonical files below.
  */
 
-import type { ReactNode } from "react";
+import { useState } from "react";
 
-import type { AuthUser } from "../../../../iam/adapters/inbound/react/AuthContext";
-import type { AccountEntity, ActiveAccount } from "./AppContext";
+// ── Real implementations (promoted from stubs) ────────────────────────────────
 
-// ── Auth guard ────────────────────────────────────────────────────────────────
+export { ShellGuard } from "./shell/ShellGuard";
+export { ShellUserAvatar } from "./shell/ShellUserAvatar";
+export { AccountSwitcher } from "./shell/AccountSwitcher";
+export { CreateOrganizationDialog } from "./shell/CreateOrganizationDialog";
 
-export function ShellGuard({ children }: { children: ReactNode }): React.ReactElement {
-  return children as React.ReactElement;
-}
+// ── Account route context ─────────────────────────────────────────────────────
 
-// ── Account switcher ──────────────────────────────────────────────────────────
-
-interface AccountSwitcherProps {
-  personalAccount: AuthUser | null;
-  organizationAccounts: AccountEntity[];
-  activeAccountId: string | null;
-  onSelectPersonal: () => void;
-  onSelectOrganization: (account: AccountEntity) => void;
-  onOrganizationCreated?: (account: AccountEntity) => void;
-}
-
-export function AccountSwitcher(_props: AccountSwitcherProps): null {
-  return null;
-}
+export {
+  useAccountRouteContext,
+  type AccountRouteContextValue,
+} from "./useAccountRouteContext";
 
 // ── Shell breadcrumbs & header controls ───────────────────────────────────────
 
@@ -41,16 +31,6 @@ export function ShellAppBreadcrumbs(): null {
 }
 
 export function ShellHeaderControls(): null {
-  return null;
-}
-
-interface ShellUserAvatarProps {
-  name: string;
-  email: string;
-  onSignOut: () => void;
-}
-
-export function ShellUserAvatar(_props: ShellUserAvatarProps): null {
   return null;
 }
 
@@ -71,45 +51,8 @@ export function useShellGlobalSearch(): {
   open: boolean;
   setOpen: (open: boolean) => void;
 } {
-  return { open: false, setOpen: () => {} };
-}
-
-// ── Organization dialogs ──────────────────────────────────────────────────────
-
-interface CreateOrganizationDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  user: AuthUser | null;
-  onOrganizationCreated?: (account: AccountEntity) => void;
-  onNavigate?: (href: string) => void;
-}
-
-export function CreateOrganizationDialog(
-  _props: CreateOrganizationDialogProps,
-): null {
-  return null;
-}
-
-// ── Account route context ─────────────────────────────────────────────────────
-
-export interface AccountRouteContextValue {
-  readonly routeAccountId: string;
-  readonly resolvedAccountId: string;
-  readonly currentUserId: string | null;
-  readonly accountType: "organization" | "user" | null;
-  readonly accountsHydrated: boolean;
-  readonly activeAccount: ActiveAccount | null;
-}
-
-export function useAccountRouteContext(): AccountRouteContextValue {
-  return {
-    routeAccountId: "",
-    resolvedAccountId: "",
-    currentUserId: null,
-    accountType: null,
-    accountsHydrated: false,
-    activeAccount: null,
-  };
+  const [open, setOpen] = useState(false);
+  return { open, setOpen };
 }
 
 // ── Stub route screens ────────────────────────────────────────────────────────
@@ -145,3 +88,4 @@ export function SettingsNotificationsRouteScreen(): React.ReactElement {
     </div>
   ) as React.ReactElement;
 }
+

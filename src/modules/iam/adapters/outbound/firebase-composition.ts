@@ -25,12 +25,17 @@ import {
   type FirestoreLike,
 } from "../../subdomains/account/adapters/outbound/firestore/FirestoreAccountRepository";
 import {
+  FirestoreOrganizationRepository,
+  type OrgFirestoreLike,
+} from "../../subdomains/organization/adapters/outbound/firestore/FirestoreOrganizationRepository";
+import {
   SignInUseCase,
   SignInAnonymouslyUseCase,
   RegisterUseCase,
   SendPasswordResetEmailUseCase,
 } from "../../subdomains/identity/application/use-cases/IdentityUseCases";
 import { CreateUserAccountUseCase } from "../../subdomains/account/application/use-cases/AccountUseCases";
+import { CreateOrganizationUseCase } from "../../subdomains/organization/application/use-cases/OrganizationLifecycleUseCases";
 import type { AccountSnapshot } from "../../subdomains/account/domain/entities/Account";
 import type { Unsubscribe } from "../../subdomains/account/domain/repositories/AccountQueryRepository";
 
@@ -38,6 +43,7 @@ import type { Unsubscribe } from "../../subdomains/account/domain/repositories/A
 
 let _identityRepo: FirebaseAuthIdentityRepository | undefined;
 let _accountQueryRepo: FirebaseAccountQueryRepository | undefined;
+let _orgRepo: FirestoreOrganizationRepository | undefined;
 
 function getIdentityRepo(): FirebaseAuthIdentityRepository {
   if (!_identityRepo) _identityRepo = new FirebaseAuthIdentityRepository();
@@ -47,6 +53,11 @@ function getIdentityRepo(): FirebaseAuthIdentityRepository {
 function getAccountQueryRepo(): FirebaseAccountQueryRepository {
   if (!_accountQueryRepo) _accountQueryRepo = new FirebaseAccountQueryRepository();
   return _accountQueryRepo;
+}
+
+function getOrgRepo(): FirestoreOrganizationRepository {
+  if (!_orgRepo) _orgRepo = new FirestoreOrganizationRepository(createOrgFirestoreLikeAdapter());
+  return _orgRepo;
 }
 
 // ─── FirestoreLike adapter ────────────────────────────────────────────────────
@@ -72,6 +83,60 @@ function createFirestoreLikeAdapter(): FirestoreLike {
     async delete(collectionName: string, id: string): Promise<void> {
       const db = getFirebaseFirestore();
       await deleteDoc(doc(db, collectionName, id));
+    },
+  };
+}
+
+// ─── OrgFirestoreLike adapter ─────────────────────────────────────────────────
+// Bridges the Firestore SDK to the OrgFirestoreLike interface for org operations
+// (subcollections, etc.).
+
+function createOrgFirestoreLikeAdapter(): OrgFirestoreLike {
+  const { doc, getDoc, setDoc, deleteDoc, collection, getDocs } = firestoreApi;
+  return {
+    async get(col: string, id: string): Promise<Record<string, unknown> | null> {
+      const db = getFirebaseFirestore();
+      const snap = await getDoc(doc(db, col, id));
+      return snap.exists() ? (snap.data() as Record<string, unknown>) : null;
+    },
+    async set(col: string, id: string, data: Record<string, unknown>): Promise<void> {
+      const db = getFirebaseFirestore();
+      await setDoc(doc(db, col, id), data, { merge: true });
+    },
+    async delete(col: string, id: string): Promise<void> {
+      const db = getFirebaseFirestore();
+      await deleteDoc(doc(db, col, id));
+    },
+    async getSubcollection(
+      col: string,
+      parentId: string,
+      sub: string,
+    ): Promise<{ id: string; data: Record<string, unknown> }[]> {
+      const db = getFirebaseFirestore();
+      const snap = await getDocs(collection(db, col, parentId, sub));
+      return snap.docs.map((d: { id: string; data: () => Record<string, unknown> }) => ({
+        id: d.id,
+        data: d.data(),
+      }));
+    },
+    async setSubdoc(
+      col: string,
+      parentId: string,
+      sub: string,
+      id: string,
+      data: Record<string, unknown>,
+    ): Promise<void> {
+      const db = getFirebaseFirestore();
+      await setDoc(doc(db, col, parentId, sub, id), data, { merge: true });
+    },
+    async deleteSubdoc(
+      col: string,
+      parentId: string,
+      sub: string,
+      id: string,
+    ): Promise<void> {
+      const db = getFirebaseFirestore();
+      await deleteDoc(doc(db, col, parentId, sub, id));
     },
   };
 }
@@ -138,4 +203,16 @@ export function subscribeToAccountsForUser(
   onUpdate: (accounts: Record<string, AccountSnapshot>) => void,
 ): Unsubscribe {
   return getAccountQueryRepo().subscribeToAccountsForUser(userId, onUpdate);
+}
+
+// ─── Organisation use-case factory ───────────────────────────────────────────
+
+/**
+ * Returns Firebase-backed organisation use cases for use in "use client"
+ * components.
+ */
+export function createClientOrganizationUseCases() {
+  return {
+    createOrganizationUseCase: new CreateOrganizationUseCase(getOrgRepo()),
+  };
 }

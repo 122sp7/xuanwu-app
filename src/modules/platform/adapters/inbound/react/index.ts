@@ -14,3 +14,7 @@ export {
   type AppAction,
   type AppContextValue,
 } from "./useAccountScope";
+export {
+  useAccountRouteContext,
+  type AccountRouteContextValue,
+} from "./useAccountRouteContext";
