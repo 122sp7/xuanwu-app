@@ -1,8 +1,11 @@
 # 5203 Cognitive Load — 12 Subdomain api/index.ts Use Unscoped Wildcard Exports
 
-- Status: Accepted
+- Status: Superseded by ADR 0015
 - Date: 2026-04-14
+- Superseded by: [ADR 0015 – api/ Layer Removal](./0015-api-layer-removal.md)
 - Category: Architectural Smells > Cognitive Load
+
+> **路徑說明**：此 ADR 描述的 `api/index.ts` wildcard export 問題，随著 ADR 0015 移除 `api/` 層整體而不再適用。路徑使用舊版 `modules/` 前綴（架構遷移前）。
 
 ## Context
 

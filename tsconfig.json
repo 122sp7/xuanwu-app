@@ -24,7 +24,6 @@
     ],
     "paths": {
       "@/*": ["./*"],
-      "@/packages/ui-shadcn": ["./packages/ui-shadcn/index.ts"],
       "@ui-shadcn": ["./packages/ui-shadcn/index.ts"],
       "@ui-shadcn/*": ["./packages/ui-shadcn/*"],
       "@integration-firebase": ["./packages/integration-firebase/index.ts"],

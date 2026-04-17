@@ -1,7 +1,8 @@
 # 0007 Infrastructure Wiring in api/ Layer
 
-- Status: Accepted
+- Status: Superseded by ADR 0015
 - Date: 2026-04-13
+- Superseded by: [ADR 0015 – api/ Layer Removal](./0015-api-layer-removal.md)
 
 ## Context
 

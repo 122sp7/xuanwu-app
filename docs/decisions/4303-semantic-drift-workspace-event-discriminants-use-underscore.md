@@ -5,6 +5,10 @@
 - Date: 2026-04-14
 - Category: Architectural Smells > Semantic Drift
 
+> **路徑說明**：此 ADR 中的路徑使用舊版 `modules/` 前綴（架構遷移前）。現行實作位置為 `src/modules/` 下的對應路徑。
+
+> **路徑說明**：此 ADR 中的路徑使用舊版 `modules/` 前綴（架構遷移前）。現行實作位置為 `src/modules/` 下的對應路徑。
+
 ## Context
 
 ADR 3201（Duplication — event discriminant format）和 ADR 4302（Semantic Drift — notion/notebooklm event discriminant format）確立了全域規範：

@@ -86,6 +86,19 @@
 |---|---|---|---|
 | `src/modules/<context>/` | 主域模組實作（現況） | 以 `subdomains/` 為核心，搭配 `adapters/`、`shared/`、`orchestration/` 與 `index.ts` 公開匯出 | 撰寫與維護所有 use case、adapter、domain entity 與跨子域編排 |
 
+## Top-Level Directory Structure
+
+Repo 根目錄的三個運行時層：
+
+| 目錄 | 角色 |
+|---|---|
+| `src/` | Next.js App Router + 所有主域模組實作（`src/app/`、`src/modules/`） |
+| `packages/` | 共用套件（`integration-firebase`、`ui-shadcn` 等），以 alias 形式被 `src/modules/` 引用 |
+| `py_fn/` | Python Cloud Functions：ingestion、parse、chunk、embed、background worker |
+
+- `packages/` 以 `@integration-*`、`@ui-*`、`@lib-*` 等 alias 被 TypeScript 引用。
+- `py_fn/` 與 Next.js 的互動只透過 QStash 訊息、Firestore trigger 或事件契約；不共用程式碼。
+
 ### 路由規則
 
 - 讀取主域邊界與任務路由 → `src/modules/<context>/AGENT.md`

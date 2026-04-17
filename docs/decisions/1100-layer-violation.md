@@ -5,6 +5,8 @@
 - Resolved (workspace interfaces/api/): 2026-04-14
 - Category: Architectural Smells > Layer Violation
 
+> **路徑說明**：此 ADR 中的路徑使用舊版 `modules/` 前綴（架構遷移前）。現行實作位置為 `src/modules/` 下的對應路徑。api/ 層相關內容已徝 ADR 0015 採用移除方案。
+
 ## Context
 
 Hexagonal Architecture 規定固定依賴方向：`interfaces/ → application/ → domain/ ← infrastructure/`。「Layer Violation」指某一層對不該依賴的層產生直接 import，穿越了層邊界。

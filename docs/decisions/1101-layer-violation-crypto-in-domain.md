@@ -5,6 +5,8 @@
 - Resolved: 2026-04-13
 - Category: Architectural Smells > Layer Violation
 
+> **路徑說明**：此 ADR 中的路徑使用舊版 `modules/` 前綴（架構遷移前）。現行實作位置為 `src/modules/` 下的對應路徑。
+
 ## Context
 
 `domain/` 層必須做到「技術無關（runtime-agnostic）」，不能直接依賴 Node.js 內建模組或任何執行環境 API。

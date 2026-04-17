@@ -4,6 +4,8 @@
 - Date: 2026-04-13
 - Category: Complexity Smells > Accidental Complexity
 
+> **路徑說明**：此 ADR 中的路徑使用舊版 `modules/` 前綴（架構遷移前）。現行實作位置為 `src/modules/` 下的對應路徑。workspace/api 相關問題已徝 ADR 0015 採用 api/ 移除方案。
+
 ## Context
 
 偶然複雜性（Accidental Complexity）指系統中並非由業務需求驅動、而是由技術選擇或設計決策引入的不必要複雜性。

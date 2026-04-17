@@ -5,6 +5,8 @@
 - Resolved (deprecated shim removed): 2026-04-14
 - Category: Architectural Smells > Layer Violation
 
+> **路徑說明**：此 ADR 中的路徑使用舊版 `modules/` 前綴（架構遷移前）。現行實作位置為 `src/modules/` 下的對應路徑。
+
 ## Context
 
 Hexagonal Architecture 的 Port 是由 **Domain 層定義**的依賴倒置合約（Dependency Inversion Contract）。
