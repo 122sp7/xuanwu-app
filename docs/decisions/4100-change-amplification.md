@@ -1,8 +1,11 @@
 # 4100 Change Amplification
 
-- Status: Accepted
+- Status: ~~Accepted~~ → **Superseded by [ADR 0015](./0015-api-layer-removal.md)**
 - Date: 2026-04-13
+- Superseded by: [ADR 0015 – api/ Layer Removal](./0015-api-layer-removal.md)
 - Category: Maintainability Smells > Change Amplification
+
+> **路徑說明**：此 ADR 描述的 `platform/api` 變更放大問題使用舊版 `module/api/` 結構。ADR 0015 已整體移除 `api/` 層；公開偈界現在是 `index.ts`。路徑使用舊版 `modules/` 前綴（架構遷移前）。
 
 ## Context
 
