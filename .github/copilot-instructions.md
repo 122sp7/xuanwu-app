@@ -50,12 +50,12 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 
 - 不確定放在哪一層 → 讀 `src/modules/<context>/AGENT.md` 的 **Route Here / Route Elsewhere** 段落。
 - 新實作一律以 `src/modules/template` 骨架為基線。
-- 閱讀 strategic boundary / published language → `src/modules/<context>/api/` 與 `src/modules/<context>/AGENT.md`。
+- 阅讀 strategic boundary / published language → `src/modules/<context>/index.ts` 與 `src/modules/<context>/AGENT.md`。
 
 ## Operating Rules
 
 - Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
-- Cross-module collaboration goes through the target module `api/` boundary only.
+- Cross-module collaboration goes through the target module `index.ts` boundary only.
 - Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
 - `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
 - If a team adds `core/`, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.

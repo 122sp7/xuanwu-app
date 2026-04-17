@@ -61,9 +61,9 @@ Use `@lib-uuid` for UUID generation in domain layers.
 | `application/` | Use-case orchestration, transaction boundaries, command/query contracts |
 | `infrastructure/` | Repository and adapter implementations only |
 | `interfaces/` | Input/output translation, route/action/UI wiring |
-| `api/` | Cross-module entry surface only — stable semantic capability contracts |
+| `index.ts` | Cross-module entry surface only — stable semantic capability contracts |
 
-`api/` must NOT expose repository factories, container wiring, or internal composition helpers as public contracts.
+`index.ts` must NOT expose repository factories, container wiring, or internal composition helpers as public contracts.
 Internal composition helpers belong under module-local `interfaces/` or `infrastructure/` paths.
 
 ## 2.2 Bounded Context Rules
@@ -77,10 +77,10 @@ Internal composition helpers belong under module-local `interfaces/` or `infrast
 ## 2.3 Subdomain Rules
 
 - Subdomains represent **business capability boundaries** — split by business concern, not technical function.
-- Default subdomain shape is **core-first**: `api/`, `domain/`, `application/`, optional `ports/`.
+- Default subdomain shape is **core-first**: `domain/`, `application/`, optional `ports/`.
 - Subdomain `infrastructure/` and `interfaces/` are gate-based: only add them when there is clear, sustained external integration pressure that the bounded context root cannot absorb.
 - One subdomain = one business capability. Never mix responsibilities.
-- Subdomains communicate only through the parent module's `api/` boundary or domain events.
+- Subdomains communicate only through the parent module's `index.ts` boundary or domain events.
 
 ## 2.4 Main Domain Relationships (Upstream → Downstream)
 
@@ -115,13 +115,13 @@ workspace → notebooklm
 
 ```
 src/modules/<context>/
-  api/            ← cross-module entry surface only
+  index.ts        ← cross-module entry surface only
   domain/
   application/
   infrastructure/
   interfaces/
   README.md
-  index.ts        ← aggregate export only
+  AGENT.md
 ```
 
 ## 3.2 Naming Conventions
@@ -136,7 +136,7 @@ src/modules/<context>/
 
 ## 3.3 Cross-Module Boundary Rules
 
-- Cross-module collaboration must go through `src/modules/<target>/api/` or explicit domain events.
+- Cross-module collaboration must go through `src/modules/<target>/index.ts` or explicit domain events.
 - Do not import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
 - Cross-module route components must use props-scoped scope (`accountId`, `workspaceId`); do not consume another module's context provider directly.
 
