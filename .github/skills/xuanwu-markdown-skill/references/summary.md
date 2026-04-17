@@ -42,20 +42,20 @@ This skill contains the following reference files:
 
 ## Statistics
 
-444 files | 35,707 lines
+356 files | 94,426 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 444 | 35,707 |
+| Markdown | 356 | 94,426 |
 
 **Largest files:**
+- `.github/skills/xuanwu-app-skill/references/files.md` (60,351 lines)
 - `.github/skills/vercel-react-best-practices/AGENTS.md` (3,810 lines)
+- `.github/skills/xuanwu-app-skill/references/project-structure.md` (1,735 lines)
 - `.github/skills/sleek-design-mobile-apps/SKILL.md` (476 lines)
 - `docs/hard-rules-consolidated.md` (455 lines)
 - `.github/skills/hexagonal-ddd/SKILL.md` (415 lines)
 - `.github/skills/playwright-mcp-testing/SKILL.md` (358 lines)
-- `docs/semantic-model.md` (344 lines)
-- `modules/ai/subdomains/subdomains.instructions.md` (313 lines)
 - `.github/skills/agent-browser/references/authentication.md` (303 lines)
 - `.github/skills/repomix-explorer/SKILL.md` (301 lines)
 - `.github/skills/shadcn/SKILL.md` (296 lines)
