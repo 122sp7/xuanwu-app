@@ -1,6 +1,6 @@
 ---
 description: 'Security rules guardrails for Firestore and Storage with least-privilege access.'
-applyTo: '{firestore.rules,storage.rules,modules/**/infrastructure/**/*.{ts,tsx,js,jsx},py_fn/**/*.py}'
+applyTo: '{firestore.rules,storage.rules,src/modules/**/infrastructure/**/*.{ts,tsx,js,jsx},py_fn/**/*.py}'
 ---
 
 # Security Rules

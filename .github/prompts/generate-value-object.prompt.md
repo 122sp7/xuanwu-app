@@ -1,7 +1,7 @@
 ---
 name: generate-value-object
 description: 生成符合 DDD 規範的值對象（Value Object），採用 Zod brand type 確保型別安全，並放置於正確的 domain/value-objects/ 路徑。
-applyTo: 'modules/**/domain/value-objects/**/*.{ts,tsx}'
+applyTo: 'src/modules/**/domain/value-objects/**/*.{ts,tsx}'
 agent: Domain Architect
 argument-hint: 提供值對象名稱、所屬模組、型別基礎（string/number/object）、驗證規則（長度限制、格式、範圍）。
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
@@ -33,7 +33,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 ## 識別碼值對象模式（`XxxId`）
 
 ```typescript
-// modules/<context>/domain/value-objects/<Name>Id.ts
+// src/modules/<context>/domain/value-objects/<Name>Id.ts
 import { z } from 'zod';
 
 export const <Name>IdSchema = z.string().uuid().brand('<Name>Id');
@@ -43,7 +43,7 @@ export type <Name>Id = z.infer<typeof <Name>IdSchema>;
 ## 語意值對象模式（非識別碼）
 
 ```typescript
-// modules/<context>/domain/value-objects/<Name>.ts
+// src/modules/<context>/domain/value-objects/<Name>.ts
 import { z } from 'zod';
 
 export const <Name>Schema = z.string()
@@ -63,7 +63,7 @@ export const create<Name> = (raw: string): <Name> =>
 ## 複合值對象模式（object-based）
 
 ```typescript
-// modules/<context>/domain/value-objects/Address.ts
+// src/modules/<context>/domain/value-objects/Address.ts
 import { z } from 'zod';
 
 export const AddressSchema = z.object({
@@ -79,7 +79,7 @@ export type Address = z.infer<typeof AddressSchema>;
 
 1. 讀取 `docs/ubiquitous-language.md` 與對應 `docs/contexts/<context>/ubiquitous-language.md`，確認命名符合通用語言。
 2. 讀取 `.github/instructions/domain-modeling.instructions.md`，確認設計規則。
-3. 確認放置路徑：`modules/<context>/domain/value-objects/<Name>.ts`
+3. 確認放置路徑：`src/modules/<context>/domain/value-objects/<Name>.ts`
 4. 依照上方模式建立值對象檔案。
 5. 確認值對象：
    - 無識別碼欄位（`id` 欄位不屬於值對象）

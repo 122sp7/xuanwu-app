@@ -72,7 +72,7 @@ Internal composition helpers belong under module-local `interfaces/` or `infrast
 - Every Bounded Context has its own Ubiquitous Language — do not mix models across contexts.
 - Cross-context model translation must be explicit (Translator / ACL Mapper).
 - Domain models must not be reused across contexts; use Published Language tokens instead.
-- Bounded Context names must align with `modules/<context>/` folder names.
+- Bounded Context names must align with `src/modules/<context>/` folder names.
 
 ## 2.3 Subdomain Rules
 
@@ -114,7 +114,7 @@ workspace → notebooklm
 ## 3.1 Required Shape (Bounded Context Root)
 
 ```
-modules/<context>/
+src/modules/<context>/
   api/            ← cross-module entry surface only
   domain/
   application/
@@ -136,7 +136,7 @@ modules/<context>/
 
 ## 3.3 Cross-Module Boundary Rules
 
-- Cross-module collaboration must go through `modules/<target>/api/` or explicit domain events.
+- Cross-module collaboration must go through `src/modules/<target>/api/` or explicit domain events.
 - Do not import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
 - Cross-module route components must use props-scoped scope (`accountId`, `workspaceId`); do not consume another module's context provider directly.
 

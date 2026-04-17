@@ -1,6 +1,6 @@
 ---
 description: '子域（Subdomain）戰略設計規則：業務能力切分、邊界穩定性、契約溝通、可替換性。'
-applyTo: 'modules/**/subdomains/**/*.{ts,tsx,js,jsx,md}'
+applyTo: 'src/modules/**/subdomains/**/*.{ts,tsx,js,jsx,md}'
 ---
 
 # 子域（Subdomain）設計規則

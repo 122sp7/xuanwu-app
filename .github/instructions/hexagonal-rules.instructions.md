@@ -1,6 +1,6 @@
 ---
 description: 'Hexagonal Architecture（端口與適配器）戰略設計規則：Core 獨立性、Port 需求導向、Adapter 邊界、子域交叉約束。'
-applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+applyTo: 'src/modules/**/*.{ts,tsx,js,jsx,md}'
 ---
 
 # Hexagonal Architecture（端口與適配器）設計規則

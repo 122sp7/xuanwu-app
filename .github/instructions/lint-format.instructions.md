@@ -1,6 +1,6 @@
 ---
 description: 'Lint and formatting expectations for TypeScript and Python changes.'
-applyTo: '{app,modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py}'
+applyTo: '{src/app,src/modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py}'
 ---
 
 # Lint Format

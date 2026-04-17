@@ -11,56 +11,48 @@ Before writing any code, read these documents in order:
 3. `docs/bounded-contexts.md` — 主域與子域所有權
 4. `docs/ubiquitous-language.md` — 戰略術語權威
 5. `docs/decisions/README.md` — ADR 決策日誌
-6. `modules/<context>/AGENT.md` — 目標主域的任務定義
+6. `src/modules/<context>/AGENT.md` — 目標主域的任務定義
 
 ## Project Structure
 
 ```
-app/                  Next.js App Router (UI entry points)
-modules/              完整 Hexagonal DDD 實作（邊界規則 / published language 的策略權威）
-  platform/           治理、通知
-  iam/                身份、存取、帳號、組織
-  workspace/          協作容器、工作區範疇
-  notion/             正典知識內容
-  notebooklm/         對話、來源、推理輸出
-  ai / analytics / billing / ...
-src/modules/          精簡蒸餾骨架（新實作程式碼的目標層）
-  template/           骨架基線（複製此結構開始新模組）
-  iam/                identity + access-control + account + organization
-  platform/           notification
-  workspace/          lifecycle + membership + task + issue
-  notion / notebooklm / ai / analytics / billing
-docs/                 架構文件（DDD、Context Map、ADR）
-py_fn/                Python Cloud Functions（ingestion、embedding）
-packages/             Shared packages
+src/app/                  Next.js App Router (UI entry points)
+src/modules/              主域模組實作層（Hexagonal DDD）
+  <context>/
+    subdomains/
+      <subdomain>/
+        domain/
+        application/
+        adapters/inbound/
+        adapters/outbound/
+        api/
+    adapters/
+    shared/
+    orchestration/
+docs/                     架構文件（DDD、Context Map、ADR）
+py_fn/                    Python Cloud Functions（ingestion、embedding）
+packages/                 Shared packages
 ```
 
-> **重要：`modules/` ≠ `src/modules/`**
-> - `modules/<context>/` — 讀取邊界規則、跨模組 API 合約、現有 domain model
-> - `src/modules/<context>/` — 撰寫新 use case、adapter、entity（以 `src/modules/template` 為骨架）
+> **重要：`src/modules/` 是唯一模組實作層。**
+> - 讀取邊界規則、跨模組 API 合約與現況 domain model
+> - 撰寫新 use case、adapter、entity（以 `src/modules/template` 為骨架）
 
-`modules/<context>/` follows full Hexagonal Architecture:
-
-```
-modules/<context>/
-  api/                Cross-module entry surface only
-  domain/             Entities, value objects, aggregates, domain events, ports
-  application/        Use cases, command/query contracts, application services
-  infrastructure/     Repository and adapter implementations
-  interfaces/         UI, route/action wiring, input-output translation
-  subdomains/         Sub-domain groupings
-  index.ts            Aggregate export only
-```
-
-`src/modules/<context>/` follows lean distilled skeleton:
+`src/modules/<context>/` follows the active module skeleton:
 
 ```
 src/modules/<context>/
-  index.ts            Aggregate named export
-  domain/             Entities, value objects, services, repositories, events
-  application/        Use cases + DTOs
-  adapters/inbound/   HTTP / RPC driving adapters
-  adapters/outbound/  Firestore / Firebase / external driven adapters
+  index.ts
+  subdomains/
+    <subdomain>/
+      domain/
+      application/
+      adapters/inbound/
+      adapters/outbound/
+      api/
+  adapters/
+  shared/
+  orchestration/
 ```
 
 ## Commands
@@ -90,7 +82,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 - `domain/` must be framework-free and runtime-agnostic.
 - Never import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- Cross-module collaboration must go through `modules/<target>/api/` only.
+- Cross-module collaboration must go through `src/modules/<target>/api/` only.
 
 ### Main Domain Relationships (upstream → downstream)
 

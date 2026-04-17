@@ -1,6 +1,6 @@
 ---
 description: 'Server Action rules for thin orchestration, validation at boundaries, and stable result contracts.'
-applyTo: '{app,modules}/**/*.{ts,tsx}'
+applyTo: '{src/app,src/modules}/**/*.{ts,tsx}'
 ---
 
 # Nextjs Server Actions

@@ -2,7 +2,7 @@
 description: >
   Playwright MCP 瀏覽器測試執行規則。凡涉及用戶流程驗證、UI 功能測試、
   截圖存證、表單操作自動化、Console 錯誤偵測時適用。
-applyTo: '{app,modules,debug}/**/*.{ts,tsx}'
+applyTo: '{src/app,src/modules,debug}/**/*.{ts,tsx}'
 ---
 
 # Playwright MCP Testing Rules

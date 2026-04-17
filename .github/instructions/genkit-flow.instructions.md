@@ -1,6 +1,6 @@
 ---
 description: 'Genkit flow design and runtime-boundary rules for AI orchestration in platform.ai and notebooklm.'
-applyTo: '{modules/platform/**/*.{ts,tsx,js,jsx},modules/notebooklm/**/*.{ts,tsx,js,jsx}}'
+applyTo: '{src/modules/platform/**/*.{ts,tsx,js,jsx},src/modules/notebooklm/**/*.{ts,tsx,js,jsx}}'
 ---
 
 # Genkit Flow
@@ -18,7 +18,7 @@ applyTo: '{modules/platform/**/*.{ts,tsx,js,jsx},modules/notebooklm/**/*.{ts,tsx
 - Every flow must declare explicit `inputSchema` and `outputSchema` using Zod.
 - Never use `any`, `unknown`, or untyped objects for flow I/O.
 - Flow name convention: `<module-name>.<action>` (e.g. `notebooklm.synthesis`, `notebooklm.retrieval`).
-- Flow files live in `modules/<context>/infrastructure/ai/<name>.flow.ts`.
+- Flow files live in `src/modules/<context>/infrastructure/ai/<name>.flow.ts`.
 
 ```typescript
 // ✅ Correct: typed flow with Zod schemas
@@ -74,7 +74,7 @@ import { synthesisFlow } from '../infrastructure/ai/synthesis.flow';
 
 ## Tool Calling Rules
 
-- Tool definition files live in `modules/<context>/infrastructure/ai/tools/<name>.tool.ts`.
+- Tool definition files live in `src/modules/<context>/infrastructure/ai/tools/<name>.tool.ts`.
 - Every tool must have a clear `description` — the model uses this to decide when to invoke the tool.
 - Tool input and output must be typed with Zod schemas.
 - Tool results must be validated; never passthrough raw tool output.

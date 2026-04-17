@@ -1,7 +1,7 @@
 ---
 name: use-case-generation
 description: 將業務流程轉成 Application Layer Use Case，定義 orchestration logic、input/output DTO，並串連 domain entities 與 ports。
-applyTo: 'modules/**/application/**/*.{ts,tsx}'
+applyTo: 'src/modules/**/application/**/*.{ts,tsx}'
 agent: Domain Lead
 argument-hint: 提供 actor、業務目標（goal）、主要成功情境（main success scenario）、失敗分支、所屬模組與子域。
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
@@ -29,14 +29,14 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 - **Goal**：業務目標一句話描述
 - **Main Success Scenario**：列點描述正常流程
 - **Failure Branches**：列出失敗情況與對應錯誤
-- **所屬模組 / 子域**：例如 `modules/workspace/subdomains/scheduling`
+- **所屬模組 / 子域**：例如 `src/modules/workspace/subdomains/scheduling`
 - **相關 Domain Entities / Aggregates**：例如 `WorkDemand`、`Workspace`
 
 ## 工作流程
 
 1. 讀取 `docs/ubiquitous-language.md` 與對應 `docs/contexts/<context>/README.md`，確認語言與邊界。
 2. 讀取 `.github/instructions/architecture-core.instructions.md`，確認 use case 決策規則。
-3. 在 `modules/<context>/[subdomains/<sub>/]application/use-cases/` 建立：
+3. 在 `src/modules/<context>/[subdomains/<sub>/]application/use-cases/` 建立：
    - 檔案命名：`verb-noun.use-case.ts`（例如 `create-work-demand.use-case.ts`）
 4. Use Case 結構：
    - constructor 注入 repository / port 介面（非實作）

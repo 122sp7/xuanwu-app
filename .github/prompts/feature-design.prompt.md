@@ -68,7 +68,7 @@ tools: ['serena/*', 'context7/*', 'read', 'search']
 ### Interface Layer
 - Server Actions：
 - UI Components / Hooks：
-- Route 位置（app/）：
+- Route 位置（src/app/）：
 
 ### Genkit AI Flow
 - 是否介入：yes / no / future

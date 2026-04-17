@@ -1,6 +1,6 @@
 ---
 description: 'Domain Layer（領域層）戰略設計規則：業務純度、行為封裝、不變數保護、技術無關性。'
-applyTo: 'modules/**/domain/**/*.{ts,tsx}'
+applyTo: 'src/modules/**/domain/**/*.{ts,tsx}'
 ---
 
 # Domain Layer（領域層）設計規則

@@ -1,6 +1,6 @@
 ---
 description: 'Firestore schema and index design rules aligned to bounded context ownership.'
-applyTo: '{modules/**/infrastructure/**/*.{ts,tsx,js,jsx},firestore.indexes.json,firestore.rules}'
+applyTo: '{src/modules/**/infrastructure/**/*.{ts,tsx,js,jsx},firestore.indexes.json,firestore.rules}'
 ---
 
 # Firestore Schema
