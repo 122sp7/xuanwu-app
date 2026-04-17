@@ -14,7 +14,7 @@
  */
 
 import type { ReactNode } from "react";
-import { Toaster } from "@ui-shadcn/ui/sonner";
+import { Toaster } from "@/packages/ui-shadcn/ui/sonner";
 
 import { IamSessionProvider } from "@/src/modules/iam/adapters/inbound/react";
 import { AccountScopeProvider } from "./AccountScopeProvider";

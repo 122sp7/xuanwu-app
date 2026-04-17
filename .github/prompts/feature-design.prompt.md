@@ -91,7 +91,7 @@ tools: ['serena/*', 'context7/*', 'read', 'search']
 2. `use-case-generation` — 實作 Application Layer
 3. `firebase-adapter` — 實作 Infrastructure Layer
 4. `implement-server-action` — 實作 Interface Layer
-5. `implement-ui-component` — 實作 UI
+5. `implement-uiomponent` — 實作 UI
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd

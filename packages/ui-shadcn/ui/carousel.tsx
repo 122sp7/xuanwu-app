@@ -5,8 +5,8 @@ import useEmblaCarousel, {
   type UseEmblaCarouselType,
 } from "embla-carousel-react"
 
-import { cn } from "../utils"
-import { Button } from "./button"
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { Button } from "@/src/ui/shadcn/button"
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 
 type CarouselApi = UseEmblaCarouselType[1]

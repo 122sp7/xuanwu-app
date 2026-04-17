@@ -43,13 +43,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
+} from "@/packages/ui-shadcn/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
+} from "@/packages/ui-shadcn/ui/tooltip";
 
 interface AppRailProps {
   readonly pathname: string;

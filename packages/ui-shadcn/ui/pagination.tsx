@@ -1,7 +1,7 @@
 import * as React from "react"
 
-import { cn } from "../utils"
-import { Button } from "./button"
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { Button } from "@/src/ui/shadcn/button"
 import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
 
 function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
@@ -46,19 +46,19 @@ function PaginationLink({
 }: PaginationLinkProps) {
   return (
     <Button
-      asChild
       variant={isActive ? "outline" : "ghost"}
       size={size}
       className={cn(className)}
-    >
-      {/* eslint-disable-next-line jsx-a11y/anchor-has-content -- children provided via props spread */}
-      <a
-        aria-current={isActive ? "page" : undefined}
-        data-slot="pagination-link"
-        data-active={isActive}
-        {...props}
-      />
-    </Button>
+      nativeButton={false}
+      render={
+        <a
+          aria-current={isActive ? "page" : undefined}
+          data-slot="pagination-link"
+          data-active={isActive}
+          {...props}
+        />
+      }
+    />
   )
 }
 

@@ -1,7 +1,7 @@
 # Serena Agent Skills Index
 ## 📂 技能地圖
 - [Core Architecture](./skills/hexagonal-architecture.md)
-- [UI Standards](./skills/ui-components.md)
+- [UI Standards](./skills/uiomponents.md)
 - [External Integration](./skills/firebase-integration.md)
 - [RAG Pipeline](./skills/document-ai-pipeline.md)
 

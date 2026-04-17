@@ -1,5 +1,5 @@
 ---
-name: implement-ui-component
+name: implement-uiomponent
 description: Build or refactor UI components with shadcn patterns and boundary-safe composition.
 applyTo: 'src/app/**/*.{ts,tsx}'
 agent: Component Agent

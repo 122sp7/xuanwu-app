@@ -8,8 +8,8 @@ import {
   type Locale,
 } from "react-day-picker"
 
-import { cn } from "../utils"
-import { Button, buttonVariants } from "./button"
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { Button, buttonVariants } from "@/src/ui/shadcn/button"
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react"
 
 function Calendar({
@@ -196,7 +196,6 @@ function CalendarDayButton({
 
   return (
     <Button
-      ref={ref}
       variant="ghost"
       size="icon"
       data-day={day.date.toLocaleDateString(locale?.code)}

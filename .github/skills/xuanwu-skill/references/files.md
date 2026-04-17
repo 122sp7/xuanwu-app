@@ -27206,7 +27206,7 @@ tools: ['serena/*', 'context7/*', 'read', 'search']
 2. `use-case-generation` — 實作 Application Layer
 3. `firebase-adapter` — 實作 Infrastructure Layer
 4. `implement-server-action` — 實作 Interface Layer
-5. `implement-ui-component` — 實作 UI
+5. `implement-uiomponent` — 實作 UI
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd
@@ -35681,10 +35681,10 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill zustand-xstate
 ````
 
-## File: .github/prompts/implement-ui-component.prompt.md
+## File: .github/prompts/implement-uiomponent.prompt.md
 ````markdown
 ---
-name: implement-ui-component
+name: implement-uiomponent
 description: Build or refactor UI components with shadcn patterns and boundary-safe composition.
 applyTo: 'src/app/**/*.{ts,tsx}'
 agent: Component Agent

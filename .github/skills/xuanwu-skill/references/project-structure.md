@@ -81,7 +81,7 @@
 .github/prompts/implement-security-rules.prompt.md (19 lines)
 .github/prompts/implement-server-action.prompt.md (21 lines)
 .github/prompts/implement-state-machine.prompt.md (102 lines)
-.github/prompts/implement-ui-component.prompt.md (22 lines)
+.github/prompts/implement-uiomponent.prompt.md (22 lines)
 .github/prompts/implement-zustand-store.prompt.md (72 lines)
 .github/prompts/ingest-docs.prompt.md (21 lines)
 .github/prompts/plan-api.prompt.md (19 lines)
