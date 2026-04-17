@@ -72,14 +72,14 @@
 
 ## App Route Composition Contract
 
-- `app/(shell)` 是 shell composition 邊界，不承載 business rule。
-- account 是 shell 內的唯一 account-scoped route surface，canonical 入口為 `app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx`。
+- `src/app/(shell)` 是 shell composition 邊界，不承載 business rule。
+- account 是 shell 內的唯一 account-scoped route surface，canonical 入口為 `src/app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx`。
 - `accountId` 代表 account scope；其語意由 `AccountType = "user" | "organization"` 決定，其中 `"user"` 對應 personal actor account，`"organization"` 對應 organization account，不代表 workspace scope。
 - `AccountType = "user" | "organization"` 是目前 domain、use case、validator 與 route composition 共用的字串契約；UI 可顯示 personal account / organization account，但不應把 `"personal"` 當成跨邊界字串值。
 - workspace detail 的 canonical URL 為 `/{accountId}/{workspaceId}`，由 account catch-all dispatcher 解析並轉交 workspace module route screen。
 - `/{accountId}/workspace/{workspaceId}` 僅作為 legacy redirect surface；文件、UI 與新程式碼不應再把它當成 canonical href。
 - account-scoped governance route 採 flattened account surface，例如 `/{accountId}/members`、`/{accountId}/teams`、`/{accountId}/permissions`，不再以 `/{accountId}/organization/*` 作為 canonical URL。
-- route files 只做 composition、redirect 與 query-state 轉譯；module collaboration 仍必須走 `modules/*/api` boundary。
+- route files 只做 composition、redirect 與 query-state 轉譯；module collaboration 仍必須走 `src/modules/*` 的公開匯出邊界。
 
 ## System-Wide Anti-Patterns
 

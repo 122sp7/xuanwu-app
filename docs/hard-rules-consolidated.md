@@ -303,7 +303,7 @@
 
 Each module should have its own constraints section, such as:
 
-### **`modules/platform/AGENT.md`** (Add Section)
+### **`src/modules/platform/AGENT.md`** (Add Section)
 
 ```markdown
 ## Platform-Specific Hard Rules
@@ -314,7 +314,7 @@ Each module should have its own constraints section, such as:
 4. **Rule 28**: Platform.api can emit events to downstream; platform.domain never imports downstream modules
 ```
 
-### **`modules/workspace/AGENT.md`** (Add Section)
+### **`src/modules/workspace/AGENT.md`** (Add Section)
 
 ```markdown
 ## Workspace-Specific Hard Rules
@@ -325,7 +325,7 @@ Each module should have its own constraints section, such as:
 4. **Rule 17**: Workspace feature toggles ensure modules can be disabled; no hard dependencies
 ```
 
-### **`modules/notion/AGENT.md`** (Add Section)
+### **`src/modules/notion/AGENT.md`** (Add Section)
 
 ```markdown
 ## Notion-Specific Hard Rules
@@ -335,7 +335,7 @@ Each module should have its own constraints section, such as:
 3. **Rule 24**: Notion controls persistence schema; downstream modules don't query Firestore
 ```
 
-### **`modules/notebooklm/AGENT.md`** (Add Section)
+### **`src/modules/notebooklm/AGENT.md`** (Add Section)
 
 ```markdown
 ## NotebookLM-Specific Hard Rules
@@ -449,7 +449,7 @@ Each module should have its own constraints section, such as:
 - [.github/instructions/event-driven-state.instructions.md](../.github/instructions/event-driven-state.instructions.md) — Event bus & async
 - [.github/instructions/security-rules.instructions.md](../.github/instructions/security-rules.instructions.md) — File/data/permission
 - [docs/context-map.md](./context-map.md) — Cross-module contracts
-- [modules/platform/AGENT.md](../modules/platform/AGENT.md) — Platform constraints
-- [modules/workspace/AGENT.md](../modules/workspace/AGENT.md) — Workspace constraints
-- [modules/notion/AGENT.md](../modules/notion/AGENT.md) — Notion constraints
-- [modules/notebooklm/AGENT.md](../modules/notebooklm/AGENT.md) — NotebookLM constraints
+- [src/modules/platform/AGENT.md](../src/modules/platform/AGENT.md) — Platform constraints
+- [src/modules/workspace/AGENT.md](../src/modules/workspace/AGENT.md) — Workspace constraints
+- [src/modules/notion/AGENT.md](../src/modules/notion/AGENT.md) — Notion constraints
+- [src/modules/notebooklm/AGENT.md](../src/modules/notebooklm/AGENT.md) — NotebookLM constraints

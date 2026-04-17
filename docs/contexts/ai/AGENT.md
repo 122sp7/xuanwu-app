@@ -38,7 +38,7 @@
 - ai 的 distillation 是通用蒸餾能力，不是 notebooklm 的推理輸出語言。
 - ai 的 retrieval 是通用向量搜尋能力，不是 notion 的知識查詢正典。
 - ai 的 conversation 管理 AI 輪次，不等同 notebooklm 的 Conversation aggregate。
-- 下游消費只能透過 `modules/ai/api` 公開邊界，不能直接存取 subdomain internals。
+- 下游消費只能透過 `src/modules/ai/index.ts` 公開邊界，不能直接存取 subdomain internals。
 - Genkit 與 LLM SDK 只能存在於 infrastructure 層。
 
 ## Hard Prohibitions

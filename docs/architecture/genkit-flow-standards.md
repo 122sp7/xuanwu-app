@@ -30,7 +30,7 @@ AI orchestration 基線採 **Genkit**。所有 AI 能力（Flow、Tool Calling�
 ### 標準 Flow 骨架
 
 ```typescript
-// modules/notebooklm/infrastructure/ai/synthesis.flow.ts
+// src/modules/notebooklm/subdomains/conversation/adapters/outbound/ai/synthesis.flow.ts
 import { defineFlow } from '@genkit-ai/core';
 import { z } from 'zod';
 
@@ -86,7 +86,7 @@ export const synthesisFlow = defineFlow(
 ### Use Case 中使用 Flow 的正確模式
 
 ```typescript
-// modules/notebooklm/application/use-cases/synthesize-answer.use-case.ts
+// src/modules/notebooklm/subdomains/conversation/application/use-cases/synthesize-answer.use-case.ts
 export class SynthesizeAnswerUseCase {
   constructor(
     private readonly aiPort: AIOrchestrationPort,  // port，不是直接依賴 flow
