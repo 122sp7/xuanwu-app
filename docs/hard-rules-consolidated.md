@@ -42,13 +42,13 @@
 - ❌ workspace NEVER makes direct DB/permission decisions
 
 ### Rule 6: Cross-Module Access Prohibition
-- ✅ module A imports module B only via `@/modules/b/api`
+- ✅ module A imports module B only via `@/modules/b/index.ts`
 - ❌ NO direct imports of domain/, application/, infrastructure/, interfaces/
 - ✅ ALL data sharing via events or published language tokens
 
-### Rule 7: Mandatory Single Entry Point (API Boundary)
-- ✅ Every module must export `api/index.ts` 
-- ✅ `api/` exposes only public surface; hides internals
+### Rule 7: Mandatory Single Entry Point (Public Boundary)
+- ✅ Every module must export via `index.ts` at the module root
+- ✅ `index.ts` exposes only public surface; hides internals
 - ❌ NO imports from internal module paths outside module
 
 ### Rule 8: Platform is Only Infrastructure Layer
@@ -358,7 +358,7 @@ Each module should have its own constraints section, such as:
   rules: {
     "@custom/no-cross-module-internal-import": {
       enabled: true,
-      allowedPaths: ["api/", "index.ts"],  // Only api/ and root exports allowed
+      allowedPaths: ["index.ts"],  // Only module root index.ts exports allowed
       blockedPaths: ["domain/", "application/", "infrastructure/", "interfaces/"]
     },
     
@@ -384,15 +384,15 @@ Each module should have its own constraints section, such as:
 
 #### 1400 Dependency Leakage
 
-- `api/index.ts` 不得用 `export * from "../application"` 或 `export * from "../interfaces"` 洩漏內層。
-- API boundary 應只精確 export 穩定 capability、service facade 與必要 DTO / type contract。
+- `index.ts` 不得用 `export * from "./application"` 或 `export * from "./interfaces"` 洩漏內層。
+- 公開邊界應只精確 export 穩定 capability、service facade 與必要 DTO / type contract。
 - lint signal: `no-restricted-syntax` on `ExportAllDeclaration` selectors。
 
 #### 3100 Low Cohesion
 
-- `api/` 檔案若同時混入 infrastructure、service、subdomain business API、UI hooks/components，視為低內聚風險。
+- `index.ts` 若同時混入 infrastructure、service、subdomain business API、UI hooks/components，視為低內聚風險。
 - 優先拆分為 capability boundary，而不是繼續把 root barrel 做大。
-- lint signal: `max-lines` on module `api/` files as early warning.
+- lint signal: `max-lines` on module `index.ts` files as early warning.
 
 #### 5200 Cognitive Load
 
@@ -426,7 +426,7 @@ Each module should have its own constraints section, such as:
 ## ✅ Enforcement Checklist
 
 ### Before Each Merge:
-- [ ] No cross-module imports outside `api/`
+- [ ] No cross-module imports outside `index.ts` (module root)
 - [ ] No Firebase/Genkit outside platform
 - [ ] All async flows use event bus with schema
 - [ ] File metadata in Firestore
