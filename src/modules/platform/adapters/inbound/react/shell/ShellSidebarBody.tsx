@@ -190,6 +190,63 @@ export function DashboardSidebarBody({
         </div>
       )}
 
+      {section === "members" && (
+        <div className="space-y-2">
+          {showAccountManagement && (
+            <ManagedNavGroup
+              title="成員"
+              ariaLabel="成員導覽"
+              items={visibleOrganizationManagementItems.filter((i) => i.id === "members")}
+              isActiveRoute={isActiveRoute}
+              activeAccountId={activeAccountId}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看成員選項。
+            </p>
+          )}
+        </div>
+      )}
+
+      {section === "teams" && (
+        <div className="space-y-2">
+          {showAccountManagement && (
+            <ManagedNavGroup
+              title="團隊"
+              ariaLabel="團隊導覽"
+              items={visibleOrganizationManagementItems.filter((i) => i.id === "teams")}
+              isActiveRoute={isActiveRoute}
+              activeAccountId={activeAccountId}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看團隊選項。
+            </p>
+          )}
+        </div>
+      )}
+
+      {section === "permissions" && (
+        <div className="space-y-2">
+          {showAccountManagement && (
+            <ManagedNavGroup
+              title="權限"
+              ariaLabel="權限導覽"
+              items={visibleOrganizationManagementItems.filter((i) => i.id === "permissions")}
+              isActiveRoute={isActiveRoute}
+              activeAccountId={activeAccountId}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看權限選項。
+            </p>
+          )}
+        </div>
+      )}
+
       {section === "organization" && (
         <div className="space-y-2">
           {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (

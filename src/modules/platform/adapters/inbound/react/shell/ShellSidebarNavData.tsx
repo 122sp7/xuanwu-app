@@ -4,6 +4,7 @@ import {
   ClipboardList,
   LayoutDashboard,
   NotebookText,
+  Settings2,
   UserRound,
   Users,
 } from "lucide-react";
@@ -56,6 +57,9 @@ export const SECTION_TITLES: Record<NavSection, { label: string; icon: React.Rea
   schedule: { label: SHELL_SECTION_LABELS.schedule, icon: <CalendarDays className="size-3" /> },
   daily: { label: SHELL_SECTION_LABELS.daily, icon: <NotebookText className="size-3" /> },
   audit: { label: SHELL_SECTION_LABELS.audit, icon: <ClipboardList className="size-3" /> },
+  members: { label: SHELL_SECTION_LABELS.members, icon: <UserRound className="size-3" /> },
+  teams: { label: SHELL_SECTION_LABELS.teams, icon: <Users className="size-3" /> },
+  permissions: { label: SHELL_SECTION_LABELS.permissions, icon: <Settings2 className="size-3" /> },
   organization: { label: SHELL_SECTION_LABELS.organization, icon: <Users className="size-3" /> },
   other: { label: SHELL_SECTION_LABELS.other, icon: null },
 };

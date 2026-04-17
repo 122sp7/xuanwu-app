@@ -7,6 +7,9 @@ export type ShellNavSection =
   | "schedule"
   | "daily"
   | "audit"
+  | "members"
+  | "teams"
+  | "permissions"
   | "organization"
   | "other";
 
@@ -252,6 +255,9 @@ export const SHELL_SECTION_LABELS: Record<ShellNavSection, string> = {
   schedule: "排程",
   daily: "每日",
   audit: "稽核",
+  members: "成員",
+  teams: "團隊",
+  permissions: "權限",
   organization: "組織",
   other: "導覽",
 };
@@ -319,6 +325,9 @@ export function resolveShellNavSection(pathname: string): ShellNavSection {
   if (normalizedPathname === "/schedule" || normalizedPathname.startsWith("/schedule/")) return "schedule";
   if (normalizedPathname === "/daily" || normalizedPathname.startsWith("/daily/")) return "daily";
   if (normalizedPathname === "/audit" || normalizedPathname.startsWith("/audit/")) return "audit";
+  if (normalizedPathname === "/members" || normalizedPathname.startsWith("/members/")) return "members";
+  if (normalizedPathname === "/teams" || normalizedPathname.startsWith("/teams/")) return "teams";
+  if (normalizedPathname === "/permissions" || normalizedPathname.startsWith("/permissions/")) return "permissions";
   if (normalizedPathname.startsWith("/organization") || isOrganizationManagementPath) {
     return "organization";
   }
