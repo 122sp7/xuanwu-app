@@ -47,8 +47,8 @@ Route layers exist to **orchestrate, not to contain business logic.**
 
 | Forbidden | Why | Fix |
 |-----------|-----|-----|
-| `from "@/modules/*/domain"` | Business rules belong in module, not route | Import from `/api` instead; call use-case |
-| `from "@/modules/*/application"` | Orchestration hidden in route | Delegate to module's `api/`, let module own the orchestration |
+| `from "@/modules/*/domain"` | Business rules belong in module, not route | Import from module root `index.ts`; call use-case |
+| `from "@/modules/*/application"` | Orchestration hidden in route | Delegate to module's `index.ts`, let module own the orchestration |
 | `from "@/modules/*/infrastructure"` | Technical details pollute composition layer | Route should not know about persistence, adapters, or external SDKs |
 | Business logic in `.tsx` file | Routes are for flow, not rules | Move rules to module domain; route calls module API |
 | Hidden state coupling between blocks | Parallel routes should be independent | Use context or module-level state management; avoid shared route state |
