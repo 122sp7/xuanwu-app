@@ -21,6 +21,42 @@
 | [0014-main-domain-resplit.md](./0014-main-domain-resplit.md) | Main Domain Resplit | Accepted | 八主域重切與 ownership baseline 更新 |
 | [0015-api-layer-removal.md](./0015-api-layer-removal.md) | Module `api/` Layer Removal | Accepted | `api/` 層移除；`index.ts` 為唯一公開邊界 |
 
+## Migration Gap Registry (6100–6121)
+
+`modules/` → `src/modules/` 蒸餾過程中，以 `xuanwu-app-skill`（舊）對比 `xuanwu-skill`（新）後發現的缺口與新增項目。
+完整索引與損失統計見 [6100-migration-gap-registry.md](./6100-migration-gap-registry.md)。
+
+### LOST — 舊有但新技能缺失
+
+| ADR | 缺口描述 | Status |
+|---|---|---|
+| [6101](./6101-lost-notebooklm-source-subdomain.md) | notebooklm `source` 子域：10 use cases、8 ports、6 DTOs | Pending |
+| [6102](./6102-lost-notebooklm-synthesis-subdomain.md) | notebooklm `synthesis` 子域：RAG domain、VectorStore port、CitationBuilder | Pending |
+| [6103](./6103-lost-notebooklm-interfaces-layer.md) | notebooklm interfaces 層：ConversationPanel、Server Actions、hooks | Pending |
+| [6104](./6104-lost-notion-authoring-subdomain.md) | notion `authoring` 子域：Article/Category aggregates + events + repos + UI | Pending |
+| [6105](./6105-lost-notion-knowledge-database-subdomain.md) | notion `knowledge-database` 子域：Database/View/Automation + UI panels | Pending |
+| [6106](./6106-lost-notion-knowledge-subdomain.md) | notion `knowledge` 子域：KnowledgePage aggregate + BlockEditorPanel + Zustand store | Pending |
+| [6107](./6107-lost-platform-domain-model.md) | platform domain model：4 aggregates、20+ ports、25+ value objects、9 services | Pending |
+| [6108](./6108-lost-platform-api-contracts.md) | platform API contracts：contracts.ts (218 lines)、infrastructure-api.ts、service-api.ts | Pending |
+| [6109](./6109-lost-workspace-interfaces-layer.md) | workspace interfaces 層：screens、tabs、dialogs、facades、hooks | Pending |
+| [6110](./6110-lost-ai-prompt-pipeline-subdomain.md) | ai `prompt-pipeline` 子域：PromptTemplate domain (224 lines) + pipeline use cases | Pending |
+| [6111](./6111-lost-ai-missing-subdomains.md) | ai 5 個缺失子域：conversations、datasets、personas、safety-guardrail、model-observability | Pending |
+| [6112](./6112-lost-ai-governance-docs.md) | ai `subdomains.instructions.md`（313 lines governance spec）已刪除 | Pending |
+| [6113](./6113-lost-packages.md) | 消失 packages：ui-vis (205 lines)、shared-events (139 lines)、shared-types (107 lines) | Pending |
+| [6114](./6114-lost-docs-semantic-model.md) | docs/semantic-model.md（344 lines 跨域語意模型）已刪除 | Pending |
+| [6115](./6115-lost-docs-discussions.md) | docs/discussions/ 8 份架構設計討論文件（~1,300 lines）已刪除 | Pending |
+
+### GAINED — 新技能有但舊技能沒有
+
+| ADR | 新增描述 | Status |
+|---|---|---|
+| [6116](./6116-gained-shell-ui-components.md) | Shell UI 元件：ShellRootLayout、ShellAppRail、AccountSwitcher、ShellGuard 等 13 個 | Recorded |
+| [6117](./6117-gained-packages-ui-shadcn.md) | packages/ui-shadcn：70+ shadcn/ui 元件 | Recorded |
+| [6118](./6118-gained-modules-template.md) | src/modules/template：新模組骨架模板 + AGENT.md 格式 | Recorded |
+| [6119](./6119-gained-workspace-new-subdomains.md) | workspace 新子域骨架：activity、api-key、invitation、resource、schedule | Recorded |
+| [6120](./6120-gained-platform-new-subdomains.md) | platform 新子域骨架：cache、file-storage | Recorded |
+| [6121](./6121-gained-ai-restructured-subdomains.md) | ai 重組後 10 個子域：chunk、citation、context、embedding、evaluation、generation、memory、pipeline、retrieval、tool-calling | Recorded |
+
 ## Design Smell Taxonomy (1000–5200)
 
 完整編號體系請見 [SMELL-INDEX.md](./SMELL-INDEX.md)。
@@ -146,6 +182,28 @@ flowchart LR
 - [4300-semantic-drift.md](./4300-semantic-drift.md)
 - [5100-accidental-complexity.md](./5100-accidental-complexity.md)
 - [5200-cognitive-load.md](./5200-cognitive-load.md)
+- [6100-migration-gap-registry.md](./6100-migration-gap-registry.md) ← Migration Gap Registry Index
+- [6101-lost-notebooklm-source-subdomain.md](./6101-lost-notebooklm-source-subdomain.md)
+- [6102-lost-notebooklm-synthesis-subdomain.md](./6102-lost-notebooklm-synthesis-subdomain.md)
+- [6103-lost-notebooklm-interfaces-layer.md](./6103-lost-notebooklm-interfaces-layer.md)
+- [6104-lost-notion-authoring-subdomain.md](./6104-lost-notion-authoring-subdomain.md)
+- [6105-lost-notion-knowledge-database-subdomain.md](./6105-lost-notion-knowledge-database-subdomain.md)
+- [6106-lost-notion-knowledge-subdomain.md](./6106-lost-notion-knowledge-subdomain.md)
+- [6107-lost-platform-domain-model.md](./6107-lost-platform-domain-model.md)
+- [6108-lost-platform-api-contracts.md](./6108-lost-platform-api-contracts.md)
+- [6109-lost-workspace-interfaces-layer.md](./6109-lost-workspace-interfaces-layer.md)
+- [6110-lost-ai-prompt-pipeline-subdomain.md](./6110-lost-ai-prompt-pipeline-subdomain.md)
+- [6111-lost-ai-missing-subdomains.md](./6111-lost-ai-missing-subdomains.md)
+- [6112-lost-ai-governance-docs.md](./6112-lost-ai-governance-docs.md)
+- [6113-lost-packages.md](./6113-lost-packages.md)
+- [6114-lost-docs-semantic-model.md](./6114-lost-docs-semantic-model.md)
+- [6115-lost-docs-discussions.md](./6115-lost-docs-discussions.md)
+- [6116-gained-shell-ui-components.md](./6116-gained-shell-ui-components.md)
+- [6117-gained-packages-ui-shadcn.md](./6117-gained-packages-ui-shadcn.md)
+- [6118-gained-modules-template.md](./6118-gained-modules-template.md)
+- [6119-gained-workspace-new-subdomains.md](./6119-gained-workspace-new-subdomains.md)
+- [6120-gained-platform-new-subdomains.md](./6120-gained-platform-new-subdomains.md)
+- [6121-gained-ai-restructured-subdomains.md](./6121-gained-ai-restructured-subdomains.md)
 - [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
 - [../project-delivery-milestones.md](../project-delivery-milestones.md)
 - [../README.md](../README.md)
