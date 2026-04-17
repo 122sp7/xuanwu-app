@@ -7336,149 +7336,6 @@ flowchart LR
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/platform/README.md
-````markdown
-# Platform Context
-
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
-
-## Purpose
-
-platform 是帳號、組織與 shared operational services 主域。它的責任是提供 account、organization、notification、search、audit、observability 與 operational workflow 等跨切面能力，供其他主域穩定消費。
-
-## Why This Context Exists
-
-- 把治理與營運支撐責任集中，避免滲入其他主域。
-- 讓其他主域只消費治理結果，而不是重建治理模型。
-- 以清楚的 published language 承接身份、權益、政策與營運能力。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | account、organization 與營運支撐 |
-| Upstream Dependency | iam、billing、ai 的 shared signals 與治理結果 |
-| Downstream Consumers | workspace 與其他需要 operational services 的主域 |
-| Core Principle | platform 提供 account 與營運 surface，不接管治理、商業、內容或推理正典 |
-
-## Baseline Subdomains
-
-- identity
-- account
-- account-profile
-- organization
-- team
-- tenant
-- access-control
-- security-policy
-- platform-config
-- feature-flag
-- entitlement
-- onboarding
-- compliance
-- consent
-- billing
-- subscription
-- referral
-- ai
-- integration
-- secret-management
-- workflow
-- notification
-- background-job
-- content
-- search
-- audit-log
-- observability
-- analytics
-- support
-
-## Strategic Reinforcement Focus
-
-- consent（資料使用授權語義收斂）
-- secret-management（敏感憑證治理收斂）
-- operational-catalog（平台營運資產語義收斂）
-
-
-## Key Relationships
-
-- 對 iam、billing、ai：platform 消費它們的治理、商業與 capability signal。
-- 對 workspace：提供 account scope、organization surface 與 shared operational services。
-- 對 notion 與 notebooklm：按需提供 notification、search、audit、observability 等 operational service。
-
-## Reading Order
-
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
-
-## Dependency Direction
-
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- platform 對外只輸出治理結果與 published language，不輸出內部治理模型細節。
-
-## Account Surface Contract
-
-- platform 提供 account scope 的治理語意；shell 的 `accountId` 由這個主域的 account / organization 能力支撐，而不是由 workspace 自行定義。
-- account shell surface 採單一 account catch-all：`/{accountId}/[[...slug]]`；這是 account-scoped composition contract，不是 platform domain model 的直接外露。
-- `AccountType = "user" | "organization"` 是目前 platform account domain、workspace domain、Zod validators 與 route composition 共用的字串契約；`"user"` 表示 personal account scope，`"organization"` 表示 organization account scope。
-- business language 仍使用 personal account / organization account；只有 code-level string contract 才使用 `"user" | "organization"`，避免把 `user` 誤用成平台通用語言名詞。
-- organization governance route 在 shell 內應 flatten 到 account scope，例如 `/{accountId}/members`、`/{accountId}/teams`、`/{accountId}/permissions`；`/{accountId}/organization/*` 只應視為 legacy redirect surface。
-- platform 擁有 account 與 organization 的治理語意，但不擁有 workspace detail route；workspace detail 仍由 workspace module route screen 承接，只是經過 account-scoped shell composition 進入。
-
-## Anti-Pattern Rules
-
-- 不把 platform 寫成內容主域或對話主域。
-- 不把 entitlement、consent、secret-management 混成同一個泛用設定區。
-- 不把其他主域對平台的依賴寫成可以直接存取其內部模型。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 platform 的 operational 定位，再安排 account、organization、notification、search、audit、secret-management 的交互。
-- 奧卡姆剃刀：不要預先建立多餘 facade；能直接由既有治理邊界承接就維持單一路徑。
-- 優先讓 request -> orchestration -> domain decision -> published language 保持單純可追溯。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain"]
-	X["Infrastructure"] --> D
-	X -. implements ports .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Request["Actor / admin request"] --> Boundary["platform boundary"]
-	Boundary --> App["Application use case"]
-	App --> Domain["Platform domain"]
-	Domain --> Published["Published governance language"]
-	Published --> Consumers["workspace / notion / notebooklm"]
-```
-
-## Document Network
-
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../README.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-
-## Constraints
-
-- 本文件是 architecture-first 版本。
-- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
-- 本文件不代表對既有 repo 內容做過語意校準。
-````
-
 ## File: docs/contexts/platform/subdomains.md
 ````markdown
 # Platform
@@ -7565,104 +7422,6 @@ flowchart LR
 - [ubiquitous-language.md](./ubiquitous-language.md)
 - [../../subdomains.md](../../subdomains.md)
 - [../../bounded-contexts.md](../../bounded-contexts.md)
-````
-
-## File: docs/contexts/workspace/AGENT.md
-````markdown
-# Workspace Agent
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Mission
-
-保護 workspace 主域作為協作容器、工作區範疇與 workspaceId 錨點。任何變更都應維持 workspace 擁有工作區生命週期、成員關係、共享、存在感、活動投影、稽核、排程與工作流，而不是吸收平台治理或知識內容正典。
-
-## Canonical Ownership
-
-- lifecycle
-- membership
-- sharing
-- presence
-- audit
-- feed
-- scheduling
-- workspace-workflow
-
-## Route Here When
-
-- 問題的中心是 workspaceId、工作區建立封存、工作區內角色與參與關係。
-- 問題的中心是工作區共享、存在感、活動流、排程與工作流執行。
-- 問題需要提供其他主域運作所需的 workspace scope。
-
-## Route Elsewhere When
-
-- 身份、授權與 tenant 治理屬於 iam；商業權益屬於 billing；通知與營運服務屬於 platform。
-- 知識頁面、文章、資料庫、分類、內容發布屬於 notion。
-- notebook、conversation、source、retrieval、synthesis 屬於 notebooklm。
-
-## Guardrails
-
-- workspace 的 Member 或 Membership 不等於 iam 的 Actor 或 Identity。
-- feed 是投影，不是工作區正典狀態來源。
-- audit 是不可否認追蹤，不等於使用者導向動態流。
-- sharing 定義暴露範圍，但不取代 billing entitlement 與 iam access-control。
-- 跨主域互動只經過 published language、API 邊界或事件。
-
-## Dependency Direction
-
-- workspace 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
-- membership、sharing、presence、workspace-workflow 所需外部能力只能透過 ports 進入核心。
-- infrastructure 只處理事件、儲存、同步與投影，不反向定義 Workspace 或 Membership 語言。
-
-## Hard Prohibitions
-
-- 不得把 iam 的 Actor 或 Identity 直接當成 workspace 的 Membership 模型。
-- 不得讓 feed 取代正典狀態來源，或讓 audit 退化成一般 UI 活動流。
-- 不得讓 workspace 直接接管 notion 內容生命週期或 notebooklm 推理流程。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 workspace 作為協作 scope 主域，而不是治理或內容 owner。
-- 奧卡姆剃刀：若既有 lifecycle、membership、sharing、presence 或 workspace-workflow 邊界已足夠，就不要額外新增平行協作抽象。
-- 只有在外部依賴、跨主域語義污染或 scope 轉譯明確存在時，才建立 port、ACL 或 local DTO。
-- 對 notion 與 notebooklm 的輸出應停在 workspace scope / membership scope / share scope。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
-	A --> D["Workspace Domain / Invariants"]
-	P["Ports / Domain-fit Contracts"] -. used by .-> A
-	X["Infrastructure / Driven Adapters"] -. implements .-> P
-	X --> D
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform upstream"] -->|Published Language| Boundary["workspace API boundary"]
-	Boundary --> Translation["Local DTO / ACL when needed"]
-	Translation --> App["Application orchestration"]
-	App --> Domain["Lifecycle / Membership / Sharing / Workspace Workflow"]
-	Domain --> Scope["workspace scope / membership scope / share scope"]
-	Scope --> Notion["notion downstream"]
-	Scope --> NotebookLM["notebooklm downstream"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
 ## File: docs/contexts/workspace/bounded-contexts.md
@@ -7833,130 +7592,6 @@ flowchart LR
 - [../../strategic-patterns.md](../../strategic-patterns.md)
 - [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/contexts/workspace/README.md
-````markdown
-# Workspace Context
-
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
-
-## Purpose
-
-workspace 是協作容器與工作區範疇主域。它的責任是提供 workspaceId、工作區生命週期、參與關係、共享、存在感、活動投影、稽核、排程與工作流，讓其他主域可以在同一個協作範疇中運作。
-
-## Why This Context Exists
-
-- 把工作區容器語意與平台治理語意分離。
-- 把工作區 scope 作為其他主域可依賴的 published language。
-- 把活動流、稽核、排程與流程協調收斂為同一主域內的高凝聚能力。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 協作容器與 workspace scope |
-| Upstream Dependency | iam 的 actor、tenant、access decision；billing 的 entitlement；platform 的 account 與 organization surface |
-| Downstream Consumers | notion、notebooklm |
-| Core Principle | workspace 暴露 scope，不接管治理、商業或內容正典 |
-
-## Baseline Subdomains
-
-- audit
-- feed
-- scheduling
-- workspace-workflow
-
-## Recommended Gap Subdomains
-
-- lifecycle
-- membership
-- sharing
-- presence
-
-## Key Relationships
-
-- 與 iam：workspace 消費 actor、tenant 與 access decision。
-- 與 billing：workspace 消費 entitlement 與 subscription capability signal。
-- 與 platform：workspace 消費 account scope 與 organization surface。
-- 與 notion：workspace 向 notion 提供 workspaceId、membership scope、share scope。
-- 與 notebooklm：workspace 向 notebooklm 提供 workspaceId、membership scope、share scope。
-
-## Reading Order
-
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
-
-## Dependency Direction
-
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- workspace 對外只暴露 scope、published language、API boundary、events，不暴露內部實作。
-
-## Route Surface Contract
-
-- workspace 不擁有獨立的 top-level shell route；它被組裝在 account-scoped shell surface 之下。
-- workspace 消費來自 platform account scope 的 `AccountType = "user" | "organization"` 字串契約；其中 `"user"` 代表 personal account context，`"organization"` 代表 organization context。
-- workspace detail 的 canonical route 是 `/{accountId}/{workspaceId}`，表示「先選 account，再進入該 account 底下的 workspace」。
-- workspace tabs 與 overview panels 應維持在同一條 detail route 上，以 query state 表示，例如 `?tab=Overview&panel=knowledge-pages`。
-- `/{accountId}/workspace/{workspaceId}` 只保留為相容 redirect，不是新的文件或 UI 應輸出的 canonical href。
-- UI 可以顯示個人帳號 / 組織帳號，但 workspace aggregate、use case、event metadata 與 validator 的 accountType string contract 不應漂移成 `"personal" | "organization"`。
-- account dashboard、members、teams、permissions、schedule、audit 等 account-level concern 不屬於 workspace route surface。
-- workspace route 只負責協作容器與 workspace-scoped consumption，不承接 platform governance canonical navigation。
-
-## Anti-Pattern Rules
-
-- 不把 workspace scope 寫成平台治理結果本身。
-- 不把 feed、audit、workspace-workflow 互相取代為單一泛用流程層。
-- 不把 notion 或 notebooklm 的內容與推理責任吸回 workspace。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 workspace 的協作 scope 定位，再安排 lifecycle、membership、sharing、workspace-workflow 的交互。
-- 奧卡姆剃刀：不要預先建立第二條平行協作流程；只有既有 scope 邊界不夠時才補新抽象。
-- 優先讓 input -> translation -> application -> domain -> published scope 保持單純可追溯。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain"]
-	X["Infrastructure"] --> D
-	X -. implements ports .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] --> Boundary["workspace boundary"]
-	Boundary --> Translation["DTO / ACL"]
-	Translation --> App["Application use case"]
-	App --> Domain["Workspace domain"]
-	Domain --> Scope["workspace scope"]
-	Scope --> Notion["notion"]
-	Scope --> NotebookLM["notebooklm"]
-```
-
-## Document Network
-
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../README.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-
-## Constraints
-
-- 本文件是 architecture-first 版本。
-- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
-- 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
 ## File: docs/contexts/workspace/subdomains.md
@@ -23177,11 +22812,6 @@ When a user provides a file or pattern argument:
 If no files specified, ask the user which files to review.
 ````
 
-## File: docs/AGENT.md
-````markdown
-
-````
-
 ## File: docs/bounded-contexts.md
 ````markdown
 # Bounded Contexts
@@ -23739,6 +23369,377 @@ ai 是共享 AI capability 主域。它負責 generation、orchestration、disti
 - [ubiquitous-language.md](./ubiquitous-language.md)
 - [../../architecture-overview.md](../../architecture-overview.md)
 - [../../integration-guidelines.md](../../integration-guidelines.md)
+````
+
+## File: docs/contexts/platform/README.md
+````markdown
+# Platform Context
+
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+
+## Purpose
+
+platform 是帳號、組織與 shared operational services 主域。它的責任是提供 account、organization、notification、search、audit、observability 與 operational workflow 等跨切面能力，供其他主域穩定消費。
+
+## Why This Context Exists
+
+- 把治理與營運支撐責任集中，避免滲入其他主域。
+- 讓其他主域只消費治理結果，而不是重建治理模型。
+- 以清楚的 published language 承接身份、權益、政策與營運能力。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | account、organization 與營運支撐 |
+| Upstream Dependency | iam、billing、ai 的 shared signals 與治理結果 |
+| Downstream Consumers | workspace 與其他需要 operational services 的主域 |
+| Core Principle | platform 提供 account 與營運 surface，不接管治理、商業、內容或推理正典 |
+
+## Baseline Subdomains
+
+- account
+- account-profile
+- organization
+- team
+- platform-config
+- feature-flag
+- onboarding
+- compliance
+- integration
+- workflow
+- notification
+- background-job
+- content
+- search
+- audit-log
+- observability
+- support
+
+## Recommended Gap Subdomains
+
+- consent
+- secret-management
+- operational-catalog
+
+## Strategic Reinforcement Focus
+
+- consent（資料使用授權語義收斂）
+- secret-management（敏感憑證治理收斂）
+- operational-catalog（平台營運資產語義收斂）
+
+
+## Key Relationships
+
+- 對 iam、billing、ai：platform 消費它們的治理、商業與 capability signal。
+- 對 workspace：提供 account scope、organization surface 與 shared operational services。
+- 對 notion 與 notebooklm：按需提供 notification、search、audit、observability 等 operational service。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENT.md](./AGENT.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- platform 對外只輸出治理結果與 published language，不輸出內部治理模型細節。
+
+## Account Surface Contract
+
+- platform 提供 account scope 的治理語意；shell 的 `accountId` 由這個主域的 account / organization 能力支撐，而不是由 workspace 自行定義。
+- account shell surface 採單一 account catch-all：`/{accountId}/[[...slug]]`；這是 account-scoped composition contract，不是 platform domain model 的直接外露。
+- `AccountType = "user" | "organization"` 是目前 platform account domain、workspace domain、Zod validators 與 route composition 共用的字串契約；`"user"` 表示 personal account scope，`"organization"` 表示 organization account scope。
+- business language 仍使用 personal account / organization account；只有 code-level string contract 才使用 `"user" | "organization"`，避免把 `user` 誤用成平台通用語言名詞。
+- organization governance route 在 shell 內應 flatten 到 account scope，例如 `/{accountId}/members`、`/{accountId}/teams`、`/{accountId}/permissions`；`/{accountId}/organization/*` 只應視為 legacy redirect surface。
+- platform 擁有 account 與 organization 的治理語意，但不擁有 workspace detail route；workspace detail 仍由 workspace module route screen 承接，只是經過 account-scoped shell composition 進入。
+
+## Anti-Pattern Rules
+
+- 不把 platform 寫成內容主域或對話主域。
+- 不把 entitlement、consent、secret-management 混成同一個泛用設定區。
+- 不把其他主域對平台的依賴寫成可以直接存取其內部模型。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 platform 的 operational 定位，再安排 account、organization、notification、search、audit、secret-management 的交互。
+- 奧卡姆剃刀：不要預先建立多餘 facade；能直接由既有治理邊界承接就維持單一路徑。
+- 優先讓 request -> orchestration -> domain decision -> published language 保持單純可追溯。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Request["Actor / admin request"] --> Boundary["platform boundary"]
+	Boundary --> App["Application use case"]
+	App --> Domain["Platform domain"]
+	Domain --> Published["Published governance language"]
+	Published --> Consumers["workspace / notion / notebooklm"]
+```
+
+## Document Network
+
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../README.md](../../README.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
+````
+
+## File: docs/contexts/workspace/AGENT.md
+````markdown
+# Workspace Agent
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Mission
+
+保護 workspace 主域作為協作容器、工作區範疇與 workspaceId 錨點。任何變更都應維持 workspace 擁有工作區生命週期、成員關係、共享、存在感、活動投影、稽核、排程與工作流，而不是吸收平台治理或知識內容正典。
+
+## Canonical Ownership
+
+- audit
+- feed
+- scheduling
+- approve
+- issue
+- orchestration
+- quality
+- settlement
+- task
+- task-formation
+- lifecycle
+- membership
+- sharing
+- presence
+
+## Route Here When
+
+- 問題的中心是 workspaceId、工作區建立封存、工作區內角色與參與關係。
+- 問題的中心是工作區共享、存在感、活動流、排程與工作流執行。
+- 問題需要提供其他主域運作所需的 workspace scope。
+
+## Route Elsewhere When
+
+- 身份、授權與 tenant 治理屬於 iam；商業權益屬於 billing；通知與營運服務屬於 platform。
+- 知識頁面、文章、資料庫、分類、內容發布屬於 notion。
+- notebook、conversation、source、retrieval、synthesis 屬於 notebooklm。
+
+## Guardrails
+
+- workspace 的 Member 或 Membership 不等於 iam 的 Actor 或 Identity。
+- feed 是投影，不是工作區正典狀態來源。
+- audit 是不可否認追蹤，不等於使用者導向動態流。
+- sharing 定義暴露範圍，但不取代 billing entitlement 與 iam access-control。
+- 跨主域互動只經過 published language、API 邊界或事件。
+
+## Dependency Direction
+
+- workspace 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
+- membership、sharing、presence、workspace-workflow 所需外部能力只能透過 ports 進入核心。
+- infrastructure 只處理事件、儲存、同步與投影，不反向定義 Workspace 或 Membership 語言。
+
+## Hard Prohibitions
+
+- 不得把 iam 的 Actor 或 Identity 直接當成 workspace 的 Membership 模型。
+- 不得讓 feed 取代正典狀態來源，或讓 audit 退化成一般 UI 活動流。
+- 不得讓 workspace 直接接管 notion 內容生命週期或 notebooklm 推理流程。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 workspace 作為協作 scope 主域，而不是治理或內容 owner。
+- 奧卡姆剃刀：若既有 lifecycle、membership、sharing、presence 或 workspace-workflow 邊界已足夠，就不要額外新增平行協作抽象。
+- 只有在外部依賴、跨主域語義污染或 scope 轉譯明確存在時，才建立 port、ACL 或 local DTO。
+- 對 notion 與 notebooklm 的輸出應停在 workspace scope / membership scope / share scope。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
+	A --> D["Workspace Domain / Invariants"]
+	P["Ports / Domain-fit Contracts"] -. used by .-> A
+	X["Infrastructure / Driven Adapters"] -. implements .-> P
+	X --> D
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform upstream"] -->|Published Language| Boundary["workspace API boundary"]
+	Boundary --> Translation["Local DTO / ACL when needed"]
+	Translation --> App["Application orchestration"]
+	App --> Domain["Lifecycle / Membership / Sharing / Workspace Workflow"]
+	Domain --> Scope["workspace scope / membership scope / share scope"]
+	Scope --> Notion["notion downstream"]
+	Scope --> NotebookLM["notebooklm downstream"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+````
+
+## File: docs/contexts/workspace/README.md
+````markdown
+# Workspace Context
+
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+
+## Purpose
+
+workspace 是協作容器與工作區範疇主域。它的責任是提供 workspaceId、工作區生命週期、參與關係、共享、存在感、活動投影、稽核、排程與工作流，讓其他主域可以在同一個協作範疇中運作。
+
+## Why This Context Exists
+
+- 把工作區容器語意與平台治理語意分離。
+- 把工作區 scope 作為其他主域可依賴的 published language。
+- 把活動流、稽核、排程與流程協調收斂為同一主域內的高凝聚能力。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 協作容器與 workspace scope |
+| Upstream Dependency | iam 的 actor、tenant、access decision；billing 的 entitlement；platform 的 account 與 organization surface |
+| Downstream Consumers | notion、notebooklm |
+| Core Principle | workspace 暴露 scope，不接管治理、商業或內容正典 |
+
+## Baseline Subdomains
+
+- audit
+- feed
+- scheduling
+- approve
+- issue
+- orchestration
+- quality
+- settlement
+- task
+- task-formation
+
+## Recommended Gap Subdomains
+
+- lifecycle
+- membership
+- sharing
+- presence
+
+## Key Relationships
+
+- 與 iam：workspace 消費 actor、tenant 與 access decision。
+- 與 billing：workspace 消費 entitlement 與 subscription capability signal。
+- 與 platform：workspace 消費 account scope 與 organization surface。
+- 與 notion：workspace 向 notion 提供 workspaceId、membership scope、share scope。
+- 與 notebooklm：workspace 向 notebooklm 提供 workspaceId、membership scope、share scope。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENT.md](./AGENT.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- workspace 對外只暴露 scope、published language、API boundary、events，不暴露內部實作。
+
+## Route Surface Contract
+
+- workspace 不擁有獨立的 top-level shell route；它被組裝在 account-scoped shell surface 之下。
+- workspace 消費來自 platform account scope 的 `AccountType = "user" | "organization"` 字串契約；其中 `"user"` 代表 personal account context，`"organization"` 代表 organization context。
+- workspace detail 的 canonical route 是 `/{accountId}/{workspaceId}`，表示「先選 account，再進入該 account 底下的 workspace」。
+- workspace tabs 與 overview panels 應維持在同一條 detail route 上，以 query state 表示，例如 `?tab=Overview&panel=knowledge-pages`。
+- `/{accountId}/workspace/{workspaceId}` 只保留為相容 redirect，不是新的文件或 UI 應輸出的 canonical href。
+- UI 可以顯示個人帳號 / 組織帳號，但 workspace aggregate、use case、event metadata 與 validator 的 accountType string contract 不應漂移成 `"personal" | "organization"`。
+- account dashboard、members、teams、permissions、schedule、audit 等 account-level concern 不屬於 workspace route surface。
+- workspace route 只負責協作容器與 workspace-scoped consumption，不承接 platform governance canonical navigation。
+
+## Anti-Pattern Rules
+
+- 不把 workspace scope 寫成平台治理結果本身。
+- 不把 feed、audit、workspace-workflow 互相取代為單一泛用流程層。
+- 不把 notion 或 notebooklm 的內容與推理責任吸回 workspace。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 workspace 的協作 scope 定位，再安排 lifecycle、membership、sharing、workspace-workflow 的交互。
+- 奧卡姆剃刀：不要預先建立第二條平行協作流程；只有既有 scope 邊界不夠時才補新抽象。
+- 優先讓 input -> translation -> application -> domain -> published scope 保持單純可追溯。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Boundary["workspace boundary"]
+	Boundary --> Translation["DTO / ACL"]
+	Translation --> App["Application use case"]
+	App --> Domain["Workspace domain"]
+	Domain --> Scope["workspace scope"]
+	Scope --> Notion["notion"]
+	Scope --> NotebookLM["notebooklm"]
+```
+
+## Document Network
+
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../README.md](../../README.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
 ## File: docs/decisions/0006-domain-event-discriminant-format.md
@@ -26654,16 +26655,6 @@ packages/ui-shadcn/
 - `tsconfig.json` — `@ui-shadcn/*` path alias
 ````
 
-## File: py_fn/AGENT.md
-````markdown
-
-````
-
-## File: src/AGENT.md
-````markdown
-
-````
-
 ## File: src/modules/ai/ai.instructions.md
 ````markdown
 
@@ -28758,6 +28749,49 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill documentation-writer
 ````
 
+## File: docs/AGENT.md
+````markdown
+# docs — Agent Guide
+
+## Purpose
+
+`docs/` 是 Xuanwu App 的**架構文件集**，記錄 8 個主域的 DDD 戰略設計、Bounded Context 邊界、Context Map 方向與 ADR 決策日誌。
+
+> **重要：** `docs/**/*` 是所有邊界問題、術語命名與 context map 的戰略權威。遇到邊界模糊時，先讀 `docs/`，再看程式碼。
+
+## Reading Order（架構決策）
+
+1. `docs/README.md` — 文件索引與路由規則
+2. `docs/architecture-overview.md` — 全域架構與主域關係
+3. `docs/bounded-contexts.md` — 主域與子域所有權
+4. `docs/ubiquitous-language.md` — 戰略術語權威
+5. `docs/context-map.md` — 主域間關係方向
+6. `docs/decisions/README.md` — ADR 決策日誌
+
+## Context Folders
+
+`docs/contexts/<context>/` 各有：
+- `README.md` — 主域用途、Upstream/Downstream、Baseline Subdomains
+- `AGENT.md` — Agent 路由規則、保護邊界的 Guardrails
+- `subdomains.md`、`bounded-context.md`、`ubiquitous-language.md`、`context-map.md`（選擇性）
+
+## Governance Rules
+
+- 不得在 `docs/` 外複製架構決策內容（指向，不複製）。
+- ADR 只記錄有持續影響的架構決策；不把每個實作細節都升格為 ADR。
+- `docs/contexts/<context>/` 的術語命名衝突，以 `docs/ubiquitous-language.md` 為準。
+- 不得把 `.github/instructions/` 的行為規則寫成 `docs/` 的策略文件。
+
+## 文件網絡
+
+- [README.md](README.md) — 文件索引
+- [bounded-contexts.md](bounded-contexts.md) — 主域所有權地圖
+- [subdomains.md](subdomains.md) — 子域清單
+- [context-map.md](context-map.md) — 主域關係方向
+- [ubiquitous-language.md](ubiquitous-language.md) — 戰略術語
+- [decisions/README.md](decisions/README.md) — ADR 索引
+````
+
 ## File: docs/architecture-overview.md
 ````markdown
 # Architecture Overview
@@ -29942,6 +29976,76 @@ import { ... } from '@integration-firebase/firestore'
 ```
 
 `@integration-firebase` alias 定義在 `tsconfig.json`，只允許在 `src/modules/*/adapters/outbound/` 使用（ESLint boundary 規則）。
+````
+
+## File: py_fn/AGENT.md
+````markdown
+# py_fn — Agent Guide
+
+## Purpose
+
+`py_fn/` 是 Python Cloud Functions 的 worker 層，負責 ingestion、parsing、chunking、embedding 與 background job 等需要高資源消耗或可重試的批次作業。
+
+## Runtime Boundary
+
+- `py_fn/` 處理：parse、clean、taxonomy、chunk、embed、persistence pipeline
+- Next.js 處理：upload UX、browser-facing API、response orchestration
+- 兩者互動只透過 QStash 訊息、Firestore trigger 或事件契約
+
+## Route Here When
+
+- 需要解析、清洗文件內容（PDF、Markdown、HTML）
+- 需要 chunk、embed、存入向量資料庫
+- 需要可重試的背景作業或批次處理
+
+## Route Elsewhere When
+
+- 需要 browser-facing API 或即時回應 → `src/app/`
+- 需要 use case 業務邏輯 → `src/modules/<context>/`
+
+## Architecture
+
+`py_fn/src/` 採用同樣的 Hexagonal Architecture 分層：
+- `app/` — 應用入口（config、bootstrap、container、settings）
+- `application/` — use cases、DTO、ports、services、mappers
+- `domain/` — entities、value objects、repositories、events
+- `infrastructure/` — Firestore、Storage、AI SDK adapters
+
+詳細架構規範見 [README.md](README.md)。
+````
+
+## File: src/AGENT.md
+````markdown
+# src — Agent Guide
+
+## Purpose
+
+`src/` 是 Xuanwu App 的 Next.js 應用程式根目錄，包含兩個主要子目錄：
+
+- `src/app/` — Next.js 16 App Router 路由入口層（layout、page、route group）
+- `src/modules/` — 所有主域模組實作層（Hexagonal Architecture + DDD）
+
+## Route Decision
+
+| 需要 | 去哪裡 |
+|---|---|
+| 新增或修改路由、layout、page | `src/app/` → 見 `src/app/AGENT.md` |
+| 新增或修改模組的 use case、entity、adapter | `src/modules/<context>/` → 見對應 `AGENT.md` |
+| 跨模組 API boundary | `src/modules/<context>/index.ts` |
+| 模組清單與子域狀態 | `src/modules/README.md` |
+
+## Boundary Rules
+
+- `src/app/` 只組合路由與 UI 入口，不承載業務邏輯。
+- `src/modules/` 是唯一模組實作層；不得在 `src/app/` 內直接撰寫 domain 或 use case 邏輯。
+- 跨模組協作只能透過目標模組的 `index.ts` 公開邊界，禁止跨模組直接 import `domain/`、`application/`、`infrastructure/`、`interfaces/` 內部路徑。
+
+## 文件網絡
+
+- [src/app/AGENT.md](app/AGENT.md) — App Router 路由規則
+- [src/modules/README.md](modules/README.md) — 模組清單與子域狀態
+- [docs/bounded-contexts.md](../docs/bounded-contexts.md) — 主域所有權地圖
+- [docs/README.md](../docs/README.md) — 架構文件索引
 ````
 
 ## File: .github/agents/ai-genkit-lead.agent.md
