@@ -208,7 +208,6 @@ const ROUTE_TITLES: Record<string, string> = {
   "/audit": "帳號 · 稽核",
   "/workspace": "工作區中心",
   "/dashboard": "儀表板",
-  "/dev-tools": "開發工具",
 };
 
 const BREADCRUMB_LABELS: Record<string, string> = {
@@ -262,7 +261,6 @@ export const SHELL_RAIL_CATALOG_ITEMS: readonly ShellRailCatalogItem[] = [
   { id: "org-schedule", href: "/schedule", label: "排程", requiresOrganization: true, activeRoutePrefix: "/schedule" },
   { id: "org-audit", href: "/audit", label: "稽核", requiresOrganization: true, activeRoutePrefix: "/audit" },
   { id: "org-permissions", href: "/permissions", label: "權限", requiresOrganization: true, activeRoutePrefix: "/permissions" },
-  { id: "dev-tools", href: "/dev-tools", label: "開發工具", requiresOrganization: false },
 ];
 
 export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[] {
