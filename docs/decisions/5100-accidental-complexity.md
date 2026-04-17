@@ -1,6 +1,6 @@
 # 5100 Accidental Complexity
 
-- Status: Accepted
+- Status: ~~Accepted~~ → **Superseded by [ADR 0015](./0015-api-layer-removal.md)**
 - Date: 2026-04-13
 - Category: Complexity Smells > Accidental Complexity
 

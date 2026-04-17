@@ -58,7 +58,7 @@
 - ❌ Notebooklm NEVER owns embedding infra (uses platform.infrastructure APIs)
 
 ### Rule 9: Cross-Module Data Flow MUST Use Events or API
-- ✅ When module A needs data from module B: A calls B.api or subscribes to B.event
+- ✅ When module A needs data from module B: A calls `@/modules/b` (index.ts public boundary) or subscribes to B.event
 - ❌ NO shared in-memory state
 - ❌ NO direct repository access across module boundaries
 - ✅ All state mutations via transaction-protected API calls
