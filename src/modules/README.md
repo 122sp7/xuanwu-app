@@ -13,10 +13,10 @@
 
 | 需要 | 去哪裡 |
 |---|---|
-| 讀取邊界規則 / published language | `modules/<context>/AGENT.md`、`modules/<context>/api/` |
+| 讀取邊界規則 / published language | `src/modules/<context>/AGENT.md` |
 | 撰寫新 use case / entity / adapter | `src/modules/<context>/`（以 `src/modules/template` 為骨架）|
 | 了解蒸餾進度（跳過哪些）| `src/modules/<context>/README.md` |
-| 跨模組 API boundary | `modules/<context>/api/index.ts`（仍是權威）|
+| 跨模組 API boundary | `src/modules/<context>/index.ts` |
 | 新模組起點 | 複製 `src/modules/template/`（見下方指引）|
 
 ---
@@ -42,12 +42,11 @@
 ```
 需要：                                  去哪裡
 ────────────────────────────────────────────────────────────────
-讀取邊界規則 / published language       modules/<context>/AGENT.md
-                                        modules/<context>/api/
+讀取邊界規則 / published language       src/modules/<context>/AGENT.md
 撰寫新 use case / entity / adapter      src/modules/<context>/
                                         以 src/modules/template 為骨架
 了解蒸餾了哪些內容、跳過哪些            src/modules/<context>/README.md
-需要跨模組 API boundary                 modules/<context>/api/index.ts（仍是權威）
+需要跨模組 API boundary                 src/modules/<context>/index.ts
 ```
 
 ---

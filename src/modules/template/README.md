@@ -256,10 +256,10 @@ subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/doma
 
 ### 路由規則
 
-- 讀取邊界規則、published language → `modules/<context>/AGENT.md`、`modules/<context>/api/`
+- 讀取邊界規則、published language → `src/modules/<context>/AGENT.md`
 - 撰寫新實作程式碼 → `src/modules/<context>/`，以本模組為骨架基線
 - 了解蒸餾進度與跳過概念 → `src/modules/<context>/README.md`
-- 需要跨模組 API boundary → `modules/<context>/api/index.ts`（仍是權威邊界）
+- 需要跨模組 API boundary → `src/modules/<context>/index.ts`
 
 ### 蒸餾進度總覽
 

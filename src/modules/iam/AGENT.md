@@ -44,18 +44,18 @@
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `modules/iam/AGENT.md`、`modules/iam/api/`
-- 跨模組 API boundary → `modules/iam/api/index.ts`
+- 讀取邊界規則 → `src/modules/iam/AGENT.md`
+- 跨模組 API boundary → `src/modules/iam/index.ts`
 - workspace 的 Membership 概念 → `modules/workspace/subdomains/membership/`
 
 ## 衝突防護（src/modules vs modules/）
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `modules/iam/AGENT.md`、`modules/iam/api/` |
+| 讀取邊界規則 / published language | `src/modules/iam/AGENT.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/iam/`（本層）|
-| 跨模組 API boundary | `modules/iam/api/index.ts` |
-| 查閱 account API（過渡期）| `modules/platform/api/index.ts` → 重新匯出至 iam |
+| 跨模組 API boundary | `src/modules/iam/index.ts` |
+| 查閱 account API（過渡期）| IAM 模組公開入口（詳見 README）|
 
 **⚠ 蒸餾作業進行中 — 嚴禁事項：**
 - ❌ 在 `modules/platform/subdomains/` 下新增 account / org 相關程式碼（已遷入 iam）

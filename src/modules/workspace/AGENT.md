@@ -36,7 +36,7 @@
 `task-formation` 屬於 **`workspace`** 子域，理由：
 - 輸出物（Task entities）是 workspace 的領域物件
 - 業務流程（使用者確認候選任務）是 workspace 層關注點
-- AI 生成能力由 `ai/generation` Port 注入（`modules/ai/api/`），workspace 消費
+- AI 生成能力由 `ai/generation` Port 注入（透過 `src/modules/ai/index.ts`），workspace 消費
 
 > `modules/ai/subdomains/task-formation`（空骨架）未來整合至此子域，不在 ai 模組擴展。
 
@@ -45,7 +45,7 @@
 - `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
 - `Membership`（工作區參與）≠ `Actor`（身份）：前者屬於 workspace，後者屬於 iam。
 - `orchestration/` 是跨子域流程協調層，不包含業務規則。
-- workspace 不直接呼叫 Firestore；透過 `modules/platform/api/`（FileAPI、PermissionAPI）。
+- workspace 不直接呼叫 Firestore；透過 `src/modules/platform/index.ts`（FileAPI、PermissionAPI）。
 
 ## Route Here When
 
@@ -54,23 +54,23 @@
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `modules/workspace/AGENT.md`、`modules/workspace/api/`
-- 跨模組 API boundary → `modules/workspace/api/index.ts`
-- AI 任務提取能力 → `modules/ai/api/`（generation）
-- 成員身份驗證 → `modules/iam/api/`
+- 讀取邊界規則 → `src/modules/workspace/AGENT.md`
+- 跨模組 API boundary → `src/modules/workspace/index.ts`
+- AI 任務提取能力 → `src/modules/ai/index.ts`（generation）
+- 成員身份驗證 → `src/modules/iam/index.ts`
 
 ## 衝突防護（src/modules vs modules/）
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `modules/workspace/AGENT.md`、`modules/workspace/api/` |
+| 讀取邊界規則 / published language | `src/modules/workspace/AGENT.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/workspace/`（本層）|
-| 跨模組 API boundary | `modules/workspace/api/index.ts` |
+| 跨模組 API boundary | `src/modules/workspace/index.ts` |
 
 **⚠ 蒸餾作業進行中 — 嚴禁事項：**
 - ❌ 新建或恢復 `workspace-workflow` 子域（已拆解）
 - ❌ 把 `modules/workspace/infrastructure/` 直接搬到 `src/modules/workspace/domain/`
-- ❌ 在 workspace 直接呼叫 Firestore（透過 platform/api）
+- ❌ 在 workspace 直接呼叫 Firestore（透過 src/modules/platform/index.ts）
 - ❌ 使用 `approve` 作為子域名（已更正為名詞 `approval`）
 - ❌ 在 barrel 使用 `export *`
 

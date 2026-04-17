@@ -37,17 +37,17 @@
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `modules/platform/AGENT.md`、`modules/platform/api/`
-- Account / Organization → `modules/iam/` 與 `src/modules/iam/`（已遷入）
-- 跨模組 API boundary → `modules/platform/api/index.ts`
+- 讀取邊界規則 → `src/modules/platform/AGENT.md`
+- Account / Organization → `src/modules/iam/`（已遷入）
+- 跨模組 API boundary → `src/modules/platform/index.ts`
 
 ## 衝突防護（src/modules vs modules/）
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `modules/platform/AGENT.md`、`modules/platform/api/` |
+| 讀取邊界規則 / published language | `src/modules/platform/AGENT.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/platform/`（本層）|
-| 跨模組 API boundary | `modules/platform/api/index.ts` |
+| 跨模組 API boundary | `src/modules/platform/index.ts` |
 
 **⚠ 蒸餾作業進行中 — 嚴禁事項：**
 - ❌ 在 `src/modules/platform/` 重建 account / org 子域（已遷入 iam）

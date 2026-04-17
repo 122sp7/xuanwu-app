@@ -28,16 +28,16 @@
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `modules/billing/AGENT.md`、`modules/billing/api/`
-- 跨模組 API boundary → `modules/billing/api/index.ts`
+- 讀取邊界規則 → `src/modules/billing/AGENT.md`
+- 跨模組 API boundary → `src/modules/billing/index.ts`
 
 ## 衝突防護（src/modules vs modules/）
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `modules/billing/AGENT.md`、`modules/billing/api/` |
-| 撰寫新 use case / adapter / entity | `src/modules/billing/`（本層） |
-| 跨模組 API boundary | `modules/billing/api/index.ts` |
+| 讀取邊界規則 / published language | `src/modules/billing/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/billing/`（本層）|
+| 跨模組 API boundary | `src/modules/billing/index.ts` |
 
 **⚠ 蒸餾作業進行中 — 嚴禁事項：**
 - ❌ 把 `modules/billing/infrastructure/` 的實作直接搬到 `src/modules/billing/domain/`

@@ -7,7 +7,7 @@
 **蒸餾來源：** `modules/notion/`  
 **蒸餾狀態：** 📋 待蒸餾（骨架已建立，業務實作待填入）
 
-> **⚠ 邊界警示：** notion 是 `KnowledgeArtifact`（Page / Block / Database）的**唯一可寫所有者**。notebooklm 只能透過 `modules/notion/api/` 唯讀引用；workspace 不直接修改 notion 內容。
+> **⚠ 邊界警示：** notion 是 `KnowledgeArtifact`（Page / Block / Database）的**唯一可寫所有者**。notebooklm 只能透過 `src/modules/notion/index.ts` 唯讀引用；workspace 不直接修改 notion 內容。
 
 ## 子域清單（名詞域）
 
@@ -28,7 +28,7 @@
 
 - `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
 - `Page` 與 `Block` 是 notion 核心 Aggregate；`Database` 是另一個 Aggregate。
-- 其他模組（notebooklm、workspace）只能透過 `modules/notion/api/` 唯讀引用 notion 內容。
+- 其他模組（notebooklm、workspace）只能透過 `src/modules/notion/index.ts` 唯讀引用 notion 內容。
 - `database` 是 `knowledge-database` 的語意化名稱（已完成重命名）；禁止使用舊名。
 - 跨子域協調透過 `orchestration/` 或 `shared/events/`。
 
@@ -39,18 +39,18 @@
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `modules/notion/AGENT.md`、`modules/notion/api/`
-- 跨模組 API boundary → `modules/notion/api/index.ts`
+- 讀取邊界規則 → `src/modules/notion/AGENT.md`
+- 跨模組 API boundary → `src/modules/notion/index.ts`
 - RAG / 知識檢索 → `src/modules/notebooklm/`（notebooklm 消費 notion 內容）
-- AI 生成輔助 → `modules/ai/api/`
+- AI 生成輔助 → `src/modules/ai/index.ts`
 
 ## 衝突防護（src/modules vs modules/）
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `modules/notion/AGENT.md`、`modules/notion/api/` |
+| 讀取邊界規則 / published language | `src/modules/notion/AGENT.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/notion/`（本層）|
-| 跨模組 API boundary | `modules/notion/api/index.ts` |
+| 跨模組 API boundary | `src/modules/notion/index.ts` |
 
 **⚠ 蒸餾作業進行中 — 嚴禁事項：**
 - ❌ 把 `modules/notion/infrastructure/` 直接搬到 `src/modules/notion/domain/`

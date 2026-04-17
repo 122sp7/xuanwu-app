@@ -26,7 +26,7 @@
 ## Boundary Rules
 
 - `domain/` 禁止匯入 React、Firebase SDK、Genkit SDK 或任何框架。
-- AI 能力（embedding、retrieval、generation、citation）透過 Port 注入，消費 `modules/ai/api/`，不直接呼叫 Genkit。
+- AI 能力（embedding、retrieval、generation、citation）透過 Port 注入，消費 `src/modules/ai/index.ts`，不直接呼叫 Genkit。
 - `document` 子域持有 `RagDocument` entity；`Page`（notion 的 KnowledgeArtifact）是由 notion 提供的 reference，notebooklm 只讀取。
 - 跨子域協調透過 `orchestration/` 或 `shared/events/`。
 
@@ -37,18 +37,18 @@
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `modules/notebooklm/AGENT.md`、`modules/notebooklm/api/`
-- AI 能力（embedding / retrieval / generation）→ `modules/ai/api/`（不直接呼叫 Genkit）
-- KnowledgeArtifact（只讀）→ `modules/notion/api/`
-- 跨模組 API boundary → `modules/notebooklm/api/index.ts`
+- 讀取邊界規則 → `src/modules/notebooklm/AGENT.md`
+- AI 能力（embedding / retrieval / generation）→ `src/modules/ai/index.ts`（不直接呼叫 Genkit）
+- KnowledgeArtifact（只讀）→ `src/modules/notion/index.ts`
+- 跨模組 API boundary → `src/modules/notebooklm/index.ts`
 
 ## 衝突防護（src/modules vs modules/）
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `modules/notebooklm/AGENT.md`、`modules/notebooklm/api/` |
+| 讀取邊界規則 / published language | `src/modules/notebooklm/AGENT.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/notebooklm/`（本層）|
-| 跨模組 API boundary | `modules/notebooklm/api/index.ts` |
+| 跨模組 API boundary | `src/modules/notebooklm/index.ts` |
 
 **⚠ 蒸餾作業進行中 — 嚴禁事項：**
 - ❌ 把 `modules/notebooklm/infrastructure/` 直接搬到 `src/modules/notebooklm/domain/`

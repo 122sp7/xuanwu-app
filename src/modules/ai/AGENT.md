@@ -34,7 +34,7 @@
 - `domain/` 禁止匯入 React、Firebase SDK、Genkit SDK、HTTP client 或任何框架。
 - `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
 - 跨子域協調透過 `orchestration/` 或 `shared/events/`，禁止直接跨 subdomain import。
-- 外部消費者（notebooklm、workspace）只能透過 `modules/ai/api/index.ts` 存取 — 此邊界仍以 `modules/` 為權威。
+- 外部消費者（notebooklm、workspace）只能透過 `src/modules/ai/index.ts` 存取。
 - ai 模組不得依賴 notion、notebooklm、workspace（ai 是上游 AI 機制提供者）。
 
 ## task-formation 歸屬決策
@@ -54,12 +54,12 @@
 
 ## Route Elsewhere When
 
-- 讀取 AI 模組邊界規則、published language → `modules/ai/AGENT.md`、`modules/ai/api/`
+- 讀取 AI 模組邊界規則、published language → `src/modules/ai/AGENT.md`
 - 使用者對話 / Notebook UX → `src/modules/notebooklm/`
 - 知識文件 / Page 管理 → `src/modules/notion/`
 - 任務生成業務流程 → `src/modules/workspace/`（`task-formation`）
 - Genkit flow 定義（現有）→ `modules/ai/subdomains/*/infrastructure/ai/`
-- 跨模組 API boundary → `modules/ai/api/index.ts`（仍是權威）
+- 跨模組 API boundary → `src/modules/ai/index.ts`
 
 ## 衝突防護（src/modules vs modules/）
 
