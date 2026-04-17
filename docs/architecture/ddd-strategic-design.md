@@ -100,10 +100,10 @@ Integration Patterns（整合模式）
 
 ```
 Core Domain
-  → prompt-pipeline / inference（核心能力）
+  → generation / orchestration（核心能力）
 
 Supporting Domain
-  → memory-context / evaluation-policy
+  → memory / evaluation
 
 Generic Domain
   → models / embeddings / tokens（可外包）

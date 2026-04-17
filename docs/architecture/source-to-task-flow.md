@@ -10,7 +10,7 @@
 
 - `notebooklm.source`：負責來源文件的入口與流程 orchestration
 - `notion.knowledge`：負責正典 Knowledge Page 的建立與 approval
-- `workspace.workspace-workflow`：負責 task candidates extraction 與 task materialization
+- `workspace.task-formation`：負責 task candidates extraction 與 task materialization
 - `platform`：負責事件 transport 與共享基礎設施能力
 
 ## Ownership Map
@@ -20,9 +20,9 @@
 | Upload dialog / processing summary | `notebooklm.source` | 這是 source ingestion 的使用者入口 |
 | Parse / reindex orchestration | `notebooklm.source` | 這是來源文件處理能力 |
 | Knowledge Page draft / approval | `notion.knowledge` | Knowledge Page 是正典內容 |
-| Extracted task interpretation | `workspace.workspace-workflow` | 任務語言屬於 workspace workflow |
+| Extracted task interpretation | `workspace.task-formation` | 任務語言屬於 workspace task formation |
 | Event publication / dispatch | `platform` | transport 與 infra gateway 屬 platform |
-| Final task creation | `workspace.workspace-workflow` | task aggregate 與 workflow 狀態屬 workspace |
+| Final task creation | `workspace.task-formation` | task aggregate 與流程狀態屬 workspace |
 
 ## Required Dependency Direction
 
@@ -50,7 +50,7 @@ sequenceDiagram
     participant N as notebooklm.source
     participant K as notion.knowledge
     participant P as platform event infra
-    participant W as workspace-workflow
+    participant W as workspace.task-formation
 
     U->>N: upload file + choose create tasks
     N->>N: parse source document

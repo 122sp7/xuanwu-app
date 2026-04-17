@@ -19,9 +19,10 @@
 
 ## Migration-Safe Operational Subdomains
 
+These subdomains exist in code but are not yet aligned to the strategic baseline above. They represent the current implementation layer and will converge into strategic subdomains over time.
+
 | Subdomain | Responsibility |
 |---|---|
 | authentication | sign-in、registration、credential recovery、provider bootstrap |
 | authorization | higher-level policy orchestration and decision semantics |
 | federation | external identity provider linking, SSO, and trust delegation |
-| session | token refresh, revocation, and server-side session lifecycle |
