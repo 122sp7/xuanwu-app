@@ -35,39 +35,13 @@
     }
   },
   "include": [
-    ".github/copilot-instructions.md",
-    ".github/agents/**",
-    ".github/instructions/**/*.md",
-    ".github/prompts/**",
-    "docs/**",
-    "src/**",
-    "packages/**",
-    "py_fn/**",
-    "AGENTS.md",
-    "CLAUDE.md",
-    "apphosting.yaml",
-    "components.json",
-    "eslint.config.mjs",
-    "firebase.apphosting.json",
-    "firebase.json",
-    "firestore.indexes.json",
-    "firestore.rules",
-    "llms.txt",
-    "next.config.ts",
-    "package.json",
-    "postcss.config.mjs",
-    "storage.rules",
-    "tailwind.config.ts",
-    "tsconfig.json",
-    "vitest.config.ts",
-    "repomix*.config.json"
+    "src/modules/workspace/**"
   ],
-  "ignore": {
+    "ignore": {
     "useGitignore": true,
     "useDotIgnore": true,
     "useDefaultPatterns": true,
     "customPatterns": [
-      "*.md",
       ".next/**",
       ".turbo/**",
       ".vercel/**",
