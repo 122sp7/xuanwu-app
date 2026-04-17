@@ -4,7 +4,7 @@
 >
 > **account / organization 子域已遷入 `modules/iam/`**。在 `src/modules/platform/` 中**不得**重建這些子域。
 
-**蒸餾狀態：** 🔨 進行中（account / org 已移至 iam；notification、background-job 等待蒸餾）
+**蒸餾狀態：** ✅ 完成（platform 子域已蒸餾至 `src/modules/platform/`）
 
 ---
 
@@ -12,12 +12,12 @@
 
 | 子域 | 蒸餾來源 | 狀態 | 說明 |
 |---|---|---|---|
-| `background-job` | `modules/platform/subdomains/background-job/` | 📋 待蒸餾 | 背景工作排程 |
-| `cache` | 新增（快取管理）| 📋 待蒸餾 | 鍵值快取、TTL 設定 |
-| `file-storage` | 新增（檔案儲存服務）| 📋 待蒸餾 | 上傳、下載、檔案生命週期 |
-| `notification` | `modules/platform/subdomains/notification/` | 📋 待蒸餾 | 通知發送 |
-| `platform-config` | `modules/platform/subdomains/platform-config/` | 📋 待蒸餾 | 平台設定 |
-| `search` | `modules/platform/subdomains/search/` | 📋 待蒸餾 | 跨域搜尋 |
+| `background-job` | `modules/platform/subdomains/background-job/` | ✅ 已蒸餾 | 背景工作排程 |
+| `cache` | 新增（快取管理）| ✅ 已蒸餾 | 鍵值快取、TTL 設定 |
+| `file-storage` | 新增（檔案儲存服務）| ✅ 已蒸餾 | 上傳、下載、檔案生命週期 |
+| `notification` | `modules/platform/subdomains/notification/` | ✅ 已蒸餾 | 通知發送 |
+| `platform-config` | `modules/platform/subdomains/platform-config/` | ✅ 已蒸餾 | 平台設定 |
+| `search` | `modules/platform/subdomains/search/` | ✅ 已蒸餾 | 跨域搜尋 |
 
 **已遷移（不在 platform）：**
 

@@ -1,14 +1,14 @@
 ---
-description: 'Consolidated runtime architecture rules across app/modules/packages/providers/debug/py_fn with explicit Next.js and worker boundaries.'
-applyTo: '{app,modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py,md}'
+description: 'Consolidated runtime architecture rules across src/app, src/modules, packages, providers, debug, and py_fn with explicit Next.js and worker boundaries.'
+applyTo: '{src/app,src/modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py,md}'
 ---
 
 # Architecture Runtime
 
 ## Boundary Model
 
-- `app/` composes module APIs and package aliases.
-- `modules/` own business capabilities by bounded context.
+- `src/app/` composes module APIs and package aliases.
+- `src/modules/` own business capabilities by bounded context.
 - `packages/` provide stable shared implementations through aliases.
 - `py_fn/` owns ingestion and heavy worker jobs.
 
@@ -35,6 +35,6 @@ applyTo: '{app,modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py,md
 - Use external documentation only when local sources are insufficient or behavior is version-sensitive.
 - Prefer local authority first: `AGENTS.md`, `.github/copilot-instructions.md`, module docs, local code.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd
 #use skill next-devtools-mcp

@@ -1,7 +1,7 @@
 ---
 name: implement-genkit-flow
 description: Implement or refactor Genkit flow with explicit contracts, runtime boundaries, and validation.
-applyTo: '{modules/platform/**,modules/notebooklm/**}/**/*.{ts,tsx}'
+applyTo: '{src/modules/platform/**,src/modules/notebooklm/**}/**/*.{ts,tsx}'
 agent: genkit-flow
 argument-hint: Provide flow intent, inputs/outputs, and target runtime.
 ---
@@ -15,6 +15,6 @@ argument-hint: Provide flow intent, inputs/outputs, and target runtime.
 3. Integrate with retrieval or action boundaries safely.
 4. Validate flow behavior and fallback paths.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill xuanwu-rag-runtime-boundary
 #use skill next-devtools-mcp

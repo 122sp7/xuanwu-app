@@ -38,8 +38,7 @@
     ".serena/**/*.md",
     ".github/**/*.md",
     "docs/**/*.md",
-    "app/**/*.md",
-    "modules/**/*.md",
+    "src/**/*.md",
     "packages/**/*.md",
     "py_fn/**/*.md"
   ],
@@ -95,10 +94,7 @@
 
       "*.sqlite",
       "*.db",
-      ".github/skills/xuanwu-app-skill/**",
-      ".github/skills/xuanwu-markdown-skill/**",
-      ".github/skills/xuanwu-notebooklm-skill/**",
-      ".github/skills/xuanwu-notion-skill/**"
+      ".github/skills/xuanwu-*/**"
     ]
   },
   "security": {

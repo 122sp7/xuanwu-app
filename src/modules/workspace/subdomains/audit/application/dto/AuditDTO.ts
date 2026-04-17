@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 import { AUDIT_ACTIONS } from "../../domain/value-objects/AuditAction";
 import { AUDIT_SEVERITIES } from "../../domain/value-objects/AuditSeverity";
 

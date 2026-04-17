@@ -21,8 +21,8 @@ handoffs:
 
 ## Target Scope
 
-- `app/**`
-- `modules/**`
+- `src/app/**`
+- `src/modules/**`
 - `packages/**`
 - `providers/**`
 - `py_fn/**`
@@ -36,4 +36,4 @@ Keep rule compliance high while minimizing churn.
 - Fix root causes, not symptoms.
 - Preserve existing architecture boundaries.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 

@@ -1,3 +1,5 @@
-// authentication — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export {
+  SignInWithEmailUseCase,
+  SignOutUseCase,
+  SendPasswordResetEmailUseCase,
+} from "./use-cases/AuthenticationUseCases";

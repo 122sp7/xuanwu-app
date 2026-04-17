@@ -1,5 +1,6 @@
 /**
- * @module libs/firebase/auth
+ * @module integration-firebase/auth
+ * Firebase Authentication client helpers.
  */
 
 import {

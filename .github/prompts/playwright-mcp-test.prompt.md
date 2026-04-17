@@ -1,7 +1,7 @@
 ---
 name: playwright-mcp-test
 description: 執行 Playwright MCP 瀏覽器測試，驗證指定路由的用戶流程並輸出帶截圖的測試報告。
-applyTo: '{app,modules,debug}/**/*.{ts,tsx}'
+applyTo: '{src/app,src/modules,debug}/**/*.{ts,tsx}'
 agent: E2E QA Agent
 argument-hint: "<route-or-url> <user-flow-description> [--account user|organization]"
 ---

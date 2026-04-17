@@ -1,6 +1,6 @@
 ---
 description: 'XState 狀態機與領域事件互動規範，包含 SuperJSON 序列化處理，遵循 Hexagonal Architecture with Domain-Driven Design 的事件驅動原則。'
-applyTo: 'modules/**/*.{ts,tsx}'
+applyTo: 'src/modules/**/*.{ts,tsx}'
 ---
 
 # 事件驅動狀態規範 (Event-Driven State)
@@ -14,7 +14,7 @@ applyTo: 'modules/**/*.{ts,tsx}'
 - 領域事件命名必須是**過去式**，格式為 `<Entity><Action>`，例如 `WorkspaceCreated`、`KnowledgeIngested`。
 - 事件 `type` 的 discriminant 格式為 `<module-name>.<action>`，例如 `workspace.created`。
 - 使用 **Zod Schema** 嚴格定義事件 Payload。
-- 事件必須包含 `eventId`（UUID）與 `occurredAt`（**ISO string**）欄位，遵循 `modules/shared/domain/events.ts` 的 `DomainEvent` 基礎介面。
+- 事件必須包含 `eventId`（UUID）與 `occurredAt`（**ISO string**）欄位，遵循 `src/modules/shared/domain/events.ts` 的 `DomainEvent` 基礎介面。
 
 ```typescript
 // 領域事件定義範例
@@ -43,7 +43,7 @@ export type WorkspaceCreatedEvent = z.infer<typeof WorkspaceCreatedEventSchema>;
 ## XState 狀態機整合
 
 - 前端複雜的多步驟狀態流轉（如表單精靈、多階段審批）使用 **XState** 管理。
-- Machine 定義放在 `modules/<context>/application/machines/` 目錄。
+- Machine 定義放在 `src/modules/<context>/application/machines/` 目錄。
 - XState Machine 的 `actions` 應觸發對應的 Server Action，並將結果映射回 Machine 的事件。
 - Machine 的事件型別應與對應的領域事件保持語意一致。
 
@@ -103,5 +103,5 @@ export class CreateWorkspaceUseCase {
 - `occurredAt` 必須使用 ISO string，不得使用 `Date` 物件（與 `shared/domain/events.ts` 一致）。
 - 事件 Schema 使用 Zod 驗證，確保 Payload 型別安全。
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd

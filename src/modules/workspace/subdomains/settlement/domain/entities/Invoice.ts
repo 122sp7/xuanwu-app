@@ -1,4 +1,4 @@
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
 import { canTransitionInvoiceStatus } from "../value-objects/InvoiceStatus";
 import type { InvoiceDomainEventType } from "../events/InvoiceDomainEvent";

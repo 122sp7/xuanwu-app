@@ -1,3 +1,5 @@
-// notebook — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export {
+  CreateNotebookUseCase,
+  AddDocumentToNotebookUseCase,
+  GenerateNotebookResponseUseCase,
+} from "./use-cases/NotebookUseCases";

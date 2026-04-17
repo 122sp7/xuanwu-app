@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 
 export const ACCOUNT_TYPES = ["user", "organization"] as const;
 export type AccountTypeValue = (typeof ACCOUNT_TYPES)[number];

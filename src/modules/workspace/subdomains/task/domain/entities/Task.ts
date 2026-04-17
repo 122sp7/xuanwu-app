@@ -1,4 +1,4 @@
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 import type { TaskStatus } from "../value-objects/TaskStatus";
 import { canTransitionTaskStatus } from "../value-objects/TaskStatus";
 import type { TaskDomainEventType } from "../events/TaskDomainEvent";

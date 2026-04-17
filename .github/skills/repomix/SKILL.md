@@ -2,7 +2,7 @@
 name: repomix
 description: >-
   Repomix Explorer workflow skill. Use when AI needs to analyze repositories
-  through Repomix outputs and especially when it should use xuanwu-app-skill
+  through Repomix outputs and especially when it should use xuanwu-skill
   references to understand this codebase.
 user-invocable: true
 disable-model-invocation: false
@@ -14,7 +14,7 @@ Use this skill when the task is repository exploration, pattern search, architec
 
 ## Primary Goal
 
-Make AI reliably know how to use `xuanwu-app-skill` as the first exploration path for this repository.
+Make AI reliably know how to use `xuanwu-skill` as the first exploration path for this repository.
 
 ## Context7 Certainty Gate
 
@@ -29,7 +29,7 @@ Make AI reliably know how to use `xuanwu-app-skill` as the first exploration pat
   - find specific patterns
   - reference prior implementations
 2. Prepare analysis source:
-  - if `.github/skills/xuanwu-app-skill/` exists, use it first
+  - if `.github/skills/xuanwu-skill/` exists, use it first
   - otherwise run `npm run repomix:skill` to generate/refresh
 3. Analyze outputs in this order:
   - `references/summary.md` for scope and exclusions
@@ -55,11 +55,11 @@ Make AI reliably know how to use `xuanwu-app-skill` as the first exploration pat
 - `--skill-generate` 不可與 `--stdout` 或 `--copy` 併用。
 - skills 名稱需維持穩定 kebab-case，避免頻繁改名造成引用漂移。
 
-## How AI Should Use xuanwu-app-skill
+## How AI Should Use xuanwu-skill
 
 When user asks architecture/pattern/where-is-X questions in this repo:
 
-1. Start with `.github/skills/xuanwu-app-skill/SKILL.md`.
+1. Start with `.github/skills/xuanwu-skill/SKILL.md`.
 2. Go to `references/project-structure.md` to locate candidate files.
 3. Use `references/files.md` to search symbols/imports/events.
 4. If details are still insufficient, read original source files directly.
@@ -74,7 +74,7 @@ Recommended user intents:
 
 ## Generation Script Map
 
-- `npm run repomix:skill` -> `.github/skills/xuanwu-app-skill`
+- `npm run repomix:skill` -> `.github/skills/xuanwu-skill`
 - `npm run repomix:notebooklm` -> `.github/skills/xuanwu-notebooklm-skill`
 - `npm run repomix:notion` -> `.github/skills/xuanwu-notion-skill`
 - `npm run repomix:platform` -> `.github/skills/xuanwu-app-platform-skill`
@@ -98,11 +98,11 @@ Recommended user intents:
 ## Output Contract
 
 - intent_type
-- source_used (`xuanwu-app-skill` or fresh repomix output)
+- source_used (`xuanwu-skill` or fresh repomix output)
 - target_script (if generated)
 - generated_path (if generated)
 - evidence_files
 - findings_summary
 - residual_risk
 
-Tags: #use skill context7 #use skill xuanwu-app-skill #use skill occams-razor
+Tags: #use skill context7 #use skill xuanwu-skill #use skill occams-razor

@@ -21,8 +21,8 @@ handoffs:
 
 ## Target Scope
 
-- `app/**`
-- `modules/**/interfaces/**`
+- `src/app/**`
+- `src/modules/**/interfaces/**`
 - `providers/**`
 
 ## Workflow
@@ -45,4 +45,4 @@ handoffs:
 - Evidence checked
 - Residual route risk
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 

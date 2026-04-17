@@ -1,5 +1,6 @@
 /**
- * @module libs/firebase/client
+ * @module integration-firebase/client
+ * Singleton Firebase app initialization for the web client.
  */
 
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";

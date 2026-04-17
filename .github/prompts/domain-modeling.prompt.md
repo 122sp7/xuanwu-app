@@ -1,7 +1,7 @@
 ---
 name: domain-modeling
 description: 純 Domain 模型建構器（DDD 核心）：設計 Entity / Value Object / Aggregate Root，建立或擴展 bounded context，將業務語言映射至 domain model。
-applyTo: 'modules/**/domain/**/*.{ts,tsx}'
+applyTo: 'src/modules/**/domain/**/*.{ts,tsx}'
 agent: Domain Architect
 argument-hint: 提供業務概念名稱、所屬模組與子域、核心業務規則（不變數）、狀態欄位、與其他 Aggregate 的關係。
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
@@ -28,7 +28,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 ## 輸入
 
 - **業務概念名稱**：例如 `WorkDemand`、`KnowledgeArtifact`
-- **所屬模組 / 子域**：例如 `modules/notion/subdomains/knowledge`
+- **所屬模組 / 子域**：例如 `src/modules/notion/subdomains/knowledge`
 - **核心業務規則**：需要保護的不變數清單
 - **狀態欄位**：主要屬性與型別
 - **關係**：與哪些 Aggregate 有邊界關係（only by reference/ID）
@@ -40,7 +40,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 3. 讀取 `docs/contexts/<context>/README.md` — 了解 context-local 語言規則。
 4. 讀取 `.github/instructions/domain-modeling.instructions.md` — 確認 Aggregate / Value Object / Event 設計模式。
 5. 讀取 `.github/instructions/domain-layer-rules.instructions.md` — 確認技術純度規則。
-6. 在 `modules/<context>/[subdomains/<sub>/]domain/` 建立以下結構（視需要）：
+6. 在 `src/modules/<context>/[subdomains/<sub>/]domain/` 建立以下結構（視需要）：
    - `value-objects/<Name>Id.ts` — 識別碼品牌型別（`z.string().uuid().brand()`）
    - `value-objects/<Name>.ts` — 其他值對象
    - `aggregates/<Name>.ts` — 聚合根（私有 constructor + `create()` + `reconstitute()`）
@@ -65,5 +65,5 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 - `npm run lint` — 確認無 framework 依賴與邊界違規
 - `npm run build` — 確認型別一致
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd

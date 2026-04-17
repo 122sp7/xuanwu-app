@@ -40,7 +40,7 @@ Read from high level to detail:
 | Commit and branching strategy | `.github/instructions/` |
 | Architecture overview & MDDD patterns | `.github/agents/knowledge-base.md` |
 | Build, lint, test commands | `.github/agents/commands.md` |
-| Skill and MCP workflows | `.github/skills/` (serena-mcp, context7, xuanwu-app-skill, hexagonal-ddd) |
+| Skill and MCP workflows | `.github/skills/` (serena-mcp, context7, xuanwu-skill, hexagonal-ddd) |
 | Strategic DDD routing (subdomains) | `docs/subdomains.md` |
 | Bounded context boundaries | `docs/bounded-contexts.md` |
 | Ubiquitous language & glossary | `docs/ubiquitous-language.md` |

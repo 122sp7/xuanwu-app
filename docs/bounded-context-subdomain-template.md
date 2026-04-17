@@ -1,6 +1,6 @@
 # Bounded Context Subdomain Template
 
-本文件在本次任務限制下，僅依 Context7 驗證的 Hexagonal Architecture、DDD、Context Map 與 ADR 參考建立，作為 `modules/<bounded-context>/subdomains/*` 的交付標準模板，不主張反映現況實作。
+本文件在本次任務限制下，僅依 Context7 驗證的 Hexagonal Architecture、DDD、Context Map 與 ADR 參考建立，作為 `src/modules/<bounded-context>/subdomains/*` 的交付標準模板，不主張反映現況實作。
 
 ## Purpose
 
@@ -14,18 +14,17 @@
 - Application 再定義「系統做什麼」：use case 流程協調、DTO 轉換、交易與事件發布時序。
 - Ports 定義內外協作契約；Infrastructure 只負責實作契約並接入 Firebase、AI 或其他外部系統。
 - Interface（UI / API / Server Action）只做輸入輸出與組裝，不承載領域決策。
-- UI 永遠只能呼叫同 bounded context 的 `application/` 或該 subdomain 的 `api/`，不可直接呼叫 `domain/` 或 `infrastructure/`。
+- UI 永遠只能呼叫同 bounded context 的 `application/` 或該 bounded context 的 `index.ts`，不可直接呼叫 `domain/` 或 `infrastructure/`。
 - `domain/` 不可匯入 React、Firebase SDK、HTTP client、ORM model 或 runtime-specific adapter。
 
 ## Standard Structure Tree
 
 ```text
-modules/                                        # 系統所有業務模組（bounded contexts）集合
+src/modules/                                    # 系統所有業務模組（bounded contexts）集合
 └── <bounded-context>/                          # 單一業務邊界（高內聚、低耦合）
     ├── README.md                               # 說明此 bounded context 的目的、範圍、核心能力
     ├── AGENT.md                                # 開發規範：命名、分層規則、不可違反設計約束
-    ├── api/                                    # 對其他 bounded context 的公開 API 邊界（ACL 入口）
-    │   └── index.ts                            # 只匯出安全能力，隱藏內部結構與實作細節
+    ├── index.ts                                # 跨模組公開入口（cross-module entry surface）
     ├── application/                            # 應用層：負責 use case orchestration
     │   ├── dtos/                                # 輸入/輸出資料契約，僅資料不含業務邏輯
     │   ├── use-cases/                          # 一檔一用例，承擔流程控制與副作用協調
@@ -56,9 +55,7 @@ modules/                                        # 系統所有業務模組（bou
     │   └── <subdomain-b>/                      # 只有 context-wide composition 才直接放 root
     └── subdomains/                             # 子域：bounded context 內部能力拆分
         ├── <subdomain-a>/                      # 單一能力模組（可獨立演化）
-        │   ├── README.md                       # 子域說明（責任與邊界）
-        │   ├── api/                            # 子域對外 API（限同 context 內使用）
-        │   │   └── index.ts                    # 匯出子域能力，避免直接跨層呼叫
+            ├── README.md                       # 子域說明（責任與邊界）
         │   ├── application/                    # 子域應用層（局部 use-case orchestration）
         │   │   ├── dto/                        # 子域 DTO（input/output）
         │   │   ├── use-cases/                  # 子域 use-cases（局部流程）
@@ -80,13 +77,13 @@ modules/                                        # 系統所有業務模組（bou
 - `infrastructure` 與 `interfaces` 預設放在 bounded context 根層，並依 subdomain 名分組；只有符合 mini-module gate 時才會在特定 subdomain 內再出現。
 - 判斷責任時，先看父路徑：`<bounded-context>/...` 代表 context-wide；`subdomains/<name>/...` 代表 subdomain-local。
 - 同名的下一層目錄（如 `dto`、`use-cases`、`services`、`repositories`、`adapters`、`components`、`hooks`、`queries`、`_actions`）也遵循同一條父路徑判斷規則。
-- 重名不代表可互相直接 import；跨 subdomain 或跨 bounded context 仍必須走 `api/` 邊界或事件契約。
+- 重名不代表可互相直接 import；跨 subdomain 或跨 bounded context 仍必須走 `index.ts` 邊界或事件契約。
 
 ## Layer Responsibilities
 
 | Layer | Responsibility |
 |---|---|
-| `api/` | bounded context 或 subdomain 對外唯一公開邊界 |
+| `index.ts` | bounded context 對外唯一公開邊界 |
 | `application/` | 協調 use cases、轉換 DTO、執行流程但不承載核心業務規則；若在 bounded context 根層，代表跨 subdomain 的 context-wide orchestration |
 | `domain/` | 聚合根、實體、值對象、領域服務、領域事件與核心規則；若在 bounded context 根層，代表跨 subdomain 的 shared policy、published language 或 context-wide domain concept |
 | `infrastructure/` | repository / adapter 實作、持久化、外部系統整合；預設在 bounded context 根層，並依 subdomain 名分組 |
@@ -110,9 +107,9 @@ modules/                                        # 系統所有業務模組（bou
 
 - `<bounded-context>` 根層允許有自己的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，用來承接 context-wide concern；不要把整個 bounded context 簡化成只剩 `docs/` 與 `subdomains/` 的外殼。
 - 每個 subdomain 都必須能獨立表達自己的 use case 與 domain model；adapter/UI 預設由 bounded context 根層承接，並依 subdomain 名分組。
-- subdomain 預設採 core-first：`api/`、`application/`、`domain/`，`ports/` 視需要建立。
+- subdomain 預設採 core-first：`application/`、`domain/`，`ports/` 視需要建立。
 - subdomain 的 `infrastructure/` 與 `interfaces/` 不是預設必建，只有在存在明確且持續的本地 I/O、runtime、process 或 provider boundary 壓力時才建立。
-- `api/` 是 cross-module collaboration 的唯一入口，`index.ts` 不是跨模組公開邊界。
+- `index.ts` 是 cross-module collaboration 的唯一公開入口，不得暴露內部結構。
 - adapter 只實作 port，不直接被其他層呼叫。
 - port 只在真的需要隔離 I/O、外部系統、侵入式 library 或 legacy model 時建立。
 - 若 domain 核心不需要某個抽象，就不要為了形式完整而先建空的 `service`、`port` 或 `repository`。
@@ -120,7 +117,7 @@ modules/                                        # 系統所有業務模組（bou
 
 ## Delivery Checklist
 
-1. 建立 bounded context 的 `README.md`、`AGENT.md`、`api/`、`docs/`，以及必要時的根層 `application/`、`domain/`、`infrastructure/`、`interfaces/` 入口。
+1. 建立 bounded context 的 `README.md`、`AGENT.md`、`index.ts`、`docs/`，以及必要時的根層 `application/`、`domain/`、`infrastructure/`、`interfaces/` 入口。
 2. 先判斷需求是屬於 bounded context 根層還是特定 subdomain；只有 context-wide concern 才進根層，其餘一律先落到 `subdomains/<name>/`。
 3. 先建立 use case contract（actor / goal / success scenario / failure branches），再建立對應檔案 `application/use-cases/<verb-noun>.use-case.ts`。
 4. 對擁有該責任的 subdomain 先落 `domain/` 核心模型，再收斂 `application/` 流程；`ports/` 視需要補齊，`infrastructure/` 與 `interfaces/` 預設落在 bounded context 根層並依 subdomain 名分組。

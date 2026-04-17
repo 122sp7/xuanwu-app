@@ -6,7 +6,7 @@
 1. **UI 構建 (shadcn)**:
    - 任務：建立組件、新增 Shadcn UI、轉換 MCP 配置。
    - 指令：`Serena 執行 shadcn@latest mcp <component-name>`。
-   - 限制：優先檢查 `.serena/skills/ui-components.md` 以確保符合 `sonner` 規範。
+   - 限制：優先檢查 `.serena/skills/uiomponents.md` 以確保符合 `sonner` 規範。
 
 2. **上下文檢索 (upstash/context7)**:
    - 任務：需要長文本記憶、專案相關背景檢索。

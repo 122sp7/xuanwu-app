@@ -16,7 +16,7 @@
 所有 domain event 必須繼承以下基礎欄位，並以 Zod schema 定型：
 
 ```typescript
-// modules/shared/domain/events.ts（或各 module 的 domain/events/base.ts）
+// src/modules/shared/domain/events.ts（或各 module 的 domain/events/base.ts）
 import { z } from 'zod';
 
 export const DomainEventBaseSchema = z.object({
@@ -42,7 +42,7 @@ export type DomainEventBase = z.infer<typeof DomainEventBaseSchema>;
 ### 完整 Domain Event 定義範例
 
 ```typescript
-// modules/workspace/domain/events/workspace-created.event.ts
+// src/modules/workspace/subdomains/lifecycle/domain/events/workspace-created.event.ts
 import { z } from 'zod';
 import { DomainEventBaseSchema } from '@shared/domain/events';
 
@@ -65,7 +65,7 @@ export type WorkspaceCreatedEvent = z.infer<typeof WorkspaceCreatedEventSchema>;
 ## 事件發布流程（三步驟）
 
 ```typescript
-// modules/workspace/application/use-cases/create-workspace.use-case.ts
+// src/modules/workspace/subdomains/lifecycle/application/use-cases/create-workspace.use-case.ts
 export class CreateWorkspaceUseCase {
   constructor(
     private readonly workspaceRepository: WorkspaceRepository,

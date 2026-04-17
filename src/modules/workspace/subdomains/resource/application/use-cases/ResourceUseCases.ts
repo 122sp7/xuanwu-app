@@ -1,5 +1,5 @@
-import { v4 as uuid } from "@lib-uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { ResourceQuotaRepository } from "../../domain/repositories/ResourceQuotaRepository";
 import { ResourceQuota } from "../../domain/entities/ResourceQuota";
 import type { ProvisionResourceQuotaInput, ResourceKind } from "../../domain/entities/ResourceQuota";

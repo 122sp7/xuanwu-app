@@ -1,4 +1,4 @@
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 import type { IssueStatus } from "../value-objects/IssueStatus";
 import { canTransitionIssueStatus } from "../value-objects/IssueStatus";
 import type { IssueStage } from "../value-objects/IssueStage";

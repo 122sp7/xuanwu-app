@@ -3,10 +3,10 @@
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { cn } from "../utils"
-import { Button } from "./button"
-import { Input } from "./input"
-import { Textarea } from "./textarea"
+import { cn } from "@shared-utils"
+import { Button } from "@/packages/ui-shadcn/ui/button"
+import { Input } from "@/packages/ui-shadcn/ui/input"
+import { Textarea } from "@/packages/ui-shadcn/ui/textarea"
 
 function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
@@ -49,7 +49,6 @@ function InputGroupAddon({
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
   return (
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- intentional focus delegation to child input
     <div
       role="group"
       data-slot="input-group-addon"
@@ -60,11 +59,6 @@ function InputGroupAddon({
           return
         }
         e.currentTarget.parentElement?.querySelector("input")?.focus()
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.currentTarget.parentElement?.querySelector("input")?.focus()
-        }
       }}
       {...props}
     />
@@ -95,8 +89,10 @@ function InputGroupButton({
   variant = "ghost",
   size = "xs",
   ...props
-}: Omit<React.ComponentProps<typeof Button>, "size"> &
-  VariantProps<typeof inputGroupButtonVariants>) {
+}: Omit<React.ComponentProps<typeof Button>, "size" | "type"> &
+  VariantProps<typeof inputGroupButtonVariants> & {
+    type?: "button" | "submit" | "reset"
+  }) {
   return (
     <Button
       type={type}

@@ -1,4 +1,4 @@
-import { z } from '@lib-zod';
+import { z } from 'zod';
 
 export const PLAN_CODES = ['free', 'starter', 'pro', 'enterprise'] as const;
 export type PlanCodeLiteral = (typeof PLAN_CODES)[number];

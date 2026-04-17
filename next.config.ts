@@ -1,9 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    turbopackUseSystemTlsCerts: true,
-  },
   serverExternalPackages: [
     "genkit",
     "@genkit-ai/google-genai",
@@ -11,16 +8,12 @@ const nextConfig: NextConfig = {
     "@emnapi/wasi-threads",
     "@napi-rs/wasm-runtime",
   ],
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve = config.resolve ?? {};
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        worker_threads: false,
-      };
-    }
-    return config;
-  },
+  // Turbopack is the default in Next.js 16; declare an empty config to
+  // acknowledge this and silence the "webpack config with no turbopack config"
+  // build error.  The worker_threads browser fallback is handled by listing
+  // heavy native packages in serverExternalPackages above so they are never
+  // bundled for the client.
+  turbopack: {},
 };
 
 export default nextConfig;

@@ -22,9 +22,9 @@ handoffs:
 ## Target Scope
 
 - `py_fn/**`
-- `modules/notebooklm/**`
-- `modules/notion/**` when source segmentation depends on canonical content structure
-- `modules/platform/**` when chunk metadata or model constraints depend on shared `platform.ai` capability
+- `src/modules/notebooklm/**`
+- `src/modules/notion/**` when source segmentation depends on canonical content structure
+- `src/modules/platform/**` when chunk metadata or model constraints depend on shared `platform.ai` capability
 
 ## Focus
 
@@ -33,4 +33,4 @@ handoffs:
 - Domain-specific segmentation rules
 - Ownership alignment across `notion` source contracts, `notebooklm` retrieval semantics, and shared `platform.ai` constraints
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 

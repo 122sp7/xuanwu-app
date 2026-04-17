@@ -1,3 +1,4 @@
-// authorization — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export {
+  CheckPermissionUseCase,
+  BatchCheckPermissionsUseCase,
+} from "./use-cases/AuthorizationUseCases";

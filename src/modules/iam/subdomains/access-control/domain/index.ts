@@ -1,3 +1,10 @@
-// access-control — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-export {};
+export { AccessPolicy } from "./aggregates/AccessPolicy";
+export type { AccessPolicySnapshot, CreateAccessPolicyInput } from "./aggregates/AccessPolicy";
+export type { AccessPolicyRepository } from "./repositories/AccessPolicyRepository";
+export type { PolicyEffect } from "./value-objects/PolicyEffect";
+export { isAllow } from "./value-objects/PolicyEffect";
+export type { SubjectRef } from "./value-objects/SubjectRef";
+export { createSubjectRef } from "./value-objects/SubjectRef";
+export type { ResourceRef } from "./value-objects/ResourceRef";
+export { createResourceRef } from "./value-objects/ResourceRef";
+export type { AccessPolicyDomainEventType } from "./events/AccessPolicyDomainEvent";

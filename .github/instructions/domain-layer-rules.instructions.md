@@ -1,6 +1,6 @@
 ---
 description: 'Domain Layer（領域層）戰略設計規則：業務純度、行為封裝、不變數保護、技術無關性。'
-applyTo: 'modules/**/domain/**/*.{ts,tsx}'
+applyTo: 'src/modules/**/domain/**/*.{ts,tsx}'
 ---
 
 # Domain Layer（領域層）設計規則
@@ -34,5 +34,5 @@ applyTo: 'modules/**/domain/**/*.{ts,tsx}'
 - ❌ 跨聚合直接操作：在 Aggregate A 中修改 Aggregate B 的狀態。
 - ❌ Domain event 命名使用現在式或技術術語。
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd

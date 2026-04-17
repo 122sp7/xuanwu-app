@@ -32,8 +32,8 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: .serena/**/*.md, .github/**/*.md, docs/**/*.md, app/**/*.md, modules/**/*.md, packages/**/*.md, py_fn/**/*.md
-- Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/xuanwu-app-skill/**, .github/skills/xuanwu-markdown-skill/**, .github/skills/xuanwu-notebooklm-skill/**, .github/skills/xuanwu-notion-skill/**
+- Only files matching these patterns are included: .serena/**/*.md, .github/**/*.md, docs/**/*.md, src/**/*.md, packages/**/*.md, py_fn/**/*.md
+- Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/xuanwu-*/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Content has been formatted for parsing in markdown style
@@ -42,11 +42,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-444 files | 35,707 lines
+380 files | 33,919 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 444 | 35,707 |
+| Markdown | 380 | 33,919 |
 
 **Largest files:**
 - `.github/skills/vercel-react-best-practices/AGENTS.md` (3,810 lines)
@@ -54,8 +54,8 @@ This skill contains the following reference files:
 - `docs/hard-rules-consolidated.md` (455 lines)
 - `.github/skills/hexagonal-ddd/SKILL.md` (415 lines)
 - `.github/skills/playwright-mcp-testing/SKILL.md` (358 lines)
-- `docs/semantic-model.md` (344 lines)
-- `modules/ai/subdomains/subdomains.instructions.md` (313 lines)
 - `.github/skills/agent-browser/references/authentication.md` (303 lines)
 - `.github/skills/repomix-explorer/SKILL.md` (301 lines)
 - `.github/skills/shadcn/SKILL.md` (296 lines)
+- `.github/skills/agent-browser/references/commands.md` (295 lines)
+- `src/modules/template/README.md` (285 lines)

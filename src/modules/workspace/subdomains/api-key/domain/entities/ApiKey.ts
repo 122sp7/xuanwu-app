@@ -1,4 +1,4 @@
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 import type { ApiKeyDomainEventType } from "../events/ApiKeyDomainEvent";
 
 export type ApiKeyStatus = "active" | "revoked";

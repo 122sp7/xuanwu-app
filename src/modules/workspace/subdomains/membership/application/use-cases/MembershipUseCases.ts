@@ -1,5 +1,5 @@
-import { v4 as uuid } from "@lib-uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { WorkspaceMemberRepository } from "../../domain/repositories/WorkspaceMemberRepository";
 import { WorkspaceMember } from "../../domain/entities/WorkspaceMember";
 import type { AddMemberInput, MemberRole } from "../../domain/entities/WorkspaceMember";

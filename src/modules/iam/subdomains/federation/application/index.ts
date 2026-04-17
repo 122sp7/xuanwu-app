@@ -1,3 +1,5 @@
-// federation — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export {
+  LinkProviderUseCase,
+  UnlinkProviderUseCase,
+  GetLinkedProvidersUseCase,
+} from "./use-cases/FederationUseCases";

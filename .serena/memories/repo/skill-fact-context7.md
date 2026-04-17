@@ -89,7 +89,7 @@ Do NOT fall back to model memory if Context7 document says something different.
 | Domain logic design (business rules, not tech) | Hexagonal DDD skill + AGENTS.md |
 | Process/collaboration questions | Alistair Cockburn skill |
 | Simplification/reduction questions | Occam's Razor skill |
-| Codebase structure questions | xuanwu-app-skill |
+| Codebase structure questions | xuanwu-skill |
 | Serena MCP usage questions | Serena MCP skill |
 
 ---

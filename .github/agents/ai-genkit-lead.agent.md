@@ -21,10 +21,10 @@ handoffs:
 
 ## Target Scope
 
-- `app/**`
-- `modules/platform/**`
-- `modules/notebooklm/**`
-- `modules/notion/**` when content use cases consume shared AI capability
+- `src/app/**`
+- `src/modules/platform/**`
+- `src/modules/notebooklm/**`
+- `src/modules/notion/**` when content use cases consume shared AI capability
 - `py_fn/**` when coordinating runtime boundaries and worker handoff contracts
 
 ## Focus
@@ -39,5 +39,5 @@ handoffs:
 - Keep parsing, chunking, embedding in py_fn workers.
 - Do not model `notion` or `notebooklm` as owning a generic `ai` bounded-context surface.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill genkit-ai

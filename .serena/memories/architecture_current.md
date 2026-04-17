@@ -4,19 +4,16 @@
 - In-module rule: use relative imports within a module; avoid self-import through the module's own public surface unless intentionally consuming an external contract.
 - Shared boundaries live in `packages/*` behind `@shared-*`, `@integration-*`, `@ui-*`, and `@lib-*` aliases; legacy `@/shared/*`, `@/libs/*`, and similar paths are blocked.
 - Runtime split: Next.js owns browser-facing UX, auth/session, and orchestration; `py_fn` owns ingestion, parsing, chunking, embedding, and worker jobs.
-- Current topology baseline: 18 bounded contexts in `modules/`.
+- Current topology baseline: `src/modules/` 是唯一模組實作層（`modules/` 根目錄已於 2026-04-17 刪除）。
 
-## ⚠ 4-Path Routing Guardrail (CRITICAL — prevents agent confusion)
+## Module & App Path Guardrail (SINGLE-LAYER — 2026-04-17+)
 
 | Path | Role | When to use |
 |---|---|---|
-| `modules/<context>/` | 完整 Hexagonal DDD 實作；策略邊界 + published language 權威 | 讀規則、context map、API contract |
-| `src/modules/<context>/` | 精簡蒸餾骨架；新實作目標層 | 寫新 use case、adapter、entity |
-| `app/` | Next.js App Router（原始，仍是 canonical routing） | 當前 production route segments |
-| `src/app/` | Next.js App Router 蒸餾骨架（新標準） | 新 route segment、新 layout（依 src/app/AGENT.md） |
+| `src/modules/<context>/` | 唯一 Hexagonal DDD 實作層；策略邊界 + published language 權威 | 讀規則、寫 use case、adapter、entity |
+| `src/app/` | 唯一 Next.js App Router 層 | 所有 route segment、layout |
 
-- ❌ 不把 `modules/<context>/` 當 `src/modules/<context>/` 使用（路由錯誤）
-- ❌ 不把 `src/modules/` 當 `modules/` 的別名
-- ❌ 不把 `app/` 與 `src/app/` 互換使用（兩者並存期間，依各自 AGENT.md 決定）
+- ❌ 不再有 `modules/<context>/` 根目錄（已刪除）
+- ❌ 不再有平行 `app/` 根目錄（已刪除）
 - ✅ 若不確定 → 查 `src/modules/<context>/AGENT.md` 的 Route Here/Elsewhere 段落
 - ✅ `src/modules/template/` 是新模組的骨架基線（完整多子域範本）

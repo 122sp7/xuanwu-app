@@ -1,4 +1,4 @@
-import { v4 as uuid } from '@lib-uuid';
+import { v4 as uuid } from 'uuid';
 import type { SubscriptionDomainEventType } from '../events/SubscriptionDomainEvent';
 import { createSubscriptionId } from '../value-objects/SubscriptionId';
 import { canCancel, canRenew } from '../value-objects/SubscriptionStatus';

@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 
 export const EmailSchema = z.string().email().brand("Email");
 export type Email = z.infer<typeof EmailSchema>;

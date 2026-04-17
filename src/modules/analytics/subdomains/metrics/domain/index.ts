@@ -1,3 +1,4 @@
-// metrics — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-export {};
+export type { MetricSnapshot, RecordMetricInput, MetricId, MetricType } from "./entities/Metric";
+export { Metric } from "./entities/Metric";
+export type { MetricName, MetricValue } from "./value-objects/MetricName";
+export type { MetricRepository, MetricQuery } from "./repositories/MetricRepository";

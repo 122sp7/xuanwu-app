@@ -1,7 +1,7 @@
 ---
 name: firebase-adapter
 description: 將 Domain Ports 轉成 Firebase 基礎設施實作，生成 repository / gateway adapter，嚴格遵守 Hexagonal Architecture 的 infrastructure 層職責。
-applyTo: 'modules/**/infrastructure/**/*.{ts,tsx}'
+applyTo: 'src/modules/**/infrastructure/**/*.{ts,tsx}'
 agent: Hexagonal DDD Architect
 argument-hint: 提供 Port 介面名稱、所屬模組 / 子域、需對應的 Firebase 服務（Firestore / Auth / Storage / Functions），以及必要的 Firestore 集合路徑或 schema 限制。
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
@@ -26,7 +26,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 ## 輸入
 
 - **Port / Repository 介面**：例如 `WorkspaceRepository`、`FileStoragePort`
-- **所屬模組與子域**：例如 `modules/workspace/subdomains/scheduling`
+- **所屬模組與子域**：例如 `src/modules/workspace/subdomains/scheduling`
 - **Firebase 服務**：Firestore / Auth / Storage / Functions
 - **Collection 路徑**（Firestore）：例如 `organizations/{orgId}/workspaces`
 - **Schema 限制**：現有 Firestore schema、tenant isolation 規則
@@ -36,7 +36,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 1. 讀取 `docs/ubiquitous-language.md` 與對應 `docs/contexts/<context>/README.md`，確認命名一致。
 2. 讀取 `.github/instructions/architecture-core.instructions.md` 與 `.github/instructions/firestore-schema.instructions.md`，確認層級規則。
 3. 確認 Port 介面定義（在 `domain/repositories/` 或 `domain/ports/`）。
-4. 在 `modules/<context>/[subdomains/<sub>/]infrastructure/` 建立實作檔案：
+4. 在 `src/modules/<context>/[subdomains/<sub>/]infrastructure/` 建立實作檔案：
    - 命名格式：`Firebase<PortName>.ts`（例如 `FirebaseWorkspaceRepository.ts`）
 5. 實作原則：
    - Firestore 資料先通過 Zod Schema 驗證後再轉 domain entity
@@ -59,5 +59,5 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 - `npm run lint` — 確認無邊界違規
 - `npm run build` — 確認型別一致
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd

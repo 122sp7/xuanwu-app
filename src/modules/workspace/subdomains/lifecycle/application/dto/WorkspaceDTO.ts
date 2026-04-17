@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 
 export const CreateWorkspaceInputSchema = z.object({
   accountId: z.string(),

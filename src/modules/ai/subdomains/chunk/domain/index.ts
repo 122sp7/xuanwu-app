@@ -1,3 +1,3 @@
-// chunk — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-export {};
+export type { ChunkSnapshot, CreateChunkInput, ChunkId, ChunkStatus } from "./entities/Chunk";
+export { Chunk } from "./entities/Chunk";
+export type { ChunkRepository, ChunkQuery } from "./repositories/ChunkRepository";

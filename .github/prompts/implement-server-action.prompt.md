@@ -1,7 +1,7 @@
 ---
 name: implement-server-action
 description: Implement Next.js server actions as thin orchestrators that delegate to use cases.
-applyTo: '{app,modules}/**/*.{ts,tsx}'
+applyTo: '{src/app,src/modules}/**/*.{ts,tsx}'
 agent: server-action-writer
 argument-hint: Provide action intent, input schema, and target use case.
 ---
@@ -15,7 +15,7 @@ argument-hint: Provide action intent, input schema, and target use case.
 - Delegate business logic to module use cases.
 - Return stable command-result shape.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices
 #use skill hexagonal-ddd

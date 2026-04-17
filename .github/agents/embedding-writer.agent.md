@@ -22,9 +22,9 @@ handoffs:
 ## Target Scope
 
 - `py_fn/**`
-- `modules/notebooklm/**`
-- `modules/notion/**` when vector metadata depends on canonical source/reference contracts
-- `modules/platform/**` when embedding provider, quota, or policy constraints come from shared `platform.ai`
+- `src/modules/notebooklm/**`
+- `src/modules/notion/**` when vector metadata depends on canonical source/reference contracts
+- `src/modules/platform/**` when embedding provider, quota, or policy constraints come from shared `platform.ai`
 
 ## Responsibilities
 
@@ -33,4 +33,4 @@ handoffs:
 - Validate write path and retrieval compatibility.
 - Keep ownership aligned: `notebooklm` owns retrieval-facing semantics, while shared provider capability is consumed from `platform.ai`.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 

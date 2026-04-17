@@ -1,3 +1,2 @@
-// chunk — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-export {};
+// chunk — outbound adapters
+export { ChunkJobPayloadSchema, type ChunkJobPayload } from "./dto/chunk-job-payload";

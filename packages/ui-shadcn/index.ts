@@ -7,8 +7,10 @@
  */
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
-export { cn } from "./utils";
+export { cn } from "./lib/utils";
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 export { useIsMobile } from "./hooks/use-mobile";
-export { useToast, toast } from "./hooks/use-toast";
+
+// ─── Provider ─────────────────────────────────────────────────────────────────
+export { ThemeProvider } from "./provider/theme-provider";

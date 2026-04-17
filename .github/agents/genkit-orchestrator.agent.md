@@ -21,9 +21,9 @@ handoffs:
 
 ## 目標範圍 (Target Scope)
 
-- `modules/platform/subdomains/ai/**`
-- `modules/notebooklm/**` — reasoning / synthesis / retrieval flows
-- `app/**` — Next.js 端 AI orchestration
+- `src/modules/platform/subdomains/ai/**`
+- `src/modules/notebooklm/**` — reasoning / synthesis / retrieval flows
+- `src/app/**` — Next.js 端 AI orchestration
 - `py_fn/**` — worker-side ingestion / embedding pipeline
 
 ## 使命 (Mission)
@@ -77,7 +77,7 @@ handoffs:
 3. **Flow 設計建議**（如需新建）：含 input/output contract、tool list、fallback 路徑
 4. **驗證結果**：`npm run lint` + `npm run build`
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill genkit-ai
 #use skill xuanwu-rag-runtime-boundary
 #use skill next-devtools-mcp

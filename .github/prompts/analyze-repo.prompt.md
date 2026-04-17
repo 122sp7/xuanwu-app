@@ -13,7 +13,7 @@ Map ownership, boundaries, and risks before coding.
 
 ## Inputs
 
-- target: ${input:target:modules/workspace}
+- target: ${input:target:src/modules/workspace}
 - goal: ${input:goal:what needs to change}
 - constraints: ${input:constraints:boundary, runtime, timeline}
 
@@ -31,5 +31,5 @@ Map ownership, boundaries, and risks before coding.
 - Risk list
 - Suggested next prompt
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd

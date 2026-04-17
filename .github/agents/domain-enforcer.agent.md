@@ -21,9 +21,9 @@ handoffs:
 
 ## 目標範圍 (Target Scope)
 
-- `modules/**/domain/**`
-- `modules/**/application/use-cases/**`
-- `modules/**/application/dto/**`
+- `src/modules/**/domain/**`
+- `src/modules/**/application/use-cases/**`
+- `src/modules/**/application/dto/**`
 
 ## 使命 (Mission)
 
@@ -81,5 +81,5 @@ handoffs:
 3. **修正後的程式碼**：提供完整修正實作
 4. **驗證結果**：`npm run lint` + `npm run build`
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd

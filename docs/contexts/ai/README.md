@@ -54,7 +54,7 @@ ai 是共享 AI capability 主域。它負責 generation、orchestration、disti
 
 - 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
 - Genkit、LLM SDK 等 provider 細節只能停留在 infrastructure 層。
-- 下游消費者只透過 `modules/ai/api` 或 `modules/ai/api/server` 存取。
+- 下游消費者只透過 `src/modules/ai/index.ts` 的公開匯出存取，不可直接依賴 ai 內部實作路徑。
 
 ## Anti-Pattern Rules
 

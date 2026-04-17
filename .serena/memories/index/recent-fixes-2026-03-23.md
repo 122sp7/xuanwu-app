@@ -1,9 +1,0 @@
-- py_fn deploy blocker fixed: Python function signatures in `py_fn/app/services/firestore.py` had required params after default params.
-- Signature rule captured: keep required `account_id` before defaulted args (e.g., `update_parsed`, `mark_rag_ready`).
-- Registration flow fix: `app/(public)/page.tsx` now seeds Firestore account doc right after successful register.
-- Validation done: file-level type/errors check passed for modified public page.
-- Operational result: `npm run deploy:functions:py-fn` completed successfully after signature fix.
-- Wiki Beta timestamp fix: `modules/wiki-beta/interfaces/components/WikiBetaRagTestView.tsx` now calls Firestore Timestamp methods with the original object binding and falls back to `toMillis()`, fixing the upload-list runtime crash (`Cannot read properties of undefined (reading 'toMillis')`).
-- Route consolidation: legacy `/wiki` route was removed from the app route tree; active knowledge UI now routes through `/wiki-beta` only.
-- Workspace decoupling: `modules/workspace/interfaces/components/WorkspaceWikiTab.tsx` no longer imports `@/modules/wiki`; it uses local summary fallback plus `modules/file` RAG document loading.
-- Validation done: Next.js build passed after removing the legacy `/wiki` route and references.

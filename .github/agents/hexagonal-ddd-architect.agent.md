@@ -21,9 +21,9 @@ handoffs:
 
 ## Target Scope
 
-- `modules/**`
-- `packages/shared-types/**`
-- `packages/api-contracts/**`
+- `src/modules/**`
+- `src/modules/shared/**`
+- `src/modules/shared/**`
 
 ## Mission
 
@@ -49,4 +49,4 @@ Shape module structures without breaking bounded contexts.
 - Files changed
 - Validation evidence
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 

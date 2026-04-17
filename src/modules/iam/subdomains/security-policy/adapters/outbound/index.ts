@@ -1,3 +1,1 @@
-// security-policy — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-export {};
+export { InMemorySecurityPolicyRepository } from "./memory/InMemorySecurityPolicyRepository";

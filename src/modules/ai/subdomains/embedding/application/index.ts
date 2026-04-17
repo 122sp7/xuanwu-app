@@ -1,3 +1,1 @@
-// embedding — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export { GenerateAndStoreEmbeddingUseCase } from "./use-cases/EmbeddingUseCases";

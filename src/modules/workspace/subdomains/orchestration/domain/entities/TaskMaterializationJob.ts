@@ -1,4 +1,4 @@
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "uuid";
 import type { JobDomainEventType } from "../events/JobDomainEvent";
 
 export type JobStatus = "queued" | "running" | "partially_succeeded" | "succeeded" | "failed" | "cancelled";

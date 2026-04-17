@@ -40,8 +40,7 @@
     ".github/instructions/**/*.md",
     ".github/prompts/**",
     "docs/**",
-    "app/**",
-    "modules/**",
+    "src/**",
     "packages/**",
     "py_fn/**",
     "AGENTS.md",
@@ -68,6 +67,7 @@
     "useDotIgnore": true,
     "useDefaultPatterns": true,
     "customPatterns": [
+      "*.md",
       ".next/**",
       ".turbo/**",
       ".vercel/**",

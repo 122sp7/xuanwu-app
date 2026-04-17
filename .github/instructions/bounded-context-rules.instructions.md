@@ -1,6 +1,6 @@
 ---
 description: 'Bounded Context（界限上下文）戰略設計規則：語意一致性邊界、模型隔離、顯式轉換、獨立演化。'
-applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+applyTo: 'src/modules/**/*.{ts,tsx,js,jsx,md}'
 ---
 
 # Bounded Context（界限上下文）設計規則
@@ -21,7 +21,7 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 ## 與子域的關係
 
 - 一個子域可以包含多個 Bounded Context。
-- Bounded Context 名稱必須與 `modules/<context>/` 資料夾名稱一致。
+- Bounded Context 名稱必須與 `src/modules/<context>/` 資料夾名稱一致。
 - 跨 Context 的模型引用必須使用 Published Language token，不得直接傳遞 upstream aggregate。
 
 ## 驗證
@@ -30,5 +30,5 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 - 確認跨 Context 通訊使用 API boundary 或 event contract。
 - 確認不存在跨 Context 的 Domain Model 重用。
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd

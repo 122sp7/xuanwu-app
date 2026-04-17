@@ -21,8 +21,8 @@ handoffs:
 
 ## Target Scope
 
-- `app/**`
-- `modules/**`
+- `src/app/**`
+- `src/modules/**`
 - `packages/**`
 - `providers/**`
 - `py_fn/**`
@@ -50,4 +50,4 @@ Verify correctness, boundary safety, and release readiness.
 - Evidence and reproduction details
 - Residual risks and recommendation: ready, ready-with-risk, blocked
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 

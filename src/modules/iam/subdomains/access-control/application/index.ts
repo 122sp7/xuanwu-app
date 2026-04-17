@@ -1,3 +1,7 @@
-// access-control — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export {
+  EvaluatePermissionUseCase,
+  CreateAccessPolicyUseCase,
+  UpdateAccessPolicyUseCase,
+  DeactivateAccessPolicyUseCase,
+} from "./use-cases/AccessControlUseCases";
+export type { AccessPolicyView, PermissionEvaluationView } from "./dto/AccessControlDTO";

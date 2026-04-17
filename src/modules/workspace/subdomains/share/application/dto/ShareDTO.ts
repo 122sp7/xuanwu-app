@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 import { SHARE_SCOPES } from "../../domain/entities/WorkspaceShare";
 
 export const GrantShareSchema = z.object({

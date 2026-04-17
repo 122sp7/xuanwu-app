@@ -35,7 +35,7 @@
     }
   },
   "include": [
-    "modules/notebooklm/**"
+    "src/modules/notebooklm/**"
   ],
     "ignore": {
     "useGitignore": true,

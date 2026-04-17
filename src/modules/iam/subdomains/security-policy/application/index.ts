@@ -1,3 +1,5 @@
-// security-policy — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export {
+  GetSecurityPolicyUseCase,
+  UpdateSecurityPolicyUseCase,
+} from "./use-cases/SecurityPolicyUseCases";
+export { InMemorySecurityPolicyRepository } from "../adapters/outbound/memory/InMemorySecurityPolicyRepository";

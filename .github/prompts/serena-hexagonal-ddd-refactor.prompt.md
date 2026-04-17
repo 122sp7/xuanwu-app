@@ -30,7 +30,7 @@ serena
 list_memories
 read_memory
 #use skill xuanwu-app-markdown-skill
-#use skill xuanwu-app-skill
+#use skill xuanwu-skill
 #use skill context7
 ```
 

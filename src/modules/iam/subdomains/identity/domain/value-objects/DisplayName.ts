@@ -1,4 +1,4 @@
-import { z } from "@lib-zod";
+import { z } from "zod";
 
 export const DisplayNameSchema = z.string().min(1).max(100).trim().brand("DisplayName");
 export type DisplayName = z.infer<typeof DisplayNameSchema>;

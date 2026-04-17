@@ -1,6 +1,6 @@
 ---
 description: 'Server Action rules for thin orchestration, validation at boundaries, and stable result contracts.'
-applyTo: '{app,modules}/**/*.{ts,tsx}'
+applyTo: '{src/app,src/modules}/**/*.{ts,tsx}'
 ---
 
 # Nextjs Server Actions
@@ -13,6 +13,6 @@ applyTo: '{app,modules}/**/*.{ts,tsx}'
 - Validate inputs at action boundaries using shared validators where applicable.
 - Keep infrastructure access out of route files and action wrappers.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices

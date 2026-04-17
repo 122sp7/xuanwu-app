@@ -1,4 +1,4 @@
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { TokenRefreshRepository } from "../../domain/repositories/TokenRefreshRepository";
 import type { TokenRefreshReason } from "../../domain/entities/TokenRefreshSignal";
 

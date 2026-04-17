@@ -1,5 +1,6 @@
 /**
- * @module libs/firebase/firestore
+ * @module integration-firebase/firestore
+ * Firebase Firestore client helpers.
  */
 
 import {
@@ -45,6 +46,6 @@ export const firestoreApi = {
   writeBatch,
 };
 
-export function getFirebaseFirestore() {
+export function getFirebaseFirestore(): Firestore {
   return getFirestore(firebaseClientApp);
 }

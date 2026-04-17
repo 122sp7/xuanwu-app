@@ -21,9 +21,9 @@ handoffs:
 
 ## 目標範圍 (Target Scope)
 
-- `modules/**/domain/**`
-- `modules/**/application/use-cases/**`
-- `modules/**/application/machines/**`
+- `src/modules/**/domain/**`
+- `src/modules/**/application/use-cases/**`
+- `src/modules/**/application/machines/**`
 - `docs/ubiquitous-language.md`
 - `docs/contexts/*/**`
 - `.github/instructions/docs-authority-and-language.instructions.md`
@@ -65,5 +65,5 @@ handoffs:
 3. **修正建議**：附程式碼範例
 4. **驗證指令執行結果**：`npm run lint` 與 `npm run build` 結果
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd

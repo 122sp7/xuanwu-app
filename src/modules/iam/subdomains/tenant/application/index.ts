@@ -1,3 +1,6 @@
-// tenant — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-export {};
+export {
+  ProvisionTenantUseCase,
+  SuspendTenantUseCase,
+  GetTenantUseCase,
+} from "./use-cases/TenantUseCases";
+export { InMemoryTenantRepository } from "../adapters/outbound/memory/InMemoryTenantRepository";

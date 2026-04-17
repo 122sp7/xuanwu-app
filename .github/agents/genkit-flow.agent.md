@@ -21,10 +21,10 @@ handoffs:
 
 ## Target Scope
 
-- `app/**`
-- `modules/platform/**`
-- `modules/notebooklm/**`
-- `modules/notion/**` when content-side orchestration consumes shared AI capability
+- `src/app/**`
+- `src/modules/platform/**`
+- `src/modules/notebooklm/**`
+- `src/modules/notion/**` when content-side orchestration consumes shared AI capability
 
 ## Focus
 
@@ -39,5 +39,5 @@ handoffs:
 - Avoid leaking worker-only logic into app orchestration.
 - Keep generic AI ownership in `platform.ai`; downstream contexts consume capability rather than redefining ownership.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill genkit-ai

@@ -1,3 +1,3 @@
-// embedding — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-export {};
+export type { EmbeddingSnapshot, CreateEmbeddingInput, EmbeddingId, EmbeddingGenerationPort } from "./entities/Embedding";
+export { Embedding } from "./entities/Embedding";
+export type { EmbeddingRepository } from "./repositories/EmbeddingRepository";
