@@ -23,7 +23,7 @@ handoffs:
 
 - `firestore.rules`
 - `storage.rules`
-- `modules/**/infrastructure/**`
+- `src/modules/**/infrastructure/**`
 
 ## Mission
 

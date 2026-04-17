@@ -22,9 +22,9 @@ handoffs:
 ## Target Scope
 
 - `py_fn/**`
-- `modules/notebooklm/**`
-- `modules/notion/**` when canonical source contracts or source references change
-- `modules/platform/**` when shared `platform.ai` capability, entitlement, or policy constraints affect retrieval flows
+- `src/modules/notebooklm/**`
+- `src/modules/notion/**` when canonical source contracts or source references change
+- `src/modules/platform/**` when shared `platform.ai` capability, entitlement, or policy constraints affect retrieval flows
 
 ## Focus
 

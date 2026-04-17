@@ -21,10 +21,10 @@ handoffs:
 
 ## Target Scope
 
-- `app/**`
-- `modules/platform/**`
-- `modules/notebooklm/**`
-- `modules/notion/**` when content-side orchestration consumes shared AI capability
+- `src/app/**`
+- `src/modules/platform/**`
+- `src/modules/notebooklm/**`
+- `src/modules/notion/**` when content-side orchestration consumes shared AI capability
 
 ## Focus
 
