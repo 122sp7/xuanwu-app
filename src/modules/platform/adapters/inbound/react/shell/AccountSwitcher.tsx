@@ -81,16 +81,14 @@ export function AccountSwitcher({
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
+        <DropdownMenuTrigger
             type="button"
             className="flex items-center gap-1.5 rounded-lg border border-border/50 bg-background/70 px-2.5 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <Building2 className="size-3.5 shrink-0 text-muted-foreground" />
             <span className="max-w-[120px] truncate">{activeLabel}</span>
             <ChevronsUpDown className="size-3 shrink-0 text-muted-foreground" />
-          </button>
-        </DropdownMenuTrigger>
+          </DropdownMenuTrigger>
 
         <DropdownMenuContent align="start" className="w-52">
           {/* Personal account */}

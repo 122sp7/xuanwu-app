@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { cn } from "@shared-utils";
+import { ThemeProvider } from "@ui-shadcn/provider/theme-provider";
 import { PlatformBootstrap } from "@/src/modules/platform/adapters/inbound/react";
 import "./globals.css";
 
@@ -15,9 +16,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={cn("font-sans", geist.variable)}>
+    <html lang="en" className={cn("font-sans", geist.variable)} suppressHydrationWarning>
       <body className="antialiased">
-        <PlatformBootstrap>{children}</PlatformBootstrap>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <PlatformBootstrap>{children}</PlatformBootstrap>
+        </ThemeProvider>
       </body>
     </html>
   );

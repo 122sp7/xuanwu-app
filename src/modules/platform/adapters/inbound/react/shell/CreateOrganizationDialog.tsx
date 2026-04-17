@@ -78,13 +78,8 @@ export function CreateOrganizationDialog({
         id: orgId,
         name: name.trim(),
         accountType: "organization",
-        email: null,
-        photoURL: null,
-        bio: null,
-        status: "active",
-        walletBalance: 0,
-        createdAtISO: new Date().toISOString(),
-        updatedAtISO: new Date().toISOString(),
+        email: undefined,
+        photoURL: undefined,
       };
 
       onOrganizationCreated?.(newAccount);

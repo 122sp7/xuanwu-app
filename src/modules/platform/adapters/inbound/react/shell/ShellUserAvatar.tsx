@@ -50,14 +50,12 @@ export function ShellUserAvatar({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label={`使用者選單：${name}`}
-          className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary ring-1 ring-primary/20 transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          {initials}
-        </button>
+      <DropdownMenuTrigger
+        type="button"
+        aria-label={`使用者選單：${name}`}
+        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary ring-1 ring-primary/20 transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      >
+        {initials}
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-56">
