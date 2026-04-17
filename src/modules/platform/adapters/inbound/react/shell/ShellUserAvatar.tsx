@@ -18,6 +18,7 @@ import { LogOut, UserRound } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -59,15 +60,17 @@ export function ShellUserAvatar({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="flex flex-col gap-0.5 font-normal">
-          <div className="flex items-center gap-2">
-            <UserRound className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="truncate text-sm font-semibold">{name}</span>
-          </div>
-          <span className="truncate pl-[22px] text-xs text-muted-foreground">
-            {email}
-          </span>
-        </DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="flex flex-col gap-0.5 font-normal">
+            <div className="flex items-center gap-2">
+              <UserRound className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="truncate text-sm font-semibold">{name}</span>
+            </div>
+            <span className="truncate pl-[22px] text-xs text-muted-foreground">
+              {email}
+            </span>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
 
         <DropdownMenuSeparator />
 

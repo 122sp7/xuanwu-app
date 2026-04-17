@@ -22,6 +22,7 @@ import { Building2, Check, ChevronsUpDown, Plus, UserRound } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -92,40 +93,44 @@ export function AccountSwitcher({
 
         <DropdownMenuContent align="start" className="w-52">
           {/* Personal account */}
-          <DropdownMenuLabel className="text-xs text-muted-foreground">
-            個人
-          </DropdownMenuLabel>
-          <DropdownMenuItem
-            onClick={onSelectPersonal}
-            className="cursor-pointer"
-          >
-            <UserRound className="mr-2 size-4 shrink-0 text-muted-foreground" />
-            <span className="truncate">{personalAccount.name || "個人帳號"}</span>
-            {activeAccountId === personalAccount.id && (
-              <Check className="ml-auto size-4 shrink-0 text-primary" />
-            )}
-          </DropdownMenuItem>
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              個人
+            </DropdownMenuLabel>
+            <DropdownMenuItem
+              onClick={onSelectPersonal}
+              className="cursor-pointer"
+            >
+              <UserRound className="mr-2 size-4 shrink-0 text-muted-foreground" />
+              <span className="truncate">{personalAccount.name || "個人帳號"}</span>
+              {activeAccountId === personalAccount.id && (
+                <Check className="ml-auto size-4 shrink-0 text-primary" />
+              )}
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
 
           {/* Organisation accounts */}
           {organizationAccounts.length > 0 && (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-xs text-muted-foreground">
-                組織
-              </DropdownMenuLabel>
-              {organizationAccounts.map((account) => (
-                <DropdownMenuItem
-                  key={account.id}
-                  onClick={() => onSelectOrganization(account)}
-                  className="cursor-pointer"
-                >
-                  <Building2 className="mr-2 size-4 shrink-0 text-muted-foreground" />
-                  <span className="truncate">{account.name}</span>
-                  {activeAccountId === account.id && (
-                    <Check className="ml-auto size-4 shrink-0 text-primary" />
-                  )}
-                </DropdownMenuItem>
-              ))}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-xs text-muted-foreground">
+                  組織
+                </DropdownMenuLabel>
+                {organizationAccounts.map((account) => (
+                  <DropdownMenuItem
+                    key={account.id}
+                    onClick={() => onSelectOrganization(account)}
+                    className="cursor-pointer"
+                  >
+                    <Building2 className="mr-2 size-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{account.name}</span>
+                    {activeAccountId === account.id && (
+                      <Check className="ml-auto size-4 shrink-0 text-primary" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
             </>
           )}
 

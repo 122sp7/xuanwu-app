@@ -22,6 +22,7 @@ import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -97,26 +98,28 @@ export function ShellLanguageSwitcher(): React.ReactElement {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-40">
-        <DropdownMenuLabel className="text-xs text-muted-foreground">
-          顯示語言
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {SUPPORTED_LOCALES.map((locale) => (
-          <DropdownMenuItem
-            key={locale.code}
-            onClick={() => handleSelect(locale.code)}
-            className={
-              activeLocale === locale.code
-                ? "font-semibold text-primary focus:text-primary"
-                : "cursor-pointer"
-            }
-          >
-            {locale.label}
-            {activeLocale === locale.code && (
-              <span className="ml-auto text-xs text-primary">✓</span>
-            )}
-          </DropdownMenuItem>
-        ))}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-xs text-muted-foreground">
+            顯示語言
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {SUPPORTED_LOCALES.map((locale) => (
+            <DropdownMenuItem
+              key={locale.code}
+              onClick={() => handleSelect(locale.code)}
+              className={
+                activeLocale === locale.code
+                  ? "font-semibold text-primary focus:text-primary"
+                  : "cursor-pointer"
+              }
+            >
+              {locale.label}
+              {activeLocale === locale.code && (
+                <span className="ml-auto text-xs text-primary">✓</span>
+              )}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   ) as React.ReactElement;
