@@ -21,8 +21,8 @@ handoffs:
 
 ## Target Scope
 
-- `app/**`
-- `modules/**/interfaces/**`
+- `src/app/**`
+- `src/modules/**/interfaces/**`
 - `providers/**`
 
 ## Workflow

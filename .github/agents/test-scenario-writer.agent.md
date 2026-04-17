@@ -21,8 +21,8 @@ handoffs:
 
 ## Target Scope
 
-- `app/**`
-- `modules/**`
+- `src/app/**`
+- `src/modules/**`
 - `py_fn/tests/**`
 
 ## Scope

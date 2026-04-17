@@ -21,9 +21,9 @@ handoffs:
 
 ## Target Scope
 
-- `modules/**/api/**`
-- `modules/**/application/dto/**`
-- `packages/shared-types/**`
+- `src/modules/**/api/**`
+- `src/modules/**/application/dto/**`
+- `src/modules/shared/**`
 
 ## Focus
 

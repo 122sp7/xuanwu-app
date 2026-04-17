@@ -21,9 +21,9 @@ handoffs:
 
 ## 目標範圍 (Target Scope)
 
-- `modules/platform/subdomains/ai/**`
-- `modules/notebooklm/**` — reasoning / synthesis / retrieval flows
-- `app/**` — Next.js 端 AI orchestration
+- `src/modules/platform/subdomains/ai/**`
+- `src/modules/notebooklm/**` — reasoning / synthesis / retrieval flows
+- `src/app/**` — Next.js 端 AI orchestration
 - `py_fn/**` — worker-side ingestion / embedding pipeline
 
 ## 使命 (Mission)

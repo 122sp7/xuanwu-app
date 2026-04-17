@@ -16,22 +16,22 @@ This file is an implementation-oriented supplement for repository navigation. St
 
 ## Boundary Summary
 
-- Cross-module imports go through `modules/<target>/api` only.
+- Cross-module imports go through `src/modules/<target>/api` only.
 - Dependency direction is `interfaces/` → `application/` → `domain/` ← `infrastructure/`.
 - `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; subdomains own local concerns.
 - If a team adds `core/`, treat it as an optional inner wrapper only; do not put `infrastructure/` or `interfaces/` inside it.
 
 ## Repository Surfaces
 
-- `app/`: Next.js route composition, shell UX, providers, and orchestration
-- `modules/`: bounded-context and subdomain implementations
+- `src/app/`: Next.js route composition, shell UX, providers, and orchestration
+- `src/modules/`: bounded-context and subdomain implementations
 - `packages/`: stable shared boundaries exposed through `@shared-*`, `@lib-*`, `@integration-*`, `@ui-*`
 - `py_fn/`: worker-side ingestion, parsing, chunking, embedding, and job execution
 
 ## Typical Module Shape
 
 ```text
-modules/<context>/
+src/modules/<context>/
 ├── api/
 ├── application/
 ├── domain/
@@ -44,7 +44,7 @@ Not every module needs every folder, and local details may live inside a subdoma
 
 ## Import Rules
 
-- Prefer package aliases such as `@shared-types`, `@shared-utils`, `@integration-firebase`, `@ui-shadcn`, and `@lib-*`.
+- Prefer package aliases such as `@integration-firebase`, `@ui-shadcn`, and `@shared-utils`; shared domain types live in `src/modules/shared/`.
 - Do not use legacy aliases such as `@/shared/*`, `@/libs/*`, or similar paths blocked by lint rules.
 - Inside one module, prefer relative imports over self-importing the module barrel.
 - Across modules, import only from the target module `api/` boundary.

@@ -21,9 +21,9 @@ handoffs:
 
 ## 目標範圍 (Target Scope)
 
-- `modules/**/domain/**`
-- `modules/**/application/use-cases/**`
-- `modules/**/application/machines/**`
+- `src/modules/**/domain/**`
+- `src/modules/**/application/use-cases/**`
+- `src/modules/**/application/machines/**`
 - `docs/ubiquitous-language.md`
 - `docs/contexts/*/**`
 - `.github/instructions/docs-authority-and-language.instructions.md`

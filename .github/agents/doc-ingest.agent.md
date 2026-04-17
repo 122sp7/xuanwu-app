@@ -22,9 +22,9 @@ handoffs:
 ## Target Scope
 
 - `py_fn/**`
-- `modules/notebooklm/**`
-- `modules/notion/**` when normalized artifacts depend on canonical source/reference shape
-- `modules/platform/**` when ingestion constraints depend on shared `platform.ai` capability or entitlement policy
+- `src/modules/notebooklm/**`
+- `src/modules/notion/**` when normalized artifacts depend on canonical source/reference shape
+- `src/modules/platform/**` when ingestion constraints depend on shared `platform.ai` capability or entitlement policy
 
 ## Rules
 

@@ -21,7 +21,7 @@ handoffs:
 
 ## 目標範圍 (Target Scope)
 
-- `modules/**` — 掃描所有 Firebase import
+- `src/modules/**` — 掃描所有 Firebase import
 - `firestore.rules`
 - `storage.rules`
 - `firestore.indexes.json`
@@ -49,10 +49,10 @@ handoffs:
 ## 審查清單
 
 ### Firebase Import 位置
-- [ ] `modules/**/domain/` 無任何 `firebase` import？
-- [ ] `modules/**/application/` 無任何 `firebase` import？
-- [ ] `app/` route files 無直接 Firestore / Storage import？
-- [ ] Firebase import 集中在 `modules/**/infrastructure/` 與 `modules/platform/`？
+- [ ] `src/modules/**/domain/` 無任何 `firebase` import？
+- [ ] `src/modules/**/application/` 無任何 `firebase` import？
+- [ ] `src/app/` route files 無直接 Firestore / Storage import？
+- [ ] Firebase import 集中在 `src/modules/**/infrastructure/` 與 `src/modules/platform/`？
 
 ### Firestore Schema
 - [ ] Collection 所有權歸屬 bounded context 明確？
