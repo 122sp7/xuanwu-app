@@ -7,4 +7,4 @@
  * Lives in src/modules/platform/adapters/inbound/react/ alongside sibling shell files.
  */
 
-export { ShellLayout as ShellFrame } from "./ShellRootLayout";
+export { ShellLayout as ShellFrame } from "./shell/ShellRootLayout";
