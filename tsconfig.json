@@ -26,20 +26,7 @@
       "@/*": ["./*"],
       "@shared-utils": ["./src/ui/shadcn/lib/utils.ts"],
       "@ui-shadcn": ["./packages/ui-shadcn/index.ts"],
-      "@ui-shadcn/*": ["./packages/ui-shadcn/*"],
-      "@ui-vis": ["./packages/ui-vis/index.ts"],
-      "@lib-date-fns": ["./packages/lib-date-fns/index.ts"],
-      "@lib-zod": ["./packages/lib-zod/index.ts"],
-      "@lib-uuid": ["./packages/lib-uuid/index.ts"],
-      "@lib-zustand": ["./packages/lib-zustand/index.ts"],
-      "@lib-xstate": ["./packages/lib-xstate/index.ts"],
-      "@lib-tanstack": ["./packages/lib-tanstack/index.ts"],
-      "@lib-superjson": ["./packages/lib-superjson/index.ts"],
-      "@lib-dragdrop": ["./packages/lib-dragdrop/index.ts"],
-      "@lib-react-markdown": ["./packages/lib-react-markdown/index.ts"],
-      "@lib-remark-gfm": ["./packages/lib-remark-gfm/index.ts"],
-      "@lib-vis": ["./packages/lib-vis/index.ts"],
-      "@lib-vis/*": ["./packages/lib-vis/*"]
+      "@ui-shadcn/*": ["./packages/ui-shadcn/*"]
     }
   },
   "include": [
