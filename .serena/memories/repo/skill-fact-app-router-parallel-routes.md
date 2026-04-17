@@ -8,7 +8,7 @@
 
 ## Core Principle
 
-**UI composition in `app/` must remain thin, follow one-way data flow, and consume modules ONLY through public `api/` boundaries.**
+**UI composition in `app/` must remain thin, follow one-way data flow, and consume modules ONLY through module `index.ts` public boundary.**
 
 Route layers exist to **orchestrate, not to contain business logic.**
 
@@ -22,7 +22,7 @@ Route layers exist to **orchestrate, not to contain business logic.**
    - Answer: "This route exists to [verb] the [noun]"
 
 2. **List the module APIs the slice may consume**
-   - Only `@/modules/<name>/api` imports allowed
+   - Only `@/modules/<name>` (root `index.ts`) imports allowed
    - No imports from `domain/`, `application/`, `infrastructure/`
    - Document which API each interaction calls
 
