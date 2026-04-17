@@ -158,23 +158,22 @@ export function AppRail({
   const accountName = activeAccount?.name ?? user?.name ?? "—";
 
   return (
-    <TooltipProvider delayDuration={400}>
+    <TooltipProvider delay={400}>
       <aside
         aria-label="App navigation rail"
         className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
       >
         <DropdownMenu>
           <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="切換帳號情境"
+            <TooltipTrigger
+              render={
+                <DropdownMenuTrigger
                   className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  {getInitial(accountName)}
-                </button>
-              </DropdownMenuTrigger>
+                  aria-label="切換帳號情境"
+                />
+              }
+            >
+              {getInitial(accountName)}
             </TooltipTrigger>
             <TooltipContent side="right" className="max-w-[180px]">
               <p className="text-xs font-medium">{accountName}</p>
@@ -224,10 +223,9 @@ export function AppRail({
               return (
                 <DropdownMenu key={item.id}>
                   <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
+                    <TooltipTrigger
+                      render={
+                        <DropdownMenuTrigger
                           aria-current={active ? "page" : undefined}
                           aria-label="工作區中心：切換工作區"
                           className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
@@ -235,10 +233,10 @@ export function AppRail({
                               ? "bg-primary/10 text-primary"
                               : "text-muted-foreground hover:bg-muted hover:text-foreground"
                           }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
+                        />
+                      }
+                    >
+                      {item.icon}
                     </TooltipTrigger>
                     <TooltipContent side="right">
                       <p className="text-xs">工作區中心：切換工作區</p>
@@ -291,19 +289,21 @@ export function AppRail({
 
             return (
               <Tooltip key={item.id}>
-                <TooltipTrigger asChild>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    aria-label={item.label}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {item.icon}
-                  </Link>
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      aria-label={item.label}
+                      className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    />
+                  }
+                >
+                  {item.icon}
                 </TooltipTrigger>
                 <TooltipContent side="right">
                   <p className="text-xs">{item.label}</p>
