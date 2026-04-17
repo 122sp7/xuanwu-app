@@ -313,6 +313,39 @@ html {
 .tiptap-editor .ProseMirror .toc-block::before {
 ````
 
+## File: src/design/README.md
+````markdown
+# src/design — Design Tokens & System Foundations
+
+`src/design/` 儲存全域設計基礎層，包含 design tokens、spacing scale、color palette、typography 等視覺基準，供 `src/ui/` 與 `src/app/` 引用。
+
+## 職責
+
+- 定義並匯出 design token（colors、spacing、typography、breakpoints、shadows）
+- 不包含任何 React 元件或業務邏輯
+- 不依賴 `src/modules/`、`modules/` 或 Firebase
+
+## 設計原則
+
+- Token 命名遵循 Tailwind CSS 4 語意化命名規則（`--color-primary`、`--spacing-*`）
+- 所有 token 必須可追溯到 `tailwind.config.ts`
+- 不在此層撰寫互動行為或元件狀態
+
+## 相關層
+
+| 層 | 用途 |
+|---|---|
+| `src/design/` | Token 定義（本層） |
+| `src/ui/` | 基於 token 組合的共用 UI 元件 |
+| `packages/ui-shadcn/` | shadcn/ui 元件庫封裝 |
+| `src/app/` | 路由組合與 Layout 组裝 |
+````
+
+## File: src/modules/ai/ai.instructions.md
+````markdown
+
+````
+
 ## File: src/modules/ai/orchestration/index.ts
 ````typescript
 // ai — orchestration layer
@@ -1040,6 +1073,11 @@ listAvailable(): Promise<AiTool[]>;
 // TODO: export entities, value-objects, repositories, events, services
 ````
 
+## File: src/modules/analytics/analytics.instructions.md
+````markdown
+
+````
+
 ## File: src/modules/analytics/orchestration/index.ts
 ````typescript
 // analytics — orchestration layer
@@ -1534,6 +1572,11 @@ queryWindow(metric: string, windowSeconds: number): Promise<RealtimeMetricWindow
 // TODO: export entities, value-objects, repositories, events, services
 ````
 
+## File: src/modules/billing/billing.instructions.md
+````markdown
+
+````
+
 ## File: src/modules/billing/orchestration/index.ts
 ````typescript
 // billing — orchestration layer
@@ -1968,6 +2011,11 @@ async function handlePasswordReset()
 setError(null);
 setResetSent(false);
 setIsAuthPanelOpen((prev)
+````
+
+## File: src/modules/iam/iam.instructions.md
+````markdown
+
 ````
 
 ## File: src/modules/iam/orchestration/index.ts
@@ -3141,6 +3189,11 @@ export class SuspendTenantUseCase {
 export class GetTenantUseCase {
 ````
 
+## File: src/modules/notebooklm/notebooklm.instructions.md
+````markdown
+
+````
+
 ## File: src/modules/notebooklm/orchestration/index.ts
 ````typescript
 // notebooklm — orchestration layer
@@ -3356,6 +3409,11 @@ findById(id: string): Promise<NotebookSnapshot | null>;
 findByWorkspaceId(workspaceId: string): Promise<NotebookSnapshot[]>;
 findByAccountId(accountId: string): Promise<NotebookSnapshot[]>;
 delete(id: string): Promise<void>;
+````
+
+## File: src/modules/notion/notion.instructions.md
+````markdown
+
 ````
 
 ## File: src/modules/notion/orchestration/index.ts
@@ -4250,6 +4308,11 @@ export function isActiveRoute(pathname: string, href: string)
  *
  * Returns: { state: AppState, dispatch: Dispatch<AppAction> }
  */
+````
+
+## File: src/modules/platform/platform.instructions.md
+````markdown
+
 ````
 
 ## File: src/modules/platform/shared/index.ts
@@ -7764,6 +7827,818 @@ export function canTransitionTaskStatus(from: TaskStatus, to: TaskStatus): boole
 export function nextTaskStatus(current: TaskStatus): TaskStatus | null
 ⋮----
 export function isTerminalTaskStatus(status: TaskStatus): boolean
+````
+
+## File: src/modules/workspace/workspace.instructions.md
+````markdown
+
+````
+
+## File: src/ui/README.md
+````markdown
+# src/ui — Shared UI Components
+
+`src/ui/` 儲存跨路由、跨模組共用的 React UI 元件。元件基於 `src/design/` 的 design token 與 `packages/ui-shadcn/` 的 shadcn/ui 元件組合而成。
+
+## 職責
+
+- 提供可重用的 UI primitive 與複合元件
+- 不承載業務邏輯，不呼叫 use case 或 domain model
+- 不直接依賴 `src/modules/` 或 `modules/` 的業務邊界
+
+## 設計原則
+
+- Mobile First：所有元件預設先設計小螢幕版本
+- 元件只接受 props，不讀取 global store 或 URL state
+- 互動狀態（loading / error / empty）由 props 控制，不內建業務假設
+- 命名使用 PascalCase（例如 `PageHeader`、`DataTable`、`EmptyState`）
+
+## 與 packages/ui-shadcn 的分工
+
+| 位置 | 說明 |
+|---|---|
+| `packages/ui-shadcn/` | shadcn/ui 原始元件封裝（Button、Input、Dialog 等） |
+| `src/ui/` | 基於 shadcn 組合的 app-specific 複合元件（PageHeader、SidebarCard 等） |
+
+## 相關層
+
+| 層 | 用途 |
+|---|---|
+| `src/design/` | Design token 基礎層 |
+| `src/ui/` | 共用 UI 元件（本層） |
+| `src/app/` | 路由組合，引用本層元件做頁面組裝 |
+| `src/modules/*/adapters/inbound/react/` | 模組專屬元件，不放在本層 |
+````
+
+## File: src/ui/shadcn/accordion.tsx
+````typescript
+import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { ChevronDownIcon, ChevronUpIcon } from "lucide-react"
+⋮----
+function Accordion(
+⋮----
+function AccordionItem(
+⋮----
+function AccordionTrigger({
+  className,
+  children,
+  ...props
+}: AccordionPrimitive.Trigger.Props)
+⋮----
+function AccordionContent({
+  className,
+  children,
+  ...props
+}: AccordionPrimitive.Panel.Props)
+````
+
+## File: src/ui/shadcn/alert-dialog.tsx
+````typescript
+import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { Button } from "@/src/ui/shadcn/button"
+⋮----
+function AlertDialog(
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/alert.tsx
+````typescript
+import { cva, type VariantProps } from "class-variance-authority"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/aspect-ratio.tsx
+````typescript
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/avatar.tsx
+````typescript
+import { Avatar as AvatarPrimitive } from "@base-ui/react/avatar"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/badge.tsx
+````typescript
+import { mergeProps } from "@base-ui/react/merge-props"
+import { useRender } from "@base-ui/react/use-render"
+import { cva, type VariantProps } from "class-variance-authority"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+function Badge({
+  className,
+  variant = "default",
+  render,
+  ...props
+}: useRender.ComponentProps<"span"> & VariantProps<typeof badgeVariants>)
+````
+
+## File: src/ui/shadcn/breadcrumb.tsx
+````typescript
+import { mergeProps } from "@base-ui/react/merge-props"
+import { useRender } from "@base-ui/react/use-render"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
+⋮----
+function Breadcrumb(
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/button.tsx
+````typescript
+import { Button as ButtonPrimitive } from "@base-ui/react/button"
+import { cva, type VariantProps } from "class-variance-authority"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/calendar.tsx
+````typescript
+import {
+  DayPicker,
+  getDefaultClassNames,
+  type DayButton,
+  type Locale,
+} from "react-day-picker"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { Button, buttonVariants } from "@/src/ui/shadcn/button"
+import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react"
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/card.tsx
+````typescript
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/carousel.tsx
+````typescript
+import useEmblaCarousel, {
+  type UseEmblaCarouselType,
+} from "embla-carousel-react"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { Button } from "@/src/ui/shadcn/button"
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
+⋮----
+type CarouselApi = UseEmblaCarouselType[1]
+type UseCarouselParameters = Parameters<typeof useEmblaCarousel>
+type CarouselOptions = UseCarouselParameters[0]
+type CarouselPlugin = UseCarouselParameters[1]
+⋮----
+type CarouselProps = {
+  opts?: CarouselOptions
+  plugins?: CarouselPlugin
+  orientation?: "horizontal" | "vertical"
+  setApi?: (api: CarouselApi) => void
+}
+⋮----
+type CarouselContextProps = {
+  carouselRef: ReturnType<typeof useEmblaCarousel>[0]
+  api: ReturnType<typeof useEmblaCarousel>[1]
+  scrollPrev: () => void
+  scrollNext: () => void
+  canScrollPrev: boolean
+  canScrollNext: boolean
+} & CarouselProps
+⋮----
+function useCarousel()
+⋮----
+function Carousel({
+  orientation = "horizontal",
+  opts,
+  setApi,
+  plugins,
+  className,
+  children,
+  ...props
+}: React.ComponentProps<"div"> & CarouselProps)
+⋮----
+className=
+⋮----
+function CarouselNext({
+  className,
+  variant = "outline",
+  size = "icon-sm",
+  ...props
+}: React.ComponentProps<typeof Button>)
+````
+
+## File: src/ui/shadcn/chart.tsx
+````typescript
+import type { TooltipValueType } from "recharts"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+// Format: { THEME_NAME: CSS_SELECTOR }
+⋮----
+type TooltipNameType = number | string
+⋮----
+export type ChartConfig = Record<
+  string,
+  {
+    label?: React.ReactNode
+    icon?: React.ComponentType
+  } & (
+    | { color?: string; theme?: never }
+    | { color?: never; theme: Record<keyof typeof THEMES, string> }
+  )
+>
+⋮----
+type ChartContextProps = {
+  config: ChartConfig
+}
+⋮----
+function useChart()
+⋮----
+className=
+⋮----
+<div className=
+⋮----
+return <div className=
+````
+
+## File: src/ui/shadcn/checkbox.tsx
+````typescript
+import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { CheckIcon } from "lucide-react"
+⋮----
+function Checkbox(
+````
+
+## File: src/ui/shadcn/collapsible.tsx
+````typescript
+import { Collapsible as CollapsiblePrimitive } from "@base-ui/react/collapsible"
+⋮----
+function Collapsible(
+````
+
+## File: src/ui/shadcn/context-menu.tsx
+````typescript
+import { ContextMenu as ContextMenuPrimitive } from "@base-ui/react/context-menu"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { ChevronRightIcon, CheckIcon } from "lucide-react"
+⋮----
+function ContextMenu(
+⋮----
+className=
+⋮----
+function ContextMenuSeparator({
+  className,
+  ...props
+}: ContextMenuPrimitive.Separator.Props)
+````
+
+## File: src/ui/shadcn/dialog.tsx
+````typescript
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { Button } from "@/src/ui/shadcn/button"
+import { XIcon } from "lucide-react"
+⋮----
+function Dialog(
+⋮----
+function DialogTrigger(
+⋮----
+function DialogPortal(
+⋮----
+function DialogClose(
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/direction.tsx
+````typescript
+
+````
+
+## File: src/ui/shadcn/drawer.tsx
+````typescript
+import { Drawer as DrawerPrimitive } from "vaul"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+function Drawer({
+  ...props
+}: React.ComponentProps<typeof DrawerPrimitive.Root>)
+⋮----
+function DrawerTrigger({
+  ...props
+}: React.ComponentProps<typeof DrawerPrimitive.Trigger>)
+⋮----
+function DrawerPortal({
+  ...props
+}: React.ComponentProps<typeof DrawerPrimitive.Portal>)
+⋮----
+function DrawerClose({
+  ...props
+}: React.ComponentProps<typeof DrawerPrimitive.Close>)
+⋮----
+function DrawerOverlay({
+  className,
+  ...props
+}: React.ComponentProps<typeof DrawerPrimitive.Overlay>)
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/dropdown-menu.tsx
+````typescript
+import { Menu as MenuPrimitive } from "@base-ui/react/menu"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { ChevronRightIcon, CheckIcon } from "lucide-react"
+⋮----
+function DropdownMenu(
+⋮----
+function DropdownMenuPortal(
+⋮----
+function DropdownMenuTrigger(
+⋮----
+className=
+⋮----
+function DropdownMenuSubTrigger({
+  className,
+  inset,
+  children,
+  ...props
+}: MenuPrimitive.SubmenuTrigger.Props & {
+  inset?: boolean
+})
+⋮----
+function DropdownMenuCheckboxItem({
+  className,
+  children,
+  checked,
+  inset,
+  ...props
+}: MenuPrimitive.CheckboxItem.Props & {
+  inset?: boolean
+})
+⋮----
+function DropdownMenuRadioGroup(
+⋮----
+function DropdownMenuSeparator({
+  className,
+  ...props
+}: MenuPrimitive.Separator.Props)
+````
+
+## File: src/ui/shadcn/empty.tsx
+````typescript
+import { cva, type VariantProps } from "class-variance-authority"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/hooks/.gitkeep
+````
+
+````
+
+## File: src/ui/shadcn/hooks/use-mobile.ts
+````typescript
+export function useIsMobile()
+⋮----
+const onChange = () =>
+````
+
+## File: src/ui/shadcn/hover-card.tsx
+````typescript
+import { PreviewCard as PreviewCardPrimitive } from "@base-ui/react/preview-card"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+function HoverCard(
+````
+
+## File: src/ui/shadcn/input-otp.tsx
+````typescript
+import { OTPInput, OTPInputContext } from "input-otp"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { MinusIcon } from "lucide-react"
+⋮----
+containerClassName=
+className=
+````
+
+## File: src/ui/shadcn/input.tsx
+````typescript
+import { Input as InputPrimitive } from "@base-ui/react/input"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+function Input(
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/kbd.tsx
+````typescript
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/label.tsx
+````typescript
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/lib/.gitkeep
+````
+
+````
+
+## File: src/ui/shadcn/lib/utils.ts
+````typescript
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+⋮----
+export function cn(...inputs: ClassValue[])
+````
+
+## File: src/ui/shadcn/native-select.tsx
+````typescript
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { ChevronDownIcon } from "lucide-react"
+⋮----
+type NativeSelectProps = Omit<React.ComponentProps<"select">, "size"> & {
+  size?: "sm" | "default"
+}
+⋮----
+function NativeSelect({
+  className,
+  size = "default",
+  ...props
+}: NativeSelectProps)
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/navigation-menu.tsx
+````typescript
+import { NavigationMenu as NavigationMenuPrimitive } from "@base-ui/react/navigation-menu"
+import { cva } from "class-variance-authority"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { ChevronDownIcon } from "lucide-react"
+⋮----
+className=
+⋮----
+function NavigationMenuTrigger({
+  className,
+  children,
+  ...props
+}: NavigationMenuPrimitive.Trigger.Props)
+⋮----
+function NavigationMenuContent({
+  className,
+  ...props
+}: NavigationMenuPrimitive.Content.Props)
+⋮----
+function NavigationMenuLink({
+  className,
+  ...props
+}: NavigationMenuPrimitive.Link.Props)
+````
+
+## File: src/ui/shadcn/pagination.tsx
+````typescript
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { Button } from "@/src/ui/shadcn/button"
+import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
+⋮----
+className=
+⋮----
+function PaginationLink({
+  className,
+  isActive,
+  size = "icon",
+  ...props
+}: PaginationLinkProps)
+⋮----
+function PaginationPrevious({
+  className,
+  text = "Previous",
+  ...props
+}: React.ComponentProps<typeof PaginationLink> &
+⋮----
+function PaginationNext({
+  className,
+  text = "Next",
+  ...props
+}: React.ComponentProps<typeof PaginationLink> &
+⋮----
+function PaginationEllipsis({
+  className,
+  ...props
+}: React.ComponentProps<"span">)
+````
+
+## File: src/ui/shadcn/popover.tsx
+````typescript
+import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+function Popover(
+⋮----
+function PopoverTrigger(
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/progress.tsx
+````typescript
+import { Progress as ProgressPrimitive } from "@base-ui/react/progress"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+function Progress({
+  className,
+  children,
+  value,
+  ...props
+}: ProgressPrimitive.Root.Props)
+⋮----
+function ProgressTrack(
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/radio-group.tsx
+````typescript
+import { Radio as RadioPrimitive } from "@base-ui/react/radio"
+import { RadioGroup as RadioGroupPrimitive } from "@base-ui/react/radio-group"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+function RadioGroup(
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/resizable.tsx
+````typescript
+import { cn } from "@/src/ui/shadcn/lib/utils"
+````
+
+## File: src/ui/shadcn/scroll-area.tsx
+````typescript
+import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+function ScrollArea({
+  className,
+  children,
+  ...props
+}: ScrollAreaPrimitive.Root.Props)
+⋮----
+function ScrollBar({
+  className,
+  orientation = "vertical",
+  ...props
+}: ScrollAreaPrimitive.Scrollbar.Props)
+````
+
+## File: src/ui/shadcn/select.tsx
+````typescript
+import { Select as SelectPrimitive } from "@base-ui/react/select"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
+⋮----
+function SelectGroup(
+⋮----
+function SelectValue(
+⋮----
+function SelectTrigger({
+  className,
+  size = "default",
+  children,
+  ...props
+}: SelectPrimitive.Trigger.Props & {
+  size?: "sm" | "default"
+})
+⋮----
+className=
+⋮----
+function SelectLabel({
+  className,
+  ...props
+}: SelectPrimitive.GroupLabel.Props)
+⋮----
+function SelectItem({
+  className,
+  children,
+  ...props
+}: SelectPrimitive.Item.Props)
+⋮----
+function SelectSeparator({
+  className,
+  ...props
+}: SelectPrimitive.Separator.Props)
+⋮----
+function SelectScrollUpButton({
+  className,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.ScrollUpArrow>)
+````
+
+## File: src/ui/shadcn/separator.tsx
+````typescript
+import { Separator as SeparatorPrimitive } from "@base-ui/react/separator"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/sheet.tsx
+````typescript
+import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { Button } from "@/src/ui/shadcn/button"
+import { XIcon } from "lucide-react"
+⋮----
+function Sheet(
+⋮----
+function SheetTrigger(
+⋮----
+function SheetClose(
+⋮----
+function SheetPortal(
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/skeleton.tsx
+````typescript
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/slider.tsx
+````typescript
+import { Slider as SliderPrimitive } from "@base-ui/react/slider"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/sonner.tsx
+````typescript
+import { useTheme } from "next-themes"
+import { Toaster as Sonner, type ToasterProps } from "sonner"
+import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+````
+
+## File: src/ui/shadcn/spinner.tsx
+````typescript
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { Loader2Icon } from "lucide-react"
+⋮----
+function Spinner(
+⋮----
+<Loader2Icon role="status" aria-label="Loading" className=
+````
+
+## File: src/ui/shadcn/switch.tsx
+````typescript
+import { Switch as SwitchPrimitive } from "@base-ui/react/switch"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+function Switch({
+  className,
+  size = "default",
+  ...props
+}: SwitchPrimitive.Root.Props & {
+  size?: "sm" | "default"
+})
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/table.tsx
+````typescript
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/tabs.tsx
+````typescript
+import { Tabs as TabsPrimitive } from "@base-ui/react/tabs"
+import { cva, type VariantProps } from "class-variance-authority"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+className=
+⋮----
+return (
+    <TabsPrimitive.List
+      data-slot="tabs-list"
+      data-variant={variant}
+      className={cn(tabsListVariants({ variant }), className)}
+      {...props}
+    />
+  )
+}
+
+function TabsTrigger(
+````
+
+## File: src/ui/shadcn/textarea.tsx
+````typescript
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/toggle.tsx
+````typescript
+import { Toggle as TogglePrimitive } from "@base-ui/react/toggle"
+import { cva, type VariantProps } from "class-variance-authority"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/tooltip.tsx
+````typescript
+import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+⋮----
+function TooltipContent({
+  className,
+  side = "top",
+  sideOffset = 4,
+  align = "center",
+  alignOffset = 0,
+  children,
+  ...props
+}: TooltipPrimitive.Popup.Props &
+  Pick<
+    TooltipPrimitive.Positioner.Props,
+    "align" | "alignOffset" | "side" | "sideOffset"
+>)
+⋮----
+className=
+````
+
+## File: src/ui/theme-provider.tsx
+````typescript
+import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes"
+⋮----
+function ThemeProvider({
+  children,
+  ...props
+}: React.ComponentProps<typeof NextThemesProvider>)
+⋮----
+function isTypingTarget(target: EventTarget | null)
+⋮----
+function ThemeHotkey()
+⋮----
+function onKeyDown(event: KeyboardEvent)
 ````
 
 ## File: src/app/(public)/page.tsx
@@ -13163,6 +14038,251 @@ import { z } from "zod";
 export type TaskId = z.infer<typeof TaskIdSchema>;
 ⋮----
 export function createTaskId(raw: string): TaskId
+````
+
+## File: src/ui/shadcn/button-group.tsx
+````typescript
+import { mergeProps } from "@base-ui/react/merge-props"
+import { useRender } from "@base-ui/react/use-render"
+import { cva, type VariantProps } from "class-variance-authority"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { Separator } from "@/src/ui/shadcn/separator"
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/combobox.tsx
+````typescript
+import { Combobox as ComboboxPrimitive } from "@base-ui/react"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { Button } from "@/src/ui/shadcn/button"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/src/ui/shadcn/input-group"
+import { ChevronDownIcon, XIcon, CheckIcon } from "lucide-react"
+⋮----
+function ComboboxValue(
+⋮----
+function ComboboxTrigger({
+  className,
+  children,
+  ...props
+}: ComboboxPrimitive.Trigger.Props)
+⋮----
+function ComboboxClear(
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/command.tsx
+````typescript
+import { Command as CommandPrimitive } from "cmdk"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/src/ui/shadcn/dialog"
+import {
+  InputGroup,
+  InputGroupAddon,
+} from "@/src/ui/shadcn/input-group"
+import { SearchIcon, CheckIcon } from "lucide-react"
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/field.tsx
+````typescript
+import { useMemo } from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { Label } from "@/src/ui/shadcn/label"
+import { Separator } from "@/src/ui/shadcn/separator"
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/input-group.tsx
+````typescript
+import { cva, type VariantProps } from "class-variance-authority"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { Button } from "@/src/ui/shadcn/button"
+import { Input } from "@/src/ui/shadcn/input"
+import { Textarea } from "@/src/ui/shadcn/textarea"
+⋮----
+className=
+⋮----
+if ((e.target as HTMLElement).closest("button"))
+````
+
+## File: src/ui/shadcn/item.tsx
+````typescript
+import { mergeProps } from "@base-ui/react/merge-props"
+import { useRender } from "@base-ui/react/use-render"
+import { cva, type VariantProps } from "class-variance-authority"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { Separator } from "@/src/ui/shadcn/separator"
+⋮----
+function ItemGroup(
+⋮----
+function Item({
+  className,
+  variant = "default",
+  size = "default",
+  render,
+  ...props
+}: useRender.ComponentProps<"div"> & VariantProps<typeof itemVariants>)
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/menubar.tsx
+````typescript
+import { Menu as MenuPrimitive } from "@base-ui/react/menu"
+import { Menubar as MenubarPrimitive } from "@base-ui/react/menubar"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuPortal,
+  DropdownMenuRadioGroup,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/src/ui/shadcn/dropdown-menu"
+import { CheckIcon } from "lucide-react"
+⋮----
+className=
+````
+
+## File: src/ui/shadcn/sidebar.tsx
+````typescript
+import { mergeProps } from "@base-ui/react/merge-props"
+import { useRender } from "@base-ui/react/use-render"
+import { cva, type VariantProps } from "class-variance-authority"
+⋮----
+import { useIsMobile } from "@/hooks/use-mobile"
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { Button } from "@/src/ui/shadcn/button"
+import { Input } from "@/src/ui/shadcn/input"
+import { Separator } from "@/src/ui/shadcn/separator"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/src/ui/shadcn/sheet"
+import { Skeleton } from "@/src/ui/shadcn/skeleton"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/src/ui/shadcn/tooltip"
+import { PanelLeftIcon } from "lucide-react"
+⋮----
+type SidebarContextProps = {
+  state: "expanded" | "collapsed"
+  open: boolean
+  setOpen: (open: boolean) => void
+  openMobile: boolean
+  setOpenMobile: (open: boolean) => void
+  isMobile: boolean
+  toggleSidebar: () => void
+}
+⋮----
+function useSidebar()
+⋮----
+// This is the internal state of the sidebar.
+// We use openProp and setOpenProp for control from outside the component.
+⋮----
+// This sets the cookie to keep the sidebar state.
+⋮----
+// Helper to toggle the sidebar.
+⋮----
+// Adds a keyboard shortcut to toggle the sidebar.
+⋮----
+const handleKeyDown = (event: KeyboardEvent) =>
+⋮----
+// We add a state so that we can do data-state="expanded" or "collapsed".
+// This makes it easier to style the sidebar with Tailwind classes.
+⋮----
+className=
+⋮----
+{/* This is what handles the sidebar gap on desktop */}
+⋮----
+// Adjust the padding for floating and inset variants.
+⋮----
+function SidebarGroupAction({
+  className,
+  render,
+  ...props
+}: useRender.ComponentProps<"button"> & React.ComponentProps<"button">)
+⋮----
+function SidebarMenuAction({
+  className,
+  render,
+  showOnHover = false,
+  ...props
+}: useRender.ComponentProps<"button"> &
+  React.ComponentProps<"button"> & {
+    showOnHover?: boolean
+})
+⋮----
+// Random width between 50 to 90%.
+````
+
+## File: src/ui/shadcn/toggle-group.tsx
+````typescript
+import { Toggle as TogglePrimitive } from "@base-ui/react/toggle"
+import { ToggleGroup as ToggleGroupPrimitive } from "@base-ui/react/toggle-group"
+import { type VariantProps } from "class-variance-authority"
+⋮----
+import { cn } from "@/src/ui/shadcn/lib/utils"
+import { toggleVariants } from "@/src/ui/shadcn/toggle"
+⋮----
+function ToggleGroup({
+  className,
+  variant,
+  size,
+  spacing = 0,
+  orientation = "horizontal",
+  children,
+  ...props
+}: ToggleGroupPrimitive.Props &
+  VariantProps<typeof toggleVariants> & {
+    spacing?: number
+    orientation?: "horizontal" | "vertical"
+})
+⋮----
+className=
+⋮----
+function ToggleGroupItem({
+  className,
+  children,
+  variant = "default",
+  size = "default",
+  ...props
+}: TogglePrimitive.Props & VariantProps<typeof toggleVariants>)
 ````
 
 ## File: src/app/layout.tsx
