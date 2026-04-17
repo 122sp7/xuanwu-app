@@ -29,14 +29,13 @@ export interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const INITIAL_STATE: AuthState = { user: null, status: "initializing" };
 
 /** Stub auth provider — replace with Firebase auth when available. */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>(INITIAL_STATE);
+  const [state, setState] = useState<AuthState>({ user: null, status: "unauthenticated" });
 
   useEffect(() => {
-    setState({ user: null, status: "unauthenticated" });
+    // Reserved for Firebase auth subscription wiring
   }, []);
 
   async function logout() {
