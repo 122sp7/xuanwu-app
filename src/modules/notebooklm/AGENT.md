@@ -2,21 +2,18 @@
 
 ## Purpose
 
-`src/modules/notebooklm` 是 **NotebookLM RAG 核心能力蒸餾骨架**，為 Xuanwu 系統提供來源文件（Document）、使用者對話（Conversation）、筆記本（Notebook）等 RAG 使用者體驗能力的新實作落點。
-
-**蒸餾來源：** `modules/notebooklm/`  
-**蒸餾狀態：** 📋 待蒸餾（骨架已建立，業務實作待填入）
+`src/modules/notebooklm` 是 **NotebookLM RAG 核心能力模組**，為 Xuanwu 系統提供來源文件（Document）、使用者對話（Conversation）、筆記本（Notebook）等 RAG 使用者體驗能力的實作落點。
 
 > **⚠ 邊界警示：** notebooklm 擁有 RAG **使用者體驗**（對話流程、文件接收、筆記本管理）。  
 > AI **機制**（embedding、retrieval、generation、citation）屬 `ai` 模組，notebooklm 透過 Port 消費。
 
 ## 子域清單（名詞域）
 
-| 子域 | 說明 | 對應 modules/ 來源 | 蒸餾狀態 |
-|---|---|---|---|
-| `document` | Document 實體（來源文件接收、RagDocument 生命週期、metadata）| `source` | 📋 待蒸餾 |
-| `conversation` | Conversation 實體（使用者對話 Session、問答流程、Synthesis 輸出）| `conversation` + `synthesis` | 📋 待蒸餾 |
-| `notebook` | Notebook 實體（筆記本生命週期、Document 集合）| `notebook` | 📋 待蒸餾 |
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `document` | Document 實體（來源文件接收、RagDocument 生命週期、metadata）| 🔨 骨架建立，實作進行中 |
+| `conversation` | Conversation 實體（使用者對話 Session、問答流程、Synthesis 輸出）| 🔨 骨架建立，實作進行中 |
+| `notebook` | Notebook 實體（筆記本生命週期、Document 集合）| 🔨 骨架建立，實作進行中 |
 
 > **子域不重複原則：**  
 > - `synthesis`（合成推理）是 `conversation` 的**應用層流程**，不獨立成子域  
@@ -42,7 +39,7 @@
 - KnowledgeArtifact（只讀）→ `src/modules/notion/index.ts`
 - 跨模組 API boundary → `src/modules/notebooklm/index.ts`
 
-## 衝突防護（src/modules vs modules/）
+## 路由規則
 
 | 情境 | 正確路徑 |
 |---|---|
@@ -50,15 +47,13 @@
 | 撰寫新 use case / adapter / entity | `src/modules/notebooklm/`（本層）|
 | 跨模組 API boundary | `src/modules/notebooklm/index.ts` |
 
-**⚠ 蒸餾作業進行中 — 嚴禁事項：**
-- ❌ 把 `modules/notebooklm/infrastructure/` 直接搬到 `src/modules/notebooklm/domain/`
+**嚴禁事項：**
 - ❌ 在 notebooklm `domain/` 中定義 AI 機制（embedding、retrieval、generation 屬 `ai`）
 - ❌ 新建獨立 `synthesis` 子域（合成邏輯屬 `conversation` 應用層）
 - ❌ 在 barrel 使用 `export *`
 
 ## 文件網絡
 
-- [README.md](README.md) — 蒸餾狀態與目錄結構
-- [src/modules/README.md](../README.md) — 蒸餾層總覽
-- [modules/notebooklm/](../../../modules/notebooklm/) — 完整 HEX+DDD 實作層（邊界規則權威）
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖

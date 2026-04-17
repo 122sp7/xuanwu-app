@@ -243,43 +243,24 @@ subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/doma
 
 ---
 
-## 蒸餾作業說明（src/modules 層定位）
-
-`src/modules/template` 是 **`src/modules` 蒸餾層**的骨架基線（Reference Scaffold）。
-
-### 兩層模組結構，不可互換
-
-| 路徑 | 角色 | 用途 |
-|---|---|---|
-| `modules/<context>/` | 完整 Hexagonal DDD 實作（現況） | 讀取邊界規則、published language、context map |
-| `src/modules/<context>/` | 精簡蒸餾骨架（新實作目標） | 撰寫新 use case、adapter、entity |
-
-### 路由規則
+## 路由規則
 
 - 讀取邊界規則、published language → `src/modules/<context>/AGENT.md`
 - 撰寫新實作程式碼 → `src/modules/<context>/`，以本模組為骨架基線
-- 了解蒸餾進度與跳過概念 → `src/modules/<context>/README.md`
 - 需要跨模組 API boundary → `src/modules/<context>/index.ts`
-
-### 蒸餾進度總覽
-
-見 [src/modules/README.md](../README.md) 取得最新蒸餾狀態表。
 
 ---
 
 ## 衝突防護
 
-1. **不把 `modules/<context>/infrastructure/` 的實作直接複製到 `src/modules/<context>/domain/`**。
-2. **不把 `src/modules/` 當成 `modules/` 的別名**；它們是兩個獨立的實作層。
-3. 生成程式碼前，先確認目標路徑是 `modules/` 還是 `src/modules/`，再決定結構與命名。
-4. `template` 模組本身不代表任何業務邊界；真實業務請在對應 `src/modules/<context>/` 實作。
+1. **不在 `domain/` 匯入 Firebase SDK、React、HTTP client 或 ORM。**
+2. `template` 模組本身不代表任何業務邊界；真實業務請在對應 `src/modules/<context>/` 實作。
 
 ---
 
 ## 文件網絡
 
-- [src/modules/README.md](../README.md) — 蒸餾層狀態總覽
+- [src/modules/README.md](../README.md) — 模組層狀態總覽
 - [src/modules/template/AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [modules/](../../../modules/) — 完整 HEX+DDD 實作層（邊界規則權威）
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-- [docs/bounded-context-subdomain-template.md](../../../docs/bounded-context-subdomain-template.md) — 蒸餾設計藍圖
+- [docs/bounded-context-subdomain-template.md](../../../docs/bounded-context-subdomain-template.md) — 設計藍圖
