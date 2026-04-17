@@ -26,7 +26,13 @@ workspace 是協作容器與工作區範疇主域。它的責任是提供 worksp
 - audit
 - feed
 - scheduling
-- workspace-workflow
+- approve
+- issue
+- orchestration
+- quality
+- settlement
+- task
+- task-formation
 
 ## Recommended Gap Subdomains
 

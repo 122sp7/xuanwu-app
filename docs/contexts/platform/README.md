@@ -23,26 +23,15 @@ platform 是帳號、組織與 shared operational services 主域。它的責任
 
 ## Baseline Subdomains
 
-- identity
 - account
 - account-profile
 - organization
 - team
-- tenant
-- access-control
-- security-policy
 - platform-config
 - feature-flag
-- entitlement
 - onboarding
 - compliance
-- consent
-- billing
-- subscription
-- referral
-- ai
 - integration
-- secret-management
 - workflow
 - notification
 - background-job
@@ -50,8 +39,13 @@ platform 是帳號、組織與 shared operational services 主域。它的責任
 - search
 - audit-log
 - observability
-- analytics
 - support
+
+## Recommended Gap Subdomains
+
+- consent
+- secret-management
+- operational-catalog
 
 ## Strategic Reinforcement Focus
 
