@@ -38,7 +38,7 @@
 | 1200 | [1200-boundary-violation.md](./1200-boundary-violation.md) | Boundary Violation — Cross-module direct domain imports | Accepted |
 | 1201 | [1201-boundary-violation-business-logic-in-infrastructure.md](./1201-boundary-violation-business-logic-in-infrastructure.md) | Boundary Violation — 業務規則（wallet balance check）漏入 Infrastructure 層 | Accepted |
 | 1300 | [1300-cyclic-dependency.md](./1300-cyclic-dependency.md) | Cyclic Dependency — workspace ↔ platform circular module-evaluation | Partial |
-| 1400 | [1400-dependency-leakage.md](./1400-dependency-leakage.md) | Dependency Leakage — platform/api 混合 infra/service/UI exports | Accepted |
+| 1400 | [1400-dependency-leakage.md](./1400-dependency-leakage.md) | Dependency Leakage — platform/api 混合 infra/service/UI exports | **Superseded** (0015) |
 | 1401 | [1401-dependency-leakage-infrastructure-api-in-platform-api.md](./1401-dependency-leakage-infrastructure-api-in-platform-api.md) | Dependency Leakage — Infrastructure API symbols (`firestoreInfrastructureApi` 等) 暴露在 platform/api/index.ts 公開邊界 | **Resolved** |
 | 1402 | [1402-dependency-leakage-use-case-classes-in-platform-api.md](./1402-dependency-leakage-use-case-classes-in-platform-api.md) | Dependency Leakage — 17 個 use-case class 名稱透過 platform/api 公開（organization subdomain） | **Resolved** |
 | 1403 | [1403-dependency-leakage-subdomain-api-exports-interfaces-wildcard.md](./1403-dependency-leakage-subdomain-api-exports-interfaces-wildcard.md) | Dependency Leakage — 4 個 platform subdomain api/index.ts 使用 `export * from "../interfaces"` 洩漏 React UI 元件與 server actions | **Superseded** (0015) |
@@ -48,13 +48,13 @@
 | 2200 | [2200-hidden-coupling.md](./2200-hidden-coupling.md) | Hidden Coupling | Accepted |
 | 2201 | [2201-hidden-coupling-workspace-aggregate-no-domain-events.md](./2201-hidden-coupling-workspace-aggregate-no-domain-events.md) | Hidden Coupling — `Workspace` 聚合根未內部收集 Domain Events，事件由 use-case 外部組裝 | Accepted |
 | 2300 | [2300-temporal-coupling.md](./2300-temporal-coupling.md) | Temporal Coupling | Accepted |
-| 3100 | [3100-low-cohesion.md](./3100-low-cohesion.md) | Low Cohesion — use-case bundling | Accepted |
+| 3100 | [3100-low-cohesion.md](./3100-low-cohesion.md) | Low Cohesion — use-case bundling | **Superseded** (0015) |
 | 3101 | [3101-low-cohesion-platform-application-layer.md](./3101-low-cohesion-platform-application-layer.md) | Low Cohesion — `platform/application/` 層 9 個異質子目錄 | Accepted |
 | 3200 | [3200-duplication.md](./3200-duplication.md) | Duplication | Accepted |
 | 3201 | [3201-duplication-event-discriminant-format.md](./3201-duplication-event-discriminant-format.md) | Duplication — Domain Event 識別符號格式統一為 `kebab-case` | **Resolved** |
 | 3202 | [3202-duplication-source-dto-reimplements-domain-service.md](./3202-duplication-source-dto-reimplements-domain-service.md) | Duplication — Source DTO re-implements domain service logic | **Resolved** |
 | 3203 | [3203-duplication-shell-quick-create-orphaned-platform-copy.md](./3203-duplication-shell-quick-create-orphaned-platform-copy.md) | Duplication — 兩個 `shell-quick-create` 實作（platform/application 版本孤兒化，無消費者） | **Resolved** |
-| 4100 | [4100-change-amplification.md](./4100-change-amplification.md) | Change Amplification | Accepted |
+| 4100 | [4100-change-amplification.md](./4100-change-amplification.md) | Change Amplification | **Superseded** (0015) |
 | 4101 | [4101-change-amplification-uuid-strategy.md](./4101-change-amplification-uuid-strategy.md) | Change Amplification — UUID 策略集中於 @lib-uuid | **Resolved** |
 | 4200 | [4200-inconsistency.md](./4200-inconsistency.md) | Inconsistency | Accepted |
 | 4201 | [4201-inconsistency-dto-vs-dtos.md](./4201-inconsistency-dto-vs-dtos.md) | Inconsistency — `dto` vs `dtos` 目錄命名不一致（11 vs 13 個模組） | **Resolved** |

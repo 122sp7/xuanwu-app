@@ -29,14 +29,14 @@
 |----|-------|----------|--------|
 | [1100](./1100-layer-violation.md) | Layer Violation | Architectural | **Superseded by [0015](./0015-api-layer-removal.md)** |
 | [1200](./1200-boundary-violation.md) | Boundary Violation | Architectural | Accepted |
-| [1300](./1300-cyclic-dependency.md) | Cyclic Dependency | Architectural | Accepted |
-| [1400](./1400-dependency-leakage.md) | Dependency Leakage | Architectural | Accepted |
+| [1300](./1300-cyclic-dependency.md) | Cyclic Dependency | Architectural | Partial |
+| [1400](./1400-dependency-leakage.md) | Dependency Leakage | Architectural | **Superseded by [0015](./0015-api-layer-removal.md)** |
 | [2100](./2100-tight-coupling.md) | Tight Coupling | Coupling | **Superseded by [0015](./0015-api-layer-removal.md)** |
 | [2200](./2200-hidden-coupling.md) | Hidden Coupling | Coupling | Accepted |
 | [2300](./2300-temporal-coupling.md) | Temporal Coupling | Coupling | Accepted |
-| [3100](./3100-low-cohesion.md) | Low Cohesion | Modularity | Accepted |
+| [3100](./3100-low-cohesion.md) | Low Cohesion | Modularity | **Superseded by [0015](./0015-api-layer-removal.md)** |
 | [3200](./3200-duplication.md) | Duplication | Modularity | Accepted |
-| [4100](./4100-change-amplification.md) | Change Amplification | Maintainability | Accepted |
+| [4100](./4100-change-amplification.md) | Change Amplification | Maintainability | **Superseded by [0015](./0015-api-layer-removal.md)** |
 | [4200](./4200-inconsistency.md) | Inconsistency | Maintainability | Accepted |
 | [4300](./4300-semantic-drift.md) | Semantic Drift | Maintainability | Accepted |
 | [5100](./5100-accidental-complexity.md) | Accidental Complexity | Complexity | **Superseded by [0015](./0015-api-layer-removal.md)** |

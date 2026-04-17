@@ -1,8 +1,9 @@
 # 1100 Layer Violation
 
-- Status: Partially Resolved
+- Status: ~~Partially Resolved~~ → **Superseded by [ADR 0015](./0015-api-layer-removal.md)**
 - Date: 2026-04-13
 - Resolved (workspace interfaces/api/): 2026-04-14
+- Superseded by: [ADR 0015 – api/ Layer Removal](./0015-api-layer-removal.md)
 - Category: Architectural Smells > Layer Violation
 
 > **路徑說明**：此 ADR 中的路徑使用舊版 `modules/` 前綴（架構遷移前）。現行實作位置為 `src/modules/` 下的對應路徑。api/ 層相關內容已徝 ADR 0015 採用移除方案。

@@ -1,8 +1,11 @@
 # 1103 Layer Violation — Firebase SDK in platform/api/infrastructure-api.ts
 
-- Status: Accepted
+- Status: ~~Accepted~~ → **Superseded by [ADR 0015](./0015-api-layer-removal.md)**
 - Date: 2026-04-14
+- Superseded by: [ADR 0015 – api/ Layer Removal](./0015-api-layer-removal.md)
 - Category: Architectural Smells > Layer Violation
+
+> **路徑說明**：此 ADR 描述的 `platform/api/infrastructure-api.ts` 路徑使用舊版 `module/api/` 結構。ADR 0015 已整體移除 `api/` 層；本 ADR 描述的違規路徑不再存在。Firebase SDK 應限定在 `infrastructure/` 適配器內的工程此則仍適用。
 
 ## Context
 
