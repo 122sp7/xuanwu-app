@@ -159,7 +159,7 @@ Firebase is the only backend runtime platform.
 - Firestore accessed only via `infrastructure/` repository implementations.
 - Cloud Functions must not contain domain logic.
 - Authentication state must be mapped into domain identity before crossing into `domain/`.
-- `workspace` must not call Firestore directly; it must use `platform/api` Service APIs (FileAPI, PermissionAPI, etc.).
+- `workspace` must not call Firestore directly; it must use `src/modules/platform/index.ts` Service APIs (FileAPI, PermissionAPI, etc.).
 
 ---
 

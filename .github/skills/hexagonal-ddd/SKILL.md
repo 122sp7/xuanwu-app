@@ -359,7 +359,7 @@ Define behavior first, define rules second, connect the outside world last.
 
 | Concern | Xuanwu location |
 |---|---|
-| Public cross-module boundary | `modules/<context>/api/` |
+| Public cross-module boundary | `src/modules/<context>/index.ts` |
 | Driving adapters | `app/`, `modules/<context>/interfaces/` |
 | Application orchestration | `modules/<context>/application/` |
 | Domain rules and invariants | `modules/<context>/domain/` |
@@ -371,8 +371,8 @@ Define behavior first, define rules second, connect the outside world last.
 1. Choose the owning bounded context before choosing the file path.
 2. Default to existing subdomains; create a new one only when ownership or language genuinely diverges.
 3. Keep `interfaces -> application -> domain <- infrastructure` as the dependency rule.
-4. Treat `index.ts` as exports only; do not treat it as the public module boundary.
-5. Use `api/` for cross-module calls; do not import peer `domain/`, `application/`, `interfaces/`, or `infrastructure/` directly.
+4. Treat `index.ts` as the public module boundary; expose only the stable contract surface.
+5. Use `src/modules/<context>/index.ts` for cross-module calls; do not import peer `domain/`, `application/`, `interfaces/`, or `infrastructure/` directly.
 6. Bounded-context root layers are valid for context-wide policies or orchestration; do not force everything into a generic `core/` wrapper.
 
 ## Port Decision Heuristics
@@ -391,7 +391,7 @@ Avoid a port when the abstraction only exists to look architectural.
 - Domain imports React, Firebase, HTTP clients, ORM models, or runtime transport types.
 - Application rewrites business invariants that belong in domain.
 - A route handler or Server Action becomes the real use-case implementation.
-- Another module imports peer internals instead of `@/modules/<target>/api`.
+- Another module imports peer internals instead of `@/modules/<target>`.
 - A repository implementation is referenced directly from the core.
 - A new layer or folder is introduced without a new boundary to protect.
 

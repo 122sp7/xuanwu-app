@@ -80,7 +80,7 @@ src/modules/workspace/
 | 新建或恢復 `workspace-workflow` 子域 | 已拆解，禁止回歸 |
 | 使用 `approve` / `scheduling` / `sharing` 作為子域名 | 已更正為名詞（`approval` / `schedule` / `share`）|
 | 混用 Membership（工作區參與）與 Actor（身份）術語 | 違反 Ubiquitous Language |
-| workspace 直接呼叫 Firestore | 必須透過 `platform/api/`（FileAPI、PermissionAPI）|
+| workspace 直接呼叫 Firestore | 必須透過 `src/modules/platform/index.ts`（FileAPI、PermissionAPI）|
 
 ---
 

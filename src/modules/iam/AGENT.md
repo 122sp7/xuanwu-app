@@ -29,7 +29,6 @@
 `platform/account` 與 `platform/organization` 子域已**完全遷入** `iam`：
 - `modules/iam/subdomains/account/` — AccountProfile read-model（getProfile / updateProfile）
 - `modules/iam/subdomains/organization/` — OrganizationTeam aggregate、成員管理、Team CRUD
-- `platform/api/index.ts` 仍重新匯出 account / org API（向後相容過渡）
 
 ## Boundary Rules
 

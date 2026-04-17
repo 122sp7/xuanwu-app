@@ -23,10 +23,8 @@
 
 ### 已遷入說明
 
-`modules/platform/subdomains/account/` 與 `modules/platform/subdomains/organization/` 已完全遷移至 `modules/iam/`：
-- `modules/iam/subdomains/account/api/index.ts` — getProfile / subscribeToProfile / updateProfile
-- `modules/iam/subdomains/organization/api/index.ts` — OrganizationTeam CRUD、成員管理
-- `modules/platform/api/index.ts` 仍重新匯出（過渡期向後相容）
+`modules/platform/subdomains/account/` 與 `modules/platform/subdomains/organization/` 已完全遷移至 `src/modules/iam/`：
+- `src/modules/iam/` 公開入口（`index.ts`）提供 account 與 org API
 
 ---
 

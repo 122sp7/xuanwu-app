@@ -227,11 +227,11 @@ workspace ↓ notion ↓ notebooklm
 
 ### Rule 46: ❌ workspace directly calls Firestore
 - **Wrong**: `firestore.collection('documents').get()`
-- **Correct**: Use `@/modules/platform/api` (FileAPI, PermissionAPI, etc.)
+- **Correct**: Use `@/modules/platform` (FileAPI, PermissionAPI, etc.)
 
 ### Rule 47: ❌ notebooklm implements its own permission logic
 - **Wrong**: notebooklm checking `user.role === 'admin'`
-- **Correct**: Call `@/modules/platform/api → PermissionAPI.can()`
+- **Correct**: Call `@/modules/platform` → PermissionAPI.can()`
 
 ### Rule 48: ❌ notion directly invokes AI/Genkit
 - **Wrong**: `notion/application/ imports Genkit`
