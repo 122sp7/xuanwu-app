@@ -42,16 +42,16 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1274 files | 34,491 lines
+1275 files | 34,555 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 802 | 9,964 |
-| Markdown | 259 | 18,835 |
-| TypeScript (TSX) | 85 | 2,009 |
+| TypeScript | 802 | 10,009 |
+| Markdown | 260 | 18,956 |
+| TypeScript (TSX) | 85 | 1,912 |
 | Python | 63 | 1,459 |
 | No Extension | 37 | 42 |
-| JSON | 19 | 1,914 |
+| JSON | 19 | 1,909 |
 | Text | 3 | 107 |
 | RULES | 2 | 18 |
 | JavaScript (ESM) | 2 | 32 |
@@ -65,7 +65,7 @@ This skill contains the following reference files:
 - `docs/bounded-contexts.md` (276 lines)
 - `docs/subdomains.md` (275 lines)
 - `py_fn/README.md` (265 lines)
-- `.github/prompts/enforce-hexagonal-ddd-convergence.prompt.md` (215 lines)
 - `.github/prompts/serena-hexagonal-ddd-refactor.prompt.md` (215 lines)
+- `.github/prompts/enforce-hexagonal-ddd-convergence.prompt.md` (215 lines)
 - `.github/instructions/architecture.instructions.md` (211 lines)
-- `docs/bounded-context-subdomain-template.md` (206 lines)
+- `docs/bounded-context-subdomain-template.md` (203 lines)
