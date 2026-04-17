@@ -65,14 +65,18 @@
 
 | Subdomain | 功能註解 |
 |---|---|
-| content-generation | AI 驅動的文本生成與回覆輸出 |
-| content-distillation | AI 驅動的摘要、提煉與結構化壓縮 |
-| context-assembly | 推理前的 context window 組裝與排序 |
-| evaluation-policy | 品質與回歸評估政策 |
-| memory-context | 跨對話記憶與可重用上下文整理 |
-| model-observability | 模型使用量、成本與效能監測 |
-| prompt-pipeline | prompt、template、flow 與 tool calling orchestration |
-| safety-guardrail | 安全護欄、內容保護與限制 |
+| generation | AI 驅動的文本生成與回覆輸出（Genkit 接縫） |
+| orchestration | 執行圖與多步驟 AI workflow 協調 |
+| distillation | 將長輸出或多來源濃縮為精煉知識片段 |
+| retrieval | 向量搜尋、相似度查詢與上下文抓取 |
+| memory | 對話歷史與跨輪次狀態保存 |
+| context | prompt 上下文組裝與 token 預算管理 |
+| safety | 安全護欄、有害內容過濾與合規保護 |
+| tool-calling | 外部工具調用協調與結果回注 |
+| reasoning | 推理步驟管理（chain-of-thought、反思） |
+| conversation | AI 互動輪次追蹤與歷史管理 |
+| evaluation | 輸出品質評估與回歸基準 |
+| tracing | AI 執行觀測、span 紀錄與成本追蹤 |
 
 #### Recommended Gap Subdomains
 
