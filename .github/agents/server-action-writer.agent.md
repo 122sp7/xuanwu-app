@@ -21,9 +21,9 @@ handoffs:
 
 ## Target Scope
 
-- `app/**`
-- `modules/**/interfaces/**`
-- `modules/**/application/**`
+- `src/app/**`
+- `src/modules/**/interfaces/**`
+- `src/modules/**/application/**`
 
 ## Guardrails
 

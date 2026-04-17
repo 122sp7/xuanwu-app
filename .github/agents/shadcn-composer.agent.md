@@ -21,8 +21,8 @@ handoffs:
 
 ## Target Scope
 
-- `app/**`
-- `modules/**/interfaces/components/**`
+- `src/app/**`
+- `src/modules/**/interfaces/components/**`
 - `packages/ui-shadcn/**`
 
 ## Workflow

@@ -21,10 +21,10 @@ handoffs:
 
 ## Target Scope
 
-- `modules/**/interfaces/**` (Server Actions, route handlers — Level 1 boundary)
-- `modules/**/domain/value-objects/**` (brand types — Level 2)
-- `modules/**/domain/events/**` (event payload schemas — Level 2)
-- `modules/**/infrastructure/**` (Firestore/AI output validation — Level 3)
+- `src/modules/**/interfaces/**` (Server Actions, route handlers — Level 1 boundary)
+- `src/modules/**/domain/value-objects/**` (brand types — Level 2)
+- `src/modules/**/domain/events/**` (event payload schemas — Level 2)
+- `src/modules/**/infrastructure/**` (Firestore/AI output validation — Level 3)
 
 ## Three Validation Levels
 

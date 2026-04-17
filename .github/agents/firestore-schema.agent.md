@@ -21,7 +21,7 @@ handoffs:
 
 ## Target Scope
 
-- `modules/**/infrastructure/**`
+- `src/modules/**/infrastructure/**`
 - `firestore.indexes.json`
 - `firestore.rules`
 

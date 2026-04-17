@@ -21,9 +21,9 @@ handoffs:
 
 ## Target Scope
 
-- `modules/**`
-- `packages/shared-types/**`
-- `packages/api-contracts/**`
+- `src/modules/**`
+- `src/modules/shared/**`
+- `src/modules/shared/**`
 
 ## Mission
 

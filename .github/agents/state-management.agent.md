@@ -21,10 +21,10 @@ handoffs:
 
 ## Target Scope
 
-- `modules/**/interfaces/stores/**`
-- `modules/**/application/machines/**`
-- `app/(shell)/stores/**`
-- `app/**` (client components using Zustand / XState hooks)
+- `src/modules/**/interfaces/stores/**`
+- `src/modules/**/application/machines/**`
+- `src/app/(shell)/stores/**`
+- `src/app/**` (client components using Zustand / XState hooks)
 
 ## Responsibilities
 

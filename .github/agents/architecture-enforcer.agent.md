@@ -21,8 +21,8 @@ handoffs:
 
 ## 目標範圍 (Target Scope)
 
-- `modules/**`
-- `app/**`
+- `src/modules/**`
+- `src/app/**`
 - `packages/**`
 - `py_fn/**`
 
@@ -49,7 +49,7 @@ handoffs:
 - [ ] `api/` 僅暴露 cross-module 公開表面，不含 repository factory 或 container wiring？
 
 ### Import Boundary（匯入邊界）
-- [ ] 跨模組呼叫一律經由 `modules/<target>/api/`，無直接內部路徑匯入？
+- [ ] 跨模組呼叫一律經由 `src/modules/<target>/api/`，無直接內部路徑匯入？
 - [ ] Route components 使用 props 傳遞 scope（`accountId`, `workspaceId`），不呼叫外部模組 context provider？
 
 ### Module Shape（模組形狀）
