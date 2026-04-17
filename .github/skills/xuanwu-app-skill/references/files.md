@@ -49,7 +49,7 @@ handoffs:
 - Evidence checked
 - Residual route risk
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/commands.md
@@ -195,7 +195,7 @@ handoffs:
 3. **修正後的程式碼**：提供完整修正實作
 4. **驗證結果**：`npm run lint` + `npm run build`
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -279,7 +279,7 @@ handoffs:
 4. **Security Rules 建議**（如有）
 5. **驗證結果**：`npm run lint` + `npm run build`
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill firebase-rules
 ````
@@ -365,7 +365,7 @@ handoffs:
 3. **Flow 設計建議**（如需新建）：含 input/output contract、tool list、fallback 路徑
 4. **驗證結果**：`npm run lint` + `npm run build`
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill genkit-ai
 #use skill xuanwu-rag-runtime-boundary
 #use skill next-devtools-mcp
@@ -471,7 +471,7 @@ handoffs:
 - Keep styling and behavior consistent with app composition boundaries.
 - Validate interactive states and accessibility basics.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/instructions/architecture-core.instructions.md
@@ -611,7 +611,7 @@ return raw as WorkspaceSnapshot;
 - Re-check changed imports under `@/modules/` for API-only access.
 - Keep dependency flow acyclic unless an explicit event contract documents an exception.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -654,7 +654,7 @@ applyTo: '{app,modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py,md
 - Use external documentation only when local sources are insufficient or behavior is version-sensitive.
 - Prefer local authority first: `AGENTS.md`, `.github/copilot-instructions.md`, module docs, local code.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill next-devtools-mcp
 ````
@@ -870,7 +870,7 @@ When ambiguity exists, apply in this order:
 
 Never sacrifice domain purity for implementation simplicity.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -908,7 +908,7 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 - 確認跨 Context 通訊使用 API boundary 或 event contract。
 - 確認不存在跨 Context 的 Domain Model 重用。
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -933,7 +933,7 @@ applyTo: '{.github/workflows/**/*.{yml,yaml},package.json,py_fn/requirements.txt
 - Do not skip failing mandatory checks.
 - Report unrelated baseline failures separately.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/instructions/cloud-functions.instructions.md
@@ -965,7 +965,7 @@ applyTo: 'py_fn/**/*.py'
 - Before changing worker ownership, review `py_fn/docs/decision-architecture/adr/README.md` and accepted ADRs.
 - Update `py_fn/README.md` when responsibilities or runtime contracts change.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-rag-runtime-boundary
 ````
 
@@ -1009,7 +1009,7 @@ applyTo: '{docs,modules,packages}/**/*.{ts,tsx,js,jsx,md}'
 - Verify behavioral rules are not restating full strategic docs content.
 - If docs changes affect `.github/skills/` repomix references, regenerate with existing scripts.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -1051,7 +1051,7 @@ applyTo: 'modules/**/domain/**/*.{ts,tsx}'
 - ❌ 跨聚合直接操作：在 Aggregate A 中修改 Aggregate B 的狀態。
 - ❌ Domain event 命名使用現在式或技術術語。
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -1179,7 +1179,7 @@ modules/<context>/domain/
 └── services/          # 領域服務（無狀態業務邏輯）
 ```
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -1204,7 +1204,7 @@ Parse -> Clean -> Taxonomy -> Chunk -> Chunk metadata -> Embedding -> Firestore 
 - Validate converted markdown quality before chunking.
 - Record notable format-loss risk when conversion fidelity may affect downstream retrieval.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-rag-runtime-boundary
 #use skill llamaparse
 #use skill liteparse
@@ -1317,7 +1317,7 @@ export class CreateWorkspaceUseCase {
 - `occurredAt` 必須使用 ISO string，不得使用 `Date` 物件（與 `shared/domain/events.ts` 一致）。
 - 事件 Schema 使用 Zod 驗證，確保 Payload 型別安全。
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -1341,7 +1341,7 @@ applyTo: '{modules/**/infrastructure/**/*.{ts,tsx,js,jsx},firestore.indexes.json
 - Verify read/write paths remain compatible.
 - Confirm index coverage for new query patterns.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-development-contracts
 ````
 
@@ -1456,7 +1456,7 @@ Log before sending to AI, log after receiving from AI. Never lose the pair.
 - ❌ Magic string prompts inside use-case files
 - ❌ Skipping traceability logging for any AI request
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -1504,7 +1504,7 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 
 子域定義「業務邊界」，Bounded Context 定義「語意邊界」，Hexagonal 定義「依賴方向」，Domain 則是唯一不能被任何外部污染的純業務核心。
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -1523,7 +1523,7 @@ applyTo: '{apphosting.yaml,firebase.json,.github/workflows/**/*.{yml,yaml}}'
 - Keep deploy scope explicit (hosting, rules, indexes, functions).
 - Record rollback path for production-impacting changes.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/instructions/lint-format.instructions.md
@@ -1546,7 +1546,7 @@ applyTo: '{app,modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py}'
 - Fix new lint errors introduced by your change.
 - Do not hide violations by broad rule disables.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vscode-typescript-workbench
 ````
 
@@ -1567,7 +1567,7 @@ applyTo: 'app/**/*.{ts,tsx}'
 - Use package aliases and avoid legacy import families.
 - Keep `app/` as composition ownership, not domain-rule ownership.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices
 #use skill vercel-composition-patterns
@@ -1588,7 +1588,7 @@ applyTo: 'app/**/*.{ts,tsx}'
 - Avoid hidden coupling between unrelated slots.
 - Consume cross-domain behavior through module APIs only.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill app-router-parallel-routes
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices
@@ -1611,7 +1611,7 @@ applyTo: '{app,modules}/**/*.{ts,tsx}'
 - Validate inputs at action boundaries using shared validators where applicable.
 - Keep infrastructure access out of route files and action wrappers.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices
 ````
@@ -1766,7 +1766,7 @@ applyTo: '**/*'
 - State what complexity remains and why.
 - State validation proving the chosen path still works.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill alistair-cockburn
 #use skill occams-razor
 ````
@@ -1802,7 +1802,7 @@ applyTo: '.github/prompts/**/*.prompt.md'
 - Avoid copying repository-global policy into each prompt.
 - Prefer short executable steps over long background text.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/instructions/rag-architecture.instructions.md
@@ -1822,7 +1822,7 @@ applyTo: '{modules/notebooklm/**/*.{ts,tsx,js,jsx},modules/notion/**/*.{ts,tsx,j
 - Treat `notion` as the canonical content source and `notebooklm` as the owner of ingestion / retrieval / grounding / evaluation semantics.
 - Consume shared model and provider capability from `platform.ai`; do not reintroduce a generic `ai` owner inside downstream RAG flows.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-rag-runtime-boundary
 #use skill llamaparse
 #use skill liteparse
@@ -1848,7 +1848,7 @@ applyTo: '{firestore.rules,storage.rules,modules/**/infrastructure/**/*.{ts,tsx,
 - Broad wildcard allows without actor checks.
 - Hidden coupling to UI-side assumptions.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-development-contracts
 ````
 
@@ -1867,7 +1867,7 @@ applyTo: '{app,modules,packages}/**/*.{ts,tsx}'
 - Keep semantic markup and keyboard accessibility intact.
 - Keep component concerns separate from business rules.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill shadcn
 #use skill web-design-guidelines
 ````
@@ -2038,7 +2038,7 @@ const { data } = useQuery(...);
 useEffect(() => { setWorkspaceData(data); }, [data]);
 ```
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill zustand-xstate
 ````
 
@@ -2129,7 +2129,7 @@ domain 層必須：
 
 Subdomain = Business capability first; default core-first, add infra/interfaces only when real boundary pressure exists
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -2148,7 +2148,7 @@ applyTo: '{app,modules,packages}/**/*.{ts,tsx,css}'
 - Keep spacing and typography scales consistent.
 - Avoid ad-hoc one-off style patterns without rationale.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill web-design-guidelines
 #use skill shadcn
 ````
@@ -2168,7 +2168,7 @@ applyTo: '{app,modules,debug}/**/*.{ts,tsx}'
 - Capture reproducible evidence for failures.
 - Separate confirmed defects from enhancement suggestions.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vscode-testing-debugging-browser
 #use skill next-devtools-mcp
 ````
@@ -2188,7 +2188,7 @@ applyTo: '{modules,packages,py_fn}/**/*.{ts,tsx,js,jsx,py}'
 - Test behavior and invariants, not implementation trivia.
 - Cover happy, boundary, and negative paths for core domain logic.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vscode-testing-debugging-browser
 #use skill vscode-typescript-workbench
 ````
@@ -2228,7 +2228,7 @@ Map ownership, boundaries, and risks before coding.
 - Risk list
 - Suggested next prompt
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -2256,7 +2256,7 @@ argument-hint: Provide error message, route/module, and reproduction steps.
 3. Propose minimal fix plus regression checks.
 4. State validation commands to confirm resolution.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill next-devtools-mcp
 #use skill vscode-testing-debugging-browser
 ````
@@ -2317,14 +2317,14 @@ Skill declarations are centralized in:
 
 ### 0.8) Repomix Explorer Bootstrap
 
-- 優先使用 `.github/skills/xuanwu-skill/references/` 作為分析來源。
+- 優先使用 `.github/skills/xuanwu-app-skill/references/` 作為分析來源。
 - 若來源缺失或過期，先執行 `npm run repomix:skill` 進行刷新。
 - 分析順序固定：`summary.md` -> `project-structure.md` -> `files.md`。
 - 採 search-first：先搜尋 pattern，再讀完整檔案。
 
 ### 1) Global Scan
 
-- 使用 `xuanwu-skill`（或 fresh-generated repomix skill）建立全域違規索引
+- 使用 `xuanwu-app-skill`（或 fresh-generated repomix skill）建立全域違規索引
 - 掃描範圍必須覆蓋整個 repo
 
 輸出 `violation_list`：
@@ -2442,7 +2442,7 @@ Skill declarations are centralized in:
 - `new_violations`
 - `total_smells_before`
 - `total_smells_after`
-- `repomix_source_used`（`xuanwu-skill|fresh-generated`）
+- `repomix_source_used`（`xuanwu-app-skill|fresh-generated`）
 - `complexity_delta`（files / call-chain / cognitive-load）
 
 必填覆蓋證據：
@@ -2577,7 +2577,7 @@ tools: ['serena/*', 'context7/*', 'read', 'search']
 4. `implement-server-action` — 實作 Interface Layer
 5. `implement-uiomponent` — 實作 UI
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill alistair-cockburn
 #use skill occams-razor
@@ -2608,7 +2608,7 @@ argument-hint: Provide approved plan reference and tasks to execute.
 - Documentation updated
 - Deviations or blockers
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices
@@ -2632,7 +2632,7 @@ argument-hint: Provide API intent, owner module, consumers, and compatibility co
 - Include compatibility and migration strategy.
 - Specify validation and documentation updates.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill xuanwu-development-contracts
 ````
@@ -2650,7 +2650,7 @@ argument-hint: Describe desired outcome, constraints, and affected modules.
 
 Use the implementation plan template and include scope, ownership, risks, validation, and non-goals.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill xuanwu-development-contracts
 ````
@@ -2674,7 +2674,7 @@ argument-hint: Provide module scope, operation type, and migration constraints.
 4. Map API/event consumers and migration path.
 5. Define validation and docs updates.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -2695,7 +2695,7 @@ argument-hint: Provide current API, target API, and migration constraints.
 - Avoid leaking internals through barrels.
 - Make compatibility path explicit when breaking changes are required.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -2717,7 +2717,7 @@ argument-hint: Provide module name, refactor goal, and boundary risks.
 3. Remove forbidden internal cross-module imports.
 4. Update tests/docs alongside code changes.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -2739,7 +2739,7 @@ Require checks against:
 - `instructions/architecture-core.instructions.md`
 - target module `context-map.md`
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -2760,7 +2760,7 @@ argument-hint: Provide change summary, touched files, and known risk areas.
 - Include why it matters and blocking status.
 - State residual risks and testing gaps explicitly.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill vscode-typescript-workbench
 ````
@@ -2783,7 +2783,7 @@ argument-hint: Provide route/feature scope, observed slowness, and baseline expe
 3. Propose ranked fixes by impact and complexity.
 4. Define validation for improvement claims.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vercel-react-best-practices
 #use skill next-devtools-mcp
 ````
@@ -2801,7 +2801,7 @@ argument-hint: Provide changed auth/rules/critical data paths and threat concern
 
 Report vulnerabilities first with severity, reproduction notes, and concrete remediation steps.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-development-contracts
 ````
 
@@ -2839,7 +2839,7 @@ serena
 list_memories
 read_memory
 #use skill xuanwu-app-markdown-skill
-#use skill xuanwu-skill
+#use skill xuanwu-app-skill
 #use skill context7
 ```
 
@@ -12026,7 +12026,7 @@ Read from high level to detail:
 | Commit and branching strategy | `.github/instructions/` |
 | Architecture overview & MDDD patterns | `.github/agents/knowledge-base.md` |
 | Build, lint, test commands | `.github/agents/commands.md` |
-| Skill and MCP workflows | `.github/skills/` (serena-mcp, context7, xuanwu-skill, hexagonal-ddd) |
+| Skill and MCP workflows | `.github/skills/` (serena-mcp, context7, xuanwu-app-skill, hexagonal-ddd) |
 | Strategic DDD routing (subdomains) | `docs/subdomains.md` |
 | Bounded context boundaries | `docs/bounded-contexts.md` |
 | Ubiquitous language & glossary | `docs/ubiquitous-language.md` |
@@ -12386,7 +12386,7 @@ NOT:
 
 ---
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -12558,7 +12558,7 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 - Do not place billing, AI orchestration, or workspace product behaviour inside IAM subdomains.
 - Use `Actor` (not `User`) as the canonical identity term across all subdomain published language.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -15871,7 +15871,7 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 - Use `organizationId` only as an internal storage scope identifier derived after boundary translation; do not treat it as a shell route parameter.
 - Use `Conversation` (not `Chat` or `Session`) and `Ingestion` (not `File Import` or `Upload`) in all subdomain published language.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -21566,7 +21566,7 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 - Do not place identity, tenant, AI provider policy, or workspace lifecycle logic inside notion subdomains.
 - Use `KnowledgeArtifact` (not `Wiki` or `Doc`), `KnowledgePage` (not `Page`), and `Article` (not `Post` or `Content`) in all subdomain published language.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -22130,7 +22130,7 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 - Event handlers translate ingress events to commands via `mapIngressEventToCommand` before dispatching.
 - `PlatformCommandDispatcher` and `PlatformQueryDispatcher` are the single dispatch entry points — do not bypass them.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -23140,7 +23140,7 @@ For full reference, align with `.github/instructions/docs-authority-and-language
 - Use ubiquitous language from `docs/contexts/platform/ubiquitous-language.md`; do not introduce synonyms or aliases.
 - Keep this directory in sync with `docs/contexts/platform/README.md` whenever the subdomain list changes.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -23430,7 +23430,7 @@ For full reference, align with `.github/instructions/domain-modeling.instruction
 - Keep domain framework-free (no Firebase/React/transport imports).
 - Emit domain events on state transitions and publish via application orchestration.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -26382,7 +26382,7 @@ For full reference, align with `.github/instructions/firestore-schema.instructio
 - Event routing (`events/routing/`) must use `resolveEventHandler` as the single dispatch table; do not hardcode handler selection in consumers.
 - Version breaking schema transitions with migration steps before deploying; update `firestore.indexes.json` with query-shape changes.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill xuanwu-development-contracts
 ````
@@ -26802,7 +26802,7 @@ For full reference, align with `.github/instructions/nextjs-server-actions.instr
 - CLI handlers (`cli/`) follow the same pattern: parse → dispatch → render.
 - Use shadcn/ui primitives before creating new components; keep semantic markup and accessibility intact.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices
@@ -27576,7 +27576,7 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 - Domain events emitted by a subdomain must use the discriminant format `platform.<subdomain>.<action>` (e.g. `platform.identity.subject-authenticated`).
 - Dependency direction inside each subdomain mirrors the module-level rule: `interfaces → application → domain ← infrastructure`.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -27698,7 +27698,7 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 - Pure reads (workspace queries, member views, wiki tree) belong in **query handlers** — `WorkspaceQueryApplicationService` owns these.
 - Use case ordering for new workspace features: lifecycle → member → capabilities → access.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -27987,7 +27987,7 @@ For full reference, align with `.github/instructions/docs-authority-and-language
 - Use ubiquitous language from `docs/contexts/workspace/ubiquitous-language.md`; do not introduce synonyms.
 - Keep this directory in sync with `docs/contexts/workspace/README.md` whenever the subdomain list changes.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -28045,7 +28045,7 @@ For full reference, align with `.github/instructions/domain-modeling.instruction
 - Keep domain framework-free (no Firebase/React/transport imports).
 - Emit domain events on state transitions and publish via application orchestration.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -28781,7 +28781,7 @@ For full reference, align with `.github/instructions/firestore-schema.instructio
 - Version breaking schema transitions with migration steps; update `firestore.indexes.json` with query-shape changes.
 - Subdomain-specific adapters belong in the bounded-context root `infrastructure/<subdomain>/` grouping by default; only place adapters inside `subdomains/<name>/infrastructure/` when the mini-module gate is explicitly justified.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill xuanwu-development-contracts
 ````
@@ -28883,7 +28883,7 @@ For full reference, align with `.github/instructions/nextjs-server-actions.instr
 - `interfaces/api/` exposes tRPC facades and query handlers for workspace — keep route and action wiring separate from business logic.
 - Use shadcn/ui primitives before creating new components; maintain semantic markup and accessibility.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices
@@ -32227,7 +32227,7 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 - Domain events use the discriminant format `workspace.<subdomain>.<action>` (e.g. `workspace.feed.post-created`, `workspace.workflow.task-assigned`).
 - Dependency direction inside each subdomain: `interfaces → application → domain ← infrastructure`.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -32270,7 +32270,7 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 - Knowledge pages, articles, databases, content publishing → `notion`
 - Notebook, conversation, source, retrieval, synthesis → `notebooklm`
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -36587,7 +36587,7 @@ handoffs:
 - Keep parsing, chunking, embedding in py_fn workers.
 - Do not model `notion` or `notebooklm` as owning a generic `ai` bounded-context surface.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill genkit-ai
 ````
 
@@ -36667,7 +36667,7 @@ handoffs:
 3. **修正建議**：具體檔案移動 / 重構步驟
 4. **修正後驗證**：`npm run lint` + `npm run build` 結果
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill occams-razor
 ````
@@ -36709,7 +36709,7 @@ handoffs:
 - Domain-specific segmentation rules
 - Ownership alignment across `notion` source contracts, `notebooklm` retrieval semantics, and shared `platform.ai` constraints
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/doc-ingest.agent.md
@@ -36750,7 +36750,7 @@ handoffs:
 - Flag notable format-loss risk when source conversion may affect downstream retrieval.
 - Treat `notion` as the canonical content source and `notebooklm` as the owner of ingestion / retrieval pipeline semantics.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/domain-architect.agent.md
@@ -36822,7 +36822,7 @@ handoffs:
 3. **修正建議**：附程式碼範例
 4. **驗證指令執行結果**：`npm run lint` 與 `npm run build` 結果
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -36874,7 +36874,7 @@ handoffs:
 - Run lint for boundary and import changes.
 - Run build when public types or exports are touched.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/e2e-qa.agent.md
@@ -36925,7 +36925,7 @@ handoffs:
 - Confirmed failures
 - Release recommendation: ready | ready-with-risk | blocked
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/embedding-writer.agent.md
@@ -36965,7 +36965,7 @@ handoffs:
 - Validate write path and retrieval compatibility.
 - Keep ownership aligned: `notebooklm` owns retrieval-facing semantics, while shared provider capability is consumed from `platform.ai`.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/firestore-schema.agent.md
@@ -37003,7 +37003,7 @@ handoffs:
 - Keep schema and index plans aligned with read and write paths.
 - Track migration impact and backward compatibility.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/frontend-lead.agent.md
@@ -37045,7 +37045,7 @@ Deliver route-level UI slices with clear ownership and predictable data flow.
 - Consume module behavior via module api only.
 - Prefer server components unless client interactivity is required.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/genkit-flow.agent.md
@@ -37091,7 +37091,7 @@ handoffs:
 - Avoid leaking worker-only logic into app orchestration.
 - Keep generic AI ownership in `platform.ai`; downstream contexts consume capability rather than redefining ownership.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill genkit-ai
 ````
 
@@ -37130,7 +37130,7 @@ handoffs:
 - `serena-mcp`
 - `hexagonal-ddd`
 - `occams-razor`
-- `xuanwu-skill`
+- `xuanwu-app-skill`
 - `repomix`
 
 ## Context7 Certainty Gate
@@ -37141,8 +37141,8 @@ handoffs:
 
 ## Repomix Explorer Source Policy
 
-- 優先使用 `.github/skills/xuanwu-skill/references/` 作為第一層索引來源。
-- 若 `xuanwu-skill` 缺失或疑似過期，先執行 `npm run repomix:skill` 再分析。
+- 優先使用 `.github/skills/xuanwu-app-skill/references/` 作為第一層索引來源。
+- 若 `xuanwu-app-skill` 缺失或疑似過期，先執行 `npm run repomix:skill` 再分析。
 - 分析順序固定：`summary.md` -> `project-structure.md` -> `files.md`。
 - 採 search-first：先 pattern search，再讀完整檔案。
 - `--skill-generate` 工作流採非互動模式（`--skill-output` + `--force`），避免互動阻塞。
@@ -37156,7 +37156,7 @@ handoffs:
 ## Workflow
 
 1. Bootstrap Serena, activate project, load memories.
-2. Bootstrap Repomix evidence source via `xuanwu-skill` (refresh if stale).
+2. Bootstrap Repomix evidence source via `xuanwu-app-skill` (refresh if stale).
 3. Build violation and smell index for full repo.
 4. Classify issues by architecture, layer, dependency inversion, boundary, and convention.
 5. Identify root causes and reject symptom patches.
@@ -37199,7 +37199,7 @@ handoffs:
 
 - `violations_before` / `violations_after`
 - `smells_before` / `smells_after`
-- `repomix_source_used`（`xuanwu-skill|fresh-generated`）
+- `repomix_source_used`（`xuanwu-app-skill|fresh-generated`）
 - `complexity_delta`（`file_count`, `call_chain_depth`, `cognitive_surface`）
 - `tech_debt_removed`（per fix item）
 - `residual_risk`（if any）
@@ -37207,7 +37207,7 @@ handoffs:
 - `semantic_audit_status`（`completed|blocked`）
 
 Tags: #use skill context7 #use skill shadcn #use skill next-devtools-mcp
-#use skill serena-mcp #use skill hexagonal-ddd #use skill occams-razor #use skill xuanwu-skill
+#use skill serena-mcp #use skill hexagonal-ddd #use skill occams-razor #use skill xuanwu-app-skill
 #use skill repomix
 ````
 
@@ -37264,7 +37264,7 @@ Shape module structures without breaking bounded contexts.
 - Files changed
 - Validation evidence
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/kb-architect.agent.md
@@ -37313,7 +37313,7 @@ handoffs:
 - Do not change technical meaning while restructuring docs.
 - Keep docs aligned with current module boundaries and contracts.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/lint-rule-enforcer.agent.md
@@ -37356,7 +37356,7 @@ Keep rule compliance high while minimizing churn.
 - Fix root causes, not symptoms.
 - Preserve existing architecture boundaries.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/prompt-engineer.agent.md
@@ -37399,7 +37399,7 @@ handoffs:
 - Keep prompts task-focused and testable.
 - Avoid broad ambiguous directives.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/quality-lead.agent.md
@@ -37456,7 +37456,7 @@ Verify correctness, boundary safety, and release readiness.
 - Evidence and reproduction details
 - Residual risks and recommendation: ready, ready-with-risk, blocked
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/rag-lead.agent.md
@@ -37502,7 +37502,7 @@ handoffs:
 - Keep Next.js orchestration and `py_fn` ingestion responsibilities separated.
 - Do not reintroduce generic `ai` or `retrieval` ownership into `notion`; keep retrieval semantics in `notebooklm` and consume shared AI capability from `platform.ai`.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/schema-migration.agent.md
@@ -37540,7 +37540,7 @@ handoffs:
 2. Plan compatibility and cutover phases.
 3. Validate reads and writes before and after migration.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/security-rules.agent.md
@@ -37582,7 +37582,7 @@ Prevent unauthorized access while preserving required product flows.
 - Prefer explicit allow conditions with clear actor checks.
 - Pair rule changes with validation scenarios.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/server-action-writer.agent.md
@@ -37620,7 +37620,7 @@ handoffs:
 - Place business rules in module use cases.
 - Preserve consistent command-result response shape.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/state-management.agent.md
@@ -37682,7 +37682,7 @@ handoffs:
 
 `#use skill zustand-xstate`
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill zustand-xstate
 ````
 
@@ -37721,7 +37721,7 @@ handoffs:
 - Boundary and negative paths
 - Error handling and regression-sensitive paths
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/ts-interface-writer.agent.md
@@ -37765,7 +37765,7 @@ handoffs:
 - Do not leak private infrastructure/entity internals into public API contracts.
 - Coordinate contract changes with consumer updates in the same change.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
 ## File: .github/agents/zod-validator.agent.md
@@ -37825,7 +37825,7 @@ handoffs:
 
 `#use skill zod-validation`
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill zod-validation
 #use skill hexagonal-ddd
 ````
@@ -37843,7 +37843,7 @@ name: Xuanwu Copilot Workspace Instructions
 #use skill hexagonal-ddd
 #use skill occams-razor
 #use skill context7
-#use skill xuanwu-skill
+#use skill xuanwu-app-skill
 
 # Xuanwu Copilot Workspace Instructions
 
@@ -37901,7 +37901,7 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 
 - Keep this file thin. Put detailed, file-scoped behavior in `.github/instructions/` and reuse docs instead of copying architecture content into customization files.
 - Use [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for Serena workflow details, [skills/context7/SKILL.md](skills/context7/SKILL.md) for documentation verification, and [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) for boundary-safe module design.
-- Use [skills/xuanwu-skill/SKILL.md](skills/xuanwu-skill/SKILL.md) and [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill.md) for implementation lookup only; they are not strategic authority.
+- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) and [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill.md) for implementation lookup only; they are not strategic authority.
 - `.claude/` may exist as a compatibility surface, but `.github/*` remains the primary Copilot governance surface.
 
 ## Terminology
@@ -37942,7 +37942,7 @@ argument-hint: Provide source docs, target chunk policy, and constraints.
 3. Check chunk quality for retrieval relevance.
 4. Report chunk statistics and edge cases.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-rag-runtime-boundary
 #use skill liteparse
 #use skill llamaparse
@@ -38017,7 +38017,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 - `npm run lint` — 確認無 framework 依賴與邊界違規
 - `npm run build` — 確認型別一致
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -38040,7 +38040,7 @@ argument-hint: Provide doc sources, embedding model/runtime, and storage target.
 3. Write vectors and verify retrieval compatibility.
 4. Report failures, retries, and quality risks.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-rag-runtime-boundary
 #use skill llamaparse
 ````
@@ -38108,7 +38108,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 - `npm run lint` — 確認無邊界違規
 - `npm run build` — 確認型別一致
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -38163,7 +38163,7 @@ argument-hint: 提供聚合名稱、所屬限界上下文（模組）、核心�
 - `npm run lint` — 確認無邊界違規與型別錯誤
 - `npm run build` — 確認型別一致性
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -38226,7 +38226,7 @@ export type {EventName} = z.infer<typeof {EventName}Schema>;
 - 確認事件 `type` discriminant 格式為 `<module>.<action>`，與模組命名一致。
 - `npm run lint` — 確認無邊界違規。
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -38331,7 +38331,7 @@ export type Address = z.infer<typeof AddressSchema>;
 - `npm run lint` — 確認無 framework import 在 `domain/`
 - `npm run build` — 確認型別一致
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill zod-validation
 ````
@@ -38355,7 +38355,7 @@ argument-hint: Provide collections, fields, query patterns, and migration constr
 3. Plan migration or compatibility path.
 4. Validate read/write behavior and regressions.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-development-contracts
 ````
 
@@ -38378,7 +38378,7 @@ argument-hint: Provide flow intent, inputs/outputs, and target runtime.
 3. Integrate with retrieval or action boundaries safely.
 4. Validate flow behavior and fallback paths.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-rag-runtime-boundary
 #use skill next-devtools-mcp
 ````
@@ -38402,7 +38402,7 @@ argument-hint: Provide action intent, input schema, and target use case.
 - Delegate business logic to module use cases.
 - Return stable command-result shape.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices
 #use skill hexagonal-ddd
@@ -38510,7 +38510,7 @@ export const <name>Machine = createMachine({
 - `npm run lint` — 確認 machine 不在 `interfaces/` 定義（應在 `application/machines/`）
 - `npm run build` — 確認型別一致
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill zustand-xstate
 ````
 
@@ -38533,7 +38533,7 @@ argument-hint: Provide component goal, route scope, and interaction states.
 3. Implement states: loading, empty, error, success.
 4. Validate accessibility and interaction behavior.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill shadcn
 #use skill web-design-guidelines
 #use skill vercel-react-best-practices
@@ -38612,7 +38612,7 @@ export const use<Name>Store = create<<Name>State & <Name>Actions>((set) => ({
 - `npm run lint` — 確認無 layer 違規（store 不得出現在 `domain/` 或 `application/`）
 - `npm run build` — 確認型別一致
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill zustand-xstate
 ````
 
@@ -38635,7 +38635,7 @@ argument-hint: Provide source format, target pipeline, and quality constraints.
 3. Validate structure quality for chunking.
 4. Output ingestion summary and loss-risk notes.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-rag-runtime-boundary
 #use skill liteparse
 #use skill llamaparse
@@ -39005,7 +39005,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 - `npm run lint` — 確認無 layer 違規
 - `npm run build` — 確認型別一致
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -39028,7 +39028,7 @@ argument-hint: Provide target docs scope and expected documentation outcome.
 3. Convert prose to rules/tables where possible.
 4. Update folder index/README after leaf updates.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill documentation-writer
 ````
 
@@ -39052,7 +39052,7 @@ argument-hint: Provide URL/route, target user flow, and acceptance criteria.
 
 Collect evidence for failures and include clear reproduction steps.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vscode-testing-debugging-browser
 #use skill next-devtools-mcp
 ````
@@ -39075,7 +39075,7 @@ argument-hint: Provide module scope, behaviors to verify, and known regression r
 - Keep tests deterministic and isolated.
 - Prioritize behavior contracts over implementation details.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vscode-testing-debugging-browser
 #use skill vscode-typescript-workbench
 ````
@@ -48602,7 +48602,7 @@ applyTo: 'modules/platform/api/**/*.{ts,tsx}'
 
 15. **系統邊界僅與主域互動**：系統邊界（Interface / API）僅能與主域互動，不得直接操作子域，以維持整體一致性與控制力。
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -49579,7 +49579,7 @@ applyTo: 'modules/workspace/api/**/*.{ts,tsx}'
 
 15. **系統邊界僅與主域互動**：系統邊界（Interface / API）僅能與主域互動，不得直接操作子域，以維持整體一致性與控制力。
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -54985,7 +54985,7 @@ argument-hint: Provide access scenarios, actor roles, and constrained resources.
 3. Validate with scenario-based checks.
 4. Report residual access risks.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-development-contracts
 ````
 
@@ -56876,7 +56876,7 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 - Knowledge content creation, taxonomy, publishing → `notion`
 - Conversation, retrieval, synthesis → `notebooklm`
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
@@ -57716,7 +57716,7 @@ if (!issuesExpanded) setIssuesExpanded(true);
 
       "*.sqlite",
       "*.db",
-      ".github/skills/xuanwu-skill/**",
+      ".github/skills/xuanwu-app-skill/**",
       ".github/skills/xuanwu-markdown-skill/**",
       ".github/skills/xuanwu-notebooklm-skill/**",
       ".github/skills/xuanwu-notion-skill/**"
@@ -59851,7 +59851,7 @@ export function listAvailableTools(): ReadonlyArray<ToolDescriptor>
     "repomix:src": "npx repomix --config repomix-src.config.json --skill-generate xuanwu-src-skill --skill-output .github/skills/xuanwu-src-skill --force",
     "repomix:fn": "npx repomix --config repomix-fn.config.json --skill-generate xuanwu-fn-skill --skill-output .github/skills/xuanwu-fn-skill --force",
     "repomix:pkgs": "npx repomix --config repomix-pkgs.config.json --skill-generate xuanwu-pkgs-skill --skill-output .github/skills/xuanwu-pkgs-skill --force",
-    "repomix:skill": "npx repomix --config repomix.config.json --skill-generate xuanwu-skill --skill-output .github/skills/xuanwu-skill --force",
+    "repomix:skill": "npx repomix --config repomix.config.json --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
     "repomix:markdown": "npx repomix --config repomix-markdown.config.json --skill-generate xuanwu-markdown-skill --skill-output .github/skills/xuanwu-markdown-skill --force",
     "repomix:notebooklm": "npx repomix --config repomix-notebooklm.config.json --skill-generate xuanwu-notebooklm-skill --skill-output .github/skills/xuanwu-notebooklm-skill --force",
     "repomix:notion": "npx repomix --config repomix-notion.config.json --skill-generate xuanwu-notion-skill --skill-output .github/skills/xuanwu-notion-skill --force",

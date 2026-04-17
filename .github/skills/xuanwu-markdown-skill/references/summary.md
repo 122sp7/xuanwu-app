@@ -42,11 +42,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-381 files | 34,058 lines
+387 files | 33,887 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 381 | 34,058 |
+| Markdown | 387 | 33,887 |
 
 **Largest files:**
 - `.github/skills/vercel-react-best-practices/AGENTS.md` (3,810 lines)
@@ -58,4 +58,4 @@ This skill contains the following reference files:
 - `.github/skills/repomix-explorer/SKILL.md` (301 lines)
 - `.github/skills/shadcn/SKILL.md` (296 lines)
 - `.github/skills/agent-browser/references/commands.md` (295 lines)
-- `src/modules/template/README.md` (285 lines)
+- `.github/skills/zustand-xstate/SKILL.md` (284 lines)

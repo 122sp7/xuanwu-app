@@ -11826,6 +11826,11 @@ HTTP Request
 看完整路徑判斷層級，不看資料夾名稱猜責任。
 ````
 
+## File: .github/AGENT.md
+````markdown
+
+````
+
 ## File: .github/instructions/ci-cd.instructions.md
 ````markdown
 ---
@@ -12585,6 +12590,11 @@ HTTP
 UI
 Framework
 ```
+````
+
+## File: .github/README.md
+````markdown
+
 ````
 
 ## File: .github/skills/agent-browser/references/authentication.md
@@ -23167,6 +23177,11 @@ When a user provides a file or pattern argument:
 If no files specified, ask the user which files to review.
 ````
 
+## File: docs/AGENT.md
+````markdown
+
+````
+
 ## File: docs/bounded-contexts.md
 ````markdown
 # Bounded Contexts
@@ -26639,6 +26654,16 @@ packages/ui-shadcn/
 - `tsconfig.json` — `@ui-shadcn/*` path alias
 ````
 
+## File: py_fn/AGENT.md
+````markdown
+
+````
+
+## File: src/AGENT.md
+````markdown
+
+````
+
 ## File: src/modules/ai/ai.instructions.md
 ````markdown
 
@@ -26675,6 +26700,11 @@ packages/ui-shadcn/
 ````
 
 ## File: src/modules/workspace/workspace.instructions.md
+````markdown
+
+````
+
+## File: src/README.md
 ````markdown
 
 ````
@@ -33618,109 +33648,6 @@ RootLayout (layout.tsx)           ← html / body / global metadata
 | Page | `page.tsx` |
 ````
 
-## File: src/modules/README.md
-````markdown
-# src/modules — 精簡蒸餾骨架層
-
-> **⚠ 衝突防護聲明**：本層（`src/modules/<context>/`）與 `modules/<context>/`（完整 Hexagonal DDD 實作層）是**兩個獨立的實作層，不可互換、不可混用**。
->
-> - `modules/<context>/` → 讀取邊界規則、published language、context map；不在此新增實作程式碼。
-> - `src/modules/<context>/` → 撰寫新 use case、adapter、entity；以 `template` 骨架為起點。
-
----
-
-## 🔨 蒸餾作業進行中（2026-04-15）
-
-本層正在進行從 `modules/` 到 `src/modules/` 的蒸餾作業。**在蒸餾作業完成前，請遵守以下路由規則，避免衝突混淆：**
-
-| 需要 | 去哪裡 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/<context>/AGENT.md` |
-| 撰寫新 use case / entity / adapter | `src/modules/<context>/`（以 `src/modules/template` 為骨架）|
-| 了解蒸餾進度（跳過哪些）| `src/modules/<context>/README.md` |
-| 跨模組 API boundary | `src/modules/<context>/index.ts` |
-| 新模組起點 | 複製 `src/modules/template/`（見下方指引）|
-
----
-
-## 模組清單、蒸餾狀態與子域對照
-
-| 模組 | 蒸餾來源（`modules/`）| 狀態 | 子域清單 |
-|---|---|---|---|
-| `template/` | 無（原創骨架）| ✅ 完整骨架，可複製 | document、generation、ingestion、workflow |
-| `iam/` | `modules/iam/` + platform/account + platform/org | 🔨 進行中 | account、access-control、authentication、authorization、federation、identity、organization、security-policy、session、tenant |
-| `platform/` | `modules/platform/`（notification 等剩餘服務）| 🔨 進行中 | background-job、notification、platform-config、search（account / org 已移至 iam）|
-| `workspace/` | `modules/workspace/` | 🔨 進行中 | approval、audit、feed、issue、lifecycle、membership、orchestration、quality、schedule、settlement、share、task、task-formation |
-| `notion/` | `modules/notion/` | 📋 待蒸餾 | page、block、database、view、collaboration、template |
-| `notebooklm/` | `modules/notebooklm/` | 📋 待蒸餾 | document、conversation、notebook |
-| `ai/` | `modules/ai/` | 📋 待蒸餾 | chunk、embedding、retrieval、context、generation、citation、evaluation、pipeline |
-| `analytics/` | `modules/analytics/` | 📋 待蒸餾 | event-contracts、event-ingestion、event-projection、insights、metrics、realtime-insights |
-| `billing/` | `modules/billing/` | 📋 待蒸餾 | entitlement、subscription |
-
----
-
-## 路由決策規則
-
-```
-需要：                                  去哪裡
-────────────────────────────────────────────────────────────────
-讀取邊界規則 / published language       src/modules/<context>/AGENT.md
-撰寫新 use case / entity / adapter      src/modules/<context>/
-                                        以 src/modules/template 為骨架
-了解蒸餾了哪些內容、跳過哪些            src/modules/<context>/README.md
-需要跨模組 API boundary                 src/modules/<context>/index.ts
-```
-
----
-
-## 使用 template 建立新模組
-
-```bash
-# 1. 複製骨架
-cp -r src/modules/template src/modules/<your-context>
-
-# 2. 全域取代（保留大小寫規律）
-# Template → YourEntity
-# template → your-entity
-
-# 3. 刪除不需要的 stub 子域
-# 刪除 subdomains/generation / ingestion / workflow（若無業務壓力）
-
-# 4. 依 DDD 開發順序填入業務規則
-# Domain → Application → Ports → Adapters → Orchestration
-```
-
-詳見 [template/README.md](template/README.md) 與 [template/AGENT.md](template/AGENT.md)。
-
----
-
-## 嚴禁事項
-
-| 禁止行為 | 原因 |
-|---|---|
-| 把 `modules/<context>/infrastructure/` 直接複製到 `src/modules/<context>/domain/` | 層次混淆，污染 domain 純度 |
-| 把 `src/modules/` 當成 `modules/` 的別名或同義詞 | 兩層職責不同，互不取代 |
-| 在 barrel 使用 `export *` | 破壞 tree-shaking 與邊界可追蹤性 |
-| 跨 subdomain 直接 import（不經 orchestration/ 或 shared/events/）| 破壞 subdomain 邊界 |
-| 在 `domain/` 中 import React、Firebase SDK、HTTP client、ORM | 破壞 domain 純度 |
-| 在 `src/modules/platform/` 重建 account / org 子域 | 已遷入 iam |
-| 新建或恢復 `workspace-workflow` 子域 | 已拆解（2026-04-15），禁止回歸 |
-| 使用動詞式子域名（approve、scheduling、sharing、authoring、synthesis、conversations）| 子域以名詞命名，見各模組 AGENT.md |
-| 在 ai 模組定義使用者對話 UX 或 task-formation 業務流程 | 對話屬 notebooklm；task-formation 屬 workspace |
-| 在 notion 模組定義 `knowledge-database`、`authoring`、`relations`、`taxonomy` 子域 | 已整合至名詞域（database / page / view / template）|
-
----
-
-## 文件網絡
-
-- [src/modules/template/README.md](template/README.md) — 多子域骨架說明
-- [src/modules/template/AGENT.md](template/AGENT.md) — 骨架使用規則（Copilot / Agent 專用）
-- [modules/](../../modules/README.md) — 完整 Hexagonal DDD 實作層（邊界規則權威）
-- [docs/bounded-contexts.md](../../docs/bounded-contexts.md) — 主域所有權地圖
-- [docs/subdomains.md](../../docs/subdomains.md) — 子域清單
-- [docs/ubiquitous-language.md](../../docs/ubiquitous-language.md) — 術語權威
-````
-
 ## File: .github/agents/architecture-enforcer.agent.md
 ````markdown
 ---
@@ -33800,6 +33727,86 @@ handoffs:
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd
 #use skill occams-razor
+````
+
+## File: src/modules/README.md
+````markdown
+# src/modules — 模組實作層
+
+## 模組清單與子域對照
+
+| 模組 | 狀態 | 子域清單 |
+|---|---|---|
+| `template/` | ✅ 完整骨架，可複製 | document、generation、ingestion、workflow |
+| `iam/` | ✅ 完成 | account、access-control、authentication、authorization、federation、identity、organization、security-policy、session、tenant |
+| `platform/` | ✅ 完成 | background-job、notification、platform-config、search（account / org 已移至 iam）|
+| `workspace/` | 🔨 骨架建立，實作進行中 | approval、audit、feed、issue、lifecycle、membership、orchestration、quality、schedule、settlement、share、task、task-formation |
+| `notion/` | 🔨 骨架建立，實作進行中 | page、block、database、view、collaboration、template |
+| `notebooklm/` | 🔨 骨架建立，實作進行中 | document、conversation、notebook |
+| `ai/` | 🔨 骨架建立，實作進行中 | chunk、embedding、retrieval、context、generation、citation、evaluation、pipeline |
+| `analytics/` | 🔨 骨架建立，實作進行中 | event-contracts、event-ingestion、event-projection、insights、metrics、realtime-insights |
+| `billing/` | 🔨 骨架建立，實作進行中 | entitlement、subscription |
+
+---
+
+## 路由決策規則
+
+```
+需要：                                  去哪裡
+────────────────────────────────────────────────────────────────
+讀取邊界規則 / published language       src/modules/<context>/AGENT.md
+撰寫新 use case / entity / adapter      src/modules/<context>/
+                                        以 src/modules/template 為骨架
+了解模組目錄與實作狀態                  src/modules/<context>/README.md
+需要跨模組 API boundary                 src/modules/<context>/index.ts
+```
+
+---
+
+## 使用 template 建立新模組
+
+```bash
+# 1. 複製骨架
+cp -r src/modules/template src/modules/<your-context>
+
+# 2. 全域取代（保留大小寫規律）
+# Template → YourEntity
+# template → your-entity
+
+# 3. 刪除不需要的 stub 子域
+# 刪除 subdomains/generation / ingestion / workflow（若無業務壓力）
+
+# 4. 依 DDD 開發順序填入業務規則
+# Domain → Application → Ports → Adapters → Orchestration
+```
+
+詳見 [template/README.md](template/README.md) 與 [template/AGENT.md](template/AGENT.md)。
+
+---
+
+## 嚴禁事項
+
+| 禁止行為 | 原因 |
+|---|---|
+| 把 infrastructure 實作直接複製到 `src/modules/<context>/domain/` | 層次混淆，污染 domain 純度 |
+| 在 barrel 使用 `export *` | 破壞 tree-shaking 與邊界可追蹤性 |
+| 跨 subdomain 直接 import（不經 orchestration/ 或 shared/events/）| 破壞 subdomain 邊界 |
+| 在 `domain/` 中 import React、Firebase SDK、HTTP client、ORM | 破壞 domain 純度 |
+| 在 `src/modules/platform/` 重建 account / org 子域 | 已遷入 iam |
+| 新建或恢復 `workspace-workflow` 子域 | 已拆解（2026-04-15），禁止回歸 |
+| 使用動詞式子域名（approve、scheduling、sharing、authoring、synthesis、conversations）| 子域以名詞命名，見各模組 AGENT.md |
+| 在 ai 模組定義使用者對話 UX 或 task-formation 業務流程 | 對話屬 notebooklm；task-formation 屬 workspace |
+| 在 notion 模組定義 `knowledge-database`、`authoring`、`relations`、`taxonomy` 子域 | 已整合至名詞域（database / page / view / template）|
+
+---
+
+## 文件網絡
+
+- [src/modules/template/README.md](template/README.md) — 多子域骨架說明
+- [src/modules/template/AGENT.md](template/AGENT.md) — 骨架使用規則（Copilot / Agent 專用）
+- [docs/bounded-contexts.md](../../docs/bounded-contexts.md) — 主域所有權地圖
+- [docs/subdomains.md](../../docs/subdomains.md) — 子域清單
+- [docs/ubiquitous-language.md](../../docs/ubiquitous-language.md) — 術語權威
 ````
 
 ## File: .github/copilot-instructions.md
@@ -33891,29 +33898,23 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 
 ## File: src/modules/analytics/README.md
 ````markdown
-# Analytics Module — 精簡蒸餾骨架
+# Analytics Module
 
-> **⚠ 蒸餾作業進行中**：`src/modules/analytics/` 正在從 `modules/analytics/`（完整 HEX+DDD 實作層）蒸餾而來。兩層職責不同，不可互換。
+## 子域清單
 
-**蒸餾狀態：** 📋 待蒸餾（骨架已建立，業務實作待填入）
-
----
-
-## 子域對照表（modules → src/modules）
-
-| 子域 | 蒸餾來源 | 狀態 | 說明 |
-|---|---|---|---|
-| `event-contracts` | `modules/analytics/subdomains/event-contracts/` | 📋 待蒸餾 | 事件契約定義 |
-| `event-ingestion` | `modules/analytics/subdomains/event-ingestion/` | 📋 待蒸餾 | 事件接收 / 攝取 |
-| `event-projection` | `modules/analytics/subdomains/event-projection/` | 📋 待蒸餾 | 事件投影（讀模型）|
-| `experimentation` | 新增（A/B 測試功能）| 📋 待蒸餾 | A/B 測試與功能實驗管理 |
-| `insights` | `modules/analytics/subdomains/insights/` | 📋 待蒸餾 | 洞察報表 |
-| `metrics` | `modules/analytics/subdomains/metrics/` | 📋 待蒸餾 | 指標計算 |
-| `realtime-insights` | `modules/analytics/subdomains/realtime-insights/` | 📋 待蒸餾 | 即時洞察 |
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `event-contracts` | 🔨 骨架建立，實作進行中 | 事件契約定義 |
+| `event-ingestion` | 🔨 骨架建立，實作進行中 | 事件接收 / 攝取 |
+| `event-projection` | 🔨 骨架建立，實作進行中 | 事件投影（讀模型）|
+| `experimentation` | 🔨 骨架建立，實作進行中 | A/B 測試與功能實驗管理 |
+| `insights` | 🔨 骨架建立，實作進行中 | 洞察報表 |
+| `metrics` | 🔨 骨架建立，實作進行中 | 指標計算 |
+| `realtime-insights` | 🔨 骨架建立，實作進行中 | 即時洞察 |
 
 ---
 
-## 預期目錄結構（蒸餾後）
+## 預期目錄結構
 
 ```
 src/modules/analytics/
@@ -33925,7 +33926,7 @@ src/modules/analytics/
     events/index.ts             ← Published Language Events
     types/index.ts
   subdomains/
-    event-projection/           ← 優先蒸餾
+    event-projection/
       domain/
       application/
       adapters/outbound/
@@ -33951,36 +33952,29 @@ adapters/inbound → application → domain ← adapters/outbound
 
 | 禁止行為 | 原因 |
 |---|---|
-| 把 `modules/analytics/infrastructure/` 直接複製到 `src/modules/analytics/domain/` | 層次混淆 |
-| 把 `src/modules/analytics/` 當成 `modules/analytics/` 的別名 | 兩層職責不同 |
+| 在 `domain/` 中 import Firebase SDK、React | 破壞 domain 純度 |
+| 在 barrel 使用 `export *` | 破壞 tree-shaking |
 
 ---
 
 ## 文件網絡
 
 - [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 蒸餾層總覽
-- [modules/analytics/](../../../modules/analytics/) — 完整 HEX+DDD 實作層
+- [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/billing/README.md
 ````markdown
-# Billing Module — 精簡蒸餾骨架
+# Billing Module
 
-> **⚠ 蒸餾作業進行中**：`src/modules/billing/` 正在從 `modules/billing/`（完整 HEX+DDD 實作層）蒸餾而來。兩層職責不同，不可互換。
+## 子域清單
 
-**蒸餾狀態：** 📋 待蒸餾（骨架已建立，業務實作待填入）
-
----
-
-## 子域對照表（modules → src/modules）
-
-| 子域 | 蒸餾來源 | 狀態 | 說明 |
-|---|---|---|---|
-| `entitlement` | `modules/billing/subdomains/entitlement/` | 📋 待蒸餾 | 授權配額信號（能力准入）|
-| `subscription` | `modules/billing/subdomains/subscription/` | 📋 待蒸餾 | 訂閱計劃管理 |
-| `usage-metering` | 新增（用量計量）| 📋 待蒸餾 | API 呼叫、Token 消耗等用量計量 |
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `entitlement` | 🔨 骨架建立，實作進行中 | 授權配額信號（能力准入）|
+| `subscription` | 🔨 骨架建立，實作進行中 | 訂閱計劃管理 |
+| `usage-metering` | 🔨 骨架建立，實作進行中 | API 呼叫、Token 消耗等用量計量 |
 
 **術語提醒：**
 - `Subscription` = 計費計劃（billing plan）
@@ -33988,7 +33982,7 @@ adapters/inbound → application → domain ← adapters/outbound
 
 ---
 
-## 預期目錄結構（蒸餾後）
+## 預期目錄結構
 
 ```
 src/modules/billing/
@@ -34019,39 +34013,32 @@ src/modules/billing/
 
 | 禁止行為 | 原因 |
 |---|---|
-| 把 `modules/billing/infrastructure/` 直接複製到 `src/modules/billing/domain/` | 層次混淆 |
 | 混用 Subscription / Entitlement 術語 | 違反 Ubiquitous Language |
+| 在 barrel 使用 `export *` | 破壞 tree-shaking |
 
 ---
 
 ## 文件網絡
 
 - [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 蒸餾層總覽
-- [modules/billing/](../../../modules/billing/) — 完整 HEX+DDD 實作層
+- [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/notebooklm/README.md
 ````markdown
-# NotebookLM Module — 精簡蒸餾骨架
+# NotebookLM Module
 
-> **⚠ 蒸餾作業進行中**：`src/modules/notebooklm/` 正在從 `modules/notebooklm/`（完整 HEX+DDD 實作層）蒸餾而來。兩層職責不同，不可互換。
-
-**蒸餾狀態：** 📋 待蒸餾（骨架已建立，業務實作待填入）
-
----
-
-## 子域對照表（名詞域 → modules/ 來源）
+## 子域清單（名詞域）
 
 > **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
 > **子域不重複原則：** `synthesis`（合成推理）是 `conversation` 的應用層流程，不獨立成子域。AI 機制（embedding / retrieval / generation）屬 `ai` 模組。
 
-| 子域 | 蒸餾來源（modules/notebooklm/subdomains/）| 狀態 | 說明 |
-|---|---|---|---|
-| `document` | `source` | 📋 待蒸餾 | Document 實體（來源文件接收、RagDocument 生命週期、ingestion 狀態）|
-| `conversation` | `conversation` + `synthesis` | 📋 待蒸餾 | Conversation 實體（使用者對話 Session、問答流程、合成輸出）|
-| `notebook` | `notebook` | 📋 待蒸餾 | Notebook 實體（筆記本生命週期、Document 集合管理）|
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `document` | 🔨 骨架建立，實作進行中 | Document 實體（來源文件接收、RagDocument 生命週期、ingestion 狀態）|
+| `conversation` | 🔨 骨架建立，實作進行中 | Conversation 實體（使用者對話 Session、問答流程、合成輸出）|
+| `notebook` | 🔨 骨架建立，實作進行中 | Notebook 實體（筆記本生命週期、Document 集合管理）|
 
 ---
 
@@ -34069,7 +34056,7 @@ notebooklm 持有**使用者體驗流程**；ai 提供**計算機制**。
 
 ---
 
-## 預期目錄結構（蒸餾後）
+## 預期目錄結構
 
 ```
 src/modules/notebooklm/
@@ -34084,11 +34071,11 @@ src/modules/notebooklm/
     events/index.ts             ← Published Language Events
     types/index.ts
   subdomains/
-    document/                   ← 優先蒸餾（RagDocument 完整 modules/ 實作）
+    document/
       domain/
       application/
       adapters/outbound/
-    conversation/               ← 優先蒸餾（含 synthesis 應用流程）
+    conversation/
     notebook/
 ```
 
@@ -34108,38 +34095,31 @@ src/modules/notebooklm/
 ## 文件網絡
 
 - [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 蒸餾層總覽
-- [modules/notebooklm/](../../../modules/notebooklm/) — 完整 HEX+DDD 實作層
+- [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/notion/README.md
 ````markdown
-# Notion Module — 精簡蒸餾骨架
+# Notion Module
 
-> **⚠ 蒸餾作業進行中**：`src/modules/notion/` 正在從 `modules/notion/`（完整 HEX+DDD 實作層）蒸餾而來。兩層職責不同，不可互換。
-
-**蒸餾狀態：** 📋 待蒸餾（骨架已建立，業務實作待填入）
-
----
-
-## 子域對照表（名詞域 → modules/ 來源）
+## 子域清單（名詞域）
 
 > **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
 > **子域不重複原則：** 分類法（標籤）整合至 `page` / `database` metadata；關聯圖以 `view` 呈現。
 
-| 子域 | 蒸餾來源（modules/notion/subdomains/）| 狀態 | 說明 |
-|---|---|---|---|
-| `page` | `authoring` + `knowledge` | 📋 待蒸餾 | Page 實體（知識文件創作、版本、metadata）|
-| `block` | `authoring`（區塊層）| 📋 待蒸餾 | Block 實體（Page 內容區塊：文字、圖片、代碼、嵌入等）|
-| `database` | `knowledge-database` | 📋 待蒸餾 | Database 實體（結構化知識庫、欄位定義）|
-| `view` | `relations` | 📋 待蒸餾 | View 實體（Database / Page 關聯的顯示方式、篩選、排序）|
-| `collaboration` | `collaboration` | 📋 待蒸餾 | Collaboration 實體（協作評論、共編、提及通知）|
-| `template` | `taxonomy`（部分）+ 新增 | 📋 待蒸餾 | Template 實體（Page / Database 的可重用模板）|
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `page` | 🔨 骨架建立，實作進行中 | Page 實體（知識文件創作、版本、metadata）|
+| `block` | 🔨 骨架建立，實作進行中 | Block 實體（Page 內容區塊：文字、圖片、代碼、嵌入等）|
+| `database` | 🔨 骨架建立，實作進行中 | Database 實體（結構化知識庫、欄位定義）|
+| `view` | 🔨 骨架建立，實作進行中 | View 實體（Database / Page 關聯的顯示方式、篩選、排序）|
+| `collaboration` | 🔨 骨架建立，實作進行中 | Collaboration 實體（協作評論、共編、提及通知）|
+| `template` | 🔨 骨架建立，實作進行中 | Template 實體（Page / Database 的可重用模板）|
 
 ---
 
-## 預期目錄結構（蒸餾後）
+## 預期目錄結構
 
 ```
 src/modules/notion/
@@ -34153,11 +34133,11 @@ src/modules/notion/
     events/index.ts             ← Published Language Events
     types/index.ts
   subdomains/
-    page/                       ← 優先蒸餾（Page 是核心 Aggregate）
+    page/
       domain/
       application/
       adapters/outbound/
-    block/                      ← 優先蒸餾（Block 是 Page 內核心實體）
+    block/
     database/
     view/
     collaboration/
@@ -34172,7 +34152,6 @@ src/modules/notion/
 |---|---|
 | 讓其他模組直接修改 `Page` / `Block` / `Database` | notion 是唯一可寫的所有者 |
 | 使用 `knowledge-database` / `authoring` / `relations` / `taxonomy` 作為子域名 | 已整合至名詞域（`database` / `page` / `view` / `template`）|
-| 把 `modules/notion/infrastructure/` 直接複製到 `src/modules/notion/domain/` | 層次混淆 |
 | 在 barrel 使用 `export *` | 破壞可追蹤性 |
 
 ---
@@ -34180,8 +34159,7 @@ src/modules/notion/
 ## 文件網絡
 
 - [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 蒸餾層總覽
-- [modules/notion/](../../../modules/notion/) — 完整 HEX+DDD 實作層
+- [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 ````
 
@@ -34432,81 +34410,56 @@ subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/doma
 
 ---
 
-## 蒸餾作業說明（src/modules 層定位）
-
-`src/modules/template` 是 **`src/modules` 蒸餾層**的骨架基線（Reference Scaffold）。
-
-### 兩層模組結構，不可互換
-
-| 路徑 | 角色 | 用途 |
-|---|---|---|
-| `modules/<context>/` | 完整 Hexagonal DDD 實作（現況） | 讀取邊界規則、published language、context map |
-| `src/modules/<context>/` | 精簡蒸餾骨架（新實作目標） | 撰寫新 use case、adapter、entity |
-
-### 路由規則
+## 路由規則
 
 - 讀取邊界規則、published language → `src/modules/<context>/AGENT.md`
 - 撰寫新實作程式碼 → `src/modules/<context>/`，以本模組為骨架基線
-- 了解蒸餾進度與跳過概念 → `src/modules/<context>/README.md`
 - 需要跨模組 API boundary → `src/modules/<context>/index.ts`
-
-### 蒸餾進度總覽
-
-見 [src/modules/README.md](../README.md) 取得最新蒸餾狀態表。
 
 ---
 
 ## 衝突防護
 
-1. **不把 `modules/<context>/infrastructure/` 的實作直接複製到 `src/modules/<context>/domain/`**。
-2. **不把 `src/modules/` 當成 `modules/` 的別名**；它們是兩個獨立的實作層。
-3. 生成程式碼前，先確認目標路徑是 `modules/` 還是 `src/modules/`，再決定結構與命名。
-4. `template` 模組本身不代表任何業務邊界；真實業務請在對應 `src/modules/<context>/` 實作。
+1. **不在 `domain/` 匯入 Firebase SDK、React、HTTP client 或 ORM。**
+2. `template` 模組本身不代表任何業務邊界；真實業務請在對應 `src/modules/<context>/` 實作。
 
 ---
 
 ## 文件網絡
 
-- [src/modules/README.md](../README.md) — 蒸餾層狀態總覽
+- [src/modules/README.md](../README.md) — 模組層狀態總覽
 - [src/modules/template/AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [modules/](../../../modules/) — 完整 HEX+DDD 實作層（邊界規則權威）
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-- [docs/bounded-context-subdomain-template.md](../../../docs/bounded-context-subdomain-template.md) — 蒸餾設計藍圖
+- [docs/bounded-context-subdomain-template.md](../../../docs/bounded-context-subdomain-template.md) — 設計藍圖
 ````
 
 ## File: src/modules/iam/README.md
 ````markdown
-# IAM Module — 精簡蒸餾骨架
+# IAM Module
 
-> **⚠ 蒸餾作業進行中**：`src/modules/iam/` 正在從 `modules/iam/`（完整 HEX+DDD 實作層）蒸餾而來，並整合了已從 `modules/platform/` 遷入的 account / organization 子域。
+## 子域清單
 
-**蒸餾狀態：** 🔨 進行中（account / organization 已從 platform 遷入 iam）
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `account` | ✅ 完成 | AccountProfile read-model |
+| `access-control` | ✅ 完成 | 存取控制規則 |
+| `authentication` | ✅ 完成 | 認證流程 |
+| `authorization` | ✅ 完成 | 授權決策 |
+| `federation` | ✅ 完成 | SSO / 聯合身份 |
+| `identity` | ✅ 完成 | 身份核心（Actor）|
+| `organization` | ✅ 完成 | 組織 / 成員 / 團隊（原 platform/org）|
+| `security-policy` | ✅ 完成 | 安全策略 |
+| `session` | ✅ 完成 | 會話管理 |
+| `tenant` | ✅ 完成 | 租戶隔離 |
 
----
+### account / organization 遷入說明
 
-## 子域對照表（modules → src/modules）
-
-| 子域 | 蒸餾來源 | 狀態 | 說明 |
-|---|---|---|---|
-| `account` | `modules/iam/subdomains/account/`（原 platform/account）| 🔨 進行中 | AccountProfile read-model |
-| `access-control` | `modules/iam/subdomains/access-control/` | 📋 待蒸餾 | 存取控制規則 |
-| `authentication` | `modules/iam/subdomains/authentication/` | 📋 待蒸餾 | 認證流程 |
-| `authorization` | `modules/iam/subdomains/authorization/` | 📋 待蒸餾 | 授權決策 |
-| `federation` | `modules/iam/subdomains/federation/` | 📋 待蒸餾 | SSO / 聯合身份 |
-| `identity` | `modules/iam/subdomains/identity/` | 📋 待蒸餾 | 身份核心（Actor）|
-| `organization` | `modules/iam/subdomains/organization/`（原 platform/org）| 🔨 進行中 | 組織 / 成員 / 團隊 |
-| `security-policy` | `modules/iam/subdomains/security-policy/` | 📋 待蒸餾 | 安全策略 |
-| `session` | `modules/iam/subdomains/session/` | 📋 待蒸餾 | 會話管理 |
-| `tenant` | `modules/iam/subdomains/tenant/` | 📋 待蒸餾 | 租戶隔離 |
-
-### 已遷入說明
-
-`modules/platform/subdomains/account/` 與 `modules/platform/subdomains/organization/` 已完全遷移至 `src/modules/iam/`：
+`platform/account` 與 `platform/organization` 子域已完全遷移至 `src/modules/iam/`：
 - `src/modules/iam/` 公開入口（`index.ts`）提供 account 與 org API
 
 ---
 
-## 預期目錄結構（蒸餾後）
+## 目錄結構
 
 ```
 src/modules/iam/
@@ -34521,11 +34474,11 @@ src/modules/iam/
     events/index.ts             ← Published Language Events
     types/index.ts
   subdomains/
-    account/                    ← 優先蒸餾（已有完整 modules/ 實作）
+    account/
       domain/
       application/
       adapters/outbound/
-    organization/               ← 優先蒸餾（OrganizationTeam aggregate）
+    organization/
       domain/
       application/
       adapters/outbound/
@@ -34555,17 +34508,15 @@ adapters/inbound → application → domain ← adapters/outbound
 
 | 禁止行為 | 原因 |
 |---|---|
-| 在 `modules/platform/subdomains/` 下新增 account / org 程式碼 | 已遷入 iam，禁止回寫 |
+| 在 `src/modules/platform/subdomains/` 下新增 account / org 程式碼 | 已遷入 iam，禁止回寫 |
 | 混用 Actor（身份）與 Membership（工作區參與）術語 | 違反 Ubiquitous Language |
-| 把 `src/modules/iam/` 當成 `modules/iam/` 的別名 | 兩層職責不同 |
 
 ---
 
 ## 文件網絡
 
 - [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 蒸餾層總覽
-- [modules/iam/](../../../modules/iam/) — 完整 HEX+DDD 實作層
+- [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 ````
 
@@ -34652,7 +34603,7 @@ subdomains/
 
 ## 衝突防護（src/modules vs modules/）
 
-`src/modules/template` 屬於**蒸餾層（`src/modules/`）**。本層與 `modules/<context>/`（完整 HEX+DDD 實作層）**職責不同，不可混用**。
+`src/modules/template` 屬於**模組實作層（`src/modules/`）**。
 
 | 情境 | 正確路徑 |
 |---|---|
@@ -34662,53 +34613,37 @@ subdomains/
 | 新模組起點 | 複製 `src/modules/template/`，取代 Template→YourEntity |
 
 **嚴禁事項：**
-- ❌ 把 `modules/<context>/infrastructure/` 的實作直接搬到 `src/modules/<context>/domain/`
-- ❌ 把 `src/modules/` 當成 `modules/` 的別名
 - ❌ 在 `domain/` 匯入 React、Firebase SDK、HTTP client、ORM
 - ❌ 在 barrel 使用 `export *`
 
 ## 文件網絡
 
-- [README.md](README.md) — 模組詳細說明（目錄樹、barrel 表、複製步驟、蒸餾說明）
-- [src/modules/README.md](../README.md) — 蒸餾層狀態總覽（模組清單與進度）
-- [modules/](../../../modules/) — 完整 HEX+DDD 實作層（邊界規則權威）
+- [README.md](README.md) — 模組詳細說明（目錄樹、barrel 表、複製步驟）
+- [src/modules/README.md](../README.md) — 模組層狀態總覽（模組清單與進度）
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-- `shared/` 各子目錄同理：確認有跨子域共用壓力才填入內容。
-- cron、rpc、cache、external-api adapter 為**可選**，若無對應業務需要就不建或直接刪除。
-- 新增符號時同步更新對應 barrel index，不留 `export *` 殘留。
-- 舊平坦層 `domain/ application/ adapters/` 過渡期保留；完全確認無依賴後，整批刪除。
 ````
 
 ## File: src/modules/ai/README.md
 ````markdown
-# AI Module — 精簡蒸餾骨架
+# AI Module
 
-> **⚠ 蒸餾作業進行中**：`src/modules/ai/` 正在從 `modules/ai/`（完整 HEX+DDD 實作層）蒸餾而來。兩層職責不同，不可互換。
->
-> - `modules/ai/` → 讀取邊界規則、published language、context map；不在此新增實作。
-> - `src/modules/ai/` → 撰寫新 use case、adapter、entity；以 `template` 骨架為起點。
-
-**蒸餾狀態：** 📋 待蒸餾（骨架已建立，業務實作待填入）
-
----
-
-## 子域對照表（名詞域 → modules/ 來源）
+## 子域清單（名詞域）
 
 > **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體，不以動詞流程命名。  
 > **子域不重複原則：** `conversation`（使用者對話 UX）屬 `notebooklm`；`document` 屬 `notebooklm`；`task-formation` 屬 `workspace`。
 
-| 子域 | 蒸餾來源（modules/ai/subdomains/）| 狀態 | 說明 |
-|---|---|---|---|
-| `chunk` | `tokens` + 分塊邏輯 | 📋 待蒸餾 | 文字分塊實體（分塊策略、Token 計量、Chunk ID）|
-| `citation` | 新增（無舊對應）| 📋 待蒸餾 | 引用實體（生成內容對應的來源 Chunk 溯源）|
-| `context` | `memory-context` + `messages` + `conversations` + `personas` | 📋 待蒸餾 | AI 上下文實體（記憶體、對話歷程、人格設定）|
-| `embedding` | `embeddings` | 📋 待蒸餾 | 向量嵌入實體（Embedding 生成與向量儲存）|
-| `evaluation` | `evaluation-policy` + `safety-guardrail` + `datasets` + `model-observability` | 📋 待蒸餾 | 評估實體（品質評分、安全過濾、模型可觀測性）|
-| `generation` | `models` + `tools` | 📋 待蒸餾 | AI 生成實體（模型選擇、Tool calling、生成結果）|
-| `memory` | `memory-context`（萃取長期記憶部分）| 📋 待蒸餾 | AI 記憶實體（長期記憶、跨會話持久化）|
-| `pipeline` | `prompt-pipeline` + `prompts` | 📋 待蒸餾 | 提示管線實體（Prompt 模板、多步驟 Pipeline 定義）|
-| `retrieval` | `tools` / `context`（分散）| 📋 待蒸餾 | 語意檢索實體（向量相似度搜尋、TopK 結果）|
-| `tool-calling` | `tools` + `tool-runtime` | 📋 待蒸餾 | 工具呼叫實體（Tool 定義、執行、結果處理）|
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `chunk` | 🔨 骨架建立，實作進行中 | 文字分塊實體（分塊策略、Token 計量、Chunk ID）|
+| `citation` | 🔨 骨架建立，實作進行中 | 引用實體（生成內容對應的來源 Chunk 溯源）|
+| `context` | 🔨 骨架建立，實作進行中 | AI 上下文實體（記憶體、對話歷程、人格設定）|
+| `embedding` | 🔨 骨架建立，實作進行中 | 向量嵌入實體（Embedding 生成與向量儲存）|
+| `evaluation` | 🔨 骨架建立，實作進行中 | 評估實體（品質評分、安全過濾、模型可觀測性）|
+| `generation` | 🔨 骨架建立，實作進行中 | AI 生成實體（模型選擇、Tool calling、生成結果）|
+| `memory` | 🔨 骨架建立，實作進行中 | AI 記憶實體（長期記憶、跨會話持久化）|
+| `pipeline` | 🔨 骨架建立，實作進行中 | 提示管線實體（Prompt 模板、多步驟 Pipeline 定義）|
+| `retrieval` | 🔨 骨架建立，實作進行中 | 語意檢索實體（向量相似度搜尋、TopK 結果）|
+| `tool-calling` | 🔨 骨架建立，實作進行中 | 工具呼叫實體（Tool 定義、執行、結果處理）|
 
 ---
 
@@ -34718,11 +34653,9 @@ subdomains/
 |---|---|---|
 | `task-formation` | **`workspace`** | Task 是 workspace 領域物件；AI 生成能力由 `ai/generation` Port 注入 |
 
-`modules/ai/subdomains/task-formation`（空骨架）未來整合至 `workspace/task-formation`，不在 ai 模組擴展。
-
 ---
 
-## 預期目錄結構（蒸餾後）
+## 預期目錄結構
 
 ```
 src/modules/ai/
@@ -34739,15 +34672,15 @@ src/modules/ai/
     errors/index.ts
     types/index.ts
   subdomains/
-    embedding/                  ← 優先蒸餾（現有 modules/ 實作完整）
+    embedding/
       domain/
       application/
       adapters/outbound/
-    pipeline/                   ← 優先蒸餾（prompt-pipeline 有完整實作）
+    pipeline/
       domain/
       application/
       adapters/outbound/
-    evaluation/                 ← 優先蒸餾（safety-guardrail 有完整實作）
+    evaluation/
     generation/
     chunk/
     retrieval/
@@ -34787,21 +34720,10 @@ ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
 
 ---
 
-## 蒸餾來源參考
-
-- `modules/ai/api/` — 公開 API 邊界（跨模組存取入口）
-- `modules/ai/subdomains/prompt-pipeline/` — 現有 prompt-pipeline 完整實作
-- `modules/ai/subdomains/safety-guardrail/` — 現有 safety-guardrail 實作
-- `modules/ai/subdomains/evaluation-policy/` — 現有 evaluation-policy 實作
-
----
-
 ## 衝突防護
 
 | 禁止行為 | 原因 |
 |---|---|
-| 把 `modules/ai/infrastructure/` 直接複製到 `src/modules/ai/domain/` | 層次混淆，污染 domain 純度 |
-| 把 `src/modules/ai/` 當成 `modules/ai/` 的別名 | 兩層職責不同，互不取代 |
 | 在 `domain/` 中 import Genkit、Firebase SDK | 破壞 domain 純度 |
 | 在 barrel 使用 `export *` | 破壞 tree-shaking 與邊界可追蹤性 |
 | 在 ai 定義使用者對話 UX | 屬 notebooklm |
@@ -34812,44 +34734,37 @@ ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
 ## 文件網絡
 
 - [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 蒸餾層總覽
-- [modules/ai/](../../../modules/ai/) — 完整 HEX+DDD 實作層（邊界規則權威）
+- [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/platform/README.md
 ````markdown
-# Platform Module — 精簡蒸餾骨架
+# Platform Module
 
-> **⚠ 蒸餾作業進行中**：`src/modules/platform/` 正在從 `modules/platform/`（完整 HEX+DDD 實作層）蒸餾而來。兩層職責不同，不可互換。
->
-> **account / organization 子域已遷入 `modules/iam/`**。在 `src/modules/platform/` 中**不得**重建這些子域。
+> **account / organization 子域已遷入 `src/modules/iam/`**。在 `src/modules/platform/` 中**不得**重建這些子域。
 
-**蒸餾狀態：** ✅ 完成（platform 子域已蒸餾至 `src/modules/platform/`）
+## 子域清單
 
----
-
-## 子域對照表（modules → src/modules）
-
-| 子域 | 蒸餾來源 | 狀態 | 說明 |
-|---|---|---|---|
-| `background-job` | `modules/platform/subdomains/background-job/` | ✅ 已蒸餾 | 背景工作排程 |
-| `cache` | 新增（快取管理）| ✅ 已蒸餾 | 鍵值快取、TTL 設定 |
-| `file-storage` | 新增（檔案儲存服務）| ✅ 已蒸餾 | 上傳、下載、檔案生命週期 |
-| `notification` | `modules/platform/subdomains/notification/` | ✅ 已蒸餾 | 通知發送 |
-| `platform-config` | `modules/platform/subdomains/platform-config/` | ✅ 已蒸餾 | 平台設定 |
-| `search` | `modules/platform/subdomains/search/` | ✅ 已蒸餾 | 跨域搜尋 |
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `background-job` | ✅ 完成 | 背景工作排程（BackgroundJob / JobDocument / JobChunk）|
+| `cache` | ✅ 完成 | 鍵值快取、TTL 設定 |
+| `file-storage` | ✅ 完成 | 上傳、下載、檔案生命週期 |
+| `notification` | ✅ 完成 | 通知發送 |
+| `platform-config` | ✅ 完成 | 平台設定 |
+| `search` | ✅ 完成 | 跨域搜尋 |
 
 **已遷移（不在 platform）：**
 
 | 子域 | 遷移目標 |
 |---|---|
-| `account` | `modules/iam/subdomains/account/` |
-| `organization` | `modules/iam/subdomains/organization/` |
+| `account` | `src/modules/iam/subdomains/account/` |
+| `organization` | `src/modules/iam/subdomains/organization/` |
 
 ---
 
-## 預期目錄結構（蒸餾後）
+## 目錄結構
 
 ```
 src/modules/platform/
@@ -34863,7 +34778,7 @@ src/modules/platform/
     events/index.ts             ← Platform Published Language Events
     types/index.ts
   subdomains/
-    notification/               ← 優先蒸餾
+    notification/
       domain/
       application/
       adapters/outbound/
@@ -34906,50 +34821,43 @@ Platform 不可依賴下游模組。
 ## 文件網絡
 
 - [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 蒸餾層總覽
-- [modules/platform/](../../../modules/platform/) — 完整 HEX+DDD 實作層
+- [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/workspace/README.md
 ````markdown
-# Workspace Module — 精簡蒸餾骨架
+# Workspace Module
 
-> **⚠ 蒸餾作業進行中**：`src/modules/workspace/` 正在從 `modules/workspace/`（完整 HEX+DDD 實作層）蒸餾而來。兩層職責不同，不可互換。
->
 > `workspace-workflow` 子域已移除（2026-04-15）。其能力已分散至 task、issue、settlement、approval、quality、orchestration、task-formation。
 
-**蒸餾狀態：** 🔨 進行中（task、issue、lifecycle、orchestration、membership 蒸餾中）
-
----
-
-## 子域對照表（名詞域 → modules/ 來源）
+## 子域清單（名詞域）
 
 > **子域設計原則：** 每個子域以**名詞**命名（`approval` 不用 `approve`；`schedule` 不用 `scheduling`；`share` 不用 `sharing`）。
 
-| 子域 | 蒸餾來源（modules/workspace/subdomains/）| 狀態 | 說明 |
-|---|---|---|---|
-| `activity` | 新增（使用者操作歷程）| 📋 待蒸餾 | 活動記錄實體 |
-| `api-key` | 新增（API 金鑰管理）| 📋 待蒸餾 | API 金鑰生命週期 |
-| `approval` | `approve` | 📋 待蒸餾 | 審批實體（審批流程與決策記錄）|
-| `audit` | `audit` | 📋 待蒸餾 | 稽核紀錄實體 |
-| `feed` | `feed` | 📋 待蒸餾 | 活動動態實體 |
-| `invitation` | 新增（工作區邀請）| 📋 待蒸餾 | 邀請實體（邀請連結、邀請狀態）|
-| `issue` | `issue` | 🔨 進行中 | 議題實體（議題管理）|
-| `lifecycle` | `lifecycle` | 🔨 進行中 | 生命週期實體（工作區生命週期）|
-| `membership` | `membership` | 🔨 進行中 | 成員資格實體（Membership）|
-| `orchestration` | `orchestration` | 🔨 進行中 | 跨子域編排（原 workspace-workflow）|
-| `quality` | `quality` | 📋 待蒸餾 | 品質管控實體 |
-| `resource` | 新增（資源配額）| 📋 待蒸餾 | 資源實體（工作區資源配額與管理）|
-| `schedule` | `scheduling` | 📋 待蒸餾 | 排程實體 |
-| `settlement` | `settlement` | 📋 待蒸餾 | 結算實體 |
-| `share` | `sharing` | 📋 待蒸餾 | 分享實體（對外發布）|
-| `task` | `task` | 🔨 進行中 | 任務實體（任務管理）|
-| `task-formation` | `task-formation` | 📋 待蒸餾 | 任務生成實體（AI 輔助 + 使用者確認流程）|
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `activity` | 🔨 骨架建立，實作進行中 | 活動記錄實體 |
+| `api-key` | 🔨 骨架建立，實作進行中 | API 金鑰生命週期 |
+| `approval` | 🔨 骨架建立，實作進行中 | 審批實體（審批流程與決策記錄）|
+| `audit` | 🔨 骨架建立，實作進行中 | 稽核紀錄實體 |
+| `feed` | 🔨 骨架建立，實作進行中 | 活動動態實體 |
+| `invitation` | 🔨 骨架建立，實作進行中 | 邀請實體（邀請連結、邀請狀態）|
+| `issue` | 🔨 骨架建立，實作進行中 | 議題實體（議題管理）|
+| `lifecycle` | 🔨 骨架建立，實作進行中 | 生命週期實體（工作區生命週期）|
+| `membership` | 🔨 骨架建立，實作進行中 | 成員資格實體（Membership）|
+| `orchestration` | 🔨 骨架建立，實作進行中 | 跨子域編排（原 workspace-workflow）|
+| `quality` | 🔨 骨架建立，實作進行中 | 品質管控實體 |
+| `resource` | 🔨 骨架建立，實作進行中 | 資源實體（工作區資源配額與管理）|
+| `schedule` | 🔨 骨架建立，實作進行中 | 排程實體 |
+| `settlement` | 🔨 骨架建立，實作進行中 | 結算實體 |
+| `share` | 🔨 骨架建立，實作進行中 | 分享實體（對外發布）|
+| `task` | 🔨 骨架建立，實作進行中 | 任務實體（任務管理）|
+| `task-formation` | 🔨 骨架建立，實作進行中 | 任務生成實體（AI 輔助 + 使用者確認流程）|
 
 ---
 
-## 預期目錄結構（蒸餾後）
+## 目錄結構
 
 ```
 src/modules/workspace/
@@ -34964,14 +34872,14 @@ src/modules/workspace/
     events/index.ts             ← Published Language Events
     types/index.ts
   subdomains/
-    lifecycle/                  ← 優先蒸餾
+    lifecycle/
       domain/
       application/
       adapters/outbound/
-    task/                       ← 優先蒸餾
-    issue/                      ← 優先蒸餾
-    membership/                 ← 優先蒸餾
-    orchestration/              ← 優先蒸餾（WorkspaceFlowTab 等）
+    task/
+    issue/
+    membership/
+    orchestration/
     activity/
     api-key/
     approval/
@@ -35002,8 +34910,7 @@ src/modules/workspace/
 ## 文件網絡
 
 - [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 蒸餾層總覽
-- [modules/workspace/](../../../modules/workspace/) — 完整 HEX+DDD 實作層
+- [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 ````
 
@@ -35013,24 +34920,19 @@ src/modules/workspace/
 
 ## Purpose
 
-`src/modules/analytics` 是 **Analytics 能力蒸餾骨架**，為 Xuanwu 系統提供事件投影、指標計算、洞察報表等分析能力的新實作落點。
+`src/modules/analytics` 是 **Analytics 能力模組**，為 Xuanwu 系統提供事件投影、指標計算、洞察報表等分析能力的實作落點。
 
-**蒸餾來源：** `modules/analytics/`  
-**蒸餾狀態：** 📋 待蒸餾（骨架已建立，業務實作待填入）
+## 子域清單
 
-## 蒸餾子域清單
-
-蒸餾來源 `modules/analytics/subdomains/` 包含以下子域：
-
-| 子域 | 說明 | 蒸餾狀態 |
+| 子域 | 說明 | 狀態 |
 |---|---|---|
-| `event-contracts` | 事件契約定義（Published Language）| 📋 待蒸餾 |
-| `event-ingestion` | 事件接收 / 攝取 | 📋 待蒸餾 |
-| `event-projection` | 事件投影（讀模型計算）| 📋 待蒸餾 |
-| `experimentation` | A/B 測試與功能實驗管理 | 📋 待蒸餾 |
-| `insights` | 洞察報表 | 📋 待蒸餾 |
-| `metrics` | 指標計算 | 📋 待蒸餾 |
-| `realtime-insights` | 即時洞察 | 📋 待蒸餾 |
+| `event-contracts` | 事件契約定義（Published Language）| 🔨 骨架建立，實作進行中 |
+| `event-ingestion` | 事件接收 / 攝取 | 🔨 骨架建立，實作進行中 |
+| `event-projection` | 事件投影（讀模型計算）| 🔨 骨架建立，實作進行中 |
+| `experimentation` | A/B 測試與功能實驗管理 | 🔨 骨架建立，實作進行中 |
+| `insights` | 洞察報表 | 🔨 骨架建立，實作進行中 |
+| `metrics` | 指標計算 | 🔨 骨架建立，實作進行中 |
+| `realtime-insights` | 即時洞察 | 🔨 骨架建立，實作進行中 |
 
 ## Boundary Rules
 
@@ -35048,7 +34950,7 @@ src/modules/workspace/
 - 讀取邊界規則 → `src/modules/analytics/AGENT.md`
 - 跨模組 API boundary → `src/modules/analytics/index.ts`
 
-## 衝突防護（src/modules vs modules/）
+## 路由規則
 
 | 情境 | 正確路徑 |
 |---|---|
@@ -35056,17 +34958,14 @@ src/modules/workspace/
 | 撰寫新 use case / adapter / entity | `src/modules/analytics/`（本層） |
 | 跨模組 API boundary | `src/modules/analytics/index.ts` |
 
-**⚠ 蒸餾作業進行中 — 嚴禁事項：**
-- ❌ 把 `modules/analytics/infrastructure/` 的實作直接搬到 `src/modules/analytics/domain/`
-- ❌ 把 `src/modules/analytics/` 當成 `modules/analytics/` 的別名
+**嚴禁事項：**
 - ❌ 在 `domain/` 匯入 Firebase SDK、React
 - ❌ 在 barrel 使用 `export *`
 
 ## 文件網絡
 
-- [README.md](README.md) — 蒸餾狀態與目錄結構
-- [src/modules/README.md](../README.md) — 蒸餾層總覽
-- [modules/analytics/](../../../modules/analytics/) — 完整 HEX+DDD 實作層（邊界規則權威）
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 ````
 
@@ -35076,18 +34975,15 @@ src/modules/workspace/
 
 ## Purpose
 
-`src/modules/billing` 是 **Billing 能力蒸餾骨架**，為 Xuanwu 系統提供訂閱管理與授權配額（Entitlement）的新實作落點。
+`src/modules/billing` 是 **Billing 能力模組**，為 Xuanwu 系統提供訂閱管理與授權配額（Entitlement）的實作落點。
 
-**蒸餾來源：** `modules/billing/`  
-**蒸餾狀態：** 📋 待蒸餾（骨架已建立，業務實作待填入）
+## 子域清單
 
-## 蒸餾子域清單
-
-| 子域 | 說明 | 蒸餾狀態 |
+| 子域 | 說明 | 狀態 |
 |---|---|---|
-| `entitlement` | 授權配額信號（能力准入）| 📋 待蒸餾 |
-| `subscription` | 訂閱計劃管理 | 📋 待蒸餾 |
-| `usage-metering` | 用量計量（API 呼叫、Token 消耗等）| 📋 待蒸餾 |
+| `entitlement` | 授權配額信號（能力准入）| 🔨 骨架建立，實作進行中 |
+| `subscription` | 訂閱計劃管理 | 🔨 骨架建立，實作進行中 |
+| `usage-metering` | 用量計量（API 呼叫、Token 消耗等）| 🔨 骨架建立，實作進行中 |
 
 ## Boundary Rules
 
@@ -35105,7 +35001,7 @@ src/modules/workspace/
 - 讀取邊界規則 → `src/modules/billing/AGENT.md`
 - 跨模組 API boundary → `src/modules/billing/index.ts`
 
-## 衝突防護（src/modules vs modules/）
+## 路由規則
 
 | 情境 | 正確路徑 |
 |---|---|
@@ -35113,16 +35009,13 @@ src/modules/workspace/
 | 撰寫新 use case / adapter / entity | `src/modules/billing/`（本層）|
 | 跨模組 API boundary | `src/modules/billing/index.ts` |
 
-**⚠ 蒸餾作業進行中 — 嚴禁事項：**
-- ❌ 把 `modules/billing/infrastructure/` 的實作直接搬到 `src/modules/billing/domain/`
-- ❌ 把 `src/modules/billing/` 當成 `modules/billing/` 的別名
+**嚴禁事項：**
 - ❌ 在 barrel 使用 `export *`
 
 ## 文件網絡
 
-- [README.md](README.md) — 蒸餾狀態與目錄結構
-- [src/modules/README.md](../README.md) — 蒸餾層總覽
-- [modules/billing/](../../../modules/billing/) — 完整 HEX+DDD 實作層（邊界規則權威）
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 ````
 
@@ -35132,21 +35025,18 @@ src/modules/workspace/
 
 ## Purpose
 
-`src/modules/notebooklm` 是 **NotebookLM RAG 核心能力蒸餾骨架**，為 Xuanwu 系統提供來源文件（Document）、使用者對話（Conversation）、筆記本（Notebook）等 RAG 使用者體驗能力的新實作落點。
-
-**蒸餾來源：** `modules/notebooklm/`  
-**蒸餾狀態：** 📋 待蒸餾（骨架已建立，業務實作待填入）
+`src/modules/notebooklm` 是 **NotebookLM RAG 核心能力模組**，為 Xuanwu 系統提供來源文件（Document）、使用者對話（Conversation）、筆記本（Notebook）等 RAG 使用者體驗能力的實作落點。
 
 > **⚠ 邊界警示：** notebooklm 擁有 RAG **使用者體驗**（對話流程、文件接收、筆記本管理）。  
 > AI **機制**（embedding、retrieval、generation、citation）屬 `ai` 模組，notebooklm 透過 Port 消費。
 
 ## 子域清單（名詞域）
 
-| 子域 | 說明 | 對應 modules/ 來源 | 蒸餾狀態 |
-|---|---|---|---|
-| `document` | Document 實體（來源文件接收、RagDocument 生命週期、metadata）| `source` | 📋 待蒸餾 |
-| `conversation` | Conversation 實體（使用者對話 Session、問答流程、Synthesis 輸出）| `conversation` + `synthesis` | 📋 待蒸餾 |
-| `notebook` | Notebook 實體（筆記本生命週期、Document 集合）| `notebook` | 📋 待蒸餾 |
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `document` | Document 實體（來源文件接收、RagDocument 生命週期、metadata）| 🔨 骨架建立，實作進行中 |
+| `conversation` | Conversation 實體（使用者對話 Session、問答流程、Synthesis 輸出）| 🔨 骨架建立，實作進行中 |
+| `notebook` | Notebook 實體（筆記本生命週期、Document 集合）| 🔨 骨架建立，實作進行中 |
 
 > **子域不重複原則：**  
 > - `synthesis`（合成推理）是 `conversation` 的**應用層流程**，不獨立成子域  
@@ -35172,7 +35062,7 @@ src/modules/workspace/
 - KnowledgeArtifact（只讀）→ `src/modules/notion/index.ts`
 - 跨模組 API boundary → `src/modules/notebooklm/index.ts`
 
-## 衝突防護（src/modules vs modules/）
+## 路由規則
 
 | 情境 | 正確路徑 |
 |---|---|
@@ -35180,17 +35070,15 @@ src/modules/workspace/
 | 撰寫新 use case / adapter / entity | `src/modules/notebooklm/`（本層）|
 | 跨模組 API boundary | `src/modules/notebooklm/index.ts` |
 
-**⚠ 蒸餾作業進行中 — 嚴禁事項：**
-- ❌ 把 `modules/notebooklm/infrastructure/` 直接搬到 `src/modules/notebooklm/domain/`
+**嚴禁事項：**
 - ❌ 在 notebooklm `domain/` 中定義 AI 機制（embedding、retrieval、generation 屬 `ai`）
 - ❌ 新建獨立 `synthesis` 子域（合成邏輯屬 `conversation` 應用層）
 - ❌ 在 barrel 使用 `export *`
 
 ## 文件網絡
 
-- [README.md](README.md) — 蒸餾狀態與目錄結構
-- [src/modules/README.md](../README.md) — 蒸餾層總覽
-- [modules/notebooklm/](../../../modules/notebooklm/) — 完整 HEX+DDD 實作層（邊界規則權威）
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 ````
 
@@ -35200,23 +35088,20 @@ src/modules/workspace/
 
 ## Purpose
 
-`src/modules/notion` 是 **Notion 知識內容能力蒸餾骨架**，為 Xuanwu 系統提供知識頁面（Page）、內容區塊（Block）、資料庫（Database）、視圖（View）、協作（Collaboration）、模板（Template）等正典知識能力的新實作落點。
-
-**蒸餾來源：** `modules/notion/`  
-**蒸餾狀態：** 📋 待蒸餾（骨架已建立，業務實作待填入）
+`src/modules/notion` 是 **Notion 知識內容能力模組**，為 Xuanwu 系統提供知識頁面（Page）、內容區塊（Block）、資料庫（Database）、視圖（View）、協作（Collaboration）、模板（Template）等正典知識能力的實作落點。
 
 > **⚠ 邊界警示：** notion 是 `KnowledgeArtifact`（Page / Block / Database）的**唯一可寫所有者**。notebooklm 只能透過 `src/modules/notion/index.ts` 唯讀引用；workspace 不直接修改 notion 內容。
 
 ## 子域清單（名詞域）
 
-| 子域 | 說明 | 對應 modules/ 來源 | 蒸餾狀態 |
-|---|---|---|---|
-| `page` | Page 實體（知識文件創作、編輯、版本）| `authoring` + `knowledge` | 📋 待蒸餾 |
-| `block` | Block 實體（Page 內內容區塊：文字、圖片、代碼等）| `authoring`（區塊層）| 📋 待蒸餾 |
-| `database` | Database 實體（結構化知識庫）| `knowledge-database` | 📋 待蒸餾 |
-| `view` | View 實體（Database 的顯示方式 / 篩選 / 排序）| `relations` | 📋 待蒸餾 |
-| `collaboration` | Collaboration 實體（協作評論、共編、提及）| `collaboration` | 📋 待蒸餾 |
-| `template` | Template 實體（Page / Database 模板）| `taxonomy`（部分）+ 新增 | 📋 待蒸餾 |
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `page` | Page 實體（知識文件創作、編輯、版本）| 🔨 骨架建立，實作進行中 |
+| `block` | Block 實體（Page 內內容區塊：文字、圖片、代碼等）| 🔨 骨架建立，實作進行中 |
+| `database` | Database 實體（結構化知識庫）| 🔨 骨架建立，實作進行中 |
+| `view` | View 實體（Database 的顯示方式 / 篩選 / 排序）| 🔨 骨架建立，實作進行中 |
+| `collaboration` | Collaboration 實體（協作評論、共編、提及）| 🔨 骨架建立，實作進行中 |
+| `template` | Template 實體（Page / Database 模板）| 🔨 骨架建立，實作進行中 |
 
 > **子域不重複原則：**  
 > - `taxonomy`（分類/標籤）的標籤能力整合至 `page` / `database` 的 metadata；不設獨立 taxonomy 子域  
@@ -35242,7 +35127,7 @@ src/modules/workspace/
 - RAG / 知識檢索 → `src/modules/notebooklm/`（notebooklm 消費 notion 內容）
 - AI 生成輔助 → `src/modules/ai/index.ts`
 
-## 衝突防護（src/modules vs modules/）
+## 路由規則
 
 | 情境 | 正確路徑 |
 |---|---|
@@ -35250,8 +35135,7 @@ src/modules/workspace/
 | 撰寫新 use case / adapter / entity | `src/modules/notion/`（本層）|
 | 跨模組 API boundary | `src/modules/notion/index.ts` |
 
-**⚠ 蒸餾作業進行中 — 嚴禁事項：**
-- ❌ 把 `modules/notion/infrastructure/` 直接搬到 `src/modules/notion/domain/`
+**嚴禁事項：**
 - ❌ 讓 notebooklm 或 workspace 直接修改 `Page` / `Block` / `Database`（只可讀取）
 - ❌ 在 barrel 使用 `export *`
 - ❌ 使用 `database` 以外的舊名（`knowledge-database`、`knowledge` 已整合至 `page`）
@@ -35259,9 +35143,8 @@ src/modules/workspace/
 
 ## 文件網絡
 
-- [README.md](README.md) — 蒸餾狀態與目錄結構
-- [src/modules/README.md](../README.md) — 蒸餾層總覽
-- [modules/notion/](../../../modules/notion/) — 完整 HEX+DDD 實作層（邊界規則權威）
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 ````
 
@@ -35271,33 +35154,28 @@ src/modules/workspace/
 
 ## Purpose
 
-`src/modules/iam` 是 **IAM（Identity & Access Management）能力蒸餾骨架**，整合了原先分散在 `modules/iam/` 與 `modules/platform/`（account、organization 子域）的身份、存取控制、帳號、組織等能力。
+`src/modules/iam` 是 **IAM（Identity & Access Management）模組**，整合了身份、存取控制、帳號、組織等能力（含原先分散在 `platform/account`、`platform/organization` 的子域）。
 
-**蒸餾來源：** `modules/iam/` + `modules/platform/subdomains/account/`（已遷入）+ `modules/platform/subdomains/organization/`（已遷入）  
-**蒸餾狀態：** 🔨 進行中（account / organization 已從 platform 遷入 iam）
+## 子域清單
 
-## 蒸餾子域清單
-
-蒸餾來源 `modules/iam/subdomains/` 包含以下子域：
-
-| 子域 | 來源 | 說明 | 蒸餾狀態 |
-|---|---|---|---|
-| `account` | `modules/iam/subdomains/account/`（原 platform/account）| 帳號 Profile 管理 | 🔨 進行中 |
-| `access-control` | `modules/iam/subdomains/access-control/` | 存取控制規則 | 📋 待蒸餾 |
-| `authentication` | `modules/iam/subdomains/authentication/` | 認證流程 | 📋 待蒸餾 |
-| `authorization` | `modules/iam/subdomains/authorization/` | 授權決策 | 📋 待蒸餾 |
-| `federation` | `modules/iam/subdomains/federation/` | SSO / 聯合身份 | 📋 待蒸餾 |
-| `identity` | `modules/iam/subdomains/identity/` | 身份核心（Actor）| 📋 待蒸餾 |
-| `organization` | `modules/iam/subdomains/organization/`（原 platform/org）| 組織 / 成員 / 團隊 | 🔨 進行中 |
-| `security-policy` | `modules/iam/subdomains/security-policy/` | 安全策略 | 📋 待蒸餾 |
-| `session` | `modules/iam/subdomains/session/` | 會話管理 | 📋 待蒸餾 |
-| `tenant` | `modules/iam/subdomains/tenant/` | 租戶隔離 | 📋 待蒸餾 |
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `account` | 帳號 Profile 管理 | ✅ 完成 |
+| `access-control` | 存取控制規則 | ✅ 完成 |
+| `authentication` | 認證流程 | ✅ 完成 |
+| `authorization` | 授權決策 | ✅ 完成 |
+| `federation` | SSO / 聯合身份 | ✅ 完成 |
+| `identity` | 身份核心（Actor）| ✅ 完成 |
+| `organization` | 組織 / 成員 / 團隊（原 platform/org）| ✅ 完成 |
+| `security-policy` | 安全策略 | ✅ 完成 |
+| `session` | 會話管理 | ✅ 完成 |
+| `tenant` | 租戶隔離 | ✅ 完成 |
 
 ## 遷入說明
 
 `platform/account` 與 `platform/organization` 子域已**完全遷入** `iam`：
-- `modules/iam/subdomains/account/` — AccountProfile read-model（getProfile / updateProfile）
-- `modules/iam/subdomains/organization/` — OrganizationTeam aggregate、成員管理、Team CRUD
+- `src/modules/iam/subdomains/account/` — AccountProfile read-model（getProfile / updateProfile）
+- `src/modules/iam/subdomains/organization/` — OrganizationTeam aggregate、成員管理、Team CRUD
 
 ## Boundary Rules
 
@@ -35314,28 +35192,25 @@ src/modules/workspace/
 
 - 讀取邊界規則 → `src/modules/iam/AGENT.md`
 - 跨模組 API boundary → `src/modules/iam/index.ts`
-- workspace 的 Membership 概念 → `modules/workspace/subdomains/membership/`
+- workspace 的 Membership 概念 → `src/modules/workspace/subdomains/membership/`
 
-## 衝突防護（src/modules vs modules/）
+## 路由規則
 
 | 情境 | 正確路徑 |
 |---|---|
 | 讀取邊界規則 / published language | `src/modules/iam/AGENT.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/iam/`（本層）|
 | 跨模組 API boundary | `src/modules/iam/index.ts` |
-| 查閱 account API（過渡期）| IAM 模組公開入口（詳見 README）|
 
-**⚠ 蒸餾作業進行中 — 嚴禁事項：**
-- ❌ 在 `modules/platform/subdomains/` 下新增 account / org 相關程式碼（已遷入 iam）
-- ❌ 把 `src/modules/iam/` 當成 `modules/iam/` 的別名
+**嚴禁事項：**
+- ❌ 在 `src/modules/platform/subdomains/` 下新增 account / org 相關程式碼（已遷入 iam）
 - ❌ 在 `domain/` 匯入 Firebase SDK、React
 - ❌ 混用 Actor（身份）與 User（業務角色）術語
 
 ## 文件網絡
 
-- [README.md](README.md) — 蒸餾狀態與目錄結構
-- [src/modules/README.md](../README.md) — 蒸餾層總覽
-- [modules/iam/](../../../modules/iam/) — 完整 HEX+DDD 實作層（邊界規則權威）
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 ````
 
@@ -35345,34 +35220,31 @@ src/modules/workspace/
 
 ## Purpose
 
-`src/modules/workspace` 是 **Workspace 協作容器能力蒸餾骨架**，為 Xuanwu 系統提供任務（Task）、議題（Issue）、生命週期（Lifecycle）、編排（Orchestration）、成員資格（Membership）等工作區協作能力的新實作落點。
-
-**蒸餾來源：** `modules/workspace/`  
-**蒸餾狀態：** 🔨 進行中（task、issue、lifecycle 等子域蒸餾中）
+`src/modules/workspace` 是 **Workspace 協作容器能力模組**，為 Xuanwu 系統提供任務（Task）、議題（Issue）、生命週期（Lifecycle）、編排（Orchestration）、成員資格（Membership）等工作區協作能力的實作落點。
 
 > **注意：** `workspace-workflow` 子域已移除（2026-04-15）。其能力已分散至 task、issue、settlement、approval、quality、orchestration、task-formation 七個子域。
 
 ## 子域清單（名詞域）
 
-| 子域 | 說明 | 對應 modules/ 來源 | 蒸餾狀態 |
-|---|---|---|---|
-| `activity` | 活動記錄實體（使用者操作歷程）| 新增 | 📋 待蒸餾 |
-| `api-key` | API 金鑰管理實體 | 新增 | 📋 待蒸餾 |
-| `approval` | 審批實體（審批流程與決策）| `approve` | 📋 待蒸餾 |
-| `audit` | 稽核紀錄實體 | `audit` | 📋 待蒸餾 |
-| `feed` | 活動動態實體 | `feed` | 📋 待蒸餾 |
-| `invitation` | 邀請實體（工作區邀請管理）| 新增 | 📋 待蒸餾 |
-| `issue` | 議題實體（議題管理）| `issue` | 🔨 進行中 |
-| `lifecycle` | 生命週期實體（工作區生命週期）| `lifecycle` | 🔨 進行中 |
-| `membership` | 成員資格實體（Membership）| `membership` | 🔨 進行中 |
-| `orchestration` | 跨子域編排（原 workspace-workflow）| `orchestration` | 🔨 進行中 |
-| `quality` | 品質管控實體 | `quality` | 📋 待蒸餾 |
-| `resource` | 資源實體（工作區資源配額與管理）| 新增 | 📋 待蒸餾 |
-| `schedule` | 排程實體 | `scheduling` | 📋 待蒸餾 |
-| `settlement` | 結算實體 | `settlement` | 📋 待蒸餾 |
-| `share` | 分享實體（對外發布）| `sharing` | 📋 待蒸餾 |
-| `task` | 任務實體（任務管理）| `task` | 🔨 進行中 |
-| `task-formation` | 任務生成實體（AI 輔助任務生成）| `task-formation` | 📋 待蒸餾 |
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `activity` | 活動記錄實體（使用者操作歷程）| 🔨 骨架建立，實作進行中 |
+| `api-key` | API 金鑰管理實體 | 🔨 骨架建立，實作進行中 |
+| `approval` | 審批實體（審批流程與決策）| 🔨 骨架建立，實作進行中 |
+| `audit` | 稽核紀錄實體 | 🔨 骨架建立，實作進行中 |
+| `feed` | 活動動態實體 | 🔨 骨架建立，實作進行中 |
+| `invitation` | 邀請實體（工作區邀請管理）| 🔨 骨架建立，實作進行中 |
+| `issue` | 議題實體（議題管理）| 🔨 骨架建立，實作進行中 |
+| `lifecycle` | 生命週期實體（工作區生命週期）| 🔨 骨架建立，實作進行中 |
+| `membership` | 成員資格實體（Membership）| 🔨 骨架建立，實作進行中 |
+| `orchestration` | 跨子域編排（原 workspace-workflow）| 🔨 骨架建立，實作進行中 |
+| `quality` | 品質管控實體 | 🔨 骨架建立，實作進行中 |
+| `resource` | 資源實體（工作區資源配額與管理）| 🔨 骨架建立，實作進行中 |
+| `schedule` | 排程實體 | 🔨 骨架建立，實作進行中 |
+| `settlement` | 結算實體 | 🔨 骨架建立，實作進行中 |
+| `share` | 分享實體（對外發布）| 🔨 骨架建立，實作進行中 |
+| `task` | 任務實體（任務管理）| 🔨 骨架建立，實作進行中 |
+| `task-formation` | 任務生成實體（AI 輔助任務生成）| 🔨 骨架建立，實作進行中 |
 
 ## task-formation 歸屬決策
 
@@ -35380,8 +35252,6 @@ src/modules/workspace/
 - 輸出物（Task entities）是 workspace 的領域物件
 - 業務流程（使用者確認候選任務）是 workspace 層關注點
 - AI 生成能力由 `ai/generation` Port 注入（透過 `src/modules/ai/index.ts`），workspace 消費
-
-> `modules/ai/subdomains/task-formation`（空骨架）未來整合至此子域，不在 ai 模組擴展。
 
 ## Boundary Rules
 
@@ -35402,7 +35272,7 @@ src/modules/workspace/
 - AI 任務提取能力 → `src/modules/ai/index.ts`（generation）
 - 成員身份驗證 → `src/modules/iam/index.ts`
 
-## 衝突防護（src/modules vs modules/）
+## 路由規則
 
 | 情境 | 正確路徑 |
 |---|---|
@@ -35410,18 +35280,16 @@ src/modules/workspace/
 | 撰寫新 use case / adapter / entity | `src/modules/workspace/`（本層）|
 | 跨模組 API boundary | `src/modules/workspace/index.ts` |
 
-**⚠ 蒸餾作業進行中 — 嚴禁事項：**
+**嚴禁事項：**
 - ❌ 新建或恢復 `workspace-workflow` 子域（已拆解）
-- ❌ 把 `modules/workspace/infrastructure/` 直接搬到 `src/modules/workspace/domain/`
 - ❌ 在 workspace 直接呼叫 Firestore（透過 src/modules/platform/index.ts）
 - ❌ 使用 `approve` 作為子域名（已更正為名詞 `approval`）
 - ❌ 在 barrel 使用 `export *`
 
 ## 文件網絡
 
-- [README.md](README.md) — 蒸餾狀態與目錄結構
-- [src/modules/README.md](../README.md) — 蒸餾層總覽
-- [modules/workspace/](../../../modules/workspace/) — 完整 HEX+DDD 實作層（邊界規則權威）
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 ````
 
@@ -35431,27 +35299,24 @@ src/modules/workspace/
 
 ## Purpose
 
-`src/modules/ai` 是 **AI 機制能力蒸餾骨架**，為 Xuanwu 系統提供文字分塊（Chunk）、向量嵌入（Embedding）、語意檢索（Retrieval）、上下文管理（Context）、內容生成（Generation）、來源引用（Citation）、品質評估（Evaluation）、提示管線（Pipeline）等 AI 底層機制的新實作落點。
-
-**蒸餾來源：** `modules/ai/`  
-**蒸餾狀態：** 📋 待蒸餾（骨架已建立，業務實作待填入）
+`src/modules/ai` 是 **AI 機制能力模組**，為 Xuanwu 系統提供文字分塊（Chunk）、向量嵌入（Embedding）、語意檢索（Retrieval）、上下文管理（Context）、內容生成（Generation）、來源引用（Citation）、品質評估（Evaluation）、提示管線（Pipeline）等 AI 底層機制的實作落點。
 
 > **⚠ 邊界警示：** `ai` 擁有 AI **機制**（模型呼叫、向量計算、提示建構），不擁有使用者對話 UX（屬 `notebooklm`）、知識文件管理（屬 `notion`）或任務生成流程（屬 `workspace`）。
 
 ## 子域清單（名詞域）
 
-| 子域 | 說明 | 對應 modules/ 來源 | 蒸餾狀態 |
-|---|---|---|---|
-| `chunk` | 文字分塊實體（分塊策略、Token 計量）| `tokens` + 分塊邏輯 | 📋 待蒸餾 |
-| `citation` | 引用實體（生成內容的來源溯源）| 新增（無舊對應）| 📋 待蒸餾 |
-| `context` | AI 上下文實體（記憶體、對話歷程、人格）| `memory-context` + `messages` + `conversations` + `personas` | 📋 待蒸餾 |
-| `embedding` | 向量嵌入實體（Embedding 生成與儲存）| `embeddings` | 📋 待蒸餾 |
-| `evaluation` | 評估實體（輸出品質、安全防護、模型可觀測性）| `evaluation-policy` + `safety-guardrail` + `datasets` + `model-observability` | 📋 待蒸餾 |
-| `generation` | AI 生成實體（模型選擇、Tool calling、內容生成）| `models` + `tools` | 📋 待蒸餾 |
-| `memory` | AI 記憶實體（長期記憶、跨會話持久化）| 新增（`memory-context` 萃取）| 📋 待蒸餾 |
-| `pipeline` | 提示管線實體（提示模板、多步驟管線）| `prompt-pipeline` + `prompts` | 📋 待蒸餾 |
-| `retrieval` | 語意檢索實體（向量相似度搜尋）| 分散於 `tools` / `context` | 📋 待蒸餾 |
-| `tool-calling` | 工具呼叫實體（Tool 定義、執行、結果處理）| `tools` + `tool-runtime` | 📋 待蒸餾 |
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `chunk` | 文字分塊實體（分塊策略、Token 計量）| 🔨 骨架建立，實作進行中 |
+| `citation` | 引用實體（生成內容的來源溯源）| 🔨 骨架建立，實作進行中 |
+| `context` | AI 上下文實體（記憶體、對話歷程、人格）| 🔨 骨架建立，實作進行中 |
+| `embedding` | 向量嵌入實體（Embedding 生成與儲存）| 🔨 骨架建立，實作進行中 |
+| `evaluation` | 評估實體（輸出品質、安全防護、模型可觀測性）| 🔨 骨架建立，實作進行中 |
+| `generation` | AI 生成實體（模型選擇、Tool calling、內容生成）| 🔨 骨架建立，實作進行中 |
+| `memory` | AI 記憶實體（長期記憶、跨會話持久化）| 🔨 骨架建立，實作進行中 |
+| `pipeline` | 提示管線實體（提示模板、多步驟管線）| 🔨 骨架建立，實作進行中 |
+| `retrieval` | 語意檢索實體（向量相似度搜尋）| 🔨 骨架建立，實作進行中 |
+| `tool-calling` | 工具呼叫實體（Tool 定義、執行、結果處理）| 🔨 骨架建立，實作進行中 |
 
 > **子域不重複原則：**  
 > - `conversation`（使用者對話 UX）→ `notebooklm` 所有  
@@ -35473,8 +35338,6 @@ src/modules/workspace/
 - 觸發者（使用者指定生成任務）是 workspace 層業務流程
 - AI 模型呼叫透過 `ai/generation` Port 注入，由 workspace 消費
 
-`modules/ai/subdomains/task-formation` 目前為空骨架，未來應整合至 `workspace/task-formation`，不應在 ai 模組擴展此子域。
-
 ## Route Here When
 
 - 撰寫 AI 機制的新 use case、entity、adapter 實作（embedding、retrieval、generation 等）。
@@ -35487,21 +35350,17 @@ src/modules/workspace/
 - 使用者對話 / Notebook UX → `src/modules/notebooklm/`
 - 知識文件 / Page 管理 → `src/modules/notion/`
 - 任務生成業務流程 → `src/modules/workspace/`（`task-formation`）
-- Genkit flow 定義（現有）→ `modules/ai/subdomains/*/infrastructure/ai/`
 - 跨模組 API boundary → `src/modules/ai/index.ts`
 
-## 衝突防護（src/modules vs modules/）
+## 路由規則
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `modules/ai/AGENT.md`、`modules/ai/api/` |
+| 讀取邊界規則 / published language | `src/modules/ai/AGENT.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/ai/`（本層） |
-| 查閱現有 Genkit wiring | `modules/ai/subdomains/*/infrastructure/` |
-| 跨模組 API boundary | `modules/ai/api/index.ts` |
+| 跨模組 API boundary | `src/modules/ai/index.ts` |
 
-**⚠ 蒸餾作業進行中 — 嚴禁事項：**
-- ❌ 把 `modules/ai/infrastructure/` 的實作直接搬到 `src/modules/ai/domain/`
-- ❌ 把 `src/modules/ai/` 當成 `modules/ai/` 的別名
+**嚴禁事項：**
 - ❌ 在 `domain/` 匯入 Genkit、Firebase SDK、React
 - ❌ 在 barrel 使用 `export *`
 - ❌ 在 ai 模組定義使用者對話 UX（屬 notebooklm）
@@ -35509,9 +35368,8 @@ src/modules/workspace/
 
 ## 文件網絡
 
-- [README.md](README.md) — 蒸餾狀態與目錄結構
-- [src/modules/README.md](../README.md) — 蒸餾層總覽
-- [modules/ai/](../../../modules/ai/) — 完整 HEX+DDD 實作層（邊界規則權威）
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 ````
 
@@ -35521,27 +35379,24 @@ src/modules/workspace/
 
 ## Purpose
 
-`src/modules/platform` 是 **Platform 橫切治理能力蒸餾骨架**，為 Xuanwu 系統提供通知（Notification）、背景工作（Background Job）、平台設定（Platform Config）、搜尋（Search）等橫切服務能力的新實作落點。
+`src/modules/platform` 是 **Platform 橫切治理能力模組**，為 Xuanwu 系統提供通知（Notification）、背景工作（Background Job）、平台設定（Platform Config）、搜尋（Search）等橫切服務能力的實作落點。
 
-**蒸餾來源：** `modules/platform/`（account / organization 子域已遷入 `modules/iam/`）  
-**蒸餾狀態：** ✅ 完成（platform 子域已蒸餾至 `src/modules/platform/`）
+> **注意：** `platform/subdomains/account` 與 `platform/subdomains/organization` 已**完全遷入** `src/modules/iam/`。在 `src/modules/platform/` 中**不得**重建這些子域。
 
-> **注意：** `platform/subdomains/account` 與 `platform/subdomains/organization` 已**完全遷入** `modules/iam/`。在 `src/modules/platform/` 中**不得**重建這些子域。
+## 子域清單
 
-## 蒸餾子域清單
-
-| 子域 | 說明 | 蒸餾狀態 |
+| 子域 | 說明 | 狀態 |
 |---|---|---|
-| `background-job` | 背景工作排程（BackgroundJob / JobDocument / JobChunk）| ✅ 已蒸餾 |
-| `cache` | 快取管理（鍵值快取、TTL 設定）| ✅ 已蒸餾 |
-| `file-storage` | 檔案儲存服務（上傳、下載、生命週期）| ✅ 已蒸餾 |
-| `notification` | 通知發送 | ✅ 已蒸餾 |
-| `platform-config` | 平台設定 | ✅ 已蒸餾 |
-| `search` | 跨域搜尋 | ✅ 已蒸餾 |
+| `background-job` | 背景工作排程（BackgroundJob / JobDocument / JobChunk）| ✅ 完成 |
+| `cache` | 快取管理（鍵值快取、TTL 設定）| ✅ 完成 |
+| `file-storage` | 檔案儲存服務（上傳、下載、生命週期）| ✅ 完成 |
+| `notification` | 通知發送 | ✅ 完成 |
+| `platform-config` | 平台設定 | ✅ 完成 |
+| `search` | 跨域搜尋 | ✅ 完成 |
 
 **已遷移子域（不在 platform）：**
-- `account` → `modules/iam/subdomains/account/`
-- `organization` → `modules/iam/subdomains/organization/`
+- `account` → `src/modules/iam/subdomains/account/`
+- `organization` → `src/modules/iam/subdomains/organization/`
 
 ## Boundary Rules
 
@@ -35560,7 +35415,7 @@ src/modules/workspace/
 - Account / Organization → `src/modules/iam/`（已遷入）
 - 跨模組 API boundary → `src/modules/platform/index.ts`
 
-## 衝突防護（src/modules vs modules/）
+## 路由規則
 
 | 情境 | 正確路徑 |
 |---|---|
@@ -35568,16 +35423,14 @@ src/modules/workspace/
 | 撰寫新 use case / adapter / entity | `src/modules/platform/`（本層）|
 | 跨模組 API boundary | `src/modules/platform/index.ts` |
 
-**⚠ 蒸餾作業進行中 — 嚴禁事項：**
+**嚴禁事項：**
 - ❌ 在 `src/modules/platform/` 重建 account / org 子域（已遷入 iam）
-- ❌ 把 `modules/platform/infrastructure/` 直接搬到 `src/modules/platform/domain/`
 - ❌ 使用 `Ingestion*` 命名（已語意化為 BackgroundJob / JobDocument / JobChunk）
 - ❌ platform 依賴 workspace / notion / notebooklm（違反上游方向）
 
 ## 文件網絡
 
-- [README.md](README.md) — 蒸餾狀態與目錄結構
-- [src/modules/README.md](../README.md) — 蒸餾層總覽
-- [modules/platform/](../../../modules/platform/) — 完整 HEX+DDD 實作層（邊界規則權威）
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 ````
