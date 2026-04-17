@@ -1,6 +1,6 @@
 # Bounded Context Subdomain Template
 
-本文件在本次任務限制下，僅依 Context7 驗證的 Hexagonal Architecture、DDD、Context Map 與 ADR 參考建立，作為 `modules/<bounded-context>/subdomains/*` 的交付標準模板，不主張反映現況實作。
+本文件在本次任務限制下，僅依 Context7 驗證的 Hexagonal Architecture、DDD、Context Map 與 ADR 參考建立，作為 `src/modules/<bounded-context>/subdomains/*` 的交付標準模板，不主張反映現況實作。
 
 ## Purpose
 
@@ -20,7 +20,7 @@
 ## Standard Structure Tree
 
 ```text
-modules/                                        # 系統所有業務模組（bounded contexts）集合
+src/modules/                                    # 系統所有業務模組（bounded contexts）集合
 └── <bounded-context>/                          # 單一業務邊界（高內聚、低耦合）
     ├── README.md                               # 說明此 bounded context 的目的、範圍、核心能力
     ├── AGENT.md                                # 開發規範：命名、分層規則、不可違反設計約束

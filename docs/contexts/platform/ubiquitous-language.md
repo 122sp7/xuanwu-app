@@ -91,7 +91,7 @@
 - 生成程式碼時，名稱先對齊 Actor、Tenant、Entitlement、Consent、Secret，再決定類型與檔名。
 - 奧卡姆剃刀：若一個治理名詞已足夠表達責任，就不要再堆疊第二個近義抽象名稱。
 - 命名先保護治理語言，再考慮 UI 或 API 顯示便利。
-- OrganizationTeam 相關程式碼放在 `modules/platform/subdomains/organization/`，以 Team 縮寫命名可接受（已整併入 organization 子域）。
+- OrganizationTeam 相關程式碼放在 `src/modules/platform/subdomains/organization/`，以 Team 縮寫命名可接受（已整併入 organization 子域）。
 
 ## Dependency Direction Flow
 
