@@ -1,4 +1,4 @@
-# 50 Hard Rules — Consolidated Placement Strategy (2026-04-12)
+# 51 Hard Rules — Consolidated Placement Strategy (updated 2026-04-17)
 
 **Status**: Consolidated and documented  
 **Authority**: AGENTS.md (strategic) + module AGENT.md (tactical) + .github/instructions/* (operational)  
@@ -12,7 +12,7 @@ All 50 hard rules now have assigned homes across 7 primary documents:
 
 | Home | Rule Count | Examples |
 |------|-----------|----------|
-| **AGENTS.md** | 13 | Ownership (1,5-10,28), Anti-patterns (46-50) |
+| **AGENTS.md** | 14 | Ownership (1,5-10,28), Anti-patterns (46-51) |
 | **architecture-core.instructions.md** | 7 | Layer responsibility (11-13, 21-23, 16) |
 | **event-driven-state.instructions.md** | 5 | Event bus (4, 34-36, 9) |
 | **security-rules.instructions.md** | 6 | File/metadata/permission (3, 29-32, 37-40) |
@@ -20,18 +20,18 @@ All 50 hard rules now have assigned homes across 7 primary documents:
 | **ESLint Config** | 3 | Boundary enforcement (2, 6-7, 49) |
 | **Module AGENT.md** | 12 | Tactical per-module rules |
 
-**Total**: 50 rules consolidated; zero redundancy; clear enforcement chain
+**Total**: 51 rules consolidated; zero redundancy; clear enforcement chain
 
 ---
 
 ## Key Placements
 
 ### Tier 1: Strategic (AGENTS.md)
-- Rule 1: platform is unique infra gateway
+- Rule 1: Each module owns its domain adapters (cross-domain goes via service APIs)
 - Rule 5: workspace is orchestration only
-- Rules 6-10: Cross-module access prohibition, mandatory API boundary, platform infra, events
-- Rule 28: platform no downstream deps
-- Rules 46-50: Anti-patterns (explicit prohibitions)
+- Rules 6-10: Cross-module access prohibition, mandatory API boundary, domain layer clean, events
+- Rule 28: Upstream contexts cannot depend on their downstreams (iam/billing/ai/platform)
+- Rules 46-51: Anti-patterns (explicit prohibitions, including Rule 51: no foreign context providers)
 
 ### Tier 2: Tactical (.github/instructions/*)
 - **architecture-core**: Layer responsibility (application, domain, UI constraints)
@@ -104,8 +104,12 @@ When implementing, provide evidence for:
 
 ## One-Liner Mandate
 
-> **Platform = Auth + DB + File + AI + Event + Permission (all via semantic API)**  
-> **Notion = Knowledge State (via API)**  
-> **Notebooklm = Reasoning Pipeline (via API)**  
-> **Workspace = UI Orchestration (no logic)**  
-> **Rule**: No sideways imports; all deps point inward to platform
+> **iam = Identity + Auth + Tenant (upstream)**  
+> **billing = Subscription + Entitlement (upstream)**  
+> **ai = Shared AI Capability (upstream)**  
+> **platform = Account + Org + Shared Operational Services (T1)**  
+> **workspace = Collaboration Scope (T2, UI Orchestration)**  
+> **notion = Canonical Knowledge Content (T3)**  
+> **notebooklm = Reasoning Pipeline (T3)**  
+> **analytics = Downstream Sink Only**  
+> **Rule**: No sideways imports; deps point upstream; never invert direction

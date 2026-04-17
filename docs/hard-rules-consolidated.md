@@ -1,4 +1,4 @@
-# 50 Hard Rules — Consolidated Architecture Guardrails
+# 51 Hard Rules — Consolidated Architecture Guardrails
 
 **Status**: Consolidated from user request (2026-04-12)  
 **Authority**: AGENTS.md (strategic) + module AGENT.md (tactical)  
@@ -94,6 +94,9 @@
 
 - ❌ **Rule 50**: Business logic written in React component (workspace UI)
   - Fix: Move to application/ use-case; UI only composes and calls
+
+- ❌ **Rule 51**: Cross-module route components read foreign context providers
+  - Fix: workspace is the composition owner; pass explicit scope props (`accountId`, `workspaceId`, optional `currentUserId`) through module `index.ts` boundaries
 ```
 
 ---

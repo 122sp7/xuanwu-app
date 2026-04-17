@@ -78,7 +78,9 @@ export interface AIAPI {
 
 ## API Call Rules
 
-| Caller | Firestore | Storage | Genkit | Auth | Permission | File | AI |
+> Columns refer to **platform-provided cross-domain service APIs**. `iam`, `billing`, `ai` are upstream service providers, not consumers of these APIs. Each module separately owns its own domain-local Firestore/infrastructure adapters (see Governance Rules).
+
+| Caller | Firestore (infra) | Storage (infra) | Genkit (infra) | Auth | Permission | File | AI |
 |--------|-----------|---------|--------|------|------------|------|-----|
 | workspace | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
 | notion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅* | ✅ |
@@ -142,13 +144,19 @@ Use `docs/README.md`, `docs/bounded-contexts.md`, and `docs/ubiquitous-language.
 ### Fixed Upstream → Downstream Flow
 
 ```
-platform
-  ↓
-workspace, notion, notebooklm (all consume platform governance APIs)
-  ↓
-workspace ↓ notion ↓ notebooklm
-(sequential consumption allowed; never reverse upstream)
+iam     → billing · platform · workspace · notion · notebooklm
+billing → workspace · notion · notebooklm
+ai      → notion · notebooklm
+platform → workspace
+workspace → notion · notebooklm
+notion  → notebooklm
+(all above) → analytics  ← event / projection sink only
 ```
+
+✅ Allowed: upstream → downstream  
+❌ Forbidden: downstream → upstream (never invert)
+
+Full context map authority: `docs/context-map.md` and `docs/module-graph.system-wide.md`.
 
 ### Anti-Patterns
 
