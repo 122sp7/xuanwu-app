@@ -8673,11 +8673,6 @@ service cloud.firestore {
 }
 ````
 
-## File: next.config.ts
-````typescript
-import type { NextConfig } from "next";
-````
-
 ## File: packages/ui-shadcn/hooks/use-mobile.ts
 ````typescript
 export function useIsMobile()
@@ -14242,6 +14237,219 @@ When adding or changing docs:
 Start every session with Serena MCP. If a question spans modules or architecture, consult the DDD reference authority (ubiquitous-language, bounded-contexts, context-map) before implementation.
 ````
 
+## File: next.config.ts
+````typescript
+import type { NextConfig } from "next";
+⋮----
+// Turbopack is the default in Next.js 16; declare an empty config to
+// acknowledge this and silence the "webpack config with no turbopack config"
+// build error.  The worker_threads browser fallback is handled by listing
+// heavy native packages in serverExternalPackages above so they are never
+// bundled for the client.
+````
+
+## File: packages/integration-firebase/AGENTS.md
+````markdown
+# integration-firebase — Agent Rules
+
+此套件是 **Firebase Client SDK 的唯一封裝層**。所有與 Firebase 服務的互動必須透過這個套件提供的介面，不得在 `src/modules/` 或 `src/app/` 中直接 import Firebase SDK。
+
+---
+
+## Route Here（放這裡）
+
+| 類型 | 說明 |
+|---|---|
+| Firebase App 初始化 | `client.ts` — singleton `firebaseClientApp` |
+| Firebase Auth 操作 | `auth.ts` — `getFirebaseAuth`, `onFirebaseAuthStateChanged`, `signOutFirebase` |
+| Firestore 操作原語 | `firestore.ts` — `firestoreApi`, `getFirebaseFirestore` |
+| Firebase Storage 操作 | 新增 `storage.ts`（遵循同樣封裝模式）|
+| 新增 Firebase 服務封裝 | 在此套件新增對應 `.ts` 並從 `index.ts` re-export |
+
+## Route Elsewhere（不放這裡）
+
+| 類型 | 正確位置 |
+|---|---|
+| 業務邏輯（use case、domain rule） | `src/modules/<context>/domain/` 或 `application/` |
+| Repository 實作（Firestore CRUD 業務查詢） | `src/modules/<context>/adapters/outbound/` |
+| 跨模組資料協調 | `src/modules/<context>/api/` |
+| UI 組件 | `packages/ui-shadcn/ui-custom/` |
+
+---
+
+## 嚴禁
+
+```ts
+// ❌ 直接在 modules 或 app 中 import Firebase SDK
+import { getFirestore } from 'firebase/firestore'
+
+// ✅ 必須透過此套件
+import { firestoreApi, getFirebaseFirestore } from '@integration-firebase'
+```
+
+- 不得在此套件加入業務判斷邏輯
+- 不得 import `src/modules/*` 任何路徑
+- 不得在此套件處理認證 session 狀態（由 iam module 負責）
+- 環境設定只能來自 `NEXT_PUBLIC_FIREBASE_*` env vars
+
+---
+
+## Alias
+
+```ts
+import { ... } from '@integration-firebase'
+import { ... } from '@integration-firebase/auth'
+import { ... } from '@integration-firebase/firestore'
+```
+
+`@integration-firebase` alias 定義在 `tsconfig.json`，只允許在 `src/modules/*/adapters/outbound/` 使用（ESLint boundary 規則）。
+````
+
+## File: packages/integration-firebase/auth/.gitkeep
+````
+
+````
+
+## File: packages/integration-firebase/firestore/.gitkeep
+````
+
+````
+
+## File: packages/integration-firebase/functions/.gitkeep
+````
+
+````
+
+## File: packages/integration-firebase/README.md
+````markdown
+# integration-firebase
+
+Firebase Client SDK 封裝套件。提供 Firebase App、Auth、Firestore 的穩定介面，隔離 SDK 細節與 `src/modules/` 業務層。
+
+## 套件結構
+
+```
+packages/integration-firebase/
+  client.ts     ← Firebase App singleton 初始化
+  auth.ts       ← Auth 操作（getAuth、onAuthStateChanged、signOut）
+  firestore.ts  ← Firestore 操作原語（firestoreApi）
+  index.ts      ← 統一 re-export
+  AGENTS.md     ← Agent 使用規則
+```
+
+## 公開 API
+
+```ts
+// Firebase App
+import { firebaseClientApp } from '@integration-firebase'
+
+// Auth
+import {
+  getFirebaseAuth,
+  onFirebaseAuthStateChanged,
+  signOutFirebase,
+  type User,
+} from '@integration-firebase'
+
+// Firestore
+import {
+  getFirebaseFirestore,
+  firestoreApi,
+  type Firestore,
+} from '@integration-firebase'
+```
+
+## 使用限制
+
+| 規則 | 說明 |
+|---|---|
+| **只允許在 outbound adapters 使用** | ESLint boundary 限制 `src/modules/*/adapters/outbound/` |
+| **禁止直接 import Firebase SDK** | 所有 Firebase 操作必須透過此套件 |
+| **禁止加入業務邏輯** | 此套件只封裝 SDK，不含 domain rule |
+
+## 設定來源
+
+所有 Firebase 設定從 `NEXT_PUBLIC_FIREBASE_*` 環境變數讀取，詳見 `client.ts`。
+````
+
+## File: packages/integration-firebase/storage/.gitkeep
+````
+
+````
+
+## File: packages/ui-shadcn/AGENTS.md
+````markdown
+# AGENTS.md — packages/ui-shadcn
+
+## ⛔ 禁止直接修改此套件
+
+`packages/ui-shadcn/` 是 **shadcn/ui 官方組件庫的原始輸出目錄**。
+所有 `ui/` 下的組件皆由 `shadcn` CLI 生成，不得手動編輯。
+
+---
+
+## 為什麼禁止修改
+
+| 理由 | 說明 |
+|---|---|
+| 官方組件來源 | `ui/` 下每個檔案都是由 `npx shadcn add <component>` 生成 |
+| CLI 覆寫會 overwrite | 下次執行 `shadcn add` 或 `shadcn diff` 會直接覆寫手動修改 |
+| 版本追蹤困難 | 手動修改混入 CLI 更新，導致 diff 不可讀、回退困難 |
+| 架構邊界 | 此套件是 **pure UI primitive**，不承載業務邏輯 |
+
+---
+
+## 允許的操作
+
+| 操作 | 方式 |
+|---|---|
+| 新增組件 | `npx shadcn add <component>` — 由 CLI 生成，不要手動建檔 |
+| 升級組件 | `npx shadcn diff` 預覽差異，`npx shadcn update` 更新 |
+| 查看可用組件 | `npx shadcn list` |
+| 客製化樣式 | 在消費端（`src/app/`、`src/modules/*/interfaces/`）wrapping，不改本套件 |
+| Provider / hooks | `provider/` 與 `hooks/` 為此套件的 thin wrapper，修改前需確認不是官方管理範圍 |
+
+---
+
+## 正確的客製化路徑
+
+```
+❌ 不對
+packages/ui-shadcn/ui/button.tsx        ← 直接改官方組件
+src/app/components/AppButton.tsx        ← 不應散落在 src/app
+
+✅ 正確
+packages/ui-shadcn/ui-custom/           ← 所有自訂 UI 組件的唯一存放位置
+  AppButton.tsx                         ← wrap 官方組件，加入業務語意或設計系統層
+  ...
+src/modules/<context>/interfaces/       ← 組合 ui-custom 為模組業務 UI pattern
+```
+
+---
+
+## Route Here / Route Elsewhere
+
+| 任務 | 路由 |
+|---|---|
+| 新增 shadcn 原生組件 | 這裡（CLI 執行） |
+| 修改組件 **外觀** | `packages/ui-shadcn/ui-custom/` — wrap 官方組件加設計語意 |
+| 修改組件 **行為** | `packages/ui-shadcn/ui-custom/` — 同上，不直接改 `ui/` |
+| 消費官方原件 | `import { Button } from "@ui-shadcn/ui/button"` |
+| 消費自訂組件 | `import { AppButton } from "@ui-shadcn/ui-custom/AppButton"` |
+| 主題 / design token | `src/app/globals.css` 的 CSS 變數層 |
+
+---
+
+## 別名
+
+```ts
+// tsconfig.json 中已配置
+"@ui-shadcn/*": ["packages/ui-shadcn/*"]
+```
+
+消費端使用 `@ui-shadcn/ui/<component>` import，不用相對路徑。
+````
+
 ## File: packages/ui-shadcn/lib/utils.ts
 ````typescript
 import { clsx, type ClassValue } from "clsx"
@@ -14264,6 +14472,111 @@ function isTypingTarget(target: EventTarget | null)
 function ThemeHotkey()
 ⋮----
 function onKeyDown(event: KeyboardEvent)
+````
+
+## File: packages/ui-shadcn/README.md
+````markdown
+# packages/ui-shadcn
+
+官方 shadcn/ui 組件輸出目錄。**此套件由 shadcn CLI 管理，禁止手動修改 `ui/` 目錄下的任何檔案。**
+
+---
+
+## 用途
+
+提供系統所有 UI primitive 的統一來源，供 `src/app/` 與 `src/modules/*/interfaces/` 組合消費。
+
+---
+
+## 套件結構
+
+```
+packages/ui-shadcn/
+  ui/          ← 官方組件（CLI 生成，禁止手動修改）
+  ui-custom/   ← ✅ 自訂組件唯一存放目錄（wrap 官方組件或設計系統擴充）
+  hooks/       ← shadcn 配套 hooks（use-mobile 等）
+  lib/         ← cn() 工具（tailwind-merge + clsx）
+  provider/    ← ThemeProvider 等 thin wrapper
+  index.ts     ← 統一 re-export
+```
+
+---
+
+## ⛔ 禁止手動修改 `ui/`
+
+`ui/` 下的所有組件皆由以下指令生成：
+
+```bash
+npx shadcn add <component-name>
+```
+
+手動修改 `ui/` 內的檔案會在次次 `shadcn add` / `shadcn update` 時被覆寫，且無法被 diff 追蹤。
+
+---
+
+## 組件管理
+
+| 操作 | 指令 |
+|---|---|
+| 新增組件 | `npx shadcn add <component>` |
+| 查看可用組件 | `npx shadcn list` |
+| 檢視版本差異 | `npx shadcn diff` |
+| 更新組件 | `npx shadcn update <component>` |
+
+---
+
+## 消費方式
+
+所有消費端透過別名 import，不使用相對路徑：
+
+```ts
+// 官方組件
+import { Button } from "@ui-shadcn/ui/button";
+import { cn } from "@ui-shadcn/lib/utils";
+import { useIsMobile } from "@ui-shadcn/hooks/use-mobile";
+
+// 自訂組件（ui-custom 唯一存放點）
+import { AppButton } from "@ui-shadcn/ui-custom/AppButton";
+```
+
+---
+
+## 客製化原則
+
+不修改 `ui/` 目錄下的官方組件。**所有自訂 UI 組件一律放在 `ui-custom/`**：
+
+```
+packages/ui-shadcn/
+  ui/           ← 官方組件（CLI 管理，禁止修改）
+  ui-custom/    ← ✅ 唯一允許放置自訂組件的目錄
+```
+
+- **樣式覆寫**：透過 `src/app/globals.css` CSS 變數（`--primary`、`--radius` 等）
+- **行為擴充 / 業務語意**：在 `ui-custom/` 建立 wrapper，如 `AppButton`、`FormField`
+- **模組級組合**：`src/modules/<context>/interfaces/` 消費 `ui-custom/` 組合為業務 pattern
+
+---
+
+## 相關配置
+
+- `components.json` — shadcn CLI 配置（別名、style、baseColor）
+- `tailwind.config.ts` — Tailwind CSS 4 設定
+- `tsconfig.json` — `@ui-shadcn/*` path alias
+````
+
+## File: packages/ui-shadcn/ui-custom/form/.gitkeep
+````
+
+````
+
+## File: packages/ui-shadcn/ui-custom/modal/.gitkeep
+````
+
+````
+
+## File: packages/ui-shadcn/ui-custom/table/.gitkeep
+````
+
 ````
 
 ## File: packages/ui-shadcn/ui/collapsible.tsx
@@ -15254,34 +15567,6 @@ html {
 /* ── Table of Contents block ─────────────────────────────────────────────────── */
 .tiptap-editor .ProseMirror .toc-block {
 .tiptap-editor .ProseMirror .toc-block::before {
-````
-
-## File: src/design/README.md
-````markdown
-# src/design — Design Tokens & System Foundations
-
-`src/design/` 儲存全域設計基礎層，包含 design tokens、spacing scale、color palette、typography 等視覺基準，供 `src/ui/` 與 `src/app/` 引用。
-
-## 職責
-
-- 定義並匯出 design token（colors、spacing、typography、breakpoints、shadows）
-- 不包含任何 React 元件或業務邏輯
-- 不依賴 `src/modules/`、`modules/` 或 Firebase
-
-## 設計原則
-
-- Token 命名遵循 Tailwind CSS 4 語意化命名規則（`--color-primary`、`--spacing-*`）
-- 所有 token 必須可追溯到 `tailwind.config.ts`
-- 不在此層撰寫互動行為或元件狀態
-
-## 相關層
-
-| 層 | 用途 |
-|---|---|
-| `src/design/` | Token 定義（本層） |
-| `src/ui/` | 基於 token 組合的共用 UI 元件 |
-| `packages/ui-shadcn/` | shadcn/ui 元件庫封裝 |
-| `src/app/` | 路由組合與 Layout 组裝 |
 ````
 
 ## File: src/modules/ai/ai.instructions.md
@@ -16901,107 +17186,6 @@ query(params: UsageQuery): Promise<UsageRecordSnapshot[]>;
 sumQuantity(featureKey: string, contextId: string, fromDate?: string, toDate?: string): Promise<number>;
 ````
 
-## File: src/modules/iam/adapters/outbound/firebase-composition.ts
-````typescript
-/**
- * firebase-composition — iam module outbound composition root.
- *
- * Wires Firebase-backed repository implementations into domain use cases.
- * This file is the ONLY entry point for Firebase SDK access within the iam
- * module. All other layers remain infrastructure-agnostic.
- *
- * ESLint: @integration-firebase is allowed here because this file lives in
- * src/modules/iam/adapters/outbound/ which matches the permitted glob.
- */
-⋮----
-import {
-  getFirebaseAuth,
-  onFirebaseAuthStateChanged,
-  signOutFirebase,
-  getFirebaseFirestore,
-  firestoreApi,
-  type User,
-} from "@integration-firebase";
-⋮----
-import { FirebaseAuthIdentityRepository } from "./FirebaseAuthIdentityRepository";
-import { FirebaseAccountQueryRepository } from "./FirebaseAccountQueryRepository";
-import {
-  FirestoreAccountRepository,
-  type FirestoreLike,
-} from "../../subdomains/account/adapters/outbound/firestore/FirestoreAccountRepository";
-import {
-  SignInUseCase,
-  SignInAnonymouslyUseCase,
-  RegisterUseCase,
-  SendPasswordResetEmailUseCase,
-} from "../../subdomains/identity/application/use-cases/IdentityUseCases";
-import { CreateUserAccountUseCase } from "../../subdomains/account/application/use-cases/AccountUseCases";
-import type { AccountSnapshot } from "../../subdomains/account/domain/entities/Account";
-import type { Unsubscribe } from "../../subdomains/account/domain/repositories/AccountQueryRepository";
-⋮----
-// ─── Singleton repositories ───────────────────────────────────────────────────
-⋮----
-function getIdentityRepo(): FirebaseAuthIdentityRepository
-⋮----
-function getAccountQueryRepo(): FirebaseAccountQueryRepository
-⋮----
-// ─── FirestoreLike adapter ────────────────────────────────────────────────────
-// Bridges the Firestore SDK to the FirestoreLike interface expected by
-// FirestoreAccountRepository (subdomain-level adapter, technology-agnostic).
-⋮----
-function createFirestoreLikeAdapter(): FirestoreLike
-⋮----
-async get(collectionName: string, id: string): Promise<Record<string, unknown> | null>
-async set(
-      collectionName: string,
-      id: string,
-      data: Record<string, unknown>,
-): Promise<void>
-async delete(collectionName: string, id: string): Promise<void>
-⋮----
-// ─── Auth use-case factory ────────────────────────────────────────────────────
-⋮----
-/**
- * Returns Firebase-backed auth use cases for use in "use client" components.
- * Each call creates fresh use-case instances sharing one repository instance.
- */
-export function createClientAuthUseCases()
-⋮----
-// ─── Account use-case factory ─────────────────────────────────────────────────
-⋮----
-/**
- * Returns Firebase-backed account use cases for use in "use client" components.
- */
-export function createClientAccountUseCases()
-⋮----
-// ─── Auth state subscription ──────────────────────────────────────────────────
-⋮----
-/**
- * Subscribes to Firebase auth state changes.
- * Returns an unsubscribe function.
- * For use in "use client" auth providers only.
- */
-export function subscribeToAuthState(
-  callback: (user: User | null) => void,
-): Unsubscribe
-⋮----
-/**
- * Signs the current user out of Firebase Auth.
- */
-export async function firebaseSignOut(): Promise<void>
-⋮----
-// ─── Account subscriptions ────────────────────────────────────────────────────
-⋮----
-/**
- * Subscribes to real-time updates for all organisation accounts associated
- * with the given userId (owned or membership).
- */
-export function subscribeToAccountsForUser(
-  userId: string,
-  onUpdate: (accounts: Record<string, AccountSnapshot>) => void,
-): Unsubscribe
-````
-
 ## File: src/modules/iam/adapters/outbound/FirebaseAccountQueryRepository.ts
 ````typescript
 /**
@@ -17927,6 +18111,169 @@ export function canReactivate(status: IdentityStatus): boolean
 ## File: src/modules/iam/subdomains/organization/adapters/index.ts
 ````typescript
 // organization — adapters aggregate
+````
+
+## File: src/modules/iam/subdomains/organization/adapters/outbound/firestore/FirestoreOrganizationRepository.ts
+````typescript
+/**
+ * FirestoreOrganizationRepository — iam/organization outbound adapter.
+ *
+ * Implements OrganizationRepository using Firebase Firestore.
+ *
+ * Firestore schema:
+ *   accounts/{orgId}          — account-level record (queried by subscribeToAccountsForUser)
+ *     accountType: "organization"
+ *     ownerId: string          — owner's Firebase uid
+ *     memberIds: string[]      — array-contains index for member queries
+ *   organizations/{orgId}     — organisation domain document
+ *   org_members/{orgId}/members/{memberId}
+ *   org_teams/{orgId}/teams/{teamId}
+ *   org_partner_invites/{orgId}/invites/{inviteId}
+ *
+ * The `accounts/{orgId}` document is maintained in sync so that the existing
+ * subscribeToAccountsForUser query (which filters on `ownerId` and `memberIds`)
+ * surfaces the new organisation to the creator immediately.
+ *
+ * This file is in adapters/outbound/firestore/ — @integration-firebase is NOT
+ * directly imported; callers at module/adapters/outbound/ use @integration-firebase
+ * and pass Firebase-specific helpers via the FirestoreLike port.
+ */
+⋮----
+import { v4 as uuid } from "uuid";
+import type {
+  OrganizationRepository,
+} from "../../../domain/repositories/OrganizationRepository";
+import type {
+  MemberReference,
+  Team,
+  PartnerInvite,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+} from "../../../domain/entities/Organization";
+import type { OrganizationSnapshot } from "../../../domain/aggregates/Organization";
+⋮----
+// ── Infrastructure port ───────────────────────────────────────────────────────
+// We keep this file Firebase-SDK-free by accepting a narrow persistence port.
+// The module-level composition root wires in the real Firebase implementation.
+⋮----
+export interface OrgFirestoreLike {
+  get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+  set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+  delete(collection: string, id: string): Promise<void>;
+  getSubcollection(collection: string, parentId: string, sub: string): Promise<{ id: string; data: Record<string, unknown> }[]>;
+  setSubdoc(collection: string, parentId: string, sub: string, id: string, data: Record<string, unknown>): Promise<void>;
+  deleteSubdoc(collection: string, parentId: string, sub: string, id: string): Promise<void>;
+}
+⋮----
+get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+delete(collection: string, id: string): Promise<void>;
+getSubcollection(collection: string, parentId: string, sub: string): Promise<
+setSubdoc(collection: string, parentId: string, sub: string, id: string, data: Record<string, unknown>): Promise<void>;
+deleteSubdoc(collection: string, parentId: string, sub: string, id: string): Promise<void>;
+⋮----
+// ── Repository ────────────────────────────────────────────────────────────────
+⋮----
+export class FirestoreOrganizationRepository implements OrganizationRepository {
+⋮----
+constructor(private readonly db: OrgFirestoreLike)
+⋮----
+// ── Organisation lifecycle ─────────────────────────────────────────────────
+⋮----
+async create(command: CreateOrganizationCommand): Promise<string>
+⋮----
+// 1. Write organisation domain document
+⋮----
+// 2. Write account-level record so subscribeToAccountsForUser picks it up.
+//    The owner is listed in both `ownerId` (owner query) and `memberIds`
+//    (member query) to cover both Firestore subscription paths.
+⋮----
+// 3. Add owner as first member document
+⋮----
+async findById(id: string): Promise<OrganizationSnapshot | null>
+⋮----
+async save(snapshot: OrganizationSnapshot): Promise<void>
+⋮----
+// Keep the account document name in sync
+⋮----
+async updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void>
+⋮----
+// Sync account display name
+⋮----
+async delete(organizationId: string): Promise<void>
+⋮----
+// ── Members ────────────────────────────────────────────────────────────────
+⋮----
+async inviteMember(input: InviteMemberInput): Promise<string>
+⋮----
+async recruitMember(
+    organizationId: string,
+    memberId: string,
+    name: string,
+    email: string,
+): Promise<void>
+⋮----
+// Update memberIds array in the account document
+⋮----
+async removeMember(organizationId: string, memberId: string): Promise<void>
+⋮----
+async updateMemberRole(input: UpdateMemberRoleInput): Promise<void>
+⋮----
+async getMembers(organizationId: string): Promise<MemberReference[]>
+⋮----
+subscribeToMembers(
+    _organizationId: string,
+    _onUpdate: (members: MemberReference[]) => void,
+): () => void
+⋮----
+// Real-time members subscription — implement when member management UI is built.
+// For now, emit an empty list immediately and return a no-op unsubscribe.
+⋮----
+// ── Teams ──────────────────────────────────────────────────────────────────
+⋮----
+async createTeam(input: CreateTeamInput): Promise<string>
+⋮----
+async deleteTeam(organizationId: string, teamId: string): Promise<void>
+⋮----
+async addMemberToTeam(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+): Promise<void>
+⋮----
+async removeMemberFromTeam(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+): Promise<void>
+⋮----
+async getTeams(organizationId: string): Promise<Team[]>
+⋮----
+subscribeToTeams(
+    _organizationId: string,
+    _onUpdate: (teams: Team[]) => void,
+): () => void
+⋮----
+// Real-time teams subscription — implement when team management UI is built.
+⋮----
+// ── Partner invites ────────────────────────────────────────────────────────
+⋮----
+async sendPartnerInvite(
+    organizationId: string,
+    teamId: string,
+    email: string,
+): Promise<string>
+⋮----
+async dismissPartnerMember(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+): Promise<void>
+⋮----
+async getPartnerInvites(organizationId: string): Promise<PartnerInvite[]>
 ````
 
 ## File: src/modules/iam/subdomains/organization/application/dto/OrganizationDTO.ts
@@ -19019,113 +19366,6 @@ delete(id: string): Promise<void>;
 // TODO: export entities, value-objects, repositories, events, services
 ````
 
-## File: src/modules/platform/adapters/inbound/react/index.ts
-````typescript
-/**
- * platform inbound React adapter — barrel.
- *
- * Public surface for all platform React inbound adapters.
- * Consumed by src/app/ route shims.
- */
-````
-
-## File: src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx
-````typescript
-/**
- * platform-ui-stubs — platform inbound adapter (React).
- *
- * Stub components and hooks for platform UI elements that were previously
- * sourced from @/modules/platform/api/ui. Replace with real implementations
- * when the platform UI layer is available.
- */
-⋮----
-import type { ReactNode } from "react";
-⋮----
-import type { AuthUser } from "../../../../iam/adapters/inbound/react/AuthContext";
-import type { AccountEntity, ActiveAccount } from "./AppContext";
-⋮----
-// ── Auth guard ────────────────────────────────────────────────────────────────
-⋮----
-export function ShellGuard(
-⋮----
-// ── Account switcher ──────────────────────────────────────────────────────────
-⋮----
-interface AccountSwitcherProps {
-  personalAccount: AuthUser | null;
-  organizationAccounts: AccountEntity[];
-  activeAccountId: string | null;
-  onSelectPersonal: () => void;
-  onSelectOrganization: (account: AccountEntity) => void;
-  onOrganizationCreated?: (account: AccountEntity) => void;
-}
-⋮----
-export function AccountSwitcher(_props: AccountSwitcherProps): null
-⋮----
-// ── Shell breadcrumbs & header controls ───────────────────────────────────────
-⋮----
-export function ShellAppBreadcrumbs(): null
-⋮----
-export function ShellHeaderControls(): null
-⋮----
-interface ShellUserAvatarProps {
-  name: string;
-  email: string;
-  onSignOut: () => void;
-}
-⋮----
-export function ShellUserAvatar(_props: ShellUserAvatarProps): null
-⋮----
-// ── Global search ─────────────────────────────────────────────────────────────
-⋮----
-interface ShellGlobalSearchDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-⋮----
-export function ShellGlobalSearchDialog(
-  _props: ShellGlobalSearchDialogProps,
-): null
-⋮----
-export function useShellGlobalSearch():
-⋮----
-// ── Organization dialogs ──────────────────────────────────────────────────────
-⋮----
-interface CreateOrganizationDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  user: AuthUser | null;
-  onOrganizationCreated?: (account: AccountEntity) => void;
-  onNavigate?: (href: string) => void;
-}
-⋮----
-export function CreateOrganizationDialog(
-  _props: CreateOrganizationDialogProps,
-): null
-⋮----
-// ── Account route context ─────────────────────────────────────────────────────
-⋮----
-export interface AccountRouteContextValue {
-  readonly routeAccountId: string;
-  readonly resolvedAccountId: string;
-  readonly currentUserId: string | null;
-  readonly accountType: "organization" | "user" | null;
-  readonly accountsHydrated: boolean;
-  readonly activeAccount: ActiveAccount | null;
-}
-⋮----
-export function useAccountRouteContext(): AccountRouteContextValue
-⋮----
-// ── Stub route screens ────────────────────────────────────────────────────────
-⋮----
-export function OrganizationMembersRouteScreen(): React.ReactElement
-⋮----
-export function OrganizationOverviewRouteScreen(): React.ReactElement
-⋮----
-export function OrganizationPermissionsRouteScreen(): React.ReactElement
-⋮----
-export function SettingsNotificationsRouteScreen(): React.ReactElement
-````
-
 ## File: src/modules/platform/adapters/inbound/react/shell/index.ts
 ````typescript
 /**
@@ -19134,6 +19374,40 @@ export function SettingsNotificationsRouteScreen(): React.ReactElement
  * Shell chrome: app-rail, sidebar, header, and contextual nav.
  * Consumed internally by ShellFrame (parent directory).
  */
+````
+
+## File: src/modules/platform/adapters/inbound/react/shell/ShellGuard.tsx
+````typescript
+/**
+ * ShellGuard — platform inbound adapter (React).
+ *
+ * Auth guard for the authenticated shell layout.
+ * Renders nothing (redirects) while auth is initialising or when the user is
+ * unauthenticated; renders children only for authenticated sessions.
+ *
+ * Redirect behaviour:
+ *  - initializing → show full-screen spinner (do not redirect — avoids flash
+ *    for returning users whose Firebase token is resolving)
+ *  - unauthenticated | anonymous without explicit access → redirect to "/"
+ *  - authenticated → render children
+ *
+ * Anonymous sessions (Continue as Guest) are currently treated as
+ * authenticated at the shell level; individual routes may restrict further.
+ */
+⋮----
+import { useEffect, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+⋮----
+import { useAuth } from "../../../../../iam/adapters/inbound/react/AuthContext";
+⋮----
+interface ShellGuardProps {
+  children: ReactNode;
+}
+⋮----
+export function ShellGuard(
+⋮----
+// Redirect is in-flight — render spinner to prevent content flash.
 ````
 
 ## File: src/modules/platform/adapters/inbound/react/shell/ShellSidebarHeader.tsx
@@ -19159,6 +19433,106 @@ export function ShellSidebarHeader({
   onOpenCustomize,
   onToggleCollapsed,
 }: ShellSidebarHeaderProps)
+````
+
+## File: src/modules/platform/adapters/inbound/react/shell/ShellThemeToggle.tsx
+````typescript
+/**
+ * ShellThemeToggle — platform inbound adapter (React).
+ *
+ * Toggles between light, dark, and system themes in the shell header.
+ * Relies on ThemeProvider (next-themes) being mounted at the layout root.
+ *
+ * Rendered by ShellHeaderControls in the top-right header area.
+ */
+⋮----
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
+⋮----
+export function ShellThemeToggle(): React.ReactElement
+⋮----
+function toggle()
+````
+
+## File: src/modules/platform/adapters/inbound/react/useAccountRouteContext.ts
+````typescript
+/**
+ * useAccountRouteContext — platform inbound adapter (React).
+ *
+ * Derives route-level account context by combining:
+ *  - URL params (`accountId` segment from Next.js routing)
+ *  - Auth state (current authenticated user)
+ *  - App state (loaded organisation accounts + activeAccount)
+ *
+ * Consumed by AccountRouteDispatcher (workspace) and any route component that
+ * needs to know whether the active route is a personal or organisation scope.
+ *
+ * Design invariants:
+ *  - routeAccountId  : raw value from the URL, never derived
+ *  - resolvedAccountId: equals routeAccountId; exists for explicit intent
+ *  - accountType     : null while accounts are still loading (hydration guard)
+ *  - No mutations — read-only derived state
+ */
+⋮----
+import { useParams } from "next/navigation";
+import { useApp, type ActiveAccount } from "./AppContext";
+import { useAuth } from "../../../../iam/adapters/inbound/react/AuthContext";
+⋮----
+// ── Public contract ───────────────────────────────────────────────────────────
+⋮----
+export interface AccountRouteContextValue {
+  /** Raw accountId segment from the URL (e.g. `/[accountId]/...`). */
+  readonly routeAccountId: string;
+  /**
+   * Resolved account ID — currently mirrors routeAccountId.
+   * Reserved for future alias / slug resolution without breaking callers.
+   */
+  readonly resolvedAccountId: string;
+  /** UID of the currently authenticated user; null when unauthenticated. */
+  readonly currentUserId: string | null;
+  /**
+   * Whether the route account is an organisation or personal account.
+   * null while the account list has not yet been hydrated from Firestore.
+   */
+  readonly accountType: "organization" | "user" | null;
+  /** True once the organisation account list has been loaded from Firestore. */
+  readonly accountsHydrated: boolean;
+  /** Currently active account (personal AuthUser or AccountEntity). */
+  readonly activeAccount: ActiveAccount | null;
+}
+⋮----
+/** Raw accountId segment from the URL (e.g. `/[accountId]/...`). */
+⋮----
+/**
+   * Resolved account ID — currently mirrors routeAccountId.
+   * Reserved for future alias / slug resolution without breaking callers.
+   */
+⋮----
+/** UID of the currently authenticated user; null when unauthenticated. */
+⋮----
+/**
+   * Whether the route account is an organisation or personal account.
+   * null while the account list has not yet been hydrated from Firestore.
+   */
+⋮----
+/** True once the organisation account list has been loaded from Firestore. */
+⋮----
+/** Currently active account (personal AuthUser or AccountEntity). */
+⋮----
+// ── Hook ──────────────────────────────────────────────────────────────────────
+⋮----
+export function useAccountRouteContext(): AccountRouteContextValue
+⋮----
+// Determine account type from available state.
+// We only commit to a type once data is available to avoid transient
+// misrouting while accounts are still loading.
+⋮----
+// The URL account is a known organisation — use the stored accountType
+// (could be "user" personal account stored in Firestore or "organization").
+⋮----
+// The URL account is the authenticated user's personal (Firebase Auth) account.
+⋮----
+// else: either accounts not yet hydrated or an unknown ID — stay null
 ````
 
 ## File: src/modules/platform/platform.instructions.md
@@ -19670,91 +20044,6 @@ findSubscribersByEventType(workspaceId: string, eventType: string): Promise<stri
 ## File: src/modules/platform/subdomains/platform-config/adapters/index.ts
 ````typescript
 // platform-config — adapters aggregate
-````
-
-## File: src/modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
-````typescript
-// ── Types ──────────────────────────────────────────────────────────────────────
-⋮----
-export type ShellNavSection =
-  | "workspace"
-  | "dashboard"
-  | "account"
-  | "organization"
-  | "other";
-⋮----
-export interface ShellNavItem {
-  readonly id: string;
-  readonly label: string;
-  readonly href: string;
-}
-⋮----
-export interface ShellRailCatalogItem {
-  readonly id: string;
-  readonly href: string;
-  readonly label: string;
-  /** If true, this item is only visible to organization accounts. */
-  readonly requiresOrganization: boolean;
-  /** Route prefix for active-state matching. When absent, defaults to href. */
-  readonly activeRoutePrefix?: string;
-}
-⋮----
-/** If true, this item is only visible to organization accounts. */
-⋮----
-/** Route prefix for active-state matching. When absent, defaults to href. */
-⋮----
-export interface ShellContextSectionConfig {
-  readonly title: string;
-  readonly items: readonly { href: string; label: string }[];
-}
-⋮----
-export interface ShellRouteContext {
-  readonly accountId?: string | null;
-  readonly workspaceId?: string | null;
-}
-⋮----
-function parseHref(href: string):
-⋮----
-function joinHref(path: string, query: string): string
-⋮----
-function isAccountScopedWorkspacePath(pathname: string): boolean
-⋮----
-export function normalizeShellRoutePath(pathname: string): string
-⋮----
-export function buildShellContextualHref(
-  href: string,
-  context: ShellRouteContext,
-): string
-⋮----
-// ── Route-matching utility ────────────────────────────────────────────────────
-⋮----
-export function isExactOrChildPath(targetPath: string, pathname: string): boolean
-⋮----
-// ── Account section matchers ──────────────────────────────────────────────────
-⋮----
-// ── Route titles & breadcrumb labels ──────────────────────────────────────────
-⋮----
-// ── Organization management items ─────────────────────────────────────────────
-⋮----
-// ── Account nav items ─────────────────────────────────────────────────────────
-⋮----
-// ── Section labels ────────────────────────────────────────────────────────────
-⋮----
-// ── Rail catalog ──────────────────────────────────────────────────────────────
-⋮----
-export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[]
-⋮----
-// ── Context section config ────────────────────────────────────────────────────
-⋮----
-// ── Mobile & organization nav items ───────────────────────────────────────────
-⋮----
-// ── Section resolvers ─────────────────────────────────────────────────────────
-⋮----
-export function resolveShellNavSection(pathname: string): ShellNavSection
-⋮----
-export function resolveShellPageTitle(pathname: string): string
-⋮----
-export function resolveShellBreadcrumbLabel(segment: string): string
 ````
 
 ## File: src/modules/platform/subdomains/search/adapters/index.ts
@@ -21466,6 +21755,112 @@ export function WorkspaceContextProvider({
 })
 ⋮----
 export function useWorkspaceContext(): WorkspaceContextValue
+````
+
+## File: src/modules/workspace/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — workspace module outbound composition root.
+ *
+ * Single entry point for all Firebase operations owned by the workspace module.
+ * Mirrors the pattern established by iam/adapters/outbound/firebase-composition.ts.
+ *
+ * ESLint: @integration-firebase is allowed here because this file lives at
+ * src/modules/workspace/adapters/outbound/ which matches the permitted glob
+ * (src/modules/<context>/adapters/outbound/**).
+ *
+ * Consumers (e.g. WorkspaceScopeProvider) import from this file — they must not
+ * import directly from FirebaseWorkspaceQueryRepository or firebase/firestore.
+ */
+⋮----
+import {
+  FirebaseWorkspaceQueryRepository,
+  type Unsubscribe,
+} from "./FirebaseWorkspaceQueryRepository";
+import type { WorkspaceSnapshot } from "../../subdomains/lifecycle/domain/entities/Workspace";
+⋮----
+// ── Singleton repository ───────────────────────────────────────────────────────
+⋮----
+function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository
+⋮----
+// ── Public subscriptions ───────────────────────────────────────────────────────
+⋮----
+/**
+ * Subscribes to real-time workspace updates for the given account.
+ * Calls `onUpdate` immediately with the current dataset and again on every
+ * subsequent Firestore change.
+ *
+ * Returns an unsubscribe function — call it when the subscriber unmounts to
+ * avoid memory leaks and unnecessary Firestore reads.
+ */
+export function subscribeToWorkspacesForAccount(
+  accountId: string,
+  onUpdate: (workspaces: Record<string, WorkspaceSnapshot>) => void,
+): Unsubscribe
+````
+
+## File: src/modules/workspace/adapters/outbound/FirebaseWorkspaceQueryRepository.ts
+````typescript
+/**
+ * FirebaseWorkspaceQueryRepository — workspace module outbound adapter (read side).
+ *
+ * Provides real-time Firestore subscription for workspace data belonging to a
+ * given account.  Lives at workspace/adapters/outbound/ so @integration-firebase
+ * is permitted per ESLint boundary rules
+ * (src/modules/<context>/adapters/outbound/**).
+ *
+ * Firestore collection contract:
+ *   workspaces/{workspaceId} → WorkspaceSnapshot shape
+ *
+ * Design:
+ *  - Uses onSnapshot for live updates (no polling).
+ *  - Maps raw Firestore data defensively; all unknown values fall back to safe defaults.
+ *  - Timestamps may arrive as Firestore Timestamp objects or ISO strings — both handled.
+ */
+⋮----
+import {
+  getFirestore,
+  collection,
+  query,
+  where,
+  onSnapshot,
+  type Timestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type {
+  WorkspaceSnapshot,
+  WorkspaceLifecycleState,
+  WorkspaceVisibility,
+} from "../../subdomains/lifecycle/domain/entities/Workspace";
+⋮----
+export type Unsubscribe = () => void;
+⋮----
+// ── Timestamp helper ──────────────────────────────────────────────────────────
+⋮----
+function toISO(v: unknown): string
+⋮----
+// ── Firestore data → WorkspaceSnapshot mapper ─────────────────────────────────
+⋮----
+function toWorkspaceSnapshot(
+  id: string,
+  data: Record<string, unknown>,
+): WorkspaceSnapshot
+⋮----
+// ── Repository ────────────────────────────────────────────────────────────────
+⋮----
+export class FirebaseWorkspaceQueryRepository {
+⋮----
+/**
+   * Opens a real-time Firestore listener for all workspaces belonging to
+   * `accountId`.  Calls `onUpdate` immediately with the current snapshot and
+   * again on every subsequent change.
+   *
+   * Returns an unsubscribe function — call it when the subscriber unmounts.
+   */
+subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: Record<string, WorkspaceSnapshot>) => void,
+): Unsubscribe
 ````
 
 ## File: src/modules/workspace/shared/index.ts
@@ -26997,18 +27392,6 @@ function AccordionContent({
 }: AccordionPrimitive.Panel.Props)
 ````
 
-## File: packages/ui-shadcn/ui/alert-dialog.tsx
-````typescript
-import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
-⋮----
-import { cn } from "@shared-utils"
-import { Button } from "@/packages/ui-shadcn/ui/button"
-⋮----
-function AlertDialog(
-⋮----
-className=
-````
-
 ## File: packages/ui-shadcn/ui/alert.tsx
 ````typescript
 import { cva, type VariantProps } from "class-variance-authority"
@@ -27063,40 +27446,12 @@ function Breadcrumb(
 className=
 ````
 
-## File: packages/ui-shadcn/ui/button-group.tsx
-````typescript
-import { mergeProps } from "@base-ui/react/merge-props"
-import { useRender } from "@base-ui/react/use-render"
-import { cva, type VariantProps } from "class-variance-authority"
-⋮----
-import { cn } from "@shared-utils"
-import { Separator } from "@/packages/ui-shadcn/ui/separator"
-⋮----
-className=
-````
-
 ## File: packages/ui-shadcn/ui/button.tsx
 ````typescript
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 ⋮----
 import { cn } from "@shared-utils"
-⋮----
-className=
-````
-
-## File: packages/ui-shadcn/ui/calendar.tsx
-````typescript
-import {
-  DayPicker,
-  getDefaultClassNames,
-  type DayButton,
-  type Locale,
-} from "react-day-picker"
-⋮----
-import { cn } from "@shared-utils"
-import { Button, buttonVariants } from "@/packages/ui-shadcn/ui/button"
-import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react"
 ⋮----
 className=
 ````
@@ -27108,93 +27463,6 @@ import { cn } from "@shared-utils"
 className=
 ````
 
-## File: packages/ui-shadcn/ui/carousel.tsx
-````typescript
-import useEmblaCarousel, {
-  type UseEmblaCarouselType,
-} from "embla-carousel-react"
-⋮----
-import { cn } from "@shared-utils"
-import { Button } from "@/packages/ui-shadcn/ui/button"
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
-⋮----
-type CarouselApi = UseEmblaCarouselType[1]
-type UseCarouselParameters = Parameters<typeof useEmblaCarousel>
-type CarouselOptions = UseCarouselParameters[0]
-type CarouselPlugin = UseCarouselParameters[1]
-⋮----
-type CarouselProps = {
-  opts?: CarouselOptions
-  plugins?: CarouselPlugin
-  orientation?: "horizontal" | "vertical"
-  setApi?: (api: CarouselApi) => void
-}
-⋮----
-type CarouselContextProps = {
-  carouselRef: ReturnType<typeof useEmblaCarousel>[0]
-  api: ReturnType<typeof useEmblaCarousel>[1]
-  scrollPrev: () => void
-  scrollNext: () => void
-  canScrollPrev: boolean
-  canScrollNext: boolean
-} & CarouselProps
-⋮----
-function useCarousel()
-⋮----
-function Carousel({
-  orientation = "horizontal",
-  opts,
-  setApi,
-  plugins,
-  className,
-  children,
-  ...props
-}: React.ComponentProps<"div"> & CarouselProps)
-⋮----
-className=
-⋮----
-function CarouselNext({
-  className,
-  variant = "outline",
-  size = "icon-sm",
-  ...props
-}: React.ComponentProps<typeof Button>)
-````
-
-## File: packages/ui-shadcn/ui/chart.tsx
-````typescript
-import type { TooltipValueType } from "recharts"
-⋮----
-import { cn } from "@shared-utils"
-⋮----
-// Format: { THEME_NAME: CSS_SELECTOR }
-⋮----
-type TooltipNameType = number | string
-⋮----
-export type ChartConfig = Record<
-  string,
-  {
-    label?: React.ReactNode
-    icon?: React.ComponentType
-  } & (
-    | { color?: string; theme?: never }
-    | { color?: never; theme: Record<keyof typeof THEMES, string> }
-  )
->
-⋮----
-type ChartContextProps = {
-  config: ChartConfig
-}
-⋮----
-function useChart()
-⋮----
-className=
-⋮----
-<div className=
-⋮----
-return <div className=
-````
-
 ## File: packages/ui-shadcn/ui/checkbox.tsx
 ````typescript
 import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox"
@@ -27203,54 +27471,6 @@ import { cn } from "@shared-utils"
 import { CheckIcon } from "lucide-react"
 ⋮----
 function Checkbox(
-````
-
-## File: packages/ui-shadcn/ui/combobox.tsx
-````typescript
-import { Combobox as ComboboxPrimitive } from "@base-ui/react"
-⋮----
-import { cn } from "@shared-utils"
-import { Button } from "@/packages/ui-shadcn/ui/button"
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from "@/packages/ui-shadcn/ui/input-group"
-import { ChevronDownIcon, XIcon, CheckIcon } from "lucide-react"
-⋮----
-function ComboboxValue(
-⋮----
-function ComboboxTrigger({
-  className,
-  children,
-  ...props
-}: ComboboxPrimitive.Trigger.Props)
-⋮----
-function ComboboxClear(
-⋮----
-className=
-````
-
-## File: packages/ui-shadcn/ui/command.tsx
-````typescript
-import { Command as CommandPrimitive } from "cmdk"
-⋮----
-import { cn } from "@shared-utils"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/packages/ui-shadcn/ui/dialog"
-import {
-  InputGroup,
-  InputGroupAddon,
-} from "@/packages/ui-shadcn/ui/input-group"
-import { SearchIcon, CheckIcon } from "lucide-react"
-⋮----
-className=
 ````
 
 ## File: packages/ui-shadcn/ui/context-menu.tsx
@@ -27268,25 +27488,6 @@ function ContextMenuSeparator({
   className,
   ...props
 }: ContextMenuPrimitive.Separator.Props)
-````
-
-## File: packages/ui-shadcn/ui/dialog.tsx
-````typescript
-import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
-⋮----
-import { cn } from "@shared-utils"
-import { Button } from "@/packages/ui-shadcn/ui/button"
-import { XIcon } from "lucide-react"
-⋮----
-function Dialog(
-⋮----
-function DialogTrigger(
-⋮----
-function DialogPortal(
-⋮----
-function DialogClose(
-⋮----
-className=
 ````
 
 ## File: packages/ui-shadcn/ui/drawer.tsx
@@ -27328,18 +27529,6 @@ import { cn } from "@shared-utils"
 className=
 ````
 
-## File: packages/ui-shadcn/ui/field.tsx
-````typescript
-import { useMemo } from "react"
-import { cva, type VariantProps } from "class-variance-authority"
-⋮----
-import { cn } from "@shared-utils"
-import { Label } from "@/packages/ui-shadcn/ui/label"
-import { Separator } from "@/packages/ui-shadcn/ui/separator"
-⋮----
-className=
-````
-
 ## File: packages/ui-shadcn/ui/hover-card.tsx
 ````typescript
 import { PreviewCard as PreviewCardPrimitive } from "@base-ui/react/preview-card"
@@ -27347,20 +27536,6 @@ import { PreviewCard as PreviewCardPrimitive } from "@base-ui/react/preview-card
 import { cn } from "@shared-utils"
 ⋮----
 function HoverCard(
-````
-
-## File: packages/ui-shadcn/ui/input-group.tsx
-````typescript
-import { cva, type VariantProps } from "class-variance-authority"
-⋮----
-import { cn } from "@shared-utils"
-import { Button } from "@/packages/ui-shadcn/ui/button"
-import { Input } from "@/packages/ui-shadcn/ui/input"
-import { Textarea } from "@/packages/ui-shadcn/ui/textarea"
-⋮----
-className=
-⋮----
-if ((e.target as HTMLElement).closest("button"))
 ````
 
 ## File: packages/ui-shadcn/ui/input-otp.tsx
@@ -27385,28 +27560,6 @@ function Input(
 className=
 ````
 
-## File: packages/ui-shadcn/ui/item.tsx
-````typescript
-import { mergeProps } from "@base-ui/react/merge-props"
-import { useRender } from "@base-ui/react/use-render"
-import { cva, type VariantProps } from "class-variance-authority"
-⋮----
-import { cn } from "@shared-utils"
-import { Separator } from "@/packages/ui-shadcn/ui/separator"
-⋮----
-function ItemGroup(
-⋮----
-function Item({
-  className,
-  variant = "default",
-  size = "default",
-  render,
-  ...props
-}: useRender.ComponentProps<"div"> & VariantProps<typeof itemVariants>)
-⋮----
-className=
-````
-
 ## File: packages/ui-shadcn/ui/kbd.tsx
 ````typescript
 import { cn } from "@shared-utils"
@@ -27417,32 +27570,6 @@ className=
 ## File: packages/ui-shadcn/ui/label.tsx
 ````typescript
 import { cn } from "@shared-utils"
-⋮----
-className=
-````
-
-## File: packages/ui-shadcn/ui/menubar.tsx
-````typescript
-import { Menu as MenuPrimitive } from "@base-ui/react/menu"
-import { Menubar as MenubarPrimitive } from "@base-ui/react/menubar"
-⋮----
-import { cn } from "@shared-utils"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuPortal,
-  DropdownMenuRadioGroup,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@/packages/ui-shadcn/ui/dropdown-menu"
-import { CheckIcon } from "lucide-react"
 ⋮----
 className=
 ````
@@ -27490,39 +27617,6 @@ function NavigationMenuLink({
   className,
   ...props
 }: NavigationMenuPrimitive.Link.Props)
-````
-
-## File: packages/ui-shadcn/ui/pagination.tsx
-````typescript
-import { cn } from "@shared-utils"
-import { Button } from "@/packages/ui-shadcn/ui/button"
-import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
-⋮----
-className=
-⋮----
-function PaginationLink({
-  className,
-  isActive,
-  size = "icon",
-  ...props
-}: PaginationLinkProps)
-⋮----
-function PaginationPrevious({
-  className,
-  text = "Previous",
-  ...props
-}: React.ComponentProps<typeof PaginationLink> &
-⋮----
-function PaginationNext({
-  className,
-  text = "Next",
-  ...props
-}: React.ComponentProps<typeof PaginationLink> &
-⋮----
-function PaginationEllipsis({
-  className,
-  ...props
-}: React.ComponentProps<"span">)
 ````
 
 ## File: packages/ui-shadcn/ui/popover.tsx
@@ -27645,102 +27739,6 @@ import { cn } from "@shared-utils"
 className=
 ````
 
-## File: packages/ui-shadcn/ui/sheet.tsx
-````typescript
-import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
-⋮----
-import { cn } from "@shared-utils"
-import { Button } from "@/packages/ui-shadcn/ui/button"
-import { XIcon } from "lucide-react"
-⋮----
-function Sheet(
-⋮----
-function SheetTrigger(
-⋮----
-function SheetClose(
-⋮----
-function SheetPortal(
-⋮----
-className=
-````
-
-## File: packages/ui-shadcn/ui/sidebar.tsx
-````typescript
-import { mergeProps } from "@base-ui/react/merge-props"
-import { useRender } from "@base-ui/react/use-render"
-import { cva, type VariantProps } from "class-variance-authority"
-⋮----
-import { useIsMobile } from "@/hooks/use-mobile"
-import { cn } from "@shared-utils"
-import { Button } from "@/packages/ui-shadcn/ui/button"
-import { Input } from "@/packages/ui-shadcn/ui/input"
-import { Separator } from "@/packages/ui-shadcn/ui/separator"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/packages/ui-shadcn/ui/sheet"
-import { Skeleton } from "@/packages/ui-shadcn/ui/skeleton"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/packages/ui-shadcn/ui/tooltip"
-import { PanelLeftIcon } from "lucide-react"
-⋮----
-type SidebarContextProps = {
-  state: "expanded" | "collapsed"
-  open: boolean
-  setOpen: (open: boolean) => void
-  openMobile: boolean
-  setOpenMobile: (open: boolean) => void
-  isMobile: boolean
-  toggleSidebar: () => void
-}
-⋮----
-function useSidebar()
-⋮----
-// This is the internal state of the sidebar.
-// We use openProp and setOpenProp for control from outside the component.
-⋮----
-// This sets the cookie to keep the sidebar state.
-⋮----
-// Helper to toggle the sidebar.
-⋮----
-// Adds a keyboard shortcut to toggle the sidebar.
-⋮----
-const handleKeyDown = (event: KeyboardEvent) =>
-⋮----
-// We add a state so that we can do data-state="expanded" or "collapsed".
-// This makes it easier to style the sidebar with Tailwind classes.
-⋮----
-className=
-⋮----
-{/* This is what handles the sidebar gap on desktop */}
-⋮----
-// Adjust the padding for floating and inset variants.
-⋮----
-function SidebarGroupAction({
-  className,
-  render,
-  ...props
-}: useRender.ComponentProps<"button"> & React.ComponentProps<"button">)
-⋮----
-function SidebarMenuAction({
-  className,
-  render,
-  showOnHover = false,
-  ...props
-}: useRender.ComponentProps<"button"> &
-  React.ComponentProps<"button"> & {
-    showOnHover?: boolean
-})
-⋮----
-// Random width between 50 to 90%.
-````
-
 ## File: packages/ui-shadcn/ui/skeleton.tsx
 ````typescript
 import { cn } from "@shared-utils"
@@ -27818,40 +27816,6 @@ function TabsTrigger(
 import { cn } from "@shared-utils"
 ⋮----
 className=
-````
-
-## File: packages/ui-shadcn/ui/toggle-group.tsx
-````typescript
-import { Toggle as TogglePrimitive } from "@base-ui/react/toggle"
-import { ToggleGroup as ToggleGroupPrimitive } from "@base-ui/react/toggle-group"
-import { type VariantProps } from "class-variance-authority"
-⋮----
-import { cn } from "@shared-utils"
-import { toggleVariants } from "@/packages/ui-shadcn/ui/toggle"
-⋮----
-function ToggleGroup({
-  className,
-  variant,
-  size,
-  spacing = 0,
-  orientation = "horizontal",
-  children,
-  ...props
-}: ToggleGroupPrimitive.Props &
-  VariantProps<typeof toggleVariants> & {
-    spacing?: number
-    orientation?: "horizontal" | "vertical"
-})
-⋮----
-className=
-⋮----
-function ToggleGroupItem({
-  className,
-  children,
-  variant = "default",
-  size = "default",
-  ...props
-}: TogglePrimitive.Props & VariantProps<typeof toggleVariants>)
 ````
 
 ## File: packages/ui-shadcn/ui/toggle.tsx
@@ -29284,6 +29248,150 @@ async function handlePasswordReset()
 setError(null);
 setResetSent(false);
 setIsAuthPanelOpen((prev)
+````
+
+## File: src/modules/iam/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — iam module outbound composition root.
+ *
+ * Wires Firebase-backed repository implementations into domain use cases.
+ * This file is the ONLY entry point for Firebase SDK access within the iam
+ * module. All other layers remain infrastructure-agnostic.
+ *
+ * ESLint: @integration-firebase is allowed here because this file lives in
+ * src/modules/iam/adapters/outbound/ which matches the permitted glob.
+ */
+⋮----
+import {
+  getFirebaseAuth,
+  onFirebaseAuthStateChanged,
+  signOutFirebase,
+  getFirebaseFirestore,
+  firestoreApi,
+  type User,
+} from "@integration-firebase";
+⋮----
+import { FirebaseAuthIdentityRepository } from "./FirebaseAuthIdentityRepository";
+import { FirebaseAccountQueryRepository } from "./FirebaseAccountQueryRepository";
+import {
+  FirestoreAccountRepository,
+  type FirestoreLike,
+} from "../../subdomains/account/adapters/outbound/firestore/FirestoreAccountRepository";
+import {
+  FirestoreOrganizationRepository,
+  type OrgFirestoreLike,
+} from "../../subdomains/organization/adapters/outbound/firestore/FirestoreOrganizationRepository";
+import {
+  SignInUseCase,
+  SignInAnonymouslyUseCase,
+  RegisterUseCase,
+  SendPasswordResetEmailUseCase,
+} from "../../subdomains/identity/application/use-cases/IdentityUseCases";
+import { CreateUserAccountUseCase } from "../../subdomains/account/application/use-cases/AccountUseCases";
+import { CreateOrganizationUseCase } from "../../subdomains/organization/application/use-cases/OrganizationLifecycleUseCases";
+import type { AccountSnapshot } from "../../subdomains/account/domain/entities/Account";
+import type { Unsubscribe } from "../../subdomains/account/domain/repositories/AccountQueryRepository";
+⋮----
+// ─── Singleton repositories ───────────────────────────────────────────────────
+⋮----
+function getIdentityRepo(): FirebaseAuthIdentityRepository
+⋮----
+function getAccountQueryRepo(): FirebaseAccountQueryRepository
+⋮----
+function getOrgRepo(): FirestoreOrganizationRepository
+⋮----
+// ─── FirestoreLike adapter ────────────────────────────────────────────────────
+// Bridges the Firestore SDK to the FirestoreLike interface expected by
+// FirestoreAccountRepository (subdomain-level adapter, technology-agnostic).
+⋮----
+function createFirestoreLikeAdapter(): FirestoreLike
+⋮----
+async get(collectionName: string, id: string): Promise<Record<string, unknown> | null>
+async set(
+      collectionName: string,
+      id: string,
+      data: Record<string, unknown>,
+): Promise<void>
+async delete(collectionName: string, id: string): Promise<void>
+⋮----
+// ─── OrgFirestoreLike adapter ─────────────────────────────────────────────────
+// Bridges the Firestore SDK to the OrgFirestoreLike interface for org operations
+// (subcollections, etc.).
+⋮----
+function createOrgFirestoreLikeAdapter(): OrgFirestoreLike
+⋮----
+async get(col: string, id: string): Promise<Record<string, unknown> | null>
+async set(col: string, id: string, data: Record<string, unknown>): Promise<void>
+async delete(col: string, id: string): Promise<void>
+async getSubcollection(
+      col: string,
+      parentId: string,
+      sub: string,
+): Promise<
+async setSubdoc(
+      col: string,
+      parentId: string,
+      sub: string,
+      id: string,
+      data: Record<string, unknown>,
+): Promise<void>
+async deleteSubdoc(
+      col: string,
+      parentId: string,
+      sub: string,
+      id: string,
+): Promise<void>
+⋮----
+// ─── Auth use-case factory ────────────────────────────────────────────────────
+⋮----
+/**
+ * Returns Firebase-backed auth use cases for use in "use client" components.
+ * Each call creates fresh use-case instances sharing one repository instance.
+ */
+export function createClientAuthUseCases()
+⋮----
+// ─── Account use-case factory ─────────────────────────────────────────────────
+⋮----
+/**
+ * Returns Firebase-backed account use cases for use in "use client" components.
+ */
+export function createClientAccountUseCases()
+⋮----
+// ─── Auth state subscription ──────────────────────────────────────────────────
+⋮----
+/**
+ * Subscribes to Firebase auth state changes.
+ * Returns an unsubscribe function.
+ * For use in "use client" auth providers only.
+ */
+export function subscribeToAuthState(
+  callback: (user: User | null) => void,
+): Unsubscribe
+⋮----
+/**
+ * Signs the current user out of Firebase Auth.
+ */
+export async function firebaseSignOut(): Promise<void>
+⋮----
+// ─── Account subscriptions ────────────────────────────────────────────────────
+⋮----
+/**
+ * Subscribes to real-time updates for all organisation accounts associated
+ * with the given userId (owned or membership).
+ */
+export function subscribeToAccountsForUser(
+  userId: string,
+  onUpdate: (accounts: Record<string, AccountSnapshot>) => void,
+): Unsubscribe
+⋮----
+// ─── Organisation use-case factory ───────────────────────────────────────────
+⋮----
+/**
+ * Returns Firebase-backed organisation use cases for use in "use client"
+ * components.
+ */
+export function createClientOrganizationUseCases()
 ````
 
 ## File: src/modules/iam/shared/errors/index.ts
@@ -31231,6 +31339,16 @@ export function subscribeToProfile(
 ): () => void
 ````
 
+## File: src/modules/platform/adapters/inbound/react/index.ts
+````typescript
+/**
+ * platform inbound React adapter — barrel.
+ *
+ * Public surface for all platform React inbound adapters.
+ * Consumed by src/app/ route shims.
+ */
+````
+
 ## File: src/modules/platform/adapters/inbound/react/PlatformBootstrap.tsx
 ````typescript
 /**
@@ -31254,6 +31372,58 @@ import { AccountScopeProvider } from "./AccountScopeProvider";
 import { WorkspaceScopeProvider } from "@/src/modules/workspace/adapters/inbound/react";
 ⋮----
 export function PlatformBootstrap(
+````
+
+## File: src/modules/platform/adapters/inbound/react/shell/CreateOrganizationDialog.tsx
+````typescript
+/**
+ * CreateOrganizationDialog — platform inbound adapter (React).
+ *
+ * Dialog for creating a new organisation.
+ * Uses CreateOrganizationUseCase via the iam Firebase composition root.
+ *
+ * On success, the new organisation document is written to Firestore with the
+ * creator listed in `ownerId` and `memberIds`.  The existing
+ * `subscribeToAccountsForUser` query picks it up automatically, so the
+ * AccountSwitcher refreshes without an explicit refetch.
+ */
+⋮----
+import { useState, useMemo } from "react";
+import { Building2, Loader2 } from "lucide-react";
+⋮----
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@ui-shadcn/ui/dialog";
+⋮----
+import { createClientOrganizationUseCases } from "../../../../../iam/adapters/outbound/firebase-composition";
+import type { AuthUser } from "../../../../../iam/adapters/inbound/react/AuthContext";
+import type { AccountEntity } from "../AppContext";
+⋮----
+// ── Types ─────────────────────────────────────────────────────────────────────
+⋮----
+interface CreateOrganizationDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  user: AuthUser | null;
+  onOrganizationCreated?: (account: AccountEntity) => void;
+  onNavigate?: (href: string) => void;
+}
+⋮----
+// ── Component ─────────────────────────────────────────────────────────────────
+⋮----
+export function CreateOrganizationDialog({
+  open,
+  onOpenChange,
+  user,
+  onOrganizationCreated,
+  onNavigate,
+}: CreateOrganizationDialogProps): React.ReactElement | null
+⋮----
+async function handleSubmit(e: React.FormEvent)
 ````
 
 ## File: src/modules/platform/adapters/inbound/react/shell/shell-quick-create.ts
@@ -31367,6 +31537,63 @@ isActiveRoute={(href) => isActiveRoute(pathname, href)}
           activeWorkspaceId={activeWorkspaceId}
           onSelectWorkspace={onSelectWorkspace}
 onToggleExpanded=
+````
+
+## File: src/modules/platform/adapters/inbound/react/shell/ShellLanguageSwitcher.tsx
+````typescript
+/**
+ * ShellLanguageSwitcher — platform inbound adapter (React).
+ *
+ * Lets users explicitly override the display language.
+ *
+ * Firebase Hosting i18n rewrites honour the `firebase-language-override`
+ * cookie to select the content locale. Setting this cookie and reloading
+ * the page asks Firebase Hosting to serve the matching localized files
+ * (configured under hosting.i18n in firebase.json).
+ *
+ * Supported locales are defined in SUPPORTED_LOCALES below.
+ * Add entries here when new locale directories are added to /localized-files.
+ *
+ * Rendered by ShellHeaderControls in the top-right header area.
+ */
+⋮----
+import { Languages } from "lucide-react";
+import { useState } from "react";
+⋮----
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+⋮----
+// ── Locale catalogue ──────────────────────────────────────────────────────────
+⋮----
+type LocaleCode = (typeof SUPPORTED_LOCALES)[number]["code"];
+⋮----
+// ── Helpers ───────────────────────────────────────────────────────────────────
+⋮----
+function getStoredLocale(): LocaleCode | null
+⋮----
+// Check cookie first (Firebase Hosting override), then localStorage fallback.
+⋮----
+function applyLocale(code: LocaleCode): void
+⋮----
+// Set the Firebase Hosting language override cookie (1 year, root path).
+⋮----
+// Also persist in localStorage as a UI fallback.
+⋮----
+// Reload so Firebase Hosting can serve the correct locale variant.
+⋮----
+// ── Component ─────────────────────────────────────────────────────────────────
+⋮----
+// Lazy initializer: reads from storage on first client render only.
+// typeof window guard ensures SSR safety.
+⋮----
+function handleSelect(code: LocaleCode): void
 ````
 
 ## File: src/modules/platform/adapters/inbound/react/shell/ShellRootLayout.tsx
@@ -31961,6 +32188,91 @@ export function createWorkspaceNotificationEventType(raw: string): WorkspaceNoti
 
 ````
 
+## File: src/modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
+````typescript
+// ── Types ──────────────────────────────────────────────────────────────────────
+⋮----
+export type ShellNavSection =
+  | "workspace"
+  | "dashboard"
+  | "account"
+  | "organization"
+  | "other";
+⋮----
+export interface ShellNavItem {
+  readonly id: string;
+  readonly label: string;
+  readonly href: string;
+}
+⋮----
+export interface ShellRailCatalogItem {
+  readonly id: string;
+  readonly href: string;
+  readonly label: string;
+  /** If true, this item is only visible to organization accounts. */
+  readonly requiresOrganization: boolean;
+  /** Route prefix for active-state matching. When absent, defaults to href. */
+  readonly activeRoutePrefix?: string;
+}
+⋮----
+/** If true, this item is only visible to organization accounts. */
+⋮----
+/** Route prefix for active-state matching. When absent, defaults to href. */
+⋮----
+export interface ShellContextSectionConfig {
+  readonly title: string;
+  readonly items: readonly { href: string; label: string }[];
+}
+⋮----
+export interface ShellRouteContext {
+  readonly accountId?: string | null;
+  readonly workspaceId?: string | null;
+}
+⋮----
+function parseHref(href: string):
+⋮----
+function joinHref(path: string, query: string): string
+⋮----
+function isAccountScopedWorkspacePath(pathname: string): boolean
+⋮----
+export function normalizeShellRoutePath(pathname: string): string
+⋮----
+export function buildShellContextualHref(
+  href: string,
+  context: ShellRouteContext,
+): string
+⋮----
+// ── Route-matching utility ────────────────────────────────────────────────────
+⋮----
+export function isExactOrChildPath(targetPath: string, pathname: string): boolean
+⋮----
+// ── Account section matchers ──────────────────────────────────────────────────
+⋮----
+// ── Route titles & breadcrumb labels ──────────────────────────────────────────
+⋮----
+// ── Organization management items ─────────────────────────────────────────────
+⋮----
+// ── Account nav items ─────────────────────────────────────────────────────────
+⋮----
+// ── Section labels ────────────────────────────────────────────────────────────
+⋮----
+// ── Rail catalog ──────────────────────────────────────────────────────────────
+⋮----
+export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[]
+⋮----
+// ── Context section config ────────────────────────────────────────────────────
+⋮----
+// ── Mobile & organization nav items ───────────────────────────────────────────
+⋮----
+// ── Section resolvers ─────────────────────────────────────────────────────────
+⋮----
+export function resolveShellNavSection(pathname: string): ShellNavSection
+⋮----
+export function resolveShellPageTitle(pathname: string): string
+⋮----
+export function resolveShellBreadcrumbLabel(segment: string): string
+````
+
 ## File: src/modules/platform/subdomains/search/adapters/inbound/index.ts
 ````typescript
 
@@ -32305,19 +32617,6 @@ if (accountType === "organization")
  * Aliases useWorkspaceContext() from the workspace module.
  *
  * Returns: { state: WorkspaceContextState, dispatch: Dispatch<WorkspaceContextAction> }
- */
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceScopeProvider.tsx
-````typescript
-/**
- * WorkspaceScopeProvider — workspace inbound adapter (React).
- *
- * Canonical workspace scope provider for the src/ migration layer.
- * Aliases WorkspaceContextProvider from the workspace module.
- *
- * Consumers use useWorkspaceScope() to read workspace state.
- * Ported from: modules/workspace/interfaces/web/providers/WorkspaceContextProvider.tsx
  */
 ````
 
@@ -35336,6 +35635,263 @@ flowchart LR
 - 查詢類別從命令文件移除後，api/index.ts 需直接從 `application/queries/` import，確保對外合約不中斷。
 ````
 
+## File: packages/AGENT.md
+````markdown
+# packages — Agent Rules
+
+此目錄是所有 **外部 SDK 與共享能力的唯一封裝層**。修改或新增任何套件前，先確認責任歸屬。
+
+---
+
+## Route Here（放這裡）
+
+| 類型 | 正確套件 |
+|---|---|
+| Firebase SDK 封裝 | `integration-firebase/` |
+| AI SDK（Genkit / Google AI）封裝 | `integration-ai/` |
+| HTTP 用戶端封裝 | `integration-http/` |
+| tRPC 客戶端設定 | `integration-trpc/` |
+| 官方 shadcn/ui 新增組件（`npx shadcn add`）| `ui-shadcn/ui/` |
+| **自訂 UI 組件（wrap 官方 / 設計擴充）** | **`ui-shadcn/ui-custom/`（唯一允許位置）** |
+
+## Route Elsewhere（不放這裡）
+
+| 類型 | 正確位置 |
+|---|---|
+| 業務邏輯（use case、domain rule） | `src/modules/<context>/domain/` 或 `application/` |
+| Repository 實作 | `src/modules/<context>/adapters/outbound/` |
+| 頁面組合與路由 | `src/app/` |
+| 模組業務 UI pattern | `src/modules/<context>/interfaces/` |
+
+---
+
+## 嚴禁
+
+```ts
+// ❌ 在任何 packages/ 套件中 import modules
+import { something } from '@/modules/...'
+
+// ❌ 在 src/modules/ 直接 import 第三方 library
+import { getFirestore } from 'firebase/firestore'
+
+// ❌ 直接修改 ui-shadcn/ui/ 的官方組件
+// ui/button.tsx ← 禁止手動編輯
+
+// ✅ 自訂組件放 ui-custom/
+// ui-custom/AppButton.tsx ← 正確位置
+```
+
+- 不得在套件層加入業務判斷邏輯
+- 每個套件的 `index.ts` 是唯一公開入口
+- 不得洩漏第三方 SDK 型別至消費端（能 wrap 就 wrap）
+
+---
+
+## 每個套件都有自己的 AGENTS.md
+
+進入任何套件子目錄前，先讀該目錄的 `AGENTS.md`：
+
+- [integration-firebase/AGENTS.md](./integration-firebase/AGENTS.md)
+- [integration-ai/AGENTS.md](./integration-ai/AGENTS.md)
+- [integration-http/AGENTS.md](./integration-http/AGENTS.md)
+- [integration-trpc/AGENTS.md](./integration-trpc/AGENTS.md)
+- [ui-shadcn/AGENTS.md](./ui-shadcn/AGENTS.md)
+````
+
+## File: packages/ui-shadcn/ui/alert-dialog.tsx
+````typescript
+import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
+⋮----
+import { cn } from "@shared-utils"
+import { Button } from "@/packages/ui-shadcn/ui/button"
+⋮----
+function AlertDialog(
+⋮----
+className=
+````
+
+## File: packages/ui-shadcn/ui/button-group.tsx
+````typescript
+import { mergeProps } from "@base-ui/react/merge-props"
+import { useRender } from "@base-ui/react/use-render"
+import { cva, type VariantProps } from "class-variance-authority"
+⋮----
+import { cn } from "@shared-utils"
+import { Separator } from "@/packages/ui-shadcn/ui/separator"
+⋮----
+className=
+````
+
+## File: packages/ui-shadcn/ui/calendar.tsx
+````typescript
+import {
+  DayPicker,
+  getDefaultClassNames,
+  type DayButton,
+  type Locale,
+} from "react-day-picker"
+⋮----
+import { cn } from "@shared-utils"
+import { Button, buttonVariants } from "@/packages/ui-shadcn/ui/button"
+import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react"
+⋮----
+className=
+````
+
+## File: packages/ui-shadcn/ui/carousel.tsx
+````typescript
+import useEmblaCarousel, {
+  type UseEmblaCarouselType,
+} from "embla-carousel-react"
+⋮----
+import { cn } from "@shared-utils"
+import { Button } from "@/packages/ui-shadcn/ui/button"
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
+⋮----
+type CarouselApi = UseEmblaCarouselType[1]
+type UseCarouselParameters = Parameters<typeof useEmblaCarousel>
+type CarouselOptions = UseCarouselParameters[0]
+type CarouselPlugin = UseCarouselParameters[1]
+⋮----
+type CarouselProps = {
+  opts?: CarouselOptions
+  plugins?: CarouselPlugin
+  orientation?: "horizontal" | "vertical"
+  setApi?: (api: CarouselApi) => void
+}
+⋮----
+type CarouselContextProps = {
+  carouselRef: ReturnType<typeof useEmblaCarousel>[0]
+  api: ReturnType<typeof useEmblaCarousel>[1]
+  scrollPrev: () => void
+  scrollNext: () => void
+  canScrollPrev: boolean
+  canScrollNext: boolean
+} & CarouselProps
+⋮----
+function useCarousel()
+⋮----
+function Carousel({
+  orientation = "horizontal",
+  opts,
+  setApi,
+  plugins,
+  className,
+  children,
+  ...props
+}: React.ComponentProps<"div"> & CarouselProps)
+⋮----
+className=
+⋮----
+function CarouselNext({
+  className,
+  variant = "outline",
+  size = "icon-sm",
+  ...props
+}: React.ComponentProps<typeof Button>)
+````
+
+## File: packages/ui-shadcn/ui/chart.tsx
+````typescript
+type TooltipValueType = number | string | Array<number | string>
+⋮----
+import { cn } from "@shared-utils"
+⋮----
+// Format: { THEME_NAME: CSS_SELECTOR }
+⋮----
+type TooltipNameType = number | string
+⋮----
+export type ChartConfig = Record<
+  string,
+  {
+    label?: React.ReactNode
+    icon?: React.ComponentType
+  } & (
+    | { color?: string; theme?: never }
+    | { color?: never; theme: Record<keyof typeof THEMES, string> }
+  )
+>
+⋮----
+type ChartContextProps = {
+  config: ChartConfig
+}
+⋮----
+function useChart()
+⋮----
+className=
+⋮----
+<div className=
+⋮----
+return <div className=
+````
+
+## File: packages/ui-shadcn/ui/combobox.tsx
+````typescript
+import { Combobox as ComboboxPrimitive } from "@base-ui/react"
+⋮----
+import { cn } from "@shared-utils"
+import { Button } from "@/packages/ui-shadcn/ui/button"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/packages/ui-shadcn/ui/input-group"
+import { ChevronDownIcon, XIcon, CheckIcon } from "lucide-react"
+⋮----
+function ComboboxValue(
+⋮----
+function ComboboxTrigger({
+  className,
+  children,
+  ...props
+}: ComboboxPrimitive.Trigger.Props)
+⋮----
+function ComboboxClear(
+⋮----
+className=
+````
+
+## File: packages/ui-shadcn/ui/command.tsx
+````typescript
+import { Command as CommandPrimitive } from "cmdk"
+⋮----
+import { cn } from "@shared-utils"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/packages/ui-shadcn/ui/dialog"
+import {
+  InputGroup,
+  InputGroupAddon,
+} from "@/packages/ui-shadcn/ui/input-group"
+import { SearchIcon, CheckIcon } from "lucide-react"
+⋮----
+className=
+````
+
+## File: packages/ui-shadcn/ui/dialog.tsx
+````typescript
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
+⋮----
+import { cn } from "@shared-utils"
+import { Button } from "@/packages/ui-shadcn/ui/button"
+import { XIcon } from "lucide-react"
+⋮----
+function Dialog(
+⋮----
+function DialogTrigger(
+⋮----
+function DialogPortal(
+⋮----
+function DialogClose(
+⋮----
+className=
+````
+
 ## File: packages/ui-shadcn/ui/dropdown-menu.tsx
 ````typescript
 import { Menu as MenuPrimitive } from "@base-ui/react/menu"
@@ -35376,6 +35932,166 @@ function DropdownMenuSeparator({
   className,
   ...props
 }: MenuPrimitive.Separator.Props)
+````
+
+## File: packages/ui-shadcn/ui/field.tsx
+````typescript
+import { useMemo } from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+⋮----
+import { cn } from "@shared-utils"
+import { Label } from "@/packages/ui-shadcn/ui/label"
+import { Separator } from "@/packages/ui-shadcn/ui/separator"
+⋮----
+className=
+````
+
+## File: packages/ui-shadcn/ui/input-group.tsx
+````typescript
+import { cva, type VariantProps } from "class-variance-authority"
+⋮----
+import { cn } from "@shared-utils"
+import { Button } from "@/packages/ui-shadcn/ui/button"
+import { Input } from "@/packages/ui-shadcn/ui/input"
+import { Textarea } from "@/packages/ui-shadcn/ui/textarea"
+⋮----
+className=
+⋮----
+if ((e.target as HTMLElement).closest("button"))
+````
+
+## File: packages/ui-shadcn/ui/item.tsx
+````typescript
+import { mergeProps } from "@base-ui/react/merge-props"
+import { useRender } from "@base-ui/react/use-render"
+import { cva, type VariantProps } from "class-variance-authority"
+⋮----
+import { cn } from "@shared-utils"
+import { Separator } from "@/packages/ui-shadcn/ui/separator"
+⋮----
+function ItemGroup(
+⋮----
+function Item({
+  className,
+  variant = "default",
+  size = "default",
+  render,
+  ...props
+}: useRender.ComponentProps<"div"> & VariantProps<typeof itemVariants>)
+⋮----
+className=
+````
+
+## File: packages/ui-shadcn/ui/menubar.tsx
+````typescript
+import { Menu as MenuPrimitive } from "@base-ui/react/menu"
+import { Menubar as MenubarPrimitive } from "@base-ui/react/menubar"
+⋮----
+import { cn } from "@shared-utils"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuPortal,
+  DropdownMenuRadioGroup,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/packages/ui-shadcn/ui/dropdown-menu"
+import { CheckIcon } from "lucide-react"
+⋮----
+className=
+````
+
+## File: packages/ui-shadcn/ui/pagination.tsx
+````typescript
+import { cn } from "@shared-utils"
+import { Button } from "@/packages/ui-shadcn/ui/button"
+import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
+⋮----
+className=
+⋮----
+function PaginationLink({
+  className,
+  isActive,
+  size = "icon",
+  ...props
+}: PaginationLinkProps)
+⋮----
+function PaginationPrevious({
+  className,
+  text = "Previous",
+  ...props
+}: React.ComponentProps<typeof PaginationLink> &
+⋮----
+function PaginationNext({
+  className,
+  text = "Next",
+  ...props
+}: React.ComponentProps<typeof PaginationLink> &
+⋮----
+function PaginationEllipsis({
+  className,
+  ...props
+}: React.ComponentProps<"span">)
+````
+
+## File: packages/ui-shadcn/ui/sheet.tsx
+````typescript
+import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
+⋮----
+import { cn } from "@shared-utils"
+import { Button } from "@/packages/ui-shadcn/ui/button"
+import { XIcon } from "lucide-react"
+⋮----
+function Sheet(
+⋮----
+function SheetTrigger(
+⋮----
+function SheetClose(
+⋮----
+function SheetPortal(
+⋮----
+className=
+````
+
+## File: packages/ui-shadcn/ui/toggle-group.tsx
+````typescript
+import { Toggle as TogglePrimitive } from "@base-ui/react/toggle"
+import { ToggleGroup as ToggleGroupPrimitive } from "@base-ui/react/toggle-group"
+import { type VariantProps } from "class-variance-authority"
+⋮----
+import { cn } from "@shared-utils"
+import { toggleVariants } from "@/packages/ui-shadcn/ui/toggle"
+⋮----
+function ToggleGroup({
+  className,
+  variant,
+  size,
+  spacing = 0,
+  orientation = "horizontal",
+  children,
+  ...props
+}: ToggleGroupPrimitive.Props &
+  VariantProps<typeof toggleVariants> & {
+    spacing?: number
+    orientation?: "horizontal" | "vertical"
+})
+⋮----
+className=
+⋮----
+function ToggleGroupItem({
+  className,
+  children,
+  variant = "default",
+  size = "default",
+  ...props
+}: TogglePrimitive.Props & VariantProps<typeof toggleVariants>)
 ````
 
 ## File: packages/ui-shadcn/ui/tooltip.tsx
@@ -35513,18 +36229,6 @@ className=
     "encoding": "o200k_base"
   }
 }
-````
-
-## File: src/app/layout.tsx
-````typescript
-import type { Metadata } from "next";
-import { Geist } from "next/font/google";
-import { cn } from "@shared-utils";
-import { PlatformBootstrap } from "@/src/modules/platform/adapters/inbound/react";
-⋮----
-export default function RootLayout({
-  children,
-}: Readonly<
 ````
 
 ## File: src/app/README.md
@@ -35777,95 +36481,165 @@ export function AccountScopeProvider(
 // eslint-disable-next-line react-hooks/exhaustive-deps
 ````
 
-## File: src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx
+## File: src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx
 ````typescript
 /**
- * ShellAppRail — app/(shell)/_shell composition layer.
- * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
- * because it composes downstream modules (workspace).
+ * platform-ui-stubs — platform inbound adapter (React).
  *
- * Platform is upstream and must not import downstream modules.
- * app/ is the designated composition layer.
+ * Remaining stubs for platform UI elements not yet implemented as real
+ * components.  Items that have been promoted to real implementations are
+ * re-exported from their canonical files below.
  */
 ⋮----
-import Link from "next/link";
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  LayoutDashboard,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 ⋮----
-import type { AuthUser, ActiveAccount, AccountEntity } from "../AppContext";
-import { CreateOrganizationDialog } from "../platform-ui-stubs";
-import {
-  listShellRailCatalogItems,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  buildShellContextualHref,
-  type ShellRailCatalogItem,
-} from "../../../../index";
-import type { WorkspaceEntity } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
-import { CreateWorkspaceDialogRail } from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
+// ── Shell theme toggle + language switcher ────────────────────────────────────
+// Imported locally so they can be composed in ShellHeaderControls below,
+// then re-exported so callers that want direct access can import from here.
+⋮----
+import { ShellThemeToggle } from "./shell/ShellThemeToggle";
+import { ShellLanguageSwitcher } from "./shell/ShellLanguageSwitcher";
+⋮----
+// ── Real implementations (promoted from stubs) ────────────────────────────────
+⋮----
+// ── Account route context ─────────────────────────────────────────────────────
+⋮----
+// ── Shell breadcrumbs ─────────────────────────────────────────────────────────
+⋮----
+export function ShellAppBreadcrumbs(): null
+⋮----
+// ── Shell header controls (theme toggle + language switcher) ──────────────────
+⋮----
+export function ShellHeaderControls(): React.ReactElement
+⋮----
+// ── Global search ─────────────────────────────────────────────────────────────
+⋮----
+export function ShellGlobalSearchDialog(
+  _props: ShellGlobalSearchDialogProps,
+): null
+⋮----
+export function useShellGlobalSearch():
+⋮----
+// ── Stub route screens ────────────────────────────────────────────────────────
+⋮----
+export function OrganizationMembersRouteScreen(): React.ReactElement
+⋮----
+export function OrganizationOverviewRouteScreen(): React.ReactElement
+⋮----
+export function OrganizationPermissionsRouteScreen(): React.ReactElement
+⋮----
+export function SettingsNotificationsRouteScreen(): React.ReactElement
+````
+
+## File: src/modules/platform/adapters/inbound/react/shell/AccountSwitcher.tsx
+````typescript
+/**
+ * AccountSwitcher — platform inbound adapter (React).
+ *
+ * Renders an account switcher control that lets the user toggle between their
+ * personal (Firebase Auth) account and any organisation accounts they belong to.
+ *
+ * Design:
+ *  - Current active account is shown as the trigger label.
+ *  - Dropdown lists personal account first, then organisation accounts.
+ *  - Active item is visually highlighted (check mark).
+ *  - "Create organisation" entry at the bottom opens CreateOrganizationDialog.
+ *
+ * Props follow the same interface established in the stubs so callers
+ * (ShellRootLayout, ShellAppRail) need no changes.
+ */
+⋮----
+import { useState } from "react";
+import { Building2, Check, ChevronsUpDown, Plus, UserRound } from "lucide-react";
+⋮----
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/packages/ui-shadcn/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/packages/ui-shadcn/ui/tooltip";
+} from "@ui-shadcn/ui/dropdown-menu";
 ⋮----
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
+import type { AuthUser } from "../../../../../iam/adapters/inbound/react/AuthContext";
+import type { AccountEntity } from "../AppContext";
+import { CreateOrganizationDialog } from "./CreateOrganizationDialog";
+⋮----
+// ── Types ─────────────────────────────────────────────────────────────────────
+⋮----
+interface AccountSwitcherProps {
+  personalAccount: AuthUser | null;
+  organizationAccounts: AccountEntity[];
+  activeAccountId: string | null;
+  onSelectPersonal: () => void;
+  onSelectOrganization: (account: AccountEntity) => void;
+  onOrganizationCreated?: (account: AccountEntity) => void;
 }
 ⋮----
-interface RailItem {
-  id: string;
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
+// ── Helpers ───────────────────────────────────────────────────────────────────
 ⋮----
-function getInitial(name: string | undefined | null): string
+function getActiveLabel(
+  activeAccountId: string | null,
+  personalAccount: AuthUser | null,
+  organizationAccounts: AccountEntity[],
+): string
 ⋮----
-function isActive(href: string)
+// ── Component ─────────────────────────────────────────────────────────────────
 ⋮----
-function buildWorkspaceDetailHref(workspaceId: string): string
+{/* Personal account */}
+⋮----
+{/* Organisation accounts */}
 ⋮----
 onClick=
 ⋮----
-onSelectWorkspace(workspace.id);
+onOrganizationCreated=
+````
+
+## File: src/modules/platform/adapters/inbound/react/shell/ShellUserAvatar.tsx
+````typescript
+/**
+ * ShellUserAvatar — platform inbound adapter (React).
+ *
+ * Displays the authenticated user's avatar or initials in the shell header.
+ * Opens a dropdown menu with the user's name, email, and a sign-out action.
+ *
+ * Design:
+ *  - Avatar shows initials (up to 2 characters) derived from the display name.
+ *  - Dropdown follows shadcn/ui DropdownMenu conventions.
+ *  - Sign-out delegates to the onSignOut prop (ShellRootLayout handles the
+ *    async logout and error state; this component stays presentation-only).
+ */
 ⋮----
-accountType=
+import { LogOut, UserRound } from "lucide-react";
+⋮----
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+⋮----
+// ── Helpers ───────────────────────────────────────────────────────────────────
+⋮----
+function getInitials(name: string): string
+⋮----
+// ── Component ─────────────────────────────────────────────────────────────────
+⋮----
+interface ShellUserAvatarProps {
+  name: string;
+  email: string;
+  onSignOut: () => void;
+}
+⋮----
+export function ShellUserAvatar({
+  name,
+  email,
+  onSignOut,
+}: ShellUserAvatarProps): React.ReactElement
 ````
 
 ## File: src/modules/platform/adapters/inbound/react/ShellFrame.tsx
@@ -36022,6 +36796,49 @@ cp -r src/modules/template src/modules/<your-context>
 - [docs/bounded-contexts.md](../../docs/bounded-contexts.md) — 主域所有權地圖
 - [docs/subdomains.md](../../docs/subdomains.md) — 子域清單
 - [docs/ubiquitous-language.md](../../docs/ubiquitous-language.md) — 術語權威
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceScopeProvider.tsx
+````typescript
+/**
+ * WorkspaceScopeProvider — workspace inbound adapter (React).
+ *
+ * Canonical workspace scope provider for the src/ layer.
+ *
+ * Responsibilities:
+ *  1. Mount a WorkspaceContextProvider (holds workspace state + dispatch).
+ *  2. Subscribe to real-time Firestore workspace updates for the currently
+ *     active account (via the outbound Firebase composition root).
+ *  3. Dispatch SET_WORKSPACES when data arrives; RESET when the account is
+ *     cleared (e.g. on sign-out).
+ *
+ * Design notes:
+ *  - The subscription is managed by an inner WorkspaceSubscription component so
+ *    the effect only re-runs when activeAccountId changes, not on every render.
+ *  - WorkspaceScopeProvider reads the active account from AccountScopeProvider
+ *    (useApp). The dependency direction workspace → platform is correct:
+ *    platform is upstream of workspace.
+ *  - The composition root (PlatformBootstrap) mounts WorkspaceScopeProvider
+ *    inside AccountScopeProvider, so useApp() is always available here.
+ */
+⋮----
+import { type ReactNode } from "react";
+import { useEffect } from "react";
+⋮----
+import { WorkspaceContextProvider, useWorkspaceContext } from "./WorkspaceContext";
+import { useApp } from "../../../../platform/adapters/inbound/react/AppContext";
+import { subscribeToWorkspacesForAccount } from "../../outbound/firebase-composition";
+⋮----
+// ── WorkspaceSubscription ─────────────────────────────────────────────────────
+// Isolated inner component so the subscription effect's dependency array is
+// minimal — only activeAccountId triggers a new subscription, not the full
+// app state object.
+⋮----
+function WorkspaceSubscription(
+⋮----
+// ── WorkspaceScopeProvider ────────────────────────────────────────────────────
+⋮----
+export function WorkspaceScopeProvider(
 ````
 
 ## File: .github/prompts/implement-ui-component.prompt.md
@@ -36609,6 +37426,182 @@ flowchart LR
 - [contexts/notebooklm/subdomains.md](./contexts/notebooklm/subdomains.md)
 ````
 
+## File: packages/README.md
+````markdown
+# Packages Layer
+
+此目錄是所有**共享平台能力**的唯一存放層。`src/modules/` 與 `src/app/` 不得直接依賴第三方 library，必須透過此層的套件存取外部能力。
+
+---
+
+## 層次位置
+
+```
+src/app / src/modules  →  packages  →  third-party libraries
+```
+
+規則：
+- `src/modules/` 不得直接 import 第三方 library
+- `src/modules/` 只能 import `packages/` 提供的套件
+- `packages/` 是唯一允許直接依賴外部 library 的層
+
+---
+
+## 現有套件清單
+
+### 🔌 integration-* — 外部服務封裝層
+
+| 套件 | 封裝目標 | 文件 |
+|---|---|---|
+| `integration-firebase` | Firebase App / Auth / Firestore | [README](./integration-firebase/README.md) |
+| `integration-ai` | Genkit / Google AI SDK | [README](./integration-ai/README.md) |
+| `integration-http` | HTTP 用戶端（fetch / ky） | [README](./integration-http/README.md) |
+| `integration-trpc` | tRPC 客戶端與 Provider | [README](./integration-trpc/README.md) |
+
+職責：封裝 SDK、標準化設定、normalize API 介面。
+
+---
+
+### 🎨 ui-* — 設計系統與 UI 原語層
+
+| 套件 | 說明 | 文件 |
+|---|---|---|
+| `ui-shadcn` | 官方 shadcn/ui 組件（CLI 管理，禁止修改）| [README](./ui-shadcn/README.md) |
+
+> **自訂 UI 組件唯一存放位置**：`packages/ui-shadcn/ui-custom/`  
+> 任何對官方組件的 wrap、設計系統擴充、業務語意層一律放入 `ui-custom/`，不放在 `src/modules/` 或 `src/app/`。
+
+職責：共享 UI 組件、互動模式、設計 token。
+
+---
+
+## 硬性規則
+
+### 1. modules 不得直接使用第三方 library
+
+```ts
+// ❌ 錯誤：在 modules 直接 import Firebase
+import { getFirestore } from 'firebase/firestore'
+
+// ✅ 正確：透過 packages 套件
+import { firestoreApi } from '@integration-firebase'
+```
+
+### 2. 每個套件必須有穩定公開介面
+
+- `index.ts` 是唯一公開入口
+- 隱藏實作細節，不洩漏 SDK 型別
+- 不洩漏第三方 API 至消費端
+
+### 3. 不得加入業務邏輯
+
+套件不得：
+- 包含 domain rule 或 use case 邏輯
+- 直接 import `src/modules/*`
+- 對特定功能或模組有感知
+
+---
+
+## 判斷原則
+
+| 問題 | 結果 |
+|---|---|
+| 可跨多個 modules 重用？ | → 放 `packages/` |
+| 是業務邏輯或 domain rule？ | → 放 `src/modules/` |
+| 是第三方 SDK 封裝？ | → 放 `packages/integration-*/` |
+| 是 UI 組件（自訂）？ | → 放 `packages/ui-shadcn/ui-custom/` |
+````
+
+## File: packages/ui-shadcn/ui/sidebar.tsx
+````typescript
+import { mergeProps } from "@base-ui/react/merge-props"
+import { useRender } from "@base-ui/react/use-render"
+import { cva, type VariantProps } from "class-variance-authority"
+⋮----
+import { useIsMobile } from "@/packages/ui-shadcn/hooks/use-mobile"
+import { cn } from "@shared-utils"
+import { Button } from "@/packages/ui-shadcn/ui/button"
+import { Input } from "@/packages/ui-shadcn/ui/input"
+import { Separator } from "@/packages/ui-shadcn/ui/separator"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/packages/ui-shadcn/ui/sheet"
+import { Skeleton } from "@/packages/ui-shadcn/ui/skeleton"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/packages/ui-shadcn/ui/tooltip"
+import { PanelLeftIcon } from "lucide-react"
+⋮----
+type SidebarContextProps = {
+  state: "expanded" | "collapsed"
+  open: boolean
+  setOpen: (open: boolean) => void
+  openMobile: boolean
+  setOpenMobile: (open: boolean) => void
+  isMobile: boolean
+  toggleSidebar: () => void
+}
+⋮----
+function useSidebar()
+⋮----
+// This is the internal state of the sidebar.
+// We use openProp and setOpenProp for control from outside the component.
+⋮----
+// This sets the cookie to keep the sidebar state.
+⋮----
+// Helper to toggle the sidebar.
+⋮----
+// Adds a keyboard shortcut to toggle the sidebar.
+⋮----
+const handleKeyDown = (event: KeyboardEvent) =>
+⋮----
+// We add a state so that we can do data-state="expanded" or "collapsed".
+// This makes it easier to style the sidebar with Tailwind classes.
+⋮----
+className=
+⋮----
+{/* This is what handles the sidebar gap on desktop */}
+⋮----
+// Adjust the padding for floating and inset variants.
+⋮----
+function SidebarGroupAction({
+  className,
+  render,
+  ...props
+}: useRender.ComponentProps<"button"> & React.ComponentProps<"button">)
+⋮----
+function SidebarMenuAction({
+  className,
+  render,
+  showOnHover = false,
+  ...props
+}: useRender.ComponentProps<"button"> &
+  React.ComponentProps<"button"> & {
+    showOnHover?: boolean
+})
+⋮----
+// Random width between 50 to 90%.
+````
+
+## File: src/app/layout.tsx
+````typescript
+import type { Metadata } from "next";
+import { Geist } from "next/font/google";
+import { cn } from "@shared-utils";
+import { ThemeProvider } from "@ui-shadcn/provider/theme-provider";
+import { PlatformBootstrap } from "@/src/modules/platform/adapters/inbound/react";
+⋮----
+export default function RootLayout({
+  children,
+}: Readonly<
+````
+
 ## File: tsconfig.json
 ````json
 {
@@ -36657,6 +37650,96 @@ flowchart LR
     "functions"
   ]
 }
+````
+
+## File: src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx
+````typescript
+/**
+ * ShellAppRail — app/(shell)/_shell composition layer.
+ * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
+ * because it composes downstream modules (workspace).
+ *
+ * Platform is upstream and must not import downstream modules.
+ * app/ is the designated composition layer.
+ */
+⋮----
+import Link from "next/link";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  LayoutDashboard,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+⋮----
+import type { AuthUser, ActiveAccount, AccountEntity } from "../AppContext";
+import { CreateOrganizationDialog } from "../platform-ui-stubs";
+import {
+  listShellRailCatalogItems,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  buildShellContextualHref,
+  type ShellRailCatalogItem,
+} from "../../../../index";
+import type { WorkspaceEntity } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
+import { CreateWorkspaceDialogRail } from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/packages/ui-shadcn/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/packages/ui-shadcn/ui/tooltip";
+⋮----
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+⋮----
+interface RailItem {
+  id: string;
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+⋮----
+function getInitial(name: string | undefined | null): string
+⋮----
+function isActive(href: string)
+⋮----
+function buildWorkspaceDetailHref(workspaceId: string): string
+⋮----
+onClick=
+⋮----
+onSelectWorkspace(workspace.id);
 ````
 
 ## File: src/modules/template/index.ts
@@ -38222,130 +39305,6 @@ Platform 不可依賴下游模組。
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 ````
 
-## File: package.json
-````json
-{
-  "name": "xuanwu-app",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "deploy:firestore:indexes": "npx firebase deploy --only firestore:indexes",
-    "deploy:firestore:rules": "npx firebase deploy --only firestore:rules",
-    "deploy:storage:rules": "npx firebase deploy --only storage",
-    "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
-    "deploy:apphosting": "npx firebase deploy --only apphosting",
-    "deploy:functions": "npx firebase deploy --only functions:py_fn",
-    "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
-    "deploy:functions:all": "npx firebase deploy --only functions",
-    "deploy:firebase": "npx firebase deploy",
-    "repomix:skill": "npx repomix --config repomix.config.json --skill-generate xuanwu-skill --skill-output .github/skills/xuanwu-skill --force",
-    "repomix:ai": "npx repomix --config repomix-ai.config.json --skill-generate xuanwu-ai-skill --skill-output .github/skills/xuanwu-ai-skill --force",
-    "repomix:analytics": "npx repomix --config repomix-analytics.config.json --skill-generate xuanwu-analytics-skill --skill-output .github/skills/xuanwu-analytics-skill --force",
-    "repomix:billing": "npx repomix --config repomix-billing.config.json --skill-generate xuanwu-billing-skill --skill-output .github/skills/xuanwu-billing-skill --force",
-    "repomix:iam": "npx repomix --config repomix-iam.config.json --skill-generate xuanwu-iam-skill --skill-output .github/skills/xuanwu-iam-skill --force",
-    "repomix:platform": "npx repomix --config repomix-platform.config.json --skill-generate xuanwu-platform-skill --skill-output .github/skills/xuanwu-platform-skill --force",
-    "repomix:src": "npx repomix --config repomix-src.config.json --skill-generate xuanwu-src-skill --skill-output .github/skills/xuanwu-src-skill --force",
-    "repomix:fn": "npx repomix --config repomix-fn.config.json --skill-generate xuanwu-fn-skill --skill-output .github/skills/xuanwu-fn-skill --force",
-    "repomix:pkgs": "npx repomix --config repomix-pkgs.config.json --skill-generate xuanwu-pkgs-skill --skill-output .github/skills/xuanwu-pkgs-skill --force",
-    "repomix:markdown": "npx repomix --config repomix-markdown.config.json --skill-generate xuanwu-markdown-skill --skill-output .github/skills/xuanwu-markdown-skill --force",
-    "repomix:notebooklm": "npx repomix --config repomix-notebooklm.config.json --skill-generate xuanwu-notebooklm-skill --skill-output .github/skills/xuanwu-notebooklm-skill --force",
-    "repomix:notion": "npx repomix --config repomix-notion.config.json --skill-generate xuanwu-notion-skill --skill-output .github/skills/xuanwu-notion-skill --force",
-    "repomix:explore": "npx repomix --config repomix.config.json",
-    "repomix:remote": "npx repomix --remote",
-    "repomix:local": "npx repomix"
-  },
-  "engines": {
-    "node": "24"
-  },
-  "dependencies": {
-    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
-    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
-    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
-    "@base-ui/react": "^1.4.0",
-    "@genkit-ai/google-genai": "^1.16.1",
-    "@tanstack/react-form": "^1.28.5",
-    "@tanstack/react-query": "^5.90.21",
-    "@tanstack/react-table": "^8.21.3",
-    "@tanstack/react-virtual": "^3.13.23",
-    "@tiptap/extension-color": "^3.22.2",
-    "@tiptap/extension-link": "^3.22.2",
-    "@tiptap/extension-placeholder": "^3.22.2",
-    "@tiptap/extension-text-style": "^3.22.2",
-    "@tiptap/extension-typography": "^3.22.2",
-    "@tiptap/extension-underline": "^3.22.2",
-    "@tiptap/react": "^3.22.2",
-    "@tiptap/starter-kit": "^3.22.2",
-    "@trpc/client": "^11.13.4",
-    "@trpc/next": "^11.13.4",
-    "@trpc/react-query": "^11.13.4",
-    "@trpc/server": "^11.13.4",
-    "@xstate/react": "^6.1.0",
-    "axios": "^1.13.6",
-    "cmdk": "^1.1.1",
-    "date-fns": "^4.1.0",
-    "embla-carousel-react": "^8.6.0",
-    "firebase": "^12.9.0",
-    "genkit": "^1.16.1",
-    "input-otp": "^1.4.2",
-    "lucide-react": "^0.577.0",
-    "next": "^16.2.4",
-    "next-themes": "^0.4.6",
-    "radix-ui": "^1.4.3",
-    "react": "19.2.3",
-    "react-day-picker": "^9.14.0",
-    "react-dom": "19.2.3",
-    "react-graph-vis": "^1.0.7",
-    "react-markdown": "^10.1.0",
-    "recharts": "^2.15.4",
-    "remark-gfm": "^4.0.1",
-    "shadcn": "^4.3.0",
-    "sonner": "^2.0.7",
-    "superjson": "^2.2.6",
-    "tailwind-merge": "^3.5.0",
-    "tw-animate-css": "^1.4.0",
-    "uuid": "^13.0.0",
-    "vaul": "^1.1.2",
-    "vis-data": "^8.0.3",
-    "vis-graph3d": "^7.0.2",
-    "vis-network": "^10.0.2",
-    "vis-timeline": "^8.5.0",
-    "xstate": "^5.28.0",
-    "zod": "^4.3.6",
-    "zustand": "^5.0.12"
-  },
-  "devDependencies": {
-    "@next/eslint-plugin-next": "^16.2.2",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20.19.37",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@typescript-eslint/eslint-plugin": "^8.57.1",
-    "@typescript-eslint/parser": "^8.57.1",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "eslint": "^9.39.4",
-    "eslint-config-next": "^16.1.7",
-    "eslint-plugin-boundaries": "^6.0.1",
-    "eslint-plugin-jsdoc": "^62.8.0",
-    "eslint-plugin-jsx-a11y": "^6.10.2",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "repomix": "^1.12.0",
-    "tailwindcss": "^4",
-    "tailwindcss-animate": "^1.0.7",
-    "typescript": "^5",
-    "typescript-eslint": "^8.58.0",
-    "vitest": "^4.1.2"
-  }
-}
-````
-
 ## File: src/modules/ai/AGENT.md
 ````markdown
 # AI Module — Agent Guide
@@ -38501,4 +39460,129 @@ Platform 不可依賴下游模組。
 - [src/modules/README.md](../README.md) — 蒸餾層總覽
 - [modules/platform/](../../../modules/platform/) — 完整 HEX+DDD 實作層（邊界規則權威）
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: package.json
+````json
+{
+  "name": "xuanwu-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "deploy:firestore:indexes": "npx firebase deploy --only firestore:indexes",
+    "deploy:firestore:rules": "npx firebase deploy --only firestore:rules",
+    "deploy:storage:rules": "npx firebase deploy --only storage",
+    "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
+    "deploy:apphosting": "npx firebase deploy --only apphosting",
+    "deploy:functions": "npx firebase deploy --only functions:py_fn",
+    "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
+    "deploy:functions:all": "npx firebase deploy --only functions",
+    "deploy:firebase": "npx firebase deploy",
+    "repomix:skill": "npx repomix --config repomix.config.json --skill-generate xuanwu-skill --skill-output .github/skills/xuanwu-skill --force",
+    "repomix:ai": "npx repomix --config repomix-ai.config.json --skill-generate xuanwu-ai-skill --skill-output .github/skills/xuanwu-ai-skill --force",
+    "repomix:analytics": "npx repomix --config repomix-analytics.config.json --skill-generate xuanwu-analytics-skill --skill-output .github/skills/xuanwu-analytics-skill --force",
+    "repomix:billing": "npx repomix --config repomix-billing.config.json --skill-generate xuanwu-billing-skill --skill-output .github/skills/xuanwu-billing-skill --force",
+    "repomix:iam": "npx repomix --config repomix-iam.config.json --skill-generate xuanwu-iam-skill --skill-output .github/skills/xuanwu-iam-skill --force",
+    "repomix:platform": "npx repomix --config repomix-platform.config.json --skill-generate xuanwu-platform-skill --skill-output .github/skills/xuanwu-platform-skill --force",
+    "repomix:src": "npx repomix --config repomix-src.config.json --skill-generate xuanwu-src-skill --skill-output .github/skills/xuanwu-src-skill --force",
+    "repomix:fn": "npx repomix --config repomix-fn.config.json --skill-generate xuanwu-fn-skill --skill-output .github/skills/xuanwu-fn-skill --force",
+    "repomix:pkgs": "npx repomix --config repomix-pkgs.config.json --skill-generate xuanwu-pkgs-skill --skill-output .github/skills/xuanwu-pkgs-skill --force",
+    "repomix:markdown": "npx repomix --config repomix-markdown.config.json --skill-generate xuanwu-markdown-skill --skill-output .github/skills/xuanwu-markdown-skill --force",
+    "repomix:notebooklm": "npx repomix --config repomix-notebooklm.config.json --skill-generate xuanwu-notebooklm-skill --skill-output .github/skills/xuanwu-notebooklm-skill --force",
+    "repomix:notion": "npx repomix --config repomix-notion.config.json --skill-generate xuanwu-notion-skill --skill-output .github/skills/xuanwu-notion-skill --force",
+    "repomix:explore": "npx repomix --config repomix.config.json",
+    "repomix:remote": "npx repomix --remote",
+    "repomix:local": "npx repomix"
+  },
+  "engines": {
+    "node": "24"
+  },
+  "dependencies": {
+    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
+    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
+    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
+    "@base-ui/react": "^1.4.0",
+    "@genkit-ai/google-genai": "^1.16.1",
+    "@tanstack/react-form": "^1.28.5",
+    "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.13.23",
+    "@tiptap/extension-color": "^3.22.2",
+    "@tiptap/extension-link": "^3.22.2",
+    "@tiptap/extension-placeholder": "^3.22.2",
+    "@tiptap/extension-text-style": "^3.22.2",
+    "@tiptap/extension-typography": "^3.22.2",
+    "@tiptap/extension-underline": "^3.22.2",
+    "@tiptap/react": "^3.22.2",
+    "@tiptap/starter-kit": "^3.22.2",
+    "@trpc/client": "^11.13.4",
+    "@trpc/next": "^11.13.4",
+    "@trpc/react-query": "^11.13.4",
+    "@trpc/server": "^11.13.4",
+    "@xstate/react": "^6.1.0",
+    "axios": "^1.13.6",
+    "cmdk": "^1.1.1",
+    "date-fns": "^4.1.0",
+    "embla-carousel-react": "^8.6.0",
+    "firebase": "^12.9.0",
+    "genkit": "^1.16.1",
+    "input-otp": "^1.4.2",
+    "lucide-react": "^0.577.0",
+    "next": "^16.2.4",
+    "next-themes": "^0.4.6",
+    "radix-ui": "^1.4.3",
+    "react": "19.2.3",
+    "react-day-picker": "^9.14.0",
+    "react-dom": "19.2.3",
+    "react-graph-vis": "^1.0.7",
+    "react-markdown": "^10.1.0",
+    "react-resizable-panels": "^4.10.0",
+    "recharts": "^2.15.4",
+    "remark-gfm": "^4.0.1",
+    "shadcn": "^4.3.0",
+    "sonner": "^2.0.7",
+    "superjson": "^2.2.6",
+    "tailwind-merge": "^3.5.0",
+    "tw-animate-css": "^1.4.0",
+    "uuid": "^13.0.0",
+    "vaul": "^1.1.2",
+    "vis-data": "^8.0.3",
+    "vis-graph3d": "^7.0.2",
+    "vis-network": "^10.0.2",
+    "vis-timeline": "^8.5.0",
+    "xstate": "^5.28.0",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^16.2.2",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20.19.37",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@typescript-eslint/eslint-plugin": "^8.57.1",
+    "@typescript-eslint/parser": "^8.57.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.1.7",
+    "eslint-plugin-boundaries": "^6.0.1",
+    "eslint-plugin-jsdoc": "^62.8.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "repomix": "^1.12.0",
+    "tailwindcss": "^4",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "^5",
+    "typescript-eslint": "^8.58.0",
+    "vitest": "^4.1.2"
+  }
+}
 ````
