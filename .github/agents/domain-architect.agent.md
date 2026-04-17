@@ -51,7 +51,7 @@ handoffs:
 
 - [ ] 命名是否已先對齊 `docs/ubiquitous-language.md` 與對應 context 文件？
 - [ ] 程式碼是否位於正確的 bounded context / subdomain？
-- [ ] 跨模組互動是否只透過 `api/` 邊界或領域事件？
+- [ ] 跨模組互動是否只透過 `index.ts` 公開邊界或領域事件？
 - [ ] 上下游關係、ACL 與依賴方向是否與 `docs/contexts/<context>/context-map.md` 一致？
 - [ ] 聚合根是否保護不變數、避免貧血模型，且狀態修改透過封裝方法進行？
 - [ ] 值對象是否保持不可變，必要時使用 Zod / brand 型別保護？

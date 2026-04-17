@@ -25,7 +25,7 @@ applyTo: 'src/modules/**/domain/**/*.{ts,tsx}'
 - `domain/` 是依賴方向的最內層，所有其他層指向它。
 - `application/` 依賴 `domain/` 的 abstraction，不依賴 implementation。
 - `infrastructure/` 實作 `domain/` 定義的 Port/Repository 介面。
-- `interfaces/` 不得直接呼叫 `domain/` 內部，必須經由 `application/` 或 `api/`。
+- `interfaces/` 不得直接呼叫 `domain/` 內部，必須經由 `application/` 或模組 `index.ts`。
 
 ## 禁止模式
 

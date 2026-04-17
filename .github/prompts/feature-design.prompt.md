@@ -75,7 +75,7 @@ tools: ['serena/*', 'context7/*', 'read', 'search']
 - 若 yes：flow 名稱、input/output、platform.ai 消費路徑
 
 ### Cross-Module Dependencies
-- 上游消費（來自哪些模組 api/）：
+- 上游消費（來自哪些模組 index.ts）：
 - 下游提供（向哪些模組發布事件或 API）：
 
 ### Non-Goals

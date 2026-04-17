@@ -38,7 +38,7 @@ Route layers exist to **orchestrate, not to contain business logic.**
 
 5. **Validate imports so no module internals are pulled into `app/`**
    - grep for imports in route segment
-   - Verify all `@/modules/*` imports end with `/api`
+   - Verify all `@/modules/*` imports use the module root (no `/domain`, `/application`, etc.)
    - Verify no Firebase, external SDK, or framework-specific adapters leak into routes
 
 ---
@@ -85,7 +85,7 @@ Route Re-render (Next.js ISR or revalidateTag)
 UI reflects new state
 ```
 
-**Key**: Route does NOT directly call infrastructure, repository, or domain logic. Route delegates to module's `api/`.
+**Key**: Route does NOT directly call infrastructure, repository, or domain logic. Route delegates to module's `index.ts`.
 
 ---
 
@@ -121,7 +121,7 @@ When modifying route composition, report:
 | Rule | Why |
 |------|-----|
 | Route segment = one module responsibility | Keeps ownership clear; parallel routes stay independent |
-| `api/` import only | Enforces hexagonal DDD boundary at composition level |
+| `index.ts` import only | Enforces hexagonal DDD boundary at composition level |
 | No Firebase SDK in routes | Keep Next.js layers ignorant of persistence details |
 | Server Actions in `_actions/` subdir | Centralizes form handling; easier to audit |
 | RSC by default, Client only when needed | Reduces payload, improves performance |
@@ -132,4 +132,4 @@ When modifying route composition, report:
 
 - Vercel Next.js App Router (v16+)
 - Xuanwu: nextjs-app-router.instructions.md, nextjs-parallel-routes.instructions.md, nextjs-server-actions.instructions.md
-- Hexagonal DDD skill: api/ boundary as composition entry point
+- Hexagonal DDD skill: index.ts boundary as composition entry point

@@ -464,7 +464,7 @@ Collections are named with a bounded-context prefix to make ownership visible:
 | `notion_*` | notion |
 | `notebooklm_*` | notebooklm |
 
-A bounded context may only write to its own collections. To access another context's data, call that context's `api/` or subscribe to its domain events.
+A bounded context may only write to its own collections. To access another context's data, call that context's `index.ts` boundary or subscribe to its domain events.
 
 ### Query Scope (Mandatory Filter)
 
@@ -13909,65 +13909,6 @@ HTTP Request
 看完整路徑判斷層級，不看資料夾名稱猜責任。
 ````
 
-## File: .github/agents/knowledge-base.md
-````markdown
-# Knowledge Base — Implementation Navigation
-
-This file is an implementation-oriented supplement for repository navigation. Strategic bounded-context ownership, canonical vocabulary, and duplicate-name resolution are owned by `docs/**/*` and must not be redefined here.
-
-## Use This File For
-
-- locating implementation surfaces quickly
-- recalling boundary-safe import patterns
-- checking the high-level code layout before reading concrete files
-
-## Docs Authority
-
-- Strategic ownership, terminology, and duplicate-name resolution: `docs/subdomains.md`, `docs/bounded-contexts.md`, `docs/ubiquitous-language.md`, `docs/contexts/<context>/*`
-- Bounded-context scaffolding and root-layer rules: `docs/bounded-context-subdomain-template.md`
-- Delivery sequencing and validation entrypoint: `docs/README.md` and `.github/agents/commands.md`
-
-## Boundary Summary
-
-- Cross-module imports go through `src/modules/<target>/api` only.
-- Dependency direction is `interfaces/` → `application/` → `domain/` ← `infrastructure/`.
-- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; subdomains own local concerns.
-- If a team adds `core/`, treat it as an optional inner wrapper only; do not put `infrastructure/` or `interfaces/` inside it.
-
-## Repository Surfaces
-
-- `src/app/`: Next.js route composition, shell UX, providers, and orchestration
-- `src/modules/`: bounded-context and subdomain implementations
-- `packages/`: stable shared boundaries exposed through `@shared-*`, `@lib-*`, `@integration-*`, `@ui-*`
-- `py_fn/`: worker-side ingestion, parsing, chunking, embedding, and job execution
-
-## Typical Module Shape
-
-```text
-src/modules/<context>/
-├── api/
-├── application/
-├── domain/
-├── infrastructure/
-├── interfaces/
-└── subdomains/<name>/
-```
-
-Not every module needs every folder, and local details may live inside a subdomain rather than the bounded-context root.
-
-## Import Rules
-
-- Prefer package aliases such as `@integration-firebase`, `@ui-shadcn`, and `@/packages/ui-shadcn`; shared domain types live in `src/modules/shared/`.
-- Do not use legacy aliases such as `@/shared/*`, `@/libs/*`, or similar paths blocked by lint rules.
-- Inside one module, prefer relative imports over self-importing the module barrel.
-- Across modules, import only from the target module `api/` boundary.
-
-## Validation
-
-- Use `.github/agents/commands.md` for lint, build, test, and deployment commands.
-- When strategic naming or ownership seems unclear, stop using this file and return to `docs/**/*`.
-````
-
 ## File: .github/instructions/ci-cd.instructions.md
 ````markdown
 ---
@@ -14364,7 +14305,7 @@ Skill declarations are centralized in:
 - 若第一階段結論為 `violations_before=0` 與 `smells_before=0`，不可直接結束。
 - 必須執行語意審計第二階段，最少覆蓋：`platform`、`workspace`、`notion`、`notebooklm`。
 - 每個主域至少一條鏈路抽查：`domain -> application -> infrastructure -> interfaces`。
-- 每個主域至少一個 `api/` 邊界與一個跨模組依賴點檢查。
+- 每個主域至少一個 `index.ts` 公開邊界與一個跨模組依賴點檢查。
 - 若工具不足，必須走 fallback（read/search/grep）完成等價證據。
 
 ### 1.5) Smell Detection
@@ -25060,129 +25001,6 @@ These are separate from QStash and are defined by Firestore document structure:
 Firestore document schema for these is owned by `src/modules/platform/subdomains/file-storage/` (TypeScript) and mirrored in `py_fn/src/infrastructure/persistence/firestore/`.
 ````
 
-## File: docs/contexts/ai/ddd-strategic-design.md
-````markdown
-# DDD 戰略設計規則 — AI Context
-
-本文件整理 Domain-Driven Design 的核心戰略概念，並直接對應 `ai` bounded context 的設計決策。
-
----
-
-## 一、核心戰略概念（Strategic Design Rules）
-
-1. 通用語言（Ubiquitous Language）必須在團隊內部與程式碼中保持一致，任何領域概念的命名都應直接反映業務語意。
-
-2. 界限上下文（Bounded Context）必須明確定義語言與模型的邊界，不同上下文之間不得共享模型語意。
-
-3. 每個界限上下文內的模型必須保持一致性（Consistency），跨上下文則允許語意轉換（Translation）。
-
-4. 子域（Subdomain）應依業務價值分類為核心域（Core）、支撐域（Supporting）、通用域（Generic），並依此分配設計與資源優先級。
-
-5. 核心域（Core Domain）必須集中最強設計能力與抽象，避免被基礎設施或通用邏輯污染。
-
-6. 支撐域（Supporting Subdomain）應服務核心域需求，但不承載關鍵競爭優勢。
-
-7. 通用域（Generic Subdomain）應優先採用現成方案（如第三方服務），避免自行重複建造。
-
-8. 上下文映射（Context Mapping）必須明確描述各界限上下文之間的關係與整合方式。
-
-9. 不同上下文之間的整合必須選擇適當模式（如 Anti-Corruption Layer、Conformist、Open Host Service 等）。
-
-10. 反腐層（Anti-Corruption Layer）必須用於隔離外部模型，防止污染內部核心模型。
-
-11. 開放主機服務（Open Host Service）應提供穩定、公開的契約，供其他上下文整合使用。
-
-12. 發佈語言（Published Language）應定義跨上下文共享的標準資料格式與語意。
-
-13. 共享核心（Shared Kernel）僅應在高度信任的團隊之間使用，並需嚴格控制變更。
-
-14. 客戶-供應者（Customer-Supplier）關係應明確定義需求與交付責任，以維持演進穩定。
-
-15. 順從者（Conformist）模式應在無法影響上游模型時採用，接受其語意限制。
-
-16. 分離方式（Separate Ways）應在整合成本過高時採用，允許上下文完全獨立演化。
-
-17. 大泥球（Big Ball of Mud）應被避免，若存在則需逐步以界限上下文重構。
-
-18. 戰略設計必須優先於戰術設計，先定義邊界與關係，再設計內部模型與程式結構。
-
----
-
-## 二、戰略地圖（概念關係）
-
-```
-Subdomain（業務問題空間）
-        ↓ 對應
-Bounded Context（解決方案邊界）
-        ↓
-Context Mapping（上下文關係）
-        ↓
-Integration Patterns（整合模式）
-```
-
----
-
-## 三、關鍵對照
-
-| 概念 | 本質 |
-|------|------|
-| Subdomain | 業務問題分類（商業視角） |
-| Bounded Context | 技術模型邊界（系統視角） |
-| Ubiquitous Language | 語意一致性 |
-| Context Mapping | 上下文關係圖 |
-
----
-
-## 四、AI Context 的子域分類映射
-
-```
-Core Domain（核心競爭優勢）
-  → prompt-pipeline     — AI 提示詞編排與多家族分派
-  → inference           — 模型推理執行（content-generation、content-distillation）
-
-Supporting Domain（服務核心域）
-  → memory-context      — 跨對話記憶與可重用上下文整理
-  → evaluation-policy   — AI 品質與回歸評估政策
-  → safety-guardrail    — 安全護欄與內容保護
-
-Generic Domain（可外包／第三方替換）
-  → models              — LLM Provider 適配（可替換 provider）
-  → embeddings          — Embedding 向量（py_fn 執行，schema 在此）
-  → tokens              — 計費權重與配額（依 provider 計費模型）
-```
-
-> **選型原則**：Core Domain 自建最強抽象；Supporting Domain 謹慎設計；Generic Domain 優先接入 provider adapters，不重複造輪。
-
----
-
-## 五、整合模式說明（`ai` context 適用）
-
-| 整合模式 | 適用場景 |
-|----------|---------|
-| Anti-Corruption Layer | `ai` 接入外部 LLM provider（OpenAI、Gemini）時保護內部語意 |
-| Open Host Service | `ai/api/` 提供穩定公開契約供 `notion`、`notebooklm` 消費 |
-| Published Language | `AICapabilitySignal`、`ModelPolicy`、`SafetyGuardrail` 等跨域 token |
-| Conformist | `notion`、`notebooklm` 直接接受 `ai` 的能力語意，不轉換 |
-| Customer-Supplier | `platform.ai` → `notion`、`notebooklm`（upstream 定義，downstream 消費）|
-
----
-
-## 六、最重要的總結（戰略層一句話）
-
-> 先切邊界（Bounded Context），再談模型；先定關係（Context Map），再寫程式。
-
----
-
-## 文件網
-
-- [subdomains.md](./subdomains.md) — `ai` context 子域清單
-- [bounded-contexts.md](./bounded-contexts.md) — 邊界責任定義
-- [context-map.md](./context-map.md) — 與其他 context 的關係圖
-- [ubiquitous-language.md](./ubiquitous-language.md) — 通用語言詞彙表
-- [../../bounded-contexts.md](../../bounded-contexts.md) — 全域主域所有權地圖
-- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md) — ADR：界限上下文決策
-````
-
 ## File: docs/contexts/ai/README.md
 ````markdown
 # AI Context
@@ -26187,63 +26005,6 @@ application/use-cases/ → 全部複數 ✅（僅 scheduling 例外，見 ADR 32
 - **ADR 4200** (Inconsistency)：這是命名一致性問題的延伸
 ````
 
-## File: packages/integration-firebase/AGENTS.md
-````markdown
-# integration-firebase — Agent Rules
-
-此套件是 **Firebase Client SDK 的唯一封裝層**。所有與 Firebase 服務的互動必須透過這個套件提供的介面，不得在 `src/modules/` 或 `src/app/` 中直接 import Firebase SDK。
-
----
-
-## Route Here（放這裡）
-
-| 類型 | 說明 |
-|---|---|
-| Firebase App 初始化 | `client.ts` — singleton `firebaseClientApp` |
-| Firebase Auth 操作 | `auth.ts` — `getFirebaseAuth`, `onFirebaseAuthStateChanged`, `signOutFirebase` |
-| Firestore 操作原語 | `firestore.ts` — `firestoreApi`, `getFirebaseFirestore` |
-| Firebase Storage 操作 | 新增 `storage.ts`（遵循同樣封裝模式）|
-| 新增 Firebase 服務封裝 | 在此套件新增對應 `.ts` 並從 `index.ts` re-export |
-
-## Route Elsewhere（不放這裡）
-
-| 類型 | 正確位置 |
-|---|---|
-| 業務邏輯（use case、domain rule） | `src/modules/<context>/domain/` 或 `application/` |
-| Repository 實作（Firestore CRUD 業務查詢） | `src/modules/<context>/adapters/outbound/` |
-| 跨模組資料協調 | `src/modules/<context>/api/` |
-| UI 組件 | `packages/ui-shadcn/ui-custom/` |
-
----
-
-## 嚴禁
-
-```ts
-// ❌ 直接在 modules 或 app 中 import Firebase SDK
-import { getFirestore } from 'firebase/firestore'
-
-// ✅ 必須透過此套件
-import { firestoreApi, getFirebaseFirestore } from '@integration-firebase'
-```
-
-- 不得在此套件加入業務判斷邏輯
-- 不得 import `src/modules/*` 任何路徑
-- 不得在此套件處理認證 session 狀態（由 iam module 負責）
-- 環境設定只能來自 `NEXT_PUBLIC_FIREBASE_*` env vars
-
----
-
-## Alias
-
-```ts
-import { ... } from '@integration-firebase'
-import { ... } from '@integration-firebase/auth'
-import { ... } from '@integration-firebase/firestore'
-```
-
-`@integration-firebase` alias 定義在 `tsconfig.json`，只允許在 `src/modules/*/adapters/outbound/` 使用（ESLint boundary 規則）。
-````
-
 ## File: packages/integration-firebase/README.md
 ````markdown
 # integration-firebase
@@ -26888,7 +26649,7 @@ handoffs:
 - 若 `violations_before=0` 且 `smells_before=0`，必須進入第二階段語意審計後才能結案。
 - 第二階段至少覆蓋四大主域：`platform`、`workspace`、`notion`、`notebooklm`。
 - 每個主域至少抽查一條完整鏈路：`domain -> application -> infrastructure -> interfaces`。
-- 每個主域至少抽查一個 `api/` 邊界與一個跨模組依賴點。
+- 每個主域至少抽查一個 `index.ts` 公開邊界與一個跨模組依賴點。
 
 ## No Early Exit Rule
 
@@ -26975,6 +26736,65 @@ handoffs:
 - Keep docs aligned with current module boundaries and contracts.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+````
+
+## File: .github/agents/knowledge-base.md
+````markdown
+# Knowledge Base — Implementation Navigation
+
+This file is an implementation-oriented supplement for repository navigation. Strategic bounded-context ownership, canonical vocabulary, and duplicate-name resolution are owned by `docs/**/*` and must not be redefined here.
+
+## Use This File For
+
+- locating implementation surfaces quickly
+- recalling boundary-safe import patterns
+- checking the high-level code layout before reading concrete files
+
+## Docs Authority
+
+- Strategic ownership, terminology, and duplicate-name resolution: `docs/subdomains.md`, `docs/bounded-contexts.md`, `docs/ubiquitous-language.md`, `docs/contexts/<context>/*`
+- Bounded-context scaffolding and root-layer rules: `docs/bounded-context-subdomain-template.md`
+- Delivery sequencing and validation entrypoint: `docs/README.md` and `.github/agents/commands.md`
+
+## Boundary Summary
+
+- Cross-module imports go through `src/modules/<target>/api` only.
+- Dependency direction is `interfaces/` → `application/` → `domain/` ← `infrastructure/`.
+- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; subdomains own local concerns.
+- If a team adds `core/`, treat it as an optional inner wrapper only; do not put `infrastructure/` or `interfaces/` inside it.
+
+## Repository Surfaces
+
+- `src/app/`: Next.js route composition, shell UX, providers, and orchestration
+- `src/modules/`: bounded-context and subdomain implementations
+- `packages/`: stable shared boundaries exposed through `@shared-*`, `@lib-*`, `@integration-*`, `@ui-*`
+- `py_fn/`: worker-side ingestion, parsing, chunking, embedding, and job execution
+
+## Typical Module Shape
+
+```text
+src/modules/<context>/
+├── api/
+├── application/
+├── domain/
+├── infrastructure/
+├── interfaces/
+└── subdomains/<name>/
+```
+
+Not every module needs every folder, and local details may live inside a subdomain rather than the bounded-context root.
+
+## Import Rules
+
+- Prefer package aliases such as `@integration-firebase`, `@ui-shadcn`, and `@/packages/ui-shadcn`; shared domain types live in `src/modules/shared/`.
+- Do not use legacy aliases such as `@/shared/*`, `@/libs/*`, or similar paths blocked by lint rules.
+- Inside one module, prefer relative imports over self-importing the module barrel.
+- Across modules, import only from the target module `index.ts` boundary.
+
+## Validation
+
+- Use `.github/agents/commands.md` for lint, build, test, and deployment commands.
+- When strategic naming or ownership seems unclear, stop using this file and return to `docs/**/*`.
 ````
 
 ## File: .github/agents/prompt-engineer.agent.md
@@ -27219,7 +27039,7 @@ applyTo: 'src/modules/**/domain/**/*.{ts,tsx}'
 - `domain/` 是依賴方向的最內層，所有其他層指向它。
 - `application/` 依賴 `domain/` 的 abstraction，不依賴 implementation。
 - `infrastructure/` 實作 `domain/` 定義的 Port/Repository 介面。
-- `interfaces/` 不得直接呼叫 `domain/` 內部，必須經由 `application/` 或 `api/`。
+- `interfaces/` 不得直接呼叫 `domain/` 內部，必須經由 `application/` 或模組 `index.ts`。
 
 ## 禁止模式
 
@@ -27985,97 +27805,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill zustand-xstate
 ````
 
-## File: .github/instructions/subdomain-rules.instructions.md
-````markdown
----
-description: '子域（Subdomain）戰略設計規則：業務能力切分、邊界穩定性、契約溝通、可替換性。'
-applyTo: 'src/modules/**/subdomains/**/*.{ts,tsx,js,jsx,md}'
----
-
-# 子域（Subdomain）設計規則
-
-> 完整邊界參考：**先查 `docs/subdomains.md`、`docs/bounded-contexts.md`、`docs/ubiquitous-language.md`**
-> 此文件只包含子域層級的**戰略設計約束**，不複製領域知識或程式碼範例。
-
-## 核心定義
-
-子域 = 業務能力邊界（Business Capability Boundary）
-
-每個子域代表一個獨立、明確定義的業務能力，不得混合多重職責。
-
-## 戰略設計規則
-
-1. 子域必須以「業務能力」切分，而不是技術功能或 UI 功能。
-2. 每個子域必須能獨立描述一個完整業務問題空間（Problem Space）。
-3. 子域之間禁止共享內部模型，只能透過明確契約（ACL / API / Event）。
-4. 子域邊界必須穩定，不能因 UI 或技術重構而頻繁變動。
-5. 子域劃分優先於技術架構（database / service / module）。
-6. 一個子域內可以包含多個 bounded context，但不能跨子域共享 domain model。
-7. 子域必須可被替換（replaceable），不依賴其他子域內部實作。
-8. 子域之間只能透過「輸入/輸出契約」溝通，不允許直接依賴 domain logic。
-
-## 層級約束（Hard Rules）
-
-子域預設形狀（default）採 core-first：
-- `api/`
-- `domain/`
-- `application/`
-- `ports/`（optional）
-
-子域內 `infrastructure/` 與 `interfaces/` 不是預設必建，僅在符合 mini-module gate 時允許建立：
-1. 該子域存在明確且持續的外部整合壓力（runtime / process / provider boundary）。
-2. 需要由子域本身承接本地 I/O 或 transport 組裝，而非 bounded context 根層共享能力。
-3. 仍維持 `interfaces -> application -> domain <- infrastructure`，且 business rule 不外溢到 adapter/UI。
-4. 跨子域與跨 bounded context 協作仍只能經由 `api/` 或事件契約，不得直接依賴他域內部。
-
-若不符合上述 gate，`infrastructure/` 與 `interfaces/` 應維持在 bounded context 根層，由 context-wide adapter/composition 承接。
-
-## 單一職責
-
-每個子域只負責一個業務能力。
-
-正確：authoring、collaboration、publishing
-
-錯誤：article + comment + permission 混在一起
-
-## 跨子域依賴禁止
-
-子域不得直接匯入其他子域。溝通必須經由：
-- 上層 application layer
-- module API boundary
-
-## 領域純度
-
-domain 層必須：
-- 零框架依賴
-- 不依賴 Firebase、DB 或 API
-- 不包含 UI logic
-
-允許：Entities、Value Objects、Domain Services、Business invariants
-
-## 命名規則
-
-使用業務語言命名子域。
-
-正確：authoring、taxonomy、workspace
-
-錯誤：utils、common、shared
-
-## 獨立演化
-
-每個子域應：
-- 可獨立測試
-- 可獨立重構
-- 為未來微服務拆分做準備
-
-## 一句話總結
-
-Subdomain = Business capability first; default core-first, add infra/interfaces only when real boundary pressure exists
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
-#use skill hexagonal-ddd
-````
-
 ## File: .github/instructions/tailwind-design-system.instructions.md
 ````markdown
 ---
@@ -28783,6 +28512,129 @@ flowchart LR
 - 本模板是 architecture-first 的交付模板，不代表任何既有模組已完全符合此形狀。
 - `ports/`、`queries/`、`_actions/`、`hooks/`、subdomain-local `infrastructure/`、subdomain-local `interfaces/` 都是按需要建立的可選骨架，不是強制清單。
 - 若某 subdomain 很小，允許比本模板更精簡；若更精簡仍能守住邊界，應優先採用更精簡版本。
+````
+
+## File: docs/contexts/ai/ddd-strategic-design.md
+````markdown
+# DDD 戰略設計規則 — AI Context
+
+本文件整理 Domain-Driven Design 的核心戰略概念，並直接對應 `ai` bounded context 的設計決策。
+
+---
+
+## 一、核心戰略概念（Strategic Design Rules）
+
+1. 通用語言（Ubiquitous Language）必須在團隊內部與程式碼中保持一致，任何領域概念的命名都應直接反映業務語意。
+
+2. 界限上下文（Bounded Context）必須明確定義語言與模型的邊界，不同上下文之間不得共享模型語意。
+
+3. 每個界限上下文內的模型必須保持一致性（Consistency），跨上下文則允許語意轉換（Translation）。
+
+4. 子域（Subdomain）應依業務價值分類為核心域（Core）、支撐域（Supporting）、通用域（Generic），並依此分配設計與資源優先級。
+
+5. 核心域（Core Domain）必須集中最強設計能力與抽象，避免被基礎設施或通用邏輯污染。
+
+6. 支撐域（Supporting Subdomain）應服務核心域需求，但不承載關鍵競爭優勢。
+
+7. 通用域（Generic Subdomain）應優先採用現成方案（如第三方服務），避免自行重複建造。
+
+8. 上下文映射（Context Mapping）必須明確描述各界限上下文之間的關係與整合方式。
+
+9. 不同上下文之間的整合必須選擇適當模式（如 Anti-Corruption Layer、Conformist、Open Host Service 等）。
+
+10. 反腐層（Anti-Corruption Layer）必須用於隔離外部模型，防止污染內部核心模型。
+
+11. 開放主機服務（Open Host Service）應提供穩定、公開的契約，供其他上下文整合使用。
+
+12. 發佈語言（Published Language）應定義跨上下文共享的標準資料格式與語意。
+
+13. 共享核心（Shared Kernel）僅應在高度信任的團隊之間使用，並需嚴格控制變更。
+
+14. 客戶-供應者（Customer-Supplier）關係應明確定義需求與交付責任，以維持演進穩定。
+
+15. 順從者（Conformist）模式應在無法影響上游模型時採用，接受其語意限制。
+
+16. 分離方式（Separate Ways）應在整合成本過高時採用，允許上下文完全獨立演化。
+
+17. 大泥球（Big Ball of Mud）應被避免，若存在則需逐步以界限上下文重構。
+
+18. 戰略設計必須優先於戰術設計，先定義邊界與關係，再設計內部模型與程式結構。
+
+---
+
+## 二、戰略地圖（概念關係）
+
+```
+Subdomain（業務問題空間）
+        ↓ 對應
+Bounded Context（解決方案邊界）
+        ↓
+Context Mapping（上下文關係）
+        ↓
+Integration Patterns（整合模式）
+```
+
+---
+
+## 三、關鍵對照
+
+| 概念 | 本質 |
+|------|------|
+| Subdomain | 業務問題分類（商業視角） |
+| Bounded Context | 技術模型邊界（系統視角） |
+| Ubiquitous Language | 語意一致性 |
+| Context Mapping | 上下文關係圖 |
+
+---
+
+## 四、AI Context 的子域分類映射
+
+```
+Core Domain（核心競爭優勢）
+  → prompt-pipeline     — AI 提示詞編排與多家族分派
+  → inference           — 模型推理執行（content-generation、content-distillation）
+
+Supporting Domain（服務核心域）
+  → memory-context      — 跨對話記憶與可重用上下文整理
+  → evaluation-policy   — AI 品質與回歸評估政策
+  → safety-guardrail    — 安全護欄與內容保護
+
+Generic Domain（可外包／第三方替換）
+  → models              — LLM Provider 適配（可替換 provider）
+  → embeddings          — Embedding 向量（py_fn 執行，schema 在此）
+  → tokens              — 計費權重與配額（依 provider 計費模型）
+```
+
+> **選型原則**：Core Domain 自建最強抽象；Supporting Domain 謹慎設計；Generic Domain 優先接入 provider adapters，不重複造輪。
+
+---
+
+## 五、整合模式說明（`ai` context 適用）
+
+| 整合模式 | 適用場景 |
+|----------|---------|
+| Anti-Corruption Layer | `ai` 接入外部 LLM provider（OpenAI、Gemini）時保護內部語意 |
+| Open Host Service | `ai` 模組的 `index.ts` 提供穩定公開契約供 `notion`、`notebooklm` 消費 |
+| Published Language | `AICapabilitySignal`、`ModelPolicy`、`SafetyGuardrail` 等跨域 token |
+| Conformist | `notion`、`notebooklm` 直接接受 `ai` 的能力語意，不轉換 |
+| Customer-Supplier | `platform.ai` → `notion`、`notebooklm`（upstream 定義，downstream 消費）|
+
+---
+
+## 六、最重要的總結（戰略層一句話）
+
+> 先切邊界（Bounded Context），再談模型；先定關係（Context Map），再寫程式。
+
+---
+
+## 文件網
+
+- [subdomains.md](./subdomains.md) — `ai` context 子域清單
+- [bounded-contexts.md](./bounded-contexts.md) — 邊界責任定義
+- [context-map.md](./context-map.md) — 與其他 context 的關係圖
+- [ubiquitous-language.md](./ubiquitous-language.md) — 通用語言詞彙表
+- [../../bounded-contexts.md](../../bounded-contexts.md) — 全域主域所有權地圖
+- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md) — ADR：界限上下文決策
 ````
 
 ## File: docs/contexts/platform/ubiquitous-language.md
@@ -30145,48 +29997,61 @@ flowchart LR
 - 若同一個詞在多主域都想擁有，優先看它服務的是治理、協作範疇、正典內容還是推理輸出。
 ````
 
-## File: src/app/AGENT.md
+## File: packages/integration-firebase/AGENTS.md
 ````markdown
-# App — Agent Guide
+# integration-firebase — Agent Rules
 
-## Purpose
+此套件是 **Firebase Client SDK 的唯一封裝層**。所有與 Firebase 服務的互動必須透過這個套件提供的介面，不得在 `src/modules/` 或 `src/app/` 中直接 import Firebase SDK。
 
-`src/app/` 是 **Next.js 16 App Router** 的路由入口層，負責 layout 組合與 page slot 分發。不承載任何業務邏輯。
+---
 
-## Boundary Rules
+## Route Here（放這裡）
 
-- `app/` 只組合路由、layout 與 UI 入口，不寫業務規則、不呼叫 repository、不直接存取 Firebase SDK。
-- 業務行為透過 Server Action 或 module `api/` boundary 取得。
-- 不在 layout / page 中引用另一個模組的 `domain/`、`application/`、`infrastructure/` 或 `interfaces/` 內部路徑。
-- Route 組件只接受 scope props（`accountId`、`workspaceId`），不直接消費跨模組的 context provider。
-
-## Route Group 設計
-
-| 群組 | 用途 |
+| 類型 | 說明 |
 |---|---|
-| `(public)` | 登入前公開頁（landing、auth） |
-| `(shell)` | 登入後帶 shell chrome 的應用頁面 |
-| `(shell)/(account)/[accountId]` | account-scoped 頁面，`accountId` 為 shell route identifier |
-| `[[...slug]]` | catch-all，在 account scope 下承接所有子路徑 |
+| Firebase App 初始化 | `client.ts` — singleton `firebaseClientApp` |
+| Firebase Auth 操作 | `auth.ts` — `getFirebaseAuth`, `onFirebaseAuthStateChanged`, `signOutFirebase` |
+| Firestore 操作原語 | `firestore.ts` — `firestoreApi`, `getFirebaseFirestore` |
+| Firebase Storage 操作 | 新增 `storage.ts`（遵循同樣封裝模式）|
+| 新增 Firebase 服務封裝 | 在此套件新增對應 `.ts` 並從 `index.ts` re-export |
 
-## Route Here When
+## Route Elsewhere（不放這裡）
 
-- 需要新增 page、layout 或 route group。
-- 需要在 shell 內新增一個 account-scoped 功能頁面。
-- 需要組合 parallel routes 或 intercepting routes。
+| 類型 | 正確位置 |
+|---|---|
+| 業務邏輯（use case、domain rule） | `src/modules/<context>/domain/` 或 `application/` |
+| Repository 實作（Firestore CRUD 業務查詢） | `src/modules/<context>/adapters/outbound/` |
+| 跨模組資料協調 | `src/modules/<context>/index.ts` |
+| UI 組件 | `packages/ui-shadcn/ui-custom/` |
 
-## Route Elsewhere When
+---
 
-- 業務邏輯 → `src/modules/<context>/application/use-cases/`。
-- Server Action → `modules/<context>/interfaces/_actions/`。
-- 共享 UI 元件 → `packages/ui-shadcn/`。
-- 共享 hook → `packages/shared-hooks/`。
+## 嚴禁
 
-## Delivery Style
+```ts
+// ❌ 直接在 modules 或 app 中 import Firebase SDK
+import { getFirestore } from 'firebase/firestore'
 
-- 保持 layout 和 page 輕薄（thin）：只做 slot 組合與 scope prop 傳遞。
-- 新增 route segment 前先確認 `accountId` / `workspaceId` scope 是否已在父 layout 中取得。
-- 奧卡姆剃刀：能用既有 route group 的就不要新開 group。
+// ✅ 必須透過此套件
+import { firestoreApi, getFirebaseFirestore } from '@integration-firebase'
+```
+
+- 不得在此套件加入業務判斷邏輯
+- 不得 import `src/modules/*` 任何路徑
+- 不得在此套件處理認證 session 狀態（由 iam module 負責）
+- 環境設定只能來自 `NEXT_PUBLIC_FIREBASE_*` env vars
+
+---
+
+## Alias
+
+```ts
+import { ... } from '@integration-firebase'
+import { ... } from '@integration-firebase/auth'
+import { ... } from '@integration-firebase/firestore'
+```
+
+`@integration-firebase` alias 定義在 `tsconfig.json`，只允許在 `src/modules/*/adapters/outbound/` 使用（ESLint boundary 規則）。
 ````
 
 ## File: .github/agents/ai-genkit-lead.agent.md
@@ -30372,7 +30237,7 @@ handoffs:
 
 - [ ] 命名是否已先對齊 `docs/ubiquitous-language.md` 與對應 context 文件？
 - [ ] 程式碼是否位於正確的 bounded context / subdomain？
-- [ ] 跨模組互動是否只透過 `api/` 邊界或領域事件？
+- [ ] 跨模組互動是否只透過 `index.ts` 公開邊界或領域事件？
 - [ ] 上下游關係、ACL 與依賴方向是否與 `docs/contexts/<context>/context-map.md` 一致？
 - [ ] 聚合根是否保護不變數、避免貧血模型，且狀態修改透過封裝方法進行？
 - [ ] 值對象是否保持不可變，必要時使用 Zod / brand 型別保護？
@@ -31542,6 +31407,96 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
 #use skill hexagonal-ddd
 ````
 
+## File: .github/instructions/subdomain-rules.instructions.md
+````markdown
+---
+description: '子域（Subdomain）戰略設計規則：業務能力切分、邊界穩定性、契約溝通、可替換性。'
+applyTo: 'src/modules/**/subdomains/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# 子域（Subdomain）設計規則
+
+> 完整邊界參考：**先查 `docs/subdomains.md`、`docs/bounded-contexts.md`、`docs/ubiquitous-language.md`**
+> 此文件只包含子域層級的**戰略設計約束**，不複製領域知識或程式碼範例。
+
+## 核心定義
+
+子域 = 業務能力邊界（Business Capability Boundary）
+
+每個子域代表一個獨立、明確定義的業務能力，不得混合多重職責。
+
+## 戰略設計規則
+
+1. 子域必須以「業務能力」切分，而不是技術功能或 UI 功能。
+2. 每個子域必須能獨立描述一個完整業務問題空間（Problem Space）。
+3. 子域之間禁止共享內部模型，只能透過明確契約（ACL / API / Event）。
+4. 子域邊界必須穩定，不能因 UI 或技術重構而頻繁變動。
+5. 子域劃分優先於技術架構（database / service / module）。
+6. 一個子域內可以包含多個 bounded context，但不能跨子域共享 domain model。
+7. 子域必須可被替換（replaceable），不依賴其他子域內部實作。
+8. 子域之間只能透過「輸入/輸出契約」溝通，不允許直接依賴 domain logic。
+
+## 層級約束（Hard Rules）
+
+子域預設形狀（default）採 core-first：
+- `domain/`
+- `application/`
+- `ports/`（optional）
+
+子域內 `infrastructure/` 與 `interfaces/` 不是預設必建，僅在符合 mini-module gate 時允許建立：
+1. 該子域存在明確且持續的外部整合壓力（runtime / process / provider boundary）。
+2. 需要由子域本身承接本地 I/O 或 transport 組裝，而非 bounded context 根層共享能力。
+3. 仍維持 `interfaces -> application -> domain <- infrastructure`，且 business rule 不外溢到 adapter/UI。
+4. 跨子域與跨 bounded context 協作仍只能經由 `index.ts` 公開入口或事件契約，不得直接依賴他域內部。
+
+若不符合上述 gate，`infrastructure/` 與 `interfaces/` 應維持在 bounded context 根層，由 context-wide adapter/composition 承接。
+
+## 單一職責
+
+每個子域只負責一個業務能力。
+
+正確：authoring、collaboration、publishing
+
+錯誤：article + comment + permission 混在一起
+
+## 跨子域依賴禁止
+
+子域不得直接匯入其他子域。溝通必須經由：
+- 上層 application layer
+- module API boundary
+
+## 領域純度
+
+domain 層必須：
+- 零框架依賴
+- 不依賴 Firebase、DB 或 API
+- 不包含 UI logic
+
+允許：Entities、Value Objects、Domain Services、Business invariants
+
+## 命名規則
+
+使用業務語言命名子域。
+
+正確：authoring、taxonomy、workspace
+
+錯誤：utils、common、shared
+
+## 獨立演化
+
+每個子域應：
+- 可獨立測試
+- 可獨立重構
+- 為未來微服務拆分做準備
+
+## 一句話總結
+
+Subdomain = Business capability first; default core-first, add infra/interfaces only when real boundary pressure exists
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+#use skill hexagonal-ddd
+````
+
 ## File: .github/prompts/domain-modeling.prompt.md
 ````markdown
 ---
@@ -31694,7 +31649,7 @@ tools: ['serena/*', 'context7/*', 'read', 'search']
 - 若 yes：flow 名稱、input/output、platform.ai 消費路徑
 
 ### Cross-Module Dependencies
-- 上游消費（來自哪些模組 api/）：
+- 上游消費（來自哪些模組 index.ts）：
 - 下游提供（向哪些模組發布事件或 API）：
 
 ### Non-Goals
@@ -32739,63 +32694,48 @@ import { getFirestore } from 'firebase/firestore'
 - [ui-shadcn/AGENTS.md](./ui-shadcn/AGENTS.md)
 ````
 
-## File: src/app/README.md
+## File: src/app/AGENT.md
 ````markdown
-# App — Next.js App Router Entry
+# App — Agent Guide
 
-> **⚠ 衝突防護聲明**：本層（`src/app/<context>/`）與 `app/<context>/`（完整 Hexagonal DDD 實作層）是**兩個獨立的實作層，不可互換、不可混用**。
+## Purpose
 
-`src/app/` 是 Next.js 16 App Router 的 UI 進入層。負責路由組合與 layout 組裝，不承載任何業務邏輯。
+`src/app/` 是 **Next.js 16 App Router** 的路由入口層，負責 layout 組合與 page slot 分發。不承載任何業務邏輯。
 
-## 目錄結構
+## Boundary Rules
 
-```
-src/app/
-  layout.tsx               ← Root Layout（html / body / metadata）
-  (public)/
-    page.tsx               ← 公開頁面（登入前可見）
-  (shell)/
-    layout.tsx             ← Shell Group Layout（通用 chrome wrapper）
-    (account)/
-      [accountId]/
-        [[...slug]]/
-          page.tsx         ← account-scoped catch-all route
-```
+- `app/` 只組合路由、layout 與 UI 入口，不寫業務規則、不呼叫 repository、不直接存取 Firebase SDK。
+- 業務行為透過 Server Action 或模組 `index.ts` 公開邊界取得。
+- 不在 layout / page 中引用另一個模組的 `domain/`、`application/`、`infrastructure/` 或 `interfaces/` 內部路徑。
+- Route 組件只接受 scope props（`accountId`、`workspaceId`），不直接消費跨模組的 context provider。
 
-## 路由群組說明
+## Route Group 設計
 
-| 路由群組 | 用途 |
+| 群組 | 用途 |
 |---|---|
-| `(public)` | 登入前可存取的公開頁面（marketing、landing、auth） |
-| `(shell)` | 登入後有 shell chrome（導覽列、側邊欄）的頁面 |
-| `(account)/[accountId]` | 以 `accountId` 為 scope 的帳號相關頁面 |
-| `[[...slug]]` | catch-all：在 account scope 下承接所有子路徑 |
+| `(public)` | 登入前公開頁（landing、auth） |
+| `(shell)` | 登入後帶 shell chrome 的應用頁面 |
+| `(shell)/(account)/[accountId]` | account-scoped 頁面，`accountId` 為 shell route identifier |
+| `[[...slug]]` | catch-all，在 account scope 下承接所有子路徑 |
 
-## Layout 層級
+## Route Here When
 
-```
-RootLayout (layout.tsx)           ← html / body / global metadata
-└── ShellLayout ((shell)/layout.tsx)  ← shell chrome wrapper
-    └── page.tsx                      ← route segment 的實際頁面
-```
+- 需要新增 page、layout 或 route group。
+- 需要在 shell 內新增一個 account-scoped 功能頁面。
+- 需要組合 parallel routes 或 intercepting routes。
 
-## 設計原則
+## Route Elsewhere When
 
-- `app/` 只做路由組合（Route Composition）與 Layout 組裝，不寫業務規則。
-- 業務邏輯統一來自 `src/modules/<context>/` 或 `modules/<context>/api/`。
-- Server Action 呼叫来自 `modules/<context>/interfaces/_actions/`。
-- 不在 page / layout 內直接呼叫 Firestore、Firebase Auth SDK 或 domain repository。
-- 路由 props 只傳 scope identifier（`accountId`、`workspaceId`），不傳 upstream aggregate 物件。
+- 業務邏輯 → `src/modules/<context>/application/use-cases/`。
+- Server Action → `modules/<context>/interfaces/_actions/`。
+- 共享 UI 元件 → `packages/ui-shadcn/`。
+- 共享 hook → `packages/shared-hooks/`。
 
-## 命名規則
+## Delivery Style
 
-| 元素 | 規則 |
-|---|---|
-| Route Group | `(kebab-case)` |
-| Dynamic Segment | `[camelCase]` |
-| Catch-all | `[[...slug]]` |
-| Layout | `layout.tsx` |
-| Page | `page.tsx` |
+- 保持 layout 和 page 輕薄（thin）：只做 slot 組合與 scope prop 傳遞。
+- 新增 route segment 前先確認 `accountId` / `workspaceId` scope 是否已在父 layout 中取得。
+- 奧卡姆剃刀：能用既有 route group 的就不要新開 group。
 ````
 
 ## File: src/modules/README.md
@@ -32960,7 +32900,7 @@ handoffs:
 
 ### Module Shape（模組形狀）
 - [ ] Bounded context root 包含 `index.ts`, `domain/`, `application/`, `infrastructure/`, `interfaces/`？
-- [ ] Subdomain 採 core-first 形狀（`api/`, `domain/`, `application/`），`infrastructure/` 和 `interfaces/` 為 gate-based？
+- [ ] Subdomain 採 core-first 形狀（`domain/`, `application/`, optional `ports/`），`infrastructure/` 和 `interfaces/` 為 gate-based？
 
 ### Layer Coupling Smells（層耦合怪味道）
 - [ ] 無 God Use Case（包含 business rule 與 infrastructure logic 混合）？
@@ -33652,6 +33592,65 @@ import { firestoreApi } from '@integration-firebase'
 | 是業務邏輯或 domain rule？ | → 放 `src/modules/` |
 | 是第三方 SDK 封裝？ | → 放 `packages/integration-*/` |
 | 是 UI 組件（自訂）？ | → 放 `packages/ui-shadcn/ui-custom/` |
+````
+
+## File: src/app/README.md
+````markdown
+# App — Next.js App Router Entry
+
+> **⚠ 衝突防護聲明**：本層（`src/app/<context>/`）與 `app/<context>/`（完整 Hexagonal DDD 實作層）是**兩個獨立的實作層，不可互換、不可混用**。
+
+`src/app/` 是 Next.js 16 App Router 的 UI 進入層。負責路由組合與 layout 組裝，不承載任何業務邏輯。
+
+## 目錄結構
+
+```
+src/app/
+  layout.tsx               ← Root Layout（html / body / metadata）
+  (public)/
+    page.tsx               ← 公開頁面（登入前可見）
+  (shell)/
+    layout.tsx             ← Shell Group Layout（通用 chrome wrapper）
+    (account)/
+      [accountId]/
+        [[...slug]]/
+          page.tsx         ← account-scoped catch-all route
+```
+
+## 路由群組說明
+
+| 路由群組 | 用途 |
+|---|---|
+| `(public)` | 登入前可存取的公開頁面（marketing、landing、auth） |
+| `(shell)` | 登入後有 shell chrome（導覽列、側邊欄）的頁面 |
+| `(account)/[accountId]` | 以 `accountId` 為 scope 的帳號相關頁面 |
+| `[[...slug]]` | catch-all：在 account scope 下承接所有子路徑 |
+
+## Layout 層級
+
+```
+RootLayout (layout.tsx)           ← html / body / global metadata
+└── ShellLayout ((shell)/layout.tsx)  ← shell chrome wrapper
+    └── page.tsx                      ← route segment 的實際頁面
+```
+
+## 設計原則
+
+- `app/` 只做路由組合（Route Composition）與 Layout 組裝，不寫業務規則。
+- 業務邏輯統一來自 `src/modules/<context>/`（模組 `index.ts` 公開入口）。
+- Server Action 呼叫来自 `modules/<context>/interfaces/_actions/`。
+- 不在 page / layout 內直接呼叫 Firestore、Firebase Auth SDK 或 domain repository。
+- 路由 props 只傳 scope identifier（`accountId`、`workspaceId`），不傳 upstream aggregate 物件。
+
+## 命名規則
+
+| 元素 | 規則 |
+|---|---|
+| Route Group | `(kebab-case)` |
+| Dynamic Segment | `[camelCase]` |
+| Catch-all | `[[...slug]]` |
+| Layout | `layout.tsx` |
+| Page | `page.tsx` |
 ````
 
 ## File: src/modules/template/README.md
@@ -34767,69 +34766,6 @@ ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 ````
 
-## File: src/modules/analytics/AGENT.md
-````markdown
-# Analytics Module — Agent Guide
-
-## Purpose
-
-`src/modules/analytics` 是 **Analytics 能力蒸餾骨架**，為 Xuanwu 系統提供事件投影、指標計算、洞察報表等分析能力的新實作落點。
-
-**蒸餾來源：** `modules/analytics/`  
-**蒸餾狀態：** 📋 待蒸餾（骨架已建立，業務實作待填入）
-
-## 蒸餾子域清單
-
-蒸餾來源 `modules/analytics/subdomains/` 包含以下子域：
-
-| 子域 | 說明 | 蒸餾狀態 |
-|---|---|---|
-| `event-contracts` | 事件契約定義（Published Language）| 📋 待蒸餾 |
-| `event-ingestion` | 事件接收 / 攝取 | 📋 待蒸餾 |
-| `event-projection` | 事件投影（讀模型計算）| 📋 待蒸餾 |
-| `experimentation` | A/B 測試與功能實驗管理 | 📋 待蒸餾 |
-| `insights` | 洞察報表 | 📋 待蒸餾 |
-| `metrics` | 指標計算 | 📋 待蒸餾 |
-| `realtime-insights` | 即時洞察 | 📋 待蒸餾 |
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
-- `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
-- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
-
-## Route Here When
-
-- 撰寫 Analytics 的新 use case、entity、adapter 實作。
-- 實作事件投影、指標計算 port 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `modules/analytics/AGENT.md`、`modules/analytics/api/`
-- 跨模組 API boundary → `modules/analytics/api/index.ts`
-
-## 衝突防護（src/modules vs modules/）
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `modules/analytics/AGENT.md`、`modules/analytics/api/` |
-| 撰寫新 use case / adapter / entity | `src/modules/analytics/`（本層） |
-| 跨模組 API boundary | `modules/analytics/api/index.ts` |
-
-**⚠ 蒸餾作業進行中 — 嚴禁事項：**
-- ❌ 把 `modules/analytics/infrastructure/` 的實作直接搬到 `src/modules/analytics/domain/`
-- ❌ 把 `src/modules/analytics/` 當成 `modules/analytics/` 的別名
-- ❌ 在 `domain/` 匯入 Firebase SDK、React
-- ❌ 在 barrel 使用 `export *`
-
-## 文件網絡
-
-- [README.md](README.md) — 蒸餾狀態與目錄結構
-- [src/modules/README.md](../README.md) — 蒸餾層總覽
-- [modules/analytics/](../../../modules/analytics/) — 完整 HEX+DDD 實作層（邊界規則權威）
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-````
-
 ## File: src/modules/billing/AGENT.md
 ````markdown
 # Billing Module — Agent Guide
@@ -35191,6 +35127,69 @@ Platform 不可依賴下游模組。
 - [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 蒸餾層總覽
 - [modules/platform/](../../../modules/platform/) — 完整 HEX+DDD 實作層
+- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/analytics/AGENT.md
+````markdown
+# Analytics Module — Agent Guide
+
+## Purpose
+
+`src/modules/analytics` 是 **Analytics 能力蒸餾骨架**，為 Xuanwu 系統提供事件投影、指標計算、洞察報表等分析能力的新實作落點。
+
+**蒸餾來源：** `modules/analytics/`  
+**蒸餾狀態：** 📋 待蒸餾（骨架已建立，業務實作待填入）
+
+## 蒸餾子域清單
+
+蒸餾來源 `modules/analytics/subdomains/` 包含以下子域：
+
+| 子域 | 說明 | 蒸餾狀態 |
+|---|---|---|
+| `event-contracts` | 事件契約定義（Published Language）| 📋 待蒸餾 |
+| `event-ingestion` | 事件接收 / 攝取 | 📋 待蒸餾 |
+| `event-projection` | 事件投影（讀模型計算）| 📋 待蒸餾 |
+| `experimentation` | A/B 測試與功能實驗管理 | 📋 待蒸餾 |
+| `insights` | 洞察報表 | 📋 待蒸餾 |
+| `metrics` | 指標計算 | 📋 待蒸餾 |
+| `realtime-insights` | 即時洞察 | 📋 待蒸餾 |
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
+- `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
+- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
+
+## Route Here When
+
+- 撰寫 Analytics 的新 use case、entity、adapter 實作。
+- 實作事件投影、指標計算 port 等骨架。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/analytics/AGENT.md`
+- 跨模組 API boundary → `src/modules/analytics/index.ts`
+
+## 衝突防護（src/modules vs modules/）
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/analytics/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/analytics/`（本層） |
+| 跨模組 API boundary | `src/modules/analytics/index.ts` |
+
+**⚠ 蒸餾作業進行中 — 嚴禁事項：**
+- ❌ 把 `modules/analytics/infrastructure/` 的實作直接搬到 `src/modules/analytics/domain/`
+- ❌ 把 `src/modules/analytics/` 當成 `modules/analytics/` 的別名
+- ❌ 在 `domain/` 匯入 Firebase SDK、React
+- ❌ 在 barrel 使用 `export *`
+
+## 文件網絡
+
+- [README.md](README.md) — 蒸餾狀態與目錄結構
+- [src/modules/README.md](../README.md) — 蒸餾層總覽
+- [modules/analytics/](../../../modules/analytics/) — 完整 HEX+DDD 實作層（邊界規則權威）
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
 ````
 
