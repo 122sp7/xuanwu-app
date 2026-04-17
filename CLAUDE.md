@@ -25,7 +25,6 @@ src/modules/              主域模組實作層（Hexagonal DDD）
         application/
         adapters/inbound/
         adapters/outbound/
-        api/
     adapters/
     shared/
     orchestration/
@@ -49,7 +48,6 @@ src/modules/<context>/
       application/
       adapters/inbound/
       adapters/outbound/
-      api/
   adapters/
   shared/
   orchestration/
@@ -82,7 +80,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 - `domain/` must be framework-free and runtime-agnostic.
 - Never import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-- Cross-module collaboration must go through `src/modules/<target>/api/` only.
+- Cross-module collaboration must go through `src/modules/<target>/index.ts` only.
 
 ### Main Domain Relationships (upstream → downstream)
 
@@ -103,7 +101,7 @@ platform is governance upstream. Do not invert this.
 | `application/` | Use-case orchestration, command/query contracts |
 | `infrastructure/` | Repository and adapter implementations |
 | `interfaces/` | UI, route/action wiring, input-output translation |
-| `api/` | Cross-module entry surface only |
+| `index.ts` | Cross-module entry surface (public API barrel) |
 
 ### Development Order for New Features
 

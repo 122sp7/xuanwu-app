@@ -4,12 +4,12 @@ description: Xuanwu Copilot Workspace Instructions
 name: Xuanwu Copilot Workspace Instructions
 ---
 
+#use skill xuanwu-skill
+#use skill context7
 #use skill serena-mcp
+#use skill occams-razor
 #use skill alistair-cockburn
 #use skill hexagonal-ddd
-#use skill occams-razor
-#use skill context7
-#use skill xuanwu-skill
 
 # Xuanwu Copilot Workspace Instructions
 
