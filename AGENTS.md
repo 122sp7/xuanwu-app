@@ -111,11 +111,11 @@ Firebase Storage
 
 ## Governance Rules
 
-1. **platform is the unique infra gateway** — all Firebase, Genkit, external AI routing flows through platform adapters.
+1. **Each module owns its domain adapters** — iam, billing, ai, platform, workspace, notion, notebooklm each maintain their own Firestore/infrastructure adapters for domain-local data. Cross-domain operations go through published language or platform Service APIs.
 2. **notion、notebooklm use Infrastructure APIs for local concerns only** — persistence, embedding, synthesis.
 3. **workspace never touches Infrastructure APIs** — always goes through Platform Service APIs.
 4. **All cross-domain behavior routes through Platform Service APIs** — auth, permission, entitlement, file ownership, AI safety.
-5. **Published Language is upstream boundary** — concepts like `Actor`, `Tenant`, `Entitlement`, `fileId` are defined in platform ubiquitous language; downstream contexts translate as needed.
+5. **Published Language is upstream boundary** — `Actor`, `Tenant` are owned by `iam`; `Entitlement` is owned by `billing`; `fileId` is a platform file lifecycle token. Each downstream context translates via ACL or Conformist.
 
 ---
 
@@ -218,10 +218,10 @@ workspace ↓ notion ↓ notebooklm
 - ❌ domain/ NEVER depends on other modules (even platform)
 - ✅ All external deps injected via ports/adapters
 
-### Rule 28: Platform Cannot Depend on Downstream
-- ✅ platform → workspace | notion | notebooklm (one direction only)
-- ❌ platform NEVER imports from workspace, notion, notebooklm
-- ✅ If platform needs semantic data from notion/notebooklm: notion/notebooklm emit event to platform
+### Rule 28: Upstream Contexts Cannot Depend on Their Downstreams
+- ✅ iam / billing / ai / platform each keep one-way dependency direction toward their downstream consumers
+- ❌ Upstream contexts NEVER import downstream domain internals directly
+- ✅ If an upstream context needs semantic data from a downstream: the downstream emits an event or exposes a public API for the upstream to consume
 
 ## Anti-Patterns (Will Require Refactors)
 
