@@ -6,14 +6,36 @@
 
 ## Route Here（放這裡）
 
+### 🧱 infra/* — 基礎設施原語層
+
 | 類型 | 正確套件 |
 |---|---|
-| Firebase SDK 封裝 | `integration-firebase/` |
-| AI SDK（Genkit / Google AI）封裝 | `integration-ai/` |
-| HTTP 用戶端封裝 | `integration-http/` |
-| tRPC 客戶端設定 | `integration-trpc/` |
-| 官方 shadcn/ui 新增組件（`npx shadcn add`）| `ui-shadcn/ui/` |
-| **自訂 UI 組件（wrap 官方 / 設計擴充）** | **`ui-shadcn/ui-custom/`（唯一允許位置）** |
+| client-side 狀態原語（非業務） | `infra/client-state/` → `@infra/client-state` |
+| 日期解析、格式化、時區工具 | `infra/date/` → `@infra/date` |
+| Genkit 基礎設施原語 | `infra/genkit/` → `@infra/genkit` |
+| HTTP 工具（fetch wrapper、retry） | `infra/http/` → `@infra/http` |
+| 序列化 / 反序列化工具 | `infra/serialization/` → `@infra/serialization` |
+| UUID 生成（domain 層 id 的唯一來源） | `infra/uuid/` → `@infra/uuid` |
+| Zod 共用 schema 片段、brand helper | `infra/zod/` → `@infra/zod` |
+
+### 🔌 integration-* — 外部服務整合層
+
+| 類型 | 正確套件 |
+|---|---|
+| 通用資料層整合（Firestore 以外） | `integration-data/` → `@integration-data` |
+| Firebase App / Auth / Firestore / Storage | `integration-firebase/` → `@integration-firebase` |
+| 跨模組狀態整合（Zustand factory、XState helpers） | `integration-state/` → `@integration-state` |
+| tRPC 客戶端設定與 Provider | `integration-trpc/` → `@integration-trpc` |
+
+### 🎨 ui-* — UI 元件層
+
+| 類型 | 正確套件 |
+|---|---|
+| 業務無關自訂 UI 元件（wrap、design-system 擴充） | `ui-components/` → `@ui-components` |
+| 富文本編輯器（TipTap 封裝） | `ui-editor/` → `@ui-editor` |
+| Markdown 渲染元件 | `ui-markdown/` → `@ui-markdown` |
+| 官方 shadcn/ui 組件（`npx shadcn add`） | `ui-shadcn/` → `@ui-shadcn`（CLI 管理，禁止手動修改） |
+| 數據視覺化元件（圖表、圖形） | `ui-visualization/` → `@ui-visualization` |
 
 ## Route Elsewhere（不放這裡）
 
@@ -52,8 +74,24 @@ import { getFirestore } from 'firebase/firestore'
 
 進入任何套件子目錄前，先讀該目錄的 `AGENTS.md`：
 
+**infra/***
+- [infra/client-state/AGENTS.md](./infra/client-state/AGENTS.md)
+- [infra/date/AGENTS.md](./infra/date/AGENTS.md)
+- [infra/genkit/AGENTS.md](./infra/genkit/AGENTS.md)
+- [infra/http/AGENTS.md](./infra/http/AGENTS.md)
+- [infra/serialization/AGENTS.md](./infra/serialization/AGENTS.md)
+- [infra/uuid/AGENTS.md](./infra/uuid/AGENTS.md)
+- [infra/zod/AGENTS.md](./infra/zod/AGENTS.md)
+
+**integration-***
+- [integration-data/AGENTS.md](./integration-data/AGENTS.md)
 - [integration-firebase/AGENTS.md](./integration-firebase/AGENTS.md)
-- [integration-ai/AGENTS.md](./integration-ai/AGENTS.md)
-- [integration-http/AGENTS.md](./integration-http/AGENTS.md)
+- [integration-state/AGENTS.md](./integration-state/AGENTS.md)
 - [integration-trpc/AGENTS.md](./integration-trpc/AGENTS.md)
+
+**ui-***
+- [ui-components/AGENTS.md](./ui-components/AGENTS.md)
+- [ui-editor/AGENTS.md](./ui-editor/AGENTS.md)
+- [ui-markdown/AGENTS.md](./ui-markdown/AGENTS.md)
 - [ui-shadcn/AGENTS.md](./ui-shadcn/AGENTS.md)
+- [ui-visualization/AGENTS.md](./ui-visualization/AGENTS.md)
