@@ -3,7 +3,7 @@ name: context7
 description: >
   Auto-load verification skill for library/framework API accuracy. Use when confidence is below 99.99% on API signatures,
   version behavior, or config schema details. Resolve library ID and fetch official docs before answering.
-user-invocable: false
+user-invocable: true
 disable-model-invocation: false
 ---
 
