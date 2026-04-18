@@ -91,10 +91,10 @@ Repo 根目錄的三個運行時層：
 | 目錄 | 角色 |
 |---|---|
 | `src/` | Next.js App Router + 所有主域模組實作（`src/app/`、`src/modules/`） |
-| `packages/` | 共用套件（`integration-firebase`、`ui-shadcn` 等），以 alias 形式被 `src/modules/` 引用 |
+| `packages/` | 共用套件（`infra/*`、`integration-*`、`ui-*`），以 alias 形式被 `src/modules/` 引用 |
 | `py_fn/` | Python Cloud Functions：ingestion、parse、chunk、embed、background worker |
 
-- `packages/` 以 `@integration-*`、`@ui-*`、`@lib-*` 等 alias 被 TypeScript 引用。
+- `packages/` 以 `@infra/*`、`@integration-*`、`@ui-*` alias 被 TypeScript 引用。
 - `py_fn/` 與 Next.js 的互動只透過 QStash 訊息、Firestore trigger 或事件契約；不共用程式碼。
 
 ### 路由規則

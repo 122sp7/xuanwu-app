@@ -31,7 +31,7 @@
 - 業務邏輯 → `src/modules/<context>/application/use-cases/`。
 - Server Action → `modules/<context>/interfaces/_actions/`。
 - 共享 UI 元件 → `packages/ui-shadcn/`。
-- 共享 hook → `packages/shared-hooks/`。
+- 共享 hook → `packages/ui-components/`（業務無關）或模組本地 `adapters/inbound/react/hooks/`。
 
 ## Delivery Style
 
