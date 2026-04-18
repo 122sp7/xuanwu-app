@@ -4,7 +4,8 @@ export type TaskStatus =
   | "qa"
   | "acceptance"
   | "accepted"
-  | "archived";
+  | "archived"
+  | "cancelled";
 
 export const TASK_STATUSES = [
   "draft",
@@ -13,6 +14,7 @@ export const TASK_STATUSES = [
   "acceptance",
   "accepted",
   "archived",
+  "cancelled",
 ] as const satisfies readonly TaskStatus[];
 
 const TASK_NEXT: Readonly<Record<TaskStatus, TaskStatus | null>> = {
@@ -22,6 +24,7 @@ const TASK_NEXT: Readonly<Record<TaskStatus, TaskStatus | null>> = {
   acceptance: "accepted",
   accepted: "archived",
   archived: null,
+  cancelled: null,
 };
 
 export function canTransitionTaskStatus(from: TaskStatus, to: TaskStatus): boolean {

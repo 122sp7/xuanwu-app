@@ -26,6 +26,22 @@ import {
   type WorkspaceTabValue,
 } from "./workspace-nav-model";
 
+// Cross-module: notion section components (via adapters/inbound/react boundary)
+import {
+  NotionKnowledgeSection,
+  NotionPagesSection,
+  NotionDatabaseSection,
+  NotionTemplatesSection,
+} from "@/src/modules/notion/adapters/inbound/react";
+
+// Cross-module: notebooklm section components (via adapters/inbound/react boundary)
+import {
+  NotebooklmNotebookSection,
+  NotebooklmAiChatSection,
+  NotebooklmSourcesSection,
+  NotebooklmResearchSection,
+} from "@/src/modules/notebooklm/adapters/inbound/react";
+
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 function getLifecycleBadgeVariant(lifecycleState: WorkspaceEntity["lifecycleState"]) {
@@ -45,6 +61,7 @@ interface WorkspaceDetailRouteScreenProps {
   workspaceId: string;
   accountId: string;
   accountsHydrated: boolean;
+  currentUserId?: string;
   initialTab?: string;
   initialOverviewPanel?: string;
 }
@@ -53,6 +70,7 @@ export function WorkspaceDetailRouteScreen({
   workspaceId,
   accountId,
   accountsHydrated,
+  currentUserId,
   initialTab,
   initialOverviewPanel,
 }: WorkspaceDetailRouteScreenProps): React.ReactElement {
@@ -131,6 +149,7 @@ export function WorkspaceDetailRouteScreen({
       </nav>
 
       <section className="rounded-xl border border-border/40 bg-card/30 p-4">
+        {/* ── workspace group ── */}
         {activeTab === "Overview" && (
           <div className="space-y-3">
             <p className="text-sm text-foreground">Workspace Overview</p>
@@ -159,7 +178,43 @@ export function WorkspaceDetailRouteScreen({
             )}
           </div>
         )}
-        {activeTab !== "Overview" && (
+
+        {/* ── notion group ── */}
+        {activeTab === "Knowledge" && (
+          <NotionKnowledgeSection workspaceId={workspaceId} accountId={accountId} />
+        )}
+        {activeTab === "Pages" && (
+          <NotionPagesSection
+            workspaceId={workspaceId}
+            accountId={accountId}
+            currentUserId={currentUserId ?? ""}
+          />
+        )}
+        {activeTab === "Database" && (
+          <NotionDatabaseSection workspaceId={workspaceId} accountId={accountId} />
+        )}
+        {activeTab === "Templates" && (
+          <NotionTemplatesSection workspaceId={workspaceId} accountId={accountId} />
+        )}
+
+        {/* ── notebooklm group ── */}
+        {activeTab === "Notebook" && (
+          <NotebooklmNotebookSection workspaceId={workspaceId} accountId={accountId} />
+        )}
+        {activeTab === "AiChat" && (
+          <NotebooklmAiChatSection workspaceId={workspaceId} accountId={accountId} />
+        )}
+        {activeTab === "Sources" && (
+          <NotebooklmSourcesSection workspaceId={workspaceId} accountId={accountId} />
+        )}
+        {activeTab === "Research" && (
+          <NotebooklmResearchSection workspaceId={workspaceId} accountId={accountId} />
+        )}
+
+        {/* ── workspace group — work execution tabs ── */}
+        {activeTab !== "Overview" &&
+          !["Knowledge", "Pages", "Database", "Templates",
+            "Notebook", "AiChat", "Sources", "Research"].includes(activeTab) && (
           <p className="text-sm text-muted-foreground">
             {WORKSPACE_TAB_ITEMS.find((tab) => tab.value === activeTab)?.label ?? activeTab}{" "}
             分頁內容仍在整合中，已恢復 tab 導航與 URL 狀態。
