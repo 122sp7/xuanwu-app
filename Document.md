@@ -69,12 +69,16 @@
   skills/
   workflows/
   copilot-instructions.md
+  AGENT.md
+  README.md
 
 docs/
   structure/
   decisions/
   examples/
   tooling/
+  AGENT.md
+  README.md
 
 # 命名規則（核心標準）
 
